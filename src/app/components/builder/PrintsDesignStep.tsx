@@ -23,7 +23,6 @@ import {
   AlignRight,
   AlignJustify,
   Italic,
-  Palette,
   Check,
   GripVertical,
 } from 'lucide-react';
@@ -36,7 +35,8 @@ import {
   type SnapDragOptions,
 } from '../../lib/designSnapGuides';
 import { reorderDesignElements } from '../../lib/designLayerOrder';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { StudioColorField } from './StudioColorField';
+import { STUDIO_TEXT_MAIN_COLORS, STUDIO_TEXT_POPULAR_COLORS } from '../../data/studioColorPresets';
 
 export interface DesignElement {
   id: string;
@@ -169,303 +169,6 @@ function zoneScaleFactor(zone: HTMLElement): number {
   const zw = zone.offsetWidth;
   if (zw <= 0) return 1;
   return zr.width / zw;
-}
-
-function hslToHex(h: number, s: number, l: number): string {
-  const S = s / 100;
-  const L = l / 100;
-  const C = (1 - Math.abs(2 * L - 1)) * S;
-  const hn = ((h % 360) + 360) % 360;
-  const Hp = hn / 60;
-  const X = C * (1 - Math.abs((Hp % 2) - 1));
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  if (Hp >= 0 && Hp < 1) {
-    r = C;
-    g = X;
-  } else if (Hp < 2) {
-    r = X;
-    g = C;
-  } else if (Hp < 3) {
-    g = C;
-    b = X;
-  } else if (Hp < 4) {
-    g = X;
-    b = C;
-  } else if (Hp < 5) {
-    r = X;
-    b = C;
-  } else {
-    r = C;
-    b = X;
-  }
-  const m = L - C / 2;
-  const R = Math.round(Math.min(255, Math.max(0, (r + m) * 255)));
-  const G = Math.round(Math.min(255, Math.max(0, (g + m) * 255)));
-  const B = Math.round(Math.min(255, Math.max(0, (b + m) * 255)));
-  return `#${R.toString(16).padStart(2, '0')}${G.toString(16).padStart(2, '0')}${B.toString(16).padStart(2, '0')}`.toUpperCase();
-}
-
-function buildPrintTextColourSwatches(): string[] {
-  const set = new Set<string>();
-  for (let i = 0; i <= 32; i++) {
-    const v = Math.round((i / 32) * 255);
-    const x = v.toString(16).padStart(2, '0');
-    set.add(`#${x}${x}${x}`);
-  }
-  for (let h = 0; h < 360; h += 12) {
-    for (const s of [38, 58, 78, 95, 100]) {
-      for (const l of [26, 40, 52, 64, 76, 86]) {
-        set.add(hslToHex(h, s, l));
-      }
-    }
-  }
-  return Array.from(set);
-}
-
-const PRINT_TEXT_COLOUR_SWATCHES = buildPrintTextColourSwatches();
-
-function normalizeHex6(input: string | undefined, fallback = '#FFFFFF'): string {
-  let h = (input ?? fallback).trim();
-  if (!h.startsWith('#')) h = `#${h}`;
-  if (/^#[0-9A-Fa-f]{3}$/i.test(h)) {
-    const a = h.slice(1);
-    h = `#${a[0]}${a[0]}${a[1]}${a[1]}${a[2]}${a[2]}`;
-  }
-  if (/^#[0-9A-Fa-f]{6}$/i.test(h)) return h.toUpperCase();
-  return fallback.toUpperCase();
-}
-
-function clamp255(n: number) {
-  return Math.max(0, Math.min(255, Math.round(n)));
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = normalizeHex6(hex).slice(1);
-  return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16),
-  };
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  return `#${[r, g, b]
-    .map((x) => clamp255(x).toString(16).padStart(2, '0'))
-    .join('')}`.toUpperCase();
-}
-
-function rgbToHsv(r: number, g: number, b: number): { h: number; s: number; v: number } {
-  const rn = r / 255;
-  const gn = g / 255;
-  const bn = b / 255;
-  const max = Math.max(rn, gn, bn);
-  const min = Math.min(rn, gn, bn);
-  const d = max - min;
-  const v = max;
-  const s = max <= 1e-9 ? 0 : d / max;
-  let h = 0;
-  if (d > 1e-9) {
-    if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
-    else if (max === gn) h = ((bn - rn) / d + 2) * 60;
-    else h = ((rn - gn) / d + 4) * 60;
-  }
-  return { h: ((h % 360) + 360) % 360, s, v };
-}
-
-function hsvToRgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
-  const hh = ((h % 360) + 360) % 360;
-  const c = v * s;
-  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1));
-  const m = v - c;
-  let r1 = 0;
-  let g1 = 0;
-  let b1 = 0;
-  if (hh < 60) {
-    r1 = c;
-    g1 = x;
-  } else if (hh < 120) {
-    r1 = x;
-    g1 = c;
-  } else if (hh < 180) {
-    g1 = c;
-    b1 = x;
-  } else if (hh < 240) {
-    g1 = x;
-    b1 = c;
-  } else if (hh < 300) {
-    r1 = x;
-    b1 = c;
-  } else {
-    r1 = c;
-    b1 = x;
-  }
-  return {
-    r: clamp255((r1 + m) * 255),
-    g: clamp255((g1 + m) * 255),
-    b: clamp255((b1 + m) * 255),
-  };
-}
-
-function PrintTextColourPopover({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (hex: string) => void;
-}) {
-  const hex = normalizeHex6(value);
-  const [open, setOpen] = useState(false);
-  const [hsv, setHsv] = useState(() => {
-    const { r, g, b } = hexToRgb(hex);
-    return rgbToHsv(r, g, b);
-  });
-  const svRef = useRef<HTMLDivElement>(null);
-  const dragSv = useRef(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const { r, g, b } = hexToRgb(normalizeHex6(value));
-    setHsv(rgbToHsv(r, g, b));
-  }, [open, value]);
-
-  const commitHsv = (next: { h?: number; s?: number; v?: number }) => {
-    const n = { ...hsv, ...next };
-    setHsv(n);
-    const rgb = hsvToRgb(n.h, n.s, n.v);
-    onChange(rgbToHex(rgb.r, rgb.g, rgb.b));
-  };
-
-  const pickSv = (clientX: number, clientY: number) => {
-    const el = svRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    if (r.width <= 0 || r.height <= 0) return;
-    const sx = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-    const sy = Math.max(0, Math.min(1, (clientY - r.top) / r.height));
-    commitHsv({ s: sx, v: 1 - sy });
-  };
-
-  const hue = hsv.h;
-  const rgb = hexToRgb(hex);
-
-  const commitRgb = (r: number, g: number, b: number) => {
-    onChange(rgbToHex(r, g, b));
-  };
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="relative h-10 w-14 shrink-0 overflow-hidden rounded-xl border border-white/18 bg-black/40 shadow-inner transition hover:border-white/38"
-          aria-label="Open text colour picker"
-        >
-          <span className="absolute inset-0" style={{ backgroundColor: hex }} aria-hidden />
-          <Palette
-            className="absolute bottom-1 right-1 h-4 w-4 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
-            strokeWidth={2}
-            aria-hidden
-          />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={8}
-        className="w-[min(calc(100vw-2rem),260px)] border border-white/12 bg-[#121212] p-3 text-white shadow-xl"
-      >
-        <div className="relative touch-none">
-          <div
-            ref={svRef}
-            role="presentation"
-            className="relative h-36 w-full cursor-crosshair overflow-hidden rounded-lg border border-white/10"
-            style={{
-              background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, rgba(255,255,255,0)), hsl(${Math.round(hue)}, 100%, 50%)`,
-            }}
-            onPointerDown={(e) => {
-              dragSv.current = true;
-              e.currentTarget.setPointerCapture(e.pointerId);
-              pickSv(e.clientX, e.clientY);
-            }}
-            onPointerMove={(e) => {
-              if (!dragSv.current) return;
-              pickSv(e.clientX, e.clientY);
-            }}
-            onPointerUp={(e) => {
-              dragSv.current = false;
-              try {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-              } catch {
-                /* released */
-              }
-            }}
-            onPointerCancel={() => {
-              dragSv.current = false;
-            }}
-          />
-          <div
-            className="pointer-events-none absolute h-3 w-3 rounded-full border-2 border-white shadow-md"
-            style={{
-              left: `${hsv.s * 100}%`,
-              top: `${(1 - hsv.v) * 100}%`,
-              transform: 'translate(-50%, -50%)',
-            }}
-          />
-        </div>
-        <div className="mt-3">
-          <input
-            type="range"
-            min={0}
-            max={360}
-            step={1}
-            value={Math.round(hue)}
-            onChange={(e) => commitHsv({ h: Number(e.target.value) })}
-            className="h-2.5 w-full cursor-pointer appearance-none rounded-full accent-[#CC2D24]"
-            style={{
-              background:
-                'linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%)',
-            }}
-            aria-label="Hue"
-          />
-        </div>
-        <div className="mt-3">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-white/45">RGB</span>
-            <span className="font-mono text-[10px] text-white/55">{hex}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {(
-              [
-                ['R', 'r', rgb.r] as const,
-                ['G', 'g', rgb.g] as const,
-                ['B', 'b', rgb.b] as const,
-              ]
-            ).map(([label, key, channel]) => (
-              <div key={key}>
-                <label className="mb-1 block text-center text-[9px] font-medium text-white/40">{label}</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={255}
-                  value={channel}
-                  onChange={(e) => {
-                    const n = Math.max(0, Math.min(255, Math.round(Number(e.target.value) || 0)));
-                    const next = { ...rgb, [key]: n };
-                    commitRgb(next.r, next.g, next.b);
-                  }}
-                  className="h-8 w-full rounded-lg border border-white/12 bg-black/50 px-1 text-center font-mono text-[11px] tabular-nums text-white outline-none focus:border-[#CC2D24]/80 focus:ring-1 focus:ring-[#CC2D24]/35"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-        <p className="mt-2 text-[10px] leading-snug text-white/40">
-          Drag the square for saturation and brightness, use the strip for hue, or type RGB values.
-        </p>
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w';
@@ -1172,48 +875,12 @@ export function PrintsDesignStep({
                   <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                     Text colour
                   </Label>
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <PrintTextColourPopover
-                      value={selected.color ?? '#FFFFFF'}
-                      onChange={(h) => updateSelected({ color: h })}
-                    />
-                    <Input
-                      key={`hex-${selectedId}-${normalizeHex6(selected.color)}`}
-                      type="text"
-                      defaultValue={normalizeHex6(selected.color)}
-                      onBlur={(e) => updateSelected({ color: normalizeHex6(e.target.value) })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          updateSelected({
-                            color: normalizeHex6((e.target as HTMLInputElement).value),
-                          });
-                          (e.target as HTMLInputElement).blur();
-                        }
-                      }}
-                      placeholder="#FFFFFF"
-                      spellCheck={false}
-                      className="h-10 min-w-0 flex-1 border-white/12 bg-black/35 font-mono text-[11px] text-white placeholder:text-white/28"
-                      aria-label="Hex colour"
-                    />
-                  </div>
-                  <div className="flex max-h-[min(52vh,420px)] flex-wrap gap-1.5 overflow-y-auto pr-0.5 [-webkit-overflow-scrolling:touch]">
-                    {PRINT_TEXT_COLOUR_SWATCHES.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => updateSelected({ color })}
-                        className={cn(
-                          'h-7 w-7 shrink-0 rounded-md border transition-all',
-                          normalizeHex6(selected.color) === color
-                            ? 'border-[#FF3B30] ring-2 ring-[#FF3B30]/40'
-                            : 'border-white/15 hover:border-white/35',
-                        )}
-                        style={{ backgroundColor: color }}
-                        aria-label={`Colour ${color}`}
-                      />
-                    ))}
-                  </div>
+                  <StudioColorField
+                    value={selected.color ?? '#FFFFFF'}
+                    onChange={(h) => updateSelected({ color: h })}
+                    mainColors={STUDIO_TEXT_MAIN_COLORS}
+                    popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                  />
                 </div>
               </>
             )}
@@ -1280,23 +947,12 @@ export function PrintsDesignStep({
               />
               <div className="mt-3">
                 <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">Colour</span>
-                <div className="flex max-h-[min(36vh,360px)] flex-wrap gap-1.5 overflow-y-auto pr-0.5 [-webkit-overflow-scrolling:touch]">
-                  {PRINT_TEXT_COLOUR_SWATCHES.map((color) => (
-                    <button
-                      key={`outline-${color}`}
-                      type="button"
-                      onClick={() => updateSelected({ borderColor: color })}
-                      className={cn(
-                        'h-7 w-7 shrink-0 rounded-md border transition-all',
-                        normalizeHex6(selected.borderColor ?? '#FFFFFF') === color
-                          ? 'border-[#FF3B30] ring-2 ring-[#FF3B30]/40'
-                          : 'border-white/15 hover:border-white/35',
-                      )}
-                      style={{ backgroundColor: color }}
-                      aria-label={`Outline colour ${color}`}
-                    />
-                  ))}
-                </div>
+                <StudioColorField
+                  value={selected.borderColor ?? '#FFFFFF'}
+                  onChange={(h) => updateSelected({ borderColor: h })}
+                  mainColors={STUDIO_TEXT_MAIN_COLORS}
+                  popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                />
               </div>
             </div>
 

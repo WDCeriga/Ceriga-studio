@@ -24,8 +24,14 @@ import {
 } from 'lucide-react';
 import type { DesignElement } from './PrintsDesignStep';
 import { PrintPanel, PrintTransformOverlay, type PrintManip, type ResizeHandle } from './PrintsDesignStep';
-import { ColorPairGrid } from './ColorPairGrid';
+import { StudioColorField } from './StudioColorField';
 import { cn } from '../ui/utils';
+import {
+  STUDIO_MAIN_COLORS,
+  STUDIO_POPULAR_COLORS,
+  STUDIO_TEXT_MAIN_COLORS,
+  STUDIO_TEXT_POPULAR_COLORS,
+} from '../../data/studioColorPresets';
 import {
   snapDragInZone,
   measureHalfExtentsInZone,
@@ -53,29 +59,6 @@ interface LabelsPackagingStepProps {
 }
 
 const FONT_OPTIONS = ['Inter', 'Arial', 'Helvetica', 'Montserrat', 'Poppins', 'Georgia'];
-
-/** Limited palette for label / packaging surface preview. */
-const PREVIEW_SURFACE_COLORS = [
-  '#FFFFFF',
-  '#F5F5F5',
-  '#9CA3AF',
-  '#4B5563',
-  '#111111',
-  '#CC2D24',
-  '#3B82F6',
-] as const;
-
-const TEXT_FILL_COLORS = [
-  '#111111',
-  '#4B5563',
-  '#6B7280',
-  '#9CA3AF',
-  '#FFFFFF',
-  '#CC2D24',
-  '#3B82F6',
-  '#10B981',
-  '#F59E0B',
-] as const;
 
 const sectionLabelClass =
   'mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]';
@@ -387,16 +370,15 @@ export function LabelsPackagingStep({
                   : 'Packaging colour'
                 : 'Preview base colour'}
             </Label>
-            <ColorPairGrid
-              colors={[...PREVIEW_SURFACE_COLORS]}
-              selected={
+            <StudioColorField
+              value={
                 surfaceColorControlled
                   ? previewBaseColor
                   : subStep === 'label'
                     ? labelColor
                     : packagingColor
               }
-              onSelect={(color) => {
+              onChange={(color) => {
                 if (surfaceColorControlled) {
                   onPreviewBaseColorChange(color);
                 } else if (subStep === 'label') {
@@ -405,7 +387,8 @@ export function LabelsPackagingStep({
                   setPackagingColor(color);
                 }
               }}
-              sizeClass="h-9 w-9 rounded-lg"
+              mainColors={STUDIO_MAIN_COLORS}
+              popularColors={STUDIO_POPULAR_COLORS}
             />
           </div>
 
@@ -587,11 +570,13 @@ export function LabelsPackagingStep({
                   </div>
                   <div>
                     <Label className={sectionLabelClass}>Text colour</Label>
-                    <ColorPairGrid
-                      colors={[...TEXT_FILL_COLORS]}
-                      selected={selected.color ?? '#111111'}
-                      onSelect={(c) => updateSelected({ color: c })}
-                      sizeClass="h-9 w-9 rounded-lg"
+                    <StudioColorField
+                      value={selected.color ?? '#111111'}
+                      onChange={(c) => updateSelected({ color: c })}
+                      mainColors={STUDIO_TEXT_MAIN_COLORS}
+                      popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                      mainLabel="Main colours"
+                      popularLabel="Popular"
                     />
                   </div>
                 </>

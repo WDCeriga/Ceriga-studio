@@ -1,5 +1,4 @@
 import {
-  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -39,7 +38,7 @@ import {
   TECHPACK_SPEC_FLOW_ORDER,
   type BuilderStep,
   cuffOptions,
-  FABRIC_COLOR_FAMILIES,
+  fabricColors,
   ORDER_SIZE_KEYS,
   fadingOptions,
   hemOptions,
@@ -52,6 +51,8 @@ import {
   type GarmentType,
   type OrderSizeKey,
 } from '../data/builderSteps';
+import { STUDIO_MAIN_COLORS, STUDIO_POPULAR_COLORS } from '../data/studioColorPresets';
+import { normalizeHex6 } from '../lib/colorUtils';
 import {
   Panel,
   PanelGroup,
@@ -63,6 +64,7 @@ import imgBlueTshirt from 'figma:asset/f00825900c95df312eb3b002c75207b61c243d55.
 
 import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
 import { TrimColorFamilyPicker } from '../components/builder/TrimColorFamilyPicker';
+import { StudioColorField } from '../components/builder/StudioColorField';
 import {
   DEFAULT_PRINT_METHOD,
   PRINT_METHOD_DESCRIPTIONS,
@@ -225,8 +227,6 @@ export function Builder() {
   const techpackFlowInitRef = useRef(false);
   const product = productId ? getProductById(productId) : null;
 
-  const [expandedColorFamily, setExpandedColorFamily] = useState<number | null>(null);
-  const fabricColorPickerRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState(() => (isTechpackSpecUrl() ? 9 : 1));
   const [visitedSteps, setVisitedSteps] = useState<number[]>(() =>
     isTechpackSpecUrl() ? [9] : [1],
@@ -467,18 +467,6 @@ export function Builder() {
     });
     return () => cancelAnimationFrame(id);
   }, [currentStep]);
-
-  useEffect(() => {
-    if (expandedColorFamily === null) return;
-    const collapseIfOutside = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (fabricColorPickerRef.current?.contains(t)) return;
-      if (editorScrollRef.current && !editorScrollRef.current.contains(t)) return;
-      setExpandedColorFamily(null);
-    };
-    document.addEventListener('pointerdown', collapseIfOutside, true);
-    return () => document.removeEventListener('pointerdown', collapseIfOutside, true);
-  }, [expandedColorFamily]);
 
   const [networkOnline, setNetworkOnline] = useState(
     () => typeof navigator !== 'undefined' && navigator.onLine,
@@ -1037,19 +1025,6 @@ export function Builder() {
   };
 
   const renderStepContent = () => {
-    /** Single fabric colour only — pick a swatch to replace; tap again to clear. */
-    const toggleColor = (hex: string, pantone: string) => {
-      setState((prev) => {
-        const current = prev.colors[0];
-        if (current?.hex === hex) {
-          return { ...prev, colors: [] };
-        }
-        return { ...prev, colors: [{ hex, pantone }] };
-      });
-    };
-
-    const isColorSelected = (hex: string) => state.colors[0]?.hex === hex;
-
     switch (currentStep) {
       case 1:
         return (
@@ -1106,7 +1081,13 @@ export function Builder() {
           </div>
         );
 
-      case 2:
+      case 2: {
+        const applyFabricHex = (hex: string) => {
+          const n = normalizeHex6(hex);
+          const match = fabricColors.find((c) => normalizeHex6(c.hex) === n);
+          setState((prev) => ({ ...prev, colors: [{ hex: n, pantone: match?.pantone ?? '' }] }));
+        };
+
         return (
           <div className="space-y-4">
             <div>
@@ -1135,94 +1116,20 @@ export function Builder() {
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                 Colour Selection
               </Label>
-              <div ref={fabricColorPickerRef} className="grid grid-cols-2 gap-2">
-                {FABRIC_COLOR_FAMILIES.map((family, familyIndex) => (
-                  <Fragment key={family.name}>
-                    {expandedColorFamily !== null &&
-                    expandedColorFamily % 2 === 1 &&
-                    familyIndex === expandedColorFamily ? (
-                      <div
-                        role="presentation"
-                        className="min-h-[2.35rem] w-full touch-manipulation"
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          setExpandedColorFamily(null);
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className={cn(expandedColorFamily === familyIndex && 'col-span-2')}
-                    >
-                    {expandedColorFamily === familyIndex ? (
-                      <div>
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-white/50">
-                            {family.name}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setExpandedColorFamily(null)}
-                            className="rounded px-1.5 py-0.5 text-[9px] text-white/40 hover:bg-white/5 hover:text-white/60"
-                          >
-                            Collapse
-                          </button>
-                        </div>
-                        <div className="-mx-0.5 flex gap-2 overflow-x-auto px-0.5 pb-0.5 [-webkit-overflow-scrolling:touch]">
-                          {family.colors.map((color) => (
-                            <button
-                              key={color.hex}
-                              type="button"
-                              onClick={() => toggleColor(color.hex, color.pantone)}
-                              className={`relative h-11 w-11 shrink-0 rounded-xl border transition-all ${
-                                isColorSelected(color.hex)
-                                  ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
-                                  : 'border-white/20 hover:border-white/40'
-                              }`}
-                              style={{ backgroundColor: color.hex }}
-                              title={color.name}
-                            >
-                              {isColorSelected(color.hex) && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="h-1.5 w-1.5 rounded-full bg-white shadow-lg" />
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setExpandedColorFamily(familyIndex)}
-                        className="flex min-h-[2.35rem] w-full items-center gap-1.5 rounded border border-white/10 bg-white/5 px-1.5 py-1 transition-all hover:bg-white/10"
-                      >
-                        <div
-                          className="h-5 w-5 flex-shrink-0 rounded border border-white/20"
-                          style={{ backgroundColor: family.baseColor.hex }}
-                        />
-                        <span className="min-w-0 flex-1 truncate text-left text-[9px] text-white/60">{family.name}</span>
-                        <span className="shrink-0 text-[8px] text-white/30">Expand</span>
-                      </button>
-                    )}
-                    </div>
-                  </Fragment>
-                ))}
-              </div>
-
-              {state.colors[0] && (
-                <div className="mt-2 rounded border border-white/10 bg-white/5 p-2">
-                  <div className="mb-1 text-[9px] uppercase tracking-wider text-white/40">
-                    Selected colour
-                  </div>
-                  <div
-                    className="h-8 w-8 shrink-0 rounded-xl border border-white/20"
-                    style={{ backgroundColor: state.colors[0].hex }}
-                    title={`${state.colors[0].hex}${
-                      state.colors[0].pantone ? ` (${state.colors[0].pantone})` : ''
-                    }`}
-                  />
-                </div>
-              )}
+              <StudioColorField
+                value={state.colors[0]?.hex ?? '#FFFFFF'}
+                onChange={applyFabricHex}
+                mainColors={STUDIO_MAIN_COLORS}
+                popularColors={STUDIO_POPULAR_COLORS}
+                onClear={() => setState((prev) => ({ ...prev, colors: [] }))}
+                clearVisible={!!state.colors[0]}
+                clearLabel="Clear fabric colour"
+              />
+              {state.colors[0]?.pantone ? (
+                <p className="mt-1 text-[10px] text-white/45">
+                  Pantone reference: {state.colors[0].pantone}
+                </p>
+              ) : null}
             </div>
             ) : (
               <p className="text-[11px] leading-relaxed text-white/42">
@@ -1262,6 +1169,7 @@ export function Builder() {
             </div>
           </div>
         );
+      }
 
       case 3:
         if (shouldSkipStep(3)) return <EmptyStep text="No neck step for this garment type" />;
@@ -1287,7 +1195,6 @@ export function Builder() {
                 value={state.neckTrimColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, neckTrimColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, neckTrimColor: undefined }))}
-                collapseBoundsRef={editorScrollRef}
               />
             ) : null}
           </div>
@@ -1319,7 +1226,6 @@ export function Builder() {
                 value={state.sleeveTrimColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
-                collapseBoundsRef={editorScrollRef}
               />
             ) : null}
             <div>
@@ -1402,7 +1308,6 @@ export function Builder() {
                 value={state.pocketTrimColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, pocketTrimColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, pocketTrimColor: undefined }))}
-                collapseBoundsRef={editorScrollRef}
               />
             ) : null}
             <div>
@@ -1469,7 +1374,6 @@ export function Builder() {
                 value={state.stitchingColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, stitchingColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, stitchingColor: undefined }))}
-                collapseBoundsRef={editorScrollRef}
               />
             ) : null}
             <div>
