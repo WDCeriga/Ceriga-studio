@@ -344,7 +344,7 @@ export function LabelsPackagingStep({
           {subStep === 'label' ? 'Label option' : 'Packaging option'}
         </Label>
         <Select value={planValue} onValueChange={onPlanChange}>
-          <SelectTrigger className="h-9 border-white/10 bg-white/5 text-[11px] text-white">
+          <SelectTrigger className="h-10 min-h-[44px] border-white/10 bg-white/5 text-[11px] text-white md:h-9 md:min-h-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
@@ -413,13 +413,16 @@ export function LabelsPackagingStep({
             <Button
               onClick={uploadImage}
               variant="outline"
-              className="h-8 border-white/20 bg-white/5 px-2 text-[10px] !text-white hover:bg-white/10"
+              className="h-10 min-h-[44px] border-white/20 bg-white/5 px-2 text-[11px] !text-white hover:bg-white/10 md:h-8 md:min-h-0 md:text-[10px]"
             >
-              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              <Upload className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" />
               Upload
             </Button>
-            <Button onClick={addText} className="h-8 bg-[#FF3B30] px-2 text-[10px] hover:bg-[#FF3B30]/90">
-              <Check className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.5} />
+            <Button
+              onClick={addText}
+              className="h-10 min-h-[44px] bg-[#FF3B30] px-2 text-[11px] hover:bg-[#FF3B30]/90 md:h-8 md:min-h-0 md:text-[10px]"
+            >
+              <Check className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" strokeWidth={2.5} />
               Add text
             </Button>
           </div>
@@ -430,12 +433,16 @@ export function LabelsPackagingStep({
               <Input
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                className="h-9 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="h-10 min-h-[44px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9 md:min-h-0"
                 placeholder={subStep === 'label' ? 'Brand name' : 'Packaging message'}
                 onKeyDown={(e) => e.key === 'Enter' && addText()}
               />
-              <Button onClick={addText} className="h-9 min-w-9 bg-[#FF3B30] px-2 hover:bg-[#FF3B30]/90" aria-label="Add text">
-                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+              <Button
+                onClick={addText}
+                className="h-10 min-h-[44px] min-w-11 bg-[#FF3B30] px-2 hover:bg-[#FF3B30]/90 md:h-9 md:min-h-0 md:min-w-9"
+                aria-label="Add text"
+              >
+                <Check className="h-4 w-4 md:h-3.5 md:w-3.5" strokeWidth={2.5} />
               </Button>
             </div>
           </div>
@@ -444,9 +451,9 @@ export function LabelsPackagingStep({
             type="button"
             variant="outline"
             onClick={importFontFile}
-            className="mt-2 h-8 w-full border-white/20 bg-white/5 px-2 text-[10px] !text-white hover:bg-white/10"
+            className="mt-2 h-10 min-h-[44px] w-full border-white/20 bg-white/5 px-2 text-[11px] !text-white hover:bg-white/10 md:h-8 md:min-h-0 md:text-[10px]"
           >
-            <Upload className="mr-1.5 h-3.5 w-3.5" />
+            <Upload className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" />
             Import font
           </Button>
 

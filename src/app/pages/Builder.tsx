@@ -2482,16 +2482,16 @@ export function Builder() {
             key="builder-phone-panels"
             direction="vertical"
             className="flex min-h-0 flex-1 flex-col"
-            autoSaveId="ceriga-builder-phone-v7"
+            autoSaveId="ceriga-builder-phone-v8"
           >
             {/*
-              Top: keep Live preview toolbar + canvas visible (min ~32%).
+              Top: keep Live preview toolbar + canvas visible (min ~36%).
               Bottom: min ~30% so title + scroll + Back/Continue + safe area are never clipped when the handle is at its lowest.
-              Bottom max 68% ⇔ top never below ~32%.
+              Bottom max 64% ⇔ top never below ~36% (sheet cannot cover preview controls).
             */}
             <Panel
-              defaultSize={35}
-              minSize={32}
+              defaultSize={38}
+              minSize={36}
               maxSize={70}
               className={cn(
                 'relative z-10 flex min-h-0 min-w-0 overflow-hidden',
@@ -2511,15 +2511,16 @@ export function Builder() {
               <span className="sr-only">Drag to resize preview and configure panels</span>
             </PanelResizeHandle>
             <Panel
-              defaultSize={65}
+              defaultSize={62}
               minSize={30}
-              maxSize={68}
+              maxSize={64}
               className="relative z-0 flex min-h-0 min-w-0 overflow-hidden"
             >
               <div
                 className={cn(
                   'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',
-                  'rounded-t-[1.25rem] shadow-[0_-12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:rounded-t-2xl',
+                  // Softer upward shadow on phone so it does not visually cover the live preview toolbar.
+                  'rounded-t-[1.25rem] shadow-[0_-4px_28px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:rounded-t-2xl sm:shadow-[0_-12px_40px_rgba(0,0,0,0.5)]',
                 )}
               >
                 {renderEditorMain()}
