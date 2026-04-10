@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -35,6 +36,8 @@ import { Textarea } from '../components/ui/textarea';
 import { getProductById } from '../data/products';
 import {
   builderSteps,
+  TECHPACK_SPEC_FLOW_ORDER,
+  type BuilderStep,
   cuffOptions,
   FABRIC_COLOR_FAMILIES,
   ORDER_SIZE_KEYS,
@@ -68,6 +71,7 @@ import {
   PrintsDesignStep,
 } from '../components/builder/PrintsDesignStep';
 import { PageLoadingFallback } from '../components/PageLoadingFallback';
+import { TechPackReferenceUpload } from '../components/builder/TechPackReferenceUpload';
 import {
   LabelPreview,
   LabelsPackagingStep,
@@ -122,7 +126,14 @@ interface BuilderState {
   neckTrimColor?: string;
   sleeveTrimColor?: string;
   pocketTrimColor?: string;
-  extraDetails: Partial<Record<DetailKey | 'labels' | 'packaging' | 'fading' | 'stitching', string>>;
+  extraDetails: Partial<
+    Record<
+      DetailKey | 'labels' | 'packaging' | 'fading' | 'stitching' | 'referenceUploadNotes',
+      string
+    >
+  >;
+  /** Comma-separated filenames from the spec-only upload step (display / export only). */
+  referenceUploadFileNames?: string;
   detailPositions: Partial<Record<DetailKey, { top: string; left: string }>>;
   prints: DesignElement[];
   labels: DesignElement[];
@@ -187,17 +198,33 @@ function formatPlanSummary(kind: 'label' | 'packaging', value?: string): string 
   return v.replace(/-/g, ' ');
 }
 
+function isTechpackSpecUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('flow') === 'techpack-spec';
+}
+
+function stepTabTitle(item: BuilderStep, techpackSpecFlow: boolean): string {
+  if (techpackSpecFlow && item.id === 9) return 'Upload design';
+  return item.title;
+}
+
 export function Builder() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const techpackSpecFlow =
+    searchParams.get('flow') === 'techpack-spec' ||
+    (location.state as { builderFlow?: string } | null)?.builderFlow === 'techpack-spec';
+  const techpackFlowInitRef = useRef(false);
   const product = productId ? getProductById(productId) : null;
 
   const [expandedColorFamily, setExpandedColorFamily] = useState<number | null>(null);
   const fabricColorPickerRef = useRef<HTMLDivElement>(null);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
+  const [currentStep, setCurrentStep] = useState(() => (isTechpackSpecUrl() ? 9 : 1));
+  const [visitedSteps, setVisitedSteps] = useState<number[]>(() =>
+    isTechpackSpecUrl() ? [9] : [1],
+  );
   const [showFront, setShowFront] = useState(true);
   const [saving, setSaving] = useState(false);
   const [projectName, setProjectName] = useState(product?.name || 'Untitled Project');
@@ -254,6 +281,7 @@ export function Builder() {
     measurements: {},
     colors: [],
     extraDetails: {},
+    referenceUploadFileNames: undefined,
     prints: [],
     labels: [],
     packaging: [],
@@ -371,6 +399,8 @@ export function Builder() {
 
   useEffect(() => {
     if (!product) return;
+    /** Spec-only flow always opens on upload (step 9); do not restore a saved step from history. */
+    if (techpackSpecFlow) return;
 
     const st = location.state as { builderFlow?: string; currentStep?: number } | undefined;
 
@@ -388,7 +418,7 @@ export function Builder() {
         return Array.from(new Set([...prev, ...visibleVisited]));
       });
     }
-  }, [product, location.state]);
+  }, [product, location.state, techpackSpecFlow]);
 
   useEffect(() => {
     if (!product) navigate('/catalog');
@@ -488,14 +518,51 @@ export function Builder() {
     handleSave(true);
   }, [handleSave]);
 
+  const shouldSkipStep = (stepId: number) =>
+    builderSteps.find((item) => item.id === stepId)?.skipForGarmentTypes?.includes(state.garmentType);
+
+  const techpackNavigationList = useMemo(() => {
+    if (!techpackSpecFlow) return null as number[] | null;
+    return TECHPACK_SPEC_FLOW_ORDER.filter(
+      (id) =>
+        !builderSteps
+          .find((item) => item.id === id)
+          ?.skipForGarmentTypes?.includes(state.garmentType),
+    );
+  }, [techpackSpecFlow, state.garmentType]);
+
+  const firstBuilderNavStepId =
+    techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0
+      ? techpackNavigationList[0]!
+      : 1;
+
+  useEffect(() => {
+    techpackFlowInitRef.current = false;
+  }, [productId]);
+
+  useEffect(() => {
+    if (!product || !techpackSpecFlow || techpackFlowInitRef.current) return;
+    techpackFlowInitRef.current = true;
+    setCurrentStep(9);
+    setVisitedSteps((prev) => Array.from(new Set([...prev, 9])));
+  }, [product, techpackSpecFlow]);
+
   if (!product) return <PageLoadingFallback />;
 
   const step = builderSteps.find((item) => item.id === currentStep);
-  const progress = (currentStep / builderSteps.length) * 100;
+  const stepTitleLabel =
+    techpackSpecFlow && currentStep === 9 ? 'Upload design' : step?.title ?? '';
+  const stepDescriptionLabel =
+    techpackSpecFlow && currentStep === 9
+      ? 'Attach reference artwork or notes for your factory (spec-only — no on-shirt placement editor).'
+      : step?.description ?? '';
+  const progress =
+    techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0
+      ? ((Math.max(0, techpackNavigationList.indexOf(currentStep)) + 1) /
+          techpackNavigationList.length) *
+        100
+      : (currentStep / builderSteps.length) * 100;
   const primaryColor = state.colors[0]?.hex || '#5C7FB6';
-
-  const shouldSkipStep = (stepId: number) =>
-    builderSteps.find((item) => item.id === stepId)?.skipForGarmentTypes?.includes(state.garmentType);
 
   const visibleDetailKey = useMemo<DetailKey | null>(() => {
     if (currentStep === 1) return 'measurements';
@@ -576,6 +643,14 @@ export function Builder() {
   }, [handleSave, undo, redo]);
 
   const markVisitedThrough = (stepId: number) => {
+    if (techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0) {
+      const idx = techpackNavigationList.indexOf(stepId);
+      if (idx >= 0) {
+        const upThrough = techpackNavigationList.slice(0, idx + 1);
+        setVisitedSteps((prev) => Array.from(new Set([...prev, ...upThrough])));
+        return;
+      }
+    }
     const visibleUpTo = builderSteps
       .filter((item) => item.id <= stepId && !shouldSkipStep(item.id))
       .map((item) => item.id);
@@ -586,6 +661,17 @@ export function Builder() {
   const handleNext = () => {
     if (currentStep === 13) {
       navigate('/delivery', { state: { productId } });
+      return;
+    }
+
+    if (techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0) {
+      const idx = techpackNavigationList.indexOf(currentStep);
+      if (idx >= 0 && idx < techpackNavigationList.length - 1) {
+        const next = techpackNavigationList[idx + 1]!;
+        setCurrentStep(next);
+        markVisitedThrough(next);
+        handleSave(false);
+      }
       return;
     }
 
@@ -600,6 +686,16 @@ export function Builder() {
   };
 
   const handleBack = () => {
+    if (techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0) {
+      const idx = techpackNavigationList.indexOf(currentStep);
+      if (idx > 0) {
+        const prev = techpackNavigationList[idx - 1]!;
+        setCurrentStep(prev);
+        markVisitedThrough(prev);
+      }
+      return;
+    }
+
     let prev = currentStep - 1;
     while (prev >= 1 && shouldSkipStep(prev)) prev -= 1;
     if (prev >= 1) {
@@ -1028,16 +1124,29 @@ export function Builder() {
               </Select>
             </div>
 
+            {!techpackSpecFlow ? (
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                 Colour Selection
               </Label>
               <div ref={fabricColorPickerRef} className="grid grid-cols-2 gap-2">
                 {FABRIC_COLOR_FAMILIES.map((family, familyIndex) => (
-                  <div
-                    key={family.name}
-                    className={cn(expandedColorFamily === familyIndex && 'col-span-2')}
-                  >
+                  <Fragment key={family.name}>
+                    {expandedColorFamily !== null &&
+                    expandedColorFamily % 2 === 1 &&
+                    familyIndex === expandedColorFamily ? (
+                      <div
+                        role="presentation"
+                        className="min-h-[2.35rem] w-full touch-manipulation"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          setExpandedColorFamily(null);
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={cn(expandedColorFamily === familyIndex && 'col-span-2')}
+                    >
                     {expandedColorFamily === familyIndex ? (
                       <div>
                         <div className="mb-1 flex items-center justify-between">
@@ -1089,7 +1198,8 @@ export function Builder() {
                         <span className="shrink-0 text-[8px] text-white/30">Expand</span>
                       </button>
                     )}
-                  </div>
+                    </div>
+                  </Fragment>
                 ))}
               </div>
 
@@ -1108,6 +1218,12 @@ export function Builder() {
                 </div>
               )}
             </div>
+            ) : (
+              <p className="text-[11px] leading-relaxed text-white/42">
+                Fabric colour is specified in your notes or uploaded files. Use the first step to attach artwork
+                and the fabric notes below for dye or Pantone callouts.
+              </p>
+            )}
 
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
@@ -1159,13 +1275,15 @@ export function Builder() {
               }
               placeholder="Add any specific neck or collar requirements..."
             />
-            <TrimColorFamilyPicker
-              label="Neck / collar trim colour"
-              value={state.neckTrimColor}
-              onChange={(hex) => setState((prev) => ({ ...prev, neckTrimColor: hex }))}
-              onClear={() => setState((prev) => ({ ...prev, neckTrimColor: undefined }))}
-              collapseBoundsRef={editorScrollRef}
-            />
+            {!techpackSpecFlow ? (
+              <TrimColorFamilyPicker
+                label="Neck / collar trim colour"
+                value={state.neckTrimColor}
+                onChange={(hex) => setState((prev) => ({ ...prev, neckTrimColor: hex }))}
+                onClear={() => setState((prev) => ({ ...prev, neckTrimColor: undefined }))}
+                collapseBoundsRef={editorScrollRef}
+              />
+            ) : null}
           </div>
         );
 
@@ -1189,13 +1307,15 @@ export function Builder() {
                 columns="grid-cols-3"
               />
             )}
-            <TrimColorFamilyPicker
-              label="Sleeve trim colour"
-              value={state.sleeveTrimColor}
-              onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
-              onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
-              collapseBoundsRef={editorScrollRef}
-            />
+            {!techpackSpecFlow ? (
+              <TrimColorFamilyPicker
+                label="Sleeve trim colour"
+                value={state.sleeveTrimColor}
+                onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
+                onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
+                collapseBoundsRef={editorScrollRef}
+              />
+            ) : null}
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                 Extra Details
@@ -1270,13 +1390,15 @@ export function Builder() {
               onSelect={(value) => setState((prev) => ({ ...prev, zipType: value }))}
               columns="grid-cols-2"
             />
-            <TrimColorFamilyPicker
-              label="Pocket & zip trim colour"
-              value={state.pocketTrimColor}
-              onChange={(hex) => setState((prev) => ({ ...prev, pocketTrimColor: hex }))}
-              onClear={() => setState((prev) => ({ ...prev, pocketTrimColor: undefined }))}
-              collapseBoundsRef={editorScrollRef}
-            />
+            {!techpackSpecFlow ? (
+              <TrimColorFamilyPicker
+                label="Pocket & zip trim colour"
+                value={state.pocketTrimColor}
+                onChange={(hex) => setState((prev) => ({ ...prev, pocketTrimColor: hex }))}
+                onClear={() => setState((prev) => ({ ...prev, pocketTrimColor: undefined }))}
+                collapseBoundsRef={editorScrollRef}
+              />
+            ) : null}
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                 Extra Details
@@ -1335,13 +1457,15 @@ export function Builder() {
               onSelect={(value) => setState((prev) => ({ ...prev, stitchingType: value }))}
               columns="grid-cols-2"
             />
-            <TrimColorFamilyPicker
-              label="Stitch / thread colour"
-              value={state.stitchingColor}
-              onChange={(hex) => setState((prev) => ({ ...prev, stitchingColor: hex }))}
-              onClear={() => setState((prev) => ({ ...prev, stitchingColor: undefined }))}
-              collapseBoundsRef={editorScrollRef}
-            />
+            {!techpackSpecFlow ? (
+              <TrimColorFamilyPicker
+                label="Stitch / thread colour"
+                value={state.stitchingColor}
+                onChange={(hex) => setState((prev) => ({ ...prev, stitchingColor: hex }))}
+                onClear={() => setState((prev) => ({ ...prev, stitchingColor: undefined }))}
+                collapseBoundsRef={editorScrollRef}
+              />
+            ) : null}
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                 Extra Details
@@ -1362,6 +1486,23 @@ export function Builder() {
         );
 
       case 9:
+        if (techpackSpecFlow) {
+          return (
+            <TechPackReferenceUpload
+              fileNamesText={state.referenceUploadFileNames ?? ''}
+              notes={state.extraDetails.referenceUploadNotes ?? ''}
+              onFileNamesChange={(names) =>
+                setState((prev) => ({ ...prev, referenceUploadFileNames: names || undefined }))
+              }
+              onNotesChange={(value) =>
+                setState((prev) => ({
+                  ...prev,
+                  extraDetails: { ...prev.extraDetails, referenceUploadNotes: value },
+                }))
+              }
+            />
+          );
+        }
         return (
           <PrintsDesignStep
             elements={state.prints}
@@ -1591,9 +1732,17 @@ export function Builder() {
   const isPhone = layoutTier === 'phone';
   /** Prints / label / packaging editors extend below the canvas (delete zone, handles); hidden overflow would clip them. */
   const previewSurfaceNeedsVisibleOverflow =
-    draggingDetail || currentStep === 9 || currentStep === 10 || currentStep === 11;
+    draggingDetail ||
+    (!techpackSpecFlow && currentStep === 9) ||
+    currentStep === 10 ||
+    currentStep === 11;
 
-  const visibleBuilderSteps = builderSteps.filter((item) => !shouldSkipStep(item.id));
+  const visibleBuilderSteps =
+    techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0
+      ? techpackNavigationList
+          .map((id) => builderSteps.find((s) => s.id === id))
+          .filter((s): s is (typeof builderSteps)[number] => Boolean(s))
+      : builderSteps.filter((item) => !shouldSkipStep(item.id));
 
   const renderSummaryBody = () => (
     <div className="space-y-4 text-sm">
@@ -1793,9 +1942,9 @@ export function Builder() {
         >
           {showLeftCollapse ? (
             <div className="mb-3 min-w-0 sm:mb-4">
-              <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
+                <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
                 <div className="min-w-0 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24] md:text-[10px]">
-                  {step?.title}
+                  {stepTitleLabel}
                 </div>
                 <button
                   type="button"
@@ -1809,21 +1958,21 @@ export function Builder() {
                 </button>
               </div>
               <h2 className="break-words font-['Plus_Jakarta_Sans',sans-serif] text-[15px] font-extrabold leading-tight tracking-[-0.5px] text-white sm:text-[16px] md:text-[17px] xl:text-[18px]">
-                {step?.title.toUpperCase()}
+                {stepTitleLabel.toUpperCase()}
               </h2>
             </div>
           ) : (
             <>
               <div className="mb-1 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24] md:text-[10px]">
-                {step?.title}
+                {stepTitleLabel}
               </div>
               <h2 className="mb-1.5 font-['Plus_Jakarta_Sans',sans-serif] text-[16px] font-extrabold tracking-[-0.5px] text-white md:mb-2.5 md:text-[17px] xl:text-[18px]">
-                {step?.title.toUpperCase()}
+                {stepTitleLabel.toUpperCase()}
               </h2>
             </>
           )}
           <p className="mb-4 text-[11px] leading-relaxed text-white/55 md:mb-5 md:text-[11px]">
-            {step?.description}
+            {stepDescriptionLabel}
           </p>
           {renderStepContent()}
         </div>
@@ -1838,7 +1987,7 @@ export function Builder() {
             <Button
               variant="outline"
               onClick={handleBack}
-              disabled={currentStep === 1}
+              disabled={currentStep === firstBuilderNavStepId}
               className="h-10 flex-1 rounded-xl border-white/15 bg-white/[0.03] text-[10px] !text-white hover:bg-white/10 disabled:opacity-30 md:h-8 md:rounded-md md:text-[11px]"
             >
               <ChevronLeft className="mr-0.5 h-4 w-4 md:h-3.5 md:w-3.5" />
@@ -1898,7 +2047,7 @@ export function Builder() {
               onClick={() => setShowExtraDetails((prev) => !prev)}
               className={cn(
                 'border-white/15 bg-white/[0.04] !text-white hover:bg-white/10 sm:border-white/20 sm:px-3 sm:text-[10px]',
-                isPhone ? 'h-9 px-3 text-[10px]' : 'h-8 px-2.5 text-[9px]',
+                isPhone ? 'h-10 min-h-[44px] rounded-xl px-4 text-[11px] font-medium' : 'h-8 px-2.5 text-[9px]',
               )}
             >
               {showExtraDetails ? 'Hide' : 'Details'}
@@ -1907,7 +2056,7 @@ export function Builder() {
             <div
               className={cn(
                 'flex shrink-0 flex-nowrap items-center rounded-lg border border-white/10 bg-white/5 sm:gap-2 sm:rounded-xl sm:px-2.5 sm:py-1.5',
-                isPhone ? 'gap-1.5 px-2 py-1.5' : 'gap-1 px-1.5 py-1',
+                isPhone ? 'gap-2 rounded-xl px-2 py-2' : 'gap-1 px-1.5 py-1',
               )}
             >
               {(['black', 'white', 'transparent'] as const).map((bg) => (
@@ -1917,7 +2066,7 @@ export function Builder() {
                   onClick={() => setPreviewBackground(bg)}
                   className={cn(
                     'builder-focus shrink-0 rounded-lg border',
-                    isPhone ? 'h-8 w-8' : 'h-6 w-6',
+                    isPhone ? 'h-10 w-10 min-h-[44px] min-w-[44px]' : 'h-6 w-6',
                     previewBackground === bg
                       ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
                       : 'border-white/20',
@@ -1939,7 +2088,7 @@ export function Builder() {
             <div
               className={cn(
                 'flex shrink-0 flex-nowrap items-center rounded-lg border border-white/10 bg-white/5 sm:gap-2 sm:rounded-xl sm:p-1.5',
-                isPhone ? 'gap-1.5 p-1.5' : 'gap-1 p-1',
+                isPhone ? 'gap-2 rounded-xl p-2' : 'gap-1 p-1',
               )}
             >
               <Button
@@ -1949,10 +2098,10 @@ export function Builder() {
                 className={
                   showFront
                     ? isPhone
-                      ? 'h-9 min-w-[52px] bg-[#FF3B30] px-2.5 text-[10px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl bg-[#FF3B30] px-3 text-[11px] font-semibold !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                     : isPhone
-                      ? 'h-9 min-w-[52px] border-white/20 px-2.5 text-[10px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl border-white/20 px-3 text-[11px] font-semibold !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                 }
               >
@@ -1965,10 +2114,10 @@ export function Builder() {
                 className={
                   !showFront
                     ? isPhone
-                      ? 'h-9 min-w-[52px] bg-[#FF3B30] px-2.5 text-[10px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl bg-[#FF3B30] px-3 text-[11px] font-semibold !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                     : isPhone
-                      ? 'h-9 min-w-[52px] border-white/20 px-2.5 text-[10px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl border-white/20 px-3 text-[11px] font-semibold !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                 }
               >
@@ -2112,7 +2261,7 @@ export function Builder() {
   return (
     <div
       className={cn(
-        'flex min-h-dvh flex-col bg-[#0F0F0F]',
+        'flex min-h-dvh min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#0F0F0F]',
         'h-[100dvh] pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]',
       )}
     >
@@ -2216,7 +2365,10 @@ export function Builder() {
           <div className="min-w-0 flex-1">
             <div className={cn('mb-1.5 flex items-center justify-between sm:mb-1.5', isPhone && 'mb-1.5')}>
               <div className="font-bold uppercase tracking-[2px] text-[9px] text-[#CC2D24] sm:text-[#FF3B30]">
-                Step {currentStep} / {builderSteps.length}
+                Step{' '}
+                {techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0
+                  ? `${Math.max(0, techpackNavigationList.indexOf(currentStep)) + 1} / ${techpackNavigationList.length}`
+                  : `${currentStep} / ${builderSteps.length}`}
               </div>
             </div>
 
@@ -2240,15 +2392,16 @@ export function Builder() {
                             : 'cursor-not-allowed border-white/10 bg-white/[0.03] text-white/28'
                       }`}
                     >
-                      <span className="line-clamp-2 w-full">{item.title}</span>
+                      <span className="line-clamp-2 w-full">
+                        {stepTabTitle(item, techpackSpecFlow)}
+                      </span>
                     </button>
                   );
                 })}
               </div>
             ) : (
               <div className="scrollbar-dark flex touch-pan-x gap-1.5 overflow-x-auto pb-1 scroll-smooth">
-                {builderSteps.map((item) => {
-                  if (shouldSkipStep(item.id)) return null;
+                {visibleBuilderSteps.map((item) => {
                   const current = currentStep === item.id;
                   const enabled = visitedSteps.includes(item.id);
 
@@ -2267,7 +2420,7 @@ export function Builder() {
                             : 'cursor-not-allowed border border-white/10 bg-white/5 text-white/30'
                       }`}
                     >
-                      {item.title}
+                      {stepTabTitle(item, techpackSpecFlow)}
                     </button>
                   );
                 })}

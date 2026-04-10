@@ -5,7 +5,6 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import {
   Upload,
-  Type,
   Image as ImageIcon,
   Trash2,
   Move,
@@ -31,6 +30,7 @@ import {
 import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
 import {
   snapDragInZone,
+  measureHalfExtentsInZone,
   GUIDE_COLOR,
   type SnapBox,
   type SnapDragOptions,
@@ -123,11 +123,11 @@ export const PRINT_METHOD_DESCRIPTIONS: Record<(typeof PRINT_METHODS)[number], s
   'Heat Transfer': 'Heat transfer (vinyl / film)',
 };
 
-/** Print-area inset on the shirt overlay (%). Tuned for chest-centre vs garment art. */
+/** Print-area inset on the shirt overlay (%). */
 const PREVIEW_ZONE = {
-  left: 6,
-  top: 7,
-  right: 6,
+  left: 5,
+  top: 6,
+  right: 5,
   bottom: 7,
 };
 
@@ -777,6 +777,12 @@ export function PrintsDesignStep({
     setSelectedId(remaining[0]?.id ?? null);
   };
 
+  const removeElementById = (id: string) => {
+    const remaining = elements.filter((item) => item.id !== id);
+    onChange(remaining);
+    setSelectedId((sid) => (sid === id ? remaining[0]?.id ?? null : sid));
+  };
+
   const duplicateSelected = () => {
     if (!selected) return;
     const copy: DesignElement = {
@@ -1340,13 +1346,13 @@ export function PrintsDesignStep({
                 <button
                   type="button"
                   onClick={() => setSelectedId(element.id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-r-[10px] py-2.5 pl-1 pr-3 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-1 pr-2 text-left"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-white/55">
                     {element.type === 'image' ? (
                       <ImageIcon className="h-4 w-4" />
                     ) : (
-                      <Type className="h-4 w-4" />
+                      <Check className="h-4 w-4" strokeWidth={2.5} />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -1359,6 +1365,18 @@ export function PrintsDesignStep({
                       {Math.round(element.x)}, {Math.round(element.y)} · {Math.round(element.rotation)}°
                     </div>
                   </div>
+                </button>
+                <button
+                  type="button"
+                  className="flex shrink-0 items-center justify-center rounded-r-[10px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
+                  aria-label="Delete layer"
+                  title="Delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeElementById(element.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" strokeWidth={2} />
                 </button>
               </div>
             ))
@@ -1453,6 +1471,7 @@ export function PrintsDesignPreview({
   const onChangeRef = useRef(onChange);
   const dragStartClientRef = useRef({ x: 0, y: 0 });
   const dragDidMoveRef = useRef(false);
+  const dragPointerCaptureRef = useRef<{ el: HTMLElement; pointerId: number } | null>(null);
   const textTapRef = useRef<{ id: string; alreadySelected: boolean } | null>(null);
   const editDraftRef = useRef('');
   const [alignmentGuides, setAlignmentGuides] = useState<{
@@ -1663,8 +1682,16 @@ export function PrintsDesignPreview({
         current.type === 'image'
           ? current.height
           : Math.max(current.height ?? 0, (current.fontSize ?? 20) + 18);
-      const halfW = current.width / 2;
-      const halfH = boxH / 2;
+      let halfW = current.width / 2;
+      let halfH = boxH / 2;
+      if (current.type === 'text') {
+        const node = zone.querySelector(`[data-print-id="${draggingId}"]`) as HTMLElement | null;
+        if (node) {
+          const m = measureHalfExtentsInZone(zone, node);
+          halfW = m.halfW;
+          halfH = m.halfH;
+        }
+      }
 
       const snapBoxes: SnapBox[] = elementsRef.current.map((el) => ({
         id: el.id,
@@ -1710,6 +1737,17 @@ export function PrintsDesignPreview({
     };
 
     const handleUp = () => {
+      const cap = dragPointerCaptureRef.current;
+      dragPointerCaptureRef.current = null;
+      if (cap) {
+        try {
+          if (cap.el.hasPointerCapture(cap.pointerId)) {
+            cap.el.releasePointerCapture(cap.pointerId);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       if (draggingId && deleteHoverRef.current) {
         removeElement(draggingId);
       } else if (
@@ -1774,7 +1812,7 @@ export function PrintsDesignPreview({
           <div
             ref={zoneRef}
             data-print-design-zone
-            className="absolute overflow-visible"
+            className={cn('absolute overflow-visible', editable && 'touch-none')}
             style={{
               left: `${PREVIEW_ZONE.left}%`,
               right: `${PREVIEW_ZONE.right}%`,
@@ -1858,6 +1896,13 @@ export function PrintsDesignPreview({
                   setManip(null);
                   setDraggingId(element.id);
                   setDragOffset({ x: ptr.x - element.x, y: ptr.y - element.y });
+                  try {
+                    const el = e.currentTarget as HTMLElement;
+                    el.setPointerCapture(e.pointerId);
+                    dragPointerCaptureRef.current = { el, pointerId: e.pointerId };
+                  } catch {
+                    dragPointerCaptureRef.current = null;
+                  }
                 }}
               >
                 {element.type === 'image' ? (

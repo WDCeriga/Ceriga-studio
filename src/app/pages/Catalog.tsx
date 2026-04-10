@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { getProductsByCategory } from "../data/products";
 import { ArrowUpRight, Layers, Package } from "lucide-react";
 import { productGridClass, productGridStyle } from "../styles/productGrid";
@@ -11,7 +11,10 @@ const RED = '#CC2D24';
 
 export function Catalog() {
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const builderFlow = (location.state as { builderFlow?: string } | null)?.builderFlow;
+  const techpackSpecFlow =
+    searchParams.get('flow') === 'techpack-spec' || builderFlow === 'techpack-spec';
   const packagingOnly =
     builderFlow === 'packaging-only' || builderFlow === 'packaging';
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -40,7 +43,9 @@ export function Catalog() {
         <p className="max-w-[min(100%,420px)] text-[11px] leading-relaxed text-[#ffffff38] sm:text-xs" style={{ margin: 0 }}>
           {packagingOnly
             ? 'Packaging opens in its own workspace — no garment pick. Use Studio → Design packaging, or open it below.'
-            : 'Choose a garment to start building your custom tech pack.'}
+            : techpackSpecFlow
+              ? 'Pick a garment template, then complete measurements and construction — upload artwork first, without on-shirt placement editing.'
+              : 'Choose a garment to start building your custom tech pack.'}
         </p>
         {packagingOnly && (
           <div className="mt-5 flex flex-col gap-3 rounded-[14px] border border-[#CC2D24]/25 bg-[#CC2D24]/[0.08] p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -104,6 +109,7 @@ export function Catalog() {
               product={product}
               builderFlow={builderFlow}
               packagingOnly={packagingOnly}
+              techpackSpecFlow={techpackSpecFlow}
             />
           ))}
         </div>
@@ -117,10 +123,12 @@ function ProductCard({
   product,
   builderFlow,
   packagingOnly,
+  techpackSpecFlow,
 }: {
   product: any;
   builderFlow?: string;
   packagingOnly: boolean;
+  techpackSpecFlow: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -223,8 +231,20 @@ function ProductCard({
 
         {/* CTA */}
         <Link
-          to={packagingOnly ? '/packaging' : `/builder/${product.id}`}
-          state={packagingOnly ? { builderFlow: 'packaging-only' } : undefined}
+          to={
+            packagingOnly
+              ? '/packaging'
+              : techpackSpecFlow
+                ? `/builder/${product.id}?flow=techpack-spec`
+                : `/builder/${product.id}`
+          }
+          state={
+            packagingOnly
+              ? { builderFlow: 'packaging-only' }
+              : techpackSpecFlow
+                ? { builderFlow: 'techpack-spec' }
+                : undefined
+          }
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
             padding: '8px 0', borderRadius: 8, textDecoration: 'none',

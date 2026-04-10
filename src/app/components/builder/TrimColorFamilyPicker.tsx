@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef, useState } from 'react';
+import { Fragment, type RefObject, useEffect, useRef, useState } from 'react';
 import { FABRIC_COLOR_FAMILIES } from '../../data/builderSteps';
 import { Label } from '../ui/label';
 import { cn } from '../ui/utils';
@@ -39,10 +39,22 @@ export function TrimColorFamilyPicker({
       </Label>
       <div className="grid grid-cols-2 gap-2">
         {FABRIC_COLOR_FAMILIES.map((family, familyIndex) => (
-          <div
-            key={family.name}
-            className={cn(expandedFamily === familyIndex && 'col-span-2')}
-          >
+          <Fragment key={family.name}>
+            {expandedFamily !== null &&
+            expandedFamily % 2 === 1 &&
+            familyIndex === expandedFamily ? (
+              <div
+                role="presentation"
+                className="min-h-[2.35rem] w-full touch-manipulation"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  setExpandedFamily(null);
+                }}
+              />
+            ) : null}
+            <div
+              className={cn(expandedFamily === familyIndex && 'col-span-2')}
+            >
             {expandedFamily === familyIndex ? (
               <div>
                 <div className="mb-1 flex items-center justify-between">
@@ -101,7 +113,8 @@ export function TrimColorFamilyPicker({
                 <span className="shrink-0 text-[8px] text-white/30">Expand</span>
               </button>
             )}
-          </div>
+            </div>
+          </Fragment>
         ))}
       </div>
 

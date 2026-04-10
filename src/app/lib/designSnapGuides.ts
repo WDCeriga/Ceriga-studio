@@ -13,6 +13,8 @@ export type SnapDragOptions = {
   centerNudgeFractionX?: number;
   /** Shift snap “canvas centre” as a fraction of zone height. */
   centerNudgeFractionY?: number;
+  /** Inset from zone edges (px, zone coordinates) so layers stay inside the visible area (same idea as extra-details clamp). */
+  edgeInsetPx?: number;
 };
 
 export function snapDragInZone(
@@ -105,10 +107,46 @@ export function snapDragInZone(
   }
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+  const inset = Math.max(0, options?.edgeInsetPx ?? 0);
+  let minX = halfW + inset;
+  let maxX = zoneW - halfW - inset;
+  let minY = halfH + inset;
+  let maxY = zoneH - halfH - inset;
+  if (minX > maxX) {
+    const cx = zoneW / 2;
+    minX = cx;
+    maxX = cx;
+  }
+  if (minY > maxY) {
+    const cy = zoneH / 2;
+    minY = cy;
+    maxY = cy;
+  }
   return {
-    x: clamp(sx, halfW, zoneW - halfW),
-    y: clamp(sy, halfH, zoneH - halfH),
+    x: clamp(sx, minX, maxX),
+    y: clamp(sy, minY, maxY),
     verticalLines: [...new Set(verticalLines)],
     horizontalLines: [...new Set(horizontalLines)],
   };
+}
+
+/**
+ * Half extents of an element in the zone’s coordinate system (same mapping as pointer → zone).
+ * For text layers, stored `width` / `height` are layout caps while the box is `max-content`, so drag
+ * clamping must use the rendered rect — otherwise short text cannot reach the zone edges.
+ */
+export function measureHalfExtentsInZone(zone: HTMLElement, element: HTMLElement): {
+  halfW: number;
+  halfH: number;
+} {
+  const zr = zone.getBoundingClientRect();
+  const er = element.getBoundingClientRect();
+  const zw = zone.offsetWidth;
+  const zh = zone.offsetHeight;
+  if (zr.width < 1 || zr.height < 1 || zw < 1 || zh < 1) {
+    return { halfW: Math.max(1, er.width / 2), halfH: Math.max(1, er.height / 2) };
+  }
+  const wInZone = (er.width / zr.width) * zw;
+  const hInZone = (er.height / zr.height) * zh;
+  return { halfW: Math.max(1, wInZone / 2), halfH: Math.max(1, hInZone / 2) };
 }

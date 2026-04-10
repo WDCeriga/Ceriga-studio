@@ -6,7 +6,6 @@ import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
   Upload,
-  Type,
   Trash2,
   RotateCw,
   Move,
@@ -21,12 +20,18 @@ import {
   AlignJustify,
   Italic,
   GripVertical,
+  Check,
 } from 'lucide-react';
 import type { DesignElement } from './PrintsDesignStep';
 import { PrintPanel, PrintTransformOverlay, type PrintManip, type ResizeHandle } from './PrintsDesignStep';
 import { ColorPairGrid } from './ColorPairGrid';
 import { cn } from '../ui/utils';
-import { snapDragInZone, GUIDE_COLOR, type SnapBox } from '../../lib/designSnapGuides';
+import {
+  snapDragInZone,
+  measureHalfExtentsInZone,
+  GUIDE_COLOR,
+  type SnapBox,
+} from '../../lib/designSnapGuides';
 import { reorderDesignElements } from '../../lib/designLayerOrder';
 
 type SubStep = 'label' | 'packaging';
@@ -137,6 +142,12 @@ export function LabelsPackagingStep({
     const to = elements.findIndex((x) => x.id === dropId);
     if (from < 0 || to < 0) return;
     onElementsChange(reorderDesignElements(elements, from, to));
+  };
+
+  const removeElementFromList = (id: string) => {
+    const remaining = elements.filter((el) => el.id !== id);
+    onElementsChange(remaining);
+    setSelectedId(remaining[0]?.id ?? null);
   };
 
   const allFontOptions = useMemo(
@@ -367,7 +378,7 @@ export function LabelsPackagingStep({
               Upload
             </Button>
             <Button onClick={addText} className="h-8 bg-[#FF3B30] px-2 text-[10px] hover:bg-[#FF3B30]/90">
-              <Type className="mr-1.5 h-3.5 w-3.5" />
+              <Check className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.5} />
               Add text
             </Button>
           </div>
@@ -382,8 +393,8 @@ export function LabelsPackagingStep({
                 placeholder={subStep === 'label' ? 'Brand name' : 'Packaging message'}
                 onKeyDown={(e) => e.key === 'Enter' && addText()}
               />
-              <Button onClick={addText} className="h-9 min-w-9 bg-[#FF3B30] px-2 hover:bg-[#FF3B30]/90">
-                <Type className="h-3.5 w-3.5" />
+              <Button onClick={addText} className="h-9 min-w-9 bg-[#FF3B30] px-2 hover:bg-[#FF3B30]/90" aria-label="Add text">
+                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
               </Button>
             </div>
           </div>
@@ -622,13 +633,13 @@ export function LabelsPackagingStep({
                     <button
                       type="button"
                       onClick={() => setSelectedId(element.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 rounded-r-[10px] py-2.5 pl-1 pr-3 text-left"
+                      className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-1 pr-2 text-left"
                     >
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-white/55">
                         {element.type === 'image' ? (
                           <ImageIcon className="h-4 w-4" />
                         ) : (
-                          <Type className="h-4 w-4" />
+                          <Check className="h-4 w-4" strokeWidth={2.5} />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -639,6 +650,18 @@ export function LabelsPackagingStep({
                           {Math.round(element.x)}, {Math.round(element.y)} · {Math.round(element.rotation)}°
                         </div>
                       </div>
+                    </button>
+                    <button
+                      type="button"
+                      className="flex shrink-0 items-center justify-center rounded-r-[10px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
+                      aria-label="Delete layer"
+                      title="Delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeElementFromList(element.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" strokeWidth={2} />
                     </button>
                   </div>
                 ))
@@ -803,6 +826,7 @@ function DesignSurface({
   const onSelectedIdChangeRef = useRef(onSelectedIdChange);
   const dragStartClientRef = useRef({ x: 0, y: 0 });
   const dragDidMoveRef = useRef(false);
+  const dragPointerCaptureRef = useRef<{ el: HTMLElement; pointerId: number } | null>(null);
   const textTapRef = useRef<{ id: string; alreadySelected: boolean } | null>(null);
 
   const [alignmentGuides, setAlignmentGuides] = useState<{
@@ -976,8 +1000,16 @@ function DesignSurface({
         current.type === 'image'
           ? current.height
           : Math.max(current.height ?? 0, (current.fontSize ?? 20) + 18);
-      const halfW = current.width / 2;
-      const halfH = boxH / 2;
+      let halfW = current.width / 2;
+      let halfH = boxH / 2;
+      if (current.type === 'text') {
+        const node = zone.querySelector(`[data-surface-id="${draggingId}"]`) as HTMLElement | null;
+        if (node) {
+          const m = measureHalfExtentsInZone(zone, node);
+          halfW = m.halfW;
+          halfH = m.halfH;
+        }
+      }
 
       const snapBoxes: SnapBox[] = elementsRef.current.map((el) => ({
         id: el.id,
@@ -1022,6 +1054,17 @@ function DesignSurface({
     };
 
     const handleUp = () => {
+      const cap = dragPointerCaptureRef.current;
+      dragPointerCaptureRef.current = null;
+      if (cap) {
+        try {
+          if (cap.el.hasPointerCapture(cap.pointerId)) {
+            cap.el.releasePointerCapture(cap.pointerId);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       if (draggingId && deleteHoverRef.current) {
         removeElement(draggingId);
       } else if (
@@ -1164,6 +1207,13 @@ function DesignSurface({
                   setManip(null);
                   setDraggingId(element.id);
                   setDragOffset({ x: ptr.x - element.x, y: ptr.y - element.y });
+                  try {
+                    const el = e.currentTarget as HTMLElement;
+                    el.setPointerCapture(e.pointerId);
+                    dragPointerCaptureRef.current = { el, pointerId: e.pointerId };
+                  } catch {
+                    dragPointerCaptureRef.current = null;
+                  }
                 }}
               >
                 {element.type === 'image' ? (

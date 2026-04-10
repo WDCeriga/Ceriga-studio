@@ -1,12 +1,20 @@
 import { Link } from 'react-router';
-import { FileStack, Package, Factory, ArrowRight } from 'lucide-react';
+import { FileStack, FileInput, Package, Factory, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
 const workflows = [
   {
+    title: 'Tech pack (spec only)',
+    description:
+      'Upload artwork first, then fill measurements and construction — no on-shirt colour or placement editor. For factories that only need a spec.',
+    to: '/catalog?flow=techpack-spec',
+    icon: FileInput,
+    accent: '#A855F7',
+  },
+  {
     title: 'Design tech pack',
     description:
-      'Measurements, fabric, trims, prints, and full spec — step by step in the builder.',
+      'Full builder: measurements, fabric & colour, prints on garment, labels, and export.',
     to: '/catalog',
     icon: FileStack,
     accent: '#3B82F6',
@@ -45,7 +53,7 @@ export function Studio() {
       </div>
 
       <div className="p-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:p-5 md:px-7 md:py-6">
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {workflows.map(({ title, description, to, icon: Icon, accent }) => (
             <Link
               key={title}

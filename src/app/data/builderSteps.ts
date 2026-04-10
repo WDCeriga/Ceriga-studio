@@ -14,6 +14,14 @@ export interface BuilderStep {
   skipForGarmentTypes?: GarmentType[];
 }
 
+/**
+ * Tech pack “spec only” flow: upload references first (step 9 UI), then garment specs without relying on step id order.
+ * Used by Builder when `?flow=techpack-spec` or Studio → Tech pack (spec only).
+ */
+export const TECHPACK_SPEC_FLOW_ORDER = [
+  9, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13,
+] as const;
+
 export const builderSteps: BuilderStep[] = [
   {
     id: 1,

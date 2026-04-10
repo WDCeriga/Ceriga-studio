@@ -30,7 +30,10 @@ function MeasurementUnitToggle({
 }) {
   return (
     <div
-      className="inline-flex w-[3.5rem] shrink-0 rounded-full border border-white/12 bg-[#0a0a0a] p-px sm:w-auto sm:min-w-[4.25rem]"
+      className={cn(
+        'inline-flex min-w-[7.25rem] shrink-0 rounded-full border border-white/12 bg-[#0a0a0a] p-1 touch-manipulation',
+        'md:min-w-[4.25rem] md:p-px',
+      )}
       role="group"
       aria-label="Measurement unit"
     >
@@ -42,7 +45,8 @@ function MeasurementUnitToggle({
             type="button"
             onClick={() => onChange(u)}
             className={cn(
-              'builder-focus relative z-0 min-h-[1.125rem] flex-1 rounded-full px-1 py-px text-center text-[7px] font-bold uppercase leading-none tracking-[0.06em] transition-colors sm:min-h-[1.375rem] sm:px-2 sm:py-0.5 sm:text-[8px] sm:tracking-[0.08em] md:min-h-[1.5rem] md:px-2.5 md:text-[9px]',
+              'builder-focus relative z-0 min-h-[44px] min-w-[3rem] flex-1 rounded-full px-3 text-center text-xs font-bold uppercase leading-none tracking-[0.08em] transition-colors',
+              'md:min-h-[1.5rem] md:min-w-0 md:px-2.5 md:py-0.5 md:text-[9px] md:tracking-[0.08em]',
               active
                 ? u === 'cm'
                   ? 'rounded-l-full bg-[#CC2D24] text-white shadow-[0_1px_4px_rgba(204,45,36,0.4)]'
@@ -189,42 +193,42 @@ export function MeasurementsStep({
 
       {/* Measurement Table */}
       <div>
-        <div className="mb-2 flex flex-col gap-2 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between min-[480px]:gap-3">
-          <Label className="min-w-0 text-white/60 text-[9px] uppercase leading-snug tracking-wider sm:text-[10px]">
+        <div className="mb-2 flex min-w-0 flex-row items-center justify-between gap-3">
+          <Label className="min-w-0 flex-1 truncate pr-1 text-white/60 text-[11px] uppercase leading-snug tracking-wider md:text-[10px]">
             Measurements ({measurementUnitLabel(measurementUnit)})
           </Label>
-          <div className="shrink-0 self-start min-[480px]:self-center">
+          <div className="shrink-0">
             <MeasurementUnitToggle unit={measurementUnit} onChange={onMeasurementUnitChange} />
           </div>
         </div>
-        <p className="mb-2 text-[9px] leading-relaxed text-white/38">
+        <p className="mb-2 text-[10px] leading-relaxed text-white/38 md:text-[9px]">
           Values are stored in centimetres; when you pick {measurementUnit === 'in' ? 'inches' : 'cm'}, we
           convert for display. Each cell is one measurement in {measurementUnitLabel(measurementUnit)}.
         </p>
         <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-[9px] md:text-xs">
+            <table className="w-full text-[10px] md:text-xs">
               <thead>
                 <tr className="border-b border-white/10">
-                  <th className="text-left px-1 py-1 text-white/60 font-medium text-[8px] md:px-2 md:py-1.5 md:text-[10px]">
+                  <th className="text-left px-1.5 py-2 text-white/60 font-medium text-[10px] md:px-2 md:py-1.5 md:text-[10px]">
                     Size
                   </th>
-                  <th className="px-0.5 py-1 text-white/60 font-medium text-[8px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
                     XS
                   </th>
-                  <th className="px-0.5 py-1 text-white/60 font-medium text-[8px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
                     S
                   </th>
-                  <th className="px-0.5 py-1 text-white/60 font-medium text-[8px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
                     M
                   </th>
-                  <th className="px-0.5 py-1 text-white/60 font-medium text-[8px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
                     L
                   </th>
-                  <th className="px-0.5 py-1 text-white/60 font-medium text-[8px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
                     XL
                   </th>
-                  <th className="px-0.5 py-1 text-white/60 font-medium text-[8px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
                     XXL
                   </th>
                 </tr>
@@ -232,11 +236,11 @@ export function MeasurementsStep({
               <tbody>
                 {measurementLabels.map((measurement) => (
                   <tr key={measurement.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="text-left px-1 py-1 text-white/80 font-medium text-[8px] max-w-[4.5rem] leading-tight md:max-w-none md:px-2 md:py-1.5 md:text-[10px]">
+                    <td className="text-left px-1.5 py-1.5 text-white/80 font-medium text-[10px] max-w-[5rem] leading-tight md:max-w-none md:px-2 md:py-1.5 md:text-[10px]">
                       {measurement.label}
                     </td>
                     {['xs', 's', 'm', 'l', 'xl', 'xxl'].map((size) => (
-                      <td key={size} className="px-0.5 py-0.5 md:px-1 md:py-1">
+                      <td key={size} className="px-1 py-1 md:px-1 md:py-1">
                         <Input
                           type="text"
                           inputMode="decimal"
@@ -255,7 +259,7 @@ export function MeasurementsStep({
                               parseMeasurementInput(e.target.value, measurementUnit),
                             )
                           }
-                          className="h-6 w-full min-w-0 px-0.5 text-center text-[9px] text-white/90 bg-white/10 border-white/20 hover:bg-white/15 focus:bg-white/20 md:h-7 md:px-2 md:text-[10px]"
+                          className="h-9 w-full min-w-0 touch-manipulation px-1 text-center text-[11px] text-white/90 bg-white/10 border-white/20 hover:bg-white/15 focus:bg-white/20 md:h-7 md:px-2 md:text-[10px]"
                         />
                       </td>
                     ))}
