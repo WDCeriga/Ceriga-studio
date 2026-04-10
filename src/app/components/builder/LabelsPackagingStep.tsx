@@ -111,37 +111,78 @@ export function LabelsPackagingStep({
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
   const [listDraggingId, setListDraggingId] = useState<string | null>(null);
   const [listDragOverId, setListDragOverId] = useState<string | null>(null);
+  const elementsListRef = useRef(elements);
+  const listRowRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const listReorderActiveRef = useRef(false);
+  const listDragSourceIdRef = useRef<string | null>(null);
+  const listDragOverIdRef = useRef<string | null>(null);
   const selected = useMemo(() => elements.find((item) => item.id === selectedId) ?? null, [elements, selectedId]);
 
-  const LIST_DND_MIME = 'text/x-ceriga-label-element';
+  useLayoutEffect(() => {
+    elementsListRef.current = elements;
+  }, [elements]);
 
-  const onListDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData(LIST_DND_MIME, id);
-    e.dataTransfer.effectAllowed = 'move';
-    setListDraggingId(id);
-    setListDragOverId(null);
+  const findListRowIdAtClientY = (clientY: number, sourceId: string) => {
+    const els = elementsListRef.current;
+    let bestId = sourceId;
+    let bestDist = Infinity;
+    for (const el of els) {
+      const node = listRowRefs.current.get(el.id);
+      if (!node) continue;
+      const r = node.getBoundingClientRect();
+      if (clientY >= r.top && clientY <= r.bottom) return el.id;
+      const cy = r.top + r.height / 2;
+      const d = Math.abs(clientY - cy);
+      if (d < bestDist) {
+        bestDist = d;
+        bestId = el.id;
+      }
+    }
+    return bestId;
   };
 
-  const onListDragEnd = () => {
-    setListDraggingId(null);
-    setListDragOverId(null);
-  };
-
-  const onListDragOverRow = (e: React.DragEvent, overId: string) => {
+  const onListGripPointerDown = (e: React.PointerEvent, elementId: string) => {
+    if (e.button !== 0) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (listDraggingId && listDraggingId !== overId) setListDragOverId(overId);
-  };
+    e.stopPropagation();
+    if (listReorderActiveRef.current) return;
+    listReorderActiveRef.current = true;
+    listDragSourceIdRef.current = elementId;
+    listDragOverIdRef.current = elementId;
+    setListDraggingId(elementId);
+    setListDragOverId(elementId);
 
-  const onListDropOnRow = (e: React.DragEvent, dropId: string) => {
-    e.preventDefault();
-    const dragId = e.dataTransfer.getData(LIST_DND_MIME);
-    onListDragEnd();
-    if (!dragId || dragId === dropId) return;
-    const from = elements.findIndex((x) => x.id === dragId);
-    const to = elements.findIndex((x) => x.id === dropId);
-    if (from < 0 || to < 0) return;
-    onElementsChange(reorderDesignElements(elements, from, to));
+    const onMove = (ev: PointerEvent) => {
+      const over = findListRowIdAtClientY(ev.clientY, elementId);
+      if (over !== listDragOverIdRef.current) {
+        listDragOverIdRef.current = over;
+        setListDragOverId(over);
+      }
+    };
+
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      if (!listReorderActiveRef.current) return;
+      listReorderActiveRef.current = false;
+      const fromId = listDragSourceIdRef.current;
+      const toId = listDragOverIdRef.current;
+      listDragSourceIdRef.current = null;
+      listDragOverIdRef.current = null;
+      setListDraggingId(null);
+      setListDragOverId(null);
+      if (!fromId || !toId || fromId === toId) return;
+      const els = elementsListRef.current;
+      const from = els.findIndex((x) => x.id === fromId);
+      const to = els.findIndex((x) => x.id === toId);
+      if (from < 0 || to < 0) return;
+      onElementsChange(reorderDesignElements(els, from, to));
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
   };
 
   const removeElementFromList = (id: string) => {
@@ -609,6 +650,10 @@ export function LabelsPackagingStep({
                 elements.map((element) => (
                   <div
                     key={element.id}
+                    ref={(node) => {
+                      if (node) listRowRefs.current.set(element.id, node);
+                      else listRowRefs.current.delete(element.id);
+                    }}
                     className={cn(
                       'flex w-full items-stretch gap-1 rounded-xl border',
                       listDragOverId === element.id && listDraggingId && listDraggingId !== element.id
@@ -617,14 +662,12 @@ export function LabelsPackagingStep({
                           ? 'border-[#FF3B30] bg-[#FF3B30]/10'
                           : 'border-white/10 bg-black/25 hover:border-white/18',
                     )}
-                    onDragOver={(e) => onListDragOverRow(e, element.id)}
-                    onDrop={(e) => onListDropOnRow(e, element.id)}
                   >
                     <div
-                      draggable
-                      onDragStart={(e) => onListDragStart(e, element.id)}
-                      onDragEnd={onListDragEnd}
-                      className="flex shrink-0 cursor-grab touch-none items-center rounded-l-[10px] px-1.5 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
+                      role="button"
+                      tabIndex={0}
+                      onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
+                      className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[10px] px-1.5 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
                       aria-label="Drag to reorder layer"
                       title="Drag to reorder"
                     >

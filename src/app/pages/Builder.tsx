@@ -1604,9 +1604,22 @@ export function Builder() {
                     type="number"
                     min={0}
                     inputMode="numeric"
-                    value={state.quantityBySize[size] ?? 0}
+                    placeholder="0"
+                    value={
+                      (state.quantityBySize[size] ?? 0) === 0
+                        ? ''
+                        : String(state.quantityBySize[size] ?? 0)
+                    }
                     onChange={(e) => {
-                      const raw = parseInt(e.target.value, 10);
+                      const t = e.target.value.trim();
+                      if (t === '') {
+                        setState((prev) => ({
+                          ...prev,
+                          quantityBySize: { ...prev.quantityBySize, [size]: 0 },
+                        }));
+                        return;
+                      }
+                      const raw = parseInt(t, 10);
                       const v = Number.isFinite(raw) ? Math.max(0, raw) : 0;
                       setState((prev) => ({
                         ...prev,
@@ -2166,7 +2179,7 @@ export function Builder() {
               <MeasurementPreview imgClassName={PREVIEW_STAGE_CLASS} />
             </div>
           ) : currentStep === 9 ? (
-            <div className="flex h-full max-h-full w-full min-w-0 max-w-[min(100%,300px)] flex-1 items-center justify-center overflow-visible px-1 max-md:max-h-[min(50dvh,380px)] md:max-w-full">
+            <div className="flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-visible px-1 max-md:max-w-[min(100%,300px)] md:max-w-full">
               <PrintsDesignPreview
                 className="h-full max-h-full w-full max-w-full"
                 elements={state.prints}
@@ -2449,12 +2462,12 @@ export function Builder() {
             key="builder-phone-panels"
             direction="vertical"
             className="flex min-h-0 flex-1 flex-col"
-            autoSaveId="ceriga-builder-phone-v3"
+            autoSaveId="ceriga-builder-phone-v4"
           >
             <Panel
-              defaultSize={44}
-              minSize={26}
-              maxSize={58}
+              defaultSize={42}
+              minSize={14}
+              maxSize={90}
               className={cn(
                 'flex min-h-0 min-w-0',
                 draggingDetail && 'z-40 overflow-visible',
@@ -2472,7 +2485,7 @@ export function Builder() {
               <div className="h-1 w-[4.5rem] rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
               <span className="sr-only">Drag to resize preview and configure panels</span>
             </PanelResizeHandle>
-            <Panel defaultSize={56} minSize={42} className="flex min-h-0 min-w-0">
+            <Panel defaultSize={58} minSize={10} maxSize={86} className="flex min-h-0 min-w-0">
               <div
                 className={cn(
                   'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',
