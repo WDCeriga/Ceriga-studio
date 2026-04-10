@@ -187,9 +187,12 @@ const DETAIL_META: Record<
 /** Pixels of movement before a detail callout counts as a drag (tap/click does not move it). */
 const DETAIL_DRAG_THRESHOLD_PX = 8;
 
-/** Phone: fill the live-preview panel so resizing the split does not leave empty black letterboxing (no fixed 50dvh cap). */
+/**
+ * Phone garment / guide images: never force both axes to 100% (avoids squashed look).
+ * Let object-contain fit inside the preview panel; cap width by vw so small phones still scale.
+ */
 const PREVIEW_STAGE_CLASS_PHONE =
-  'relative z-[1] mx-auto h-full min-h-0 w-full max-h-full max-w-[min(100%,300px)] object-contain';
+  'relative z-[1] mx-auto block h-auto w-auto max-h-full max-w-[min(100%,92vw,420px)] shrink-0 object-contain';
 /** Tablet/desktop: capped height so the guide does not dominate very tall viewports. */
 const PREVIEW_STAGE_CLASS =
   'relative z-[1] mx-auto h-auto w-full max-w-[min(100%,300px)] max-h-[min(50dvh,380px)] object-contain md:h-full md:max-h-[min(38vh,340px)] md:max-w-[min(100%,360px)] lg:max-h-[min(42vh,400px)] lg:max-w-[min(100%,400px)] xl:max-h-[min(46vh,460px)] xl:max-w-[min(100%,440px)] 2xl:max-h-[min(52vh,540px)] 2xl:max-w-[min(100%,480px)]';
@@ -2034,7 +2037,7 @@ export function Builder() {
       <div
         className={cn(
           'border-b border-white/[0.06] bg-[#0F0F0F]/90 px-2 py-2 backdrop-blur-md sm:border-white/10 sm:bg-[#0F0F0F]/85 sm:px-4 sm:py-3 lg:px-6',
-          isPhone && 'border-b-0 px-3.5 py-2.5',
+          isPhone && 'border-b-0 px-3 py-1.5',
         )}
       >
         <div
@@ -2064,7 +2067,7 @@ export function Builder() {
               onClick={() => setShowExtraDetails((prev) => !prev)}
               className={cn(
                 'border-white/15 bg-white/[0.04] !text-white hover:bg-white/10 sm:border-white/20 sm:px-3 sm:text-[10px]',
-                isPhone ? 'h-10 min-h-[44px] rounded-xl px-4 text-[11px] font-medium' : 'h-8 px-2.5 text-[9px]',
+                isPhone ? 'h-9 min-h-0 rounded-lg px-3 text-[11px] font-medium' : 'h-8 px-2.5 text-[9px]',
               )}
             >
               {showExtraDetails ? 'Hide' : 'Details'}
@@ -2073,7 +2076,7 @@ export function Builder() {
             <div
               className={cn(
                 'flex shrink-0 flex-nowrap items-center rounded-lg border border-white/10 bg-white/5 sm:gap-2 sm:rounded-xl sm:px-2.5 sm:py-1.5',
-                isPhone ? 'gap-2 rounded-xl px-2 py-2' : 'gap-1 px-1.5 py-1',
+                isPhone ? 'gap-1.5 rounded-lg px-1.5 py-1' : 'gap-1 px-1.5 py-1',
               )}
             >
               {(['black', 'white', 'transparent'] as const).map((bg) => (
@@ -2083,7 +2086,7 @@ export function Builder() {
                   onClick={() => setPreviewBackground(bg)}
                   className={cn(
                     'builder-focus shrink-0 rounded-lg border',
-                    isPhone ? 'h-10 w-10 min-h-[44px] min-w-[44px]' : 'h-6 w-6',
+                    isPhone ? 'h-9 w-9 min-h-0 min-w-0' : 'h-6 w-6',
                     previewBackground === bg
                       ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
                       : 'border-white/20',
@@ -2105,7 +2108,7 @@ export function Builder() {
             <div
               className={cn(
                 'flex shrink-0 flex-nowrap items-center rounded-lg border border-white/10 bg-white/5 sm:gap-2 sm:rounded-xl sm:p-1.5',
-                isPhone ? 'gap-2 rounded-xl p-2' : 'gap-1 p-1',
+                isPhone ? 'gap-1.5 rounded-lg p-1' : 'gap-1 p-1',
               )}
             >
               <Button
@@ -2115,10 +2118,10 @@ export function Builder() {
                 className={
                   showFront
                     ? isPhone
-                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl bg-[#FF3B30] px-3 text-[11px] font-semibold !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-9 min-h-0 min-w-[3.75rem] rounded-lg bg-[#FF3B30] px-2.5 text-[11px] font-semibold !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                     : isPhone
-                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl border-white/20 px-3 text-[11px] font-semibold !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-9 min-h-0 min-w-[3.75rem] rounded-lg border-white/20 px-2.5 text-[11px] font-semibold !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                 }
               >
@@ -2131,10 +2134,10 @@ export function Builder() {
                 className={
                   !showFront
                     ? isPhone
-                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl bg-[#FF3B30] px-3 text-[11px] font-semibold !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-9 min-h-0 min-w-[3.75rem] rounded-lg bg-[#FF3B30] px-2.5 text-[11px] font-semibold !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                     : isPhone
-                      ? 'h-10 min-h-[44px] min-w-[4.5rem] rounded-xl border-white/20 px-3 text-[11px] font-semibold !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      ? 'h-9 min-h-0 min-w-[3.75rem] rounded-lg border-white/20 px-2.5 text-[11px] font-semibold !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                       : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                 }
               >
@@ -2149,6 +2152,7 @@ export function Builder() {
         ref={previewShellRef}
         className={cn(
           'relative flex min-h-0 flex-1 flex-col items-center justify-center px-2 py-1.5 sm:px-4 sm:py-3 lg:px-6 lg:py-4',
+          isPhone && 'px-1.5 py-0',
           previewSurfaceNeedsVisibleOverflow ? 'overflow-visible' : 'overflow-hidden',
           isPhone && 'overscroll-contain',
           isPhone && draggingDetail && 'touch-none',
@@ -2174,7 +2178,8 @@ export function Builder() {
         ) : null}
         <div
           className={cn(
-            'relative z-20 flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col items-center justify-center py-0.5 sm:py-1',
+            'relative z-20 flex min-h-0 w-full max-w-full min-w-0 flex-1 flex-col items-center justify-center sm:py-1',
+            isPhone ? 'py-0' : 'py-0.5',
             previewSurfaceNeedsVisibleOverflow ? 'overflow-visible' : 'overflow-hidden',
           )}
         >
@@ -2240,7 +2245,7 @@ export function Builder() {
           ) : (
             <div
               className={cn(
-                'relative flex max-h-full w-full items-center justify-center',
+                'relative flex min-h-0 w-full flex-1 items-center justify-center',
                 draggingDetail ? 'overflow-visible' : 'overflow-hidden',
               )}
             >
@@ -2248,7 +2253,10 @@ export function Builder() {
               <img
                 src={imgBlueTshirt}
                 alt="Tech pack preview"
-                className={cn('relative z-[1] object-contain', PREVIEW_STAGE_CLASS)}
+                className={cn(
+                  'relative z-[1] object-contain',
+                  isPhone ? PREVIEW_STAGE_CLASS_PHONE : PREVIEW_STAGE_CLASS,
+                )}
                 style={{ filter: `hue-rotate(${getHueRotation(primaryColor)}deg)` }}
               />
             </div>
@@ -2256,18 +2264,24 @@ export function Builder() {
         </div>
 
         {draggingDetail && currentStep < 9 ? (
-          <div className="pointer-events-none relative z-[5] mt-0 flex w-full justify-center pb-1">
+          <div
+            className={cn(
+              'pointer-events-none absolute inset-x-0 bottom-0 z-[45] flex justify-center px-2',
+              isPhone ? 'pb-1' : 'pb-1',
+            )}
+          >
             <div
               ref={deleteZoneRef}
               className={cn(
-                'builder-delete-zone flex min-w-[210px] items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-all duration-200 motion-reduce:transition-none motion-reduce:transform-none',
+                'builder-delete-zone pointer-events-auto flex max-w-[min(100%,320px)] min-w-0 items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,0.45)] transition-all duration-200 motion-reduce:transition-none motion-reduce:transform-none sm:min-w-[210px] sm:rounded-2xl sm:px-4 sm:py-2.5',
+                isPhone && 'py-1.5',
                 isOverDeleteZone
                   ? 'scale-105 border-[#FF3B30] bg-[#FF3B30]/15 text-white motion-reduce:scale-100'
                   : 'border-white/20 bg-black/55 text-white/70',
               )}
             >
-              <Trash2 className={`h-4 w-4 ${isOverDeleteZone ? 'animate-pulse' : ''}`} />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
+              <Trash2 className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isOverDeleteZone ? 'animate-pulse' : ''}`} />
+              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.18em]">
                 {isOverDeleteZone ? 'Release to delete' : 'Drag detail here'}
               </span>
             </div>
@@ -2468,14 +2482,18 @@ export function Builder() {
             key="builder-phone-panels"
             direction="vertical"
             className="flex min-h-0 flex-1 flex-col"
-            autoSaveId="ceriga-builder-phone-v5"
+            autoSaveId="ceriga-builder-phone-v6"
           >
+            {/*
+              Keep enough height for “Live preview” toolbar (Details, swatches, Front/Back) + a strip of canvas.
+              Bottom panel max 68% ⇔ top never below ~32%, so the sheet cannot swallow the preview chrome.
+            */}
             <Panel
-              defaultSize={40}
-              minSize={6}
-              maxSize={94}
+              defaultSize={38}
+              minSize={32}
+              maxSize={90}
               className={cn(
-                'flex min-h-0 min-w-0 overflow-hidden',
+                'relative z-10 flex min-h-0 min-w-0 overflow-hidden',
                 draggingDetail && 'z-40 overflow-visible',
               )}
             >
@@ -2484,14 +2502,19 @@ export function Builder() {
             <PanelResizeHandle
               title="Drag to resize preview and configure"
               className={cn(
-                'group flex shrink-0 cursor-ns-resize items-center justify-center bg-[#0F0F0F] transition-colors hover:bg-[#141414] data-[resize-handle-state=drag]:bg-[#1a1010]',
+                'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#0F0F0F] transition-colors hover:bg-[#141414] data-[resize-handle-state=drag]:bg-[#1a1010]',
                 isPhone ? 'min-h-10 py-2' : 'h-3 py-0.5',
               )}
             >
               <div className="h-1 w-[4.5rem] rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
               <span className="sr-only">Drag to resize preview and configure panels</span>
             </PanelResizeHandle>
-            <Panel defaultSize={60} minSize={6} maxSize={94} className="flex min-h-0 min-w-0 overflow-hidden">
+            <Panel
+              defaultSize={62}
+              minSize={10}
+              maxSize={68}
+              className="relative z-0 flex min-h-0 min-w-0 overflow-hidden"
+            >
               <div
                 className={cn(
                   'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',
