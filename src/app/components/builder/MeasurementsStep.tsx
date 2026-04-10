@@ -31,7 +31,7 @@ function MeasurementUnitToggle({
   return (
     <div
       className={cn(
-        'inline-flex min-w-[7.25rem] shrink-0 rounded-full border border-white/12 bg-[#0a0a0a] p-1 touch-manipulation',
+        'inline-flex min-w-[5.75rem] shrink-0 rounded-full border border-white/12 bg-[#0a0a0a] p-0.5 touch-manipulation',
         'md:min-w-[4.25rem] md:p-px',
       )}
       role="group"
@@ -45,7 +45,7 @@ function MeasurementUnitToggle({
             type="button"
             onClick={() => onChange(u)}
             className={cn(
-              'builder-focus relative z-0 min-h-[44px] min-w-[3rem] flex-1 rounded-full px-3 text-center text-xs font-bold uppercase leading-none tracking-[0.08em] transition-colors',
+              'builder-focus relative z-0 min-h-9 min-w-[2.5rem] flex-1 rounded-full px-2 text-center text-[10px] font-bold uppercase leading-none tracking-[0.08em] transition-colors',
               'md:min-h-[1.5rem] md:min-w-0 md:px-2.5 md:py-0.5 md:text-[9px] md:tracking-[0.08em]',
               active
                 ? u === 'cm'
@@ -145,17 +145,19 @@ export function MeasurementsStep({
   const currentMeasurements = fit && fitMeasurements[fit] ? fitMeasurements[fit] : fitMeasurements.regular;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Fit Selector */}
       <div>
-        <Label className="mb-3 block text-white/60 text-xs uppercase tracking-wider">Fit Type</Label>
+        <Label className="mb-2 block text-[10px] uppercase tracking-wider text-white/60 md:mb-3 md:text-xs">
+          Fit Type
+        </Label>
         <Select value={fit} onValueChange={onFitChange}>
           <SelectTrigger
             className={cn(
-              'min-h-[44px] touch-manipulation border-white/12 bg-white/[0.06] px-3 py-2.5 text-[15px] leading-tight text-white',
+              'min-h-10 touch-manipulation border-white/12 bg-white/[0.06] px-2.5 py-2 text-[13px] leading-tight text-white',
               'data-[placeholder]:text-white/45 [&_svg]:text-white/55',
               'focus-visible:border-[#CC2D24]/50 focus-visible:ring-[#CC2D24]/25',
-              'sm:min-h-9 sm:py-2 sm:text-sm',
+              'sm:min-h-9 sm:px-3 sm:py-2 sm:text-sm',
             )}
           >
             <SelectValue placeholder="Select fit" />
@@ -177,7 +179,7 @@ export function MeasurementsStep({
                 key={option.id}
                 value={option.id}
                 className={cn(
-                  'min-h-[44px] cursor-pointer py-3 pl-3 pr-9 text-[15px] leading-snug text-white',
+                  'min-h-10 cursor-pointer py-2.5 pl-3 pr-9 text-[13px] leading-snug text-white',
                   'focus:bg-white/10 focus:text-white data-[highlighted]:bg-white/10 data-[state=checked]:bg-white/[0.08]',
                   'data-[disabled]:text-white/35',
                   '[&_svg]:text-[#CC2D24]',
@@ -193,42 +195,42 @@ export function MeasurementsStep({
 
       {/* Measurement Table */}
       <div>
-        <div className="mb-2 flex min-w-0 flex-row items-center justify-between gap-3">
-          <Label className="min-w-0 flex-1 truncate pr-1 text-white/60 text-[11px] uppercase leading-snug tracking-wider md:text-[10px]">
+        <div className="mb-1.5 flex min-w-0 flex-row items-center justify-between gap-2 md:mb-2 md:gap-3">
+          <Label className="min-w-0 flex-1 truncate pr-1 text-[10px] uppercase leading-snug tracking-wider text-white/60 md:text-[10px]">
             Measurements ({measurementUnitLabel(measurementUnit)})
           </Label>
           <div className="shrink-0">
             <MeasurementUnitToggle unit={measurementUnit} onChange={onMeasurementUnitChange} />
           </div>
         </div>
-        <p className="mb-2 text-[10px] leading-relaxed text-white/38 md:text-[9px]">
+        <p className="mb-1.5 text-[9px] leading-snug text-white/38 md:mb-2 md:text-[9px]">
           Values are stored in centimetres; when you pick {measurementUnit === 'in' ? 'inches' : 'cm'}, we
           convert for display. Each cell is one measurement in {measurementUnitLabel(measurementUnit)}.
         </p>
-        <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-white/10 bg-white/5">
           <div className="overflow-x-auto">
             <table className="w-full text-xs md:text-xs">
               <thead>
                 <tr className="border-b border-white/10">
-                  <th className="text-left px-1.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
+                  <th className="px-1 py-1 text-left text-[10px] font-semibold text-white/70 md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     Size
                   </th>
-                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     XS
                   </th>
-                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     S
                   </th>
-                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     M
                   </th>
-                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     L
                   </th>
-                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     XL
                   </th>
-                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     XXL
                   </th>
                 </tr>
@@ -236,11 +238,11 @@ export function MeasurementsStep({
               <tbody>
                 {measurementLabels.map((measurement) => (
                   <tr key={measurement.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="max-w-[6.5rem] px-1.5 py-1 text-left text-[12px] font-semibold leading-snug text-white/90 md:max-w-none md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/80">
+                    <td className="max-w-[5.75rem] px-1 py-0.5 text-left text-[10px] font-semibold leading-tight text-white/90 md:max-w-none md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/80">
                       {measurement.label}
                     </td>
                     {['xs', 's', 'm', 'l', 'xl', 'xxl'].map((size) => (
-                      <td key={size} className="px-0.5 py-0.5 md:px-1 md:py-1">
+                      <td key={size} className="px-0.5 py-px md:px-1 md:py-1">
                         <Input
                           type="text"
                           inputMode="decimal"
@@ -259,7 +261,7 @@ export function MeasurementsStep({
                               parseMeasurementInput(e.target.value, measurementUnit),
                             )
                           }
-                          className="h-7 min-h-[32px] w-full min-w-0 touch-manipulation rounded-md border-white/20 bg-white/10 px-0.5 py-0 text-center text-[10px] tabular-nums text-white/90 hover:bg-white/15 focus:bg-white/20 md:h-7 md:min-h-0 md:px-2 md:text-[10px]"
+                          className="h-6 min-h-[26px] w-full min-w-0 touch-manipulation rounded border border-white/20 bg-white/10 px-px py-0 text-center text-[9px] tabular-nums text-white/90 hover:bg-white/15 focus:bg-white/20 md:h-7 md:min-h-0 md:rounded-md md:px-2 md:text-[10px]"
                         />
                       </td>
                     ))}

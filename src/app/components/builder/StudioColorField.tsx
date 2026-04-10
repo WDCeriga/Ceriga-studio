@@ -15,7 +15,7 @@ function PresetGrid({
   onSelect: (hex: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-1 sm:grid-cols-10 sm:gap-1.5">
+    <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-2">
       {colors.map((color) => {
         const norm = normalizeHex6(color);
         const active = normalizeHex6(selected) === norm;
@@ -25,7 +25,8 @@ function PresetGrid({
             type="button"
             onClick={() => onSelect(norm)}
             className={cn(
-              'h-6 w-full min-w-0 shrink-0 rounded-md border transition-all sm:h-7',
+              // `aspect-square` keeps swatches square; fixed height + `w-full` looked like flat pills on phone.
+              'aspect-square w-full min-w-0 shrink-0 rounded-md border transition-all',
               active
                 ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]/50'
                 : 'border-white/15 hover:border-white/35',
@@ -79,15 +80,15 @@ export function StudioColorField({
         <AdvancedColorPopover value={hex} onChange={onChange}>
           <button
             type="button"
-            className="group relative aspect-[5/3] w-[5.25rem] shrink-0 overflow-hidden rounded-xl border border-white/18 bg-black/30 shadow-inner transition hover:border-white/32 sm:w-[5.75rem]"
+            className="group relative aspect-square w-[3.25rem] shrink-0 overflow-hidden rounded-xl border border-white/18 bg-black/30 shadow-inner transition hover:border-white/32 sm:aspect-[5/3] sm:w-[5.5rem]"
             aria-label="Open colour picker"
           >
             <span className="absolute inset-0" style={{ backgroundColor: hex }} aria-hidden />
             <span
-              className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white shadow-sm backdrop-blur-sm transition group-hover:bg-black/65"
+              className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white shadow-sm backdrop-blur-sm transition group-hover:bg-black/65 sm:h-6 sm:w-6"
               aria-hidden
             >
-              <Palette className="h-3 w-3" strokeWidth={2} />
+              <Palette className="h-2.5 w-2.5 sm:h-3 sm:w-3" strokeWidth={2} />
             </span>
           </button>
         </AdvancedColorPopover>
