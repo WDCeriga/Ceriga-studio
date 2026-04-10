@@ -2000,7 +2000,7 @@ export function Builder() {
           className={cn(
             'shrink-0 border-t border-white/[0.07] bg-[#0a0a0a]/95 p-3 backdrop-blur-md md:p-3.5',
             isPhone &&
-              'px-3.5 pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+14px))] pt-3',
+              'px-3.5 pt-3 pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+24px))]',
           )}
         >
           <div className="flex gap-2.5">
@@ -2482,16 +2482,17 @@ export function Builder() {
             key="builder-phone-panels"
             direction="vertical"
             className="flex min-h-0 flex-1 flex-col"
-            autoSaveId="ceriga-builder-phone-v6"
+            autoSaveId="ceriga-builder-phone-v7"
           >
             {/*
-              Keep enough height for “Live preview” toolbar (Details, swatches, Front/Back) + a strip of canvas.
-              Bottom panel max 68% ⇔ top never below ~32%, so the sheet cannot swallow the preview chrome.
+              Top: keep Live preview toolbar + canvas visible (min ~32%).
+              Bottom: min ~30% so title + scroll + Back/Continue + safe area are never clipped when the handle is at its lowest.
+              Bottom max 68% ⇔ top never below ~32%.
             */}
             <Panel
-              defaultSize={38}
+              defaultSize={35}
               minSize={32}
-              maxSize={90}
+              maxSize={70}
               className={cn(
                 'relative z-10 flex min-h-0 min-w-0 overflow-hidden',
                 draggingDetail && 'z-40 overflow-visible',
@@ -2510,8 +2511,8 @@ export function Builder() {
               <span className="sr-only">Drag to resize preview and configure panels</span>
             </PanelResizeHandle>
             <Panel
-              defaultSize={62}
-              minSize={10}
+              defaultSize={65}
+              minSize={30}
               maxSize={68}
               className="relative z-0 flex min-h-0 min-w-0 overflow-hidden"
             >
