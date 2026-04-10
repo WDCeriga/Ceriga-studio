@@ -15,7 +15,7 @@ function PresetGrid({
   onSelect: (hex: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-2">
+    <div className="grid grid-cols-5 justify-items-center gap-x-0.5 gap-y-1 sm:grid-cols-10 sm:justify-items-stretch sm:gap-x-1.5 sm:gap-y-2">
       {colors.map((color) => {
         const norm = normalizeHex6(color);
         const active = normalizeHex6(selected) === norm;
@@ -25,8 +25,9 @@ function PresetGrid({
             type="button"
             onClick={() => onSelect(norm)}
             className={cn(
-              // `aspect-square` keeps swatches square; fixed height + `w-full` looked like flat pills on phone.
-              'aspect-square w-full min-w-0 shrink-0 rounded-md border transition-all',
+              // Phone: small fixed squares (full-width cells felt huge). sm+: fill each grid cell.
+              'size-[1.35rem] min-h-[1.35rem] min-w-[1.35rem] shrink-0 rounded-[5px] border transition-all active:scale-95',
+              'sm:aspect-square sm:size-auto sm:min-h-0 sm:min-w-0 sm:w-full sm:rounded-md',
               active
                 ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]/50'
                 : 'border-white/15 hover:border-white/35',
