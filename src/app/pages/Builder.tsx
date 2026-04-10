@@ -175,7 +175,7 @@ const DETAIL_DRAG_THRESHOLD_PX = 8;
 
 /** Phone: larger default preview; shrinks when the user drags the split handle (panel gives less height). md+ caps unchanged. */
 const PREVIEW_STAGE_CLASS =
-  'relative z-[1] mx-auto h-auto w-full max-w-[min(100%,280px)] max-h-[min(44dvh,320px)] object-contain md:h-full md:max-h-[min(38vh,340px)] md:max-w-[min(100%,360px)] lg:max-h-[min(42vh,400px)] lg:max-w-[min(100%,400px)] xl:max-h-[min(46vh,460px)] xl:max-w-[min(100%,440px)] 2xl:max-h-[min(52vh,540px)] 2xl:max-w-[min(100%,480px)]';
+  'relative z-[1] mx-auto h-auto w-full max-w-[min(100%,300px)] max-h-[min(50dvh,380px)] object-contain md:h-full md:max-h-[min(38vh,340px)] md:max-w-[min(100%,360px)] lg:max-h-[min(42vh,400px)] lg:max-w-[min(100%,400px)] xl:max-h-[min(46vh,460px)] xl:max-w-[min(100%,440px)] 2xl:max-h-[min(52vh,540px)] 2xl:max-w-[min(100%,480px)]';
 
 function formatPlanSummary(kind: 'label' | 'packaging', value?: string): string {
   const fallback = kind === 'label' ? 'woven' : 'polybag';
@@ -1843,42 +1843,56 @@ export function Builder() {
       <div
         className={cn(
           'border-b border-white/[0.06] bg-[#0F0F0F]/90 px-2 py-2 backdrop-blur-md sm:border-white/10 sm:bg-[#0F0F0F]/85 sm:px-4 sm:py-3 lg:px-6',
-          isPhone && 'border-b-0 px-3 py-2',
+          isPhone && 'border-b-0 px-3.5 py-2.5',
         )}
       >
         <div
           className={cn(
             'flex flex-wrap items-center justify-between gap-2 sm:gap-4',
-            isPhone && 'flex-row flex-wrap items-center gap-2',
+            isPhone && 'flex-row flex-wrap items-center gap-2.5',
           )}
         >
-          <div className="text-[9px] font-semibold uppercase tracking-wider text-white/55 sm:text-[10px] sm:text-white/60 md:text-[11px]">
+          <div
+            className={cn(
+              'font-semibold uppercase tracking-wider text-white/55 sm:text-[10px] sm:text-white/60 md:text-[11px]',
+              isPhone ? 'text-[10px]' : 'text-[9px]',
+            )}
+          >
             Live preview
           </div>
 
             <div
               className={cn(
                 'flex flex-wrap items-center justify-end gap-1.5 sm:justify-start sm:gap-3',
-                isPhone && 'ml-auto flex-nowrap justify-end',
+                isPhone && 'ml-auto flex-nowrap justify-end gap-2',
               )}
             >
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowExtraDetails((prev) => !prev)}
-              className="h-8 border-white/15 bg-white/[0.04] px-2.5 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:border-white/20 sm:px-3 sm:text-[10px]"
+              className={cn(
+                'border-white/15 bg-white/[0.04] !text-white hover:bg-white/10 sm:border-white/20 sm:px-3 sm:text-[10px]',
+                isPhone ? 'h-9 px-3 text-[10px]' : 'h-8 px-2.5 text-[9px]',
+              )}
             >
               {showExtraDetails ? 'Hide' : 'Details'}
             </Button>
 
-            <div className="flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-1.5 py-1 sm:gap-2 sm:rounded-xl sm:px-2.5 sm:py-1.5">
+            <div
+              className={cn(
+                'flex shrink-0 flex-nowrap items-center rounded-lg border border-white/10 bg-white/5 sm:gap-2 sm:rounded-xl sm:px-2.5 sm:py-1.5',
+                isPhone ? 'gap-1.5 px-2 py-1.5' : 'gap-1 px-1.5 py-1',
+              )}
+            >
               {(['black', 'white', 'transparent'] as const).map((bg) => (
                 <button
                   key={bg}
                   type="button"
                   onClick={() => setPreviewBackground(bg)}
                   className={cn(
-                    'builder-focus h-6 w-6 shrink-0 rounded-lg border',
+                    'builder-focus shrink-0 rounded-lg border',
+                    isPhone ? 'h-8 w-8' : 'h-6 w-6',
                     previewBackground === bg
                       ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
                       : 'border-white/20',
@@ -1897,15 +1911,24 @@ export function Builder() {
               ))}
             </div>
 
-            <div className="flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-1 sm:gap-2 sm:rounded-xl sm:p-1.5">
+            <div
+              className={cn(
+                'flex shrink-0 flex-nowrap items-center rounded-lg border border-white/10 bg-white/5 sm:gap-2 sm:rounded-xl sm:p-1.5',
+                isPhone ? 'gap-1.5 p-1.5' : 'gap-1 p-1',
+              )}
+            >
               <Button
                 variant={showFront ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setShowFront(true)}
                 className={
                   showFront
-                    ? 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
-                    : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                    ? isPhone
+                      ? 'h-9 min-w-[52px] bg-[#FF3B30] px-2.5 text-[10px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      : 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                    : isPhone
+                      ? 'h-9 min-w-[52px] border-white/20 px-2.5 text-[10px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                 }
               >
                 FRONT
@@ -1916,8 +1939,12 @@ export function Builder() {
                 onClick={() => setShowFront(false)}
                 className={
                   !showFront
-                    ? 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
-                    : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                    ? isPhone
+                      ? 'h-9 min-w-[52px] bg-[#FF3B30] px-2.5 text-[10px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      : 'h-7 min-w-[44px] bg-[#FF3B30] px-2 text-[9px] !text-white hover:bg-[#FF3B30]/90 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                    : isPhone
+                      ? 'h-9 min-w-[52px] border-white/20 px-2.5 text-[10px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
+                      : 'h-7 min-w-[44px] border-white/20 px-2 text-[9px] !text-white hover:bg-white/10 sm:h-8 sm:min-w-[56px] sm:px-3 sm:text-[10px]'
                 }
               >
                 BACK
@@ -1965,7 +1992,7 @@ export function Builder() {
               <MeasurementPreview imgClassName={PREVIEW_STAGE_CLASS} />
             </div>
           ) : currentStep === 9 ? (
-            <div className="flex h-full max-h-full w-full min-w-0 max-w-[min(100%,280px)] flex-1 items-center justify-center overflow-visible px-1 max-md:max-h-[min(44dvh,320px)] md:max-w-full">
+            <div className="flex h-full max-h-full w-full min-w-0 max-w-[min(100%,300px)] flex-1 items-center justify-center overflow-visible px-1 max-md:max-h-[min(50dvh,380px)] md:max-w-full">
               <PrintsDesignPreview
                 className="h-full max-h-full w-full max-w-full"
                 elements={state.prints}
@@ -2156,25 +2183,20 @@ export function Builder() {
         className={cn(
           'px-3 sm:px-5',
           isPhone
-            ? 'border-b-0 bg-[#0F0F0F] py-1.5'
+            ? 'border-b-0 bg-[#0F0F0F] py-2.5'
             : 'border-b border-white/10 bg-[#0a0a0a] py-2 sm:bg-[#0F0F0F] sm:py-2.5',
         )}
       >
         <div className="flex items-center justify-between gap-3 sm:gap-4">
           <div className="min-w-0 flex-1">
-            <div className={cn('mb-1.5 flex items-center justify-between sm:mb-1.5', isPhone && 'mb-1')}>
-              <div
-                className={cn(
-                  'font-bold uppercase tracking-[2px] text-[#CC2D24] sm:text-[#FF3B30]',
-                  isPhone ? 'text-[8px]' : 'text-[9px]',
-                )}
-              >
+            <div className={cn('mb-1.5 flex items-center justify-between sm:mb-1.5', isPhone && 'mb-1.5')}>
+              <div className="font-bold uppercase tracking-[2px] text-[9px] text-[#CC2D24] sm:text-[#FF3B30]">
                 Step {currentStep} / {builderSteps.length}
               </div>
             </div>
 
             {isPhone ? (
-              <div className="scrollbar-dark flex touch-pan-x gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] snap-x snap-mandatory">
+              <div className="scrollbar-dark flex touch-pan-x gap-2 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] snap-x snap-mandatory">
                 {visibleBuilderSteps.map((item) => {
                   const current = currentStep === item.id;
                   const enabled = visitedSteps.includes(item.id);
@@ -2185,7 +2207,7 @@ export function Builder() {
                       type="button"
                       onClick={() => handleStepClick(item.id)}
                       disabled={!enabled}
-                      className={`builder-focus flex min-h-[2.25rem] min-w-[calc((100%-0.75rem)/4)] max-w-[calc((100%-0.75rem)/4)] shrink-0 snap-center flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center text-[7px] font-bold uppercase leading-tight tracking-wide transition-colors ${
+                      className={`builder-focus flex min-h-[3.25rem] min-w-[calc((100%-1rem)/3)] max-w-[min(100%,calc((100%-1rem)/3))] shrink-0 snap-center flex-col items-center justify-center rounded-lg border px-1.5 py-2 text-center text-[9px] font-bold uppercase leading-tight tracking-wide transition-colors ${
                         current
                           ? 'border-[#CC2D24] bg-[#CC2D24] text-white shadow-[0_2px_12px_rgba(204,45,36,0.3)]'
                           : enabled
@@ -2239,7 +2261,7 @@ export function Builder() {
           </div>
         </div>
         {isPhone ? (
-          <p className="mt-1.5 text-center text-[7px] leading-snug text-white/28">Drag the handle above the form to resize preview</p>
+          <p className="mt-2 text-center text-[8px] leading-snug text-white/35">Drag the handle above the form to resize preview</p>
         ) : null}
       </div>
 
@@ -2252,9 +2274,9 @@ export function Builder() {
             autoSaveId="ceriga-builder-phone-v3"
           >
             <Panel
-              defaultSize={40}
-              minSize={24}
-              maxSize={56}
+              defaultSize={44}
+              minSize={26}
+              maxSize={58}
               className={cn(
                 'flex min-h-0 min-w-0',
                 draggingDetail && 'z-40 overflow-visible',
@@ -2266,13 +2288,13 @@ export function Builder() {
               title="Drag to resize preview and configure"
               className={cn(
                 'group flex shrink-0 cursor-ns-resize items-center justify-center bg-[#0F0F0F] transition-colors hover:bg-[#141414] data-[resize-handle-state=drag]:bg-[#1a1010]',
-                isPhone ? 'min-h-[44px] py-2' : 'h-3 py-0.5',
+                isPhone ? 'min-h-[48px] py-2.5' : 'h-3 py-0.5',
               )}
             >
-              <div className="h-1 w-16 rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
+              <div className="h-1 w-[4.5rem] rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
               <span className="sr-only">Drag to resize preview and configure panels</span>
             </PanelResizeHandle>
-            <Panel defaultSize={60} minSize={44} className="flex min-h-0 min-w-0">
+            <Panel defaultSize={56} minSize={42} className="flex min-h-0 min-w-0">
               <div
                 className={cn(
                   'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',

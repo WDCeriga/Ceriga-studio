@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Copy, ImagePlus, MessageCircle, Pencil, Send, Trash2, User, X } from "lucide-react";
+import { ChevronLeft, Copy, ImagePlus, MessageCircle, Pencil, Send, Trash2, User, X } from "lucide-react";
 import { SUPPORT_FAQS, type SupportFaq } from "../data/supportChatFaq";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 import { ScrollArea } from "./ui/scroll-area";
@@ -176,27 +176,29 @@ export function DashboardLiveChat() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "fixed z-[95] flex items-center gap-2.5 rounded-2xl border border-white/12 bg-[#111113] px-3 py-2.5 text-white shadow-[0_12px_40px_rgba(0,0,0,0.45)] transition-transform hover:border-white/18 hover:bg-[#161618] active:scale-[0.98] sm:px-3.5",
-          "bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] sm:bottom-6 sm:right-6",
-        )}
-        style={{ fontFamily: "'DM Sans', sans-serif" }}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-      >
-        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#CC2D24]/30 bg-[#CC2D24]/12">
-          <MessageCircle className="h-5 w-5 text-[#FCA5A5]" strokeWidth={2} aria-hidden />
-          <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-[#111113] bg-[#CC2D24]">
-            <User className="h-2.5 w-2.5 text-white" strokeWidth={2.5} aria-hidden />
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={cn(
+            "fixed z-[95] flex items-center gap-2.5 rounded-2xl border border-white/12 bg-[#111113] px-3 py-2.5 text-white shadow-[0_12px_40px_rgba(0,0,0,0.45)] transition-transform hover:border-white/18 hover:bg-[#161618] active:scale-[0.98] sm:px-3.5",
+            "bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] sm:bottom-6 sm:right-6",
+          )}
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+        >
+          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#CC2D24]/30 bg-[#CC2D24]/12">
+            <MessageCircle className="h-5 w-5 text-[#FCA5A5]" strokeWidth={2} aria-hidden />
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-[#111113] bg-[#CC2D24]">
+              <User className="h-2.5 w-2.5 text-white" strokeWidth={2.5} aria-hidden />
+            </span>
           </span>
-        </span>
-        <span className="max-w-[200px] text-left text-sm font-semibold leading-tight text-white/95 sm:max-w-none">
-          Chat with us
-        </span>
-      </button>
+          <span className="max-w-[200px] text-left text-sm font-semibold leading-tight text-white/95 sm:max-w-none">
+            Chat with us
+          </span>
+        </button>
+      )}
 
       <Sheet
         open={open}
@@ -206,12 +208,27 @@ export function DashboardLiveChat() {
       >
         <SheetContent
           side="right"
-          className="flex h-full max-h-dvh w-[min(100vw-1rem,400px)] flex-col gap-0 overflow-hidden border-white/10 bg-[#111113] p-0 text-white [&>button:last-child]:hidden"
+          className={cn(
+            "flex flex-col gap-0 overflow-hidden bg-[#111113] p-0 text-white [&>button:last-child]:hidden",
+            /* Phone / small tablet: full screen */
+            "max-lg:!fixed max-lg:!inset-0 max-lg:!left-0 max-lg:!right-0 max-lg:!top-0 max-lg:!bottom-0 max-lg:!h-[100dvh] max-lg:!max-h-[100dvh] max-lg:!w-full max-lg:!max-w-none max-lg:!rounded-none max-lg:!border-0",
+            /* Desktop: narrow panel */
+            "lg:h-full lg:max-h-dvh lg:w-[min(100vw-1rem,400px)] lg:border-l lg:border-white/10",
+          )}
         >
           <SheetTitle className="sr-only">Chat with us</SheetTitle>
 
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <div className="min-w-0">
+          <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:pt-3">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="flex shrink-0 items-center gap-0.5 rounded-lg py-1.5 pl-0.5 pr-2 text-white/90 transition-colors hover:bg-white/10 lg:hidden"
+              aria-label="Back"
+            >
+              <ChevronLeft className="h-7 w-7" strokeWidth={2} />
+              <span className="text-base font-medium">Back</span>
+            </button>
+            <div className="min-w-0 flex-1 lg:text-left">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#CC2D24]">
                 Ceriga
               </p>
@@ -220,7 +237,7 @@ export function DashboardLiveChat() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/80 transition-colors hover:bg-white/10"
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/80 transition-colors hover:bg-white/10 lg:flex"
               aria-label="Close"
             >
               <X className="h-4 w-4" />

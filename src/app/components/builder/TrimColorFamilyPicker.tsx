@@ -44,7 +44,13 @@ export function TrimColorFamilyPicker({
                     <button
                       key={color.hex}
                       type="button"
-                      onClick={() => onChange(color.hex)}
+                      onClick={() => {
+                        if (value === color.hex) {
+                          onClear?.();
+                        } else {
+                          onChange(color.hex);
+                        }
+                      }}
                       className={cn(
                         'relative h-11 w-11 shrink-0 rounded-xl border transition-all',
                         value === color.hex

@@ -30,10 +30,10 @@ export function MarketingShell({
         className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#0c0c0d]/92 backdrop-blur-md"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="mx-auto flex h-12 max-w-[1320px] items-center justify-between gap-2 px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:h-14 sm:gap-3 sm:px-6 lg:px-10">
+        <div className="mx-auto flex min-h-[3.75rem] max-w-[1320px] items-center justify-between gap-2 px-[max(1rem,env(safe-area-inset-left))] py-2 pr-[max(1rem,env(safe-area-inset-right))] sm:h-14 sm:min-h-0 sm:py-0 sm:gap-3 sm:px-6 lg:px-10">
           <Link
             to="/"
-            className="shrink-0 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#F2F0EC] sm:text-xs md:text-[13px]"
+            className="shrink-0 font-['Plus_Jakarta_Sans',sans-serif] text-[13px] font-extrabold uppercase tracking-[0.12em] text-[#F2F0EC]"
           >
             Ceriga Studio
           </Link>
@@ -71,21 +71,21 @@ export function MarketingShell({
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-2.5 md:hidden">
             <Button
               asChild
               size="sm"
-              className="h-8 bg-[#CC2D24] px-2.5 text-[9px] font-bold uppercase tracking-wider text-white hover:bg-[#CC2D24]/90"
+              className="h-10 bg-[#CC2D24] px-3.5 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-[#CC2D24]/90"
             >
               <Link to="/signup">Start</Link>
             </Button>
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white active:bg-white/10"
               aria-label="Open menu"
               onClick={() => setMenuOpen(true)}
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" strokeWidth={2} />
             </button>
           </div>
         </div>

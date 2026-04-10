@@ -19,8 +19,6 @@ import {
   Lock,
   Unlock,
   RotateCw,
-  ZoomIn,
-  ZoomOut,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -28,10 +26,6 @@ import {
   Italic,
   Palette,
   Check,
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
 import {
@@ -1399,18 +1393,6 @@ export function PrintsDesignPreview({
     return () => mq.removeEventListener('change', apply);
   }, []);
 
-  /** Pinch-friendly zoom + pan on small screens (transform applied to preview shell). */
-  const [viewZoom, setViewZoom] = useState(1);
-  const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
-  const viewShellRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!editable || !narrowViewport) {
-      setViewZoom(1);
-      setViewPan({ x: 0, y: 0 });
-    }
-  }, [editable, narrowViewport]);
-
   const zoneRef = useRef<HTMLDivElement>(null);
   const deleteRef = useRef<HTMLDivElement>(null);
   const deleteHoverRef = useRef(false);
@@ -1711,10 +1693,6 @@ export function PrintsDesignPreview({
     };
   }, [draggingId, dragOffset, editable, manip]);
 
-  const panStep = 24;
-  const adjustZoom = (delta: number) =>
-    setViewZoom((z) => Math.min(2.5, Math.max(1, Math.round((z + delta) * 100) / 100)));
-
   return (
     <div
       className={cn(
@@ -1722,112 +1700,13 @@ export function PrintsDesignPreview({
         className,
       )}
     >
-      {narrowViewport && editable ? (
-        <div className="mb-1.5 flex w-full max-w-full shrink-0 flex-wrap items-center justify-center gap-1.5 px-0.5">
-          <span className="mr-0.5 flex items-center gap-1 text-[9px] font-medium uppercase tracking-wider text-white/38">
-            <ZoomIn className="h-3 w-3 text-white/45" />
-            View
-          </span>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/12 bg-black/40 text-white/75 active:bg-white/10"
-            aria-label="Zoom out"
-            onClick={() => adjustZoom(-0.25)}
-          >
-            <ZoomOut className="h-3.5 w-3.5" />
-          </button>
-          <span className="min-w-[2.75rem] text-center text-[10px] tabular-nums text-white/55">
-            {Math.round(viewZoom * 100)}%
-          </span>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/12 bg-black/40 text-white/75 active:bg-white/10"
-            aria-label="Zoom in"
-            onClick={() => adjustZoom(0.25)}
-          >
-            <ZoomIn className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-[9px] font-medium text-white/50"
-            onClick={() => {
-              setViewZoom(1);
-              setViewPan({ x: 0, y: 0 });
-            }}
-          >
-            Reset
-          </button>
-          <span className="mx-0.5 text-white/20">|</span>
-          <span className="flex items-center gap-0.5 text-[9px] text-white/35" title="Pan when zoomed">
-            <Move className="h-3 w-3" />
-          </span>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/12 bg-black/40 text-white/75"
-            aria-label="Pan left"
-            disabled={viewZoom <= 1}
-            onClick={() => setViewPan((p) => ({ ...p, x: p.x + panStep }))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/12 bg-black/40 text-white/75"
-            aria-label="Pan right"
-            disabled={viewZoom <= 1}
-            onClick={() => setViewPan((p) => ({ ...p, x: p.x - panStep }))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/12 bg-black/40 text-white/75"
-            aria-label="Pan up"
-            disabled={viewZoom <= 1}
-            onClick={() => setViewPan((p) => ({ ...p, y: p.y + panStep }))}
-          >
-            <ChevronUp className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/12 bg-black/40 text-white/75"
-            aria-label="Pan down"
-            disabled={viewZoom <= 1}
-            onClick={() => setViewPan((p) => ({ ...p, y: p.y - panStep }))}
-          >
-            <ChevronDown className="h-4 w-4" />
-          </button>
-          <span className="w-full basis-full text-center text-[8px] text-white/30 sm:basis-auto">
-            Pinch or use +/- · Ctrl+scroll to zoom · arrow keys nudge artwork
-          </span>
-        </div>
-      ) : null}
-
       <div
-        ref={viewShellRef}
         className={cn(
           'relative min-h-0 w-full flex-1',
-          narrowViewport && editable && 'touch-none overflow-hidden rounded-xl border border-white/[0.07]',
+          narrowViewport && editable && 'overflow-hidden rounded-xl border border-white/[0.07]',
         )}
-        onWheel={(e) => {
-          if (!narrowViewport || !editable) return;
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            const next = Math.min(2.5, Math.max(1, viewZoom - e.deltaY * 0.004));
-            setViewZoom(Math.round(next * 100) / 100);
-          }
-        }}
       >
-        <div
-          className="relative h-full w-full"
-          style={{
-            transform:
-              narrowViewport && editable
-                ? `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewZoom})`
-                : undefined,
-            transformOrigin: 'center center',
-          }}
-        >
+        <div className="relative h-full w-full">
         <img
           src={imgBlackTshirt}
           alt="Garment preview"
