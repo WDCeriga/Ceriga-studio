@@ -15,7 +15,12 @@ function PresetGrid({
   onSelect: (hex: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 justify-items-center gap-x-0.5 gap-y-1 sm:grid-cols-10 sm:justify-items-stretch sm:gap-x-1.5 sm:gap-y-2">
+    <div
+      className={cn(
+        // One horizontal row of 10 (not 5×2 — that looked like odd vertical “pairs” on phone).
+        'grid grid-cols-10 gap-1 sm:gap-1.5',
+      )}
+    >
       {colors.map((color) => {
         const norm = normalizeHex6(color);
         const active = normalizeHex6(selected) === norm;
@@ -25,11 +30,9 @@ function PresetGrid({
             type="button"
             onClick={() => onSelect(norm)}
             className={cn(
-              // Phone: small fixed squares (full-width cells felt huge). sm+: fill each grid cell.
-              'size-[1.35rem] min-h-[1.35rem] min-w-[1.35rem] shrink-0 rounded-[5px] border transition-all active:scale-95',
-              'sm:aspect-square sm:size-auto sm:min-h-0 sm:min-w-0 sm:w-full sm:rounded-md',
+              'aspect-square w-full min-w-0 rounded-lg border transition-all active:scale-[0.97]',
               active
-                ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]/50'
+                ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]/45'
                 : 'border-white/15 hover:border-white/35',
             )}
             style={{ backgroundColor: norm }}
@@ -76,7 +79,7 @@ export function StudioColorField({
   };
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-1.5 sm:space-y-2', className)}>
       <div className="flex min-w-0 items-stretch gap-2">
         <AdvancedColorPopover value={hex} onChange={onChange}>
           <button
@@ -112,12 +115,12 @@ export function StudioColorField({
       </div>
 
       <div>
-        <div className="mb-1 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40">{mainLabel}</div>
+        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{mainLabel}</div>
         <PresetGrid colors={mainColors} selected={hex} onSelect={onChange} />
       </div>
 
       <div>
-        <div className="mb-1 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40">{popularLabel}</div>
+        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{popularLabel}</div>
         <PresetGrid colors={popularColors} selected={hex} onSelect={onChange} />
       </div>
 

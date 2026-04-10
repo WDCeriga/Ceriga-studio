@@ -1148,7 +1148,7 @@ export function Builder() {
               <Input
                 value={state.gsm || ''}
                 onChange={(e) => setState((prev) => ({ ...prev, gsm: e.target.value }))}
-                className="h-9 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="h-8 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9"
                 placeholder="180"
                 type="number"
               />
