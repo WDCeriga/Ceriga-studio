@@ -45,8 +45,8 @@ function MeasurementUnitToggle({
               'builder-focus relative z-0 min-h-[1.125rem] flex-1 rounded-full px-1 py-px text-center text-[7px] font-bold uppercase leading-none tracking-[0.06em] transition-colors sm:min-h-[1.375rem] sm:px-2 sm:py-0.5 sm:text-[8px] sm:tracking-[0.08em] md:min-h-[1.5rem] md:px-2.5 md:text-[9px]',
               active
                 ? u === 'cm'
-                  ? 'z-[1] rounded-l-full bg-[#CC2D24] text-white shadow-[0_1px_4px_rgba(204,45,36,0.4)]'
-                  : 'z-[1] rounded-r-full bg-[#CC2D24] text-white shadow-[0_1px_4px_rgba(204,45,36,0.4)]'
+                  ? 'rounded-l-full bg-[#CC2D24] text-white shadow-[0_1px_4px_rgba(204,45,36,0.4)]'
+                  : 'rounded-r-full bg-[#CC2D24] text-white shadow-[0_1px_4px_rgba(204,45,36,0.4)]'
                 : 'text-[#8b9aad]/90 hover:text-white/75',
             )}
           >
@@ -189,11 +189,13 @@ export function MeasurementsStep({
 
       {/* Measurement Table */}
       <div>
-        <div className="mb-2 flex flex-row items-center justify-between gap-2 sm:gap-3">
-          <Label className="min-w-0 flex-1 pr-1 text-white/60 text-[9px] uppercase leading-snug tracking-wider sm:text-[10px]">
+        <div className="mb-2 flex flex-col gap-2 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between min-[480px]:gap-3">
+          <Label className="min-w-0 text-white/60 text-[9px] uppercase leading-snug tracking-wider sm:text-[10px]">
             Measurements ({measurementUnitLabel(measurementUnit)})
           </Label>
-          <MeasurementUnitToggle unit={measurementUnit} onChange={onMeasurementUnitChange} />
+          <div className="shrink-0 self-start min-[480px]:self-center">
+            <MeasurementUnitToggle unit={measurementUnit} onChange={onMeasurementUnitChange} />
+          </div>
         </div>
         <p className="mb-2 text-[9px] leading-relaxed text-white/38">
           Values are stored in centimetres; when you pick {measurementUnit === 'in' ? 'inches' : 'cm'}, we

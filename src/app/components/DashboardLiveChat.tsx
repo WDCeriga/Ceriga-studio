@@ -53,6 +53,8 @@ export function DashboardLiveChat() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formId = useId();
+  /** iOS: inset when virtual keyboard shrinks the visual viewport (reduces top gap / float). */
+  const [keyboardInset, setKeyboardInset] = useState(0);
 
   const cancelPendingReply = useCallback(() => {
     if (typingTimerRef.current) {
@@ -96,8 +98,29 @@ export function DashboardLiveChat() {
   }, [cancelPendingReply]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, open, isTyping]);
+
+  useEffect(() => {
+    if (!open) {
+      setKeyboardInset(0);
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const updateInset = () => {
+      const gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      const bottomOverlap = Math.max(0, window.innerHeight - vv.bottom);
+      setKeyboardInset(Math.max(gap, bottomOverlap));
+    };
+    updateInset();
+    vv.addEventListener("resize", updateInset);
+    vv.addEventListener("scroll", updateInset);
+    return () => {
+      vv.removeEventListener("resize", updateInset);
+      vv.removeEventListener("scroll", updateInset);
+    };
+  }, [open]);
 
   const pushPair = useCallback(
     (faq: SupportFaq) => {
@@ -210,9 +233,8 @@ export function DashboardLiveChat() {
           side="right"
           className={cn(
             "flex flex-col gap-0 overflow-hidden bg-[#111113] p-0 text-white [&>button:last-child]:hidden",
-            /* Phone / small tablet: full screen */
-            "max-lg:!fixed max-lg:!inset-0 max-lg:!left-0 max-lg:!right-0 max-lg:!top-0 max-lg:!bottom-0 max-lg:!h-[100dvh] max-lg:!max-h-[100dvh] max-lg:!w-full max-lg:!max-w-none max-lg:!rounded-none max-lg:!border-0",
-            /* Desktop: narrow panel */
+            /* Phone: svh tracks mobile browser chrome better than dvh when keyboard opens */
+            "max-lg:!fixed max-lg:!inset-0 max-lg:!left-0 max-lg:!right-0 max-lg:!top-0 max-lg:!bottom-0 max-lg:!h-[100svh] max-lg:!max-h-[100svh] max-lg:!w-full max-lg:!max-w-none max-lg:!rounded-none max-lg:!border-0",
             "lg:h-full lg:max-h-dvh lg:w-[min(100vw-1rem,400px)] lg:border-l lg:border-white/10",
           )}
         >
@@ -386,7 +408,12 @@ export function DashboardLiveChat() {
             </div>
           </ScrollArea>
 
-          <div className="border-t border-white/10 bg-[#0d0d0f] px-3 pb-3 pt-2">
+          <div
+            className="border-t border-white/10 bg-[#0d0d0f] px-3 pt-2"
+            style={{
+              paddingBottom: `max(0.75rem, env(safe-area-inset-bottom, 0px), ${keyboardInset}px)`,
+            }}
+          >
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/35">
               Quick questions
             </p>

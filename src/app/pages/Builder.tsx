@@ -84,8 +84,11 @@ function describePrintMethodLabel(method: string | undefined) {
   return (PRINT_METHOD_DESCRIPTIONS as Record<string, string>)[k] ?? k;
 }
 
-/** When a side panel is dragged narrower than this (percent of group), snap to fully collapsed. */
-const PANEL_SNAP_COLLAPSE_BELOW_PCT = 18;
+/** When a side panel crosses below this % while shrinking, snap to fully collapsed (see minSize on Panel). */
+const PANEL_SNAP_COLLAPSE_BELOW_PCT = 22;
+
+/** Minimum width (%) for side panels — prevents the editor column from shrinking into broken layouts. */
+const SIDE_PANEL_MIN_PCT = 22;
 
 type DetailKey =
   | 'measurements'
@@ -192,6 +195,7 @@ export function Builder() {
   const product = productId ? getProductById(productId) : null;
 
   const [expandedColorFamily, setExpandedColorFamily] = useState<number | null>(null);
+  const fabricColorPickerRef = useRef<HTMLDivElement>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
   const [showFront, setShowFront] = useState(true);
@@ -324,12 +328,16 @@ export function Builder() {
     });
   }, [syncHistoryAvailability]);
 
-  /** Snap-collapse only when the user shrinks the panel — not while `expand()` is animating (sizes increase). */
+  /**
+   * Snap-collapse only when the user crosses from >= threshold to below it while shrinking.
+   * Avoids calling collapse() on every resize tick while already below the threshold (reduces jank).
+   */
   const handleLeftPanelResize = useCallback((size: number, prevSize: number | undefined) => {
     const panel = leftPanelRef.current;
     if (!panel || panel.isCollapsed()) return;
     if (prevSize === undefined) return;
     if (size > prevSize) return;
+    if (prevSize < PANEL_SNAP_COLLAPSE_BELOW_PCT) return;
     if (size >= PANEL_SNAP_COLLAPSE_BELOW_PCT) return;
     queueMicrotask(() => {
       const p = leftPanelRef.current;
@@ -342,6 +350,7 @@ export function Builder() {
     if (!panel || panel.isCollapsed()) return;
     if (prevSize === undefined) return;
     if (size > prevSize) return;
+    if (prevSize < PANEL_SNAP_COLLAPSE_BELOW_PCT) return;
     if (size >= PANEL_SNAP_COLLAPSE_BELOW_PCT) return;
     queueMicrotask(() => {
       const p = rightPanelRef.current;
@@ -422,6 +431,18 @@ export function Builder() {
     });
     return () => cancelAnimationFrame(id);
   }, [currentStep]);
+
+  useEffect(() => {
+    if (expandedColorFamily === null) return;
+    const collapseIfOutside = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (fabricColorPickerRef.current?.contains(t)) return;
+      if (editorScrollRef.current && !editorScrollRef.current.contains(t)) return;
+      setExpandedColorFamily(null);
+    };
+    document.addEventListener('pointerdown', collapseIfOutside, true);
+    return () => document.removeEventListener('pointerdown', collapseIfOutside, true);
+  }, [expandedColorFamily]);
 
   const [networkOnline, setNetworkOnline] = useState(
     () => typeof navigator !== 'undefined' && navigator.onLine,
@@ -1011,7 +1032,7 @@ export function Builder() {
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                 Colour Selection
               </Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div ref={fabricColorPickerRef} className="grid grid-cols-2 gap-2">
                 {FABRIC_COLOR_FAMILIES.map((family, familyIndex) => (
                   <div
                     key={family.name}
@@ -1058,7 +1079,7 @@ export function Builder() {
                       <button
                         type="button"
                         onClick={() => setExpandedColorFamily(familyIndex)}
-                        className="flex min-h-[2.75rem] w-full items-center gap-1.5 rounded border border-white/10 bg-white/5 p-1.5 transition-all hover:bg-white/10"
+                        className="flex min-h-[2.35rem] w-full items-center gap-1.5 rounded border border-white/10 bg-white/5 px-1.5 py-1 transition-all hover:bg-white/10"
                       >
                         <div
                           className="h-5 w-5 flex-shrink-0 rounded border border-white/20"
@@ -1143,6 +1164,7 @@ export function Builder() {
               value={state.neckTrimColor}
               onChange={(hex) => setState((prev) => ({ ...prev, neckTrimColor: hex }))}
               onClear={() => setState((prev) => ({ ...prev, neckTrimColor: undefined }))}
+              collapseBoundsRef={editorScrollRef}
             />
           </div>
         );
@@ -1172,6 +1194,7 @@ export function Builder() {
               value={state.sleeveTrimColor}
               onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
               onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
+              collapseBoundsRef={editorScrollRef}
             />
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
@@ -1252,6 +1275,7 @@ export function Builder() {
               value={state.pocketTrimColor}
               onChange={(hex) => setState((prev) => ({ ...prev, pocketTrimColor: hex }))}
               onClear={() => setState((prev) => ({ ...prev, pocketTrimColor: undefined }))}
+              collapseBoundsRef={editorScrollRef}
             />
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
@@ -1316,6 +1340,7 @@ export function Builder() {
               value={state.stitchingColor}
               onChange={(hex) => setState((prev) => ({ ...prev, stitchingColor: hex }))}
               onClear={() => setState((prev) => ({ ...prev, stitchingColor: undefined }))}
+              collapseBoundsRef={editorScrollRef}
             />
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
@@ -1762,30 +1787,30 @@ export function Builder() {
         <div
           ref={editorScrollRef}
           className={cn(
-            'flex-1 overflow-y-auto p-3 sm:p-4 md:p-4 lg:p-5',
+            'flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-4 lg:p-5',
             isPhone && 'px-3.5 py-3.5',
           )}
         >
           {showLeftCollapse ? (
-            <div className="mb-3 flex min-w-0 items-start gap-2 sm:mb-4 sm:gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24] md:text-[10px]">
+            <div className="mb-3 min-w-0 sm:mb-4">
+              <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24] md:text-[10px]">
                   {step?.title}
                 </div>
-                <h2 className="break-words font-['Plus_Jakarta_Sans',sans-serif] text-[16px] font-extrabold tracking-[-0.5px] text-white md:text-[17px] xl:text-[18px]">
-                  {step?.title.toUpperCase()}
-                </h2>
+                <button
+                  type="button"
+                  onClick={() => leftPanelRef.current?.collapse()}
+                  className={cn(
+                    'builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10 md:h-9 md:w-9',
+                  )}
+                  aria-label="Collapse configuration"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 text-white/70 md:h-4 md:w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => leftPanelRef.current?.collapse()}
-                className={cn(
-                  'builder-focus mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10 md:h-9 md:w-9',
-                )}
-                aria-label="Collapse configuration"
-              >
-                <ChevronLeft className="h-3.5 w-3.5 text-white/70 md:h-4 md:w-4" />
-              </button>
+              <h2 className="break-words font-['Plus_Jakarta_Sans',sans-serif] text-[15px] font-extrabold leading-tight tracking-[-0.5px] text-white sm:text-[16px] md:text-[17px] xl:text-[18px]">
+                {step?.title.toUpperCase()}
+              </h2>
             </div>
           ) : (
             <>
@@ -2314,8 +2339,8 @@ export function Builder() {
           >
             <Panel
               ref={leftPanelRef}
-              defaultSize={24}
-              minSize={12}
+              defaultSize={26}
+              minSize={SIDE_PANEL_MIN_PCT}
               maxSize={42}
               collapsible
               collapsedSize={3}
@@ -2335,7 +2360,7 @@ export function Builder() {
                 )}
               </div>
             </Panel>
-            <PanelResizeHandle className="w-1.5 shrink-0 cursor-col-resize bg-white/[0.07] transition-colors hover:bg-white/15 data-[resize-handle-state=drag]:bg-[#FF3B30]/35" />
+            <PanelResizeHandle className="group relative z-10 flex w-3 max-w-[12px] shrink-0 cursor-col-resize items-stretch justify-center bg-transparent before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-white/12 before:content-[''] before:transition-colors hover:before:bg-white/22 data-[resize-handle-state=drag]:before:bg-[#FF3B30]/45" />
             <Panel
               defaultSize={52}
               minSize={28}
@@ -2346,11 +2371,11 @@ export function Builder() {
             >
               {livePreviewBlock}
             </Panel>
-            <PanelResizeHandle className="w-1.5 shrink-0 cursor-col-resize bg-white/[0.07] transition-colors hover:bg-white/15 data-[resize-handle-state=drag]:bg-[#FF3B30]/35" />
+            <PanelResizeHandle className="group relative z-10 flex w-3 max-w-[12px] shrink-0 cursor-col-resize items-stretch justify-center bg-transparent before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-white/12 before:content-[''] before:transition-colors hover:before:bg-white/22 data-[resize-handle-state=drag]:before:bg-[#FF3B30]/45" />
             <Panel
               ref={rightPanelRef}
-              defaultSize={24}
-              minSize={12}
+              defaultSize={26}
+              minSize={SIDE_PANEL_MIN_PCT}
               maxSize={38}
               collapsible
               collapsedSize={3}
@@ -2537,7 +2562,7 @@ function ChoiceGrid({
             key={option.id}
             type="button"
             onClick={() => onSelect(option.id)}
-            className={`rounded-md border px-2 py-2 text-center transition sm:rounded-lg sm:px-2.5 sm:py-2.5 md:py-2 xl:px-2.5 ${
+            className={`rounded-md border px-2 py-1.5 text-center transition sm:rounded-lg sm:px-2.5 sm:py-2 md:py-1.5 xl:px-2.5 ${
               selected === option.id
                 ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
                 : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white'

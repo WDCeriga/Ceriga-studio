@@ -26,6 +26,7 @@ import {
   Italic,
   Palette,
   Check,
+  GripVertical,
 } from 'lucide-react';
 import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
 import {
@@ -34,6 +35,7 @@ import {
   type SnapBox,
   type SnapDragOptions,
 } from '../../lib/designSnapGuides';
+import { reorderDesignElements } from '../../lib/designLayerOrder';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 export interface DesignElement {
@@ -647,6 +649,8 @@ export function PrintsDesignStep({
   );
   const [textInput, setTextInput] = useState('');
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
+  const [listDraggingId, setListDraggingId] = useState<string | null>(null);
+  const [listDragOverId, setListDragOverId] = useState<string | null>(null);
   const selected = useMemo(
     () => elements.find((item) => item.id === selectedId) ?? null,
     [elements, selectedId],
@@ -821,6 +825,37 @@ export function PrintsDesignStep({
     if (dir === 'front') arr.push(item);
     else arr.unshift(item);
     onChange(arr);
+  };
+
+  const LIST_DND_MIME = 'text/x-ceriga-print-element';
+
+  const onListDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData(LIST_DND_MIME, id);
+    e.dataTransfer.effectAllowed = 'move';
+    setListDraggingId(id);
+    setListDragOverId(null);
+  };
+
+  const onListDragEnd = () => {
+    setListDraggingId(null);
+    setListDragOverId(null);
+  };
+
+  const onListDragOverRow = (e: React.DragEvent, overId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (listDraggingId && listDraggingId !== overId) setListDragOverId(overId);
+  };
+
+  const onListDropOnRow = (e: React.DragEvent, dropId: string) => {
+    e.preventDefault();
+    const dragId = e.dataTransfer.getData(LIST_DND_MIME);
+    onListDragEnd();
+    if (!dragId || dragId === dropId) return;
+    const from = elements.findIndex((x) => x.id === dragId);
+    const to = elements.findIndex((x) => x.id === dropId);
+    if (from < 0 || to < 0) return;
+    onChange(reorderDesignElements(elements, from, to));
   };
 
   const applyPreset = (preset: string) => {
@@ -1279,35 +1314,53 @@ export function PrintsDesignStep({
             </div>
           ) : (
             elements.map((element) => (
-              <button
+              <div
                 key={element.id}
-                type="button"
-                onClick={() => setSelectedId(element.id)}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition',
-                  selectedId === element.id
-                    ? 'border-[#FF3B30] bg-[#FF3B30]/10'
-                    : 'border-white/10 bg-black/25 hover:border-white/18',
+                  'flex w-full items-stretch gap-1 rounded-xl border',
+                  listDragOverId === element.id && listDraggingId && listDraggingId !== element.id
+                    ? 'border-white/35 bg-white/[0.06]'
+                    : selectedId === element.id
+                      ? 'border-[#FF3B30] bg-[#FF3B30]/10'
+                      : 'border-white/10 bg-black/25 hover:border-white/18',
                 )}
+                onDragOver={(e) => onListDragOverRow(e, element.id)}
+                onDrop={(e) => onListDropOnRow(e, element.id)}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-white/55">
-                  {element.type === 'image' ? (
-                    <ImageIcon className="h-4 w-4" />
-                  ) : (
-                    <Type className="h-4 w-4" />
-                  )}
+                <div
+                  draggable
+                  onDragStart={(e) => onListDragStart(e, element.id)}
+                  onDragEnd={onListDragEnd}
+                  className="flex shrink-0 cursor-grab touch-none items-center rounded-l-[10px] px-1.5 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
+                  aria-label="Drag to reorder layer"
+                  title="Drag to reorder"
+                >
+                  <GripVertical className="h-4 w-4" strokeWidth={2} />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[11px] font-medium text-white">
-                    {element.type === 'image' ? 'Uploaded artwork' : element.content}
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(element.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-r-[10px] py-2.5 pl-1 pr-3 text-left"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-white/55">
+                    {element.type === 'image' ? (
+                      <ImageIcon className="h-4 w-4" />
+                    ) : (
+                      <Type className="h-4 w-4" />
+                    )}
                   </div>
-                  <div className="text-[10px] text-white/40">
-                    <span className="text-white/50">{element.printMethod ?? DEFAULT_PRINT_METHOD}</span>
-                    {' · '}
-                    {Math.round(element.x)}, {Math.round(element.y)} · {Math.round(element.rotation)}°
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[11px] font-medium text-white">
+                      {element.type === 'image' ? 'Uploaded artwork' : element.content}
+                    </div>
+                    <div className="text-[10px] text-white/40">
+                      <span className="text-white/50">{element.printMethod ?? DEFAULT_PRINT_METHOD}</span>
+                      {' · '}
+                      {Math.round(element.x)}, {Math.round(element.y)} · {Math.round(element.rotation)}°
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -1591,7 +1644,6 @@ export function PrintsDesignPreview({
       const zone = zoneRef.current;
       if (!zone) return;
 
-      const zr = zone.getBoundingClientRect();
       const current = elementsRef.current.find((item) => item.id === draggingId);
       if (!current || current.locked) return;
 
@@ -1604,16 +1656,15 @@ export function PrintsDesignPreview({
         dragDidMoveRef.current = true;
       }
 
-      const node = zone.querySelector(`[data-print-id="${draggingId}"]`) as HTMLElement | null;
-      const br = node?.getBoundingClientRect();
-      const w = br?.width ?? Math.max(32, current.width);
-      const h = br?.height ?? Math.max(24, current.height);
-
       const p = clientToZonePoint(zone, e.clientX, e.clientY);
       const nx = p.x - dragOffset.x;
       const ny = p.y - dragOffset.y;
-      const halfW = w / 2;
-      const halfH = h / 2;
+      const boxH =
+        current.type === 'image'
+          ? current.height
+          : Math.max(current.height ?? 0, (current.fontSize ?? 20) + 18);
+      const halfW = current.width / 2;
+      const halfH = boxH / 2;
 
       const snapBoxes: SnapBox[] = elementsRef.current.map((el) => ({
         id: el.id,
@@ -1630,8 +1681,8 @@ export function PrintsDesignPreview({
         ny,
         halfW,
         halfH,
-        zr.width,
-        zr.height,
+        zone.offsetWidth,
+        zone.offsetHeight,
         draggingId,
         snapBoxes,
         PREVIEW_SNAP_CENTER_NUDGE,
@@ -1773,6 +1824,7 @@ export function PrintsDesignPreview({
                 data-print-id={element.id}
                 className={cn(
                   'absolute',
+                  draggingId === element.id && 'z-[15]',
                   editable && !isEditingText && (locked ? 'cursor-default' : 'cursor-move'),
                   editable && !isEditingText && 'select-none touch-none',
                 )}

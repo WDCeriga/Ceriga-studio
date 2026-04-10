@@ -23,7 +23,7 @@ export function Home() {
 
         <div className="relative mx-auto grid max-w-[1320px] grid-cols-1 items-start gap-6 min-[560px]:grid-cols-2 min-[560px]:items-center min-[560px]:gap-4 md:gap-8 lg:gap-12 xl:gap-16">
           <div className="order-1 min-w-0 max-w-xl min-[560px]:order-1">
-            <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24] sm:mb-3 sm:text-[10px]">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#CC2D24] sm:mb-3 sm:text-[10px]">
               Precision built
             </p>
             <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[clamp(1.35rem,4.2vw,3.75rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#F2F0EC] sm:leading-[1.05]">
@@ -73,7 +73,7 @@ export function Home() {
                   <div className="text-[clamp(0.95rem,2.8vw,1.35rem)] font-bold tracking-tight text-[#F2F0EC] sm:text-[clamp(1.05rem,3vw,1.35rem)]">
                     {val}
                   </div>
-                  <div className="mt-0.5 text-[8px] font-medium uppercase tracking-wider text-white/35 sm:mt-1 sm:text-[9px] md:text-[10px]">
+                  <div className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-white/40 sm:mt-1 sm:text-[10px]">
                     {label}
                   </div>
                 </div>
@@ -164,7 +164,7 @@ export function Home() {
         <div className="mx-auto w-full max-w-[1320px]">
           <div className="mb-4 flex flex-col justify-between gap-2 sm:mb-10 sm:flex-row sm:items-end sm:gap-3">
             <div>
-              <p className="mb-1 text-[7px] font-bold uppercase tracking-[0.2em] text-[#CC2D24] sm:mb-2 sm:text-[9px]">
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#CC2D24] sm:mb-2 sm:text-[10px]">
                 Catalog
               </p>
               <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-[clamp(0.95rem,4.2vw,1.65rem)] font-bold tracking-tight text-[#F2F0EC] sm:text-[clamp(1.35rem,3vw,1.85rem)]">
@@ -191,9 +191,9 @@ export function Home() {
         </div>
       </section>
 
-      {/* Sample CTA */}
+      {/* Sample CTA — bottom border matches bg to avoid a hairline gap above the footer on iOS */}
       <section
-        className="px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-16 md:px-8 lg:py-20"
+        className="border-b border-[#CC2D24] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-16 md:px-8 lg:py-20"
         style={{ background: RED }}
       >
         <div className="mx-auto max-w-[640px] px-2 text-center">

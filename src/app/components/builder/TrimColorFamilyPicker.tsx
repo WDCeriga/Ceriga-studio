@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import { FABRIC_COLOR_FAMILIES } from '../../data/builderSteps';
 import { Label } from '../ui/label';
 import { cn } from '../ui/utils';
@@ -8,17 +8,35 @@ export function TrimColorFamilyPicker({
   value,
   onChange,
   onClear,
+  /** When set, only collapse expanded colours if the tap is inside this region (e.g. builder form) but outside the picker. */
+  collapseBoundsRef,
 }: {
   label: string;
   value?: string;
   onChange: (hex: string) => void;
   onClear?: () => void;
+  collapseBoundsRef?: RefObject<HTMLElement | null>;
 }) {
   const [expandedFamily, setExpandedFamily] = useState<number | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (expandedFamily === null) return;
+    const collapseIfOutside = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t)) return;
+      if (collapseBoundsRef?.current && !collapseBoundsRef.current.contains(t)) return;
+      setExpandedFamily(null);
+    };
+    document.addEventListener('pointerdown', collapseIfOutside, true);
+    return () => document.removeEventListener('pointerdown', collapseIfOutside, true);
+  }, [expandedFamily, collapseBoundsRef]);
 
   return (
-    <div className="mb-4">
-      <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{label}</Label>
+    <div ref={rootRef} className="mb-4">
+      <Label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+        {label}
+      </Label>
       <div className="grid grid-cols-2 gap-2">
         {FABRIC_COLOR_FAMILIES.map((family, familyIndex) => (
           <div
@@ -73,7 +91,7 @@ export function TrimColorFamilyPicker({
               <button
                 type="button"
                 onClick={() => setExpandedFamily(familyIndex)}
-                className="flex min-h-[2.75rem] w-full items-center gap-1.5 rounded border border-white/10 bg-white/5 p-1.5 transition-all hover:bg-white/10"
+                className="flex min-h-[2.35rem] w-full items-center gap-1.5 rounded border border-white/10 bg-white/5 px-1.5 py-1 transition-all hover:bg-white/10"
               >
                 <div
                   className="h-5 w-5 flex-shrink-0 rounded border border-white/20"

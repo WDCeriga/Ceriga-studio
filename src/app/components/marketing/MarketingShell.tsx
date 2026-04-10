@@ -169,7 +169,7 @@ export function MarketingShell({
               </p>
             </div>
             <div>
-              <div className="mb-3 text-[9px] font-bold uppercase tracking-[0.14em] text-white/30">Product</div>
+              <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white/30">Product</div>
               <div className="flex flex-col gap-2">
                 <Link to="/features" className="text-xs text-white/50 transition-colors hover:text-white/85">
                   Features
@@ -183,7 +183,7 @@ export function MarketingShell({
               </div>
             </div>
             <div>
-              <div className="mb-3 text-[9px] font-bold uppercase tracking-[0.14em] text-white/30">Account</div>
+              <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white/30">Account</div>
               <div className="flex flex-col gap-2">
                 <Link to="/login" className="text-xs text-white/50 transition-colors hover:text-white/85">
                   Log in
@@ -194,7 +194,7 @@ export function MarketingShell({
               </div>
             </div>
             <div>
-              <div className="mb-3 text-[9px] font-bold uppercase tracking-[0.14em] text-white/30">Legal</div>
+              <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-white/30">Legal</div>
               <div className="flex flex-col gap-2">
                 <a href="#" className="text-xs text-white/50 transition-colors hover:text-white/85">
                   Terms
