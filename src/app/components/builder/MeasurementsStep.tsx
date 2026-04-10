@@ -207,28 +207,28 @@ export function MeasurementsStep({
         </p>
         <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-[10px] md:text-xs">
+            <table className="w-full text-xs md:text-xs">
               <thead>
                 <tr className="border-b border-white/10">
-                  <th className="text-left px-1.5 py-2 text-white/60 font-medium text-[10px] md:px-2 md:py-1.5 md:text-[10px]">
+                  <th className="text-left px-1.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     Size
                   </th>
-                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     XS
                   </th>
-                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     S
                   </th>
-                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     M
                   </th>
-                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     L
                   </th>
-                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     XL
                   </th>
-                  <th className="px-1 py-2 text-white/60 font-medium text-[10px] md:px-1 md:py-1.5 md:text-[10px]">
+                  <th className="px-0.5 py-1.5 text-white/70 font-semibold text-[11px] md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     XXL
                   </th>
                 </tr>
@@ -236,11 +236,11 @@ export function MeasurementsStep({
               <tbody>
                 {measurementLabels.map((measurement) => (
                   <tr key={measurement.id} className="border-b border-white/5 hover:bg-white/5">
-                    <td className="text-left px-1.5 py-1.5 text-white/80 font-medium text-[10px] max-w-[5rem] leading-tight md:max-w-none md:px-2 md:py-1.5 md:text-[10px]">
+                    <td className="max-w-[6.5rem] px-1.5 py-1 text-left text-[12px] font-semibold leading-snug text-white/90 md:max-w-none md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/80">
                       {measurement.label}
                     </td>
                     {['xs', 's', 'm', 'l', 'xl', 'xxl'].map((size) => (
-                      <td key={size} className="px-1 py-1 md:px-1 md:py-1">
+                      <td key={size} className="px-0.5 py-0.5 md:px-1 md:py-1">
                         <Input
                           type="text"
                           inputMode="decimal"
@@ -259,7 +259,7 @@ export function MeasurementsStep({
                               parseMeasurementInput(e.target.value, measurementUnit),
                             )
                           }
-                          className="h-9 w-full min-w-0 touch-manipulation px-1 text-center text-[11px] text-white/90 bg-white/10 border-white/20 hover:bg-white/15 focus:bg-white/20 md:h-7 md:px-2 md:text-[10px]"
+                          className="h-7 min-h-[32px] w-full min-w-0 touch-manipulation rounded-md border-white/20 bg-white/10 px-0.5 py-0 text-center text-[10px] tabular-nums text-white/90 hover:bg-white/15 focus:bg-white/20 md:h-7 md:min-h-0 md:px-2 md:text-[10px]"
                         />
                       </td>
                     ))}
@@ -276,7 +276,7 @@ export function MeasurementsStep({
 
 export function MeasurementPreview({ imgClassName }: { imgClassName?: string }) {
   return (
-    <div className="relative mx-auto flex w-full max-w-full items-center justify-center">
+    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-full flex-1 items-center justify-center">
       <img
         src={imgMeasurementShirt}
         alt="Measurement guide"

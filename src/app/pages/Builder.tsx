@@ -187,7 +187,10 @@ const DETAIL_META: Record<
 /** Pixels of movement before a detail callout counts as a drag (tap/click does not move it). */
 const DETAIL_DRAG_THRESHOLD_PX = 8;
 
-/** Phone: larger default preview; shrinks when the user drags the split handle (panel gives less height). md+ caps unchanged. */
+/** Phone: fill the live-preview panel so resizing the split does not leave empty black letterboxing (no fixed 50dvh cap). */
+const PREVIEW_STAGE_CLASS_PHONE =
+  'relative z-[1] mx-auto h-full min-h-0 w-full max-h-full max-w-[min(100%,300px)] object-contain';
+/** Tablet/desktop: capped height so the guide does not dominate very tall viewports. */
 const PREVIEW_STAGE_CLASS =
   'relative z-[1] mx-auto h-auto w-full max-w-[min(100%,300px)] max-h-[min(50dvh,380px)] object-contain md:h-full md:max-h-[min(38vh,340px)] md:max-w-[min(100%,360px)] lg:max-h-[min(42vh,400px)] lg:max-w-[min(100%,400px)] xl:max-h-[min(46vh,460px)] xl:max-w-[min(100%,440px)] 2xl:max-h-[min(52vh,540px)] 2xl:max-w-[min(100%,480px)]';
 
@@ -1949,7 +1952,7 @@ export function Builder() {
         <div
           ref={editorScrollRef}
           className={cn(
-            'flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-4 lg:p-5',
+            'min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-4 lg:p-5',
             isPhone && 'px-3.5 py-3.5',
           )}
         >
@@ -1992,8 +1995,9 @@ export function Builder() {
 
         <div
           className={cn(
-            'border-t border-white/[0.07] bg-[#0a0a0a]/95 p-3 backdrop-blur-md md:p-3.5',
-            isPhone && 'px-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+            'shrink-0 border-t border-white/[0.07] bg-[#0a0a0a]/95 p-3 backdrop-blur-md md:p-3.5',
+            isPhone &&
+              'px-3.5 pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+14px))] pt-3',
           )}
         >
           <div className="flex gap-2.5">
@@ -2175,8 +2179,10 @@ export function Builder() {
           )}
         >
           {currentStep === 1 ? (
-            <div className="flex max-h-full w-full items-center justify-center overflow-hidden px-1">
-              <MeasurementPreview imgClassName={PREVIEW_STAGE_CLASS} />
+            <div className="flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden px-1">
+              <MeasurementPreview
+                imgClassName={isPhone ? PREVIEW_STAGE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
+              />
             </div>
           ) : currentStep === 9 ? (
             <div className="flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-visible px-1 max-md:max-w-[min(100%,300px)] md:max-w-full">
@@ -2274,8 +2280,8 @@ export function Builder() {
   return (
     <div
       className={cn(
-        'flex min-h-dvh min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#0F0F0F]',
-        'h-[100dvh] pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]',
+        'flex min-h-0 min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#0F0F0F]',
+        'h-[100dvh] max-h-[100dvh] min-h-0 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]',
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0F0F0F] px-3 py-2.5 sm:px-5">
@@ -2462,14 +2468,14 @@ export function Builder() {
             key="builder-phone-panels"
             direction="vertical"
             className="flex min-h-0 flex-1 flex-col"
-            autoSaveId="ceriga-builder-phone-v4"
+            autoSaveId="ceriga-builder-phone-v5"
           >
             <Panel
-              defaultSize={42}
-              minSize={14}
-              maxSize={90}
+              defaultSize={40}
+              minSize={6}
+              maxSize={94}
               className={cn(
-                'flex min-h-0 min-w-0',
+                'flex min-h-0 min-w-0 overflow-hidden',
                 draggingDetail && 'z-40 overflow-visible',
               )}
             >
@@ -2479,13 +2485,13 @@ export function Builder() {
               title="Drag to resize preview and configure"
               className={cn(
                 'group flex shrink-0 cursor-ns-resize items-center justify-center bg-[#0F0F0F] transition-colors hover:bg-[#141414] data-[resize-handle-state=drag]:bg-[#1a1010]',
-                isPhone ? 'min-h-[48px] py-2.5' : 'h-3 py-0.5',
+                isPhone ? 'min-h-10 py-2' : 'h-3 py-0.5',
               )}
             >
               <div className="h-1 w-[4.5rem] rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
               <span className="sr-only">Drag to resize preview and configure panels</span>
             </PanelResizeHandle>
-            <Panel defaultSize={58} minSize={10} maxSize={86} className="flex min-h-0 min-w-0">
+            <Panel defaultSize={60} minSize={6} maxSize={94} className="flex min-h-0 min-w-0 overflow-hidden">
               <div
                 className={cn(
                   'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',
