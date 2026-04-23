@@ -218,6 +218,182 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminDashboard }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminDashboard"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminDashboard />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/users/:id",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminUserDetail }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminUserDetail"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminUserDetail />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/users",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminUsers }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminUsers"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminUsers />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/orders/:id",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminOrderDetail }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminOrderDetail"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminOrderDetail />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/orders",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminOrders }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminOrders"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminOrders />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/statistics",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminStatistics }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminStatistics"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminStatistics />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRM }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminCRM"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRM />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/pricing",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminPricing }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminPricing"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminPricing />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/messages",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminMessages }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminMessages"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminMessages />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/notifications",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminNotificationsPage }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminNotificationsPage"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminNotificationsPage />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/settings",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminSettings }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminSettings"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminSettings />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
     path: "*",
     Component: NotFound,
   },

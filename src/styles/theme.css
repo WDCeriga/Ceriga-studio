@@ -232,34 +232,32 @@
   background: #1a1a1a;
 }
 
-/* Dark UI scrollbars (horizontal strips — match global palette) */
+/* Builder / horizontal strips: scroll with no visible grey bar (touch still scrolls) */
+.no-scrollbar,
 .scrollbar-dark {
-  scrollbar-width: thin;
-  scrollbar-color: #4a4a4a #1a1a1a;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
+.no-scrollbar::-webkit-scrollbar,
 .scrollbar-dark::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
-.scrollbar-dark::-webkit-scrollbar-track {
-  background: #1a1a1a;
-  border-radius: 9999px;
+/* Builder: hide default grey track/thumb (scroll still works). */
+.builder-surface,
+.builder-surface * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-
-.scrollbar-dark::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
-  border-radius: 9999px;
-  border: 1px solid #1a1a1a;
-}
-
-.scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  background: #5a5a5a;
-}
-
-.scrollbar-dark::-webkit-scrollbar-corner {
-  background: #1a1a1a;
+.builder-surface *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 /* ── prefers-reduced-motion: shorten transitions/animations (keeps layout) ── */
@@ -286,5 +284,129 @@
 @layer components {
   .builder-focus {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-[#CC2D24]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0F0F0F];
+  }
+
+  /* ── Global press / click feedback for interactive elements ──
+     Applied by the Button component, swatches, step rails, etc.
+     Subtle scale + color transition on tap for a sleek, tactile feel.
+  */
+  .press-feedback {
+    @apply transition-[transform,background-color,border-color,color,box-shadow,opacity] duration-150 ease-out will-change-transform;
+  }
+  .press-feedback:active {
+    @apply scale-[0.97] duration-75;
+  }
+
+  /* ── Lift feedback for cards / tiles on hover ── */
+  .hover-lift {
+    @apply transition-[transform,box-shadow,background-color,border-color] duration-200 ease-out;
+  }
+  .hover-lift:hover {
+    @apply -translate-y-[1px];
+  }
+  .hover-lift:active {
+    @apply translate-y-0 scale-[0.985] duration-75;
+  }
+
+  /* ── Reorder-list feedback (layer list rows) ──
+     While dragging, the grabbed row visually floats over the other rows and
+     follows the pointer; neighbouring rows slide out of the way to preview the
+     new slot. No coloured glow — the movement itself is the feedback.
+  */
+  .drag-list-row {
+    @apply transition-transform duration-200 ease-out will-change-transform;
+  }
+  .drag-list-floating {
+    @apply shadow-[0_12px_32px_-8px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.1)_inset];
+    background: rgba(28, 28, 28, 0.98);
+    cursor: grabbing;
+    z-index: 40;
+    transition: none !important;
+  }
+
+  /* While a row is being reordered, offsets update every frame — kill transition
+   *  so rows track the pointer instead of easing 200ms behind (felt like overlap). */
+  .list-reorder-active .drag-list-row {
+    transition: none !important;
+  }
+
+  /* ── Picked-up / held feedback for design elements on the canvas ──
+     Kept intentionally cheap so the element stays silky-smooth during drag:
+     just a cursor change + a GPU-composited box-shadow ring. No filters, no
+     scale, no animated pseudo-elements — those cause per-frame repaints.
+  */
+  .canvas-element-drag {
+    @apply will-change-transform;
+  }
+  .canvas-element-held {
+    cursor: grabbing !important;
+    box-shadow:
+      0 0 0 1.5px rgba(255, 59, 48, 0.55),
+      0 10px 22px rgba(0, 0, 0, 0.45);
+    border-radius: 4px;
+  }
+}
+
+/* ── Entrance / attention animations ── */
+@keyframes builder-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes builder-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes builder-slide-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-builder-fade-in {
+  animation: builder-fade-in 220ms ease-out both;
+}
+.animate-builder-pop-in {
+  animation: builder-pop-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.animate-builder-slide-up-in {
+  animation: builder-slide-up-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-builder-fade-in,
+  .animate-builder-pop-in,
+  .animate-builder-slide-up-in {
+    animation: none !important;
+  }
+  .press-feedback:active,
+  .hover-lift:hover,
+  .hover-lift:active {
+    transform: none !important;
+  }
+  .drag-list-row {
+    transition: none !important;
   }
 }

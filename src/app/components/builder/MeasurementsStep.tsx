@@ -197,7 +197,7 @@ export function MeasurementsStep({
       <div>
         <div className="mb-1.5 flex min-w-0 flex-row items-center justify-between gap-2 md:mb-2 md:gap-3">
           <Label className="min-w-0 flex-1 truncate pr-1 text-[10px] uppercase leading-snug tracking-wider text-white/60 md:text-[10px]">
-            Measurements ({measurementUnitLabel(measurementUnit)})
+            Measurement ({measurementUnitLabel(measurementUnit)})
           </Label>
           <div className="shrink-0">
             <MeasurementUnitToggle unit={measurementUnit} onChange={onMeasurementUnitChange} />
@@ -208,7 +208,7 @@ export function MeasurementsStep({
           convert for display. Each cell is one measurement in {measurementUnitLabel(measurementUnit)}.
         </p>
         <div className="overflow-hidden rounded-lg border border-white/10 bg-white/5">
-          <div className="overflow-x-auto">
+          <div className="no-scrollbar overflow-x-auto">
             <table className="w-full text-xs md:text-xs">
               <thead>
                 <tr className="border-b border-white/10">

@@ -26,7 +26,7 @@ export const builderSteps: BuilderStep[] = [
   {
     id: 1,
     name: 'measurements',
-    title: 'Measurements',
+    title: 'Measurement',
     description: 'View measurement guide and select fit for your garment'
   },
   {

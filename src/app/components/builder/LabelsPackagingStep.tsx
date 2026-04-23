@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -23,7 +24,18 @@ import {
   Check,
 } from 'lucide-react';
 import type { DesignElement } from './PrintsDesignStep';
-import { PrintPanel, PrintTransformOverlay, type PrintManip, type ResizeHandle } from './PrintsDesignStep';
+import {
+  PrintPanel,
+  PrintTransformOverlay,
+  type PrintManip,
+  type ResizeHandle,
+  buildImageClipPath,
+  CropEditingOverlay,
+  getImageFilterStyle,
+  ImageFxDefs,
+  SidebarNumberField,
+} from './PrintsDesignStep';
+import { InlineElementToolbar } from './InlineElementToolbar';
 import { StudioColorField } from './StudioColorField';
 import { cn } from '../ui/utils';
 import {
@@ -38,7 +50,11 @@ import {
   GUIDE_COLOR,
   type SnapBox,
 } from '../../lib/designSnapGuides';
-import { reorderDesignElements } from '../../lib/designLayerOrder';
+import {
+  getListReorderRowOffsetY,
+  listDragTargetIndexFromDelta,
+  reorderDesignElements,
+} from '../../lib/designLayerOrder';
 
 type SubStep = 'label' | 'packaging';
 
@@ -56,6 +72,8 @@ interface LabelsPackagingStepProps {
   /** When set with `onPreviewBaseColorChange`, preview surface colour is controlled by the parent (e.g. builder live preview). */
   previewBaseColor?: string;
   onPreviewBaseColorChange?: (hex: string) => void;
+  /** Phone: horizontal scroll for primary actions. */
+  usePhoneStrips?: boolean;
 }
 
 const FONT_OPTIONS = ['Inter', 'Arial', 'Helvetica', 'Montserrat', 'Poppins', 'Georgia'];
@@ -75,6 +93,7 @@ export function LabelsPackagingStep({
   onSelectedLayerIdChange,
   previewBaseColor,
   onPreviewBaseColorChange,
+  usePhoneStrips = false,
 }: LabelsPackagingStepProps) {
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(elements[0]?.id ?? null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
@@ -94,35 +113,20 @@ export function LabelsPackagingStep({
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
   const [listDraggingId, setListDraggingId] = useState<string | null>(null);
   const [listDragOverId, setListDragOverId] = useState<string | null>(null);
+  const [listDragDeltaY, setListDragDeltaY] = useState<number>(0);
   const elementsListRef = useRef(elements);
   const listRowRefs = useRef(new Map<string, HTMLDivElement | null>());
   const listReorderActiveRef = useRef(false);
   const listDragSourceIdRef = useRef<string | null>(null);
   const listDragOverIdRef = useRef<string | null>(null);
+  const listDragStartYRef = useRef(0);
+  const listDragRowHeightRef = useRef(0);
+  const listDragFromIndexRef = useRef(0);
   const selected = useMemo(() => elements.find((item) => item.id === selectedId) ?? null, [elements, selectedId]);
 
   useLayoutEffect(() => {
     elementsListRef.current = elements;
   }, [elements]);
-
-  const findListRowIdAtClientY = (clientY: number, sourceId: string) => {
-    const els = elementsListRef.current;
-    let bestId = sourceId;
-    let bestDist = Infinity;
-    for (const el of els) {
-      const node = listRowRefs.current.get(el.id);
-      if (!node) continue;
-      const r = node.getBoundingClientRect();
-      if (clientY >= r.top && clientY <= r.bottom) return el.id;
-      const cy = r.top + r.height / 2;
-      const d = Math.abs(clientY - cy);
-      if (d < bestDist) {
-        bestDist = d;
-        bestId = el.id;
-      }
-    }
-    return bestId;
-  };
 
   const onListGripPointerDown = (e: React.PointerEvent, elementId: string) => {
     if (e.button !== 0) return;
@@ -132,11 +136,33 @@ export function LabelsPackagingStep({
     listReorderActiveRef.current = true;
     listDragSourceIdRef.current = elementId;
     listDragOverIdRef.current = elementId;
+    listDragStartYRef.current = e.clientY;
+
+    const sourceNode = listRowRefs.current.get(elementId);
+    const parent = sourceNode?.parentElement;
+    let rowHeight = sourceNode?.getBoundingClientRect().height ?? 44;
+    if (parent) {
+      const gapStr = getComputedStyle(parent).rowGap || getComputedStyle(parent).gap;
+      const gap = Number.parseFloat(gapStr) || 0;
+      rowHeight += gap;
+    }
+    listDragRowHeightRef.current = rowHeight;
+    listDragFromIndexRef.current = elementsListRef.current.findIndex((x) => x.id === elementId);
+    if (listDragFromIndexRef.current < 0) listDragFromIndexRef.current = 0;
+
     setListDraggingId(elementId);
     setListDragOverId(elementId);
+    setListDragDeltaY(0);
 
     const onMove = (ev: PointerEvent) => {
-      const over = findListRowIdAtClientY(ev.clientY, elementId);
+      const d = ev.clientY - listDragStartYRef.current;
+      setListDragDeltaY(d);
+      const els = elementsListRef.current;
+      const n = els.length;
+      const s = listDragFromIndexRef.current;
+      const h = listDragRowHeightRef.current;
+      const ti = listDragTargetIndexFromDelta(s, d, h, n);
+      const over = els[ti]!.id;
       if (over !== listDragOverIdRef.current) {
         listDragOverIdRef.current = over;
         setListDragOverId(over);
@@ -155,6 +181,7 @@ export function LabelsPackagingStep({
       listDragOverIdRef.current = null;
       setListDraggingId(null);
       setListDragOverId(null);
+      setListDragDeltaY(0);
       if (!fromId || !toId || fromId === toId) return;
       const els = elementsListRef.current;
       const from = els.findIndex((x) => x.id === fromId);
@@ -171,7 +198,7 @@ export function LabelsPackagingStep({
   const removeElementFromList = (id: string) => {
     const remaining = elements.filter((el) => el.id !== id);
     onElementsChange(remaining);
-    setSelectedId(remaining[0]?.id ?? null);
+    setSelectedId((sid) => (sid === id ? null : sid));
   };
 
   const allFontOptions = useMemo(
@@ -198,6 +225,8 @@ export function LabelsPackagingStep({
       y: cy,
       width: 130,
       height: 40,
+      autoHeight: true,
+      autoWidth: true,
       rotation: 0,
       fontFamily: 'Inter',
       fontSize: subStep === 'label' ? 18 : 24,
@@ -261,7 +290,7 @@ export function LabelsPackagingStep({
     if (!selectedId) return;
     const remaining = elements.filter((item) => item.id !== selectedId);
     onElementsChange(remaining);
-    setSelectedId(remaining[0]?.id ?? null);
+    setSelectedId(null);
   };
 
   useEffect(() => {
@@ -270,7 +299,7 @@ export function LabelsPackagingStep({
       return;
     }
     if (selectedId && !elements.some((e) => e.id === selectedId)) {
-      setSelectedId(elements[0]!.id);
+      setSelectedId(null);
     }
   }, [elements, selectedId, setSelectedId]);
 
@@ -326,6 +355,46 @@ export function LabelsPackagingStep({
         <Label className={sectionLabelClass}>
           {subStep === 'label' ? 'Label option' : 'Packaging option'}
         </Label>
+        {usePhoneStrips ? (
+          <div className="-mx-0.5 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+            {(subStep === 'label'
+              ? (['none', 'woven', 'printed', 'heat', 'satin'] as const)
+              : (['none', 'polybag', 'box', 'mailer', 'tissue'] as const)
+            ).map((id) => {
+              const labelMap: Record<string, string> =
+                subStep === 'label'
+                  ? {
+                      none: 'None',
+                      woven: 'Woven',
+                      printed: 'Print',
+                      heat: 'Heat',
+                      satin: 'Satin',
+                    }
+                  : {
+                      none: 'None',
+                      polybag: 'Poly',
+                      box: 'Box',
+                      mailer: 'Mailer',
+                      tissue: 'Tissue',
+                    };
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onPlanChange(id)}
+                  className={cn(
+                    'shrink-0 snap-start rounded-full border px-2.5 py-1.5 text-[9px] font-semibold transition',
+                    planValue === id
+                      ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
+                      : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
+                  )}
+                >
+                  {labelMap[id] ?? id}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
         <Select value={planValue} onValueChange={onPlanChange}>
           <SelectTrigger className="h-10 min-h-[44px] border-white/10 bg-white/5 text-[11px] text-white md:h-9 md:min-h-0">
             <SelectValue />
@@ -350,6 +419,7 @@ export function LabelsPackagingStep({
             )}
           </SelectContent>
         </Select>
+        )}
       </div>
 
       {isNone ? (
@@ -392,6 +462,25 @@ export function LabelsPackagingStep({
             />
           </div>
 
+          {usePhoneStrips ? (
+            <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+              <Button
+                onClick={uploadImage}
+                variant="outline"
+                className="h-9 min-w-[5.5rem] shrink-0 border-white/20 bg-white/5 px-2.5 text-[10px] !text-white hover:bg-white/10"
+              >
+                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                Upload
+              </Button>
+              <Button
+                onClick={addText}
+                className="h-9 min-w-[5.5rem] shrink-0 bg-[#FF3B30] px-2.5 text-[10px] hover:bg-[#FF3B30]/90"
+              >
+                <Check className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.5} />
+                Add text
+              </Button>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 gap-2">
             <Button
               onClick={uploadImage}
@@ -409,6 +498,7 @@ export function LabelsPackagingStep({
               Add text
             </Button>
           </div>
+          )}
 
           <div>
             <Label className={sectionLabelClass}>Text</Label>
@@ -458,6 +548,26 @@ export function LabelsPackagingStep({
                 <>
                   <div>
                     <Label className={sectionLabelClass}>Font</Label>
+                    {usePhoneStrips ? (
+                      <div className="-mx-0.5 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                        {allFontOptions.map((font) => (
+                          <button
+                            key={font}
+                            type="button"
+                            onClick={() => updateSelected({ fontFamily: font })}
+                            className={cn(
+                              'h-8 shrink-0 snap-start rounded-lg border px-2.5 text-[9px]',
+                              selected.fontFamily === font
+                                ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
+                                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white',
+                            )}
+                            style={{ fontFamily: font }}
+                          >
+                            {font.startsWith('Custom ') ? font.split('-')[0]?.trim() ?? font : font}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {allFontOptions.map((font) => (
                         <button
@@ -475,6 +585,7 @@ export function LabelsPackagingStep({
                         </button>
                       ))}
                     </div>
+                    )}
                   </div>
 
                   <div>
@@ -597,6 +708,280 @@ export function LabelsPackagingStep({
                 />
               </div>
 
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
+                    Size &amp; rotation
+                  </Label>
+                </div>
+                <div className="grid min-w-0 grid-cols-2 gap-2">
+                  <SidebarNumberField
+                    label="Width"
+                    suffix="px"
+                    value={Math.round(selected.width || 0)}
+                    onChange={(v) => {
+                      const next = Math.max(8, Math.min(1200, v));
+                      const ratio =
+                        selected.type === 'image' && selected.height
+                          ? selected.width / selected.height
+                          : 0;
+                      const patch =
+                        ratio > 0
+                          ? { width: next, height: Math.round(next / ratio) }
+                          : { width: next };
+                      updateSelected(
+                        selected.type === 'text' ? { ...patch, autoWidth: false } : patch,
+                      );
+                    }}
+                  />
+                  <SidebarNumberField
+                    label="Height"
+                    suffix="px"
+                    value={Math.round(selected.height || 0)}
+                    onChange={(v) => {
+                      const next = Math.max(8, Math.min(1200, v));
+                      const ratio =
+                        selected.type === 'image' && selected.height
+                          ? selected.width / selected.height
+                          : 0;
+                      const patch =
+                        ratio > 0
+                          ? { height: next, width: Math.round(next * ratio) }
+                          : { height: next };
+                      updateSelected(
+                        selected.type === 'text' ? { ...patch, autoHeight: false } : patch,
+                      );
+                    }}
+                  />
+                  <SidebarNumberField
+                    label="Rotate"
+                    suffix="°"
+                    value={Math.round(selected.rotation ?? 0)}
+                    onChange={(v) => updateSelected({ rotation: ((v % 360) + 360) % 360 })}
+                  />
+                  {selected.type === 'image' ? (
+                    <SidebarNumberField
+                      label="Scale"
+                      suffix="%"
+                      value={100}
+                      onChange={(v) => {
+                        const pct = Math.max(10, Math.min(400, v)) / 100;
+                        updateSelected({
+                          width: Math.round((selected.width || 0) * pct),
+                          height: Math.round((selected.height || 0) * pct),
+                        });
+                      }}
+                    />
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                    {selected.type === 'text' ? 'Text outline' : 'Border'}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateSelected({
+                        borderWidth: (selected.borderWidth ?? 0) > 0 ? 0 : 2,
+                        borderColor: selected.borderColor ?? '#111111',
+                      })
+                    }
+                    className="h-7 border-white/20 px-2 text-[9px] !text-white hover:bg-white/10"
+                  >
+                    {(selected.borderWidth ?? 0) > 0 ? 'Off' : 'On'}
+                  </Button>
+                </div>
+                <div className="mb-2 flex items-center justify-between">
+                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
+                    Thickness
+                  </Label>
+                  <span className="text-[10px] tabular-nums text-white/50">
+                    {selected.borderWidth ?? 0}px
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={8}
+                  step={0.5}
+                  value={selected.borderWidth ?? 0}
+                  onChange={(e) => updateSelected({ borderWidth: Number(e.target.value) })}
+                  className="h-2 w-full cursor-pointer accent-[#FF3B30]"
+                />
+                <div className="mt-3">
+                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
+                    Colour
+                  </span>
+                  <StudioColorField
+                    value={selected.borderColor ?? '#111111'}
+                    onChange={(h) => updateSelected({ borderColor: h })}
+                    mainColors={STUDIO_TEXT_MAIN_COLORS}
+                    popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                  />
+                </div>
+                {selected.type === 'image' ? (
+                  <div className="mt-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
+                        Corner rounding
+                      </Label>
+                      <span className="text-[10px] tabular-nums text-white/50">
+                        {selected.cornerRadius ?? 0}px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      step={1}
+                      value={selected.cornerRadius ?? 0}
+                      onChange={(e) => updateSelected({ cornerRadius: Number(e.target.value) })}
+                      className="h-2 w-full cursor-pointer accent-[#FF3B30]"
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              {selected.type === 'image' ? (
+                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                      Drop shadow
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        updateSelected({
+                          shadowBlur: (selected.shadowBlur ?? 0) > 0 ? 0 : 10,
+                          shadowColor: selected.shadowColor ?? '#000000',
+                          shadowOffsetY: selected.shadowOffsetY ?? 6,
+                        })
+                      }
+                      className="h-7 border-white/20 px-2 text-[9px] !text-white hover:bg-white/10"
+                    >
+                      {(selected.shadowBlur ?? 0) > 0 ? 'Off' : 'On'}
+                    </Button>
+                  </div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
+                      Blur
+                    </Label>
+                    <span className="text-[10px] tabular-nums text-white/50">
+                      {selected.shadowBlur ?? 0}px
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={40}
+                    value={selected.shadowBlur ?? 0}
+                    onChange={(e) => updateSelected({ shadowBlur: Number(e.target.value) })}
+                    className="h-2 w-full cursor-pointer accent-[#FF3B30]"
+                  />
+                  <div className="mt-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
+                        Offset Y
+                      </Label>
+                      <span className="text-[10px] tabular-nums text-white/50">
+                        {selected.shadowOffsetY ?? 6}px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-20}
+                      max={30}
+                      value={selected.shadowOffsetY ?? 6}
+                      onChange={(e) =>
+                        updateSelected({ shadowOffsetY: Number(e.target.value) })
+                      }
+                      className="h-2 w-full cursor-pointer accent-[#FF3B30]"
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
+                      Colour
+                    </span>
+                    <StudioColorField
+                      value={selected.shadowColor ?? '#000000'}
+                      onChange={(h) => updateSelected({ shadowColor: h })}
+                      mainColors={STUDIO_TEXT_MAIN_COLORS}
+                      popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {selected.type === 'image' ? (
+                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                      Crop
+                    </span>
+                    {((selected.cropTop ?? 0) > 0 ||
+                      (selected.cropRight ?? 0) > 0 ||
+                      (selected.cropBottom ?? 0) > 0 ||
+                      (selected.cropLeft ?? 0) > 0) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updateSelected({
+                            cropTop: 0,
+                            cropRight: 0,
+                            cropBottom: 0,
+                            cropLeft: 0,
+                          })
+                        }
+                        className="h-7 border-white/20 px-2 text-[9px] !text-white hover:bg-white/10"
+                      >
+                        Reset
+                      </Button>
+                    )}
+                  </div>
+                  {(
+                    [
+                      ['Top', 'cropTop', 'cropBottom'],
+                      ['Right', 'cropRight', 'cropLeft'],
+                      ['Bottom', 'cropBottom', 'cropTop'],
+                      ['Left', 'cropLeft', 'cropRight'],
+                    ] as const
+                  ).map(([label, key, opposite], idx) => {
+                    const val = (selected[key] as number | undefined) ?? 0;
+                    const oppVal = (selected[opposite] as number | undefined) ?? 0;
+                    const max = Math.max(0, 95 - oppVal);
+                    return (
+                      <div key={key} className={idx === 0 ? '' : 'mt-3'}>
+                        <div className="mb-2 flex items-center justify-between">
+                          <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
+                            {label}
+                          </Label>
+                          <span className="text-[10px] tabular-nums text-white/50">
+                            {Math.round(Math.min(val, max))}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={max}
+                          value={Math.min(val, max)}
+                          onChange={(e) => updateSelected({ [key]: Number(e.target.value) } as Partial<DesignElement>)}
+                          className="h-2 w-full cursor-pointer accent-[#FF3B30]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="outline"
@@ -633,73 +1018,102 @@ export function LabelsPackagingStep({
           ) : null}
 
           <PrintPanel title={`Elements (${elements.length})`}>
-            <div className="space-y-2">
+            <div className={cn('space-y-2', listDraggingId && 'list-reorder-active')}>
               {elements.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/12 px-3 py-6 text-center text-[11px] leading-relaxed text-white/38">
+                <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">
                   Upload artwork or add text, then drag on the preview.
                 </div>
               ) : (
-                elements.map((element) => (
-                  <div
-                    key={element.id}
-                    ref={(node) => {
-                      if (node) listRowRefs.current.set(element.id, node);
-                      else listRowRefs.current.delete(element.id);
-                    }}
-                    className={cn(
-                      'flex w-full items-stretch gap-1 rounded-xl border',
-                      listDragOverId === element.id && listDraggingId && listDraggingId !== element.id
-                        ? 'border-white/35 bg-white/[0.06]'
-                        : selectedId === element.id
-                          ? 'border-[#FF3B30] bg-[#FF3B30]/10'
-                          : 'border-white/10 bg-black/25 hover:border-white/18',
-                    )}
-                  >
+                (() => {
+                  const sourceIndex = listDraggingId
+                    ? elements.findIndex((el) => el.id === listDraggingId)
+                    : -1;
+                  const targetIndex =
+                    listDraggingId && listDragOverId
+                      ? elements.findIndex((el) => el.id === listDragOverId)
+                      : -1;
+                  const rowH = listDragRowHeightRef.current;
+                  return elements.map((element, index) => {
+                    const isDragging = listDraggingId === element.id;
+                    let rowTransform: string | undefined;
+                    if (isDragging) {
+                      rowTransform = `translateY(${listDragDeltaY}px)`;
+                    } else if (sourceIndex >= 0 && targetIndex >= 0 && rowH > 0) {
+                      const off = getListReorderRowOffsetY(
+                        index,
+                        sourceIndex,
+                        targetIndex,
+                        listDragDeltaY,
+                        rowH,
+                        elements.length,
+                      );
+                      if (off !== 0) rowTransform = `translateY(${off}px)`;
+                    }
+                    return (
                     <div
-                      role="button"
-                      tabIndex={0}
-                      onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
-                      className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[10px] px-1.5 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
-                      aria-label="Drag to reorder layer"
-                      title="Drag to reorder"
-                    >
-                      <GripVertical className="h-4 w-4" strokeWidth={2} />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(element.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-1 pr-2 text-left"
-                    >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-white/55">
-                        {element.type === 'image' ? (
-                          <ImageIcon className="h-4 w-4" />
-                        ) : (
-                          <Check className="h-4 w-4" strokeWidth={2.5} />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[11px] font-medium text-white">
-                          {element.type === 'image' ? 'Uploaded artwork' : element.content}
-                        </div>
-                        <div className="text-[10px] text-white/40">
-                          {Math.round(element.x)}, {Math.round(element.y)} · {Math.round(element.rotation)}°
-                        </div>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      className="flex shrink-0 items-center justify-center rounded-r-[10px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
-                      aria-label="Delete layer"
-                      title="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeElementFromList(element.id);
+                      key={element.id}
+                      ref={(node) => {
+                        if (node) listRowRefs.current.set(element.id, node);
+                        else listRowRefs.current.delete(element.id);
                       }}
+                      style={{ transform: rowTransform, position: 'relative' }}
+                      className={cn(
+                        'drag-list-row flex w-full items-stretch gap-1 rounded-lg border',
+                        isDragging
+                          ? 'drag-list-floating border-white/30'
+                          : selectedId === element.id
+                            ? 'border-[#FF3B30] bg-[#FF3B30]/10'
+                            : 'border-white/10 bg-black/25 hover:border-white/18',
+                      )}
                     >
-                      <Trash2 className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
-                ))
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
+                        className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
+                        aria-label="Drag to reorder layer"
+                        title="Drag to reorder"
+                      >
+                        <GripVertical className="h-3.5 w-3.5" strokeWidth={2} />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(element.id)}
+                        className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-0.5 pr-2 text-left"
+                      >
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/12 bg-white/[0.06] text-white/55">
+                          {element.type === 'image' ? (
+                            <ImageIcon className="h-3.5 w-3.5" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[11px] font-medium text-white">
+                            {element.type === 'image' ? 'Uploaded artwork' : element.content}
+                          </div>
+                          <div className="truncate text-[9.5px] text-white/40">
+                            {Math.round(element.x)}, {Math.round(element.y)} ·{' '}
+                            {Math.round(element.rotation)}°
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
+                        aria-label="Delete layer"
+                        title="Delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeElementFromList(element.id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                      </button>
+                    </div>
+                  );
+                  });
+                })()
               )}
             </div>
           </PrintPanel>
@@ -728,12 +1142,16 @@ export function LabelPreview({
   onElementsChange,
   selectedId,
   onSelectedIdChange,
+  liveCanvasScale,
+  phoneConfigSheetCollapsed,
 }: {
   color?: string;
   elements?: DesignElement[];
   onElementsChange?: (elements: DesignElement[]) => void;
   selectedId: string | null;
   onSelectedIdChange: (id: string | null) => void;
+  liveCanvasScale?: number;
+  phoneConfigSheetCollapsed?: boolean;
 }) {
   return (
     <DesignSurface
@@ -743,6 +1161,8 @@ export function LabelPreview({
       onElementsChange={onElementsChange}
       selectedId={selectedId}
       onSelectedIdChange={onSelectedIdChange}
+      liveCanvasScale={liveCanvasScale}
+      phoneConfigSheetCollapsed={phoneConfigSheetCollapsed}
     />
   );
 }
@@ -753,12 +1173,16 @@ export function PackagingPreview({
   onElementsChange,
   selectedId,
   onSelectedIdChange,
+  liveCanvasScale,
+  phoneConfigSheetCollapsed,
 }: {
   color?: string;
   elements?: DesignElement[];
   onElementsChange?: (elements: DesignElement[]) => void;
   selectedId: string | null;
   onSelectedIdChange: (id: string | null) => void;
+  liveCanvasScale?: number;
+  phoneConfigSheetCollapsed?: boolean;
 }) {
   return (
     <DesignSurface
@@ -768,6 +1192,8 @@ export function PackagingPreview({
       onElementsChange={onElementsChange}
       selectedId={selectedId}
       onSelectedIdChange={onSelectedIdChange}
+      liveCanvasScale={liveCanvasScale}
+      phoneConfigSheetCollapsed={phoneConfigSheetCollapsed}
     />
   );
 }
@@ -833,6 +1259,8 @@ function DesignSurface({
   onElementsChange,
   selectedId,
   onSelectedIdChange,
+  liveCanvasScale: liveCanvasScaleProp,
+  phoneConfigSheetCollapsed = false,
 }: {
   mode: SubStep;
   color: string;
@@ -840,11 +1268,17 @@ function DesignSurface({
   onElementsChange?: (elements: DesignElement[]) => void;
   selectedId: string | null;
   onSelectedIdChange: (id: string | null) => void;
+  /** Parent scale (e.g. builder live preview zoom); inverses for toolbar and handles. */
+  liveCanvasScale?: number;
+  phoneConfigSheetCollapsed?: boolean;
 }) {
   const editable = Boolean(onElementsChange);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isOverDeleteZone, setIsOverDeleteZone] = useState(false);
+  /** Live drag position. Kept local to this component so re-renders stay
+   *  inside the preview and don't ripple through the parent every frame. */
+  const [dragLivePos, setDragLivePos] = useState<{ x: number; y: number } | null>(null);
+  const dragLivePosRef = useRef<{ x: number; y: number } | null>(null);
   const [manip, setManip] = useState<PrintManip | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
@@ -853,10 +1287,8 @@ function DesignSurface({
   const [narrowViewport, setNarrowViewport] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches,
   );
-  const deleteRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const elementsRef = useRef(elements);
-  const deleteHoverRef = useRef(false);
   const onElementsChangeRef = useRef(onElementsChange);
   const onSelectedIdChangeRef = useRef(onSelectedIdChange);
   const dragStartClientRef = useRef({ x: 0, y: 0 });
@@ -868,6 +1300,9 @@ function DesignSurface({
     vertical: number[];
     horizontal: number[];
   } | null>(null);
+  /** Tracks what we last pushed into setAlignmentGuides so we can skip
+   *  redundant setState calls during drag. */
+  const guidesRef = useRef<{ vertical: number[]; horizontal: number[] } | null>(null);
 
   useLayoutEffect(() => {
     elementsRef.current = elements;
@@ -887,21 +1322,18 @@ function DesignSurface({
     editAreaRef.current?.select();
   }, [editingTextId]);
 
-  useEffect(() => {
-    if (!editingTextId || selectedId === editingTextId) return;
-    const fn = onElementsChangeRef.current;
+  /** Keep the edit textarea sized to its content so there's no empty space below the caret.
+   *  If the user manually sized this text element (autoHeight === false) we floor
+   *  the height at the explicit value so intentional padding stays. */
+  useLayoutEffect(() => {
+    const ta = editAreaRef.current;
+    if (!ta || !editingTextId) return;
     const el = elementsRef.current.find((item) => item.id === editingTextId);
-    const draft = editDraftRef.current.trim();
-    const next = draft.length > 0 ? draft : (el?.content ?? '');
-    if (fn && el) {
-      fn(
-        elementsRef.current.map((item) =>
-          item.id === editingTextId ? { ...item, content: next } : item,
-        ),
-      );
-    }
-    setEditingTextId(null);
-  }, [selectedId, editingTextId]);
+    const floor = el && el.autoHeight === false ? el.height : 0;
+    ta.style.height = '0px';
+    const contentH = ta.scrollHeight;
+    ta.style.height = `${Math.max(contentH, floor)}px`;
+  }, [editDraft, editingTextId]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 767px)');
@@ -913,6 +1345,7 @@ function DesignSurface({
 
   const defaultOnSurfaceText = contrastingTextOnSurface(color);
   const emptyHintColor = placeholderHintOnSurface(color);
+  const darkSurface = surfaceIsDark(color);
   const canvasClass =
     mode === 'label'
       ? 'h-40 w-40 rounded-[22px] sm:h-56 sm:w-56 sm:rounded-[28px]'
@@ -931,7 +1364,44 @@ function DesignSurface({
     if (!fn) return;
     const remaining = elementsRef.current.filter((item) => item.id !== id);
     fn(remaining);
-    onSelectedIdChangeRef.current(remaining[0]?.id ?? null);
+    onSelectedIdChangeRef.current(null);
+  };
+
+  useEffect(() => {
+    if (!editingTextId || selectedId === editingTextId) return;
+    const el = elementsRef.current.find((item) => item.id === editingTextId);
+    const draft = editDraftRef.current.trim();
+    if (draft.length === 0 && el?.type === 'text') {
+      removeElement(editingTextId);
+      setEditingTextId(null);
+      return;
+    }
+    const fn = onElementsChangeRef.current;
+    const next = draft.length > 0 ? draft : (el?.content ?? '');
+    if (fn && el) {
+      fn(
+        elementsRef.current.map((item) =>
+          item.id === editingTextId ? { ...item, content: next } : item,
+        ),
+      );
+    }
+    setEditingTextId(null);
+  }, [selectedId, editingTextId]);
+
+  const duplicateElement = (id: string) => {
+    const fn = onElementsChangeRef.current;
+    if (!fn) return;
+    const src = elementsRef.current.find((item) => item.id === id);
+    if (!src) return;
+    const copy: DesignElement = {
+      ...src,
+      id: `${Date.now()}`,
+      x: src.x + 14,
+      y: src.y + 14,
+      locked: false,
+    };
+    fn([...elementsRef.current, copy]);
+    onSelectedIdChangeRef.current(copy.id);
   };
 
   useEffect(() => {
@@ -982,7 +1452,13 @@ function DesignSurface({
           updateElement(manip.id, { width: nw, height: nh });
         } else {
           const nfs = clampN(Math.round(manip.startFontSize * s), 12, 120);
-          updateElement(manip.id, { width: nw, height: nh, fontSize: nfs });
+          updateElement(manip.id, {
+            width: nw,
+            height: nh,
+            fontSize: nfs,
+            autoHeight: false,
+            autoWidth: false,
+          });
         }
         return;
       }
@@ -993,10 +1469,26 @@ function DesignSurface({
         else if (h === 'n') updateElement(manip.id, { height: clampN(manip.startH - dy, 32, 520) });
         return;
       }
-      if (h === 'e') updateElement(manip.id, { width: clampN(manip.startW + dx, 48, 440) });
-      else if (h === 'w') updateElement(manip.id, { width: clampN(manip.startW - dx, 48, 440) });
-      else if (h === 's') updateElement(manip.id, { height: clampN(manip.startH + dy, 28, 360) });
-      else if (h === 'n') updateElement(manip.id, { height: clampN(manip.startH - dy, 28, 360) });
+      if (h === 'e')
+        updateElement(manip.id, {
+          width: clampN(manip.startW + dx, 48, 440),
+          autoWidth: false,
+        });
+      else if (h === 'w')
+        updateElement(manip.id, {
+          width: clampN(manip.startW - dx, 48, 440),
+          autoWidth: false,
+        });
+      else if (h === 's')
+        updateElement(manip.id, {
+          height: clampN(manip.startH + dy, 28, 360),
+          autoHeight: false,
+        });
+      else if (h === 'n')
+        updateElement(manip.id, {
+          height: clampN(manip.startH - dy, 28, 360),
+          autoHeight: false,
+        });
     };
 
     const onUp = () => setManip(null);
@@ -1016,19 +1508,41 @@ function DesignSurface({
     if (!onElementsChangeRef.current) return;
     if (manip) return;
 
-    const handleMove = (e: PointerEvent) => {
+    /* rAF-throttle so pointermove bursts (120+ Hz) don't pile up DOM reads +
+     * state updates per event. Keeps drag silky. */
+    let rafId: number | null = null;
+    let latestClientX = 0;
+    let latestClientY = 0;
+    let pending = false;
+
+    const arraysSame = (a: number[], b: number[]) => {
+      if (a === b) return true;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    };
+
+    const applyMove = () => {
+      rafId = null;
+      if (!pending) return;
+      pending = false;
       const zone = surfaceRef.current;
       if (!zone) return;
       const current = elementsRef.current.find((item) => item.id === draggingId);
       if (!current) return;
 
       if (
-        Math.hypot(e.clientX - dragStartClientRef.current.x, e.clientY - dragStartClientRef.current.y) > 5
+        Math.hypot(
+          latestClientX - dragStartClientRef.current.x,
+          latestClientY - dragStartClientRef.current.y,
+        ) > 5
       ) {
         dragDidMoveRef.current = true;
       }
 
-      const p = clientToZonePoint(zone, e.clientX, e.clientY);
+      const p = clientToZonePoint(zone, latestClientX, latestClientY);
       const nx = p.x - dragOffset.x;
       const ny = p.y - dragOffset.y;
       const boxH =
@@ -1066,26 +1580,37 @@ function DesignSurface({
         draggingId,
         snapBoxes,
       );
-      setAlignmentGuides({
-        vertical: snapped.verticalLines,
-        horizontal: snapped.horizontalLines,
-      });
 
-      updateElement(draggingId, {
-        x: snapped.x,
-        y: snapped.y,
-      });
-
-      if (deleteRef.current) {
-        const dr = deleteRef.current.getBoundingClientRect();
-        const over =
-          e.clientX >= dr.left &&
-          e.clientX <= dr.right &&
-          e.clientY >= dr.top &&
-          e.clientY <= dr.bottom;
-        deleteHoverRef.current = over;
-        setIsOverDeleteZone(over);
+      const prevGuides = guidesRef.current;
+      const vSame =
+        prevGuides != null && arraysSame(prevGuides.vertical, snapped.verticalLines);
+      const hSame =
+        prevGuides != null && arraysSame(prevGuides.horizontal, snapped.horizontalLines);
+      if (!vSame || !hSame) {
+        const nextGuides = {
+          vertical: snapped.verticalLines,
+          horizontal: snapped.horizontalLines,
+        };
+        guidesRef.current = nextGuides;
+        setAlignmentGuides(nextGuides);
       }
+
+      /* Keep live drag position local → only PrintsDesignPreview re-renders
+       * instead of bubbling to the parent. Committed on pointerup below. */
+      const prev = dragLivePosRef.current;
+      if (!prev || prev.x !== snapped.x || prev.y !== snapped.y) {
+        const nextPos = { x: snapped.x, y: snapped.y };
+        dragLivePosRef.current = nextPos;
+        setDragLivePos(nextPos);
+      }
+    };
+
+    const handleMove = (e: PointerEvent) => {
+      latestClientX = e.clientX;
+      latestClientY = e.clientY;
+      pending = true;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(applyMove);
     };
 
     const handleUp = () => {
@@ -1100,9 +1625,7 @@ function DesignSurface({
           /* ignore */
         }
       }
-      if (draggingId && deleteHoverRef.current) {
-        removeElement(draggingId);
-      } else if (
+      if (
         draggingId &&
         !dragDidMoveRef.current &&
         textTapRef.current?.id === draggingId &&
@@ -1115,11 +1638,19 @@ function DesignSurface({
           editDraftRef.current = el.content;
         }
       }
+      /* Commit the final live drag position to the real element state — we
+       * only touch the parent once the pointer comes up so the drag itself
+       * stays at 60/120 fps. */
+      const liveEnd = dragLivePosRef.current;
+      if (draggingId && liveEnd && dragDidMoveRef.current) {
+        updateElement(draggingId, { x: liveEnd.x, y: liveEnd.y });
+      }
+      dragLivePosRef.current = null;
+      guidesRef.current = null;
       textTapRef.current = null;
-      deleteHoverRef.current = false;
       dragDidMoveRef.current = false;
       setDraggingId(null);
-      setIsOverDeleteZone(false);
+      setDragLivePos(null);
       setAlignmentGuides(null);
     };
 
@@ -1131,37 +1662,114 @@ function DesignSurface({
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
     };
   }, [draggingId, dragOffset, editable, manip]);
 
   const innerClipClass = editable ? 'overflow-visible' : 'overflow-hidden';
 
+  const selectedElement = editable ? elements.find((el) => el.id === selectedId) ?? null : null;
+  const showInlineToolbar = Boolean(editable && selectedElement);
+  const keyboardBottomInset = useVisualViewportBottomInset();
+  const dockTextToolbar = Boolean(
+    narrowViewport && phoneConfigSheetCollapsed && showInlineToolbar && selectedElement?.type === 'text',
+  );
+  const showChromeToolbar = Boolean(showInlineToolbar && selectedElement && !dockTextToolbar);
+  const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+
+  const liveCanvasS = liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1;
+  const uiInv = 1 / liveCanvasS;
+
   return (
     <div
       data-label-packaging-root
-      className="flex w-full max-w-full min-w-0 flex-col items-center"
+      className="relative flex w-full max-w-full min-w-0 flex-col items-center"
       onPointerDown={(e) => {
         if (!editable) return;
-        if (e.target === e.currentTarget) {
-          onSelectedIdChange(null);
+        const t = e.target as HTMLElement;
+        if (t.closest('[data-surface-id]') || t.closest('[data-handles]') || t.closest('[data-inline-toolbar]')) {
+          return;
         }
+        onSelectedIdChange(null);
       }}
     >
+      <div className="relative flex w-full max-w-full flex-col items-center">
+        {showChromeToolbar && selectedElement ? (
+          <div
+            className="pointer-events-none absolute bottom-full left-1/2 z-[40] flex max-w-full justify-center px-2"
+            style={{
+              marginBottom: 8,
+              transform: uiInv !== 1 ? `translateX(-50%) scale(${uiInv})` : 'translateX(-50%)',
+              transformOrigin: uiInv !== 1 ? 'bottom center' : 'center',
+            }}
+          >
+            <InlineElementToolbar
+              element={selectedElement}
+              onPatch={(patch) => updateElement(selectedElement.id, patch)}
+              onDuplicate={() => duplicateElement(selectedElement.id)}
+              onDelete={() => removeElement(selectedElement.id)}
+              compact={narrowViewport}
+              onCropModeChange={(cropping) =>
+                setCropEditingId(cropping ? selectedElement.id : null)
+              }
+            />
+          </div>
+        ) : null}
+        {dockTextToolbar && selectedElement && typeof document !== 'undefined'
+          ? createPortal(
+              <div
+                className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2"
+                style={{
+                  bottom: Math.max(10, keyboardBottomInset + 6),
+                  paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
+                }}
+              >
+                <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-1rem)] justify-center">
+                  <InlineElementToolbar
+                    element={selectedElement}
+                    onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                    onDuplicate={() => duplicateElement(selectedElement.id)}
+                    onDelete={() => removeElement(selectedElement.id)}
+                    compact
+                    popoverOpenAbove
+                    onCropModeChange={(cropping) =>
+                      setCropEditingId(cropping ? selectedElement.id : null)
+                    }
+                  />
+                </div>
+              </div>,
+              document.body,
+            )
+          : null}
+        <div
+          className={cn(
+            'relative mx-auto border-2 shadow-[0_12px_32px_rgba(0,0,0,0.16)]',
+            darkSurface
+              ? 'border-white/50 ring-1 ring-white/20 ring-inset'
+              : 'border-black',
+            editable ? 'overflow-visible' : 'overflow-hidden',
+            canvasClass,
+          )}
+          style={{ backgroundColor: color }}
+          onPointerDown={(e) => {
+            if (!editable) return;
+            const t = e.target as HTMLElement;
+            if (t.closest('[data-surface-id]') || t.closest('[data-handles]') || t.closest('[data-inline-toolbar]')) {
+              return;
+            }
+            onSelectedIdChange(null);
+          }}
+        >
       <div
         className={cn(
-          'relative mx-auto border-2 border-black shadow-[0_12px_32px_rgba(0,0,0,0.16)]',
-          editable ? 'overflow-visible' : 'overflow-hidden',
-          canvasClass,
+          'absolute inset-[18px] rounded-[18px] border',
+          darkSurface ? 'border-white/30' : 'border-black/20',
+          innerClipClass,
         )}
-        style={{ backgroundColor: color }}
-        onPointerDown={(e) => {
-          if (!editable) return;
-          const t = e.target as HTMLElement;
-          if (t.closest('[data-surface-id]') || t.closest('[data-handles]')) return;
-          onSelectedIdChange(null);
-        }}
       >
-      <div className={cn('absolute inset-[18px] rounded-[18px] border border-black/20', innerClipClass)}>
         {elements.length === 0 && (
           <div
             className="flex h-full min-h-0 items-center justify-center px-2 text-center text-[10px] uppercase tracking-[0.14em] sm:text-[11px] sm:tracking-[0.18em]"
@@ -1206,23 +1814,37 @@ function DesignSurface({
               return Math.max(11, Math.round(base * 0.82));
             })();
 
+            const isHeld = draggingId === element.id && editable;
+            const liveX = isHeld && dragLivePos ? dragLivePos.x : element.x;
+            const liveY = isHeld && dragLivePos ? dragLivePos.y : element.y;
+
             return (
               <div
                 key={element.id}
                 data-surface-id={element.id}
                 className={cn(
-                  'absolute',
+                  'absolute canvas-element-drag',
                   draggingId === element.id && 'z-[15]',
-                  editable && !isEditingText && 'cursor-move select-none',
+                  isHeld && 'canvas-element-held',
+                  editable && !isEditingText && 'cursor-grab select-none',
                 )}
                 style={{
-                  left: element.x,
-                  top: element.y,
-                  width: element.type === 'text' ? 'max-content' : element.width,
+                  left: liveX,
+                  top: liveY,
+                  width:
+                    element.type === 'text'
+                      ? element.autoWidth === false
+                        ? element.width
+                        : 'max-content'
+                      : element.width,
                   maxWidth: element.type === 'text' ? element.width : undefined,
-                  minHeight: element.type === 'text' ? element.height : undefined,
                   minWidth: element.type === 'text' ? 0 : undefined,
-                  height: element.type === 'image' ? element.height : undefined,
+                  height:
+                    element.type === 'image'
+                      ? element.height
+                      : element.autoHeight === false
+                        ? element.height
+                        : undefined,
                   opacity: op,
                   transform: `translate(-50%, -50%) rotate(${element.rotation}deg)`,
                 }}
@@ -1252,14 +1874,24 @@ function DesignSurface({
                 }}
               >
                 {element.type === 'image' ? (
-                  <img
-                    src={element.content}
-                    alt="Artwork"
-                    className="h-full w-full object-contain"
-                    style={{
-                      transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
-                    }}
-                  />
+                  <>
+                    <ImageFxDefs element={element} />
+                    <img
+                      src={element.content}
+                      alt="Artwork"
+                      className="h-full w-full object-contain"
+                      style={{
+                        transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
+                        clipPath: buildImageClipPath(element, {
+                          ignoreCrop: cropEditingId === element.id,
+                        }),
+                        filter: getImageFilterStyle(element),
+                      }}
+                    />
+                    {cropEditingId === element.id ? (
+                      <CropEditingOverlay element={element} />
+                    ) : null}
+                  </>
                 ) : isEditingText ? (
                   <textarea
                     ref={editAreaRef}
@@ -1269,8 +1901,13 @@ function DesignSurface({
                       editDraftRef.current = ev.target.value;
                     }}
                     onBlur={() => {
-                      const next = editDraftRef.current.trim() || element.content;
-                      updateElement(element.id, { content: next });
+                      const trimmed = editDraftRef.current.trim();
+                      if (trimmed.length === 0) {
+                        removeElement(element.id);
+                        setEditingTextId(null);
+                        return;
+                      }
+                      updateElement(element.id, { content: trimmed });
                       setEditingTextId(null);
                     }}
                     onKeyDown={(ev) => {
@@ -1282,21 +1919,23 @@ function DesignSurface({
                       ev.stopPropagation();
                     }}
                     onPointerDown={(ev) => ev.stopPropagation()}
-                    className="z-40 min-h-[1.5em] w-full resize-none rounded-md border border-[#CC2D24]/60 bg-black/80 px-1.5 py-1 font-semibold text-white outline-none ring-2 ring-[#CC2D24]/35 [overflow-wrap:anywhere]"
+                    rows={1}
+                    className="z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#FF3B30] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
                     style={{
                       color: element.color ?? defaultOnSurfaceText,
                       fontFamily: element.fontFamily ?? 'Inter',
                       fontSize: displayFont,
                       lineHeight: 1.15,
                       maxWidth: element.width,
-                      minHeight: element.height,
+                      minHeight: element.autoHeight === false ? element.height : undefined,
                       textAlign: element.textAlign ?? 'center',
                       fontStyle: element.fontStyle ?? 'normal',
                       letterSpacing:
                         element.letterSpacing != null ? `${element.letterSpacing}px` : undefined,
                       textTransform: 'none',
+                      outline: '1px solid rgba(255, 59, 48, 0.55)',
+                      outlineOffset: '2px',
                     }}
-                    rows={3}
                   />
                 ) : (
                   <div className="relative inline-block min-w-0 max-w-full">
@@ -1320,7 +1959,7 @@ function DesignSurface({
                         fontSize: displayFont,
                         lineHeight: 1.15,
                         maxWidth: element.width,
-                        minHeight: element.height,
+                        minHeight: element.autoHeight === false ? element.height : undefined,
                         textAlign: element.textAlign ?? 'center',
                         fontStyle: element.fontStyle ?? 'normal',
                         textTransform: element.textTransform ?? 'none',
@@ -1336,6 +1975,7 @@ function DesignSurface({
                 )}
                 {selected && editable && !isEditingText ? (
                   <PrintTransformOverlay
+                    uiInverseScale={uiInv}
                     onRotatePointerDown={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
@@ -1379,26 +2019,8 @@ function DesignSurface({
         </div>
       </div>
       </div>
+      </div>
 
-      {editable && draggingId ? (
-        <div className="pointer-events-none mt-2 flex w-full justify-center md:mt-3">
-          <div
-            ref={deleteRef}
-            className={`flex min-w-[160px] max-md:min-w-[128px] items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-2 shadow-[0_16px_40px_rgba(0,0,0,0.28)] transition-all duration-200 max-md:gap-1.5 max-md:rounded-xl max-md:px-2.5 max-md:py-1.5 max-md:shadow-[0_8px_24px_rgba(0,0,0,0.25)] ${
-              isOverDeleteZone
-                ? 'scale-105 border-[#FF3B30] bg-[#FF3B30]/15 text-white max-md:scale-100'
-                : 'border-white/20 bg-black/50 text-white/70'
-            }`}
-          >
-            <Trash2
-              className={`h-4 w-4 max-md:h-3 max-md:w-3 ${isOverDeleteZone ? 'animate-pulse' : ''}`}
-            />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] max-md:text-[8px] max-md:tracking-[0.14em]">
-              {isOverDeleteZone ? 'Release to delete' : 'Drag here'}
-            </span>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

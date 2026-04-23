@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '../ui/utils';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -27,6 +28,7 @@ import {
   GripVertical,
 } from 'lucide-react';
 import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
+import { useVisualViewportBottomInset } from '../../lib/useVisualViewportBottomInset';
 import {
   snapDragInZone,
   measureHalfExtentsInZone,
@@ -34,9 +36,14 @@ import {
   type SnapBox,
   type SnapDragOptions,
 } from '../../lib/designSnapGuides';
-import { reorderDesignElements } from '../../lib/designLayerOrder';
+import {
+  getListReorderRowOffsetY,
+  listDragTargetIndexFromDelta,
+  reorderDesignElements,
+} from '../../lib/designLayerOrder';
 import { StudioColorField } from './StudioColorField';
 import { STUDIO_TEXT_MAIN_COLORS, STUDIO_TEXT_POPULAR_COLORS } from '../../data/studioColorPresets';
+import { InlineElementToolbar } from './InlineElementToolbar';
 
 export interface DesignElement {
   id: string;
@@ -71,6 +78,23 @@ export interface DesignElement {
   locked?: boolean;
   /** Print process for this layer (DTG, DTF, etc.) */
   printMethod?: string;
+  /** Image only — rounds the rendered artwork corners (px). */
+  cornerRadius?: number;
+  /** Image only — crop insets as a percentage (0–100) of the raw artwork. */
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
+  /** Text only — when true (default), the wrapper hugs the rendered glyphs so
+   *  there's no empty space below short text. The moment the user resizes the
+   *  box (handles or numeric adjusters) this flips to false and `height` is
+   *  honoured literally, so people can intentionally add padding around the text. */
+  autoHeight?: boolean;
+  /** Text only — mirror of autoHeight for the horizontal axis. When true (default)
+   *  the wrapper sizes to the text content (capped at `width` for wrap). When the
+   *  user changes width via handles or adjusters we lock to `element.width` literally
+   *  so a 300px wide box renders as 300px even when the text only spans 40px. */
+  autoWidth?: boolean;
 }
 
 interface PrintsDesignStepProps {
@@ -79,6 +103,8 @@ interface PrintsDesignStepProps {
   /** When set with `onSelectedLayerIdChange`, selection is controlled (sync with live preview). */
   selectedLayerId?: string | null;
   onSelectedLayerIdChange?: (id: string | null) => void;
+  /** Narrow / phone: horizontal scroll rows for key actions (Canva-style). */
+  usePhoneStrips?: boolean;
 }
 
 interface PrintsDesignPreviewProps {
@@ -88,6 +114,10 @@ interface PrintsDesignPreviewProps {
   className?: string;
   selectedLayerId?: string | null;
   onSelectedLayerIdChange?: (id: string | null) => void;
+  /** Parent scale (e.g. live preview `previewZoom/100`); inverses for toolbar and handles. */
+  liveCanvasScale?: number;
+  /** Phone: when the config sheet is collapsed, pin the *text* formatting bar above the soft keyboard. */
+  phoneConfigSheetCollapsed?: boolean;
 }
 
 const FONT_OPTIONS = [
@@ -130,6 +160,222 @@ const PREVIEW_ZONE = {
   right: 5,
   bottom: 7,
 };
+
+/**
+ * True shape-following outline + drop shadow for images using SVG filter primitives.
+ *
+ * `feMorphology operator="dilate"` grows the non-transparent silhouette by `radius` px
+ * and we colour it with a flood + composite. This gives a smooth, pixel-precise outline
+ * that hugs the artwork (rounded corners, transparent PNGs, etc.) with no visible stepping
+ * — unlike a stack of CSS `drop-shadow`s which produces a staggered, blocky result.
+ */
+export function hasImageFx(el: {
+  type?: 'image' | 'text';
+  borderWidth?: number;
+  shadowBlur?: number;
+}): boolean {
+  if (el.type !== 'image') return false;
+  return (el.borderWidth ?? 0) > 0 || (el.shadowBlur ?? 0) > 0;
+}
+
+/** CSS `filter` value pointing at the per-element SVG `<filter>` — or undefined when unused. */
+export function getImageFilterStyle(el: {
+  id: string;
+  type?: 'image' | 'text';
+  borderWidth?: number;
+  shadowBlur?: number;
+}): string | undefined {
+  return hasImageFx(el) ? `url(#fx-${el.id})` : undefined;
+}
+
+/** Renders the per-element `<svg>` `<defs>` block. Place inside the same DOM subtree as the img. */
+export function ImageFxDefs({
+  element,
+}: {
+  element: {
+    id: string;
+    type?: 'image' | 'text';
+    borderWidth?: number;
+    borderColor?: string;
+    shadowBlur?: number;
+    shadowColor?: string;
+    shadowOffsetY?: number;
+  };
+}) {
+  if (!hasImageFx(element)) return null;
+  const bw = Math.max(0, element.borderWidth ?? 0);
+  const bc = element.borderColor ?? '#FFFFFF';
+  const sb = Math.max(0, element.shadowBlur ?? 0);
+  const sc = element.shadowColor ?? '#000000';
+  const so = element.shadowOffsetY ?? 6;
+  return (
+    <svg
+      aria-hidden
+      focusable="false"
+      style={{ position: 'absolute', width: 0, height: 0, pointerEvents: 'none' }}
+    >
+      <defs>
+        <filter
+          id={`fx-${element.id}`}
+          x="-50%"
+          y="-50%"
+          width="200%"
+          height="200%"
+          colorInterpolationFilters="sRGB"
+        >
+          {bw > 0 ? (
+            <>
+              <feMorphology
+                in="SourceAlpha"
+                operator="dilate"
+                radius={bw}
+                result="outlineMask"
+              />
+              <feFlood floodColor={bc} result="outlineFill" />
+              <feComposite
+                in="outlineFill"
+                in2="outlineMask"
+                operator="in"
+                result="outlineShape"
+              />
+            </>
+          ) : null}
+          {sb > 0 ? (
+            <>
+              <feGaussianBlur in="SourceAlpha" stdDeviation={sb / 2} result="shadowBlur" />
+              <feOffset in="shadowBlur" dx={0} dy={so} result="shadowOffset" />
+              <feFlood floodColor={sc} result="shadowFill" />
+              <feComposite
+                in="shadowFill"
+                in2="shadowOffset"
+                operator="in"
+                result="shadowShape"
+              />
+            </>
+          ) : null}
+          <feMerge>
+            {sb > 0 ? <feMergeNode in="shadowShape" /> : null}
+            {bw > 0 ? <feMergeNode in="outlineShape" /> : null}
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
+  );
+}
+
+/**
+ * Canva-style crop-editing HUD: renders on top of the artwork while the user has the Crop
+ * panel open. The image beneath is shown uncropped so the user can see what's being removed;
+ * here we paint a dim veil over the regions that will be clipped out and highlight the "keep"
+ * rectangle with a dashed outline + corner brackets.
+ */
+export function CropEditingOverlay({
+  element,
+}: {
+  element: {
+    cropTop?: number;
+    cropRight?: number;
+    cropBottom?: number;
+    cropLeft?: number;
+  };
+}) {
+  const t = Math.max(0, Math.min(95, element.cropTop ?? 0));
+  const r = Math.max(0, Math.min(95, element.cropRight ?? 0));
+  const b = Math.max(0, Math.min(95, element.cropBottom ?? 0));
+  const l = Math.max(0, Math.min(95, element.cropLeft ?? 0));
+  const veil = 'rgba(4,6,12,0.62)';
+  return (
+    <div
+      className="pointer-events-none absolute inset-0"
+      aria-hidden
+      style={{ zIndex: 2 }}
+    >
+      {t > 0 ? (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: `${t}%`, background: veil }} />
+      ) : null}
+      {b > 0 ? (
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${b}%`, background: veil }} />
+      ) : null}
+      {l > 0 ? (
+        <div style={{ position: 'absolute', top: `${t}%`, bottom: `${b}%`, left: 0, width: `${l}%`, background: veil }} />
+      ) : null}
+      {r > 0 ? (
+        <div style={{ position: 'absolute', top: `${t}%`, bottom: `${b}%`, right: 0, width: `${r}%`, background: veil }} />
+      ) : null}
+      <div
+        style={{
+          position: 'absolute',
+          top: `${t}%`,
+          bottom: `${b}%`,
+          left: `${l}%`,
+          right: `${r}%`,
+          border: '1.5px dashed rgba(255,255,255,0.95)',
+          boxShadow: '0 0 0 1px rgba(0,0,0,0.55), 0 0 18px rgba(0,0,0,0.35)',
+          boxSizing: 'border-box',
+        }}
+      >
+        {(
+          [
+            { top: -1, left: -1, bt: true, bl: true },
+            { top: -1, right: -1, bt: true, br: true },
+            { bottom: -1, left: -1, bb: true, bl: true },
+            { bottom: -1, right: -1, bb: true, br: true },
+          ] as const
+        ).map((corner, i) => (
+          <span
+            key={i}
+            style={{
+              position: 'absolute',
+              width: 14,
+              height: 14,
+              top: corner.top,
+              left: corner.left,
+              right: corner.right,
+              bottom: corner.bottom,
+              borderTop: corner.bt ? '3px solid #FFFFFF' : undefined,
+              borderBottom: corner.bb ? '3px solid #FFFFFF' : undefined,
+              borderLeft: corner.bl ? '3px solid #FFFFFF' : undefined,
+              borderRight: corner.br ? '3px solid #FFFFFF' : undefined,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Combined `clip-path: inset(t r b l round X%)` from crop fields + corner rounding.
+ * Corner radius is stored as a percentage (0–50%) so the rounding scales with the element size,
+ * matching Canva's "corner rounding" slider.
+ *
+ * Pass `ignoreCrop: true` to get only the rounded-corner part (useful while actively editing a
+ * crop so the user can see the full artwork).
+ */
+export function buildImageClipPath(
+  el: {
+    cornerRadius?: number;
+    cropTop?: number;
+    cropRight?: number;
+    cropBottom?: number;
+    cropLeft?: number;
+  },
+  opts?: { ignoreCrop?: boolean },
+): string | undefined {
+  const t = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropTop ?? 0));
+  const r = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropRight ?? 0));
+  const b = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropBottom ?? 0));
+  const l = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropLeft ?? 0));
+  // Pixel-based corner radius: applies an equal radius to both axes so non-square
+  // images still get true round corners (percentages would produce elliptical ones).
+  const rad = Math.max(0, Math.min(80, el.cornerRadius ?? 0));
+  const hasCrop = t > 0 || r > 0 || b > 0 || l > 0;
+  const hasRound = rad > 0;
+  if (!hasCrop && !hasRound) return undefined;
+  const roundPart = hasRound ? ` round ${rad}px` : '';
+  return `inset(${t}% ${r}% ${b}% ${l}%${roundPart})`;
+}
 
 /** Align snap “middle” guides with the visible shirt centre (mockup perspective). */
 const PREVIEW_SNAP_CENTER_NUDGE: SnapDragOptions = {
@@ -199,15 +445,27 @@ export type PrintManip =
 export function PrintTransformOverlay({
   onRotatePointerDown,
   onResizePointerDown,
+  /** Counter parent scale (e.g. live preview zoom) so handles stay a usable on-screen size. */
+  uiInverseScale = 1,
 }: {
   onRotatePointerDown: (e: React.PointerEvent) => void;
   onResizePointerDown: (e: React.PointerEvent, h: ResizeHandle) => void;
+  uiInverseScale?: number;
 }) {
+  const inv = uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
   const dot =
     'absolute z-30 flex h-3.5 w-3.5 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] active:scale-95';
   const dotStyle = { borderColor: HANDLE_RED, boxShadow: `0 0 0 1px ${HANDLE_RED}40` };
   return (
-    <div data-handles className="contents">
+    <div
+      data-handles
+      className={inv === 1 ? 'contents' : 'pointer-events-none absolute inset-0'}
+      style={
+        inv === 1
+          ? undefined
+          : { transform: `scale(${inv})`, transformOrigin: '50% 50%' }
+      }
+    >
       <div
         className="pointer-events-none absolute inset-[-7px] rounded-2xl border bg-gradient-to-b from-[#CC2D24]/12 to-transparent"
         style={{ borderColor: `${HANDLE_RED}aa` }}
@@ -291,8 +549,10 @@ export function PrintPanel({
   className?: string;
 }) {
   return (
-    <div className={cn('rounded-2xl border border-white/[0.07] bg-black/30 p-4', className)}>
-      <div className="mb-3 text-[9px] font-bold uppercase tracking-[0.18em] text-white/38">{title}</div>
+    <div className={cn('rounded-xl border border-white/[0.07] bg-black/30 p-3', className)}>
+      <div className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-white/38">
+        {title}
+      </div>
       {children}
     </div>
   );
@@ -334,11 +594,63 @@ function SliderField({
   );
 }
 
+export function SidebarNumberField({
+  label,
+  suffix,
+  value,
+  onChange,
+  step = 1,
+}: {
+  label: string;
+  suffix: string;
+  value: number;
+  onChange: (n: number) => void;
+  step?: number;
+}) {
+  const [draft, setDraft] = useState<string>(String(value));
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+  return (
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/38">
+        {label}
+      </span>
+      <div
+        className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60"
+        /* `min-w-0` on the label + this row + `shrink-0` on the unit keeps the
+         *  suffix inside the field in a 2-col grid. Without it, `type="number"`
+         *  (often end-aligned) + flex-1 can push `px` into the column gutter. */
+      >
+        <input
+          type="number"
+          value={draft}
+          step={step}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            const n = Number(draft);
+            if (Number.isFinite(n)) onChange(n);
+            else setDraft(String(value));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+          className="min-w-0 flex-1 bg-transparent text-left text-[11px] font-semibold tabular-nums text-white outline-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <span className="shrink-0 text-[9px] font-medium tabular-nums leading-none text-white/45">
+          {suffix}
+        </span>
+      </div>
+    </label>
+  );
+}
+
 export function PrintsDesignStep({
   elements,
   onChange,
   selectedLayerId: selectedLayerIdProp,
   onSelectedLayerIdChange,
+  usePhoneStrips = false,
 }: PrintsDesignStepProps) {
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
@@ -354,12 +666,17 @@ export function PrintsDesignStep({
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
   const [listDraggingId, setListDraggingId] = useState<string | null>(null);
   const [listDragOverId, setListDragOverId] = useState<string | null>(null);
+  const [listDragDeltaY, setListDragDeltaY] = useState<number>(0);
   const elementsRef = useRef(elements);
   const onChangeRef = useRef(onChange);
   const listRowRefs = useRef(new Map<string, HTMLDivElement | null>());
   const listReorderActiveRef = useRef(false);
   const listDragSourceIdRef = useRef<string | null>(null);
   const listDragOverIdRef = useRef<string | null>(null);
+  const listDragStartYRef = useRef(0);
+  const listDragRowHeightRef = useRef(0);
+  /** Index in `elements` at drag start — target slot is derived from `deltaY / rowH`. */
+  const listDragFromIndexRef = useRef(0);
   const selected = useMemo(
     () => elements.find((item) => item.id === selectedId) ?? null,
     [elements, selectedId],
@@ -378,7 +695,7 @@ export function PrintsDesignStep({
       return;
     }
     if (selectedId && !elements.some((e) => e.id === selectedId)) {
-      setSelectedId(elements[0]!.id);
+      setSelectedId(null);
     }
   }, [elements, selectedId, setSelectedId]);
 
@@ -463,6 +780,8 @@ export function PrintsDesignStep({
       y: cy,
       width: narrow ? 132 : 170,
       height: narrow ? 44 : 60,
+      autoHeight: true,
+      autoWidth: true,
       rotation: 0,
       fontSize: narrow ? 22 : 30,
       fontFamily: 'Inter',
@@ -490,13 +809,13 @@ export function PrintsDesignStep({
     if (!selectedId) return;
     const remaining = elements.filter((item) => item.id !== selectedId);
     onChange(remaining);
-    setSelectedId(remaining[0]?.id ?? null);
+    setSelectedId(null);
   };
 
   const removeElementById = (id: string) => {
     const remaining = elements.filter((item) => item.id !== id);
     onChange(remaining);
-    setSelectedId((sid) => (sid === id ? remaining[0]?.id ?? null : sid));
+    setSelectedId((sid) => (sid === id ? null : sid));
   };
 
   const duplicateSelected = () => {
@@ -549,25 +868,6 @@ export function PrintsDesignStep({
     onChange(arr);
   };
 
-  const findListRowIdAtClientY = (clientY: number, sourceId: string) => {
-    const els = elementsRef.current;
-    let bestId = sourceId;
-    let bestDist = Infinity;
-    for (const el of els) {
-      const node = listRowRefs.current.get(el.id);
-      if (!node) continue;
-      const r = node.getBoundingClientRect();
-      if (clientY >= r.top && clientY <= r.bottom) return el.id;
-      const cy = r.top + r.height / 2;
-      const d = Math.abs(clientY - cy);
-      if (d < bestDist) {
-        bestDist = d;
-        bestId = el.id;
-      }
-    }
-    return bestId;
-  };
-
   const onListGripPointerDown = (e: React.PointerEvent, elementId: string) => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -576,11 +876,33 @@ export function PrintsDesignStep({
     listReorderActiveRef.current = true;
     listDragSourceIdRef.current = elementId;
     listDragOverIdRef.current = elementId;
+    listDragStartYRef.current = e.clientY;
+
+    const sourceNode = listRowRefs.current.get(elementId);
+    const parent = sourceNode?.parentElement;
+    let rowHeight = sourceNode?.getBoundingClientRect().height ?? 44;
+    if (parent) {
+      const gapStr = getComputedStyle(parent).rowGap || getComputedStyle(parent).gap;
+      const gap = Number.parseFloat(gapStr) || 0;
+      rowHeight += gap;
+    }
+    listDragRowHeightRef.current = rowHeight;
+    listDragFromIndexRef.current = elementsRef.current.findIndex((x) => x.id === elementId);
+    if (listDragFromIndexRef.current < 0) listDragFromIndexRef.current = 0;
+
     setListDraggingId(elementId);
     setListDragOverId(elementId);
+    setListDragDeltaY(0);
 
     const onMove = (ev: PointerEvent) => {
-      const over = findListRowIdAtClientY(ev.clientY, elementId);
+      const d = ev.clientY - listDragStartYRef.current;
+      setListDragDeltaY(d);
+      const els = elementsRef.current;
+      const n = els.length;
+      const s = listDragFromIndexRef.current;
+      const h = listDragRowHeightRef.current;
+      const ti = listDragTargetIndexFromDelta(s, d, h, n);
+      const over = els[ti]!.id;
       if (over !== listDragOverIdRef.current) {
         listDragOverIdRef.current = over;
         setListDragOverId(over);
@@ -599,6 +921,7 @@ export function PrintsDesignStep({
       listDragOverIdRef.current = null;
       setListDraggingId(null);
       setListDragOverId(null);
+      setListDragDeltaY(0);
       if (!fromId || !toId || fromId === toId) return;
       const els = elementsRef.current;
       const from = els.findIndex((x) => x.id === fromId);
@@ -631,9 +954,25 @@ export function PrintsDesignStep({
     ? ((Math.round(selected.rotation) % 360) + 360) % 360
     : 0;
 
+  const artBtnClass =
+    'h-9 shrink-0 min-w-[6.5rem] border-white/18 bg-white/[0.04] px-2.5 text-[10px] !text-white hover:bg-white/10';
+  const addTextClass = 'h-9 shrink-0 min-w-[6.5rem] bg-[#FF3B30] px-2.5 text-[10px] text-white hover:bg-[#FF3B30]/90';
+
   return (
     <div className="space-y-3.5">
       <PrintPanel title="Add artwork">
+        {usePhoneStrips ? (
+          <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x [-webkit-overflow-scrolling:touch]">
+            <Button onClick={handleUploadImage} variant="outline" className={artBtnClass}>
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              Upload
+            </Button>
+            <Button onClick={handleAddText} className={addTextClass}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Add text
+            </Button>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-2">
           <Button
             onClick={handleUploadImage}
@@ -651,6 +990,7 @@ export function PrintsDesignStep({
             Add text
           </Button>
         </div>
+        )}
         <div className="mt-3">
           <Label className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
             Text content
@@ -685,6 +1025,20 @@ export function PrintsDesignStep({
       </PrintPanel>
 
       <PrintPanel title="Placement presets">
+        {usePhoneStrips ? (
+          <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+            {DESIGN_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className="shrink-0 rounded-full border border-white/12 bg-black/30 px-3 py-1.5 text-left text-[10px] font-medium text-white/80 transition hover:border-white/25 hover:text-white"
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-2">
           {DESIGN_PRESETS.map((preset) => (
             <button
@@ -697,6 +1051,7 @@ export function PrintsDesignStep({
             </button>
           ))}
         </div>
+        )}
       </PrintPanel>
 
       {selected ? (
@@ -724,6 +1079,26 @@ export function PrintsDesignStep({
                 Each layer uses one process. DTG = direct-to-garment; DTF = direct-to-film — hover a button for full
                 wording.
               </p>
+              {usePhoneStrips ? (
+                <div className="-mx-0.5 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                  {PRINT_METHODS.map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      title={PRINT_METHOD_DESCRIPTIONS[method]}
+                      onClick={() => updateSelected({ printMethod: method })}
+                      className={cn(
+                        'shrink-0 snap-start rounded-full border px-2.5 py-1.5 text-[9px] font-semibold transition',
+                        (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
+                          ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
+                          : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
+                      )}
+                    >
+                      {method}
+                    </button>
+                  ))}
+                </div>
+              ) : (
               <div className="grid grid-cols-2 gap-2">
                 {PRINT_METHODS.map((method) => (
                   <button
@@ -745,6 +1120,7 @@ export function PrintsDesignStep({
                   </button>
                 ))}
               </div>
+              )}
             </div>
 
             {selected.type === 'text' && (
@@ -753,6 +1129,26 @@ export function PrintsDesignStep({
                   <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                     Font
                   </Label>
+                  {usePhoneStrips ? (
+                    <div className="-mx-0.5 flex max-w-full gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                      {allFontOptions.map((font) => (
+                        <button
+                          key={font}
+                          type="button"
+                          onClick={() => updateSelected({ fontFamily: font })}
+                          className={cn(
+                            'h-8 shrink-0 snap-start rounded-lg border px-2.5 text-[9px] transition',
+                            selected.fontFamily === font
+                              ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
+                              : 'border-white/10 bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
+                          )}
+                          style={{ fontFamily: font }}
+                        >
+                          {font.startsWith('Custom ') ? font.split('-')[0]?.trim() ?? font : font}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-2 gap-2">
                     {allFontOptions.map((font) => (
                       <button
@@ -771,6 +1167,7 @@ export function PrintsDesignStep({
                       </button>
                     ))}
                   </div>
+                  )}
                 </div>
 
                 <div>
@@ -954,7 +1351,210 @@ export function PrintsDesignStep({
                   popularColors={STUDIO_TEXT_POPULAR_COLORS}
                 />
               </div>
+              {selected.type === 'image' ? (
+                <div className="mt-3">
+                  <SliderField
+                    label="Corner rounding"
+                    value={selected.cornerRadius ?? 0}
+                    min={0}
+                    max={80}
+                    suffix="px"
+                    onChange={(n) => updateSelected({ cornerRadius: n })}
+                  />
+                </div>
+              ) : null}
             </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                  Size &amp; rotation
+                </span>
+              </div>
+              <div className="grid min-w-0 grid-cols-2 gap-2">
+                <SidebarNumberField
+                  label="Width"
+                  suffix="px"
+                  value={Math.round(selected.width || 0)}
+                  onChange={(v) => {
+                    const next = Math.max(8, Math.min(1200, v));
+                    const ratio =
+                      selected.type === 'image' && selected.height
+                        ? selected.width / selected.height
+                        : 0;
+                    const patch =
+                      ratio > 0
+                        ? { width: next, height: Math.round(next / ratio) }
+                        : { width: next };
+                    updateSelected(
+                      selected.type === 'text' ? { ...patch, autoWidth: false } : patch,
+                    );
+                  }}
+                />
+                <SidebarNumberField
+                  label="Height"
+                  suffix="px"
+                  value={Math.round(selected.height || 0)}
+                  onChange={(v) => {
+                    const next = Math.max(8, Math.min(1200, v));
+                    const ratio =
+                      selected.type === 'image' && selected.height
+                        ? selected.width / selected.height
+                        : 0;
+                    const patch =
+                      ratio > 0
+                        ? { height: next, width: Math.round(next * ratio) }
+                        : { height: next };
+                    updateSelected(
+                      selected.type === 'text' ? { ...patch, autoHeight: false } : patch,
+                    );
+                  }}
+                />
+                <SidebarNumberField
+                  label="Rotate"
+                  suffix="°"
+                  value={Math.round(selected.rotation ?? 0)}
+                  onChange={(v) => updateSelected({ rotation: ((v % 360) + 360) % 360 })}
+                />
+                {selected.type === 'image' ? (
+                  <SidebarNumberField
+                    label="Scale"
+                    suffix="%"
+                    value={100}
+                    onChange={(v) => {
+                      const pct = Math.max(10, Math.min(400, v)) / 100;
+                      updateSelected({
+                        width: Math.round((selected.width || 0) * pct),
+                        height: Math.round((selected.height || 0) * pct),
+                      });
+                    }}
+                  />
+                ) : null}
+              </div>
+            </div>
+
+            {selected.type === 'image' ? (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                    Drop shadow
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      updateSelected({
+                        shadowBlur: (selected.shadowBlur ?? 0) > 0 ? 0 : 10,
+                        shadowColor: selected.shadowColor ?? '#000000',
+                        shadowOffsetY: selected.shadowOffsetY ?? 6,
+                      })
+                    }
+                    className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
+                  >
+                    {(selected.shadowBlur ?? 0) > 0 ? 'Off' : 'On'}
+                  </Button>
+                </div>
+                <SliderField
+                  label="Blur"
+                  value={selected.shadowBlur ?? 0}
+                  min={0}
+                  max={40}
+                  suffix="px"
+                  onChange={(n) => updateSelected({ shadowBlur: n })}
+                />
+                <div className="mt-3">
+                  <SliderField
+                    label="Offset Y"
+                    value={selected.shadowOffsetY ?? 6}
+                    min={-20}
+                    max={30}
+                    suffix="px"
+                    onChange={(n) => updateSelected({ shadowOffsetY: n })}
+                  />
+                </div>
+                <div className="mt-3">
+                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
+                    Colour
+                  </span>
+                  <StudioColorField
+                    value={selected.shadowColor ?? '#000000'}
+                    onChange={(h) => updateSelected({ shadowColor: h })}
+                    mainColors={STUDIO_TEXT_MAIN_COLORS}
+                    popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {selected.type === 'image' ? (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                    Crop
+                  </span>
+                  {((selected.cropTop ?? 0) > 0 ||
+                    (selected.cropRight ?? 0) > 0 ||
+                    (selected.cropBottom ?? 0) > 0 ||
+                    (selected.cropLeft ?? 0) > 0) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        updateSelected({
+                          cropTop: 0,
+                          cropRight: 0,
+                          cropBottom: 0,
+                          cropLeft: 0,
+                        })
+                      }
+                      className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                </div>
+                <SliderField
+                  label="Top"
+                  value={selected.cropTop ?? 0}
+                  min={0}
+                  max={Math.max(0, 95 - (selected.cropBottom ?? 0))}
+                  suffix="%"
+                  onChange={(n) => updateSelected({ cropTop: n })}
+                />
+                <div className="mt-3">
+                  <SliderField
+                    label="Right"
+                    value={selected.cropRight ?? 0}
+                    min={0}
+                    max={Math.max(0, 95 - (selected.cropLeft ?? 0))}
+                    suffix="%"
+                    onChange={(n) => updateSelected({ cropRight: n })}
+                  />
+                </div>
+                <div className="mt-3">
+                  <SliderField
+                    label="Bottom"
+                    value={selected.cropBottom ?? 0}
+                    min={0}
+                    max={Math.max(0, 95 - (selected.cropTop ?? 0))}
+                    suffix="%"
+                    onChange={(n) => updateSelected({ cropBottom: n })}
+                  />
+                </div>
+                <div className="mt-3">
+                  <SliderField
+                    label="Left"
+                    value={selected.cropLeft ?? 0}
+                    min={0}
+                    max={Math.max(0, 95 - (selected.cropRight ?? 0))}
+                    suffix="%"
+                    onChange={(n) => updateSelected({ cropLeft: n })}
+                  />
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -1016,75 +1616,111 @@ export function PrintsDesignStep({
       ) : null}
 
       <PrintPanel title={`Elements (${elements.length})`}>
-        <div className="space-y-2">
+        <div className={cn('space-y-2', listDraggingId && 'list-reorder-active')}>
           {elements.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/12 px-3 py-6 text-center text-[11px] leading-relaxed text-white/38">
+            <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">
               Upload artwork or add text, then drag on the preview.
             </div>
           ) : (
-            elements.map((element) => (
-              <div
-                key={element.id}
-                ref={(node) => {
-                  if (node) listRowRefs.current.set(element.id, node);
-                  else listRowRefs.current.delete(element.id);
-                }}
-                className={cn(
-                  'flex w-full items-stretch gap-1 rounded-xl border',
-                  listDragOverId === element.id && listDraggingId && listDraggingId !== element.id
-                    ? 'border-white/35 bg-white/[0.06]'
-                    : selectedId === element.id
-                      ? 'border-[#FF3B30] bg-[#FF3B30]/10'
-                      : 'border-white/10 bg-black/25 hover:border-white/18',
-                )}
-              >
+            (() => {
+              const sourceIndex = listDraggingId
+                ? elements.findIndex((el) => el.id === listDraggingId)
+                : -1;
+              const targetIndex =
+                listDraggingId && listDragOverId
+                  ? elements.findIndex((el) => el.id === listDragOverId)
+                  : -1;
+              const rowH = listDragRowHeightRef.current;
+              return elements.map((element, index) => {
+                const isDragging = listDraggingId === element.id;
+                let rowTransform: string | undefined;
+                if (isDragging) {
+                  rowTransform = `translateY(${listDragDeltaY}px)`;
+                } else if (
+                  sourceIndex >= 0 &&
+                  targetIndex >= 0 &&
+                  rowH > 0
+                ) {
+                  const off = getListReorderRowOffsetY(
+                    index,
+                    sourceIndex,
+                    targetIndex,
+                    listDragDeltaY,
+                    rowH,
+                    elements.length,
+                  );
+                  if (off !== 0) rowTransform = `translateY(${off}px)`;
+                }
+
+                return (
                 <div
-                  role="button"
-                  tabIndex={0}
-                  onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
-                  className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[10px] px-1.5 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
-                  aria-label="Drag to reorder layer"
-                  title="Drag to reorder"
-                >
-                  <GripVertical className="h-4 w-4" strokeWidth={2} />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(element.id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-1 pr-2 text-left"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-white/55">
-                    {element.type === 'image' ? (
-                      <ImageIcon className="h-4 w-4" />
-                    ) : (
-                      <Check className="h-4 w-4" strokeWidth={2.5} />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[11px] font-medium text-white">
-                      {element.type === 'image' ? 'Uploaded artwork' : element.content}
-                    </div>
-                    <div className="text-[10px] text-white/40">
-                      <span className="text-white/50">{element.printMethod ?? DEFAULT_PRINT_METHOD}</span>
-                      {' · '}
-                      {Math.round(element.x)}, {Math.round(element.y)} · {Math.round(element.rotation)}°
-                    </div>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className="flex shrink-0 items-center justify-center rounded-r-[10px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
-                  aria-label="Delete layer"
-                  title="Delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeElementById(element.id);
+                  key={element.id}
+                  ref={(node) => {
+                    if (node) listRowRefs.current.set(element.id, node);
+                    else listRowRefs.current.delete(element.id);
                   }}
+                  style={{ transform: rowTransform, position: 'relative' }}
+                  className={cn(
+                    'drag-list-row flex w-full items-stretch gap-1 rounded-lg border',
+                    isDragging
+                      ? 'drag-list-floating border-white/30'
+                      : selectedId === element.id
+                        ? 'border-[#FF3B30] bg-[#FF3B30]/10'
+                        : 'border-white/10 bg-black/25 hover:border-white/18',
+                  )}
                 >
-                  <Trash2 className="h-4 w-4" strokeWidth={2} />
-                </button>
-              </div>
-            ))
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
+                    className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
+                    aria-label="Drag to reorder layer"
+                    title="Drag to reorder"
+                  >
+                    <GripVertical className="h-3.5 w-3.5" strokeWidth={2} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(element.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-0.5 pr-2 text-left"
+                  >
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/12 bg-white/[0.06] text-white/55">
+                      {element.type === 'image' ? (
+                        <ImageIcon className="h-3.5 w-3.5" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[11px] font-medium text-white">
+                        {element.type === 'image' ? 'Uploaded artwork' : element.content}
+                      </div>
+                      <div className="truncate text-[9.5px] text-white/40">
+                        <span className="text-white/55">
+                          {element.printMethod ?? DEFAULT_PRINT_METHOD}
+                        </span>
+                        {' · '}
+                        {Math.round(element.x)}, {Math.round(element.y)} ·{' '}
+                        {Math.round(element.rotation)}°
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
+                    aria-label="Delete layer"
+                    title="Delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeElementById(element.id);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                  </button>
+                </div>
+              );
+              });
+            })()
           )}
         </div>
       </PrintPanel>
@@ -1133,6 +1769,8 @@ export function PrintsDesignPreview({
   className,
   selectedLayerId: selectedLayerIdProp,
   onSelectedLayerIdChange,
+  liveCanvasScale: liveCanvasScaleProp,
+  phoneConfigSheetCollapsed = false,
 }: PrintsDesignPreviewProps) {
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
@@ -1152,7 +1790,10 @@ export function PrintsDesignPreview({
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isOverDeleteZone, setIsOverDeleteZone] = useState(false);
+  /** Live x/y while a drag is in progress. Kept *local* so the parent never
+   *  re-renders per frame — that's the main reason dragging used to feel glitchy. */
+  const [dragLivePos, setDragLivePos] = useState<{ x: number; y: number } | null>(null);
+  const dragLivePosRef = useRef<{ x: number; y: number } | null>(null);
   const [manip, setManip] = useState<PrintManip | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
@@ -1170,8 +1811,6 @@ export function PrintsDesignPreview({
   }, []);
 
   const zoneRef = useRef<HTMLDivElement>(null);
-  const deleteRef = useRef<HTMLDivElement>(null);
-  const deleteHoverRef = useRef(false);
   const elementsRef = useRef(elements);
   const onChangeRef = useRef(onChange);
   const dragStartClientRef = useRef({ x: 0, y: 0 });
@@ -1183,6 +1822,9 @@ export function PrintsDesignPreview({
     vertical: number[];
     horizontal: number[];
   } | null>(null);
+  /** Last guides actually committed to state so we can skip redundant setState
+   *  calls during drag — identical guides don't need a re-render. */
+  const guidesRef = useRef<{ vertical: number[]; horizontal: number[] } | null>(null);
 
   useLayoutEffect(() => {
     elementsRef.current = elements;
@@ -1198,21 +1840,19 @@ export function PrintsDesignPreview({
     editAreaRef.current?.select();
   }, [editingTextId]);
 
-  useEffect(() => {
-    if (!editingTextId || selectedId === editingTextId) return;
-    const fn = onChangeRef.current;
+  /** Keep the text-edit textarea's height locked to its content so there's no
+   *  extra space below the caret — feels like typing directly on the canvas.
+   *  If the user has manually sized this element (autoHeight === false) we
+   *  respect that as a floor so the intentional padding is preserved. */
+  useLayoutEffect(() => {
+    const ta = editAreaRef.current;
+    if (!ta || !editingTextId) return;
     const el = elementsRef.current.find((item) => item.id === editingTextId);
-    const draft = editDraftRef.current.trim();
-    const next = draft.length > 0 ? draft : (el?.content ?? '');
-    if (fn && el) {
-      fn(
-        elementsRef.current.map((item) =>
-          item.id === editingTextId ? { ...item, content: next } : item,
-        ),
-      );
-    }
-    setEditingTextId(null);
-  }, [selectedId, editingTextId]);
+    const floor = el && el.autoHeight === false ? el.height : 0;
+    ta.style.height = '0px';
+    const contentH = ta.scrollHeight;
+    ta.style.height = `${Math.max(contentH, floor)}px`;
+  }, [editDraft, editingTextId]);
 
   useEffect(() => {
     if (elements.length === 0) {
@@ -1220,7 +1860,7 @@ export function PrintsDesignPreview({
       return;
     }
     if (selectedId && !elements.some((e) => e.id === selectedId)) {
-      setSelectedId(elements[0]!.id);
+      setSelectedId(null);
     }
   }, [elements, selectedId, setSelectedId]);
 
@@ -1235,6 +1875,43 @@ export function PrintsDesignPreview({
     if (!fn) return;
     fn(elementsRef.current.filter((item) => item.id !== id));
     setSelectedId((sid) => (sid === id ? null : sid));
+  };
+
+  useEffect(() => {
+    if (!editingTextId || selectedId === editingTextId) return;
+    const el = elementsRef.current.find((item) => item.id === editingTextId);
+    const draft = editDraftRef.current.trim();
+    if (draft.length === 0 && el?.type === 'text') {
+      removeElement(editingTextId);
+      setEditingTextId(null);
+      return;
+    }
+    const fn = onChangeRef.current;
+    const next = draft.length > 0 ? draft : (el?.content ?? '');
+    if (fn && el) {
+      fn(
+        elementsRef.current.map((item) =>
+          item.id === editingTextId ? { ...item, content: next } : item,
+        ),
+      );
+    }
+    setEditingTextId(null);
+  }, [selectedId, editingTextId]);
+
+  const duplicateElement = (id: string) => {
+    const fn = onChangeRef.current;
+    if (!fn) return;
+    const src = elementsRef.current.find((item) => item.id === id);
+    if (!src) return;
+    const copy: DesignElement = {
+      ...src,
+      id: `${Date.now()}`,
+      x: src.x + 14,
+      y: src.y + 14,
+      locked: false,
+    };
+    fn([...elementsRef.current, copy]);
+    setSelectedId(copy.id);
   };
 
   useEffect(() => {
@@ -1328,7 +2005,13 @@ export function PrintsDesignPreview({
           updateElement(manip.id, { width: nw, height: nh });
         } else {
           const nfs = clamp(Math.round(manip.startFontSize * s), 12, 120);
-          updateElement(manip.id, { width: nw, height: nh, fontSize: nfs });
+          updateElement(manip.id, {
+            width: nw,
+            height: nh,
+            fontSize: nfs,
+            autoHeight: false,
+            autoWidth: false,
+          });
         }
         return;
       }
@@ -1339,12 +2022,26 @@ export function PrintsDesignPreview({
         else if (h === 'n') updateElement(manip.id, { height: clamp(manip.startH - dy, 32, 520) });
         return;
       }
-      if (h === 'e') updateElement(manip.id, { width: clamp(manip.startW + dx, 48, 440) });
-      else if (h === 'w') updateElement(manip.id, { width: clamp(manip.startW - dx, 48, 440) });
+      if (h === 'e')
+        updateElement(manip.id, {
+          width: clamp(manip.startW + dx, 48, 440),
+          autoWidth: false,
+        });
+      else if (h === 'w')
+        updateElement(manip.id, {
+          width: clamp(manip.startW - dx, 48, 440),
+          autoWidth: false,
+        });
       else if (h === 's')
-        updateElement(manip.id, { height: clamp(manip.startH + dy, 28, 360) });
+        updateElement(manip.id, {
+          height: clamp(manip.startH + dy, 28, 360),
+          autoHeight: false,
+        });
       else if (h === 'n')
-        updateElement(manip.id, { height: clamp(manip.startH - dy, 28, 360) });
+        updateElement(manip.id, {
+          height: clamp(manip.startH - dy, 28, 360),
+          autoHeight: false,
+        });
     };
 
     const onUp = () => setManip(null);
@@ -1364,7 +2061,27 @@ export function PrintsDesignPreview({
     if (!onChangeRef.current) return;
     if (manip) return;
 
-    const handleMove = (e: PointerEvent) => {
+    /* Throttle the position update to animation frames. pointermove fires at
+     * the device's input rate (120 Hz+) and each run does DOM measurement +
+     * snap math; without batching we burn frames and the element stutters. */
+    let rafId: number | null = null;
+    let latestClientX = 0;
+    let latestClientY = 0;
+    let pending = false;
+
+    const arraysSame = (a: number[], b: number[]) => {
+      if (a === b) return true;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    };
+
+    const applyMove = () => {
+      rafId = null;
+      if (!pending) return;
+      pending = false;
       const zone = zoneRef.current;
       if (!zone) return;
 
@@ -1373,14 +2090,14 @@ export function PrintsDesignPreview({
 
       if (
         Math.hypot(
-          e.clientX - dragStartClientRef.current.x,
-          e.clientY - dragStartClientRef.current.y,
+          latestClientX - dragStartClientRef.current.x,
+          latestClientY - dragStartClientRef.current.y,
         ) > 5
       ) {
         dragDidMoveRef.current = true;
       }
 
-      const p = clientToZonePoint(zone, e.clientX, e.clientY);
+      const p = clientToZonePoint(zone, latestClientX, latestClientY);
       const nx = p.x - dragOffset.x;
       const ny = p.y - dragOffset.y;
       const boxH =
@@ -1419,26 +2136,41 @@ export function PrintsDesignPreview({
         snapBoxes,
         PREVIEW_SNAP_CENTER_NUDGE,
       );
-      setAlignmentGuides({
-        vertical: snapped.verticalLines,
-        horizontal: snapped.horizontalLines,
-      });
 
-      updateElement(draggingId, {
-        x: snapped.x,
-        y: snapped.y,
-      });
-
-      if (deleteRef.current) {
-        const dr = deleteRef.current.getBoundingClientRect();
-        const over =
-          e.clientX >= dr.left &&
-          e.clientX <= dr.right &&
-          e.clientY >= dr.top &&
-          e.clientY <= dr.bottom;
-        deleteHoverRef.current = over;
-        setIsOverDeleteZone(over);
+      /* Skip setAlignmentGuides when the guide lines haven't actually changed —
+       * React still does work for a same-value setState and we call this on
+       * every pointermove frame. */
+      const prevGuides = guidesRef.current;
+      const vSame =
+        prevGuides != null && arraysSame(prevGuides.vertical, snapped.verticalLines);
+      const hSame =
+        prevGuides != null && arraysSame(prevGuides.horizontal, snapped.horizontalLines);
+      if (!vSame || !hSame) {
+        const nextGuides = {
+          vertical: snapped.verticalLines,
+          horizontal: snapped.horizontalLines,
+        };
+        guidesRef.current = nextGuides;
+        setAlignmentGuides(nextGuides);
       }
+
+      /* Keep live position local so only PrintsDesignPreview re-renders per
+       * frame instead of bubbling through the parent's setState → full-tree
+       * re-render. The committed element.x/y is written once on pointerup. */
+      const prev = dragLivePosRef.current;
+      if (!prev || prev.x !== snapped.x || prev.y !== snapped.y) {
+        const nextPos = { x: snapped.x, y: snapped.y };
+        dragLivePosRef.current = nextPos;
+        setDragLivePos(nextPos);
+      }
+    };
+
+    const handleMove = (e: PointerEvent) => {
+      latestClientX = e.clientX;
+      latestClientY = e.clientY;
+      pending = true;
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(applyMove);
     };
 
     const handleUp = () => {
@@ -1453,9 +2185,7 @@ export function PrintsDesignPreview({
           /* ignore */
         }
       }
-      if (draggingId && deleteHoverRef.current) {
-        removeElement(draggingId);
-      } else if (
+      if (
         draggingId &&
         !dragDidMoveRef.current &&
         textTapRef.current?.id === draggingId &&
@@ -1468,11 +2198,18 @@ export function PrintsDesignPreview({
           editDraftRef.current = el.content;
         }
       }
+      /* Commit the live drag position to the real element state — this is the
+       * only place we bubble x/y through the parent's onChange during a drag. */
+      const liveEnd = dragLivePosRef.current;
+      if (draggingId && liveEnd && dragDidMoveRef.current) {
+        updateElement(draggingId, { x: liveEnd.x, y: liveEnd.y });
+      }
+      dragLivePosRef.current = null;
+      guidesRef.current = null;
       textTapRef.current = null;
-      deleteHoverRef.current = false;
       dragDidMoveRef.current = false;
       setDraggingId(null);
-      setIsOverDeleteZone(false);
+      setDragLivePos(null);
       setAlignmentGuides(null);
     };
 
@@ -1484,8 +2221,25 @@ export function PrintsDesignPreview({
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
     };
   }, [draggingId, dragOffset, editable, manip]);
+
+  const selectedElement = editable ? elements.find((el) => el.id === selectedId) ?? null : null;
+  const showInlineToolbar = Boolean(editable && selectedElement);
+  const keyboardBottomInset = useVisualViewportBottomInset();
+  const dockTextToolbar = Boolean(
+    narrowViewport && phoneConfigSheetCollapsed && showInlineToolbar && selectedElement?.type === 'text',
+  );
+  const showCanvasChromeToolbar = Boolean(showInlineToolbar && selectedElement && !dockTextToolbar);
+  /** Element whose Crop panel is currently open — we render the full image + dim overlay. */
+  const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+
+  const liveCanvasS = liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1;
+  const uiInv = 1 / liveCanvasS;
 
   return (
     <div
@@ -1494,6 +2248,53 @@ export function PrintsDesignPreview({
         className,
       )}
     >
+      {showCanvasChromeToolbar && selectedElement ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-[40] flex justify-center px-2 pt-1 sm:pt-2"
+          style={
+            uiInv !== 1
+              ? { transform: `scale(${uiInv})`, transformOrigin: 'top center' }
+              : undefined
+          }
+        >
+          <InlineElementToolbar
+            element={selectedElement}
+            onPatch={(patch) => updateElement(selectedElement.id, patch)}
+            onDuplicate={() => duplicateElement(selectedElement.id)}
+            onDelete={() => removeElement(selectedElement.id)}
+            compact={narrowViewport}
+            onCropModeChange={(cropping) =>
+              setCropEditingId(cropping ? selectedElement.id : null)
+            }
+          />
+        </div>
+      ) : null}
+      {dockTextToolbar && selectedElement && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2"
+              style={{
+                bottom: Math.max(10, keyboardBottomInset + 6),
+                paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
+              }}
+            >
+              <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-1rem)] justify-center">
+                <InlineElementToolbar
+                  element={selectedElement}
+                  onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                  onDuplicate={() => duplicateElement(selectedElement.id)}
+                  onDelete={() => removeElement(selectedElement.id)}
+                  compact
+                  popoverOpenAbove
+                  onCropModeChange={(cropping) =>
+                    setCropEditingId(cropping ? selectedElement.id : null)
+                  }
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       <div
         className={cn(
           'relative min-h-0 w-full flex-1',
@@ -1507,7 +2308,16 @@ export function PrintsDesignPreview({
           className="h-auto max-h-full w-full object-contain opacity-0"
         />
 
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          onPointerDown={(e) => {
+            if (!editable) return;
+            const t = e.target as HTMLElement;
+            if (t.closest('[data-print-id]') || t.closest('[data-handles]')) return;
+            if (t.closest('[data-inline-toolbar]')) return;
+            setSelectedId(null);
+          }}
+        >
           <img
             src={imgBlackTshirt}
             alt="Garment"
@@ -1523,10 +2333,6 @@ export function PrintsDesignPreview({
               right: `${PREVIEW_ZONE.right}%`,
               top: `${PREVIEW_ZONE.top}%`,
               bottom: `${PREVIEW_ZONE.bottom}%`,
-            }}
-            onPointerDown={(e) => {
-              if (!editable) return;
-              if (e.target === e.currentTarget) setSelectedId(null);
             }}
           >
           {editable && alignmentGuides ? (
@@ -1561,28 +2367,42 @@ export function PrintsDesignPreview({
               return Math.max(12, Math.round(base * 0.78));
             })();
 
+            const isHeld = draggingId === element.id && editable && !locked;
+            const liveX =
+              isHeld && dragLivePos ? dragLivePos.x : element.x;
+            const liveY =
+              isHeld && dragLivePos ? dragLivePos.y : element.y;
+
             return (
               <div
                 key={element.id}
                 data-print-id={element.id}
                 className={cn(
-                  'absolute',
+                  'absolute canvas-element-drag',
                   draggingId === element.id && 'z-[15]',
-                  editable && !isEditingText && (locked ? 'cursor-default' : 'cursor-move'),
+                  isHeld && 'canvas-element-held',
+                  editable && !isEditingText && (locked ? 'cursor-default' : 'cursor-grab'),
                   editable && !isEditingText && 'select-none touch-none',
                 )}
                 style={{
-                  left: element.x,
-                  top: element.y,
-                  width: element.type === 'text' ? 'max-content' : element.width,
+                  left: liveX,
+                  top: liveY,
+                  width:
+                    element.type === 'text'
+                      ? element.autoWidth === false
+                        ? element.width
+                        : 'max-content'
+                      : element.width,
                   maxWidth: element.type === 'text' ? element.width : undefined,
-                  minHeight: element.type === 'text' ? element.height : undefined,
                   minWidth: element.type === 'text' ? 0 : undefined,
-                  height: element.type === 'image' ? element.height : undefined,
+                  height:
+                    element.type === 'image'
+                      ? element.height
+                      : element.autoHeight === false
+                        ? element.height
+                        : undefined,
                   opacity: op,
                   transform: `translate(-50%, -50%) rotate(${element.rotation}deg)`,
-                  boxShadow:
-                    element.type === 'image' && bw > 0 ? `0 0 0 ${bw}px ${bc}` : undefined,
                 }}
                 onPointerDown={(e) => {
                   if (!editable) return;
@@ -1611,14 +2431,24 @@ export function PrintsDesignPreview({
                 }}
               >
                 {element.type === 'image' ? (
-                  <img
-                    src={element.content}
-                    alt="Artwork"
-                    className="h-full w-full object-contain"
-                    style={{
-                      transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
-                    }}
-                  />
+                  <>
+                    <ImageFxDefs element={element} />
+                    <img
+                      src={element.content}
+                      alt="Artwork"
+                      className="h-full w-full object-contain"
+                      style={{
+                        transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
+                        clipPath: buildImageClipPath(element, {
+                          ignoreCrop: cropEditingId === element.id,
+                        }),
+                        filter: getImageFilterStyle(element),
+                      }}
+                    />
+                    {cropEditingId === element.id ? (
+                      <CropEditingOverlay element={element} />
+                    ) : null}
+                  </>
                 ) : isEditingText ? (
                   <textarea
                     ref={editAreaRef}
@@ -1628,8 +2458,13 @@ export function PrintsDesignPreview({
                       editDraftRef.current = ev.target.value;
                     }}
                     onBlur={() => {
-                      const next = editDraftRef.current.trim() || element.content;
-                      updateElement(element.id, { content: next });
+                      const trimmed = editDraftRef.current.trim();
+                      if (trimmed.length === 0) {
+                        removeElement(element.id);
+                        setEditingTextId(null);
+                        return;
+                      }
+                      updateElement(element.id, { content: trimmed });
                       setEditingTextId(null);
                     }}
                     onKeyDown={(ev) => {
@@ -1641,21 +2476,23 @@ export function PrintsDesignPreview({
                       ev.stopPropagation();
                     }}
                     onPointerDown={(ev) => ev.stopPropagation()}
-                    className="z-40 min-h-[1.5em] w-full resize-none rounded-md border border-[#CC2D24]/60 bg-black/80 px-1.5 py-1 font-semibold text-white outline-none ring-2 ring-[#CC2D24]/35 [overflow-wrap:anywhere]"
+                    rows={1}
+                    className="z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#FF3B30] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
                     style={{
                       color: element.color ?? '#FFFFFF',
                       fontFamily: element.fontFamily ?? 'Inter',
                       fontSize: displayFont,
                       lineHeight: 1.15,
                       maxWidth: element.width,
-                      minHeight: element.height,
+                      minHeight: element.autoHeight === false ? element.height : undefined,
                       textAlign: element.textAlign ?? 'center',
                       fontStyle: element.fontStyle ?? 'normal',
                       textTransform: element.textTransform ?? 'none',
                       letterSpacing:
                         element.letterSpacing != null ? `${element.letterSpacing}px` : undefined,
+                      outline: '1px solid rgba(255, 59, 48, 0.55)',
+                      outlineOffset: '2px',
                     }}
-                    rows={3}
                   />
                 ) : (
                   <div className="relative inline-block min-w-0 max-w-full">
@@ -1679,7 +2516,7 @@ export function PrintsDesignPreview({
                         fontSize: displayFont,
                         lineHeight: 1.15,
                         maxWidth: element.width,
-                        minHeight: element.height,
+                        minHeight: element.autoHeight === false ? element.height : undefined,
                         textAlign: element.textAlign ?? 'center',
                         fontStyle: element.fontStyle ?? 'normal',
                         textTransform: element.textTransform ?? 'none',
@@ -1696,6 +2533,7 @@ export function PrintsDesignPreview({
                 )}
                 {selected && editable && !locked && !isEditingText ? (
                   <PrintTransformOverlay
+                    uiInverseScale={uiInv}
                     onRotatePointerDown={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
@@ -1744,25 +2582,6 @@ export function PrintsDesignPreview({
         </div>
       </div>
 
-      {editable && draggingId ? (
-        <div className="pointer-events-none flex w-full flex-shrink-0 justify-center pt-2 md:pt-2.5">
-          <div
-            ref={deleteRef}
-            className={`flex min-w-[170px] max-md:min-w-[132px] items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-all duration-200 max-md:gap-1.5 max-md:rounded-xl max-md:px-2.5 max-md:py-1.5 max-md:shadow-[0_8px_24px_rgba(0,0,0,0.3)] ${
-              isOverDeleteZone
-                ? 'scale-105 border-[#FF3B30] bg-[#FF3B30]/15 text-white max-md:scale-100'
-                : 'border-white/20 bg-black/60 text-white/70'
-            }`}
-          >
-            <Trash2
-              className={`h-4 w-4 max-md:h-3 max-md:w-3 ${isOverDeleteZone ? 'animate-pulse' : ''}`}
-            />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] max-md:text-[8px] max-md:tracking-[0.14em]">
-              {isOverDeleteZone ? 'Release to delete' : 'Drag here to delete'}
-            </span>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
