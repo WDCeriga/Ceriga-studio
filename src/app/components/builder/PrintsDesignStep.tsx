@@ -2249,27 +2249,50 @@ export function PrintsDesignPreview({
         className,
       )}
     >
-      {showCanvasChromeToolbar && selectedElement ? (
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-[40] flex justify-center px-2 pt-1 sm:pt-2"
-          style={
-            uiInv !== 1
-              ? { transform: `scale(${uiInv})`, transformOrigin: 'top center' }
-              : undefined
-          }
-        >
-          <InlineElementToolbar
-            element={selectedElement}
-            onPatch={(patch) => updateElement(selectedElement.id, patch)}
-            onDuplicate={() => duplicateElement(selectedElement.id)}
-            onDelete={() => removeElement(selectedElement.id)}
-            compact={narrowViewport}
-            onCropModeChange={(cropping) =>
-              setCropEditingId(cropping ? selectedElement.id : null)
-            }
-          />
-        </div>
-      ) : null}
+      {narrowViewport && showCanvasChromeToolbar && selectedElement && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2 pt-1 sm:px-3 sm:pt-2"
+              style={{
+                top: 'calc(env(safe-area-inset-top, 0px) + 4.25rem)',
+              }}
+            >
+              <div className="pointer-events-auto mx-auto w-max min-w-0 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
+                <InlineElementToolbar
+                  element={selectedElement}
+                  onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                  onDuplicate={() => duplicateElement(selectedElement.id)}
+                  onDelete={() => removeElement(selectedElement.id)}
+                  compact
+                  onCropModeChange={(cropping) =>
+                    setCropEditingId(cropping ? selectedElement.id : null)
+                  }
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : showCanvasChromeToolbar && selectedElement ? (
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 z-[40] flex justify-center px-2 pt-1 sm:pt-2"
+              style={
+                uiInv !== 1
+                  ? { transform: `scale(${uiInv})`, transformOrigin: 'top center' }
+                  : undefined
+              }
+            >
+              <InlineElementToolbar
+                element={selectedElement}
+                onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                onDuplicate={() => duplicateElement(selectedElement.id)}
+                onDelete={() => removeElement(selectedElement.id)}
+                compact={narrowViewport}
+                onCropModeChange={(cropping) =>
+                  setCropEditingId(cropping ? selectedElement.id : null)
+                }
+              />
+            </div>
+          ) : null}
       {dockTextToolbar && selectedElement && typeof document !== 'undefined'
         ? createPortal(
             <div
@@ -2279,7 +2302,7 @@ export function PrintsDesignPreview({
                 paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
               }}
             >
-              <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-0.5rem)] justify-center sm:max-w-[min(100%,100vw-1rem)]">
+              <div className="pointer-events-auto mx-auto w-max min-w-0 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
                 <InlineElementToolbar
                   element={selectedElement}
                   onPatch={(patch) => updateElement(selectedElement.id, patch)}

@@ -35,18 +35,13 @@ import {
   Trash2,
   Undo2,
   X,
-  Menu,
+  SquarePen,
+  Info,
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import {
@@ -989,6 +984,17 @@ export function Builder() {
     setVisitedSteps((prev) => Array.from(new Set([...prev, 9])));
   }, [product, techpackSpecFlow]);
 
+  const ensurePhoneEditorExpanded = useCallback(() => {
+    if (layoutTier !== 'phone') return;
+    setPhoneEditorCollapsed(false);
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        phoneEditorPanelRef.current?.expand();
+        requestAnimationFrame(() => phoneEditorPanelRef.current?.expand());
+      });
+    });
+  }, [layoutTier]);
+
   if (!product) return <PageLoadingFallback />;
 
   const step = builderSteps.find((item) => item.id === currentStep);
@@ -1113,6 +1119,7 @@ export function Builder() {
         setCurrentStep(next);
         markVisitedThrough(next);
         handleSave(false);
+        ensurePhoneEditorExpanded();
       }
       return;
     }
@@ -1124,6 +1131,7 @@ export function Builder() {
       setCurrentStep(next);
       markVisitedThrough(next);
       handleSave(false);
+      ensurePhoneEditorExpanded();
     }
   };
 
@@ -1134,6 +1142,7 @@ export function Builder() {
         const prev = techpackNavigationList[idx - 1]!;
         setCurrentStep(prev);
         markVisitedThrough(prev);
+        ensurePhoneEditorExpanded();
       }
       return;
     }
@@ -1143,6 +1152,7 @@ export function Builder() {
     if (prev >= 1) {
       setCurrentStep(prev);
       markVisitedThrough(prev);
+      ensurePhoneEditorExpanded();
     }
   };
 
@@ -1170,7 +1180,10 @@ export function Builder() {
       previousStepForPhoneExpandRef.current !== null &&
       previousStepForPhoneExpandRef.current !== currentStep
     ) {
-      phoneEditorPanelRef.current?.expand();
+      requestAnimationFrame(() => {
+        phoneEditorPanelRef.current?.expand();
+        requestAnimationFrame(() => phoneEditorPanelRef.current?.expand());
+      });
     }
     previousStepForPhoneExpandRef.current = currentStep;
   }, [currentStep, layoutTier]);
@@ -2368,6 +2381,43 @@ export function Builder() {
 
   const renderEditorMain = (opts?: { leftPanelCollapse?: boolean }) => {
     const showLeftCollapse = Boolean(opts?.leftPanelCollapse);
+    /** Laptop / tablet: pinned to the bottom of the sidebar (not inside the scroll stack). Phone: stays below step content inside the scroll area. */
+    const editorNavFooter = (
+      <div
+        className={cn(
+          'border-t border-white/[0.08] bg-[#0a0a0a]/50 pt-4',
+          isPhone
+            ? 'mt-5 mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] rounded-xl px-0.5 pb-1'
+            : 'shrink-0 px-3 pb-4 pt-3.5 sm:px-4 md:px-4 lg:px-5',
+        )}
+      >
+        <div className="flex gap-2.5">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === firstBuilderNavStepId}
+            className={cn(
+              'h-9 flex-1 rounded-xl border-white/15 bg-white/[0.04] text-[11px] font-semibold !text-white hover:bg-white/10 disabled:opacity-30',
+              isPhone && 'min-h-11',
+            )}
+          >
+            <ChevronLeft className="mr-0.5 h-4 w-4" />
+            Back
+          </Button>
+          <Button
+            onClick={handleNext}
+            className={cn(
+              'h-9 flex-1 rounded-xl bg-[#CC2D24] text-[11px] font-semibold hover:bg-[#CC2D24]/90',
+              isPhone && 'min-h-11',
+            )}
+          >
+            {currentStep === 13 ? 'Order' : 'Continue'}
+            <ChevronRight className="ml-0.5 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div
@@ -2438,39 +2488,9 @@ export function Builder() {
             {stepDescriptionLabel}
           </p>
           {renderStepContent()}
-
-          <div
-            className={cn(
-              'mt-6 border-t border-white/[0.08] bg-[#0a0a0a]/50 pt-4',
-              isPhone && 'mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] mt-5 rounded-xl px-0.5 pb-1',
-            )}
-          >
-            <div className="flex gap-2.5">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={currentStep === firstBuilderNavStepId}
-                className={cn(
-                  'h-9 flex-1 rounded-xl border-white/15 bg-white/[0.04] !text-white hover:bg-white/10 disabled:opacity-30',
-                  isPhone ? 'min-h-11 rounded-xl text-[11px] font-semibold' : 'md:h-8 md:rounded-md md:text-[11px]',
-                )}
-              >
-                <ChevronLeft className="mr-0.5 h-4 w-4 md:h-3.5 md:w-3.5" />
-                Back
-              </Button>
-              <Button
-                onClick={handleNext}
-                className={cn(
-                  'h-9 flex-1 rounded-xl bg-[#CC2D24] text-[11px] font-semibold hover:bg-[#CC2D24]/90',
-                  isPhone ? 'min-h-11' : 'md:h-8 md:rounded-md md:text-[11px]',
-                )}
-              >
-                {currentStep === 13 ? 'Order' : 'Continue'}
-                <ChevronRight className="ml-0.5 h-4 w-4 md:h-3.5 md:w-3.5" />
-              </Button>
-            </div>
-          </div>
+          {isPhone ? editorNavFooter : null}
         </div>
+        {!isPhone ? editorNavFooter : null}
       </div>
     );
   };
@@ -2509,8 +2529,8 @@ export function Builder() {
               className={cn(
                 'builder-focus flex flex-col items-center justify-center rounded-lg font-bold uppercase leading-tight tracking-wide transition-colors',
                 isPhone
-                  ? 'min-h-[2.75rem] min-w-[3.75rem] px-2.5 py-1.5 text-[10px]'
-                  : 'min-h-[2rem] min-w-[3rem] px-2 py-1 text-[8px] sm:min-h-[2.25rem] sm:min-w-[3.25rem] sm:py-1.5 sm:text-[9px]',
+                  ? 'min-h-[2.35rem] min-w-[3.1rem] px-2 py-1 text-[9px]'
+                  : 'min-h-[1.75rem] min-w-[2.6rem] px-1.5 py-0.5 text-[7px] sm:min-h-[2rem] sm:min-w-[2.85rem] sm:px-2 sm:py-1 sm:text-[8px]',
                 showFront
                   ? 'bg-[#CC2D24] text-white'
                   : 'text-white/60 hover:bg-white/10 hover:text-white',
@@ -2524,8 +2544,8 @@ export function Builder() {
               className={cn(
                 'builder-focus flex flex-col items-center justify-center rounded-lg font-bold uppercase leading-tight tracking-wide transition-colors',
                 isPhone
-                  ? 'min-h-[2.75rem] min-w-[3.75rem] px-2.5 py-1.5 text-[10px]'
-                  : 'min-h-[2rem] min-w-[3rem] px-2 py-1 text-[8px] sm:min-h-[2.25rem] sm:min-w-[3.25rem] sm:py-1.5 sm:text-[9px]',
+                  ? 'min-h-[2.35rem] min-w-[3.1rem] px-2 py-1 text-[9px]'
+                  : 'min-h-[1.75rem] min-w-[2.6rem] px-1.5 py-0.5 text-[7px] sm:min-h-[2rem] sm:min-w-[2.85rem] sm:px-2 sm:py-1 sm:text-[8px]',
                 !showFront
                   ? 'bg-[#CC2D24] text-white'
                   : 'text-white/60 hover:bg-white/10 hover:text-white',
@@ -2701,34 +2721,19 @@ export function Builder() {
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[36] flex flex-wrap items-end justify-between gap-1.5 px-1.5 pb-1.5 sm:gap-2 sm:px-3 sm:pb-3">
-          <div
-            className={cn(
-              'pointer-events-auto flex items-center rounded-2xl border border-white/12 bg-black/55 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl',
-              isPhone ? 'gap-0.5 px-1.5 py-1' : 'gap-1 px-1.5 py-1 sm:gap-2 sm:px-2.5 sm:py-2',
-            )}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label="Zoom out"
-              className={cn(
-                'shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white',
-                isPhone ? 'h-10 w-10' : 'h-7 w-7 sm:h-8 sm:w-8',
-              )}
-              onClick={() =>
-                setPreviewZoom((z) => Math.max(PREVIEW_ZOOM_MIN, z - 10))
-              }
-            >
-              <Minus
-                className={cn(
-                  'shrink-0',
-                  isPhone ? 'h-5 w-5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4',
-                )}
-              />
-            </Button>
-            {!isPhone ? (
+        {!isPhone ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[36] flex flex-wrap items-end justify-between gap-1.5 px-1.5 pb-1.5 sm:gap-2 sm:px-3 sm:pb-3">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-white/12 bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Zoom out"
+                className="h-7 w-7 shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white sm:h-8 sm:w-8"
+                onClick={() => setPreviewZoom((z) => Math.max(PREVIEW_ZOOM_MIN, z - 10))}
+              >
+                <Minus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              </Button>
               <input
                 aria-label="Canvas zoom"
                 className="h-1 w-[3rem] cursor-pointer accent-[#CC2D24] sm:w-[5.5rem]"
@@ -2739,57 +2744,42 @@ export function Builder() {
                 value={Math.min(previewZoom, previewZoomMax)}
                 onChange={(e) => setPreviewZoom(Number(e.target.value))}
               />
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label="Zoom in"
-              className={cn(
-                'shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white',
-                isPhone ? 'h-10 w-10' : 'h-7 w-7 sm:h-8 sm:w-8',
-              )}
-              onClick={() =>
-                setPreviewZoom((z) => Math.min(previewZoomMax, z + 10))
-              }
-            >
-              <Plus
-                className={cn(
-                  'shrink-0',
-                  isPhone ? 'h-5 w-5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4',
-                )}
-              />
-            </Button>
-            {!isPhone ? (
-              <>
-                <span className="min-w-0 min-w-[2.5rem] text-center text-[10px] font-semibold tabular-nums text-white/75 sm:min-w-[2.75rem] sm:text-[11px]">
-                  {Math.min(previewZoom, previewZoomMax)}%
-                </span>
-                <span className="hidden max-w-[5.5rem] border-l border-white/10 pl-2 text-[8px] leading-tight text-white/35 lg:inline">
-                  Ctrl + scroll
-                </span>
-              </>
-            ) : null}
-          </div>
-
-          <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-white/12 bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
-            <CircularProgress value={progress} compact />
-            <div>
-              <div className="text-[11px] font-bold tabular-nums text-white sm:text-xs">
-                {Math.round(progress)}%
-              </div>
-              <div className="hidden text-[7px] font-semibold uppercase tracking-wider text-white/35 sm:block sm:text-[8px]">
-                Complete
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Zoom in"
+                className="h-7 w-7 shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white sm:h-8 sm:w-8"
+                onClick={() => setPreviewZoom((z) => Math.min(previewZoomMax, z + 10))}
+              >
+                <Plus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              </Button>
+              <span className="min-w-0 min-w-[2.5rem] text-center text-[10px] font-semibold tabular-nums text-white/75 sm:min-w-[2.75rem] sm:text-[11px]">
+                {Math.min(previewZoom, previewZoomMax)}%
+              </span>
+              <span className="hidden max-w-[5.5rem] border-l border-white/10 pl-2 text-[8px] leading-tight text-white/35 lg:inline">
+                Ctrl + scroll
+              </span>
+            </div>
+            <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-white/12 bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
+              <CircularProgress value={progress} compact />
+              <div>
+                <div className="text-[11px] font-bold tabular-nums text-white sm:text-xs">
+                  {Math.round(progress)}%
+                </div>
+                <div className="hidden text-[7px] font-semibold uppercase tracking-wider text-white/35 sm:block sm:text-[8px]">
+                  Complete
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         {draggingDetail && currentStep < 9 ? (
           <div
             className={cn(
               'pointer-events-none absolute inset-x-0 z-[55] flex justify-center px-2',
-              isPhone ? 'bottom-14' : 'bottom-16 sm:bottom-20',
+              isPhone ? 'bottom-8' : 'bottom-16 sm:bottom-20',
             )}
           >
             <div
@@ -2839,105 +2829,100 @@ export function Builder() {
       <div
         className={cn(
           'relative flex border-b border-white/[0.09] bg-[#0c0c0c]',
+          /** Above portaled design toolbars (z-[200]) so nav + dropdown trigger stay tappable. */
+          isPhone && 'z-[220]',
           isPhone
-            ? 'min-h-[3.5rem] flex-nowrap items-center gap-2 px-2 py-2'
+            ? 'min-h-[4rem] items-stretch border-white/[0.06] py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
             : 'flex-wrap items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5',
         )}
       >
         {isPhone ? (
-          <>
-            <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex w-full min-w-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1">
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
                 aria-label="Back to catalog"
-                className="h-12 w-12 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white"
+                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/60 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]"
               >
-                <Link to="/catalog">
-                  <ArrowLeft className="h-6 w-6" />
+                <Link to="/catalog" className="flex size-full items-center justify-center">
+                  <ArrowLeft className="h-7 w-7" strokeWidth={2.35} />
                 </Link>
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="h-12 w-12 shrink-0 p-0 !text-white/75 hover:bg-white/10 hover:!text-white"
-                    aria-label="Project menu"
-                  >
-                    <Menu className="h-6 w-6" strokeWidth={2.25} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="z-[500] min-w-[13.5rem] border border-white/12 bg-[#141414] text-white shadow-xl"
-                >
-                  <DropdownMenuItem
-                    className="cursor-pointer focus:bg-white/10"
-                    onClick={() => setIsEditingName(true)}
-                  >
-                    Rename t-shirt
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="cursor-pointer focus:bg-white/10"
-                    onClick={() => setShowReviewDrawer(true)}
-                  >
-                    Project summary
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="cursor-pointer focus:bg-white/10"
-                    onClick={() => setShowExtraDetails((v) => !v)}
-                  >
-                    {showExtraDetails
-                      ? 'Hide measurement notes on preview'
-                      : 'Show measurement notes on preview'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {isEditingName ? (
-                <Input
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  onBlur={() => setIsEditingName(false)}
-                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-                  className="h-11 min-w-0 flex-1 border-white/20 bg-white/5 text-[14px] font-semibold text-white"
-                  autoFocus
-                />
-              ) : null}
-              {!isEditingName ? (
-                <div className="ml-auto flex min-w-0 shrink-0 items-center">
-                  <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-white/[0.04] p-0.5">
-                    {(['black', 'white', 'transparent'] as const).map((bg) => (
-                      <button
-                        key={bg}
-                        type="button"
-                        onClick={() => setPreviewBackground(bg)}
-                        title={bg}
-                        aria-label={`Background ${bg}`}
-                        className={cn(
-                          'builder-focus press-feedback h-3 w-3 shrink-0 rounded border',
-                          previewBackground === bg
-                            ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
-                            : 'border-white/15 hover:border-white/30',
-                        )}
-                        style={
-                          bg === 'transparent'
-                            ? {
-                                backgroundImage:
-                                  'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
-                                backgroundSize: '6px 6px',
-                                backgroundPosition: '0 0, 3px 3px',
-                              }
-                            : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
-                        }
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                className="relative z-[1] h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/75 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]"
+                aria-label="Edit project name"
+                title="Edit name"
+                onClick={() => setIsEditingName(true)}
+              >
+                <SquarePen className="h-7 w-7" strokeWidth={2.1} />
+              </Button>
             </div>
+
+            {isEditingName ? (
+              <Input
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                onBlur={() => setIsEditingName(false)}
+                onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                className="h-11 min-h-11 min-w-0 flex-1 rounded-xl border-white/20 bg-white/5 px-3 text-[14px] font-semibold text-white"
+                autoFocus
+              />
+            ) : (
+              <div className="flex min-w-0 flex-1 justify-center px-1">
+                <div
+                  className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-white/12 bg-white/[0.06] p-1.5 shadow-inner"
+                  role="group"
+                  aria-label="Preview background"
+                >
+                  {(['black', 'white', 'transparent'] as const).map((bg) => (
+                    <button
+                      key={bg}
+                      type="button"
+                      onClick={() => setPreviewBackground(bg)}
+                      title={bg}
+                      aria-label={`Background ${bg}`}
+                      className={cn(
+                        'builder-focus press-feedback h-7 w-7 shrink-0 rounded-md border-2 transition-transform active:scale-95',
+                        previewBackground === bg
+                          ? 'border-[#CC2D24] ring-2 ring-[#CC2D24]/40'
+                          : 'border-transparent hover:border-white/25',
+                      )}
+                      style={
+                        bg === 'transparent'
+                          ? {
+                              backgroundImage:
+                                'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
+                              backgroundSize: '9px 9px',
+                              backgroundPosition: '0 0, 4px 4px',
+                            }
+                          : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex shrink-0 items-center gap-0.5" aria-live="polite">
+              <button
+                type="button"
+                onClick={() => setShowExtraDetails((prev) => !prev)}
+                className={cn(
+                  'builder-focus press-feedback flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors',
+                  showExtraDetails
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
+                )}
+                title={showExtraDetails ? 'Hide measurement callouts' : 'Show details on preview'}
+                aria-label={showExtraDetails ? 'Hide details' : 'Show details'}
+                aria-pressed={showExtraDetails}
+              >
+                <Info className="h-7 w-7" strokeWidth={2} />
+              </button>
               <Button
                 type="button"
                 variant="ghost"
@@ -2945,9 +2930,9 @@ export function Builder() {
                 onClick={undo}
                 disabled={!undoAvailable}
                 aria-label="Undo"
-                className="h-12 w-12 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white disabled:opacity-30"
               >
-                <Undo2 className="h-6 w-6" />
+                <Undo2 className="h-7 w-7" strokeWidth={2.1} />
               </Button>
               <Button
                 type="button"
@@ -2956,9 +2941,20 @@ export function Builder() {
                 onClick={redo}
                 disabled={!redoAvailable}
                 aria-label="Redo"
-                className="h-12 w-12 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white disabled:opacity-30"
               >
-                <Redo2 className="h-6 w-6" />
+                <Redo2 className="h-7 w-7" strokeWidth={2.1} />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowReviewDrawer(true)}
+                aria-label="See summary"
+                title="See summary"
+                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white"
+              >
+                <FileCheck className="h-6 w-6" strokeWidth={2.15} />
               </Button>
               <Button
                 type="button"
@@ -2967,12 +2963,12 @@ export function Builder() {
                 onClick={() => setShowVersionHistory(true)}
                 aria-label="Version history"
                 title="Version history"
-                className="h-12 w-12 shrink-0 p-0 !text-white/70 hover:!text-white"
+                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white"
               >
-                <History className="h-6 w-6" />
+                <History className="h-7 w-7" strokeWidth={2.1} />
               </Button>
             </div>
-          </>
+          </div>
         ) : (
           <>
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -3192,17 +3188,15 @@ export function Builder() {
             direction="vertical"
             className="flex min-h-0 flex-1 flex-col"
             // Bump when phone panel constraints change so saved % from localStorage cannot block collapse.
-            autoSaveId="ceriga-builder-phone-v10"
+            autoSaveId="ceriga-builder-phone-v12"
           >
             {/*
-              Top: min ~36% so preview always has room when the sheet is open. max must be 100% so when the
-              bottom panel collapses to 0, the preview can fill the area (max 70% would prevent full collapse).
-              Bottom: min ~24% when expanded; max 70% so the sheet cannot cover the whole screen while open.
+              Top: min ~48% keeps the garment visible; bottom max 52% caps how far the editor can slide up.
             */}
             <Panel
               id="phone-builder-preview"
-              defaultSize={38}
-              minSize={36}
+              defaultSize={42}
+              minSize={48}
               maxSize={100}
               className={cn(
                 'relative z-10 flex min-h-0 min-w-0 overflow-hidden',
@@ -3225,9 +3219,9 @@ export function Builder() {
             <Panel
               id="phone-builder-editor"
               ref={phoneEditorPanelRef}
-              defaultSize={58}
-              minSize={24}
-              maxSize={70}
+              defaultSize={50}
+              minSize={18}
+              maxSize={52}
               collapsible
               collapsedSize={0}
               onCollapse={() => setPhoneEditorCollapsed(true)}
@@ -3305,7 +3299,7 @@ export function Builder() {
               Step {phoneProcessStepCount} · {phoneProcessTitle}
             </div>
           </div>
-          <div className="scrollbar-dark flex min-h-[3.75rem] touch-pan-x gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-1.5 [-webkit-overflow-scrolling:touch]">
+          <div className="scrollbar-dark flex min-h-[4rem] touch-pan-x gap-0 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-1.5 [-webkit-overflow-scrolling:touch]">
             {visibleBuilderSteps.map((item) => {
               const current = currentStep === item.id;
               const enabled = visitedSteps.includes(item.id);
@@ -3319,7 +3313,10 @@ export function Builder() {
                   disabled={!enabled}
                   title={stepTabTitle(item, techpackSpecFlow)}
                   className={cn(
-                    'builder-focus press-feedback flex min-h-[3.4rem] min-w-[3.9rem] max-w-[5.2rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center',
+                    'builder-focus press-feedback flex min-h-[3.75rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1.5 text-center',
+                    item.id === 10 || item.id === 11
+                      ? 'w-[min(8.5rem,calc((100vw-1rem)/4.25))] min-w-[min(7rem,calc((100vw-1rem)/4.25))] max-w-[9rem]'
+                      : 'w-[calc((100vw-1.25rem)/5)] min-w-[calc((100vw-1.25rem)/5)] max-w-[5.25rem]',
                     current
                       ? 'bg-[#0F0F0F] text-white'
                       : enabled
@@ -3328,8 +3325,8 @@ export function Builder() {
                   )}
                 >
                   <StepIcon
-                    className={cn('h-5 w-5 shrink-0', current ? 'text-white' : 'text-white/50')}
-                    strokeWidth={1.75}
+                    className={cn('h-7 w-7 shrink-0', current ? 'text-white' : 'text-white/50')}
+                    strokeWidth={1.9}
                   />
                   <span className="line-clamp-2 w-full text-[7.5px] font-bold uppercase leading-tight tracking-wide">
                     {stepTabTitle(item, techpackSpecFlow)}
@@ -3350,7 +3347,7 @@ export function Builder() {
       )}
 
       {showReviewDrawer ? (
-        <div className="fixed inset-0 z-[70] flex justify-end">
+        <div className={cn('fixed inset-0 flex justify-end', isPhone ? 'z-[300]' : 'z-[70]')}>
           <button
             type="button"
             aria-label="Close review"
@@ -3362,6 +3359,19 @@ export function Builder() {
             aria-label="Tech pack review"
             className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-white/10 bg-[#0F0F0F] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
+            {isPhone ? (
+              <div className="flex shrink-0 border-b border-white/[0.08] bg-black/40 px-2 py-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 min-h-11 shrink-0 gap-1.5 rounded-xl px-3 !text-white hover:bg-white/10"
+                  onClick={() => setShowReviewDrawer(false)}
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
+                  <span className="text-[13px] font-semibold">Back</span>
+                </Button>
+              </div>
+            ) : null}
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
               <div className="min-w-0">
                 <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">
@@ -3388,7 +3398,12 @@ export function Builder() {
       ) : null}
 
       {showVersionHistory ? (
-        <div className="fixed inset-0 z-[70] flex justify-end">
+        <div
+          className={cn(
+            'fixed inset-0 flex justify-end',
+            isPhone ? 'z-[320]' : 'z-[70]',
+          )}
+        >
           <button
             type="button"
             aria-label="Close version history"
@@ -3400,6 +3415,19 @@ export function Builder() {
             aria-label="Version history"
             className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-white/10 bg-[#0F0F0F] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
+            {isPhone ? (
+              <div className="flex shrink-0 border-b border-white/[0.08] bg-black/40 px-2 py-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 min-h-11 shrink-0 gap-1.5 rounded-xl px-3 !text-white hover:bg-white/10"
+                  onClick={() => setShowVersionHistory(false)}
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
+                  <span className="text-[13px] font-semibold">Back</span>
+                </Button>
+              </div>
+            ) : null}
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
               <div className="min-w-0">
                 <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">

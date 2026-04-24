@@ -6,6 +6,7 @@ import {
   AlignRight,
   CaseSensitive,
   ChevronDown,
+  ChevronRight,
   Copy,
   Crop,
   FlipHorizontal2,
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { DesignElement } from './PrintsDesignStep';
 import { cn } from '../ui/utils';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 import {
   STUDIO_TEXT_MAIN_COLORS,
   STUDIO_TEXT_POPULAR_COLORS,
@@ -99,6 +101,9 @@ export function InlineElementToolbar({
     const onDoc = (ev: PointerEvent) => {
       const target = ev.target as Node | null;
       if (!rootRef.current || !target) return;
+      const el = target as Element;
+      /** Portaled bottom sheet is outside `rootRef`; do not clear selection when using it. */
+      if (el.closest?.('[data-slot="sheet-content"]') || el.closest?.('[data-radix-dialog-content]')) return;
       if (!rootRef.current.contains(target)) setOpenPanel(null);
     };
     /** Pointerdown closes open popovers when clicking anywhere outside the toolbar surface. */
@@ -133,11 +138,12 @@ export function InlineElementToolbar({
 
   const btnBase =
     'builder-focus press-feedback relative inline-flex shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:pointer-events-none';
-  const iconBtn = cn(btnBase, 'h-8 w-8');
+  const iconBtn = cn(btnBase, compact ? 'h-9 w-9 rounded-md active:scale-[0.97]' : 'h-8 w-8');
   const textBtn = cn(
     btnBase,
-    compact ? 'h-8 gap-1 px-2 text-[10px]' : 'h-8 gap-1 px-2.5 text-[11px]',
+    compact ? 'h-9 min-h-9 gap-0.5 rounded-md px-1.5 text-[10px] font-semibold active:scale-[0.98]' : 'h-8 gap-1 px-2.5 text-[11px]',
   );
+  const ic = compact ? 'h-3 w-3' : 'h-3.5 w-3.5';
 
   const currentFont = element.fontFamily ?? 'Inter';
   const currentSize = element.fontSize ?? 30;
@@ -184,19 +190,23 @@ export function InlineElementToolbar({
       onClick={(e) => e.stopPropagation()}
       className={cn(
         'pointer-events-auto relative z-[60] min-w-0 max-w-full animate-builder-pop-in',
+        /** Compact: fixed viewport width — inner row is `w-max` and scrolls horizontally (no max-width on the pill). */
+        /** Use viewport width so portaled toolbars aren’t capped by a narrow parent `100%`. */
+        compact && 'w-full max-w-[calc(100vw-1.15rem)] sm:max-w-[calc(100vw-1.35rem)]',
         className,
       )}
     >
       <div
         className={cn(
           compact &&
-            'no-scrollbar isolate max-w-[min(100%,calc(100vw-0.5rem))] touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [-webkit-overflow-scrolling:touch] sm:max-w-[min(100%,calc(100vw-1.25rem))]',
+            'no-scrollbar flex w-full min-w-0 touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [-webkit-overflow-scrolling:touch] scroll-pl-1 scroll-pr-1',
         )}
       >
         <div
           className={cn(
-            'flex w-max min-w-0 max-w-full flex-nowrap items-center rounded-2xl border border-white/[0.08] bg-[#141414]/96 text-white shadow-[0_18px_48px_rgba(0,0,0,0.55),0_1px_0_rgba(255,255,255,0.04)_inset] backdrop-blur-xl',
-            compact ? 'gap-1 px-1.5 py-1' : 'gap-1 px-1.5 py-1.5',
+            'flex w-max shrink-0 flex-nowrap items-center rounded-2xl border text-white shadow-[0_18px_48px_rgba(0,0,0,0.55),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-xl',
+            'border-white/[0.12] bg-[#141414]/98 ring-1 ring-black/40',
+            compact ? 'gap-0.5 px-1.5 py-1' : 'min-w-0 gap-1 border-white/[0.08] bg-[#141414]/96 px-1.5 py-1.5',
             !compact && 'max-w-[min(98vw,960px)]',
           )}
         >
@@ -207,14 +217,21 @@ export function InlineElementToolbar({
               type="button"
               onClick={() => togglePanel('font')}
               disabled={isLocked}
-              className={cn(textBtn, 'max-w-[128px] justify-between pr-1.5', openPanel === 'font' && 'bg-white/10 text-white')}
+              className={cn(
+                textBtn,
+                compact ? 'max-w-[min(8.75rem,34vw)] min-w-[4.5rem] justify-between pr-0.5' : 'max-w-[128px] justify-between pr-1.5',
+                openPanel === 'font' && 'bg-white/10 text-white',
+              )}
               title="Font family"
             >
-              <Type className={cn(compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} strokeWidth={2} />
-              <span className="truncate text-[11px] font-semibold" style={{ fontFamily: currentFont }}>
+              <Type className={cn('shrink-0', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} strokeWidth={2} />
+              <span
+                className={cn('truncate font-semibold', compact ? 'text-[11px]' : 'text-[11px]')}
+                style={{ fontFamily: currentFont }}
+              >
                 {currentFont}
               </span>
-              <ChevronDown className="h-3 w-3 opacity-60" />
+              <ChevronDown className={cn('shrink-0 opacity-60', compact ? 'h-3.5 w-3.5' : 'h-3 w-3')} />
             </button>
 
             <Divider />
@@ -229,7 +246,7 @@ export function InlineElementToolbar({
                 title="Decrease size"
                 aria-label="Decrease font size"
               >
-                <Minus className="h-3.5 w-3.5" />
+                <Minus className={ic} />
               </button>
               <input
                 type="number"
@@ -244,8 +261,8 @@ export function InlineElementToolbar({
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
                 className={cn(
-                  'builder-focus h-6 w-10 rounded-md border border-transparent bg-transparent text-center text-[12px] font-semibold text-white outline-none hover:border-white/10 focus:border-white/20 disabled:cursor-not-allowed disabled:opacity-40',
-                  compact && 'h-5 w-9 text-[11px]',
+                  'builder-focus rounded-md border border-transparent bg-transparent text-center font-semibold text-white outline-none hover:border-white/10 focus:border-white/20 disabled:cursor-not-allowed disabled:opacity-40',
+                  compact ? 'h-6 w-9 text-[11px]' : 'h-6 w-10 text-[12px]',
                 )}
               />
               <button
@@ -256,7 +273,7 @@ export function InlineElementToolbar({
                 title="Increase size"
                 aria-label="Increase font size"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className={ic} />
               </button>
             </div>
 
@@ -272,7 +289,10 @@ export function InlineElementToolbar({
               aria-label="Text colour"
             >
               <span
-                className="block h-4 w-4 rounded-full border border-white/30 shadow-[0_0_0_1px_rgba(0,0,0,0.35)_inset]"
+                className={cn(
+                  'block rounded-full border border-white/30 shadow-[0_0_0_1px_rgba(0,0,0,0.35)_inset]',
+                  compact ? 'h-4 w-4' : 'h-4 w-4',
+                )}
                 style={{ backgroundColor: currentColor }}
               />
             </button>
@@ -289,7 +309,7 @@ export function InlineElementToolbar({
               aria-label="Italic"
               aria-pressed={element.fontStyle === 'italic'}
             >
-              <Italic className="h-3.5 w-3.5" />
+              <Italic className={ic} />
             </button>
 
             <Divider />
@@ -307,7 +327,7 @@ export function InlineElementToolbar({
               title={`Alignment (${currentAlign})`}
               aria-label="Alignment"
             >
-              <AlignIcon className="h-3.5 w-3.5" />
+              <AlignIcon className={ic} />
             </button>
 
             {/* Case cycle (Aa / AA / aa) */}
@@ -319,7 +339,7 @@ export function InlineElementToolbar({
               title={`Text case: ${currentCase}`}
               aria-label="Text case"
             >
-              <CaseSensitive className="h-4 w-4" />
+              <CaseSensitive className={ic} />
             </button>
 
             <Divider />
@@ -332,7 +352,7 @@ export function InlineElementToolbar({
               className={cn(textBtn, openPanel === 'effects' && 'bg-white/10 text-white')}
               title="Effects"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className={ic} />
               {!compact && <span className="font-semibold">Effects</span>}
             </button>
           </>
@@ -347,7 +367,7 @@ export function InlineElementToolbar({
               className={cn(textBtn, openPanel === 'effects' && 'bg-white/10 text-white')}
               title="Adjustments"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className={ic} />
               {!compact && <span className="font-semibold">Adjust</span>}
             </button>
 
@@ -377,7 +397,7 @@ export function InlineElementToolbar({
               title="Crop"
               aria-pressed={hasCrop}
             >
-              <Crop className="h-3.5 w-3.5" />
+              <Crop className={ic} />
               {!compact && <span className="font-semibold">Crop</span>}
             </button>
           </>
@@ -393,7 +413,7 @@ export function InlineElementToolbar({
           className={cn(textBtn, openPanel === 'size' && 'bg-white/10 text-white')}
           title="Size & rotation"
         >
-          <Move3d className="h-3.5 w-3.5" />
+          <Move3d className={ic} />
           {!compact && <span className="font-semibold">Size</span>}
         </button>
 
@@ -409,7 +429,7 @@ export function InlineElementToolbar({
           aria-label="Flip horizontally"
           aria-pressed={Boolean(element.flipHorizontal)}
         >
-          <FlipHorizontal2 className="h-3.5 w-3.5" />
+          <FlipHorizontal2 className={ic} />
         </button>
 
         {/* Lock / unlock position — always enabled so a locked element can be unlocked from the bar */}
@@ -421,7 +441,7 @@ export function InlineElementToolbar({
           aria-label={isLocked ? 'Unlock element' : 'Lock element'}
           aria-pressed={isLocked}
         >
-          {isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+          {isLocked ? <Unlock className={ic} /> : <Lock className={ic} />}
         </button>
 
         {/* Duplicate */}
@@ -433,7 +453,7 @@ export function InlineElementToolbar({
           title="Duplicate"
           aria-label="Duplicate"
         >
-          <Copy className="h-3.5 w-3.5" />
+          <Copy className={ic} />
         </button>
 
         {/* Delete */}
@@ -444,13 +464,13 @@ export function InlineElementToolbar({
           title="Delete"
           aria-label="Delete"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className={ic} />
         </button>
         </div>
       </div>
 
       {/* ──────────────── Popovers ──────────────── */}
-      {openPanel === 'font' ? (
+      {!compact && openPanel === 'font' ? (
         <Popover side={popSide}>
           <div className="mb-1 px-2 pt-1 text-[9px] font-semibold uppercase tracking-wider text-white/45">
             Font
@@ -478,7 +498,7 @@ export function InlineElementToolbar({
         </Popover>
       ) : null}
 
-      {openPanel === 'color' ? (
+      {!compact && openPanel === 'color' ? (
         <Popover side={popSide}>
           <div className="px-2 pt-2 text-[9px] font-semibold uppercase tracking-wider text-white/45">
             Text colour
@@ -522,7 +542,7 @@ export function InlineElementToolbar({
         </Popover>
       ) : null}
 
-      {openPanel === 'align' ? (
+      {!compact && openPanel === 'align' ? (
         <Popover side={popSide}>
           <div className="flex items-center gap-1 p-1.5">
             {ALIGNS.map(({ id, icon: Icon }) => (
@@ -546,7 +566,7 @@ export function InlineElementToolbar({
         </Popover>
       ) : null}
 
-      {openPanel === 'effects' ? (
+      {!compact && openPanel === 'effects' ? (
         <Popover side={popSide} className="w-[240px]">
           <div className="space-y-3 p-2">
             <div>
@@ -674,7 +694,7 @@ export function InlineElementToolbar({
         </Popover>
       ) : null}
 
-      {openPanel === 'border' && isImage ? (
+      {!compact && openPanel === 'border' && isImage ? (
         <Popover side={popSide} className="w-[240px]">
           <div className="space-y-3 p-2">
             <div>
@@ -740,7 +760,7 @@ export function InlineElementToolbar({
         </Popover>
       ) : null}
 
-      {openPanel === 'size' ? (
+      {!compact && openPanel === 'size' ? (
         <Popover side={popSide} className="w-[260px]">
           <div className="space-y-2.5 p-2">
             <div className="flex items-center justify-between">
@@ -817,7 +837,7 @@ export function InlineElementToolbar({
         </Popover>
       ) : null}
 
-      {openPanel === 'crop' && isImage ? (
+      {!compact && openPanel === 'crop' && isImage ? (
         <Popover side={popSide} className="w-[260px]">
           <div className="space-y-2.5 p-2">
             <div className="flex items-center justify-between">
@@ -862,6 +882,449 @@ export function InlineElementToolbar({
             />
           </div>
         </Popover>
+      ) : null}
+
+      {compact &&
+      openPanel &&
+      (openPanel !== 'border' || isImage) &&
+      (openPanel !== 'crop' || isImage) ? (
+        <Sheet
+          open
+          onOpenChange={(o) => {
+            if (!o) setOpenPanel(null);
+          }}
+        >
+          <SheetContent
+            side="bottom"
+            className={cn(
+              'z-[500] h-auto max-h-[min(90dvh,720px)] gap-0 overflow-hidden rounded-t-[1.35rem] border-x-0 border-t border-white/12 bg-[#101010] p-0 !text-white shadow-[0_-20px_60px_rgba(0,0,0,0.55)]',
+              '[&>button]:absolute [&>button]:right-3 [&>button]:top-3 [&>button]:z-10 [&>button]:flex [&>button]:h-10 [&>button]:w-10 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-white/12 [&>button]:bg-white/[0.06] [&>button]:p-0 [&>button]:!text-white/85 [&>button]:shadow-sm [&>button]:hover:!text-white [&>button]:hover:bg-white/12',
+            )}
+          >
+            <div
+              className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-white/35"
+              aria-hidden
+            />
+            <SheetHeader className="border-b border-white/[0.06] px-4 pb-3 pt-0 pr-14">
+              <SheetTitle className="text-center text-lg font-bold tracking-tight text-white">
+                {openPanel === 'font'
+                  ? 'Font'
+                  : openPanel === 'color'
+                    ? 'Text colour'
+                    : openPanel === 'align'
+                      ? 'Alignment'
+                      : openPanel === 'effects'
+                        ? 'Effects'
+                        : openPanel === 'size'
+                          ? 'Size'
+                          : openPanel === 'border'
+                            ? 'Outline'
+                            : openPanel === 'crop'
+                              ? 'Crop'
+                              : 'Options'}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="max-h-[min(72dvh,580px)] overflow-y-auto overscroll-contain pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))]">
+              {openPanel === 'font' ? (
+                <div>
+                  {fontOptions.map((font) => (
+                    <button
+                      key={font}
+                      type="button"
+                      onClick={() => {
+                        onPatch({ fontFamily: font });
+                        setOpenPanel(null);
+                      }}
+                      className={cn(
+                        'builder-focus press-feedback flex min-h-[3.25rem] w-full items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-4 text-left text-[15px] text-white/90 active:bg-white/[0.08]',
+                        currentFont === font && 'bg-white/[0.14] text-white',
+                      )}
+                      style={{ fontFamily: font }}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{font}</span>
+                      {currentFont === font ? (
+                        <span className="shrink-0 text-[12px] text-white/50">✓</span>
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-white/35" aria-hidden />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {openPanel === 'color' ? (
+                <div>
+                  <div className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                    Main colours
+                  </div>
+                  <ColorGrid
+                    comfortable
+                    colors={STUDIO_TEXT_MAIN_COLORS as readonly string[]}
+                    selected={currentColor}
+                    onSelect={(hex) => {
+                      onPatch({ color: hex });
+                    }}
+                  />
+                  <div className="mx-3 my-2 h-px bg-white/[0.08]" />
+                  <div className="px-4 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                    Popular
+                  </div>
+                  <ColorGrid
+                    comfortable
+                    colors={STUDIO_TEXT_POPULAR_COLORS as readonly string[]}
+                    selected={currentColor}
+                    onSelect={(hex) => {
+                      onPatch({ color: hex });
+                    }}
+                  />
+                  <div className="flex items-center gap-2 border-t border-white/[0.08] px-4 py-3">
+                    <span className="text-[9px] uppercase tracking-wider text-white/45">Custom</span>
+                    <input
+                      type="color"
+                      value={currentColor}
+                      onChange={(e) => onPatch({ color: e.target.value })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                    />
+                    <input
+                      type="text"
+                      value={currentColor}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ color: v });
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="builder-focus h-7 w-24 rounded-md border border-white/10 bg-black/40 px-1.5 text-[12px] text-white"
+                      maxLength={9}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {openPanel === 'align' ? (
+                <div className="grid grid-cols-2 gap-2 px-3 pb-4">
+                  {ALIGNS.map(({ id, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        onPatch({ textAlign: id });
+                        setOpenPanel(null);
+                      }}
+                      className={cn(
+                        'builder-focus press-feedback flex h-12 items-center justify-center gap-2 rounded-xl border text-[12px] font-semibold text-white/75',
+                        currentAlign === id
+                          ? 'border-[#CC2D24] bg-[#CC2D24]/20 text-white'
+                          : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:text-white',
+                      )}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="capitalize">{id}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {openPanel === 'effects' ? (
+                <div className="space-y-3 px-3 pb-4 pt-1">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                        Opacity
+                      </span>
+                      <span className="text-[10px] font-semibold text-white/75">{Math.round(opacity)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      step={1}
+                      value={opacity}
+                      onChange={(e) => onPatch({ opacity: Number(e.target.value) })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+                    />
+                  </div>
+                  {isText ? (
+                    <>
+                      <div>
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                            Outline
+                          </span>
+                          <span className="text-[10px] font-semibold text-white/75">{outline}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={8}
+                          step={0.5}
+                          value={outline}
+                          onChange={(e) => onPatch({ borderWidth: Number(e.target.value) })}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+                        />
+                        {outline > 0 ? (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
+                            <input
+                              type="color"
+                              value={outlineColor}
+                              onChange={(e) => onPatch({ borderColor: e.target.value })}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                      <div>
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                            Letter spacing
+                          </span>
+                          <span className="text-[10px] font-semibold text-white/75">
+                            {element.letterSpacing ?? 0}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={-4}
+                          max={20}
+                          step={0.5}
+                          value={element.letterSpacing ?? 0}
+                          onChange={(e) => onPatch({ letterSpacing: Number(e.target.value) })}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+                        />
+                      </div>
+                      <div>
+                        <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                          Shadow
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={0}
+                            max={24}
+                            step={1}
+                            value={element.shadowBlur ?? 0}
+                            onChange={(e) => onPatch({ shadowBlur: Number(e.target.value) })}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+                          />
+                          <input
+                            type="color"
+                            value={element.shadowColor ?? '#000000'}
+                            onChange={(e) => onPatch({ shadowColor: e.target.value })}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                        Shadow
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min={0}
+                          max={32}
+                          step={1}
+                          value={element.shadowBlur ?? 0}
+                          onChange={(e) => onPatch({ shadowBlur: Number(e.target.value) })}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+                        />
+                        <input
+                          type="color"
+                          value={element.shadowColor ?? '#000000'}
+                          onChange={(e) => onPatch({ shadowColor: e.target.value })}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              {openPanel === 'size' ? (
+                <div className="space-y-2.5 px-3 pb-4 pt-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <AttrField
+                      label="Width"
+                      suffix="px"
+                      value={Math.round(element.width || 0)}
+                      onChange={(v) => {
+                        const next = Math.max(8, Math.min(1200, v));
+                        const patch = isImage
+                          ? { width: next, height: Math.round(next / aspectRatio) }
+                          : { width: next };
+                        onPatch(isText ? { ...patch, autoWidth: false } : patch);
+                      }}
+                    />
+                    <AttrField
+                      label="Height"
+                      suffix="px"
+                      value={Math.round(element.height || 0)}
+                      onChange={(v) => {
+                        const next = Math.max(8, Math.min(1200, v));
+                        const patch = isImage
+                          ? { height: next, width: Math.round(next * aspectRatio) }
+                          : { height: next };
+                        onPatch(isText ? { ...patch, autoHeight: false } : patch);
+                      }}
+                    />
+                    <AttrField
+                      label="Rotate"
+                      suffix="°"
+                      value={Math.round((element.rotation ?? 0) * 10) / 10}
+                      step={1}
+                      onChange={(v) => onPatch({ rotation: ((v % 360) + 360) % 360 })}
+                    />
+                    {isText ? (
+                      <AttrField
+                        label="Font size"
+                        suffix="px"
+                        value={Math.round(element.fontSize ?? 30)}
+                        onChange={(v) => onPatch({ fontSize: Math.max(10, Math.min(160, v)) })}
+                      />
+                    ) : (
+                      <AttrField
+                        label="Scale"
+                        suffix="%"
+                        value={100}
+                        step={1}
+                        onChange={(v) => {
+                          const pct = Math.max(10, Math.min(400, v)) / 100;
+                          onPatch({
+                            width: Math.round((element.width || 0) * pct),
+                            height: Math.round((element.height || 0) * pct),
+                          });
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => onPatch({ rotation: 0 })}
+                      className="builder-focus press-feedback inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-white/75 hover:bg-white/10 hover:text-white"
+                    >
+                      <RotateCw className="h-3.5 w-3.5" /> Reset rotation
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {openPanel === 'border' && isImage ? (
+                <div className="space-y-3 px-3 pb-4 pt-1">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                        Outline width
+                      </span>
+                      <span className="text-[10px] font-semibold text-white/75">{outline}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={12}
+                      step={0.5}
+                      value={outline}
+                      onChange={(e) => onPatch({ borderWidth: Number(e.target.value) })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
+                    <input
+                      type="color"
+                      value={outlineColor}
+                      onChange={(e) => onPatch({ borderColor: e.target.value })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                    />
+                    <input
+                      type="text"
+                      value={outlineColor}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ borderColor: v });
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="builder-focus h-6 w-24 rounded-md border border-white/10 bg-black/40 px-1.5 text-[11px] text-white"
+                      maxLength={9}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                        <Squircle className="h-3 w-3" /> Corner rounding
+                      </span>
+                      <span className="text-[10px] font-semibold text-white/75">
+                        {Math.round(cornerRadius)}px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={80}
+                      step={1}
+                      value={cornerRadius}
+                      onChange={(e) => onPatch({ cornerRadius: Number(e.target.value) })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {openPanel === 'crop' && isImage ? (
+                <div className="space-y-2.5 px-3 pb-4 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
+                      Crop ({Math.round(100 - cropT - cropB)}×{Math.round(100 - cropL - cropR)}%)
+                    </span>
+                    {hasCrop ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onPatch({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 })
+                        }
+                        className="builder-focus press-feedback rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/60 hover:bg-white/10 hover:text-white"
+                      >
+                        Reset
+                      </button>
+                    ) : null}
+                  </div>
+                  <CropSlider
+                    label="Top"
+                    value={cropT}
+                    otherOpposite={cropB}
+                    onChange={(v) => onPatch({ cropTop: v })}
+                  />
+                  <CropSlider
+                    label="Right"
+                    value={cropR}
+                    otherOpposite={cropL}
+                    onChange={(v) => onPatch({ cropRight: v })}
+                  />
+                  <CropSlider
+                    label="Bottom"
+                    value={cropB}
+                    otherOpposite={cropT}
+                    onChange={(v) => onPatch({ cropBottom: v })}
+                  />
+                  <CropSlider
+                    label="Left"
+                    value={cropL}
+                    otherOpposite={cropR}
+                    onChange={(v) => onPatch({ cropLeft: v })}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </SheetContent>
+        </Sheet>
       ) : null}
     </div>
   );
@@ -951,7 +1414,7 @@ function CropSlider({
 }
 
 function Divider() {
-  return <span className="mx-0.5 h-5 w-px shrink-0 bg-white/[0.08]" aria-hidden />;
+  return <span className="mx-0.5 h-6 w-px shrink-0 bg-white/[0.1]" aria-hidden />;
 }
 
 /**
@@ -991,23 +1454,29 @@ function ColorGrid({
   colors,
   selected,
   onSelect,
+  comfortable = false,
 }: {
   colors: readonly string[];
   selected: string;
   onSelect: (hex: string) => void;
+  /** Larger swatches and spacing for bottom-sheet / touch layouts. */
+  comfortable?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5 p-2">
+    <div className={cn('flex flex-wrap', comfortable ? 'gap-2.5 px-3 py-3 sm:gap-3' : 'gap-1.5 p-2')}>
       {colors.map((hex) => (
         <button
           key={hex}
           type="button"
           onClick={() => onSelect(hex)}
           className={cn(
-            'builder-focus press-feedback h-6 w-6 shrink-0 rounded-full border transition-transform',
+            'builder-focus press-feedback shrink-0 rounded-full border transition-transform active:scale-95',
+            comfortable ? 'h-9 w-9 border-2 sm:h-10 sm:w-10' : 'h-6 w-6 border',
             selected.toLowerCase() === hex.toLowerCase()
-              ? 'border-white scale-110 ring-2 ring-[#CC2D24]/60'
-              : 'border-white/15 hover:border-white/40',
+              ? 'border-[#CC2D24] shadow-[0_0_0_2px_rgba(204,45,36,0.45)]'
+              : comfortable
+                ? 'border-white/20 hover:border-white/45 hover:scale-105'
+                : 'border-white/15 hover:border-white/40',
           )}
           style={{ backgroundColor: hex }}
           aria-label={`Set colour ${hex}`}

@@ -37,6 +37,7 @@ import {
 } from './PrintsDesignStep';
 import { InlineElementToolbar } from './InlineElementToolbar';
 import { StudioColorField } from './StudioColorField';
+import { useVisualViewportBottomInset } from '../../lib/useVisualViewportBottomInset';
 import { cn } from '../ui/utils';
 import {
   STUDIO_MAIN_COLORS,
@@ -356,7 +357,7 @@ export function LabelsPackagingStep({
           {subStep === 'label' ? 'Label option' : 'Packaging option'}
         </Label>
         {usePhoneStrips ? (
-          <div className="-mx-0.5 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+          <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
             {(subStep === 'label'
               ? (['none', 'woven', 'printed', 'heat', 'satin'] as const)
               : (['none', 'polybag', 'box', 'mailer', 'tissue'] as const)
@@ -383,7 +384,7 @@ export function LabelsPackagingStep({
                   type="button"
                   onClick={() => onPlanChange(id)}
                   className={cn(
-                    'shrink-0 snap-start rounded-full border px-2.5 py-1.5 text-[9px] font-semibold transition',
+                    'min-w-[4.75rem] shrink-0 snap-start rounded-full border px-3 py-2 text-[10px] font-semibold transition sm:min-w-[5.25rem]',
                     planValue === id
                       ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
                       : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
@@ -463,18 +464,18 @@ export function LabelsPackagingStep({
           </div>
 
           {usePhoneStrips ? (
-            <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+            <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
               <Button
                 onClick={uploadImage}
                 variant="outline"
-                className="h-9 min-w-[5.5rem] shrink-0 border-white/20 bg-white/5 px-2.5 text-[10px] !text-white hover:bg-white/10"
+                className="h-10 min-w-[7rem] shrink-0 border-white/20 bg-white/5 px-3 text-[11px] !text-white hover:bg-white/10 sm:min-w-[7.5rem]"
               >
                 <Upload className="mr-1.5 h-3.5 w-3.5" />
                 Upload
               </Button>
               <Button
                 onClick={addText}
-                className="h-9 min-w-[5.5rem] shrink-0 bg-[#FF3B30] px-2.5 text-[10px] hover:bg-[#FF3B30]/90"
+                className="h-10 min-w-[7rem] shrink-0 bg-[#FF3B30] px-3 text-[11px] hover:bg-[#FF3B30]/90 sm:min-w-[7.5rem]"
               >
                 <Check className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.5} />
                 Add text
@@ -549,14 +550,14 @@ export function LabelsPackagingStep({
                   <div>
                     <Label className={sectionLabelClass}>Font</Label>
                     {usePhoneStrips ? (
-                      <div className="-mx-0.5 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                      <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
                         {allFontOptions.map((font) => (
                           <button
                             key={font}
                             type="button"
                             onClick={() => updateSelected({ fontFamily: font })}
                             className={cn(
-                              'h-8 shrink-0 snap-start rounded-lg border px-2.5 text-[9px]',
+                              'h-9 min-w-[4.5rem] shrink-0 snap-start rounded-lg border px-3 text-[10px] sm:min-w-[5rem]',
                               selected.fontFamily === font
                                 ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
                                 : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white',
@@ -1697,27 +1698,50 @@ function DesignSurface({
       }}
     >
       <div className="relative flex w-full max-w-full flex-col items-center">
-        {showChromeToolbar && selectedElement ? (
-          <div
-            className="pointer-events-none absolute bottom-full left-1/2 z-[40] flex max-w-full justify-center px-2"
-            style={{
-              marginBottom: 8,
-              transform: uiInv !== 1 ? `translateX(-50%) scale(${uiInv})` : 'translateX(-50%)',
-              transformOrigin: uiInv !== 1 ? 'bottom center' : 'center',
-            }}
-          >
-            <InlineElementToolbar
-              element={selectedElement}
-              onPatch={(patch) => updateElement(selectedElement.id, patch)}
-              onDuplicate={() => duplicateElement(selectedElement.id)}
-              onDelete={() => removeElement(selectedElement.id)}
-              compact={narrowViewport}
-              onCropModeChange={(cropping) =>
-                setCropEditingId(cropping ? selectedElement.id : null)
-              }
-            />
-          </div>
-        ) : null}
+        {narrowViewport && showChromeToolbar && selectedElement && typeof document !== 'undefined'
+          ? createPortal(
+              <div
+                className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2 pt-1 sm:px-3 sm:pt-2"
+                style={{
+                  top: 'calc(env(safe-area-inset-top, 0px) + 4.25rem)',
+                }}
+              >
+                <div className="pointer-events-auto mx-auto w-max max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
+                  <InlineElementToolbar
+                    element={selectedElement}
+                    onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                    onDuplicate={() => duplicateElement(selectedElement.id)}
+                    onDelete={() => removeElement(selectedElement.id)}
+                    compact
+                    className="w-full max-w-none"
+                    onCropModeChange={(cropping) =>
+                      setCropEditingId(cropping ? selectedElement.id : null)
+                    }
+                  />
+                </div>
+              </div>,
+              document.body,
+            )
+          : showChromeToolbar && selectedElement ? (
+              <div
+                className="pointer-events-none absolute bottom-full left-0 right-0 z-[40] flex max-w-full justify-center px-2"
+                style={{
+                  marginBottom: 8,
+                  ...(uiInv !== 1 ? { transform: `scale(${uiInv})`, transformOrigin: 'bottom center' } : {}),
+                }}
+              >
+                <InlineElementToolbar
+                  element={selectedElement}
+                  onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                  onDuplicate={() => duplicateElement(selectedElement.id)}
+                  onDelete={() => removeElement(selectedElement.id)}
+                  compact={narrowViewport}
+                  onCropModeChange={(cropping) =>
+                    setCropEditingId(cropping ? selectedElement.id : null)
+                  }
+                />
+              </div>
+            ) : null}
         {dockTextToolbar && selectedElement && typeof document !== 'undefined'
           ? createPortal(
               <div
@@ -1727,13 +1751,14 @@ function DesignSurface({
                   paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
                 }}
               >
-                <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-0.5rem)] justify-center sm:max-w-[min(100%,100vw-1rem)]">
+                <div className="pointer-events-auto mx-auto w-max min-w-0 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
                   <InlineElementToolbar
                     element={selectedElement}
                     onPatch={(patch) => updateElement(selectedElement.id, patch)}
                     onDuplicate={() => duplicateElement(selectedElement.id)}
                     onDelete={() => removeElement(selectedElement.id)}
                     compact
+                    className="w-full max-w-none"
                     popoverOpenAbove
                     onCropModeChange={(cropping) =>
                       setCropEditingId(cropping ? selectedElement.id : null)
