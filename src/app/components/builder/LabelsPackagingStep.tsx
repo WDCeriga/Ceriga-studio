@@ -1727,7 +1727,7 @@ function DesignSurface({
                   paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
                 }}
               >
-                <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-1rem)] justify-center">
+                <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-0.5rem)] justify-center sm:max-w-[min(100%,100vw-1rem)]">
                   <InlineElementToolbar
                     element={selectedElement}
                     onPatch={(patch) => updateElement(selectedElement.id, patch)}

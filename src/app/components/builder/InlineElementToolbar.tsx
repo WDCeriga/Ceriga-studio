@@ -133,8 +133,11 @@ export function InlineElementToolbar({
 
   const btnBase =
     'builder-focus press-feedback relative inline-flex shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:pointer-events-none';
-  const iconBtn = cn(btnBase, compact ? 'h-7 w-7' : 'h-8 w-8');
-  const textBtn = cn(btnBase, compact ? 'h-7 gap-1 px-2 text-[10px]' : 'h-8 gap-1 px-2.5 text-[11px]');
+  const iconBtn = cn(btnBase, 'h-8 w-8');
+  const textBtn = cn(
+    btnBase,
+    compact ? 'h-8 gap-1 px-2 text-[10px]' : 'h-8 gap-1 px-2.5 text-[11px]',
+  );
 
   const currentFont = element.fontFamily ?? 'Inter';
   const currentSize = element.fontSize ?? 30;
@@ -187,13 +190,13 @@ export function InlineElementToolbar({
       <div
         className={cn(
           compact &&
-            'no-scrollbar max-w-[min(100%,calc(100vw-1.25rem))] overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] touch-pan-x',
+            'no-scrollbar max-w-[min(100%,calc(100vw-0.5rem))] overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] touch-pan-x sm:max-w-[min(100%,calc(100vw-1.25rem))]',
         )}
       >
         <div
           className={cn(
             'flex w-max min-w-0 max-w-full flex-nowrap items-center rounded-2xl border border-white/[0.08] bg-[#141414]/96 text-white shadow-[0_18px_48px_rgba(0,0,0,0.55),0_1px_0_rgba(255,255,255,0.04)_inset] backdrop-blur-xl',
-            compact ? 'gap-0.5 px-1 py-1' : 'gap-1 px-1.5 py-1.5',
+            compact ? 'gap-1 px-1.5 py-1' : 'gap-1 px-1.5 py-1.5',
             !compact && 'max-w-[min(98vw,960px)]',
           )}
         >

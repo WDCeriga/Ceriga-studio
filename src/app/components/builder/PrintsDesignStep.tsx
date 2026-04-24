@@ -2278,7 +2278,7 @@ export function PrintsDesignPreview({
                 paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
               }}
             >
-              <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-1rem)] justify-center">
+              <div className="pointer-events-auto flex w-full max-w-[min(100%,100vw-0.5rem)] justify-center sm:max-w-[min(100%,100vw-1rem)]">
                 <InlineElementToolbar
                   element={selectedElement}
                   onPatch={(patch) => updateElement(selectedElement.id, patch)}
@@ -2298,7 +2298,7 @@ export function PrintsDesignPreview({
       <div
         className={cn(
           'relative min-h-0 w-full flex-1',
-          narrowViewport && editable && 'overflow-hidden rounded-xl border border-white/[0.07]',
+          narrowViewport && editable && 'overflow-hidden rounded-xl',
         )}
       >
         <div className="relative h-full w-full">

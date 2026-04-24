@@ -36,11 +36,18 @@ import {
   Trash2,
   Undo2,
   X,
+  MoreVertical,
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import {
@@ -390,6 +397,9 @@ const MEASUREMENT_GUIDE_CLASS_PHONE =
 /** One consistent frame for garment / design previews on phone (centered, proportional). */
 const PHONE_PREVIEW_FRAME_CLASS =
   'mx-auto w-full min-h-0 min-w-0 max-w-[min(100%,88vw,300px)] max-h-[min(42dvh,360px)]';
+/** Slightly larger preview when the config sheet is fully collapsed (more shirt visible). */
+const PHONE_PREVIEW_FRAME_EXPANDED_CLASS =
+  'mx-auto w-full min-h-0 min-w-0 max-w-[min(100%,92vw,360px)] max-h-[min(50dvh,440px)]';
 /** Tablet/desktop: capped height so the guide does not dominate very tall viewports. */
 const PREVIEW_STAGE_CLASS =
   'relative z-[1] mx-auto h-auto w-full max-w-[min(100%,300px)] max-h-[min(50dvh,380px)] object-contain md:h-full md:max-h-[min(38vh,340px)] md:max-w-[min(100%,360px)] lg:max-h-[min(42vh,400px)] lg:max-w-[min(100%,400px)] xl:max-h-[min(46vh,460px)] xl:max-w-[min(100%,440px)] 2xl:max-h-[min(52vh,540px)] 2xl:max-w-[min(100%,480px)]';
@@ -458,6 +468,7 @@ export function Builder() {
   const detailPositionRootRef = useRef<HTMLDivElement>(null);
   /** Latest scale factor (previewZoom / 100); read inside pointer handlers without retriggering listeners. */
   const previewScaleRef = useRef(PREVIEW_ZOOM_DEFAULT / 100);
+  const previewZoomRef = useRef(PREVIEW_ZOOM_DEFAULT);
   const deleteZoneRef = useRef<HTMLDivElement>(null);
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const detailOverDeleteRef = useRef(false);
@@ -820,6 +831,7 @@ export function Builder() {
 
   useEffect(() => {
     previewScaleRef.current = previewZoom / 100;
+    previewZoomRef.current = previewZoom;
   }, [previewZoom]);
 
   useEffect(() => {
@@ -843,6 +855,63 @@ export function Builder() {
     shell.addEventListener('wheel', onWheel, { passive: false });
     return () => shell.removeEventListener('wheel', onWheel);
   }, [currentStep, layoutTier]);
+
+  /** Phone: two-finger pinch to zoom the preview. */
+  useEffect(() => {
+    if (layoutTier !== 'phone') return;
+    const el = previewShellRef.current;
+    if (!el) return;
+    const pinchRef = { d0: 0, z0: PREVIEW_ZOOM_DEFAULT, active: false };
+    const dist = (t: TouchList) => {
+      if (t.length < 2) return 0;
+      const a = t[0];
+      const b = t[1];
+      return Math.hypot(a!.clientX - b!.clientX, a!.clientY - b!.clientY);
+    };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const d = dist(e.touches);
+        if (d > 0) {
+          pinchRef.active = true;
+          pinchRef.d0 = d;
+          pinchRef.z0 = previewZoomRef.current;
+        }
+      }
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pinchRef.active || e.touches.length !== 2) return;
+      const d = dist(e.touches);
+      if (pinchRef.d0 < 8) return;
+      const next = Math.round(pinchRef.z0 * (d / pinchRef.d0));
+      const cap = PREVIEW_ZOOM_MAX_PHONE;
+      setPreviewZoom(() => Math.min(cap, Math.max(PREVIEW_ZOOM_MIN, next)));
+      e.preventDefault();
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchRef.active = false;
+        pinchRef.d0 = 0;
+      }
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [layoutTier]);
+
+  const prevPhoneEditorCollapsed = useRef(phoneEditorCollapsed);
+  useEffect(() => {
+    if (layoutTier === 'phone' && phoneEditorCollapsed && !prevPhoneEditorCollapsed.current) {
+      setPreviewZoom((z) => Math.min(PREVIEW_ZOOM_MAX_PHONE, Math.max(z, 96)));
+    }
+    prevPhoneEditorCollapsed.current = phoneEditorCollapsed;
+  }, [layoutTier, phoneEditorCollapsed]);
 
   const [networkOnline, setNetworkOnline] = useState(
     () => typeof navigator !== 'undefined' && navigator.onLine,
@@ -1077,6 +1146,19 @@ export function Builder() {
       markVisitedThrough(prev);
     }
   };
+
+  useEffect(() => {
+    if (currentStep === 9) return;
+    setState((p) => (p.printsLayerSelectedId ? { ...p, printsLayerSelectedId: null } : p));
+  }, [currentStep]);
+  useEffect(() => {
+    if (currentStep === 10) return;
+    setState((p) => (p.labelLayerSelectedId ? { ...p, labelLayerSelectedId: null } : p));
+  }, [currentStep]);
+  useEffect(() => {
+    if (currentStep === 11) return;
+    setState((p) => (p.packagingLayerSelectedId ? { ...p, packagingLayerSelectedId: null } : p));
+  }, [currentStep]);
 
   const handleStepClick = (stepId: number) => {
     if (!(visitedSteps.includes(stepId) && !shouldSkipStep(stepId))) return;
@@ -2051,6 +2133,11 @@ export function Builder() {
   };
 
   const isPhone = layoutTier === 'phone';
+  const phoneFrameClass = isPhone
+    ? phoneEditorCollapsed
+      ? PHONE_PREVIEW_FRAME_EXPANDED_CLASS
+      : PHONE_PREVIEW_FRAME_CLASS
+    : '';
   const previewZoomMax = isPhone ? PREVIEW_ZOOM_MAX_PHONE : PREVIEW_ZOOM_MAX;
   /** Prints / label / packaging editors extend below the canvas (delete zone, handles); hidden overflow would clip them. */
   const previewSurfaceNeedsVisibleOverflow =
@@ -2389,13 +2476,26 @@ export function Builder() {
         )}
         style={previewSurfaceStyle}
       >
-        <div className="pointer-events-none absolute right-2 top-2 z-[38] flex flex-col gap-1 sm:right-3 sm:top-3">
-          <div className="pointer-events-auto flex flex-col gap-1 rounded-xl border border-white/10 bg-black/45 p-1 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md">
+        <div
+          className={cn(
+            'pointer-events-none absolute z-[38] flex flex-col gap-1',
+            isPhone ? 'right-1.5 top-1.5' : 'right-2 top-2 sm:right-3 sm:top-3',
+          )}
+        >
+          <div
+            className={cn(
+              'pointer-events-auto flex flex-col gap-1 rounded-xl border border-white/10 bg-black/45 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md',
+              isPhone ? 'p-1.5' : 'p-1',
+            )}
+          >
             <button
               type="button"
               onClick={() => setShowFront(true)}
               className={cn(
-                'builder-focus flex min-h-[2rem] min-w-[3rem] flex-col items-center justify-center rounded-lg px-2 py-1 text-[8px] font-bold uppercase leading-tight tracking-wide transition-colors sm:min-h-[2.25rem] sm:min-w-[3.25rem] sm:py-1.5 sm:text-[9px]',
+                'builder-focus flex flex-col items-center justify-center rounded-lg font-bold uppercase leading-tight tracking-wide transition-colors',
+                isPhone
+                  ? 'min-h-[2.75rem] min-w-[3.75rem] px-2.5 py-1.5 text-[10px]'
+                  : 'min-h-[2rem] min-w-[3rem] px-2 py-1 text-[8px] sm:min-h-[2.25rem] sm:min-w-[3.25rem] sm:py-1.5 sm:text-[9px]',
                 showFront
                   ? 'bg-[#CC2D24] text-white'
                   : 'text-white/60 hover:bg-white/10 hover:text-white',
@@ -2407,7 +2507,10 @@ export function Builder() {
               type="button"
               onClick={() => setShowFront(false)}
               className={cn(
-                'builder-focus flex min-h-[2rem] min-w-[3rem] flex-col items-center justify-center rounded-lg px-2 py-1 text-[8px] font-bold uppercase leading-tight tracking-wide transition-colors sm:min-h-[2.25rem] sm:min-w-[3.25rem] sm:py-1.5 sm:text-[9px]',
+                'builder-focus flex flex-col items-center justify-center rounded-lg font-bold uppercase leading-tight tracking-wide transition-colors',
+                isPhone
+                  ? 'min-h-[2.75rem] min-w-[3.75rem] px-2.5 py-1.5 text-[10px]'
+                  : 'min-h-[2rem] min-w-[3rem] px-2 py-1 text-[8px] sm:min-h-[2.25rem] sm:min-w-[3.25rem] sm:py-1.5 sm:text-[9px]',
                 !showFront
                   ? 'bg-[#CC2D24] text-white'
                   : 'text-white/60 hover:bg-white/10 hover:text-white',
@@ -2495,7 +2598,7 @@ export function Builder() {
             <div
               className={cn(
                 'relative flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-visible px-1',
-                isPhone && `relative ${PHONE_PREVIEW_FRAME_CLASS} overflow-visible`,
+                isPhone && `relative ${phoneFrameClass} overflow-visible`,
                 !isPhone &&
                   'max-md:max-w-[min(100%,260px)] max-md:max-h-[min(44dvh,360px)] md:max-w-[min(100%,340px)] md:max-h-[min(44vh,380px)] lg:max-w-[min(100%,380px)] lg:max-h-[min(46vh,420px)] xl:max-w-[min(100%,420px)] xl:max-h-[min(50vh,460px)] 2xl:max-w-[min(100%,460px)] 2xl:max-h-[min(56vh,520px)] mx-auto',
               )}
@@ -2517,7 +2620,7 @@ export function Builder() {
             <div
               className={cn(
                 'flex max-h-full w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center overflow-visible px-1',
-                isPhone && PHONE_PREVIEW_FRAME_CLASS,
+                isPhone && phoneFrameClass,
               )}
             >
               <LabelPreview
@@ -2536,7 +2639,7 @@ export function Builder() {
             <div
               className={cn(
                 'flex max-h-full w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center overflow-visible px-1',
-                isPhone && PHONE_PREVIEW_FRAME_CLASS,
+                isPhone && phoneFrameClass,
               )}
             >
               <PackagingPreview
@@ -2568,7 +2671,9 @@ export function Builder() {
                 className={cn(
                   'relative z-[1] object-contain',
                   isPhone
-                    ? 'max-h-[min(42dvh,340px)] max-w-[min(100%,88vw,300px)] w-auto h-auto'
+                    ? phoneEditorCollapsed
+                      ? 'h-auto w-auto max-h-[min(50dvh,420px)] max-w-[min(100%,92vw,360px)]'
+                      : 'h-auto w-auto max-h-[min(42dvh,340px)] max-w-[min(100%,88vw,300px)]'
                     : PREVIEW_STAGE_CLASS,
                 )}
                 style={{ filter: `hue-rotate(${getHueRotation(primaryColor)}deg)` }}
@@ -2582,59 +2687,74 @@ export function Builder() {
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[36] flex flex-wrap items-end justify-between gap-1.5 px-1.5 pb-1.5 sm:gap-2 sm:px-3 sm:pb-3">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-white/12 bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
+          <div
+            className={cn(
+              'pointer-events-auto flex items-center rounded-2xl border border-white/12 bg-black/55 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl',
+              isPhone ? 'gap-0.5 px-1.5 py-1' : 'gap-1 px-1.5 py-1 sm:gap-2 sm:px-2.5 sm:py-2',
+            )}
+          >
             <Button
               type="button"
               variant="ghost"
               size="sm"
               aria-label="Zoom out"
-              className="h-7 w-7 shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white sm:h-8 sm:w-8"
+              className={cn(
+                'shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white',
+                isPhone ? 'h-10 w-10' : 'h-7 w-7 sm:h-8 sm:w-8',
+              )}
               onClick={() =>
                 setPreviewZoom((z) => Math.max(PREVIEW_ZOOM_MIN, z - 10))
               }
             >
               <Minus
-                className={cn('shrink-0', isPhone ? 'h-3 w-3' : 'h-3.5 w-3.5 sm:h-4 sm:w-4')}
+                className={cn(
+                  'shrink-0',
+                  isPhone ? 'h-5 w-5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4',
+                )}
               />
             </Button>
-            <input
-              aria-label="Canvas zoom"
-              className={cn(
-                'h-1 cursor-pointer accent-[#CC2D24]',
-                isPhone ? 'w-[2.5rem]' : 'w-[3rem] sm:w-[5.5rem]',
-              )}
-              type="range"
-              min={PREVIEW_ZOOM_MIN}
-              max={previewZoomMax}
-              step={1}
-              value={Math.min(previewZoom, previewZoomMax)}
-              onChange={(e) => setPreviewZoom(Number(e.target.value))}
-            />
+            {!isPhone ? (
+              <input
+                aria-label="Canvas zoom"
+                className="h-1 w-[3rem] cursor-pointer accent-[#CC2D24] sm:w-[5.5rem]"
+                type="range"
+                min={PREVIEW_ZOOM_MIN}
+                max={previewZoomMax}
+                step={1}
+                value={Math.min(previewZoom, previewZoomMax)}
+                onChange={(e) => setPreviewZoom(Number(e.target.value))}
+              />
+            ) : null}
             <Button
               type="button"
               variant="ghost"
               size="sm"
               aria-label="Zoom in"
-              className="h-7 w-7 shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white sm:h-8 sm:w-8"
+              className={cn(
+                'shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white',
+                isPhone ? 'h-10 w-10' : 'h-7 w-7 sm:h-8 sm:w-8',
+              )}
               onClick={() =>
                 setPreviewZoom((z) => Math.min(previewZoomMax, z + 10))
               }
             >
               <Plus
-                className={cn('shrink-0', isPhone ? 'h-3 w-3' : 'h-3.5 w-3.5 sm:h-4 sm:w-4')}
+                className={cn(
+                  'shrink-0',
+                  isPhone ? 'h-5 w-5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4',
+                )}
               />
             </Button>
-            <span
-              className={cn(
-                'min-w-0 text-center font-semibold tabular-nums text-white/75',
-                isPhone ? 'max-w-[2.4rem] text-[8px] sm:max-w-none' : 'min-w-[2.5rem] text-[10px] sm:min-w-[2.75rem] sm:text-[11px]',
-              )}
-            >
-              {Math.min(previewZoom, previewZoomMax)}%
-            </span>
-            <span className="hidden border-l border-white/10 pl-2 text-[8px] leading-tight text-white/35 lg:inline max-w-[5.5rem]">
-              Ctrl + scroll
-            </span>
+            {!isPhone ? (
+              <>
+                <span className="min-w-0 min-w-[2.5rem] text-center text-[10px] font-semibold tabular-nums text-white/75 sm:min-w-[2.75rem] sm:text-[11px]">
+                  {Math.min(previewZoom, previewZoomMax)}%
+                </span>
+                <span className="hidden max-w-[5.5rem] border-l border-white/10 pl-2 text-[8px] leading-tight text-white/35 lg:inline">
+                  Ctrl + scroll
+                </span>
+              </>
+            ) : null}
           </div>
 
           <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-white/12 bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
@@ -2705,214 +2825,289 @@ export function Builder() {
         className={cn(
           'relative flex border-b border-white/[0.09] bg-[#0c0c0c]',
           isPhone
-            ? 'min-h-11 flex-nowrap items-center gap-0.5 px-1.5 py-1'
+            ? 'min-h-12 flex-nowrap items-center gap-1.5 px-2 py-1.5'
             : 'flex-wrap items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5',
         )}
       >
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            aria-label="Back to catalog"
-            className="h-8 w-8 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white sm:h-7 sm:w-auto sm:px-2 sm:text-[10px]"
-          >
-            <Link to="/catalog">
-              <ArrowLeft className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
-              <span className="hidden sm:inline">BACK</span>
-            </Link>
-          </Button>
-        </div>
-
-        <div
-          className={cn(
-            'flex min-w-0 flex-1 items-center',
-            isPhone
-              ? 'order-none min-w-0 max-w-[min(100%,1fr)] basis-auto flex-row justify-center gap-1.5'
-              : 'order-last flex basis-full flex-col items-center justify-center gap-1 sm:order-none sm:basis-auto sm:flex-row sm:gap-3',
-          )}
-        >
-          <div
-            className={cn(
-              'min-w-0',
-              isPhone ? 'min-w-0 max-w-full flex-1' : 'max-w-full',
-            )}
-          >
-            {isEditingName ? (
-              <Input
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                onBlur={() => setIsEditingName(false)}
-                onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-                className={cn(
-                  'h-8 border-white/20 bg-white/5 text-center font-semibold text-white',
-                  isPhone ? 'h-7 text-[12px]' : 'text-[13px] sm:h-7',
-                )}
-                autoFocus
-              />
-            ) : (
-              <div
-                className={cn(
-                  'cursor-pointer truncate text-center font-semibold text-white hover:text-white/85',
-                  isPhone ? 'text-[12px] leading-tight' : 'text-[13px]',
-                )}
-                onClick={() => setIsEditingName(true)}
-                title="Rename project"
+        {isPhone ? (
+          <>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                aria-label="Back to catalog"
+                className="h-10 w-10 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white"
               >
-                {projectName}
-              </div>
-            )}
-          </div>
-
-          <div
-            className={cn('h-5 w-px bg-white/10', isPhone ? 'hidden' : 'hidden sm:block')}
-            aria-hidden
-          />
-
-          <div
-            className={cn(
-              'flex shrink-0 items-center',
-              isPhone
-                ? 'max-w-[min(9rem,28vw)] flex-nowrap justify-end gap-0.5'
-                : 'flex-wrap items-center justify-center gap-1.5 sm:gap-2',
-            )}
-          >
-            {isPhone ? (
-              <button
+                <Link to="/catalog">
+                  <ArrowLeft className="h-5 w-5" />
+                </Link>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-10 w-10 shrink-0 p-0 !text-white/75 hover:bg-white/10 hover:!text-white"
+                    aria-label="Project menu"
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="z-[500] min-w-[12rem] border border-white/12 bg-[#141414] text-white shadow-xl"
+                >
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10"
+                    onClick={() => setIsEditingName(true)}
+                  >
+                    Rename project
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10"
+                    onClick={() => setShowReviewDrawer(true)}
+                  >
+                    Review spec
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer focus:bg-white/10"
+                    onClick={() => setShowExtraDetails((v) => !v)}
+                  >
+                    {showExtraDetails ? 'Hide spec on preview' : 'Show spec on preview'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {isEditingName ? (
+                <Input
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                  className="h-10 min-w-0 flex-1 border-white/20 bg-white/5 text-[14px] font-semibold text-white"
+                  autoFocus
+                />
+              ) : null}
+              {!isEditingName ? (
+                <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowExtraDetails((prev) => !prev)}
+                    className={cn(
+                      'builder-focus press-feedback flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                      showExtraDetails
+                        ? 'bg-white/10 text-white hover:bg-white/15'
+                        : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
+                    )}
+                    aria-pressed={showExtraDetails}
+                    aria-label="Toggle spec details on preview"
+                  >
+                    <Info className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                  <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] p-1">
+                    {(['black', 'white', 'transparent'] as const).map((bg) => (
+                      <button
+                        key={bg}
+                        type="button"
+                        onClick={() => setPreviewBackground(bg)}
+                        title={bg}
+                        aria-label={`Background ${bg}`}
+                        className={cn(
+                          'builder-focus press-feedback h-4 w-4 shrink-0 rounded border',
+                          previewBackground === bg
+                            ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
+                            : 'border-white/15 hover:border-white/30',
+                        )}
+                        style={
+                          bg === 'transparent'
+                            ? {
+                                backgroundImage:
+                                  'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
+                                backgroundSize: '8px 8px',
+                                backgroundPosition: '0 0, 4px 4px',
+                              }
+                            : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5" aria-live="polite">
+              <Button
                 type="button"
-                onClick={() => setShowExtraDetails((prev) => !prev)}
-                className={cn(
-                  'builder-focus press-feedback flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
-                  showExtraDetails
-                    ? 'bg-white/10 text-white hover:bg-white/15'
-                    : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
-                )}
-                title={showExtraDetails ? 'Hide spec details' : 'Show spec details'}
-                aria-pressed={showExtraDetails}
-                aria-label="Toggle spec details on preview"
+                variant="ghost"
+                size="sm"
+                onClick={undo}
+                disabled={!undoAvailable}
+                aria-label="Undo"
+                className="h-10 w-10 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
               >
-                <Info className="h-3.5 w-3.5" strokeWidth={2} />
-              </button>
-            ) : (
-              <button
+                <Undo2 className="h-5 w-5" />
+              </Button>
+              <Button
                 type="button"
-                onClick={() => setShowExtraDetails((prev) => !prev)}
-                className={cn(
-                  'builder-focus press-feedback shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wider sm:px-2.5',
-                  showExtraDetails
-                    ? 'bg-white/10 text-white hover:bg-white/15'
-                    : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
-                )}
+                variant="ghost"
+                size="sm"
+                onClick={redo}
+                disabled={!redoAvailable}
+                aria-label="Redo"
+                className="h-10 w-10 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
               >
-                {showExtraDetails ? 'Hide details' : 'Show details'}
-              </button>
-            )}
+                <Redo2 className="h-5 w-5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowVersionHistory(true)}
+                aria-label="Version history"
+                title="Version history"
+                className="h-10 w-10 shrink-0 p-0 !text-white/70 hover:!text-white"
+              >
+                <History className="h-5 w-5" />
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                aria-label="Back to catalog"
+                className="h-8 w-8 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white sm:h-7 sm:w-auto sm:px-2 sm:text-[10px]"
+              >
+                <Link to="/catalog">
+                  <ArrowLeft className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
+                  <span className="hidden sm:inline">BACK</span>
+                </Link>
+              </Button>
+            </div>
+
             <div
               className={cn(
-                'flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-white/[0.04] p-0.5',
-                isPhone && 'gap-0 p-0.5',
+                'order-last flex min-w-0 flex-1 basis-full flex-col items-center justify-center gap-1 sm:order-none sm:basis-auto sm:flex-row sm:gap-3',
               )}
             >
-              {(['black', 'white', 'transparent'] as const).map((bg) => (
-                <button
-                  key={bg}
-                  type="button"
-                  onClick={() => setPreviewBackground(bg)}
-                  title={bg}
-                  aria-label={`Background ${bg}`}
-                  className={cn(
-                    'builder-focus press-feedback shrink-0 rounded border',
-                    isPhone ? 'h-3.5 w-3.5' : 'h-5 w-5',
-                    previewBackground === bg
-                      ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
-                      : 'border-white/15 hover:border-white/30',
-                  )}
-                  style={
-                    bg === 'transparent'
-                      ? {
-                          backgroundImage:
-                            'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
-                          backgroundSize: '8px 8px',
-                          backgroundPosition: '0 0, 4px 4px',
-                        }
-                      : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
-                  }
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+              <div className="min-w-0 max-w-full">
+                {isEditingName ? (
+                  <Input
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    onBlur={() => setIsEditingName(false)}
+                    onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                    className="h-8 border-white/20 bg-white/5 text-center text-[13px] font-semibold text-white sm:h-7"
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="cursor-pointer truncate text-center text-[13px] font-semibold text-white hover:text-white/85"
+                    onClick={() => setIsEditingName(true)}
+                    title="Rename project"
+                  >
+                    {projectName}
+                  </div>
+                )}
+              </div>
 
-        <div
-          className={cn('ml-auto flex shrink-0 items-center', isPhone ? 'gap-0' : 'gap-1 sm:gap-2')}
-          aria-live="polite"
-        >
-          <div className="flex items-center gap-0.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={undo}
-              disabled={!undoAvailable}
-              aria-label="Undo"
-              className={cn(
-                'shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30',
-                isPhone ? 'h-7 w-7' : 'h-8 w-8',
-              )}
-            >
-              <Undo2 className={isPhone ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={redo}
-              disabled={!redoAvailable}
-              aria-label="Redo"
-              className={cn(
-                'shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30',
-                isPhone ? 'h-7 w-7' : 'h-8 w-8',
-              )}
-            >
-              <Redo2 className={isPhone ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowVersionHistory(true)}
-              aria-label="Version history"
-              title="Version history"
-              className={cn('shrink-0 p-0 !text-white/70 hover:!text-white', isPhone ? 'h-7 w-7' : 'h-8 w-8')}
-            >
-              <History className={isPhone ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-            </Button>
-          </div>
-          <span className="hidden text-[9px] font-medium uppercase tracking-wider text-white/35 sm:inline">
-            {saving ? 'Saving…' : !networkOnline ? 'Offline' : saveError ? 'Not synced' : 'Saved'}
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowReviewDrawer(true)}
-            className="builder-focus press-feedback hidden h-8 shrink-0 items-center gap-1.5 rounded-md bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-black hover:bg-white/90 sm:inline-flex"
-          >
-            <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
-            Review
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowReviewDrawer(true)}
-            aria-label="Review"
-            className={cn(
-              'builder-focus press-feedback flex shrink-0 items-center justify-center rounded-md bg-white text-black hover:bg-white/90 sm:hidden',
-              isPhone ? 'h-7 w-7' : 'h-8 w-8',
-            )}
-          >
-            <FileCheck
-              className={cn('stroke-[2.25]', isPhone && 'h-3.5 w-3.5')}
-            />
-          </button>
-        </div>
+              <div className="hidden h-5 w-px bg-white/10 sm:block" aria-hidden />
+
+              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExtraDetails((prev) => !prev)}
+                  className={cn(
+                    'builder-focus press-feedback shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wider sm:px-2.5',
+                    showExtraDetails
+                      ? 'bg-white/10 text-white hover:bg-white/15'
+                      : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
+                  )}
+                >
+                  {showExtraDetails ? 'Hide details' : 'Show details'}
+                </button>
+                <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-white/[0.04] p-0.5">
+                  {(['black', 'white', 'transparent'] as const).map((bg) => (
+                    <button
+                      key={bg}
+                      type="button"
+                      onClick={() => setPreviewBackground(bg)}
+                      title={bg}
+                      aria-label={`Background ${bg}`}
+                      className={cn(
+                        'builder-focus press-feedback h-5 w-5 shrink-0 rounded border',
+                        previewBackground === bg
+                          ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
+                          : 'border-white/15 hover:border-white/30',
+                      )}
+                      style={
+                        bg === 'transparent'
+                          ? {
+                              backgroundImage:
+                                'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
+                              backgroundSize: '8px 8px',
+                              backgroundPosition: '0 0, 4px 4px',
+                            }
+                          : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2" aria-live="polite">
+              <div className="flex items-center gap-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={undo}
+                  disabled={!undoAvailable}
+                  aria-label="Undo"
+                  className="h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={redo}
+                  disabled={!redoAvailable}
+                  aria-label="Redo"
+                  className="h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowVersionHistory(true)}
+                  aria-label="Version history"
+                  title="Version history"
+                  className="h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white"
+                >
+                  <History className="h-4 w-4" />
+                </Button>
+              </div>
+              <span className="text-[9px] font-medium uppercase tracking-wider text-white/35">
+                {saving ? 'Saving…' : !networkOnline ? 'Offline' : saveError ? 'Not synced' : 'Saved'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowReviewDrawer(true)}
+                className="builder-focus press-feedback flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-black hover:bg-white/90"
+              >
+                <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
+                Review
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {(!networkOnline || saveError) && (
@@ -3104,7 +3299,7 @@ export function Builder() {
               Step {phoneProcessStepCount} · {phoneProcessTitle}
             </div>
           </div>
-          <div className="scrollbar-dark flex min-h-[3.25rem] touch-pan-x gap-0.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2 pb-[max(0.6rem,env(safe-area-inset-bottom,0px))] pt-1 [-webkit-overflow-scrolling:touch]">
+          <div className="scrollbar-dark flex min-h-[3.75rem] touch-pan-x gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-1.5 [-webkit-overflow-scrolling:touch]">
             {visibleBuilderSteps.map((item) => {
               const current = currentStep === item.id;
               const enabled = visitedSteps.includes(item.id);
@@ -3112,13 +3307,13 @@ export function Builder() {
               return (
                 <button
                   key={item.id}
-                  id={`builder-step-phone-${item.id}`}
+                  id={`builder-step-${item.id}`}
                   type="button"
                   onClick={() => handleStepClick(item.id)}
                   disabled={!enabled}
                   title={stepTabTitle(item, techpackSpecFlow)}
                   className={cn(
-                    'builder-focus press-feedback flex min-h-[2.9rem] min-w-[3.4rem] max-w-[4.6rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1 text-center',
+                    'builder-focus press-feedback flex min-h-[3.4rem] min-w-[3.9rem] max-w-[5.2rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center',
                     current
                       ? 'bg-[#0F0F0F] text-white'
                       : enabled
@@ -3127,10 +3322,10 @@ export function Builder() {
                   )}
                 >
                   <StepIcon
-                    className={cn('h-4 w-4 shrink-0', current ? 'text-white' : 'text-white/50')}
+                    className={cn('h-5 w-5 shrink-0', current ? 'text-white' : 'text-white/50')}
                     strokeWidth={1.75}
                   />
-                  <span className="line-clamp-2 w-full text-[6.5px] font-bold uppercase leading-tight tracking-wide">
+                  <span className="line-clamp-2 w-full text-[7.5px] font-bold uppercase leading-tight tracking-wide">
                     {stepTabTitle(item, techpackSpecFlow)}
                   </span>
                 </button>
