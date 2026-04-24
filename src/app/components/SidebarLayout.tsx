@@ -111,26 +111,26 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     <div className="min-h-dvh overflow-x-hidden bg-[#0F0F0F] pb-[env(safe-area-inset-bottom)]">
       {/* Mobile / tablet top bar */}
       {!isLgUp && (
-        <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-white/10 bg-black/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+        <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[4.35rem] items-center justify-between border-b border-white/10 bg-black/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md sm:px-5">
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
+            className="flex size-12 min-h-12 min-w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10"
             aria-label="Open menu"
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="size-7" strokeWidth={2} />
           </button>
           <Link
             to="/dashboard"
-            className="font-['Plus_Jakarta_Sans',sans-serif] text-[13px] font-extrabold uppercase tracking-[0.18em] text-white"
+            className="font-['Plus_Jakarta_Sans',sans-serif] text-[15px] font-extrabold uppercase tracking-[0.16em] text-white"
           >
             Ceriga
           </Link>
-          <div className="flex items-center gap-2">
-            <NotificationBell className="h-11 w-11 min-h-[44px] min-w-[44px] border-white/10 bg-white/5 shadow-none backdrop-blur-0" />
+          <div className="flex items-center gap-2.5">
+            <NotificationBell className="size-12 min-h-12 min-w-12 border-white/10 bg-white/5 shadow-none backdrop-blur-0 [&_svg]:size-[22px]" />
             <Link
               to="/catalog"
-              className="rounded-xl bg-[#CC2D24] px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white hover:bg-[#CC2D24]/90"
+              className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24] px-4 py-3 text-[12px] font-bold uppercase tracking-wider text-white hover:bg-[#CC2D24]/90"
             >
               Build
             </Link>
@@ -269,7 +269,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         className="min-h-dvh overflow-x-hidden transition-all duration-300 lg:pt-0"
         style={{
           marginLeft: isLgUp ? sidebarWidth : 0,
-          paddingTop: isLgUp ? 0 : 'calc(3.75rem + env(safe-area-inset-top))',
+          paddingTop: isLgUp ? 0 : 'calc(4.35rem + env(safe-area-inset-top))',
         }}
       >
         {isLgUp && location.pathname !== '/dashboard' && (

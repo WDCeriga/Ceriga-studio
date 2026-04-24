@@ -37,7 +37,6 @@ import {
 } from './PrintsDesignStep';
 import { InlineElementToolbar } from './InlineElementToolbar';
 import { StudioColorField } from './StudioColorField';
-import { useVisualViewportBottomInset } from '../../lib/useVisualViewportBottomInset';
 import { cn } from '../ui/utils';
 import {
   STUDIO_MAIN_COLORS,
@@ -1674,11 +1673,12 @@ function DesignSurface({
 
   const selectedElement = editable ? elements.find((el) => el.id === selectedId) ?? null : null;
   const showInlineToolbar = Boolean(editable && selectedElement);
-  const keyboardBottomInset = useVisualViewportBottomInset();
-  const dockTextToolbar = Boolean(
-    narrowViewport && phoneConfigSheetCollapsed && showInlineToolbar && selectedElement?.type === 'text',
+  /** Phone: text styling is sidebar-only — no floating inline bar. */
+  const phoneTextUsesSidebarOnly =
+    narrowViewport && showInlineToolbar && selectedElement?.type === 'text';
+  const showChromeToolbar = Boolean(
+    showInlineToolbar && selectedElement && !phoneTextUsesSidebarOnly,
   );
-  const showChromeToolbar = Boolean(showInlineToolbar && selectedElement && !dockTextToolbar);
   const [cropEditingId, setCropEditingId] = useState<string | null>(null);
 
   const liveCanvasS = liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1;
@@ -1701,19 +1701,21 @@ function DesignSurface({
         {narrowViewport && showChromeToolbar && selectedElement && typeof document !== 'undefined'
           ? createPortal(
               <div
-                className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2 pt-1 sm:px-3 sm:pt-2"
+                className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2 pt-2 max-sm:px-20 sm:px-3 sm:pt-2"
                 style={{
-                  top: 'calc(env(safe-area-inset-top, 0px) + 4.25rem)',
+                  /** Below phone navbar + front/back stack so the pill does not cover view toggles. */
+                  top: 'calc(env(safe-area-inset-top, 0px) + 6.5rem)',
                 }}
               >
-                <div className="pointer-events-auto mx-auto w-max max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
+                <div className="pointer-events-auto mx-auto w-full min-w-0 max-w-[min(16rem,calc(100vw-6.75rem))] sm:mx-auto sm:w-max sm:max-w-[calc(100vw-1rem)]">
                   <InlineElementToolbar
                     element={selectedElement}
                     onPatch={(patch) => updateElement(selectedElement.id, patch)}
                     onDuplicate={() => duplicateElement(selectedElement.id)}
                     onDelete={() => removeElement(selectedElement.id)}
                     compact
-                    className="w-full max-w-none"
+                    comfortableCompact
+                    className="!max-w-[min(16rem,calc(100vw-6.75rem))] sm:!max-w-[min(24rem,calc(100vw-2rem))]"
                     onCropModeChange={(cropping) =>
                       setCropEditingId(cropping ? selectedElement.id : null)
                     }
@@ -1742,36 +1744,9 @@ function DesignSurface({
                 />
               </div>
             ) : null}
-        {dockTextToolbar && selectedElement && typeof document !== 'undefined'
-          ? createPortal(
-              <div
-                className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2"
-                style={{
-                  bottom: Math.max(10, keyboardBottomInset + 6),
-                  paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
-                }}
-              >
-                <div className="pointer-events-auto mx-auto w-max min-w-0 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
-                  <InlineElementToolbar
-                    element={selectedElement}
-                    onPatch={(patch) => updateElement(selectedElement.id, patch)}
-                    onDuplicate={() => duplicateElement(selectedElement.id)}
-                    onDelete={() => removeElement(selectedElement.id)}
-                    compact
-                    className="w-full max-w-none"
-                    popoverOpenAbove
-                    onCropModeChange={(cropping) =>
-                      setCropEditingId(cropping ? selectedElement.id : null)
-                    }
-                  />
-                </div>
-              </div>,
-              document.body,
-            )
-          : null}
         <div
           className={cn(
-            'relative mx-auto border-2 shadow-[0_12px_32px_rgba(0,0,0,0.16)]',
+            'relative mx-auto shrink-0 border-2 shadow-[0_12px_32px_rgba(0,0,0,0.16)]',
             darkSurface
               ? 'border-white/50 ring-1 ring-white/20 ring-inset'
               : 'border-black',
@@ -2000,6 +1975,7 @@ function DesignSurface({
                 )}
                 {selected && editable && !isEditingText ? (
                   <PrintTransformOverlay
+                    comfortableTouch={narrowViewport}
                     uiInverseScale={uiInv}
                     onRotatePointerDown={(e) => {
                       e.stopPropagation();

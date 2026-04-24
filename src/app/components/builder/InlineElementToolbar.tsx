@@ -52,6 +52,8 @@ interface Props {
   fontOptions?: readonly string[];
   /** Compact layout — shrinks paddings / hides labels for narrow canvases. */
   compact?: boolean;
+  /** Slightly larger compact controls (phone portaled toolbars on prints / label / packaging). */
+  comfortableCompact?: boolean;
   /**
    * Notifies the parent preview when the crop popover opens / closes, so it can render the
    * "crop editing" preview (full image with dimmed overlays on the cropped regions, Canva-style).
@@ -83,6 +85,7 @@ export function InlineElementToolbar({
   onDelete,
   fontOptions = DEFAULT_FONTS,
   compact = false,
+  comfortableCompact = false,
   onCropModeChange,
   className,
   popoverOpenAbove = false,
@@ -138,12 +141,22 @@ export function InlineElementToolbar({
 
   const btnBase =
     'builder-focus press-feedback relative inline-flex shrink-0 items-center justify-center rounded-md text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:pointer-events-none';
-  const iconBtn = cn(btnBase, compact ? 'h-9 w-9 rounded-md active:scale-[0.97]' : 'h-8 w-8');
+  const iconBtn = cn(
+    btnBase,
+    !compact && 'h-8 w-8',
+    compact && comfortableCompact && 'h-12 w-12 rounded-md active:scale-[0.97]',
+    compact && !comfortableCompact && 'h-10 w-10 rounded-md active:scale-[0.97]',
+  );
   const textBtn = cn(
     btnBase,
-    compact ? 'h-9 min-h-9 gap-0.5 rounded-md px-1.5 text-[10px] font-semibold active:scale-[0.98]' : 'h-8 gap-1 px-2.5 text-[11px]',
+    !compact && 'h-8 gap-1 px-2.5 text-[11px]',
+    compact &&
+      comfortableCompact &&
+      'h-12 min-h-12 gap-0.5 rounded-md px-2.5 text-[12px] font-semibold active:scale-[0.98]',
+    compact && !comfortableCompact && 'h-10 min-h-10 gap-0.5 rounded-md px-2 text-[11px] font-semibold active:scale-[0.98]',
   );
-  const ic = compact ? 'h-3 w-3' : 'h-3.5 w-3.5';
+  const ic =
+    compact && comfortableCompact ? 'h-5 w-5' : compact ? 'h-4 w-4' : 'h-3.5 w-3.5';
 
   const currentFont = element.fontFamily ?? 'Inter';
   const currentSize = element.fontSize ?? 30;
@@ -192,24 +205,27 @@ export function InlineElementToolbar({
         'pointer-events-auto relative z-[60] min-w-0 max-w-full animate-builder-pop-in',
         /** Compact: fixed viewport width — inner row is `w-max` and scrolls horizontally (no max-width on the pill). */
         /** Use viewport width so portaled toolbars aren’t capped by a narrow parent `100%`. */
-        compact && 'w-full max-w-[calc(100vw-1.15rem)] sm:max-w-[calc(100vw-1.35rem)]',
+        compact &&
+          'w-full max-w-[min(22rem,calc(100vw-2.75rem))] sm:max-w-[min(24rem,calc(100vw-2rem))]',
         className,
       )}
     >
       <div
         className={cn(
-          compact &&
-            'no-scrollbar flex w-full min-w-0 touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [-webkit-overflow-scrolling:touch] scroll-pl-1 scroll-pr-1',
+          'flex shrink-0 flex-nowrap items-center rounded-2xl border text-white shadow-[0_18px_48px_rgba(0,0,0,0.55),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-xl',
+          'border-white/[0.12] bg-[#141414]/98 ring-1 ring-black/40',
+            compact
+            ? cn(
+                'no-scrollbar w-full min-w-0 touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [-webkit-overflow-scrolling:touch]',
+                /** Same node as overflow so scroll clips to rounded corners (avoids square left edge). */
+                comfortableCompact ? 'gap-1.5 px-2.5 py-2' : 'gap-1 px-2 py-1.5',
+              )
+            : cn(
+                'w-max min-w-0 gap-1 border-white/[0.08] bg-[#141414]/96 px-1.5 py-1.5',
+                'max-w-[min(98vw,960px)]',
+              ),
         )}
       >
-        <div
-          className={cn(
-            'flex w-max shrink-0 flex-nowrap items-center rounded-2xl border text-white shadow-[0_18px_48px_rgba(0,0,0,0.55),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-xl',
-            'border-white/[0.12] bg-[#141414]/98 ring-1 ring-black/40',
-            compact ? 'gap-0.5 px-1.5 py-1' : 'min-w-0 gap-1 border-white/[0.08] bg-[#141414]/96 px-1.5 py-1.5',
-            !compact && 'max-w-[min(98vw,960px)]',
-          )}
-        >
         {isText ? (
           <>
             {/* Font family */}
@@ -262,7 +278,11 @@ export function InlineElementToolbar({
                 onPointerDown={(e) => e.stopPropagation()}
                 className={cn(
                   'builder-focus rounded-md border border-transparent bg-transparent text-center font-semibold text-white outline-none hover:border-white/10 focus:border-white/20 disabled:cursor-not-allowed disabled:opacity-40',
-                  compact ? 'h-6 w-9 text-[11px]' : 'h-6 w-10 text-[12px]',
+                  compact && comfortableCompact
+                    ? 'h-9 w-11 text-[13px]'
+                    : compact
+                      ? 'h-8 w-10 text-[12px]'
+                      : 'h-6 w-10 text-[12px]',
                 )}
               />
               <button
@@ -296,6 +316,8 @@ export function InlineElementToolbar({
                 style={{ backgroundColor: currentColor }}
               />
             </button>
+
+            <Divider />
 
             {/* Italic */}
             <button
@@ -466,7 +488,6 @@ export function InlineElementToolbar({
         >
           <Trash2 className={ic} />
         </button>
-        </div>
       </div>
 
       {/* ──────────────── Popovers ──────────────── */}
@@ -897,10 +918,12 @@ export function InlineElementToolbar({
           <SheetContent
             side="bottom"
             className={cn(
-              'z-[500] h-auto max-h-[min(90dvh,720px)] gap-0 overflow-hidden rounded-t-[1.35rem] border-x-0 border-t border-white/12 bg-[#101010] p-0 !text-white shadow-[0_-20px_60px_rgba(0,0,0,0.55)]',
-              '[&>button]:absolute [&>button]:right-3 [&>button]:top-3 [&>button]:z-10 [&>button]:flex [&>button]:h-10 [&>button]:w-10 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-white/12 [&>button]:bg-white/[0.06] [&>button]:p-0 [&>button]:!text-white/85 [&>button]:shadow-sm [&>button]:hover:!text-white [&>button]:hover:bg-white/12',
+              'z-[500] flex h-auto max-h-[min(90dvh,720px)] w-full max-w-full flex-col items-center gap-0 overflow-hidden rounded-t-[1.35rem] border-x-0 border-t border-white/12 bg-[#101010] p-0 !text-white shadow-[0_-20px_60px_rgba(0,0,0,0.55)]',
+              /** Full-width sheet + centered column — avoids Radix slide transform fighting `translateX(-50%)` (panel jumped off-screen). */
+              '[&>button]:absolute [&>button]:right-[max(0.75rem,env(safe-area-inset-right,0px))] [&>button]:top-3 [&>button]:z-10 [&>button]:flex [&>button]:h-10 [&>button]:w-10 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-white/12 [&>button]:bg-white/[0.06] [&>button]:p-0 [&>button]:!text-white/85 [&>button]:shadow-sm [&>button]:hover:!text-white [&>button]:hover:bg-white/12',
             )}
           >
+            <div className="box-border flex w-full min-w-0 max-w-[min(22rem,calc(100vw-1.5rem))] flex-col pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))]">
             <div
               className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-white/35"
               aria-hidden
@@ -936,7 +959,7 @@ export function InlineElementToolbar({
                         setOpenPanel(null);
                       }}
                       className={cn(
-                        'builder-focus press-feedback flex min-h-[3.25rem] w-full items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-4 text-left text-[15px] text-white/90 active:bg-white/[0.08]',
+                        'builder-focus press-feedback flex min-h-[3.75rem] w-full items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-4 text-left text-[16px] text-white/90 active:bg-white/[0.08]',
                         currentFont === font && 'bg-white/[0.14] text-white',
                       )}
                       style={{ fontFamily: font }}
@@ -1000,7 +1023,7 @@ export function InlineElementToolbar({
                 </div>
               ) : null}
               {openPanel === 'align' ? (
-                <div className="grid grid-cols-2 gap-2 px-3 pb-4">
+                <div className="grid grid-cols-2 gap-2.5 px-3 pb-4">
                   {ALIGNS.map(({ id, icon: Icon }) => (
                     <button
                       key={id}
@@ -1010,13 +1033,13 @@ export function InlineElementToolbar({
                         setOpenPanel(null);
                       }}
                       className={cn(
-                        'builder-focus press-feedback flex h-12 items-center justify-center gap-2 rounded-xl border text-[12px] font-semibold text-white/75',
+                        'builder-focus press-feedback flex min-h-[3.5rem] items-center justify-center gap-2 rounded-xl border py-2 text-[13px] font-semibold text-white/75',
                         currentAlign === id
                           ? 'border-[#CC2D24] bg-[#CC2D24]/20 text-white'
                           : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:text-white',
                       )}
                     >
-                      <Icon className="h-5 w-5" />
+                      <Icon className="h-6 w-6" />
                       <span className="capitalize">{id}</span>
                     </button>
                   ))}
@@ -1322,6 +1345,7 @@ export function InlineElementToolbar({
                   />
                 </div>
               ) : null}
+            </div>
             </div>
           </SheetContent>
         </Sheet>

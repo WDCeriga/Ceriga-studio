@@ -2161,6 +2161,11 @@ export function Builder() {
   };
 
   const isPhone = layoutTier === 'phone';
+  /** Uniform square hit areas for phone top bar (Canva-style); preview swatches stay smaller in the center. */
+  const phoneNavIconCell =
+    'flex size-14 min-h-14 min-w-14 shrink-0 items-center justify-center rounded-xl';
+  /** `size-*` so Button’s svg rule does not force Lucide icons to `size-4`. */
+  const phoneNavIconClass = 'size-8';
   const phoneFrameClass = isPhone
     ? phoneEditorCollapsed
       ? PHONE_PREVIEW_FRAME_EXPANDED_CLASS
@@ -2514,7 +2519,7 @@ export function Builder() {
         <div
           className={cn(
             'pointer-events-none absolute z-[38] flex flex-col gap-1',
-            isPhone ? 'right-1.5 top-1.5' : 'right-2 top-2 sm:right-3 sm:top-3',
+            isPhone ? 'right-3 top-1.5' : 'right-2 top-2 sm:right-3 sm:top-3',
           )}
         >
           <div
@@ -2826,58 +2831,69 @@ export function Builder() {
         'h-[100dvh] max-h-[100dvh] min-h-0 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]',
       )}
     >
+      {!(isPhone && currentStep === 13) ? (
       <div
         className={cn(
           'relative flex border-b border-white/[0.09] bg-[#0c0c0c]',
           /** Above portaled design toolbars (z-[200]) so nav + dropdown trigger stay tappable. */
           isPhone && 'z-[220]',
           isPhone
-            ? 'min-h-[4rem] items-stretch border-white/[0.06] py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
+            ? 'min-h-[5.25rem] items-center border-white/[0.06] py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
             : 'flex-wrap items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5',
         )}
       >
         {isPhone ? (
-          <div className="flex w-full min-w-0 items-center gap-2">
-            <div className="flex shrink-0 items-center gap-1">
+          <div
+            className="no-scrollbar flex w-full min-w-0 flex-1 items-center gap-4 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+          >
+            <div className="grid shrink-0 grid-cols-2 gap-0.5" role="toolbar" aria-label="Project">
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
                 aria-label="Back to catalog"
-                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/60 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]"
+                className={cn(
+                  phoneNavIconCell,
+                  'p-0 !text-white/60 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]',
+                )}
               >
                 <Link to="/catalog" className="flex size-full items-center justify-center">
-                  <ArrowLeft className="h-7 w-7" strokeWidth={2.35} />
+                  <ArrowLeft className={phoneNavIconClass} strokeWidth={2.25} />
                 </Link>
               </Button>
               <Button
                 type="button"
                 variant="ghost"
-                className="relative z-[1] h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/75 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]"
+                className={cn(
+                  phoneNavIconCell,
+                  'relative z-[1] p-0 !text-white/75 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]',
+                )}
                 aria-label="Edit project name"
                 title="Edit name"
                 onClick={() => setIsEditingName(true)}
               >
-                <SquarePen className="h-7 w-7" strokeWidth={2.1} />
+                <SquarePen className={phoneNavIconClass} strokeWidth={2.25} />
               </Button>
             </div>
 
             {isEditingName ? (
-              <Input
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                onBlur={() => setIsEditingName(false)}
-                onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-                className="h-11 min-h-11 min-w-0 flex-1 rounded-xl border-white/20 bg-white/5 px-3 text-[14px] font-semibold text-white"
-                autoFocus
-              />
+              <div className="flex min-w-0 flex-1 justify-center px-2">
+                <Input
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                  className="h-11 min-h-11 w-full max-w-[min(100%,18rem)] rounded-xl border-white/20 bg-white/5 px-3 text-[14px] font-semibold text-white"
+                  autoFocus
+                />
+              </div>
             ) : (
-              <div className="flex min-w-0 flex-1 justify-center px-1">
-                <div
-                  className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-white/12 bg-white/[0.06] p-1.5 shadow-inner"
-                  role="group"
-                  aria-label="Preview background"
-                >
+              <div
+                className="flex min-w-0 flex-1 justify-center px-2"
+                role="group"
+                aria-label="Preview background"
+              >
+                <div className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl border border-white/12 bg-white/[0.06] px-1.5 shadow-inner">
                   {(['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
@@ -2886,9 +2902,9 @@ export function Builder() {
                       title={bg}
                       aria-label={`Background ${bg}`}
                       className={cn(
-                        'builder-focus press-feedback h-7 w-7 shrink-0 rounded-md border-2 transition-transform active:scale-95',
+                        'builder-focus press-feedback size-8 shrink-0 rounded-md border-2 transition-transform active:scale-95',
                         previewBackground === bg
-                          ? 'border-[#CC2D24] ring-2 ring-[#CC2D24]/40'
+                          ? 'border-[#CC2D24] ring-1 ring-[#CC2D24]/35'
                           : 'border-transparent hover:border-white/25',
                       )}
                       style={
@@ -2896,7 +2912,7 @@ export function Builder() {
                           ? {
                               backgroundImage:
                                 'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
-                              backgroundSize: '9px 9px',
+                              backgroundSize: '8px 8px',
                               backgroundPosition: '0 0, 4px 4px',
                             }
                           : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
@@ -2907,12 +2923,18 @@ export function Builder() {
               </div>
             )}
 
-            <div className="flex shrink-0 items-center gap-0.5" aria-live="polite">
+            <div
+              className="grid shrink-0 grid-cols-4 gap-0.5"
+              aria-live="polite"
+              role="toolbar"
+              aria-label="Editor actions"
+            >
               <button
                 type="button"
                 onClick={() => setShowExtraDetails((prev) => !prev)}
                 className={cn(
-                  'builder-focus press-feedback flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors',
+                  phoneNavIconCell,
+                  'builder-focus press-feedback transition-colors',
                   showExtraDetails
                     ? 'bg-white/10 text-white'
                     : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
@@ -2921,7 +2943,7 @@ export function Builder() {
                 aria-label={showExtraDetails ? 'Hide details' : 'Show details'}
                 aria-pressed={showExtraDetails}
               >
-                <Info className="h-7 w-7" strokeWidth={2} />
+                <Info className={phoneNavIconClass} strokeWidth={2.25} />
               </button>
               <Button
                 type="button"
@@ -2930,9 +2952,9 @@ export function Builder() {
                 onClick={undo}
                 disabled={!undoAvailable}
                 aria-label="Undo"
-                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white disabled:opacity-30')}
               >
-                <Undo2 className="h-7 w-7" strokeWidth={2.1} />
+                <Undo2 className={phoneNavIconClass} strokeWidth={2.25} />
               </Button>
               <Button
                 type="button"
@@ -2941,20 +2963,9 @@ export function Builder() {
                 onClick={redo}
                 disabled={!redoAvailable}
                 aria-label="Redo"
-                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white disabled:opacity-30')}
               >
-                <Redo2 className="h-7 w-7" strokeWidth={2.1} />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowReviewDrawer(true)}
-                aria-label="See summary"
-                title="See summary"
-                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white"
-              >
-                <FileCheck className="h-6 w-6" strokeWidth={2.15} />
+                <Redo2 className={phoneNavIconClass} strokeWidth={2.25} />
               </Button>
               <Button
                 type="button"
@@ -2963,9 +2974,9 @@ export function Builder() {
                 onClick={() => setShowVersionHistory(true)}
                 aria-label="Version history"
                 title="Version history"
-                className="h-12 min-h-12 w-12 shrink-0 rounded-xl p-0 !text-white/70 hover:!text-white"
+                className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white')}
               >
-                <History className="h-7 w-7" strokeWidth={2.1} />
+                <History className={phoneNavIconClass} strokeWidth={2.25} />
               </Button>
             </div>
           </div>
@@ -3108,6 +3119,7 @@ export function Builder() {
           </>
         )}
       </div>
+      ) : null}
 
       {(!networkOnline || saveError) && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#CC2D24]/25 bg-[#CC2D24]/[0.07] px-3 py-2 sm:px-5">
@@ -3183,62 +3195,70 @@ export function Builder() {
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {isPhone ? (
-          <PanelGroup
-            key="builder-phone-panels"
-            direction="vertical"
-            className="flex min-h-0 flex-1 flex-col"
-            // Bump when phone panel constraints change so saved % from localStorage cannot block collapse.
-            autoSaveId="ceriga-builder-phone-v12"
-          >
-            {/*
-              Top: min ~48% keeps the garment visible; bottom max 52% caps how far the editor can slide up.
-            */}
-            <Panel
-              id="phone-builder-preview"
-              defaultSize={42}
-              minSize={48}
-              maxSize={100}
-              className={cn(
-                'relative z-10 flex min-h-0 min-w-0 overflow-hidden',
-                draggingDetail && 'z-40 overflow-visible',
-              )}
-            >
-              {livePreviewBlock}
-            </Panel>
-            <PanelResizeHandle
-              title="Drag to resize preview and configure"
-              className={cn(
-                'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#0F0F0F] transition-colors hover:bg-[#141414] data-[resize-handle-state=drag]:bg-[#1a1010]',
-                isPhone ? 'min-h-10 py-2' : 'h-3 py-0.5',
-                isPhone && phoneEditorCollapsed && 'pointer-events-none h-0 min-h-0 overflow-hidden !py-0 opacity-0',
-              )}
-            >
-              <div className="h-1 w-[4.5rem] rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
-              <span className="sr-only">Drag to resize preview and configure panels</span>
-            </PanelResizeHandle>
-            <Panel
-              id="phone-builder-editor"
-              ref={phoneEditorPanelRef}
-              defaultSize={50}
-              minSize={18}
-              maxSize={52}
-              collapsible
-              collapsedSize={0}
-              onCollapse={() => setPhoneEditorCollapsed(true)}
-              onExpand={() => setPhoneEditorCollapsed(false)}
-              className="relative z-0 flex min-h-0 min-w-0 overflow-hidden"
-            >
-              <div
-                className={cn(
-                  'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',
-                  // Softer upward shadow on phone so it does not visually cover the live preview toolbar.
-                  'rounded-t-[1.25rem] shadow-[0_-4px_28px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:rounded-t-2xl sm:shadow-[0_-12px_40px_rgba(0,0,0,0.5)]',
-                )}
-              >
+          currentStep === 13 ? (
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#0F0F0F]">
+              <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden border-t border-white/[0.04] bg-[#0c0c0c]">
                 {renderEditorMain()}
               </div>
-            </Panel>
-          </PanelGroup>
+            </div>
+          ) : (
+            <PanelGroup
+              key="builder-phone-panels"
+              direction="vertical"
+              className="flex min-h-0 flex-1 flex-col"
+              // Bump when phone panel constraints change so saved % from localStorage cannot block collapse.
+              autoSaveId="ceriga-builder-phone-v12"
+            >
+              {/*
+              Top: min ~48% keeps the garment visible; bottom max 52% caps how far the editor can slide up.
+            */}
+              <Panel
+                id="phone-builder-preview"
+                defaultSize={42}
+                minSize={48}
+                maxSize={100}
+                className={cn(
+                  'relative z-10 flex min-h-0 min-w-0 overflow-hidden',
+                  draggingDetail && 'z-40 overflow-visible',
+                )}
+              >
+                {livePreviewBlock}
+              </Panel>
+              <PanelResizeHandle
+                title="Drag to resize preview and configure"
+                className={cn(
+                  'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#0F0F0F] transition-colors hover:bg-[#141414] data-[resize-handle-state=drag]:bg-[#1a1010]',
+                  isPhone ? 'min-h-10 py-2' : 'h-3 py-0.5',
+                  isPhone && phoneEditorCollapsed && 'pointer-events-none h-0 min-h-0 overflow-hidden !py-0 opacity-0',
+                )}
+              >
+                <div className="h-1 w-[4.5rem] rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
+                <span className="sr-only">Drag to resize preview and configure panels</span>
+              </PanelResizeHandle>
+              <Panel
+                id="phone-builder-editor"
+                ref={phoneEditorPanelRef}
+                defaultSize={50}
+                minSize={18}
+                maxSize={52}
+                collapsible
+                collapsedSize={0}
+                onCollapse={() => setPhoneEditorCollapsed(true)}
+                onExpand={() => setPhoneEditorCollapsed(false)}
+                className="relative z-0 flex min-h-0 min-w-0 overflow-hidden"
+              >
+                <div
+                  className={cn(
+                    'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',
+                    // Softer upward shadow on phone so it does not visually cover the live preview toolbar.
+                    'rounded-t-[1.25rem] shadow-[0_-4px_28px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:rounded-t-2xl sm:shadow-[0_-12px_40px_rgba(0,0,0,0.5)]',
+                  )}
+                >
+                  {renderEditorMain()}
+                </div>
+              </Panel>
+            </PanelGroup>
+          )
         ) : (
           <PanelGroup
             key="builder-desktop-panels"
@@ -3299,7 +3319,7 @@ export function Builder() {
               Step {phoneProcessStepCount} · {phoneProcessTitle}
             </div>
           </div>
-          <div className="scrollbar-dark flex min-h-[4rem] touch-pan-x gap-0 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-1.5 [-webkit-overflow-scrolling:touch]">
+          <div className="scrollbar-dark flex min-h-[4.25rem] touch-pan-x gap-0 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-1.5 [-webkit-overflow-scrolling:touch]">
             {visibleBuilderSteps.map((item) => {
               const current = currentStep === item.id;
               const enabled = visitedSteps.includes(item.id);
@@ -3313,7 +3333,7 @@ export function Builder() {
                   disabled={!enabled}
                   title={stepTabTitle(item, techpackSpecFlow)}
                   className={cn(
-                    'builder-focus press-feedback flex min-h-[3.75rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1.5 text-center',
+                    'builder-focus press-feedback flex min-h-[4rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1.5 text-center',
                     item.id === 10 || item.id === 11
                       ? 'w-[min(8.5rem,calc((100vw-1rem)/4.25))] min-w-[min(7rem,calc((100vw-1rem)/4.25))] max-w-[9rem]'
                       : 'w-[calc((100vw-1.25rem)/5)] min-w-[calc((100vw-1.25rem)/5)] max-w-[5.25rem]',
@@ -3325,10 +3345,10 @@ export function Builder() {
                   )}
                 >
                   <StepIcon
-                    className={cn('h-7 w-7 shrink-0', current ? 'text-white' : 'text-white/50')}
+                    className={cn('h-8 w-8 shrink-0', current ? 'text-white' : 'text-white/50')}
                     strokeWidth={1.9}
                   />
-                  <span className="line-clamp-2 w-full text-[7.5px] font-bold uppercase leading-tight tracking-wide">
+                  <span className="line-clamp-2 w-full text-[8px] font-bold uppercase leading-tight tracking-wide">
                     {stepTabTitle(item, techpackSpecFlow)}
                   </span>
                 </button>
@@ -3460,10 +3480,10 @@ export function Builder() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-7 shrink-0 border-white/18 bg-white/[0.04] px-2.5 text-[10px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1]"
+                className="h-10 min-h-10 shrink-0 border-white/18 bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
                 onClick={saveManualVersion}
               >
-                <Save className="mr-1.5 h-3 w-3" />
+                <Save className="mr-2 h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
                 Save version
               </Button>
             </div>
@@ -3531,14 +3551,14 @@ export function Builder() {
                           <div className="mt-0.5 truncate text-[10.5px] text-white/55">
                             {v.summary}
                           </div>
-                          <div className="mt-auto flex items-center gap-1 pt-1.5 opacity-90 transition group-hover:opacity-100">
+                          <div className="mt-auto flex items-center gap-2 pt-1.5 opacity-90 transition group-hover:opacity-100">
                             <button
                               type="button"
                               onClick={() => restoreVersion(v.id)}
-                              className="builder-focus press-feedback flex h-6 items-center gap-1 rounded-md border border-white/15 bg-white/[0.04] px-1.5 text-[10px] font-semibold text-white hover:bg-white/[0.1]"
+                              className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
                               title="Restore this version"
                             >
-                              <RotateCcw className="h-3 w-3" strokeWidth={2.25} />
+                              <RotateCcw className="h-4 w-4 sm:h-3 sm:w-3" strokeWidth={2.25} />
                               Restore
                             </button>
                             <button
@@ -3546,9 +3566,9 @@ export function Builder() {
                               onClick={() => removeVersion(v.id)}
                               aria-label="Delete version"
                               title="Delete"
-                              className="builder-focus flex h-6 w-6 items-center justify-center rounded-md text-white/40 hover:bg-white/[0.06] hover:text-[#FF3B30]"
+                              className="builder-focus flex min-h-10 min-w-10 items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.06] hover:text-[#FF3B30] sm:h-8 sm:min-h-0 sm:min-w-0 sm:w-8 sm:rounded-md"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
                             </button>
                           </div>
                         </div>

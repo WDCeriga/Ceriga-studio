@@ -28,7 +28,6 @@ import {
   GripVertical,
 } from 'lucide-react';
 import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
-import { useVisualViewportBottomInset } from '../../lib/useVisualViewportBottomInset';
 import {
   snapDragInZone,
   measureHalfExtentsInZone,
@@ -447,14 +446,19 @@ export function PrintTransformOverlay({
   onResizePointerDown,
   /** Counter parent scale (e.g. live preview zoom) so handles stay a usable on-screen size. */
   uiInverseScale = 1,
+  /** Larger resize/rotate affordances on narrow viewports (phone). */
+  comfortableTouch = false,
 }: {
   onRotatePointerDown: (e: React.PointerEvent) => void;
   onResizePointerDown: (e: React.PointerEvent, h: ResizeHandle) => void;
   uiInverseScale?: number;
+  comfortableTouch?: boolean;
 }) {
   const inv = uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
-  const dot =
-    'absolute z-30 flex h-3.5 w-3.5 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] active:scale-95';
+  const dot = cn(
+    'absolute z-30 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] active:scale-95',
+    comfortableTouch ? 'flex h-5 w-5' : 'flex h-3.5 w-3.5',
+  );
   /** Single red ring (border only) — avoid border + box-shadow or duplicate rings on mobile. */
   const dotStyle = { borderColor: HANDLE_RED };
   return (
@@ -468,73 +472,95 @@ export function PrintTransformOverlay({
       }
     >
       <div
-        className="pointer-events-none absolute inset-[-7px] rounded-2xl border bg-gradient-to-b from-[#CC2D24]/12 to-transparent"
+        className={cn(
+          'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#CC2D24]/12 to-transparent',
+          comfortableTouch ? 'inset-[-9px]' : 'inset-[-7px]',
+        )}
         style={{ borderColor: `${HANDLE_RED}aa` }}
       />
       <button
         type="button"
         aria-label="Resize NW — scale"
-        className={cn(dot, '-left-2 -top-2 cursor-nwse-resize')}
+        className={cn(dot, comfortableTouch ? '-left-2.5 -top-2.5' : '-left-2 -top-2', 'cursor-nwse-resize')}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'nw')}
       />
       <button
         type="button"
         aria-label="Resize NE — scale"
-        className={cn(dot, '-right-2 -top-2 cursor-nesw-resize')}
+        className={cn(dot, comfortableTouch ? '-right-2.5 -top-2.5' : '-right-2 -top-2', 'cursor-nesw-resize')}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'ne')}
       />
       <button
         type="button"
         aria-label="Resize SW — scale"
-        className={cn(dot, '-bottom-2 -left-2 cursor-nesw-resize')}
+        className={cn(dot, comfortableTouch ? '-bottom-2.5 -left-2.5' : '-bottom-2 -left-2', 'cursor-nesw-resize')}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'sw')}
       />
       <button
         type="button"
         aria-label="Resize SE — scale"
-        className={cn(dot, '-bottom-2 -right-2 cursor-nwse-resize')}
+        className={cn(dot, comfortableTouch ? '-bottom-2.5 -right-2.5' : '-bottom-2 -right-2', 'cursor-nwse-resize')}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'se')}
       />
       <button
         type="button"
         aria-label="Stretch width — east"
-        className={cn(dot, '-right-2 top-1/2 -translate-y-1/2 cursor-ew-resize')}
+        className={cn(
+          dot,
+          comfortableTouch ? '-right-2.5 top-1/2 -translate-y-1/2' : '-right-2 top-1/2 -translate-y-1/2',
+          'cursor-ew-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'e')}
       />
       <button
         type="button"
         aria-label="Stretch width — west"
-        className={cn(dot, '-left-2 top-1/2 -translate-y-1/2 cursor-ew-resize')}
+        className={cn(
+          dot,
+          comfortableTouch ? '-left-2.5 top-1/2 -translate-y-1/2' : '-left-2 top-1/2 -translate-y-1/2',
+          'cursor-ew-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'w')}
       />
       <button
         type="button"
         aria-label="Stretch height — north"
-        className={cn(dot, '-top-2 left-1/2 -translate-x-1/2 cursor-ns-resize')}
+        className={cn(
+          dot,
+          comfortableTouch ? '-top-2.5 left-1/2 -translate-x-1/2' : '-top-2 left-1/2 -translate-x-1/2',
+          'cursor-ns-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'n')}
       />
       <button
         type="button"
         aria-label="Stretch height — south"
-        className={cn(dot, '-bottom-2 left-1/2 -translate-x-1/2 cursor-ns-resize')}
+        className={cn(
+          dot,
+          comfortableTouch ? '-bottom-2.5 left-1/2 -translate-x-1/2' : '-bottom-2 left-1/2 -translate-x-1/2',
+          'cursor-ns-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 's')}
       />
       <button
         type="button"
         aria-label="Rotate"
-        className="absolute -bottom-11 left-1/2 z-30 flex h-9 w-9 -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] text-[#CC2D24] shadow-lg active:scale-95"
+        className={cn(
+          'absolute left-1/2 z-30 flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] text-[#CC2D24] shadow-lg active:scale-95',
+          comfortableTouch ? '-bottom-12 h-11 w-11' : '-bottom-11 h-9 w-9',
+        )}
         style={{ borderColor: HANDLE_RED }}
         onPointerDown={onRotatePointerDown}
       >
-        <RotateCw className="h-4 w-4" />
+        <RotateCw className={comfortableTouch ? 'h-5 w-5' : 'h-4 w-4'} />
       </button>
     </div>
   );
@@ -2231,11 +2257,12 @@ export function PrintsDesignPreview({
 
   const selectedElement = editable ? elements.find((el) => el.id === selectedId) ?? null : null;
   const showInlineToolbar = Boolean(editable && selectedElement);
-  const keyboardBottomInset = useVisualViewportBottomInset();
-  const dockTextToolbar = Boolean(
-    narrowViewport && phoneConfigSheetCollapsed && showInlineToolbar && selectedElement?.type === 'text',
+  /** Phone: text styling is sidebar-only — no floating inline bar. */
+  const phoneTextUsesSidebarOnly =
+    narrowViewport && showInlineToolbar && selectedElement?.type === 'text';
+  const showCanvasChromeToolbar = Boolean(
+    showInlineToolbar && selectedElement && !phoneTextUsesSidebarOnly,
   );
-  const showCanvasChromeToolbar = Boolean(showInlineToolbar && selectedElement && !dockTextToolbar);
   /** Element whose Crop panel is currently open — we render the full image + dim overlay. */
   const [cropEditingId, setCropEditingId] = useState<string | null>(null);
 
@@ -2252,18 +2279,21 @@ export function PrintsDesignPreview({
       {narrowViewport && showCanvasChromeToolbar && selectedElement && typeof document !== 'undefined'
         ? createPortal(
             <div
-              className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2 pt-1 sm:px-3 sm:pt-2"
+              className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2 pt-2 max-sm:px-20 sm:px-3 sm:pt-2"
               style={{
-                top: 'calc(env(safe-area-inset-top, 0px) + 4.25rem)',
+                /** Sits below navbar + clears front/back column on the right. */
+                top: 'calc(env(safe-area-inset-top, 0px) + 5.75rem)',
               }}
             >
-              <div className="pointer-events-auto mx-auto w-max min-w-0 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
+              <div className="pointer-events-auto mx-auto w-full min-w-0 max-w-[min(18.5rem,calc(100vw-5.75rem))] sm:mx-auto sm:w-max sm:max-w-[calc(100vw-1rem)]">
                 <InlineElementToolbar
                   element={selectedElement}
                   onPatch={(patch) => updateElement(selectedElement.id, patch)}
                   onDuplicate={() => duplicateElement(selectedElement.id)}
                   onDelete={() => removeElement(selectedElement.id)}
                   compact
+                  comfortableCompact
+                  className="!max-w-[min(18.5rem,calc(100vw-5.75rem))] sm:!max-w-[min(22rem,calc(100vw-2rem))]"
                   onCropModeChange={(cropping) =>
                     setCropEditingId(cropping ? selectedElement.id : null)
                   }
@@ -2293,32 +2323,6 @@ export function PrintsDesignPreview({
               />
             </div>
           ) : null}
-      {dockTextToolbar && selectedElement && typeof document !== 'undefined'
-        ? createPortal(
-            <div
-              className="pointer-events-none fixed inset-x-0 z-[200] flex justify-center px-2"
-              style={{
-                bottom: Math.max(10, keyboardBottomInset + 6),
-                paddingBottom: 'max(0px, env(safe-area-inset-bottom, 0px))',
-              }}
-            >
-              <div className="pointer-events-auto mx-auto w-max min-w-0 max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-1rem)]">
-                <InlineElementToolbar
-                  element={selectedElement}
-                  onPatch={(patch) => updateElement(selectedElement.id, patch)}
-                  onDuplicate={() => duplicateElement(selectedElement.id)}
-                  onDelete={() => removeElement(selectedElement.id)}
-                  compact
-                  popoverOpenAbove
-                  onCropModeChange={(cropping) =>
-                    setCropEditingId(cropping ? selectedElement.id : null)
-                  }
-                />
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
       <div
         className={cn(
           'relative min-h-0 w-full flex-1',
@@ -2557,6 +2561,7 @@ export function PrintsDesignPreview({
                 )}
                 {selected && editable && !locked && !isEditingText ? (
                   <PrintTransformOverlay
+                    comfortableTouch={narrowViewport}
                     uiInverseScale={uiInv}
                     onRotatePointerDown={(e) => {
                       e.stopPropagation();
