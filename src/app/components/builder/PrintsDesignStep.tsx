@@ -455,11 +455,12 @@ export function PrintTransformOverlay({
   const inv = uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
   const dot =
     'absolute z-30 flex h-3.5 w-3.5 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] active:scale-95';
-  const dotStyle = { borderColor: HANDLE_RED, boxShadow: `0 0 0 1px ${HANDLE_RED}40` };
+  /** Single red ring (border only) — avoid border + box-shadow or duplicate rings on mobile. */
+  const dotStyle = { borderColor: HANDLE_RED };
   return (
     <div
       data-handles
-      className={inv === 1 ? 'contents' : 'pointer-events-none absolute inset-0'}
+      className="pointer-events-none absolute inset-0"
       style={
         inv === 1
           ? undefined
@@ -529,8 +530,8 @@ export function PrintTransformOverlay({
       <button
         type="button"
         aria-label="Rotate"
-        className="absolute -bottom-11 left-1/2 z-30 flex h-9 w-9 -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] text-[#CC2D24] active:scale-95"
-        style={{ borderColor: HANDLE_RED, boxShadow: '0 6px 22px rgba(0,0,0,0.45)' }}
+        className="absolute -bottom-11 left-1/2 z-30 flex h-9 w-9 -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] text-[#CC2D24] shadow-lg active:scale-95"
+        style={{ borderColor: HANDLE_RED }}
         onPointerDown={onRotatePointerDown}
       >
         <RotateCw className="h-4 w-4" />

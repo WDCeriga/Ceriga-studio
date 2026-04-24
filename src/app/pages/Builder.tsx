@@ -19,7 +19,6 @@ import {
   Hash,
   History,
   ImageIcon,
-  Info,
   Layers,
   Link2,
   Minus,
@@ -36,7 +35,7 @@ import {
   Trash2,
   Undo2,
   X,
-  MoreVertical,
+  Menu,
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -1159,6 +1158,22 @@ export function Builder() {
     if (currentStep === 11) return;
     setState((p) => (p.packagingLayerSelectedId ? { ...p, packagingLayerSelectedId: null } : p));
   }, [currentStep]);
+
+  /** Continue / Back can change step while the phone sheet is collapsed; expand so the new step is visible. */
+  const previousStepForPhoneExpandRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (layoutTier !== 'phone') {
+      previousStepForPhoneExpandRef.current = currentStep;
+      return;
+    }
+    if (
+      previousStepForPhoneExpandRef.current !== null &&
+      previousStepForPhoneExpandRef.current !== currentStep
+    ) {
+      phoneEditorPanelRef.current?.expand();
+    }
+    previousStepForPhoneExpandRef.current = currentStep;
+  }, [currentStep, layoutTier]);
 
   const handleStepClick = (stepId: number) => {
     if (!(visitedSteps.includes(stepId) && !shouldSkipStep(stepId))) return;
@@ -2825,22 +2840,22 @@ export function Builder() {
         className={cn(
           'relative flex border-b border-white/[0.09] bg-[#0c0c0c]',
           isPhone
-            ? 'min-h-12 flex-nowrap items-center gap-1.5 px-2 py-1.5'
+            ? 'min-h-[3.5rem] flex-nowrap items-center gap-2 px-2 py-2'
             : 'flex-wrap items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5',
         )}
       >
         {isPhone ? (
           <>
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
                 aria-label="Back to catalog"
-                className="h-10 w-10 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white"
+                className="h-12 w-12 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white"
               >
                 <Link to="/catalog">
-                  <ArrowLeft className="h-5 w-5" />
+                  <ArrowLeft className="h-6 w-6" />
                 </Link>
               </Button>
               <DropdownMenu>
@@ -2848,33 +2863,35 @@ export function Builder() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="h-10 w-10 shrink-0 p-0 !text-white/75 hover:bg-white/10 hover:!text-white"
+                    className="h-12 w-12 shrink-0 p-0 !text-white/75 hover:bg-white/10 hover:!text-white"
                     aria-label="Project menu"
                   >
-                    <MoreVertical className="h-5 w-5" />
+                    <Menu className="h-6 w-6" strokeWidth={2.25} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="z-[500] min-w-[12rem] border border-white/12 bg-[#141414] text-white shadow-xl"
+                  className="z-[500] min-w-[13.5rem] border border-white/12 bg-[#141414] text-white shadow-xl"
                 >
                   <DropdownMenuItem
                     className="cursor-pointer focus:bg-white/10"
                     onClick={() => setIsEditingName(true)}
                   >
-                    Rename project
+                    Rename t-shirt
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer focus:bg-white/10"
                     onClick={() => setShowReviewDrawer(true)}
                   >
-                    Review spec
+                    Project summary
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer focus:bg-white/10"
                     onClick={() => setShowExtraDetails((v) => !v)}
                   >
-                    {showExtraDetails ? 'Hide spec on preview' : 'Show spec on preview'}
+                    {showExtraDetails
+                      ? 'Hide measurement notes on preview'
+                      : 'Show measurement notes on preview'}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -2884,27 +2901,13 @@ export function Builder() {
                   onChange={(e) => setProjectName(e.target.value)}
                   onBlur={() => setIsEditingName(false)}
                   onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-                  className="h-10 min-w-0 flex-1 border-white/20 bg-white/5 text-[14px] font-semibold text-white"
+                  className="h-11 min-w-0 flex-1 border-white/20 bg-white/5 text-[14px] font-semibold text-white"
                   autoFocus
                 />
               ) : null}
               {!isEditingName ? (
-                <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowExtraDetails((prev) => !prev)}
-                    className={cn(
-                      'builder-focus press-feedback flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                      showExtraDetails
-                        ? 'bg-white/10 text-white hover:bg-white/15'
-                        : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
-                    )}
-                    aria-pressed={showExtraDetails}
-                    aria-label="Toggle spec details on preview"
-                  >
-                    <Info className="h-4 w-4" strokeWidth={2} />
-                  </button>
-                  <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] p-1">
+                <div className="ml-auto flex min-w-0 shrink-0 items-center">
+                  <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-white/[0.04] p-0.5">
                     {(['black', 'white', 'transparent'] as const).map((bg) => (
                       <button
                         key={bg}
@@ -2913,7 +2916,7 @@ export function Builder() {
                         title={bg}
                         aria-label={`Background ${bg}`}
                         className={cn(
-                          'builder-focus press-feedback h-4 w-4 shrink-0 rounded border',
+                          'builder-focus press-feedback h-3 w-3 shrink-0 rounded border',
                           previewBackground === bg
                             ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
                             : 'border-white/15 hover:border-white/30',
@@ -2923,8 +2926,8 @@ export function Builder() {
                             ? {
                                 backgroundImage:
                                   'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
-                                backgroundSize: '8px 8px',
-                                backgroundPosition: '0 0, 4px 4px',
+                                backgroundSize: '6px 6px',
+                                backgroundPosition: '0 0, 3px 3px',
                               }
                             : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
                         }
@@ -2942,9 +2945,9 @@ export function Builder() {
                 onClick={undo}
                 disabled={!undoAvailable}
                 aria-label="Undo"
-                className="h-10 w-10 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                className="h-12 w-12 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
               >
-                <Undo2 className="h-5 w-5" />
+                <Undo2 className="h-6 w-6" />
               </Button>
               <Button
                 type="button"
@@ -2953,9 +2956,9 @@ export function Builder() {
                 onClick={redo}
                 disabled={!redoAvailable}
                 aria-label="Redo"
-                className="h-10 w-10 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
+                className="h-12 w-12 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
               >
-                <Redo2 className="h-5 w-5" />
+                <Redo2 className="h-6 w-6" />
               </Button>
               <Button
                 type="button"
@@ -2964,9 +2967,9 @@ export function Builder() {
                 onClick={() => setShowVersionHistory(true)}
                 aria-label="Version history"
                 title="Version history"
-                className="h-10 w-10 shrink-0 p-0 !text-white/70 hover:!text-white"
+                className="h-12 w-12 shrink-0 p-0 !text-white/70 hover:!text-white"
               >
-                <History className="h-5 w-5" />
+                <History className="h-6 w-6" />
               </Button>
             </div>
           </>
@@ -3188,17 +3191,19 @@ export function Builder() {
             key="builder-phone-panels"
             direction="vertical"
             className="flex min-h-0 flex-1 flex-col"
-            autoSaveId="ceriga-builder-phone-v8"
+            // Bump when phone panel constraints change so saved % from localStorage cannot block collapse.
+            autoSaveId="ceriga-builder-phone-v10"
           >
             {/*
-              Top: keep Live preview toolbar + canvas visible (min ~36%).
-              Bottom: min ~30% so title + scroll + Back/Continue + safe area are never clipped when the handle is at its lowest.
-              Bottom max 64% ⇔ top never below ~36% (sheet cannot cover preview controls).
+              Top: min ~36% so preview always has room when the sheet is open. max must be 100% so when the
+              bottom panel collapses to 0, the preview can fill the area (max 70% would prevent full collapse).
+              Bottom: min ~24% when expanded; max 70% so the sheet cannot cover the whole screen while open.
             */}
             <Panel
+              id="phone-builder-preview"
               defaultSize={38}
               minSize={36}
-              maxSize={70}
+              maxSize={100}
               className={cn(
                 'relative z-10 flex min-h-0 min-w-0 overflow-hidden',
                 draggingDetail && 'z-40 overflow-visible',
@@ -3218,6 +3223,7 @@ export function Builder() {
               <span className="sr-only">Drag to resize preview and configure panels</span>
             </PanelResizeHandle>
             <Panel
+              id="phone-builder-editor"
               ref={phoneEditorPanelRef}
               defaultSize={58}
               minSize={24}

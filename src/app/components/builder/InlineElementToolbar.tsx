@@ -190,7 +190,7 @@ export function InlineElementToolbar({
       <div
         className={cn(
           compact &&
-            'no-scrollbar max-w-[min(100%,calc(100vw-0.5rem))] overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] touch-pan-x sm:max-w-[min(100%,calc(100vw-1.25rem))]',
+            'no-scrollbar isolate max-w-[min(100%,calc(100vw-0.5rem))] touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [-webkit-overflow-scrolling:touch] sm:max-w-[min(100%,calc(100vw-1.25rem))]',
         )}
       >
         <div
