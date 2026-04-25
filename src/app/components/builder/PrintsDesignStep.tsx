@@ -446,25 +446,36 @@ export function PrintTransformOverlay({
   onResizePointerDown,
   /** Counter parent scale (e.g. live preview zoom) so handles stay a usable on-screen size. */
   uiInverseScale = 1,
-  /** Larger resize/rotate affordances on narrow viewports (phone). */
+  /** Larger resize/rotate affordances (tablet / coarse UI). Ignored when `compactHandles` is true. */
   comfortableTouch = false,
+  /** Smaller handles + frame on phone so short text boxes are not covered (default on narrow in callers). */
+  compactHandles = false,
 }: {
   onRotatePointerDown: (e: React.PointerEvent) => void;
   onResizePointerDown: (e: React.PointerEvent, h: ResizeHandle) => void;
   uiInverseScale?: number;
   comfortableTouch?: boolean;
+  compactHandles?: boolean;
 }) {
   const inv = uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
+  const large = comfortableTouch && !compactHandles;
   const dot = cn(
-    'absolute z-30 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] active:scale-95',
-    comfortableTouch ? 'flex h-5 w-5' : 'flex h-3.5 w-3.5',
+    /** `pointer-events-auto`: parent `data-handles` uses `pointer-events-none` so handles stay above the inline toolbar without stealing clicks from the pill. */
+    'pointer-events-auto absolute z-[60] touch-none items-center justify-center rounded-full bg-[#0a0a0b] active:scale-95',
+    compactHandles ? 'flex h-2.5 w-2.5 border border-[#CC2D24]' : 'border-2',
+    !compactHandles && (large ? 'flex h-5 w-5' : 'flex h-3.5 w-3.5'),
   );
   /** Single red ring (border only) — avoid border + box-shadow or duplicate rings on mobile. */
-  const dotStyle = { borderColor: HANDLE_RED };
+  const dotStyle = compactHandles ? undefined : { borderColor: HANDLE_RED };
+  const off = compactHandles
+    ? { box: 'inset-[-4px]', rot: '-bottom-7 h-6 w-6', rotIcon: 'h-3 w-3' as const }
+    : large
+      ? { box: 'inset-[-9px]', rot: '-bottom-12 h-11 w-11', rotIcon: 'h-5 w-5' as const }
+      : { box: 'inset-[-7px]', rot: '-bottom-11 h-9 w-9', rotIcon: 'h-4 w-4' as const };
   return (
     <div
       data-handles
-      className="pointer-events-none absolute inset-0"
+      className="pointer-events-none absolute inset-0 z-50"
       style={
         inv === 1
           ? undefined
@@ -474,35 +485,51 @@ export function PrintTransformOverlay({
       <div
         className={cn(
           'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#CC2D24]/12 to-transparent',
-          comfortableTouch ? 'inset-[-9px]' : 'inset-[-7px]',
+          off.box,
         )}
         style={{ borderColor: `${HANDLE_RED}aa` }}
       />
       <button
         type="button"
         aria-label="Resize NW — scale"
-        className={cn(dot, comfortableTouch ? '-left-2.5 -top-2.5' : '-left-2 -top-2', 'cursor-nwse-resize')}
+        className={cn(
+          dot,
+          compactHandles ? '-left-1.5 -top-1.5' : large ? '-left-2.5 -top-2.5' : '-left-2 -top-2',
+          'cursor-nwse-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'nw')}
       />
       <button
         type="button"
         aria-label="Resize NE — scale"
-        className={cn(dot, comfortableTouch ? '-right-2.5 -top-2.5' : '-right-2 -top-2', 'cursor-nesw-resize')}
+        className={cn(
+          dot,
+          compactHandles ? '-right-1.5 -top-1.5' : large ? '-right-2.5 -top-2.5' : '-right-2 -top-2',
+          'cursor-nesw-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'ne')}
       />
       <button
         type="button"
         aria-label="Resize SW — scale"
-        className={cn(dot, comfortableTouch ? '-bottom-2.5 -left-2.5' : '-bottom-2 -left-2', 'cursor-nesw-resize')}
+        className={cn(
+          dot,
+          compactHandles ? '-bottom-1.5 -left-1.5' : large ? '-bottom-2.5 -left-2.5' : '-bottom-2 -left-2',
+          'cursor-nesw-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'sw')}
       />
       <button
         type="button"
         aria-label="Resize SE — scale"
-        className={cn(dot, comfortableTouch ? '-bottom-2.5 -right-2.5' : '-bottom-2 -right-2', 'cursor-nwse-resize')}
+        className={cn(
+          dot,
+          compactHandles ? '-bottom-1.5 -right-1.5' : large ? '-bottom-2.5 -right-2.5' : '-bottom-2 -right-2',
+          'cursor-nwse-resize',
+        )}
         style={dotStyle}
         onPointerDown={(e) => onResizePointerDown(e, 'se')}
       />
@@ -511,7 +538,11 @@ export function PrintTransformOverlay({
         aria-label="Stretch width — east"
         className={cn(
           dot,
-          comfortableTouch ? '-right-2.5 top-1/2 -translate-y-1/2' : '-right-2 top-1/2 -translate-y-1/2',
+          compactHandles
+            ? '-right-1.5 top-1/2 -translate-y-1/2'
+            : large
+              ? '-right-2.5 top-1/2 -translate-y-1/2'
+              : '-right-2 top-1/2 -translate-y-1/2',
           'cursor-ew-resize',
         )}
         style={dotStyle}
@@ -522,7 +553,11 @@ export function PrintTransformOverlay({
         aria-label="Stretch width — west"
         className={cn(
           dot,
-          comfortableTouch ? '-left-2.5 top-1/2 -translate-y-1/2' : '-left-2 top-1/2 -translate-y-1/2',
+          compactHandles
+            ? '-left-1.5 top-1/2 -translate-y-1/2'
+            : large
+              ? '-left-2.5 top-1/2 -translate-y-1/2'
+              : '-left-2 top-1/2 -translate-y-1/2',
           'cursor-ew-resize',
         )}
         style={dotStyle}
@@ -533,7 +568,11 @@ export function PrintTransformOverlay({
         aria-label="Stretch height — north"
         className={cn(
           dot,
-          comfortableTouch ? '-top-2.5 left-1/2 -translate-x-1/2' : '-top-2 left-1/2 -translate-x-1/2',
+          compactHandles
+            ? '-top-1.5 left-1/2 -translate-x-1/2'
+            : large
+              ? '-top-2.5 left-1/2 -translate-x-1/2'
+              : '-top-2 left-1/2 -translate-x-1/2',
           'cursor-ns-resize',
         )}
         style={dotStyle}
@@ -544,7 +583,11 @@ export function PrintTransformOverlay({
         aria-label="Stretch height — south"
         className={cn(
           dot,
-          comfortableTouch ? '-bottom-2.5 left-1/2 -translate-x-1/2' : '-bottom-2 left-1/2 -translate-x-1/2',
+          compactHandles
+            ? '-bottom-1.5 left-1/2 -translate-x-1/2'
+            : large
+              ? '-bottom-2.5 left-1/2 -translate-x-1/2'
+              : '-bottom-2 left-1/2 -translate-x-1/2',
           'cursor-ns-resize',
         )}
         style={dotStyle}
@@ -554,13 +597,13 @@ export function PrintTransformOverlay({
         type="button"
         aria-label="Rotate"
         className={cn(
-          'absolute left-1/2 z-30 flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] text-[#CC2D24] shadow-lg active:scale-95',
-          comfortableTouch ? '-bottom-12 h-11 w-11' : '-bottom-11 h-9 w-9',
+          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] text-[#CC2D24] shadow-lg active:scale-95',
+          off.rot,
         )}
         style={{ borderColor: HANDLE_RED }}
         onPointerDown={onRotatePointerDown}
       >
-        <RotateCw className={comfortableTouch ? 'h-5 w-5' : 'h-4 w-4'} />
+        <RotateCw className={off.rotIcon} />
       </button>
     </div>
   );
@@ -2267,7 +2310,9 @@ export function PrintsDesignPreview({
   const [cropEditingId, setCropEditingId] = useState<string | null>(null);
 
   const liveCanvasS = liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1;
-  const uiInv = 1 / liveCanvasS;
+  const uiInvRaw = 1 / liveCanvasS;
+  /** On phone, avoid over-scaling handles when the preview is zoomed out. */
+  const uiInv = narrowViewport ? Math.min(uiInvRaw, 2.25) : uiInvRaw;
 
   return (
     <div
@@ -2293,6 +2338,7 @@ export function PrintsDesignPreview({
                   onDelete={() => removeElement(selectedElement.id)}
                   compact
                   comfortableCompact
+                  variant="slim"
                   className="!max-w-[min(18.5rem,calc(100vw-5.75rem))] sm:!max-w-[min(22rem,calc(100vw-2rem))]"
                   onCropModeChange={(cropping) =>
                     setCropEditingId(cropping ? selectedElement.id : null)
@@ -2302,27 +2348,7 @@ export function PrintsDesignPreview({
             </div>,
             document.body,
           )
-        : showCanvasChromeToolbar && selectedElement ? (
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 z-[40] flex justify-center px-2 pt-1 sm:pt-2"
-              style={
-                uiInv !== 1
-                  ? { transform: `scale(${uiInv})`, transformOrigin: 'top center' }
-                  : undefined
-              }
-            >
-              <InlineElementToolbar
-                element={selectedElement}
-                onPatch={(patch) => updateElement(selectedElement.id, patch)}
-                onDuplicate={() => duplicateElement(selectedElement.id)}
-                onDelete={() => removeElement(selectedElement.id)}
-                compact={narrowViewport}
-                onCropModeChange={(cropping) =>
-                  setCropEditingId(cropping ? selectedElement.id : null)
-                }
-              />
-            </div>
-          ) : null}
+        : null}
       <div
         className={cn(
           'relative min-h-0 w-full flex-1',
@@ -2336,16 +2362,44 @@ export function PrintsDesignPreview({
           className="h-auto max-h-full w-full object-contain opacity-0"
         />
 
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          onPointerDown={(e) => {
-            if (!editable) return;
-            const t = e.target as HTMLElement;
-            if (t.closest('[data-print-id]') || t.closest('[data-handles]')) return;
-            if (t.closest('[data-inline-toolbar]')) return;
-            setSelectedId(null);
-          }}
-        >
+        <div className="absolute inset-0 flex min-h-0 flex-col">
+          {editable &&
+          !narrowViewport &&
+          showCanvasChromeToolbar &&
+          selectedElement &&
+          (selectedElement.type !== 'text' || editingTextId !== selectedElement.id) ? (
+            <div className="pointer-events-none relative z-[100] flex shrink-0 justify-center overflow-visible px-2 pt-2 pb-1">
+              {/*
+                Do not set overflow-x on this wrapper: overflow-x other than visible forces overflow-y
+                to auto and clips the colour/font popovers (absolutely positioned under the bar).
+                Horizontal scroll is handled inside InlineElementToolbar on the button row.
+              */}
+              <div className="pointer-events-auto min-w-0 max-w-full [-webkit-overflow-scrolling:touch]">
+                <InlineElementToolbar
+                  element={selectedElement}
+                  onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                  onDuplicate={() => duplicateElement(selectedElement.id)}
+                  onDelete={() => removeElement(selectedElement.id)}
+                  variant="slim"
+                  onCropModeChange={(cropping) =>
+                    setCropEditingId(cropping ? selectedElement.id : null)
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+          <div
+            className="relative z-0 min-h-0 flex-1"
+            onPointerDown={(e) => {
+              if (!editable) return;
+              const t = e.target as HTMLElement;
+              if (t.closest('[data-print-id]') || t.closest('[data-handles]')) return;
+              if (t.closest('[data-inline-toolbar]')) return;
+              if (t.closest('[data-inline-toolbar-popover]')) return;
+              setSelectedId(null);
+            }}
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
           <img
             src={imgBlackTshirt}
             alt="Garment"
@@ -2434,7 +2488,8 @@ export function PrintsDesignPreview({
                 }}
                 onPointerDown={(e) => {
                   if (!editable) return;
-                  if ((e.target as HTMLElement).closest('[data-handles]')) return;
+                  const t = e.target as HTMLElement;
+                  if (t.closest('[data-handles]') || t.closest('[data-inline-toolbar]')) return;
                   e.stopPropagation();
                   const wasSel = selectedId === element.id;
                   setSelectedId(element.id);
@@ -2560,43 +2615,45 @@ export function PrintsDesignPreview({
                   </div>
                 )}
                 {selected && editable && !locked && !isEditingText ? (
-                  <PrintTransformOverlay
-                    comfortableTouch={narrowViewport}
-                    uiInverseScale={uiInv}
-                    onRotatePointerDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      const z = zoneRef.current;
-                      if (!z) return;
-                      const c = zonePointToClient(z, element.x, element.y);
-                      const startAngle = Math.atan2(e.clientY - c.y, e.clientX - c.x);
-                      setDraggingId(null);
-                      setManip({
-                        kind: 'rotate',
-                        id: element.id,
-                        startRot: element.rotation,
-                        cx: c.x,
-                        cy: c.y,
-                        startAngle,
-                      });
-                    }}
-                    onResizePointerDown={(e, handle) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      setDraggingId(null);
-                      setManip({
-                        kind: 'resize',
-                        id: element.id,
-                        handle,
-                        startX: e.clientX,
-                        startY: e.clientY,
-                        startW: element.width,
-                        startH: element.height,
-                        startFontSize: element.fontSize ?? 30,
-                        isImage: element.type === 'image',
-                      });
-                    }}
-                  />
+                  <>
+                    <PrintTransformOverlay
+                      compactHandles={narrowViewport}
+                      uiInverseScale={uiInv}
+                      onRotatePointerDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const z = zoneRef.current;
+                        if (!z) return;
+                        const c = zonePointToClient(z, element.x, element.y);
+                        const startAngle = Math.atan2(e.clientY - c.y, e.clientX - c.x);
+                        setDraggingId(null);
+                        setManip({
+                          kind: 'rotate',
+                          id: element.id,
+                          startRot: element.rotation,
+                          cx: c.x,
+                          cy: c.y,
+                          startAngle,
+                        });
+                      }}
+                      onResizePointerDown={(e, handle) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setDraggingId(null);
+                        setManip({
+                          kind: 'resize',
+                          id: element.id,
+                          handle,
+                          startX: e.clientX,
+                          startY: e.clientY,
+                          startW: element.width,
+                          startH: element.height,
+                          startFontSize: element.fontSize ?? 30,
+                          isImage: element.type === 'image',
+                        });
+                      }}
+                    />
+                  </>
                 ) : null}
                 {locked && editable ? (
                   <div className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#CC2D24]/50 bg-black/80 text-[#CC2D24]">
@@ -2606,6 +2663,8 @@ export function PrintsDesignPreview({
               </div>
             );
           })}
+          </div>
+            </div>
           </div>
         </div>
         </div>

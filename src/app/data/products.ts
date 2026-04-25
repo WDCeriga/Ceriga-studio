@@ -11,6 +11,12 @@ export interface Product {
   origin: string;
 }
 
+/**
+ * Default garment when opening “Tech pack (spec only)” from Studio (skip catalog).
+ * Must exist in the `products` array below.
+ */
+export const DEFAULT_TECHPACK_SPEC_PRODUCT_ID = 'hd-001';
+
 export const products: Product[] = [
   {
     id: 'ts-001',

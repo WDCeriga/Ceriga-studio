@@ -2163,9 +2163,9 @@ export function Builder() {
   const isPhone = layoutTier === 'phone';
   /** Uniform square hit areas for phone top bar (Canva-style); preview swatches stay smaller in the center. */
   const phoneNavIconCell =
-    'flex size-14 min-h-14 min-w-14 shrink-0 items-center justify-center rounded-xl';
+    'flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg';
   /** `size-*` so Button’s svg rule does not force Lucide icons to `size-4`. */
-  const phoneNavIconClass = 'size-8';
+  const phoneNavIconClass = 'size-[1.35rem]';
   const phoneFrameClass = isPhone
     ? phoneEditorCollapsed
       ? PHONE_PREVIEW_FRAME_EXPANDED_CLASS
@@ -2838,13 +2838,13 @@ export function Builder() {
           /** Above portaled design toolbars (z-[200]) so nav + dropdown trigger stay tappable. */
           isPhone && 'z-[220]',
           isPhone
-            ? 'min-h-[5.25rem] items-center border-white/[0.06] py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
+            ? 'min-h-[4.5rem] items-center border-white/[0.06] py-1.5 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
             : 'flex-wrap items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5',
         )}
       >
         {isPhone ? (
           <div
-            className="no-scrollbar flex w-full min-w-0 flex-1 items-center gap-4 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]"
+            className="no-scrollbar flex w-full min-w-0 flex-1 items-center gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]"
           >
             <div className="grid shrink-0 grid-cols-2 gap-0.5" role="toolbar" aria-label="Project">
               <Button
@@ -2858,7 +2858,7 @@ export function Builder() {
                 )}
               >
                 <Link to="/catalog" className="flex size-full items-center justify-center">
-                  <ArrowLeft className={phoneNavIconClass} strokeWidth={2.25} />
+                  <ArrowLeft className={phoneNavIconClass} strokeWidth={2} />
                 </Link>
               </Button>
               <Button
@@ -2872,7 +2872,7 @@ export function Builder() {
                 title="Edit name"
                 onClick={() => setIsEditingName(true)}
               >
-                <SquarePen className={phoneNavIconClass} strokeWidth={2.25} />
+                <SquarePen className={phoneNavIconClass} strokeWidth={2} />
               </Button>
             </div>
 
@@ -2883,7 +2883,7 @@ export function Builder() {
                   onChange={(e) => setProjectName(e.target.value)}
                   onBlur={() => setIsEditingName(false)}
                   onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-                  className="h-11 min-h-11 w-full max-w-[min(100%,18rem)] rounded-xl border-white/20 bg-white/5 px-3 text-[14px] font-semibold text-white"
+                  className="h-10 min-h-10 w-full max-w-[min(100%,18rem)] rounded-lg border-white/20 bg-white/5 px-3 text-[13px] font-semibold text-white"
                   autoFocus
                 />
               </div>
@@ -2893,7 +2893,7 @@ export function Builder() {
                 role="group"
                 aria-label="Preview background"
               >
-                <div className="inline-flex h-11 shrink-0 items-center gap-1 rounded-xl border border-white/12 bg-white/[0.06] px-1.5 shadow-inner">
+                <div className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg border border-white/12 bg-white/[0.06] px-1 shadow-inner">
                   {(['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
@@ -2902,7 +2902,7 @@ export function Builder() {
                       title={bg}
                       aria-label={`Background ${bg}`}
                       className={cn(
-                        'builder-focus press-feedback size-8 shrink-0 rounded-md border-2 transition-transform active:scale-95',
+                        'builder-focus press-feedback size-[1.65rem] shrink-0 rounded-md border-2 transition-transform active:scale-95',
                         previewBackground === bg
                           ? 'border-[#CC2D24] ring-1 ring-[#CC2D24]/35'
                           : 'border-transparent hover:border-white/25',
@@ -2912,8 +2912,8 @@ export function Builder() {
                           ? {
                               backgroundImage:
                                 'linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666), linear-gradient(45deg, #666 25%, transparent 25%, transparent 75%, #666 75%, #666)',
-                              backgroundSize: '8px 8px',
-                              backgroundPosition: '0 0, 4px 4px',
+                              backgroundSize: '6px 6px',
+                              backgroundPosition: '0 0, 3px 3px',
                             }
                           : { backgroundColor: bg === 'white' ? '#FFFFFF' : '#000000' }
                       }
@@ -2943,7 +2943,7 @@ export function Builder() {
                 aria-label={showExtraDetails ? 'Hide details' : 'Show details'}
                 aria-pressed={showExtraDetails}
               >
-                <Info className={phoneNavIconClass} strokeWidth={2.25} />
+                <Info className={phoneNavIconClass} strokeWidth={2} />
               </button>
               <Button
                 type="button"
@@ -2954,7 +2954,7 @@ export function Builder() {
                 aria-label="Undo"
                 className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white disabled:opacity-30')}
               >
-                <Undo2 className={phoneNavIconClass} strokeWidth={2.25} />
+                <Undo2 className={phoneNavIconClass} strokeWidth={2} />
               </Button>
               <Button
                 type="button"
@@ -2965,7 +2965,7 @@ export function Builder() {
                 aria-label="Redo"
                 className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white disabled:opacity-30')}
               >
-                <Redo2 className={phoneNavIconClass} strokeWidth={2.25} />
+                <Redo2 className={phoneNavIconClass} strokeWidth={2} />
               </Button>
               <Button
                 type="button"
@@ -2976,7 +2976,7 @@ export function Builder() {
                 title="Version history"
                 className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white')}
               >
-                <History className={phoneNavIconClass} strokeWidth={2.25} />
+                <History className={phoneNavIconClass} strokeWidth={2} />
               </Button>
             </div>
           </div>
@@ -3264,13 +3264,13 @@ export function Builder() {
             key="builder-desktop-panels"
             direction="horizontal"
             className="flex min-h-0 min-w-0 flex-1"
-            autoSaveId="ceriga-builder-panels-v4"
+            autoSaveId="ceriga-builder-panels-v5"
           >
             <Panel
               ref={leftPanelRef}
-              defaultSize={26}
+              defaultSize={24}
               minSize={SIDE_PANEL_MIN_PCT}
-              maxSize={42}
+              maxSize={32}
               collapsible
               collapsedSize={0}
               onCollapse={() => setLeftPanelCollapsed(true)}
@@ -3295,7 +3295,7 @@ export function Builder() {
               )}
             />
             <Panel
-              defaultSize={74}
+              defaultSize={76}
               minSize={40}
               className={cn(
                 'flex min-h-0 min-w-0',

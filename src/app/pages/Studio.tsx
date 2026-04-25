@@ -1,13 +1,23 @@
 import { Link } from 'react-router';
+import type { LucideIcon } from 'lucide-react';
 import { FileStack, FileInput, Package, Factory, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { DEFAULT_TECHPACK_SPEC_PRODUCT_ID } from '../data/products';
 
-const workflows = [
+const workflows: {
+  title: string;
+  description: string;
+  to: string;
+  state?: { builderFlow: string };
+  icon: LucideIcon;
+  accent: string;
+}[] = [
   {
     title: 'Tech pack (spec only)',
     description:
       'Upload artwork first, then fill measurements and construction — no on-shirt colour or placement editor. For factories that only need a spec.',
-    to: '/catalog?flow=techpack-spec',
+    to: `/builder/${DEFAULT_TECHPACK_SPEC_PRODUCT_ID}?flow=techpack-spec`,
+    state: { builderFlow: 'techpack-spec' },
     icon: FileInput,
     accent: '#A855F7',
   },
@@ -54,10 +64,11 @@ export function Studio() {
 
       <div className="p-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:p-5 md:px-7 md:py-6">
         <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {workflows.map(({ title, description, to, icon: Icon, accent }) => (
+          {workflows.map(({ title, description, to, state, icon: Icon, accent }) => (
             <Link
               key={title}
               to={to}
+              state={state}
               className="group flex flex-col overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#111113] transition-all duration-200 hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
             >
               <div

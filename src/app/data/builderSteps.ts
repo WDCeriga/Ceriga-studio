@@ -16,7 +16,7 @@ export interface BuilderStep {
 
 /**
  * Tech pack “spec only” flow: upload references first (step 9 UI), then garment specs without relying on step id order.
- * Used by Builder when `?flow=techpack-spec` or Studio → Tech pack (spec only).
+ * Used by Builder when `?flow=techpack-spec` or Studio opens spec-only tech pack (direct builder link).
  */
 export const TECHPACK_SPEC_FLOW_ORDER = [
   9, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13,

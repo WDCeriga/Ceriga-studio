@@ -30,10 +30,10 @@ export function MarketingShell({
         className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#0c0c0d]/92 backdrop-blur-md"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="mx-auto flex min-h-[3.75rem] max-w-[1320px] items-center justify-between gap-2 px-[max(1rem,env(safe-area-inset-left))] py-2 pr-[max(1rem,env(safe-area-inset-right))] sm:h-14 sm:min-h-0 sm:py-0 sm:gap-3 sm:px-6 lg:px-10">
+        <div className="mx-auto flex min-h-[4.5rem] max-w-[1320px] items-center justify-between gap-2 px-[max(1rem,env(safe-area-inset-left))] py-2.5 pr-[max(1rem,env(safe-area-inset-right))] sm:h-14 sm:min-h-0 sm:py-0 sm:gap-3 sm:px-6 lg:px-10">
           <Link
             to="/"
-            className="shrink-0 font-['Plus_Jakarta_Sans',sans-serif] text-[13px] font-extrabold uppercase tracking-[0.12em] text-[#F2F0EC]"
+            className="shrink-0 font-['Plus_Jakarta_Sans',sans-serif] text-[15px] font-extrabold uppercase tracking-[0.1em] text-[#F2F0EC] sm:text-[13px] sm:tracking-[0.12em]"
           >
             Ceriga Studio
           </Link>
@@ -71,21 +71,21 @@ export function MarketingShell({
             </Button>
           </div>
 
-          <div className="flex items-center gap-2.5 md:hidden">
+          <div className="flex items-center gap-3 md:hidden">
             <Button
               asChild
               size="sm"
-              className="h-10 bg-[#CC2D24] px-3.5 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-[#CC2D24]/90"
+              className="h-12 min-h-12 bg-[#CC2D24] px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-white hover:bg-[#CC2D24]/90 sm:h-10 sm:min-h-0 sm:px-3.5 sm:text-[10px] sm:tracking-wider"
             >
-              <Link to="/signup">Start</Link>
+              <Link to="/studio">Build</Link>
             </Button>
             <button
               type="button"
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white active:bg-white/10"
+              className="flex h-12 min-h-12 w-12 min-w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white active:bg-white/10 sm:h-11 sm:min-h-0 sm:w-11 sm:min-w-0"
               aria-label="Open menu"
               onClick={() => setMenuOpen(true)}
             >
-              <Menu className="h-6 w-6" strokeWidth={2} />
+              <Menu className="h-7 w-7 sm:h-6 sm:w-6" strokeWidth={2} />
             </button>
           </div>
         </div>
@@ -118,10 +118,10 @@ export function MarketingShell({
               </SheetClose>
               <Button
                 asChild
-                className="h-9 bg-white px-4 text-[10px] font-bold uppercase tracking-wider text-black hover:bg-white/90"
+                className="h-10 bg-[#CC2D24] px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-white hover:bg-[#CC2D24]/90"
               >
-                <Link to="/signup" onClick={() => setMenuOpen(false)}>
-                  Launch
+                <Link to="/studio" onClick={() => setMenuOpen(false)}>
+                  Build
                 </Link>
               </Button>
             </div>

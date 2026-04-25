@@ -29,6 +29,7 @@ function PresetGrid({
             key={color}
             type="button"
             onClick={() => onSelect(norm)}
+            onPointerDown={(e) => e.stopPropagation()}
             className={cn(
               'aspect-square w-full min-w-0 rounded-lg border transition-all active:scale-[0.97]',
               active

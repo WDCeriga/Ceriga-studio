@@ -62,6 +62,11 @@ interface Props {
   className?: string;
   /** When the bar is fixed above the mobile keyboard, open menus upward so they stay on-screen. */
   popoverOpenAbove?: boolean;
+  /**
+   * Shorter bar for narrow surfaces (label, packaging, docked print zone): drops Effects and the
+   * Size / Flip controls (resize & rotation stay on-canvas; advanced styling stays in the sidebar).
+   */
+  variant?: 'full' | 'slim';
 }
 
 const ALIGNS: { id: TextAlign; icon: typeof AlignLeft }[] = [
@@ -74,9 +79,8 @@ const ALIGNS: { id: TextAlign; icon: typeof AlignLeft }[] = [
 const TEXT_TRANSFORMS: TextTransform[] = ['none', 'uppercase', 'lowercase'];
 
 /**
- * Floating inline toolbar rendered above the active element on the design canvas.
- * Lets users tweak the most-used properties (font, size, colour, effects, alignment, etc.)
- * without opening the side configuration panel.
+ * Inline toolbar for the selected canvas element. Parents may dock it at the top of the print /
+ * label surface; `variant="slim"` shortens the row for narrow layouts.
  */
 export function InlineElementToolbar({
   element,
@@ -89,7 +93,9 @@ export function InlineElementToolbar({
   onCropModeChange,
   className,
   popoverOpenAbove = false,
+  variant = 'full',
 }: Props) {
+  const slim = variant === 'slim';
   const isText = element.type === 'text';
   const isImage = element.type === 'image';
   const isLocked = element.locked === true;
@@ -107,7 +113,10 @@ export function InlineElementToolbar({
       const el = target as Element;
       /** Portaled bottom sheet is outside `rootRef`; do not clear selection when using it. */
       if (el.closest?.('[data-slot="sheet-content"]') || el.closest?.('[data-radix-dialog-content]')) return;
-      if (!rootRef.current.contains(target)) setOpenPanel(null);
+      /** Popover panels (may be portaled later); must not close before swatch click applies. */
+      if (el.closest?.('[data-inline-toolbar-popover]')) return;
+      if (rootRef.current.contains(target)) return;
+      setOpenPanel(null);
     };
     /** Pointerdown closes open popovers when clicking anywhere outside the toolbar surface. */
     document.addEventListener('pointerdown', onDoc);
@@ -221,8 +230,8 @@ export function InlineElementToolbar({
                 comfortableCompact ? 'gap-1.5 px-2.5 py-2' : 'gap-1 px-2 py-1.5',
               )
             : cn(
-                'w-max min-w-0 gap-1 border-white/[0.08] bg-[#141414]/96 px-1.5 py-1.5',
-                'max-w-[min(98vw,960px)]',
+                'no-scrollbar w-max min-w-0 max-w-full gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain border-white/[0.08] bg-[#141414]/96 px-1.5 py-1.5 [-webkit-overflow-scrolling:touch]',
+                'sm:max-w-[min(98vw,960px)]',
               ),
         )}
       >
@@ -364,19 +373,22 @@ export function InlineElementToolbar({
               <CaseSensitive className={ic} />
             </button>
 
-            <Divider />
-
-            {/* Effects panel */}
-            <button
-              type="button"
-              onClick={() => togglePanel('effects')}
-              disabled={isLocked}
-              className={cn(textBtn, openPanel === 'effects' && 'bg-white/10 text-white')}
-              title="Effects"
-            >
-              <Sparkles className={ic} />
-              {!compact && <span className="font-semibold">Effects</span>}
-            </button>
+            {!slim ? (
+              <>
+                <Divider />
+                {/* Effects panel */}
+                <button
+                  type="button"
+                  onClick={() => togglePanel('effects')}
+                  disabled={isLocked}
+                  className={cn(textBtn, openPanel === 'effects' && 'bg-white/10 text-white')}
+                  title="Effects"
+                >
+                  <Sparkles className={ic} />
+                  {!compact && <span className="font-semibold">Effects</span>}
+                </button>
+              </>
+            ) : null}
           </>
         ) : null}
 
@@ -425,34 +437,39 @@ export function InlineElementToolbar({
           </>
         ) : null}
 
-        <Divider />
+        {!slim ? (
+          <>
+            <Divider />
+            {/* Size (width / height / rotate) — available for both text and image */}
+            <button
+              type="button"
+              onClick={() => togglePanel('size')}
+              disabled={isLocked}
+              className={cn(textBtn, openPanel === 'size' && 'bg-white/10 text-white')}
+              title="Size & rotation"
+            >
+              <Move3d className={ic} />
+              {!compact && <span className="font-semibold">Size</span>}
+            </button>
 
-        {/* Size (width / height / rotate) — available for both text and image */}
-        <button
-          type="button"
-          onClick={() => togglePanel('size')}
-          disabled={isLocked}
-          className={cn(textBtn, openPanel === 'size' && 'bg-white/10 text-white')}
-          title="Size & rotation"
-        >
-          <Move3d className={ic} />
-          {!compact && <span className="font-semibold">Size</span>}
-        </button>
+            <Divider />
 
-        <Divider />
-
-        {/* Flip horizontal (both) */}
-        <button
-          type="button"
-          onClick={() => onPatch({ flipHorizontal: !element.flipHorizontal })}
-          disabled={isLocked}
-          className={cn(iconBtn, element.flipHorizontal && 'bg-white/10 text-white')}
-          title="Flip horizontally"
-          aria-label="Flip horizontally"
-          aria-pressed={Boolean(element.flipHorizontal)}
-        >
-          <FlipHorizontal2 className={ic} />
-        </button>
+            {/* Flip horizontal (both) */}
+            <button
+              type="button"
+              onClick={() => onPatch({ flipHorizontal: !element.flipHorizontal })}
+              disabled={isLocked}
+              className={cn(iconBtn, element.flipHorizontal && 'bg-white/10 text-white')}
+              title="Flip horizontally"
+              aria-label="Flip horizontally"
+              aria-pressed={Boolean(element.flipHorizontal)}
+            >
+              <FlipHorizontal2 className={ic} />
+            </button>
+          </>
+        ) : (
+          <Divider />
+        )}
 
         {/* Lock / unlock position — always enabled so a locked element can be unlocked from the bar */}
         <button
@@ -529,6 +546,7 @@ export function InlineElementToolbar({
             selected={currentColor}
             onSelect={(hex) => {
               onPatch({ color: hex });
+              setOpenPanel(null);
             }}
           />
           <div className="mx-2 mb-1 mt-1 h-px bg-white/[0.07]" />
@@ -537,6 +555,7 @@ export function InlineElementToolbar({
             selected={currentColor}
             onSelect={(hex) => {
               onPatch({ color: hex });
+              setOpenPanel(null);
             }}
           />
           <div className="flex items-center gap-2 border-t border-white/[0.07] px-2 py-2">
@@ -985,6 +1004,7 @@ export function InlineElementToolbar({
                     selected={currentColor}
                     onSelect={(hex) => {
                       onPatch({ color: hex });
+                      setOpenPanel(null);
                     }}
                   />
                   <div className="mx-3 my-2 h-px bg-white/[0.08]" />
@@ -997,6 +1017,7 @@ export function InlineElementToolbar({
                     selected={currentColor}
                     onSelect={(hex) => {
                       onPatch({ color: hex });
+                      setOpenPanel(null);
                     }}
                   />
                   <div className="flex items-center gap-2 border-t border-white/[0.08] px-4 py-3">
@@ -1460,8 +1481,11 @@ function Popover({
 }) {
   return (
     <div
+      data-inline-toolbar-popover
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       className={cn(
-        'absolute z-[61] w-[200px] overflow-hidden rounded-xl border border-white/[0.08] bg-[#141414]/96 text-white shadow-[0_20px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-builder-fade-in',
+        'absolute z-[500] w-[min(280px,calc(100vw-1.5rem))] max-h-[min(80dvh,640px)] overflow-y-auto overflow-x-hidden rounded-xl border border-white/[0.08] bg-[#141414]/96 text-white shadow-[0_20px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-builder-fade-in [scrollbar-gutter:stable] isolate',
         side === 'below' ? 'top-full mt-1.5' : 'bottom-full mb-1.5',
         align === 'left' && 'left-0',
         align === 'center' && 'left-1/2 -translate-x-1/2',
@@ -1493,6 +1517,7 @@ function ColorGrid({
           key={hex}
           type="button"
           onClick={() => onSelect(hex)}
+          onPointerDown={(e) => e.stopPropagation()}
           className={cn(
             'builder-focus press-feedback shrink-0 rounded-full border transition-transform active:scale-95',
             comfortable ? 'h-9 w-9 border-2 sm:h-10 sm:w-10' : 'h-6 w-6 border',

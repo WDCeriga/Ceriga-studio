@@ -71,6 +71,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/support",
+    lazy: async () => {
+      const [{ SidebarLayout: Layout }, { SupportChatPage }] = await Promise.all([
+        import("./components/SidebarLayout"),
+        import("./pages/SupportChatPage"),
+      ]);
+      return {
+        element: (
+          <Layout>
+            <SupportChatPage />
+          </Layout>
+        ),
+      };
+    },
+  },
+  {
     path: "/catalog",
     lazy: async () => {
       const [{ SidebarLayout: Layout }, { Catalog }] = await Promise.all([

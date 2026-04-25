@@ -350,7 +350,7 @@ export function LabelsPackagingStep({
   const isNone = planValue === 'none';
 
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       <div>
         <Label className={sectionLabelClass}>
           {subStep === 'label' ? 'Label option' : 'Packaging option'}
@@ -1175,6 +1175,8 @@ export function PackagingPreview({
   onSelectedIdChange,
   liveCanvasScale,
   phoneConfigSheetCollapsed,
+  /** When true, selected text shows the floating toolbar on narrow viewports. Default false — use the panel below for packaging on phone. */
+  showMobileTextToolbar = false,
 }: {
   color?: string;
   elements?: DesignElement[];
@@ -1183,6 +1185,7 @@ export function PackagingPreview({
   onSelectedIdChange: (id: string | null) => void;
   liveCanvasScale?: number;
   phoneConfigSheetCollapsed?: boolean;
+  showMobileTextToolbar?: boolean;
 }) {
   return (
     <DesignSurface
@@ -1194,6 +1197,7 @@ export function PackagingPreview({
       onSelectedIdChange={onSelectedIdChange}
       liveCanvasScale={liveCanvasScale}
       phoneConfigSheetCollapsed={phoneConfigSheetCollapsed}
+      showMobileTextToolbar={showMobileTextToolbar}
     />
   );
 }
@@ -1261,6 +1265,8 @@ function DesignSurface({
   onSelectedIdChange,
   liveCanvasScale: liveCanvasScaleProp,
   phoneConfigSheetCollapsed = false,
+  /** If false (default), phone hides the inline text toolbar so styling lives in the side panel. */
+  showMobileTextToolbar = false,
 }: {
   mode: SubStep;
   color: string;
@@ -1271,6 +1277,7 @@ function DesignSurface({
   /** Parent scale (e.g. builder live preview zoom); inverses for toolbar and handles. */
   liveCanvasScale?: number;
   phoneConfigSheetCollapsed?: boolean;
+  showMobileTextToolbar?: boolean;
 }) {
   const editable = Boolean(onElementsChange);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -1673,25 +1680,34 @@ function DesignSurface({
 
   const selectedElement = editable ? elements.find((el) => el.id === selectedId) ?? null : null;
   const showInlineToolbar = Boolean(editable && selectedElement);
-  /** Phone: text styling is sidebar-only — no floating inline bar. */
+  /** Phone: text styling is sidebar-only when `showMobileTextToolbar` is false (default for packaging; label step can pass true for floating bar). */
   const phoneTextUsesSidebarOnly =
-    narrowViewport && showInlineToolbar && selectedElement?.type === 'text';
+    !showMobileTextToolbar &&
+    narrowViewport &&
+    showInlineToolbar &&
+    selectedElement?.type === 'text';
   const showChromeToolbar = Boolean(
     showInlineToolbar && selectedElement && !phoneTextUsesSidebarOnly,
   );
   const [cropEditingId, setCropEditingId] = useState<string | null>(null);
 
   const liveCanvasS = liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1;
-  const uiInv = 1 / liveCanvasS;
+  const uiInvRaw = 1 / liveCanvasS;
+  const uiInv = narrowViewport ? Math.min(uiInvRaw, 2.25) : uiInvRaw;
 
   return (
     <div
       data-label-packaging-root
-      className="relative flex w-full max-w-full min-w-0 flex-col items-center"
+      className="relative flex w-full max-w-full min-w-0 flex-col items-center overflow-x-hidden"
       onPointerDown={(e) => {
         if (!editable) return;
         const t = e.target as HTMLElement;
-        if (t.closest('[data-surface-id]') || t.closest('[data-handles]') || t.closest('[data-inline-toolbar]')) {
+        if (
+          t.closest('[data-surface-id]') ||
+          t.closest('[data-handles]') ||
+          t.closest('[data-inline-toolbar]') ||
+          t.closest('[data-inline-toolbar-popover]')
+        ) {
           return;
         }
         onSelectedIdChange(null);
@@ -1715,6 +1731,7 @@ function DesignSurface({
                     onDelete={() => removeElement(selectedElement.id)}
                     compact
                     comfortableCompact
+                    variant="slim"
                     className="!max-w-[min(16rem,calc(100vw-6.75rem))] sm:!max-w-[min(24rem,calc(100vw-2rem))]"
                     onCropModeChange={(cropping) =>
                       setCropEditingId(cropping ? selectedElement.id : null)
@@ -1724,26 +1741,31 @@ function DesignSurface({
               </div>,
               document.body,
             )
-          : showChromeToolbar && selectedElement ? (
-              <div
-                className="pointer-events-none absolute bottom-full left-0 right-0 z-[40] flex max-w-full justify-center px-2"
-                style={{
-                  marginBottom: 8,
-                  ...(uiInv !== 1 ? { transform: `scale(${uiInv})`, transformOrigin: 'bottom center' } : {}),
-                }}
-              >
-                <InlineElementToolbar
-                  element={selectedElement}
-                  onPatch={(patch) => updateElement(selectedElement.id, patch)}
-                  onDuplicate={() => duplicateElement(selectedElement.id)}
-                  onDelete={() => removeElement(selectedElement.id)}
-                  compact={narrowViewport}
-                  onCropModeChange={(cropping) =>
-                    setCropEditingId(cropping ? selectedElement.id : null)
-                  }
-                />
-              </div>
-            ) : null}
+          : null}
+        {editable &&
+        !narrowViewport &&
+        showChromeToolbar &&
+        selectedElement &&
+        (selectedElement.type !== 'text' || editingTextId !== selectedElement.id) ? (
+          <div className="relative z-30 mb-2 flex w-full max-w-full min-w-0 justify-center overflow-visible px-1 sm:px-2">
+            {/*
+              No overflow-x on this wrapper — it would clip the colour popover. The toolbar pill
+              scrolls horizontally inside InlineElementToolbar.
+            */}
+            <div className="pointer-events-auto min-w-0 max-w-full pb-0.5 [-webkit-overflow-scrolling:touch]">
+              <InlineElementToolbar
+                element={selectedElement}
+                onPatch={(patch) => updateElement(selectedElement.id, patch)}
+                onDuplicate={() => duplicateElement(selectedElement.id)}
+                onDelete={() => removeElement(selectedElement.id)}
+                variant="slim"
+                onCropModeChange={(cropping) =>
+                  setCropEditingId(cropping ? selectedElement.id : null)
+                }
+              />
+            </div>
+          </div>
+        ) : null}
         <div
           className={cn(
             'relative mx-auto shrink-0 border-2 shadow-[0_12px_32px_rgba(0,0,0,0.16)]',
@@ -1850,7 +1872,8 @@ function DesignSurface({
                 }}
                 onPointerDown={(e) => {
                   if (!editable) return;
-                  if ((e.target as HTMLElement).closest('[data-handles]')) return;
+                  const pt = e.target as HTMLElement;
+                  if (pt.closest('[data-handles]') || pt.closest('[data-inline-toolbar]')) return;
                   e.stopPropagation();
                   const wasSel = selectedId === element.id;
                   onSelectedIdChange(element.id);
@@ -1975,7 +1998,7 @@ function DesignSurface({
                 )}
                 {selected && editable && !isEditingText ? (
                   <PrintTransformOverlay
-                    comfortableTouch={narrowViewport}
+                    compactHandles={narrowViewport}
                     uiInverseScale={uiInv}
                     onRotatePointerDown={(e) => {
                       e.stopPropagation();
