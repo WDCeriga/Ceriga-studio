@@ -356,7 +356,7 @@ export function LabelsPackagingStep({
           {subStep === 'label' ? 'Label option' : 'Packaging option'}
         </Label>
         {usePhoneStrips ? (
-          <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
+          <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
             {(subStep === 'label'
               ? (['none', 'woven', 'printed', 'heat', 'satin'] as const)
               : (['none', 'polybag', 'box', 'mailer', 'tissue'] as const)
@@ -383,7 +383,7 @@ export function LabelsPackagingStep({
                   type="button"
                   onClick={() => onPlanChange(id)}
                   className={cn(
-                    'min-w-[4.75rem] shrink-0 snap-start rounded-full border px-3 py-2 text-[10px] font-semibold transition sm:min-w-[5.25rem]',
+                    'min-h-11 min-w-[5.25rem] shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition sm:min-w-[5.5rem]',
                     planValue === id
                       ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
                       : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
@@ -549,14 +549,14 @@ export function LabelsPackagingStep({
                   <div>
                     <Label className={sectionLabelClass}>Font</Label>
                     {usePhoneStrips ? (
-                      <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
+                      <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
                         {allFontOptions.map((font) => (
                           <button
                             key={font}
                             type="button"
                             onClick={() => updateSelected({ fontFamily: font })}
                             className={cn(
-                              'h-9 min-w-[4.5rem] shrink-0 snap-start rounded-lg border px-3 text-[10px] sm:min-w-[5rem]',
+                              'flex min-h-11 min-w-[4.75rem] shrink-0 snap-start items-center rounded-xl border px-3.5 py-2.5 text-[11px] sm:min-w-[5rem]',
                               selected.fontFamily === font
                                 ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
                                 : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white',
@@ -1325,9 +1325,27 @@ function DesignSurface({
 
   useLayoutEffect(() => {
     if (!editingTextId) return;
-    editAreaRef.current?.focus();
-    editAreaRef.current?.select();
-  }, [editingTextId]);
+    const ta = editAreaRef.current;
+    if (!ta) return;
+    ta.focus();
+    if (narrowViewport) {
+      const len = ta.value.length;
+      requestAnimationFrame(() => {
+        try {
+          ta.setSelectionRange(len, len);
+        } catch {
+          /* ignore */
+        }
+      });
+    } else {
+      ta.select();
+    }
+    if (narrowViewport) {
+      requestAnimationFrame(() => {
+        ta.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      });
+    }
+  }, [editingTextId, narrowViewport]);
 
   /** Keep the edit textarea sized to its content so there's no empty space below the caret.
    *  If the user manually sized this text element (autoHeight === false) we floor
@@ -1540,11 +1558,12 @@ function DesignSurface({
       const current = elementsRef.current.find((item) => item.id === draggingId);
       if (!current) return;
 
+      const moveSlop = narrowViewport ? 20 : 5;
       if (
         Math.hypot(
           latestClientX - dragStartClientRef.current.x,
           latestClientY - dragStartClientRef.current.y,
-        ) > 5
+        ) > moveSlop
       ) {
         dragDidMoveRef.current = true;
       }
@@ -1674,7 +1693,7 @@ function DesignSurface({
         rafId = null;
       }
     };
-  }, [draggingId, dragOffset, editable, manip]);
+  }, [draggingId, dragOffset, editable, manip, narrowViewport]);
 
   const innerClipClass = editable ? 'overflow-visible' : 'overflow-hidden';
 
@@ -1766,6 +1785,11 @@ function DesignSurface({
             </div>
           </div>
         ) : null}
+        {narrowViewport && editable && selectedElement?.type === 'text' && editingTextId !== selectedElement.id ? (
+          <p className="mb-1.5 w-full max-w-md shrink-0 px-2 text-center text-[10px] leading-tight text-white/48">
+            Tap the text {mode === 'label' ? 'on the label' : 'in the area'} again to edit, or drag to move it.
+          </p>
+        ) : null}
         <div
           className={cn(
             'relative mx-auto shrink-0 border-2 shadow-[0_12px_32px_rgba(0,0,0,0.16)]',
@@ -1835,6 +1859,7 @@ function DesignSurface({
               if (!narrowViewport) return base;
               return Math.max(11, Math.round(base * 0.82));
             })();
+            const editFontSize = narrowViewport ? Math.max(16, displayFont) : displayFont;
 
             const isHeld = draggingId === element.id && editable;
             const liveX = isHeld && dragLivePos ? dragLivePos.x : element.x;
@@ -1919,6 +1944,10 @@ function DesignSurface({
                   <textarea
                     ref={editAreaRef}
                     value={editDraft}
+                    inputMode="text"
+                    enterKeyHint="done"
+                    autoComplete="off"
+                    autoCorrect="off"
                     onChange={(ev) => {
                       setEditDraft(ev.target.value);
                       editDraftRef.current = ev.target.value;
@@ -1947,7 +1976,7 @@ function DesignSurface({
                     style={{
                       color: element.color ?? defaultOnSurfaceText,
                       fontFamily: element.fontFamily ?? 'Inter',
-                      fontSize: displayFont,
+                      fontSize: editFontSize,
                       lineHeight: 1.15,
                       maxWidth: element.width,
                       minHeight: element.autoHeight === false ? element.height : undefined,

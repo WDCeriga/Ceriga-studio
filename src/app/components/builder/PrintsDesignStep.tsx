@@ -1102,7 +1102,7 @@ export function PrintsDesignStep({
                 key={preset}
                 type="button"
                 onClick={() => applyPreset(preset)}
-                className="shrink-0 rounded-full border border-white/12 bg-black/30 px-3 py-1.5 text-left text-[10px] font-medium text-white/80 transition hover:border-white/25 hover:text-white"
+                className="shrink-0 min-h-11 rounded-full border border-white/12 bg-black/30 px-4 py-2.5 text-left text-xs font-medium text-white/80 transition hover:border-white/25 hover:text-white"
               >
                 {preset}
               </button>
@@ -1150,7 +1150,7 @@ export function PrintsDesignStep({
                 wording.
               </p>
               {usePhoneStrips ? (
-                <div className="-mx-0.5 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
                   {PRINT_METHODS.map((method) => (
                     <button
                       key={method}
@@ -1158,7 +1158,7 @@ export function PrintsDesignStep({
                       title={PRINT_METHOD_DESCRIPTIONS[method]}
                       onClick={() => updateSelected({ printMethod: method })}
                       className={cn(
-                        'shrink-0 snap-start rounded-full border px-2.5 py-1.5 text-[9px] font-semibold transition',
+                        'shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition',
                         (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
                           ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
                           : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
@@ -1200,14 +1200,14 @@ export function PrintsDesignStep({
                     Font
                   </Label>
                   {usePhoneStrips ? (
-                    <div className="-mx-0.5 flex max-w-full gap-1.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+                    <div className="-mx-0.5 flex max-w-full gap-2.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
                       {allFontOptions.map((font) => (
                         <button
                           key={font}
                           type="button"
                           onClick={() => updateSelected({ fontFamily: font })}
                           className={cn(
-                            'h-8 shrink-0 snap-start rounded-lg border px-2.5 text-[9px] transition',
+                            'flex min-h-11 min-w-0 shrink-0 snap-start items-center rounded-xl border px-3.5 py-2.5 text-[11px] transition',
                             selected.fontFamily === font
                               ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
                               : 'border-white/10 bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
@@ -1906,9 +1906,27 @@ export function PrintsDesignPreview({
 
   useLayoutEffect(() => {
     if (!editingTextId) return;
-    editAreaRef.current?.focus();
-    editAreaRef.current?.select();
-  }, [editingTextId]);
+    const ta = editAreaRef.current;
+    if (!ta) return;
+    ta.focus();
+    if (narrowViewport) {
+      const len = ta.value.length;
+      requestAnimationFrame(() => {
+        try {
+          ta.setSelectionRange(len, len);
+        } catch {
+          /* ignore */
+        }
+      });
+    } else {
+      ta.select();
+    }
+    if (narrowViewport) {
+      requestAnimationFrame(() => {
+        ta.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      });
+    }
+  }, [editingTextId, narrowViewport]);
 
   /** Keep the text-edit textarea's height locked to its content so there's no
    *  extra space below the caret — feels like typing directly on the canvas.
@@ -2158,11 +2176,14 @@ export function PrintsDesignPreview({
       const current = elementsRef.current.find((item) => item.id === draggingId);
       if (!current || current.locked) return;
 
+      /** On phone, finger/joint movement often exceeds 5px on a "tap" — be lenient so
+       *  “tap again to edit text” (pointerup) still runs instead of a bogus drag. */
+      const moveSlop = narrowViewport ? 20 : 5;
       if (
         Math.hypot(
           latestClientX - dragStartClientRef.current.x,
           latestClientY - dragStartClientRef.current.y,
-        ) > 5
+        ) > moveSlop
       ) {
         dragDidMoveRef.current = true;
       }
@@ -2296,7 +2317,7 @@ export function PrintsDesignPreview({
         rafId = null;
       }
     };
-  }, [draggingId, dragOffset, editable, manip]);
+  }, [draggingId, dragOffset, editable, manip, narrowViewport]);
 
   const selectedElement = editable ? elements.find((el) => el.id === selectedId) ?? null : null;
   const showInlineToolbar = Boolean(editable && selectedElement);
@@ -2363,6 +2384,14 @@ export function PrintsDesignPreview({
         />
 
         <div className="absolute inset-0 flex min-h-0 flex-col">
+          {narrowViewport &&
+          editable &&
+          selectedElement?.type === 'text' &&
+          editingTextId !== selectedElement.id ? (
+            <p className="pointer-events-none shrink-0 px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">
+              Tap the text on the design again to edit, or drag to move it.
+            </p>
+          ) : null}
           {editable &&
           !narrowViewport &&
           showCanvasChromeToolbar &&
@@ -2448,6 +2477,8 @@ export function PrintsDesignPreview({
               if (!narrowViewport) return base;
               return Math.max(12, Math.round(base * 0.78));
             })();
+            /** iOS zooms the page on focus if input font is under 16px — avoid while editing. */
+            const editFontSize = narrowViewport ? Math.max(16, displayFont) : displayFont;
 
             const isHeld = draggingId === element.id && editable && !locked;
             const liveX =
@@ -2536,6 +2567,10 @@ export function PrintsDesignPreview({
                   <textarea
                     ref={editAreaRef}
                     value={editDraft}
+                    inputMode="text"
+                    enterKeyHint="done"
+                    autoComplete="off"
+                    autoCorrect="off"
                     onChange={(ev) => {
                       setEditDraft(ev.target.value);
                       editDraftRef.current = ev.target.value;
@@ -2564,7 +2599,7 @@ export function PrintsDesignPreview({
                     style={{
                       color: element.color ?? '#FFFFFF',
                       fontFamily: element.fontFamily ?? 'Inter',
-                      fontSize: displayFont,
+                      fontSize: editFontSize,
                       lineHeight: 1.15,
                       maxWidth: element.width,
                       minHeight: element.autoHeight === false ? element.height : undefined,
