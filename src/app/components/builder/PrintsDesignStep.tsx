@@ -450,14 +450,49 @@ export function PrintTransformOverlay({
   comfortableTouch = false,
   /** Smaller handles + frame on phone so short text boxes are not covered (default on narrow in callers). */
   compactHandles = false,
+  /** Phone + text: only corner scale + right-edge width (no rotate, other edges, or extra corners). */
+  phoneTextMinimal = false,
 }: {
   onRotatePointerDown: (e: React.PointerEvent) => void;
   onResizePointerDown: (e: React.PointerEvent, h: ResizeHandle) => void;
   uiInverseScale?: number;
   comfortableTouch?: boolean;
   compactHandles?: boolean;
+  phoneTextMinimal?: boolean;
 }) {
   const inv = uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
+  const invStyle =
+    inv === 1
+      ? undefined
+      : ({ transform: `scale(${inv})`, transformOrigin: '50% 50%' } as const);
+
+  if (phoneTextMinimal) {
+    return (
+      <div
+        data-handles
+        className="pointer-events-none absolute inset-0 z-50"
+        style={invStyle}
+      >
+        <div
+          className="pointer-events-none absolute rounded-md border-2 border-violet-500 bg-gradient-to-b from-violet-500/10 to-transparent"
+          style={{ inset: '-1px' }}
+        />
+        <button
+          type="button"
+          aria-label="Scale from corner"
+          className="pointer-events-auto absolute -left-1.5 -top-1.5 z-[60] h-3 w-3 touch-none rounded-full border-2 border-zinc-300/95 bg-white shadow-sm active:scale-95"
+          onPointerDown={(e) => onResizePointerDown(e, 'nw')}
+        />
+        <button
+          type="button"
+          aria-label="Stretch width"
+          className="pointer-events-auto absolute -right-1 top-1/2 z-[60] h-7 w-2 -translate-y-1/2 touch-none rounded-full border-2 border-zinc-300/95 bg-white shadow-sm active:scale-95"
+          onPointerDown={(e) => onResizePointerDown(e, 'e')}
+        />
+      </div>
+    );
+  }
+
   const large = comfortableTouch && !compactHandles;
   const dot = cn(
     /** `pointer-events-auto`: parent `data-handles` uses `pointer-events-none` so handles stay above the inline toolbar without stealing clicks from the pill. */
@@ -476,11 +511,7 @@ export function PrintTransformOverlay({
     <div
       data-handles
       className="pointer-events-none absolute inset-0 z-50"
-      style={
-        inv === 1
-          ? undefined
-          : { transform: `scale(${inv})`, transformOrigin: '50% 50%' }
-      }
+      style={invStyle}
     >
       <div
         className={cn(
@@ -2652,7 +2683,8 @@ export function PrintsDesignPreview({
                 {selected && editable && !locked && !isEditingText ? (
                   <>
                     <PrintTransformOverlay
-                      compactHandles={narrowViewport}
+                      compactHandles={narrowViewport && element.type !== 'text'}
+                      phoneTextMinimal={narrowViewport && element.type === 'text'}
                       uiInverseScale={uiInv}
                       onRotatePointerDown={(e) => {
                         e.stopPropagation();

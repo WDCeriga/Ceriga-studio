@@ -2027,7 +2027,8 @@ function DesignSurface({
                 )}
                 {selected && editable && !isEditingText ? (
                   <PrintTransformOverlay
-                    compactHandles={narrowViewport}
+                    compactHandles={narrowViewport && element.type !== 'text'}
+                    phoneTextMinimal={narrowViewport && element.type === 'text'}
                     uiInverseScale={uiInv}
                     onRotatePointerDown={(e) => {
                       e.stopPropagation();
