@@ -30,6 +30,7 @@ import {
 import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
 import {
   snapDragInZone,
+  getRenderedTextBoxInZone,
   measureHalfExtentsInZone,
   GUIDE_COLOR,
   type SnapBox,
@@ -474,8 +475,8 @@ export function PrintTransformOverlay({
         style={invStyle}
       >
         <div
-          className="pointer-events-none absolute rounded-md border-2 border-violet-500 bg-gradient-to-b from-violet-500/10 to-transparent"
-          style={{ inset: '-1px' }}
+          className="pointer-events-none absolute rounded-md border-2 bg-gradient-to-b from-[#CC2D24]/10 to-transparent"
+          style={{ borderColor: `${HANDLE_RED}cc`, inset: '-1px' }}
         />
         <button
           type="button"
@@ -2531,12 +2532,8 @@ export function PrintsDesignPreview({
                 style={{
                   left: liveX,
                   top: liveY,
-                  width:
-                    element.type === 'text'
-                      ? element.autoWidth === false
-                        ? element.width
-                        : 'max-content'
-                      : element.width,
+                  // Text: design `width` is the wrap width; with `autoHeight` the box grows with lines.
+                  width: element.width,
                   maxWidth: element.type === 'text' ? element.width : undefined,
                   minWidth: element.type === 'text' ? 0 : undefined,
                   height:
@@ -2632,7 +2629,8 @@ export function PrintsDesignPreview({
                       fontFamily: element.fontFamily ?? 'Inter',
                       fontSize: editFontSize,
                       lineHeight: 1.15,
-                      maxWidth: element.width,
+                      width: '100%',
+                      maxWidth: '100%',
                       minHeight: element.autoHeight === false ? element.height : undefined,
                       textAlign: element.textAlign ?? 'center',
                       fontStyle: element.fontStyle ?? 'normal',
@@ -2644,7 +2642,7 @@ export function PrintsDesignPreview({
                     }}
                   />
                 ) : (
-                  <div className="relative inline-block min-w-0 max-w-full">
+                  <div className="relative w-full min-w-0 max-w-full">
                     <div
                       data-text-body
                       onDoubleClick={(ev) => {
@@ -2658,13 +2656,14 @@ export function PrintsDesignPreview({
                         setDraggingId(null);
                         textTapRef.current = null;
                       }}
-                      className="whitespace-normal break-words font-semibold [overflow-wrap:anywhere]"
+                      className="w-full whitespace-normal break-words font-semibold [overflow-wrap:anywhere]"
                       style={{
                         color: element.color ?? '#FFFFFF',
                         fontFamily: element.fontFamily ?? 'Inter',
                         fontSize: displayFont,
                         lineHeight: 1.15,
-                        maxWidth: element.width,
+                        width: '100%',
+                        maxWidth: '100%',
                         minHeight: element.autoHeight === false ? element.height : undefined,
                         textAlign: element.textAlign ?? 'center',
                         fontStyle: element.fontStyle ?? 'normal',
@@ -2707,15 +2706,26 @@ export function PrintsDesignPreview({
                         e.stopPropagation();
                         e.preventDefault();
                         setDraggingId(null);
+                        const fs = element.fontSize ?? 30;
+                        let startW = element.width;
+                        let startH = element.height;
+                        if (element.type === 'text' && zoneRef.current) {
+                          const measured = getRenderedTextBoxInZone(zoneRef.current, element.id, {
+                            width: element.width,
+                            height: Math.max(element.height ?? 0, fs + 18),
+                          });
+                          startW = measured.width;
+                          startH = measured.height;
+                        }
                         setManip({
                           kind: 'resize',
                           id: element.id,
                           handle,
                           startX: e.clientX,
                           startY: e.clientY,
-                          startW: element.width,
-                          startH: element.height,
-                          startFontSize: element.fontSize ?? 30,
+                          startW,
+                          startH,
+                          startFontSize: fs,
                           isImage: element.type === 'image',
                         });
                       }}

@@ -46,6 +46,7 @@ import {
 } from '../../data/studioColorPresets';
 import {
   snapDragInZone,
+  getRenderedTextBoxInZone,
   measureHalfExtentsInZone,
   GUIDE_COLOR,
   type SnapBox,
@@ -1878,12 +1879,7 @@ function DesignSurface({
                 style={{
                   left: liveX,
                   top: liveY,
-                  width:
-                    element.type === 'text'
-                      ? element.autoWidth === false
-                        ? element.width
-                        : 'max-content'
-                      : element.width,
+                  width: element.width,
                   maxWidth: element.type === 'text' ? element.width : undefined,
                   minWidth: element.type === 'text' ? 0 : undefined,
                   height:
@@ -1978,7 +1974,8 @@ function DesignSurface({
                       fontFamily: element.fontFamily ?? 'Inter',
                       fontSize: editFontSize,
                       lineHeight: 1.15,
-                      maxWidth: element.width,
+                      width: '100%',
+                      maxWidth: '100%',
                       minHeight: element.autoHeight === false ? element.height : undefined,
                       textAlign: element.textAlign ?? 'center',
                       fontStyle: element.fontStyle ?? 'normal',
@@ -1990,7 +1987,7 @@ function DesignSurface({
                     }}
                   />
                 ) : (
-                  <div className="relative inline-block min-w-0 max-w-full">
+                  <div className="relative w-full min-w-0 max-w-full">
                     <div
                       data-text-body
                       onDoubleClick={(ev) => {
@@ -2004,13 +2001,14 @@ function DesignSurface({
                         setDraggingId(null);
                         textTapRef.current = null;
                       }}
-                      className="whitespace-normal break-words font-semibold [overflow-wrap:anywhere]"
+                      className="w-full whitespace-normal break-words font-semibold [overflow-wrap:anywhere]"
                       style={{
                         color: element.color ?? defaultOnSurfaceText,
                         fontFamily: element.fontFamily ?? 'Inter',
                         fontSize: displayFont,
                         lineHeight: 1.15,
-                        maxWidth: element.width,
+                        width: '100%',
+                        maxWidth: '100%',
                         minHeight: element.autoHeight === false ? element.height : undefined,
                         textAlign: element.textAlign ?? 'center',
                         fontStyle: element.fontStyle ?? 'normal',
@@ -2053,15 +2051,30 @@ function DesignSurface({
                       e.stopPropagation();
                       e.preventDefault();
                       setDraggingId(null);
+                      const fs = element.fontSize ?? 20;
+                      let startW = element.width;
+                      let startH = element.height;
+                      if (element.type === 'text' && surfaceRef.current) {
+                        const measured = getRenderedTextBoxInZone(
+                          surfaceRef.current,
+                          element.id,
+                          {
+                            width: element.width,
+                            height: Math.max(element.height ?? 0, fs + 18),
+                          },
+                        );
+                        startW = measured.width;
+                        startH = measured.height;
+                      }
                       setManip({
                         kind: 'resize',
                         id: element.id,
                         handle,
                         startX: e.clientX,
                         startY: e.clientY,
-                        startW: element.width,
-                        startH: element.height,
-                        startFontSize: element.fontSize ?? 20,
+                        startW,
+                        startH,
+                        startFontSize: fs,
                         isImage: element.type === 'image',
                       });
                     }}

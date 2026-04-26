@@ -150,3 +150,24 @@ export function measureHalfExtentsInZone(zone: HTMLElement, element: HTMLElement
   const hInZone = (er.height / zr.height) * zh;
   return { halfW: Math.max(1, wInZone / 2), halfH: Math.max(1, hInZone / 2) };
 }
+
+/**
+ * Live text box size in zone space. Use for resize “start” dimensions when the layer uses
+ * autoWidth/autoHeight (max-content): stored `width` / `height` can be stale padding,
+ * so uniform corner scaling from them adds empty space under the last line.
+ */
+export function getRenderedTextBoxInZone(
+  zone: HTMLElement,
+  elementId: string,
+  fallback: { width: number; height: number },
+): { width: number; height: number } {
+  const node =
+    (zone.querySelector(`[data-print-id="${elementId}"]`) as HTMLElement | null) ??
+    (zone.querySelector(`[data-surface-id="${elementId}"]`) as HTMLElement | null);
+  if (!node) return fallback;
+  const m = measureHalfExtentsInZone(zone, node);
+  return {
+    width: Math.max(1, m.halfW * 2),
+    height: Math.max(1, m.halfH * 2),
+  };
+}
