@@ -25,7 +25,6 @@ export function SuperAdminNotificationsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Notifications</h1>
-          <p className="mt-1 text-sm text-white/45">Orders, messages, pricing events — filter by type.</p>
         </div>
         <Select value={filter} onValueChange={(v) => setFilter(v as Cat)}>
           <SelectTrigger className="w-full border-white/15 bg-white/5 text-white sm:w-[200px]">

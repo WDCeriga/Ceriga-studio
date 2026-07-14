@@ -9,7 +9,6 @@ export function SuperAdminSettings() {
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Settings</h1>
-        <p className="mt-1 text-sm text-white/45">Owner preferences and integration placeholders.</p>
       </div>
 
       <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
@@ -18,14 +17,12 @@ export function SuperAdminSettings() {
           <label className="flex items-center justify-between gap-4 rounded-lg border border-white/10 px-3 py-3">
             <div>
               <div className="text-sm text-white">Email for new orders</div>
-              <div className="text-xs text-white/45">Superadmin inbox</div>
             </div>
             <Switch defaultChecked />
           </label>
           <label className="flex items-center justify-between gap-4 rounded-lg border border-white/10 px-3 py-3">
             <div>
               <div className="text-sm text-white">Slack webhook</div>
-              <div className="text-xs text-white/45">Post critical events</div>
             </div>
             <Switch />
           </label>

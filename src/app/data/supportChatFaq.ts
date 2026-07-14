@@ -28,7 +28,7 @@ export const SUPPORT_FAQS: SupportFaq[] = [
     id: 'payment',
     question: 'When am I charged?',
     answer:
-      'Billing depends on your plan and checkout flow. You will see a clear summary before you confirm. For questions about an invoice, open Notifications and look for payment messages from admin.',
+      'Tech pack exports are pay-per-download (€29 each). AI chat subscriptions are billed monthly and shown before you confirm an upgrade. Production orders are charged at checkout when you place them.',
   },
   {
     id: 'files',

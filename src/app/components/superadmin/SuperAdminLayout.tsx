@@ -11,7 +11,6 @@ import {
   MessageCircle,
   Bell,
   Settings,
-  Shield,
   LogOut,
   Menu,
   ChevronLeft,
@@ -63,15 +62,6 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
 
   const NavBlock = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <div className="mb-2 px-2">
-        <div className="flex items-center gap-2 rounded-xl border border-[#CC2D24]/30 bg-[#CC2D24]/10 px-3 py-2">
-          <Shield className="h-4 w-4 shrink-0 text-[#CC2D24]" />
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#CC2D24]">Superadmin</div>
-            <div className="truncate text-[11px] text-white/50">Owner console</div>
-          </div>
-        </div>
-      </div>
       <nav className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {
           const Icon = item.icon;

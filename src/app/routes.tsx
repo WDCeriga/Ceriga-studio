@@ -282,6 +282,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/orders/review",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminOrderReviewQueue }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminOrderReviewQueue"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminOrderReviewQueue />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
     path: "/superadmin/orders/:id",
     lazy: async () => {
       const [{ SuperAdminLayout }, { SuperAdminOrderDetail }] = await Promise.all([
@@ -314,6 +330,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/statistics/:section",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminStatisticsDetail }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/statistics/SuperAdminStatisticsDetail"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminStatisticsDetail />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
     path: "/superadmin/statistics",
     lazy: async () => {
       const [{ SuperAdminLayout }, { SuperAdminStatistics }] = await Promise.all([
@@ -324,6 +356,86 @@ export const router = createBrowserRouter([
         element: (
           <SuperAdminLayout>
             <SuperAdminStatistics />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/access/:audience/:userId",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMAccessProfile }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/crm/SuperAdminCRMAccessProfile"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMAccessProfile />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/access/:audience",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMAccessList }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/crm/SuperAdminCRMAccessList"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMAccessList />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/access",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMAccess }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/crm/SuperAdminCRMAccess"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMAccess />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/bases/:baseId",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMBase }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminCRMBase"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMBase />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/products/:productId",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMProduct }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminCRMProduct"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMProduct />
           </SuperAdminLayout>
         ),
       };

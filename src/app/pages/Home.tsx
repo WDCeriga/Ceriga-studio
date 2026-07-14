@@ -39,8 +39,8 @@ export function Home() {
               </span>
             </h1>
             <p className="mt-3 max-w-[28rem] text-[13px] leading-relaxed text-white/50 sm:mt-4 sm:text-[clamp(0.8rem,1.6vw,1rem)]">
-              Configure every detail visually, export professional PDFs (paid per download or via a subscription with
-              included packs), and run packaging-only jobs when you do not need a full style spec.
+              Configure every detail visually, export professional PDFs (paid per download — no subscription), and use the
+              in-app AI assistant on free or monthly chat plans.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <Button
@@ -104,7 +104,7 @@ export function Home() {
             {
               to: '/pricing',
               title: 'Pricing',
-              body: 'Pay per tech pack export, or subscribe for monthly download allowances on Studio, Scale, and Business.',
+              body: '€29 per tech pack export — no download subscription. AI chat plans are separate monthly tiers.',
             },
             {
               to: '/#faq',
@@ -145,7 +145,7 @@ export function Home() {
           },
           {
             q: 'How does pricing work?',
-            a: 'Each tech pack PDF download is paid: either €29 per export without a plan, or included in a monthly allowance on Studio (10), Scale (30), or Business (100) — with lower overage rates on higher tiers. See the pricing page for the full comparison.',
+            a: 'Tech pack PDFs are €29 per export — pay only when you download. The in-app AI assistant has a free tier plus optional monthly chat plans (Studio, Scale, Business). See the pricing page for details.',
           },
           {
             q: 'Will my drafts be saved?',
