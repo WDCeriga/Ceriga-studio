@@ -60,7 +60,6 @@ import {
   type BuilderStep,
   cuffOptions,
   fabricColors,
-  ORDER_SIZE_KEYS,
   fadingOptions,
   hemOptions,
   neckOptions,
@@ -70,7 +69,6 @@ import {
   stitchingOptions,
   zipOptions,
   type GarmentType,
-  type OrderSizeKey,
 } from '../data/builderSteps';
 import { STUDIO_MAIN_COLORS, STUDIO_POPULAR_COLORS } from '../data/studioColorPresets';
 import { normalizeHex6 } from '../lib/colorUtils';
@@ -101,6 +99,19 @@ import {
   PackagingPreview,
 } from '../components/builder/LabelsPackagingStep';
 import { DownloadTechPackModal } from '../components/builder/DownloadTechPackModal';
+import {
+  OrderQuantitiesStep,
+  OrderQuantitiesSummary,
+} from '../components/builder/OrderQuantitiesStep';
+import {
+  defaultOrderQuantityPlan,
+  formatOrderQuantitiesSummary,
+  isSampleQuantityValid,
+  normalizeOrderQuantityPlan,
+  planHasAnyQuantity,
+  SAMPLE_UNITS,
+  type OrderQuantityPlan,
+} from '../data/orderQuantities';
 import { cn } from '../components/ui/utils';
 import type { MeasurementUnit } from '../lib/measurements';
 
@@ -201,12 +212,22 @@ interface BuilderState {
   labelColor?: string;
   /** Packaging (e.g. bag) colour (hex) */
   packagingColor?: string;
-  /** Units per size for ordering */
-  quantityBySize: Record<OrderSizeKey, number>;
+  /** Sample + bulk quote tiers for manufacturer pricing */
+  orderQuantities: OrderQuantityPlan;
+  /** @deprecated — migrated into orderQuantities on load */
+  quantityBySize?: Record<string, number>;
 }
 
 function cloneBuilderState(s: BuilderState): BuilderState {
   return JSON.parse(JSON.stringify(s)) as BuilderState;
+}
+
+function normalizeBuilderState(s: BuilderState): BuilderState {
+  const orderQuantities = s.orderQuantities
+    ? normalizeOrderQuantityPlan(s.orderQuantities)
+    : normalizeOrderQuantityPlan(undefined, s.quantityBySize as never);
+  const { quantityBySize: _legacy, ...rest } = s;
+  return { ...rest, orderQuantities };
 }
 
 function builderStatesEqual(a: BuilderState, b: BuilderState): boolean {
@@ -503,7 +524,9 @@ export function Builder() {
     labelLayerSelectedId: null,
     packagingLayerSelectedId: null,
     printsLayerSelectedId: null,
-    quantityBySize: { xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0 },
+    orderQuantities: defaultOrderQuantityPlan(
+      isTechpackSpecUrl() ? 'techpack' : 'custom_clothing',
+    ),
     detailPositions: {
       measurements: { top: '16%', left: '14px' },
       fabric: { top: '22%', left: 'auto' },
@@ -654,7 +677,7 @@ export function Builder() {
     (versionId: string) => {
       const target = versions.find((v) => v.id === versionId);
       if (!target) return;
-      const resolved = resolveBuilderState(target.state);
+      const resolved = normalizeBuilderState(resolveBuilderState(target.state));
       _setStateRaw((current) => {
         if (!builderStatesEqual(current, resolved)) {
           undoStackRef.current.push(cloneBuilderState(current));
@@ -1109,6 +1132,11 @@ export function Builder() {
   const handleNext = () => {
     if (currentStep === 13) {
       navigate('/delivery', { state: { productId } });
+      return;
+    }
+
+    if (currentStep === 12 && !isSampleQuantityValid(state.orderQuantities)) {
+      toast.error(`Sample must be exactly ${SAMPLE_UNITS} units across sizes`);
       return;
     }
 
@@ -2002,59 +2030,13 @@ export function Builder() {
           </div>
         );
 
-      case 12: {
-        const totalQty = ORDER_SIZE_KEYS.reduce(
-          (sum, k) => sum + (state.quantityBySize[k] ?? 0),
-          0,
-        );
+      case 12:
         return (
-          <div className="space-y-4">
-            <p className="text-[11px] leading-relaxed text-white/55">
-              Enter how many units you want per size. Use 0 for sizes you do not need.
-            </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {ORDER_SIZE_KEYS.map((size) => (
-                <div key={size}>
-                  <Label className="mb-1 block text-[9px] uppercase tracking-wider text-white/50">
-                    {size.toUpperCase()}
-                  </Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={
-                      (state.quantityBySize[size] ?? 0) === 0
-                        ? ''
-                        : String(state.quantityBySize[size] ?? 0)
-                    }
-                    onChange={(e) => {
-                      const t = e.target.value.trim();
-                      if (t === '') {
-                        setState((prev) => ({
-                          ...prev,
-                          quantityBySize: { ...prev.quantityBySize, [size]: 0 },
-                        }));
-                        return;
-                      }
-                      const raw = parseInt(t, 10);
-                      const v = Number.isFinite(raw) ? Math.max(0, raw) : 0;
-                      setState((prev) => ({
-                        ...prev,
-                        quantityBySize: { ...prev.quantityBySize, [size]: v },
-                      }));
-                    }}
-                    className="h-9 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/80">
-              Total units: <span className="font-semibold text-white">{totalQty}</span>
-            </div>
-          </div>
+          <OrderQuantitiesStep
+            plan={state.orderQuantities}
+            onChange={(orderQuantities) => setState((prev) => ({ ...prev, orderQuantities }))}
+          />
         );
-      }
 
       case 13:
         return (
@@ -2128,10 +2110,12 @@ export function Builder() {
                 />
               ) : null}
               <ReviewRow
-                label="Order quantities (total units)"
-                value={String(
-                  ORDER_SIZE_KEYS.reduce((sum, k) => sum + (state.quantityBySize[k] ?? 0), 0),
-                )}
+                label="Order quantities"
+                value={
+                  planHasAnyQuantity(state.orderQuantities)
+                    ? formatOrderQuantitiesSummary(state.orderQuantities).join(' · ')
+                    : 'Not set'
+                }
               />
             </div>
 
@@ -2340,21 +2324,7 @@ export function Builder() {
             </div>
           </div>
         ) : null}
-        <div className="border-b border-white/10 pb-4">
-          <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Order quantities</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-white/85 sm:grid-cols-3">
-            {ORDER_SIZE_KEYS.map((k) => (
-              <div key={k}>
-                <span className="text-white/50">{k.toUpperCase()}</span>{' '}
-                <span className="font-medium text-white">{state.quantityBySize[k] ?? 0}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 text-sm font-semibold text-white">
-            Total units:{' '}
-            {ORDER_SIZE_KEYS.reduce((sum, k) => sum + (state.quantityBySize[k] ?? 0), 0)}
-          </div>
-        </div>
+        <OrderQuantitiesSummary plan={state.orderQuantities} />
 
         {summaryStepNotes ? (
           <div className="border-b border-white/10 pb-4">

@@ -95,7 +95,7 @@ export const builderSteps: BuilderStep[] = [
     id: 12,
     name: 'quantity',
     title: 'Order quantities',
-    description: 'Set how many units you need per size'
+    description: 'Sample sizes plus bulk quote tiers for pricing'
   },
   {
     id: 13,
