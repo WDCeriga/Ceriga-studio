@@ -2,7 +2,11 @@
 
 import { applyProductionMargin, getProductionMarginPercent, resolveMarginForPlan } from './superadminPricingMock';
 import { getManufacturerPlan } from './manufacturerPlanRegistry';
-
+import {
+  distributeQuantity,
+  type OrderQuantityPlan,
+} from './orderQuantities';
+import { mockDelivery, type OrderDeliveryInfo } from './orderDelivery';
 export type SuperAdminUser = {
   id: string;
   name: string;
@@ -28,6 +32,17 @@ export type OrderStatus =
   | 'shipped'
   | 'completed';
 
+/** One priced tier from the manufacturer (sample + up to 3 bulk runs). */
+export type ManufacturerQuoteTier = {
+  id: string;
+  kind: 'sample' | 'bulk';
+  label: string;
+  totalUnits: number;
+  manufacturerQuoteCents: number;
+  calculatedPriceCents?: number;
+  finalPriceCents?: number;
+};
+
 export type SuperAdminOrder = {
   id: string;
   kind: OrderKind;
@@ -41,13 +56,37 @@ export type SuperAdminOrder = {
   manufacturerName?: string;
   deliveryCountry: string;
   deliveryCity: string;
-  /** Set when manufacturer submits pricing on their admin side */
+  /** Full delivery contact + address from brand Delivery step. */
+  delivery?: OrderDeliveryInfo;
+  /**
+   * Sample + bulk quote tiers from the factory (matches brand quantity options).
+   * Prefer this over the legacy single `manufacturerQuoteCents`.
+   */
+  quoteTiers?: ManufacturerQuoteTier[];
+  /** Quantities the brand requested (sample + bulk quote tiers). */
+  orderQuantities?: OrderQuantityPlan;
+  /**
+   * @deprecated Prefer quoteTiers — kept as a summary of the primary bulk/sample quote
+   * for list cards that still read a single number.
+   */
   manufacturerQuoteCents?: number;
+  /** When assigned to a factory — quote SLA deadline (ISO date). */
+  dueQuoteBy?: string;
+  /** When Ceriga assigned the order to a manufacturer. */
+  assignedAt?: string;
+  /** Factory declined — reason surfaced for re-route. */
+  factoryRejectReason?: string;
+  /** Mirror of factory portal quote pipeline when known. */
+  factoryQuoteStatus?: 'new' | 'reviewing' | 'clarifying' | 'quoted' | 'rejected';
+  /** Ops flagged QC photos for the brand to review. */
+  qcFlaggedForBrand?: boolean;
+  qcFlagNote?: string;
+  qcFlaggedAt?: string;
   /** Ceriga margin applied when quote is received (auto-calculator) */
   cerigaMarginPercent?: number;
-  /** Auto-calculated brand price before superadmin review */
+  /** Auto-calculated brand price before superadmin review (legacy single-price) */
   calculatedPriceCents?: number;
-  /** Superadmin-approved price sent to the brand */
+  /** Superadmin-approved price sent to the brand (legacy single-price) */
   finalPriceCents?: number;
   trackingNumber?: string;
   notes?: string;
@@ -59,6 +98,82 @@ export type SuperAdminOrder = {
   /** Custom clothing — source tech pack the customer attached to this order */
   customerTechPack?: CustomerTechPackRef;
 };
+
+function customSamplePlan(bulkTiers: number[]): OrderQuantityPlan {
+  return {
+    mode: 'custom_clothing',
+    sample: {
+      id: 'sample',
+      kind: 'sample',
+      targetTotal: 6,
+      bySize: { xs: 1, s: 1, m: 1, l: 1, xl: 1, xxl: 1 },
+    },
+    bulkRuns: bulkTiers.map((tier, i) => ({
+      id: `bulk-${i + 1}`,
+      kind: 'bulk' as const,
+      targetTotal: tier,
+      bySize: distributeQuantity(tier),
+    })),
+  };
+}
+
+function quoteTiersFor(
+  sampleCents: number,
+  bulks: { units: number; quoteCents: number }[],
+  marginPercent = 17.5,
+): [ManufacturerQuoteTier[], number, number] {
+  const tiers: ManufacturerQuoteTier[] = [
+    {
+      id: 'sample',
+      kind: 'sample',
+      label: 'Sample',
+      totalUnits: 6,
+      manufacturerQuoteCents: sampleCents,
+      calculatedPriceCents: applyProductionMargin(sampleCents, marginPercent),
+    },
+    ...bulks.map((b, i) => ({
+      id: `bulk-${i + 1}`,
+      kind: 'bulk' as const,
+      label: `Bulk ${i + 1}`,
+      totalUnits: b.units,
+      manufacturerQuoteCents: b.quoteCents,
+      calculatedPriceCents: applyProductionMargin(b.quoteCents, marginPercent),
+    })),
+  ];
+  const primary = tiers.find((t) => t.kind === 'bulk') ?? tiers[0];
+  return [tiers, primary.manufacturerQuoteCents, primary.calculatedPriceCents ?? 0];
+}
+
+/** Quote tiers for an order (falls back to legacy single quote). */
+export function getOrderQuoteTiers(order: SuperAdminOrder): ManufacturerQuoteTier[] {
+  if (order.quoteTiers?.length) return order.quoteTiers;
+  if (order.manufacturerQuoteCents != null) {
+    return [
+      {
+        id: 'legacy',
+        kind: 'bulk',
+        label: 'Production quote',
+        totalUnits: 0,
+        manufacturerQuoteCents: order.manufacturerQuoteCents,
+        calculatedPriceCents: order.calculatedPriceCents,
+        finalPriceCents: order.finalPriceCents,
+      },
+    ];
+  }
+  return [];
+}
+
+export function withCalculatedQuoteTiers(
+  tiers: ManufacturerQuoteTier[],
+  marginPercent: number,
+): ManufacturerQuoteTier[] {
+  return tiers.map((tier) => ({
+    ...tier,
+    calculatedPriceCents:
+      tier.calculatedPriceCents ??
+      applyProductionMargin(tier.manufacturerQuoteCents, marginPercent),
+  }));
+}
 
 export type CustomerTechPackRef = {
   id: string;
@@ -210,7 +325,38 @@ export const MOCK_SUPER_USERS: SuperAdminUser[] = [
   },
 ];
 
-export const MOCK_SUPER_ORDERS: SuperAdminOrder[] = [
+function ensureSuperOrderDelivery(order: SuperAdminOrder): SuperAdminOrder {
+  if (order.delivery) {
+    return {
+      ...order,
+      deliveryCity: order.delivery.city,
+      deliveryCountry: order.delivery.country,
+    };
+  }
+  const parts = order.userName.trim().split(/\s+/);
+  const delivery = mockDelivery({
+    firstName: parts[0] ?? 'Brand',
+    lastName: parts.slice(1).join(' ') || 'Contact',
+    email: order.userEmail,
+    city: order.deliveryCity,
+    country: order.deliveryCountry,
+    phone: '+44 7700 900789',
+    address1: '22 Warehouse Lane',
+    address2: order.kind === 'custom_clothing' ? 'Receiving desk' : undefined,
+    instructions:
+      order.kind === 'custom_clothing'
+        ? 'Signature required. Leave with reception if closed after 5pm.'
+        : undefined,
+  });
+  return {
+    ...order,
+    delivery,
+    deliveryCity: delivery.city,
+    deliveryCountry: delivery.country,
+  };
+}
+
+export let MOCK_SUPER_ORDERS: SuperAdminOrder[] = [
   {
     id: 'ord-1001',
     kind: 'techpack',
@@ -238,6 +384,9 @@ export const MOCK_SUPER_ORDERS: SuperAdminOrder[] = [
     createdAt: '2026-04-05',
     manufacturerId: 'm1',
     manufacturerName: 'North Mills',
+    assignedAt: '2026-04-05',
+    dueQuoteBy: '2026-04-08',
+    factoryQuoteStatus: 'reviewing',
     deliveryCountry: 'UK',
     deliveryCity: 'Manchester',
     customerTechPack: {
@@ -276,6 +425,10 @@ export const MOCK_SUPER_ORDERS: SuperAdminOrder[] = [
     createdAt: '2026-04-09',
     manufacturerId: 'm2',
     manufacturerName: 'Euro Stitch Co',
+    assignedAt: '2026-04-09',
+    dueQuoteBy: '2026-04-11',
+    factoryQuoteStatus: 'rejected',
+    factoryRejectReason: 'Lead time too tight for recycled fleece MOQ this month',
     deliveryCountry: 'UK',
     deliveryCity: 'Bristol',
     customerTechPack: {
@@ -289,33 +442,52 @@ export const MOCK_SUPER_ORDERS: SuperAdminOrder[] = [
       pageCount: 18,
     },
   },
-  {
-    id: 'ord-1005',
-    kind: 'custom_clothing',
-    userId: 'u6',
-    userName: 'Blank Collective',
-    userEmail: 'orders@blankcollective.com',
-    productName: 'Heavyweight sweatshirt bulk order',
-    status: 'in_production',
-    createdAt: '2026-03-22',
-    manufacturerId: 'm2',
-    manufacturerName: 'Euro Stitch Co',
-    deliveryCountry: 'DE',
-    deliveryCity: 'Berlin',
-    manufacturerQuoteCents: 245000,
-    finalPriceCents: 289000,
-    trackingNumber: 'DHL-92847102',
-    customerTechPack: {
-      id: 'tp-blank-sweat-heavy',
-      name: 'Heavyweight sweatshirt spec',
-      garmentType: 'Sweatshirt',
-      builderProductId: 'sw-001',
-      projectId: 'proj-blank-sweat',
-      exportFormat: 'pdf',
-      lastExportedAt: '2026-03-20',
-      pageCount: 14,
-    },
-  },
+  (() => {
+    const [tiers, primaryQuote, primaryCalc] = quoteTiersFor(
+      28500,
+      [
+        { units: 50, quoteCents: 145000 },
+        { units: 100, quoteCents: 245000 },
+        { units: 250, quoteCents: 520000 },
+      ],
+      17.5,
+    );
+    const withFinals = tiers.map((t) =>
+      t.id === 'bulk-2'
+        ? { ...t, finalPriceCents: 289000 }
+        : { ...t, finalPriceCents: t.calculatedPriceCents },
+    );
+    return {
+      id: 'ord-1005',
+      kind: 'custom_clothing' as const,
+      userId: 'u6',
+      userName: 'Blank Collective',
+      userEmail: 'orders@blankcollective.com',
+      productName: 'Heavyweight sweatshirt bulk order',
+      status: 'in_production' as const,
+      createdAt: '2026-03-22',
+      manufacturerId: 'm2',
+      manufacturerName: 'Euro Stitch Co',
+      deliveryCountry: 'DE',
+      deliveryCity: 'Berlin',
+      orderQuantities: customSamplePlan([50, 100, 250]),
+      quoteTiers: withFinals,
+      manufacturerQuoteCents: primaryQuote,
+      calculatedPriceCents: primaryCalc,
+      finalPriceCents: 289000,
+      trackingNumber: 'DHL-92847102',
+      customerTechPack: {
+        id: 'tp-blank-sweat-heavy',
+        name: 'Heavyweight sweatshirt spec',
+        garmentType: 'Sweatshirt',
+        builderProductId: 'sw-001',
+        projectId: 'proj-blank-sweat',
+        exportFormat: 'pdf' as const,
+        lastExportedAt: '2026-03-20',
+        pageCount: 14,
+      },
+    };
+  })(),
   {
     id: 'ord-1006',
     kind: 'techpack',
@@ -348,32 +520,50 @@ export const MOCK_SUPER_ORDERS: SuperAdminOrder[] = [
     exportFormat: 'pdf_bundle',
     creditsUsed: 0,
   },
-  {
-    id: 'ord-1008',
-    kind: 'custom_clothing',
-    userId: 'u6',
-    userName: 'Blank Collective',
-    userEmail: 'orders@blankcollective.com',
-    productName: 'Capsule collection — 120 units',
-    status: 'paid',
-    createdAt: '2026-04-02',
-    manufacturerId: 'm2',
-    manufacturerName: 'Euro Stitch Co',
-    deliveryCountry: 'NL',
-    deliveryCity: 'Amsterdam',
-    manufacturerQuoteCents: 156000,
-    finalPriceCents: 182500,
-    customerTechPack: {
-      id: 'tp-blank-capsule',
-      name: 'Capsule collection line sheet',
-      garmentType: 'T-Shirt',
-      builderProductId: 'ts-001',
-      projectId: 'proj-blank-capsule',
-      exportFormat: 'pdf_bundle',
-      lastExportedAt: '2026-04-01',
-      pageCount: 22,
-    },
-  },
+  (() => {
+    const [tiers, primaryQuote, primaryCalc] = quoteTiersFor(
+      24800,
+      [
+        { units: 50, quoteCents: 98000 },
+        { units: 120, quoteCents: 156000 },
+      ],
+      17.5,
+    );
+    const withFinals = tiers.map((t) =>
+      t.id === 'bulk-2'
+        ? { ...t, finalPriceCents: 182500 }
+        : { ...t, finalPriceCents: t.calculatedPriceCents },
+    );
+    return {
+      id: 'ord-1008',
+      kind: 'custom_clothing' as const,
+      userId: 'u6',
+      userName: 'Blank Collective',
+      userEmail: 'orders@blankcollective.com',
+      productName: 'Capsule collection — 120 units',
+      status: 'paid' as const,
+      createdAt: '2026-04-02',
+      manufacturerId: 'm2',
+      manufacturerName: 'Euro Stitch Co',
+      deliveryCountry: 'NL',
+      deliveryCity: 'Amsterdam',
+      orderQuantities: customSamplePlan([50, 120]),
+      quoteTiers: withFinals,
+      manufacturerQuoteCents: primaryQuote,
+      calculatedPriceCents: primaryCalc,
+      finalPriceCents: 182500,
+      customerTechPack: {
+        id: 'tp-blank-capsule',
+        name: 'Capsule collection line sheet',
+        garmentType: 'T-Shirt',
+        builderProductId: 'ts-001',
+        projectId: 'proj-blank-capsule',
+        exportFormat: 'pdf_bundle' as const,
+        lastExportedAt: '2026-04-01',
+        pageCount: 22,
+      },
+    };
+  })(),
   {
     id: 'ord-1009',
     kind: 'techpack',
@@ -414,61 +604,87 @@ export const MOCK_SUPER_ORDERS: SuperAdminOrder[] = [
       pageCount: 11,
     },
   },
-  {
-    id: 'ord-1011',
-    kind: 'custom_clothing',
-    userId: 'u4',
-    userName: 'Threadline Apparel',
-    userEmail: 'team@threadline.co',
-    productName: 'Merino base layer — 800 units',
-    status: 'pending_review',
-    createdAt: '2026-04-10',
-    manufacturerId: 'm2',
-    manufacturerName: 'Euro Stitch Co',
-    deliveryCountry: 'UK',
-    deliveryCity: 'London',
-    manufacturerQuoteCents: 312000,
-    cerigaMarginPercent: 17.5,
-    calculatedPriceCents: 366600,
-    customerTechPack: {
-      id: 'tp-threadline-merino',
-      name: 'Merino base layer specification',
-      garmentType: 'T-Shirt',
-      builderProductId: 'ts-001',
-      projectId: 'proj-threadline-merino',
-      exportFormat: 'pdf',
-      lastExportedAt: '2026-04-09',
-      pageCount: 15,
-    },
-  },
-  {
-    id: 'ord-1012',
-    kind: 'custom_clothing',
-    userId: 'u9',
-    userName: 'Urban Layer Ltd',
-    userEmail: 'studio@urbanlayer.uk',
-    productName: 'Workwear trouser run — 180 units',
-    status: 'pending_review',
-    createdAt: '2026-04-09',
-    manufacturerId: 'm1',
-    manufacturerName: 'North Mills',
-    deliveryCountry: 'UK',
-    deliveryCity: 'Leeds',
-    manufacturerQuoteCents: 124500,
-    cerigaMarginPercent: 17.5,
-    calculatedPriceCents: 146288,
-    customerTechPack: {
-      id: 'tp-urban-trouser',
-      name: 'Workwear trouser tech pack',
-      garmentType: 'Trousers',
-      builderProductId: 'tr-001',
-      projectId: 'proj-urban-trouser',
-      exportFormat: 'pdf',
-      lastExportedAt: '2026-04-07',
-      pageCount: 13,
-    },
-  },
-];
+  (() => {
+    const [tiers, primaryQuote, primaryCalc] = quoteTiersFor(
+      32000,
+      [
+        { units: 100, quoteCents: 118000 },
+        { units: 250, quoteCents: 210000 },
+        { units: 800, quoteCents: 312000 },
+      ],
+      17.5,
+    );
+    return {
+      id: 'ord-1011',
+      kind: 'custom_clothing' as const,
+      userId: 'u4',
+      userName: 'Threadline Apparel',
+      userEmail: 'team@threadline.co',
+      productName: 'Merino base layer — 800 units',
+      status: 'pending_review' as const,
+      createdAt: '2026-04-10',
+      manufacturerId: 'm2',
+      manufacturerName: 'Euro Stitch Co',
+      deliveryCountry: 'UK',
+      deliveryCity: 'London',
+      orderQuantities: customSamplePlan([100, 250, 800]),
+      quoteTiers: tiers,
+      manufacturerQuoteCents: primaryQuote,
+      cerigaMarginPercent: 17.5,
+      calculatedPriceCents: primaryCalc,
+      customerTechPack: {
+        id: 'tp-threadline-merino',
+        name: 'Merino base layer specification',
+        garmentType: 'T-Shirt',
+        builderProductId: 'ts-001',
+        projectId: 'proj-threadline-merino',
+        exportFormat: 'pdf' as const,
+        lastExportedAt: '2026-04-09',
+        pageCount: 15,
+      },
+    };
+  })(),
+  (() => {
+    const [tiers, primaryQuote, primaryCalc] = quoteTiersFor(
+      26500,
+      [
+        { units: 50, quoteCents: 72000 },
+        { units: 100, quoteCents: 98000 },
+        { units: 180, quoteCents: 124500 },
+      ],
+      17.5,
+    );
+    return {
+      id: 'ord-1012',
+      kind: 'custom_clothing' as const,
+      userId: 'u9',
+      userName: 'Urban Layer Ltd',
+      userEmail: 'studio@urbanlayer.uk',
+      productName: 'Workwear trouser run — 180 units',
+      status: 'pending_review' as const,
+      createdAt: '2026-04-09',
+      manufacturerId: 'm1',
+      manufacturerName: 'North Mills',
+      deliveryCountry: 'UK',
+      deliveryCity: 'Leeds',
+      orderQuantities: customSamplePlan([50, 100, 180]),
+      quoteTiers: tiers,
+      manufacturerQuoteCents: primaryQuote,
+      cerigaMarginPercent: 17.5,
+      calculatedPriceCents: primaryCalc,
+      customerTechPack: {
+        id: 'tp-urban-trouser',
+        name: 'Workwear trouser tech pack',
+        garmentType: 'Trousers',
+        builderProductId: 'tr-001',
+        projectId: 'proj-urban-trouser',
+        exportFormat: 'pdf' as const,
+        lastExportedAt: '2026-04-07',
+        pageCount: 13,
+      },
+    };
+  })(),
+].map(ensureSuperOrderDelivery);
 
 export const MOCK_THREADS: ChatThread[] = [
   {
@@ -651,4 +867,55 @@ export type OrderStageFilter = keyof typeof ORDER_STAGE_GROUPS | 'all';
 
 export function formatMoney(cents: number, currency = 'GBP') {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(cents / 100);
+}
+
+const ORDER_OPS_KEY = 'ceriga_superadmin_orders_ops_v1';
+
+function loadOrderOpsPatches(): Record<string, Partial<SuperAdminOrder>> {
+  try {
+    const raw = localStorage.getItem(ORDER_OPS_KEY);
+    if (raw) return JSON.parse(raw) as Record<string, Partial<SuperAdminOrder>>;
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+function persistOrderOpsPatches(patches: Record<string, Partial<SuperAdminOrder>>) {
+  try {
+    localStorage.setItem(ORDER_OPS_KEY, JSON.stringify(patches));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Apply persisted assignment / QC patches onto the in-memory order list. */
+export function hydrateSuperAdminOrdersFromStorage() {
+  if (typeof window === 'undefined') return;
+  const patches = loadOrderOpsPatches();
+  MOCK_SUPER_ORDERS = MOCK_SUPER_ORDERS.map((o) =>
+    patches[o.id] ? { ...o, ...patches[o.id] } : o,
+  );
+}
+
+if (typeof window !== 'undefined') {
+  hydrateSuperAdminOrdersFromStorage();
+}
+
+export function getSuperAdminOrder(id: string): SuperAdminOrder | undefined {
+  return MOCK_SUPER_ORDERS.find((o) => o.id === id);
+}
+
+export function patchSuperAdminOrder(
+  id: string,
+  patch: Partial<SuperAdminOrder>,
+): SuperAdminOrder | undefined {
+  const idx = MOCK_SUPER_ORDERS.findIndex((o) => o.id === id);
+  if (idx < 0) return undefined;
+  const next = { ...MOCK_SUPER_ORDERS[idx], ...patch };
+  MOCK_SUPER_ORDERS = MOCK_SUPER_ORDERS.map((o, i) => (i === idx ? next : o));
+  const all = loadOrderOpsPatches();
+  all[id] = { ...(all[id] ?? {}), ...patch };
+  persistOrderOpsPatches(all);
+  return next;
 }

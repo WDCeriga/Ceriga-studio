@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useParams } from 'react-router';
+import { Link, Navigate, useParams } from 'react-router';
 import {
   Area,
   AreaChart,
@@ -40,6 +40,7 @@ import {
   type StatsPeriod,
   type StatsSectionId,
 } from '../../../data/superadminStatsMock';
+import { listFactoryRankings } from '../../../data/superadminFactoryOpsMock';
 import {
   axisProps,
   ChartPanel,
@@ -375,6 +376,8 @@ function AiChatSection() {
 }
 
 function ManufacturersSection() {
+  const rankings = listFactoryRankings();
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
@@ -403,11 +406,59 @@ function ManufacturersSection() {
         </ChartPanel>
       </div>
 
-      <DataTable
-        title="Manufacturer leaderboard"
-        columns={['Partner', 'Orders', 'Avg. quote (days)']}
-        rows={manufacturerThroughput.map((m) => [m.name, m.orders, m.avgDays])}
-      />
+      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-white">Manufacturer rankings</h2>
+            <p className="mt-0.5 text-[11px] text-white/40">
+              Composite of win rate, quote hours, OTIF, on-time, and capacity use (same scorecard as
+              partner detail).
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-white/[0.06] text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                <th className="pb-3 pr-3">#</th>
+                <th className="pb-3 pr-4">Partner</th>
+                <th className="pb-3 pr-4">Score</th>
+                <th className="pb-3 pr-4">Win rate</th>
+                <th className="pb-3 pr-4">Quote</th>
+                <th className="pb-3 pr-4">OTIF</th>
+                <th className="pb-3 pr-4">Capacity</th>
+                <th className="pb-3">Orders</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rankings.map((r) => (
+                <tr key={r.entityId} className="border-b border-white/[0.04] last:border-0">
+                  <td className="py-3 pr-3 tabular-nums text-white/50">{r.rank}</td>
+                  <td className="py-3 pr-4">
+                    <Link
+                      to={`/superadmin/manufacturers/${r.userId}`}
+                      className="font-medium text-white hover:text-[#CC2D24]"
+                    >
+                      {r.name}
+                    </Link>
+                    {r.live ? (
+                      <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-300">
+                        Live
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-3 pr-4 tabular-nums text-white/80">{r.score}</td>
+                  <td className="py-3 pr-4 tabular-nums text-white/70">{r.winRate}%</td>
+                  <td className="py-3 pr-4 tabular-nums text-white/70">{r.avgQuoteHours}h</td>
+                  <td className="py-3 pr-4 tabular-nums text-white/70">{r.otifPct}%</td>
+                  <td className="py-3 pr-4 tabular-nums text-white/70">{r.capacityPct}%</td>
+                  <td className="py-3 tabular-nums text-white/70">{r.ordersAssigned}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

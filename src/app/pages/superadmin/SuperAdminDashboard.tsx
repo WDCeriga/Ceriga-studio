@@ -26,12 +26,16 @@ import {
   MOCK_SUPER_ORDERS,
   MOCK_SUPER_USERS,
   MOCK_THREADS,
-  MOCK_SUPER_NOTIFICATIONS,
   STATUS_LABELS,
   formatMoney,
   type OrderStatus,
   type SuperAdminOrder,
 } from '../../data/superadminMock';
+import {
+  listPortalNotifications,
+  countUnreadPortalNotifications,
+  PORTAL_NOTIFICATION_CATEGORY_LABEL,
+} from '../../data/portalNotifications';
 import { Button } from '../../components/ui/button';
 import { cn } from '../../components/ui/utils';
 
@@ -167,7 +171,8 @@ export function SuperAdminDashboard() {
   );
   const needsReview = MOCK_SUPER_ORDERS.filter((o) => o.status === 'pending_review');
   const revenueCents = MOCK_SUPER_ORDERS.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0);
-  const unreadNotifs = MOCK_SUPER_NOTIFICATIONS.filter((n) => !n.read).length;
+  const unreadNotifs = countUnreadPortalNotifications('superadmin');
+  const recentNotifs = listPortalNotifications('superadmin').slice(0, 4);
   const unreadChats = MOCK_THREADS.reduce((sum, t) => sum + t.unread, 0);
   const activeBrands = MOCK_SUPER_USERS.filter((u) => u.role === 'brand').length;
 
@@ -410,9 +415,12 @@ export function SuperAdminDashboard() {
             </Link>
           </div>
           <ul className="divide-y divide-white/[0.06]">
-            {MOCK_SUPER_NOTIFICATIONS.slice(0, 4).map((n) => (
+            {recentNotifs.map((n) => (
               <li key={n.id} className="px-5 py-3.5">
-                <div className="flex items-start gap-3">
+                <Link
+                  to={n.href ?? '/superadmin/notifications'}
+                  className="flex items-start gap-3 transition hover:opacity-90"
+                >
                   {!n.read ? (
                     <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#CC2D24]" />
                   ) : (
@@ -422,10 +430,10 @@ export function SuperAdminDashboard() {
                     <div className="text-sm font-medium text-white/90">{n.title}</div>
                     <div className="mt-0.5 text-xs text-white/45">{n.body}</div>
                     <div className="mt-1 text-[10px] uppercase tracking-wider text-white/30">
-                      {n.category}
+                      {PORTAL_NOTIFICATION_CATEGORY_LABEL[n.category]}
                     </div>
                   </div>
-                </div>
+                </Link>
               </li>
             ))}
           </ul>
@@ -479,35 +487,6 @@ export function SuperAdminDashboard() {
               </li>
             ))}
           </ul>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#141416] to-[#111113] p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">Quick actions</h2>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: 'Review orders', to: '/superadmin/orders', primary: true },
-            { label: 'Manage users', to: '/superadmin/users', primary: false },
-            { label: 'CRM & catalog', to: '/superadmin/crm', primary: false },
-            { label: 'Pricing rules', to: '/superadmin/pricing', primary: false },
-          ].map((a) => (
-            <Button
-              key={a.label}
-              asChild
-              variant={a.primary ? 'default' : 'outline'}
-              className={cn(
-                'h-auto px-4 py-3 text-left',
-                a.primary
-                  ? 'bg-[#CC2D24] hover:bg-[#CC2D24]/90'
-                  : 'border-white/15 bg-transparent text-white hover:bg-white/10',
-              )}
-            >
-              <Link to={a.to}>
-                <span className="text-sm font-medium">{a.label}</span>
-              </Link>
-            </Button>
-          ))}
         </div>
       </div>
     </div>

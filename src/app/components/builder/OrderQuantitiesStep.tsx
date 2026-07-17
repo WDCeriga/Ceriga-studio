@@ -6,10 +6,12 @@ import { cn } from '../ui/utils';
 import { ORDER_SIZE_KEYS } from '../../data/builderSteps';
 import {
   applySizeChange,
+  CUSTOM_SAMPLE_MAX_PER_SIZE,
   distributeQuantity,
+  emptySizeBreakdown,
   maxBulkRuns,
   newBulkRun,
-  SAMPLE_UNITS,
+  sampleFixedTotal,
   setOrderMode,
   sumBreakdown,
   type OrderQuantityLine,
@@ -28,11 +30,13 @@ function SizeGrid({
   onChange,
   compact,
   maxTotal,
+  maxPerSize,
 }: {
   bySize: SizeBreakdown;
   onChange: (next: SizeBreakdown) => void;
   compact?: boolean;
   maxTotal?: number;
+  maxPerSize?: number;
 }) {
   return (
     <div className={cn('grid grid-cols-3 gap-2', compact ? 'sm:grid-cols-3' : 'sm:grid-cols-6')}>
@@ -44,19 +48,19 @@ function SizeGrid({
           <Input
             type="number"
             min={0}
-            max={maxTotal}
+            max={maxPerSize ?? maxTotal}
             inputMode="numeric"
             placeholder="0"
             value={(bySize[size] ?? 0) === 0 ? '' : String(bySize[size] ?? 0)}
             onChange={(e) => {
               const t = e.target.value.trim();
               if (t === '') {
-                onChange(applySizeChange(bySize, size, 0, maxTotal));
+                onChange(applySizeChange(bySize, size, 0, maxTotal, maxPerSize));
                 return;
               }
               const raw = parseInt(t, 10);
               const v = Number.isFinite(raw) ? Math.max(0, raw) : 0;
-              onChange(applySizeChange(bySize, size, v, maxTotal));
+              onChange(applySizeChange(bySize, size, v, maxTotal, maxPerSize));
             }}
             className="h-8 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
           />
@@ -75,6 +79,7 @@ function QuantityBlock({
   showTargetTotal,
   minTotal,
   fixedTotal,
+  maxPerSize,
   targetLabel = 'Quote tier (units)',
 }: {
   title: string;
@@ -85,14 +90,28 @@ function QuantityBlock({
   showTargetTotal?: boolean;
   minTotal?: number;
   fixedTotal?: number;
+  maxPerSize?: number;
   targetLabel?: string;
 }) {
   const total = sumBreakdown(line.bySize);
   const belowMin = minTotal != null && total < minTotal;
-  const overMax = fixedTotal != null && total > fixedTotal;
-  const sizeCap = fixedTotal ?? undefined;
+  const fixedMismatch = fixedTotal != null && total !== fixedTotal;
+  const sizeCap = maxPerSize != null ? undefined : fixedTotal ?? undefined;
 
   const applyAutoFill = () => {
+    if (maxPerSize != null) {
+      const bySize = emptySizeBreakdown();
+      ORDER_SIZE_KEYS.forEach((k) => {
+        bySize[k] = maxPerSize;
+      });
+      onUpdate({
+        ...line,
+        targetTotal: fixedTotal,
+        bySize,
+      });
+      return;
+    }
+
     const target = fixedTotal ?? Math.max(minTotal ?? 0, line.targetTotal ?? total);
     if (target <= 0) return;
     onUpdate({
@@ -164,6 +183,7 @@ function QuantityBlock({
         onChange={(bySize) => onUpdate({ ...line, bySize })}
         compact={!showTargetTotal && fixedTotal == null}
         maxTotal={sizeCap}
+        maxPerSize={maxPerSize}
       />
 
       <div className="mt-2.5 flex items-center justify-between text-[10px] text-white/45">
@@ -180,7 +200,7 @@ function QuantityBlock({
         <span
           className={cn(
             'font-semibold tabular-nums',
-            belowMin || overMax ? 'text-amber-300' : 'text-white',
+            belowMin || fixedMismatch ? 'text-amber-300' : 'text-white',
           )}
         >
           {total}
@@ -197,7 +217,7 @@ function QuantityBlock({
             onClick={applyAutoFill}
           >
             <Sparkles className="mr-1.5 h-3 w-3" />
-            Reset size split
+            {maxPerSize != null ? 'One per size' : 'Reset size split'}
           </Button>
         </div>
       ) : null}
@@ -259,9 +279,15 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
 
       <QuantityBlock
         title="Sample"
+        subtitle={
+          plan.mode === 'custom_clothing'
+            ? 'Fixed 6 units — one sample per size (max 1 each)'
+            : undefined
+        }
         line={plan.sample}
         onUpdate={updateSample}
-        fixedTotal={SAMPLE_UNITS}
+        fixedTotal={sampleFixedTotal(plan.mode)}
+        maxPerSize={plan.mode === 'custom_clothing' ? CUSTOM_SAMPLE_MAX_PER_SIZE : undefined}
       />
 
       <div className="space-y-2.5">
@@ -285,7 +311,11 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
               title={`Bulk ${index + 1}`}
               line={run}
               onUpdate={(line) => updateBulk(index, line)}
-              onRemove={plan.mode === 'custom_clothing' && plan.bulkRuns.length > 1 ? () => removeBulk(index) : undefined}
+              onRemove={
+                plan.mode === 'custom_clothing' && plan.bulkRuns.length > 1
+                  ? () => removeBulk(index)
+                  : undefined
+              }
               showTargetTotal
             />
           ))

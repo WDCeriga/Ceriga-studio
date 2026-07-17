@@ -18,10 +18,19 @@ export type OrderQuantityPlan = {
   bulkRuns: OrderQuantityLine[];
 };
 
-/** Fixed total units for the sample block (min and max) */
+/** Fixed total units for tech pack sample (min and max) */
 export const SAMPLE_UNITS = 5;
 /** @deprecated Use SAMPLE_UNITS */
 export const SAMPLE_MIN_UNITS = SAMPLE_UNITS;
+/** Custom clothing: fixed 6 samples — one per size, max 1 each */
+export const CUSTOM_SAMPLE_UNITS = ORDER_SIZE_KEYS.length;
+export const CUSTOM_SAMPLE_MAX_PER_SIZE = 1;
+/** @deprecated Use CUSTOM_SAMPLE_UNITS */
+export const CUSTOM_SAMPLE_MAX_UNITS = CUSTOM_SAMPLE_UNITS;
+
+export function sampleFixedTotal(mode: OrderQuantityMode): number {
+  return mode === 'techpack' ? SAMPLE_UNITS : CUSTOM_SAMPLE_UNITS;
+}
 
 const SIZE_WEIGHTS: Record<OrderSizeKey, number> = {
   xs: 0.08,
@@ -76,27 +85,78 @@ export function distributeQuantity(total: number): SizeBreakdown {
   return result;
 }
 
-export function defaultSampleLine(): OrderQuantityLine {
+export function defaultSampleLine(mode: OrderQuantityMode = 'custom_clothing'): OrderQuantityLine {
+  if (mode === 'techpack') {
+    return {
+      id: 'sample',
+      kind: 'sample',
+      targetTotal: SAMPLE_UNITS,
+      bySize: distributeQuantity(SAMPLE_UNITS),
+    };
+  }
+
+  const bySize = emptySizeBreakdown();
+  ORDER_SIZE_KEYS.forEach((k) => {
+    bySize[k] = CUSTOM_SAMPLE_MAX_PER_SIZE;
+  });
+  return { id: 'sample', kind: 'sample', targetTotal: CUSTOM_SAMPLE_UNITS, bySize };
+}
+
+export function normalizeSampleLine(
+  line: OrderQuantityLine,
+  mode: OrderQuantityMode,
+): OrderQuantityLine {
+  const bySize = { ...emptySizeBreakdown(), ...line.bySize };
+  if (mode === 'custom_clothing') {
+    ORDER_SIZE_KEYS.forEach((k) => {
+      bySize[k] = Math.min(
+        CUSTOM_SAMPLE_MAX_PER_SIZE,
+        Math.max(0, Math.floor(bySize[k] ?? 0)),
+      );
+    });
+  }
   return {
-    id: 'sample',
+    ...line,
+    id: line.id || 'sample',
     kind: 'sample',
-    targetTotal: SAMPLE_UNITS,
-    bySize: distributeQuantity(SAMPLE_UNITS),
+    targetTotal: mode === 'techpack' ? SAMPLE_UNITS : CUSTOM_SAMPLE_UNITS,
+    bySize,
   };
 }
 
 export function isSampleQuantityValid(plan: OrderQuantityPlan): boolean {
-  return sumBreakdown(plan.sample.bySize) === SAMPLE_UNITS;
+  const fixed = sampleFixedTotal(plan.mode);
+  const total = sumBreakdown(plan.sample.bySize);
+
+  if (plan.mode === 'techpack') {
+    return total === fixed;
+  }
+
+  const perSizeOk = ORDER_SIZE_KEYS.every(
+    (k) => (plan.sample.bySize[k] ?? 0) <= CUSTOM_SAMPLE_MAX_PER_SIZE,
+  );
+  return perSizeOk && total === fixed;
 }
 
-/** Clamp a single-size edit so the breakdown never exceeds maxTotal */
+export function sampleValidationMessage(plan: OrderQuantityPlan): string {
+  if (plan.mode === 'techpack') {
+    return `Sample must be exactly ${SAMPLE_UNITS} units across sizes`;
+  }
+  return `Sample must be exactly ${CUSTOM_SAMPLE_UNITS} units — one per size`;
+}
+
+/** Clamp a single-size edit so the breakdown never exceeds maxTotal / maxPerSize */
 export function applySizeChange(
   bySize: SizeBreakdown,
   size: OrderSizeKey,
   value: number,
   maxTotal?: number,
+  maxPerSize?: number,
 ): SizeBreakdown {
-  const next = { ...bySize, [size]: Math.max(0, value) };
+  let v = Math.max(0, value);
+  if (maxPerSize != null) v = Math.min(v, maxPerSize);
+
+  const next = { ...bySize, [size]: v };
   if (maxTotal == null) return next;
 
   const total = sumBreakdown(next);
@@ -124,7 +184,7 @@ export function defaultOrderQuantityPlan(
 ): OrderQuantityPlan {
   return {
     mode,
-    sample: defaultSampleLine(),
+    sample: defaultSampleLine(mode),
     bulkRuns: mode === 'techpack' ? [newBulkRun()] : [],
   };
 }
@@ -167,12 +227,13 @@ export function normalizeOrderQuantityPlan(
 
   return {
     mode,
-    sample: {
-      ...input.sample,
-      id: input.sample.id || 'sample',
-      kind: 'sample',
-      bySize: { ...emptySizeBreakdown(), ...input.sample.bySize },
-    },
+    sample: normalizeSampleLine(
+      {
+        ...input.sample,
+        bySize: { ...emptySizeBreakdown(), ...input.sample.bySize },
+      },
+      mode,
+    ),
     bulkRuns:
       mode === 'techpack' && bulkRuns.length === 0 ? [newBulkRun()] : bulkRuns,
   };
@@ -184,7 +245,7 @@ export function setOrderMode(plan: OrderQuantityPlan, mode: OrderQuantityMode): 
   if (mode === 'techpack' && bulkRuns.length === 0) {
     bulkRuns = [newBulkRun()];
   }
-  return { ...plan, mode, bulkRuns };
+  return { ...plan, mode, bulkRuns, sample: defaultSampleLine(mode) };
 }
 
 export function planHasAnyQuantity(plan: OrderQuantityPlan): boolean {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import { Search } from 'lucide-react';
 import {
   AUDIENCE_META,
@@ -11,11 +11,15 @@ import {
 } from '../../../data/crmAccessMock';
 import { AccessBreadcrumb, BackLink, ProfileCard } from './accessShared';
 
-const VALID_AUDIENCES = new Set<string>(['users', 'manufacturers', 'workers']);
+const VALID_AUDIENCES = new Set<string>(['users', 'workers']);
 
 export function SuperAdminCRMAccessList() {
   const { audience: audienceParam } = useParams<{ audience: string }>();
   const [search, setSearch] = useState('');
+
+  if (audienceParam === 'manufacturers') {
+    return <Navigate to="/superadmin/manufacturers" replace />;
+  }
 
   if (!audienceParam || !VALID_AUDIENCES.has(audienceParam)) {
     return (

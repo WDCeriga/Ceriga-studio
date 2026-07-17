@@ -27,6 +27,7 @@ import {
   STATUS_LABELS,
   SUPERADMIN_REVIEW_STATUSES,
   formatMoney,
+  getOrderQuoteTiers,
   type OrderKind,
   type OrderStageFilter,
   type OrderStatus,
@@ -743,28 +744,27 @@ function OrderPreview({
           </section>
 
           {/* Review callout */}
-          {!isTechPack && needsReview && order.manufacturerQuoteCents != null && order.calculatedPriceCents != null ? (
+          {!isTechPack && needsReview && getOrderQuoteTiers(order).length > 0 ? (
             <div className="rounded-xl border border-[#CC2D24]/30 bg-gradient-to-br from-[#CC2D24]/12 to-transparent p-4">
               <div className="flex items-center gap-2">
                 <Calculator className="h-4 w-4 text-[#CC2D24]" />
                 <p className="text-xs font-semibold text-white">Ready for your review</p>
               </div>
               <dl className="mt-3 space-y-2 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-white/45">Manufacturer quote</dt>
-                  <dd className="tabular-nums font-medium text-white">
-                    {formatMoney(order.manufacturerQuoteCents)}
-                  </dd>
-                </div>
-                <div className="flex justify-between gap-4">
+                {getOrderQuoteTiers(order).map((tier) => (
+                  <div key={tier.id} className="flex justify-between gap-4">
+                    <dt className="text-white/45">
+                      {tier.label}
+                      {tier.totalUnits > 0 ? ` · ${tier.totalUnits}u` : ''}
+                    </dt>
+                    <dd className="tabular-nums font-medium text-white">
+                      {formatMoney(tier.manufacturerQuoteCents)}
+                    </dd>
+                  </div>
+                ))}
+                <div className="flex justify-between gap-4 border-t border-white/10 pt-2">
                   <dt className="text-white/45">Ceriga margin</dt>
                   <dd className="text-white">{order.cerigaMarginPercent ?? 17.5}%</dd>
-                </div>
-                <div className="flex justify-between gap-4 border-t border-white/10 pt-2">
-                  <dt className="font-medium text-white">Calculated price</dt>
-                  <dd className="tabular-nums font-semibold text-white">
-                    {formatMoney(order.calculatedPriceCents)}
-                  </dd>
                 </div>
               </dl>
             </div>
@@ -813,10 +813,12 @@ function OrderPreview({
                   <DetailRow icon={Factory} label="Manufacturer" value={order.manufacturerName ?? 'Unassigned'} />
                   <DetailRow
                     icon={Calculator}
-                    label="Manufacturer quote"
+                    label="Manufacturer quotes"
                     value={
-                      order.manufacturerQuoteCents != null
-                        ? formatMoney(order.manufacturerQuoteCents)
+                      getOrderQuoteTiers(order).length > 0
+                        ? `${getOrderQuoteTiers(order).length} tiers · ${getOrderQuoteTiers(order)
+                            .map((t) => t.label)
+                            .join(', ')}`
                         : 'Awaiting quote'
                     }
                   />

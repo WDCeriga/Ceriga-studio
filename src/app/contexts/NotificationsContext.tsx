@@ -8,11 +8,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_NOTIFICATIONS } from "../data/notifications";
-import type { AppNotification } from "../data/notifications";
+import {
+  loadBrandNotifications,
+  persistBrandNotifications,
+  type AppNotification,
+} from "../data/notifications";
 
 type NotificationsContextValue = {
   items: AppNotification[];
+  unread: number;
+  markRead: (id: string) => void;
+  markAllRead: () => void;
   remove: (id: string) => void;
   clearAll: () => void;
 };
@@ -20,19 +26,43 @@ type NotificationsContextValue = {
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<AppNotification[]>(() => [...MOCK_NOTIFICATIONS]);
+  const [items, setItems] = useState<AppNotification[]>(() => loadBrandNotifications());
 
-  const remove = useCallback((id: string) => {
-    setItems((prev) => prev.filter((n) => n.id !== id));
+  const commit = useCallback((updater: (prev: AppNotification[]) => AppNotification[]) => {
+    setItems((prev) => {
+      const next = updater(prev);
+      persistBrandNotifications(next);
+      return next;
+    });
   }, []);
+
+  const markRead = useCallback(
+    (id: string) => {
+      commit((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    },
+    [commit],
+  );
+
+  const markAllRead = useCallback(() => {
+    commit((prev) => prev.map((n) => ({ ...n, read: true })));
+  }, [commit]);
+
+  const remove = useCallback(
+    (id: string) => {
+      commit((prev) => prev.filter((n) => n.id !== id));
+    },
+    [commit],
+  );
 
   const clearAll = useCallback(() => {
-    setItems([]);
-  }, []);
+    commit(() => []);
+  }, [commit]);
+
+  const unread = items.filter((n) => !n.read).length;
 
   const value = useMemo(
-    () => ({ items, remove, clearAll }),
-    [items, remove, clearAll],
+    () => ({ items, unread, markRead, markAllRead, remove, clearAll }),
+    [items, unread, markRead, markAllRead, remove, clearAll],
   );
 
   return (

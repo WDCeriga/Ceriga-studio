@@ -21,6 +21,7 @@ import {
   formatMoney,
   type SuperAdminUser,
 } from '../../data/superadminMock';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -114,6 +115,7 @@ export function SuperAdminUserDetail() {
   const [emailStep, setEmailStep] = useState<'compose' | 'sent'>('compose');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [confirmKind, setConfirmKind] = useState<'credits' | 'role' | null>(null);
 
   const userOrders = useMemo(
     () =>
@@ -161,13 +163,27 @@ export function SuperAdminUserDetail() {
       toast.error('Enter a non-zero amount');
       return;
     }
-    setCredits((c) => Math.max(0, c + delta));
-    setCreditDelta('');
-    toast.success(`Mock: ${delta > 0 ? 'added' : 'removed'} ${Math.abs(delta)} messages`);
+    setConfirmKind('credits');
   };
 
   const saveRole = () => {
-    toast.success(`Mock: role updated to ${ROLE_LABEL[role]}`);
+    if (role === user.role) {
+      toast.message('Role unchanged');
+      return;
+    }
+    setConfirmKind('role');
+  };
+
+  const runConfirmed = () => {
+    if (confirmKind === 'credits') {
+      const delta = Number(creditDelta);
+      setCredits((c) => Math.max(0, c + delta));
+      setCreditDelta('');
+      toast.success(`Mock: ${delta > 0 ? 'added' : 'removed'} ${Math.abs(delta)} messages`);
+    } else if (confirmKind === 'role') {
+      toast.success(`Mock: role updated to ${ROLE_LABEL[role]}`);
+    }
+    setConfirmKind(null);
   };
 
   const sendEmail = () => {
@@ -575,6 +591,22 @@ export function SuperAdminUserDetail() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmKind != null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmKind(null);
+        }}
+        title={confirmKind === 'role' ? 'Update platform role?' : 'Apply credit change?'}
+        description={
+          confirmKind === 'role'
+            ? `Change this account’s role to ${ROLE_LABEL[role]}. This affects what they can access across Ceriga.`
+            : `Apply ${Number(creditDelta) > 0 ? '+' : ''}${creditDelta} messages to this account’s balance?`
+        }
+        confirmLabel={confirmKind === 'role' ? 'Update role' : 'Apply credits'}
+        tone={confirmKind === 'credits' && Number(creditDelta) < 0 ? 'danger' : 'default'}
+        onConfirm={runConfirmed}
+      />
     </div>
   );
 }

@@ -1,16 +1,16 @@
 import { Link } from 'react-router';
-import { Building2, ChevronRight, Factory, Users } from 'lucide-react';
+import { Building2, ChevronRight, Users } from 'lucide-react';
 import { AUDIENCE_META, getProfilesForAudience, type AccessAudience } from '../../../data/crmAccessMock';
 import { AccessBreadcrumb } from './accessShared';
 import { cn } from '../../../components/ui/utils';
 
 const AUDIENCE_ICONS = {
   users: Users,
-  manufacturers: Factory,
   workers: Building2,
 } as const;
 
-const AUDIENCES: AccessAudience[] = ['users', 'manufacturers', 'workers'];
+/** Manufacturers live under /superadmin/manufacturers — not Roles & access. */
+const AUDIENCES: Exclude<AccessAudience, 'manufacturers'>[] = ['users', 'workers'];
 
 export function SuperAdminCRMAccess() {
   return (
@@ -24,9 +24,16 @@ export function SuperAdminCRMAccess() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           Who can see what
         </h1>
+        <p className="mt-2 text-sm text-white/40">
+          Brand and worker portal access.{' '}
+          <Link to="/superadmin/manufacturers" className="text-[#CC2D24] hover:underline">
+            Manage manufacturers
+          </Link>{' '}
+          in their own section.
+        </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2">
         {AUDIENCES.map((audience) => {
           const meta = AUDIENCE_META[audience];
           const Icon = AUDIENCE_ICONS[audience];

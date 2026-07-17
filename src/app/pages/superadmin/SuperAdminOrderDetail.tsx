@@ -12,9 +12,11 @@ import {
   ExternalLink,
   Factory,
   FileText,
+  Flag,
   Mail,
   MapPin,
   Package,
+  Phone,
   Send,
   Shirt,
   Truck,
@@ -24,15 +26,27 @@ import { toast } from 'sonner';
 import {
   MOCK_SUPER_ORDERS,
   STATUS_LABELS,
-  applyCerigaMargin,
   formatMoney,
+  getOrderQuoteTiers,
+  getSuperAdminOrder,
   resolveMarginForManufacturer,
+  withCalculatedQuoteTiers,
   type CustomerTechPackRef,
   type OrderStatus,
   type SuperAdminOrder,
 } from '../../data/superadminMock';
+import { formatDeliveryLines, type OrderDeliveryInfo } from '../../data/orderDelivery';
+import { formatOrderQuantitiesSummary } from '../../data/orderQuantities';
 import { getProductById } from '../../data/products';
+import { ProductionQcGallery } from '../../components/orders/ProductionQcGallery';
+import {
+  clearQcBrandFlag,
+  flagQcForBrand,
+  getProductionPulse,
+} from '../../data/superadminOpsMock';
+import { PRODUCTION_STAGE_LABEL } from '../../data/productionFloor';
 import { Button } from '../../components/ui/button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import {
   Dialog,
   DialogContent,
@@ -141,7 +155,9 @@ function mockQuantity(productName: string) {
 
 export function SuperAdminOrderDetail() {
   const { id } = useParams();
-  const order = MOCK_SUPER_ORDERS.find((o) => o.id === id);
+  const [tick, setTick] = useState(0);
+  void tick;
+  const order = id ? getSuperAdminOrder(id) ?? MOCK_SUPER_ORDERS.find((o) => o.id === id) : undefined;
 
   if (!order) {
     return (
@@ -162,7 +178,7 @@ export function SuperAdminOrderDetail() {
     return <TechPackOrderDetail order={order} />;
   }
 
-  return <CustomClothingOrderDetail order={order} />;
+  return <CustomClothingOrderDetail order={order} onOpsChange={() => setTick((n) => n + 1)} />;
 }
 
 function OrderBackLink() {
@@ -344,8 +360,14 @@ function OrderHero({
               label: isTechPack ? 'Billing' : 'Delivery',
               value: isTechPack
                 ? price ?? 'Pending'
-                : `${order.deliveryCity}, ${order.deliveryCountry}`,
-              sub: isTechPack ? undefined : formatDate(order.createdAt),
+                : order.delivery
+                  ? `${order.delivery.address1}, ${order.delivery.city}`
+                  : `${order.deliveryCity}, ${order.deliveryCountry}`,
+              sub: isTechPack
+                ? undefined
+                : order.delivery
+                  ? `${order.delivery.postcode} · ${order.delivery.country}`
+                  : formatDate(order.createdAt),
               icon: isTechPack ? Calculator : MapPin,
             },
           ].map((item) => (
@@ -413,9 +435,66 @@ function CustomerCard({ order }: { order: SuperAdminOrder }) {
   );
 }
 
+function DeliveryCard({ order }: { order: SuperAdminOrder }) {
+  const delivery: OrderDeliveryInfo | undefined = order.delivery;
+  return (
+    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+        Delivery
+      </h2>
+      {delivery ? (
+        <div className="mt-4 space-y-4 text-sm">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+              Contact
+            </p>
+            <p className="mt-1 font-medium text-white">
+              {delivery.firstName} {delivery.lastName}
+            </p>
+            <p className="mt-0.5 text-xs text-white/50">{delivery.email}</p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-white/50">
+              <Phone className="h-3 w-3" />
+              {delivery.phone}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+              Address
+            </p>
+            <div className="mt-1 flex items-start gap-2">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-white/35" />
+              <div className="space-y-0.5 text-white/80">
+                {formatDeliveryLines(delivery).map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+          {delivery.instructions ? (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                Special instructions
+              </p>
+              <p className="mt-1 text-white/60">{delivery.instructions}</p>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="mt-3 flex items-start gap-3">
+          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-white/35" />
+          <p className="font-medium text-white">
+            {order.deliveryCity}, {order.deliveryCountry}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
-  const hasQuote = order.manufacturerQuoteCents != null;
-  const awaitingQuote = order.manufacturerName && !hasQuote;
+  const tiers = getOrderQuoteTiers(order);
+  const hasQuote = tiers.length > 0;
+  const awaitingQuote = Boolean(order.manufacturerName) && !hasQuote;
 
   return (
     <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
@@ -430,6 +509,14 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
             </span>
             <div>
               <p className="font-medium text-white">{order.manufacturerName}</p>
+              {order.dueQuoteBy ? (
+                <p className="mt-0.5 text-[11px] text-white/40">
+                  Quote due {new Date(order.dueQuoteBy).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </p>
+              ) : null}
             </div>
           </div>
           <div
@@ -443,15 +530,143 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
             )}
           >
             {hasQuote
-              ? `Quote received · ${formatMoney(order.manufacturerQuoteCents!)}`
+              ? `Quote received · ${tiers.length} tier${tiers.length === 1 ? '' : 's'} (sample + bulk)`
               : awaitingQuote
                 ? 'Awaiting pricing submission'
                 : 'Not yet engaged'}
           </div>
+          {order.factoryRejectReason ? (
+            <p className="mt-2 text-[11px] text-red-200/80">Declined: {order.factoryRejectReason}</p>
+          ) : null}
+          {hasQuote ? (
+            <ul className="mt-3 space-y-1.5">
+              {tiers.map((tier) => (
+                <li
+                  key={tier.id}
+                  className="flex items-center justify-between gap-2 text-[11px] text-white/50"
+                >
+                  <span>
+                    {tier.label}
+                    {tier.totalUnits > 0 ? ` · ${tier.totalUnits}u` : ''}
+                  </span>
+                  <span className="tabular-nums text-white/75">
+                    {formatMoney(tier.manufacturerQuoteCents)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <Link
+            to="/superadmin/assignment"
+            className="mt-3 inline-flex text-[11px] text-[#CC2D24] hover:underline"
+          >
+            Open assignment console
+          </Link>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-white/45">No manufacturer assigned yet.</p>
+        <div className="mt-4">
+          <p className="text-sm text-white/45">No manufacturer assigned yet.</p>
+          <Link
+            to="/superadmin/assignment"
+            className="mt-2 inline-flex text-[11px] text-[#CC2D24] hover:underline"
+          >
+            Assign in console
+          </Link>
+        </div>
       )}
+    </section>
+  );
+}
+
+function ProductionPulseCard({
+  order,
+  onOpsChange,
+}: {
+  order: SuperAdminOrder;
+  onOpsChange?: () => void;
+}) {
+  const pulse = getProductionPulse(order.id);
+  const [flagOpen, setFlagOpen] = useState(false);
+
+  return (
+    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Production pulse</h2>
+          <p className="mt-0.5 text-[11px] text-white/40">
+            Read-only floor status · QC photos below
+          </p>
+        </div>
+        {pulse.flagged ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-white/15 bg-white/[0.03] text-white/80"
+            onClick={() => {
+              clearQcBrandFlag(order.id);
+              toast.success('Cleared brand QC flag');
+              onOpsChange?.();
+            }}
+          >
+            Clear flag
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
+            onClick={() => setFlagOpen(true)}
+          >
+            <Flag className="mr-1.5 h-3.5 w-3.5" />
+            Flag for brand
+          </Button>
+        )}
+      </div>
+
+      {pulse.job ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-white/35">Stage</p>
+            <p className="mt-0.5 text-sm font-medium text-white">
+              {PRODUCTION_STAGE_LABEL[pulse.job.stage]}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-white/35">Assignee</p>
+            <p className="mt-0.5 text-sm font-medium text-white">
+              {pulse.job.assigneeName ?? 'Unassigned'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+            <p className="text-[10px] uppercase tracking-wide text-white/35">QC photos</p>
+            <p className="mt-0.5 text-sm font-medium tabular-nums text-white">{pulse.photoCount}</p>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-white/40">
+          No production job linked yet — gallery still shows any published QC for this order id.
+        </p>
+      )}
+
+      {pulse.flagged ? (
+        <p className="mt-3 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-[12px] text-violet-100">
+          Flagged for brand
+          {pulse.flaggedAt ? ` · ${pulse.flaggedAt}` : ''}
+          {pulse.flagNote ? ` — ${pulse.flagNote}` : ''}
+        </p>
+      ) : null}
+
+      <ConfirmDialog
+        open={flagOpen}
+        onOpenChange={setFlagOpen}
+        title="Flag QC for brand?"
+        description="Marks this order so ops can push the brand to review published QC photos. Does not auto-message in this mock."
+        confirmLabel="Flag for brand"
+        onConfirm={() => {
+          flagQcForBrand(order.id, 'Please review published QC photos');
+          toast.success('Flagged for brand review');
+          onOpsChange?.();
+        }}
+      />
     </section>
   );
 }
@@ -655,11 +870,24 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
         {[
           { label: 'Product', value: order.productName },
           { label: 'Quantity', value: qty ? `${qty} units` : '—' },
-          { label: 'Delivery', value: `${order.deliveryCity}, ${order.deliveryCountry}` },
+          {
+            label: 'Delivery',
+            value: order.delivery
+              ? [
+                  `${order.delivery.firstName} ${order.delivery.lastName}`,
+                  order.delivery.address1,
+                  order.delivery.address2,
+                  `${order.delivery.city} ${order.delivery.postcode}`.trim(),
+                  order.delivery.country,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : `${order.deliveryCity}, ${order.deliveryCountry}`,
+          },
           { label: 'Submitted', value: formatDate(order.createdAt) },
         ].map((row) => (
-          <div key={row.label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-            <dt className="text-white/45">{row.label}</dt>
+          <div key={row.label} className="flex items-start justify-between gap-4 px-4 py-3 text-sm">
+            <dt className="shrink-0 text-white/45">{row.label}</dt>
             <dd className="text-right font-medium text-white/85">{row.value}</dd>
           </div>
         ))}
@@ -774,58 +1002,83 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
   );
 }
 
-function CustomClothingOrderDetail({ order }: { order: SuperAdminOrder }) {
+function CustomClothingOrderDetail({
+  order,
+  onOpsChange,
+}: {
+  order: SuperAdminOrder;
+  onOpsChange?: () => void;
+}) {
   const resolved = resolveMarginForManufacturer(order.manufacturerId, order.manufacturerName);
   const marginPercent = order.cerigaMarginPercent ?? resolved.platformMarginPercent;
 
-  const initialFinal =
-    order.finalPriceCents ??
-    order.calculatedPriceCents ??
-    (order.manufacturerQuoteCents != null
-      ? applyCerigaMargin(order.manufacturerQuoteCents, marginPercent)
-      : undefined);
-
-  const [finalCents, setFinalCents] = useState(
-    initialFinal != null ? String((initialFinal / 100).toFixed(2)) : '',
+  const quoteTiers = useMemo(
+    () => withCalculatedQuoteTiers(getOrderQuoteTiers(order), marginPercent),
+    [order, marginPercent],
   );
+
+  const [finalByTier, setFinalByTier] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const tier of withCalculatedQuoteTiers(getOrderQuoteTiers(order), marginPercent)) {
+      const cents = tier.finalPriceCents ?? tier.calculatedPriceCents;
+      init[tier.id] = cents != null ? (cents / 100).toFixed(2) : '';
+    }
+    return init;
+  });
   const [tracking, setTracking] = useState(order.trackingNumber ?? '');
   const [submitted, setSubmitted] = useState(false);
 
-  const calculatedCents = useMemo(() => {
-    if (!order.manufacturerQuoteCents) return null;
-    return order.calculatedPriceCents ?? applyCerigaMargin(order.manufacturerQuoteCents, marginPercent);
-  }, [order, marginPercent]);
+  const canReview = order.status === 'pending_review' && quoteTiers.length > 0;
+  const awaitingQuote = Boolean(order.manufacturerName) && quoteTiers.length === 0;
+  const quantityLines = order.orderQuantities
+    ? formatOrderQuantitiesSummary(order.orderQuantities)
+    : [];
 
-  const editedCents = useMemo(() => {
-    const n = Number(finalCents);
-    return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
-  }, [finalCents]);
+  const parseTierFinals = () => {
+    const rows: { id: string; label: string; cents: number; calculated: number | null }[] = [];
+    for (const tier of quoteTiers) {
+      const n = Number(finalByTier[tier.id]);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      rows.push({
+        id: tier.id,
+        label: tier.label,
+        cents: Math.round(n * 100),
+        calculated: tier.calculatedPriceCents ?? null,
+      });
+    }
+    return rows;
+  };
 
-  const priceChanged =
-    calculatedCents != null && editedCents != null && editedCents !== calculatedCents;
-
-  const canReview = order.status === 'pending_review' && order.manufacturerQuoteCents != null;
-  const awaitingQuote = order.manufacturerName && order.manufacturerQuoteCents == null;
-
-  const useCalculated = () => {
-    if (calculatedCents == null) return;
-    setFinalCents((calculatedCents / 100).toFixed(2));
+  const useAllCalculated = () => {
+    const next: Record<string, string> = {};
+    for (const tier of quoteTiers) {
+      next[tier.id] =
+        tier.calculatedPriceCents != null
+          ? (tier.calculatedPriceCents / 100).toFixed(2)
+          : finalByTier[tier.id] ?? '';
+    }
+    setFinalByTier(next);
   };
 
   const submitToBrand = () => {
-    if (!editedCents) {
-      toast.error('Enter a valid final price');
+    const rows = parseTierFinals();
+    if (!rows || rows.length === 0) {
+      toast.error('Enter a valid final price for every quote tier');
       return;
     }
     setSubmitted(true);
     toast.success(
-      priceChanged
-        ? `Mock: custom price ${formatMoney(editedCents)} sent to brand`
-        : `Mock: calculated price ${formatMoney(editedCents)} sent to brand`,
+      `Mock: ${rows.length} pricing options sent to brand (${rows
+        .map((r) => `${r.label} ${formatMoney(r.cents)}`)
+        .join(' · ')})`,
     );
   };
 
-  const pricingLocked = submitted || order.status === 'sent_to_brand' || order.finalPriceCents != null;
+  const pricingLocked =
+    submitted ||
+    order.status === 'sent_to_brand' ||
+    quoteTiers.some((t) => t.finalPriceCents != null) ||
+    order.finalPriceCents != null;
 
   return (
     <div className="space-y-6">
@@ -847,9 +1100,9 @@ function CustomClothingOrderDetail({ order }: { order: SuperAdminOrder }) {
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-5 py-4">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
           <div>
-            <p className="text-sm font-medium text-white">Price sent to brand</p>
+            <p className="text-sm font-medium text-white">Pricing options sent to brand</p>
             <p className="text-xs text-white/50">
-              {editedCents ? formatMoney(editedCents) : ''} · {order.userEmail}
+              {quoteTiers.length} tiers · {order.userEmail}
             </p>
           </div>
         </div>
@@ -865,7 +1118,7 @@ function CustomClothingOrderDetail({ order }: { order: SuperAdminOrder }) {
                 : 'border-white/[0.08]',
             )}
           >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#CC2D24]/15">
                   <Calculator className="h-4 w-4 text-[#CC2D24]" />
@@ -874,90 +1127,123 @@ function CustomClothingOrderDetail({ order }: { order: SuperAdminOrder }) {
                   <h2 className="text-sm font-semibold text-white">
                     {canReview && !submitted ? 'Price review' : 'Pricing'}
                   </h2>
+                  <p className="text-[11px] text-white/40">
+                    Sample + bulk tiers · {marginPercent}% {resolved.planName} margin
+                  </p>
                 </div>
               </div>
-              {calculatedCents != null ? (
-                <div className="text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                    Calculated
-                  </p>
-                  <p className="text-lg font-semibold tabular-nums text-white">
-                    {formatMoney(calculatedCents)}
-                  </p>
-                </div>
+              {quoteTiers.length > 0 && !pricingLocked ? (
+                <button
+                  type="button"
+                  className="text-[11px] font-medium text-[#CC2D24] hover:underline"
+                  onClick={useAllCalculated}
+                >
+                  Use calculated for all
+                </button>
               ) : null}
             </div>
 
-            {order.manufacturerQuoteCents != null ? (
-              <div className="mt-6 space-y-5">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[
-                    {
-                      label: 'Mfg quote',
-                      value: formatMoney(order.manufacturerQuoteCents),
-                    },
-                    { label: 'Margin', value: `${marginPercent}% · ${resolved.planName}` },
-                    {
-                      label: 'To brand',
-                      value: calculatedCents != null ? formatMoney(calculatedCents) : '—',
-                      highlight: true,
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className={cn(
-                        'rounded-xl border px-4 py-3',
-                        item.highlight
-                          ? 'border-[#CC2D24]/25 bg-[#CC2D24]/8'
-                          : 'border-white/[0.06] bg-white/[0.02]',
-                      )}
-                    >
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                        {item.label}
-                      </p>
-                      <p className="mt-1 text-lg font-semibold tabular-nums text-white">
-                        {item.value}
-                      </p>
-                    </div>
+            {quantityLines.length > 0 ? (
+              <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                  Brand requested
+                </p>
+                <ul className="mt-1.5 space-y-0.5 text-[12px] text-white/60">
+                  {quantityLines.map((line) => (
+                    <li key={line}>{line}</li>
                   ))}
-                </div>
+                </ul>
+              </div>
+            ) : null}
 
-                <div className="rounded-xl border border-white/[0.08] bg-black/25 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <Label htmlFor="final-price" className="text-sm text-white/70">
-                      Final price to brand (£)
-                    </Label>
-                    {calculatedCents != null ? (
-                      <button
-                        type="button"
-                        className="text-[11px] font-medium text-[#CC2D24] hover:underline"
-                        onClick={useCalculated}
-                      >
-                        Use calculated
-                      </button>
-                    ) : null}
-                  </div>
-                  <Input
-                    id="final-price"
-                    value={finalCents}
-                    onChange={(e) => setFinalCents(e.target.value)}
-                    disabled={pricingLocked}
-                    className="mt-2 border-white/12 bg-black/40 text-xl tabular-nums text-white disabled:opacity-50"
-                    placeholder="0.00"
-                    onKeyDown={(e) => e.key === 'Enter' && !pricingLocked && canReview && submitToBrand()}
-                  />
-                  {priceChanged ? (
-                    <p className="mt-2 text-xs text-amber-200/80">
-                      Custom price differs from auto-calculated amount
-                    </p>
-                  ) : null}
-                </div>
+            {quoteTiers.length > 0 ? (
+              <div className="mt-5 space-y-3">
+                {quoteTiers.map((tier) => {
+                  const edited = Number(finalByTier[tier.id]);
+                  const editedCents =
+                    Number.isFinite(edited) && edited > 0 ? Math.round(edited * 100) : null;
+                  const changed =
+                    tier.calculatedPriceCents != null &&
+                    editedCents != null &&
+                    editedCents !== tier.calculatedPriceCents;
+
+                  return (
+                    <div
+                      key={tier.id}
+                      className="rounded-xl border border-white/[0.08] bg-black/25 p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{tier.label}</p>
+                          <p className="text-[11px] text-white/40">
+                            {tier.kind === 'sample' ? 'Sample run' : 'Bulk production'}
+                            {tier.totalUnits > 0 ? ` · ${tier.totalUnits} units` : ''}
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            'rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                            tier.kind === 'sample'
+                              ? 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+                              : 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+                          )}
+                        >
+                          {tier.kind}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
+                            Mfg quote
+                          </p>
+                          <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
+                            {formatMoney(tier.manufacturerQuoteCents)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
+                            + Margin
+                          </p>
+                          <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
+                            {tier.calculatedPriceCents != null
+                              ? formatMoney(tier.calculatedPriceCents)
+                              : '—'}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-[#CC2D24]/25 bg-[#CC2D24]/8 px-3 py-2">
+                          <Label
+                            htmlFor={`final-${tier.id}`}
+                            className="text-[9px] font-semibold uppercase tracking-wider text-white/50"
+                          >
+                            To brand (£)
+                          </Label>
+                          <Input
+                            id={`final-${tier.id}`}
+                            value={finalByTier[tier.id] ?? ''}
+                            onChange={(e) =>
+                              setFinalByTier((prev) => ({ ...prev, [tier.id]: e.target.value }))
+                            }
+                            disabled={pricingLocked}
+                            className="mt-1 h-8 border-white/12 bg-black/40 text-sm tabular-nums text-white disabled:opacity-50"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      {changed ? (
+                        <p className="mt-2 text-[11px] text-amber-200/80">
+                          Custom price differs from calculated
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
 
                 {!pricingLocked ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={submitToBrand}>
                       <Send className="mr-2 h-4 w-4" />
-                      {canReview ? 'Submit to brand' : 'Send to brand'}
+                      {canReview ? 'Submit all tiers to brand' : 'Send to brand'}
                     </Button>
                     {canReview ? (
                       <Button
@@ -973,7 +1259,7 @@ function CustomClothingOrderDetail({ order }: { order: SuperAdminOrder }) {
                     <Button
                       variant="outline"
                       className="border-white/15 text-white hover:bg-white/10"
-                      onClick={() => toast.success('Mock: pricing saved')}
+                      onClick={() => toast.success('Mock: pricing draft saved')}
                     >
                       Save draft
                     </Button>
@@ -988,7 +1274,7 @@ function CustomClothingOrderDetail({ order }: { order: SuperAdminOrder }) {
                   </span>
                   <p className="font-medium text-white">
                     {awaitingQuote
-                      ? `Waiting on ${order.manufacturerName}`
+                      ? `Waiting on ${order.manufacturerName} for sample + bulk quotes`
                       : 'No manufacturer quote yet'}
                   </p>
                 </div>
@@ -997,25 +1283,17 @@ function CustomClothingOrderDetail({ order }: { order: SuperAdminOrder }) {
           </section>
 
           <ProductionSpecCard order={order} />
+          <ProductionPulseCard order={order} onOpsChange={onOpsChange} />
+          <ProductionQcGallery
+            orderId={order.id}
+            emptyHint="No factory QC photos published for this order yet."
+          />
         </div>
 
         <div className="space-y-6">
           <CustomerCard order={order} />
           <ManufacturerCard order={order} />
-
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
-            <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-              Delivery
-            </h2>
-            <div className="mt-3 flex items-start gap-3">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-white/35" />
-              <div>
-                <p className="font-medium text-white">
-                  {order.deliveryCity}, {order.deliveryCountry}
-                </p>
-              </div>
-            </div>
-          </section>
+          <DeliveryCard order={order} />
 
           {['paid', 'in_production', 'shipped', 'completed'].includes(order.status) ? (
             <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">

@@ -109,7 +109,7 @@ import {
   isSampleQuantityValid,
   normalizeOrderQuantityPlan,
   planHasAnyQuantity,
-  SAMPLE_UNITS,
+  sampleValidationMessage,
   type OrderQuantityPlan,
 } from '../data/orderQuantities';
 import { cn } from '../components/ui/utils';
@@ -1131,12 +1131,19 @@ export function Builder() {
 
   const handleNext = () => {
     if (currentStep === 13) {
-      navigate('/delivery', { state: { productId } });
+      navigate('/delivery', {
+        state: {
+          productId,
+          productName: product?.name ?? 'Studio project',
+          garmentType: state.garmentType,
+          orderQuantities: state.orderQuantities,
+        },
+      });
       return;
     }
 
     if (currentStep === 12 && !isSampleQuantityValid(state.orderQuantities)) {
-      toast.error(`Sample must be exactly ${SAMPLE_UNITS} units across sizes`);
+      toast.error(sampleValidationMessage(state.orderQuantities));
       return;
     }
 

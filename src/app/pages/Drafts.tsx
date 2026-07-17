@@ -1,11 +1,15 @@
-import { Link } from "react-router";
-import { Button } from "../components/ui/button";
-import { FileEdit, Clock, MoreVertical } from "lucide-react";
-import imgBlueTshirt from "figma:asset/f00825900c95df312eb3b002c75207b61c243d55.png";
-import { productGridClass, productGridStyle } from "../styles/productGrid";
-import { builderPath, type ProjectFlowType } from "../lib/projectFlow";
+import { useState } from 'react';
+import { Link } from 'react-router';
+import { Button } from '../components/ui/button';
+import { FileEdit, Clock } from 'lucide-react';
+import { toast } from 'sonner';
+import imgBlueTshirt from 'figma:asset/f00825900c95df312eb3b002c75207b61c243d55.png';
+import { productGridClass, productGridStyle } from '../styles/productGrid';
+import { builderPath, type ProjectFlowType } from '../lib/projectFlow';
+import { ProjectActionsMenu } from '../components/ProjectActionsMenu';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
-const mockDrafts: Array<{
+type Draft = {
   id: string;
   productName: string;
   garmentType: string;
@@ -17,7 +21,9 @@ const mockDrafts: Array<{
   flowType: ProjectFlowType;
   image: string;
   color: string;
-}> = [
+};
+
+const INITIAL_DRAFTS: Draft[] = [
   {
     id: 'draft-1',
     productName: 'Premium Cotton T-Shirt',
@@ -60,6 +66,20 @@ const mockDrafts: Array<{
 ];
 
 export function Drafts() {
+  const [drafts, setDrafts] = useState(INITIAL_DRAFTS);
+  const [deleteTarget, setDeleteTarget] = useState<Draft | null>(null);
+
+  const duplicateDraft = (draft: Draft) => {
+    const copy: Draft = {
+      ...draft,
+      id: `${draft.id}-copy-${Date.now()}`,
+      productName: `${draft.productName} (copy)`,
+      lastEdited: 'Just now',
+      completionPercentage: Math.min(draft.completionPercentage, 95),
+    };
+    setDrafts((prev) => [copy, ...prev]);
+  };
+
   return (
     <div className="min-h-dvh overflow-x-hidden bg-[#0C0C0D] px-4 py-5 sm:px-5 sm:py-6 md:px-7 md:py-8">
       <div className="mb-6 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
@@ -83,7 +103,7 @@ export function Drafts() {
         </Button>
       </div>
 
-      {mockDrafts.length === 0 ? (
+      {drafts.length === 0 ? (
         <div className="rounded-[14px] border border-white/10 bg-white/5 py-16 text-center">
           <FileEdit className="mx-auto mb-3 h-10 w-10 text-white/20" />
           <h3 className="mb-2 text-base font-bold text-white">No drafts yet</h3>
@@ -94,96 +114,119 @@ export function Drafts() {
         </div>
       ) : (
         <div className={productGridClass} style={productGridStyle}>
-          {mockDrafts.map((draft) => (
-            <div
-              key={draft.id}
-              className="group flex flex-col overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#111113] transition-all duration-200 hover:border-white/[0.14]"
-            >
+          {drafts.map((draft) => {
+            const openTo = builderPath(draft.productId, draft.flowType);
+            return (
               <div
-                className="relative aspect-[3/2] overflow-hidden bg-[#0D0D0F]"
-                style={{
-                  background:
-                    'radial-gradient(circle at 50% 32%, rgba(255,255,255,0.06), transparent 32%), #0D0D0F',
-                }}
+                key={draft.id}
+                className="group flex flex-col overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#111113] transition-all duration-200 hover:border-white/[0.14]"
               >
                 <div
-                  className="pointer-events-none absolute inset-0 z-10"
+                  className="relative aspect-[3/2] overflow-hidden bg-[#0D0D0F]"
                   style={{
-                    background: `linear-gradient(135deg, ${draft.color}22 0%, transparent 60%)`,
+                    background:
+                      'radial-gradient(circle at 50% 32%, rgba(255,255,255,0.06), transparent 32%), #0D0D0F',
                   }}
-                />
-                <div
-                  className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-20 bg-gradient-to-t from-[#111113]/85 to-transparent sm:h-24"
-                />
-
-                <div className="absolute inset-0 z-[1] flex items-start justify-center px-0 pb-2 pt-0">
-                  <img
-                    src={draft.image}
-                    alt={draft.productName}
-                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.08] sm:scale-[1.06]"
+                >
+                  <div
+                    className="pointer-events-none absolute inset-0 z-10"
                     style={{
-                      filter: `hue-rotate(${getHueForColor(draft.color)}deg) saturate(0.95)`,
-                      objectPosition: 'center top',
+                      background: `linear-gradient(135deg, ${draft.color}22 0%, transparent 60%)`,
                     }}
                   />
-                </div>
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-20 bg-gradient-to-t from-[#111113]/85 to-transparent sm:h-24" />
 
-                <div className="absolute left-2.5 top-2.5 z-20 flex h-6 min-w-[52px] items-center justify-center rounded-full bg-black/55 px-2.5 backdrop-blur-sm">
-                  <span className="text-center text-[7px] font-bold uppercase leading-none tracking-wider text-white/90">
-                    {draft.garmentType}
-                  </span>
-                </div>
-
-                <div className="absolute right-2 top-2 z-20">
-                  <button
-                    type="button"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm transition-colors hover:bg-black/75"
-                  >
-                    <MoreVertical className="h-3.5 w-3.5 text-white" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-1 flex-col p-3.5 sm:p-4">
-                <h3 className="mb-1 text-[13px] font-semibold leading-snug tracking-tight text-[#F2F0EC]">
-                  {draft.productName}
-                </h3>
-                <p className="mb-3 text-[11px] text-white/45">
-                  {draft.stepsCompleted} of {draft.totalSteps} steps
-                </p>
-
-                <div className="mb-3">
-                  <div className="mb-1 flex items-center justify-between text-[10px] text-white/55">
-                    <span>Progress</span>
-                    <span>{draft.completionPercentage}%</span>
+                  <div className="absolute inset-0 z-[1] flex items-start justify-center px-0 pb-2 pt-0">
+                    <img
+                      src={draft.image}
+                      alt={draft.productName}
+                      className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.08] sm:scale-[1.06]"
+                      style={{
+                        filter: `hue-rotate(${getHueForColor(draft.color)}deg) saturate(0.95)`,
+                        objectPosition: 'center top',
+                      }}
+                    />
                   </div>
-                  <div className="h-1 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full bg-[#CC2D24] transition-all"
-                      style={{ width: `${draft.completionPercentage}%` }}
+
+                  <div className="absolute left-2.5 top-2.5 z-20 flex h-6 min-w-[52px] items-center justify-center rounded-full bg-black/55 px-2.5 backdrop-blur-sm">
+                    <span className="text-center text-[7px] font-bold uppercase leading-none tracking-wider text-white/90">
+                      {draft.garmentType}
+                    </span>
+                  </div>
+
+                  <div className="absolute right-2 top-2 z-20">
+                    <ProjectActionsMenu
+                      variant="overlay"
+                      projectName={draft.productName}
+                      openTo={openTo}
+                      openLabel="Continue"
+                      onDuplicate={() => duplicateDraft(draft)}
+                      onDelete={() => setDeleteTarget(draft)}
                     />
                   </div>
                 </div>
 
-                <div className="mt-auto flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 text-[10px] text-white/40">
-                    <Clock className="h-3 w-3 shrink-0" />
-                    <span>{draft.lastEdited}</span>
+                <div className="flex flex-1 flex-col p-3.5 sm:p-4">
+                  <h3 className="mb-1 text-[13px] font-semibold leading-snug tracking-tight text-[#F2F0EC]">
+                    {draft.productName}
+                  </h3>
+                  <p className="mb-3 text-[11px] text-white/45">
+                    {draft.stepsCompleted} of {draft.totalSteps} steps
+                  </p>
+
+                  <div className="mb-3">
+                    <div className="mb-1 flex items-center justify-between text-[10px] text-white/55">
+                      <span>Progress</span>
+                      <span>{draft.completionPercentage}%</span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full bg-[#CC2D24] transition-all"
+                        style={{ width: `${draft.completionPercentage}%` }}
+                      />
+                    </div>
                   </div>
 
-                  <Button
-                    asChild
-                    size="sm"
-                    className="h-8 bg-[#CC2D24] px-3 text-[10px] font-semibold hover:bg-[#CC2D24]/90"
-                  >
-                    <Link to={builderPath(draft.productId, draft.flowType)}>Continue</Link>
-                  </Button>
+                  <div className="mt-auto flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 text-[10px] text-white/40">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span>{draft.lastEdited}</span>
+                    </div>
+
+                    <Button
+                      asChild
+                      size="sm"
+                      className="h-8 bg-[#CC2D24] px-3 text-[10px] font-semibold hover:bg-[#CC2D24]/90"
+                    >
+                      <Link to={openTo}>Continue</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete this draft?"
+        description={
+          deleteTarget
+            ? `Delete “${deleteTarget.productName}”? This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete draft"
+        tone="danger"
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          setDrafts((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+          toast.success(`Deleted “${deleteTarget.productName}”`);
+        }}
+      />
     </div>
   );
 }

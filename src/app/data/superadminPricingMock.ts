@@ -276,3 +276,84 @@ export function inputToCents(value: string): number | null {
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100);
 }
+
+/** Default USD → EUR rate used in the quote calculator (Price US × rate). */
+export const DEFAULT_USD_TO_EUR_RATE = 0.89;
+
+export type CommissionTier = {
+  maxQty: number | null;
+  rate: number;
+  label: string;
+};
+
+/** Quantity-based commission tiers (applied to Price EUR). */
+export const COMMISSION_TIERS: CommissionTier[] = [
+  { maxQty: 9, rate: 0.35, label: '1–9 · 35%' },
+  { maxQty: 29, rate: 0.25, label: '10–29 · 25%' },
+  { maxQty: 49, rate: 0.2, label: '30–49 · 20%' },
+  { maxQty: 99, rate: 0.16, label: '50–99 · 16%' },
+  { maxQty: null, rate: 0.1, label: '100+ · 10%' },
+];
+
+export function commissionRateForQuantity(quantity: number): number {
+  const q = Math.max(0, Math.floor(quantity));
+  for (const tier of COMMISSION_TIERS) {
+    if (tier.maxQty == null || q <= tier.maxQty) return tier.rate;
+  }
+  return 0.1;
+}
+
+export type QuoteCalculatorResult = {
+  priceUsd: number;
+  quantity: number;
+  usdToEurRate: number;
+  priceEur: number;
+  commissionRate: number;
+  commissionPerItem: number;
+  costPerItem: number;
+  finalPrice: number;
+  totalCommission: number;
+};
+
+/**
+ * Quote calculator (from ops spreadsheet):
+ * - Price EUR = Price US × usdToEurRate
+ * - Commission % by quantity tier on Price EUR
+ * - Cost per item = Price EUR + commission per item
+ * - Final Price = Cost per item × Quantity
+ * - Total commission = Commission per item × Quantity
+ */
+export function calculateQuoteRow(
+  priceUsd: number,
+  quantity: number,
+  usdToEurRate = DEFAULT_USD_TO_EUR_RATE,
+): QuoteCalculatorResult {
+  const usd = Number.isFinite(priceUsd) && priceUsd > 0 ? priceUsd : 0;
+  const qty = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 0;
+  const rate = usdToEurRate > 0 ? usdToEurRate : DEFAULT_USD_TO_EUR_RATE;
+  const priceEur = usd * rate;
+  const commissionRate = commissionRateForQuantity(qty);
+  const commissionPerItem = priceEur * commissionRate;
+  const costPerItem = priceEur + commissionPerItem;
+  const finalPrice = costPerItem * qty;
+  const totalCommission = commissionPerItem * qty;
+
+  return {
+    priceUsd: usd,
+    quantity: qty,
+    usdToEurRate: rate,
+    priceEur,
+    commissionRate,
+    commissionPerItem,
+    costPerItem,
+    finalPrice,
+    totalCommission,
+  };
+}
+
+export function formatEurAmount(value: number): string {
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(value);
+}

@@ -18,6 +18,7 @@ import {
   type CatalogProductConfig,
   type GarmentBaseId,
 } from '../../data/crmCatalogMock';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -61,6 +62,9 @@ export function SuperAdminCRMProduct() {
     if (existing) return { ...existing };
     return emptyDraft('tshirt');
   });
+  const [confirmKind, setConfirmKind] = useState<'publish' | 'unpublish' | 'save' | 'reset' | null>(
+    null,
+  );
 
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,30 +114,19 @@ export function SuperAdminCRMProduct() {
   };
 
   const enableAllFromBase = () => {
-    update(defaultConfigForBase(product.baseId));
-    toast.message(`Reset to ${base.name} defaults`);
+    setConfirmKind('reset');
   };
 
-  const onImageFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Choose an image file (JPG, PNG, WebP)');
+  const requestSave = () => {
+    if (!product.name.trim()) {
+      toast.error('Enter a product name');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be under 5 MB');
+    if (isNew && !product.image.trim()) {
+      toast.error('Add a catalog image');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        update({ image: reader.result });
-        toast.success('Image added');
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    setConfirmKind('save');
   };
 
   const save = () => {
@@ -158,6 +151,44 @@ export function SuperAdminCRMProduct() {
     if (isNew) {
       navigate(`/superadmin/crm/products/${id}`, { replace: true });
     }
+  };
+
+  const runConfirmed = () => {
+    if (confirmKind === 'publish') {
+      update({ published: true });
+      toast.message('Marked published — save to persist');
+    } else if (confirmKind === 'unpublish') {
+      update({ published: false });
+      toast.message('Marked unpublished — save to persist');
+    } else if (confirmKind === 'reset') {
+      update(defaultConfigForBase(product.baseId));
+      toast.message(`Reset to ${base.name} defaults`);
+    } else if (confirmKind === 'save') {
+      save();
+    }
+    setConfirmKind(null);
+  };
+
+  const onImageFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Choose an image file (JPG, PNG, WebP)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        update({ image: reader.result });
+        toast.success('Image added');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   return (
@@ -198,7 +229,7 @@ export function SuperAdminCRMProduct() {
               </Link>
             </Button>
           ) : null}
-          <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={save}>
+          <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={requestSave}>
             {isNew ? 'Create product' : 'Save changes'}
           </Button>
         </div>
@@ -364,7 +395,10 @@ export function SuperAdminCRMProduct() {
           </div>
           <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/25 px-4 py-3">
             <p className="text-sm font-medium text-white">Published</p>
-            <Switch checked={product.published} onCheckedChange={(v) => update({ published: v })} />
+            <Switch
+              checked={product.published}
+              onCheckedChange={(v) => setConfirmKind(v ? 'publish' : 'unpublish')}
+            />
           </div>
         </div>
       </div>
@@ -395,6 +429,48 @@ export function SuperAdminCRMProduct() {
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmKind != null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmKind(null);
+        }}
+        title={
+          confirmKind === 'save'
+            ? isNew
+              ? 'Create this product?'
+              : 'Save product changes?'
+            : confirmKind === 'reset'
+              ? `Reset to ${base.name}?`
+              : confirmKind === 'publish'
+                ? 'Publish this product?'
+                : 'Unpublish this product?'
+        }
+        description={
+          confirmKind === 'save'
+            ? isNew
+              ? `Create “${product.name}” in the catalog.`
+              : `Save updates to “${product.name}”.`
+            : confirmKind === 'reset'
+              ? 'This replaces enabled builder components with the garment base defaults.'
+              : confirmKind === 'publish'
+                ? 'Customers will be able to see this product in the catalog after you save.'
+                : 'This product will be hidden from the public catalog after you save.'
+        }
+        confirmLabel={
+          confirmKind === 'save'
+            ? isNew
+              ? 'Create'
+              : 'Save'
+            : confirmKind === 'reset'
+              ? 'Reset'
+              : confirmKind === 'publish'
+                ? 'Publish'
+                : 'Unpublish'
+        }
+        tone={confirmKind === 'unpublish' || confirmKind === 'reset' ? 'danger' : 'default'}
+        onConfirm={runConfirmed}
+      />
     </div>
   );
 }
