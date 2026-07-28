@@ -320,7 +320,7 @@ export function SuperAdminOrders() {
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#141416] to-[#111113] p-4"
+            className="rounded-2xl border border-[#252528] bg-gradient-to-br from-[#161618] to-[#111113] p-4"
           >
             <div className="text-[11px] font-semibold uppercase tracking-wider text-white/38">
               {s.label}
@@ -354,7 +354,7 @@ export function SuperAdminOrders() {
             <SelectTrigger className="h-9 w-[150px] border-white/12 bg-[#111113] text-sm text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+            <SelectContent className="border-[#252528] bg-[#161618] text-white">
               <SelectItem value="all">All types</SelectItem>
               <SelectItem value="techpack">Tech pack</SelectItem>
               <SelectItem value="custom_clothing">Custom clothing</SelectItem>
@@ -364,7 +364,7 @@ export function SuperAdminOrders() {
             <SelectTrigger className="h-9 w-[190px] border-white/12 bg-[#111113] text-sm text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+            <SelectContent className="border-[#252528] bg-[#161618] text-white">
               {(Object.keys(STAGE_LABELS) as OrderStageFilter[]).map((key) => (
                 <SelectItem key={key} value={key}>
                   {STAGE_LABELS[key]}
@@ -399,11 +399,11 @@ export function SuperAdminOrders() {
       ) : null}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-left text-sm">
             <thead>
-              <tr className="border-b border-white/10 bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/45">
+              <tr className="border-b border-[#252528] bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/45">
                 <SortableHeader
                   field="order"
                   label="Order"
@@ -475,7 +475,7 @@ export function SuperAdminOrders() {
       <Sheet open={activeOrderId != null} onOpenChange={(open) => !open && setActiveOrderId(null)}>
         <SheetContent
           side="right"
-          className="flex w-full flex-col gap-0 border-white/10 bg-[#0d0d0f] p-0 text-white sm:max-w-lg"
+          className="flex w-full flex-col gap-0 border-[#252528] bg-[#111113] p-0 text-white sm:max-w-lg"
         >
           {activeOrder ? (
             <OrderPreview
@@ -516,7 +516,7 @@ function OrderTableRow({
         }
       }}
       className={cn(
-        'group cursor-pointer border-b border-white/[0.06] transition last:border-0',
+        'group cursor-pointer border-b border-[#252528] transition last:border-0',
         needsReview ? 'bg-[#CC2D24]/[0.06] hover:bg-[#CC2D24]/[0.09]' : 'hover:bg-white/[0.04]',
         active && 'bg-white/[0.06] ring-1 ring-inset ring-[#CC2D24]/25',
       )}
@@ -544,7 +544,7 @@ function OrderTableRow({
       </td>
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[10px] font-bold text-white/70">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04] text-[10px] font-bold text-white/70">
             {order.userName.slice(0, 2).toUpperCase()}
           </span>
           <div className="min-w-0">
@@ -623,12 +623,12 @@ function OrderPreview({
 
   return (
     <>
-      <div className={cn('shrink-0 border-b border-white/10 bg-gradient-to-br px-6 pb-5 pt-10', headerGradient)}>
+      <div className={cn('shrink-0 border-b border-[#252528] bg-gradient-to-br px-6 pb-5 pt-10', headerGradient)}>
         <SheetHeader className="space-y-0 p-0 text-left">
           <div className="flex items-start gap-4">
             <span
               className={cn(
-                'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10',
+                'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#252528]',
                 accentBg,
                 accentColor,
               )}
@@ -671,7 +671,7 @@ function OrderPreview({
             </div>
           </div>
 
-          <div className="mt-5 flex items-end justify-between gap-4 rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3.5">
+          <div className="mt-5 flex items-end justify-between gap-4 rounded-xl border border-[#252528] bg-black/25 px-4 py-3.5">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                 {isTechPack ? 'Export price' : needsReview ? 'Calculated price' : 'Brand price'}
@@ -709,7 +709,7 @@ function OrderPreview({
                               : isTechPack
                                 ? 'border-violet-400/50 bg-violet-500/20 text-violet-200'
                                 : 'border-[#CC2D24]/50 bg-[#CC2D24]/20 text-red-200'),
-                          state === 'upcoming' && 'border-white/10 bg-white/[0.03] text-white/25',
+                          state === 'upcoming' && 'border-[#252528] bg-white/[0.03] text-white/25',
                         )}
                       >
                         {state === 'done' ? (
@@ -762,7 +762,7 @@ function OrderPreview({
                     </dd>
                   </div>
                 ))}
-                <div className="flex justify-between gap-4 border-t border-white/10 pt-2">
+                <div className="flex justify-between gap-4 border-t border-[#252528] pt-2">
                   <dt className="text-white/45">Ceriga margin</dt>
                   <dd className="text-white">{order.cerigaMarginPercent ?? 17.5}%</dd>
                 </div>
@@ -771,10 +771,10 @@ function OrderPreview({
           ) : null}
 
           {/* Customer */}
-          <section className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+          <section className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
             <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Customer</h3>
             <div className="mt-3 flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-xs font-bold text-white/75">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04] text-xs font-bold text-white/75">
                 {orderInitials(order.userName)}
               </span>
               <div className="min-w-0 flex-1">
@@ -795,7 +795,7 @@ function OrderPreview({
           </section>
 
           {/* Details */}
-          <section className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+          <section className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
             <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Details</h3>
             <dl className="mt-3 divide-y divide-white/[0.06]">
               {isTechPack ? (
@@ -836,7 +836,7 @@ function OrderPreview({
           </section>
 
           {order.notes ? (
-            <section className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+            <section className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
               <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Notes</h3>
               <p className="mt-2 text-sm leading-relaxed text-white/60">{order.notes}</p>
             </section>
@@ -844,7 +844,7 @@ function OrderPreview({
         </div>
       </ScrollArea>
 
-      <div className="shrink-0 space-y-2 border-t border-white/10 bg-[#0d0d0f] px-6 py-4">
+      <div className="shrink-0 space-y-2 border-t border-[#252528] bg-[#111113] px-6 py-4">
         <Button
           className="w-full bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90"
           onClick={onOpenFull}

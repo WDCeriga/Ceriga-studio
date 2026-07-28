@@ -4,7 +4,7 @@ export function PageLoadingFallback({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#0C0C0D] px-6',
+        'flex min-h-dvh flex-col items-center justify-center gap-4 bg-[#09090B] px-6',
         className,
       )}
       role="status"
@@ -12,7 +12,9 @@ export function PageLoadingFallback({ className }: { className?: string }) {
       aria-busy="true"
     >
       <div className="h-10 w-10 animate-pulse rounded-full border-2 border-[#CC2D24]/40 border-t-[#CC2D24]" />
-      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/35">Loading…</p>
+      <p className="ceriga-mono text-[11px] font-medium uppercase tracking-[0.2em] text-[#6B6B72]">
+        Loading…
+      </p>
     </div>
   );
 }

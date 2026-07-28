@@ -1,8 +1,9 @@
 import { Link } from 'react-router';
+import { useId } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { FileStack, FileInput, Package, Factory, ArrowRight } from 'lucide-react';
-import { Button } from '../components/ui/button';
 import { DEFAULT_TECHPACK_SPEC_PRODUCT_ID } from '../data/products';
+import { SpecGridTexture } from '../components/studio/GarmentFlatIcon';
 
 const workflows: {
   title: string;
@@ -10,7 +11,7 @@ const workflows: {
   to: string;
   state?: { builderFlow: string };
   icon: LucideIcon;
-  accent: string;
+  tag: string;
 }[] = [
   {
     title: 'Tech pack (spec only)',
@@ -19,7 +20,7 @@ const workflows: {
     to: `/builder/${DEFAULT_TECHPACK_SPEC_PRODUCT_ID}?flow=techpack-spec`,
     state: { builderFlow: 'techpack-spec' },
     icon: FileInput,
-    accent: '#A855F7',
+    tag: 'Spec',
   },
   {
     title: 'Design tech pack',
@@ -27,7 +28,7 @@ const workflows: {
       'Full builder: measurements, fabric & colour, prints on garment, labels, and export.',
     to: '/catalog',
     icon: FileStack,
-    accent: '#3B82F6',
+    tag: 'Design',
   },
   {
     title: 'Design packaging',
@@ -35,7 +36,7 @@ const workflows: {
       'Polybags, labels, and artwork on a focused canvas — then straight to delivery. No garment selection.',
     to: '/packaging',
     icon: Package,
-    accent: '#06B6D4',
+    tag: 'Packaging',
   },
   {
     title: 'Order from manufacturers',
@@ -43,73 +44,79 @@ const workflows: {
       'Upload your existing tech pack, add quantity and dates, and continue to delivery.',
     to: '/studio/manufacturer',
     icon: Factory,
-    accent: '#F59E0B',
+    tag: 'Production',
   },
 ];
 
+function WorkflowCard({
+  title,
+  description,
+  to,
+  state,
+  icon: Icon,
+  tag,
+}: (typeof workflows)[number]) {
+  const gridId = useId().replace(/:/g, '');
+
+  return (
+    <Link
+      to={to}
+      state={state}
+      className="ceriga-card group flex flex-col overflow-hidden transition-colors hover:border-[#333338]"
+    >
+      <div className="relative h-[120px] border-b border-[#252528] bg-[#111113]">
+        <SpecGridTexture patternId={`studio-grid-${gridId}`} />
+        <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between">
+          <span className="ceriga-mono rounded-[3px] border border-[#5A4530] bg-[#2A2218] px-1.5 py-[3px] text-[10px] uppercase tracking-[0.06em] text-[#E8A868]">
+            {tag}
+          </span>
+        </div>
+        <div className="absolute inset-0 z-[1] flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[6px] border border-[#3A3A40] bg-[#09090B]/80 text-[#E5534A] transition-colors group-hover:border-[#CC2D24]/50 group-hover:text-[#CC2D24]">
+            <Icon className="h-5 w-5" strokeWidth={1.75} />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">
+        <h2 className="mb-1.5 text-[15px] font-semibold tracking-tight text-[#F0EEEE]">{title}</h2>
+        <p className="mb-4 flex-1 text-[12px] leading-relaxed text-[#6B6B72]">{description}</p>
+        <span className="ceriga-btn-ghost">
+          Open <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 export function Studio() {
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#0F0F0F]">
-      <div className="border-b border-white/10 px-[max(1rem,env(safe-area-inset-left))] pb-3 pt-4 pr-[max(1rem,env(safe-area-inset-right))] sm:px-5 md:px-7">
-        <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">
-          Workflows
-        </div>
-        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[clamp(1.35rem,5vw,1.65rem)] font-extrabold uppercase leading-tight tracking-[-0.03em] text-white">
-          Studio
-        </h1>
-        <p className="mt-2 max-w-lg text-xs leading-relaxed text-white/50 sm:text-sm">
+    <div className="ceriga-page mx-auto max-w-[1240px] px-4 py-7 sm:px-8 sm:py-8 lg:px-10">
+      <div className="mb-8">
+        <div className="ceriga-page-eyebrow">Workflows</div>
+        <h1 className="ceriga-page-title">Studio</h1>
+        <p className="ceriga-page-sub">
           Start a tech pack, packaging-only job, or a manufacturing order — all from one place.
         </p>
       </div>
 
-      <div className="p-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:p-5 md:px-7 md:py-6">
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {workflows.map(({ title, description, to, state, icon: Icon, accent }) => (
-            <Link
-              key={title}
-              to={to}
-              state={state}
-              className="group flex flex-col overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#111113] transition-all duration-200 hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
-            >
-              <div
-                className="relative flex min-h-[140px] flex-1 flex-col p-5 sm:p-6"
-                style={{
-                  background: `linear-gradient(145deg, ${accent}12 0%, transparent 55%), #111113`,
-                }}
-              >
-                <div
-                  className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-black/35 text-[#CC2D24] transition-colors group-hover:border-[#CC2D24]/30"
-                  style={{ color: accent }}
-                >
-                  <Icon className="h-6 w-6" />
-                </div>
-                <h2 className="mb-2 text-base font-semibold tracking-tight text-[#F2F0EC] sm:text-[17px]">
-                  {title}
-                </h2>
-                <p className="mb-5 flex-1 text-xs leading-relaxed text-white/45 sm:text-[13px]">
-                  {description}
-                </p>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#CC2D24]">
-                  Open
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {workflows.map((workflow) => (
+          <WorkflowCard key={workflow.title} {...workflow} />
+        ))}
+      </div>
 
-        <div className="mt-8 rounded-[14px] border border-white/[0.08] bg-[#111113]/80 px-4 py-4 sm:flex sm:items-center sm:justify-between sm:px-5">
-          <p className="text-xs text-white/45 sm:max-w-md sm:text-sm">
-            New to Ceriga? Browse the catalog for garment templates, or jump into packaging if you only need bags and labels.
-          </p>
-          <Button
-            asChild
-            variant="outline"
-            className="mt-3 h-9 border-white/15 text-white/85 hover:bg-white/5 sm:mt-0 sm:shrink-0"
-          >
-            <Link to="/catalog">Browse catalog</Link>
-          </Button>
-        </div>
+      <div className="ceriga-card mt-8 flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <p className="m-0 text-xs text-[#8A8A90] sm:max-w-md sm:text-[13px]">
+          New to Ceriga? Browse the catalog for garment templates, or jump into packaging if you only
+          need bags and labels.
+        </p>
+        <Link
+          to="/catalog"
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-[4px] border border-[#3A3A40] px-4 text-[12px] font-medium text-[#F0EEEE] transition-colors hover:border-[#4A4A52] hover:bg-white/[0.03]"
+        >
+          Browse catalog
+        </Link>
       </div>
     </div>
   );

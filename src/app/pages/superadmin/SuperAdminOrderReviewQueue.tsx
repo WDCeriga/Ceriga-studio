@@ -90,7 +90,7 @@ function PricingReviewForm({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4 lg:px-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#252528] px-5 py-4 lg:px-6">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#CC2D24]/15">
             <Calculator className="h-4 w-4 text-[#CC2D24]" />
@@ -125,7 +125,7 @@ function PricingReviewForm({
           {quoteTiers.map((tier) => (
             <div
               key={tier.id}
-              className="rounded-xl border border-white/[0.08] bg-black/25 p-4"
+              className="rounded-xl border border-[#252528] bg-black/25 p-4"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -182,7 +182,7 @@ function PricingReviewForm({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] px-5 py-4 lg:px-6">
+      <div className="flex flex-wrap items-center gap-2 border-t border-[#252528] px-5 py-4 lg:px-6">
         <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={handleSubmit}>
           <Send className="mr-2 h-4 w-4" />
           Submit all & next
@@ -302,7 +302,7 @@ export function SuperAdminOrderReviewQueue() {
         {/* Left: context */}
         <aside className="flex min-h-0 flex-col gap-4">
           <div className="overflow-hidden rounded-2xl border border-[#CC2D24]/25 bg-[#111113]">
-            <div className="border-b border-white/[0.06] bg-gradient-to-br from-[#CC2D24]/14 via-transparent to-transparent px-5 py-5">
+            <div className="border-b border-[#252528] bg-gradient-to-br from-[#CC2D24]/14 via-transparent to-transparent px-5 py-5">
               <p className="font-mono text-xs text-[#CC2D24]">{current.id}</p>
               <h1 className="mt-1 text-xl font-semibold leading-snug text-white sm:text-2xl">
                 {current.productName}
@@ -311,7 +311,7 @@ export function SuperAdminOrderReviewQueue() {
                 <span className="inline-flex rounded-full border border-[#CC2D24]/40 bg-[#CC2D24]/15 px-2.5 py-0.5 text-[10px] font-medium text-red-200">
                   {STATUS_LABELS[current.status]}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[10px] text-white/60">
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#252528] bg-white/[0.04] px-2.5 py-0.5 text-[10px] text-white/60">
                   {current.kind === 'custom_clothing' ? (
                     <Shirt className="h-3 w-3" />
                   ) : (
@@ -348,7 +348,7 @@ export function SuperAdminOrderReviewQueue() {
             </div>
 
             {quantityLines.length > 0 ? (
-              <div className="border-t border-white/[0.06] px-5 py-4">
+              <div className="border-t border-[#252528] px-5 py-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                   Brand requested
                 </p>
@@ -360,7 +360,7 @@ export function SuperAdminOrderReviewQueue() {
               </div>
             ) : null}
 
-            <div className="border-t border-white/[0.06] px-5 py-3">
+            <div className="border-t border-[#252528] px-5 py-3">
               <Link
                 to={`/superadmin/orders/${current.id}`}
                 className="text-[12px] text-white/45 hover:text-white"
@@ -371,7 +371,7 @@ export function SuperAdminOrderReviewQueue() {
           </div>
 
           {remaining.length > 1 ? (
-            <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4">
+            <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                 Up next
               </p>
@@ -379,7 +379,7 @@ export function SuperAdminOrderReviewQueue() {
                 {remaining.slice(1, 5).map((o, i) => (
                   <li
                     key={o.id}
-                    className="flex items-start justify-between gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2"
+                    className="flex items-start justify-between gap-2 rounded-lg border border-[#252528] bg-black/20 px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-[12px] font-medium text-white/85">{o.productName}</p>
@@ -396,7 +396,7 @@ export function SuperAdminOrderReviewQueue() {
         </aside>
 
         {/* Right: pricing workspace */}
-        <section className="min-h-[420px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] xl:min-h-0">
+        <section className="min-h-[420px] overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] xl:min-h-0">
           <PricingReviewForm
             key={current.id}
             order={current}

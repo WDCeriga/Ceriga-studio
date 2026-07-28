@@ -25,7 +25,7 @@ const RED = '#CC2D24';
 // ── tiny primitives ────────────────────────────────────────────────────────────
 
 function Divider() {
-  return <div style={{ height: 1, background: '#ffffff08', margin: '2px 0' }} />;
+  return <div style={{ height: 1, background: '#252528', margin: '2px 0' }} />;
 }
 
 function RowToggle({
@@ -90,16 +90,16 @@ function SegmentedControl({
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px' }}>
       <span style={{ fontSize: 11, color: '#ffffff55', fontWeight: 500 }}>{label}</span>
-      <div style={{ display: 'flex', background: '#0e0e10', border: '1px solid #ffffff0a', borderRadius: 7, padding: 2, gap: 2 }}>
+      <div style={{ display: 'flex', background: '#111113', border: '1px solid #252528', borderRadius: 7, padding: 2, gap: 2 }}>
         {options.map(opt => (
           <button
             key={opt}
             onClick={() => onChange(opt)}
             style={{
               padding: '4px 12px', borderRadius: 5, fontSize: 11, fontWeight: 500,
-              background: value === opt ? '#1e1e20' : 'transparent',
-              border: value === opt ? '1px solid #ffffff12' : '1px solid transparent',
-              color: value === opt ? '#F2F0EC' : '#ffffff40',
+              background: value === opt ? '#1C1C1E' : 'transparent',
+              border: value === opt ? '1px solid #3A3A40' : '1px solid transparent',
+              color: value === opt ? '#F0EEEE' : '#6B6B72',
               cursor: 'pointer', transition: 'all 0.15s',
             }}
           >
@@ -223,14 +223,14 @@ export function DownloadTechPackModal({
     >
       <div style={{
         width: '100%', maxWidth: 420,
-        background: '#111113', border: '1px solid #ffffff0e', borderRadius: 16,
+        background: '#161618', border: '1px solid #252528', borderRadius: 8,
         boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
         display: 'flex', flexDirection: 'column',
         maxHeight: '90vh', overflow: 'hidden',
       }}>
 
         {/* ── header ──────────────────────────────────────────────────────── */}
-        <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid #ffffff0a', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
+        <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid #252528', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 4 }}>
               Export
@@ -254,7 +254,7 @@ export function DownloadTechPackModal({
           </div>
           <button
             onClick={onClose}
-            style={{ width: 28, height: 28, borderRadius: 7, background: '#ffffff08', border: '1px solid #ffffff0a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#ffffff50', flexShrink: 0, marginTop: 2 }}
+            style={{ width: 28, height: 28, borderRadius: 7, background: '#252528', border: '1px solid #252528', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#ffffff50', flexShrink: 0, marginTop: 2 }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ffffff12'; (e.currentTarget as HTMLElement).style.color = '#ffffff90'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#ffffff08'; (e.currentTarget as HTMLElement).style.color = '#ffffff50'; }}
           >
@@ -281,7 +281,7 @@ export function DownloadTechPackModal({
           </div>
 
           {/* separator */}
-          <div style={{ height: 1, background: '#ffffff08', margin: '8px 0' }} />
+          <div style={{ height: 1, background: '#252528', margin: '8px 0' }} />
 
           {/* background */}
           <div style={{ padding: '4px 14px 8px' }}>
@@ -295,7 +295,7 @@ export function DownloadTechPackModal({
                   onClick={() => setSelectedTechPackColor(opt.hex)}
                   style={{
                     padding: '8px 6px', borderRadius: 9, cursor: 'pointer',
-                    border: selectedTechPackColor === opt.hex ? `1.5px solid ${RED}` : '1px solid #ffffff0a',
+                    border: selectedTechPackColor === opt.hex ? `1.5px solid ${RED}` : '1px solid #252528',
                     background: selectedTechPackColor === opt.hex ? `${RED}0e` : '#0e0e10',
                     transition: 'all 0.15s',
                   }}
@@ -310,7 +310,7 @@ export function DownloadTechPackModal({
           </div>
 
           {/* separator */}
-          <div style={{ height: 1, background: '#ffffff08', margin: '4px 0' }} />
+          <div style={{ height: 1, background: '#252528', margin: '4px 0' }} />
 
           {/* format controls */}
           <div style={{ padding: '4px 0' }}>
@@ -325,7 +325,7 @@ export function DownloadTechPackModal({
           </div>
 
           {/* separator */}
-          <div style={{ height: 1, background: '#ffffff08', margin: '4px 0' }} />
+          <div style={{ height: 1, background: '#252528', margin: '4px 0' }} />
 
           {/* AI render toggle */}
           <div style={{ padding: '4px 6px 8px' }}>
@@ -362,12 +362,12 @@ export function DownloadTechPackModal({
         </div>
 
         {/* ── footer ──────────────────────────────────────────────────────── */}
-        <div style={{ padding: '12px 14px', borderTop: '1px solid #ffffff0a', display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div style={{ padding: '12px 14px', borderTop: '1px solid #252528', display: 'flex', gap: 8, flexShrink: 0 }}>
           <button
             onClick={onClose}
             style={{
               flex: 1, padding: '9px 0', borderRadius: 9,
-              background: 'transparent', border: '1px solid #ffffff0e',
+              background: 'transparent', border: '1px solid #252528',
               color: '#ffffff60', fontSize: 12, fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.15s',
             }}

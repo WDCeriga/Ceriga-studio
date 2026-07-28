@@ -100,7 +100,7 @@ export function ProductionQcGalleryView({
   }
 
   return (
-    <section className={cn('rounded-xl border border-white/[0.08] bg-[#111113] p-3.5', className)}>
+    <section className={cn('rounded-xl border border-[#252528] bg-[#111113] p-3.5', className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Camera className="h-3.5 w-3.5 text-[#CC2D24]" />
@@ -131,7 +131,7 @@ export function ProductionQcGalleryView({
               {stagePhotos.map((p) => (
                 <figure
                   key={p.id}
-                  className="w-[132px] overflow-hidden rounded-lg border border-white/[0.08] bg-black/30"
+                  className="w-[132px] overflow-hidden rounded-lg border border-[#252528] bg-black/30"
                 >
                   <a href={p.url} target="_blank" rel="noopener noreferrer" className="block">
                     <img

@@ -98,7 +98,7 @@ export function OrderFloorWorkflow({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Boxes className="h-4 w-4 text-[#CC2D24]" />
@@ -123,7 +123,7 @@ export function OrderFloorWorkflow({
             {matches.map(({ material, reasons, lowStock }) => (
               <li
                 key={material.id}
-                className="flex items-start justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/25 px-3 py-2.5"
+                className="flex items-start justify-between gap-3 rounded-xl border border-[#252528] bg-black/25 px-3 py-2.5"
               >
                 <div>
                   <p className="text-[13px] font-medium text-white">{material.name}</p>
@@ -158,7 +158,7 @@ export function OrderFloorWorkflow({
         )}
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Ship className="h-4 w-4 text-[#CC2D24]" />
@@ -201,7 +201,7 @@ export function OrderFloorWorkflow({
                   <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                  <SelectContent className="border-[#252528] bg-[#161618] text-white">
                     {enabledCarriers.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
@@ -216,7 +216,7 @@ export function OrderFloorWorkflow({
                   <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                  <SelectContent className="border-[#252528] bg-[#161618] text-white">
                     {ALL_SHIPPING_MODES.map((m) => (
                       <SelectItem key={m} value={m}>
                         {SHIPPING_MODE_LABEL[m]}
@@ -231,7 +231,7 @@ export function OrderFloorWorkflow({
                   <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                  <SelectContent className="border-[#252528] bg-[#161618] text-white">
                     {ALL_INCOTERMS.map((t) => (
                       <SelectItem key={t} value={t}>
                         {INCOTERM_LABEL[t]}

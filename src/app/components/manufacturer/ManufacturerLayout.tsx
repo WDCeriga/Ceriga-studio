@@ -88,8 +88,8 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
               className={cn(
                 'flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors',
                 active
-                  ? 'bg-[#CC2D24] text-white'
-                  : 'text-white/60 hover:bg-white/5 hover:text-white',
+                  ? 'border-l-2 border-[#CC2D24] bg-[#1C0F0F] text-[#E5534A]'
+                  : 'text-[#A3A3A8] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]',
               )}
             >
               <Icon className="h-[18px] w-[18px] shrink-0" />
@@ -98,21 +98,21 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
-      <div className="border-t border-white/10 p-2">
+      <div className="border-t border-[#252528] p-2">
         <Link
           to="/manufacturer/notifications"
           onClick={onNavigate}
           className={cn(
             'mb-1 flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors',
             isActive('/manufacturer/notifications')
-              ? 'bg-[#CC2D24] text-white'
-              : 'text-white/60 hover:bg-white/5 hover:text-white',
+              ? 'border-l-2 border-[#CC2D24] bg-[#1C0F0F] text-[#E5534A]'
+              : 'text-[#A3A3A8] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]',
           )}
         >
           <span className="relative">
             <Bell className="h-[18px] w-[18px] shrink-0" />
             {notifUnread > 0 ? (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#CC2D24] px-1 text-[9px] font-bold text-white">
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#CC2D24] px-1 text-[9px] font-bold text-[#F0EEEE]">
                 {notifUnread > 9 ? '9+' : notifUnread}
               </span>
             ) : null}
@@ -122,7 +122,7 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[#A3A3A8] transition-colors hover:bg-[#1C1C1E] hover:text-[#F0EEEE]"
         >
           <LogOut className="h-[18px] w-[18px] shrink-0" />
           <span className="text-[13px] font-medium">Log out</span>
@@ -133,20 +133,20 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
 
   if (onOnboarding) {
     return (
-      <div className="min-h-dvh bg-[#0F0F0F] text-white">
+      <div className="min-h-dvh bg-[#09090B] text-[#F0EEEE]">
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#0F0F0F] pb-[env(safe-area-inset-bottom)] text-white">
+    <div className="min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)] text-[#F0EEEE]">
       {!isLgUp && (
-        <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-white/10 bg-black/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+        <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-[#252528] bg-[#09090B]/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white"
+            className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
             aria-label="Open menu"
           >
             <Menu className="h-6 w-6" />
@@ -159,12 +159,12 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
           </span>
           <Link
             to="/manufacturer/notifications"
-            className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white"
+            className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
             aria-label={`Notifications${notifUnread ? `, ${notifUnread} unread` : ''}`}
           >
             <Bell className="h-5 w-5" />
             {notifUnread > 0 ? (
-              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#CC2D24] px-1 text-[9px] font-bold text-white">
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#CC2D24] px-1 text-[9px] font-bold text-[#F0EEEE]">
                 {notifUnread > 9 ? '9+' : notifUnread}
               </span>
             ) : null}
@@ -175,12 +175,12 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="left"
-          className="w-[min(300px,88vw)] border-white/10 bg-[#0a0a0a] p-0 text-white [&>button]:text-white/70"
+          className="w-[min(300px,88vw)] border-[#252528] bg-[#09090B] p-0 text-[#F0EEEE] [&>button]:text-[#A3A3A8]"
         >
           <SheetTitle className="sr-only">Factory navigation</SheetTitle>
           <div className="flex h-full flex-col pt-10">
-            <div className="border-b border-white/10 px-4 py-3">
-              <span className="text-sm font-extrabold uppercase tracking-wide text-white">
+            <div className="border-b border-[#252528] px-4 py-3">
+              <span className="text-sm font-extrabold uppercase tracking-wide text-[#F0EEEE]">
                 {workspace.factoryName}
               </span>
             </div>
@@ -191,31 +191,31 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 hidden h-dvh flex-col border-r border-white/10 bg-black transition-all duration-300 lg:flex',
+          'fixed left-0 top-0 z-40 hidden h-dvh flex-col border-r border-[#252528] bg-[#09090B] transition-all duration-300 lg:flex',
           collapsed ? 'w-[72px]' : 'w-[220px]',
         )}
       >
         <div
           className={cn(
-            'flex items-center border-b border-white/10 px-3 py-3',
+            'flex items-center border-b border-[#252528] px-3 py-3',
             collapsed ? 'justify-center' : 'justify-between',
           )}
         >
           {!collapsed && (
-            <Link to="/manufacturer" className="min-w-0 font-semibold uppercase tracking-wide text-white">
+            <Link to="/manufacturer" className="min-w-0 font-semibold uppercase tracking-wide text-[#F0EEEE]">
               <span className="block truncate">{workspace.factoryName}</span>
             </Link>
           )}
           <button
             type="button"
             onClick={() => setCollapsed((x) => !x)}
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/5"
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-[#252528] bg-[#1C1C1E]"
             aria-label={collapsed ? 'Expand' : 'Collapse'}
           >
             {collapsed ? (
-              <ChevronRight className="h-4 w-4 text-white/60" />
+              <ChevronRight className="h-4 w-4 text-[#A3A3A8]" />
             ) : (
-              <ChevronLeft className="h-4 w-4 text-white/60" />
+              <ChevronLeft className="h-4 w-4 text-[#A3A3A8]" />
             )}
           </button>
         </div>
@@ -235,8 +235,8 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
                     className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
                       active
-                        ? 'bg-[#CC2D24] text-white'
-                        : 'text-white/50 hover:bg-white/5 hover:text-white',
+                        ? 'border-l-2 border-[#CC2D24] bg-[#1C0F0F] text-[#E5534A]'
+                        : 'text-[#8A8A90] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]',
                     )}
                   >
                     <Icon className="h-[18px] w-[18px]" />
@@ -249,13 +249,13 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
                 className={cn(
                   'relative flex h-10 w-10 items-center justify-center rounded-xl',
                   isActive('/manufacturer/notifications')
-                    ? 'bg-[#CC2D24] text-white'
-                    : 'text-white/50 hover:bg-white/5',
+                    ? 'border-l-2 border-[#CC2D24] bg-[#1C0F0F] text-[#E5534A]'
+                    : 'text-[#8A8A90] hover:bg-[#1C1C1E]',
                 )}
               >
                 <Bell className="h-[18px] w-[18px]" />
                 {notifUnread > 0 ? (
-                  <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#CC2D24] ring-2 ring-black" />
+                  <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#CC2D24] ring-2 ring-[#09090B]" />
                 ) : null}
               </Link>
             </div>

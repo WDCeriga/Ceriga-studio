@@ -5,7 +5,7 @@ export function Navigation() {
   const location = useLocation();
 
   return (
-    <nav className="border-b border-white/10 bg-[#0F0F0F]">
+    <nav className="border-b border-[#252528] bg-[#09090B]">
       <div className="max-w-[1920px] mx-auto px-8 py-5 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
           <div className="text-white font-['Plus_Jakarta_Sans',sans-serif] font-extrabold text-[18px] tracking-[0.5px] uppercase">

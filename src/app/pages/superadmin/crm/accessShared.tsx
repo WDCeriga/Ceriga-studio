@@ -93,7 +93,7 @@ export function ProfileCard({
   return (
     <Link
       to={`/superadmin/crm/access/${audience}/${user.id}`}
-      className="group flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-[#111113] p-4 transition hover:border-white/[0.14] hover:bg-[#141416]"
+      className="group flex items-center gap-4 rounded-2xl border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.14] hover:bg-[#161618]"
     >
       <ProfileAvatar name={user.name} accent={meta.accent} className="h-12 w-12 text-sm" />
       <div className="min-w-0 flex-1">

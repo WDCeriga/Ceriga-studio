@@ -11,16 +11,16 @@ export function SuperAdminSettings() {
         <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Settings</h1>
       </div>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Notifications</h2>
         <div className="mt-4 space-y-4">
-          <label className="flex items-center justify-between gap-4 rounded-lg border border-white/10 px-3 py-3">
+          <label className="flex items-center justify-between gap-4 rounded-lg border border-[#252528] px-3 py-3">
             <div>
               <div className="text-sm text-white">Email for new orders</div>
             </div>
             <Switch defaultChecked />
           </label>
-          <label className="flex items-center justify-between gap-4 rounded-lg border border-white/10 px-3 py-3">
+          <label className="flex items-center justify-between gap-4 rounded-lg border border-[#252528] px-3 py-3">
             <div>
               <div className="text-sm text-white">Slack webhook</div>
             </div>
@@ -29,7 +29,7 @@ export function SuperAdminSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">API keys (mock)</h2>
         <div className="mt-4 space-y-3">
           <div className="space-y-1.5">

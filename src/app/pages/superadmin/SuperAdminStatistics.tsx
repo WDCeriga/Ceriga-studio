@@ -29,7 +29,7 @@ export function SuperAdminStatistics() {
       </div>
 
       {/* Platform snapshot */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white">Platform snapshot</h2>
@@ -46,7 +46,7 @@ export function SuperAdminStatistics() {
             { label: 'Orders', value: '117' },
             { label: 'Ceriga margin', value: '£9.4k' },
           ].map((k) => (
-            <div key={k.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
+            <div key={k.label} className="rounded-xl border border-[#252528] bg-white/[0.02] px-4 py-3">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{k.label}</div>
               <div className="mt-1 text-xl font-semibold tabular-nums text-white">{k.value}</div>
             </div>

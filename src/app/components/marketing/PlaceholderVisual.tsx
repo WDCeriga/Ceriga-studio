@@ -11,7 +11,7 @@ export function PlaceholderVisual({
   return (
     <div
       className={cn(
-        'relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-[14px] border border-white/[0.08] bg-gradient-to-br from-[#1c1c1f] via-[#121214] to-[#0a0a0b]',
+        'relative flex aspect-[16/10] w-full items-center justify-center overflow-hidden rounded-[14px] border border-[#252528] bg-gradient-to-br from-[#1c1c1f] via-[#111113] to-[#09090B]',
         className,
       )}
     >

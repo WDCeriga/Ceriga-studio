@@ -9,7 +9,7 @@ import type { OrderQuantityPlan } from '../data/orderQuantities';
 import { createOrderFromSubmit } from '../data/userOrders';
 
 const fieldClass =
-  'h-10 border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-white/30 focus-visible:border-[#CC2D24] focus-visible:ring-[#CC2D24]/25';
+  'h-10 border-[#252528] bg-white/[0.04] text-sm text-white placeholder:text-white/30 focus-visible:border-[#CC2D24] focus-visible:ring-[#CC2D24]/25';
 
 function Section({
   title,
@@ -74,7 +74,7 @@ export default function Delivery() {
   };
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#0F0F0F] text-white">
+    <div className="min-h-dvh overflow-x-hidden bg-[#09090B] text-white">
       <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-8 md:px-8">
         <button
           type="button"
@@ -97,7 +97,7 @@ export default function Delivery() {
           </p>
         </header>
 
-        <div className="space-y-6 rounded-xl border border-white/10 bg-white/[0.03] p-4 sm:p-6">
+        <div className="space-y-6 rounded-xl border border-[#252528] bg-white/[0.03] p-4 sm:p-6">
           <Section title="Contact information">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
@@ -132,7 +132,7 @@ export default function Delivery() {
             </div>
           </Section>
 
-          <div className="border-t border-white/10" />
+          <div className="border-t border-[#252528]" />
 
           <Section title="Shipping address">
             <div className="space-y-3">
@@ -167,7 +167,7 @@ export default function Delivery() {
                   </Label>
                   <select
                     id="country"
-                    className="flex h-10 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-[#CC2D24] focus:outline-none focus:ring-2 focus:ring-[#CC2D24]/25"
+                    className="flex h-10 w-full rounded-md border border-[#252528] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-[#CC2D24] focus:outline-none focus:ring-2 focus:ring-[#CC2D24]/25"
                   >
                     <option value="UK">United Kingdom</option>
                     <option value="US">United States</option>
@@ -180,7 +180,7 @@ export default function Delivery() {
             </div>
           </Section>
 
-          <div className="border-t border-white/10" />
+          <div className="border-t border-[#252528]" />
 
           <Section title="Special instructions">
             <div>
@@ -189,13 +189,13 @@ export default function Delivery() {
               </Label>
               <Textarea
                 id="instructions"
-                className="min-h-[88px] resize-none border-white/10 bg-white/[0.04] text-sm text-white placeholder:text-white/30 focus-visible:border-[#CC2D24] focus-visible:ring-[#CC2D24]/25"
+                className="min-h-[88px] resize-none border-[#252528] bg-white/[0.04] text-sm text-white placeholder:text-white/30 focus-visible:border-[#CC2D24] focus-visible:ring-[#CC2D24]/25"
                 placeholder="Add any special delivery instructions..."
               />
             </div>
           </Section>
 
-          <div className="border-t border-white/10 pt-2">
+          <div className="border-t border-[#252528] pt-2">
             <Button
               type="button"
               onClick={handleSubmitOrder}

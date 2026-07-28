@@ -227,7 +227,7 @@ export function ManufacturerMaterials() {
         ].map((card) => (
           <div
             key={card.label}
-            className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-3.5"
+            className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-3.5"
           >
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
               {card.label}
@@ -255,7 +255,7 @@ export function ManufacturerMaterials() {
                 'rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-colors',
                 filter === f.id
                   ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                  : 'border-white/10 bg-white/[0.03] text-white/50 hover:text-white',
+                  : 'border-[#252528] bg-white/[0.03] text-white/50 hover:text-white',
               )}
             >
               {f.label}
@@ -269,7 +269,7 @@ export function ManufacturerMaterials() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, colour, supplier…"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25"
+            className="w-full rounded-xl border border-[#252528] bg-white/[0.04] py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25"
           />
         </div>
       </div>
@@ -298,7 +298,7 @@ export function ManufacturerMaterials() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {(Object.keys(FACTORY_MATERIAL_KIND_LABEL) as FactoryMaterialKind[]).map((k) => (
                     <SelectItem key={k} value={k}>
                       {FACTORY_MATERIAL_KIND_LABEL[k]}
@@ -342,7 +342,7 @@ export function ManufacturerMaterials() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {FACTORY_MATERIAL_UNITS.map((u) => (
                     <SelectItem key={u} value={u}>
                       {u}
@@ -404,7 +404,7 @@ export function ManufacturerMaterials() {
         </section>
       ) : null}
 
-      <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113]">
+      <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
         {filtered.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <Package className="mx-auto h-8 w-8 text-white/20" />
@@ -414,7 +414,7 @@ export function ManufacturerMaterials() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                <tr className="border-b border-[#252528] text-[10px] font-semibold uppercase tracking-wider text-white/35">
                   <th className="px-4 py-3 font-semibold">Material</th>
                   <th className="px-4 py-3 font-semibold">Kind</th>
                   <th className="px-4 py-3 font-semibold">On hand</th>
@@ -449,7 +449,7 @@ export function ManufacturerMaterials() {
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase text-white/55">
+                        <span className="rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase text-white/55">
                           {FACTORY_MATERIAL_KIND_LABEL[m.kind]}
                         </span>
                       </td>
@@ -458,7 +458,7 @@ export function ManufacturerMaterials() {
                           <button
                             type="button"
                             onClick={() => bump(m.id, -1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-[#252528] text-white/60 hover:bg-white/5 hover:text-white"
                             aria-label="Decrease"
                           >
                             −
@@ -475,7 +475,7 @@ export function ManufacturerMaterials() {
                           <button
                             type="button"
                             onClick={() => bump(m.id, 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-[#252528] text-white/60 hover:bg-white/5 hover:text-white"
                             aria-label="Increase"
                           >
                             +

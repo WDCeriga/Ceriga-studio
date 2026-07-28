@@ -230,7 +230,7 @@ export function ManufacturerOrders() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search brand, product, ID…"
-              className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#CC2D24]/50"
+              className="h-10 w-full rounded-xl border border-[#252528] bg-white/[0.03] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#CC2D24]/50"
             />
           </div>
         </div>
@@ -246,7 +246,7 @@ export function ManufacturerOrders() {
               'rounded-lg border px-2.5 py-1 text-[11px] font-medium transition',
               filter === f.id
                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-white/10 text-white/45 hover:text-white/75',
+                : 'border-[#252528] text-white/45 hover:text-white/75',
             )}
           >
             {f.label}
@@ -259,14 +259,14 @@ export function ManufacturerOrders() {
             'rounded-lg border px-2.5 py-1 text-[11px] font-medium transition',
             overdueOnly
               ? 'border-amber-500/40 bg-amber-500/15 text-amber-100'
-              : 'border-white/10 text-white/45 hover:text-white/75',
+              : 'border-[#252528] text-white/45 hover:text-white/75',
           )}
         >
           Overdue quotes
         </button>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
@@ -281,7 +281,7 @@ export function ManufacturerOrders() {
                 {savedFilters.map((sf) => (
                   <span
                     key={sf.id}
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] pl-2.5 pr-1 py-1 text-[11px] text-white/70"
+                    className="inline-flex items-center gap-1 rounded-lg border border-[#252528] bg-white/[0.03] pl-2.5 pr-1 py-1 text-[11px] text-white/70"
                   >
                     <button type="button" onClick={() => applySaved(sf)} className="hover:text-white">
                       {sf.name}
@@ -320,7 +320,7 @@ export function ManufacturerOrders() {
       </div>
 
       {selected.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#252528] bg-white/[0.03] px-4 py-3">
           <p className="text-[12px] text-white/65">
             {selected.size} selected
             {selectedNewIds.length > 0
@@ -351,11 +351,11 @@ export function ManufacturerOrders() {
           No orders in this view.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113]">
+        <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-left">
               <thead>
-                <tr className="border-b border-white/[0.08] bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                <tr className="border-b border-[#252528] bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-white/40">
                   <th className="px-4 py-3 font-semibold">
                     <input
                       type="checkbox"
@@ -384,7 +384,7 @@ export function ManufacturerOrders() {
                     <tr
                       key={order.id}
                       onClick={() => navigate(`/manufacturer/orders/${order.id}`)}
-                      className="cursor-pointer border-b border-white/[0.06] transition last:border-0 hover:bg-white/[0.03]"
+                      className="cursor-pointer border-b border-[#252528] transition last:border-0 hover:bg-white/[0.03]"
                     >
                       <td
                         className="px-4 py-3.5 align-middle"
@@ -452,7 +452,7 @@ export function ManufacturerOrders() {
                         <Link
                           to={`/manufacturer/orders/${order.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-white/70 transition hover:border-[#CC2D24]/40 hover:text-white"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[#252528] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-white/70 transition hover:border-[#CC2D24]/40 hover:text-white"
                         >
                           Open
                           <ArrowUpRight className="h-3.5 w-3.5 text-[#CC2D24]" />

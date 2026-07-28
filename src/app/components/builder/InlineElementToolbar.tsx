@@ -222,7 +222,7 @@ export function InlineElementToolbar({
       <div
         className={cn(
           'flex shrink-0 flex-nowrap items-center rounded-2xl border text-white shadow-[0_18px_48px_rgba(0,0,0,0.55),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-xl',
-          'border-white/[0.12] bg-[#141414]/98 ring-1 ring-black/40',
+          'border-white/[0.12] bg-[#161618]/98 ring-1 ring-black/40',
             compact
             ? cn(
                 'no-scrollbar w-full min-w-0 touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [-webkit-overflow-scrolling:touch]',
@@ -230,7 +230,7 @@ export function InlineElementToolbar({
                 comfortableCompact ? 'gap-1.5 px-2.5 py-2' : 'gap-1 px-2 py-1.5',
               )
             : cn(
-                'no-scrollbar w-max min-w-0 max-w-full gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain border-white/[0.08] bg-[#141414]/96 px-1.5 py-1.5 [-webkit-overflow-scrolling:touch]',
+                'no-scrollbar w-max min-w-0 max-w-full gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain border-[#252528] bg-[#161618]/96 px-1.5 py-1.5 [-webkit-overflow-scrolling:touch]',
                 'sm:max-w-[min(98vw,960px)]',
               ),
         )}
@@ -286,7 +286,7 @@ export function InlineElementToolbar({
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
                 className={cn(
-                  'builder-focus rounded-md border border-transparent bg-transparent text-center font-semibold text-white outline-none hover:border-white/10 focus:border-white/20 disabled:cursor-not-allowed disabled:opacity-40',
+                  'builder-focus rounded-md border border-transparent bg-transparent text-center font-semibold text-white outline-none hover:border-[#252528] focus:border-white/20 disabled:cursor-not-allowed disabled:opacity-40',
                   compact && comfortableCompact
                     ? 'h-9 w-11 text-[13px]'
                     : compact
@@ -565,7 +565,7 @@ export function InlineElementToolbar({
               value={currentColor}
               onChange={(e) => onPatch({ color: e.target.value })}
               onPointerDown={(e) => e.stopPropagation()}
-              className="h-6 w-8 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+              className="h-6 w-8 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
             />
             <input
               type="text"
@@ -575,7 +575,7 @@ export function InlineElementToolbar({
                 if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ color: v });
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              className="builder-focus h-6 w-20 rounded-md border border-white/10 bg-black/40 px-1.5 text-[11px] text-white"
+              className="builder-focus h-6 w-20 rounded-md border border-[#252528] bg-black/40 px-1.5 text-[11px] text-white"
               maxLength={9}
             />
           </div>
@@ -654,7 +654,7 @@ export function InlineElementToolbar({
                         value={outlineColor}
                         onChange={(e) => onPatch({ borderColor: e.target.value })}
                         onPointerDown={(e) => e.stopPropagation()}
-                        className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                        className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                       />
                     </div>
                   ) : null}
@@ -699,7 +699,7 @@ export function InlineElementToolbar({
                       value={element.shadowColor ?? '#000000'}
                       onChange={(e) => onPatch({ shadowColor: e.target.value })}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                      className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                     />
                   </div>
                 </div>
@@ -725,7 +725,7 @@ export function InlineElementToolbar({
                     value={element.shadowColor ?? '#000000'}
                     onChange={(e) => onPatch({ shadowColor: e.target.value })}
                     onPointerDown={(e) => e.stopPropagation()}
-                    className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                    className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                   />
                 </div>
               </div>
@@ -762,7 +762,7 @@ export function InlineElementToolbar({
                 value={outlineColor}
                 onChange={(e) => onPatch({ borderColor: e.target.value })}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
               />
               <input
                 type="text"
@@ -772,7 +772,7 @@ export function InlineElementToolbar({
                   if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ borderColor: v });
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="builder-focus h-6 w-20 rounded-md border border-white/10 bg-black/40 px-1.5 text-[11px] text-white"
+                className="builder-focus h-6 w-20 rounded-md border border-[#252528] bg-black/40 px-1.5 text-[11px] text-white"
                 maxLength={9}
               />
             </div>
@@ -947,7 +947,7 @@ export function InlineElementToolbar({
               className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-white/35"
               aria-hidden
             />
-            <SheetHeader className="border-b border-white/[0.06] px-4 pb-3 pt-0 pr-14">
+            <SheetHeader className="border-b border-[#252528] px-4 pb-3 pt-0 pr-14">
               <SheetTitle className="text-center text-lg font-bold tracking-tight text-white">
                 {openPanel === 'font'
                   ? 'Font'
@@ -978,7 +978,7 @@ export function InlineElementToolbar({
                         setOpenPanel(null);
                       }}
                       className={cn(
-                        'builder-focus press-feedback flex min-h-[3.75rem] w-full items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-4 text-left text-[16px] text-white/90 active:bg-white/[0.08]',
+                        'builder-focus press-feedback flex min-h-[3.75rem] w-full items-center justify-between gap-2 border-b border-[#252528] px-4 py-4 text-left text-[16px] text-white/90 active:bg-white/[0.08]',
                         currentFont === font && 'bg-white/[0.14] text-white',
                       )}
                       style={{ fontFamily: font }}
@@ -1020,14 +1020,14 @@ export function InlineElementToolbar({
                       setOpenPanel(null);
                     }}
                   />
-                  <div className="flex items-center gap-2 border-t border-white/[0.08] px-4 py-3">
+                  <div className="flex items-center gap-2 border-t border-[#252528] px-4 py-3">
                     <span className="text-[9px] uppercase tracking-wider text-white/45">Custom</span>
                     <input
                       type="color"
                       value={currentColor}
                       onChange={(e) => onPatch({ color: e.target.value })}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className="h-7 w-10 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                      className="h-7 w-10 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                     />
                     <input
                       type="text"
@@ -1037,7 +1037,7 @@ export function InlineElementToolbar({
                         if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ color: v });
                       }}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className="builder-focus h-7 w-24 rounded-md border border-white/10 bg-black/40 px-1.5 text-[12px] text-white"
+                      className="builder-focus h-7 w-24 rounded-md border border-[#252528] bg-black/40 px-1.5 text-[12px] text-white"
                       maxLength={9}
                     />
                   </div>
@@ -1057,7 +1057,7 @@ export function InlineElementToolbar({
                         'builder-focus press-feedback flex min-h-[3.5rem] items-center justify-center gap-2 rounded-xl border py-2 text-[13px] font-semibold text-white/75',
                         currentAlign === id
                           ? 'border-[#CC2D24] bg-[#CC2D24]/20 text-white'
-                          : 'border-white/10 bg-white/[0.04] hover:border-white/20 hover:text-white',
+                          : 'border-[#252528] bg-white/[0.04] hover:border-white/20 hover:text-white',
                       )}
                     >
                       <Icon className="h-6 w-6" />
@@ -1113,7 +1113,7 @@ export function InlineElementToolbar({
                               value={outlineColor}
                               onChange={(e) => onPatch({ borderColor: e.target.value })}
                               onPointerDown={(e) => e.stopPropagation()}
-                              className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                              className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                             />
                           </div>
                         ) : null}
@@ -1158,7 +1158,7 @@ export function InlineElementToolbar({
                             value={element.shadowColor ?? '#000000'}
                             onChange={(e) => onPatch({ shadowColor: e.target.value })}
                             onPointerDown={(e) => e.stopPropagation()}
-                            className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                            className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                           />
                         </div>
                       </div>
@@ -1184,7 +1184,7 @@ export function InlineElementToolbar({
                           value={element.shadowColor ?? '#000000'}
                           onChange={(e) => onPatch({ shadowColor: e.target.value })}
                           onPointerDown={(e) => e.stopPropagation()}
-                          className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                          className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                         />
                       </div>
                     </div>
@@ -1286,7 +1286,7 @@ export function InlineElementToolbar({
                       value={outlineColor}
                       onChange={(e) => onPatch({ borderColor: e.target.value })}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className="h-5 w-7 cursor-pointer rounded border border-white/10 bg-transparent p-0"
+                      className="h-5 w-7 cursor-pointer rounded border border-[#252528] bg-transparent p-0"
                     />
                     <input
                       type="text"
@@ -1296,7 +1296,7 @@ export function InlineElementToolbar({
                         if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ borderColor: v });
                       }}
                       onPointerDown={(e) => e.stopPropagation()}
-                      className="builder-focus h-6 w-24 rounded-md border border-white/10 bg-black/40 px-1.5 text-[11px] text-white"
+                      className="builder-focus h-6 w-24 rounded-md border border-[#252528] bg-black/40 px-1.5 text-[11px] text-white"
                       maxLength={9}
                     />
                   </div>
@@ -1397,7 +1397,7 @@ function AttrField({
       <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
         {label}
       </span>
-      <div className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60">
+      <div className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#252528] bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60">
         <input
           type="number"
           value={draft}
@@ -1485,7 +1485,7 @@ function Popover({
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        'absolute z-[500] w-[min(280px,calc(100vw-1.5rem))] max-h-[min(80dvh,640px)] overflow-y-auto overflow-x-hidden rounded-xl border border-white/[0.08] bg-[#141414]/96 text-white shadow-[0_20px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-builder-fade-in [scrollbar-gutter:stable] isolate',
+        'absolute z-[500] w-[min(280px,calc(100vw-1.5rem))] max-h-[min(80dvh,640px)] overflow-y-auto overflow-x-hidden rounded-xl border border-[#252528] bg-[#161618]/96 text-white shadow-[0_20px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-builder-fade-in [scrollbar-gutter:stable] isolate',
         side === 'below' ? 'top-full mt-1.5' : 'bottom-full mb-1.5',
         align === 'left' && 'left-0',
         align === 'center' && 'left-1/2 -translate-x-1/2',

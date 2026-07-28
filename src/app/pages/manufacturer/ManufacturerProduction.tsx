@@ -209,7 +209,7 @@ export function ManufacturerProduction() {
         {PRODUCTION_STAGES.map((stage) => (
           <div
             key={stage}
-            className="min-w-[9.5rem] rounded-xl border border-white/[0.08] bg-[#111113] px-3 py-2"
+            className="min-w-[9.5rem] rounded-xl border border-[#252528] bg-[#111113] px-3 py-2"
           >
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
               {PRODUCTION_STAGE_LABEL[stage]}
@@ -226,9 +226,9 @@ export function ManufacturerProduction() {
           {PRODUCTION_STAGES.map((stage) => (
             <div
               key={stage}
-              className="flex w-[260px] shrink-0 flex-col rounded-2xl border border-white/[0.08] bg-[#0c0c0e]"
+              className="flex w-[260px] shrink-0 flex-col rounded-2xl border border-[#252528] bg-[#0c0c0e]"
             >
-              <div className="border-b border-white/[0.06] px-3 py-2.5">
+              <div className="border-b border-[#252528] px-3 py-2.5">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-white/50">
                   {PRODUCTION_STAGE_LABEL[stage]}
                 </p>
@@ -249,7 +249,7 @@ export function ManufacturerProduction() {
                           'rounded-xl border p-3 text-left transition',
                           active
                             ? 'border-[#CC2D24]/40 bg-[#CC2D24]/10'
-                            : 'border-white/[0.08] bg-[#111113] hover:border-white/20',
+                            : 'border-[#252528] bg-[#111113] hover:border-white/20',
                         )}
                       >
                         <p className="text-sm font-medium text-white">{job.productName}</p>
@@ -292,7 +292,7 @@ export function ManufacturerProduction() {
           ))}
         </div>
 
-        <aside className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 xl:sticky xl:top-6 xl:self-start">
+        <aside className="rounded-2xl border border-[#252528] bg-[#111113] p-4 xl:sticky xl:top-6 xl:self-start">
           {!selected ? (
             <p className="text-sm text-white/45">Select a job on the board.</p>
           ) : (
@@ -315,7 +315,7 @@ export function ManufacturerProduction() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-[12px]">
-                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2">
+                <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-2.5 py-2">
                   <p className="text-[10px] uppercase text-white/35">Due</p>
                   <p
                     className={cn(
@@ -326,7 +326,7 @@ export function ManufacturerProduction() {
                     {formatDue(selected.dueAt)}
                   </p>
                 </div>
-                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-2">
+                <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-2.5 py-2">
                   <p className="text-[10px] uppercase text-white/35">Units</p>
                   <p className="font-medium text-white">{selected.units}</p>
                 </div>
@@ -341,7 +341,7 @@ export function ManufacturerProduction() {
                   <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                  <SelectContent className="border-[#252528] bg-[#161618] text-white">
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                     {team.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
@@ -379,12 +379,12 @@ export function ManufacturerProduction() {
               </div>
 
               {selected.notes ? (
-                <p className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[12px] text-white/55">
+                <p className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2 text-[12px] text-white/55">
                   {selected.notes}
                 </p>
               ) : null}
 
-              <div className="border-t border-white/[0.06] pt-4">
+              <div className="border-t border-[#252528] pt-4">
                 <div className="flex items-center gap-2">
                   <Camera className="h-4 w-4 text-[#CC2D24]" />
                   <h3 className="text-sm font-semibold text-white">QC photos</h3>
@@ -412,7 +412,7 @@ export function ManufacturerProduction() {
                       <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                      <SelectContent className="border-[#252528] bg-[#161618] text-white">
                         {PRODUCTION_STAGES.map((s) => (
                           <SelectItem key={s} value={s}>
                             {PRODUCTION_STAGE_LABEL[s]}
@@ -453,7 +453,7 @@ export function ManufacturerProduction() {
                     selected.photos.map((p) => (
                       <li
                         key={p.id}
-                        className="flex gap-2 rounded-xl border border-white/[0.06] bg-black/25 p-2"
+                        className="flex gap-2 rounded-xl border border-[#252528] bg-black/25 p-2"
                       >
                         <img
                           src={p.url}

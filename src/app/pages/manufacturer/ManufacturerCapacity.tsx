@@ -326,12 +326,12 @@ export function ManufacturerCapacity() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3 sm:px-5">
+        <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#252528] px-4 py-3 sm:px-5">
             <button
               type="button"
               onClick={() => setView((v) => addMonths(v.year, v.month, -1))}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/60 transition hover:bg-white/5 hover:text-white"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#252528] text-white/60 transition hover:bg-white/5 hover:text-white"
               aria-label="Previous month"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -347,14 +347,14 @@ export function ManufacturerCapacity() {
             <button
               type="button"
               onClick={() => setView((v) => addMonths(v.year, v.month, 1))}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/60 transition hover:bg-white/5 hover:text-white"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#252528] text-white/60 transition hover:bg-white/5 hover:text-white"
               aria-label="Next month"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] border-b border-white/[0.06] bg-black/25 sm:grid-cols-[48px_repeat(7,minmax(0,1fr))]">
+          <div className="grid grid-cols-[40px_repeat(7,minmax(0,1fr))] border-b border-[#252528] bg-black/25 sm:grid-cols-[48px_repeat(7,minmax(0,1fr))]">
             <div className="px-1 py-2 text-center text-[9px] font-semibold uppercase tracking-wider text-white/25 sm:text-[10px]">
               Wk
             </div>
@@ -389,7 +389,7 @@ export function ManufacturerCapacity() {
                     onClick={() => selectWeek(weekStart)}
                     onDoubleClick={() => requestToggle(weekStart)}
                     className={cn(
-                      'flex flex-col items-center justify-center gap-0.5 border-r border-white/[0.06] py-2 transition hover:bg-white/[0.04]',
+                      'flex flex-col items-center justify-center gap-0.5 border-r border-[#252528] py-2 transition hover:bg-white/[0.04]',
                       full ? 'text-amber-200' : holidayWeek ? 'text-sky-200' : 'text-white/35',
                     )}
                     title="Select week"
@@ -457,14 +457,14 @@ export function ManufacturerCapacity() {
             })}
           </div>
 
-          <p className="border-t border-white/[0.06] px-4 py-2.5 text-[11px] text-white/35 sm:px-5">
+          <p className="border-t border-[#252528] px-4 py-2.5 text-[11px] text-white/35 sm:px-5">
             Click a day for holidays · click the week number to manage capacity · double-click week
             number to toggle full.
           </p>
         </section>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5">
+          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
               Selected day
             </p>
@@ -517,7 +517,7 @@ export function ManufacturerCapacity() {
                   <p className="mt-2 text-[12px] text-white/40">No holiday on this day.</p>
                 )}
 
-                <div className="mt-4 border-t border-white/[0.06] pt-4">
+                <div className="mt-4 border-t border-[#252528] pt-4">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
                     Request time off
                   </p>
@@ -540,7 +540,7 @@ export function ManufacturerCapacity() {
                           'rounded-lg border px-2.5 py-1 text-[11px] font-medium',
                           holidayScope === opt.id
                             ? 'border-violet-500/40 bg-violet-500/15 text-violet-100'
-                            : 'border-white/10 text-white/45',
+                            : 'border-[#252528] text-white/45',
                         )}
                       >
                         {opt.label}
@@ -563,7 +563,7 @@ export function ManufacturerCapacity() {
                               'min-w-[2.25rem] rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums',
                               rangeDays === n
                                 ? 'border-sky-500/40 bg-sky-500/15 text-sky-100'
-                                : 'border-white/10 text-white/45 hover:text-white/70',
+                                : 'border-[#252528] text-white/45 hover:text-white/70',
                             )}
                           >
                             {n}
@@ -583,7 +583,7 @@ export function ManufacturerCapacity() {
                             if (!Number.isFinite(n)) return;
                             setRangeDays(Math.min(30, Math.max(2, Math.round(n))));
                           }}
-                          className="h-8 w-16 border-white/10 bg-black/20 text-[12px] text-white"
+                          className="h-8 w-16 border-[#252528] bg-black/20 text-[12px] text-white"
                         />
                         <span className="text-[11px] text-white/35">days</span>
                       </div>
@@ -604,7 +604,7 @@ export function ManufacturerCapacity() {
                           ? 'e.g. Bridge days / long weekend'
                           : 'e.g. Local festival'
                     }
-                    className="mt-2 border-white/10 bg-black/20 text-[12px] text-white placeholder:text-white/25"
+                    className="mt-2 border-[#252528] bg-black/20 text-[12px] text-white placeholder:text-white/25"
                   />
                   <Button
                     type="button"
@@ -626,7 +626,7 @@ export function ManufacturerCapacity() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5">
+          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
               Selected week · capacity
             </p>
@@ -689,7 +689,7 @@ export function ManufacturerCapacity() {
                         setTick((n) => n + 1);
                       }}
                       placeholder="Shutdown, maintenance…"
-                      className="mt-1.5 border-white/10 bg-black/20 text-[12px] text-white placeholder:text-white/25"
+                      className="mt-1.5 border-[#252528] bg-black/20 text-[12px] text-white placeholder:text-white/25"
                     />
                   </div>
                 ) : null}
@@ -697,7 +697,7 @@ export function ManufacturerCapacity() {
             ) : null}
           </div>
 
-          <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5">
+          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
               This month
             </p>

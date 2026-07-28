@@ -31,14 +31,14 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#0F0F0F] px-5 py-8">
+    <div className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#09090B] px-5 py-8">
       <div className="w-full max-w-[390px]">
         <Link to="/" className="mb-5 inline-flex items-center text-[11px] uppercase tracking-wider text-white/60 transition-colors hover:text-white">
           <ArrowLeft className="mr-2 h-3.5 w-3.5" />
           Back to home
         </Link>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="rounded-2xl border border-[#252528] bg-white/5 p-6">
           <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">Welcome Back</div>
           <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold text-white">Log in</h1>
           <p className="mb-6 mt-1 text-sm text-white/55">Access your Ceriga Studio workspace.</p>
@@ -48,18 +48,18 @@ export function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="mb-1.5 block text-[11px] uppercase tracking-wider text-white/55">Email</label>
-              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="you@example.com" />
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="you@example.com" />
             </div>
             <div>
               <label htmlFor="password" className="mb-1.5 block text-[11px] uppercase tracking-wider text-white/55">Password</label>
-              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="Enter your password" />
+              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="Enter your password" />
             </div>
             <Button type="submit" className="h-10 w-full bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90">LOG IN</Button>
           </form>
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center" aria-hidden>
-              <span className="w-full border-t border-white/10" />
+              <span className="w-full border-t border-[#252528]" />
             </div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-[0.14em]">
               <span className="rounded bg-white/5 px-3 py-0.5 text-white/45">Or</span>
@@ -73,7 +73,7 @@ export function Login() {
             <Link to="/signup" className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/80">Sign up</Link>
           </p>
 
-          <div className="mt-6 border-t border-white/10 pt-4">
+          <div className="mt-6 border-t border-[#252528] pt-4">
             <p className="mb-2 text-center text-[10px] uppercase tracking-wider text-white/35">Demo portals</p>
             <div className="flex flex-col gap-2">
               <Button

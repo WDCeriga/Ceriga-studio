@@ -317,8 +317,8 @@ export function SuperAdminManufacturerDetail() {
       </Link>
 
       {/* Control hero */}
-      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-        <div className="border-b border-white/[0.06] bg-gradient-to-br from-amber-500/12 via-[#CC2D24]/5 to-transparent px-6 py-7 sm:px-8">
+      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+        <div className="border-b border-[#252528] bg-gradient-to-br from-amber-500/12 via-[#CC2D24]/5 to-transparent px-6 py-7 sm:px-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-500/25 bg-amber-500/10 text-sm font-bold text-amber-100 sm:h-16 sm:w-16 sm:text-base">
@@ -355,10 +355,10 @@ export function SuperAdminManufacturerDetail() {
                   >
                     {status}
                   </span>
-                  <span className="inline-flex rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/55">
+                  <span className="inline-flex rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/55">
                     Entity {profile.entityId}
                   </span>
-                  <span className="inline-flex rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/55">
+                  <span className="inline-flex rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/55">
                     Margin {margin.platformMarginPercent}%
                   </span>
                 </div>
@@ -393,7 +393,7 @@ export function SuperAdminManufacturerDetail() {
       </div>
 
       {/* Factory scorecard — same KPIs as manufacturer stats export */}
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
@@ -461,7 +461,7 @@ export function SuperAdminManufacturerDetail() {
           ].map((m) => (
             <div
               key={m.label}
-              className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-3"
+              className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3"
             >
               <div className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
                 {m.label}
@@ -508,7 +508,7 @@ export function SuperAdminManufacturerDetail() {
                     'rounded-md border px-2.5 py-1 text-[11px] font-medium transition',
                     on
                       ? 'border-amber-500/40 bg-amber-500/15 text-amber-100'
-                      : 'border-white/10 bg-white/[0.02] text-white/40 hover:text-white/70',
+                      : 'border-[#252528] bg-white/[0.02] text-white/40 hover:text-white/70',
                   )}
                 >
                   {g}
@@ -531,7 +531,7 @@ export function SuperAdminManufacturerDetail() {
             {specialties.map((s) => (
               <span
                 key={s}
-                className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] py-0.5 pl-2 pr-1 text-[11px] text-white/70"
+                className="inline-flex items-center gap-1 rounded-md border border-[#252528] bg-white/[0.04] py-0.5 pl-2 pr-1 text-[11px] text-white/70"
               >
                 {s}
                 <button
@@ -569,7 +569,7 @@ export function SuperAdminManufacturerDetail() {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 border-t border-white/[0.06] pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-5 flex flex-col gap-2 border-t border-[#252528] pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] text-white/40">
             {produceDirty
               ? 'Unsaved matching changes — save to update auto-routing.'
@@ -587,7 +587,7 @@ export function SuperAdminManufacturerDetail() {
       </section>
 
       {/* Certifications */}
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
             <BadgeCheck className="h-4 w-4 text-emerald-300" />
@@ -612,7 +612,7 @@ export function SuperAdminManufacturerDetail() {
                   'rounded-md border px-2.5 py-1 text-[11px] font-medium transition',
                   on
                     ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-100'
-                    : 'border-white/10 bg-white/[0.02] text-white/40 hover:text-white/70',
+                    : 'border-[#252528] bg-white/[0.02] text-white/40 hover:text-white/70',
                 )}
               >
                 {cert}
@@ -657,7 +657,7 @@ export function SuperAdminManufacturerDetail() {
           </Button>
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 border-t border-white/[0.06] pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-5 flex flex-col gap-2 border-t border-[#252528] pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] text-white/40">
             {certsDirty
               ? 'Unsaved certification changes — save to keep them on this partner.'
@@ -677,7 +677,7 @@ export function SuperAdminManufacturerDetail() {
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Controls column */}
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24]/15">
                 <Shield className="h-4 w-4 text-[#CC2D24]" />
@@ -701,7 +701,7 @@ export function SuperAdminManufacturerDetail() {
                 <SelectTrigger className="border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -722,7 +722,7 @@ export function SuperAdminManufacturerDetail() {
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Commercial plan</h2>
             <p className="mt-1 text-[11px] text-white/40">
               Sets commission tier and platform margin for this factory
@@ -749,7 +749,7 @@ export function SuperAdminManufacturerDetail() {
                         ? 'border-amber-500/70 bg-amber-500/15 ring-1 ring-amber-500/30'
                         : active
                           ? 'border-amber-500/40 bg-amber-500/10'
-                          : 'border-white/10 bg-black/20 hover:border-white/15',
+                          : 'border-[#252528] bg-black/20 hover:border-white/15',
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -797,7 +797,7 @@ export function SuperAdminManufacturerDetail() {
             ) : null}
           </section>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Internal ops notes</h2>
             <p className="mt-1 text-[11px] text-white/40">Visible to Ceriga owners only</p>
             <Textarea
@@ -813,7 +813,7 @@ export function SuperAdminManufacturerDetail() {
         {/* Access + orders */}
         <div className="space-y-6 lg:col-span-3">
           {teamAudit ? (
-            <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-start gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
@@ -841,7 +841,7 @@ export function SuperAdminManufacturerDetail() {
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[560px] text-left">
                   <thead>
-                    <tr className="border-b border-white/[0.06] text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                    <tr className="border-b border-[#252528] text-[10px] font-semibold uppercase tracking-wider text-white/35">
                       <th className="pb-2 pr-3">Person</th>
                       <th className="pb-2 pr-3">Role</th>
                       <th className="pb-2 pr-2 text-center">Quote</th>
@@ -863,7 +863,7 @@ export function SuperAdminManufacturerDetail() {
                           ) : null}
                         </td>
                         <td className="py-2.5 pr-3">
-                          <span className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] capitalize text-white/60">
+                          <span className="rounded-md border border-[#252528] bg-white/[0.04] px-1.5 py-0.5 text-[10px] capitalize text-white/60">
                             {m.role}
                           </span>
                           <p className="mt-1 text-[10px] text-white/35">
@@ -907,7 +907,7 @@ export function SuperAdminManufacturerDetail() {
                   .map((row) => (
                     <div
                       key={row.permission}
-                      className="rounded-lg border border-white/[0.06] bg-black/20 px-3 py-2"
+                      className="rounded-lg border border-[#252528] bg-black/20 px-3 py-2"
                     >
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                         {FACTORY_PERMISSION_LABEL[row.permission]}
@@ -921,7 +921,7 @@ export function SuperAdminManufacturerDetail() {
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-white">Factory portal access</h2>
@@ -957,7 +957,7 @@ export function SuperAdminManufacturerDetail() {
                       'flex cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3 transition',
                       on
                         ? 'border-[#CC2D24]/25 bg-[#CC2D24]/8'
-                        : 'border-white/[0.06] bg-black/20',
+                        : 'border-[#252528] bg-black/20',
                     )}
                   >
                     <div className="min-w-0">
@@ -971,7 +971,7 @@ export function SuperAdminManufacturerDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-white">Assigned order pipeline</h2>

@@ -1,0 +1,132 @@
+/**
+ * Ceriga Studio shell tokens — cool near-black for red accents.
+ * Neutral/cool darks read cleaner with #CC2D24 than warm brown charcoal.
+ */
+:root {
+  --ceriga-bg: #09090b;
+  --ceriga-bg-elevated: #111113;
+  --ceriga-surface: #161618;
+  --ceriga-border: #252528;
+  --ceriga-border-strong: #2e2e32;
+  --ceriga-border-dashed: #333338;
+  --ceriga-text: #f0eeee;
+  --ceriga-text-secondary: #a3a3a8;
+  --ceriga-text-muted: #8a8a90;
+  --ceriga-text-faint: #6b6b72;
+  --ceriga-text-dim: #45454b;
+  --ceriga-accent: #cc2d24;
+  --ceriga-accent-soft: #e5534a;
+  --ceriga-accent-bg: #1c0f0f;
+  --ceriga-nav-hover: #1c1c1e;
+  --ceriga-progress-track: #252528;
+  --ceriga-status-progress-bg: #2a2218;
+  --ceriga-status-progress-text: #e8a868;
+  --ceriga-status-progress-border: #5a4530;
+  --ceriga-status-done-bg: #14201a;
+  --ceriga-status-done-text: #7fa888;
+  --ceriga-status-done-border: #345040;
+  --ceriga-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ceriga-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ceriga-radius: 6px;
+  --ceriga-sidebar-width: 216px;
+  --ceriga-sidebar-collapsed: 72px;
+}
+
+.ceriga-mono {
+  font-family: var(--ceriga-font-mono);
+  letter-spacing: 0.06em;
+}
+
+.ceriga-page {
+  min-height: 100dvh;
+  background: var(--ceriga-bg);
+  color: var(--ceriga-text);
+  font-family: var(--ceriga-font-sans);
+}
+
+.ceriga-card {
+  background: var(--ceriga-surface);
+  border: 1px solid var(--ceriga-border);
+  border-radius: var(--ceriga-radius);
+}
+
+.ceriga-btn-ghost {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 4px;
+  border: 1px solid #3a3a40;
+  background: transparent;
+  padding: 0.55rem 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ceriga-text);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ceriga-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: #4a4a52;
+}
+
+.ceriga-page-eyebrow {
+  font-family: var(--ceriga-font-mono);
+  margin-bottom: 0.5rem;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ceriga-accent);
+}
+
+.ceriga-page-title {
+  margin: 0 0 0.375rem;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ceriga-text);
+}
+
+@media (min-width: 640px) {
+  .ceriga-page-title {
+    font-size: 30px;
+  }
+}
+
+.ceriga-page-sub {
+  margin: 0;
+  max-width: 32rem;
+  font-size: 0.875rem;
+  color: var(--ceriga-text-muted);
+}
+
+.ceriga-btn-primary {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--ceriga-accent);
+  padding: 0 1rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.ceriga-btn-primary:hover {
+  background: var(--ceriga-accent-soft);
+}
+
+/* Shared overlay / modal surface helpers */
+.ceriga-overlay {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.ceriga-modal {
+  background: var(--ceriga-surface);
+  border: 1px solid var(--ceriga-border);
+  border-radius: var(--ceriga-radius);
+  color: var(--ceriga-text);
+}

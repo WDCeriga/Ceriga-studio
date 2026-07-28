@@ -406,7 +406,7 @@ function ManufacturersSection() {
         </ChartPanel>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-white">Manufacturer rankings</h2>
@@ -419,7 +419,7 @@ function ManufacturersSection() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06] text-[11px] font-semibold uppercase tracking-wider text-white/40">
+              <tr className="border-b border-[#252528] text-[11px] font-semibold uppercase tracking-wider text-white/40">
                 <th className="pb-3 pr-3">#</th>
                 <th className="pb-3 pr-4">Partner</th>
                 <th className="pb-3 pr-4">Score</th>

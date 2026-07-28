@@ -108,7 +108,7 @@ function QuoteCalculatorSection() {
   );
 
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
@@ -135,7 +135,7 @@ function QuoteCalculatorSection() {
         {COMMISSION_TIERS.map((tier) => (
           <span
             key={tier.label}
-            className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-white/50"
+            className="rounded-md border border-[#252528] bg-white/[0.03] px-2 py-0.5 text-[10px] text-white/50"
           >
             {tier.label}
           </span>
@@ -145,7 +145,7 @@ function QuoteCalculatorSection() {
       <div className="mt-5 overflow-x-auto">
         <table className="w-full min-w-[920px] border-collapse text-left text-[12px]">
           <thead>
-            <tr className="border-b border-white/10 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+            <tr className="border-b border-[#252528] text-[10px] font-semibold uppercase tracking-wider text-white/40">
               <th className="px-2 py-2">Price US</th>
               <th className="px-2 py-2">Price EUR</th>
               <th className="px-2 py-2">Quantity</th>
@@ -160,7 +160,7 @@ function QuoteCalculatorSection() {
             {rows.map((row, index) => {
               const result = computed[index];
               return (
-                <tr key={row.id} className="border-b border-white/[0.06]">
+                <tr key={row.id} className="border-b border-[#252528]">
                   <td className="px-2 py-2">
                     <Input
                       value={row.priceUsd}
@@ -411,7 +411,7 @@ export function SuperAdminPricing() {
         ].map((card) => {
           const Icon = card.icon;
           const inner = (
-            <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 transition hover:border-white/[0.12]">
+            <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.12]">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
@@ -444,7 +444,7 @@ export function SuperAdminPricing() {
       <QuoteCalculatorSection />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-white">Tech pack exports</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <MoneyInput
@@ -466,7 +466,7 @@ export function SuperAdminPricing() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-white">Estimated duties / tax (%)</h2>
           <div className="mt-4">
             <Input
@@ -484,7 +484,7 @@ export function SuperAdminPricing() {
       </div>
 
       {/* Production margins per manufacturer plan */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">Production order markup by plan</h2>
           <Link
@@ -509,7 +509,7 @@ export function SuperAdminPricing() {
       </div>
 
       {/* AI chat plans */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">AI assistant plans</h2>
           <Link
@@ -524,7 +524,7 @@ export function SuperAdminPricing() {
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-white/45">
+              <tr className="border-b border-[#252528] text-[11px] uppercase tracking-wider text-white/45">
                 <th className="py-2 pr-4 font-medium">Plan</th>
                 <th className="py-2 pr-4 font-medium">Monthly (EUR)</th>
                 <th className="py-2 pr-4 font-medium">Messages / mo</th>
@@ -533,7 +533,7 @@ export function SuperAdminPricing() {
             </thead>
             <tbody>
               {config.chatPlans.map((plan) => (
-                <tr key={plan.id} className="border-b border-white/[0.06]">
+                <tr key={plan.id} className="border-b border-[#252528]">
                   <td className="py-3 pr-4">
                     <span className="font-medium text-white">{plan.tier}</span>
                     {plan.featured ? (
@@ -583,7 +583,7 @@ export function SuperAdminPricing() {
       </div>
 
       {/* Revenue ledger */}
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white">Revenue ledger</h2>
@@ -609,7 +609,7 @@ export function SuperAdminPricing() {
                   'rounded-lg border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition',
                   sourceFilter === key
                     ? 'border-[#CC2D24]/50 bg-[#CC2D24]/15 text-white'
-                    : 'border-white/10 bg-black/20 text-white/40 hover:border-white/20',
+                    : 'border-[#252528] bg-black/20 text-white/40 hover:border-white/20',
                 )}
               >
                 {key === 'all' ? 'All' : REVENUE_SOURCE_LABELS[key]}
@@ -619,19 +619,19 @@ export function SuperAdminPricing() {
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-white/[0.06] bg-black/25 px-4 py-3">
+          <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
             <p className="text-[10px] uppercase tracking-wider text-white/35">GBP revenue</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-white">
               {formatPricingMoney(summary.totalRevenueGbp, 'GBP')}
             </p>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-black/25 px-4 py-3">
+          <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
             <p className="text-[10px] uppercase tracking-wider text-white/35">GBP profit</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-emerald-300">
               {formatPricingMoney(summary.totalProfitGbp, 'GBP')}
             </p>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-black/25 px-4 py-3">
+          <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
             <p className="text-[10px] uppercase tracking-wider text-white/35">Ledger rows</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-white">{summary.rowCount}</p>
           </div>
@@ -640,7 +640,7 @@ export function SuperAdminPricing() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-white/45">
+              <tr className="border-b border-[#252528] text-[11px] uppercase tracking-wider text-white/45">
                 <th className="py-2 pr-3 font-medium">Date</th>
                 <th className="py-2 pr-3 font-medium">Source</th>
                 <th className="py-2 pr-3 font-medium">Customer</th>
@@ -667,7 +667,7 @@ export function SuperAdminPricing() {
       </div>
 
       <Dialog open={manualOpen} onOpenChange={setManualOpen}>
-        <DialogContent className="border-white/10 bg-[#111113] text-white sm:max-w-md">
+        <DialogContent className="border-[#252528] bg-[#111113] text-white sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white">Manual revenue entry</DialogTitle>
           </DialogHeader>
@@ -779,7 +779,7 @@ function ManufacturerPlanMarginCard({
   const brandPrice = applyProductionMargin(previewQuote, planMargin.platformMarginPercent);
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-black/25 p-4">
+    <div className="rounded-xl border border-[#252528] bg-black/25 p-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold text-white">{planMargin.planName}</p>
         {meta ? (
@@ -801,7 +801,7 @@ function ManufacturerPlanMarginCard({
         />
       </div>
 
-      <div className="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-xs tabular-nums text-white">
+      <div className="mt-4 rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2.5 text-xs tabular-nums text-white">
         {formatPricingMoney(brandPrice, 'GBP')}
       </div>
     </div>
@@ -811,10 +811,10 @@ function ManufacturerPlanMarginCard({
 function LedgerRow({ row }: { row: RevenueLedgerRow }) {
   const profit = ledgerProfit(row);
   return (
-    <tr className="border-b border-white/[0.06] hover:bg-white/[0.02]">
+    <tr className="border-b border-[#252528] hover:bg-white/[0.02]">
       <td className="py-2.5 pr-3 text-xs text-white/50">{row.date}</td>
       <td className="py-2.5 pr-3">
-        <span className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium text-white/55">
+        <span className="rounded-md border border-[#252528] bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium text-white/55">
           {REVENUE_SOURCE_LABELS[row.source]}
         </span>
       </td>

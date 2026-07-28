@@ -212,7 +212,7 @@ function WorkflowPipeline({
   };
 
   return (
-    <div className="mt-6 border-t border-white/[0.06] pt-5">
+    <div className="mt-6 border-t border-[#252528] pt-5">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Progress</p>
       <div className="mt-4 flex items-start gap-0.5 overflow-x-auto pb-1">
         {steps.map((step, i) => {
@@ -228,7 +228,7 @@ function WorkflowPipeline({
                       (accent === 'violet'
                         ? 'border-violet-400/50 bg-violet-500/20 text-violet-200'
                         : 'border-[#CC2D24]/50 bg-[#CC2D24]/20 text-red-200'),
-                    state === 'upcoming' && 'border-white/10 bg-white/[0.03] text-white/25',
+                    state === 'upcoming' && 'border-[#252528] bg-white/[0.03] text-white/25',
                   )}
                 >
                   {state === 'done' ? (
@@ -284,13 +284,13 @@ function OrderHero({
   const steps = isTechPack ? TECHPACK_STEPS : CUSTOM_STEPS;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+    <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
       <div className={cn('px-6 py-6 sm:px-8', 'bg-gradient-to-br', gradient)}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <span
               className={cn(
-                'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10',
+                'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#252528]',
                 accentBg,
                 accentColor,
               )}
@@ -373,7 +373,7 @@ function OrderHero({
           ].map((item) => (
             <div
               key={item.label}
-              className="rounded-xl border border-white/[0.08] bg-black/25 px-4 py-3.5"
+              className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3.5"
             >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-white/35">
                 <item.icon className="h-3.5 w-3.5" />
@@ -399,10 +399,10 @@ function OrderHero({
 
 function CustomerCard({ order }: { order: SuperAdminOrder }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
       <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Customer</h2>
       <div className="mt-4 flex items-center gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sm font-bold text-white/75">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04] text-sm font-bold text-white/75">
           {orderInitials(order.userName)}
         </span>
         <div className="min-w-0 flex-1">
@@ -438,7 +438,7 @@ function CustomerCard({ order }: { order: SuperAdminOrder }) {
 function DeliveryCard({ order }: { order: SuperAdminOrder }) {
   const delivery: OrderDeliveryInfo | undefined = order.delivery;
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
       <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
         Delivery
       </h2>
@@ -497,7 +497,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
   const awaitingQuote = Boolean(order.manufacturerName) && !hasQuote;
 
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
       <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
         Manufacturer
       </h2>
@@ -526,7 +526,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
                 ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200'
                 : awaitingQuote
                   ? 'border-amber-500/25 bg-amber-500/10 text-amber-200'
-                  : 'border-white/10 bg-white/[0.03] text-white/50',
+                  : 'border-[#252528] bg-white/[0.03] text-white/50',
             )}
           >
             {hasQuote
@@ -589,7 +589,7 @@ function ProductionPulseCard({
   const [flagOpen, setFlagOpen] = useState(false);
 
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-white">Production pulse</h2>
@@ -624,19 +624,19 @@ function ProductionPulseCard({
 
       {pulse.job ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+          <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wide text-white/35">Stage</p>
             <p className="mt-0.5 text-sm font-medium text-white">
               {PRODUCTION_STAGE_LABEL[pulse.job.stage]}
             </p>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+          <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wide text-white/35">Assignee</p>
             <p className="mt-0.5 text-sm font-medium text-white">
               {pulse.job.assigneeName ?? 'Unassigned'}
             </p>
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2.5">
+          <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wide text-white/35">QC photos</p>
             <p className="mt-0.5 text-sm font-medium tabular-nums text-white">{pulse.photoCount}</p>
           </div>
@@ -697,7 +697,7 @@ function TechPackViewerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#111113] text-white sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-[#252528] bg-[#111113] text-white sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-lg text-white">{techPack.name}</DialogTitle>
           <DialogDescription className="text-white/45">
@@ -707,7 +707,7 @@ function TechPackViewerDialog({
 
         <div className="space-y-4">
           {product?.image ? (
-            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-black/40">
+            <div className="overflow-hidden rounded-xl border border-[#252528] bg-black/40">
               <img
                 src={product.image}
                 alt={product.name}
@@ -720,7 +720,7 @@ function TechPackViewerDialog({
             </div>
           )}
 
-          <dl className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-black/25">
+          <dl className="divide-y divide-white/[0.06] rounded-xl border border-[#252528] bg-black/25">
             {[
               { label: 'Garment', value: techPack.garmentType },
               { label: 'Blueprint', value: product?.name ?? techPack.builderProductId },
@@ -741,7 +741,7 @@ function TechPackViewerDialog({
             ))}
           </dl>
 
-          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+          <div className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Includes</p>
             <ul className="mt-2 space-y-1.5 text-sm text-white/60">
               <li>· Flat sketches & construction callouts</li>
@@ -780,7 +780,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
   const product = techPack ? getProductById(techPack.builderProductId) : undefined;
 
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
       <h2 className="text-sm font-semibold text-white">Production spec</h2>
 
       {techPack ? (
@@ -798,7 +798,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
                 <img
                   src={product.image}
                   alt=""
-                  className="h-16 w-16 shrink-0 rounded-lg border border-white/10 object-cover"
+                  className="h-16 w-16 shrink-0 rounded-lg border border-[#252528] object-cover"
                 />
               ) : (
                 <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10">
@@ -866,7 +866,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
         </div>
       )}
 
-      <dl className="mt-5 divide-y divide-white/[0.06] rounded-xl border border-white/[0.06] bg-black/20">
+      <dl className="mt-5 divide-y divide-white/[0.06] rounded-xl border border-[#252528] bg-black/20">
         {[
           { label: 'Product', value: order.productName },
           { label: 'Quantity', value: qty ? `${qty} units` : '—' },
@@ -894,7 +894,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
       </dl>
 
       {order.notes ? (
-        <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+        <div className="mt-4 rounded-xl border border-[#252528] bg-white/[0.02] p-4">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Notes</p>
           <p className="mt-2 text-sm leading-relaxed text-white/60">{order.notes}</p>
         </div>
@@ -927,7 +927,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15">
                 <FileText className="h-4 w-4 text-violet-300" />
@@ -946,7 +946,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
               ].map((row) => (
                 <div
                   key={row.label}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3"
+                  className="rounded-xl border border-[#252528] bg-white/[0.02] px-4 py-3"
                 >
                   <dt className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                     {row.label}
@@ -1115,7 +1115,7 @@ function CustomClothingOrderDetail({
               'rounded-2xl border bg-[#111113] p-5 sm:p-6',
               canReview && !submitted
                 ? 'border-[#CC2D24]/30 ring-1 ring-[#CC2D24]/15'
-                : 'border-white/[0.08]',
+                : 'border-[#252528]',
             )}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1144,7 +1144,7 @@ function CustomClothingOrderDetail({
             </div>
 
             {quantityLines.length > 0 ? (
-              <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+              <div className="mt-4 rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                   Brand requested
                 </p>
@@ -1170,7 +1170,7 @@ function CustomClothingOrderDetail({
                   return (
                     <div
                       key={tier.id}
-                      className="rounded-xl border border-white/[0.08] bg-black/25 p-4"
+                      className="rounded-xl border border-[#252528] bg-black/25 p-4"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
@@ -1193,7 +1193,7 @@ function CustomClothingOrderDetail({
                       </div>
 
                       <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                        <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2">
                           <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
                             Mfg quote
                           </p>
@@ -1201,7 +1201,7 @@ function CustomClothingOrderDetail({
                             {formatMoney(tier.manufacturerQuoteCents)}
                           </p>
                         </div>
-                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+                        <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2">
                           <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
                             + Margin
                           </p>
@@ -1267,7 +1267,7 @@ function CustomClothingOrderDetail({
                 ) : null}
               </div>
             ) : (
-              <div className="mt-6 rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.03] to-transparent p-5">
+              <div className="mt-6 rounded-xl border border-[#252528] bg-gradient-to-br from-white/[0.03] to-transparent p-5">
                 <div className="flex items-start gap-4">
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10">
                     <Factory className="h-5 w-5 text-amber-200" />
@@ -1296,7 +1296,7 @@ function CustomClothingOrderDetail({
           <DeliveryCard order={order} />
 
           {['paid', 'in_production', 'shipped', 'completed'].includes(order.status) ? (
-            <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Truck className="h-4 w-4 text-[#CC2D24]" />
                 Tracking

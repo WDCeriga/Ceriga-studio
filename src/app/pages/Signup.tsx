@@ -29,14 +29,14 @@ export function Signup() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#0F0F0F] px-5 py-8">
+    <div className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#09090B] px-5 py-8">
       <div className="w-full max-w-[420px]">
         <Link to="/" className="mb-5 inline-flex items-center text-[11px] uppercase tracking-wider text-white/60 transition-colors hover:text-white">
           <ArrowLeft className="mr-2 h-3.5 w-3.5" />
           Back to home
         </Link>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="rounded-2xl border border-[#252528] bg-white/5 p-6">
           <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">Create Account</div>
           <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold text-white">Sign up</h1>
           <p className="mb-6 mt-1 text-sm text-white/55">Start building professional tech packs.</p>
@@ -53,7 +53,7 @@ export function Signup() {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center" aria-hidden>
-              <span className="w-full border-t border-white/10" />
+              <span className="w-full border-t border-[#252528]" />
             </div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-[0.14em]">
               <span className="rounded bg-white/5 px-3 py-0.5 text-white/45">Or</span>
@@ -76,7 +76,7 @@ function Field({ id, label, value, onChange, placeholder, type = 'text' }: { id:
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-[11px] uppercase tracking-wider text-white/55">{label}</label>
-      <input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder={placeholder} />
+      <input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder={placeholder} />
     </div>
   );
 }

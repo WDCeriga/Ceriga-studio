@@ -130,7 +130,7 @@ export function BuilderComponentEditor({
               'rounded-xl border px-4 py-3.5 transition',
               !holderInBase && 'opacity-40',
               holderEnabled
-                ? 'border-white/[0.08] bg-black/25'
+                ? 'border-[#252528] bg-black/25'
                 : 'border-white/[0.04] bg-black/15 opacity-60',
             )}
           >
@@ -221,7 +221,7 @@ export function BuilderComponentEditor({
                                       : 'border-[#CC2D24]/45 bg-[#CC2D24]/15 text-white'
                                     : isCustom
                                       ? 'border-amber-500/25 bg-amber-500/5 text-white/55'
-                                      : 'border-white/[0.08] bg-white/[0.02] text-white/40 hover:border-white/15 hover:text-white/65',
+                                      : 'border-[#252528] bg-white/[0.02] text-white/40 hover:border-white/15 hover:text-white/65',
                                 )}
                               >
                                 {option.name}

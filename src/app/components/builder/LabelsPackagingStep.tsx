@@ -387,7 +387,7 @@ export function LabelsPackagingStep({
                     'min-h-11 min-w-[5.25rem] shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition sm:min-w-[5.5rem]',
                     planValue === id
                       ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
-                      : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
+                      : 'border-[#252528] bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
                   )}
                 >
                   {labelMap[id] ?? id}
@@ -397,10 +397,10 @@ export function LabelsPackagingStep({
           </div>
         ) : (
         <Select value={planValue} onValueChange={onPlanChange}>
-          <SelectTrigger className="h-10 min-h-[44px] border-white/10 bg-white/5 text-[11px] text-white md:h-9 md:min-h-0">
+          <SelectTrigger className="h-10 min-h-[44px] border-[#252528] bg-white/5 text-[11px] text-white md:h-9 md:min-h-0">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+          <SelectContent className="border-[#252528] bg-[#161618] text-white">
             {subStep === 'label' ? (
               <>
                 <SelectItem value="none">No label</SelectItem>
@@ -424,7 +424,7 @@ export function LabelsPackagingStep({
       </div>
 
       {isNone ? (
-        <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-5 text-center text-[12px] leading-relaxed text-white/50">
+        <div className="rounded-xl border border-[#252528] bg-white/[0.04] px-4 py-5 text-center text-[12px] leading-relaxed text-white/50">
           {subStep === 'label'
             ? 'No custom neck label will be included. You can still add notes for the factory below.'
             : 'No custom packaging artwork. Add any shipping or outer-pack notes below.'}
@@ -507,7 +507,7 @@ export function LabelsPackagingStep({
               <Input
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
-                className="h-10 min-h-[44px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9 md:min-h-0"
+                className="h-10 min-h-[44px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9 md:min-h-0"
                 placeholder={subStep === 'label' ? 'Brand name' : 'Packaging message'}
                 onKeyDown={(e) => e.key === 'Enter' && addText()}
               />
@@ -532,7 +532,7 @@ export function LabelsPackagingStep({
           </Button>
 
           {selected ? (
-            <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="space-y-3 rounded-xl border border-[#252528] bg-white/5 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Selected layer</div>
                 <Button
@@ -560,7 +560,7 @@ export function LabelsPackagingStep({
                               'flex min-h-11 min-w-[4.75rem] shrink-0 snap-start items-center rounded-xl border px-3.5 py-2.5 text-[11px] sm:min-w-[5rem]',
                               selected.fontFamily === font
                                 ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
-                                : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white',
+                                : 'border-[#252528] bg-black/20 text-white/70 hover:border-white/20 hover:text-white',
                             )}
                             style={{ fontFamily: font }}
                           >
@@ -578,7 +578,7 @@ export function LabelsPackagingStep({
                           className={`h-8 rounded-lg border px-2 text-[10px] ${
                             selected.fontFamily === font
                               ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
-                              : 'border-white/10 bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
+                              : 'border-[#252528] bg-black/20 text-white/70 hover:border-white/20 hover:text-white'
                           }`}
                           style={{ fontFamily: font }}
                         >
@@ -608,7 +608,7 @@ export function LabelsPackagingStep({
                             'flex h-8 flex-1 min-w-[2.5rem] items-center justify-center rounded-lg border text-white/70 transition-colors',
                             (selected.textAlign ?? 'center') === align
                               ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white'
-                              : 'border-white/10 bg-black/20 hover:border-white/20 hover:text-white',
+                              : 'border-[#252528] bg-black/20 hover:border-white/20 hover:text-white',
                           )}
                           aria-label={`Align ${align}`}
                         >
@@ -777,7 +777,7 @@ export function LabelsPackagingStep({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <div className="rounded-lg border border-[#252528] bg-black/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                     {selected.type === 'text' ? 'Text outline' : 'Border'}
@@ -849,7 +849,7 @@ export function LabelsPackagingStep({
               </div>
 
               {selected.type === 'image' ? (
-                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <div className="rounded-lg border border-[#252528] bg-black/20 p-3">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                       Drop shadow
@@ -921,7 +921,7 @@ export function LabelsPackagingStep({
               ) : null}
 
               {selected.type === 'image' ? (
-                <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                <div className="rounded-lg border border-[#252528] bg-black/20 p-3">
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                       Crop
@@ -1010,7 +1010,7 @@ export function LabelsPackagingStep({
                     Flip horizontal
                   </Button>
                 ) : null}
-                <div className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2 py-2 text-center text-[10px] leading-snug text-white/60">
+                <div className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-[#252528] bg-black/20 px-2 py-2 text-center text-[10px] leading-snug text-white/60">
                   <Move className="h-3 w-3 shrink-0" />
                   Drag to move · corners scale · sides stretch · double-click text to edit
                 </div>
@@ -1064,7 +1064,7 @@ export function LabelsPackagingStep({
                           ? 'drag-list-floating border-white/30'
                           : selectedId === element.id
                             ? 'border-[#FF3B30] bg-[#FF3B30]/10'
-                            : 'border-white/10 bg-black/25 hover:border-white/18',
+                            : 'border-[#252528] bg-black/25 hover:border-white/18',
                       )}
                     >
                       <div
@@ -1101,7 +1101,7 @@ export function LabelsPackagingStep({
                       </button>
                       <button
                         type="button"
-                        className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
+                        className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#252528] px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
                         aria-label="Delete layer"
                         title="Delete"
                         onClick={(e) => {
@@ -1130,7 +1130,7 @@ export function LabelsPackagingStep({
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
           placeholder={`Add any ${subStep} requirements...`}
-          className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+          className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
         />
       </div>
     </div>

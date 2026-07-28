@@ -17,8 +17,8 @@ export function PackagingOnly() {
   const [packagingBaseColor, setPackagingBaseColor] = useState('#F5F5F5');
 
   return (
-    <div className="flex h-[calc(100dvh-4.35rem-env(safe-area-inset-top,0px))] min-h-0 w-full flex-col overflow-hidden bg-[#0F0F0F] lg:h-[100dvh] lg:max-h-[100dvh]">
-      <div className="shrink-0 border-b border-white/10 px-4 pb-3 pt-4 sm:px-5 md:px-7">
+    <div className="flex h-[calc(100dvh-4.35rem-env(safe-area-inset-top,0px))] min-h-0 w-full flex-col overflow-hidden bg-[#09090B] lg:h-[100dvh] lg:max-h-[100dvh]">
+      <div className="shrink-0 border-b border-[#252528] px-4 pb-3 pt-4 sm:px-5 md:px-7">
         <Link
           to="/studio"
           className="mb-3 inline-flex items-center gap-2 text-[11px] font-medium text-white/45 transition-colors hover:text-white/80"
@@ -43,7 +43,7 @@ export function PackagingOnly() {
             Phone / narrow: lock preview height so the canvas stays on screen; only the sidebar scrolls.
             lg+: previous split — preview and panel share height, each scrolls internally if needed.
           */}
-          <div className="flex max-h-[min(40dvh,280px)] min-h-0 w-full shrink-0 items-center justify-center overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-[14px] border border-white/10 bg-black/30 p-3 sm:max-h-[min(42dvh,300px)] sm:p-4 lg:max-h-none lg:min-h-0 lg:flex-1 lg:p-6">
+          <div className="flex max-h-[min(40dvh,280px)] min-h-0 w-full shrink-0 items-center justify-center overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-[14px] border border-[#252528] bg-black/30 p-3 sm:max-h-[min(42dvh,300px)] sm:p-4 lg:max-h-none lg:min-h-0 lg:flex-1 lg:p-6">
             <PackagingPreview
               color={packagingBaseColor}
               elements={packaging}
@@ -76,7 +76,7 @@ export function PackagingOnly() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-30 shrink-0 border-t border-white/10 bg-[#0a0a0a]/95 px-4 py-3 backdrop-blur-md lg:static lg:z-0 lg:border-t lg:border-white/10 lg:bg-[#0F0F0F] lg:px-4 lg:py-3 lg:backdrop-blur-0">
+      <div className="fixed bottom-0 left-0 right-0 z-30 shrink-0 border-t border-[#252528] bg-[#09090B]/95 px-4 py-3 backdrop-blur-md lg:static lg:z-0 lg:border-t lg:border-[#252528] lg:bg-[#09090B] lg:px-4 lg:py-3 lg:backdrop-blur-0">
         <div className="mx-auto flex max-w-6xl gap-3 lg:justify-end">
           <Button
             type="button"

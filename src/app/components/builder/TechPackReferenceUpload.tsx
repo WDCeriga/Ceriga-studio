@@ -76,7 +76,7 @@ export function TechPackReferenceUpload({
         <Textarea
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          className="min-h-[100px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+          className="min-h-[100px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
           placeholder="Placement notes, colour callouts, print method, or anything your manufacturer should know…"
         />
       </div>

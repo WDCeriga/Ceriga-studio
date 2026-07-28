@@ -34,7 +34,7 @@ export function GarmentTypeStep({ garmentType, onGarmentTypeChange }: GarmentTyp
               className={`p-4 border-2 rounded-xl text-center transition-all ${
                 garmentType === option.id
                   ? 'border-[#CC2D24] bg-[#CC2D24]/10 text-white'
-                  : 'border-white/10 hover:border-white/30 text-white/60 hover:text-white bg-white/5'
+                  : 'border-[#252528] hover:border-white/30 text-white/60 hover:text-white bg-white/5'
               }`}
             >
               <div className="font-semibold">{option.name}</div>
@@ -42,7 +42,7 @@ export function GarmentTypeStep({ garmentType, onGarmentTypeChange }: GarmentTyp
           ))}
         </div>
       </div>
-      <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+      <div className="p-4 bg-white/5 border border-[#252528] rounded-xl">
         <div className="text-white/60 text-xs uppercase tracking-wider mb-2">Current Selection</div>
         <div className="text-xl font-bold text-white capitalize">
           {garmentTypes.find(g => g.id === garmentType)?.name || 'Not selected'}

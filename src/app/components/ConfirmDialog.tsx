@@ -38,20 +38,19 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="border-white/10 bg-[#141414] text-white shadow-2xl shadow-black/50">
+      <AlertDialogContent className="border-[#252528] bg-[#161618] text-[#F0EEEE] shadow-2xl shadow-black/50">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-white">{title}</AlertDialogTitle>
-          <AlertDialogDescription className="text-white/55">{description}</AlertDialogDescription>
+          <AlertDialogTitle className="text-[#F0EEEE]">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-[#8A8A90]">{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel className="border-white/15 bg-transparent text-white hover:bg-white/5 hover:text-white">
+          <AlertDialogCancel className="border-[#3A3A40] bg-transparent text-[#F0EEEE] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]">
             {cancelLabel}
           </AlertDialogCancel>
           <AlertDialogAction
             className={cn(
-              tone === 'danger'
-                ? 'bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90'
-                : 'bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90',
+              'bg-[#CC2D24] text-white hover:bg-[#E5534A]',
+              tone === 'danger' && 'bg-[#CC2D24]',
             )}
             onClick={() => {
               onConfirm();

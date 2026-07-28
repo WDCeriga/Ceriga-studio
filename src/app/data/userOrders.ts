@@ -184,14 +184,14 @@ export function canUseFreeRevision(order: UserOrder): boolean {
 }
 
 export const ORDER_STATUS_COLORS: Record<string, string> = {
-  submitted: 'bg-blue-500/20 text-blue-300',
-  awaiting_payment: 'bg-amber-500/20 text-amber-300',
-  priced: 'bg-amber-500/20 text-amber-300',
-  paid: 'bg-sky-500/20 text-sky-300',
-  processing: 'bg-purple-500/20 text-purple-300',
-  shipping: 'bg-blue-500/20 text-blue-300',
-  completed: 'bg-green-500/20 text-green-300',
-  ready: 'bg-emerald-500/20 text-emerald-300',
+  submitted: 'border border-[#5A4530] bg-[#2A2218] text-[#E8A868]',
+  awaiting_payment: 'border border-[#5A4530] bg-[#2A2218] text-[#E8A868]',
+  priced: 'border border-[#5A4530] bg-[#2A2218] text-[#E8A868]',
+  paid: 'border border-[#345040] bg-[#14201A] text-[#7FA888]',
+  processing: 'border border-[#5A4530] bg-[#1C0F0F] text-[#E5534A]',
+  shipping: 'border border-[#345040] bg-[#14201A] text-[#7FA888]',
+  completed: 'border border-[#345040] bg-[#14201A] text-[#7FA888]',
+  ready: 'border border-[#345040] bg-[#14201A] text-[#7FA888]',
 };
 
 const SEED_ORDERS: UserOrder[] = [
@@ -208,7 +208,7 @@ const SEED_ORDERS: UserOrder[] = [
     orderQuantities: planWithBulks([50, 100, 200]),
     specifications: {
       fit: 'Regular',
-      color: '#1a1a1a',
+      color: '#161618',
       colorName: 'Black',
       fabricType: 'French Terry',
       gsm: 320,

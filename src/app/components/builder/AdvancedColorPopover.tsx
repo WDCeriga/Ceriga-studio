@@ -142,7 +142,7 @@ export function AdvancedColorPopover({
           <div
             ref={svRef}
             role="presentation"
-            className="relative h-36 w-full cursor-crosshair overflow-hidden rounded-lg border border-white/10"
+            className="relative h-36 w-full cursor-crosshair overflow-hidden rounded-lg border border-[#252528]"
             style={{
               background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, rgba(255,255,255,0)), hsl(${Math.round(hue)}, 100%, 50%)`,
             }}

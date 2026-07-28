@@ -98,7 +98,7 @@ function StatCard({
   return (
     <Link
       to={to}
-      className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] p-5 transition hover:border-[#CC2D24]/35 hover:bg-[#141416]"
+      className="group relative overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] p-5 transition hover:border-[#CC2D24]/35 hover:bg-[#161618]"
     >
       <div
         className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.07]"
@@ -109,7 +109,7 @@ function StatCard({
           <div className="text-[11px] font-semibold uppercase tracking-wider text-white/40">{label}</div>
           <div className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-white">{value}</div>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5 text-[#CC2D24]">
+        <div className="rounded-xl border border-[#252528] bg-white/[0.04] p-2.5 text-[#CC2D24]">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -134,7 +134,7 @@ function OrderRow({ order }: { order: SuperAdminOrder }) {
   return (
     <Link
       to={`/superadmin/orders/${order.id}`}
-      className="flex flex-col gap-2 border-b border-white/[0.06] px-4 py-3.5 transition last:border-0 hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-2 border-b border-[#252528] px-4 py-3.5 transition last:border-0 hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -273,7 +273,7 @@ export function SuperAdminDashboard() {
 
       {/* Chart + pipeline */}
       <div className="grid gap-6 xl:grid-cols-5">
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 xl:col-span-3">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 xl:col-span-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-white">Revenue trend</h2>
@@ -309,7 +309,7 @@ export function SuperAdminDashboard() {
                 />
                 <Tooltip
                   contentStyle={{
-                    background: '#1a1a1a',
+                    background: '#161618',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: 12,
                     fontSize: 12,
@@ -329,7 +329,7 @@ export function SuperAdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 xl:col-span-2">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 xl:col-span-2">
           <h2 className="text-sm font-semibold text-white">Order pipeline</h2>
           <div className="mt-5 space-y-3">
             {pipeline.map((row) => (
@@ -355,8 +355,8 @@ export function SuperAdminDashboard() {
 
       {/* Attention + activity */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-amber-400" />
               <h2 className="text-sm font-semibold text-white">Needs attention</h2>
@@ -401,8 +401,8 @@ export function SuperAdminDashboard() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-white/40" />
               <h2 className="text-sm font-semibold text-white">Recent activity</h2>
@@ -442,8 +442,8 @@ export function SuperAdminDashboard() {
 
       {/* Recent orders + messages */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Recent orders</h2>
             <Link to="/superadmin/orders" className="text-[11px] font-medium text-[#CC2D24] hover:underline">
               See all
@@ -459,8 +459,8 @@ export function SuperAdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Messages</h2>
             <Link to="/superadmin/messages" className="text-[11px] font-medium text-[#CC2D24] hover:underline">
               Inbox

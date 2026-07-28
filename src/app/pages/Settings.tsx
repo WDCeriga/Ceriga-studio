@@ -22,7 +22,7 @@ export default function Settings() {
   const [currency, setCurrency] = useState<string>(CURRENCY_OPTIONS[0]);
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#0F0F0F] text-white">
+    <div className="min-h-dvh overflow-x-hidden bg-[#09090B] text-white">
       <div className="mx-auto max-w-[760px] px-4 py-5 sm:px-5 sm:py-8 md:px-8">
         <Button variant="outline" onClick={() => navigate(-1)} className="mb-4 h-8 border-white/20 px-3 text-[10px] !text-white hover:bg-white/10">
           <ChevronLeft className="mr-1 h-3.5 w-3.5" />
@@ -82,7 +82,7 @@ export default function Settings() {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+    <div className="rounded-2xl border border-[#252528] bg-white/5 p-4">
       <div className="mb-4 text-sm font-semibold text-white">{title}</div>
       <div className="space-y-3">{children}</div>
     </div>
@@ -96,7 +96,7 @@ function Field({ label, placeholder, type = 'text' }: { label: string; placehold
       <input
         type={type}
         placeholder={placeholder}
-        className="h-10 w-full rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/25 focus-visible:ring-2 focus-visible:ring-[#CC2D24]/35"
+        className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/25 focus-visible:ring-2 focus-visible:ring-[#CC2D24]/35"
       />
     </div>
   );
@@ -135,7 +135,7 @@ function SettingsSelect({
           collisionPadding={12}
           className={cn(
             'z-[300] max-h-[min(50vh,22rem)] w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)]',
-            'border border-white/12 bg-[#141416] text-white shadow-[0_16px_48px_rgba(0,0,0,0.55)]',
+            'border border-white/12 bg-[#161618] text-white shadow-[0_16px_48px_rgba(0,0,0,0.55)]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
           )}
         >
@@ -163,7 +163,7 @@ function Toggle({ title, subtitle, defaultChecked = false }: { title: string; su
   const [checked, setChecked] = useState(defaultChecked);
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-[#252528] bg-black/20 px-3 py-3">
       <Label htmlFor={id} className="min-w-0 flex-1 cursor-pointer space-y-0.5 font-normal">
         <div className="text-sm font-medium text-white">{title}</div>
         <div className="text-xs text-white/50">{subtitle}</div>
@@ -184,7 +184,7 @@ function Toggle({ title, subtitle, defaultChecked = false }: { title: string; su
 
 function MenuRow({ title, subtitle, danger = false }: { title: string; subtitle: string; danger?: boolean }) {
   return (
-    <button className={`w-full rounded-xl border px-3 py-3 text-left transition ${danger ? 'border-red-500/20 bg-red-500/5 hover:bg-red-500/10' : 'border-white/10 bg-black/20 hover:bg-white/5'}`}>
+    <button className={`w-full rounded-xl border px-3 py-3 text-left transition ${danger ? 'border-red-500/20 bg-red-500/5 hover:bg-red-500/10' : 'border-[#252528] bg-black/20 hover:bg-white/5'}`}>
       <div className={`text-sm font-medium ${danger ? 'text-red-400' : 'text-white'}`}>{title}</div>
       <div className={`text-xs ${danger ? 'text-red-400/60' : 'text-white/50'}`}>{subtitle}</div>
     </button>

@@ -8,7 +8,7 @@ const colours = [
   { id: 'forest', label: 'Forest', hex: '#3d4f3f' },
   { id: 'slate', label: 'Slate', hex: '#5c6b7a' },
   { id: 'sand', label: 'Sand', hex: '#c4b59d' },
-  { id: 'black', label: 'Black', hex: '#1a1a1a' },
+  { id: 'black', label: 'Black', hex: '#161618' },
 ] as const;
 
 const necks = [
@@ -67,7 +67,7 @@ export function HomeTechpackPreview({
       </p>
       <div
         className={cn(
-          'relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0a0a0b] shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:rounded-[18px]',
+          'relative overflow-hidden rounded-2xl border border-[#252528] bg-[#09090B] shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:rounded-[18px]',
           compact && 'sm:shadow-[0_16px_48px_rgba(0,0,0,0.45)]',
         )}
       >
@@ -93,7 +93,7 @@ export function HomeTechpackPreview({
           />
         </div>
 
-        <div className={cn('border-t border-white/[0.06] bg-[#111113]/95 p-2.5 sm:p-3 md:p-4', compact && 'p-2 sm:p-2.5')}>
+        <div className={cn('border-t border-[#252528] bg-[#111113]/95 p-2.5 sm:p-3 md:p-4', compact && 'p-2 sm:p-2.5')}>
           <p className={cn('mb-1.5 text-[8px] font-bold uppercase tracking-wider text-white/35', compact && 'mb-1')}>
             Try a few choices
           </p>
@@ -136,7 +136,7 @@ export function HomeTechpackPreview({
                       'rounded-md border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide transition-colors sm:rounded-lg sm:px-2 sm:py-1 sm:text-[9px]',
                       neck === id
                         ? 'border-[#CC2D24]/60 bg-[#CC2D24]/15 text-white'
-                        : 'border-white/10 bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
+                        : 'border-[#252528] bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
                     )}
                   >
                     {label}
@@ -158,7 +158,7 @@ export function HomeTechpackPreview({
                       'rounded-md border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide transition-colors sm:rounded-lg sm:px-2 sm:py-1 sm:text-[9px]',
                       sleeve === id
                         ? 'border-[#CC2D24]/60 bg-[#CC2D24]/15 text-white'
-                        : 'border-white/10 bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
+                        : 'border-[#252528] bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
                     )}
                   >
                     {label}
@@ -180,7 +180,7 @@ export function HomeTechpackPreview({
                       'rounded-md border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide transition-colors sm:rounded-lg sm:px-2 sm:py-1 sm:text-[9px]',
                       pocket === id
                         ? 'border-[#CC2D24]/60 bg-[#CC2D24]/15 text-white'
-                        : 'border-white/10 bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
+                        : 'border-[#252528] bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
                     )}
                   >
                     {label}

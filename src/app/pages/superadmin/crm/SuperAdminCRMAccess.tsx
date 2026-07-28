@@ -43,19 +43,19 @@ export function SuperAdminCRMAccess() {
             <Link
               key={audience}
               to={`/superadmin/crm/access/${audience}`}
-              className="group rounded-2xl border border-white/[0.08] bg-[#111113] p-5 transition hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
+              className="group rounded-2xl border border-[#252528] bg-[#111113] p-5 transition hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
               style={{
                 background: `linear-gradient(145deg, ${meta.accent}10 0%, #111113 55%)`,
               }}
             >
               <div
-                className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-black/30"
+                className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-[#252528] bg-black/30"
                 style={{ color: meta.accent }}
               >
                 <Icon className="h-5 w-5" />
               </div>
               <h2 className="text-lg font-semibold text-white">{meta.title}</h2>
-              <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-4">
+              <div className="mt-5 flex items-center justify-between border-t border-[#252528] pt-4">
                 <span className="text-[11px] text-white/35">
                   {count} profile{count === 1 ? '' : 's'}
                 </span>

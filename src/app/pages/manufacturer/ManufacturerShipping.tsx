@@ -251,7 +251,7 @@ export function ManufacturerShipping() {
         </div>
         <Link
           to="/manufacturer/orders"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-[#252528] bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
         >
           Quote an order
           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -272,7 +272,7 @@ export function ManufacturerShipping() {
         ].map((k) => (
           <div
             key={k.label}
-            className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-3.5"
+            className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-3.5"
           >
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
               {k.label}
@@ -292,7 +292,7 @@ export function ManufacturerShipping() {
               'shrink-0 rounded-xl border px-3 py-2 text-[12px] font-medium transition-colors',
               tab === t.id
                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-white/10 bg-white/[0.03] text-white/50 hover:text-white',
+                : 'border-[#252528] bg-white/[0.03] text-white/50 hover:text-white',
             )}
           >
             {t.label}
@@ -314,7 +314,7 @@ export function ManufacturerShipping() {
               return (
                 <div
                   key={carrier.id}
-                  className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4"
+                  className="rounded-2xl border border-[#252528] bg-[#111113] p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -408,7 +408,7 @@ export function ManufacturerShipping() {
                               'rounded-lg border px-3 py-1.5 text-[12px] font-medium',
                               on
                                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                                : 'border-white/10 text-white/40',
+                                : 'border-[#252528] text-white/40',
                             )}
                           >
                             {SHIPPING_MODE_LABEL[m]}
@@ -438,7 +438,7 @@ export function ManufacturerShipping() {
                             'rounded-lg border px-3 py-1.5 text-[12px] font-medium',
                             on
                               ? 'border-sky-500/40 bg-sky-500/15 text-sky-100'
-                              : 'border-white/10 text-white/40',
+                              : 'border-[#252528] text-white/40',
                           )}
                           title={INCOTERM_HELP[t]}
                         >
@@ -478,7 +478,7 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'defaults' ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
           <h2 className="text-sm font-semibold text-white">Defaults for new quotes</h2>
           <p className="mt-1 text-[11px] text-white/40">
             Pre-fills carrier, mode, and Incoterm on order quote tiers. Changing this requires
@@ -491,7 +491,7 @@ export function ManufacturerShipping() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {enabledCarriers.map((c) =>
                     c ? (
                       <SelectItem key={c.id} value={c.id}>
@@ -511,7 +511,7 @@ export function ManufacturerShipping() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {ALL_SHIPPING_MODES.map((m) => (
                     <SelectItem key={m} value={m}>
                       {SHIPPING_MODE_LABEL[m]}
@@ -529,7 +529,7 @@ export function ManufacturerShipping() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {ALL_INCOTERMS.map((t) => (
                     <SelectItem key={t} value={t}>
                       {t}
@@ -549,7 +549,7 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'quotes' ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
           <h2 className="text-sm font-semibold text-white">Generate shipping quotation</h2>
           <p className="mt-1 text-[11px] text-white/40">
             Mock estimate for sea, air, rail, or express with Incoterm uplift — use as a guide when
@@ -562,7 +562,7 @@ export function ManufacturerShipping() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {ALL_SHIPPING_MODES.map((m) => (
                     <SelectItem key={m} value={m}>
                       {SHIPPING_MODE_LABEL[m]}
@@ -580,7 +580,7 @@ export function ManufacturerShipping() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {ALL_INCOTERMS.map((t) => (
                     <SelectItem key={t} value={t}>
                       {INCOTERM_LABEL[t]}
@@ -616,8 +616,8 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'tracking' ? (
-        <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="border-b border-white/[0.06] px-5 py-4">
+        <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Shipments</h2>
             <p className="mt-0.5 text-[11px] text-white/40">Track booked and in-transit deliveries.</p>
           </div>
@@ -627,7 +627,7 @@ export function ManufacturerShipping() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-white/[0.06] text-[10px] uppercase tracking-wider text-white/35">
+                  <tr className="border-b border-[#252528] text-[10px] uppercase tracking-wider text-white/35">
                     <th className="px-4 py-3 font-semibold">Shipment</th>
                     <th className="px-4 py-3 font-semibold">Carrier</th>
                     <th className="px-4 py-3 font-semibold">Route</th>
@@ -690,7 +690,7 @@ export function ManufacturerShipping() {
           )}
 
           {trackingEditId ? (
-            <div className="border-t border-white/[0.06] px-5 py-4">
+            <div className="border-t border-[#252528] px-5 py-4">
               <Label className="text-white/45">Tracking number</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Input
@@ -718,7 +718,7 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'onboard' ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
           <div className="flex items-center gap-2">
             <Plus className="h-4 w-4 text-[#CC2D24]" />
             <h2 className="text-sm font-semibold text-white">Request carrier onboarding</h2>
@@ -755,7 +755,7 @@ export function ManufacturerShipping() {
                         'rounded-lg border px-3 py-1.5 text-[12px] font-medium',
                         on
                           ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                          : 'border-white/10 text-white/40',
+                          : 'border-[#252528] text-white/40',
                       )}
                     >
                       {on ? <Check className="mr-1 inline h-3 w-3" /> : null}

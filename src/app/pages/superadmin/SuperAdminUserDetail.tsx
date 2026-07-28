@@ -76,7 +76,7 @@ function UserAvatar({ name, className }: { name: string; className?: string }) {
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-white/10 to-white/[0.02] font-bold text-white/85',
+        'flex shrink-0 items-center justify-center rounded-full border border-[#252528] bg-gradient-to-br from-white/10 to-white/[0.02] font-bold text-white/85',
         className,
       )}
     >
@@ -216,8 +216,8 @@ export function SuperAdminUserDetail() {
       </Link>
 
       {/* Profile hero */}
-      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-        <div className="border-b border-white/[0.06] bg-gradient-to-br from-[#CC2D24]/14 via-[#CC2D24]/4 to-transparent px-6 py-8 sm:px-8">
+      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+        <div className="border-b border-[#252528] bg-gradient-to-br from-[#CC2D24]/14 via-[#CC2D24]/4 to-transparent px-6 py-8 sm:px-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-5">
               <UserAvatar name={user.name} className="h-16 w-16 text-base sm:h-20 sm:w-20 sm:text-lg" />
@@ -290,7 +290,7 @@ export function SuperAdminUserDetail() {
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Left column — management */}
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24]/15">
                 <Coins className="h-4 w-4 text-[#CC2D24]" />
@@ -298,7 +298,7 @@ export function SuperAdminUserDetail() {
               <h2 className="text-sm font-semibold text-white">AI chat allowance</h2>
             </div>
 
-            <div className="mt-5 rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-transparent p-4">
+            <div className="mt-5 rounded-xl border border-[#252528] bg-gradient-to-br from-white/[0.04] to-transparent p-4">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                 Current balance
               </div>
@@ -314,7 +314,7 @@ export function SuperAdminUserDetail() {
                   key={n}
                   type="button"
                   onClick={() => setCreditDelta(String(n))}
-                  className="rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-medium text-white/60 transition hover:border-[#CC2D24]/40 hover:text-white"
+                  className="rounded-lg border border-[#252528] bg-black/30 px-3 py-1.5 text-xs font-medium text-white/60 transition hover:border-[#CC2D24]/40 hover:text-white"
                 >
                   +{n}
                 </button>
@@ -322,7 +322,7 @@ export function SuperAdminUserDetail() {
               <button
                 type="button"
                 onClick={() => setCreditDelta(String(-10))}
-                className="rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-medium text-white/60 transition hover:border-red-500/40 hover:text-red-200"
+                className="rounded-lg border border-[#252528] bg-black/30 px-3 py-1.5 text-xs font-medium text-white/60 transition hover:border-red-500/40 hover:text-red-200"
               >
                 −10
               </button>
@@ -345,7 +345,7 @@ export function SuperAdminUserDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24]/15">
                 <Shield className="h-4 w-4 text-[#CC2D24]" />
@@ -361,7 +361,7 @@ export function SuperAdminUserDetail() {
                 <SelectTrigger className="border-white/12 bg-black/40 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   <SelectItem value="brand">Brand</SelectItem>
                   <SelectItem value="manufacturer">Manufacturer (admin)</SelectItem>
                   <SelectItem value="worker">Internal worker</SelectItem>
@@ -377,17 +377,17 @@ export function SuperAdminUserDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Account details</h2>
             <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] pb-3">
+              <div className="flex items-center justify-between gap-4 border-b border-[#252528] pb-3">
                 <dt className="flex items-center gap-2 text-white/45">
                   <Calendar className="h-3.5 w-3.5" />
                   Joined
                 </dt>
                 <dd className="text-right text-white">{formatDate(user.createdAt)}</dd>
               </div>
-              <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] pb-3">
+              <div className="flex items-center justify-between gap-4 border-b border-[#252528] pb-3">
                 <dt className="text-white/45">User ID</dt>
                 <dd className="font-mono text-xs text-white/70">{user.id}</dd>
               </div>
@@ -401,8 +401,8 @@ export function SuperAdminUserDetail() {
 
         {/* Right column — orders & activity */}
         <div className="space-y-6 lg:col-span-3">
-          <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.25)]">
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4 sm:px-6">
+          <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.25)]">
+            <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4 sm:px-6">
               <div>
                 <h2 className="text-sm font-semibold text-white">Recent orders</h2>
                 <p className="mt-0.5 text-xs text-white/45">
@@ -427,7 +427,7 @@ export function SuperAdminUserDetail() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[520px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.06] text-[11px] uppercase tracking-wider text-white/40">
+                    <tr className="border-b border-[#252528] text-[11px] uppercase tracking-wider text-white/40">
                       <th className="px-5 py-3 font-medium sm:px-6">Order</th>
                       <th className="px-4 py-3 font-medium">Product</th>
                       <th className="px-4 py-3 font-medium">Status</th>
@@ -476,7 +476,7 @@ export function SuperAdminUserDetail() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Activity</h2>
             <ul className="mt-4 space-y-0">
               {[
@@ -502,7 +502,7 @@ export function SuperAdminUserDetail() {
               ].map((item, i) => (
                 <li
                   key={`${item.label}-${i}`}
-                  className="relative flex gap-4 border-b border-white/[0.06] py-4 last:border-0"
+                  className="relative flex gap-4 border-b border-[#252528] py-4 last:border-0"
                 >
                   <span className="relative mt-1.5 flex h-2 w-2 shrink-0 rounded-full bg-[#CC2D24]/80">
                     {i < 2 ? (
@@ -525,10 +525,10 @@ export function SuperAdminUserDetail() {
 
       {/* Email dialog */}
       <Dialog open={emailOpen} onOpenChange={(open) => !open && closeEmail()}>
-        <DialogContent className="border-white/10 bg-[#0d0d0f] p-0 text-white sm:max-w-lg">
+        <DialogContent className="border-[#252528] bg-[#111113] p-0 text-white sm:max-w-lg">
           {emailStep === 'compose' ? (
             <>
-              <div className="border-b border-white/10 bg-gradient-to-r from-[#CC2D24]/15 to-transparent px-6 py-5">
+              <div className="border-b border-[#252528] bg-gradient-to-r from-[#CC2D24]/15 to-transparent px-6 py-5">
                 <DialogHeader className="space-y-1 text-left">
                   <DialogTitle className="flex items-center gap-2 text-lg text-white">
                     <Mail className="h-4 w-4 text-[#CC2D24]" />
@@ -563,7 +563,7 @@ export function SuperAdminUserDetail() {
                   />
                 </div>
               </div>
-              <DialogFooter className="border-t border-white/10 bg-black/30 px-6 py-4">
+              <DialogFooter className="border-t border-[#252528] bg-black/30 px-6 py-4">
                 <Button variant="outline" className="border-white/15 text-white hover:bg-white/10" onClick={closeEmail}>
                   Cancel
                 </Button>
@@ -582,7 +582,7 @@ export function SuperAdminUserDetail() {
                 <h2 className="mt-4 text-xl font-semibold text-white">Email sent</h2>
                 <p className="mt-2 text-sm text-white/50">Delivered to {user.email}</p>
               </div>
-              <DialogFooter className="border-t border-white/10 bg-black/30 px-6 py-4">
+              <DialogFooter className="border-t border-[#252528] bg-black/30 px-6 py-4">
                 <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={closeEmail}>
                   Done
                 </Button>
@@ -613,7 +613,7 @@ export function SuperAdminUserDetail() {
 
 function UsersIconFallback() {
   return (
-    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
+    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04]">
       <Shield className="h-6 w-6 text-white/30" />
     </div>
   );

@@ -46,7 +46,7 @@ export function ProjectActionsMenu({
           className={cn(
             variant === 'overlay'
               ? 'flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/75'
-              : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/45 transition-colors hover:bg-white/10 hover:text-white',
+              : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#252528] bg-white/[0.04] text-white/45 transition-colors hover:bg-white/10 hover:text-white',
             className,
           )}
         >
@@ -55,7 +55,7 @@ export function ProjectActionsMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="min-w-[180px] border-white/10 bg-[#161618] text-white shadow-xl"
+        className="min-w-[180px] border-[#252528] bg-[#161618] text-white shadow-xl"
       >
         <DropdownMenuItem asChild className="cursor-pointer focus:bg-white/10 focus:text-white">
           <Link to={openTo}>

@@ -83,7 +83,7 @@ export function Notifications() {
     <div
       className="min-h-dvh overflow-x-hidden p-4 sm:p-6 md:p-8"
       style={{
-        background: "#0A0A0B",
+        background: "#09090B",
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
@@ -165,7 +165,7 @@ export function Notifications() {
                   "rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors",
                   active
                     ? "bg-[#CC2D24] text-white"
-                    : "border border-white/10 bg-white/[0.04] text-white/55 hover:border-white/20 hover:text-white/80",
+                    : "border border-[#252528] bg-white/[0.04] text-white/55 hover:border-white/20 hover:text-white/80",
                 )}
               >
                 {label}
@@ -181,7 +181,7 @@ export function Notifications() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="h-9 rounded-lg border border-white/10 bg-[#111113] px-3 text-sm text-white outline-none focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/30"
+            className="h-9 rounded-lg border border-[#252528] bg-[#111113] px-3 text-sm text-white outline-none focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/30"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
@@ -258,7 +258,7 @@ export function Notifications() {
             return (
               <li
                 key={n.id}
-                className="rounded-2xl border border-white/[0.08] p-4 transition-colors hover:border-white/[0.12]"
+                className="rounded-2xl border border-[#252528] p-4 transition-colors hover:border-white/[0.12]"
                 style={{ background: "#111113" }}
               >
                 {n.href ? (

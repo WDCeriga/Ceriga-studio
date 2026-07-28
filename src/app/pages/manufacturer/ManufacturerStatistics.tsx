@@ -46,7 +46,7 @@ const RED = '#CC2D24';
 const PIE_COLORS = ['#CC2D24', '#3B82F6', '#10B981', '#F59E0B', '#A78BFA', '#64748B'];
 
 const tooltipStyle = {
-  background: '#141416',
+  background: '#161618',
   border: '1px solid rgba(255,255,255,0.1)',
   borderRadius: 12,
   color: '#fff',
@@ -88,7 +88,7 @@ function ChartPanel({
   return (
     <section
       className={cn(
-        'flex flex-col rounded-2xl border border-white/[0.08] bg-[#111113] p-5',
+        'flex flex-col rounded-2xl border border-[#252528] bg-[#111113] p-5',
         className,
       )}
     >
@@ -118,7 +118,7 @@ function KpiCard({
   warn?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-4">
+    <div className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{label}</p>
         {Icon ? (
@@ -169,7 +169,7 @@ export function ManufacturerStatistics() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-0.5">
+          <div className="inline-flex rounded-xl border border-[#252528] bg-white/[0.03] p-0.5">
             {([30, 90] as AnalyticsPeriodDays[]).map((d) => (
               <button
                 key={d}
@@ -197,14 +197,14 @@ export function ManufacturerStatistics() {
           </Button>
           <Link
             to="/manufacturer/orders"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#252528] bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
           >
             Orders inbox
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
           <Link
             to="/manufacturer/materials"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-[#252528] bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
           >
             Materials
             <ArrowUpRight className="h-3.5 w-3.5" />
@@ -225,7 +225,7 @@ export function ManufacturerStatistics() {
                 'inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-[12px] font-medium transition-colors',
                 active
                   ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                  : 'border-white/10 bg-white/[0.03] text-white/50 hover:text-white',
+                  : 'border-[#252528] bg-white/[0.03] text-white/50 hover:text-white',
               )}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -393,20 +393,20 @@ export function ManufacturerStatistics() {
             </ChartPanel>
           </div>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Factory profile snapshot</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-3">
+              <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3">
                 <p className="text-[10px] uppercase tracking-wider text-white/35">MOQ</p>
                 <p className="mt-1 text-lg font-semibold text-white">{a.profile.moq}</p>
               </div>
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-3">
+              <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3">
                 <p className="text-[10px] uppercase tracking-wider text-white/35">Monthly capacity</p>
                 <p className="mt-1 text-lg font-semibold text-white">
                   {a.profile.monthlyCapacity.toLocaleString()}
                 </p>
               </div>
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-3 sm:col-span-2">
+              <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3 sm:col-span-2">
                 <p className="text-[10px] uppercase tracking-wider text-white/35">Regions</p>
                 <p className="mt-1 text-sm text-white/80">{a.profile.regions.join(', ')}</p>
               </div>
@@ -415,7 +415,7 @@ export function ManufacturerStatistics() {
               {a.profile.garments.map((g) => (
                 <span
                   key={g}
-                  className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-white/60"
+                  className="rounded-md border border-[#252528] bg-white/[0.04] px-2 py-1 text-[11px] text-white/60"
                 >
                   {g}
                 </span>
@@ -709,7 +709,7 @@ export function ManufacturerStatistics() {
                 {a.garmentMix.map((g) => (
                   <li
                     key={g.name}
-                    className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-3"
+                    className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3"
                   >
                     <div className="flex items-center gap-2 text-white/45">
                       <Shirt className="h-3.5 w-3.5" />
@@ -788,7 +788,7 @@ export function ManufacturerStatistics() {
             </ChartPanel>
           </div>
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-white">Needs reorder</h2>
               <Link
@@ -837,7 +837,7 @@ export function ManufacturerStatistics() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-white/[0.06] text-[10px] uppercase tracking-wider text-white/35">
+                    <tr className="border-b border-[#252528] text-[10px] uppercase tracking-wider text-white/35">
                       <th className="pb-2 font-semibold">Brand</th>
                       <th className="pb-2 font-semibold">Orders</th>
                       <th className="pb-2 font-semibold">Units</th>

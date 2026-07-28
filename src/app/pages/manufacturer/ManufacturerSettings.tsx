@@ -273,7 +273,7 @@ export function ManufacturerSettings() {
         </div>
       ) : null}
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#CC2D24]/25 bg-[#CC2D24]/10">
@@ -290,11 +290,11 @@ export function ManufacturerSettings() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:text-right">
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-2">
               <p className="text-[10px] uppercase tracking-wider text-white/35">MOQ</p>
               <p className="text-sm font-semibold text-white">{saved.moq}</p>
             </div>
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+            <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-2">
               <p className="text-[10px] uppercase tracking-wider text-white/35">Capacity / mo</p>
               <p className="text-sm font-semibold text-white">
                 {saved.monthlyCapacity.toLocaleString()}
@@ -304,7 +304,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-[#CC2D24]" />
           <h2 className="text-sm font-semibold text-white">Identity & contact</h2>
@@ -393,7 +393,7 @@ export function ManufacturerSettings() {
                   'rounded-lg border px-3 py-1.5 text-[12px] font-medium transition',
                   on
                     ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                    : 'border-white/10 text-white/40 hover:text-white/70',
+                    : 'border-[#252528] text-white/40 hover:text-white/70',
                 )}
               >
                 {g}
@@ -403,7 +403,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Capabilities</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Print, embroidery, wash, packing — removing one requires confirmation.
@@ -420,7 +420,7 @@ export function ManufacturerSettings() {
                   'rounded-lg border px-3 py-1.5 text-[12px] font-medium transition',
                   on
                     ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-100'
-                    : 'border-white/10 text-white/40 hover:text-white/70',
+                    : 'border-[#252528] text-white/40 hover:text-white/70',
                 )}
               >
                 {c}
@@ -430,7 +430,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Capacity & logistics</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Used for routing and capacity planning. Changes apply only after you save.
@@ -475,7 +475,7 @@ export function ManufacturerSettings() {
                     'rounded-lg border px-3 py-1.5 text-[12px] font-medium transition',
                     on
                       ? 'border-sky-500/40 bg-sky-500/15 text-sky-100'
-                      : 'border-white/10 text-white/40 hover:text-white/70',
+                      : 'border-[#252528] text-white/40 hover:text-white/70',
                   )}
                 >
                   {region}
@@ -498,7 +498,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/90 px-4 py-3 backdrop-blur-md">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#252528] bg-black/90 px-4 py-3 backdrop-blur-md">
         <p className="text-[12px] text-white/45">
           {dirty
             ? `${changeLines.length} pending change${changeLines.length === 1 ? '' : 's'} — confirm to publish`

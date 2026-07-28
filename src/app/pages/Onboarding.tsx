@@ -166,10 +166,10 @@ export function Onboarding() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col overflow-x-hidden bg-[#0A0A0B] text-[#F2F0EC]"
+      className="flex min-h-dvh flex-col overflow-x-hidden bg-[#09090B] text-[#F2F0EC]"
       style={{ fontFamily: "'DM Sans', sans-serif", paddingTop: 'env(safe-area-inset-top)' }}
     >
-      <header className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3 sm:px-6">
+      <header className="flex items-center justify-between border-b border-[#252528] px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#CC2D24]">
             <Sparkles className="h-4 w-4 text-white" />
@@ -207,7 +207,7 @@ export function Onboarding() {
               ].map((card) => (
                 <div
                   key={card.t}
-                  className="rounded-[14px] border border-white/[0.08] bg-[#111113] p-4 text-left sm:p-4"
+                  className="rounded-[14px] border border-[#252528] bg-[#111113] p-4 text-left sm:p-4"
                 >
                   <p className="text-xs font-semibold text-[#F2F0EC]">{card.t}</p>
                   <p className="mt-1.5 text-[11px] leading-relaxed text-white/42">{card.d}</p>
@@ -246,12 +246,12 @@ export function Onboarding() {
                     className={`flex w-full gap-4 rounded-[14px] border p-4 text-left transition-all sm:p-5 ${
                       selected
                         ? 'border-[#CC2D24]/50 bg-[#CC2D24]/[0.08]'
-                        : 'border-white/[0.08] bg-[#111113] hover:border-white/[0.14]'
+                        : 'border-[#252528] bg-[#111113] hover:border-white/[0.14]'
                     }`}
                   >
                     <div
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${
-                        selected ? 'border-[#CC2D24]/40 bg-black/30 text-[#CC2D24]' : 'border-white/10 bg-black/40 text-white/50'
+                        selected ? 'border-[#CC2D24]/40 bg-black/30 text-[#CC2D24]' : 'border-[#252528] bg-black/40 text-white/50'
                       }`}
                     >
                       <Icon className="h-6 w-6" />
@@ -365,9 +365,9 @@ export function Onboarding() {
               {workspaceRows.map(({ icon: Icon, title, body }) => (
                 <div
                   key={title}
-                  className="flex gap-4 rounded-[14px] border border-white/[0.08] bg-[#111113] p-4"
+                  className="flex gap-4 rounded-[14px] border border-[#252528] bg-[#111113] p-4"
                 >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/40 text-[#CC2D24]">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#252528] bg-black/40 text-[#CC2D24]">
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
@@ -377,7 +377,7 @@ export function Onboarding() {
                 </div>
               ))}
             </div>
-            <div className="mt-6 rounded-[14px] border border-white/[0.08] bg-black/25 p-4">
+            <div className="mt-6 rounded-[14px] border border-[#252528] bg-black/25 p-4">
               <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Reminder</p>
               <p className="mt-2 text-xs leading-relaxed text-white/50">
                 Settings and log out live at the bottom of the sidebar. Packaging never requires choosing a garment first

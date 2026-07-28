@@ -91,7 +91,7 @@ export function SuperAdminCRMProduct() {
             Back to catalog
           </Link>
         </Button>
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] px-6 py-16 text-center">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
           <p className="text-sm text-white/50">Product not found.</p>
           <Button asChild className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
             <Link to="/superadmin/crm">Return to CRM</Link>
@@ -249,7 +249,7 @@ export function SuperAdminCRMProduct() {
                     'rounded-2xl border p-4 transition',
                     active
                       ? 'border-[#CC2D24]/50 bg-[#CC2D24]/10'
-                      : 'border-white/[0.08] bg-[#111113] hover:border-white/15',
+                      : 'border-[#252528] bg-[#111113] hover:border-white/15',
                   )}
                   style={{
                     background: active
@@ -259,7 +259,7 @@ export function SuperAdminCRMProduct() {
                 >
                   <button type="button" onClick={() => selectBase(b.id)} className="w-full text-left">
                     <div
-                      className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/30"
+                      className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-[#252528] bg-black/30"
                       style={{ color: b.accent }}
                     >
                       <Icon className="h-4 w-4" />
@@ -284,7 +284,7 @@ export function SuperAdminCRMProduct() {
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <div
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#111113] px-3 py-1.5"
+            className="inline-flex items-center gap-2 rounded-full border border-[#252528] bg-[#111113] px-3 py-1.5"
             style={{ borderColor: `${base.accent}44` }}
           >
             <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
@@ -294,7 +294,7 @@ export function SuperAdminCRMProduct() {
           </div>
           <Link
             to={`/superadmin/crm/bases/${product.baseId}`}
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#111113] px-3 py-1.5 text-[10px] font-medium text-white/45 hover:border-white/20 hover:text-white/75"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#252528] bg-[#111113] px-3 py-1.5 text-[10px] font-medium text-white/45 hover:border-white/20 hover:text-white/75"
           >
             <Pencil className="h-3 w-3" />
             Edit base
@@ -302,11 +302,11 @@ export function SuperAdminCRMProduct() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Product details</h2>
 
         <div className="mt-4 flex flex-col gap-4 sm:flex-row">
-          <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/40 sm:w-44">
+          <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-xl border border-[#252528] bg-black/40 sm:w-44">
             {product.image ? (
               <img src={product.image} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -393,7 +393,7 @@ export function SuperAdminCRMProduct() {
               className="min-h-[60px] border-white/15 bg-white/5 text-white"
             />
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/25 px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
             <p className="text-sm font-medium text-white">Published</p>
             <Switch
               checked={product.published}
@@ -403,7 +403,7 @@ export function SuperAdminCRMProduct() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">Builder components</h2>
           <button

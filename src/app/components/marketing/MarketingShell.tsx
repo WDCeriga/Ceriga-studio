@@ -23,11 +23,11 @@ export function MarketingShell({
 
   return (
     <div
-      className="min-h-dvh overflow-x-hidden bg-[#0C0C0D] text-[#F2F0EC]"
+      className="min-h-dvh overflow-x-hidden bg-[#09090B] text-[#F2F0EC]"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
       <header
-        className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#0c0c0d]/92 backdrop-blur-md"
+        className="sticky top-0 z-50 border-b border-[#252528] bg-[#09090B]/92 backdrop-blur-md"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="mx-auto flex min-h-[4.5rem] max-w-[1320px] items-center justify-between gap-2 px-[max(1rem,env(safe-area-inset-left))] py-2.5 pr-[max(1rem,env(safe-area-inset-right))] sm:h-14 sm:min-h-0 sm:py-0 sm:gap-3 sm:px-6 lg:px-10">
@@ -81,7 +81,7 @@ export function MarketingShell({
             </Button>
             <button
               type="button"
-              className="flex h-12 min-h-12 w-12 min-w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white active:bg-white/10 sm:h-11 sm:min-h-0 sm:w-11 sm:min-w-0"
+              className="flex h-12 min-h-12 w-12 min-w-12 items-center justify-center rounded-xl border border-[#252528] bg-white/5 text-white active:bg-white/10 sm:h-11 sm:min-h-0 sm:w-11 sm:min-w-0"
               aria-label="Open menu"
               onClick={() => setMenuOpen(true)}
             >
@@ -94,11 +94,11 @@ export function MarketingShell({
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent
           side="top"
-          className="h-auto max-h-[min(90dvh,640px)] w-full max-w-none gap-0 rounded-none border-x-0 border-t-0 border-b border-white/10 bg-[#0a0a0a] p-0 text-[#F2F0EC] shadow-[0_24px_60px_rgba(0,0,0,0.65)] [&>button.absolute]:hidden"
+          className="h-auto max-h-[min(90dvh,640px)] w-full max-w-none gap-0 rounded-none border-x-0 border-t-0 border-b border-[#252528] bg-[#09090B] p-0 text-[#F2F0EC] shadow-[0_24px_60px_rgba(0,0,0,0.65)] [&>button.absolute]:hidden"
         >
           <SheetTitle className="sr-only">Menu</SheetTitle>
 
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="flex items-center justify-between gap-3 border-b border-[#252528] px-4 py-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))]">
             <Link
               to="/"
               className="shrink-0 font-['Plus_Jakarta_Sans',sans-serif] text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#F2F0EC]"
@@ -140,7 +140,7 @@ export function MarketingShell({
             ))}
           </nav>
 
-          <div className="flex flex-col gap-3 border-t border-white/10 px-4 py-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-col gap-3 border-t border-[#252528] px-4 py-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <Button asChild variant="outline" className="h-11 w-full border-white/20 bg-transparent text-white hover:bg-white/5">
               <Link to="/login" onClick={() => setMenuOpen(false)}>
                 Log in
@@ -157,7 +157,7 @@ export function MarketingShell({
 
       <main className={mainClassName}>{children}</main>
 
-      <footer className="border-t border-white/[0.06] bg-[#0a0a0b] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 md:px-8 lg:px-10">
+      <footer className="border-t border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[1320px]">
           <div className="mb-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
             <div className="sm:col-span-2 lg:col-span-1">
@@ -230,7 +230,7 @@ export function MarketingPageHeader({
   subtitle: string;
 }) {
   return (
-    <div className="border-b border-white/10 px-[max(1rem,env(safe-area-inset-left))] py-8 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-10 md:px-8 lg:px-10 lg:py-14">
+    <div className="border-b border-[#252528] px-[max(1rem,env(safe-area-inset-left))] py-8 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-10 md:px-8 lg:px-10 lg:py-14">
       <div className="mx-auto max-w-[720px] text-center">
         <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">{eyebrow}</p>
         <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[clamp(1.45rem,5vw,2.5rem)] font-extrabold leading-[1.12] tracking-[-0.03em] text-[#F2F0EC]">

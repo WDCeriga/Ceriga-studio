@@ -104,7 +104,7 @@ export function SuperAdminNotificationsPage() {
               'rounded-lg border px-2.5 py-1 text-[11px] font-medium',
               filter === f.key
                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-white/10 text-white/45 hover:text-white/75',
+                : 'border-[#252528] text-white/45 hover:text-white/75',
             )}
           >
             {f.label}
@@ -168,7 +168,7 @@ export function SuperAdminNotificationsPage() {
                       'block rounded-xl border px-4 py-3 transition hover:border-white/15 sm:px-5',
                       !n.read
                         ? 'border-[#CC2D24]/25 bg-[#CC2D24]/[0.06]'
-                        : 'border-white/[0.08] bg-[#111113]',
+                        : 'border-[#252528] bg-[#111113]',
                     )}
                   >
                     {inner}
@@ -181,7 +181,7 @@ export function SuperAdminNotificationsPage() {
                       'w-full rounded-xl border px-4 py-3 text-left transition hover:border-white/15 sm:px-5',
                       !n.read
                         ? 'border-[#CC2D24]/25 bg-[#CC2D24]/[0.06]'
-                        : 'border-white/[0.08] bg-[#111113]',
+                        : 'border-[#252528] bg-[#111113]',
                     )}
                   >
                     {inner}

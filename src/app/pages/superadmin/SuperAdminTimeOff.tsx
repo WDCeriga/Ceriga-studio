@@ -70,7 +70,7 @@ export function SuperAdminTimeOff() {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
         <h2 className="text-sm font-semibold text-white">Factory capacity map</h2>
         <p className="mt-0.5 text-[11px] text-white/40">
           Live data for North Mills; other partners show seeded capacity signals.
@@ -80,7 +80,7 @@ export function SuperAdminTimeOff() {
             <Link
               key={f.factoryId}
               to={`/superadmin/manufacturers/${f.userId}`}
-              className="rounded-xl border border-white/[0.08] bg-black/20 p-4 transition hover:border-white/20"
+              className="rounded-xl border border-[#252528] bg-black/20 p-4 transition hover:border-white/20"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -141,13 +141,13 @@ export function SuperAdminTimeOff() {
       </section>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Pending</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-violet-200">
             {summary.pending.length}
           </p>
         </div>
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
             Approved custom
           </p>
@@ -155,7 +155,7 @@ export function SuperAdminTimeOff() {
             {summary.approved.length}
           </p>
         </div>
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Declined</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-white/50">
             {summary.declined.length}
@@ -163,7 +163,7 @@ export function SuperAdminTimeOff() {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-white">Time-off awaiting review</h2>
@@ -227,7 +227,7 @@ export function SuperAdminTimeOff() {
       </section>
 
       {summary.approved.length > 0 ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
           <h2 className="text-sm font-semibold text-white">Recently approved</h2>
           <ul className="mt-3 space-y-2">
             {summary.approved.slice(0, 8).map((h) => (

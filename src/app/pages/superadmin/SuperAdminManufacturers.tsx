@@ -24,7 +24,7 @@ const RED = '#CC2D24';
 const AMBER = '#F59E0B';
 
 const chartTooltipStyle = {
-  background: '#141416',
+  background: '#161618',
   border: '1px solid rgba(255,255,255,0.1)',
   borderRadius: 12,
   color: '#fff',
@@ -45,7 +45,7 @@ const STATUS_STYLE: Record<ManufacturerProfile['status'], string> = {
 
 function GarmentChip({ label }: { label: GarmentCategory | string }) {
   return (
-    <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-white/65">
+    <span className="rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-white/65">
       {label}
     </span>
   );
@@ -104,7 +104,7 @@ export function SuperAdminManufacturers() {
         ].map((kpi) => (
           <div
             key={kpi.label}
-            className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-4"
+            className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4"
           >
             <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
               {kpi.label}
@@ -115,7 +115,7 @@ export function SuperAdminManufacturers() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 lg:col-span-3">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 lg:col-span-3">
           <h2 className="text-sm font-semibold text-white">Partner throughput</h2>
           <div className="mt-4 h-[220px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -130,7 +130,7 @@ export function SuperAdminManufacturers() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 lg:col-span-2">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-white">Garment coverage</h2>
           <p className="mt-1 text-[11px] text-white/35">How many factories cover each product type</p>
           <ul className="mt-4 space-y-2.5">
@@ -185,7 +185,7 @@ export function SuperAdminManufacturers() {
               'rounded-lg border px-2.5 py-1 text-[11px] font-medium transition',
               garmentFilter === 'all'
                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-white'
-                : 'border-white/10 bg-white/[0.02] text-white/50 hover:text-white/80',
+                : 'border-[#252528] bg-white/[0.02] text-white/50 hover:text-white/80',
             )}
           >
             All types
@@ -199,7 +199,7 @@ export function SuperAdminManufacturers() {
                 'rounded-lg border px-2.5 py-1 text-[11px] font-medium transition',
                 garmentFilter === g
                   ? 'border-amber-500/40 bg-amber-500/15 text-amber-100'
-                  : 'border-white/10 bg-white/[0.02] text-white/50 hover:text-white/80',
+                  : 'border-[#252528] bg-white/[0.02] text-white/50 hover:text-white/80',
               )}
             >
               {g}
@@ -220,7 +220,7 @@ export function SuperAdminManufacturers() {
                 <Link
                   key={profile.userId}
                   to={`/superadmin/manufacturers/${profile.userId}`}
-                  className="group flex flex-col gap-4 rounded-2xl border border-white/[0.08] bg-[#111113] p-4 transition hover:border-white/[0.14] sm:flex-row sm:items-center sm:justify-between sm:p-5"
+                  className="group flex flex-col gap-4 rounded-2xl border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.14] sm:flex-row sm:items-center sm:justify-between sm:p-5"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

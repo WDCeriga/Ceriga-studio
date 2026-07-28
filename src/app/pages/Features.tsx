@@ -57,7 +57,7 @@ export function Features() {
 
       <section className="px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
         <div className="mx-auto grid min-w-0 max-w-[1100px] grid-cols-1 items-center gap-5 min-[560px]:grid-cols-2 min-[560px]:gap-4 md:gap-8 lg:gap-12">
-          <div className="relative mx-auto min-w-0 w-full max-w-[280px] overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#0a0a0b] min-[560px]:mx-0 min-[560px]:max-w-none">
+          <div className="relative mx-auto min-w-0 w-full max-w-[280px] overflow-hidden rounded-[14px] border border-[#252528] bg-[#09090B] min-[560px]:mx-0 min-[560px]:max-w-none">
             <div className="relative aspect-[3/4] max-h-[220px] w-full sm:max-h-[240px] md:max-h-[300px] lg:aspect-[4/5] lg:max-h-[380px] xl:max-h-[460px]">
               <img
                 src={imgHoodie}
@@ -68,7 +68,7 @@ export function Features() {
                 loading="lazy"
               />
             </div>
-            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-t from-[#0a0a0b] via-transparent to-transparent" />
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-t from-[#09090B] via-transparent to-transparent" />
             <p className="absolute bottom-2 left-2 right-2 text-[8px] font-semibold uppercase tracking-wider text-white/40 sm:bottom-3 sm:left-3 sm:text-[9px] md:text-[10px]">
               Visual builder · Flat-lay sync
             </p>
@@ -85,7 +85,7 @@ export function Features() {
             <ul className="mt-5 space-y-3 sm:mt-6 sm:space-y-4 md:mt-8 md:space-y-5">
               {spotlight.map(({ icon: Icon, title, body }) => (
                 <li key={title} className="flex gap-3 sm:gap-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-[#CC2D24] sm:h-9 sm:w-9 sm:rounded-xl md:h-10 md:w-10">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#252528] bg-black/40 text-[#CC2D24] sm:h-9 sm:w-9 sm:rounded-xl md:h-10 md:w-10">
                     <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px] md:h-5 md:w-5" />
                   </div>
                   <div className="min-w-0">
@@ -99,7 +99,7 @@ export function Features() {
         </div>
       </section>
 
-      <section className="border-t border-white/[0.06] bg-[#0a0a0b] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-16 md:px-8 lg:px-10">
+      <section className="border-t border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-16 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[1100px]">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">Also included</p>
           <h2 className="mt-2 font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">
@@ -109,9 +109,9 @@ export function Features() {
             {moreFeatures.map(({ icon: Icon, title, body }) => (
               <article
                 key={title}
-                className="rounded-[14px] border border-white/[0.08] bg-[#111113] p-5 sm:p-6"
+                className="rounded-[14px] border border-[#252528] bg-[#111113] p-5 sm:p-6"
               >
-                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-[#CC2D24]">
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-[#252528] bg-black/40 text-[#CC2D24]">
                   <Icon className="h-4 w-4" />
                 </div>
                 <h3 className="text-sm font-semibold text-[#F2F0EC]">{title}</h3>
@@ -150,7 +150,7 @@ export function Features() {
               </Button>
             </div>
           </div>
-          <div className="order-1 mx-auto min-w-0 w-full max-w-[280px] overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#111113] min-[560px]:order-2 min-[560px]:mx-0 min-[560px]:max-w-none">
+          <div className="order-1 mx-auto min-w-0 w-full max-w-[280px] overflow-hidden rounded-[14px] border border-[#252528] bg-[#111113] min-[560px]:order-2 min-[560px]:mx-0 min-[560px]:max-w-none">
             <div className="relative aspect-[4/5] max-h-[220px] w-full sm:max-h-[240px] md:max-h-[300px] lg:max-h-[400px] xl:max-h-[460px]">
               <img
                 src={imgBlueTshirt}

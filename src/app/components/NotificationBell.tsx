@@ -54,10 +54,10 @@ export function NotificationBell({ className }: NotificationBellProps) {
   const active = location.pathname === "/notifications";
 
   const bellClassName = cn(
-    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-white transition-colors hover:border-white/18 hover:bg-[#161618]",
+    "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border text-[#F0EEEE] transition-colors hover:border-[#3A3A40] hover:bg-[#1C1C1E]",
     active
-      ? "border-[#CC2D24]/45 bg-[#CC2D24]/12"
-      : "border-white/10 bg-[#111113]/95 shadow-[0_8px_32px_rgba(0,0,0,0.35)] backdrop-blur-sm",
+      ? "border-[#CC2D24]/45 bg-[#1C0F0F]"
+      : "border-[#2E2E32] bg-[#161618]/95 shadow-none backdrop-blur-0",
     className,
   );
 
@@ -104,7 +104,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
           >
             <SheetTitle className="sr-only">Recent notifications</SheetTitle>
 
-            <div className="flex items-start justify-between gap-2 border-b border-white/10 px-4 py-3">
+            <div className="flex items-start justify-between gap-2 border-b border-[#252528] px-4 py-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
                   Inbox
@@ -124,7 +124,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#252528] bg-white/5 text-white/70 hover:bg-white/10"
                   aria-label="Close"
                 >
                   <X className="h-4 w-4" />
@@ -219,7 +219,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
               )}
             </ScrollArea>
 
-            <div className="border-t border-white/10 p-3">
+            <div className="border-t border-[#252528] p-3">
               <Link
                 to="/notifications"
                 onClick={() => setOpen(false)}

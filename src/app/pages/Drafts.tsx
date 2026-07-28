@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
-import { Button } from '../components/ui/button';
-import { FileEdit, Clock, MoreVertical, Trash2 } from 'lucide-react';
-import { productGridClass, productGridStyle } from '../styles/productGrid';
+import { FileEdit, ArrowRight, Trash2 } from 'lucide-react';
 import { builderPath } from '../lib/projectFlow';
 import {
   deleteProject,
@@ -12,26 +10,17 @@ import {
 } from '../lib/projectsDb';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { GarmentFlatIcon, SpecGridTexture } from '../components/studio/GarmentFlatIcon';
 import { toast } from 'sonner';
 
 function garmentLabel(garmentType: string): string {
   const map: Record<string, string> = {
-    tshirt: 'T-Shirt',
+    tshirt: 'T-shirt',
     hoodie: 'Hoodie',
     trousers: 'Trousers',
     sweatshirt: 'Sweatshirt',
   };
   return map[garmentType] || garmentType;
-}
-
-function accentForGarment(garmentType: string): string {
-  const map: Record<string, string> = {
-    tshirt: '#3B82F6',
-    hoodie: '#8B5CF6',
-    trousers: '#10B981',
-    sweatshirt: '#EF4444',
-  };
-  return map[garmentType] || '#CC2D24';
 }
 
 export function Drafts() {
@@ -74,142 +63,122 @@ export function Drafts() {
   };
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#0C0C0D] px-4 py-5 sm:px-5 sm:py-6 md:px-7 md:py-8">
-      <div className="mb-6 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
+    <div className="ceriga-page mx-auto max-w-[1240px] px-4 py-7 sm:px-8 sm:py-8 lg:px-10">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-[#CC2D24]">
-            Saved projects
-          </div>
-          <h1 className="mb-2 font-['Plus_Jakarta_Sans',sans-serif] text-xl font-extrabold uppercase leading-tight tracking-[-0.03em] text-[#F2F0EC] sm:text-2xl">
-            My drafts
-          </h1>
-          <p className="max-w-[500px] text-xs leading-relaxed text-white/55">
-            Continue working on your saved projects
-          </p>
+          <div className="ceriga-page-eyebrow">Saved projects</div>
+          <h1 className="ceriga-page-title">My drafts</h1>
+          <p className="ceriga-page-sub">Continue working on your saved projects</p>
         </div>
-
-        <Button
-          asChild
-          className="h-9 w-full shrink-0 bg-[#CC2D24] text-[10px] font-semibold hover:bg-[#CC2D24]/90 sm:h-8 sm:w-auto"
-        >
-          <Link to="/catalog">Create new</Link>
-        </Button>
+        <Link to="/catalog" className="ceriga-btn-primary shrink-0">
+          Create new
+        </Link>
       </div>
 
       {!usingSupabase ? (
-        <div className="rounded-[14px] border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100/90">
-          Cloud database is not configured. Add <code className="text-amber-50">VITE_SUPABASE_URL</code> and{' '}
-          <code className="text-amber-50">VITE_SUPABASE_ANON_KEY</code> to <code className="text-amber-50">.env</code>, then
-          run <code className="text-amber-50">supabase/schema.sql</code> in the Supabase SQL editor.
+        <div className="rounded-[6px] border border-[#5A4530] bg-[#2A2218]/40 px-4 py-3 text-xs text-[#E8A868]">
+          Cloud database is not configured. Add <code className="text-[#F0EEEE]">VITE_SUPABASE_URL</code> and{' '}
+          <code className="text-[#F0EEEE]">VITE_SUPABASE_ANON_KEY</code> to <code className="text-[#F0EEEE]">.env</code>
+          , then run <code className="text-[#F0EEEE]">supabase/schema.sql</code>.
         </div>
       ) : !isAuthenticated ? (
-        <div className="rounded-[14px] border border-white/10 bg-white/5 py-16 text-center">
-          <FileEdit className="mx-auto mb-3 h-10 w-10 text-white/20" />
-          <h3 className="mb-2 text-base font-bold text-white">Sign in to see drafts</h3>
-          <p className="mb-4 text-xs text-white/60">Your saved projects sync to your account</p>
-          <Button asChild className="bg-[#CC2D24] text-[10px] font-semibold hover:bg-[#CC2D24]/90">
-            <Link to="/login">Sign in</Link>
-          </Button>
+        <div className="ceriga-card py-16 text-center">
+          <FileEdit className="mx-auto mb-3 h-10 w-10 text-[#45454B]" />
+          <h3 className="mb-2 text-base font-semibold text-[#F0EEEE]">Sign in to see drafts</h3>
+          <p className="mb-4 text-xs text-[#6B6B72]">Your saved projects sync to your account</p>
+          <Link to="/login" className="ceriga-btn-primary">
+            Sign in
+          </Link>
         </div>
       ) : loading ? (
-        <div className="rounded-[14px] border border-white/10 bg-white/5 py-16 text-center text-xs text-white/50">
-          Loading drafts…
-        </div>
+        <div className="ceriga-card py-16 text-center text-xs text-[#6B6B72]">Loading drafts…</div>
       ) : drafts.length === 0 ? (
-        <div className="rounded-[14px] border border-white/10 bg-white/5 py-16 text-center">
-          <FileEdit className="mx-auto mb-3 h-10 w-10 text-white/20" />
-          <h3 className="mb-2 text-base font-bold text-white">No drafts yet</h3>
-          <p className="mb-4 text-xs text-white/60">Start building and hit Save to create your first draft</p>
-          <Button asChild className="bg-[#CC2D24] text-[10px] font-semibold hover:bg-[#CC2D24]/90">
-            <Link to="/catalog">Browse catalog</Link>
-          </Button>
+        <div className="ceriga-card py-16 text-center">
+          <FileEdit className="mx-auto mb-3 h-10 w-10 text-[#45454B]" />
+          <h3 className="mb-2 text-base font-semibold text-[#F0EEEE]">No drafts yet</h3>
+          <p className="mb-4 text-xs text-[#6B6B72]">Start building and hit Save to create your first draft</p>
+          <Link to="/catalog" className="ceriga-btn-primary">
+            Browse catalog
+          </Link>
         </div>
       ) : (
-        <div className={productGridClass} style={productGridStyle}>
-          {drafts.map((draft) => {
-            const color = accentForGarment(draft.garment_type);
-            const stepsGuess = Math.max(1, Math.round((draft.progress / 100) * 12));
-            return (
-              <div
-                key={draft.id}
-                className="group flex flex-col overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#111113] transition-all duration-200 hover:border-white/[0.14]"
-              >
-                <div
-                  className="relative aspect-[3/2] overflow-hidden bg-[#0D0D0F]"
-                  style={{
-                    background:
-                      'radial-gradient(circle at 50% 32%, rgba(255,255,255,0.06), transparent 32%), #0D0D0F',
-                  }}
-                >
-                  <div
-                    className="pointer-events-none absolute inset-0 z-10"
-                    style={{
-                      background: `linear-gradient(135deg, ${color}33 0%, transparent 60%)`,
-                    }}
-                  />
-                  <div className="absolute left-2.5 top-2.5 z-20 flex h-6 min-w-[52px] items-center justify-center rounded-full bg-black/55 px-2.5 backdrop-blur-sm">
-                    <span className="text-center text-[7px] font-bold uppercase leading-none tracking-wider text-white/90">
-                      {garmentLabel(draft.garment_type)}
-                    </span>
-                  </div>
-                  <div className="absolute right-2 top-2 z-20">
-                    <button
-                      type="button"
-                      title="Delete draft"
-                      onClick={() => void handleDelete(draft.id)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm transition-colors hover:bg-black/75"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-white/80" />
-                    </button>
-                  </div>
-                  <div className="absolute inset-0 z-[1] flex items-center justify-center">
-                    <MoreVertical className="h-8 w-8 text-white/10" aria-hidden />
-                  </div>
-                </div>
-
-                <div className="flex flex-1 flex-col p-3.5 sm:p-4">
-                  <h3 className="mb-1 text-[13px] font-semibold leading-snug tracking-tight text-[#F2F0EC]">
-                    {draft.name}
-                  </h3>
-                  <p className="mb-3 text-[11px] text-white/45">
-                    Step {draft.current_step} · ~{stepsGuess} of 12 steps
-                  </p>
-
-                  <div className="mb-3">
-                    <div className="mb-1 flex items-center justify-between text-[10px] text-white/55">
-                      <span>Progress</span>
-                      <span>{draft.progress}%</span>
-                    </div>
-                    <div className="h-1 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full bg-[#CC2D24] transition-all"
-                        style={{ width: `${draft.progress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1 text-[10px] text-white/40">
-                      <Clock className="h-3 w-3 shrink-0" />
-                      <span>{formatRelativeTime(draft.updated_at)}</span>
-                    </div>
-
-                    <Button
-                      asChild
-                      size="sm"
-                      className="h-8 bg-[#CC2D24] px-3 text-[10px] font-semibold hover:bg-[#CC2D24]/90"
-                    >
-                      <Link to={builderPath(draft.product_id, draft.flow_type, draft.id)}>
-                        Continue
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {drafts.map((draft) => (
+            <DraftCard
+              key={draft.id}
+              draft={draft}
+              onDelete={() => void handleDelete(draft.id)}
+            />
+          ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function DraftCard({
+  draft,
+  onDelete,
+}: {
+  draft: ProjectListItem;
+  onDelete: () => void;
+}) {
+  const gridId = useId().replace(/:/g, '');
+  const label = garmentLabel(draft.garment_type);
+  const isComplete = draft.progress >= 100;
+
+  return (
+    <div className="ceriga-card flex flex-col overflow-hidden">
+      <div className="relative h-[140px] border-b border-[#252528] bg-[#111113]">
+        <SpecGridTexture patternId={`draft-grid-${gridId}`} />
+        <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between">
+          <span className="ceriga-mono rounded-[3px] border border-[#5A4530] bg-[#2A2218] px-1.5 py-[3px] text-[10px] uppercase tracking-[0.06em] text-[#E8A868]">
+            {label}
+          </span>
+          <button
+            type="button"
+            title="Delete draft"
+            onClick={onDelete}
+            className="flex h-7 w-7 items-center justify-center rounded-[4px] border border-[#252528] bg-[#09090B]/70 text-[#8A8A90] hover:text-[#F0EEEE]"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="absolute inset-0 z-[1] flex items-center justify-center p-7">
+          <GarmentFlatIcon type={label} className="max-h-full max-w-[80px]" />
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">
+        <h3 className="mb-1 truncate text-[15px] font-semibold text-[#F0EEEE]">{draft.name}</h3>
+        <p className="mb-3 text-[11px] text-[#6B6B72]">
+          Step {draft.current_step} · {formatRelativeTime(draft.updated_at)}
+        </p>
+
+        <div className="mb-1.5 flex justify-between text-[11px] text-[#8A8A90]">
+          <span className="ceriga-mono tracking-[0.04em]">PROGRESS</span>
+          <span className="ceriga-mono" style={{ color: isComplete ? '#7FA888' : '#CC2D24' }}>
+            {draft.progress}%
+          </span>
+        </div>
+        <div className="mb-3.5 h-[3px] overflow-hidden rounded-sm bg-[#252528]">
+          <div
+            className="h-full rounded-sm"
+            style={{
+              width: `${draft.progress}%`,
+              background: isComplete ? '#7FA888' : '#CC2D24',
+              backgroundImage:
+                'repeating-linear-gradient(90deg, transparent, transparent 5px, rgba(0,0,0,0.25) 5px, rgba(0,0,0,0.25) 6px)',
+            }}
+          />
+        </div>
+
+        <Link to={builderPath(draft.product_id, draft.flow_type, draft.id)} className="mt-auto">
+          <span className="ceriga-btn-ghost">
+            Continue <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </Link>
+      </div>
     </div>
   );
 }

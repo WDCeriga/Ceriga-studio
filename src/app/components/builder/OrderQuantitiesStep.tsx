@@ -62,7 +62,7 @@ function SizeGrid({
               const v = Number.isFinite(raw) ? Math.max(0, raw) : 0;
               onChange(applySizeChange(bySize, size, v, maxTotal, maxPerSize));
             }}
-            className="h-8 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+            className="h-8 border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
           />
         </div>
       ))}
@@ -122,7 +122,7 @@ function QuantityBlock({
   };
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5">
+    <div className="rounded-xl border border-[#252528] bg-white/[0.03] p-3.5">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-white/85">{title}</p>
@@ -141,7 +141,7 @@ function QuantityBlock({
       </div>
 
       {fixedTotal != null ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#252528] bg-black/20 px-3 py-2">
           <span className="text-[10px] uppercase tracking-wider text-white/45">Total units</span>
           <span className="text-sm font-semibold tabular-nums text-white">{fixedTotal}</span>
         </div>
@@ -162,7 +162,7 @@ function QuantityBlock({
                 const parsed = t === '' ? undefined : Math.max(minTotal ?? 0, parseInt(t, 10) || 0);
                 onUpdate({ ...line, targetTotal: parsed });
               }}
-              className="h-8 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+              className="h-8 border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
             />
           </div>
           <Button
@@ -254,7 +254,7 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-lg border border-[#252528] bg-black/30 p-1">
         {(
           [
             { id: 'techpack' as const, label: 'Tech pack' },
@@ -301,7 +301,7 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
         </div>
 
         {plan.bulkRuns.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-[11px] text-white/40">
+          <div className="rounded-xl border border-dashed border-[#252528] px-3 py-4 text-center text-[11px] text-white/40">
             Add a bulk tier to get pricing for production runs.
           </div>
         ) : (
@@ -350,7 +350,7 @@ export function OrderQuantitiesSummary({ plan }: { plan: OrderQuantityPlan }) {
         </span>
       </div>
 
-      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+      <div className="rounded-lg border border-[#252528] bg-white/[0.03] p-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">Sample</p>
         <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 text-xs sm:grid-cols-6">
           {ORDER_SIZE_KEYS.map((k) => (
@@ -367,7 +367,7 @@ export function OrderQuantitiesSummary({ plan }: { plan: OrderQuantityPlan }) {
         const total = sumBreakdown(run.bySize);
         if (total <= 0 && !run.targetTotal) return null;
         return (
-          <div key={run.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+          <div key={run.id} className="rounded-lg border border-[#252528] bg-white/[0.03] p-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
               Bulk {index + 1}
               {run.targetTotal ? (

@@ -13,7 +13,7 @@ export function OrderDetail() {
 
   if (!order) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#0F0F0F] px-4 text-white">
+      <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-white">
         <div className="text-center">
           <Package className="mx-auto mb-4 h-12 w-12 text-white/20" />
           <h2 className="text-lg font-semibold">Order not found</h2>

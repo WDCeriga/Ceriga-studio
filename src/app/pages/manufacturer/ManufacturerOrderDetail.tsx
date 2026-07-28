@@ -307,14 +307,14 @@ export function ManufacturerOrderDetail() {
       ) : null}
 
       {latest.rejectReason ? (
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/55">
+        <div className="rounded-xl border border-[#252528] bg-white/[0.03] px-4 py-3 text-sm text-white/55">
           Declined: {latest.rejectReason}
         </div>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-2">
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Brief</h2>
             <dl className="mt-4 space-y-3 text-[12px]">
               <div className="flex items-start gap-2 text-white/60">
@@ -325,7 +325,7 @@ export function ManufacturerOrderDetail() {
               </div>
             </dl>
             {latest.specialRequirements.length > 0 ? (
-              <ul className="mt-4 space-y-1 border-t border-white/[0.06] pt-3 text-[12px] text-white/50">
+              <ul className="mt-4 space-y-1 border-t border-[#252528] pt-3 text-[12px] text-white/50">
                 {latest.specialRequirements.map((r) => (
                   <li key={r}>· {r}</li>
                 ))}
@@ -334,10 +334,10 @@ export function ManufacturerOrderDetail() {
           </section>
 
           {techPack ? (
-            <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">Tech pack</h2>
               <div className="mt-3 flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#252528] bg-white/[0.04]">
                   <FileText className="h-4 w-4 text-white/50" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -362,7 +362,7 @@ export function ManufacturerOrderDetail() {
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Quantities requested</h2>
             <ul className="mt-3 space-y-1.5 text-[12px] text-white/60">
               {qtyLines.map((line) => (
@@ -372,7 +372,7 @@ export function ManufacturerOrderDetail() {
           </section>
 
           {delivery ? (
-            <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-[#CC2D24]" />
                 <h2 className="text-sm font-semibold text-white">Delivery</h2>
@@ -417,7 +417,7 @@ export function ManufacturerOrderDetail() {
         </div>
 
         <div className="space-y-4 lg:col-span-3">
-          <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div>
               <h2 className="text-sm font-semibold text-white">Price sample & bulk</h2>
               <p className="text-[11px] text-white/40">
@@ -453,7 +453,7 @@ export function ManufacturerOrderDetail() {
                 return (
                 <div
                   key={tier.id}
-                  className="rounded-xl border border-white/[0.08] bg-black/25 p-4"
+                  className="rounded-xl border border-[#252528] bg-black/25 p-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -515,7 +515,7 @@ export function ManufacturerOrderDetail() {
                         <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white disabled:opacity-50">
                           <SelectValue placeholder="Select carrier" />
                         </SelectTrigger>
-                        <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                        <SelectContent className="border-[#252528] bg-[#161618] text-white">
                           {enabledCarriers.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                               {c.name}
@@ -551,7 +551,7 @@ export function ManufacturerOrderDetail() {
                         <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white disabled:opacity-50">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                        <SelectContent className="border-[#252528] bg-[#161618] text-white">
                           {modeOptions.map((m) => (
                             <SelectItem key={m} value={m}>
                               {SHIPPING_MODE_LABEL[m]}
@@ -583,7 +583,7 @@ export function ManufacturerOrderDetail() {
                         <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white disabled:opacity-50">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                        <SelectContent className="border-[#252528] bg-[#161618] text-white">
                           {incotermOptions.map((t) => (
                             <SelectItem key={t} value={t}>
                               {INCOTERM_LABEL[t]}

@@ -497,7 +497,7 @@ export function PrintTransformOverlay({
   const large = comfortableTouch && !compactHandles;
   const dot = cn(
     /** `pointer-events-auto`: parent `data-handles` uses `pointer-events-none` so handles stay above the inline toolbar without stealing clicks from the pill. */
-    'pointer-events-auto absolute z-[60] touch-none items-center justify-center rounded-full bg-[#0a0a0b] active:scale-95',
+    'pointer-events-auto absolute z-[60] touch-none items-center justify-center rounded-full bg-[#09090B] active:scale-95',
     compactHandles ? 'flex h-2.5 w-2.5 border border-[#CC2D24]' : 'border-2',
     !compactHandles && (large ? 'flex h-5 w-5' : 'flex h-3.5 w-3.5'),
   );
@@ -629,7 +629,7 @@ export function PrintTransformOverlay({
         type="button"
         aria-label="Rotate"
         className={cn(
-          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#0a0a0b] text-[#CC2D24] shadow-lg active:scale-95',
+          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#09090B] text-[#CC2D24] shadow-lg active:scale-95',
           off.rot,
         )}
         style={{ borderColor: HANDLE_RED }}
@@ -719,7 +719,7 @@ export function SidebarNumberField({
         {label}
       </span>
       <div
-        className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60"
+        className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#252528] bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60"
         /* `min-w-0` on the label + this row + `shrink-0` on the unit keeps the
          *  suffix inside the field in a 2-col grid. Without it, `type="number"`
          *  (often end-aligned) + flex-1 can push `px` into the column gutter. */
@@ -1147,7 +1147,7 @@ export function PrintsDesignStep({
               key={preset}
               type="button"
               onClick={() => applyPreset(preset)}
-              className="rounded-xl border border-white/10 bg-black/25 px-2.5 py-2.5 text-left text-[10px] font-medium text-white/72 transition hover:border-white/22 hover:text-white"
+              className="rounded-xl border border-[#252528] bg-black/25 px-2.5 py-2.5 text-left text-[10px] font-medium text-white/72 transition hover:border-white/22 hover:text-white"
             >
               {preset}
             </button>
@@ -1193,7 +1193,7 @@ export function PrintsDesignStep({
                         'shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition',
                         (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
                           ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
-                          : 'border-white/10 bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
+                          : 'border-[#252528] bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
                       )}
                     >
                       {method}
@@ -1212,7 +1212,7 @@ export function PrintsDesignStep({
                       'min-h-9 rounded-xl border px-2 py-2 text-left text-[10px] font-medium transition',
                       (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
                         ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
-                        : 'border-white/10 bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
+                        : 'border-[#252528] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
                     )}
                   >
                     <span className="block">{method}</span>
@@ -1242,7 +1242,7 @@ export function PrintsDesignStep({
                             'flex min-h-11 min-w-0 shrink-0 snap-start items-center rounded-xl border px-3.5 py-2.5 text-[11px] transition',
                             selected.fontFamily === font
                               ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
-                              : 'border-white/10 bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
+                              : 'border-[#252528] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
                           )}
                           style={{ fontFamily: font }}
                         >
@@ -1261,7 +1261,7 @@ export function PrintsDesignStep({
                           'h-9 rounded-xl border px-2 text-[10px] transition',
                           selected.fontFamily === font
                             ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
-                            : 'border-white/10 bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
+                            : 'border-[#252528] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
                         )}
                         style={{ fontFamily: font }}
                       >
@@ -1293,7 +1293,7 @@ export function PrintsDesignStep({
                           'flex h-9 min-w-[2.5rem] flex-1 items-center justify-center rounded-xl border text-white/70 transition-colors',
                           (selected.textAlign ?? 'center') === align
                             ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white'
-                            : 'border-white/10 bg-black/25 hover:border-white/20 hover:text-white',
+                            : 'border-[#252528] bg-black/25 hover:border-white/20 hover:text-white',
                         )}
                         aria-label={`Align ${align}`}
                       >
@@ -1388,7 +1388,7 @@ export function PrintsDesignStep({
               <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                 Rotation
               </Label>
-              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
+              <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-3">
                 <div className="mb-2 flex justify-between text-[10px] tabular-nums text-white/55">
                   <span>0°</span>
                   <span className="font-semibold text-white/80">{rotNorm}°</span>
@@ -1415,7 +1415,7 @@ export function PrintsDesignStep({
               onChange={(n) => updateSelected({ opacity: n })}
             />
 
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                   {selected.type === 'text' ? 'Text outline' : 'Border'}
@@ -1467,7 +1467,7 @@ export function PrintsDesignStep({
               ) : null}
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                   Size &amp; rotation
@@ -1536,7 +1536,7 @@ export function PrintsDesignStep({
             </div>
 
             {selected.type === 'image' ? (
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                     Drop shadow
@@ -1590,7 +1590,7 @@ export function PrintsDesignStep({
             ) : null}
 
             {selected.type === 'image' ? (
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                     Crop
@@ -1768,7 +1768,7 @@ export function PrintsDesignStep({
                       ? 'drag-list-floating border-white/30'
                       : selectedId === element.id
                         ? 'border-[#FF3B30] bg-[#FF3B30]/10'
-                        : 'border-white/10 bg-black/25 hover:border-white/18',
+                        : 'border-[#252528] bg-black/25 hover:border-white/18',
                   )}
                 >
                   <div
@@ -1809,7 +1809,7 @@ export function PrintsDesignStep({
                   </button>
                   <button
                     type="button"
-                    className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-white/10 px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
+                    className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#252528] px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
                     aria-label="Delete layer"
                     title="Delete"
                     onClick={(e) => {

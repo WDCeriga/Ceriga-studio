@@ -1996,7 +1996,7 @@ export function Builder() {
                     },
                   }))
                 }
-                className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add any specific measurement requirements..."
               />
             </div>
@@ -2020,10 +2020,10 @@ export function Builder() {
                 value={state.fabricType}
                 onValueChange={(value) => setState((prev) => ({ ...prev, fabricType: value }))}
               >
-                <SelectTrigger className="h-9 border-white/10 bg-white/5 text-[11px] text-white">
+                <SelectTrigger className="h-9 border-[#252528] bg-white/5 text-[11px] text-white">
                   <SelectValue placeholder="Select fabric" />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-[#F0EEEE]">
                   {FABRIC_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -2071,7 +2071,7 @@ export function Builder() {
               <Input
                 value={state.gsm || ''}
                 onChange={(e) => setState((prev) => ({ ...prev, gsm: e.target.value }))}
-                className="h-8 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9"
+                className="h-8 border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9"
                 placeholder="180"
                 type="number"
               />
@@ -2089,7 +2089,7 @@ export function Builder() {
                     extraDetails: { ...prev.extraDetails, fabric: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add specific fabric or colour requirements..."
               />
             </div>
@@ -2123,7 +2123,7 @@ export function Builder() {
                       extraDetails: { ...prev.extraDetails, neck: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add any specific neck or collar requirements..."
                 />
               </div>
@@ -2183,7 +2183,7 @@ export function Builder() {
                       extraDetails: { ...prev.extraDetails, sleeves: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add sleeve requirements..."
                 />
               </div>
@@ -2228,7 +2228,7 @@ export function Builder() {
                     extraDetails: { ...prev.extraDetails, sleeves: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add sleeve requirements..."
               />
             </div>
@@ -2260,7 +2260,7 @@ export function Builder() {
                       extraDetails: { ...prev.extraDetails, hem: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add hem or cuff requirements..."
                 />
               </div>
@@ -2297,7 +2297,7 @@ export function Builder() {
                     extraDetails: { ...prev.extraDetails, hem: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add hem or cuff requirements..."
               />
             </div>
@@ -2335,7 +2335,7 @@ export function Builder() {
                       extraDetails: { ...prev.extraDetails, pockets: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add pocket or zip requirements..."
                 />
               </div>
@@ -2378,7 +2378,7 @@ export function Builder() {
                     extraDetails: { ...prev.extraDetails, pockets: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add pocket or zip requirements..."
               />
             </div>
@@ -2402,7 +2402,7 @@ export function Builder() {
                       extraDetails: { ...prev.extraDetails, fading: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Describe fade zones, intensity, or wash instructions..."
                 />
               </div>
@@ -2430,7 +2430,7 @@ export function Builder() {
                     extraDetails: { ...prev.extraDetails, fading: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Describe fade zones, intensity, or wash instructions..."
               />
             </div>
@@ -2462,7 +2462,7 @@ export function Builder() {
                       extraDetails: { ...prev.extraDetails, stitching: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="SPI, seam notes, contrast stitching details, etc..."
                 />
               </div>
@@ -2498,7 +2498,7 @@ export function Builder() {
                     extraDetails: { ...prev.extraDetails, stitching: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="SPI, seam notes, contrast stitching details, etc..."
               />
             </div>
@@ -2618,7 +2618,7 @@ export function Builder() {
       case 13:
         return (
           <div className="space-y-4">
-            <div className="space-y-2.5 rounded-lg border border-white/10 bg-white/5 p-4">
+            <div className="space-y-2.5 rounded-lg border border-[#252528] bg-white/5 p-4">
               <ReviewRow label="Garment Type" value={state.garmentType} />
               <ReviewRow label="Fit" value={state.fit || 'Not selected'} />
               <ReviewRow
@@ -2792,7 +2792,7 @@ export function Builder() {
         {state.gsm ? <SpecRow label="GSM" value={state.gsm} /> : null}
 
         {state.colors[0] ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -2844,7 +2844,7 @@ export function Builder() {
           <SpecRow label="Stitching" value={state.stitchingType.replace('-', ' ')} capitalize />
         ) : null}
         {state.stitchingColor ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Stitch colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -2856,7 +2856,7 @@ export function Builder() {
           </div>
         ) : null}
         {state.neckTrimColor ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Neck trim</div>
             <div className="flex items-center gap-2">
               <div
@@ -2868,7 +2868,7 @@ export function Builder() {
           </div>
         ) : null}
         {state.sleeveTrimColor ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Sleeve colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -2880,7 +2880,7 @@ export function Builder() {
           </div>
         ) : null}
         {state.cuffTrimColor ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Cuff trim</div>
             <div className="flex items-center gap-2">
               <div
@@ -2892,7 +2892,7 @@ export function Builder() {
           </div>
         ) : null}
         {state.pocketTrimColor ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Pocket / zip trim</div>
             <div className="flex items-center gap-2">
               <div
@@ -2918,7 +2918,7 @@ export function Builder() {
           : null}
         <SpecRow label="Neck label" value={formatPlanSummary('label', state.labelType)} />
         {state.labelColor ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Label colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -2931,7 +2931,7 @@ export function Builder() {
         ) : null}
         <SpecRow label="Packaging" value={formatPlanSummary('packaging', state.packagingType)} />
         {state.packagingColor ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Packaging colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -2945,11 +2945,11 @@ export function Builder() {
         <OrderQuantitiesSummary plan={state.orderQuantities} />
 
         {summaryStepNotes ? (
-          <div className="border-b border-white/10 pb-4">
+          <div className="border-b border-[#252528] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">
               Step notes
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs leading-relaxed text-white/80">
+            <div className="rounded-lg border border-[#252528] bg-white/5 p-3 text-xs leading-relaxed text-white/80">
               {summaryStepNotes}
             </div>
           </div>
@@ -2978,7 +2978,7 @@ export function Builder() {
     const editorNavFooter = (
       <div
         className={cn(
-          'border-t border-white/[0.08] bg-[#0a0a0a]/50 pt-4',
+          'border-t border-[#252528] bg-[#09090B]/50 pt-4',
           isPhone
             ? 'mt-5 mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] rounded-xl px-0.5 pb-1'
             : 'shrink-0 px-3 pb-4 pt-3.5 sm:px-4 md:px-4 lg:px-5',
@@ -2990,7 +2990,7 @@ export function Builder() {
             onClick={handleBack}
             disabled={currentStep === firstBuilderNavStepId}
             className={cn(
-              'h-9 flex-1 rounded-xl border-white/15 bg-white/[0.04] text-[11px] font-semibold !text-white hover:bg-white/10 disabled:opacity-30',
+              'h-9 flex-1 rounded-xl border-[#3A3A40] bg-white/[0.04] text-[11px] font-semibold !text-white hover:bg-white/10 disabled:opacity-30',
               isPhone && 'min-h-11',
             )}
           >
@@ -3021,7 +3021,7 @@ export function Builder() {
           )}
         >
           {isPhone ? (
-            <div className="mb-3 flex min-w-0 items-center justify-between gap-2 border-b border-white/[0.08] pb-2.5">
+            <div className="mb-3 flex min-w-0 items-center justify-between gap-2 border-b border-[#252528] pb-2.5">
               <div className="min-w-0 text-[8px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">
                 Step {phoneProcessStepCount}
               </div>
@@ -3091,7 +3091,7 @@ export function Builder() {
   const livePreviewBlock = (
     <div
       className={cn(
-        'flex min-h-0 flex-col bg-[#0F0F0F]',
+        'flex min-h-0 flex-col bg-[#09090B]',
         previewSurfaceNeedsVisibleOverflow && 'overflow-visible',
         isPhone ? 'h-full min-h-0 w-full min-w-0 flex-1' : 'h-full min-h-0 min-w-0 flex-1',
       )}
@@ -3142,7 +3142,7 @@ export function Builder() {
         >
           <div
             className={cn(
-              'pointer-events-auto flex flex-col gap-1 rounded-xl border border-white/10 bg-black/45 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md',
+              'pointer-events-auto flex flex-col gap-1 rounded-xl border border-[#252528] bg-black/45 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md',
               isPhone ? 'p-1.5' : 'p-1',
             )}
           >
@@ -3408,7 +3408,7 @@ export function Builder() {
 
         {!isPhone ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[36] flex flex-wrap items-end justify-between gap-1.5 px-1.5 pb-1.5 sm:gap-2 sm:px-3 sm:pb-3">
-            <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-white/12 bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-[#252528] bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -3449,11 +3449,11 @@ export function Builder() {
               >
                 {Math.min(previewZoom, previewZoomMax)}%
               </span>
-              <span className="hidden max-w-[7rem] border-l border-white/10 pl-2 text-[8px] leading-tight text-white/35 lg:inline">
+              <span className="hidden max-w-[7rem] border-l border-[#252528] pl-2 text-[8px] leading-tight text-white/35 lg:inline">
                 Drag empty · Ctrl+scroll
               </span>
             </div>
-            <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-white/12 bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
+            <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#252528] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
               <CircularProgress value={progress} compact />
               <div>
                 <div className="text-[11px] font-bold tabular-nums text-white sm:text-xs">
@@ -3501,7 +3501,7 @@ export function Builder() {
             <Button
               type="button"
               onClick={() => phoneEditorPanelRef.current?.expand()}
-              className="h-9 min-h-9 rounded-full border border-white/18 bg-[#141414]/95 px-5 text-[11px] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.4)] backdrop-blur-md"
+              className="h-9 min-h-9 rounded-full border border-[#3A3A40] bg-[#161618]/95 px-5 text-[11px] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.4)] backdrop-blur-md"
             >
               Edit step
             </Button>
@@ -3514,7 +3514,7 @@ export function Builder() {
   return (
     <div
       className={cn(
-        'builder-surface flex min-h-0 min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#0F0F0F]',
+        'builder-surface flex min-h-0 min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#09090B]',
         'h-[100dvh] max-h-[100dvh] min-h-0 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]',
       )}
     >
@@ -3525,7 +3525,7 @@ export function Builder() {
           /** Above portaled design toolbars (z-[200]) so nav + dropdown trigger stay tappable. */
           isPhone && 'z-[220]',
           isPhone
-            ? 'min-h-[4.5rem] items-center border-white/[0.06] py-1.5 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
+            ? 'min-h-[4.5rem] items-center border-[#252528] py-1.5 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
             : 'flex-wrap items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5',
         )}
       >
@@ -3580,7 +3580,7 @@ export function Builder() {
                 role="group"
                 aria-label="Preview background"
               >
-                <div className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg border border-white/12 bg-white/[0.06] px-1 shadow-inner">
+                <div className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg border border-[#252528] bg-white/[0.06] px-1 shadow-inner">
                   {(['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
@@ -3725,7 +3725,7 @@ export function Builder() {
                 >
                   {showExtraDetails ? 'Hide details' : 'Show details'}
                 </button>
-                <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-white/[0.04] p-0.5">
+                <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-[#252528] bg-white/[0.04] p-0.5">
                   {(['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
@@ -3737,7 +3737,7 @@ export function Builder() {
                         'builder-focus press-feedback h-5 w-5 shrink-0 rounded border',
                         previewBackground === bg
                           ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
-                          : 'border-white/15 hover:border-white/30',
+                          : 'border-[#3A3A40] hover:border-white/30',
                       )}
                       style={
                         bg === 'transparent'
@@ -3833,7 +3833,7 @@ export function Builder() {
       <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
         {!isPhone ? (
           <aside
-            className="flex w-[4.5rem] shrink-0 flex-col bg-[#0a0a0a] py-2 md:w-[5rem] lg:w-[5.75rem]"
+            className="flex w-[4.5rem] shrink-0 flex-col bg-[#09090B] py-2 md:w-[5rem] lg:w-[5.75rem]"
             aria-label="Builder steps"
           >
             <div className="scrollbar-dark flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden pb-3 pl-1.5 pr-0">
@@ -3853,7 +3853,7 @@ export function Builder() {
                     className={cn(
                       'builder-focus press-feedback group relative flex w-full shrink-0 flex-col items-center gap-1 px-1 py-2.5 text-center',
                       current
-                        ? 'rounded-l-lg bg-[#0F0F0F] text-white'
+                        ? 'rounded-l-lg bg-[#09090B] text-white'
                         : enabled
                           ? 'mr-1.5 rounded-lg text-white/60 hover:bg-white/[0.04] hover:text-white'
                           : 'mr-1.5 cursor-not-allowed rounded-lg text-white/22',
@@ -3883,7 +3883,7 @@ export function Builder() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {isPhone ? (
           currentStep === 13 ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#0F0F0F]">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#09090B]">
               <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden border-t border-white/[0.04] bg-[#0c0c0c]">
                 {renderEditorMain()}
               </div>
@@ -3914,7 +3914,7 @@ export function Builder() {
               <PanelResizeHandle
                 title="Drag to resize preview and configure"
                 className={cn(
-                  'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#0F0F0F] transition-colors hover:bg-[#141414] data-[resize-handle-state=drag]:bg-[#1a1010]',
+                  'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#09090B] transition-colors hover:bg-[#161618] data-[resize-handle-state=drag]:bg-[#1a1010]',
                   isPhone ? 'min-h-10 py-2' : 'h-3 py-0.5',
                   isPhone && phoneEditorCollapsed && 'pointer-events-none h-0 min-h-0 overflow-hidden !py-0 opacity-0',
                 )}
@@ -3968,7 +3968,7 @@ export function Builder() {
               <div
                 key={leftPanelCollapsed ? 'collapsed' : `open-${currentStep}`}
                 className={cn(
-                  'flex h-full min-h-0 w-full min-w-0 flex-col bg-[#0F0F0F]',
+                  'flex h-full min-h-0 w-full min-w-0 flex-col bg-[#09090B]',
                   !leftPanelCollapsed && 'animate-builder-slide-up-in',
                 )}
               >
@@ -4025,7 +4025,7 @@ export function Builder() {
                       ? 'w-[min(8.5rem,calc((100vw-1rem)/4.25))] min-w-[min(7rem,calc((100vw-1rem)/4.25))] max-w-[9rem]'
                       : 'w-[calc((100vw-1.25rem)/5)] min-w-[calc((100vw-1.25rem)/5)] max-w-[5.25rem]',
                     current
-                      ? 'bg-[#0F0F0F] text-white'
+                      ? 'bg-[#09090B] text-white'
                       : enabled
                         ? 'text-white/60 active:text-white'
                         : 'cursor-not-allowed text-white/25',
@@ -4064,10 +4064,10 @@ export function Builder() {
           <aside
             role="dialog"
             aria-label="Tech pack review"
-            className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-white/10 bg-[#0F0F0F] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
+            className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
             {isPhone ? (
-              <div className="flex shrink-0 border-b border-white/[0.08] bg-black/40 px-2 py-2">
+              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -4120,10 +4120,10 @@ export function Builder() {
           <aside
             role="dialog"
             aria-label="Version history"
-            className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-white/10 bg-[#0F0F0F] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
+            className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
             {isPhone ? (
-              <div className="flex shrink-0 border-b border-white/[0.08] bg-black/40 px-2 py-2">
+              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -4167,7 +4167,7 @@ export function Builder() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-10 min-h-10 shrink-0 border-white/18 bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
+                className="h-10 min-h-10 shrink-0 border-[#3A3A40] bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
                 onClick={saveManualVersion}
               >
                 <Save className="mr-2 h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
@@ -4180,7 +4180,7 @@ export function Builder() {
                 {/* Current (live) version — always pinned at top */}
                 <li className="relative overflow-hidden rounded-xl border border-[#FF3B30]/55 bg-[#FF3B30]/[0.06] p-2.5 ring-1 ring-[#FF3B30]/25">
                   <div className="flex items-stretch gap-3">
-                    <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-white/15 bg-[#0a0a0a]">
+                    <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#3A3A40] bg-[#09090B]">
                       <VersionThumbnail
                         state={state}
                         currentStep={currentStep}
@@ -4204,17 +4204,17 @@ export function Builder() {
                 </li>
 
                 {versions.length === 0 ? (
-                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-white/12 px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">
+                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-[#252528] px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">
                     Your saves land here. We also snapshot automatically as you edit.
                   </li>
                 ) : (
                   versions.map((v, idx) => (
                     <li
                       key={v.id}
-                      className="group relative overflow-hidden rounded-xl border border-white/10 bg-black/30 p-2.5 transition hover:border-white/22 hover:bg-white/[0.04]"
+                      className="group relative overflow-hidden rounded-xl border border-[#252528] bg-black/30 p-2.5 transition hover:border-white/22 hover:bg-white/[0.04]"
                     >
                       <div className="flex items-stretch gap-3">
-                        <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-white/12 bg-[#0a0a0a]">
+                        <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#252528] bg-[#09090B]">
                           <VersionThumbnail
                             state={v.state}
                             currentStep={v.currentStep}
@@ -4242,7 +4242,7 @@ export function Builder() {
                             <button
                               type="button"
                               onClick={() => restoreVersion(v.id)}
-                              className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
+                              className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-[#3A3A40] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
                               title="Restore this version"
                             >
                               <RotateCcw className="h-4 w-4 sm:h-3 sm:w-3" strokeWidth={2.25} />
@@ -4333,7 +4333,7 @@ function VersionThumbnail({ state, currentStep }: VersionThumbnailProps) {
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       preserveAspectRatio="xMidYMid meet"
       className="h-full w-full"
-      style={{ background: '#141414' }}
+      style={{ background: '#161618' }}
       aria-hidden
     >
       <defs>
@@ -4343,7 +4343,7 @@ function VersionThumbnail({ state, currentStep }: VersionThumbnailProps) {
         </linearGradient>
       </defs>
 
-      <rect x={0} y={0} width={VB_W} height={VB_H} fill="#141414" />
+      <rect x={0} y={0} width={VB_W} height={VB_H} fill="#161618" />
 
       <g>
         <path d={tshirtPath} fill={garmentColor} />
@@ -4525,7 +4525,7 @@ function ChoiceStep({
         <Textarea
           value={notes}
           onChange={(e) => onNotes(e.target.value)}
-          className="min-h-[68px] border-white/10 bg-white/5 text-[10px] text-white placeholder:text-white/30 md:min-h-[82px] md:text-[11px]"
+          className="min-h-[68px] border-[#252528] bg-white/5 text-[10px] text-white placeholder:text-white/30 md:min-h-[82px] md:text-[11px]"
           placeholder={placeholder}
         />
       </div>
@@ -4560,7 +4560,7 @@ function ChoiceGrid({
             className={`rounded-md border px-2 py-1.5 text-center transition sm:rounded-lg sm:px-2.5 sm:py-2 md:py-1.5 xl:px-2.5 ${
               selected === option.id
                 ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
-                : 'border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:text-white'
+                : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white'
             }`}
           >
             <div className="text-[10px] font-medium leading-snug sm:text-[11px]">{option.name}</div>
@@ -4573,7 +4573,7 @@ function ChoiceGrid({
 
 function EmptyStep({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-white/60">
+    <div className="rounded-xl border border-[#252528] bg-white/5 p-6 text-center text-white/60">
       {text}
     </div>
   );
@@ -4593,7 +4593,7 @@ function ReviewRow({
   if (hidden) return null;
 
   return (
-    <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+    <div className="flex items-center justify-between border-b border-[#252528] pb-2.5">
       <span className="text-xs text-white/50">{label}:</span>
       {swatch ? (
         <div className="flex items-center gap-2">
@@ -4620,7 +4620,7 @@ function SpecRow({
   capitalize?: boolean;
 }) {
   return (
-    <div className="border-b border-white/10 pb-4">
+    <div className="border-b border-[#252528] pb-4">
       <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{label}</div>
       <div
         className={`flex items-center gap-2 text-sm font-semibold text-white ${

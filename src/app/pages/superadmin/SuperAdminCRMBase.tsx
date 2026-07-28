@@ -39,7 +39,7 @@ export function SuperAdminCRMBase() {
 
   if (!meta) {
     return (
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] px-6 py-16 text-center">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
         <p className="text-sm text-white/50">Base not found.</p>
         <Button asChild className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
           <Link to="/superadmin/crm">Back to CRM</Link>
@@ -75,7 +75,7 @@ export function SuperAdminCRMBase() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/30"
+            className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#252528] bg-black/30"
             style={{ color: meta.accent }}
           >
             <Icon className="h-7 w-7" />
@@ -95,7 +95,7 @@ export function SuperAdminCRMBase() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <Label className="text-white/60">Base description</Label>
         <Textarea
           value={config.description}
@@ -106,7 +106,7 @@ export function SuperAdminCRMBase() {
         />
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">Base component defaults</h2>
           <button

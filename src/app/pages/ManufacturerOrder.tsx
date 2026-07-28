@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
@@ -21,40 +20,45 @@ export function ManufacturerOrder() {
   };
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#0A0A0B] px-4 py-6 sm:px-6 md:px-8">
+    <div className="ceriga-page mx-auto max-w-[720px] px-4 py-7 sm:px-8 sm:py-8 lg:px-10">
       <Link
         to="/studio"
-        className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-white/45 transition-colors hover:text-white/80"
+        className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-[#8A8A90] transition-colors hover:text-[#F0EEEE]"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to Studio
       </Link>
 
-      <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">Manufacturing</p>
-      <h1 className="mb-2 font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold tracking-tight text-[#F2F0EC]">
-        Order with your tech pack
-      </h1>
-      <p className="mb-8 max-w-xl text-sm leading-relaxed text-white/45">
-        Upload your existing tech pack (PDF, images, or spec sheets). Our team will review and quote. Add quantity,
-        target dates, and any factory preferences below.
-      </p>
+      <div className="mb-8">
+        <div className="ceriga-page-eyebrow">Manufacturing</div>
+        <h1 className="ceriga-page-title">Order with your tech pack</h1>
+        <p className="ceriga-page-sub">
+          Upload your existing tech pack (PDF, images, or spec sheets). Our team will review and quote.
+          Add quantity, target dates, and any factory preferences below.
+        </p>
+      </div>
 
       {productId ? (
-        <p className="mb-6 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-xs text-white/55">
-          Linked product reference: <span className="font-mono text-white/80">{productId}</span>
+        <p className="mb-6 rounded-[6px] border border-[#252528] bg-[#161618] px-4 py-3 text-xs text-[#8A8A90]">
+          Linked product reference:{' '}
+          <span className="ceriga-mono text-[#F0EEEE]">{productId}</span>
         </p>
       ) : null}
 
-      <div className="mx-auto max-w-xl space-y-6">
+      <div className="space-y-6">
         <div>
-          <Label className="mb-2 block text-[10px] uppercase tracking-wider text-white/50">Tech pack files</Label>
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 bg-black/30 px-6 py-10 transition-colors hover:border-[#CC2D24]/40 hover:bg-white/[0.03]">
-            <Upload className="h-8 w-8 text-white/35" />
-            <span className="text-center text-sm text-white/55">Tap or click to upload PDF, PNG, or ZIP</span>
+          <Label className="ceriga-mono mb-2 block text-[10px] uppercase tracking-[0.08em] text-[#8A8A90]">
+            Tech pack files
+          </Label>
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[6px] border border-dashed border-[#333338] bg-[#111113] px-6 py-10 transition-colors hover:border-[#3A3A40] hover:bg-[#1C1C1E]">
+            <Upload className="h-8 w-8 text-[#6B6B72]" />
+            <span className="text-center text-sm text-[#8A8A90]">
+              Tap or click to upload PDF, PNG, or ZIP
+            </span>
             <input type="file" multiple accept=".pdf,image/*,.zip" className="hidden" onChange={onFileChange} />
           </label>
           {files.length > 0 ? (
-            <ul className="mt-3 space-y-1.5 text-xs text-white/60">
+            <ul className="mt-3 space-y-1.5 text-xs text-[#A3A3A8]">
               {files.map((f) => (
                 <li key={f.name + f.size} className="truncate">
                   {f.name}
@@ -66,7 +70,10 @@ export function ManufacturerOrder() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <Label htmlFor="mo-qty" className="mb-2 block text-[10px] uppercase tracking-wider text-white/50">
+            <Label
+              htmlFor="mo-qty"
+              className="ceriga-mono mb-2 block text-[10px] uppercase tracking-[0.08em] text-[#8A8A90]"
+            >
               Quantity (units)
             </Label>
             <Input
@@ -75,11 +82,14 @@ export function ManufacturerOrder() {
               placeholder="e.g. 500"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="h-10 border-white/12 bg-black/40 text-white placeholder:text-white/30"
+              className="h-10 border-[#252528] bg-[#161618] text-[#F0EEEE] placeholder:text-[#6B6B72]"
             />
           </div>
           <div>
-            <Label htmlFor="mo-time" className="mb-2 block text-[10px] uppercase tracking-wider text-white/50">
+            <Label
+              htmlFor="mo-time"
+              className="ceriga-mono mb-2 block text-[10px] uppercase tracking-[0.08em] text-[#8A8A90]"
+            >
               Target delivery
             </Label>
             <Input
@@ -87,13 +97,16 @@ export function ManufacturerOrder() {
               placeholder="e.g. June 2026"
               value={timeline}
               onChange={(e) => setTimeline(e.target.value)}
-              className="h-10 border-white/12 bg-black/40 text-white placeholder:text-white/30"
+              className="h-10 border-[#252528] bg-[#161618] text-[#F0EEEE] placeholder:text-[#6B6B72]"
             />
           </div>
         </div>
 
         <div>
-          <Label htmlFor="mo-notes" className="mb-2 block text-[10px] uppercase tracking-wider text-white/50">
+          <Label
+            htmlFor="mo-notes"
+            className="ceriga-mono mb-2 block text-[10px] uppercase tracking-[0.08em] text-[#8A8A90]"
+          >
             Notes for production
           </Label>
           <Textarea
@@ -101,29 +114,27 @@ export function ManufacturerOrder() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Fabric substitutions, label placement, shipping regions…"
-            className="min-h-[100px] border-white/12 bg-black/40 text-sm text-white placeholder:text-white/30"
+            className="min-h-[100px] border-[#252528] bg-[#161618] text-sm text-[#F0EEEE] placeholder:text-[#6B6B72]"
           />
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button
-            type="button"
-            className="h-10 bg-[#CC2D24] text-sm font-semibold hover:bg-[#CC2D24]/90"
-            asChild
+          <Link
+            to="/delivery"
+            state={{
+              from: 'manufacturer',
+              ...(productId ? { productId } : {}),
+            }}
+            className="ceriga-btn-primary h-10 text-[13px]"
           >
-            <Link
-              to="/delivery"
-              state={{
-                from: 'manufacturer',
-                ...(productId ? { productId } : {}),
-              }}
-            >
-              Order — continue to delivery
-            </Link>
-          </Button>
-          <Button type="button" variant="outline" className="h-10 border-white/15 text-white/80 hover:bg-white/5" asChild>
-            <Link to="/dashboard">Save as draft (demo)</Link>
-          </Button>
+            Order — continue to delivery
+          </Link>
+          <Link
+            to="/dashboard"
+            className="inline-flex h-10 items-center justify-center rounded-[4px] border border-[#3A3A40] px-4 text-[13px] font-medium text-[#F0EEEE] transition-colors hover:border-[#4A4A52] hover:bg-white/[0.03]"
+          >
+            Save as draft (demo)
+          </Link>
         </div>
       </div>
     </div>

@@ -236,13 +236,13 @@ export function SupportChatPanel({
   }, []);
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden bg-[#111113] text-white", className)}>
-      <div className="flex items-center gap-2 border-b border-white/10 px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 lg:pt-3">
+    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden bg-[#09090B] text-[#F0EEEE]", className)}>
+      <div className="flex items-center gap-2 border-b border-[#252528] px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 lg:pt-3">
         <button
           type="button"
           onClick={onClose}
           className={cn(
-            "flex shrink-0 items-center gap-0.5 rounded-lg py-1.5 pl-0.5 pr-2 text-white/90 transition-colors hover:bg-white/10",
+            "flex shrink-0 items-center gap-0.5 rounded-[4px] py-1.5 pl-0.5 pr-2 text-[#F0EEEE] transition-colors hover:bg-[#1C1C1E]",
             layout === "sheet" && "lg:hidden",
           )}
           aria-label="Back"
@@ -252,8 +252,8 @@ export function SupportChatPanel({
         </button>
 
         <div className="min-w-0 flex-1 lg:text-left">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#CC2D24]">Ceriga</p>
-          <p className="truncate font-semibold text-white">Chat with us</p>
+          <p className="ceriga-mono text-[10px] font-medium uppercase tracking-[0.1em] text-[#CC2D24]">Ceriga</p>
+          <p className="truncate font-semibold text-[#F0EEEE]">Chat with us</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
@@ -262,7 +262,7 @@ export function SupportChatPanel({
               <Link
                 to="/support"
                 onClick={() => onClose()}
-                className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10 sm:px-2.5"
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-[4px] border border-[#252528] bg-[#161618] px-2 text-xs font-semibold text-[#A3A3A8] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] sm:px-2.5"
                 title="Open full chat page"
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
@@ -272,7 +272,7 @@ export function SupportChatPanel({
                 <button
                   type="button"
                   onClick={() => onDesktopExpandedChange(!desktopExpanded)}
-                  className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/80 transition-colors hover:bg-white/10 lg:flex"
+                  className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[#252528] bg-[#161618] text-[#8A8A90] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] lg:flex"
                   aria-label={desktopExpanded ? "Use narrow chat panel" : "Widen chat panel"}
                   title={desktopExpanded ? "Narrow panel" : "Widen panel"}
                 >
@@ -286,7 +286,7 @@ export function SupportChatPanel({
               <button
                 type="button"
                 onClick={onClose}
-                className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/80 transition-colors hover:bg-white/10 lg:flex"
+                className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[#252528] bg-[#161618] text-[#8A8A90] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] lg:flex"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" strokeWidth={2} />
@@ -311,14 +311,14 @@ export function SupportChatPanel({
               >
                 <div
                   className={cn(
-                    "rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                    "rounded-[6px] px-3.5 py-2.5 text-sm leading-relaxed",
                     msg.role === "user"
-                      ? "rounded-br-md bg-[#CC2D24] text-white"
-                      : "rounded-bl-md border border-white/[0.08] bg-[#0D0D0F] text-white/75",
+                      ? "rounded-br-sm bg-[#CC2D24] text-white"
+                      : "rounded-bl-sm border border-[#252528] bg-[#161618] text-[#A3A3A8]",
                   )}
                 >
                   {msg.role === "user" && msg.imageSrc && (
-                    <div className="mb-2 overflow-hidden rounded-lg border border-white/15">
+                    <div className="mb-2 overflow-hidden rounded-[4px] border border-white/15">
                       <img src={msg.imageSrc} alt="" className="max-h-48 w-full object-cover" />
                     </div>
                   )}
@@ -335,20 +335,20 @@ export function SupportChatPanel({
                           }
                         }}
                         rows={Math.min(8, Math.max(2, editDraft.split("\n").length))}
-                        className="w-full resize-y rounded-lg border border-white/20 bg-black/25 px-2 py-1.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/30"
+                        className="w-full resize-y rounded-[4px] border border-[#3A3A40] bg-[#09090B]/50 px-2 py-1.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/30"
                       />
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          className="rounded-lg px-2 py-1 text-[11px] font-medium text-white/55 hover:bg-white/10 hover:text-white"
+                          className="rounded-[4px] px-2 py-1 text-[11px] font-medium text-white/70 hover:bg-black/20 hover:text-white"
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
                           onClick={saveEdit}
-                          className="rounded-lg bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/25"
+                          className="rounded-[4px] bg-white/20 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/30"
                         >
                           Save
                         </button>
@@ -378,7 +378,7 @@ export function SupportChatPanel({
                       <button
                         type="button"
                         onClick={() => copyMessageText(msg)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                        className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#6B6B72] transition-colors hover:bg-[#1C1C1E] hover:text-[#F0EEEE]"
                         aria-label="Copy message"
                       >
                         <Copy className="h-3.5 w-3.5" strokeWidth={2} />
@@ -389,7 +389,7 @@ export function SupportChatPanel({
                         <button
                           type="button"
                           onClick={() => startEdit(msg)}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-white/50 transition-colors hover:bg-black/30 hover:text-white"
+                          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#6B6B72] transition-colors hover:bg-[#1C1C1E] hover:text-[#F0EEEE]"
                           aria-label="Edit message"
                         >
                           <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
@@ -397,7 +397,7 @@ export function SupportChatPanel({
                         <button
                           type="button"
                           onClick={() => deleteMessage(msg.id)}
-                          className="flex h-7 w-7 items-center justify-center rounded-md text-white/50 transition-colors hover:bg-red-500/25 hover:text-red-200"
+                          className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#6B6B72] transition-colors hover:bg-[#1C0F0F] hover:text-[#E5534A]"
                           aria-label="Delete message"
                         >
                           <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
@@ -415,19 +415,19 @@ export function SupportChatPanel({
               aria-live="polite"
               aria-busy="true"
             >
-              <div className="rounded-2xl rounded-bl-md border border-white/[0.08] bg-[#0D0D0F] px-4 py-3">
+              <div className="rounded-[6px] rounded-bl-sm border border-[#252528] bg-[#161618] px-4 py-3">
                 <div className="flex items-center gap-1.5" role="status">
                   <span className="sr-only">Ceriga is typing</span>
                   {[0, 1, 2].map((i) => (
                     <span
                       key={i}
-                      className="inline-block h-2 w-2 animate-bounce rounded-full bg-white/55"
+                      className="inline-block h-2 w-2 animate-bounce rounded-full bg-[#8A8A90]"
                       style={{ animationDelay: `${i * 150}ms` }}
                     />
                   ))}
                 </div>
               </div>
-              <p className="pl-0.5 text-[10px] text-white/30">Typing…</p>
+              <p className="pl-0.5 text-[10px] text-[#45454B]">Typing…</p>
             </div>
           )}
           <div ref={bottomRef} />
@@ -435,12 +435,12 @@ export function SupportChatPanel({
       </ScrollArea>
 
       <div
-        className="border-t border-white/10 bg-[#0d0d0f] px-3 pt-2"
+        className="border-t border-[#252528] bg-[#111113] px-3 pt-2"
         style={{
           paddingBottom: `max(0.75rem, env(safe-area-inset-bottom, 0px), ${keyboardInset}px)`,
         }}
       >
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/35">
+        <p className="ceriga-mono mb-2 text-[10px] font-medium uppercase tracking-[0.08em] text-[#6B6B72]">
           Quick questions
         </p>
         <div className="scrollbar-dark mb-3 flex gap-1.5 overflow-x-auto pb-1">
@@ -450,7 +450,7 @@ export function SupportChatPanel({
               type="button"
               disabled={isTyping}
               onClick={() => pushPair(faq)}
-              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-left text-[11px] font-medium text-white/80 transition-colors hover:border-[#CC2D24]/35 hover:bg-[#CC2D24]/10 disabled:cursor-not-allowed disabled:opacity-40"
+              className="shrink-0 rounded-[4px] border border-[#252528] bg-[#161618] px-2.5 py-1.5 text-left text-[11px] font-medium text-[#A3A3A8] transition-colors hover:border-[#CC2D24]/40 hover:bg-[#1C0F0F] hover:text-[#F0EEEE] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {faq.question}
             </button>
@@ -478,7 +478,7 @@ export function SupportChatPanel({
               type="button"
               disabled={isTyping}
               onClick={() => fileInputRef.current?.click()}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-white/5 text-white/70 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] border border-[#252528] bg-[#161618] text-[#8A8A90] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Add image"
             >
               <ImagePlus className="h-5 w-5" />
@@ -495,19 +495,19 @@ export function SupportChatPanel({
               placeholder="Type a message…"
               rows={2}
               disabled={isTyping}
-              className="min-h-[2.75rem] flex-1 resize-none rounded-xl border border-white/12 bg-[#111113] px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:border-[#CC2D24]/45 focus:ring-1 focus:ring-[#CC2D24]/25 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[2.75rem] flex-1 resize-none rounded-[4px] border border-[#252528] bg-[#09090B] px-3 py-2 text-sm text-[#F0EEEE] placeholder:text-[#6B6B72] outline-none focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/25 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={!draft.trim() || isTyping}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24] text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#CC2D24]/90"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] bg-[#CC2D24] text-white transition-colors hover:bg-[#E5534A] disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Send"
             >
               <Send className="h-4 w-4" />
             </button>
           </div>
         </form>
-        <p className="mt-2 text-center text-[10px] text-white/30">
+        <p className="mt-2 text-center text-[10px] text-[#45454B]">
           Automated replies · A human can follow up on your account when needed
         </p>
       </div>

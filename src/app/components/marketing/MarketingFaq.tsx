@@ -31,13 +31,13 @@ export function MarketingFaq({
           {items.map((item) => (
             <details
               key={item.q}
-              className="group rounded-[14px] border border-white/[0.08] bg-[#111113] transition-colors open:border-white/[0.12]"
+              className="group rounded-[14px] border border-[#252528] bg-[#111113] transition-colors open:border-white/[0.12]"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-medium text-[#F2F0EC] sm:px-5 sm:py-4 [&::-webkit-details-marker]:hidden">
                 <span className="pr-2">{item.q}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-white/35 transition-transform group-open:rotate-180" />
               </summary>
-              <div className="border-t border-white/[0.06] px-4 pb-4 pt-0 sm:px-5">
+              <div className="border-t border-[#252528] px-4 pb-4 pt-0 sm:px-5">
                 <p className="pt-3 text-sm leading-relaxed text-white/45">{item.a}</p>
               </div>
             </details>

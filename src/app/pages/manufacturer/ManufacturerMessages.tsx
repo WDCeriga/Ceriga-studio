@@ -127,7 +127,7 @@ function AttachmentPreview({
       download={attachment.name}
       className={cn(
         'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition hover:bg-white/[0.06]',
-        outbound ? 'border-white/20 bg-black/15' : 'border-white/10 bg-black/25',
+        outbound ? 'border-white/20 bg-black/15' : 'border-[#252528] bg-black/25',
       )}
     >
       <span
@@ -160,7 +160,7 @@ function MessageBubble({ message }: { message: FactoryChatMessage }) {
           'max-w-[min(100%,28rem)] px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
           outbound
             ? 'rounded-2xl rounded-br-md bg-gradient-to-br from-[#CC2D24] to-[#a8241c] text-white'
-            : 'rounded-2xl rounded-bl-md border border-white/[0.08] bg-[#141416] text-white/90',
+            : 'rounded-2xl rounded-bl-md border border-[#252528] bg-[#161618] text-white/90',
         )}
       >
         {attachments.length > 0 ? (
@@ -344,17 +344,17 @@ export function ManufacturerMessages() {
         ) : null}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113]">
+      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
         <div className="grid min-h-[620px] lg:grid-cols-[minmax(260px,320px)_1fr]">
-          <aside className="flex flex-col border-b border-white/[0.06] lg:border-b-0 lg:border-r">
-            <div className="border-b border-white/[0.06] p-3">
+          <aside className="flex flex-col border-b border-[#252528] lg:border-b-0 lg:border-r">
+            <div className="border-b border-[#252528] p-3">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search conversations…"
-                  className="h-10 border-white/10 bg-black/30 pl-9 text-sm text-white placeholder:text-white/30"
+                  className="h-10 border-[#252528] bg-black/30 pl-9 text-sm text-white placeholder:text-white/30"
                 />
               </div>
             </div>
@@ -421,7 +421,7 @@ export function ManufacturerMessages() {
           <section className="flex min-h-[420px] flex-col">
             {thread ? (
               <>
-                <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3.5 sm:px-6">
+                <div className="flex items-center gap-3 border-b border-[#252528] px-4 py-3.5 sm:px-6">
                   <ThreadAvatar thread={thread} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-white">{thread.name}</p>
@@ -432,7 +432,7 @@ export function ManufacturerMessages() {
                         : ''}
                     </p>
                   </div>
-                  <span className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] text-white/45 sm:inline-flex">
+                  <span className="hidden items-center gap-1.5 rounded-lg border border-[#252528] bg-white/[0.03] px-2.5 py-1 text-[10px] text-white/45 sm:inline-flex">
                     {thread.type === 'ceriga' ? (
                       <Building2 className="h-3 w-3" />
                     ) : (
@@ -451,7 +451,7 @@ export function ManufacturerMessages() {
                   </div>
                 </ScrollArea>
 
-                <div className="border-t border-white/[0.06] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
+                <div className="border-t border-[#252528] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
                   <input
                     ref={imageInputRef}
                     type="file"
@@ -474,7 +474,7 @@ export function ManufacturerMessages() {
                       {pendingAttachments.map((attachment) => (
                         <div
                           key={attachment.id}
-                          className="group relative flex max-w-[10rem] items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-2 py-2"
+                          className="group relative flex max-w-[10rem] items-center gap-2 rounded-xl border border-[#252528] bg-black/40 px-2 py-2"
                         >
                           {attachment.kind === 'image' ? (
                             <img
@@ -498,7 +498,7 @@ export function ManufacturerMessages() {
                           <button
                             type="button"
                             onClick={() => removePendingAttachment(attachment.id)}
-                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-[#1a1a1a] text-white/60 transition hover:text-white"
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-[#161618] text-white/60 transition hover:text-white"
                             aria-label={`Remove ${attachment.name}`}
                           >
                             <X className="h-3 w-3" />
@@ -508,7 +508,7 @@ export function ManufacturerMessages() {
                     </div>
                   ) : null}
 
-                  <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/40 p-2">
+                  <div className="flex items-end gap-2 rounded-2xl border border-[#252528] bg-black/40 p-2">
                     <Button
                       type="button"
                       size="icon"

@@ -31,7 +31,7 @@ function MeasurementUnitToggle({
   return (
     <div
       className={cn(
-        'inline-flex min-w-[5.75rem] shrink-0 rounded-full border border-white/12 bg-[#0a0a0a] p-0.5 touch-manipulation',
+        'inline-flex min-w-[5.75rem] shrink-0 rounded-full border border-white/12 bg-[#09090B] p-0.5 touch-manipulation',
         'md:min-w-[4.25rem] md:p-px',
       )}
       role="group"
@@ -170,7 +170,7 @@ export function MeasurementsStep({
             collisionPadding={12}
             className={cn(
               'z-[300] max-h-[min(50vh,22rem)] w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)]',
-              'border border-white/12 bg-[#141416] text-white shadow-[0_16px_48px_rgba(0,0,0,0.55)]',
+              'border border-white/12 bg-[#161618] text-white shadow-[0_16px_48px_rgba(0,0,0,0.55)]',
               'data-[state=open]:animate-in data-[state=closed]:animate-out',
             )}
           >
@@ -207,11 +207,11 @@ export function MeasurementsStep({
           Values are stored in centimetres; when you pick {measurementUnit === 'in' ? 'inches' : 'cm'}, we
           convert for display. Each cell is one measurement in {measurementUnitLabel(measurementUnit)}.
         </p>
-        <div className="overflow-hidden rounded-lg border border-white/10 bg-white/5">
+        <div className="overflow-hidden rounded-lg border border-[#252528] bg-white/5">
           <div className="no-scrollbar overflow-x-auto">
             <table className="w-full text-xs md:text-xs">
               <thead>
-                <tr className="border-b border-white/10">
+                <tr className="border-b border-[#252528]">
                   <th className="px-1 py-1 text-left text-[10px] font-semibold text-white/70 md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     Size
                   </th>

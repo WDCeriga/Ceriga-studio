@@ -171,7 +171,7 @@ export function SuperAdminShippingOnboard() {
               'rounded-lg border px-2.5 py-1 text-[11px] font-medium',
               tab === t.id
                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-white/10 text-white/45 hover:text-white/75',
+                : 'border-[#252528] text-white/45 hover:text-white/75',
             )}
           >
             {t.label}
@@ -209,7 +209,7 @@ export function SuperAdminShippingOnboard() {
             ].map((k) => (
               <div
                 key={k.label}
-                className="rounded-2xl border border-white/[0.08] bg-[#111113] px-4 py-4"
+                className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4"
               >
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                   {k.label}
@@ -221,7 +221,7 @@ export function SuperAdminShippingOnboard() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">Mode mix</h2>
               <ul className="mt-4 space-y-2">
                 {stats.modeMix.length === 0 ? (
@@ -236,7 +236,7 @@ export function SuperAdminShippingOnboard() {
                 )}
               </ul>
             </section>
-            <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">Top carriers used</h2>
               <ul className="mt-4 space-y-2">
                 {stats.carrierUsage.length === 0 ? (
@@ -265,7 +265,7 @@ export function SuperAdminShippingOnboard() {
             <button
               type="button"
               onClick={() => setTab('catalog')}
-              className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left"
+              className="rounded-xl border border-[#252528] bg-white/[0.03] px-4 py-3 text-left"
             >
               <p className="text-[11px] text-white/45">Catalog pending</p>
               <p className="mt-0.5 text-xl font-semibold text-white">{stats.pendingCatalog}</p>
@@ -273,7 +273,7 @@ export function SuperAdminShippingOnboard() {
             <button
               type="button"
               onClick={() => setTab('factories')}
-              className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left"
+              className="rounded-xl border border-[#252528] bg-white/[0.03] px-4 py-3 text-left"
             >
               <p className="text-[11px] text-white/45">Enabled factory options</p>
               <p className="mt-0.5 text-xl font-semibold text-white">
@@ -289,7 +289,7 @@ export function SuperAdminShippingOnboard() {
           {factories.map((f) => (
             <section
               key={f.factoryId}
-              className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5"
+              className="rounded-2xl border border-[#252528] bg-[#111113] p-5"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -338,7 +338,7 @@ export function SuperAdminShippingOnboard() {
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left">
                   <thead>
-                    <tr className="border-b border-white/[0.06] text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                    <tr className="border-b border-[#252528] text-[10px] font-semibold uppercase tracking-wider text-white/35">
                       <th className="pb-2 pr-3">Carrier</th>
                       <th className="pb-2 pr-3">Status</th>
                       <th className="pb-2 pr-3">Modes</th>
@@ -387,7 +387,7 @@ export function SuperAdminShippingOnboard() {
             {catalog.map((c) => (
               <div
                 key={c.id}
-                className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4"
+                className="rounded-2xl border border-[#252528] bg-[#111113] p-4"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -437,7 +437,7 @@ export function SuperAdminShippingOnboard() {
       ) : null}
 
       {tab === 'onboard' ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
           {allOnboard.length === 0 ? (
             <p className="py-10 text-center text-sm text-white/40">No onboard requests.</p>
           ) : (
@@ -501,11 +501,11 @@ export function SuperAdminShippingOnboard() {
       ) : null}
 
       {tab === 'shipments' ? (
-        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113]">
+        <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
               <thead>
-                <tr className="border-b border-white/[0.08] bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                <tr className="border-b border-[#252528] bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-white/40">
                   <th className="px-4 py-3">Shipment</th>
                   <th className="px-4 py-3">Factory</th>
                   <th className="px-4 py-3">Carrier / mode</th>
@@ -517,7 +517,7 @@ export function SuperAdminShippingOnboard() {
               </thead>
               <tbody>
                 {shipments.map((s) => (
-                  <tr key={s.id} className="border-b border-white/[0.06] last:border-0">
+                  <tr key={s.id} className="border-b border-[#252528] last:border-0">
                     <td className="px-4 py-3 align-middle">
                       <p className="font-mono text-[11px] text-white/45">{s.id}</p>
                       <p className="text-sm text-white/85">{s.brandName}</p>
@@ -579,7 +579,7 @@ export function SuperAdminShippingOnboard() {
       />
 
       {addOpen ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0c0c0e]/95 p-4 backdrop-blur lg:left-auto lg:right-6 lg:bottom-6 lg:w-[420px] lg:rounded-2xl lg:border">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#252528] bg-[#0c0c0e]/95 p-4 backdrop-blur lg:left-auto lg:right-6 lg:bottom-6 lg:w-[420px] lg:rounded-2xl lg:border">
           <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/40">
             <Package className="h-3.5 w-3.5" />
             New Ceriga carrier
@@ -623,7 +623,7 @@ export function SuperAdminShippingOnboard() {
                       'rounded-lg border px-2 py-1 text-[10px] font-medium',
                       modes.includes(m)
                         ? 'border-sky-500/40 bg-sky-500/15 text-sky-100'
-                        : 'border-white/10 text-white/40',
+                        : 'border-[#252528] text-white/40',
                     )}
                   >
                     {SHIPPING_MODE_LABEL[m]}
@@ -643,7 +643,7 @@ export function SuperAdminShippingOnboard() {
                       'rounded-lg border px-2 py-1 text-[10px] font-medium',
                       incoterms.includes(i)
                         ? 'border-sky-500/40 bg-sky-500/15 text-sky-100'
-                        : 'border-white/10 text-white/40',
+                        : 'border-[#252528] text-white/40',
                     )}
                   >
                     {i}

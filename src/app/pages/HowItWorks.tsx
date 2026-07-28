@@ -57,13 +57,13 @@ export function HowItWorks() {
               return (
                 <div key={flow.name} className="relative flex gap-5 sm:gap-8">
                   <div className="relative z-[1] flex shrink-0 flex-col items-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/12 bg-[#111113] text-[#CC2D24] shadow-[0_0_0_4px_#0A0A0B] sm:h-12 sm:w-12">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/12 bg-[#111113] text-[#CC2D24] shadow-[0_0_0_4px_#09090B] sm:h-12 sm:w-12">
                       <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                     <span className="mt-2 font-mono text-[10px] font-bold text-white/25">{stepNum}</span>
                   </div>
 
-                  <div className="min-w-0 flex-1 rounded-[14px] border border-white/[0.08] bg-[#111113] p-5 sm:p-7">
+                  <div className="min-w-0 flex-1 rounded-[14px] border border-[#252528] bg-[#111113] p-5 sm:p-7">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">Flow</span>
                     <h2 className="mt-1 font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">
                       {flow.name}
@@ -95,7 +95,7 @@ export function HowItWorks() {
         </div>
       </section>
 
-      <section className="border-t border-white/[0.06] bg-[#0a0a0b] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 md:px-8 lg:px-10">
+      <section className="border-t border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[560px] text-center">
           <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC]">
             Inside the builder
@@ -132,7 +132,7 @@ export function HowItWorks() {
             a: 'Yes. From Studio, choose the packaging workflow so you never pick a garment template — you go straight to label and polybag canvases.',
           },
         ]}
-        className="border-t border-white/[0.06] bg-[#0F0F0F]"
+        className="border-t border-[#252528] bg-[#09090B]"
       />
     </MarketingShell>
   );

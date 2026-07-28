@@ -67,7 +67,7 @@ function PermissionMatrix({
   const roleDefaults = ROLE_PERMISSIONS[member.role];
 
   return (
-    <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/20 p-3">
+    <div className="mt-3 rounded-xl border border-[#252528] bg-black/20 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-medium text-white/50">
           Actions {isCustom ? '(custom)' : '(from role)'}
@@ -97,7 +97,7 @@ function PermissionMatrix({
                 'rounded-lg border px-2 py-1 text-[10px] font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
                 on
                   ? 'border-emerald-500/35 bg-emerald-500/15 text-emerald-100'
-                  : 'border-white/10 text-white/35',
+                  : 'border-[#252528] text-white/35',
               )}
             >
               {FACTORY_PERMISSION_LABEL[perm]}
@@ -176,7 +176,7 @@ export function ManufacturerTeam() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {ROLES.map((r) => (
-          <div key={r} className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4">
+          <div key={r} className="rounded-2xl border border-[#252528] bg-[#111113] p-4">
             <p className="text-sm font-semibold text-white">{factoryRoleLabel(r)}</p>
             <p className="mt-1 text-[11px] text-white/40">{ROLE_HELP[r]}</p>
             <div className="mt-2 flex flex-wrap gap-1">
@@ -196,7 +196,7 @@ export function ManufacturerTeam() {
         ))}
       </div>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
         <h2 className="text-sm font-semibold text-white">People</h2>
         <ul className="mt-4 divide-y divide-white/[0.06]">
           {ws.team.map((member) => (
@@ -229,7 +229,7 @@ export function ManufacturerTeam() {
                   <SelectTrigger className="w-full border-white/15 bg-white/5 text-white sm:w-[180px]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                  <SelectContent className="border-[#252528] bg-[#161618] text-white">
                     {ROLES.map((r) => (
                       <SelectItem key={r} value={r}>
                         {factoryRoleLabel(r)}
@@ -253,7 +253,7 @@ export function ManufacturerTeam() {
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
         <h2 className="text-sm font-semibold text-white">Invite teammate</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div>
@@ -278,7 +278,7 @@ export function ManufacturerTeam() {
               <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+              <SelectContent className="border-[#252528] bg-[#161618] text-white">
                 {ROLES.map((r) => (
                   <SelectItem key={r} value={r}>
                     {factoryRoleLabel(r)}

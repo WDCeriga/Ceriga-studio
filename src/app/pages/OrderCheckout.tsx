@@ -45,7 +45,7 @@ export function OrderCheckout() {
 
   if (!order || !option || !id || !optionId) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#0F0F0F] px-4 text-white">
+      <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-white">
         <div className="text-center">
           <h2 className="text-lg font-semibold">Checkout unavailable</h2>
           <Button asChild className="mt-4 h-9 bg-[#CC2D24] text-xs hover:bg-[#CC2D24]/90">
@@ -62,7 +62,7 @@ export function OrderCheckout() {
   };
 
   return (
-    <div className="min-h-dvh bg-[#0F0F0F] text-white">
+    <div className="min-h-dvh bg-[#09090B] text-white">
       <div className="mx-auto max-w-lg px-4 py-8 sm:px-6">
         <Link
           to={`/orders/${id}`}
@@ -78,14 +78,14 @@ export function OrderCheckout() {
         </h1>
         <p className="mt-1 text-sm text-white/45">{order.productName}</p>
 
-        <div className="mt-6 space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-5">
+        <div className="mt-6 space-y-4 rounded-xl border border-[#252528] bg-white/[0.03] p-5">
           <div className="flex items-center justify-between text-sm">
             <span className="text-white/55">{option.description}</span>
             <span className="font-bold tabular-nums text-white">
               {formatEuro(option.priceCents)}
             </span>
           </div>
-          <div className="border-t border-white/10 pt-4">
+          <div className="border-t border-[#252528] pt-4">
             <div className="mb-3 flex gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2.5">
               <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300/90" aria-hidden />
               <p className="text-[11px] leading-relaxed text-amber-100/85">

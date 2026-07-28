@@ -29,7 +29,7 @@ import {
 export const RED = '#CC2D24';
 
 export const chartTooltipStyle = {
-  background: '#141416',
+  background: '#161618',
   border: '1px solid rgba(255,255,255,0.1)',
   borderRadius: 12,
   color: '#fff',
@@ -69,7 +69,7 @@ export function PeriodSelect({
       >
         <SelectValue />
       </SelectTrigger>
-      <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+      <SelectContent className="border-[#252528] bg-[#161618] text-white">
         {STATS_PERIODS.map((p) => (
           <SelectItem key={p} value={p}>
             {PERIOD_LABELS[p]}
@@ -120,7 +120,7 @@ export function KpiGrid({
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((k) => (
-        <div key={k.label} className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5">
+        <div key={k.label} className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
             {k.label}
           </div>
@@ -148,7 +148,7 @@ export function ChartPanel({
 }) {
   return (
     <div
-      className={cn('rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5', className)}
+      className={cn('rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5', className)}
     >
       <div>
         <h2 className="text-sm font-semibold text-white">{title}</h2>
@@ -174,7 +174,7 @@ export function SectionHubCard({
   return (
     <Link
       to={path}
-      className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] p-5 transition hover:border-[#CC2D24]/35 hover:bg-[#141416]"
+      className="group relative overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] p-5 transition hover:border-[#CC2D24]/35 hover:bg-[#161618]"
     >
       <div
         className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full opacity-[0.06]"
@@ -183,7 +183,7 @@ export function SectionHubCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2 text-[#CC2D24]">
+            <div className="rounded-xl border border-[#252528] bg-white/[0.04] p-2 text-[#CC2D24]">
               <Icon className="h-5 w-5" />
             </div>
             <h2 className="text-lg font-semibold text-white">{title}</h2>
@@ -191,7 +191,7 @@ export function SectionHubCard({
         </div>
         <ArrowRight className="h-5 w-5 shrink-0 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-[#CC2D24]" />
       </div>
-      <div className="mt-5 grid gap-3 border-t border-white/[0.06] pt-4 sm:grid-cols-3">
+      <div className="mt-5 grid gap-3 border-t border-[#252528] pt-4 sm:grid-cols-3">
         {previewMetrics.map((m) => (
           <div key={m.label}>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
@@ -220,12 +220,12 @@ export function DataTable({
   rows: (string | number)[][];
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-4 sm:p-5">
+    <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
       <h2 className="text-sm font-semibold text-white">{title}</h2>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[320px] text-left text-sm">
           <thead>
-            <tr className="border-b border-white/[0.06] text-[11px] font-semibold uppercase tracking-wider text-white/40">
+            <tr className="border-b border-[#252528] text-[11px] font-semibold uppercase tracking-wider text-white/40">
               {columns.map((c) => (
                 <th key={c} className="pb-3 pr-4 font-semibold">
                   {c}

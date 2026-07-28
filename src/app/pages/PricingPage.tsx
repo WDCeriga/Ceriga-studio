@@ -169,7 +169,7 @@ export function PricingPage() {
             monthly download plans or rollover credits.
           </p>
 
-          <div className="mt-6 max-w-md rounded-[14px] border border-white/[0.08] bg-[#0e0e10] p-5 sm:p-6">
+          <div className="mt-6 max-w-md rounded-[14px] border border-[#252528] bg-[#0e0e10] p-5 sm:p-6">
             <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Pay per export</div>
             <div className="mb-1">
               <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">
@@ -182,7 +182,7 @@ export function PricingPage() {
             </p>
             <Link
               to="/signup"
-              className="mb-5 block rounded-lg border border-white/10 bg-white/[0.06] py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white/70 transition-opacity hover:opacity-90 sm:text-[11px]"
+              className="mb-5 block rounded-lg border border-[#252528] bg-white/[0.06] py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white/70 transition-opacity hover:opacity-90 sm:text-[11px]"
             >
               Create account
             </Link>
@@ -199,7 +199,7 @@ export function PricingPage() {
       </section>
 
       {/* AI chat subscriptions */}
-      <section className="border-t border-white/[0.06] bg-[#0a0a0b] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
+      <section className="border-t border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[1200px]">
           <div className="mb-6 flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-[#CC2D24]" />
@@ -218,7 +218,7 @@ export function PricingPage() {
               <div
                 key={t.tier}
                 className={`relative flex flex-col rounded-[14px] border p-5 sm:p-6 ${
-                  t.featured ? 'border-[#CC2D24]/40 bg-[#141416]' : 'border-white/[0.08] bg-[#0e0e10]'
+                  t.featured ? 'border-[#CC2D24]/40 bg-[#161618]' : 'border-[#252528] bg-[#0e0e10]'
                 }`}
               >
                 {t.featured && (
@@ -279,17 +279,17 @@ export function PricingPage() {
         </p>
       </section>
 
-      <section className="border-t border-white/[0.06] bg-[#0a0a0b] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
+      <section className="border-t border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[960px]">
           <p className="mb-2 text-center text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">Compare</p>
           <h2 className="mb-6 text-center font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:mb-8 sm:text-xl">
             AI chat plan comparison
           </h2>
 
-          <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#111113] [-webkit-overflow-scrolling:touch]">
+          <div className="overflow-x-auto rounded-xl border border-[#252528] bg-[#111113] [-webkit-overflow-scrolling:touch]">
             <table className="w-full min-w-[600px] border-collapse text-left text-[11px] sm:text-xs">
               <thead>
-                <tr className="border-b border-white/10 bg-black/40">
+                <tr className="border-b border-[#252528] bg-black/40">
                   <th className="px-3 py-2.5 font-semibold text-white/45 sm:px-4 sm:py-3">Capability</th>
                   <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Free</th>
                   <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Studio</th>
@@ -351,7 +351,7 @@ export function PricingPage() {
             a: 'Yes. Move between Free, Studio, Scale, and Business as your team’s needs change. Enterprise contracts are tailored separately.',
           },
         ]}
-        className="border-t border-white/[0.06] bg-[#0a0a0b]"
+        className="border-t border-[#252528] bg-[#09090B]"
       />
     </MarketingShell>
   );

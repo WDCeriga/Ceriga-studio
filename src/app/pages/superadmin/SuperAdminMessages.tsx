@@ -137,7 +137,7 @@ function AttachmentPreview({
       download={attachment.name}
       className={cn(
         'flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition hover:bg-white/[0.06]',
-        outbound ? 'border-white/20 bg-black/15' : 'border-white/10 bg-black/25',
+        outbound ? 'border-white/20 bg-black/15' : 'border-[#252528] bg-black/25',
       )}
     >
       <span
@@ -170,7 +170,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           'max-w-[min(100%,28rem)] px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
           outbound
             ? 'rounded-2xl rounded-br-md bg-gradient-to-br from-[#CC2D24] to-[#a8241c] text-white'
-            : 'rounded-2xl rounded-bl-md border border-white/[0.08] bg-[#141416] text-white/90',
+            : 'rounded-2xl rounded-bl-md border border-[#252528] bg-[#161618] text-white/90',
         )}
       >
         {attachments.length > 0 ? (
@@ -350,16 +350,16 @@ export function SuperAdminMessages() {
         ) : null}
       </div>
 
-      <div className="flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
-        <aside className="flex w-full shrink-0 flex-col border-b border-white/[0.06] lg:w-[min(100%,360px)] lg:border-b-0 lg:border-r">
-          <div className="border-b border-white/[0.06] p-4">
+      <div className="flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
+        <aside className="flex w-full shrink-0 flex-col border-b border-[#252528] lg:w-[min(100%,360px)] lg:border-b-0 lg:border-r">
+          <div className="border-b border-[#252528] p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search conversations"
-                className="h-10 border-white/10 bg-black/30 pl-9 text-sm text-white placeholder:text-white/30"
+                className="h-10 border-[#252528] bg-black/30 pl-9 text-sm text-white placeholder:text-white/30"
               />
             </div>
             <Button
@@ -436,10 +436,10 @@ export function SuperAdminMessages() {
           </ScrollArea>
         </aside>
 
-        <section className="flex min-h-[420px] flex-1 flex-col bg-[#0c0c0d]">
+        <section className="flex min-h-[420px] flex-1 flex-col bg-[#09090B]">
           {thread ? (
             <>
-              <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] px-4 py-4 sm:px-6">
+              <div className="flex items-center justify-between gap-4 border-b border-[#252528] px-4 py-4 sm:px-6">
                 <div className="flex min-w-0 items-center gap-3">
                   <ThreadAvatar thread={thread} />
                   <div className="min-w-0">
@@ -458,7 +458,7 @@ export function SuperAdminMessages() {
                 </div>
               </ScrollArea>
 
-              <div className="border-t border-white/[0.06] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
+              <div className="border-t border-[#252528] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
                 <input
                   ref={imageInputRef}
                   type="file"
@@ -481,7 +481,7 @@ export function SuperAdminMessages() {
                     {pendingAttachments.map((attachment) => (
                       <div
                         key={attachment.id}
-                        className="group relative flex max-w-[10rem] items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-2 py-2"
+                        className="group relative flex max-w-[10rem] items-center gap-2 rounded-xl border border-[#252528] bg-black/40 px-2 py-2"
                       >
                         {attachment.kind === 'image' ? (
                           <img
@@ -505,7 +505,7 @@ export function SuperAdminMessages() {
                         <button
                           type="button"
                           onClick={() => removePendingAttachment(attachment.id)}
-                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-[#1a1a1a] text-white/60 transition hover:text-white"
+                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-[#161618] text-white/60 transition hover:text-white"
                           aria-label={`Remove ${attachment.name}`}
                         >
                           <X className="h-3 w-3" />
@@ -515,7 +515,7 @@ export function SuperAdminMessages() {
                   </div>
                 ) : null}
 
-                <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-black/40 p-2">
+                <div className="flex items-end gap-2 rounded-2xl border border-[#252528] bg-black/40 p-2">
                   <Button
                     type="button"
                     size="icon"
@@ -561,7 +561,7 @@ export function SuperAdminMessages() {
             </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-white/25">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#252528] bg-white/[0.03] text-white/25">
                 <MessageSquare className="h-7 w-7" />
               </span>
               <p className="text-sm text-white/45">Select a conversation</p>

@@ -78,7 +78,7 @@ function StatCard({
   return (
     <Link
       to={to}
-      className="group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] p-5 transition hover:border-[#CC2D24]/35 hover:bg-[#141416]"
+      className="group relative overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] p-5 transition hover:border-[#CC2D24]/35 hover:bg-[#161618]"
     >
       <div
         className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-[0.07]"
@@ -89,7 +89,7 @@ function StatCard({
           <div className="text-[11px] font-semibold uppercase tracking-wider text-white/40">{label}</div>
           <div className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-white">{value}</div>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5 text-[#CC2D24]">
+        <div className="rounded-xl border border-[#252528] bg-white/[0.04] p-2.5 text-[#CC2D24]">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -114,7 +114,7 @@ function OrderRow({ order }: { order: FactoryOrder }) {
   return (
     <Link
       to={`/manufacturer/orders/${order.id}`}
-      className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-white/[0.06] px-4 py-3 transition last:border-0 hover:bg-white/[0.03] sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_6.5rem_auto_auto]"
+      className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-[#252528] px-4 py-3 transition last:border-0 hover:bg-white/[0.03] sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_6.5rem_auto_auto]"
     >
       <span className="hidden font-mono text-[11px] text-white/40 sm:inline">{order.id}</span>
       <div className="min-w-0">
@@ -243,7 +243,7 @@ export function ManufacturerDashboard() {
 
       {/* Chart + pipeline */}
       <div className="grid gap-6 xl:grid-cols-5">
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 xl:col-span-3">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 xl:col-span-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-white">Quote wins</h2>
@@ -283,7 +283,7 @@ export function ManufacturerDashboard() {
                 />
                 <Tooltip
                   contentStyle={{
-                    background: '#1a1a1a',
+                    background: '#161618',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: 12,
                     fontSize: 12,
@@ -311,7 +311,7 @@ export function ManufacturerDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 xl:col-span-2">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 xl:col-span-2">
           <h2 className="text-sm font-semibold text-white">Order pipeline</h2>
           <div className="mt-5 space-y-3">
             {pipeline.map((row) => (
@@ -337,8 +337,8 @@ export function ManufacturerDashboard() {
 
       {/* Attention + Ceriga */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-[#CC2D24]" />
               <h2 className="text-sm font-semibold text-white">Needs attention</h2>
@@ -379,8 +379,8 @@ export function ManufacturerDashboard() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-white/40" />
               <h2 className="text-sm font-semibold text-white">Ceriga ops</h2>
@@ -421,8 +421,8 @@ export function ManufacturerDashboard() {
 
       {/* Recent orders + team */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Recent orders</h2>
             <Link
               to="/manufacturer/orders"
@@ -431,7 +431,7 @@ export function ManufacturerDashboard() {
               See all
             </Link>
           </div>
-          <div className="hidden border-b border-white/[0.06] bg-black/25 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/35 sm:grid sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_6.5rem_auto_auto] sm:gap-3">
+          <div className="hidden border-b border-[#252528] bg-black/25 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-white/35 sm:grid sm:grid-cols-[7rem_minmax(0,1.4fr)_minmax(0,1fr)_6.5rem_auto_auto] sm:gap-3">
             <span>Order</span>
             <span>Product</span>
             <span>Brand</span>
@@ -449,8 +449,8 @@ export function ManufacturerDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113]">
-          <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+          <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Team</h2>
             <Link
               to="/manufacturer/team"
@@ -474,7 +474,7 @@ export function ManufacturerDashboard() {
               </li>
             ))}
           </ul>
-          <div className="border-t border-white/[0.06] px-5 py-3">
+          <div className="border-t border-[#252528] px-5 py-3">
             <div className="flex flex-wrap gap-1.5">
               {ws.garments.slice(0, 4).map((g) => (
                 <span

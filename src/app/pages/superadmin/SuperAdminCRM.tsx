@@ -70,7 +70,7 @@ export function SuperAdminCRM() {
               'rounded-lg border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition',
               baseFilter === 'all'
                 ? 'border-[#CC2D24]/50 bg-[#CC2D24]/15 text-white'
-                : 'border-white/10 bg-[#111113] text-white/40 hover:border-white/20',
+                : 'border-[#252528] bg-[#111113] text-white/40 hover:border-white/20',
             )}
           >
             All bases
@@ -84,14 +84,14 @@ export function SuperAdminCRM() {
                   'rounded-lg border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition',
                   baseFilter === b.id
                     ? 'border-[#CC2D24]/50 bg-[#CC2D24]/15 text-white'
-                    : 'border-white/10 bg-[#111113] text-white/40 hover:border-white/20',
+                    : 'border-[#252528] bg-[#111113] text-white/40 hover:border-white/20',
                 )}
               >
                 {b.name}
               </button>
               <Link
                 to={`/superadmin/crm/bases/${b.id}`}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-[#111113] text-white/35 transition hover:border-white/20 hover:text-white/70"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#252528] bg-[#111113] text-white/35 transition hover:border-white/20 hover:text-white/70"
                 title={`Edit ${b.name} defaults`}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -124,7 +124,7 @@ export function SuperAdminCRM() {
               <Link
                 key={p.id}
                 to={`/superadmin/crm/products/${p.id}`}
-                className="group flex flex-col overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#111113] transition-all duration-200 hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                className="group flex flex-col overflow-hidden rounded-[14px] border border-[#252528] bg-[#111113] transition-all duration-200 hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-black/40">
                   <img
@@ -148,7 +148,7 @@ export function SuperAdminCRM() {
                   <h2 className="text-sm font-semibold tracking-tight text-[#F2F0EC] group-hover:text-white">
                     {p.name}
                   </h2>
-                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#252528] pt-3">
                     <span className="font-mono text-[10px] text-white/30">{p.id}</span>
                     <span className="text-[10px] font-medium text-[#CC2D24]">
                       {countEnabledForProduct(p)} options

@@ -63,7 +63,7 @@ export function Home() {
               </Button>
             </div>
 
-            <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/[0.08] pt-6 sm:mt-8 sm:gap-6 sm:pt-8 lg:mt-10 lg:gap-8 lg:pt-10">
+            <div className="mt-6 grid grid-cols-3 gap-3 border-t border-[#252528] pt-6 sm:mt-8 sm:gap-6 sm:pt-8 lg:mt-10 lg:gap-8 lg:pt-10">
               {[
                 ['500+', 'Tech packs exported'],
                 ['48h', 'Avg. first review'],
@@ -88,7 +88,7 @@ export function Home() {
       </section>
 
       {/* Links to deep pages */}
-      <section className="border-y border-white/[0.06] bg-[#0a0a0b] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
+      <section className="border-y border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
           {[
             {
@@ -115,7 +115,7 @@ export function Home() {
             <Link
               key={card.to}
               to={card.to}
-              className="group rounded-[14px] border border-white/[0.08] bg-[#111113] p-5 transition-all hover:border-white/[0.14] sm:p-6"
+              className="group rounded-[14px] border border-[#252528] bg-[#111113] p-5 transition-all hover:border-white/[0.14] sm:p-6"
             >
               <h2 className="flex items-center justify-between font-['Plus_Jakarta_Sans',sans-serif] text-base font-bold text-[#F2F0EC] sm:text-lg">
                 {card.title}
@@ -156,7 +156,7 @@ export function Home() {
             a: 'A structured PDF-style handoff with visuals, measurement tables, material notes, and print zones laid out the way factories expect — so quoting and sampling need fewer back-and-forth threads.',
           },
         ]}
-        className="border-t border-white/[0.06] bg-[#0a0a0b]"
+        className="border-t border-[#252528] bg-[#09090B]"
       />
 
       {/* Popular products — compact on small screens */}
@@ -227,24 +227,24 @@ function ProductCard({ product }: { product: (typeof products)[number] }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={`overflow-hidden rounded-[10px] border bg-[#111113] transition-all duration-200 sm:rounded-[14px] ${
-        hovered ? 'border-white/[0.14] shadow-[0_12px_36px_rgba(0,0,0,0.4)]' : 'border-white/[0.08]'
+        hovered ? 'border-white/[0.14] shadow-[0_12px_36px_rgba(0,0,0,0.4)]' : 'border-[#252528]'
       }`}
       style={{ transform: hovered ? 'translateY(-2px)' : 'translateY(0)' }}
     >
-      <div className="relative aspect-[5/4] w-full max-h-[min(38vw,160px)] overflow-hidden bg-[#0a0a0b] sm:aspect-square sm:max-h-[min(56vw,280px)] md:max-h-none">
+      <div className="relative aspect-[5/4] w-full max-h-[min(38vw,160px)] overflow-hidden bg-[#09090B] sm:aspect-square sm:max-h-[min(56vw,280px)] md:max-h-none">
         <img
           src={product.image}
           alt={product.name}
           className={`h-full w-full object-cover object-center transition-transform duration-500 ${hovered ? 'scale-105' : 'scale-100'}`}
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#111113]/70" />
-        <div className="absolute bottom-1 left-1 rounded border border-white/[0.08] bg-black/55 px-1 py-0.5 text-[6px] font-bold uppercase tracking-wider text-white/75 backdrop-blur-sm sm:bottom-2.5 sm:left-2.5 sm:px-2 sm:py-0.5 sm:text-[8px]">
+        <div className="absolute bottom-1 left-1 rounded border border-[#252528] bg-black/55 px-1 py-0.5 text-[6px] font-bold uppercase tracking-wider text-white/75 backdrop-blur-sm sm:bottom-2.5 sm:left-2.5 sm:px-2 sm:py-0.5 sm:text-[8px]">
           {product.garmentType}
         </div>
       </div>
       <div className="p-2 sm:p-4">
         <h3 className="text-[11px] font-semibold leading-snug tracking-tight text-[#F2F0EC] sm:text-sm">{product.name}</h3>
-        <div className="mt-1.5 flex gap-1.5 rounded border border-white/[0.06] bg-[#0d0d0f] p-1.5 sm:mt-3 sm:gap-2 sm:p-2">
+        <div className="mt-1.5 flex gap-1.5 rounded border border-[#252528] bg-[#111113] p-1.5 sm:mt-3 sm:gap-2 sm:p-2">
           <Layers className="mt-0.5 h-3 w-3 shrink-0 text-white/35 sm:h-3.5 sm:w-3.5" />
           <p className="text-[7px] leading-snug text-white/38 sm:text-[9px] sm:leading-relaxed">
             Guided builder for measurements, materials, and construction.
@@ -253,7 +253,7 @@ function ProductCard({ product }: { product: (typeof products)[number] }) {
         <Link
           to={`/signup`}
           className={`mt-1.5 flex items-center justify-center gap-0.5 rounded py-1 text-[8px] font-semibold uppercase tracking-wider transition-colors sm:mt-3 sm:gap-1 sm:rounded-lg sm:py-2 sm:text-[10px] ${
-            hovered ? 'bg-[#CC2D24] text-white' : 'border border-white/10 text-white/45'
+            hovered ? 'bg-[#CC2D24] text-white' : 'border border-[#252528] text-white/45'
           }`}
         >
           Configure in studio

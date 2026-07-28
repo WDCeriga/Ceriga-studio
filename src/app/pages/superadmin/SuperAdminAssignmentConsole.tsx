@@ -114,7 +114,7 @@ export function SuperAdminAssignmentConsole() {
         </div>
         <Link
           to="/superadmin/orders/review"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-[#252528] bg-white/[0.03] px-3 py-2 text-[12px] font-medium text-white/70 hover:bg-white/5 hover:text-white"
         >
           Pricing review queue
         </Link>
@@ -128,7 +128,7 @@ export function SuperAdminAssignmentConsole() {
             'rounded-2xl border px-4 py-4 text-left transition',
             filter === 'overdue'
               ? 'border-amber-500/40 bg-amber-500/10'
-              : 'border-white/[0.08] bg-[#111113] hover:bg-white/[0.03]',
+              : 'border-[#252528] bg-[#111113] hover:bg-white/[0.03]',
           )}
         >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
@@ -143,7 +143,7 @@ export function SuperAdminAssignmentConsole() {
             'rounded-2xl border px-4 py-4 text-left transition',
             filter === 'unassigned'
               ? 'border-sky-500/40 bg-sky-500/10'
-              : 'border-white/[0.08] bg-[#111113] hover:bg-white/[0.03]',
+              : 'border-[#252528] bg-[#111113] hover:bg-white/[0.03]',
           )}
         >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
@@ -158,7 +158,7 @@ export function SuperAdminAssignmentConsole() {
             'rounded-2xl border px-4 py-4 text-left transition',
             filter === 'reroute'
               ? 'border-[#CC2D24]/40 bg-[#CC2D24]/10'
-              : 'border-white/[0.08] bg-[#111113] hover:bg-white/[0.03]',
+              : 'border-[#252528] bg-[#111113] hover:bg-white/[0.03]',
           )}
         >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
@@ -185,7 +185,7 @@ export function SuperAdminAssignmentConsole() {
               'rounded-lg border px-2.5 py-1 text-[11px] font-medium',
               filter === f.id
                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-white/10 text-white/45 hover:text-white/75',
+                : 'border-[#252528] text-white/45 hover:text-white/75',
             )}
           >
             {f.label}
@@ -193,11 +193,11 @@ export function SuperAdminAssignmentConsole() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113]">
+      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-left">
             <thead>
-              <tr className="border-b border-white/[0.08] bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+              <tr className="border-b border-[#252528] bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-white/40">
                 <th className="px-4 py-3">Order</th>
                 <th className="px-4 py-3">Manufacturer</th>
                 <th className="px-4 py-3">Quote due</th>
@@ -215,7 +215,7 @@ export function SuperAdminAssignmentConsole() {
                 </tr>
               ) : (
                 filtered.map(({ order, overdue, slaHoursLeft, needsReroute }) => (
-                  <tr key={order.id} className="border-b border-white/[0.06] last:border-0">
+                  <tr key={order.id} className="border-b border-[#252528] last:border-0">
                     <td className="px-4 py-3.5 align-middle">
                       <Link
                         to={`/superadmin/orders/${order.id}`}
@@ -322,7 +322,7 @@ export function SuperAdminAssignmentConsole() {
       </div>
 
       {action ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0c0c0e]/95 p-4 backdrop-blur sm:left-auto sm:right-6 sm:bottom-6 sm:w-[360px] sm:rounded-2xl sm:border">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#252528] bg-[#0c0c0e]/95 p-4 backdrop-blur sm:left-auto sm:right-6 sm:bottom-6 sm:w-[360px] sm:rounded-2xl sm:border">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
             {action.mode === 'reroute' ? 'Re-route' : 'Assign'} · {action.productName}
           </p>
@@ -333,7 +333,7 @@ export function SuperAdminAssignmentConsole() {
                 <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                   <SelectValue placeholder="Select factory" />
                 </SelectTrigger>
-                <SelectContent className="border-white/10 bg-[#1A1A1A] text-white">
+                <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {manufacturers.map((m) => (
                     <SelectItem key={m.entityId} value={m.entityId}>
                       {m.name} · {m.location}

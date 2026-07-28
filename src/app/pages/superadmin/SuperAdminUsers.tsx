@@ -91,7 +91,7 @@ function UserAvatar({ name, className }: { name: string; className?: string }) {
   return (
     <div
       className={cn(
-        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-white/10 to-white/[0.02] text-[11px] font-bold text-white/85',
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-gradient-to-br from-white/10 to-white/[0.02] text-[11px] font-bold text-white/85',
         className,
       )}
     >
@@ -418,7 +418,7 @@ export function SuperAdminUsers() {
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#141416] to-[#111113] p-4"
+            className="rounded-2xl border border-[#252528] bg-gradient-to-br from-[#161618] to-[#111113] p-4"
           >
             <div className="text-[11px] font-semibold uppercase tracking-wider text-white/38">{s.label}</div>
             <div className="mt-1 text-2xl font-semibold tabular-nums text-white">{s.value}</div>
@@ -489,11 +489,11 @@ export function SuperAdminUsers() {
       ) : null}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
-              <tr className="border-b border-white/10 bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/45">
+              <tr className="border-b border-[#252528] bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/45">
                 <th className="w-12 px-4 py-3.5">
                   <Checkbox
                     checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
@@ -568,7 +568,7 @@ export function SuperAdminUsers() {
                         }
                       }}
                       className={cn(
-                        'group cursor-pointer border-b border-white/[0.06] transition last:border-0',
+                        'group cursor-pointer border-b border-[#252528] transition last:border-0',
                         selected ? 'bg-[#CC2D24]/[0.08]' : 'hover:bg-white/[0.04]',
                         activeUserId === u.id && 'bg-white/[0.06]',
                       )}
@@ -623,11 +623,11 @@ export function SuperAdminUsers() {
       <Sheet open={activeUserId != null} onOpenChange={(open) => !open && setActiveUserId(null)}>
         <SheetContent
           side="right"
-          className="w-full border-white/10 bg-[#0d0d0f] p-0 text-white sm:max-w-md"
+          className="w-full border-[#252528] bg-[#111113] p-0 text-white sm:max-w-md"
         >
           {activeUser ? (
             <>
-              <div className="border-b border-white/10 bg-gradient-to-br from-[#CC2D24]/12 via-transparent to-transparent px-6 pb-6 pt-10">
+              <div className="border-b border-[#252528] bg-gradient-to-br from-[#CC2D24]/12 via-transparent to-transparent px-6 pb-6 pt-10">
                 <SheetHeader className="space-y-4 p-0 text-left">
                   <div className="flex items-start gap-4">
                     <UserAvatar name={activeUser.name} className="h-14 w-14 text-sm" />
@@ -669,7 +669,7 @@ export function SuperAdminUsers() {
                   ].map((stat) => (
                     <div
                       key={stat.label}
-                      className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-3"
+                      className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3"
                     >
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                         {stat.label}
@@ -721,10 +721,10 @@ export function SuperAdminUsers() {
 
       {/* Email dialog */}
       <Dialog open={emailOpen} onOpenChange={(open) => !open && closeEmailComposer()}>
-        <DialogContent className="flex max-h-[min(92vh,780px)] flex-col overflow-hidden border-white/10 bg-[#0d0d0f] p-0 text-white sm:max-w-2xl">
+        <DialogContent className="flex max-h-[min(92vh,780px)] flex-col overflow-hidden border-[#252528] bg-[#111113] p-0 text-white sm:max-w-2xl">
           {emailStep === 'compose' ? (
             <>
-              <div className="border-b border-white/10 bg-gradient-to-r from-[#CC2D24]/15 via-[#CC2D24]/5 to-transparent px-6 py-5">
+              <div className="border-b border-[#252528] bg-gradient-to-r from-[#CC2D24]/15 via-[#CC2D24]/5 to-transparent px-6 py-5">
                 <DialogHeader className="space-y-1 text-left">
                   <DialogTitle className="flex items-center gap-2 text-lg text-white">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#CC2D24]/20">
@@ -737,7 +737,7 @@ export function SuperAdminUsers() {
 
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                 {/* To bar */}
-                <div className="border-b border-white/[0.06] px-6 py-4">
+                <div className="border-b border-[#252528] px-6 py-4">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <Label className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
                       To · {totalRecipientCount} recipient{totalRecipientCount === 1 ? '' : 's'}
@@ -760,7 +760,7 @@ export function SuperAdminUsers() {
                     {userRecipients.map((u) => (
                       <span
                         key={u.id}
-                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/50 pl-1 pr-2 py-0.5 text-[11px] text-white/80"
+                        className="inline-flex items-center gap-1 rounded-full border border-[#252528] bg-black/50 pl-1 pr-2 py-0.5 text-[11px] text-white/80"
                       >
                         <UserAvatar name={u.name} className="h-5 w-5 text-[9px]" />
                         {u.email}
@@ -799,7 +799,7 @@ export function SuperAdminUsers() {
 
                 <div className="grid gap-0 lg:grid-cols-2 lg:divide-x lg:divide-white/[0.06]">
                   {/* Recipients panel */}
-                  <div className="space-y-4 border-b border-white/[0.06] p-6 lg:border-b-0">
+                  <div className="space-y-4 border-b border-[#252528] p-6 lg:border-b-0">
                     <div className="flex flex-wrap gap-2">
                       {rolePills.map((pill) => (
                         <button
@@ -810,7 +810,7 @@ export function SuperAdminUsers() {
                             'rounded-lg border px-2.5 py-1 text-[11px] font-medium transition',
                             emailRoleFilter === pill.id
                               ? 'border-[#CC2D24]/50 bg-[#CC2D24]/12 text-white'
-                              : 'border-white/10 text-white/50 hover:text-white',
+                              : 'border-[#252528] text-white/50 hover:text-white',
                           )}
                         >
                           {pill.label}
@@ -832,7 +832,7 @@ export function SuperAdminUsers() {
                         value={emailUserSearch}
                         onChange={(e) => setEmailUserSearch(e.target.value)}
                         placeholder="Search users by name or email…"
-                        className="h-9 w-full rounded-lg border border-white/10 bg-black/40 pl-9 pr-8 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/25"
+                        className="h-9 w-full rounded-lg border border-[#252528] bg-black/40 pl-9 pr-8 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/25"
                       />
                       {emailUserSearch ? (
                         <button
@@ -846,7 +846,7 @@ export function SuperAdminUsers() {
                       ) : null}
                     </div>
 
-                    <div className="max-h-44 space-y-0.5 overflow-y-auto rounded-xl border border-white/10 bg-black/40 p-1.5">
+                    <div className="max-h-44 space-y-0.5 overflow-y-auto rounded-xl border border-[#252528] bg-black/40 p-1.5">
                       {searchedEmailPool.length === 0 ? (
                         <div className="px-3 py-8 text-center">
                           <Search className="mx-auto h-5 w-5 text-white/20" />
@@ -882,7 +882,7 @@ export function SuperAdminUsers() {
                         <button
                           type="button"
                           onClick={() => setShowCustomForm(true)}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/30 py-2.5 text-sm font-medium text-white/70 transition hover:border-[#CC2D24]/40 hover:text-white"
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#252528] bg-black/30 py-2.5 text-sm font-medium text-white/70 transition hover:border-[#CC2D24]/40 hover:text-white"
                         >
                           <Plus className="h-4 w-4 text-[#CC2D24]" />
                           Add custom email
@@ -963,7 +963,7 @@ export function SuperAdminUsers() {
                 </div>
               </div>
 
-              <DialogFooter className="border-t border-white/10 bg-black/30 px-6 py-4">
+              <DialogFooter className="border-t border-[#252528] bg-black/30 px-6 py-4">
                 <Button
                   variant="outline"
                   className="border-white/15 text-white hover:bg-white/10"
@@ -996,18 +996,18 @@ export function SuperAdminUsers() {
 
               <div className="space-y-4 overflow-y-auto px-6 py-5">
                 {subject ? (
-                  <div className="rounded-xl border border-white/10 bg-black/40 px-4 py-3">
+                  <div className="rounded-xl border border-[#252528] bg-black/40 px-4 py-3">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Subject</div>
                     <div className="mt-1 text-sm font-medium text-white">{subject}</div>
                   </div>
                 ) : null}
                 {body ? (
-                  <div className="rounded-xl border border-white/10 bg-black/40 px-4 py-3">
+                  <div className="rounded-xl border border-[#252528] bg-black/40 px-4 py-3">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Message</div>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{body}</p>
                   </div>
                 ) : null}
-                <div className="rounded-xl border border-white/10 bg-black/40 p-4">
+                <div className="rounded-xl border border-[#252528] bg-black/40 p-4">
                   <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-white/35">
                     Recipients
                   </div>
@@ -1039,7 +1039,7 @@ export function SuperAdminUsers() {
                 </div>
               </div>
 
-              <DialogFooter className="border-t border-white/10 bg-black/30 px-6 py-4">
+              <DialogFooter className="border-t border-[#252528] bg-black/30 px-6 py-4">
                 <Button
                   variant="outline"
                   className="border-white/15 text-white hover:bg-white/10"

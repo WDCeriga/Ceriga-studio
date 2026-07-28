@@ -87,7 +87,7 @@ export function ManufacturerOnboarding() {
               'rounded-lg border px-3 py-1.5 text-[11px] font-medium transition',
               step === i
                 ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-white/10 text-white/40 hover:text-white/70',
+                : 'border-[#252528] text-white/40 hover:text-white/70',
             )}
           >
             {i + 1}. {label}
@@ -96,7 +96,7 @@ export function ManufacturerOnboarding() {
       </div>
 
       {step === 0 ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <Factory className="h-4 w-4 text-[#CC2D24]" />
             <h2 className="text-sm font-semibold text-white">What clothes can you produce?</h2>
@@ -116,7 +116,7 @@ export function ManufacturerOnboarding() {
                     'rounded-lg border px-3 py-2 text-[12px] font-medium transition',
                     on
                       ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                      : 'border-white/10 bg-white/[0.02] text-white/45 hover:text-white/75',
+                      : 'border-[#252528] bg-white/[0.02] text-white/45 hover:text-white/75',
                   )}
                 >
                   {g}
@@ -134,7 +134,7 @@ export function ManufacturerOnboarding() {
       ) : null}
 
       {step === 1 ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-white">What can you do on garments?</h2>
           <p className="mt-1 text-[12px] text-white/40">
             Embroidery, fading, print methods, and finishing — used for matching specialities.
@@ -151,7 +151,7 @@ export function ManufacturerOnboarding() {
                     'rounded-lg border px-3 py-2 text-[12px] font-medium transition',
                     on
                       ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-100'
-                      : 'border-white/10 bg-white/[0.02] text-white/45 hover:text-white/75',
+                      : 'border-[#252528] bg-white/[0.02] text-white/45 hover:text-white/75',
                   )}
                 >
                   {c}
@@ -175,7 +175,7 @@ export function ManufacturerOnboarding() {
       ) : null}
 
       {step === 2 ? (
-        <section className="rounded-2xl border border-white/[0.08] bg-[#111113] p-5 sm:p-6">
+        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-white">Capacity & shipping</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>

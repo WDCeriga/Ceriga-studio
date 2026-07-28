@@ -35,8 +35,8 @@ export function OrderDetailShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#0F0F0F] text-white">
-      <div className="border-b border-white/10 px-4 pb-4 pt-4 sm:px-5 md:px-7">
+    <div className="min-h-dvh overflow-x-hidden bg-[#09090B] text-white">
+      <div className="border-b border-[#252528] px-4 pb-4 pt-4 sm:px-5 md:px-7">
         <Link
           to="/orders"
           className="mb-4 inline-flex items-center gap-2 text-[11px] font-medium text-white/45 transition-colors hover:text-white/80"
@@ -82,7 +82,7 @@ function Panel({
   className?: string;
 }) {
   return (
-    <div className={cn('rounded-xl border border-white/10 bg-white/[0.03] p-4 sm:p-5', className)}>
+    <div className={cn('rounded-xl border border-[#252528] bg-white/[0.03] p-4 sm:p-5', className)}>
       {title ? (
         <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/55">
           {title}
@@ -137,7 +137,7 @@ function PriceOptionCard({
         'rounded-xl border p-4 transition-colors',
         selected || paid
           ? 'border-[#CC2D24]/40 bg-[#CC2D24]/10'
-          : 'border-white/10 bg-black/20 hover:border-white/20',
+          : 'border-[#252528] bg-black/20 hover:border-white/20',
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -232,7 +232,7 @@ export function ProductionPaidOrFulfilment({ order }: { order: UserOrder }) {
               : 'Payment received — your order is in production.'}
         </p>
         {selected ? (
-          <div className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+          <div className="mt-4 rounded-lg border border-[#252528] bg-black/20 p-3">
             <p className="text-[10px] uppercase tracking-wider text-white/40">You paid for</p>
             <p className="mt-1 text-sm font-semibold text-white">{selected.label}</p>
             <p className="text-xs text-white/45">{selected.description}</p>
