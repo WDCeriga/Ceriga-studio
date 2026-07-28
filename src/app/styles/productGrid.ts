@@ -5,8 +5,8 @@ export const productGridClass =
   'grid gap-3 sm:gap-4 md:gap-5';
 
 export const productGridStyle: CSSProperties = {
-  /** One column on typical phones; 2+ from ~560px+ */
-  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+  /** One column on typical phones; 2+ from ~520px+ */
+  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 240px), 1fr))',
 };
 
 export const productCardShellClass =

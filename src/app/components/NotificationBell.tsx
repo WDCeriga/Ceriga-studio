@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router";
 import { Bell, ChevronRight, Trash2, X } from "lucide-react";
 import { useNotifications } from "../contexts/NotificationsContext";
 import { NOTIFICATION_CATEGORY_LABEL } from "../data/notifications";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "./ui/utils";
@@ -45,8 +46,9 @@ function BellInner({ unread }: { unread: number }) {
  */
 export function NotificationBell({ className }: NotificationBellProps) {
   const location = useLocation();
-  const { items, remove, clearAll } = useNotifications();
+  const { items, remove, clearAll, markRead } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   const unread = items.filter((n) => !n.read).length;
   const active = location.pathname === "/notifications";
@@ -113,9 +115,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
                 {items.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm("Delete all notifications?")) clearAll();
-                    }}
+                    onClick={() => setClearConfirmOpen(true)}
                     className="rounded-lg px-2 py-1.5 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
                   >
                     Clear all
@@ -142,30 +142,68 @@ export function NotificationBell({ className }: NotificationBellProps) {
                   {items.slice(0, 12).map((n) => (
                     <li key={n.id}>
                       <div className="flex gap-2 rounded-xl p-2.5 transition-colors hover:bg-white/[0.04]">
-                        <div className="min-w-0 flex-1 text-left">
-                          <div className="flex items-start gap-2">
-                            {!n.read && (
-                              <span
-                                className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#CC2D24]"
-                                aria-hidden
-                              />
-                            )}
-                            <div className="min-w-0">
-                              <p className="text-[13px] font-semibold leading-snug text-[#F0F0EE]">
-                                {n.title}
-                              </p>
-                              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-[#CC2D24]/85">
-                                {NOTIFICATION_CATEGORY_LABEL[n.category]}
-                              </p>
-                              <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/45">
-                                {n.body}
-                              </p>
-                              <p className="mt-1.5 text-[10px] text-white/30">
-                                {formatWhen(n.createdAt)}
-                              </p>
+                        {n.href ? (
+                          <Link
+                            to={n.href}
+                            onClick={() => {
+                              markRead(n.id);
+                              setOpen(false);
+                            }}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="flex items-start gap-2">
+                              {!n.read && (
+                                <span
+                                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#CC2D24]"
+                                  aria-hidden
+                                />
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-semibold leading-snug text-[#F0F0EE]">
+                                  {n.title}
+                                </p>
+                                <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-[#CC2D24]/85">
+                                  {NOTIFICATION_CATEGORY_LABEL[n.category]}
+                                </p>
+                                <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/45">
+                                  {n.body}
+                                </p>
+                                <p className="mt-1.5 text-[10px] text-white/30">
+                                  {formatWhen(n.createdAt)}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => markRead(n.id)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="flex items-start gap-2">
+                              {!n.read && (
+                                <span
+                                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#CC2D24]"
+                                  aria-hidden
+                                />
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-semibold leading-snug text-[#F0F0EE]">
+                                  {n.title}
+                                </p>
+                                <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-[#CC2D24]/85">
+                                  {NOTIFICATION_CATEGORY_LABEL[n.category]}
+                                </p>
+                                <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/45">
+                                  {n.body}
+                                </p>
+                                <p className="mt-1.5 text-[10px] text-white/30">
+                                  {formatWhen(n.createdAt)}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => remove(n.id)}
@@ -196,6 +234,16 @@ export function NotificationBell({ className }: NotificationBellProps) {
             </div>
           </SheetContent>
         </Sheet>
+
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title="Delete all notifications?"
+        description="This clears your entire inbox and cannot be undone."
+        confirmLabel="Clear all"
+        tone="danger"
+        onConfirm={clearAll}
+      />
     </>
   );
 }

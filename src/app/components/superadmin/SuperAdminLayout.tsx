@@ -7,18 +7,22 @@ import {
   Package,
   BarChart3,
   Briefcase,
+  Factory,
   DollarSign,
   MessageCircle,
   Bell,
   Settings,
-  Shield,
   LogOut,
   Menu,
   ChevronLeft,
   ChevronRight,
+  CalendarOff,
+  Route,
+  Ship,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { cn } from '../ui/utils';
+import { usePortalNotifications } from '../../hooks/usePortalNotifications';
 
 const RED = '#CC2D24';
 
@@ -26,7 +30,11 @@ const navItems = [
   { path: '/superadmin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { path: '/superadmin/users', label: 'Users', icon: Users },
   { path: '/superadmin/orders', label: 'Orders', icon: Package },
+  { path: '/superadmin/assignment', label: 'Assignment', icon: Route },
   { path: '/superadmin/statistics', label: 'Statistics', icon: BarChart3 },
+  { path: '/superadmin/manufacturers', label: 'Manufacturers', icon: Factory },
+  { path: '/superadmin/time-off', label: 'Capacity', icon: CalendarOff },
+  { path: '/superadmin/shipping-onboard', label: 'Shipping', icon: Ship },
   { path: '/superadmin/crm', label: 'CRM & roles', icon: Briefcase },
   { path: '/superadmin/pricing', label: 'Pricing', icon: DollarSign },
   { path: '/superadmin/messages', label: 'Messages', icon: MessageCircle },
@@ -36,6 +44,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { unread: notifUnread } = usePortalNotifications('superadmin');
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isLgUp, setIsLgUp] = useState(true);
@@ -63,15 +72,6 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
 
   const NavBlock = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <div className="mb-2 px-2">
-        <div className="flex items-center gap-2 rounded-xl border border-[#CC2D24]/30 bg-[#CC2D24]/10 px-3 py-2">
-          <Shield className="h-4 w-4 shrink-0 text-[#CC2D24]" />
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#CC2D24]">Superadmin</div>
-            <div className="truncate text-[11px] text-white/50">Owner console</div>
-          </div>
-        </div>
-      </div>
       <nav className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -103,7 +103,14 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
               : 'text-white/60 hover:bg-white/5 hover:text-white',
           )}
         >
-          <Bell className="h-[18px] w-[18px] shrink-0" />
+          <span className="relative">
+            <Bell className="h-[18px] w-[18px] shrink-0" />
+            {notifUnread > 0 ? (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#CC2D24] px-1 text-[9px] font-bold text-white">
+                {notifUnread > 9 ? '9+' : notifUnread}
+              </span>
+            ) : null}
+          </span>
           <span className="text-[13px] font-medium">Notifications</span>
         </Link>
         <Link
@@ -155,10 +162,15 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
           </span>
           <Link
             to="/superadmin/notifications"
-            className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white"
-            aria-label="Notifications"
+            className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white"
+            aria-label={`Notifications${notifUnread ? `, ${notifUnread} unread` : ''}`}
           >
             <Bell className="h-5 w-5" />
+            {notifUnread > 0 ? (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#CC2D24] px-1 text-[9px] font-bold text-white">
+                {notifUnread > 9 ? '9+' : notifUnread}
+              </span>
+            ) : null}
           </Link>
         </header>
       )}
@@ -229,11 +241,14 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
               <Link
                 to="/superadmin/notifications"
                 className={cn(
-                  'flex h-10 w-10 items-center justify-center rounded-xl',
+                  'relative flex h-10 w-10 items-center justify-center rounded-xl',
                   isActive('/superadmin/notifications') ? 'bg-[#CC2D24] text-white' : 'text-white/50 hover:bg-white/5',
                 )}
               >
                 <Bell className="h-[18px] w-[18px]" />
+                {notifUnread > 0 ? (
+                  <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#CC2D24] ring-2 ring-black" />
+                ) : null}
               </Link>
               <Link
                 to="/superadmin/settings"

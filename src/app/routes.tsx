@@ -194,6 +194,13 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/orders/:id/checkout/:optionId",
+    lazy: async () => {
+      const { OrderCheckout } = await import("./pages/OrderCheckout");
+      return { element: <OrderCheckout /> };
+    },
+  },
+  {
     path: "/orders/:id",
     lazy: async () => {
       const [{ SidebarLayout: Layout }, { OrderDetail }] = await Promise.all([
@@ -282,6 +289,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/orders/review",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminOrderReviewQueue }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminOrderReviewQueue"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminOrderReviewQueue />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
     path: "/superadmin/orders/:id",
     lazy: async () => {
       const [{ SuperAdminLayout }, { SuperAdminOrderDetail }] = await Promise.all([
@@ -314,6 +337,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/statistics/:section",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminStatisticsDetail }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/statistics/SuperAdminStatisticsDetail"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminStatisticsDetail />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
     path: "/superadmin/statistics",
     lazy: async () => {
       const [{ SuperAdminLayout }, { SuperAdminStatistics }] = await Promise.all([
@@ -324,6 +363,166 @@ export const router = createBrowserRouter([
         element: (
           <SuperAdminLayout>
             <SuperAdminStatistics />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/time-off",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminTimeOff }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminTimeOff"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminTimeOff />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/assignment",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminAssignmentConsole }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminAssignmentConsole"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminAssignmentConsole />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/shipping-onboard",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminShippingOnboard }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminShippingOnboard"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminShippingOnboard />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/manufacturers/:id",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminManufacturerDetail }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminManufacturerDetail"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminManufacturerDetail />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/manufacturers",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminManufacturers }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminManufacturers"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminManufacturers />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/access/:audience/:userId",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMAccessProfile }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/crm/SuperAdminCRMAccessProfile"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMAccessProfile />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/access/:audience",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMAccessList }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/crm/SuperAdminCRMAccessList"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMAccessList />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/access",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMAccess }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/crm/SuperAdminCRMAccess"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMAccess />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/bases/:baseId",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMBase }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminCRMBase"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMBase />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/superadmin/crm/products/:productId",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminCRMProduct }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminCRMProduct"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminCRMProduct />
           </SuperAdminLayout>
         ),
       };
@@ -405,6 +604,214 @@ export const router = createBrowserRouter([
           <SuperAdminLayout>
             <SuperAdminSettings />
           </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/onboarding",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerOnboarding }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerOnboarding"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerOnboarding />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/orders/:id",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerOrderDetail }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerOrderDetail"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerOrderDetail />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/orders",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerOrders }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerOrders"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerOrders />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/materials",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerMaterials }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerMaterials"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerMaterials />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/shipping",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerShipping }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerShipping"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerShipping />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/production",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerProduction }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerProduction"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerProduction />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/capacity",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerCapacity }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerCapacity"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerCapacity />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/statistics",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerStatistics }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerStatistics"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerStatistics />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/team",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerTeam }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerTeam"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerTeam />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/messages",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerMessages }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerMessages"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerMessages />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/notifications",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerNotifications }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerNotifications"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerNotifications />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/settings",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerSettings }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerSettings"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerSettings />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerDashboard }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerDashboard"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerDashboard />
+          </ManufacturerLayout>
         ),
       };
     },

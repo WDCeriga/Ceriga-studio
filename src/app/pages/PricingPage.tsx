@@ -1,70 +1,81 @@
 import { Link } from 'react-router';
-import { Check } from 'lucide-react';
+import { Check, MessageSquare } from 'lucide-react';
 import { MarketingShell, MarketingPageHeader } from '../components/marketing/MarketingShell';
 import { MarketingFaq } from '../components/marketing/MarketingFaq';
 
 const RED = '#CC2D24';
 
-const tiers = [
+const techPackPricing = {
+  price: '€29',
+  priceSub: 'per export',
+  features: [
+    'Full builder & packaging mode',
+    'Billed once at checkout per PDF',
+    'Core garment templates',
+    'No monthly commitment',
+    'Email support',
+  ],
+};
+
+const chatTiers = [
   {
-    tier: 'Pay per export',
-    price: '€29',
-    priceSub: 'per tech pack',
-    sub: 'No subscription — pay only when you download a finished PDF.',
+    tier: 'Free',
+    price: '€0',
+    priceSub: '',
+    sub: 'Try the in-app AI assistant with a small monthly allowance.',
     cta: 'Create account',
     ctaTo: '/signup',
     featured: false,
     features: [
-      'Full builder & packaging mode',
-      'Billed per tech pack at checkout',
-      'Core garment templates',
-      'Email support',
+      '20 AI messages / month',
+      'Quick answers & studio guidance',
+      'FAQ shortcuts in chat',
+      'Upgrade anytime',
     ],
   },
   {
     tier: 'Studio',
-    price: '€49',
+    price: '€19',
     priceSub: '/month',
-    sub: 'Small labels shipping a steady number of styles.',
+    sub: 'Solo designers who lean on chat while building packs.',
     cta: 'Subscribe',
     ctaTo: '/signup',
     featured: false,
     features: [
-      '10 tech pack downloads / month included',
-      'Extra exports €19 each',
-      'All templates & measurement sets',
-      'Packaging-only designer',
+      '500 AI messages / month',
+      'Full chat history',
+      'Image attachments in chat',
+      'Email support',
     ],
   },
   {
     tier: 'Scale',
-    price: '€99',
+    price: '€49',
     priceSub: '/month',
-    sub: 'Growing brands with seasonal drops and reorders.',
+    sub: 'Growing brands with steady seasonal work.',
     cta: 'Subscribe',
     ctaTo: '/signup',
     featured: true,
     features: [
-      '30 tech pack downloads / month included',
-      'Extra exports €14 each',
-      'Priority support',
-      'Custom PDF branding',
-      'Advanced measurement tooling',
+      '2,000 AI messages / month',
+      'Priority response times',
+      'Longer context window',
+      'Packaging & order guidance',
     ],
   },
   {
     tier: 'Business',
-    price: '€199',
+    price: '€99',
     priceSub: '/month',
-    sub: 'High volume, multiple lines, or agency throughput.',
+    sub: 'Teams and agencies running multiple lines.',
     cta: 'Subscribe',
     ctaTo: '/signup',
     featured: false,
     features: [
-      '100 tech pack downloads / month included',
-      'Extra exports €9 each',
+      '10,000 AI messages / month',
       'Shared workspace (coming soon)',
       'Quarterly usage reviews',
+      'Priority support',
     ],
   },
 ];
@@ -74,50 +85,53 @@ type Cell = 'yes' | 'no' | 'partial';
 const comparisonRows: {
   feature: string;
   note?: string;
-  payPer: Cell | string;
+  free: Cell | string;
   studio: Cell | string;
   scale: Cell | string;
   business: Cell | string;
 }[] = [
   {
     feature: 'Monthly fee',
-    payPer: '—',
-    studio: '€49',
-    scale: '€99',
-    business: '€199',
-  },
-  {
-    feature: 'Included downloads / month',
-    payPer: '0 (pay each)',
-    studio: '10',
-    scale: '30',
-    business: '100',
-  },
-  {
-    feature: 'Price per extra export',
-    payPer: '€29 each',
+    free: '€0',
     studio: '€19',
-    scale: '€14',
-    business: '€9',
+    scale: '€49',
+    business: '€99',
   },
   {
-    feature: 'Garment templates',
-    payPer: 'yes',
+    feature: 'AI messages / month',
+    free: '20',
+    studio: '500',
+    scale: '2,000',
+    business: '10,000',
+  },
+  {
+    feature: 'Image attachments in chat',
+    free: 'no',
     studio: 'yes',
     scale: 'yes',
     business: 'yes',
   },
-  { feature: 'Packaging-only designer', payPer: 'yes', studio: 'yes', scale: 'yes', business: 'yes' },
-  { feature: 'Custom PDF branding', payPer: 'no', studio: 'no', scale: 'yes', business: 'yes' },
-  { feature: 'Advanced measurements', payPer: 'yes', studio: 'yes', scale: 'yes', business: 'yes' },
-  { feature: 'Priority support', payPer: 'no', studio: 'no', scale: 'yes', business: 'yes' },
   {
-    feature: 'Enterprise (SSO, API, SLA)',
-    payPer: 'no',
+    feature: 'Chat history',
+    free: 'partial',
+    studio: 'yes',
+    scale: 'yes',
+    business: 'yes',
+  },
+  {
+    feature: 'Priority AI responses',
+    free: 'no',
+    studio: 'no',
+    scale: 'yes',
+    business: 'yes',
+  },
+  {
+    feature: 'Team workspace',
+    free: 'no',
     studio: 'no',
     scale: 'no',
     business: 'partial',
-    note: 'Contact sales for Enterprise contracts beyond Business.',
+    note: 'Contact sales for Enterprise beyond Business.',
   },
 ];
 
@@ -131,7 +145,7 @@ function CompareCell({ value }: { value: Cell | string }) {
       </span>
     );
   if (value === 'no') return <span className="text-white/22">—</span>;
-  return <span className="text-[11px] font-medium text-amber-200/80">Add-on</span>;
+  return <span className="text-[11px] font-medium text-amber-200/80">Limited</span>;
 }
 
 export function PricingPage() {
@@ -139,74 +153,129 @@ export function PricingPage() {
     <MarketingShell>
       <MarketingPageHeader
         eyebrow="Pricing"
-        title="Pay per tech pack or subscribe"
-        subtitle="Every PDF export uses one download credit. Buy a single pack when you need it, or choose a monthly plan with included downloads — unused allowances do not roll over unless noted on your invoice."
+        title="Pay per tech pack. Subscribe for AI chat."
+        subtitle="Tech pack PDFs are a simple pay-per-export — no download subscriptions. The in-app AI assistant is available on free and paid monthly plans."
       />
 
-      <section className="px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
-        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
-          {tiers.map((t) => (
-            <div
-              key={t.tier}
-              className={`relative flex flex-col rounded-[14px] border p-5 sm:p-6 ${
-                t.featured ? 'border-[#CC2D24]/40 bg-[#141416]' : 'border-white/[0.08] bg-[#0e0e10]'
-              }`}
-            >
-              {t.featured && (
-                <div
-                  className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white"
-                  style={{ background: RED }}
-                >
-                  Best value
-                </div>
-              )}
-              <div
-                className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em]"
-                style={{ color: t.featured ? RED : '#ffffff40' }}
-              >
-                {t.tier}
-              </div>
-              <div className="mb-1">
-                <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">{t.price}</span>
-                {t.priceSub && <span className="ml-1 text-xs text-white/45 sm:text-sm">{t.priceSub}</span>}
-              </div>
-              <p className="mb-5 min-h-[2.5rem] text-[11px] leading-relaxed text-white/40 sm:min-h-0 sm:text-xs">{t.sub}</p>
+      {/* Tech pack — pay per export only */}
+      <section className="px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-12 md:px-8 lg:px-10">
+        <div className="mx-auto max-w-[1200px]">
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">Tech packs</p>
+          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">
+            Pay only when you export
+          </h2>
+          <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-white/45">
+            Build and edit in the studio for free. You are charged once when you download a finished tech pack PDF — no
+            monthly download plans or rollover credits.
+          </p>
 
-              {t.ctaTo ? (
-                <Link
-                  to={t.ctaTo}
-                  className="mb-5 block rounded-lg py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide transition-opacity hover:opacity-90 sm:text-[11px]"
-                  style={{
-                    background: t.featured ? RED : '#ffffff0a',
-                    color: t.featured ? '#fff' : '#ffffff70',
-                    border: t.featured ? 'none' : '1px solid #ffffff10',
-                  }}
-                >
-                  {t.cta}
-                </Link>
-              ) : null}
-
-              <ul className="flex flex-col gap-2">
-                {t.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-[11px] text-white/55 sm:text-xs">
-                    <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${t.featured ? 'text-[#CC2D24]' : 'text-white/40'}`} />
-                    {f}
-                  </li>
-                ))}
-              </ul>
+          <div className="mt-6 max-w-md rounded-[14px] border border-white/[0.08] bg-[#0e0e10] p-5 sm:p-6">
+            <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Pay per export</div>
+            <div className="mb-1">
+              <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">
+                {techPackPricing.price}
+              </span>
+              <span className="ml-1 text-xs text-white/45 sm:text-sm">{techPackPricing.priceSub}</span>
             </div>
-          ))}
+            <p className="mb-5 text-[11px] leading-relaxed text-white/40 sm:text-xs">
+              One charge per complete tech pack PDF download.
+            </p>
+            <Link
+              to="/signup"
+              className="mb-5 block rounded-lg border border-white/10 bg-white/[0.06] py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white/70 transition-opacity hover:opacity-90 sm:text-[11px]"
+            >
+              Create account
+            </Link>
+            <ul className="flex flex-col gap-2">
+              {techPackPricing.features.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-[11px] text-white/55 sm:text-xs">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/40" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* AI chat subscriptions */}
+      <section className="border-t border-white/[0.06] bg-[#0a0a0b] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
+        <div className="mx-auto max-w-[1200px]">
+          <div className="mb-6 flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-[#CC2D24]" />
+            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">AI assistant</p>
+          </div>
+          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">
+            Monthly plans for in-app chat
+          </h2>
+          <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-white/45">
+            Get instant guidance while you work — measurements, exports, orders, and packaging. Subscriptions apply to
+            the AI chat only, not tech pack downloads.
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
+            {chatTiers.map((t) => (
+              <div
+                key={t.tier}
+                className={`relative flex flex-col rounded-[14px] border p-5 sm:p-6 ${
+                  t.featured ? 'border-[#CC2D24]/40 bg-[#141416]' : 'border-white/[0.08] bg-[#0e0e10]'
+                }`}
+              >
+                {t.featured && (
+                  <div
+                    className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white"
+                    style={{ background: RED }}
+                  >
+                    Best value
+                  </div>
+                )}
+                <div
+                  className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em]"
+                  style={{ color: t.featured ? RED : '#ffffff40' }}
+                >
+                  {t.tier}
+                </div>
+                <div className="mb-1">
+                  <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">{t.price}</span>
+                  {t.priceSub ? <span className="ml-1 text-xs text-white/45 sm:text-sm">{t.priceSub}</span> : null}
+                </div>
+                <p className="mb-5 min-h-[2.5rem] text-[11px] leading-relaxed text-white/40 sm:min-h-0 sm:text-xs">
+                  {t.sub}
+                </p>
+
+                {t.ctaTo ? (
+                  <Link
+                    to={t.ctaTo}
+                    className="mb-5 block rounded-lg py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide transition-opacity hover:opacity-90 sm:text-[11px]"
+                    style={{
+                      background: t.featured ? RED : '#ffffff0a',
+                      color: t.featured ? '#fff' : '#ffffff70',
+                      border: t.featured ? 'none' : '1px solid #ffffff10',
+                    }}
+                  >
+                    {t.cta}
+                  </Link>
+                ) : null}
+
+                <ul className="flex flex-col gap-2">
+                  {t.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-[11px] text-white/55 sm:text-xs">
+                      <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${t.featured ? 'text-[#CC2D24]' : 'text-white/40'}`} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
 
         <p className="mx-auto mt-8 max-w-[640px] text-center text-[11px] leading-relaxed text-white/40 sm:mt-10 sm:text-xs">
-          Need SSO, regional data residency, or pooled credits across brands?{' '}
+          Need SSO, pooled chat seats, or API access?{' '}
           <a href="mailto:hello@ceriga.studio" className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/85">
             Contact sales
           </a>{' '}
           for Enterprise pricing.
-        </p>
-        <p className="mx-auto mt-4 max-w-[560px] text-center text-[10px] leading-relaxed text-white/30 sm:text-[11px]">
-          Taxes may apply. Each successful tech pack PDF download consumes one credit on subscriptions, or is charged at the pay-per rate.
         </p>
       </section>
 
@@ -214,7 +283,7 @@ export function PricingPage() {
         <div className="mx-auto max-w-[960px]">
           <p className="mb-2 text-center text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">Compare</p>
           <h2 className="mb-6 text-center font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:mb-8 sm:text-xl">
-            Plan comparison
+            AI chat plan comparison
           </h2>
 
           <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#111113] [-webkit-overflow-scrolling:touch]">
@@ -222,7 +291,7 @@ export function PricingPage() {
               <thead>
                 <tr className="border-b border-white/10 bg-black/40">
                   <th className="px-3 py-2.5 font-semibold text-white/45 sm:px-4 sm:py-3">Capability</th>
-                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Pay per</th>
+                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Free</th>
                   <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Studio</th>
                   <th className="px-2 py-2.5 text-center font-semibold text-[#CC2D24] sm:px-3 sm:py-3">Scale</th>
                   <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Business</th>
@@ -238,7 +307,7 @@ export function PricingPage() {
                       ) : null}
                     </td>
                     <td className="px-2 py-2.5 text-center text-white/60 sm:px-3 sm:py-3">
-                      <CompareCell value={row.payPer} />
+                      <CompareCell value={row.free} />
                     </td>
                     <td className="px-2 py-2.5 text-center text-white/60 sm:px-3 sm:py-3">
                       <CompareCell value={row.studio} />
@@ -262,20 +331,24 @@ export function PricingPage() {
         title="Pricing questions"
         items={[
           {
-            q: 'Is there a free unlimited export tier?',
-            a: 'No. Building and editing in the studio can be explored with an account, but each tech pack PDF download is paid — either at the per-export rate (€29) or against your subscription’s monthly download allowance.',
+            q: 'Do tech packs require a subscription?',
+            a: 'No. Tech pack PDFs are pay-per-export only — €29 each time you download a finished pack. Building and editing in the studio is free with an account.',
           },
           {
-            q: 'What counts as one download?',
-            a: 'Each time you generate and download a complete tech pack PDF for a project, that uses one credit on a plan, or is charged as a single pay-per export.',
+            q: 'What does the AI chat subscription cover?',
+            a: 'Monthly plans increase how many messages you can send to the in-app AI assistant. Free accounts get a small allowance; paid tiers add more messages, attachments, and priority responses.',
           },
           {
-            q: 'What happens if I exceed my monthly downloads?',
-            a: 'On Studio, Scale, and Business plans, additional exports are billed at the overage rate shown for that tier. Pay-per users simply pay per file.',
+            q: 'What counts as one AI message?',
+            a: 'Each prompt you send in the chat panel counts as one message. Replies from the assistant do not count against your limit.',
           },
           {
-            q: 'Can we switch plans?',
-            a: 'Yes. You can move between pay-per and subscription tiers as your volume changes. Enterprise contracts are tailored separately.',
+            q: 'What happens if I exceed my monthly messages?',
+            a: 'On paid plans you can upgrade to a higher tier or wait until your allowance resets next month. Tech pack exports are unaffected — they remain pay-per-download.',
+          },
+          {
+            q: 'Can we switch chat plans?',
+            a: 'Yes. Move between Free, Studio, Scale, and Business as your team’s needs change. Enterprise contracts are tailored separately.',
           },
         ]}
         className="border-t border-white/[0.06] bg-[#0a0a0b]"
