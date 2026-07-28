@@ -107,6 +107,7 @@ export {
   isGarmentCategoryOptional,
   isGarmentSvgGarmentType,
   resolveGarmentLayers,
+  resolveGarmentSvgType,
   supportsGarmentSvgPreview,
   type GarmentAsset,
   type GarmentAssetSelection,

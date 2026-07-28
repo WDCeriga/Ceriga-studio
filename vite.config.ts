@@ -25,6 +25,9 @@ function resolveFigmaAssets(): Plugin {
 }
 
 export default defineConfig({
+  // Expose Vercel Supabase integration public keys (NEXT_PUBLIC_*) to the client.
+  // Do NOT add bare "SUPABASE_" — that would leak SERVICE_ROLE_KEY into the browser.
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   build: {
     chunkSizeWarningLimit: 900,
   },

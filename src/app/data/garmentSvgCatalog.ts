@@ -380,12 +380,24 @@ for (const garmentType of Object.keys(GARMENT_CONFIGS) as GarmentSvgGarmentType[
   layerStepMaps.set(garmentType, map);
 }
 
-export function isGarmentSvgGarmentType(garmentType: GarmentType): garmentType is GarmentSvgGarmentType {
-  return garmentType === 'tshirt' || garmentType === 'hoodie' || garmentType === 'trousers';
+/**
+ * Resolve catalog garment types onto an SVG asset pack.
+ * Shorts share the trousers / joggers asset folders under `src/assets/trousers`.
+ */
+export function resolveGarmentSvgType(garmentType: GarmentType): GarmentSvgGarmentType | null {
+  if (garmentType === 'tshirt' || garmentType === 'hoodie' || garmentType === 'trousers') {
+    return garmentType;
+  }
+  if (garmentType === 'shorts') return 'trousers';
+  return null;
+}
+
+export function isGarmentSvgGarmentType(garmentType: GarmentType): boolean {
+  return resolveGarmentSvgType(garmentType) !== null;
 }
 
 export function supportsGarmentSvgPreview(garmentType: GarmentType): boolean {
-  return isGarmentSvgGarmentType(garmentType);
+  return resolveGarmentSvgType(garmentType) !== null;
 }
 
 export function getGarmentSvgConfig(garmentType: GarmentSvgGarmentType): GarmentSvgConfig {

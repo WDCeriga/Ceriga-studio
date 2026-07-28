@@ -129,10 +129,10 @@ import {
   getGarmentSpecRows,
   getGarmentSvgConfig,
   resolveGarmentLayers,
+  resolveGarmentSvgType,
   garmentSourceLayerId,
   garmentBuilderStepForLayerId,
   garmentTransformStorageId,
-  isGarmentSvgGarmentType,
   type GarmentAssetSelection,
   type GarmentLayerId,
   type TshirtLayerTransform,
@@ -480,6 +480,8 @@ export function Builder() {
   const product = productId ? getProductById(productId) : null;
   const urlProjectId = searchParams.get('projectId');
   const [dbProjectId, setDbProjectId] = useState<string | null>(urlProjectId);
+  const dbProjectIdRef = useRef<string | null>(urlProjectId);
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
   const [projectHydrating, setProjectHydrating] = useState(Boolean(urlProjectId && isSupabaseConfigured));
   const projectHydratedRef = useRef<string | null>(null);
 
@@ -584,10 +586,10 @@ export function Builder() {
       hem: { top: '78%', left: '14px' },
       pockets: { top: '48%', left: '14px' },
     },
-    tshirtAssetSelection:
-      product?.garmentType && isGarmentSvgGarmentType(product.garmentType)
-        ? getDefaultGarmentSelection(product.garmentType)
-        : undefined,
+    tshirtAssetSelection: (() => {
+      const svgType = product?.garmentType ? resolveGarmentSvgType(product.garmentType) : null;
+      return svgType ? getDefaultGarmentSelection(svgType) : undefined;
+    })(),
   });
 
   const stateRef = useRef(state);
@@ -624,6 +626,16 @@ export function Builder() {
     },
     [syncHistoryAvailability],
   );
+
+  useEffect(() => {
+    dbProjectIdRef.current = dbProjectId;
+  }, [dbProjectId]);
+
+  useEffect(() => {
+    if (!urlProjectId) return;
+    dbProjectIdRef.current = urlProjectId;
+    setDbProjectId(urlProjectId);
+  }, [urlProjectId]);
 
   useEffect(() => {
     if (!urlProjectId || !isSupabaseConfigured) {
@@ -1089,30 +1101,9 @@ export function Builder() {
 
       setSaveError(null);
       setSaving(true);
-      try {
-        if (usingSupabase) {
-          const progressPct = Math.round(
-            Math.min(100, Math.max(0, (currentStep / builderSteps.length) * 100)),
-          );
-          const flowType: ProjectFlowType = 'techpack';
-          const row = await upsertProject({
-            id: dbProjectId ?? undefined,
-            productId: productId || state.productId || '',
-            name: projectName,
-            garmentType: state.garmentType,
-            flowType,
-            progress: progressPct,
-            currentStep,
-            state: { ...state } as unknown as Record<string, unknown>,
-          });
-          if (row.id !== dbProjectId) {
-            setDbProjectId(row.id);
-            projectHydratedRef.current = row.id;
-            const next = new URLSearchParams(searchParams);
-            next.set('projectId', row.id);
-            setSearchParams(next, { replace: true });
-          }
-        } else {
+
+      const persist = async () => {
+        if (!usingSupabase) {
           await new Promise<void>((resolve) => {
             window.setTimeout(resolve, 420);
           });
@@ -1121,7 +1112,43 @@ export function Builder() {
               description: 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env',
             });
           }
+          return;
         }
+
+        const progressPct = Math.round(
+          Math.min(100, Math.max(0, (currentStep / builderSteps.length) * 100)),
+        );
+        const flowType: ProjectFlowType = 'techpack';
+        // Prefer ref so overlapping autosaves reuse the id from an in-flight create.
+        const row = await upsertProject({
+          id: dbProjectIdRef.current ?? undefined,
+          productId: productId || state.productId || '',
+          name: projectName,
+          garmentType: state.garmentType,
+          flowType,
+          progress: progressPct,
+          currentStep,
+          state: { ...state } as unknown as Record<string, unknown>,
+        });
+
+        if (row.id !== dbProjectIdRef.current) {
+          dbProjectIdRef.current = row.id;
+          setDbProjectId(row.id);
+          projectHydratedRef.current = row.id;
+          const next = new URLSearchParams(searchParams);
+          next.set('projectId', row.id);
+          setSearchParams(next, { replace: true });
+        }
+      };
+
+      const run = saveChainRef.current.then(persist, persist);
+      saveChainRef.current = run.then(
+        () => undefined,
+        () => undefined,
+      );
+
+      try {
+        await run;
         captureVersion({ manual: false });
         if (showToast) toast.success('Draft saved');
       } catch (err) {
@@ -1135,7 +1162,6 @@ export function Builder() {
     [
       captureVersion,
       currentStep,
-      dbProjectId,
       isAuthenticated,
       productId,
       projectName,
@@ -1145,6 +1171,9 @@ export function Builder() {
       usingSupabase,
     ],
   );
+
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
 
   const retrySave = useCallback(() => {
     handleSave(true);
@@ -1190,9 +1219,6 @@ export function Builder() {
     });
   }, [layoutTier]);
 
-  if (!product) return <PageLoadingFallback />;
-  if (projectHydrating) return <PageLoadingFallback />;
-
   const step = builderSteps.find((item) => item.id === currentStep);
   const stepTitleLabel =
     techpackSpecFlow && currentStep === 9 ? 'Upload design' : step?.title ?? '';
@@ -1207,9 +1233,8 @@ export function Builder() {
         100
       : (currentStep / builderSteps.length) * 100;
   const primaryColor = state.colors[0]?.hex || '#5C7FB6';
-  const isGarmentSvgFlow =
-    isGarmentSvgGarmentType(state.garmentType) && supportsGarmentSvgPreview(state.garmentType);
-  const garmentSvgType = isGarmentSvgFlow ? state.garmentType : null;
+  const garmentSvgType = resolveGarmentSvgType(state.garmentType);
+  const isGarmentSvgFlow = garmentSvgType != null && supportsGarmentSvgPreview(state.garmentType);
   const garmentSelection = useMemo(
     () =>
       garmentSvgType
@@ -1332,13 +1357,16 @@ export function Builder() {
 
   const skipInitialAutoSave = useRef(true);
   useEffect(() => {
+    if (projectHydrating) return;
     if (skipInitialAutoSave.current) {
       skipInitialAutoSave.current = false;
       return;
     }
-    const id = window.setTimeout(() => handleSave(false), 1200);
+    const id = window.setTimeout(() => {
+      void handleSaveRef.current(false);
+    }, 1200);
     return () => window.clearTimeout(id);
-  }, [state, handleSave]);
+  }, [state, projectHydrating]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -2312,7 +2340,7 @@ export function Builder() {
               {!techpackSpecFlow && garmentConfig?.trimBindings.pocket?.length ? (
                 <TrimColorFamilyPicker
                   label={
-                    state.garmentType === 'trousers'
+                    state.garmentType === 'trousers' || state.garmentType === 'shorts'
                       ? 'Pocket & drawstring trim colour'
                       : state.garmentType === 'hoodie'
                         ? 'Pocket, zip & drawstring trim colour'
@@ -2773,6 +2801,10 @@ export function Builder() {
     () => visibleBuilderSteps.find((s) => s.id === currentStep),
     [visibleBuilderSteps, currentStep],
   );
+
+  if (!product) return <PageLoadingFallback />;
+  if (projectHydrating) return <PageLoadingFallback />;
+
   const phoneProcessTitle = currentVisibleStep
     ? stepTabTitle(currentVisibleStep, techpackSpecFlow)
     : 'Step';

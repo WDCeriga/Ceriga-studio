@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { FileEdit, ArrowRight, Trash2 } from 'lucide-react';
 import { builderPath } from '../lib/projectFlow';
@@ -10,7 +10,7 @@ import {
 } from '../lib/projectsDb';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { GarmentFlatIcon, SpecGridTexture } from '../components/studio/GarmentFlatIcon';
+import { ProjectGarmentPreview } from '../components/studio/ProjectGarmentPreview';
 import { toast } from 'sonner';
 
 function garmentLabel(garmentType: string): string {
@@ -123,16 +123,14 @@ function DraftCard({
   draft: ProjectListItem;
   onDelete: () => void;
 }) {
-  const gridId = useId().replace(/:/g, '');
   const label = garmentLabel(draft.garment_type);
   const isComplete = draft.progress >= 100;
 
   return (
     <div className="ceriga-card flex flex-col overflow-hidden">
-      <div className="relative h-[140px] border-b border-[#252528] bg-[#111113]">
-        <SpecGridTexture patternId={`draft-grid-${gridId}`} />
+      <div className="relative h-[168px] overflow-hidden border-b border-[#252528] bg-[#111113]">
         <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between">
-          <span className="ceriga-mono rounded-[3px] border border-[#5A4530] bg-[#2A2218] px-1.5 py-[3px] text-[10px] uppercase tracking-[0.06em] text-[#E8A868]">
+          <span className="ceriga-mono rounded-[3px] border border-[#5A4530] bg-[#2A2218]/90 px-1.5 py-[3px] text-[10px] uppercase tracking-[0.06em] text-[#E8A868] backdrop-blur-sm">
             {label}
           </span>
           <button
@@ -144,9 +142,7 @@ function DraftCard({
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
-        <div className="absolute inset-0 z-[1] flex items-center justify-center p-7">
-          <GarmentFlatIcon type={label} className="max-h-full max-w-[80px]" />
-        </div>
+        <ProjectGarmentPreview garmentType={draft.garment_type} state={draft.state} />
       </div>
 
       <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">

@@ -33,7 +33,7 @@ export function GarmentFlatIcon({
     );
   }
 
-  if (key.includes('trouser') || key.includes('pant') || key.includes('jogger')) {
+  if (key.includes('trouser') || key.includes('pant') || key.includes('jogger') || key.includes('short')) {
     return (
       <svg viewBox="0 0 120 120" className={className} width="100%" height="100%" aria-hidden>
         <path

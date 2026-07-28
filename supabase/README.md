@@ -6,12 +6,19 @@
 3. Copy **Project URL** and **anon public** key.
 
 ## 2. Env file
-Copy `.env.example` to `.env` in the repo root:
+Copy `.env.example` to `.env`, or use values from the Vercel Supabase integration.
 
-```
-VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
-```
+**This is a Vite app.** Client code can read:
+
+| Works in browser | Source |
+|------------------|--------|
+| `VITE_SUPABASE_URL` | Local / manual |
+| `VITE_SUPABASE_ANON_KEY` | Local / manual |
+| `NEXT_PUBLIC_SUPABASE_URL` | Vercel Supabase integration |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Vercel integration |
+
+**Not used by the browser app** (keep them on Vercel if the integration added them, but don’t expect the SPA to read them):  
+`POSTGRES_*`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, unprefixed `SUPABASE_URL` (unless you also have `NEXT_PUBLIC_SUPABASE_URL`).
 
 Restart `npm run dev` after changing env.
 

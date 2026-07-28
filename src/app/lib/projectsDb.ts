@@ -26,6 +26,7 @@ export type ProjectListItem = Pick<
   | 'current_step'
   | 'updated_at'
   | 'created_at'
+  | 'state'
 >;
 
 export type UpsertProjectInput = {
@@ -51,7 +52,7 @@ export async function listProjects(): Promise<ProjectListItem[]> {
   const { data, error } = await supabase
     .from('projects')
     .select(
-      'id, product_id, name, garment_type, flow_type, progress, current_step, updated_at, created_at',
+      'id, product_id, name, garment_type, flow_type, progress, current_step, updated_at, created_at, state',
     )
     .order('updated_at', { ascending: false });
 
@@ -89,7 +90,11 @@ export async function upsertProject(input: UpsertProjectInput): Promise<ProjectR
     state: input.state,
   };
 
-  const { data, error } = await supabase.from('projects').upsert(payload).select('*').single();
+  const { data, error } = await supabase
+    .from('projects')
+    .upsert(payload, { onConflict: 'id' })
+    .select('*')
+    .single();
   if (error) throw error;
   return data as ProjectRow;
 }

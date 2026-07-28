@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router';
-import { Plus, ArrowRight, Sparkles } from 'lucide-react';
+import { Plus, ArrowRight } from 'lucide-react';
 import { builderPath, type ProjectFlowType } from '../lib/projectFlow';
 import { DashboardLiveChat } from '../components/DashboardLiveChat';
 import { NotificationBell } from '../components/NotificationBell';
-import { GarmentFlatIcon, SpecGridTexture } from '../components/studio/GarmentFlatIcon';
+import { ProjectGarmentPreview } from '../components/studio/ProjectGarmentPreview';
 import {
   formatRelativeTime,
   listProjects,
@@ -58,12 +58,13 @@ function ProjectCard({
     flowType: ProjectFlowType;
     name: string;
     garmentType: string;
+    garmentTypeKey: string;
     status: string;
     progress: number;
     lastEdited: string;
+    state: Record<string, unknown> | null;
   };
 }) {
-  const gridId = useId().replace(/:/g, '');
   const isComplete = project.status === 'Complete';
   const status = isComplete
     ? {
@@ -79,11 +80,10 @@ function ProjectCard({
 
   return (
     <div className="ceriga-card flex flex-col overflow-hidden">
-      <div className="relative h-[150px] border-b border-[#252528] bg-[#111113]">
-        <SpecGridTexture patternId={`dash-grid-${gridId}`} />
+      <div className="relative h-[168px] overflow-hidden border-b border-[#252528] bg-[#111113]">
         <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-center justify-between">
           <span
-            className="ceriga-mono rounded-[3px] px-1.5 py-[3px] text-[10px] uppercase tracking-[0.06em]"
+            className="ceriga-mono rounded-[3px] px-1.5 py-[3px] text-[10px] uppercase tracking-[0.06em] backdrop-blur-sm"
             style={{
               color: status.text,
               background: status.bg,
@@ -96,9 +96,7 @@ function ProjectCard({
             {project.garmentType}
           </span>
         </div>
-        <div className="absolute inset-0 z-[1] flex items-center justify-center p-7">
-          <GarmentFlatIcon type={project.garmentType} className="max-h-full max-w-[88px]" />
-        </div>
+        <ProjectGarmentPreview garmentType={project.garmentTypeKey} state={project.state} />
       </div>
 
       <div className="flex flex-1 flex-col px-4 pb-4 pt-3.5">
@@ -177,9 +175,11 @@ export function Dashboard() {
         flowType: row.flow_type as ProjectFlowType,
         name: row.name,
         garmentType: garmentLabel(row.garment_type),
+        garmentTypeKey: row.garment_type,
         status: row.progress >= 100 ? 'Complete' : 'In progress',
         progress: row.progress,
         lastEdited: formatRelativeTime(row.updated_at),
+        state: row.state ?? null,
       })),
     [rows],
   );
@@ -195,9 +195,6 @@ export function Dashboard() {
     <div className="ceriga-page mx-auto max-w-[1240px] px-4 py-7 sm:px-8 sm:py-8 lg:px-10">
       <div className="mb-8 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] bg-[#CC2D24]">
-            <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2} />
-          </div>
           <span className="ceriga-mono text-[12px] uppercase tracking-[0.08em] text-[#8A8A90]">
             Techpack studio
           </span>
