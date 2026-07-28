@@ -24,7 +24,7 @@ function profileFromCredential(res: CredentialResponse) {
   const email = (p.email || '').trim();
   if (!email) return null;
   const name = (p.name || p.given_name || email.split('@')[0] || 'User').trim();
-  return { email, name };
+  return { email, name, credential: cred };
 }
 
 type Flow = 'login' | 'signup';
@@ -34,9 +34,9 @@ export function GoogleAuthButton({ flow }: { flow: Flow }) {
   const { loginWithGoogleProfile, signupWithGoogleProfile } = useAuth();
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
-  const finish = async (email: string, name: string) => {
+  const finish = async (profile: { email: string; name: string; credential?: string }) => {
     if (flow === 'login') {
-      await loginWithGoogleProfile({ email, name });
+      await loginWithGoogleProfile(profile);
       let onboardingDone = false;
       try {
         onboardingDone = localStorage.getItem('ceriga_onboarding_done') === '1';
@@ -45,7 +45,7 @@ export function GoogleAuthButton({ flow }: { flow: Flow }) {
       }
       navigate(onboardingDone ? '/dashboard' : '/onboarding');
     } else {
-      await signupWithGoogleProfile({ email, name });
+      await signupWithGoogleProfile(profile);
       navigate('/onboarding');
     }
   };
@@ -56,12 +56,15 @@ export function GoogleAuthButton({ flow }: { flow: Flow }) {
       toast.error('Could not read Google profile');
       return;
     }
-    void finish(profile.email, profile.name).catch(() => toast.error('Sign-in failed'));
+    void finish(profile).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Sign-in failed';
+      toast.error(message);
+    });
   };
 
   const onDemo = () => {
     const n = Math.floor(Math.random() * 9000) + 1000;
-    void finish(`demo.user.${n}@gmail.com`, 'Demo Google user').catch(() =>
+    void finish({ email: `demo.user.${n}@gmail.com`, name: 'Demo Google user' }).catch(() =>
       toast.error('Sign-in failed'),
     );
   };

@@ -1,99 +1,95 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Link } from "react-router";
 import {
   Plus,
-  MoreVertical,
   Clock,
   ArrowRight,
   Layers,
   TrendingUp,
 } from "lucide-react";
-import imgBlueTshirt from "figma:asset/f00825900c95df312eb3b002c75207b61c243d55.png";
 import { productGridClass, productGridStyle } from "../styles/productGrid";
 import { builderPath, type ProjectFlowType } from "../lib/projectFlow";
 import { DashboardLiveChat } from "../components/DashboardLiveChat";
 import { NotificationBell } from "../components/NotificationBell";
+import {
+  formatRelativeTime,
+  listProjects,
+  type ProjectListItem,
+} from "../lib/projectsDb";
+import { isSupabaseConfigured } from "../lib/supabaseClient";
+import { toast } from "sonner";
+
+function garmentLabel(garmentType: string): string {
+  const map: Record<string, string> = {
+    tshirt: "T-Shirt",
+    hoodie: "Hoodie",
+    trousers: "Trousers",
+    sweatshirt: "Sweatshirt",
+  };
+  return map[garmentType] || garmentType;
+}
+
+function accentForGarment(garmentType: string): string {
+  const map: Record<string, string> = {
+    tshirt: "#3B82F6",
+    hoodie: "#8B5CF6",
+    trousers: "#10B981",
+    sweatshirt: "#EF4444",
+  };
+  return map[garmentType] || "#CC2D24";
+}
 
 export function Dashboard() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, usingSupabase, authReady } = useAuth();
+  const [rows, setRows] = useState<ProjectListItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const projects: Array<{
-    id: string;
-    productId: string;
-    flowType: ProjectFlowType;
-    name: string;
-    garmentType: string;
-    status: string;
-    progress: number;
-    lastEdited: string;
-    image: string;
-    color: string;
-    season: string;
-  }> = [
-    {
-      id: "1",
-      productId: "hd-001",
-      flowType: "techpack",
-      name: "Oversized Hoodie",
-      garmentType: "Hoodie",
-      status: "In Progress",
-      progress: 65,
-      lastEdited: "2 hours ago",
-      image: imgBlueTshirt,
-      color: "#3B82F6",
-      season: "FW25",
-    },
-    {
-      id: "2",
-      productId: "tr-001",
-      flowType: "packaging",
-      name: "Cargo Pants",
-      garmentType: "Trousers",
-      status: "In Progress",
-      progress: 40,
-      lastEdited: "5 hours ago",
-      image: imgBlueTshirt,
-      color: "#10B981",
-      season: "FW25",
-    },
-    {
-      id: "3",
-      productId: "sw-001",
-      flowType: "techpack",
-      name: "Crewneck Sweatshirt",
-      garmentType: "Sweatshirt",
-      status: "Completed",
-      progress: 100,
-      lastEdited: "1 day ago",
-      image: imgBlueTshirt,
-      color: "#8B5CF6",
-      season: "SS25",
-    },
-    {
-      id: "4",
-      productId: "ts-001",
-      flowType: "manufacturer",
-      name: "Graphic Tee",
-      garmentType: "T-Shirt",
-      status: "In Progress",
-      progress: 25,
-      lastEdited: "3 days ago",
-      image: imgBlueTshirt,
-      color: "#EF4444",
-      season: "SS25",
-    },
-  ];
+  const refresh = useCallback(async () => {
+    if (!isSupabaseConfigured || !isAuthenticated) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      setRows(await listProjects());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not load projects";
+      toast.error(message);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
-  const avgProgress = Math.round(
-    projects.reduce((acc, p) => acc + p.progress, 0) /
-      projects.length,
+  useEffect(() => {
+    if (!authReady) return;
+    void refresh();
+  }, [authReady, refresh]);
+
+  const projects = useMemo(
+    () =>
+      rows.map((row) => ({
+        id: row.id,
+        productId: row.product_id,
+        flowType: row.flow_type as ProjectFlowType,
+        name: row.name,
+        garmentType: garmentLabel(row.garment_type),
+        status: row.progress >= 100 ? "Completed" : "In Progress",
+        progress: row.progress,
+        lastEdited: formatRelativeTime(row.updated_at),
+        color: accentForGarment(row.garment_type),
+      })),
+    [rows],
   );
-  const completed = projects.filter(
-    (p) => p.status === "Completed",
-  ).length;
-  const inProgress = projects.filter(
-    (p) => p.status === "In Progress",
-  ).length;
+
+  const avgProgress =
+    projects.length === 0
+      ? 0
+      : Math.round(projects.reduce((acc, p) => acc + p.progress, 0) / projects.length);
+  const completed = projects.filter((p) => p.status === "Completed").length;
+  const inProgress = projects.filter((p) => p.status === "In Progress").length;
 
   return (
     <div
@@ -312,15 +308,10 @@ export function Dashboard() {
                   }}
                 />
 
-                <div className="absolute inset-0 flex items-start justify-center px-0 pt-0 pb-2">
-                  <img
-                    src={project.image}
-                    alt={project.name}
-                    className="h-full w-full object-contain scale-[1.18] transition-transform duration-500 group-hover:scale-[1.22]"
-                    style={{
-                      filter: `hue-rotate(${getHueForColor(project.color)}deg) saturate(0.95)`,
-                      objectPosition: "center top",
-                    }}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    className="h-20 w-20 rounded-full opacity-40"
+                    style={{ background: project.color }}
                   />
                 </div>
 
@@ -342,19 +333,6 @@ export function Dashboard() {
                     }
                   >
                     {isCompleted ? "Complete" : "In progress"}
-                  </span>
-                </div>
-
-                <div className="absolute right-3 top-3 z-20">
-                  <span
-                    className="rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wider"
-                    style={{
-                      background: "#00000050",
-                      color: "#ffffff50",
-                      backdropFilter: "blur(8px)",
-                    }}
-                  >
-                    {project.season}
                   </span>
                 </div>
               </div>
@@ -428,7 +406,7 @@ export function Dashboard() {
 
                 <div className="flex items-center gap-2">
                   <Link
-                    to={builderPath(project.productId, project.flowType)}
+                    to={builderPath(project.productId, project.flowType, project.id)}
                     className="flex-1"
                   >
                     <button
@@ -441,23 +419,29 @@ export function Dashboard() {
                       Open
                     </button>
                   </Link>
-
-                  <button
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all hover:text-white"
-                    style={{
-                      background: "#ffffff05",
-                      border: "1px solid #ffffff0a",
-                      color: "#ffffff35",
-                    }}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {!usingSupabase ? (
+        <p className="mt-6 text-xs" style={{ color: "#F59E0B99" }}>
+          Database not configured — add Supabase keys to .env (see .env.example).
+        </p>
+      ) : !isAuthenticated ? (
+        <p className="mt-6 text-xs" style={{ color: "#ffffff40" }}>
+          <Link to="/login" className="text-[#CC2D24] hover:underline">
+            Sign in
+          </Link>{" "}
+          to sync projects across devices.
+        </p>
+      ) : loading ? (
+        <p className="mt-6 text-xs" style={{ color: "#ffffff40" }}>
+          Loading projects…
+        </p>
+      ) : null}
 
       <div className="mt-12 flex items-center justify-between">
         <p className="text-xs" style={{ color: "#ffffff20" }}>
@@ -475,14 +459,4 @@ export function Dashboard() {
       <DashboardLiveChat />
     </div>
   );
-}
-
-function getHueForColor(color: string): number {
-  const colorMap: Record<string, number> = {
-    "#3B82F6": 0,
-    "#10B981": 60,
-    "#8B5CF6": -40,
-    "#EF4444": 140,
-  };
-  return colorMap[color] || 0;
 }

@@ -41,6 +41,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { getProject, upsertProject } from '../lib/projectsDb';
+import type { ProjectFlowType } from '../lib/projectFlow';
 
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -446,12 +450,17 @@ export function Builder() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated, usingSupabase } = useAuth();
   const techpackSpecFlow =
     searchParams.get('flow') === 'techpack-spec' ||
     (location.state as { builderFlow?: string } | null)?.builderFlow === 'techpack-spec';
   const techpackFlowInitRef = useRef(false);
   const product = productId ? getProductById(productId) : null;
+  const urlProjectId = searchParams.get('projectId');
+  const [dbProjectId, setDbProjectId] = useState<string | null>(urlProjectId);
+  const [projectHydrating, setProjectHydrating] = useState(Boolean(urlProjectId && isSupabaseConfigured));
+  const projectHydratedRef = useRef<string | null>(null);
 
   const [currentStep, setCurrentStep] = useState(() => (isTechpackSpecUrl() ? 9 : 1));
   const [visitedSteps, setVisitedSteps] = useState<number[]>(() =>
@@ -592,6 +601,67 @@ export function Builder() {
     },
     [syncHistoryAvailability],
   );
+
+  useEffect(() => {
+    if (!urlProjectId || !isSupabaseConfigured) {
+      setProjectHydrating(false);
+      return;
+    }
+    if (projectHydratedRef.current === urlProjectId) {
+      setProjectHydrating(false);
+      return;
+    }
+
+    let cancelled = false;
+    setProjectHydrating(true);
+
+    void (async () => {
+      try {
+        const row = await getProject(urlProjectId);
+        if (cancelled) return;
+        if (!row) {
+          toast.error('Project not found');
+          setProjectHydrating(false);
+          return;
+        }
+
+        projectHydratedRef.current = row.id;
+        setDbProjectId(row.id);
+        setProjectName(row.name);
+        setCurrentStep(row.current_step);
+        setVisitedSteps((prev) => {
+          const next = new Set(prev);
+          for (let i = 1; i <= Math.max(1, row.current_step); i++) next.add(i);
+          return Array.from(next).sort((a, b) => a - b);
+        });
+
+        const saved = row.state;
+        if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+          _setStateRaw({
+            ...(saved as BuilderState),
+            productId: productId || (saved as BuilderState).productId || row.product_id,
+            labelLayerSelectedId: null,
+            packagingLayerSelectedId: null,
+            printsLayerSelectedId: null,
+          });
+          undoStackRef.current = [];
+          redoStackRef.current = [];
+          syncHistoryAvailability();
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Could not load project';
+          toast.error(message);
+        }
+      } finally {
+        if (!cancelled) setProjectHydrating(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlProjectId, productId, syncHistoryAvailability]);
 
   const undo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
@@ -988,22 +1058,69 @@ export function Builder() {
         if (showToast) toast.error('Offline — draft not synced. Reconnect and try again.');
         return;
       }
+      if (usingSupabase && !isAuthenticated) {
+        setSaveError('failed');
+        if (showToast) toast.error('Sign in to save your draft to the cloud');
+        return;
+      }
+
       setSaveError(null);
       setSaving(true);
       try {
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 420);
-        });
+        if (usingSupabase) {
+          const progressPct = Math.round(
+            Math.min(100, Math.max(0, (currentStep / builderSteps.length) * 100)),
+          );
+          const flowType: ProjectFlowType = 'techpack';
+          const row = await upsertProject({
+            id: dbProjectId ?? undefined,
+            productId: productId || state.productId || '',
+            name: projectName,
+            garmentType: state.garmentType,
+            flowType,
+            progress: progressPct,
+            currentStep,
+            state: { ...state } as unknown as Record<string, unknown>,
+          });
+          if (row.id !== dbProjectId) {
+            setDbProjectId(row.id);
+            projectHydratedRef.current = row.id;
+            const next = new URLSearchParams(searchParams);
+            next.set('projectId', row.id);
+            setSearchParams(next, { replace: true });
+          }
+        } else {
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 420);
+          });
+          if (showToast) {
+            toast.message('Cloud DB not configured', {
+              description: 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env',
+            });
+          }
+        }
         captureVersion({ manual: false });
         if (showToast) toast.success('Draft saved');
-      } catch {
+      } catch (err) {
         setSaveError('failed');
-        if (showToast) toast.error('Could not save — try again');
+        const message = err instanceof Error ? err.message : 'Could not save — try again';
+        if (showToast) toast.error(message);
       } finally {
         setSaving(false);
       }
     },
-    [captureVersion],
+    [
+      captureVersion,
+      currentStep,
+      dbProjectId,
+      isAuthenticated,
+      productId,
+      projectName,
+      searchParams,
+      setSearchParams,
+      state,
+      usingSupabase,
+    ],
   );
 
   const retrySave = useCallback(() => {
@@ -1051,6 +1168,7 @@ export function Builder() {
   }, [layoutTier]);
 
   if (!product) return <PageLoadingFallback />;
+  if (projectHydrating) return <PageLoadingFallback />;
 
   const step = builderSteps.find((item) => item.id === currentStep);
   const stepTitleLabel =

@@ -56,7 +56,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   const sidebarW = collapsed ? 72 : 220;
 
   const handleLogout = () => {
-    logout();
+    void logout();
     navigate('/');
     setSheetOpen(false);
   };
