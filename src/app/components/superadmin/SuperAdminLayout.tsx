@@ -16,6 +16,7 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
+  Ruler,
   CalendarOff,
   Route,
   Ship,
@@ -37,6 +38,7 @@ const navItems = [
   { path: '/superadmin/shipping-onboard', label: 'Shipping', icon: Ship },
   { path: '/superadmin/crm', label: 'CRM & roles', icon: Briefcase },
   { path: '/superadmin/pricing', label: 'Pricing', icon: DollarSign },
+  { path: '/superadmin/measurement-guides', label: 'Measurement guides', icon: Ruler },
   { path: '/superadmin/messages', label: 'Messages', icon: MessageCircle },
 ] as const;
 

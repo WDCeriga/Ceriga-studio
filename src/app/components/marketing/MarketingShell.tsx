@@ -1,5 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { Link } from 'react-router';
+import { useAuth } from '../../contexts/AuthContext';
 import { ArrowUpRight, Menu, X } from 'lucide-react';
 import { Sheet, SheetClose, SheetContent, SheetTitle } from '../ui/sheet';
 import { Button } from '../ui/button';
@@ -20,6 +21,8 @@ export function MarketingShell({
   mainClassName?: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { isAuthenticated, authReady } = useAuth();
+  const studioTarget = authReady && isAuthenticated ? '/studio' : '/login?redirectTo=/studio';
 
   return (
     <div
@@ -64,7 +67,7 @@ export function MarketingShell({
               size="sm"
               className="h-8 bg-[#CC2D24] px-3 text-[10px] font-semibold uppercase tracking-wider text-white hover:bg-[#CC2D24]/90"
             >
-              <Link to="/signup" className="inline-flex items-center gap-1">
+              <Link to={studioTarget} className="inline-flex items-center gap-1">
                 Launch Studio
                 <ArrowUpRight className="h-3 w-3" />
               </Link>
@@ -77,7 +80,7 @@ export function MarketingShell({
               size="sm"
               className="h-12 min-h-12 bg-[#CC2D24] px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-white hover:bg-[#CC2D24]/90 sm:h-10 sm:min-h-0 sm:px-3.5 sm:text-[10px] sm:tracking-wider"
             >
-              <Link to="/studio">Build</Link>
+              <Link to={studioTarget}>Launch Studio</Link>
             </Button>
             <button
               type="button"
@@ -120,8 +123,8 @@ export function MarketingShell({
                 asChild
                 className="h-10 bg-[#CC2D24] px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-white hover:bg-[#CC2D24]/90"
               >
-                <Link to="/studio" onClick={() => setMenuOpen(false)}>
-                  Build
+                <Link to={studioTarget} onClick={() => setMenuOpen(false)}>
+                  Launch Studio
                 </Link>
               </Button>
             </div>
@@ -147,7 +150,7 @@ export function MarketingShell({
               </Link>
             </Button>
             <Button asChild className="h-11 w-full bg-[#CC2D24] text-xs font-semibold uppercase tracking-wider hover:bg-[#CC2D24]/90">
-              <Link to="/signup" onClick={() => setMenuOpen(false)}>
+              <Link to={studioTarget} onClick={() => setMenuOpen(false)}>
                 Launch Studio
               </Link>
             </Button>

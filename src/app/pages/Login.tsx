@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
@@ -10,7 +10,9 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const redirectTo = searchParams.get('redirectTo');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +20,10 @@ export function Login() {
     if (!email || !password) return setError('Please fill in all fields');
     try {
       await login(email, password);
+      if (redirectTo) {
+        navigate(redirectTo);
+        return;
+      }
       let onboardingDone = false;
       try {
         onboardingDone = localStorage.getItem('ceriga_onboarding_done') === '1';
@@ -80,22 +86,22 @@ export function Login() {
                 type="button"
                 variant="outline"
                 className="h-9 border-[#CC2D24]/30 bg-[#CC2D24]/10 text-xs text-red-100 hover:bg-[#CC2D24]/20"
-                onClick={async () => {
-                  await login('ops@northmills.io', 'demo');
-                  navigate('/manufacturer');
-                }}
-              >
+              onClick={async () => {
+                await login('ops@northmills.io', 'demo');
+                navigate('/manufacturer');
+              }}
+            >
                 Enter as manufacturer (North Mills)
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 className="h-9 border-white/15 bg-transparent text-xs text-white/70 hover:bg-white/5"
-                onClick={async () => {
-                  await login('owner@ceriga.io', 'demo');
-                  navigate('/superadmin');
-                }}
-              >
+              onClick={async () => {
+                await login('owner@ceriga.io', 'demo');
+                navigate('/superadmin');
+              }}
+            >
                 Enter as owner / superadmin
               </Button>
             </div>

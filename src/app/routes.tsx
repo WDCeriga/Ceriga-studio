@@ -609,6 +609,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/measurement-guides",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminMeasurementGuides }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminMeasurementGuides"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminMeasurementGuides />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
     path: "/manufacturer/onboarding",
     lazy: async () => {
       const [{ ManufacturerLayout }, { ManufacturerOnboarding }] = await Promise.all([

@@ -1,8 +1,8 @@
+import { useState, type ReactNode } from 'react';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
 import { fitOptions } from '../../data/builderSteps';
-import imgMeasurementShirt from 'figma:asset/5b6aa44da573021b0c90863e5a2fb7c1e84cf0a9.png';
 import type { MeasurementUnit } from '../../lib/measurements';
 import {
   formatMeasurementDisplay,
@@ -10,6 +10,13 @@ import {
   parseMeasurementInput,
 } from '../../lib/measurements';
 import { cn } from '../ui/utils';
+import { getDefaultTshirtSelection } from '../../data/tshirtAssetCatalog';
+import { TshirtSvgPreview } from './TshirtSvgPreview';
+import {
+  MEASUREMENT_GUIDE_LABELS,
+  MeasurementGuideOverlay,
+  type MeasurementGuideId,
+} from './measurementGuides';
 
 interface MeasurementsStepProps {
   garmentType: string;
@@ -19,6 +26,8 @@ interface MeasurementsStepProps {
   onMeasurementChange: (measurementId: string, size: string, value: string) => void;
   measurementUnit: MeasurementUnit;
   onMeasurementUnitChange: (unit: MeasurementUnit) => void;
+  highlightedMeasurementId?: string | null;
+  onHighlightedMeasurementIdChange?: (id: string | null) => void;
 }
 
 function MeasurementUnitToggle({
@@ -61,18 +70,6 @@ function MeasurementUnitToggle({
     </div>
   );
 }
-
-const measurementLabels = [
-  { id: 'halfLength', label: 'A. Half Length' },
-  { id: 'chestWidth', label: 'B. Chest Width' },
-  { id: 'bottomWidth', label: 'C. Bottom Width' },
-  { id: 'sleeveLength', label: 'D. Sleeve Length' },
-  { id: 'armhole', label: 'E. Armhole' },
-  { id: 'sleeveOpening', label: 'F. Sleeve Opening' },
-  { id: 'neckOpening', label: 'G. Neck Opening' },
-  { id: 'neckDrop', label: 'H. Neck Drop' },
-  { id: 'shoulderWidth', label: 'I. Shoulder to Shoulder' }
-];
 
 // Preset measurement data for different fits
 const fitMeasurements: Record<string, Record<string, Record<string, string>>> = {
@@ -141,8 +138,16 @@ export function MeasurementsStep({
   onMeasurementChange,
   measurementUnit,
   onMeasurementUnitChange,
+  highlightedMeasurementId,
+  onHighlightedMeasurementIdChange,
 }: MeasurementsStepProps) {
   const currentMeasurements = fit && fitMeasurements[fit] ? fitMeasurements[fit] : fitMeasurements.regular;
+  const [localHighlightedMeasurementId, setLocalHighlightedMeasurementId] =
+    useState<MeasurementGuideId | null>(null);
+  const activeHighlightedMeasurementId =
+    highlightedMeasurementId ?? localHighlightedMeasurementId;
+  const setHighlightedMeasurementId =
+    onHighlightedMeasurementIdChange ?? setLocalHighlightedMeasurementId;
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -207,7 +212,10 @@ export function MeasurementsStep({
           Values are stored in centimetres; when you pick {measurementUnit === 'in' ? 'inches' : 'cm'}, we
           convert for display. Each cell is one measurement in {measurementUnitLabel(measurementUnit)}.
         </p>
-        <div className="overflow-hidden rounded-lg border border-[#252528] bg-white/5">
+        <div
+          className="overflow-hidden rounded-lg border border-[#252528] bg-white/5"
+          onPointerLeave={() => setHighlightedMeasurementId(null)}
+        >
           <div className="no-scrollbar overflow-x-auto">
             <table className="w-full text-xs md:text-xs">
               <thead>
@@ -236,8 +244,15 @@ export function MeasurementsStep({
                 </tr>
               </thead>
               <tbody>
-                {measurementLabels.map((measurement) => (
-                  <tr key={measurement.id} className="border-b border-white/5 hover:bg-white/5">
+                {MEASUREMENT_GUIDE_LABELS.map((measurement) => (
+                  <tr
+                    key={measurement.id}
+                    className={cn(
+                      'border-b border-white/5 hover:bg-white/5',
+                      activeHighlightedMeasurementId === measurement.id && 'bg-white/7',
+                    )}
+                    onPointerEnter={() => setHighlightedMeasurementId(measurement.id)}
+                  >
                     <td className="max-w-[5.75rem] px-1 py-0.5 text-left text-[10px] font-semibold leading-tight text-white/90 md:max-w-none md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/80">
                       {measurement.label}
                     </td>
@@ -276,14 +291,36 @@ export function MeasurementsStep({
   );
 }
 
-export function MeasurementPreview({ imgClassName }: { imgClassName?: string }) {
+export function MeasurementPreview({
+  garmentType,
+  color,
+  highlightedMeasurementId,
+  imgClassName,
+  overlay,
+}: {
+  garmentType?: string;
+  color?: string;
+  highlightedMeasurementId?: string | null;
+  imgClassName?: string;
+  overlay?: ReactNode;
+}) {
+  const tshirtSelection = getDefaultTshirtSelection();
+
   return (
-    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-full flex-1 items-center justify-center">
-      <img
-        src={imgMeasurementShirt}
-        alt="Measurement guide"
-        className={imgClassName ?? 'h-auto w-full max-w-md object-contain'}
-      />
+    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-full flex-1 items-center justify-center px-2">
+      {garmentType === 'tshirt' ? (
+        <div className="relative aspect-square w-full max-w-[576px]">
+          <TshirtSvgPreview
+            garmentType="tshirt"
+            color={color || '#5C7FB6'}
+            selection={tshirtSelection}
+            className={cn('h-full w-full', imgClassName)}
+          />
+          {overlay ?? <MeasurementGuideOverlay highlightedId={highlightedMeasurementId ?? null} />}
+        </div>
+      ) : (
+        <div className="aspect-square w-full max-w-[576px] rounded-2xl border border-white/10 bg-[#111113]" />
+      )}
     </div>
   );
 }

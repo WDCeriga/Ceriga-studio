@@ -85,6 +85,10 @@ import {
 } from 'react-resizable-panels';
 
 import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
+import {
+  MEASUREMENT_GUIDE_CLASS_PHONE,
+  PREVIEW_STAGE_CLASS,
+} from '../components/builder/measurementPreviewSizing';
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
@@ -437,18 +441,12 @@ const CANVAS_PAN_THRESHOLD_PX = 4;
  */
 const PREVIEW_STAGE_CLASS_PHONE =
   'relative z-[1] mx-auto block h-auto w-auto max-h-full max-w-[min(100%,92vw,420px)] shrink-0 object-contain';
-/** Step 1 diagram: a bit smaller on phone so the form gets more vertical room. */
-const MEASUREMENT_GUIDE_CLASS_PHONE =
-  'relative z-[1] mx-auto block h-auto w-auto max-h-[min(40dvh,280px)] max-w-[min(100%,85vw,320px)] shrink-0 object-contain';
 /** One consistent frame for garment / design previews on phone (centered, proportional). */
 const PHONE_PREVIEW_FRAME_CLASS =
   'mx-auto w-full min-h-0 min-w-0 max-w-[min(100%,88vw,300px)] max-h-[min(42dvh,360px)]';
 /** Slightly larger preview when the config sheet is fully collapsed (more shirt visible). */
 const PHONE_PREVIEW_FRAME_EXPANDED_CLASS =
   'mx-auto w-full min-h-0 min-w-0 max-w-[min(100%,92vw,360px)] max-h-[min(50dvh,440px)]';
-/** Tablet/desktop: capped height so the guide does not dominate very tall viewports. */
-const PREVIEW_STAGE_CLASS =
-  'relative z-[1] mx-auto h-auto w-full max-w-[min(100%,300px)] max-h-[min(50dvh,380px)] object-contain md:h-full md:max-h-[min(38vh,340px)] md:max-w-[min(100%,360px)] lg:max-h-[min(42vh,400px)] lg:max-w-[min(100%,400px)] xl:max-h-[min(46vh,460px)] xl:max-w-[min(100%,440px)] 2xl:max-h-[min(52vh,540px)] 2xl:max-w-[min(100%,480px)]';
 
 function formatPlanSummary(kind: 'label' | 'packaging', value?: string): string {
   const fallback = kind === 'label' ? 'woven' : 'polybag';
@@ -498,6 +496,7 @@ export function Builder() {
   const [previewZoom, setPreviewZoom] = useState(PREVIEW_ZOOM_DEFAULT);
   const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
   const [isPanningCanvas, setIsPanningCanvas] = useState(false);
+  const [highlightedMeasurementId, setHighlightedMeasurementId] = useState<string | null>(null);
   const [tshirtLayerSelectedId, setTshirtLayerSelectedId] = useState<GarmentLayerId | null>(null);
   /** When true, the phone configuration sheet (not the step icons) is fully collapsed. */
   const [phoneEditorCollapsed, setPhoneEditorCollapsed] = useState(false);
@@ -1992,6 +1991,8 @@ export function Builder() {
                   prev.measurementUnit === unit ? prev : { ...prev, measurementUnit: unit },
                 )
               }
+              highlightedMeasurementId={highlightedMeasurementId}
+              onHighlightedMeasurementIdChange={setHighlightedMeasurementId}
               onMeasurementChange={(measurementId, size, value) =>
                 setState((prev) => ({
                   ...prev,
@@ -3305,6 +3306,9 @@ export function Builder() {
               )}
             >
               <MeasurementPreview
+                garmentType={state.garmentType}
+                color={primaryColor}
+                highlightedMeasurementId={highlightedMeasurementId}
                 imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
               />
             </div>
