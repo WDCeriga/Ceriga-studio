@@ -141,12 +141,12 @@ export const TSHIRT_CUFF_DEFAULTS: Record<string, TshirtCuffDefaults> = {
 
   // ── Sleeve 4 ──────────────────────────────────────────────────────────────
   [tshirtCuffPairKey(S4, H1)]: {
-    left: cuffSide({ x: -31.1, y: 312.6 }),
-    right: cuffSide({ x: 31, y: 313 }),
+    left: cuffSide({ x: -117, y: 199 }, { rotation: -23, scaleX: 1.1, scaleY: 1.1 }),
+    right: cuffSide({ x: 117, y: 199 }, { rotation: 23, scaleX: 1.1, scaleY: 1.1 }),
   },
   [tshirtCuffPairKey(S4, H2)]: {
-    left: cuffSide({ x: -45.8, y: 310.2 }),
-    right: cuffSide({ x: 45.7, y: 310.7 }),
+    left: cuffSide({ x: -117, y: 199 }, { rotation: -23, scaleX: 1.1, scaleY: 1.1 }),
+    right: cuffSide({ x: 117, y: 199 }, { rotation: 23, scaleX: 1.1, scaleY: 1.1 }),
   },
 
   // ── Sleeve 5 ──────────────────────────────────────────────────────────────
