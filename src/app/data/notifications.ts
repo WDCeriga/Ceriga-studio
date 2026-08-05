@@ -8,6 +8,8 @@ export type AppNotification = {
   /** ISO date string */
   createdAt: string;
   read: boolean;
+  /** Deep link into the studio app */
+  href?: string;
 };
 
 export const NOTIFICATION_CATEGORY_LABEL: Record<NotificationCategory, string> = {
@@ -18,6 +20,8 @@ export const NOTIFICATION_CATEGORY_LABEL: Record<NotificationCategory, string> =
   system: 'System',
 };
 
+const STORAGE_KEY = 'ceriga_brand_notifications_v1';
+
 /** Demo notifications for the notifications page (replace with API later). */
 export const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
@@ -27,6 +31,7 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     body: 'Your account is ready. Explore the catalog to start your first tech pack.',
     createdAt: '2026-04-08T14:22:00.000Z',
     read: false,
+    href: '/catalog',
   },
   {
     id: 'n2',
@@ -35,6 +40,7 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     body: 'Your sample run has moved to cutting. We will notify you when it ships.',
     createdAt: '2026-04-07T09:15:00.000Z',
     read: false,
+    href: '/orders',
   },
   {
     id: 'n3',
@@ -43,6 +49,7 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     body: 'We received your payment for invoice INV-2026-014. Thank you.',
     createdAt: '2026-04-06T11:40:00.000Z',
     read: true,
+    href: '/orders',
   },
   {
     id: 'n4',
@@ -51,6 +58,7 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     body: 'Courier pickup is booked for Thursday. Tracking will be added when dispatched.',
     createdAt: '2026-04-05T16:05:00.000Z',
     read: true,
+    href: '/orders',
   },
   {
     id: 'n5',
@@ -59,6 +67,7 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     body: 'We recovered an unsaved session from your last builder visit.',
     createdAt: '2026-04-04T08:30:00.000Z',
     read: true,
+    href: '/studio',
   },
   {
     id: 'n6',
@@ -67,6 +76,7 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     body: 'Your package was delivered. Let us know if anything needs a rework.',
     createdAt: '2026-04-01T13:00:00.000Z',
     read: true,
+    href: '/orders',
   },
   {
     id: 'n7',
@@ -76,4 +86,38 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     createdAt: '2026-03-28T10:00:00.000Z',
     read: true,
   },
+  {
+    id: 'n8',
+    category: 'order',
+    title: 'Quotes ready',
+    body: 'Your manufacturer returned pricing tiers — review and choose a quantity.',
+    createdAt: '2026-04-09T10:00:00.000Z',
+    read: false,
+    href: '/orders',
+  },
 ];
+
+export function loadBrandNotifications(): AppNotification[] {
+  if (typeof window === 'undefined') return [...MOCK_NOTIFICATIONS];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as AppNotification[];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  const seed = [...MOCK_NOTIFICATIONS];
+  persistBrandNotifications(seed);
+  return seed;
+}
+
+export function persistBrandNotifications(items: AppNotification[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    /* ignore */
+  }
+}

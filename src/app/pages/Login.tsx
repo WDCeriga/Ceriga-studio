@@ -72,6 +72,34 @@ export function Login() {
             Don&apos;t have an account?{' '}
             <Link to="/signup" className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/80">Sign up</Link>
           </p>
+
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <p className="mb-2 text-center text-[10px] uppercase tracking-wider text-white/35">Demo portals</p>
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 border-[#CC2D24]/30 bg-[#CC2D24]/10 text-xs text-red-100 hover:bg-[#CC2D24]/20"
+                onClick={async () => {
+                  await login('ops@northmills.io', 'demo');
+                  navigate('/manufacturer');
+                }}
+              >
+                Enter as manufacturer (North Mills)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 border-white/15 bg-transparent text-xs text-white/70 hover:bg-white/5"
+                onClick={async () => {
+                  await login('owner@ceriga.io', 'demo');
+                  navigate('/superadmin');
+                }}
+              >
+                Enter as owner / superadmin
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

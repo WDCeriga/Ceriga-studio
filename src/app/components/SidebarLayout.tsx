@@ -54,7 +54,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const sidebarWidth = isCollapsed ? 72 : 212;
 
   const handleLogout = () => {
-    logout();
+    void logout();
     navigate('/');
     setSheetOpen(false);
   };

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   ChevronLeft,
   CreditCard,
@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useNotifications } from "../contexts/NotificationsContext";
 import {
   NOTIFICATION_CATEGORY_LABEL,
@@ -58,9 +59,10 @@ function formatWhen(iso: string) {
 
 export function Notifications() {
   const navigate = useNavigate();
-  const { items, remove, clearAll } = useNotifications();
+  const { items, remove, clearAll, markRead, markAllRead } = useNotifications();
   const [filter, setFilter] = useState<"all" | NotificationCategory>("all");
   const [sort, setSort] = useState<SortKey>("newest");
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   const rows = useMemo(() => {
     let list: AppNotification[] =
@@ -128,14 +130,19 @@ export function Notifications() {
               {unread} unread
             </div>
           )}
+          {unread > 0 && (
+            <button
+              type="button"
+              onClick={() => markAllRead()}
+              className="rounded-full border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Mark all read
+            </button>
+          )}
           {items.length > 0 && (
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm("Delete all notifications? This cannot be undone.")) {
-                  clearAll();
-                }
-              }}
+              onClick={() => setClearConfirmOpen(true)}
               className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300/90 transition-colors hover:bg-red-500/20"
             >
               Clear all
@@ -197,13 +204,8 @@ export function Notifications() {
         ) : (
           rows.map((n) => {
             const Icon = categoryIcon(n.category);
-            return (
-              <li
-                key={n.id}
-                className="rounded-2xl border border-white/[0.08] p-4 transition-colors hover:border-white/[0.12]"
-                style={{ background: "#111113" }}
-              >
-                <div className="flex gap-3">
+            const content = (
+              <div className="flex gap-3">
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                     style={{
@@ -234,7 +236,11 @@ export function Notifications() {
                         </time>
                         <button
                           type="button"
-                          onClick={() => remove(n.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            remove(n.id);
+                          }}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-white/35 transition-colors hover:bg-red-500/15 hover:text-red-300"
                           aria-label={`Delete ${n.title}`}
                         >
@@ -248,11 +254,41 @@ export function Notifications() {
                     <p className="mt-2 text-sm leading-relaxed text-white/55">{n.body}</p>
                   </div>
                 </div>
+            );
+            return (
+              <li
+                key={n.id}
+                className="rounded-2xl border border-white/[0.08] p-4 transition-colors hover:border-white/[0.12]"
+                style={{ background: "#111113" }}
+              >
+                {n.href ? (
+                  <Link to={n.href} onClick={() => markRead(n.id)} className="block">
+                    {content}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="block w-full text-left"
+                    onClick={() => markRead(n.id)}
+                  >
+                    {content}
+                  </button>
+                )}
               </li>
             );
           })
         )}
       </ul>
+
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title="Delete all notifications?"
+        description="This clears your entire inbox and cannot be undone."
+        confirmLabel="Clear all"
+        tone="danger"
+        onConfirm={clearAll}
+      />
     </div>
   );
 }

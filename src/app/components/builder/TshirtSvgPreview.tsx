@@ -212,6 +212,7 @@ export interface TshirtSvgPreviewProps {
   selection: GarmentAssetSelection;
   neckTrimColor?: string;
   sleeveTrimColor?: string;
+  cuffTrimColor?: string;
   pocketTrimColor?: string;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
@@ -678,6 +679,7 @@ export function TshirtSvgPreview({
   selection,
   neckTrimColor,
   sleeveTrimColor,
+  cuffTrimColor,
   pocketTrimColor,
   layerTransforms,
   onLayerTransformChange,
@@ -717,9 +719,10 @@ export function TshirtSvgPreview({
         selection,
         neckTrimColor,
         sleeveTrimColor,
+        cuffTrimColor,
         pocketTrimColor,
       }),
-    [garmentType, selection, neckTrimColor, sleeveTrimColor, pocketTrimColor],
+    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);

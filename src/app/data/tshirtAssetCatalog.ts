@@ -67,6 +67,7 @@ export function resolveTshirtLayers(input: {
   selection: TshirtAssetSelection;
   neckTrimColor?: string;
   sleeveTrimColor?: string;
+  cuffTrimColor?: string;
   pocketTrimColor?: string;
 }): ResolvedTshirtLayer[] {
   return resolveGarmentLayers({ garmentType: TSHIRT, ...input }) as ResolvedTshirtLayer[];

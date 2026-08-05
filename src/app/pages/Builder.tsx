@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type SetStateAction,
 } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -40,6 +41,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { getProject, upsertProject } from '../lib/projectsDb';
+import type { ProjectFlowType } from '../lib/projectFlow';
 
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -60,7 +65,6 @@ import {
   type BuilderStep,
   cuffOptions,
   fabricColors,
-  ORDER_SIZE_KEYS,
   fadingOptions,
   hemOptions,
   neckOptions,
@@ -70,7 +74,6 @@ import {
   stitchingOptions,
   zipOptions,
   type GarmentType,
-  type OrderSizeKey,
 } from '../data/builderSteps';
 import { STUDIO_MAIN_COLORS, STUDIO_POPULAR_COLORS } from '../data/studioColorPresets';
 import { normalizeHex6 } from '../lib/colorUtils';
@@ -103,6 +106,19 @@ import {
   PackagingPreview,
 } from '../components/builder/LabelsPackagingStep';
 import { DownloadTechPackModal } from '../components/builder/DownloadTechPackModal';
+import {
+  OrderQuantitiesStep,
+  OrderQuantitiesSummary,
+} from '../components/builder/OrderQuantitiesStep';
+import {
+  defaultOrderQuantityPlan,
+  formatOrderQuantitiesSummary,
+  isSampleQuantityValid,
+  normalizeOrderQuantityPlan,
+  planHasAnyQuantity,
+  sampleValidationMessage,
+  type OrderQuantityPlan,
+} from '../data/orderQuantities';
 import { cn } from '../components/ui/utils';
 import type { MeasurementUnit } from '../lib/measurements';
 import {
@@ -193,6 +209,8 @@ interface BuilderState {
   stitchingColor?: string;
   neckTrimColor?: string;
   sleeveTrimColor?: string;
+  /** Cuff / sleeve-hem trim (t-shirt SVG preview). */
+  cuffTrimColor?: string;
   pocketTrimColor?: string;
   extraDetails: Partial<
     Record<
@@ -219,8 +237,10 @@ interface BuilderState {
   labelColor?: string;
   /** Packaging (e.g. bag) colour (hex) */
   packagingColor?: string;
-  /** Units per size for ordering */
-  quantityBySize: Record<OrderSizeKey, number>;
+  /** Sample + bulk quote tiers for manufacturer pricing */
+  orderQuantities: OrderQuantityPlan;
+  /** @deprecated — migrated into orderQuantities on load */
+  quantityBySize?: Record<string, number>;
   /** PNG layer offsets for garment SVG compositor (drag / scale per part). */
   tshirtLayerTransforms?: Partial<Record<GarmentLayerId, TshirtLayerTransform>>;
   /** One selected SVG asset id per folder under src/assets/{tshirts|hoodie|trousers}. */
@@ -229,6 +249,14 @@ interface BuilderState {
 
 function cloneBuilderState(s: BuilderState): BuilderState {
   return JSON.parse(JSON.stringify(s)) as BuilderState;
+}
+
+function normalizeBuilderState(s: BuilderState): BuilderState {
+  const orderQuantities = s.orderQuantities
+    ? normalizeOrderQuantityPlan(s.orderQuantities)
+    : normalizeOrderQuantityPlan(undefined, s.quantityBySize as never);
+  const { quantityBySize: _legacy, ...rest } = s;
+  return { ...rest, orderQuantities };
 }
 
 function builderStatesEqual(a: BuilderState, b: BuilderState): boolean {
@@ -400,6 +428,8 @@ const DETAIL_META: Record<
 
 /** Pixels of movement before a detail callout counts as a drag (tap/click does not move it). */
 const DETAIL_DRAG_THRESHOLD_PX = 8;
+/** Pixels of movement before blank-space drag starts panning the preview canvas. */
+const CANVAS_PAN_THRESHOLD_PX = 4;
 
 /**
  * Phone garment / guide images: never force both axes to 100% (avoids squashed look).
@@ -441,12 +471,17 @@ export function Builder() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated, usingSupabase } = useAuth();
   const techpackSpecFlow =
     searchParams.get('flow') === 'techpack-spec' ||
     (location.state as { builderFlow?: string } | null)?.builderFlow === 'techpack-spec';
   const techpackFlowInitRef = useRef(false);
   const product = productId ? getProductById(productId) : null;
+  const urlProjectId = searchParams.get('projectId');
+  const [dbProjectId, setDbProjectId] = useState<string | null>(urlProjectId);
+  const [projectHydrating, setProjectHydrating] = useState(Boolean(urlProjectId && isSupabaseConfigured));
+  const projectHydratedRef = useRef<string | null>(null);
 
   const [currentStep, setCurrentStep] = useState(() => (isTechpackSpecUrl() ? 9 : 1));
   const [visitedSteps, setVisitedSteps] = useState<number[]>(() =>
@@ -459,6 +494,8 @@ export function Builder() {
   const [showExtraDetails, setShowExtraDetails] = useState(false);
   const [previewBackground, setPreviewBackground] = useState<'black' | 'white' | 'transparent'>('black');
   const [previewZoom, setPreviewZoom] = useState(PREVIEW_ZOOM_DEFAULT);
+  const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
+  const [isPanningCanvas, setIsPanningCanvas] = useState(false);
   const [tshirtLayerSelectedId, setTshirtLayerSelectedId] = useState<GarmentLayerId | null>(null);
   /** When true, the phone configuration sheet (not the step icons) is fully collapsed. */
   const [phoneEditorCollapsed, setPhoneEditorCollapsed] = useState(false);
@@ -486,6 +523,16 @@ export function Builder() {
   /** Latest scale factor (previewZoom / 100); read inside pointer handlers without retriggering listeners. */
   const previewScaleRef = useRef(PREVIEW_ZOOM_DEFAULT / 100);
   const previewZoomRef = useRef(PREVIEW_ZOOM_DEFAULT);
+  const previewPanRef = useRef({ x: 0, y: 0 });
+  const canvasPanGestureRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+    panning: boolean;
+  } | null>(null);
+  const canvasPanCleanupRef = useRef<(() => void) | null>(null);
   const deleteZoneRef = useRef<HTMLDivElement>(null);
   const lastPointerRef = useRef({ x: 0, y: 0 });
   const detailOverDeleteRef = useRef(false);
@@ -526,7 +573,9 @@ export function Builder() {
     labelLayerSelectedId: null,
     packagingLayerSelectedId: null,
     printsLayerSelectedId: null,
-    quantityBySize: { xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0 },
+    orderQuantities: defaultOrderQuantityPlan(
+      isTechpackSpecUrl() ? 'techpack' : 'custom_clothing',
+    ),
     detailPositions: {
       measurements: { top: '16%', left: '14px' },
       fabric: { top: '22%', left: 'auto' },
@@ -575,6 +624,67 @@ export function Builder() {
     },
     [syncHistoryAvailability],
   );
+
+  useEffect(() => {
+    if (!urlProjectId || !isSupabaseConfigured) {
+      setProjectHydrating(false);
+      return;
+    }
+    if (projectHydratedRef.current === urlProjectId) {
+      setProjectHydrating(false);
+      return;
+    }
+
+    let cancelled = false;
+    setProjectHydrating(true);
+
+    void (async () => {
+      try {
+        const row = await getProject(urlProjectId);
+        if (cancelled) return;
+        if (!row) {
+          toast.error('Project not found');
+          setProjectHydrating(false);
+          return;
+        }
+
+        projectHydratedRef.current = row.id;
+        setDbProjectId(row.id);
+        setProjectName(row.name);
+        setCurrentStep(row.current_step);
+        setVisitedSteps((prev) => {
+          const next = new Set(prev);
+          for (let i = 1; i <= Math.max(1, row.current_step); i++) next.add(i);
+          return Array.from(next).sort((a, b) => a - b);
+        });
+
+        const saved = row.state;
+        if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+          _setStateRaw({
+            ...(saved as BuilderState),
+            productId: productId || (saved as BuilderState).productId || row.product_id,
+            labelLayerSelectedId: null,
+            packagingLayerSelectedId: null,
+            printsLayerSelectedId: null,
+          });
+          undoStackRef.current = [];
+          redoStackRef.current = [];
+          syncHistoryAvailability();
+        }
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Could not load project';
+          toast.error(message);
+        }
+      } finally {
+        if (!cancelled) setProjectHydrating(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlProjectId, productId, syncHistoryAvailability]);
 
   const undo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
@@ -681,7 +791,7 @@ export function Builder() {
     (versionId: string) => {
       const target = versions.find((v) => v.id === versionId);
       if (!target) return;
-      const resolved = resolveBuilderState(target.state);
+      const resolved = normalizeBuilderState(resolveBuilderState(target.state));
       _setStateRaw((current) => {
         if (!builderStatesEqual(current, resolved)) {
           undoStackRef.current.push(cloneBuilderState(current));
@@ -856,6 +966,17 @@ export function Builder() {
   }, [previewZoom]);
 
   useEffect(() => {
+    previewPanRef.current = previewPan;
+  }, [previewPan]);
+
+  useEffect(() => {
+    return () => {
+      canvasPanCleanupRef.current?.();
+      canvasPanCleanupRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (layoutTier === 'phone') {
       setPreviewZoom((z) => Math.min(PREVIEW_ZOOM_MAX_PHONE, z));
     }
@@ -960,22 +1081,69 @@ export function Builder() {
         if (showToast) toast.error('Offline — draft not synced. Reconnect and try again.');
         return;
       }
+      if (usingSupabase && !isAuthenticated) {
+        setSaveError('failed');
+        if (showToast) toast.error('Sign in to save your draft to the cloud');
+        return;
+      }
+
       setSaveError(null);
       setSaving(true);
       try {
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 420);
-        });
+        if (usingSupabase) {
+          const progressPct = Math.round(
+            Math.min(100, Math.max(0, (currentStep / builderSteps.length) * 100)),
+          );
+          const flowType: ProjectFlowType = 'techpack';
+          const row = await upsertProject({
+            id: dbProjectId ?? undefined,
+            productId: productId || state.productId || '',
+            name: projectName,
+            garmentType: state.garmentType,
+            flowType,
+            progress: progressPct,
+            currentStep,
+            state: { ...state } as unknown as Record<string, unknown>,
+          });
+          if (row.id !== dbProjectId) {
+            setDbProjectId(row.id);
+            projectHydratedRef.current = row.id;
+            const next = new URLSearchParams(searchParams);
+            next.set('projectId', row.id);
+            setSearchParams(next, { replace: true });
+          }
+        } else {
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 420);
+          });
+          if (showToast) {
+            toast.message('Cloud DB not configured', {
+              description: 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env',
+            });
+          }
+        }
         captureVersion({ manual: false });
         if (showToast) toast.success('Draft saved');
-      } catch {
+      } catch (err) {
         setSaveError('failed');
-        if (showToast) toast.error('Could not save — try again');
+        const message = err instanceof Error ? err.message : 'Could not save — try again';
+        if (showToast) toast.error(message);
       } finally {
         setSaving(false);
       }
     },
-    [captureVersion],
+    [
+      captureVersion,
+      currentStep,
+      dbProjectId,
+      isAuthenticated,
+      productId,
+      projectName,
+      searchParams,
+      setSearchParams,
+      state,
+      usingSupabase,
+    ],
   );
 
   const retrySave = useCallback(() => {
@@ -1023,6 +1191,7 @@ export function Builder() {
   }, [layoutTier]);
 
   if (!product) return <PageLoadingFallback />;
+  if (projectHydrating) return <PageLoadingFallback />;
 
   const step = builderSteps.find((item) => item.id === currentStep);
   const stepTitleLabel =
@@ -1060,6 +1229,7 @@ export function Builder() {
       selection: garmentSelection,
       neckTrimColor: state.neckTrimColor,
       sleeveTrimColor: state.sleeveTrimColor,
+      cuffTrimColor: state.cuffTrimColor,
       pocketTrimColor: state.pocketTrimColor,
     }).find((layer) => layer.id === garmentSourceLayerId(garmentSvgType, tshirtLayerSelectedId))
       ?.displayName;
@@ -1069,6 +1239,7 @@ export function Builder() {
     garmentSelection,
     state.neckTrimColor,
     state.sleeveTrimColor,
+    state.cuffTrimColor,
     state.pocketTrimColor,
   ]);
 
@@ -1206,7 +1377,19 @@ export function Builder() {
 
   const handleNext = () => {
     if (currentStep === 13) {
-      navigate('/delivery', { state: { productId } });
+      navigate('/delivery', {
+        state: {
+          productId,
+          productName: product?.name ?? 'Studio project',
+          garmentType: state.garmentType,
+          orderQuantities: state.orderQuantities,
+        },
+      });
+      return;
+    }
+
+    if (currentStep === 12 && !isSampleQuantityValid(state.orderQuantities)) {
+      toast.error(sampleValidationMessage(state.orderQuantities));
       return;
     }
 
@@ -1328,6 +1511,101 @@ export function Builder() {
     },
     [garmentSvgType, openBuilderStep],
   );
+
+  /** Drag empty preview space to pan the canvas (assets still drag via their own hit targets). */
+  const beginCanvasPanFromPointer = useCallback((e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0 && e.button !== 1) return;
+    if (typeof e.pointerType === 'string' && e.pointerType === 'touch' && e.isPrimary === false) {
+      return;
+    }
+
+    canvasPanCleanupRef.current?.();
+    canvasPanCleanupRef.current = null;
+
+    const surface = e.currentTarget;
+    const pointerId = e.pointerId;
+    const origin = previewPanRef.current;
+    canvasPanGestureRef.current = {
+      pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: origin.x,
+      originY: origin.y,
+      panning: false,
+    };
+
+    try {
+      surface.setPointerCapture(pointerId);
+    } catch {
+      /* ignore */
+    }
+
+    const thresholdSq = CANVAS_PAN_THRESHOLD_PX * CANVAS_PAN_THRESHOLD_PX;
+
+    const onMove = (ev: PointerEvent) => {
+      const gesture = canvasPanGestureRef.current;
+      if (!gesture || ev.pointerId !== gesture.pointerId) return;
+
+      const dx = ev.clientX - gesture.startX;
+      const dy = ev.clientY - gesture.startY;
+
+      if (!gesture.panning) {
+        if (dx * dx + dy * dy < thresholdSq) return;
+        gesture.panning = true;
+        setIsPanningCanvas(true);
+        if (typeof document !== 'undefined') {
+          document.body.style.cursor = 'grabbing';
+          document.body.style.userSelect = 'none';
+          document.body.style.touchAction = 'none';
+        }
+      }
+
+      ev.preventDefault();
+      const next = { x: gesture.originX + dx, y: gesture.originY + dy };
+      previewPanRef.current = next;
+      setPreviewPan(next);
+    };
+
+    const end = (ev: PointerEvent) => {
+      const gesture = canvasPanGestureRef.current;
+      if (!gesture || ev.pointerId !== gesture.pointerId) return;
+
+      canvasPanGestureRef.current = null;
+      setIsPanningCanvas(false);
+      if (typeof document !== 'undefined') {
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.body.style.touchAction = '';
+      }
+      try {
+        if (surface.hasPointerCapture(pointerId)) {
+          surface.releasePointerCapture(pointerId);
+        }
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      canvasPanCleanupRef.current = null;
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    canvasPanCleanupRef.current = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      canvasPanGestureRef.current = null;
+      setIsPanningCanvas(false);
+      if (typeof document !== 'undefined') {
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.body.style.touchAction = '';
+      }
+    };
+  }, []);
 
   const flushPendingDetailMove = () => {
     if (detailMoveRafRef.current != null) {
@@ -1887,7 +2165,7 @@ export function Builder() {
               {renderGarmentAssetGrids(4)}
               {!techpackSpecFlow ? (
                 <TrimColorFamilyPicker
-                  label="Sleeve trim colour"
+                  label="Sleeve colour"
                   value={state.sleeveTrimColor}
                   onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
                   onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
@@ -1962,12 +2240,12 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(5)}
-              {!techpackSpecFlow && garmentConfig?.trimBindings.sleeve?.length ? (
+              {!techpackSpecFlow && garmentConfig?.trimBindings.cuff?.length ? (
                 <TrimColorFamilyPicker
-                  label="Sleeve hem trim colour"
-                  value={state.sleeveTrimColor}
-                  onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
-                  onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
+                  label="Sleeve hem / cuff trim colour"
+                  value={state.cuffTrimColor}
+                  onChange={(hex) => setState((prev) => ({ ...prev, cuffTrimColor: hex }))}
+                  onClear={() => setState((prev) => ({ ...prev, cuffTrimColor: undefined }))}
                 />
               ) : null}
               <div>
@@ -2329,59 +2607,13 @@ export function Builder() {
           </div>
         );
 
-      case 12: {
-        const totalQty = ORDER_SIZE_KEYS.reduce(
-          (sum, k) => sum + (state.quantityBySize[k] ?? 0),
-          0,
-        );
+      case 12:
         return (
-          <div className="space-y-4">
-            <p className="text-[11px] leading-relaxed text-white/55">
-              Enter how many units you want per size. Use 0 for sizes you do not need.
-            </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {ORDER_SIZE_KEYS.map((size) => (
-                <div key={size}>
-                  <Label className="mb-1 block text-[9px] uppercase tracking-wider text-white/50">
-                    {size.toUpperCase()}
-                  </Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={
-                      (state.quantityBySize[size] ?? 0) === 0
-                        ? ''
-                        : String(state.quantityBySize[size] ?? 0)
-                    }
-                    onChange={(e) => {
-                      const t = e.target.value.trim();
-                      if (t === '') {
-                        setState((prev) => ({
-                          ...prev,
-                          quantityBySize: { ...prev.quantityBySize, [size]: 0 },
-                        }));
-                        return;
-                      }
-                      const raw = parseInt(t, 10);
-                      const v = Number.isFinite(raw) ? Math.max(0, raw) : 0;
-                      setState((prev) => ({
-                        ...prev,
-                        quantityBySize: { ...prev.quantityBySize, [size]: v },
-                      }));
-                    }}
-                    className="h-9 border-white/10 bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] text-white/80">
-              Total units: <span className="font-semibold text-white">{totalQty}</span>
-            </div>
-          </div>
+          <OrderQuantitiesStep
+            plan={state.orderQuantities}
+            onChange={(orderQuantities) => setState((prev) => ({ ...prev, orderQuantities }))}
+          />
         );
-      }
 
       case 13:
         return (
@@ -2465,10 +2697,12 @@ export function Builder() {
                 />
               ) : null}
               <ReviewRow
-                label="Order quantities (total units)"
-                value={String(
-                  ORDER_SIZE_KEYS.reduce((sum, k) => sum + (state.quantityBySize[k] ?? 0), 0),
-                )}
+                label="Order quantities"
+                value={
+                  planHasAnyQuantity(state.orderQuantities)
+                    ? formatOrderQuantitiesSummary(state.orderQuantities).join(' · ')
+                    : 'Not set'
+                }
               />
             </div>
 
@@ -2635,13 +2869,25 @@ export function Builder() {
         ) : null}
         {state.sleeveTrimColor ? (
           <div className="border-b border-white/10 pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Sleeve trim</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Sleeve colour</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
                 style={{ backgroundColor: state.sleeveTrimColor }}
               />
               <span className="text-sm font-semibold text-white">{state.sleeveTrimColor}</span>
+            </div>
+          </div>
+        ) : null}
+        {state.cuffTrimColor ? (
+          <div className="border-b border-white/10 pb-4">
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Cuff trim</div>
+            <div className="flex items-center gap-2">
+              <div
+                className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
+                style={{ backgroundColor: state.cuffTrimColor }}
+              />
+              <span className="text-sm font-semibold text-white">{state.cuffTrimColor}</span>
             </div>
           </div>
         ) : null}
@@ -2696,21 +2942,7 @@ export function Builder() {
             </div>
           </div>
         ) : null}
-        <div className="border-b border-white/10 pb-4">
-          <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Order quantities</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-white/85 sm:grid-cols-3">
-            {ORDER_SIZE_KEYS.map((k) => (
-              <div key={k}>
-                <span className="text-white/50">{k.toUpperCase()}</span>{' '}
-                <span className="font-medium text-white">{state.quantityBySize[k] ?? 0}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 text-sm font-semibold text-white">
-            Total units:{' '}
-            {ORDER_SIZE_KEYS.reduce((sum, k) => sum + (state.quantityBySize[k] ?? 0), 0)}
-          </div>
-        </div>
+        <OrderQuantitiesSummary plan={state.orderQuantities} />
 
         {summaryStepNotes ? (
           <div className="border-b border-white/10 pb-4">
@@ -2957,6 +3189,7 @@ export function Builder() {
             className={cn(
               'relative flex h-full min-h-0 w-full flex-1 items-center justify-center px-2 py-6 sm:px-4 sm:py-8',
               isPhone && 'px-1.5 py-5',
+              isPanningCanvas ? 'cursor-grabbing' : 'cursor-grab',
             )}
             onPointerDown={(e) => {
               const t = e.target as HTMLElement;
@@ -2977,21 +3210,37 @@ export function Builder() {
                 }
                 setState((prev) => ({ ...prev, printsLayerSelectedId: null }));
               } else if (currentStep === 10) {
+                if (
+                  t.closest('[data-surface-id]') ||
+                  t.closest('[data-handles]') ||
+                  t.closest('[data-label-packaging-surface]')
+                ) {
+                  return;
+                }
                 setState((prev) => ({ ...prev, labelLayerSelectedId: null }));
               } else if (currentStep === 11) {
+                if (
+                  t.closest('[data-surface-id]') ||
+                  t.closest('[data-handles]') ||
+                  t.closest('[data-label-packaging-surface]')
+                ) {
+                  return;
+                }
                 setState((prev) => ({ ...prev, packagingLayerSelectedId: null }));
               } else if (isGarmentSvgFlow && isGarmentPreviewStep) {
                 setTshirtLayerSelectedId(null);
               }
+              beginCanvasPanFromPointer(e);
             }}
           >
           <div
             ref={previewStageRef}
             className="relative flex h-full w-full min-h-0 items-center justify-center"
             style={{
-              transform: `scale(${previewZoom / 100})`,
+              transform: `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom / 100})`,
               transformOrigin: 'center center',
-              transition: draggingDetail ? 'none' : 'transform 120ms ease-out',
+              transition:
+                draggingDetail || isPanningCanvas ? 'none' : 'transform 120ms ease-out',
             }}
           >
         <div className="relative flex h-full min-h-0 w-full max-w-full min-w-0 flex-col items-center justify-center">
@@ -3105,6 +3354,7 @@ export function Builder() {
                   selection={garmentSelection}
                   neckTrimColor={state.neckTrimColor}
                   sleeveTrimColor={state.sleeveTrimColor}
+                  cuffTrimColor={state.cuffTrimColor}
                   pocketTrimColor={state.pocketTrimColor}
                   layerTransforms={state.tshirtLayerTransforms}
                   onLayerTransformChange={(id, transform) =>
@@ -3189,11 +3439,18 @@ export function Builder() {
               >
                 <Plus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               </Button>
-              <span className="min-w-0 min-w-[2.5rem] text-center text-[10px] font-semibold tabular-nums text-white/75 sm:min-w-[2.75rem] sm:text-[11px]">
+              <span
+                className="min-w-0 min-w-[2.5rem] cursor-pointer text-center text-[10px] font-semibold tabular-nums text-white/75 sm:min-w-[2.75rem] sm:text-[11px]"
+                title="Reset zoom & position"
+                onClick={() => {
+                  setPreviewZoom(PREVIEW_ZOOM_DEFAULT);
+                  setPreviewPan({ x: 0, y: 0 });
+                }}
+              >
                 {Math.min(previewZoom, previewZoomMax)}%
               </span>
-              <span className="hidden max-w-[5.5rem] border-l border-white/10 pl-2 text-[8px] leading-tight text-white/35 lg:inline">
-                Ctrl + scroll
+              <span className="hidden max-w-[7rem] border-l border-white/10 pl-2 text-[8px] leading-tight text-white/35 lg:inline">
+                Drag empty · Ctrl+scroll
               </span>
             </div>
             <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-white/12 bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">

@@ -15,6 +15,7 @@ export interface GarmentSvgConfig {
   trimBindings: {
     neck?: readonly string[];
     sleeve?: readonly string[];
+    cuff?: readonly string[];
     pocket?: readonly string[];
   };
   splitSleeves: boolean;
@@ -52,6 +53,7 @@ export interface ResolveGarmentLayersInput {
   selection: GarmentAssetSelection;
   neckTrimColor?: string;
   sleeveTrimColor?: string;
+  cuffTrimColor?: string;
   pocketTrimColor?: string;
 }
 
@@ -106,7 +108,8 @@ const TSHIRT_CONFIG: GarmentSvgConfig = {
   },
   trimBindings: {
     neck: ['neckline'],
-    sleeve: ['T-shirt sleeve hem'],
+    sleeve: ['T-shirt sleeves'],
+    cuff: ['T-shirt sleeve hem'],
     pocket: [
       'T-shirt pockets',
       'T-shirt zips',
@@ -501,6 +504,7 @@ function trimForCategory(
   const { trimBindings } = GARMENT_CONFIGS[garmentType];
   if (trimBindings.neck?.includes(category)) return input.neckTrimColor;
   if (trimBindings.sleeve?.includes(category)) return input.sleeveTrimColor;
+  if (trimBindings.cuff?.includes(category)) return input.cuffTrimColor;
   if (trimBindings.pocket?.includes(category)) return input.pocketTrimColor;
   return undefined;
 }
