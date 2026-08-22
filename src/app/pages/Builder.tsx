@@ -93,7 +93,9 @@ import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPrevi
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
+import { CollarPhotoUpload } from '../components/builder/CollarPhotoUpload';
 import { TrimColorFamilyPicker } from '../components/builder/TrimColorFamilyPicker';
+import { GarmentPartColorPickers } from '../components/builder/GarmentPartColorPickers';
 import { StudioColorField } from '../components/builder/StudioColorField';
 import {
   DEFAULT_PRINT_METHOD,
@@ -126,18 +128,27 @@ import {
 import { cn } from '../components/ui/utils';
 import type { MeasurementUnit } from '../lib/measurements';
 import {
+  applyGarmentFitAndLinks,
   supportsGarmentSvgPreview,
   getDefaultGarmentSelection,
+  resolveGarmentPackFit,
   getGarmentCategoriesForStep,
+  getGarmentChoiceCategoriesForStep,
   getGarmentSelectionLabel,
   getGarmentSpecRows,
   getGarmentSvgConfig,
   resolveGarmentLayers,
-  resolveGarmentSvgType,
+  resolveProductSvgType,
   garmentSourceLayerId,
   garmentBuilderStepForLayerId,
   garmentTransformStorageId,
+  customCollarNeckId,
+  listCustomCollars,
+  newCustomCollarId,
+  uniqueCustomCollarName,
+  type CustomCollarSvgs,
   type GarmentAssetSelection,
+  type GarmentSvgGarmentType,
   type GarmentLayerId,
   type TshirtLayerTransform,
 } from '../data/tshirtLayerAssets';
@@ -249,6 +260,13 @@ interface BuilderState {
   tshirtLayerTransforms?: Partial<Record<GarmentLayerId, TshirtLayerTransform>>;
   /** One selected SVG asset id per folder under src/assets/{tshirts|hoodie|trousers}. */
   tshirtAssetSelection?: GarmentAssetSelection;
+  /** SVG part pack pinned by the product, when it differs from the garment type default. */
+  svgPack?: GarmentSvgGarmentType;
+  /** Per-part colour keyed by garment layer id, for packs where every part fills on its own. */
+  partColors?: Partial<Record<string, string>>;
+  /** Photo-traced slim collars + matching body cuts. Each upload is its own Neck option. */
+  customCollar?: CustomCollarSvgs | null;
+  customCollars?: CustomCollarSvgs[];
 }
 
 function cloneBuilderState(s: BuilderState): BuilderState {
@@ -562,7 +580,12 @@ export function Builder() {
   const [state, _setStateRaw] = useState<BuilderState>({
     productId: productId || '',
     garmentType: product?.garmentType || 'tshirt',
-    fit: 'regular',
+    fit: (() => {
+      const svgType = product?.garmentType
+        ? resolveProductSvgType(product.garmentType, product.svgPack)
+        : null;
+      return (svgType && resolveGarmentPackFit(svgType)) || 'regular';
+    })(),
     measurementUnit: 'cm',
     measurements: {},
     colors: [],
@@ -585,9 +608,14 @@ export function Builder() {
       hem: { top: '78%', left: '14px' },
       pockets: { top: '48%', left: '14px' },
     },
+    svgPack: product?.svgPack,
     tshirtAssetSelection: (() => {
-      const svgType = product?.garmentType ? resolveGarmentSvgType(product.garmentType) : null;
-      return svgType ? getDefaultGarmentSelection(svgType) : undefined;
+      const svgType = product?.garmentType
+        ? resolveProductSvgType(product.garmentType, product.svgPack)
+        : null;
+      return svgType
+        ? getDefaultGarmentSelection(svgType, resolveGarmentPackFit(svgType))
+        : undefined;
     })(),
   });
 
@@ -1178,8 +1206,19 @@ export function Builder() {
     handleSave(true);
   }, [handleSave]);
 
-  const shouldSkipStep = (stepId: number) =>
-    builderSteps.find((item) => item.id === stepId)?.skipForGarmentTypes?.includes(state.garmentType);
+  /** Garment-construction steps; each maps to part categories in the SVG pack. */
+  const GARMENT_PART_STEPS = { first: 3, last: 8 };
+
+  const shouldSkipStep = (stepId: number) => {
+    if (builderSteps.find((item) => item.id === stepId)?.skipForGarmentTypes?.includes(state.garmentType)) {
+      return true;
+    }
+    if (stepId < GARMENT_PART_STEPS.first || stepId > GARMENT_PART_STEPS.last) return false;
+
+    const pack = resolveProductSvgType(state.garmentType, state.svgPack);
+    if (!pack || !getGarmentSvgConfig(pack).restrictStepsToPack) return false;
+    return getGarmentCategoriesForStep(pack, stepId).length === 0;
+  };
 
   const techpackNavigationList = useMemo(() => {
     if (!techpackSpecFlow) return null as number[] | null;
@@ -1232,14 +1271,24 @@ export function Builder() {
         100
       : (currentStep / builderSteps.length) * 100;
   const primaryColor = state.colors[0]?.hex || '#5C7FB6';
-  const garmentSvgType = resolveGarmentSvgType(state.garmentType);
+  const garmentSvgType = resolveProductSvgType(state.garmentType, state.svgPack);
   const isGarmentSvgFlow = garmentSvgType != null && supportsGarmentSvgPreview(state.garmentType);
+  const activeFit = garmentSvgType
+    ? resolveGarmentPackFit(garmentSvgType, state.fit) ?? state.fit
+    : state.fit;
   const garmentSelection = useMemo(
     () =>
       garmentSvgType
-        ? { ...getDefaultGarmentSelection(garmentSvgType), ...state.tshirtAssetSelection }
+        ? applyGarmentFitAndLinks(
+            garmentSvgType,
+            {
+              ...getDefaultGarmentSelection(garmentSvgType, activeFit),
+              ...state.tshirtAssetSelection,
+            },
+            activeFit,
+          )
         : {},
-    [garmentSvgType, state.tshirtAssetSelection],
+    [garmentSvgType, state.tshirtAssetSelection, activeFit],
   );
   const garmentPreviewStepMax = garmentSvgType
     ? getGarmentSvgConfig(garmentSvgType).previewStepMax
@@ -1255,16 +1304,22 @@ export function Builder() {
       sleeveTrimColor: state.sleeveTrimColor,
       cuffTrimColor: state.cuffTrimColor,
       pocketTrimColor: state.pocketTrimColor,
+      fit: activeFit,
+      customCollar: state.customCollar,
+      customCollars: state.customCollars,
     }).find((layer) => layer.id === garmentSourceLayerId(garmentSvgType, tshirtLayerSelectedId))
       ?.displayName;
   }, [
     tshirtLayerSelectedId,
     garmentSvgType,
     garmentSelection,
+    activeFit,
     state.neckTrimColor,
     state.sleeveTrimColor,
     state.cuffTrimColor,
     state.pocketTrimColor,
+    state.customCollar,
+    state.customCollars,
   ]);
 
   const garmentConfig = garmentSvgType ? getGarmentSvgConfig(garmentSvgType) : null;
@@ -1953,24 +2008,54 @@ export function Builder() {
 
   const renderGarmentAssetGrids = (step: number) => {
     if (!garmentSvgType) return null;
-    return getGarmentCategoriesForStep(garmentSvgType, step).map((category) => (
+    return getGarmentChoiceCategoriesForStep(garmentSvgType, step).map((category) => (
       <GarmentAssetChoiceGrid
         key={category}
         garmentType={garmentSvgType}
         category={category}
         selected={garmentSelection[category]}
+        fit={activeFit}
+        extraAssets={
+          category === 'Neck'
+            ? listCustomCollars(state.customCollar, state.customCollars).map((collar) => ({
+                id: customCollarNeckId(collar.id || 'legacy'),
+                displayName: collar.displayName || 'Uploaded collar',
+              }))
+            : undefined
+        }
         onSelect={(assetId) =>
           setState((prev) => ({
             ...prev,
-            tshirtAssetSelection: {
-              ...getDefaultGarmentSelection(garmentSvgType),
-              ...prev.tshirtAssetSelection,
-              [category]: assetId,
-            },
+            tshirtAssetSelection: applyGarmentFitAndLinks(
+              garmentSvgType,
+              {
+                ...getDefaultGarmentSelection(garmentSvgType, activeFit),
+                ...prev.tshirtAssetSelection,
+                [category]: assetId,
+              },
+              activeFit,
+            ),
           }))
         }
       />
     ));
+  };
+
+  const renderPartColorPickers = (step: number) => {
+    if (!garmentSvgType || !garmentConfig?.perPartColors || techpackSpecFlow) return null;
+    return (
+      <GarmentPartColorPickers
+        garmentType={garmentSvgType}
+        categories={getGarmentCategoriesForStep(garmentSvgType, step)}
+        partColors={state.partColors}
+        onChange={(layerId, hex) =>
+          setState((prev) => ({
+            ...prev,
+            partColors: { ...prev.partColors, [layerId]: hex },
+          }))
+        }
+      />
+    );
   };
 
   const renderStepContent = () => {
@@ -1980,9 +2065,24 @@ export function Builder() {
           <div className="space-y-4">
             <MeasurementsStep
               garmentType={state.garmentType}
-              fit={state.fit || 'regular'}
+              fit={activeFit || 'regular'}
+              fits={garmentConfig?.fits}
               onFitChange={(fit) =>
-                setState((prev) => ({ ...prev, fit, measurements: prev.measurements }))
+                setState((prev) => ({
+                  ...prev,
+                  fit,
+                  measurements: prev.measurements,
+                  tshirtAssetSelection: garmentSvgType
+                    ? applyGarmentFitAndLinks(
+                        garmentSvgType,
+                        {
+                          ...getDefaultGarmentSelection(garmentSvgType, fit),
+                          ...prev.tshirtAssetSelection,
+                        },
+                        fit,
+                      )
+                    : prev.tshirtAssetSelection,
+                }))
               }
               measurements={state.measurements}
               measurementUnit={state.measurementUnit}
@@ -2093,6 +2193,8 @@ export function Builder() {
               <div className="space-y-3">{renderGarmentAssetGrids(2)}</div>
             ) : null}
 
+            {renderPartColorPickers(2)}
+
             <div>
               <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                 GSM
@@ -2132,7 +2234,47 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(3)}
-              {!techpackSpecFlow ? (
+              {garmentSvgType === 'tshirtTest' ? (
+                <CollarPhotoUpload
+                  disabled={activeFit === 'boxy'}
+                  disabledReason="Switch to Slim on measurements to upload a collar photo."
+                  onTraced={(collar) => {
+                    setState((prev) => {
+                      const existing = listCustomCollars(prev.customCollar, prev.customCollars);
+                      const id = newCustomCollarId();
+                      const displayName = uniqueCustomCollarName(
+                        collar.displayName || 'Uploaded collar',
+                        existing.map((entry) => entry.displayName || ''),
+                      );
+                      const entry: CustomCollarSvgs = {
+                        ...collar,
+                        id,
+                        displayName,
+                      };
+                      return {
+                        ...prev,
+                        fit: 'slim',
+                        customCollar: entry,
+                        customCollars: [...existing, entry],
+                        tshirtAssetSelection: garmentSvgType
+                          ? applyGarmentFitAndLinks(
+                              garmentSvgType,
+                              {
+                                ...getDefaultGarmentSelection(garmentSvgType, 'slim'),
+                                ...prev.tshirtAssetSelection,
+                                Neck: customCollarNeckId(id),
+                              },
+                              'slim',
+                            )
+                          : prev.tshirtAssetSelection,
+                      };
+                    });
+                    toast.success(`${collar.displayName || 'Uploaded collar'} is on the tee`);
+                  }}
+                />
+              ) : null}
+              {renderPartColorPickers(3)}
+              {!techpackSpecFlow && !garmentConfig?.perPartColors ? (
                 <TrimColorFamilyPicker
                   label="Neck / collar trim colour"
                   value={state.neckTrimColor}
@@ -2192,7 +2334,8 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(4)}
-              {!techpackSpecFlow ? (
+              {renderPartColorPickers(4)}
+              {!techpackSpecFlow && !garmentConfig?.perPartColors ? (
                 <TrimColorFamilyPicker
                   label="Sleeve colour"
                   value={state.sleeveTrimColor}
@@ -2269,7 +2412,8 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(5)}
-              {!techpackSpecFlow && garmentConfig?.trimBindings.cuff?.length ? (
+              {renderPartColorPickers(5)}
+              {!techpackSpecFlow && !garmentConfig?.perPartColors && garmentConfig?.trimBindings.cuff?.length ? (
                 <TrimColorFamilyPicker
                   label="Sleeve hem / cuff trim colour"
                   value={state.cuffTrimColor}
@@ -3388,10 +3532,14 @@ export function Builder() {
                   garmentType={garmentSvgType}
                   color={primaryColor}
                   selection={garmentSelection}
+                  fit={activeFit}
                   neckTrimColor={state.neckTrimColor}
                   sleeveTrimColor={state.sleeveTrimColor}
                   cuffTrimColor={state.cuffTrimColor}
                   pocketTrimColor={state.pocketTrimColor}
+                  partColors={state.partColors}
+                  customCollar={state.customCollar}
+                  customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}
                   onLayerTransformChange={(id, transform) =>
                     setState((prev) => ({

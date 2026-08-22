@@ -20,14 +20,19 @@ export function tintPotraceSvg(
       );
   }
 
-  let result = svg
-    .replace(/fill="#000000"/gi, `fill="${fill}"`)
-    .replace(/fill="#000"/gi, `fill="${fill}"`)
-    .replace(/fill="black"/gi, `fill="${fill}"`)
-    .replace(
-      /(<g transform="[^"]+")[^>]*>/,
-      `$1 fill="${fill}" stroke="none" fill-rule="evenodd">`,
-    );
+  // Only the first (fabric) group is tinted. Construction ink stays #141414.
+  let result = svg.replace(
+    /(<g transform="[^"]+")[^>]*fill="#000000"[^>]*>/i,
+    `$1 fill="${fill}" stroke="none" fill-rule="evenodd">`,
+  );
+  if (result === svg) {
+    result = svg
+      .replace(/fill="#000000"/i, `fill="${fill}"`)
+      .replace(
+        /(<g transform="[^"]+")[^>]*>/,
+        `$1 fill="${fill}" stroke="none" fill-rule="evenodd">`,
+      );
+  }
 
   if (interactive) {
     result = result.replace(/<path /gi, '<path pointer-events="all" ');

@@ -28,6 +28,8 @@ interface MeasurementsStepProps {
   onMeasurementUnitChange: (unit: MeasurementUnit) => void;
   highlightedMeasurementId?: string | null;
   onHighlightedMeasurementIdChange?: (id: string | null) => void;
+  /** When set, only these fits are offered (e.g. Slim / Boxy on the test pack). */
+  fits?: readonly { id: string; name: string }[];
 }
 
 function MeasurementUnitToggle({
@@ -127,6 +129,17 @@ const fitMeasurements: Record<string, Record<string, Record<string, string>>> = 
     neckOpening: { xs: '19', s: '19', m: '19.5', l: '20', xl: '20.5', xxl: '21' },
     neckDrop: { xs: '2', s: '2', m: '2', l: '2', xl: '2', xxl: '2' },
     shoulderWidth: { xs: '42', s: '44', m: '46', l: '48', xl: '50', xxl: '52' }
+  },
+  boxy: {
+    halfLength: { xs: '66', s: '68', m: '70', l: '72', xl: '74', xxl: '76' },
+    chestWidth: { xs: '56', s: '58', m: '60', l: '63', xl: '66', xxl: '69' },
+    bottomWidth: { xs: '56', s: '58', m: '60', l: '63', xl: '66', xxl: '69' },
+    sleeveLength: { xs: '20', s: '21', m: '22', l: '23', xl: '24', xxl: '25' },
+    armhole: { xs: '26', s: '27.5', m: '29', l: '30.5', xl: '32', xxl: '33.5' },
+    sleeveOpening: { xs: '20', s: '20.5', m: '21', l: '21.5', xl: '22', xxl: '22.5' },
+    neckOpening: { xs: '19', s: '19', m: '19.5', l: '20', xl: '20.5', xxl: '21' },
+    neckDrop: { xs: '2', s: '2', m: '2', l: '2', xl: '2', xxl: '2' },
+    shoulderWidth: { xs: '48', s: '50', m: '52', l: '54', xl: '56', xxl: '58' }
   }
 };
 
@@ -140,8 +153,10 @@ export function MeasurementsStep({
   onMeasurementUnitChange,
   highlightedMeasurementId,
   onHighlightedMeasurementIdChange,
+  fits,
 }: MeasurementsStepProps) {
   const currentMeasurements = fit && fitMeasurements[fit] ? fitMeasurements[fit] : fitMeasurements.regular;
+  const fitChoices = fits?.length ? fits : fitOptions;
   const [localHighlightedMeasurementId, setLocalHighlightedMeasurementId] =
     useState<MeasurementGuideId | null>(null);
   const activeHighlightedMeasurementId =
@@ -156,6 +171,25 @@ export function MeasurementsStep({
         <Label className="mb-2 block text-[10px] uppercase tracking-wider text-white/60 md:mb-3 md:text-xs">
           Fit Type
         </Label>
+        {fits?.length ? (
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+            {fitChoices.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => onFitChange(option.id)}
+                className={cn(
+                  'rounded-md border px-2 py-2.5 text-center transition sm:rounded-lg sm:px-2.5 sm:py-3',
+                  fit === option.id
+                    ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
+                    : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
+                )}
+              >
+                <div className="text-[12px] font-medium leading-snug sm:text-[13px]">{option.name}</div>
+              </button>
+            ))}
+          </div>
+        ) : (
         <Select value={fit} onValueChange={onFitChange}>
           <SelectTrigger
             className={cn(
@@ -179,7 +213,7 @@ export function MeasurementsStep({
               'data-[state=open]:animate-in data-[state=closed]:animate-out',
             )}
           >
-            {fitOptions.map((option) => (
+            {fitChoices.map((option) => (
               <SelectItem
                 key={option.id}
                 value={option.id}
@@ -196,6 +230,7 @@ export function MeasurementsStep({
             ))}
           </SelectContent>
         </Select>
+        )}
       </div>
 
       {/* Measurement Table */}

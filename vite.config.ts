@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { collarFromPhotoPlugin } from './scripts/collar/vite-plugin'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -37,6 +38,7 @@ export default defineConfig({
     // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
+    collarFromPhotoPlugin(),
   ],
   resolve: {
     alias: {

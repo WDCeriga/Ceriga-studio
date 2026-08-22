@@ -22,6 +22,7 @@ import {
   type GarmentAssetSelection,
   type GarmentSvgGarmentType,
   type ResolvedGarmentLayer,
+  type CustomCollarSvgs,
 } from '../../data/garmentSvgCatalog';
 import {
   mergeCuffSideTransform,
@@ -214,12 +215,17 @@ export interface TshirtSvgPreviewProps {
   sleeveTrimColor?: string;
   cuffTrimColor?: string;
   pocketTrimColor?: string;
+  /** Per-part colour keyed by layer id; wins over the fabric colour and trim colours. */
+  partColors?: Partial<Record<string, string>>;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
   onSelectedLayerChange?: (id: string | null) => void;
   liveCanvasScale?: number;
   className?: string;
+  fit?: string;
+  customCollar?: CustomCollarSvgs | null;
+  customCollars?: CustomCollarSvgs[];
 }
 
 function mergeTransform(id: string, map?: Partial<Record<string, TshirtLayerTransform>>) {
@@ -681,12 +687,16 @@ export function TshirtSvgPreview({
   sleeveTrimColor,
   cuffTrimColor,
   pocketTrimColor,
+  partColors,
   layerTransforms,
   onLayerTransformChange,
   selectedLayerId = null,
   onSelectedLayerChange,
   liveCanvasScale = 1,
   className,
+  fit,
+  customCollar,
+  customCollars,
 }: TshirtSvgPreviewProps) {
   const gestureRef = useRef<{
     layerId: string;
@@ -721,8 +731,12 @@ export function TshirtSvgPreview({
         sleeveTrimColor,
         cuffTrimColor,
         pocketTrimColor,
+        partColors,
+        fit,
+        customCollar,
+        customCollars,
       }),
-    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor],
+    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, partColors, fit, customCollar, customCollars],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);

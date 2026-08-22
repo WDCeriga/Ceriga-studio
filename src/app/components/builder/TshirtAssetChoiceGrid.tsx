@@ -1,6 +1,7 @@
 import {
   GARMENT_NONE,
   getGarmentAssets,
+  getGarmentAssetsForFit,
   isGarmentCategoryOptional,
   type GarmentSvgGarmentType,
 } from '../../data/garmentSvgCatalog';
@@ -12,13 +13,20 @@ export function GarmentAssetChoiceGrid({
   category,
   selected,
   onSelect,
+  fit,
+  extraAssets,
 }: {
   garmentType: GarmentSvgGarmentType;
   category: string;
   selected?: string;
   onSelect: (assetId: string) => void;
+  fit?: string;
+  extraAssets?: Array<{ id: string; displayName: string }>;
 }) {
-  const assets = getGarmentAssets(garmentType, category);
+  const assets = [
+    ...getGarmentAssetsForFit(garmentType, category, fit),
+    ...(extraAssets ?? []),
+  ];
   const allowNone = isGarmentCategoryOptional(garmentType, category);
 
   return (

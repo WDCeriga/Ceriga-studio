@@ -1,3 +1,5 @@
+import type { GarmentSvgGarmentType } from './garmentSvgCatalog';
+
 export interface Product {
   id: string;
   name: string;
@@ -9,6 +11,8 @@ export interface Product {
   startingPrice: number;
   leadTime: string;
   origin: string;
+  /** Pin the builder to a specific SVG part pack instead of the garment type's default. */
+  svgPack?: GarmentSvgGarmentType;
 }
 
 /**
@@ -29,6 +33,19 @@ export const products: Product[] = [
     startingPrice: 12.99,
     leadTime: '4-6 weeks',
     origin: 'Made in Portugal'
+  },
+  {
+    id: 'ts-test',
+    name: 'Test T-Shirt — All Parts',
+    description: 'Test build from the Ceriga line art: Slim or Boxy fit. Slim has crew and V-neck; Boxy has the boxy crew. Each part is colourable on its own step.',
+    categories: ['Tops', 'All'],
+    garmentType: 'tshirt',
+    svgPack: 'tshirtTest',
+    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&h=600&fit=crop',
+    moq: 50,
+    startingPrice: 12.99,
+    leadTime: '4-6 weeks',
+    origin: 'Test mockup'
   },
   {
     id: 'hd-001',
