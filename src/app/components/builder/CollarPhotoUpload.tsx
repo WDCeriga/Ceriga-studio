@@ -15,7 +15,7 @@ export interface CustomCollarResult {
 const STEPS = [
   { id: 'lineart', label: 'Drawing the full collar (several slow passes)' },
   { id: 'key', label: 'Keying white (luminance ramp)' },
-  { id: 'place', label: 'Seating on the crew socket' },
+  { id: 'place', label: 'Seating on the Slim neck socket' },
   { id: 'potrace', label: 'Closing the ring and tracing SVG' },
 ];
 

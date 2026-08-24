@@ -4,7 +4,7 @@ from __future__ import annotations
 from PIL import Image
 
 CANVAS = 2048
-TRACE_SS = 4
+TRACE_SS = 3
 INK_COLOR = "#141414"
 INK_THRESHOLD = 32
 
@@ -37,6 +37,9 @@ def _place(shape: tuple[int, int]) -> tuple[float, float, float]:
 
 
 def trace(mask) -> str:
+    """Potrace a boolean mask. Always invert — pypotrace traces False pixels
+    unless inverted, which would paint the whole 2048 canvas (#141414 slab).
+    """
     import numpy as np
     import potrace
 
@@ -49,7 +52,7 @@ def trace(mask) -> str:
     bitmap = potrace.Bitmap(big)
     bitmap.invert()
     path = bitmap.trace(
-        turdsize=2,
+        turdsize=4,
         turnpolicy=potrace.POTRACE_TURNPOLICY_MINORITY,
         alphamax=1.0,
         opticurve=True,

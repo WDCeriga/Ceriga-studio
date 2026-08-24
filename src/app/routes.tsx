@@ -158,6 +158,13 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/studio/garment-photo-test",
+    lazy: async () => {
+      const { GarmentPhotoTest } = await import("./pages/GarmentPhotoTest");
+      return { Component: GarmentPhotoTest };
+    },
+  },
+  {
     path: "/packaging",
     lazy: async () => {
       const [{ SidebarLayout: Layout }, { PackagingOnly }] = await Promise.all([

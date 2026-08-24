@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { useId } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { FileStack, FileInput, Package, Factory, ArrowRight } from 'lucide-react';
+import { FileStack, FileInput, Package, Factory, ArrowRight, ScanLine } from 'lucide-react';
 import { DEFAULT_TECHPACK_SPEC_PRODUCT_ID } from '../data/products';
 import { SpecGridTexture } from '../components/studio/GarmentFlatIcon';
 
@@ -45,6 +45,14 @@ const workflows: {
     to: '/studio/manufacturer',
     icon: Factory,
     tag: 'Production',
+  },
+  {
+    title: 'Photo to colourable mockup',
+    description:
+      'Experimental local test: upload a complete garment photo, trace visible seams, and recolour each detected panel separately.',
+    to: '/studio/garment-photo-test',
+    icon: ScanLine,
+    tag: 'Test',
   },
 ];
 
@@ -100,7 +108,7 @@ export function Studio() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {workflows.map((workflow) => (
           <WorkflowCard key={workflow.title} {...workflow} />
         ))}
