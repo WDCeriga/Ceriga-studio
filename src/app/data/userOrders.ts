@@ -46,6 +46,13 @@ export type UserOrder = {
   downloadReady?: boolean;
   /** ISO date when quote/pricing was issued — prices valid for PRICE_VALIDITY_WEEKS */
   pricedAt?: string;
+  /** Upload-for-quote request details (demo / local store). */
+  quoteRequest?: {
+    fileNames?: string[];
+    quantity?: string;
+    timeline?: string;
+    notes?: string;
+  };
   specifications?: {
     fit?: string;
     color?: string;
@@ -411,6 +418,7 @@ export function createOrderFromSubmit(input: {
   garmentType?: string;
   kind: UserOrderKind;
   orderQuantities?: OrderQuantityPlan;
+  quoteRequest?: UserOrder['quoteRequest'];
 }): UserOrder {
   const id = `ord-${Date.now().toString(36)}`;
   const isTechPack = input.kind === 'tech-pack';
@@ -431,6 +439,7 @@ export function createOrderFromSubmit(input: {
     orderQuantities: input.orderQuantities,
     exportFormat: isTechPack ? 'pdf' : undefined,
     pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
+    quoteRequest: input.quoteRequest,
   };
   upsertUserOrder(order);
   window.dispatchEvent(new CustomEvent('ceriga-orders-updated'));

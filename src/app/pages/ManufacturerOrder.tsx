@@ -30,20 +30,19 @@ export function ManufacturerOrder() {
     }
     setSubmitting(true);
     try {
-      const fileNames = files.map((f) => f.name).join(', ');
       const order = createOrderFromSubmit({
         productId: productId || undefined,
         productName: files[0]?.name?.replace(/\.[^.]+$/, '') || 'Uploaded tech pack',
         garmentType: 'Uploaded pack',
         kind: 'production',
+        quoteRequest: {
+          fileNames: files.map((f) => f.name),
+          quantity: quantity.trim() || undefined,
+          timeline: timeline.trim() || undefined,
+          notes: notes.trim() || undefined,
+        },
       });
-      // Attach notes into a toast summary — order store is demo/local for now
-      toast.success('Quote request submitted', {
-        description: `${fileNames}${quantity ? ` · qty ${quantity}` : ''}${timeline ? ` · ${timeline}` : ''}`,
-      });
-      if (notes.trim()) {
-        toast.message('Notes received', { description: notes.trim().slice(0, 120) });
-      }
+      toast.success('Quote request submitted');
       navigate(`/orders/${order.id}`);
     } finally {
       setSubmitting(false);

@@ -47,7 +47,11 @@ export function OrderDetailShell({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">
-              {order.kind === 'tech-pack' ? 'Tech pack' : 'Custom clothing'}
+              {order.kind === 'tech-pack'
+                ? 'Tech pack'
+                : order.quoteRequest
+                  ? 'Upload quote'
+                  : 'Custom clothing'}
             </p>
             <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase leading-tight tracking-[-0.03em] text-white sm:text-[1.65rem]">
               {order.productName}
@@ -167,17 +171,49 @@ function PriceOptionCard({
 }
 
 export function ProductionAwaitingQuote({ order }: { order: UserOrder }) {
+  const qr = order.quoteRequest;
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Panel>
         <p className="text-sm leading-relaxed text-white/70">
-          Your order is with our team and manufacturer. We&apos;ll price your sample and bulk tiers
-          soon. You can still change your spec until pricing is sent.
+          {qr
+            ? 'Thanks — your uploaded tech pack is with our team. We’ll review the files and send sample and bulk pricing here.'
+            : 'Your order is with our team and manufacturer. We’ll price your sample and bulk tiers soon. You can still change your spec until pricing is sent.'}
         </p>
         <div className="mt-4">
           <EditOrderButton order={order} />
         </div>
       </Panel>
+      {qr ? (
+        <Panel title="Quote request">
+          <dl className="space-y-2.5 text-sm">
+            {qr.fileNames && qr.fileNames.length > 0 ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">Files</dt>
+                <dd className="mt-0.5 text-white/80">{qr.fileNames.join(', ')}</dd>
+              </div>
+            ) : null}
+            {qr.quantity ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">Quantity</dt>
+                <dd className="mt-0.5 text-white/80">{qr.quantity} units</dd>
+              </div>
+            ) : null}
+            {qr.timeline ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">Target delivery</dt>
+                <dd className="mt-0.5 text-white/80">{qr.timeline}</dd>
+              </div>
+            ) : null}
+            {qr.notes ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">Notes</dt>
+                <dd className="mt-0.5 whitespace-pre-wrap text-white/80">{qr.notes}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </Panel>
+      ) : null}
       {order.orderQuantities ? (
         <Panel title="Quantities submitted">
           <OrderQuantitiesSummary plan={order.orderQuantities} />

@@ -251,8 +251,8 @@ export function Dashboard() {
             <Plus className="h-4 w-4 text-[#8A8A90]" />
           </div>
           <div className="text-[13.5px] font-medium text-[#F0EEEE]">New project</div>
-          <div className="max-w-[180px] text-[11.5px] leading-relaxed text-[#6B6B72]">
-            Choose a tech pack, packaging, or production workflow.
+          <div className="max-w-[200px] text-[11.5px] leading-relaxed text-[#6B6B72]">
+            Tech pack, packaging only, or upload for a Ceriga quote.
           </div>
         </Link>
 
@@ -274,9 +274,20 @@ export function Dashboard() {
         </p>
       ) : loading ? (
         <p className="mt-6 text-xs text-[#6B6B72]">Loading projects…</p>
+      ) : projects.length === 0 ? (
+        <p className="mt-6 text-[12px] text-[#6B6B72]">
+          Nothing saved yet —{' '}
+          <Link to="/create" className="text-[#E5534A] hover:underline">
+            create a tech pack or packaging job
+          </Link>{' '}
+          to get started.
+        </p>
       ) : (
         <p className="mt-6 text-[11.5px] text-[#45454B]">
-          {projects.length} projects, last updated just now
+          {projects.length} project{projects.length === 1 ? '' : 's'} ·{' '}
+          <Link to="/projects" className="text-[#8A8A90] hover:text-[#F0EEEE]">
+            View all
+          </Link>
         </p>
       )}
 

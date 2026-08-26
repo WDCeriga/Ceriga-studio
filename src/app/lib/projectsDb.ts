@@ -106,6 +106,22 @@ export async function deleteProject(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Clone a project as a new row (new id, “Copy of …” name). */
+export async function duplicateProject(id: string): Promise<ProjectRow> {
+  const source = await getProject(id);
+  if (!source) throw new Error('Project not found');
+  const baseName = source.name.replace(/^Copy of\s+/i, '').trim() || 'Project';
+  return upsertProject({
+    productId: source.product_id,
+    name: `Copy of ${baseName}`,
+    garmentType: source.garment_type,
+    flowType: source.flow_type,
+    progress: source.progress,
+    currentStep: source.current_step,
+    state: structuredClone(source.state ?? {}),
+  });
+}
+
 export function formatRelativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
