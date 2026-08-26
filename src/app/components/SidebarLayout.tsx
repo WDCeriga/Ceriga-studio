@@ -3,29 +3,30 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutGrid,
-  ShoppingBag,
-  FileStack,
+  FolderKanban,
   Package,
   Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Menu,
-  Sparkles,
+  Plus,
+  Shield,
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 import { cn } from './ui/utils';
+import { canAccessSuperadmin } from '../lib/superadminAccess';
 
 interface SidebarLayoutProps {
   children: ReactNode;
 }
 
+/** Full IA: Home · Projects · Create · Orders (+ Settings in footer). Catalog is a step, not nav. */
 const navItems = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { path: '/studio', label: 'Studio', icon: Sparkles },
-  { path: '/catalog', label: 'Catalog', icon: ShoppingBag },
-  { path: '/drafts', label: 'Drafts', icon: FileStack },
+  { path: '/dashboard', label: 'Home', icon: LayoutGrid },
+  { path: '/projects', label: 'Projects', icon: FolderKanban },
+  { path: '/create', label: 'Create', icon: Plus },
   { path: '/orders', label: 'Orders', icon: Package },
 ];
 
@@ -42,7 +43,8 @@ function navClass(active: boolean, collapsed?: boolean) {
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const showSuperadmin = canAccessSuperadmin(user?.email);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isLgUp, setIsLgUp] = useState(true);
@@ -56,8 +58,16 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   }, []);
 
   const isActive = (path: string) => {
-    if (path === '/studio') {
-      return location.pathname === '/studio' || location.pathname.startsWith('/studio/');
+    if (path === '/create') {
+      return (
+        location.pathname === '/create' ||
+        location.pathname.startsWith('/create/') ||
+        location.pathname === '/studio' ||
+        location.pathname.startsWith('/studio/')
+      );
+    }
+    if (path === '/projects') {
+      return location.pathname === '/projects' || location.pathname === '/drafts';
     }
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
@@ -95,6 +105,17 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             </Link>
           );
         })}
+        {showSuperadmin && (
+          <Link
+            to="/superadmin"
+            onClick={onNavigate}
+            title={collapsed ? 'Superadmin' : undefined}
+            className={navClass(isActive('/superadmin'), collapsed)}
+          >
+            <Shield className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            {!collapsed && <span>Superadmin</span>}
+          </Link>
+        )}
       </nav>
       <div className="flex flex-col gap-0.5 border-t border-[#252528] p-2 pt-3">
         <Link
@@ -140,10 +161,10 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           <div className="flex items-center gap-2.5">
             <NotificationBell className="size-12 min-h-12 min-w-12 rounded-md border-[#252528] bg-[#161618] shadow-none backdrop-blur-0 [&_svg]:size-[20px]" />
             <Link
-              to="/catalog"
+              to="/create"
               className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-md bg-[#CC2D24] px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-white hover:bg-[#E5534A]"
             >
-              Build
+              New
             </Link>
           </div>
         </header>

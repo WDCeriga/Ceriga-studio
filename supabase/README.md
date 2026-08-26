@@ -25,6 +25,19 @@ Restart `npm run dev` after changing env.
 ## 3. Database schema
 In Supabase: **SQL Editor → New query**, paste and run [`schema.sql`](./schema.sql).
 
+That script also creates:
+- `measurement_guide_packs` — shared measurement lines per garment SVG asset (read: signed-in users; write: emails in `superadmin_emails`)
+- `superadmin_emails` — allowlist for who can edit measurement guides (keep in sync with the app allowlist)
+
+If you already ran an older `schema.sql`, re-run the full file (it uses `if not exists` / `drop policy if exists`) or paste only the measurement-guide section from the bottom of the file.
+
+To let another account edit guides in production:
+
+```sql
+insert into public.superadmin_emails (email) values ('you@example.com')
+on conflict do nothing;
+```
+
 ## 4. Auth
 In Supabase: **Authentication → Providers**
 - Enable **Email** (for login/signup forms).

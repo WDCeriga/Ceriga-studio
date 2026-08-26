@@ -499,3 +499,590 @@ export function computeSleeveHemAlignOffsetForSide(
     y: sleeve.maxY - hem.minY,
   };
 }
+
+function hexToRgba(hex: string): [number, number, number, number] {
+  const n = hex.replace('#', '').trim();
+  const full =
+    n.length === 3
+      ? n
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : n.padStart(6, '0').slice(0, 6);
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+    255,
+  ];
+}
+
+function shadeTowardBlack(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgba(hex);
+  const t = Math.min(1, Math.max(0, amount));
+  const mix = (c: number) => Math.round(c * (1 - t));
+  const to = (c: number) => mix(c).toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+function dilateAlphaMask(data: Uint8ClampedArray, width: number, height: number, radius: number) {
+  if (radius <= 0) return;
+  for (let pass = 0; pass < radius; pass += 1) {
+    const copy = new Uint8ClampedArray(data);
+    for (let y = 1; y < height - 1; y += 1) {
+      for (let x = 1; x < width - 1; x += 1) {
+        const i = (y * width + x) * 4;
+        if (copy[i + 3] > 32) continue;
+        let hit = false;
+        for (let dy = -1; dy <= 1 && !hit; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const j = ((y + dy) * width + (x + dx)) * 4;
+            if (copy[j + 3] > 32) {
+              hit = true;
+              break;
+            }
+          }
+        }
+        if (hit) {
+          data[i] = 0;
+          data[i + 1] = 0;
+          data[i + 2] = 0;
+          data[i + 3] = 255;
+        }
+      }
+    }
+  }
+}
+
+function inkMaskFromImageData(data: Uint8ClampedArray, size: number): Uint8Array {
+  const mask = new Uint8Array(size * size);
+  for (let idx = 0; idx < size * size; idx += 1) {
+    if (data[idx * 4 + 3] > 32) mask[idx] = 1;
+  }
+  return mask;
+}
+
+function stampInk(mask: Uint8Array, size: number, x: number, y: number, radius: number) {
+  const r2 = radius * radius;
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      if (dx * dx + dy * dy > r2) continue;
+      const xx = x + dx;
+      const yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
+      mask[yy * size + xx] = 1;
+    }
+  }
+}
+
+/** Bresenham line stamped with thickness onto a binary mask. */
+function drawBridge(
+  mask: Uint8Array,
+  size: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  thickness: number,
+) {
+  let x = x0 | 0;
+  let y = y0 | 0;
+  const xEnd = x1 | 0;
+  const yEnd = y1 | 0;
+  const dx = Math.abs(xEnd - x);
+  const dy = Math.abs(yEnd - y);
+  const sx = x < xEnd ? 1 : -1;
+  const sy = y < yEnd ? 1 : -1;
+  let err = dx - dy;
+  const radius = Math.max(1, Math.round(thickness / 2));
+
+  for (;;) {
+    stampInk(mask, size, x, y, radius);
+    if (x === xEnd && y === yEnd) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+}
+
+type InkComponent = {
+  id: number;
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  pixels: number[];
+};
+
+function labelInkComponents(mask: Uint8Array, size: number): {
+  labels: Int32Array;
+  components: InkComponent[];
+} {
+  const labels = new Int32Array(size * size);
+  const components: InkComponent[] = [];
+  let nextId = 1;
+  const queue: number[] = [];
+
+  for (let start = 0; start < size * size; start += 1) {
+    if (!mask[start] || labels[start]) continue;
+    const id = nextId++;
+    let minX = size;
+    let minY = size;
+    let maxX = 0;
+    let maxY = 0;
+    const pixels: number[] = [];
+    labels[start] = id;
+    queue.length = 0;
+    queue.push(start);
+
+    while (queue.length) {
+      const idx = queue.pop()!;
+      pixels.push(idx);
+      const x = idx % size;
+      const y = (idx / size) | 0;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+          const nidx = ny * size + nx;
+          if (!mask[nidx] || labels[nidx]) continue;
+          labels[nidx] = id;
+          queue.push(nidx);
+        }
+      }
+    }
+
+    if (pixels.length < 24) continue;
+    components.push({ id, minX, minY, maxX, maxY, pixels });
+  }
+
+  return { labels, components };
+}
+
+/** Simple iterative thinning toward a 1px skeleton (enough for endpoint finding). */
+function thinInkSkeleton(mask: Uint8Array, size: number, maxPasses = 12): Uint8Array {
+  const skel = new Uint8Array(mask);
+  const neighbors = (idx: number) => {
+    const x = idx % size;
+    const y = (idx / size) | 0;
+    let count = 0;
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (!dx && !dy) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+        if (skel[ny * size + nx]) count += 1;
+      }
+    }
+    return count;
+  };
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const toClear: number[] = [];
+    for (let idx = 0; idx < size * size; idx += 1) {
+      if (!skel[idx]) continue;
+      const n = neighbors(idx);
+      // Keep endpoints and junctions; peel thick boundaries.
+      if (n >= 3 && n <= 7) {
+        const x = idx % size;
+        const y = (idx / size) | 0;
+        // Only remove if it's a boundary-ish pixel (has empty neighbor)
+        let empty = false;
+        for (let dy = -1; dy <= 1 && !empty; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= size || ny >= size || !skel[ny * size + nx]) {
+              empty = true;
+              break;
+            }
+          }
+        }
+        if (empty) toClear.push(idx);
+      }
+    }
+    if (!toClear.length) break;
+    for (const idx of toClear) skel[idx] = 0;
+  }
+  return skel;
+}
+
+function findSkeletonEndpoints(skel: Uint8Array, size: number, labels: Int32Array): {
+  x: number;
+  y: number;
+  componentId: number;
+}[] {
+  const ends: { x: number; y: number; componentId: number }[] = [];
+  for (let idx = 0; idx < size * size; idx += 1) {
+    if (!skel[idx]) continue;
+    const x = idx % size;
+    const y = (idx / size) | 0;
+    let n = 0;
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (!dx && !dy) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+        if (skel[ny * size + nx]) n += 1;
+      }
+    }
+    if (n === 1) {
+      ends.push({ x, y, componentId: labels[idx] });
+    }
+  }
+  return ends;
+}
+
+type BridgeSegment = { x0: number; y0: number; x1: number; y1: number };
+
+/**
+ * Close loose outline openings:
+ * For each ink blob (sleeve), treat it as a V and bridge the two open ends,
+ * then flood-fill can colour the enclosed interior.
+ */
+function closeLooseOutlineEdges(
+  mask: Uint8Array,
+  size: number,
+  thickness: number,
+): BridgeSegment[] {
+  const { components } = labelInkComponents(mask, size);
+  const bridges: BridgeSegment[] = [];
+
+  for (const comp of components) {
+    const pixels = comp.pixels;
+    if (pixels.length < 30) continue;
+
+    const nearest = (tx: number, ty: number) => {
+      let bestX = tx;
+      let bestY = ty;
+      let bestD = Infinity;
+      const step = Math.max(1, (pixels.length / 400) | 0);
+      for (let i = 0; i < pixels.length; i += step) {
+        const x = pixels[i] % size;
+        const y = (pixels[i] / size) | 0;
+        const d = Math.hypot(x - tx, y - ty);
+        if (d < bestD) {
+          bestD = d;
+          bestX = x;
+          bestY = y;
+        }
+      }
+      return { x: bestX, y: bestY };
+    };
+
+    const left = nearest(comp.minX, (comp.minY + comp.maxY) / 2);
+    const right = nearest(comp.maxX, (comp.minY + comp.maxY) / 2);
+    const top = nearest((comp.minX + comp.maxX) / 2, comp.minY);
+    const bottom = nearest((comp.minX + comp.maxX) / 2, comp.maxY);
+    const cx = (comp.minX + comp.maxX) / 2;
+    const cy = (comp.minY + comp.maxY) / 2;
+    const candidates = [left, right, top, bottom];
+
+    let tip = candidates[0];
+    let tipScore = -1;
+    for (const t of candidates) {
+      const score = Math.hypot(t.x - cx, t.y - cy);
+      if (score > tipScore) {
+        tipScore = score;
+        tip = t;
+      }
+    }
+
+    const ends = candidates
+      .filter((p) => Math.hypot(p.x - tip.x, p.y - tip.y) > 4)
+      .sort(
+        (p, q) =>
+          Math.hypot(q.x - tip.x, q.y - tip.y) - Math.hypot(p.x - tip.x, p.y - tip.y),
+      );
+
+    if (ends.length < 2) continue;
+    const a = ends[0];
+    const b = ends[1];
+    bridges.push({ x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+    drawBridge(mask, size, a.x, a.y, b.x, b.y, thickness);
+  }
+
+  return bridges;
+}
+
+function floodFillEnclosedFromMask(
+  mask: Uint8Array,
+  size: number,
+  paint: (idx: number, kind: 'fill' | 'outline' | 'clear' | 'bridge') => void,
+  originalInk: Uint8Array,
+  bridgeMask: Uint8Array,
+) {
+  const exterior = new Uint8Array(size * size);
+  const queue: number[] = [];
+  const pushIfEmpty = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= size || y >= size) return;
+    const idx = y * size + x;
+    if (exterior[idx]) return;
+    if (mask[idx]) return;
+    exterior[idx] = 1;
+    queue.push(idx);
+  };
+
+  for (let x = 0; x < size; x += 1) {
+    pushIfEmpty(x, 0);
+    pushIfEmpty(x, size - 1);
+  }
+  for (let y = 0; y < size; y += 1) {
+    pushIfEmpty(0, y);
+    pushIfEmpty(size - 1, y);
+  }
+
+  while (queue.length) {
+    const idx = queue.pop()!;
+    const x = idx % size;
+    const y = (idx / size) | 0;
+    pushIfEmpty(x - 1, y);
+    pushIfEmpty(x + 1, y);
+    pushIfEmpty(x, y - 1);
+    pushIfEmpty(x, y + 1);
+  }
+
+  for (let idx = 0; idx < size * size; idx += 1) {
+    if (bridgeMask[idx] && !originalInk[idx]) {
+      paint(idx, 'bridge');
+      continue;
+    }
+    if (originalInk[idx] || mask[idx]) {
+      paint(idx, 'outline');
+      continue;
+    }
+    if (exterior[idx]) {
+      paint(idx, 'clear');
+      continue;
+    }
+    paint(idx, 'fill');
+  }
+}
+
+/**
+ * Sleeve (and similar) assets are often potrace *line drawings* — thin filled ribbons.
+ * Tint alone only recolors those ribbons.
+ *
+ * `mode: 'close-and-flood'` — connect loose outline edges with bridges, then flood-fill.
+ * `mode: 'flood'` — seal gaps, mark exterior from canvas edges, paint enclosed interiors.
+ * `mode: 'span'` — per scanline, fill between the first and last ink pixel.
+ */
+export async function rasterFillOutlineSvgInteriors(
+  raw: string,
+  fillHex: string,
+  options?: {
+    size?: number;
+    dilate?: number;
+    keepOutline?: boolean;
+    outlineHex?: string;
+    bridgeHex?: string;
+    showClosingLines?: boolean;
+    bridgeThickness?: number;
+    mode?: 'flood' | 'span' | 'close-and-flood';
+  },
+): Promise<string> {
+  const size = options?.size ?? 640;
+  const dilate = options?.dilate ?? 2;
+  const keepOutline = options?.keepOutline ?? true;
+  const mode = options?.mode ?? 'close-and-flood';
+  const showClosingLines = options?.showClosingLines ?? true;
+  const bridgeThickness = options?.bridgeThickness ?? 3;
+  const outlineHex = options?.outlineHex ?? shadeTowardBlack(fillHex, 0.35);
+  const bridgeHex = options?.bridgeHex ?? '#5B8CF5';
+  const [fr, fg, fb] = hexToRgba(fillHex);
+  const [or_, og, ob] = hexToRgba(outlineHex);
+  const [br, bg, bb] = hexToRgba(bridgeHex);
+
+  // Fixed pixel size — percentage SVG width/height often rasterizes blank on canvas.
+  let svg = raw
+    .replace(/fill="#000000"/gi, 'fill="#000000"')
+    .replace(/fill="#000"/gi, 'fill="#000000"')
+    .replace(/fill="black"/gi, 'fill="#000000"')
+    .replace(/width="[^"]*"/i, `width="${size}"`)
+    .replace(/height="[^"]*"/i, `height="${size}"`);
+  if (!/viewBox=/i.test(svg)) {
+    svg = svg.replace(/<svg\b/i, `<svg viewBox="0 0 2048 2048"`);
+  }
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  try {
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = url;
+    await img.decode();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) throw new Error('Canvas unavailable');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(img, 0, 0, size, size);
+
+    const image = ctx.getImageData(0, 0, size, size);
+    const { data } = image;
+    // Convert dark ink on white → opaque black alpha mask for the rest of the pipeline.
+    for (let i = 0; i < data.length; i += 4) {
+      const luminance = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+      if (luminance < 200) {
+        data[i] = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
+        data[i + 3] = 255;
+      } else {
+        data[i] = 0;
+        data[i + 1] = 0;
+        data[i + 2] = 0;
+        data[i + 3] = 0;
+      }
+    }
+
+    dilateAlphaMask(data, size, size, dilate);
+
+    const paintFill = (idx: number) => {
+      const i = idx * 4;
+      data[i] = fr;
+      data[i + 1] = fg;
+      data[i + 2] = fb;
+      data[i + 3] = 255;
+    };
+    const paintOutline = (idx: number) => {
+      const i = idx * 4;
+      if (keepOutline) {
+        data[i] = or_;
+        data[i + 1] = og;
+        data[i + 2] = ob;
+        data[i + 3] = 255;
+      } else {
+        paintFill(idx);
+      }
+    };
+    const paintBridge = (idx: number) => {
+      const i = idx * 4;
+      if (showClosingLines) {
+        data[i] = br;
+        data[i + 1] = bg;
+        data[i + 2] = bb;
+        data[i + 3] = 255;
+      } else {
+        paintOutline(idx);
+      }
+    };
+    const clear = (idx: number) => {
+      const i = idx * 4;
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      data[i + 3] = 0;
+    };
+
+    if (mode === 'span') {
+      const inkMask = inkMaskFromImageData(data, size);
+      const mid = (size / 2) | 0;
+      for (const [x0, x1] of [
+        [0, mid - 1],
+        [mid, size - 1],
+      ] as const) {
+        for (let y = 0; y < size; y += 1) {
+          let minX = -1;
+          let maxX = -1;
+          for (let x = x0; x <= x1; x += 1) {
+            if (!inkMask[y * size + x]) continue;
+            if (minX < 0) minX = x;
+            maxX = x;
+          }
+          if (minX < 0 || maxX <= minX) continue;
+          for (let x = minX; x <= maxX; x += 1) paintFill(y * size + x);
+        }
+      }
+      for (let idx = 0; idx < size * size; idx += 1) {
+        if (inkMask[idx]) paintOutline(idx);
+      }
+    } else if (mode === 'close-and-flood') {
+      const originalInk = inkMaskFromImageData(data, size);
+      const closed = new Uint8Array(originalInk);
+      closeLooseOutlineEdges(closed, size, bridgeThickness);
+      const bridgeMask = new Uint8Array(size * size);
+      for (let idx = 0; idx < size * size; idx += 1) {
+        if (closed[idx] && !originalInk[idx]) bridgeMask[idx] = 1;
+      }
+      floodFillEnclosedFromMask(
+        closed,
+        size,
+        (idx, kind) => {
+          if (kind === 'fill') paintFill(idx);
+          else if (kind === 'outline') paintOutline(idx);
+          else if (kind === 'bridge') paintBridge(idx);
+          else clear(idx);
+        },
+        originalInk,
+        bridgeMask,
+      );
+    } else {
+      const mask = inkMaskFromImageData(data, size);
+      const exterior = new Uint8Array(size * size);
+      const queue: number[] = [];
+      const pushIfEmpty = (x: number, y: number) => {
+        if (x < 0 || y < 0 || x >= size || y >= size) return;
+        const idx = y * size + x;
+        if (exterior[idx]) return;
+        if (mask[idx]) return;
+        exterior[idx] = 1;
+        queue.push(idx);
+      };
+
+      for (let x = 0; x < size; x += 1) {
+        pushIfEmpty(x, 0);
+        pushIfEmpty(x, size - 1);
+      }
+      for (let y = 0; y < size; y += 1) {
+        pushIfEmpty(0, y);
+        pushIfEmpty(size - 1, y);
+      }
+
+      while (queue.length) {
+        const idx = queue.pop()!;
+        const x = idx % size;
+        const y = (idx / size) | 0;
+        pushIfEmpty(x - 1, y);
+        pushIfEmpty(x + 1, y);
+        pushIfEmpty(x, y - 1);
+        pushIfEmpty(x, y + 1);
+      }
+
+      for (let idx = 0; idx < size * size; idx += 1) {
+        if (mask[idx]) {
+          paintOutline(idx);
+          continue;
+        }
+        if (exterior[idx]) {
+          clear(idx);
+          continue;
+        }
+        paintFill(idx);
+      }
+    }
+
+    ctx.putImageData(image, 0, 0);
+    return canvas.toDataURL('image/png');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

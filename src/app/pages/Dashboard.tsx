@@ -196,7 +196,7 @@ export function Dashboard() {
       <div className="mb-8 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="ceriga-mono text-[12px] uppercase tracking-[0.08em] text-[#8A8A90]">
-            Techpack studio
+            Home
           </span>
         </div>
         <NotificationBell className="h-8 w-8 rounded-md border border-[#2E2E32] bg-transparent shadow-none backdrop-blur-0 hover:border-[#3A3A40] hover:bg-[#1C1C1E] [&_svg]:size-[15px] [&_svg]:text-[#A3A3A8]" />
@@ -219,23 +219,32 @@ export function Dashboard() {
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
         <div>
-          <div className="text-base font-semibold text-[#F0EEEE]">Projects</div>
+          <div className="text-base font-semibold text-[#F0EEEE]">Recent projects</div>
           <div className="mt-0.5 text-[12.5px] text-[#6B6B72]">
-            {projects.length} garments
-            {inProgress > 0 ? `, ${inProgress} active` : ''}
+            {projects.length === 0
+              ? 'Nothing saved yet'
+              : `Showing ${Math.min(4, projects.length)} of ${projects.length}`}
           </div>
         </div>
-        <Link
-          to="/catalog"
-          className="inline-flex items-center gap-1 text-[13px] text-[#E5534A] hover:text-[#CC2D24]"
-        >
-          Browse catalog <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/projects"
+            className="inline-flex items-center gap-1 text-[13px] text-[#A3A3A8] hover:text-[#F0EEEE]"
+          >
+            View all <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+          <Link
+            to="/create"
+            className="inline-flex items-center gap-1 text-[13px] text-[#E5534A] hover:text-[#CC2D24]"
+          >
+            New project <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <Link
-          to="/catalog"
+          to="/create"
           className="flex min-h-[280px] flex-col items-center justify-center gap-2.5 rounded-[6px] border border-dashed border-[#333338] px-6 text-center transition-colors hover:border-[#3A3A40] hover:bg-[#1C1C1E]"
         >
           <div className="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-[#3A3A40]">
@@ -243,11 +252,11 @@ export function Dashboard() {
           </div>
           <div className="text-[13.5px] font-medium text-[#F0EEEE]">New project</div>
           <div className="max-w-[180px] text-[11.5px] leading-relaxed text-[#6B6B72]">
-            Start a garment and build a tech pack.
+            Choose a tech pack, packaging, or production workflow.
           </div>
         </Link>
 
-        {projects.map((project) => (
+        {projects.slice(0, 4).map((project) => (
           <ProjectCard key={project.id} project={project} />
         ))}
       </div>

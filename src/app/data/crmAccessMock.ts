@@ -141,12 +141,20 @@ function buildInitialAccess(): ProfileAccessConfig[] {
   return MOCK_SUPER_USERS.flatMap((user) => {
     const audience = audienceForUser(user);
     if (!audience) return [];
+    const isFullAdminWorker = audience === 'workers' && user.id === 'u11';
+    const workerRoleId = isFullAdminWorker
+      ? 'admin'
+      : audience === 'workers'
+        ? DEFAULT_WORKER_ROLE
+        : undefined;
     return [
       {
         userId: user.id,
         audience,
-        roleLabel: DEFAULT_ROLE_LABELS[audience],
-        enabledPages: defaultPages(audience),
+        roleLabel: isFullAdminWorker ? 'Full admin' : DEFAULT_ROLE_LABELS[audience],
+        enabledPages: isFullAdminWorker
+          ? applyWorkerRoleTemplate('admin')
+          : defaultPages(audience),
         manufacturerPlanId:
           audience === 'manufacturers'
             ? user.id === 'u2'
@@ -155,7 +163,7 @@ function buildInitialAccess(): ProfileAccessConfig[] {
                 ? 'partner'
                 : 'growth'
             : undefined,
-        workerRoleId: audience === 'workers' ? DEFAULT_WORKER_ROLE : undefined,
+        workerRoleId,
       },
     ];
   });

@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard,
@@ -16,7 +16,6 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
-  Ruler,
   CalendarOff,
   Route,
   Ship,
@@ -24,6 +23,8 @@ import {
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { cn } from '../ui/utils';
 import { usePortalNotifications } from '../../hooks/usePortalNotifications';
+import { canAccessSuperadmin } from '../../lib/superadminAccess';
+import { PageLoadingFallback } from '../PageLoadingFallback';
 
 const RED = '#CC2D24';
 
@@ -38,14 +39,13 @@ const navItems = [
   { path: '/superadmin/shipping-onboard', label: 'Shipping', icon: Ship },
   { path: '/superadmin/crm', label: 'CRM & roles', icon: Briefcase },
   { path: '/superadmin/pricing', label: 'Pricing', icon: DollarSign },
-  { path: '/superadmin/measurement-guides', label: 'Measurement guides', icon: Ruler },
   { path: '/superadmin/messages', label: 'Messages', icon: MessageCircle },
 ] as const;
 
 export function SuperAdminLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user, authReady } = useAuth();
   const { unread: notifUnread } = usePortalNotifications('superadmin');
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -58,6 +58,14 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
   }, []);
+
+  if (!authReady) {
+    return <PageLoadingFallback />;
+  }
+
+  if (!canAccessSuperadmin(user?.email)) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const isActive = (path: string, end?: boolean) => {
     if (end) return location.pathname === path;

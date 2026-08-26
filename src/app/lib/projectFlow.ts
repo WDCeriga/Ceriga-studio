@@ -10,7 +10,7 @@ export function builderPath(
   if (flow === 'packaging') {
     path = '/packaging';
   } else if (flow === 'manufacturer') {
-    path = `/studio/manufacturer?productId=${encodeURIComponent(productId)}`;
+    path = `/create/manufacturer?productId=${encodeURIComponent(productId)}`;
   } else {
     path = `/builder/${productId}`;
   }

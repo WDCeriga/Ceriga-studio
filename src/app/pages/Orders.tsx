@@ -152,7 +152,7 @@ export function Orders() {
               Create a tech pack or place a production order to see it here.
             </p>
             <Button asChild className="h-8 bg-[#CC2D24] text-[11px] font-semibold text-white hover:bg-[#E5534A]">
-              <Link to="/catalog">Browse catalog</Link>
+              <Link to="/create">Create project</Link>
             </Button>
           </div>
         ) : filteredOrders.length === 0 ? (

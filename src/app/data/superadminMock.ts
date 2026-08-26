@@ -323,6 +323,16 @@ export const MOCK_SUPER_USERS: SuperAdminUser[] = [
     lastActive: '2026-04-07',
     ordersCount: 0,
   },
+  {
+    id: 'u11',
+    name: 'Xexead',
+    email: 'xexead44@gmail.com',
+    credits: 0,
+    role: 'worker',
+    createdAt: '2026-04-09',
+    lastActive: '2026-04-09',
+    ordersCount: 0,
+  },
 ];
 
 function ensureSuperOrderDelivery(order: SuperAdminOrder): SuperAdminOrder {

@@ -98,6 +98,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(LOCAL_USER_KEY);
       }
       setAuthReady(true);
+      if (session?.user) {
+        void import('../components/builder/measurementGuides').then((mod) => {
+          void mod.hydrateMeasurementGuidesFromRemote();
+        });
+      }
     };
 
     void applySession();
@@ -114,6 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(next);
         setIsAuthenticated(true);
         persistLocalUser(next);
+        void import('../components/builder/measurementGuides').then((mod) => {
+          void mod.hydrateMeasurementGuidesFromRemote();
+        });
       } else {
         setUser(null);
         setIsAuthenticated(false);

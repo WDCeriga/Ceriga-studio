@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Upload, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
+import { createOrderFromSubmit } from '../data/userOrders';
 
 export function ManufacturerOrder() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const productId = searchParams.get('productId') || '';
   const [files, setFiles] = useState<File[]>([]);
   const [quantity, setQuantity] = useState('');
   const [timeline, setTimeline] = useState('');
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = e.target.files;
@@ -19,22 +23,50 @@ export function ManufacturerOrder() {
     setFiles((prev) => [...prev, ...Array.from(list)]);
   };
 
+  const handleSubmitQuote = () => {
+    if (files.length === 0) {
+      toast.error('Upload at least one tech pack file');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const fileNames = files.map((f) => f.name).join(', ');
+      const order = createOrderFromSubmit({
+        productId: productId || undefined,
+        productName: files[0]?.name?.replace(/\.[^.]+$/, '') || 'Uploaded tech pack',
+        garmentType: 'Uploaded pack',
+        kind: 'production',
+      });
+      // Attach notes into a toast summary — order store is demo/local for now
+      toast.success('Quote request submitted', {
+        description: `${fileNames}${quantity ? ` · qty ${quantity}` : ''}${timeline ? ` · ${timeline}` : ''}`,
+      });
+      if (notes.trim()) {
+        toast.message('Notes received', { description: notes.trim().slice(0, 120) });
+      }
+      navigate(`/orders/${order.id}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="ceriga-page mx-auto max-w-[720px] px-4 py-7 sm:px-8 sm:py-8 lg:px-10">
       <Link
-        to="/studio"
+        to="/create"
         className="mb-6 inline-flex items-center gap-2 text-xs font-medium text-[#8A8A90] transition-colors hover:text-[#F0EEEE]"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Back to Studio
+        Back to Create
       </Link>
 
       <div className="mb-8">
-        <div className="ceriga-page-eyebrow">Manufacturing</div>
-        <h1 className="ceriga-page-title">Order with your tech pack</h1>
+        <div className="ceriga-page-eyebrow">Ceriga quote</div>
+        <h1 className="ceriga-page-title">Upload a tech pack for a quote</h1>
         <p className="ceriga-page-sub">
-          Upload your existing tech pack (PDF, images, or spec sheets). Our team will review and quote.
-          Add quantity, target dates, and any factory preferences below.
+          Send your existing tech pack (PDF, images, or spec sheets). Our team will review and quote
+          samples or production — no need to rebuild it in the builder. Add quantity, target dates,
+          and notes below.
         </p>
       </div>
 
@@ -119,21 +151,19 @@ export function ManufacturerOrder() {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Link
-            to="/delivery"
-            state={{
-              from: 'manufacturer',
-              ...(productId ? { productId } : {}),
-            }}
-            className="ceriga-btn-primary h-10 text-[13px]"
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={handleSubmitQuote}
+            className="ceriga-btn-primary h-10 text-[13px] disabled:opacity-50"
           >
-            Order — continue to delivery
-          </Link>
+            {submitting ? 'Submitting…' : 'Submit for quote'}
+          </button>
           <Link
-            to="/dashboard"
+            to="/projects"
             className="inline-flex h-10 items-center justify-center rounded-[4px] border border-[#3A3A40] px-4 text-[13px] font-medium text-[#F0EEEE] transition-colors hover:border-[#4A4A52] hover:bg-white/[0.03]"
           >
-            Save as draft (demo)
+            Back to projects
           </Link>
         </div>
       </div>

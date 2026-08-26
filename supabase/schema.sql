@@ -60,3 +60,93 @@ create policy "projects_update_own"
 create policy "projects_delete_own"
   on public.projects for delete
   using (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Measurement guide packs (shared catalog: one row per garment asset)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.superadmin_emails (
+  email text primary key
+);
+
+insert into public.superadmin_emails (email) values
+  ('owner@ceriga.io'),
+  ('xexead@ceriga.io'),
+  ('maya.chen@ceriga.io'),
+  ('j.okonkwo@ceriga.io')
+on conflict (email) do nothing;
+
+create or replace function public.is_superadmin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.superadmin_emails s
+    where lower(s.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+       or lower(split_part(s.email, '@', 1)) = lower(split_part(coalesce(auth.jwt() ->> 'email', ''), '@', 1))
+  );
+$$;
+
+revoke all on function public.is_superadmin() from public;
+grant execute on function public.is_superadmin() to authenticated;
+
+create table if not exists public.measurement_guide_packs (
+  garment_type text not null
+    check (garment_type in ('tshirt', 'hoodie', 'trousers')),
+  asset_id text not null,
+  guides jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references auth.users (id) on delete set null,
+  primary key (garment_type, asset_id)
+);
+
+create index if not exists measurement_guide_packs_garment_idx
+  on public.measurement_guide_packs (garment_type);
+
+create or replace function public.set_measurement_guide_packs_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists measurement_guide_packs_set_updated_at on public.measurement_guide_packs;
+create trigger measurement_guide_packs_set_updated_at
+  before update on public.measurement_guide_packs
+  for each row
+  execute function public.set_measurement_guide_packs_updated_at();
+
+alter table public.measurement_guide_packs enable row level security;
+
+drop policy if exists "measurement_guide_packs_select_authenticated" on public.measurement_guide_packs;
+drop policy if exists "measurement_guide_packs_insert_superadmin" on public.measurement_guide_packs;
+drop policy if exists "measurement_guide_packs_update_superadmin" on public.measurement_guide_packs;
+drop policy if exists "measurement_guide_packs_delete_superadmin" on public.measurement_guide_packs;
+
+create policy "measurement_guide_packs_select_authenticated"
+  on public.measurement_guide_packs for select
+  to authenticated
+  using (true);
+
+create policy "measurement_guide_packs_insert_superadmin"
+  on public.measurement_guide_packs for insert
+  to authenticated
+  with check (public.is_superadmin());
+
+create policy "measurement_guide_packs_update_superadmin"
+  on public.measurement_guide_packs for update
+  to authenticated
+  using (public.is_superadmin())
+  with check (public.is_superadmin());
+
+create policy "measurement_guide_packs_delete_superadmin"
+  on public.measurement_guide_packs for delete
+  to authenticated
+  using (public.is_superadmin());

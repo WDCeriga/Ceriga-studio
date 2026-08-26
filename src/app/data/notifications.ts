@@ -28,10 +28,10 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     id: 'n1',
     category: 'admin',
     title: 'Welcome to Ceriga Studio',
-    body: 'Your account is ready. Explore the catalog to start your first tech pack.',
+    body: 'Your account is ready. Create a project to start your first tech pack.',
     createdAt: '2026-04-08T14:22:00.000Z',
     read: false,
-    href: '/catalog',
+    href: '/create',
   },
   {
     id: 'n2',
@@ -67,7 +67,7 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     body: 'We recovered an unsaved session from your last builder visit.',
     createdAt: '2026-04-04T08:30:00.000Z',
     read: true,
-    href: '/studio',
+    href: '/create',
   },
   {
     id: 'n6',

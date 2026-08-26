@@ -190,7 +190,7 @@ export function HomeTechpackPreview({
             </div>
           </div>
           <Link
-            to="/catalog"
+            to="/create"
             className={cn(
               'mt-2 flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-[#CC2D24] text-[9px] font-semibold uppercase tracking-wider text-white transition-colors hover:bg-[#CC2D24]/90 sm:mt-3 sm:h-9 sm:gap-1.5 sm:text-[10px]',
               compact && 'mt-2 h-8 text-[8px] sm:h-8 sm:text-[9px]',

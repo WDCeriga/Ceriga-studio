@@ -10,12 +10,20 @@ import {
   parseMeasurementInput,
 } from '../../lib/measurements';
 import { cn } from '../ui/utils';
-import { getDefaultTshirtSelection } from '../../data/tshirtAssetCatalog';
+import {
+  getDefaultGarmentSelection,
+  resolveGarmentSvgType,
+  type GarmentAssetSelection,
+  type GarmentSvgGarmentType,
+} from '../../data/garmentSvgCatalog';
+import type { GarmentType } from '../../data/builderSteps';
 import { TshirtSvgPreview } from './TshirtSvgPreview';
 import {
-  MEASUREMENT_GUIDE_LABELS,
   MeasurementGuideOverlay,
+  measurementGuideLetterAt,
+  type MeasurementGuideGarmentId,
   type MeasurementGuideId,
+  useResolvedMeasurementGuides,
 } from './measurementGuides';
 
 interface MeasurementsStepProps {
@@ -28,6 +36,7 @@ interface MeasurementsStepProps {
   onMeasurementUnitChange: (unit: MeasurementUnit) => void;
   highlightedMeasurementId?: string | null;
   onHighlightedMeasurementIdChange?: (id: string | null) => void;
+  assetSelection?: GarmentAssetSelection | null;
 }
 
 function MeasurementUnitToggle({
@@ -140,8 +149,12 @@ export function MeasurementsStep({
   onMeasurementUnitChange,
   highlightedMeasurementId,
   onHighlightedMeasurementIdChange,
+  assetSelection,
 }: MeasurementsStepProps) {
   const currentMeasurements = fit && fitMeasurements[fit] ? fitMeasurements[fit] : fitMeasurements.regular;
+  const guideGarment: MeasurementGuideGarmentId =
+    resolveGarmentSvgType(garmentType as GarmentType) ?? 'tshirt';
+  const guideRows = useResolvedMeasurementGuides(guideGarment, assetSelection);
   const [localHighlightedMeasurementId, setLocalHighlightedMeasurementId] =
     useState<MeasurementGuideId | null>(null);
   const activeHighlightedMeasurementId =
@@ -244,9 +257,9 @@ export function MeasurementsStep({
                 </tr>
               </thead>
               <tbody>
-                {MEASUREMENT_GUIDE_LABELS.map((measurement) => (
+                {guideRows.map((measurement, index) => (
                   <tr
-                    key={measurement.id}
+                    key={`${measurement.assignedTo}:${measurement.id}`}
                     className={cn(
                       'border-b border-white/5 hover:bg-white/5',
                       activeHighlightedMeasurementId === measurement.id && 'bg-white/7',
@@ -254,7 +267,12 @@ export function MeasurementsStep({
                     onPointerEnter={() => setHighlightedMeasurementId(measurement.id)}
                   >
                     <td className="max-w-[5.75rem] px-1 py-0.5 text-left text-[10px] font-semibold leading-tight text-white/90 md:max-w-none md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/80">
-                      {measurement.label}
+                      <div>
+                        {measurementGuideLetterAt(index)}. {measurement.label}
+                      </div>
+                      <div className="mt-0.5 text-[9px] font-normal normal-case tracking-normal text-white/35">
+                        {measurement.assignedLabel}
+                      </div>
                     </td>
                     {['xs', 's', 'm', 'l', 'xl', 'xxl'].map((size) => (
                       <td key={size} className="px-0.5 py-px md:px-1 md:py-1">
@@ -297,27 +315,40 @@ export function MeasurementPreview({
   highlightedMeasurementId,
   imgClassName,
   overlay,
+  selection: selectionProp,
 }: {
   garmentType?: string;
   color?: string;
   highlightedMeasurementId?: string | null;
   imgClassName?: string;
   overlay?: ReactNode;
+  selection?: GarmentAssetSelection | null;
 }) {
-  const tshirtSelection = getDefaultTshirtSelection();
+  const svgType: GarmentSvgGarmentType | null = garmentType
+    ? resolveGarmentSvgType(garmentType as GarmentType)
+    : 'tshirt';
+  const guideGarment: MeasurementGuideGarmentId = svgType ?? 'tshirt';
+  const selection =
+    selectionProp ?? (svgType ? getDefaultGarmentSelection(svgType) : null);
 
   return (
-    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-full flex-1 items-center justify-center px-2">
-      {garmentType === 'tshirt' ? (
-        <div className="relative aspect-square w-full max-w-[576px]">
-          <TshirtSvgPreview
-            garmentType="tshirt"
-            color={color || '#5C7FB6'}
-            selection={tshirtSelection}
-            className={cn('h-full w-full', imgClassName)}
-          />
-          {overlay ?? <MeasurementGuideOverlay highlightedId={highlightedMeasurementId ?? null} />}
-        </div>
+    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-full flex-1 items-center justify-center">
+      {svgType && selection ? (
+        <TshirtSvgPreview
+          garmentType={svgType}
+          color={color || '#5C7FB6'}
+          selection={selection}
+          contentInset
+          className={cn('h-full w-full min-h-0', imgClassName)}
+        >
+          {overlay ?? (
+            <MeasurementGuideOverlay
+              garmentType={guideGarment}
+              selection={selection}
+              highlightedId={highlightedMeasurementId ?? null}
+            />
+          )}
+        </TshirtSvgPreview>
       ) : (
         <div className="aspect-square w-full max-w-[576px] rounded-2xl border border-white/10 bg-[#111113]" />
       )}

@@ -99,7 +99,7 @@ export function Home() {
             {
               to: '/how-it-works',
               title: 'How it works',
-              body: 'Three workflows: full tech pack, packaging-only, or upload-and-order manufacturing.',
+              body: 'Design a tech pack (PDF or order with us), upload for a Ceriga quote, or packaging only.',
             },
             {
               to: '/pricing',

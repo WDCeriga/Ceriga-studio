@@ -22,7 +22,7 @@ export function MarketingShell({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isAuthenticated, authReady } = useAuth();
-  const studioTarget = authReady && isAuthenticated ? '/studio' : '/login?redirectTo=/studio';
+  const studioTarget = authReady && isAuthenticated ? '/create' : '/login?redirectTo=/create';
 
   return (
     <div

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { getProductsByCategory, type Product } from '../data/products';
-import { ArrowUpRight, Layers, Package } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Layers, Package } from 'lucide-react';
 import { productGridClass, productGridStyle } from '../styles/productGrid';
 import { Button } from '../components/ui/button';
 import { CatalogGridSkeleton } from '../components/CatalogGridSkeleton';
@@ -29,14 +29,21 @@ export function Catalog() {
   return (
     <div className="ceriga-page mx-auto max-w-[1240px] overflow-x-hidden px-4 py-7 sm:px-8 sm:py-8 lg:px-10">
       <div className="mb-7">
-        <div className="ceriga-page-eyebrow">Product library</div>
-        <h1 className="ceriga-page-title">Catalog</h1>
+        <Link
+          to="/create"
+          className="mb-4 inline-flex items-center gap-2 text-[12px] font-medium text-[#8A8A90] transition-colors hover:text-[#F0EEEE]"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Create
+        </Link>
+        <div className="ceriga-page-eyebrow">Step · Choose garment</div>
+        <h1 className="ceriga-page-title">Templates</h1>
         <p className="ceriga-page-sub">
           {packagingOnly
-            ? 'Packaging opens in its own workspace — no garment pick. Use Studio → Design packaging, or open it below.'
+            ? 'Packaging opens in its own workspace — no garment pick. Use Create → Packaging only, or open it below.'
             : techpackSpecFlow
               ? 'Pick a garment template, then complete measurements and construction — upload artwork first, without on-shirt placement editing.'
-              : 'Choose a garment to start building your custom tech pack.'}
+              : 'Pick a garment to design your tech pack. When you’re done you can export a PDF for your factories or order production with Ceriga.'}
         </p>
         {packagingOnly && (
           <div className="mt-5 flex flex-col gap-3 rounded-[6px] border border-[#5A4530] bg-[#1C0F0F] p-4 sm:flex-row sm:items-center sm:justify-between">

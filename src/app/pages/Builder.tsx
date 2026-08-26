@@ -17,6 +17,7 @@ import {
   Download,
   Droplets,
   FileCheck,
+  Factory,
   Hash,
   History,
   ImageIcon,
@@ -84,11 +85,9 @@ import {
   type ImperativePanelHandle,
 } from 'react-resizable-panels';
 
-import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
-import {
-  MEASUREMENT_GUIDE_CLASS_PHONE,
-  PREVIEW_STAGE_CLASS,
-} from '../components/builder/measurementPreviewSizing';
+import { MeasurementsStep } from '../components/builder/MeasurementsStep';
+import { PREVIEW_STAGE_CLASS } from '../components/builder/measurementPreviewSizing';
+import { MeasurementGuideOverlay } from '../components/builder/measurementGuides';
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
@@ -110,6 +109,8 @@ import {
   PackagingPreview,
 } from '../components/builder/LabelsPackagingStep';
 import { DownloadTechPackModal } from '../components/builder/DownloadTechPackModal';
+import { PackagingReuseBar } from '../components/builder/PackagingReuseBar';
+import type { PackagingSnapshot } from '../lib/packagingLibrary';
 import {
   OrderQuantitiesStep,
   OrderQuantitiesSummary,
@@ -1993,6 +1994,7 @@ export function Builder() {
               }
               highlightedMeasurementId={highlightedMeasurementId}
               onHighlightedMeasurementIdChange={setHighlightedMeasurementId}
+              assetSelection={garmentSelection}
               onMeasurementChange={(measurementId, size, value) =>
                 setState((prev) => ({
                   ...prev,
@@ -2603,6 +2605,24 @@ export function Builder() {
       case 11:
         return (
           <div className="space-y-4">
+            <PackagingReuseBar
+              snapshot={{
+                packagingType: state.packagingType ?? 'polybag',
+                packagingColor: state.packagingColor ?? '#F5F5F5',
+                notes: state.extraDetails.packaging || '',
+                elements: state.packaging,
+              }}
+              onApply={(snap: PackagingSnapshot) =>
+                setState((prev) => ({
+                  ...prev,
+                  packagingType: snap.packagingType,
+                  packagingColor: snap.packagingColor,
+                  packaging: snap.elements,
+                  packagingLayerSelectedId: null,
+                  extraDetails: { ...prev.extraDetails, packaging: snap.notes },
+                }))
+              }
+            />
             <LabelsPackagingStep
               subStep="packaging"
               elements={state.packaging}
@@ -2735,22 +2755,51 @@ export function Builder() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Button
-                onClick={() => setShowDownloadModal(true)}
-                className="h-11 w-full bg-[#FF3B30] text-xs font-semibold hover:bg-[#FF3B30]/90"
-              >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                DOWNLOAD TECH PACK PDF
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleSave(true)}
-                className="h-11 w-full border-white/20 text-xs !text-white hover:bg-white/10"
-              >
-                <Save className="mr-1.5 h-3.5 w-3.5" />
-                SAVE AS DRAFT
-              </Button>
+            <div className="rounded-lg border border-[#CC2D24]/30 bg-[#1C0F0F]/50 p-4">
+              <p className="ceriga-mono mb-1 text-[10px] uppercase tracking-[0.08em] text-[#E5534A]">
+                Finish
+              </p>
+              <p className="mb-3 text-[12px] leading-relaxed text-[#A3A3A8]">
+                Export a PDF for manufacturers you work with, or continue to order samples /
+                production with Ceriga.
+              </p>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  onClick={() => setShowDownloadModal(true)}
+                  className="h-11 w-full bg-[#FF3B30] text-xs font-semibold hover:bg-[#FF3B30]/90"
+                >
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Export tech pack PDF
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    navigate('/delivery', {
+                      state: {
+                        productId,
+                        productName: product?.name ?? 'Studio project',
+                        garmentType: state.garmentType,
+                        orderQuantities: state.orderQuantities,
+                        from: 'builder',
+                      },
+                    })
+                  }
+                  className="h-11 w-full bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"
+                >
+                  <Factory className="mr-1.5 h-3.5 w-3.5" />
+                  Order with Ceriga
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleSave(true)}
+                  className="h-11 w-full border-white/20 text-xs !text-white hover:bg-white/10"
+                >
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                  Save project
+                </Button>
+              </div>
             </div>
           </div>
         );
@@ -2781,6 +2830,7 @@ export function Builder() {
     currentStep !== 12;
   const previewSurfaceNeedsVisibleOverflow =
     draggingDetail ||
+    currentStep === 1 ||
     (!techpackSpecFlow && currentStep === 9) ||
     currentStep === 10 ||
     currentStep === 11 ||
@@ -3037,7 +3087,7 @@ export function Builder() {
               isPhone && 'min-h-11',
             )}
           >
-            {currentStep === 13 ? 'Order' : 'Continue'}
+            {currentStep === 13 ? 'Order with Ceriga' : 'Continue'}
             <ChevronRight className="ml-0.5 h-4 w-4" />
           </Button>
         </div>
@@ -3301,16 +3351,66 @@ export function Builder() {
           {currentStep === 1 ? (
             <div
               className={cn(
-                'flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden px-1',
+                'relative flex h-full min-h-0 w-full flex-1 items-center justify-center px-1',
+                isGarmentSvgFlow ? 'overflow-visible' : 'overflow-hidden',
                 isPhone && 'px-0',
               )}
             >
-              <MeasurementPreview
-                garmentType={state.garmentType}
-                color={primaryColor}
-                highlightedMeasurementId={highlightedMeasurementId}
-                imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
-              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-radial from-white/5 to-transparent blur-3xl" />
+              {isGarmentSvgFlow && garmentSvgType ? (
+                <TshirtSvgPreview
+                  garmentType={garmentSvgType}
+                  color={primaryColor}
+                  selection={garmentSelection}
+                  neckTrimColor={state.neckTrimColor}
+                  sleeveTrimColor={state.sleeveTrimColor}
+                  cuffTrimColor={state.cuffTrimColor}
+                  pocketTrimColor={state.pocketTrimColor}
+                  layerTransforms={state.tshirtLayerTransforms}
+                  liveCanvasScale={previewZoom / 100}
+                  contentInset
+                  className="h-full w-full min-h-0"
+                >
+                  <MeasurementGuideOverlay
+                    garmentType={garmentSvgType}
+                    selection={garmentSelection}
+                    highlightedId={highlightedMeasurementId}
+                  />
+                </TshirtSvgPreview>
+              ) : (
+                <div className="relative mx-auto h-auto w-full max-w-full">
+                  <BuilderGarmentPreview
+                    garmentType={state.garmentType}
+                    color={primaryColor}
+                    neckType={state.neckType}
+                    sleeveType={state.sleeveType}
+                    sleeveLength={state.sleeveLength}
+                    hemType={state.hemType}
+                    cuffType={state.cuffType}
+                    pocketType={state.pocketType}
+                    zipType={state.zipType}
+                    fadingType={state.fadingType}
+                    stitchingType={state.stitchingType}
+                    stitchingColor={state.stitchingColor}
+                    neckTrimColor={state.neckTrimColor}
+                    sleeveTrimColor={state.sleeveTrimColor}
+                    pocketTrimColor={state.pocketTrimColor}
+                    className={cn(
+                      'mx-auto h-auto w-full max-w-full',
+                      isPhone
+                        ? phoneEditorCollapsed
+                          ? 'max-h-[min(50dvh,420px)] max-w-[min(100%,92vw,360px)]'
+                          : 'max-h-[min(42dvh,340px)] max-w-[min(100%,88vw,300px)]'
+                        : PREVIEW_STAGE_CLASS,
+                    )}
+                  />
+                  <MeasurementGuideOverlay
+                    garmentType={garmentSvgType ?? 'tshirt'}
+                    selection={garmentSelection}
+                    highlightedId={highlightedMeasurementId}
+                  />
+                </div>
+              )}
             </div>
           ) : currentStep === 9 ? (
             <div

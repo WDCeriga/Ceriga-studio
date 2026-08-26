@@ -31,6 +31,12 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 900,
   },
+  // Avoid browsers serving a stale localhost HTML/JS shell from another project on the same port.
+  server: {
+    headers: {
+      'Cache-Control': 'no-store',
+    },
+  },
   plugins: [
     resolveFigmaAssets(),
     // The React and Tailwind plugins are both required for Make, even if

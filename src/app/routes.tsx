@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate, useLocation } from "react-router";
 import { Home } from "./pages/Home";
 import { Features } from "./pages/Features";
 import { HowItWorks } from "./pages/HowItWorks";
@@ -7,7 +7,12 @@ import { Onboarding } from "./pages/Onboarding";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 import { NotFound } from "./pages/NotFound";
-import { SidebarLayout } from "./components/SidebarLayout";
+
+/** Keep query string when renaming routes (e.g. /studio/manufacturer?productId=). */
+function RedirectPreserveSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
+}
 
 export const router = createBrowserRouter([
   {
@@ -110,39 +115,43 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/projects",
+    lazy: async () => {
+      const [{ SidebarLayout: Layout }, { Projects }] = await Promise.all([
+        import("./components/SidebarLayout"),
+        import("./pages/Projects"),
+      ]);
+      return {
+        element: (
+          <Layout>
+            <Projects />
+          </Layout>
+        ),
+      };
+    },
+  },
+  {
     path: "/drafts",
+    element: <Navigate to="/projects" replace />,
+  },
+  {
+    path: "/create",
     lazy: async () => {
-      const [{ SidebarLayout: Layout }, { Drafts }] = await Promise.all([
+      const [{ SidebarLayout: Layout }, { Create }] = await Promise.all([
         import("./components/SidebarLayout"),
-        import("./pages/Drafts"),
+        import("./pages/Create"),
       ]);
       return {
         element: (
           <Layout>
-            <Drafts />
+            <Create />
           </Layout>
         ),
       };
     },
   },
   {
-    path: "/studio",
-    lazy: async () => {
-      const [{ SidebarLayout: Layout }, { Studio }] = await Promise.all([
-        import("./components/SidebarLayout"),
-        import("./pages/Studio"),
-      ]);
-      return {
-        element: (
-          <Layout>
-            <Studio />
-          </Layout>
-        ),
-      };
-    },
-  },
-  {
-    path: "/studio/manufacturer",
+    path: "/create/manufacturer",
     lazy: async () => {
       const [{ SidebarLayout: Layout }, { ManufacturerOrder }] = await Promise.all([
         import("./components/SidebarLayout"),
@@ -156,6 +165,14 @@ export const router = createBrowserRouter([
         ),
       };
     },
+  },
+  {
+    path: "/studio",
+    element: <RedirectPreserveSearch to="/create" />,
+  },
+  {
+    path: "/studio/manufacturer",
+    element: <RedirectPreserveSearch to="/create/manufacturer" />,
   },
   {
     path: "/packaging",
@@ -513,6 +530,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/crm/bases/:baseId/measurement-guides",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminMeasurementGuides }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminMeasurementGuides"),
+      ]);
+      return {
+        element: (
+          <SuperAdminLayout>
+            <SuperAdminMeasurementGuides />
+          </SuperAdminLayout>
+        ),
+      };
+    },
+  },
+  {
     path: "/superadmin/crm/products/:productId",
     lazy: async () => {
       const [{ SuperAdminLayout }, { SuperAdminCRMProduct }] = await Promise.all([
@@ -609,18 +642,20 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/crm/measurement-guides",
+    lazy: async () => {
+      const { Navigate } = await import("react-router");
+      return {
+        element: <Navigate to="/superadmin/crm/bases/tshirt/measurement-guides" replace />,
+      };
+    },
+  },
+  {
     path: "/superadmin/measurement-guides",
     lazy: async () => {
-      const [{ SuperAdminLayout }, { SuperAdminMeasurementGuides }] = await Promise.all([
-        import("./components/superadmin/SuperAdminLayout"),
-        import("./pages/superadmin/SuperAdminMeasurementGuides"),
-      ]);
+      const { Navigate } = await import("react-router");
       return {
-        element: (
-          <SuperAdminLayout>
-            <SuperAdminMeasurementGuides />
-          </SuperAdminLayout>
-        ),
+        element: <Navigate to="/superadmin/crm/bases/tshirt/measurement-guides" replace />,
       };
     },
   },
@@ -830,6 +865,34 @@ export const router = createBrowserRouter([
           </ManufacturerLayout>
         ),
       };
+    },
+  },
+  {
+    path: "/lab",
+    lazy: async () => {
+      const { LabIndex } = await import("./pages/lab/LabIndex");
+      return { Component: LabIndex };
+    },
+  },
+  {
+    path: "/lab/garment-json",
+    lazy: async () => {
+      const { GarmentJsonLab } = await import("./pages/lab/GarmentJsonLab");
+      return { Component: GarmentJsonLab };
+    },
+  },
+  {
+    path: "/lab/create-designs",
+    lazy: async () => {
+      const { CreateDesignsLab } = await import("./pages/lab/CreateDesignsLab");
+      return { Component: CreateDesignsLab };
+    },
+  },
+  {
+    path: "/lab/sleeve-color",
+    lazy: async () => {
+      const { SleeveColorLab } = await import("./pages/lab/SleeveColorLab");
+      return { Component: SleeveColorLab };
     },
   },
   {

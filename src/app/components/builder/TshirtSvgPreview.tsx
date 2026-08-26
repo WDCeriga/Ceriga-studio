@@ -220,6 +220,13 @@ export interface TshirtSvgPreviewProps {
   onSelectedLayerChange?: (id: string | null) => void;
   liveCanvasScale?: number;
   className?: string;
+  /**
+   * Pull garment + overlays in from the square edges so hems/guides aren't clipped by the frame.
+   * Keep off for the layer editor where the artwork should fill the stage.
+   */
+  contentInset?: boolean;
+  /** Rendered inside the square garment canvas (e.g. measurement guides). */
+  children?: React.ReactNode;
 }
 
 function mergeTransform(id: string, map?: Partial<Record<string, TshirtLayerTransform>>) {
@@ -687,6 +694,8 @@ export function TshirtSvgPreview({
   onSelectedLayerChange,
   liveCanvasScale = 1,
   className,
+  contentInset = false,
+  children,
 }: TshirtSvgPreviewProps) {
   const gestureRef = useRef<{
     layerId: string;
@@ -699,7 +708,6 @@ export function TshirtSvgPreview({
     mode: GestureMode;
     scaleAnchor?: ScaleAnchor;
   } | null>(null);
-
   const [gestureLayerId, setGestureLayerId] = useState<string | null>(null);
   const [activeScaleAnchor, setActiveScaleAnchor] = useState<ScaleAnchor | null>(null);
   const [scaleGestureStorageId, setScaleGestureStorageId] = useState<string | null>(null);
@@ -1029,67 +1037,72 @@ export function TshirtSvgPreview({
       )}
       onPointerDown={editable ? handleBackgroundPointerDown : undefined}
     >
-      <div
-        ref={canvasRef}
-        className="relative aspect-square h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0"
-      >
-        {layerLayouts.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) => {
-          const scaleFixedAnchor =
-            scaleGestureStorageId && transformStorageId(id) === scaleGestureStorageId
-              ? activeScaleAnchor
-              : null;
-          const displayTransform = resolveLayerDisplayTransform(id, transform, bbox);
+      <div className="relative aspect-square h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 overflow-visible">
+        {/* Optional inset: shrinking the outer square left edges flush to the crop and looked unchanged */}
+        <div
+          ref={canvasRef}
+          className={cn('absolute overflow-visible', contentInset ? 'inset-[6%]' : 'inset-0')}
+        >
+          {layerLayouts.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) => {
+            const scaleFixedAnchor =
+              scaleGestureStorageId && transformStorageId(id) === scaleGestureStorageId
+                ? activeScaleAnchor
+                : null;
+            const displayTransform = resolveLayerDisplayTransform(id, transform, bbox);
 
-          return (
-            <PreviewLayer
-              key={`${sourceLayer.category}-${id}`}
-              layerId={id}
-              layer={sourceLayer}
-              fabricColor={fabricColor}
-              transform={displayTransform}
-              bbox={bbox}
-              alignOffset={alignOffset}
-              clipSide={side}
-              scaleFixedAnchor={scaleFixedAnchor}
-              selectedLayerId={selectedLayerId}
+            return (
+              <PreviewLayer
+                key={`${sourceLayer.category}-${id}`}
+                layerId={id}
+                layer={sourceLayer}
+                fabricColor={fabricColor}
+                transform={displayTransform}
+                bbox={bbox}
+                alignOffset={alignOffset}
+                clipSide={side}
+                scaleFixedAnchor={scaleFixedAnchor}
+                selectedLayerId={selectedLayerId}
+              />
+            );
+          })}
+
+          {editable
+            ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>
+                bbox ? (
+                  <LayerHitTarget
+                    key={`hit-${id}`}
+                    layerId={id}
+                    displayName={
+                      side
+                        ? `${side === 'left' ? 'Left' : 'Right'} ${sourceLayer.displayName}`
+                        : sourceLayer.displayName
+                    }
+                    zIndexBase={sourceLayer.zIndex}
+                    bbox={bbox}
+                    transform={transform}
+                    alignOffset={alignOffset}
+                    selected={selectedLayerId === id}
+                    onPointerDown={(e) => handleLayerPointerDown(id, e)}
+                  />
+                ) : null,
+              )
+            : null}
+
+          {selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
+            <SelectionOutline
+              bbox={selectedLayout.bbox}
+              transform={selectedDisplayTransform}
+              alignOffset={selectedLayout.alignOffset}
+              scaleFixedAnchor={activeScaleAnchor}
+              zIndex={SELECTED_LAYER_Z + 20}
+              onMove={editable ? (e) => startGesture(selectedLayerId, e, 'move') : undefined}
+              onScale={editable ? (e, anchor) => startGesture(selectedLayerId, e, 'scale', anchor) : undefined}
+              onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
             />
-          );
-        })}
+          ) : null}
 
-        {editable
-          ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>
-              bbox ? (
-                <LayerHitTarget
-                  key={`hit-${id}`}
-                  layerId={id}
-                  displayName={
-                    side
-                      ? `${side === 'left' ? 'Left' : 'Right'} ${sourceLayer.displayName}`
-                      : sourceLayer.displayName
-                  }
-                  zIndexBase={sourceLayer.zIndex}
-                  bbox={bbox}
-                  transform={transform}
-                  alignOffset={alignOffset}
-                  selected={selectedLayerId === id}
-                  onPointerDown={(e) => handleLayerPointerDown(id, e)}
-                />
-              ) : null,
-            )
-          : null}
-
-        {selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
-          <SelectionOutline
-            bbox={selectedLayout.bbox}
-            transform={selectedDisplayTransform}
-            alignOffset={selectedLayout.alignOffset}
-            scaleFixedAnchor={activeScaleAnchor}
-            zIndex={SELECTED_LAYER_Z + 20}
-            onMove={editable ? (e) => startGesture(selectedLayerId, e, 'move') : undefined}
-            onScale={editable ? (e, anchor) => startGesture(selectedLayerId, e, 'scale', anchor) : undefined}
-            onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
-          />
-        ) : null}
+          {children}
+        </div>
       </div>
 
       {toolHint ? (

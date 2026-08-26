@@ -38,8 +38,8 @@ export default function Delivery() {
     if (st?.from === 'manufacturer') {
       navigate(
         productId
-          ? `/studio/manufacturer?productId=${encodeURIComponent(productId)}`
-          : '/studio/manufacturer',
+          ? `/create/manufacturer?productId=${encodeURIComponent(productId)}`
+          : '/create/manufacturer',
       );
       return;
     }
@@ -60,14 +60,16 @@ export default function Delivery() {
       productName?: string;
       garmentType?: string;
       orderQuantities?: OrderQuantityPlan;
+      from?: string;
     } | undefined;
 
-    const isTechPack = st?.orderQuantities?.mode === 'techpack';
+    const isTechPackExport = st?.orderQuantities?.mode === 'techpack';
+    const isPackaging = st?.from === 'packaging';
     const order = createOrderFromSubmit({
       productId: st?.productId,
-      productName: st?.productName,
-      garmentType: st?.garmentType,
-      kind: isTechPack ? 'tech-pack' : 'production',
+      productName: st?.productName ?? (isPackaging ? 'Packaging order' : undefined),
+      garmentType: st?.garmentType ?? (isPackaging ? 'Packaging' : undefined),
+      kind: isTechPackExport ? 'tech-pack' : 'production',
       orderQuantities: st?.orderQuantities,
     });
     navigate(`/orders/${order.id}`);

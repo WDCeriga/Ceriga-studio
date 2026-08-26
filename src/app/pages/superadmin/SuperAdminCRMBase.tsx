@@ -1,13 +1,12 @@
 import { BuilderComponentEditor } from './crm/CrmComponentEditor';
 import { useMemo, useState, type ChangeEvent } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, Layers, Shirt } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Layers, Ruler, Shirt } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   GARMENT_BASES,
   baseComponentsForBase,
   defaultBaseConfig,
-  garmentBaseById,
   getBaseConfig,
   normalizeBaseConfig,
   upsertBaseConfig,
@@ -17,7 +16,6 @@ import {
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
-import { cn } from '../../components/ui/utils';
 
 const BASE_ICONS = {
   tshirt: Shirt,
@@ -105,6 +103,24 @@ export function SuperAdminCRMBase() {
           className="min-h-[72px] border-white/15 bg-white/5 text-white"
         />
       </div>
+
+      <Link
+        to={`/superadmin/crm/bases/${baseId}/measurement-guides`}
+        className="group flex items-center justify-between gap-4 rounded-2xl border border-[#252528] bg-[#111113] p-5 transition hover:border-[#CC2D24]/40 hover:bg-[#1C0F0F]/40 sm:p-6"
+      >
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#CC2D24]/30 bg-[#CC2D24]/10 text-[#E5534A]">
+            <Ruler className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-white">Measurement guides</h2>
+            <p className="mt-1 text-xs leading-5 text-white/50">
+              Position builder measurement callouts for {meta.name.toLowerCase()} products.
+            </p>
+          </div>
+        </div>
+        <ArrowRight className="h-4 w-4 shrink-0 text-white/35 transition group-hover:text-[#E5534A]" />
+      </Link>
 
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

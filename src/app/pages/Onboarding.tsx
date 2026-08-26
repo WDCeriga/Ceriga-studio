@@ -8,7 +8,6 @@ import {
   Package,
   Palette,
   Rocket,
-  ShoppingBag,
   Sparkles,
   Users,
   FileText,
@@ -59,13 +58,13 @@ const personaCopy: Record<
   brand: {
     headline: 'Keep every style documented the same way',
     bullets: [
-      'Use the catalog as a single source of truth for silhouettes and options.',
+      'Use templates as a single source of truth for silhouettes and options.',
       'Share PDF exports that already include measurements and callouts.',
       'Split packaging work from garment specs when vendors move at different speeds.',
       'Track orders in one place so production and design stay aligned.',
       'Reuse last season’s measurements as a baseline for faster sign-off.',
     ],
-    studioTip: 'Start with Dashboard → New project, or Studio → Design tech pack.',
+    studioTip: 'Start with Home → New project, or Create → Design a tech pack.',
   },
   manufacturer: {
     headline: 'Help partners send specs you can actually quote',
@@ -76,52 +75,47 @@ const personaCopy: Record<
       'Fewer “what does this mean?” threads when callouts match the flat sketch.',
       'Same file format from many clients lowers onboarding cost for your team.',
     ],
-    studioTip: 'Share Studio with accounts teams — packaging skips garment selection entirely.',
+    studioTip: 'Share Create → Packaging only with accounts — same tools as in a full tech pack.',
   },
   agency: {
     headline: 'Deliverables that look as professional as your creative',
     bullets: [
       'Reuse garment templates across clients while keeping each spec isolated.',
-      'Drafts autosave so context-switching between accounts is safe.',
+      'Projects autosave so context-switching between accounts is safe.',
       'Pro tier unlocks branding on exports when you are ready.',
       'Hand clients a link to Orders so they stop asking for status by email.',
       'Packaging and full tech packs can run in parallel for the same brand.',
     ],
-    studioTip: 'Try Studio → Order from manufacturers when the client already has a tech pack.',
+    studioTip: 'Try Create → Upload for a Ceriga quote when the client already has a tech pack.',
   },
   creator: {
     headline: 'Validate production before you commit cash',
     bullets: [
-      'Build one hero style in the builder, then iterate colourways from drafts.',
+      'Build one hero style in the builder, then iterate colourways from Projects.',
       'Design packaging before your first bulk order ships.',
-      'Use clear MOQ and lead-time cues from the catalog when planning drops.',
+      'Use clear MOQ and lead-time cues from templates when planning drops.',
       'Export a sample pack to sanity-check with a factory before you scale.',
       'Packaging-only path is ideal when garments are stock but bags need art.',
     ],
-    studioTip: 'Packaging is under Studio — open it anytime without picking a garment.',
+    studioTip: 'Create → Packaging only uses the same designer as inside a tech pack — save & reuse.',
   },
 };
 
 const workspaceRows = [
   {
     icon: LayoutDashboard,
-    title: 'Dashboard',
-    body: 'Overview of projects, progress, and quick entry to anything in flight.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Studio',
-    body: 'Pick a workflow: full tech pack, packaging-only, or manufacturer upload.',
-  },
-  {
-    icon: ShoppingBag,
-    title: 'Catalog',
-    body: 'Garment blueprints with MOQ and lead-time context before you configure.',
+    title: 'Home',
+    body: 'Overview, recent projects, and a clear New project shortcut.',
   },
   {
     icon: FileText,
-    title: 'Drafts',
-    body: 'Saved builds — continue measurements, prints, or packaging anytime.',
+    title: 'Projects',
+    body: 'All saved tech packs, packaging jobs, and production drafts.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Create',
+    body: 'Start a workflow: design a tech pack, upload for a Ceriga quote, or packaging only.',
   },
   {
     icon: Package,
@@ -381,7 +375,7 @@ export function Onboarding() {
               <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Reminder</p>
               <p className="mt-2 text-xs leading-relaxed text-white/50">
                 Settings and log out live at the bottom of the sidebar. Packaging never requires choosing a garment first
-                — open it straight from Studio.
+                — open it straight from Create.
               </p>
             </div>
             <div className="mt-auto flex flex-col gap-3 pt-8 sm:flex-row sm:justify-between">
@@ -413,16 +407,16 @@ export function Onboarding() {
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-white/50">
               We saved your perspective locally to improve future prompts in the app. When you are unsure what to open
-              next, start from Studio — it lists every workflow in one place.
+              next, start from Create — it lists every workflow in one place.
             </p>
             <ul className="mt-8 space-y-3 text-sm text-white/55">
               <li className="flex gap-2">
                 <span className="text-[#CC2D24]">✓</span>
-                Browse the catalog or jump into packaging-only from Studio.
+                Open Create for a tech pack, upload for a quote, or packaging only.
               </li>
               <li className="flex gap-2">
                 <span className="text-[#CC2D24]">✓</span>
-                Drafts autosave — close the tab anytime.
+                Projects autosave — close the tab anytime.
               </li>
               <li className="flex gap-2">
                 <span className="text-[#CC2D24]">✓</span>
