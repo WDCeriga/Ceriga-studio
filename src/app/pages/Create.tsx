@@ -1,12 +1,13 @@
 import { Link } from 'react-router';
-import { ArrowRight, ChevronRight, FileText, Package, Upload } from 'lucide-react';
+import { ArrowRight, ChevronRight, FileText, Package, Printer, Upload } from 'lucide-react';
 import { SpecGridTexture } from '../components/studio/GarmentFlatIcon';
 
 /**
- * Create hub — three user jobs:
- * 1. Design a tech pack (PDF for own factories, or continue to order with Ceriga)
- * 2. Upload an existing pack for a Ceriga quote
- * 3. Packaging only (same designer as in the tech-pack flow; save & reuse)
+ * Create hub — user jobs:
+ * 1. Design a tech pack
+ * 2. Print on demand (simple base + print → pay)
+ * 3. Upload for Ceriga quote
+ * 4. Packaging only
  */
 export function Create() {
   return (
@@ -15,8 +16,8 @@ export function Create() {
         <div className="ceriga-page-eyebrow">New project</div>
         <h1 className="ceriga-page-title">Create</h1>
         <p className="ceriga-page-sub max-w-2xl">
-          Build a tech pack to send out yourself, order production with Ceriga, upload a pack for a
-          quote, or design packaging you can reuse.
+          Build a full tech pack, place a quick print-on-demand order, upload a pack for a quote, or
+          design packaging you can reuse.
         </p>
       </div>
 
@@ -51,6 +52,32 @@ export function Create() {
             <FileText className="h-8 w-8 text-[#E5534A]" strokeWidth={1.4} />
             <span className="ceriga-mono text-[9px] uppercase tracking-[0.08em]">PDF or order</span>
           </div>
+        </div>
+      </Link>
+
+      {/* Print on demand */}
+      <Link
+        to="/create/print"
+        className="group mb-4 flex w-full flex-col overflow-hidden rounded-[6px] border border-[#252528] bg-[#161618] text-left transition-colors hover:border-[#333338] sm:flex-row sm:items-stretch"
+      >
+        <div className="flex min-w-0 flex-1 flex-col justify-center p-5 sm:p-6">
+          <span className="ceriga-mono text-[10px] uppercase tracking-[0.1em] text-[#E8A868]">
+            Fast order
+          </span>
+          <h2 className="mt-2 text-lg font-semibold tracking-tight text-[#F0EEEE] sm:text-xl">
+            Print on demand
+          </h2>
+          <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-[#8A8A90]">
+            Choose a tee or hoodie, add a front image or text, pick sizes, and pay a fixed price —
+            no measurements, materials, or full tech pack.
+          </p>
+          <span className="mt-4 inline-flex items-center gap-2 text-[13px] font-medium text-[#F0EEEE]">
+            Start print order
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </div>
+        <div className="flex h-[88px] shrink-0 items-center justify-center gap-2 border-t border-[#252528] bg-[#111113] px-6 sm:h-auto sm:w-[140px] sm:border-l sm:border-t-0">
+          <Printer className="h-8 w-8 text-[#E5534A]" strokeWidth={1.4} />
         </div>
       </Link>
 

@@ -167,6 +167,22 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/create/print",
+    lazy: async () => {
+      const [{ SidebarLayout: Layout }, { PrintOnDemand }] = await Promise.all([
+        import("./components/SidebarLayout"),
+        import("./pages/PrintOnDemand"),
+      ]);
+      return {
+        element: (
+          <Layout>
+            <PrintOnDemand />
+          </Layout>
+        ),
+      };
+    },
+  },
+  {
     path: "/studio",
     element: <RedirectPreserveSearch to="/create" />,
   },

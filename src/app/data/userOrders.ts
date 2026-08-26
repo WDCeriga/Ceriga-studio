@@ -10,8 +10,10 @@ import {
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   distributeQuantity,
+  emptySizeBreakdown,
   sumBreakdown,
   type OrderQuantityPlan,
+  type SizeBreakdown,
 } from './orderQuantities';
 
 export type UserOrderKind = 'tech-pack' | 'production';
@@ -55,13 +57,19 @@ export type UserOrder = {
   downloadReady?: boolean;
   /** ISO date when quote/pricing was issued — prices valid for PRICE_VALIDITY_WEEKS */
   pricedAt?: string;
-  /** Upload-for-quote request details. */
+  /** Upload-for-quote / POD request details. */
   quoteRequest?: {
     fileNames?: string[];
     storagePaths?: string[];
     quantity?: string;
     timeline?: string;
     notes?: string;
+    /** Print-on-demand design summary */
+    pod?: {
+      designMode: 'image' | 'text';
+      text?: string;
+      textColor?: string;
+    };
   };
   specifications?: {
     fit?: string;
@@ -349,6 +357,140 @@ export async function createOrderFromSubmit(input: {
     const patched = await patchOrderDb(order.id, { quoteRequest });
     notifyOrdersUpdated();
     return patched;
+  }
+
+  notifyOrdersUpdated();
+  return order;
+}
+
+/** Fixed unit prices for the print-on-demand flow (cents). */
+export const POD_UNIT_PRICE_CENTS: Record<'tshirt' | 'hoodie', number> = {
+  tshirt: 1899,
+  hoodie: 3299,
+};
+
+export async function createPrintOnDemandOrder(input: {
+  productId: string;
+  productName: string;
+  garmentType: 'tshirt' | 'hoodie';
+  color: string;
+  colorName: string;
+  bySize: SizeBreakdown;
+  designMode: 'image' | 'text';
+  text?: string;
+  textColor?: string;
+  imageFile?: File | null;
+}): Promise<UserOrder> {
+  const units = sumBreakdown(input.bySize);
+  if (units < 1) throw new Error('Add at least one unit');
+  if (input.designMode === 'text' && !input.text?.trim()) {
+    throw new Error('Enter text for your print');
+  }
+  if (input.designMode === 'image' && !input.imageFile) {
+    throw new Error('Upload an image for your print');
+  }
+
+  const unitCents = POD_UNIT_PRICE_CENTS[input.garmentType];
+  const priceCents = unitCents * units;
+  const orderQuantities: OrderQuantityPlan = {
+    mode: 'custom_clothing',
+    sample: {
+      id: 'sample',
+      kind: 'sample',
+      bySize: emptySizeBreakdown(),
+    },
+    bulkRuns: [
+      {
+        id: 'bulk-1',
+        kind: 'bulk',
+        targetTotal: units,
+        bySize: { ...input.bySize },
+      },
+    ],
+  };
+
+  const priceOptions: OrderPriceOption[] = [
+    {
+      id: 'pod',
+      kind: 'bulk',
+      label: 'Print order',
+      description: `${units} unit${units === 1 ? '' : 's'} · ${input.colorName}`,
+      totalUnits: units,
+      priceCents,
+    },
+  ];
+
+  const quoteRequest: UserOrder['quoteRequest'] = {
+    quantity: String(units),
+    notes:
+      input.designMode === 'text'
+        ? `POD text print: “${input.text?.trim()}”`
+        : 'POD image print (see uploaded file)',
+    pod: {
+      designMode: input.designMode,
+      text: input.designMode === 'text' ? input.text?.trim() : undefined,
+      textColor: input.designMode === 'text' ? input.textColor : undefined,
+    },
+    fileNames: input.imageFile ? [input.imageFile.name] : undefined,
+  };
+
+  const garmentLabel = input.garmentType === 'hoodie' ? 'Hoodie' : 'T-Shirt';
+  const specs: UserOrder['specifications'] = {
+    color: input.color,
+    colorName: input.colorName,
+    fabricType: input.garmentType === 'hoodie' ? 'Fleece' : 'Jersey',
+  };
+
+  if (!isSupabaseConfigured) {
+    const order: UserOrder = {
+      id: `ord-${Date.now().toString(36)}`,
+      kind: 'production',
+      productName: input.productName,
+      garmentType: garmentLabel,
+      productId: input.productId,
+      status: 'priced',
+      statusLabel: 'Ready to pay',
+      orderDate: new Date().toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+      total: priceCents / 100,
+      orderQuantities,
+      priceOptions,
+      pricedAt: new Date().toISOString().slice(0, 10),
+      quoteRequest,
+      specifications: specs,
+    };
+    DEMO_SEED_ORDERS.unshift(order);
+    notifyOrdersUpdated();
+    return order;
+  }
+
+  let order = await insertOrderDb({
+    kind: 'production',
+    productName: input.productName,
+    garmentType: garmentLabel,
+    productId: input.productId,
+    status: 'priced',
+    statusLabel: 'Ready to pay',
+    total: priceCents / 100,
+    orderQuantities,
+    priceOptions,
+    pricedAt: new Date().toISOString().slice(0, 10),
+    quoteRequest,
+    specifications: specs,
+  });
+
+  if (input.imageFile) {
+    const uploaded = await uploadOrderFiles(order.id, [input.imageFile]);
+    order = await patchOrderDb(order.id, {
+      quoteRequest: {
+        ...quoteRequest,
+        fileNames: uploaded.map((u) => u.name),
+        storagePaths: uploaded.map((u) => u.path),
+      },
+    });
   }
 
   notifyOrdersUpdated();

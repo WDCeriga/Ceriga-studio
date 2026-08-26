@@ -211,6 +211,16 @@ export function ProductionAwaitingQuote({ order }: { order: UserOrder }) {
                 <dd className="mt-0.5 whitespace-pre-wrap text-white/80">{qr.notes}</dd>
               </div>
             ) : null}
+            {qr.pod ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">Print design</dt>
+                <dd className="mt-0.5 text-white/80">
+                  {qr.pod.designMode === 'text'
+                    ? `Text: “${qr.pod.text ?? ''}”`
+                    : 'Front image upload'}
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </Panel>
       ) : null}
@@ -225,23 +235,51 @@ export function ProductionAwaitingQuote({ order }: { order: UserOrder }) {
 
 export function ProductionPriced({ order }: { order: UserOrder }) {
   const options = order.priceOptions ?? [];
+  const isPod = Boolean(order.quoteRequest?.pod);
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Panel>
         <p className="text-sm leading-relaxed text-white/70">
-          Your quote is ready. Choose sample only or one of the bulk production runs — each option
-          has its own payment link.
+          {isPod
+            ? 'Your print-on-demand order is priced. Pay to send it into production.'
+            : 'Your quote is ready. Choose sample only or one of the bulk production runs — each option has its own payment link.'}
         </p>
         <div className="mt-3">
           <PriceValidityNotice pricedAt={order.pricedAt} />
         </div>
       </Panel>
+      {order.quoteRequest?.pod ? (
+        <Panel title="Print design">
+          <dl className="space-y-2.5 text-sm">
+            <div>
+              <dt className="text-[10px] uppercase tracking-wider text-white/40">Type</dt>
+              <dd className="mt-0.5 text-white/80">
+                {order.quoteRequest.pod.designMode === 'text'
+                  ? `Text: “${order.quoteRequest.pod.text ?? ''}”`
+                  : 'Front image'}
+              </dd>
+            </div>
+            {order.specifications?.colorName ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">Color</dt>
+                <dd className="mt-0.5 text-white/80">{order.specifications.colorName}</dd>
+              </div>
+            ) : null}
+            {order.quoteRequest.fileNames && order.quoteRequest.fileNames.length > 0 ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">File</dt>
+                <dd className="mt-0.5 text-white/80">{order.quoteRequest.fileNames.join(', ')}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </Panel>
+      ) : null}
       {order.orderQuantities ? (
         <Panel title="Order breakdown">
           <OrderQuantitiesSummary plan={order.orderQuantities} />
         </Panel>
       ) : null}
-      <Panel title="Pricing options">
+      <Panel title={isPod ? 'Payment' : 'Pricing options'}>
         <div className="space-y-3">
           {options.map((opt) => (
             <PriceOptionCard key={opt.id} orderId={order.id} option={opt} />
