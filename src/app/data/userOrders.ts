@@ -1,4 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  getOrder as getOrderDb,
+  insertOrder as insertOrderDb,
+  listOrders as listOrdersDb,
+  patchOrder as patchOrderDb,
+  uploadOrderFiles,
+} from '../lib/ordersDb';
+import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   distributeQuantity,
   sumBreakdown,
@@ -46,9 +55,10 @@ export type UserOrder = {
   downloadReady?: boolean;
   /** ISO date when quote/pricing was issued — prices valid for PRICE_VALIDITY_WEEKS */
   pricedAt?: string;
-  /** Upload-for-quote request details (demo / local store). */
+  /** Upload-for-quote request details. */
   quoteRequest?: {
     fileNames?: string[];
+    storagePaths?: string[];
     quantity?: string;
     timeline?: string;
     notes?: string;
@@ -65,8 +75,6 @@ export type UserOrder = {
   };
 };
 
-const STORAGE_KEY = 'ceriga_user_orders_v1';
-
 function customClothingSample(): OrderQuantityPlan['sample'] {
   const bySize = { xs: 1, s: 1, m: 1, l: 1, xl: 1, xxl: 1 } as OrderQuantityPlan['sample']['bySize'];
   return { id: 'sample', kind: 'sample', bySize };
@@ -82,26 +90,6 @@ function planWithBulks(tiers: number[]): OrderQuantityPlan {
       targetTotal: tier,
       bySize: distributeQuantity(tier),
     })),
-  };
-}
-
-function techPackPlan(): OrderQuantityPlan {
-  return {
-    mode: 'techpack',
-    sample: {
-      id: 'sample',
-      kind: 'sample',
-      targetTotal: 5,
-      bySize: distributeQuantity(5),
-    },
-    bulkRuns: [
-      {
-        id: 'bulk-1',
-        kind: 'bulk',
-        targetTotal: 100,
-        bySize: distributeQuantity(100),
-      },
-    ],
   };
 }
 
@@ -201,7 +189,8 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
   ready: 'border border-[#345040] bg-[#14201A] text-[#7FA888]',
 };
 
-const SEED_ORDERS: UserOrder[] = [
+/** Demo seed only when Supabase is not configured (local UI preview). */
+const DEMO_SEED_ORDERS: UserOrder[] = [
   {
     id: 'ord-pending',
     kind: 'production',
@@ -221,164 +210,41 @@ const SEED_ORDERS: UserOrder[] = [
       gsm: 320,
     },
   },
-  {
-    id: 'ord-002',
-    kind: 'production',
-    productName: 'Classic Pullover Hoodie',
-    garmentType: 'Hoodie',
-    productId: 'prod-hoodie-02',
-    status: 'priced',
-    statusLabel: 'Choose a price',
-    orderDate: '10 Mar 2026',
-    pricedAt: '2026-03-10',
-    total: null,
-    orderQuantities: planWithBulks([75]),
-    priceOptions: buildPriceOptions('ord-002', planWithBulks([75]), 31200, 427500),
-    specifications: { fit: 'Regular', color: '#2d3748', colorName: 'Charcoal', fabricType: 'Fleece', gsm: 280 },
-  },
-  {
-    id: 'ord-priced-3',
-    kind: 'production',
-    productName: 'Heavyweight crew sweatshirt',
-    garmentType: 'Sweatshirt',
-    productId: 'prod-sweat-01',
-    status: 'priced',
-    statusLabel: 'Choose a price',
-    orderDate: '8 Apr 2026',
-    pricedAt: '2026-04-08',
-    total: null,
-    orderQuantities: planWithBulks([50, 100, 250]),
-    priceOptions: buildPriceOptions('ord-priced-3', planWithBulks([50, 100, 250])),
-    specifications: { fit: 'Oversized', color: '#f5f5f5', colorName: 'Heather grey', fabricType: 'French Terry', gsm: 400 },
-  },
-  {
-    id: 'ord-001',
-    kind: 'production',
-    productName: 'Premium Cotton T-Shirt',
-    garmentType: 'T-Shirt',
-    productId: 'prod-tee-01',
-    status: 'processing',
-    statusLabel: 'In production',
-    orderDate: '14 Mar 2026',
-    total: 3247.5,
-    selectedPriceOptionId: 'bulk-1',
-    paidAmountCents: 324750,
-    orderQuantities: planWithBulks([250]),
-    priceOptions: buildPriceOptions('ord-001', planWithBulks([250]), 28500, 324750),
-    specifications: {
-      fit: 'Regular',
-      color: '#000000',
-      colorName: 'Black',
-      neckType: 'crew',
-      sleeveType: 'set-in',
-      sleeveLength: 'short',
-      fabricType: 'Jersey',
-      gsm: 180,
-    },
-  },
-  {
-    id: 'ord-004',
-    kind: 'production',
-    productName: 'French Terry Sweatshirt',
-    garmentType: 'Sweatshirt',
-    productId: 'prod-sweat-02',
-    status: 'shipping',
-    statusLabel: 'Shipping',
-    orderDate: '28 Feb 2026',
-    total: 4400,
-    tracking: 'UPS 1Z999AA10123456784',
-    selectedPriceOptionId: 'bulk-1',
-    paidAmountCents: 440000,
-    orderQuantities: planWithBulks([200]),
-  },
-  {
-    id: 'ord-003',
-    kind: 'production',
-    productName: 'Performance Joggers',
-    garmentType: 'Trousers',
-    productId: 'prod-jogger-01',
-    status: 'completed',
-    statusLabel: 'Completed',
-    orderDate: '2 Mar 2026',
-    total: 2600,
-    tracking: 'DHL 3SADKE991023',
-    selectedPriceOptionId: 'bulk-1',
-    paidAmountCents: 260000,
-    orderQuantities: planWithBulks([100]),
-  },
-  {
-    id: 'tp-awaiting',
-    kind: 'tech-pack',
-    productName: 'Studio — Rib tank top',
-    garmentType: 'Tank',
-    productId: 'prod-tank-01',
-    status: 'awaiting_payment',
-    statusLabel: 'Awaiting payment',
-    orderDate: '11 Apr 2026',
-    pricedAt: '2026-04-11',
-    total: 29,
-    exportFormat: 'pdf',
-    orderQuantities: techPackPlan(),
-  },
-  {
-    id: 'tp-002',
-    kind: 'tech-pack',
-    productName: 'Studio — Organic cotton tee',
-    garmentType: 'T-Shirt',
-    productId: 'prod-tee-02',
-    status: 'paid',
-    statusLabel: 'Paid',
-    orderDate: '5 Apr 2026',
-    total: 29,
-    paidAmountCents: 2900,
-    exportFormat: 'pdf',
-    downloadReady: true,
-    revisionUsed: false,
-    orderQuantities: techPackPlan(),
-  },
-  {
-    id: 'tp-001',
-    kind: 'tech-pack',
-    productName: 'Studio — French Terry crew',
-    garmentType: 'Sweatshirt',
-    productId: 'prod-sweat-03',
-    status: 'ready',
-    statusLabel: 'Download ready',
-    orderDate: '8 Apr 2026',
-    total: 49,
-    paidAmountCents: 4900,
-    exportFormat: 'pdf_bundle',
-    downloadReady: true,
-    revisionUsed: true,
-    orderQuantities: techPackPlan(),
-  },
 ];
 
-const SEED_IDS = new Set(SEED_ORDERS.map((o) => o.id));
-
-function readStoredOrders(): UserOrder[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as UserOrder[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+function notifyOrdersUpdated(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('ceriga-orders-updated'));
   }
 }
 
-function writeStoredOrders(orders: UserOrder[]): void {
-  const dynamic = orders.filter((o) => !SEED_IDS.has(o.id));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(dynamic));
+export async function fetchUserOrders(): Promise<UserOrder[]> {
+  if (!isSupabaseConfigured) return DEMO_SEED_ORDERS;
+  const { data } = await getSupabase().auth.getSession();
+  if (!data.session) return [];
+  return listOrdersDb();
 }
 
+export async function fetchUserOrderById(id: string): Promise<UserOrder | undefined> {
+  if (!isSupabaseConfigured) {
+    return DEMO_SEED_ORDERS.find((o) => o.id === id);
+  }
+  const { data } = await getSupabase().auth.getSession();
+  if (!data.session) return undefined;
+  const order = await getOrderDb(id);
+  return order ?? undefined;
+}
+
+/** @deprecated Prefer fetchUserOrders — sync helper for non-DB preview only */
 export function getAllUserOrders(): UserOrder[] {
-  const stored = readStoredOrders().filter((o) => !SEED_IDS.has(o.id));
-  return [...SEED_ORDERS, ...stored];
+  if (!isSupabaseConfigured) return DEMO_SEED_ORDERS;
+  return [];
 }
 
+/** @deprecated Prefer fetchUserOrderById */
 export function getUserOrderById(id: string): UserOrder | undefined {
-  return getAllUserOrders().find((o) => o.id === id);
+  if (!isSupabaseConfigured) return DEMO_SEED_ORDERS.find((o) => o.id === id);
+  return undefined;
 }
 
 export function getPriceOption(
@@ -388,66 +254,112 @@ export function getPriceOption(
   return order.priceOptions?.find((o) => o.id === optionId);
 }
 
-export function upsertUserOrder(order: UserOrder): void {
-  const all = getAllUserOrders();
-  const idx = all.findIndex((o) => o.id === order.id);
-  const next = idx >= 0 ? all.map((o, i) => (i === idx ? order : o)) : [...all, order];
-  writeStoredOrders(next);
-}
-
-export function updateUserOrder(id: string, patch: Partial<UserOrder>): UserOrder | undefined {
-  const all = getAllUserOrders();
-  const idx = all.findIndex((o) => o.id === id);
-  if (idx < 0) return undefined;
-  const updated = { ...all[idx], ...patch };
-  if (SEED_IDS.has(id)) {
-    const stored = readStoredOrders().filter((o) => o.id !== id);
-    stored.push(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-  } else {
-    const next = all.map((o, i) => (i === idx ? updated : o));
-    writeStoredOrders(next);
+export async function updateUserOrder(
+  id: string,
+  patch: Partial<UserOrder>,
+): Promise<UserOrder | undefined> {
+  if (!isSupabaseConfigured) {
+    const idx = DEMO_SEED_ORDERS.findIndex((o) => o.id === id);
+    if (idx < 0) return undefined;
+    DEMO_SEED_ORDERS[idx] = { ...DEMO_SEED_ORDERS[idx]!, ...patch };
+    notifyOrdersUpdated();
+    return DEMO_SEED_ORDERS[idx];
   }
-  window.dispatchEvent(new CustomEvent('ceriga-orders-updated'));
+
+  const updated = await patchOrderDb(id, {
+    status: patch.status,
+    statusLabel: patch.statusLabel,
+    total: patch.total,
+    tracking: patch.tracking,
+    orderQuantities: patch.orderQuantities,
+    priceOptions: patch.priceOptions,
+    selectedPriceOptionId: patch.selectedPriceOptionId,
+    paidAmountCents: patch.paidAmountCents,
+    exportFormat: patch.exportFormat,
+    revisionUsed: patch.revisionUsed,
+    downloadReady: patch.downloadReady,
+    pricedAt: patch.pricedAt,
+    quoteRequest: patch.quoteRequest,
+    specifications: patch.specifications,
+  });
+  notifyOrdersUpdated();
   return updated;
 }
 
-export function createOrderFromSubmit(input: {
+export async function createOrderFromSubmit(input: {
   productId?: string;
   productName?: string;
   garmentType?: string;
   kind: UserOrderKind;
   orderQuantities?: OrderQuantityPlan;
   quoteRequest?: UserOrder['quoteRequest'];
-}): UserOrder {
-  const id = `ord-${Date.now().toString(36)}`;
+  files?: File[];
+}): Promise<UserOrder> {
   const isTechPack = input.kind === 'tech-pack';
-  const order: UserOrder = {
-    id,
+  const status: UserOrderStatus = isTechPack ? 'awaiting_payment' : 'submitted';
+  const statusLabel = isTechPack ? 'Awaiting payment' : 'Awaiting quote';
+
+  if (!isSupabaseConfigured) {
+    const order: UserOrder = {
+      id: `ord-${Date.now().toString(36)}`,
+      kind: input.kind,
+      productName: input.productName ?? 'Studio project',
+      garmentType: input.garmentType ?? 'Garment',
+      productId: input.productId,
+      status,
+      statusLabel,
+      orderDate: new Date().toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+      total: isTechPack ? 29 : null,
+      orderQuantities: input.orderQuantities,
+      exportFormat: isTechPack ? 'pdf' : undefined,
+      pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
+      quoteRequest: input.quoteRequest,
+    };
+    DEMO_SEED_ORDERS.unshift(order);
+    notifyOrdersUpdated();
+    return order;
+  }
+
+  let quoteRequest = input.quoteRequest;
+  const order = await insertOrderDb({
     kind: input.kind,
     productName: input.productName ?? 'Studio project',
     garmentType: input.garmentType ?? 'Garment',
     productId: input.productId,
-    status: isTechPack ? 'awaiting_payment' : 'submitted',
-    statusLabel: isTechPack ? 'Awaiting payment' : 'Awaiting quote',
-    orderDate: new Date().toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }),
+    status,
+    statusLabel,
     total: isTechPack ? 29 : null,
     orderQuantities: input.orderQuantities,
     exportFormat: isTechPack ? 'pdf' : undefined,
     pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
-    quoteRequest: input.quoteRequest,
-  };
-  upsertUserOrder(order);
-  window.dispatchEvent(new CustomEvent('ceriga-orders-updated'));
+    quoteRequest,
+  });
+
+  if (input.files && input.files.length > 0) {
+    const uploaded = await uploadOrderFiles(order.id, input.files);
+    quoteRequest = {
+      ...quoteRequest,
+      fileNames: uploaded.map((u) => u.name),
+      storagePaths: uploaded.map((u) => u.path),
+    };
+    const patched = await patchOrderDb(order.id, { quoteRequest });
+    notifyOrdersUpdated();
+    return patched;
+  }
+
+  notifyOrdersUpdated();
   return order;
 }
 
-export function completeCheckout(orderId: string, optionId: string): UserOrder | undefined {
-  const order = getUserOrderById(orderId);
+export async function completeCheckout(
+  orderId: string,
+  optionId: string,
+): Promise<UserOrder | undefined> {
+  const order = await fetchUserOrderById(orderId);
   if (!order) return undefined;
 
   if (order.kind === 'tech-pack') {
@@ -473,31 +385,81 @@ export function completeCheckout(orderId: string, optionId: string): UserOrder |
 }
 
 export function useUserOrders(): UserOrder[] {
-  const [orders, setOrders] = useState<UserOrder[]>(() => getAllUserOrders());
+  const { isAuthenticated, authReady, usingSupabase } = useAuth();
+  const [orders, setOrders] = useState<UserOrder[]>([]);
 
-  const refresh = useCallback(() => setOrders(getAllUserOrders()), []);
+  const refresh = useCallback(async () => {
+    if (!authReady) return;
+    if (usingSupabase && !isAuthenticated) {
+      setOrders([]);
+      return;
+    }
+    try {
+      setOrders(await fetchUserOrders());
+    } catch {
+      setOrders([]);
+    }
+  }, [authReady, isAuthenticated, usingSupabase]);
 
   useEffect(() => {
-    refresh();
-    const handler = () => refresh();
+    void refresh();
+    const handler = () => void refresh();
     window.addEventListener('ceriga-orders-updated', handler);
-    window.addEventListener('storage', handler);
-    return () => {
-      window.removeEventListener('ceriga-orders-updated', handler);
-      window.removeEventListener('storage', handler);
-    };
+    return () => window.removeEventListener('ceriga-orders-updated', handler);
   }, [refresh]);
 
   return orders;
 }
 
-export function useUserOrder(id: string | undefined): UserOrder | undefined {
-  const orders = useUserOrders();
-  return id ? orders.find((o) => o.id === id) : undefined;
+export function useUserOrder(id: string | undefined): {
+  order: UserOrder | undefined;
+  loading: boolean;
+} {
+  const { isAuthenticated, authReady, usingSupabase } = useAuth();
+  const [order, setOrder] = useState<UserOrder | undefined>(undefined);
+  const [loading, setLoading] = useState(Boolean(id));
+
+  useEffect(() => {
+    if (!id || !authReady) {
+      setOrder(undefined);
+      setLoading(Boolean(id) && !authReady);
+      return;
+    }
+    if (usingSupabase && !isAuthenticated) {
+      setOrder(undefined);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const row = await fetchUserOrderById(id);
+        if (!cancelled) setOrder(row);
+      } catch {
+        if (!cancelled) setOrder(undefined);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    const handler = () => {
+      void fetchUserOrderById(id).then((row) => {
+        if (!cancelled) setOrder(row);
+      });
+    };
+    window.addEventListener('ceriga-orders-updated', handler);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('ceriga-orders-updated', handler);
+    };
+  }, [id, authReady, isAuthenticated, usingSupabase]);
+
+  return { order, loading };
 }
 
 export function listQuantityLabel(order: UserOrder): string | null {
   if (order.kind === 'tech-pack') return 'PDF export';
+  if (order.quoteRequest?.quantity) return `${order.quoteRequest.quantity} units (quote)`;
   if (!order.orderQuantities) return order.total != null ? null : '—';
   const sample = sumBreakdown(order.orderQuantities.sample.bySize);
   const bulkCount = order.orderQuantities.bulkRuns.filter(

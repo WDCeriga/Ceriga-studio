@@ -1,61 +1,40 @@
 import type { DesignElement } from '../components/builder/PrintsDesignStep';
+import {
+  insertPackagingLibrary,
+  listPackagingLibrary,
+  type PackagingLibraryRow,
+  type PackagingSnapshot,
+} from './packagingLibraryDb';
 import { listProjects, type ProjectListItem } from './projectsDb';
 import { isSupabaseConfigured } from './supabaseClient';
 
-export type PackagingSnapshot = {
-  packagingType: string;
-  packagingColor: string;
-  notes: string;
-  elements: DesignElement[];
-};
+export type { PackagingSnapshot };
 
-const LOCAL_KEY = 'ceriga_packaging_library_v1';
-
-export type LocalPackagingEntry = {
+export type PackagingLibraryEntry = {
   id: string;
   name: string;
   updatedAt: string;
   snapshot: PackagingSnapshot;
 };
 
-function readLocal(): LocalPackagingEntry[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed as LocalPackagingEntry[];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocal(entries: LocalPackagingEntry[]): void {
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(entries));
-}
-
-export function listLocalPackaging(): LocalPackagingEntry[] {
-  return readLocal().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-}
-
-export function saveLocalPackaging(name: string, snapshot: PackagingSnapshot): LocalPackagingEntry {
-  const entry: LocalPackagingEntry = {
-    id: `pkg-local-${Date.now().toString(36)}`,
-    name: name.trim() || 'Packaging',
-    updatedAt: new Date().toISOString(),
-    snapshot: structuredClone(snapshot),
+function rowToEntry(row: PackagingLibraryRow): PackagingLibraryEntry {
+  return {
+    id: row.id,
+    name: row.name,
+    updatedAt: row.updated_at,
+    snapshot: row.snapshot,
   };
-  const next = [entry, ...readLocal().filter((e) => e.id !== entry.id)];
-  writeLocal(next.slice(0, 40));
-  return entry;
 }
 
-export function getLocalPackaging(id: string): LocalPackagingEntry | null {
-  return readLocal().find((e) => e.id === id) ?? null;
-}
-
-export function deleteLocalPackaging(id: string): void {
-  writeLocal(readLocal().filter((e) => e.id !== id));
+export async function savePackagingToLibrary(
+  name: string,
+  snapshot: PackagingSnapshot,
+): Promise<PackagingLibraryEntry> {
+  if (!isSupabaseConfigured) {
+    throw new Error('Sign in with Supabase configured to save packaging to the library');
+  }
+  const row = await insertPackagingLibrary(name, snapshot);
+  return rowToEntry(row);
 }
 
 export function packagingSnapshotFromProjectState(
@@ -80,30 +59,23 @@ export function packagingSnapshotFromProjectState(
 export type ReusablePackagingItem = {
   id: string;
   name: string;
-  source: 'project' | 'local';
+  source: 'project' | 'library';
   updatedAt: string;
   snapshot: PackagingSnapshot;
 };
 
-/** Cloud packaging projects + local library entries for the reuse picker. */
+/** Packaging projects + library entries from the database. */
 export async function listReusablePackaging(opts?: {
   isAuthenticated?: boolean;
 }): Promise<ReusablePackagingItem[]> {
-  const local: ReusablePackagingItem[] = listLocalPackaging().map((e) => ({
-    id: e.id,
-    name: e.name,
-    source: 'local' as const,
-    updatedAt: e.updatedAt,
-    snapshot: e.snapshot,
-  }));
-
   if (!isSupabaseConfigured || !opts?.isAuthenticated) {
-    return local;
+    return [];
   }
 
   try {
-    const projects = await listProjects();
-    const fromCloud: ReusablePackagingItem[] = projects
+    const [projects, library] = await Promise.all([listProjects(), listPackagingLibrary()]);
+
+    const fromProjects: ReusablePackagingItem[] = projects
       .filter((p) => p.flow_type === 'packaging')
       .map((p: ProjectListItem) => {
         const snapshot = packagingSnapshotFromProjectState(p.state);
@@ -118,8 +90,19 @@ export async function listReusablePackaging(opts?: {
           : null;
       })
       .filter((x): x is ReusablePackagingItem => x !== null);
-    return [...fromCloud, ...local].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+    const fromLibrary: ReusablePackagingItem[] = library.map((row) => ({
+      id: row.id,
+      name: row.name,
+      source: 'library' as const,
+      updatedAt: row.updated_at,
+      snapshot: row.snapshot,
+    }));
+
+    return [...fromProjects, ...fromLibrary].sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    );
   } catch {
-    return local;
+    return [];
   }
 }

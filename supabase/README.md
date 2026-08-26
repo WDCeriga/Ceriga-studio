@@ -25,11 +25,18 @@ Restart `npm run dev` after changing env.
 ## 3. Database schema
 In Supabase: **SQL Editor → New query**, paste and run [`schema.sql`](./schema.sql).
 
-That script also creates:
+That script creates / updates:
+- `projects` — saved studio projects (tech packs, packaging, etc.)
+- `orders` — brand orders (tech-pack exports + production / upload quotes)
+- `packaging_library` — reusable packaging design snapshots
+- `brand_notifications` — in-app notification inbox
 - `measurement_guide_packs` — shared measurement lines per garment SVG asset (read: signed-in users; write: emails in `superadmin_emails`)
-- `superadmin_emails` — allowlist for who can edit measurement guides (keep in sync with the app allowlist)
+- `superadmin_emails` — allowlist for who can edit measurement guides
+- Storage bucket `order-uploads` — uploaded tech-pack files for quote requests (path `{user_id}/{order_id}/…`)
 
-If you already ran an older `schema.sql`, re-run the full file (it uses `if not exists` / `drop policy if exists`) or paste only the measurement-guide section from the bottom of the file.
+If you already ran an older `schema.sql`, re-run the full file (it uses `if not exists` / `drop policy if exists`) so the new tables, RLS policies, and storage bucket are applied.
+
+**Storage note:** If the bucket insert fails in the SQL editor, create a private bucket named `order-uploads` in **Storage** and re-run the storage policies section.
 
 To let another account edit guides in production:
 
@@ -47,8 +54,11 @@ In Supabase: **Authentication → Providers**
 ## 5. Try it
 1. Sign up / sign in in the app.
 2. Open the builder, edit a garment, click **Save**.
-3. Open **Drafts** or **Dashboard** — the project should appear and reopen with `?projectId=...`.
+3. Open **Projects** or **Home** — the project should appear and reopen with `?projectId=...`.
+4. Submit a quote upload or finish delivery checkout — the order should appear under **Orders** and persist after refresh.
+5. Save packaging from the reuse bar — it should land in `packaging_library` and show up when signed in.
 
 ### Notes
 - Free-tier projects **pause after ~7 days** of no DB activity; resume in the dashboard or upgrade to Pro for production.
 - Large print images inside builder state inflate the `state` JSONB column; later we can move assets to Supabase Storage.
+- Manufacturer / factory portal screens still use local demo data; brand studio data (projects, orders, packaging library, notifications) uses Supabase when configured.

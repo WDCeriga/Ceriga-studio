@@ -13,7 +13,7 @@ import { Input } from '../components/ui/input';
 import { useAuth } from '../contexts/AuthContext';
 import { getProject, upsertProject } from '../lib/projectsDb';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
-import { saveLocalPackaging, type PackagingSnapshot } from '../lib/packagingLibrary';
+import { type PackagingSnapshot } from '../lib/packagingLibrary';
 
 export function PackagingOnly() {
   const navigate = useNavigate();
@@ -81,8 +81,7 @@ export function PackagingOnly() {
 
   const handleSaveProject = async () => {
     if (!isSupabaseConfigured) {
-      saveLocalPackaging(projectName, snapshot);
-      toast.success('Saved to local packaging library (database not configured)');
+      toast.error('Database is not configured. Add Supabase keys to .env');
       return;
     }
     if (!isAuthenticated) {
@@ -110,7 +109,6 @@ export function PackagingOnly() {
       if (searchParams.get('projectId') !== row.id) {
         setSearchParams({ projectId: row.id }, { replace: true });
       }
-      saveLocalPackaging(row.name, snapshot);
       toast.success('Packaging project saved');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save');

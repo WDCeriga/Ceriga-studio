@@ -54,7 +54,7 @@ export default function Delivery() {
     window.history.back();
   };
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
     const st = location.state as {
       productId?: string;
       productName?: string;
@@ -65,14 +65,18 @@ export default function Delivery() {
 
     const isTechPackExport = st?.orderQuantities?.mode === 'techpack';
     const isPackaging = st?.from === 'packaging';
-    const order = createOrderFromSubmit({
-      productId: st?.productId,
-      productName: st?.productName ?? (isPackaging ? 'Packaging order' : undefined),
-      garmentType: st?.garmentType ?? (isPackaging ? 'Packaging' : undefined),
-      kind: isTechPackExport ? 'tech-pack' : 'production',
-      orderQuantities: st?.orderQuantities,
-    });
-    navigate(`/orders/${order.id}`);
+    try {
+      const order = await createOrderFromSubmit({
+        productId: st?.productId,
+        productName: st?.productName ?? (isPackaging ? 'Packaging order' : undefined),
+        garmentType: st?.garmentType ?? (isPackaging ? 'Packaging' : undefined),
+        kind: isTechPackExport ? 'tech-pack' : 'production',
+        orderQuantities: st?.orderQuantities,
+      });
+      navigate(`/orders/${order.id}`);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Could not create order');
+    }
   };
 
   return (
@@ -200,7 +204,7 @@ export default function Delivery() {
           <div className="border-t border-[#252528] pt-2">
             <Button
               type="button"
-              onClick={handleSubmitOrder}
+              onClick={() => void handleSubmitOrder()}
               className="h-11 w-full rounded-lg bg-[#CC2D24] text-sm font-semibold text-white hover:bg-[#CC2D24]/90"
             >
               Submit order

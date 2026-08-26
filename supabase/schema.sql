@@ -150,3 +150,236 @@ create policy "measurement_guide_packs_delete_superadmin"
   on public.measurement_guide_packs for delete
   to authenticated
   using (public.is_superadmin());
+
+-- ---------------------------------------------------------------------------
+-- Brand orders (tech pack exports + production / upload quotes)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null check (kind in ('tech-pack', 'production')),
+  product_name text not null,
+  garment_type text not null default 'Garment',
+  product_id text,
+  status text not null
+    check (status in (
+      'submitted', 'awaiting_payment', 'priced', 'paid',
+      'processing', 'shipping', 'completed', 'ready'
+    )),
+  status_label text not null,
+  total numeric,
+  tracking text,
+  order_quantities jsonb,
+  price_options jsonb,
+  selected_price_option_id text,
+  paid_amount_cents integer,
+  export_format text check (export_format is null or export_format in ('pdf', 'pdf_bundle')),
+  revision_used boolean not null default false,
+  download_ready boolean not null default false,
+  priced_at date,
+  quote_request jsonb,
+  specifications jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists orders_user_created_idx
+  on public.orders (user_id, created_at desc);
+
+create or replace function public.set_orders_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists orders_set_updated_at on public.orders;
+create trigger orders_set_updated_at
+  before update on public.orders
+  for each row
+  execute function public.set_orders_updated_at();
+
+alter table public.orders enable row level security;
+
+drop policy if exists "orders_select_own" on public.orders;
+drop policy if exists "orders_insert_own" on public.orders;
+drop policy if exists "orders_update_own" on public.orders;
+drop policy if exists "orders_delete_own" on public.orders;
+
+create policy "orders_select_own"
+  on public.orders for select
+  using (auth.uid() = user_id);
+
+create policy "orders_insert_own"
+  on public.orders for insert
+  with check (auth.uid() = user_id);
+
+create policy "orders_update_own"
+  on public.orders for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "orders_delete_own"
+  on public.orders for delete
+  using (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Packaging design library (reusable snapshots per user)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.packaging_library (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null default 'Packaging',
+  snapshot jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists packaging_library_user_updated_idx
+  on public.packaging_library (user_id, updated_at desc);
+
+create or replace function public.set_packaging_library_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists packaging_library_set_updated_at on public.packaging_library;
+create trigger packaging_library_set_updated_at
+  before update on public.packaging_library
+  for each row
+  execute function public.set_packaging_library_updated_at();
+
+alter table public.packaging_library enable row level security;
+
+drop policy if exists "packaging_library_select_own" on public.packaging_library;
+drop policy if exists "packaging_library_insert_own" on public.packaging_library;
+drop policy if exists "packaging_library_update_own" on public.packaging_library;
+drop policy if exists "packaging_library_delete_own" on public.packaging_library;
+
+create policy "packaging_library_select_own"
+  on public.packaging_library for select
+  using (auth.uid() = user_id);
+
+create policy "packaging_library_insert_own"
+  on public.packaging_library for insert
+  with check (auth.uid() = user_id);
+
+create policy "packaging_library_update_own"
+  on public.packaging_library for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "packaging_library_delete_own"
+  on public.packaging_library for delete
+  using (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Storage: order upload files (tech packs for quote)
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'order-uploads',
+  'order-uploads',
+  false,
+  52428800,
+  array[
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'application/zip',
+    'application/x-zip-compressed'
+  ]
+)
+on conflict (id) do nothing;
+
+drop policy if exists "order_uploads_select_own" on storage.objects;
+drop policy if exists "order_uploads_insert_own" on storage.objects;
+drop policy if exists "order_uploads_update_own" on storage.objects;
+drop policy if exists "order_uploads_delete_own" on storage.objects;
+
+create policy "order_uploads_select_own"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'order-uploads'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "order_uploads_insert_own"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'order-uploads'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "order_uploads_update_own"
+  on storage.objects for update
+  to authenticated
+  using (
+    bucket_id = 'order-uploads'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "order_uploads_delete_own"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'order-uploads'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- ---------------------------------------------------------------------------
+-- Brand notifications (in-app inbox)
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.brand_notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  category text not null
+    check (category in ('admin', 'order', 'payment', 'shipping', 'system')),
+  title text not null,
+  body text not null,
+  href text,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists brand_notifications_user_created_idx
+  on public.brand_notifications (user_id, created_at desc);
+
+alter table public.brand_notifications enable row level security;
+
+drop policy if exists "brand_notifications_select_own" on public.brand_notifications;
+drop policy if exists "brand_notifications_insert_own" on public.brand_notifications;
+drop policy if exists "brand_notifications_update_own" on public.brand_notifications;
+drop policy if exists "brand_notifications_delete_own" on public.brand_notifications;
+
+create policy "brand_notifications_select_own"
+  on public.brand_notifications for select
+  using (auth.uid() = user_id);
+
+create policy "brand_notifications_insert_own"
+  on public.brand_notifications for insert
+  with check (auth.uid() = user_id);
+
+create policy "brand_notifications_update_own"
+  on public.brand_notifications for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "brand_notifications_delete_own"
+  on public.brand_notifications for delete
+  using (auth.uid() = user_id);

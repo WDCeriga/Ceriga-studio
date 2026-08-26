@@ -9,7 +9,15 @@ import { useUserOrder } from '../data/userOrders';
 
 export function OrderDetail() {
   const { id } = useParams();
-  const order = useUserOrder(id);
+  const { order, loading } = useUserOrder(id);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-sm text-white/50">
+        Loading order…
+      </div>
+    );
+  }
 
   if (!order) {
     return (

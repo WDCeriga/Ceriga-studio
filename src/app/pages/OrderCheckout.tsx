@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Clock, CreditCard, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -7,17 +7,17 @@ import {
   completeCheckout,
   formatEuro,
   getPriceOption,
-  getUserOrderById,
   priceValidityDisclaimer,
+  useUserOrder,
   type OrderPriceOption,
+  type UserOrder,
 } from '../data/userOrders';
 
 function resolveCheckoutOption(
-  orderId: string,
+  order: UserOrder,
   optionId: string | undefined,
 ): OrderPriceOption | null {
-  const order = getUserOrderById(orderId);
-  if (!order || !optionId) return null;
+  if (!optionId) return null;
 
   if (order.kind === 'tech-pack' && optionId === 'techpack') {
     return {
@@ -36,12 +36,21 @@ function resolveCheckoutOption(
 export function OrderCheckout() {
   const { id, optionId } = useParams();
   const navigate = useNavigate();
+  const { order, loading } = useUserOrder(id);
+  const [paying, setPaying] = useState(false);
 
-  const order = id ? getUserOrderById(id) : undefined;
   const option = useMemo(
-    () => (id && optionId ? resolveCheckoutOption(id, optionId) : null),
-    [id, optionId],
+    () => (order && optionId ? resolveCheckoutOption(order, optionId) : null),
+    [order, optionId],
   );
+
+  if (loading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-sm text-white/50">
+        Loading checkout…
+      </div>
+    );
+  }
 
   if (!order || !option || !id || !optionId) {
     return (
@@ -56,9 +65,16 @@ export function OrderCheckout() {
     );
   }
 
-  const handlePay = () => {
-    completeCheckout(id, optionId);
-    navigate(`/orders/${id}`);
+  const handlePay = async () => {
+    setPaying(true);
+    try {
+      await completeCheckout(id, optionId);
+      navigate(`/orders/${id}`);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Payment failed');
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (
@@ -99,11 +115,12 @@ export function OrderCheckout() {
           </div>
           <Button
             type="button"
-            className="h-11 w-full bg-[#CC2D24] text-sm font-semibold hover:bg-[#CC2D24]/90"
-            onClick={handlePay}
+            disabled={paying}
+            className="h-11 w-full bg-[#CC2D24] text-sm font-semibold hover:bg-[#CC2D24]/90 disabled:opacity-50"
+            onClick={() => void handlePay()}
           >
             <CreditCard className="mr-2 h-4 w-4" />
-            Pay {formatEuro(option.priceCents)}
+            {paying ? 'Processing…' : `Pay ${formatEuro(option.priceCents)}`}
           </Button>
         </div>
 

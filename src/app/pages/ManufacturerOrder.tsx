@@ -23,14 +23,14 @@ export function ManufacturerOrder() {
     setFiles((prev) => [...prev, ...Array.from(list)]);
   };
 
-  const handleSubmitQuote = () => {
+  const handleSubmitQuote = async () => {
     if (files.length === 0) {
       toast.error('Upload at least one tech pack file');
       return;
     }
     setSubmitting(true);
     try {
-      const order = createOrderFromSubmit({
+      const order = await createOrderFromSubmit({
         productId: productId || undefined,
         productName: files[0]?.name?.replace(/\.[^.]+$/, '') || 'Uploaded tech pack',
         garmentType: 'Uploaded pack',
@@ -41,9 +41,12 @@ export function ManufacturerOrder() {
           timeline: timeline.trim() || undefined,
           notes: notes.trim() || undefined,
         },
+        files,
       });
       toast.success('Quote request submitted');
       navigate(`/orders/${order.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not submit quote request');
     } finally {
       setSubmitting(false);
     }
@@ -153,7 +156,7 @@ export function ManufacturerOrder() {
           <button
             type="button"
             disabled={submitting}
-            onClick={handleSubmitQuote}
+            onClick={() => void handleSubmitQuote()}
             className="ceriga-btn-primary h-10 text-[13px] disabled:opacity-50"
           >
             {submitting ? 'Submitting…' : 'Submit for quote'}

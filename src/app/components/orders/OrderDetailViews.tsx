@@ -342,7 +342,7 @@ export function TechPackPaid({ order }: { order: UserOrder }) {
   const revisionAvailable = canUseFreeRevision(order);
 
   const startRevision = () => {
-    updateUserOrder(order.id, { revisionUsed: true });
+    void updateUserOrder(order.id, { revisionUsed: true });
   };
 
   return (

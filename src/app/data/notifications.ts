@@ -1,3 +1,5 @@
+import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
+
 export type NotificationCategory = 'admin' | 'order' | 'payment' | 'shipping' | 'system';
 
 export type AppNotification = {
@@ -20,10 +22,31 @@ export const NOTIFICATION_CATEGORY_LABEL: Record<NotificationCategory, string> =
   system: 'System',
 };
 
-const STORAGE_KEY = 'ceriga_brand_notifications_v1';
+type NotificationRow = {
+  id: string;
+  user_id: string;
+  category: NotificationCategory;
+  title: string;
+  body: string;
+  href: string | null;
+  read: boolean;
+  created_at: string;
+};
 
-/** Demo notifications for the notifications page (replace with API later). */
-export const MOCK_NOTIFICATIONS: AppNotification[] = [
+function rowToNotification(row: NotificationRow): AppNotification {
+  return {
+    id: row.id,
+    category: row.category,
+    title: row.title,
+    body: row.body,
+    href: row.href ?? undefined,
+    read: row.read,
+    createdAt: row.created_at,
+  };
+}
+
+/** Demo seed only when Supabase is not configured. */
+const DEMO_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'n1',
     category: 'admin',
@@ -33,91 +56,63 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     read: false,
     href: '/create',
   },
-  {
-    id: 'n2',
-    category: 'order',
-    title: 'Order #1042 — In production',
-    body: 'Your sample run has moved to cutting. We will notify you when it ships.',
-    createdAt: '2026-04-07T09:15:00.000Z',
-    read: false,
-    href: '/orders',
-  },
-  {
-    id: 'n3',
-    category: 'payment',
-    title: 'Payment received',
-    body: 'We received your payment for invoice INV-2026-014. Thank you.',
-    createdAt: '2026-04-06T11:40:00.000Z',
-    read: true,
-    href: '/orders',
-  },
-  {
-    id: 'n4',
-    category: 'shipping',
-    title: 'Delivery scheduled',
-    body: 'Courier pickup is booked for Thursday. Tracking will be added when dispatched.',
-    createdAt: '2026-04-05T16:05:00.000Z',
-    read: true,
-    href: '/orders',
-  },
-  {
-    id: 'n5',
-    category: 'system',
-    title: 'Autosave restored',
-    body: 'We recovered an unsaved session from your last builder visit.',
-    createdAt: '2026-04-04T08:30:00.000Z',
-    read: true,
-    href: '/create',
-  },
-  {
-    id: 'n6',
-    category: 'order',
-    title: 'Order #1038 — Delivered',
-    body: 'Your package was delivered. Let us know if anything needs a rework.',
-    createdAt: '2026-04-01T13:00:00.000Z',
-    read: true,
-    href: '/orders',
-  },
-  {
-    id: 'n7',
-    category: 'admin',
-    title: 'Holiday production window',
-    body: 'Please note adjusted lead times for orders placed between Apr 12–18.',
-    createdAt: '2026-03-28T10:00:00.000Z',
-    read: true,
-  },
-  {
-    id: 'n8',
-    category: 'order',
-    title: 'Quotes ready',
-    body: 'Your manufacturer returned pricing tiers — review and choose a quantity.',
-    createdAt: '2026-04-09T10:00:00.000Z',
-    read: false,
-    href: '/orders',
-  },
 ];
 
-export function loadBrandNotifications(): AppNotification[] {
-  if (typeof window === 'undefined') return [...MOCK_NOTIFICATIONS];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as AppNotification[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-  const seed = [...MOCK_NOTIFICATIONS];
-  persistBrandNotifications(seed);
-  return seed;
+export async function fetchBrandNotifications(): Promise<AppNotification[]> {
+  if (!isSupabaseConfigured) return [...DEMO_NOTIFICATIONS];
+  const supabase = getSupabase();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return [];
+
+  const { data, error } = await supabase
+    .from('brand_notifications')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as NotificationRow[]).map(rowToNotification);
 }
 
-export function persistBrandNotifications(items: AppNotification[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    /* ignore */
-  }
+export async function markNotificationRead(id: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('brand_notifications')
+    .update({ read: true })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase
+    .from('brand_notifications')
+    .update({ read: true })
+    .eq('user_id', user.id)
+    .eq('read', false);
+  if (error) throw error;
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const supabase = getSupabase();
+  const { error } = await supabase.from('brand_notifications').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function clearAllNotifications(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase.from('brand_notifications').delete().eq('user_id', user.id);
+  if (error) throw error;
 }

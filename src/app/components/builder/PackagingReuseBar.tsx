@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   listReusablePackaging,
-  saveLocalPackaging,
+  savePackagingToLibrary,
   type PackagingSnapshot,
   type ReusablePackagingItem,
 } from '../../lib/packagingLibrary';
@@ -24,9 +24,9 @@ type Props = {
   onApply: (snapshot: PackagingSnapshot) => void;
 };
 
-/** Save / reuse packaging designs (local library + cloud packaging projects). */
+/** Save / reuse packaging designs (DB library + packaging projects). */
 export function PackagingReuseBar({ snapshot, onApply }: Props) {
-  const { isAuthenticated, authReady } = useAuth();
+  const { isAuthenticated, authReady, usingSupabase } = useAuth();
   const [items, setItems] = useState<ReusablePackagingItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
   const [saveName, setSaveName] = useState('');
@@ -52,14 +52,20 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
     toast.success(`Applied “${item.name}”`);
   };
 
-  const handleSaveLocal = () => {
+  const handleSaveLibrary = async () => {
+    if (!usingSupabase || !isAuthenticated) {
+      toast.error('Sign in to save packaging to your library');
+      return;
+    }
     setBusy(true);
     try {
-      const entry = saveLocalPackaging(saveName || 'Packaging design', snapshot);
+      const entry = await savePackagingToLibrary(saveName || 'Packaging design', snapshot);
       setSaveName('');
-      void refresh();
+      await refresh();
       setSelectedId(entry.id);
       toast.success('Saved to packaging library');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save packaging');
     } finally {
       setBusy(false);
     }
@@ -67,7 +73,7 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
 
   return (
     <div className="space-y-3 rounded-[6px] border border-[#252528] bg-[#111113] p-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 justify-between">
         <p className="ceriga-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8A90]">
           Save & reuse
         </p>
@@ -127,7 +133,7 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
         <Button
           type="button"
           disabled={busy || snapshot.packagingType === 'none'}
-          onClick={handleSaveLocal}
+          onClick={() => void handleSaveLibrary()}
           className="h-9 shrink-0 bg-[#CC2D24] text-[11px] font-semibold hover:bg-[#CC2D24]/90"
         >
           <Save className="mr-1.5 h-3.5 w-3.5" />
@@ -135,8 +141,8 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
         </Button>
       </div>
       <p className="text-[10px] leading-relaxed text-[#45454B]">
-        Library saves in this browser. Packaging-only projects you save while signed in also appear
-        here for reuse in any tech pack.
+        Saves to your account library. Packaging projects you save while signed in also appear here
+        for reuse in any tech pack.
       </p>
     </div>
   );

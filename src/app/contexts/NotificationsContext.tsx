@@ -4,13 +4,18 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { useAuth } from "./AuthContext";
 import {
-  loadBrandNotifications,
-  persistBrandNotifications,
+  clearAllNotifications,
+  deleteNotification,
+  fetchBrandNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
   type AppNotification,
 } from "../data/notifications";
 
@@ -26,37 +31,51 @@ type NotificationsContextValue = {
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<AppNotification[]>(() => loadBrandNotifications());
+  const { isAuthenticated, authReady, usingSupabase } = useAuth();
+  const [items, setItems] = useState<AppNotification[]>([]);
 
-  const commit = useCallback((updater: (prev: AppNotification[]) => AppNotification[]) => {
-    setItems((prev) => {
-      const next = updater(prev);
-      persistBrandNotifications(next);
-      return next;
-    });
-  }, []);
+  const refresh = useCallback(async () => {
+    if (!authReady) return;
+    if (usingSupabase && !isAuthenticated) {
+      setItems([]);
+      return;
+    }
+    try {
+      setItems(await fetchBrandNotifications());
+    } catch {
+      setItems([]);
+    }
+  }, [authReady, isAuthenticated, usingSupabase]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   const markRead = useCallback(
     (id: string) => {
-      commit((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      void markNotificationRead(id).catch(() => void refresh());
     },
-    [commit],
+    [refresh],
   );
 
   const markAllRead = useCallback(() => {
-    commit((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, [commit]);
+    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    void markAllNotificationsRead().catch(() => void refresh());
+  }, [refresh]);
 
   const remove = useCallback(
     (id: string) => {
-      commit((prev) => prev.filter((n) => n.id !== id));
+      setItems((prev) => prev.filter((n) => n.id !== id));
+      void deleteNotification(id).catch(() => void refresh());
     },
-    [commit],
+    [refresh],
   );
 
   const clearAll = useCallback(() => {
-    commit(() => []);
-  }, [commit]);
+    setItems([]);
+    void clearAllNotifications().catch(() => void refresh());
+  }, [refresh]);
 
   const unread = items.filter((n) => !n.read).length;
 
