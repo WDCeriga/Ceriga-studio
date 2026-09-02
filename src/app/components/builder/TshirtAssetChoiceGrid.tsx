@@ -1,5 +1,6 @@
 import {
   GARMENT_NONE,
+  garmentChoiceLabel,
   getGarmentAssets,
   getGarmentAssetsForFit,
   isGarmentCategoryOptional,
@@ -62,7 +63,7 @@ export function GarmentAssetChoiceGrid({
             )}
           >
             <div className="break-all text-[10px] font-medium leading-snug sm:text-[11px]">
-              {asset.displayName}
+              {garmentChoiceLabel(asset.displayName)}
             </div>
           </button>
         ))}
@@ -116,7 +117,7 @@ export function TshirtAssetChoiceGrid({
             )}
           >
             <div className="break-all text-[10px] font-medium leading-snug sm:text-[11px]">
-              {asset.displayName}
+              {garmentChoiceLabel(asset.displayName)}
             </div>
           </button>
         ))}

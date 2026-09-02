@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
@@ -11,6 +11,12 @@ import {
 } from '../../lib/measurements';
 import { cn } from '../ui/utils';
 import { getDefaultTshirtSelection } from '../../data/tshirtAssetCatalog';
+import {
+  applyGarmentFitAndLinks,
+  getDefaultGarmentSelection,
+  type GarmentAssetSelection,
+  type GarmentSvgGarmentType,
+} from '../../data/garmentSvgCatalog';
 import { TshirtSvgPreview } from './TshirtSvgPreview';
 import {
   MEASUREMENT_GUIDE_LABELS,
@@ -172,7 +178,7 @@ export function MeasurementsStep({
           Fit Type
         </Label>
         {fits?.length ? (
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+          <div className={cn('grid gap-1.5 sm:gap-2', fitChoices.length >= 3 ? 'grid-cols-3' : 'grid-cols-2')}>
             {fitChoices.map((option) => (
               <button
                 key={option.id}
@@ -332,23 +338,46 @@ export function MeasurementPreview({
   highlightedMeasurementId,
   imgClassName,
   overlay,
+  selection,
+  fit,
+  partColors,
 }: {
   garmentType?: string;
   color?: string;
   highlightedMeasurementId?: string | null;
   imgClassName?: string;
   overlay?: ReactNode;
+  selection?: GarmentAssetSelection;
+  fit?: string;
+  partColors?: Partial<Record<string, string>>;
 }) {
-  const tshirtSelection = getDefaultTshirtSelection();
+  const svgPack: GarmentSvgGarmentType | null =
+    garmentType === 'tshirt' ||
+    garmentType === 'tshirtTest' ||
+    garmentType === 'hoodie' ||
+    garmentType === 'trousers'
+      ? garmentType
+      : null;
+  const resolvedSelection = useMemo(() => {
+    if (svgPack && selection) {
+      return applyGarmentFitAndLinks(svgPack, selection, fit);
+    }
+    if (svgPack === 'tshirt' || svgPack === 'tshirtTest') {
+      return getDefaultGarmentSelection(svgPack, fit);
+    }
+    return getDefaultTshirtSelection();
+  }, [svgPack, selection, fit]);
 
   return (
     <div className="relative mx-auto flex h-full min-h-0 w-full max-w-full flex-1 items-center justify-center px-2">
-      {garmentType === 'tshirt' ? (
+      {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
         <div className="relative aspect-square w-full max-w-[576px]">
           <TshirtSvgPreview
-            garmentType="tshirt"
+            garmentType={svgPack}
             color={color || '#5C7FB6'}
-            selection={tshirtSelection}
+            selection={resolvedSelection}
+            fit={fit}
+            partColors={partColors}
             className={cn('h-full w-full', imgClassName)}
           />
           {overlay ?? <MeasurementGuideOverlay highlightedId={highlightedMeasurementId ?? null} />}

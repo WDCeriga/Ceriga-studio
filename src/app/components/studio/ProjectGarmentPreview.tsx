@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { GarmentType } from '../../data/builderSteps';
 import {
+  applyGarmentFitAndLinks,
   getDefaultGarmentSelection,
   resolveProductSvgType,
   type CustomCollarSvgs,
@@ -34,6 +35,7 @@ export type ProjectPreviewState = {
   tshirtAssetSelection?: GarmentAssetSelection;
   tshirtLayerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   svgPack?: GarmentSvgGarmentType;
+  fit?: string;
   partColors?: Partial<Record<string, string>>;
   customCollar?: CustomCollarSvgs | null;
   customCollars?: CustomCollarSvgs[];
@@ -70,11 +72,15 @@ export function ProjectGarmentPreview({
 
   const selection = useMemo(() => {
     if (!svgType) return null;
-    return {
-      ...getDefaultGarmentSelection(svgType),
-      ...preview.tshirtAssetSelection,
-    };
-  }, [svgType, preview.tshirtAssetSelection]);
+    return applyGarmentFitAndLinks(
+      svgType,
+      {
+        ...getDefaultGarmentSelection(svgType, preview.fit),
+        ...preview.tshirtAssetSelection,
+      },
+      preview.fit,
+    );
+  }, [svgType, preview.tshirtAssetSelection, preview.fit]);
 
   if (svgType && selection) {
     return (
@@ -90,10 +96,12 @@ export function ProjectGarmentPreview({
           garmentType={svgType}
           color={color}
           selection={selection}
+          fit={preview.fit}
           neckTrimColor={preview.neckTrimColor}
           sleeveTrimColor={preview.sleeveTrimColor}
           cuffTrimColor={preview.cuffTrimColor}
           pocketTrimColor={preview.pocketTrimColor}
+          stitchingColor={preview.stitchingColor}
           partColors={preview.partColors}
           customCollar={preview.customCollar}
           customCollars={preview.customCollars}

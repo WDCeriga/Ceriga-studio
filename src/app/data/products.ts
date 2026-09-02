@@ -37,7 +37,7 @@ export const products: Product[] = [
   {
     id: 'ts-test',
     name: 'Test T-Shirt — All Parts',
-    description: 'Test build from the Ceriga line art: Slim or Boxy fit. Slim has crew and V-neck; Boxy has the boxy crew. Each part is colourable on its own step.',
+    description: 'Slim crew-neck tee from a photo: colourable body, neck, sleeves, hems and cover-stitch. No fading.',
     categories: ['Tops', 'All'],
     garmentType: 'tshirt',
     svgPack: 'tshirtTest',

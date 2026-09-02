@@ -178,7 +178,7 @@ export function GarmentPhotoTest() {
   const objectUrlRef = useRef('');
   const [stepId, setStepId] = useState(2);
   const [visited, setVisited] = useState<number[]>([1, 2]);
-  const [fit, setFit] = useState<'slim' | 'boxy'>('slim');
+  const [fit, setFit] = useState<'slim' | 'regular' | 'boxy' | 'oversized'>('slim');
   const [unit, setUnit] = useState<'cm' | 'in'>('cm');
   const [showFront, setShowFront] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
@@ -436,8 +436,8 @@ export function GarmentPhotoTest() {
               <div className="space-y-4">
                 <div>
                   <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/60">Fit type</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(['slim', 'boxy'] as const).map((option) => (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {(['slim', 'regular', 'boxy', 'oversized'] as const).map((option) => (
                       <button
                         key={option}
                         type="button"

@@ -215,6 +215,8 @@ export interface TshirtSvgPreviewProps {
   sleeveTrimColor?: string;
   cuffTrimColor?: string;
   pocketTrimColor?: string;
+  /** Thread colour for the dashed topstitch overlay. */
+  stitchingColor?: string;
   /** Per-part colour keyed by layer id; wins over the fabric colour and trim colours. */
   partColors?: Partial<Record<string, string>>;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
@@ -313,7 +315,23 @@ function bboxToPercentRect(bbox: PotraceSvgBBox): React.CSSProperties {
   };
 }
 
-function resolveLayerFill(layer: ResolvedGarmentLayer, fabricColor: string): string {
+function lightenHex(hex: string, amount = 0.32): string {
+  const raw = hex.replace('#', '');
+  if (raw.length !== 6) return hex;
+  const mix = (channel: number) => Math.round(channel + (255 - channel) * amount);
+  const r = mix(parseInt(raw.slice(0, 2), 16));
+  const g = mix(parseInt(raw.slice(2, 4), 16));
+  const b = mix(parseInt(raw.slice(4, 6), 16));
+  return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function resolveLayerFill(
+  layer: ResolvedGarmentLayer,
+  fabricColor: string,
+  bodyColor: string,
+): string {
+  if (layer.id === 'outline') return '#141414';
+  if (layer.id === 'innerBackNeck') return lightenHex(bodyColor);
   if (layer.kind === 'detail') return layer.tint ?? TSHIRT_DETAIL_COLOR;
   return layer.tint ?? fabricColor;
 }
@@ -497,6 +515,7 @@ function SelectionOutline({
 function PreviewLayer({
   layer,
   fabricColor,
+  bodyColor,
   transform,
   bbox,
   alignOffset,
@@ -507,6 +526,7 @@ function PreviewLayer({
 }: {
   layer: ResolvedGarmentLayer;
   fabricColor: string;
+  bodyColor: string;
   transform: TshirtLayerTransform;
   bbox?: PotraceSvgBBox | null;
   alignOffset?: { x: number; y: number };
@@ -515,7 +535,7 @@ function PreviewLayer({
   selectedLayerId?: string | null;
   layerId: string;
 }) {
-  const fill = resolveLayerFill(layer, fabricColor);
+  const fill = resolveLayerFill(layer, fabricColor, bodyColor);
   const zIndex = layerId === selectedLayerId ? SELECTED_LAYER_Z : layer.zIndex;
 
   return (
@@ -687,6 +707,7 @@ export function TshirtSvgPreview({
   sleeveTrimColor,
   cuffTrimColor,
   pocketTrimColor,
+  stitchingColor,
   partColors,
   layerTransforms,
   onLayerTransformChange,
@@ -720,6 +741,7 @@ export function TshirtSvgPreview({
   const [canvasSize, setCanvasSize] = useState(TSHIRT_CANVAS);
 
   const fabricColor = color || '#5C7FB6';
+  const bodyColor = partColors?.base ?? fabricColor;
   const editable = Boolean(onLayerTransformChange);
 
   const layers = useMemo(
@@ -731,12 +753,13 @@ export function TshirtSvgPreview({
         sleeveTrimColor,
         cuffTrimColor,
         pocketTrimColor,
+        stitchingColor,
         partColors,
         fit,
         customCollar,
         customCollars,
       }),
-    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, partColors, fit, customCollar, customCollars],
+    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, fit, customCollar, customCollars],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);
@@ -807,7 +830,12 @@ export function TshirtSvgPreview({
   const hitTargets = useMemo(
     () =>
       [...layerLayouts]
-        .filter((entry) => entry.bbox && isValidBBox(entry.bbox))
+        .filter((entry) => {
+          if (entry.sourceLayer.id === 'innerBackNeck' || entry.sourceLayer.id === 'outline') {
+            return false;
+          }
+          return entry.bbox && isValidBBox(entry.bbox);
+        })
         .sort((a, b) => b.sourceLayer.zIndex - a.sourceLayer.zIndex),
     [layerLayouts],
   );
@@ -1060,6 +1088,7 @@ export function TshirtSvgPreview({
               layerId={id}
               layer={sourceLayer}
               fabricColor={fabricColor}
+              bodyColor={bodyColor}
               transform={displayTransform}
               bbox={bbox}
               alignOffset={alignOffset}

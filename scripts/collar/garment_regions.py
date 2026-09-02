@@ -296,6 +296,396 @@ def split_cells(ink: np.ndarray, interior: np.ndarray, cfg: Settings) -> np.ndar
     return owner
 
 
+def give_stitch_strip_to_neighbour(
+    smaller: np.ndarray,
+    larger: np.ndarray,
+    ink: np.ndarray,
+    stitches: np.ndarray,
+    max_frac: float = 0.35,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Move the strip between a join line and the attach-stitch onto the larger piece.
+
+    Dashed cover-stitch is bridged so it splits cells, then the thin cell
+    between that stitch and the outline merges into the smaller neighbour
+    (collar into neck, cuff into cuff, hem into hem). Colour then fills past
+    the join up to the dashes. Flood from the larger piece through anything
+    that is not solid construction; stop at the join outline so only that
+    strip moves.
+    """
+    construction = ndimage.binary_dilation(ink & ~stitches, iterations=1)
+    walkable = (smaller | larger) & ~construction
+    flooded = ndimage.binary_propagation(larger & walkable, mask=walkable)
+    seep = flooded & smaller
+    # If the join was eaten, the flood swallows the whole piece. Keep the move
+    # only when it is a thin strip, not the garment part itself.
+    if not seep.any() or int(seep.sum()) > int(smaller.sum() * max_frac):
+        return smaller, larger
+    return smaller & ~seep, larger | seep
+
+
+def give_collar_stitch_strip_to_body(
+    neck: np.ndarray,
+    body: np.ndarray,
+    ink: np.ndarray,
+    stitches: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    return give_stitch_strip_to_neighbour(neck, body, ink, stitches)
+
+
+STITCH_STRIP_PAIRS = (
+    ("Neck", "Body"),
+    ("Left cuff", "Left sleeve"),
+    ("Right cuff", "Right sleeve"),
+)
+
+
+def apply_stitch_strip_moves(
+    masks: dict[str, np.ndarray],
+    ink: np.ndarray,
+    stitches: np.ndarray,
+) -> dict[str, int]:
+    """Reassign every join-to-stitch strip onto the piece the stitch sits on."""
+    moved: dict[str, int] = {}
+    for smaller_name, larger_name in STITCH_STRIP_PAIRS:
+        if smaller_name not in masks or larger_name not in masks:
+            continue
+        before = int(masks[smaller_name].sum())
+        max_frac = 0.04 if smaller_name == "Neck" else 0.35
+        masks[smaller_name], masks[larger_name] = give_stitch_strip_to_neighbour(
+            masks[smaller_name],
+            masks[larger_name],
+            ink,
+            stitches,
+            max_frac=max_frac,
+        )
+        moved[f"{smaller_name}->{larger_name}"] = before - int(masks[smaller_name].sum())
+    return moved
+
+
+def give_nape_ribs_to_neck(inner: np.ndarray, neck: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Centre-back rib cells often fold into Inner. They belong on the collar.
+
+    The hole is a solid oval; nape ribs are a sparse cap on top of it, still
+    one connected component. Walk down from the top of Inner until a row is
+    solid — that is the real opening — and keep only that and below. Do not
+    grow the collar into the hole: through-the-opening fabric is Inner, the
+    same as on the slim V-neck.
+    """
+    if not inner.any():
+        return inner, neck
+    row_w = inner.sum(axis=1)
+    ys = np.flatnonzero(row_w)
+    if ys.size == 0:
+        return inner, neck
+    max_w = float(row_w.max())
+    hole_top = None
+    for y in range(int(ys.min()), int(ys.max()) + 1):
+        w = float(row_w[y])
+        if w < 1:
+            continue
+        xs = np.flatnonzero(inner[y])
+        span = float(xs[-1] - xs[0] + 1)
+        # The opening is already wide on the first hole row, even when Neck
+        # owns nape bites on that same row (span is large, fill looks sparse).
+        # Only the narrow cap above that is nape. Waiting for a solid 80%
+        # row steals the top of the hole and paints it collar colour.
+        if span >= 0.50 * max_w:
+            hole_top = y
+            break
+    if hole_top is None:
+        return inner, neck
+    hole = inner.copy()
+    hole[:hole_top, :] = False
+    nape = inner & ~hole
+    if nape.any():
+        inner, neck = hole, neck | nape
+    return inner, neck
+
+
+def clip_neck_to_rib_band(masks: dict[str, np.ndarray]) -> tuple[int, int]:
+    """Keep Neck on the drawn rib band, Inner in the opening.
+
+    Do not replace the U-shaped band with an oval ring around a convex hole —
+    that misses the shoulder corners and paints collar colour into the hole
+    and onto the chest. Follow the real Inner outline: the band is the
+    annulus of rib-width around it. Grow existing Neck seeds through Body
+    only inside that annulus. Anything inside Inner is the hole.
+    """
+    if "Inner back neck" not in masks or "Neck" not in masks:
+        return 0, 0
+    inner = ndimage.binary_fill_holes(masks["Inner back neck"])
+    neck = masks["Neck"]
+    body = masks.get("Body")
+    if not inner.any():
+        return 0, 0
+
+    leak = neck & inner
+    neck = neck & ~inner
+    inner = inner | leak
+
+    did_rim_split = False
+    # When the rib band is open to the hole (one connected white region),
+    # Inner swallows the band. Split: rim of that blob is Neck, core is hole.
+    if int(inner.sum()) > 55_000:
+        from_edge = ndimage.distance_transform_edt(inner)
+        rim_hi = 24.0
+        rim = inner & (from_edge <= rim_hi)
+        core = inner & (from_edge > rim_hi)
+        if int(core.sum()) > 8_000 and int(rim.sum()) > 2_000:
+            neck = (neck & ~inner) | rim
+            inner = core
+            did_rim_split = True
+            # Smooth the carved rim so SVG fill isn't a jagged scribble.
+            neck = ndimage.binary_opening(neck, iterations=1)
+            neck = ndimage.binary_closing(neck, iterations=2)
+
+    # Nape dents: hanging collar in a column whose Inner starts late.
+    # Pull the nape line up from neighbouring columns that already have Inner.
+    # Do not invent Inner in columns that never had a hole (those are the band).
+    height, width = inner.shape
+    ys = np.arange(height)[:, None]
+    xs = np.arange(width)[None, :]
+    valid = inner.any(axis=0)
+    first = np.where(inner, ys, height).min(axis=0)
+    last = np.where(inner, ys, -1).max(axis=0)
+    smooth = ndimage.minimum_filter(
+        np.where(valid, first, height).astype(np.int32), size=31
+    )
+    dent = valid & (first > smooth + 3)
+    if dent.any():
+        nape = np.where(dent, smooth, first)
+        hanging = (
+            neck
+            & valid[None, :]
+            & (ys >= nape)
+            & (ys <= np.maximum(nape, last))
+        )
+        neck = neck & ~hanging
+        inner = inner | hanging
+
+    dist = ndimage.distance_transform_edt(~inner)
+    from_body = 0
+    if neck.any():
+        near = neck & (dist > 0) & (dist <= 40)
+        if near.any():
+            hi = float(np.clip(np.percentile(dist[near], 80) + 2, 18.0, 32.0))
+        else:
+            hi = 22.0
+        hole_top = int(np.where(inner, ys, height).min())
+        hole_bottom = int(np.where(inner, ys, -1).max())
+        ring = (dist > 0) & (dist <= hi) & ~inner & (ys <= hole_bottom + hi)
+        if body is not None:
+            deep_body = ndimage.binary_erosion(body, iterations=max(10, int(hi // 2)))
+            ring = ring & ~deep_body
+        closed = ndimage.binary_closing(neck, iterations=2)
+        neck = neck | (closed & ring)
+        if body is not None:
+            if did_rim_split:
+                take = np.zeros_like(body)
+            else:
+                take = body & ring
+            # V tip: outer mitre sits against thick torso — reclaim a short
+            # corridor from existing band legs without opening the chest.
+            if not did_rim_split:
+                tip = (
+                    body
+                    & (dist > 0)
+                    & (dist <= hi + 6)
+                    & (ys >= hole_bottom - 30)
+                    & (ys <= hole_bottom + int(hi) + 4)
+                    & ndimage.binary_dilation(neck, iterations=16)
+                )
+                take = take | tip
+            from_body = int(take.sum())
+            body = body & ~take
+            neck = neck | take
+        overflow = neck & ~ring & ~inner
+        if body is not None and overflow.any():
+            # Polo collar leaves sit beside/above the hole. Only dump chest spill
+            # and far noise — never the top of the collar flaps.
+            dump = overflow & (
+                (ys > hole_bottom + int(hi) + 8)
+                | (dist > 120)
+            )
+            if dump.any():
+                body = body | dump
+                neck = neck & ~dump
+        # Far shoulder paint outside the rib ring only (band corners stay Neck).
+        if body is not None and inner.any():
+            col_idx = np.arange(width)
+            inner_cols = col_idx[inner.any(axis=0)]
+            if inner_cols.size:
+                x_lo = int(inner_cols.min())
+                x_hi = int(inner_cols.max())
+                shoulder_spill = (
+                    neck
+                    & ~ring
+                    & (dist > hi)
+                    & (ys <= hole_top + 14)
+                    & ((xs < x_lo - 8) | (xs > x_hi + 8))
+                )
+                if shoulder_spill.any():
+                    body = body | shoulder_spill
+                    neck = neck & ~shoulder_spill
+        if body is not None:
+            # Polo flaps: the fold often opens into Body, so the top of each
+            # leaf is still torso colour. Claim that zone as Neck.
+            leaf_zone = (
+                (dist > hi)
+                & (dist <= 110)
+                & (ys >= hole_top - 50)
+                & (ys <= hole_top + 130)
+                & (np.abs(xs - width / 2.0) > 40)
+            )
+            take_leaves = body & leaf_zone & ndimage.binary_dilation(neck, iterations=18)
+            if take_leaves.any():
+                from_body += int(take_leaves.sum())
+                body = body & ~take_leaves
+                neck = neck | take_leaves
+            grow = ndimage.binary_dilation(neck, iterations=6)
+            finish = body & ring & grow
+            tip = (
+                body
+                & (dist > 0)
+                & (dist <= hi + 8)
+                & (ys >= hole_bottom - 36)
+                & (ys <= hole_bottom + int(hi) + 6)
+                & grow
+            )
+            finish = finish | tip
+            if finish.any():
+                from_body += int(finish.sum())
+                body = body & ~finish
+                neck = neck | finish
+
+    masks["Inner back neck"] = inner
+    masks["Neck"] = neck
+    if body is not None:
+        masks["Body"] = body
+    return int(leak.sum()), from_body
+
+
+def clip_fills_inside_ink(
+    masks: dict[str, np.ndarray],
+    ink: np.ndarray,
+    stitches: np.ndarray | None = None,
+) -> None:
+    """Keep part colour on the fabric side of every drawn line.
+
+    Rib ticks only touch one piece — fold those ink pixels into that fill so
+    colour meets the black line. Join and silhouette ink also touch a neighbour
+    or the outside of the garment; leave those to the outline layer so colour
+    cannot spill past the stroke into the stitch gutter or off the silhouette.
+    """
+    original = {name: mask.copy() for name, mask in masks.items()}
+    garment = np.zeros_like(ink)
+    for mask in original.values():
+        garment |= mask
+    exterior = ~garment & ~ink
+
+    for name, mask in original.items():
+        others = np.zeros_like(mask)
+        for other_name, other in original.items():
+            if other_name != name:
+                others |= other
+        # Join strokes are several pixels thick. A 1px neighbour test only
+        # catches the far edge, so the rest of the stroke is filled and
+        # colour shows past the black line. Reach across the full stroke.
+        border = ink & ndimage.binary_dilation(others | exterior, iterations=6)
+        owned = ink & ndimage.binary_dilation(mask, iterations=1) & ~border
+        masks[name] = (mask | owned) & ~border
+
+    if "Neck" in masks and "Inner back neck" in masks:
+        hole, band = clip_neck_to_rib_band(masks)
+        print(f"rib band: Neck out of hole {hole}px, Body->Neck in band {band}px")
+
+    # Let Neck fill sit under the inner/outer collar strokes so colour meets
+    # the black line. The outline layer is on top, so this does not show past
+    # the stroke the way a convex ring did.
+    if "Neck" in masks:
+        inner = masks.get("Inner back neck")
+        body = masks.get("Body")
+        grow = ndimage.binary_dilation(masks["Neck"], iterations=2)
+        extra = grow & ink
+        if inner is not None and inner.any():
+            hole = ndimage.binary_fill_holes(inner)
+            eroded = ndimage.binary_erosion(hole, iterations=1)
+            if eroded.any():
+                extra = extra & ~eroded
+            dist = ndimage.distance_transform_edt(~hole)
+            extra = extra & (dist <= 14)
+            hole_bottom = int(np.where(hole, np.arange(hole.shape[0])[:, None], -1).max())
+            extra = extra & (np.arange(hole.shape[0])[:, None] <= hole_bottom + 12)
+        if body is not None and body.any():
+            deep_body = ndimage.binary_erosion(body, iterations=2)
+            if deep_body.any():
+                extra = extra & ~deep_body
+        masks["Neck"] = masks["Neck"] | extra
+        if inner is not None:
+            masks["Inner back neck"] = inner & ~masks["Neck"]
+        if body is not None:
+            masks["Body"] = body & ~masks["Neck"]
+
+
+def apply_nape_rib_move(masks: dict[str, np.ndarray]) -> int:
+    if "Inner back neck" not in masks or "Neck" not in masks:
+        return 0
+    before = int(masks["Inner back neck"].sum())
+    masks["Inner back neck"], masks["Neck"] = give_nape_ribs_to_neck(
+        masks["Inner back neck"], masks["Neck"]
+    )
+    return before - int(masks["Inner back neck"].sum())
+
+
+def claim_dash_tips(ink: np.ndarray, dashes: np.ndarray, reach: int = 12) -> np.ndarray:
+    """Cover the black outline caps at the start and end of a dash row.
+
+    The last isolated dash usually stops a gap short of the side seam, so the
+    outline shows as a black stub. Step from each tip along the dash even
+    through that gap, then claim a little of the outline it hits.
+    """
+    if not dashes.any():
+        return dashes
+    comps, count = ndimage.label(dashes, np.ones((3, 3), bool))
+    extra = np.zeros_like(dashes)
+    height, width = ink.shape
+    for index in range(1, count + 1):
+        ys, xs = np.nonzero(comps == index)
+        if ys.size < 2:
+            continue
+        pts = np.stack([xs.astype(np.float64), ys.astype(np.float64)], axis=1)
+        mean = pts.mean(axis=0)
+        cov = np.cov(pts - mean, rowvar=False)
+        if np.ndim(cov) != 2 or cov.shape != (2, 2):
+            continue
+        vals, vecs = np.linalg.eigh(cov)
+        axis = vecs[:, int(np.argmax(vals))]
+        along = (pts - mean) @ axis
+        for tip, sign in (
+            (pts[int(along.argmin())], -1.0),
+            (pts[int(along.argmax())], 1.0),
+        ):
+            direction = axis * sign
+            hit = 0
+            for step in range(1, reach + 1):
+                point = tip + direction * step
+                x = int(round(point[0]))
+                y = int(round(point[1]))
+                if not (0 <= y < height and 0 <= x < width):
+                    break
+                if not ink[y, x]:
+                    if hit:
+                        break
+                    continue
+                y0, y1 = max(0, y - 1), min(height, y + 2)
+                x0, x1 = max(0, x - 1), min(width, x + 2)
+                extra[y0:y1, x0:x1] |= ink[y0:y1, x0:x1]
+                hit += 1
+                if hit >= 6:
+                    break
+    return dashes | extra
+
+
 def analyse(path: Path, cfg: Settings) -> Regions:
     alpha = load_alpha(path)
     ink = alpha >= cfg.ink
@@ -379,14 +769,19 @@ def _place(shape: tuple[int, int]) -> tuple[float, float, float]:
     return scale, (CANVAS - width * scale) / 2, (CANVAS - height * scale) / 2
 
 
-def trace(mask: np.ndarray) -> str:
-    """Trace a mask into path data in the potrace space the app's assets use."""
+def trace(mask: np.ndarray, *, resample: int = Image.NEAREST) -> str:
+    """Trace a mask into path data in the potrace space the app's assets use.
+
+    Fills use nearest-neighbour upsampling so colour cannot bleed past the
+    mask into a neighbouring piece. Pass LANCZOS only when re-tracing ink,
+    where the existing outline assets were built that way.
+    """
     import potrace
 
     height, width = mask.shape
     img = Image.fromarray((mask * 255).astype(np.uint8), mode="L")
     big = np.asarray(
-        img.resize((width * TRACE_SS, height * TRACE_SS), Image.LANCZOS)
+        img.resize((width * TRACE_SS, height * TRACE_SS), resample)
     ) >= 128
     if not big.any():
         return ""

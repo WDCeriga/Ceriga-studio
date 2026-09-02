@@ -2236,7 +2236,7 @@ export function Builder() {
               {renderGarmentAssetGrids(3)}
               {garmentSvgType === 'tshirtTest' ? (
                 <CollarPhotoUpload
-                  disabled={activeFit === 'boxy'}
+                  disabled={activeFit !== 'slim'}
                   disabledReason="Switch to Slim on measurements to upload a collar photo."
                   onTraced={(collar) => {
                     setState((prev) => {
@@ -2619,8 +2619,20 @@ export function Builder() {
                 <TrimColorFamilyPicker
                   label="Stitch / thread colour"
                   value={state.stitchingColor}
-                  onChange={(hex) => setState((prev) => ({ ...prev, stitchingColor: hex }))}
-                  onClear={() => setState((prev) => ({ ...prev, stitchingColor: undefined }))}
+                  onChange={(hex) =>
+                    setState((prev) => ({
+                      ...prev,
+                      stitchingColor: hex,
+                      partColors: { ...prev.partColors, stitching: hex },
+                    }))
+                  }
+                  onClear={() =>
+                    setState((prev) => ({
+                      ...prev,
+                      stitchingColor: undefined,
+                      partColors: { ...prev.partColors, stitching: undefined },
+                    }))
+                  }
                 />
               ) : null}
               <div>
@@ -3450,8 +3462,11 @@ export function Builder() {
               )}
             >
               <MeasurementPreview
-                garmentType={state.garmentType}
+                garmentType={garmentSvgType ?? state.garmentType}
                 color={primaryColor}
+                selection={garmentSelection}
+                fit={activeFit}
+                partColors={state.partColors}
                 highlightedMeasurementId={highlightedMeasurementId}
                 imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
               />
@@ -3476,6 +3491,45 @@ export function Builder() {
                 liveCanvasScale={previewZoom / 100}
                 phoneConfigSheetCollapsed={isPhone && phoneEditorCollapsed}
                 editable
+                garmentBackdrop={
+                  isGarmentSvgFlow && garmentSvgType ? (
+                    <TshirtSvgPreview
+                      garmentType={garmentSvgType}
+                      color={primaryColor}
+                      selection={garmentSelection}
+                      fit={activeFit}
+                      neckTrimColor={state.neckTrimColor}
+                      sleeveTrimColor={state.sleeveTrimColor}
+                      cuffTrimColor={state.cuffTrimColor}
+                      pocketTrimColor={state.pocketTrimColor}
+                      stitchingColor={state.stitchingColor}
+                      partColors={state.partColors}
+                      customCollar={state.customCollar}
+                      customCollars={state.customCollars}
+                      layerTransforms={state.tshirtLayerTransforms}
+                      className="h-full w-full min-h-0"
+                    />
+                  ) : (
+                    <BuilderGarmentPreview
+                      garmentType={state.garmentType}
+                      color={primaryColor}
+                      neckType={state.neckType}
+                      sleeveType={state.sleeveType}
+                      sleeveLength={state.sleeveLength}
+                      hemType={state.hemType}
+                      cuffType={state.cuffType}
+                      pocketType={state.pocketType}
+                      zipType={state.zipType}
+                      fadingType={state.fadingType}
+                      stitchingType={state.stitchingType}
+                      stitchingColor={state.stitchingColor}
+                      neckTrimColor={state.neckTrimColor}
+                      sleeveTrimColor={state.sleeveTrimColor}
+                      pocketTrimColor={state.pocketTrimColor}
+                      className="h-full w-full"
+                    />
+                  )
+                }
               />
             </div>
           ) : currentStep === 10 ? (
@@ -3537,6 +3591,7 @@ export function Builder() {
                   sleeveTrimColor={state.sleeveTrimColor}
                   cuffTrimColor={state.cuffTrimColor}
                   pocketTrimColor={state.pocketTrimColor}
+                  stitchingColor={state.stitchingColor}
                   partColors={state.partColors}
                   customCollar={state.customCollar}
                   customCollars={state.customCollars}

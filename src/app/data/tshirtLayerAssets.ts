@@ -8,6 +8,7 @@ export type TshirtLayerId =
   | 'sleeveLeft'
   | 'sleeveRight'
   | 'neck'
+  | 'innerBackNeck'
   | 'sleeveHem'
   | 'sleeveHemLeft'
   | 'sleeveHemRight'
@@ -15,7 +16,9 @@ export type TshirtLayerId =
   | 'pocket'
   | 'placket'
   | 'zip'
-  | 'zipPull';
+  | 'zipPull'
+  | 'outline'
+  | 'stitching';
 
 export type GarmentLayerId = TshirtLayerId | HoodieLayerId | TrouserLayerId;
 

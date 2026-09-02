@@ -49,6 +49,11 @@ export interface GarmentSvgConfig {
    * (the neckline, as long as that neck is offered on the fit).
    */
   fitParts?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /**
+   * Default choice per category for a fit when nothing is selected yet.
+   * Used for Neck, which is not in `fitParts` so the user can still switch it.
+   */
+  fitPreferred?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   /** Extra fits an asset may appear in, besides the one its name belongs to. */
   assetAlsoInFits?: Readonly<Record<string, readonly string[]>>;
   /**
@@ -208,6 +213,8 @@ export interface ResolveGarmentLayersInput {
   sleeveTrimColor?: string;
   cuffTrimColor?: string;
   pocketTrimColor?: string;
+  /** Thread colour for the dashed topstitch layer. */
+  stitchingColor?: string;
   /** Per-layer colour, keyed by layer id. Overrides the fabric colour and trim bindings. */
   partColors?: Partial<Record<string, string>>;
   /** Pack fit, so neck→body links stay on the slim or boxy cut. */
@@ -217,86 +224,274 @@ export interface ResolveGarmentLayersInput {
   customCollars?: CustomCollarSvgs[];
 }
 
+/**
+ * Premium Cotton T-Shirt — slim, regular, boxy ringer, and oversized
+ * drop-shoulder from the photo line art in `src/assets/studio-tshirt`.
+ * Closed fills, construction outline on top, dashed cover-stitch separate.
+ * Collar (front + back band) is one Neck colour. Inner back always follows a
+ * lighter body colour. Fit swaps the matching cut; Neck is a user choice
+ * (crew, thin crew, V, deep V, scoop, or polo) and pulls the matching body / inner / outline / stitch.
+ */
 const TSHIRT_CONFIG: GarmentSvgConfig = {
-  assetRoot: 'tshirts',
+  assetRoot: 'studio-tshirt',
   categoryOrder: [
-    'T-shirt Base',
-    'T-shirt sleeves',
-    'neckline',
-    'T-shirt sleeve hem',
-    'T-shirt bottom sleeve',
-    'T-shirt pockets',
-    'T-shirts plackets & opening',
-    'T-shirt zips',
-    'T-shirt zip pulls',
+    'Body',
+    'Left sleeve',
+    'Right sleeve',
+    'Body hem',
+    'Left cuff',
+    'Right cuff',
+    'Inner back neck',
+    'Neck',
+    'Outline',
+    'Stitching',
   ],
-  optionalCategories: [
-    'T-shirt pockets',
-    'T-shirt zips',
-    'T-shirt zip pulls',
-    'T-shirts plackets & opening',
-  ],
-  detailCategories: ['T-shirt zips', 'T-shirt zip pulls'],
+  optionalCategories: [],
+  detailCategories: ['Stitching'],
   categoryLayerId: {
-    'T-shirt Base': 'base',
-    'T-shirt sleeves': 'sleeves',
-    neckline: 'neck',
-    'T-shirt sleeve hem': 'sleeveHem',
-    'T-shirt bottom sleeve': 'bodyHem',
-    'T-shirt pockets': 'pocket',
-    'T-shirts plackets & opening': 'placket',
-    'T-shirt zips': 'zip',
-    'T-shirt zip pulls': 'zipPull',
+    Body: 'base',
+    'Left sleeve': 'sleeveLeft',
+    'Right sleeve': 'sleeveRight',
+    'Body hem': 'bodyHem',
+    'Left cuff': 'sleeveHemLeft',
+    'Right cuff': 'sleeveHemRight',
+    'Inner back neck': 'innerBackNeck',
+    Neck: 'neck',
+    Outline: 'outline',
+    Stitching: 'stitching',
   },
   categoryZIndex: {
-    'T-shirt sleeves': 0,
-    'T-shirt Base': 20,
-    neckline: 30,
-    'T-shirt sleeve hem': 40,
-    'T-shirt bottom sleeve': 50,
-    'T-shirt pockets': 52,
-    'T-shirts plackets & opening': 55,
-    'T-shirt zips': 60,
-    'T-shirt zip pulls': 70,
+    Body: 20,
+    'Left sleeve': 24,
+    'Right sleeve': 24,
+    'Body hem': 30,
+    'Left cuff': 32,
+    'Right cuff': 32,
+    Neck: 45,
+    'Inner back neck': 40,
+    Outline: 70,
+    Stitching: 80,
   },
   stepCategories: {
-    2: ['T-shirt Base'],
-    3: ['neckline'],
-    4: ['T-shirt sleeves'],
-    5: ['T-shirt bottom sleeve', 'T-shirt sleeve hem'],
-    6: ['T-shirt pockets', 'T-shirt zips', 'T-shirt zip pulls', 'T-shirts plackets & opening'],
+    2: ['Body'],
+    3: ['Neck'],
+    4: ['Left sleeve', 'Right sleeve'],
+    5: ['Body hem', 'Left cuff', 'Right cuff'],
+    8: ['Stitching'],
   },
   trimBindings: {
-    neck: ['neckline'],
-    sleeve: ['T-shirt sleeves'],
-    cuff: ['T-shirt sleeve hem'],
-    pocket: [
-      'T-shirt pockets',
-      'T-shirt zips',
-      'T-shirt zip pulls',
-      'T-shirts plackets & opening',
-    ],
+    neck: ['Neck'],
+    sleeve: ['Left sleeve', 'Right sleeve'],
+    cuff: ['Left cuff', 'Right cuff'],
   },
-  splitSleeves: true,
-  splitSleeveHems: true,
-  sleeveCategory: 'T-shirt sleeves',
-  sleeveHemCategory: 'T-shirt sleeve hem',
-  previewStepMax: 6,
+  splitSleeves: false,
+  splitSleeveHems: false,
+  perPartColors: true,
+  restrictStepsToPack: true,
+  hiddenCategories: [
+    'Body',
+    'Left sleeve',
+    'Right sleeve',
+    'Body hem',
+    'Left cuff',
+    'Right cuff',
+    'Inner back neck',
+    'Outline',
+    'Stitching',
+  ],
+  fits: [
+    { id: 'slim', name: 'Slim' },
+    { id: 'regular', name: 'Regular' },
+    { id: 'boxy', name: 'Boxy' },
+    { id: 'oversized', name: 'Oversized' },
+  ],
+  fitParts: {
+    slim: {
+      Body: 'Body',
+      'Left sleeve': 'Left sleeve',
+      'Right sleeve': 'Right sleeve',
+      'Body hem': 'Body hem',
+      'Left cuff': 'Left cuff',
+      'Right cuff': 'Right cuff',
+      'Inner back neck': 'Inner back neck',
+      Outline: 'Outline',
+      Stitching: 'Cover stitch',
+    },
+    regular: {
+      Body: 'Body (regular)',
+      'Left sleeve': 'Left sleeve (regular)',
+      'Right sleeve': 'Right sleeve (regular)',
+      'Body hem': 'Body hem (regular)',
+      'Left cuff': 'Left cuff (regular)',
+      'Right cuff': 'Right cuff (regular)',
+      'Inner back neck': 'Inner back neck (regular)',
+      Outline: 'Outline (regular)',
+      Stitching: 'Cover stitch (regular)',
+    },
+    boxy: {
+      Body: 'Body (boxy)',
+      'Left sleeve': 'Left sleeve (boxy)',
+      'Right sleeve': 'Right sleeve (boxy)',
+      'Body hem': 'Body hem (boxy)',
+      'Left cuff': 'Left cuff (boxy)',
+      'Right cuff': 'Right cuff (boxy)',
+      'Inner back neck': 'Inner back neck (boxy)',
+      Outline: 'Outline (boxy)',
+      Stitching: 'Cover stitch (boxy)',
+    },
+    oversized: {
+      Body: 'Body (oversized)',
+      'Left sleeve': 'Left sleeve (oversized)',
+      'Right sleeve': 'Right sleeve (oversized)',
+      'Body hem': 'Body hem (oversized)',
+      'Left cuff': 'Left cuff (oversized)',
+      'Right cuff': 'Right cuff (oversized)',
+      'Inner back neck': 'Inner back neck (oversized)',
+      Outline: 'Outline (oversized)',
+      Stitching: 'Cover stitch (oversized)',
+    },
+  },
+  fitPreferred: {
+    slim: { Neck: 'V-neck' },
+    regular: { Neck: 'Crew neck (regular)' },
+    boxy: { Neck: 'Crew neck (boxy)' },
+    oversized: { Neck: 'Crew neck (oversized)' },
+  },
+  selectionLinks: [
+    {
+      from: 'Neck',
+      to: 'Body',
+      map: {
+        'V-neck': 'Body',
+        'Crew neck': 'Body crew',
+        'Crew neck (regular)': 'Body (regular)',
+        'V-neck (regular)': 'Body V-neck (regular)',
+        'Crew neck (boxy)': 'Body (boxy)',
+        'V-neck (boxy)': 'Body V-neck (boxy)',
+        'Crew neck (oversized)': 'Body (oversized)',
+        'V-neck (oversized)': 'Body V-neck (oversized)',
+        'Scoop neck': 'Body scoop',
+        'Scoop neck (regular)': 'Body Scoop neck (regular)',
+        'Scoop neck (boxy)': 'Body Scoop neck (boxy)',
+        'Scoop neck (oversized)': 'Body Scoop neck (oversized)',
+        'Deep V-neck': 'Body deep V-neck',
+        'Deep V-neck (regular)': 'Body Deep V-neck (regular)',
+        'Deep V-neck (boxy)': 'Body Deep V-neck (boxy)',
+        'Deep V-neck (oversized)': 'Body Deep V-neck (oversized)',
+        'Polo collar': 'Body polo collar',
+        'Polo collar (regular)': 'Body Polo collar (regular)',
+        'Polo collar (boxy)': 'Body Polo collar (boxy)',
+        'Polo collar (oversized)': 'Body Polo collar (oversized)',
+        'Thin crew neck': 'Body thin crew',
+        'Thin crew neck (regular)': 'Body Thin crew neck (regular)',
+        'Thin crew neck (boxy)': 'Body Thin crew neck (boxy)',
+        'Thin crew neck (oversized)': 'Body Thin crew neck (oversized)',
+      },
+    },
+    {
+      from: 'Neck',
+      to: 'Inner back neck',
+      map: {
+        'V-neck': 'Inner back neck',
+        'Crew neck': 'Inner back neck crew',
+        'Crew neck (regular)': 'Inner back neck (regular)',
+        'V-neck (regular)': 'Inner back neck V-neck (regular)',
+        'Crew neck (boxy)': 'Inner back neck (boxy)',
+        'V-neck (boxy)': 'Inner back neck V-neck (boxy)',
+        'Crew neck (oversized)': 'Inner back neck (oversized)',
+        'V-neck (oversized)': 'Inner back neck V-neck (oversized)',
+        'Scoop neck': 'Inner back neck scoop',
+        'Scoop neck (regular)': 'Inner back neck Scoop neck (regular)',
+        'Scoop neck (boxy)': 'Inner back neck Scoop neck (boxy)',
+        'Scoop neck (oversized)': 'Inner back neck Scoop neck (oversized)',
+        'Deep V-neck': 'Inner back neck deep V-neck',
+        'Deep V-neck (regular)': 'Inner back neck Deep V-neck (regular)',
+        'Deep V-neck (boxy)': 'Inner back neck Deep V-neck (boxy)',
+        'Deep V-neck (oversized)': 'Inner back neck Deep V-neck (oversized)',
+        'Polo collar': 'Inner back neck polo collar',
+        'Polo collar (regular)': 'Inner back neck Polo collar (regular)',
+        'Polo collar (boxy)': 'Inner back neck Polo collar (boxy)',
+        'Polo collar (oversized)': 'Inner back neck Polo collar (oversized)',
+        'Thin crew neck': 'Inner back neck thin crew',
+        'Thin crew neck (regular)': 'Inner back neck Thin crew neck (regular)',
+        'Thin crew neck (boxy)': 'Inner back neck Thin crew neck (boxy)',
+        'Thin crew neck (oversized)': 'Inner back neck Thin crew neck (oversized)',
+      },
+    },
+    {
+      from: 'Neck',
+      to: 'Outline',
+      map: {
+        'V-neck': 'Outline',
+        'Crew neck': 'Outline crew',
+        'Crew neck (regular)': 'Outline (regular)',
+        'V-neck (regular)': 'Outline V-neck (regular)',
+        'Crew neck (boxy)': 'Outline (boxy)',
+        'V-neck (boxy)': 'Outline V-neck (boxy)',
+        'Crew neck (oversized)': 'Outline (oversized)',
+        'V-neck (oversized)': 'Outline V-neck (oversized)',
+        'Scoop neck': 'Outline scoop',
+        'Scoop neck (regular)': 'Outline Scoop neck (regular)',
+        'Scoop neck (boxy)': 'Outline Scoop neck (boxy)',
+        'Scoop neck (oversized)': 'Outline Scoop neck (oversized)',
+        'Deep V-neck': 'Outline deep V-neck',
+        'Deep V-neck (regular)': 'Outline Deep V-neck (regular)',
+        'Deep V-neck (boxy)': 'Outline Deep V-neck (boxy)',
+        'Deep V-neck (oversized)': 'Outline Deep V-neck (oversized)',
+        'Polo collar': 'Outline polo collar',
+        'Polo collar (regular)': 'Outline Polo collar (regular)',
+        'Polo collar (boxy)': 'Outline Polo collar (boxy)',
+        'Polo collar (oversized)': 'Outline Polo collar (oversized)',
+        'Thin crew neck': 'Outline thin crew',
+        'Thin crew neck (regular)': 'Outline Thin crew neck (regular)',
+        'Thin crew neck (boxy)': 'Outline Thin crew neck (boxy)',
+        'Thin crew neck (oversized)': 'Outline Thin crew neck (oversized)',
+      },
+    },
+    {
+      from: 'Neck',
+      to: 'Stitching',
+      map: {
+        'V-neck': 'Cover stitch',
+        'Crew neck': 'Cover stitch crew',
+        'Crew neck (regular)': 'Cover stitch (regular)',
+        'V-neck (regular)': 'Cover stitch V-neck (regular)',
+        'Crew neck (boxy)': 'Cover stitch (boxy)',
+        'V-neck (boxy)': 'Cover stitch V-neck (boxy)',
+        'Crew neck (oversized)': 'Cover stitch (oversized)',
+        'V-neck (oversized)': 'Cover stitch V-neck (oversized)',
+        'Scoop neck': 'Cover stitch scoop',
+        'Scoop neck (regular)': 'Cover stitch Scoop neck (regular)',
+        'Scoop neck (boxy)': 'Cover stitch Scoop neck (boxy)',
+        'Scoop neck (oversized)': 'Cover stitch Scoop neck (oversized)',
+        'Deep V-neck': 'Cover stitch deep V-neck',
+        'Deep V-neck (regular)': 'Cover stitch Deep V-neck (regular)',
+        'Deep V-neck (boxy)': 'Cover stitch Deep V-neck (boxy)',
+        'Deep V-neck (oversized)': 'Cover stitch Deep V-neck (oversized)',
+        'Polo collar': 'Cover stitch polo collar',
+        'Polo collar (regular)': 'Cover stitch Polo collar (regular)',
+        'Polo collar (boxy)': 'Cover stitch Polo collar (boxy)',
+        'Polo collar (oversized)': 'Cover stitch Polo collar (oversized)',
+        'Thin crew neck': 'Cover stitch thin crew',
+        'Thin crew neck (regular)': 'Cover stitch Thin crew neck (regular)',
+        'Thin crew neck (boxy)': 'Cover stitch Thin crew neck (boxy)',
+        'Thin crew neck (oversized)': 'Cover stitch Thin crew neck (oversized)',
+      },
+    },
+  ],
+  previewStepMax: 8,
   layerLabels: {
     fill: 'Fill',
-    base: 'Base',
-    sleeves: 'Sleeves',
+    base: 'Body',
     sleeveLeft: 'Left sleeve',
     sleeveRight: 'Right sleeve',
-    neck: 'Neckline',
-    sleeveHem: 'Sleeve hem',
+    bodyHem: 'Bottom hem',
     sleeveHemLeft: 'Left cuff',
     sleeveHemRight: 'Right cuff',
-    bodyHem: 'Body hem',
-    pocket: 'Pocket',
-    placket: 'Placket',
-    zip: 'Zip',
-    zipPull: 'Zip pull',
+    innerBackNeck: 'Inner back',
+    neck: 'Neck',
+    outline: 'Outline',
+    stitching: 'Stitching',
   },
 };
 
@@ -440,12 +635,11 @@ const TROUSER_CONFIG: GarmentSvgConfig = {
 };
 
 /**
- * Test pack traced from the Ceriga line art in `src/assets/tshirt-test`.
+ * Test pack traced from the slim crew photo in `src/assets/tshirt-test`.
  *
- * Unlike the production packs, every part is a closed fill region with its own ink
- * on top, so each one takes a colour on its own and the seven together cover the
- * whole garment. Slim vs Boxy owns the body, sleeves, hem, cuffs and neckline:
- * Slim offers crew and V-neck; Boxy offers the boxy crew.
+ * Every part is a closed fill region with no construction ink on the fabric.
+ * Dashed cover-stitch is a separate colourable layer. Boxy and V-neck cuts
+ * were removed when this pack was rebuilt from the TallSlim reference.
  */
 const TSHIRT_TEST_CONFIG: GarmentSvgConfig = {
   assetRoot: 'tshirt-test',
@@ -457,9 +651,10 @@ const TSHIRT_TEST_CONFIG: GarmentSvgConfig = {
     'Left cuff',
     'Right cuff',
     'Neck',
+    'Stitching',
   ],
   optionalCategories: [],
-  detailCategories: [],
+  detailCategories: ['Stitching'],
   categoryLayerId: {
     Body: 'base',
     'Left sleeve': 'sleeveLeft',
@@ -468,6 +663,7 @@ const TSHIRT_TEST_CONFIG: GarmentSvgConfig = {
     'Left cuff': 'sleeveHemLeft',
     'Right cuff': 'sleeveHemRight',
     Neck: 'neck',
+    Stitching: 'stitching',
   },
   categoryZIndex: {
     Body: 20,
@@ -477,12 +673,14 @@ const TSHIRT_TEST_CONFIG: GarmentSvgConfig = {
     'Left cuff': 32,
     'Right cuff': 32,
     Neck: 40,
+    Stitching: 80,
   },
   stepCategories: {
-    2: ['Body', 'Body hem'],
+    2: ['Body'],
     3: ['Neck'],
     4: ['Left sleeve', 'Right sleeve'],
     5: ['Body hem', 'Left cuff', 'Right cuff'],
+    8: ['Stitching'],
   },
   trimBindings: {
     neck: ['Neck'],
@@ -500,28 +698,19 @@ const TSHIRT_TEST_CONFIG: GarmentSvgConfig = {
     'Body hem',
     'Left cuff',
     'Right cuff',
+    'Stitching',
   ],
-  fits: [
-    { id: 'slim', name: 'Slim' },
-    { id: 'boxy', name: 'Boxy' },
-  ],
+  fits: [{ id: 'slim', name: 'Slim' }],
   fitParts: {
     slim: {
       Body: 'Body',
+      Neck: 'Crew neck',
       'Left sleeve': 'Left sleeve',
       'Right sleeve': 'Right sleeve',
       'Body hem': 'Body hem',
       'Left cuff': 'Left cuff',
       'Right cuff': 'Right cuff',
-    },
-    boxy: {
-      Body: 'Body (boxy)',
-      Neck: 'Crew neck (boxy)',
-      'Left sleeve': 'Left sleeve (boxy)',
-      'Right sleeve': 'Right sleeve (boxy)',
-      'Body hem': 'Body hem (boxy)',
-      'Left cuff': 'Left cuff (boxy)',
-      'Right cuff': 'Right cuff (boxy)',
+      Stitching: 'Cover stitch',
     },
   },
   selectionLinks: [
@@ -531,18 +720,11 @@ const TSHIRT_TEST_CONFIG: GarmentSvgConfig = {
       whenFit: 'slim',
       map: {
         'Crew neck': 'Body',
-        'V-neck': 'Body V-neck',
         'Custom collar': 'Body Custom collar',
       },
     },
-    {
-      from: 'Neck',
-      to: 'Body',
-      whenFit: 'boxy',
-      map: { 'Crew neck (boxy)': 'Body (boxy)' },
-    },
   ],
-  previewStepMax: 5,
+  previewStepMax: 8,
   layerLabels: {
     fill: 'Fill',
     base: 'Body',
@@ -552,6 +734,7 @@ const TSHIRT_TEST_CONFIG: GarmentSvgConfig = {
     sleeveHemLeft: 'Left cuff',
     sleeveHemRight: 'Right cuff',
     neck: 'Neck',
+    stitching: 'Stitching',
   },
 };
 
@@ -564,6 +747,11 @@ const GARMENT_CONFIGS: Record<GarmentSvgGarmentType, GarmentSvgConfig> = {
 
 const svgModules = {
   ...import.meta.glob('../../assets/tshirts/**/*.svg', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }),
+  ...import.meta.glob('../../assets/studio-tshirt/**/*.svg', {
     query: '?raw',
     import: 'default',
     eager: true,
@@ -720,6 +908,45 @@ function inferAssetFitId(displayName: string): string {
   return tagged ? tagged[1].toLowerCase() : 'slim';
 }
 
+const PACK_FIT_TAG = /\s+\((slim|regular|boxy|oversized)\)\s*$/i;
+
+/** Strip the trailing `(boxy)` fit tag so the neck grid can say "V-neck". */
+export function garmentChoiceLabel(displayName: string): string {
+  return displayName.replace(PACK_FIT_TAG, '');
+}
+
+function neckStyleKey(
+  displayName: string,
+): 'vneck' | 'deepvneck' | 'crew' | 'thincrew' | 'scoop' | 'polo' | 'other' {
+  const name = displayName.toLowerCase();
+  if (/\bdeep\s+v-?neck\b/.test(name)) return 'deepvneck';
+  if (/\bpolo\b/.test(name)) return 'polo';
+  if (/\bv-?neck\b/.test(name)) return 'vneck';
+  if (/\bscoop\b/.test(name)) return 'scoop';
+  if (/\bthin\s+crew\b/.test(name)) return 'thincrew';
+  if (/\bcrew\b/.test(name)) return 'crew';
+  return 'other';
+}
+
+function pickFitFallbackAsset(
+  allowed: GarmentAsset[],
+  currentDisplayName?: string,
+  preferredDisplayName?: string,
+): GarmentAsset {
+  if (currentDisplayName) {
+    const style = neckStyleKey(currentDisplayName);
+    if (style !== 'other') {
+      const match = allowed.find((asset) => neckStyleKey(asset.displayName) === style);
+      if (match) return match;
+    }
+  }
+  if (preferredDisplayName) {
+    const preferred = allowed.find((asset) => asset.displayName === preferredDisplayName);
+    if (preferred) return preferred;
+  }
+  return allowed[0];
+}
+
 export function isAssetAvailableForFit(
   garmentType: GarmentSvgGarmentType,
   asset: GarmentAsset,
@@ -751,14 +978,24 @@ export function getDefaultGarmentSelection(
   fit?: string,
 ): GarmentAssetSelection {
   const config = GARMENT_CONFIGS[garmentType];
+  const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   const selection: GarmentAssetSelection = {};
   for (const category of config.categoryOrder) {
-    const assets = getGarmentAssetsForFit(garmentType, category, fit);
+    const assets = getGarmentAssetsForFit(garmentType, category, resolvedFit);
     selection[category] = config.optionalCategories.includes(category)
       ? GARMENT_NONE
       : assets[0]?.id ?? GARMENT_NONE;
   }
-  return selection;
+  const preferred = resolvedFit ? config.fitPreferred?.[resolvedFit] : undefined;
+  if (preferred) {
+    for (const [category, displayName] of Object.entries(preferred)) {
+      const asset = getGarmentAssetsForFit(garmentType, category, resolvedFit).find(
+        (candidate) => candidate.displayName === displayName,
+      );
+      if (asset) selection[category] = asset.id;
+    }
+  }
+  return applyGarmentSelectionLinks(garmentType, selection, resolvedFit);
 }
 
 export function getGarmentCategoriesForStep(
@@ -791,7 +1028,7 @@ export function applyGarmentSelectionLinks(
   const links = GARMENT_CONFIGS[garmentType].selectionLinks;
   const resolvedFit = fit ? resolveGarmentPackFit(garmentType, fit) : undefined;
   let next = selection;
-  if (isCustomCollarNeckId(selection.Neck) && resolvedFit !== 'boxy') {
+  if (isCustomCollarNeckId(selection.Neck) && resolvedFit === 'slim') {
     const pair = customCollarPairId(selection.Neck);
     next = {
       ...next,
@@ -838,7 +1075,6 @@ export function applyGarmentFitAndLinks(
 
   if (resolvedFit) {
     for (const category of config.categoryOrder) {
-      if (config.hiddenCategories?.includes(category)) continue;
       const allowed = getGarmentAssetsForFit(garmentType, category, resolvedFit);
       const current = next[category];
       const keepCustom =
@@ -850,7 +1086,11 @@ export function applyGarmentFitAndLinks(
         !allowed.some((asset) => asset.id === current) &&
         !keepCustom
       ) {
-        next[category] = allowed[0].id;
+        next[category] = pickFitFallbackAsset(
+          allowed,
+          category === 'Neck' ? getGarmentAsset(current ?? '')?.displayName : undefined,
+          config.fitPreferred?.[resolvedFit]?.[category],
+        ).id;
       }
     }
   }
@@ -916,7 +1156,8 @@ export function getGarmentSelectionLabel(
   if (!id || id === GARMENT_NONE) return 'None';
   if (isCustomCollarNeckId(id)) return CUSTOM_COLLAR_NECK_NAME;
   if (isCustomCollarBodyId(id)) return CUSTOM_COLLAR_BODY_NAME;
-  return getGarmentAsset(id)?.displayName ?? id.split('/').pop() ?? 'None';
+  const name = getGarmentAsset(id)?.displayName ?? id.split('/').pop() ?? 'None';
+  return garmentChoiceLabel(name);
 }
 
 export function getGarmentSpecRows(
@@ -979,7 +1220,10 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       displayName: asset.displayName,
       svgRaw: asset.svgRaw,
       kind: config.detailCategories.includes(category) ? 'detail' : 'solid',
-      tint: input.partColors?.[layerId] ?? trimForCategory(input.garmentType, category, input),
+      tint:
+        input.partColors?.[layerId] ??
+        (layerId === 'stitching' ? input.stitchingColor : undefined) ??
+        trimForCategory(input.garmentType, category, input),
       zIndex: config.categoryZIndex[category] ?? 0,
     });
   }

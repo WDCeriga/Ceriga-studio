@@ -28,18 +28,18 @@ export type MeasurementGuideDef = {
 };
 
 const DEFAULT_MEASUREMENT_GUIDES: MeasurementGuideDef[] = [
-  { id: 'shoulderWidth', label: 'Shoulder to Shoulder', x1: 372, y1: 176, x2: 628, y2: 176, labelX: 500, labelY: 122, labelAlign: 'center' },
-  { id: 'neckOpening', label: 'Neck Opening', x1: 434, y1: 128, x2: 566, y2: 128, labelX: 500, labelY: 82, labelAlign: 'center' },
-  { id: 'neckDrop', label: 'Neck Drop', x1: 500, y1: 128, x2: 500, y2: 198, labelX: 564, labelY: 150, labelAlign: 'left' },
-  { id: 'halfLength', label: 'Half Length', x1: 500, y1: 188, x2: 500, y2: 842, labelX: 570, labelY: 520, labelAlign: 'left' },
-  { id: 'chestWidth', label: 'Chest Width', x1: 300, y1: 365, x2: 700, y2: 365, labelX: 710, labelY: 343, labelAlign: 'left' },
-  { id: 'armhole', label: 'Armhole', x1: 340, y1: 294, x2: 296, y2: 476, labelX: 250, labelY: 386, labelAlign: 'right' },
-  { id: 'sleeveLength', label: 'Sleeve Length', x1: 336, y1: 298, x2: 156, y2: 470, labelX: 86, labelY: 276, labelAlign: 'left' },
-  { id: 'sleeveOpening', label: 'Sleeve Opening', x1: 132, y1: 478, x2: 248, y2: 478, labelX: 256, labelY: 498, labelAlign: 'left' },
-  { id: 'bottomWidth', label: 'Bottom Width', x1: 320, y1: 854, x2: 680, y2: 854, labelX: 500, labelY: 910, labelAlign: 'center' },
+  { id: 'shoulderWidth', label: 'Shoulder to Shoulder', x1: 360, y1: 148, x2: 640, y2: 148, labelX: 500, labelY: 96, labelAlign: 'center' },
+  { id: 'neckOpening', label: 'Neck Opening', x1: 420, y1: 108, x2: 580, y2: 108, labelX: 500, labelY: 64, labelAlign: 'center' },
+  { id: 'neckDrop', label: 'Neck Drop', x1: 500, y1: 108, x2: 500, y2: 270, labelX: 564, labelY: 180, labelAlign: 'left' },
+  { id: 'halfLength', label: 'Half Length', x1: 500, y1: 160, x2: 500, y2: 850, labelX: 570, labelY: 500, labelAlign: 'left' },
+  { id: 'chestWidth', label: 'Chest Width', x1: 290, y1: 380, x2: 710, y2: 380, labelX: 720, labelY: 356, labelAlign: 'left' },
+  { id: 'armhole', label: 'Armhole', x1: 300, y1: 200, x2: 250, y2: 340, labelX: 200, labelY: 270, labelAlign: 'right' },
+  { id: 'sleeveLength', label: 'Sleeve Length', x1: 300, y1: 200, x2: 120, y2: 350, labelX: 70, labelY: 200, labelAlign: 'left' },
+  { id: 'sleeveOpening', label: 'Sleeve Opening', x1: 90, y1: 360, x2: 230, y2: 360, labelX: 240, labelY: 380, labelAlign: 'left' },
+  { id: 'bottomWidth', label: 'Bottom Width', x1: 310, y1: 860, x2: 690, y2: 860, labelX: 500, labelY: 910, labelAlign: 'center' },
 ];
 
-const STORAGE_KEY = 'ceriga_measurement_guides_v1';
+const STORAGE_KEY = 'ceriga_measurement_guides_v3';
 const VIEWBOX_SIZE = 1000;
 const MIN_COORD = 12;
 const MAX_COORD = VIEWBOX_SIZE - 12;

@@ -1,0 +1,249 @@
+"""Pack the slim-tee fashion-flat into builder fill parts + stitching.
+
+Follows scripts/collar/MOCKUP_PROCESS.md. Fill parts have no construction ink.
+Dashed topstitch is traced as its own colourable Stitching layer.
+
+Usage:
+  python scripts/collar/pack_tshirt_test.py --probe
+  python scripts/collar/pack_tshirt_test.py
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import numpy as np
+from PIL import Image, ImageEnhance
+from scipy import ndimage
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+import garment_regions as G  # noqa: E402
+import trace_svg as T  # noqa: E402
+
+ROOT = HERE.parents[1]
+SRC = ROOT / "src" / "assets" / "tshirt-test-source"
+OUT = ROOT / "src" / "assets" / "tshirt-test"
+ART_IN = SRC / "slim-tee-lineart-bold.png"
+
+# Left/right = left/right of the front-on flat.
+PART_SEEDS: list[dict] = [
+    {"category": "Body", "asset": "Body", "seeds": [[511, 1017]]},
+    {"category": "Left sleeve", "asset": "Left sleeve", "seeds": [[164, 509]]},
+    {"category": "Right sleeve", "asset": "Right sleeve", "seeds": [[859, 509]]},
+    {"category": "Body hem", "asset": "Body hem", "seeds": [[245, 1302]]},
+    {"category": "Left cuff", "asset": "Left cuff", "seeds": [[73, 570]]},
+    {"category": "Right cuff", "asset": "Right cuff", "seeds": [[939, 575]]},
+    {"category": "Neck", "asset": "Crew neck", "seeds": [[502, 268], [474, 223]]},
+]
+
+PROOF_COLORS = {
+    "Body": (20, 20, 20),
+    "Left sleeve": (30, 90, 220),
+    "Right sleeve": (0, 150, 90),
+    "Body hem": (0, 200, 220),
+    "Left cuff": (240, 140, 0),
+    "Right cuff": (150, 60, 200),
+    "Neck": (214, 40, 40),
+    "Stitching": (255, 255, 255),
+}
+
+
+def key_lineart(path: Path) -> Image.Image:
+    img = Image.open(path).convert("RGB")
+    boosted = ImageEnhance.Contrast(img).enhance(T.CONTRAST)
+    return T.to_transparent(boosted)
+
+
+def dash_mask(ink: np.ndarray, cfg: G.Settings) -> np.ndarray:
+    comps, _count = ndimage.label(ink, np.ones((3, 3), bool))
+    boxes = ndimage.find_objects(comps)
+    dashes = np.zeros_like(ink)
+    for index, box in enumerate(boxes, start=1):
+        if box is None:
+            continue
+        height = box[0].stop - box[0].start
+        width = box[1].stop - box[1].start
+        if max(height, width) > cfg.dash_len:
+            continue
+        dashes[comps == index] = True
+    return dashes
+
+
+def wrap_fill_only(title: str, mask: np.ndarray) -> str:
+    """Closed fabric fill, no construction ink on the part."""
+    fill_d = G.trace(mask)
+    group = '<g transform="translate(0,2048) scale(0.1,-0.1)"'
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{G.CANVAS}" height="{G.CANVAS}" '
+        f'viewBox="0 0 {G.CANVAS} {G.CANVAS}">\n'
+        f"<title>{title}</title>\n"
+        f'{group} fill="#000000">\n'
+        f'<path d="{fill_d}" fill-rule="evenodd"/>\n'
+        "</g>\n"
+        "</svg>\n"
+    )
+
+
+def wrap_source_svg(title: str, mask: np.ndarray) -> str:
+    """Potrace in source-pixel space (MOCKUP_PROCESS deliverable SVG)."""
+    import potrace
+
+    height, width = mask.shape
+    img = Image.fromarray((mask * 255).astype(np.uint8), mode="L")
+    big = np.asarray(
+        img.resize((width * G.TRACE_SS, height * G.TRACE_SS), Image.LANCZOS)
+    ) >= 128
+    if not big.any():
+        raise SystemExit("empty mask for source SVG")
+    bitmap = potrace.Bitmap(big)
+    bitmap.invert()
+    path = bitmap.trace(
+        turdsize=4,
+        turnpolicy=potrace.POTRACE_TURNPOLICY_MINORITY,
+        alphamax=1.0,
+        opticurve=True,
+        opttolerance=0.2,
+    )
+
+    def point(p) -> str:
+        return f"{p.x / G.TRACE_SS:.2f} {p.y / G.TRACE_SS:.2f}"
+
+    out = []
+    for curve in path:
+        d = [f"M{point(curve.start_point)}"]
+        for segment in curve:
+            if segment.is_corner:
+                d.append(f"L{point(segment.c)}")
+                d.append(f"L{point(segment.end_point)}")
+            else:
+                d.append(
+                    f"C{point(segment.c1)} {point(segment.c2)} {point(segment.end_point)}"
+                )
+        d.append("Z")
+        out.append("".join(d))
+    d_attr = " ".join(out)
+    if d_attr.count("M") < 40:
+        print(f"  !! source SVG only {d_attr.count('M')} subpaths — check polarity")
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}">\n'
+        f"<title>{title}</title>\n"
+        f'<path d="{d_attr}" fill="#000000" fill-rule="evenodd"/>\n'
+        "</svg>\n"
+    )
+
+
+def write_part(category: str, asset: str, svg: str) -> Path:
+    folder = OUT / category
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f"{asset}.svg"
+    target.write_text(svg, encoding="utf-8")
+    print(f"  {category}/{asset}.svg  {target.stat().st_size / 1024:.0f} KB")
+    return target
+
+
+def pack(probe_only: bool) -> None:
+    if not ART_IN.exists():
+        raise SystemExit(f"missing {ART_IN}")
+
+    SRC.mkdir(parents=True, exist_ok=True)
+    print("key white (contrast 1.35, luminance ramp)...")
+    keyed = key_lineart(ART_IN)
+    keyed_path = SRC / "slim-tee-lineart-transparent.png"
+    keyed.save(keyed_path)
+
+    cfg = G.Settings()
+    regions = G.analyse(keyed_path, cfg)
+    print(f"{len(regions.ids)} construction regions")
+    for region_id in regions.ids:
+        x, y = regions.anchor(region_id)
+        print(f"  #{region_id:>2d}  {regions.area(region_id):>8d}px  seed ({x}, {y})")
+
+    proof = SRC / "slim-tee-regions.png"
+    G.write_proof(regions, proof)
+    print(f"wrote {proof}")
+
+    ink = regions.ink if regions.ink is not None else np.zeros_like(regions.labels, bool)
+    stitches = dash_mask(ink, cfg)
+    print(f"stitch dashes: {int(stitches.sum())}px")
+    Image.fromarray(np.where(stitches, 0, 255).astype(np.uint8), "L").save(
+        SRC / "slim-tee-stitches.png"
+    )
+
+    if probe_only:
+        return
+    if not PART_SEEDS:
+        raise SystemExit("PART_SEEDS is empty — run --probe, set seeds, then pack")
+
+    claimed: dict[int, str] = {}
+    named: list[dict] = []
+    for entry in PART_SEEDS:
+        ids: list[int] = []
+        name = "hole" if entry.get("hole") else f"{entry['category']}/{entry['asset']}"
+        for x, y in entry["seeds"]:
+            region_id = int(regions.labels[y, x])
+            if region_id == 0:
+                print(f"  !! {name}: seed ({x}, {y}) is not inside a region")
+                continue
+            if region_id in claimed:
+                print(f"  !! {name}: region {region_id} already taken by {claimed[region_id]}")
+                continue
+            claimed[region_id] = name
+            ids.append(region_id)
+        mask = np.zeros(regions.labels.shape, bool)
+        for region_id in ids:
+            mask |= regions.mask(region_id)
+        named.append({**entry, "ids": ids, "mask": mask, "name": name})
+
+    missed = [i for i in regions.ids if i not in claimed]
+    if missed:
+        print("  !! regions with no part:", missed)
+        for region_id in missed:
+            print(
+                f"     region {region_id}: {regions.area(region_id)}px "
+                f"at {regions.anchor(region_id)}"
+            )
+
+    colour_proof = np.full((*regions.labels.shape, 3), 255, np.uint8)
+    for part in named:
+        if part.get("hole"):
+            continue
+        colour_proof[part["mask"]] = PROOF_COLORS.get(part["category"], (80, 80, 80))
+    colour_proof[stitches] = (180, 180, 180)
+    Image.fromarray(colour_proof).save(SRC / "slim-tee-parts.png")
+    print(f"wrote {SRC / 'slim-tee-parts.png'}")
+
+    if OUT.exists():
+        for old in OUT.glob("*/*.svg"):
+            old.unlink()
+            print(f"  removed {old.relative_to(OUT)}")
+
+    for part in named:
+        if part.get("hole") or not part["ids"]:
+            continue
+        write_part(
+            part["category"],
+            part["asset"],
+            wrap_fill_only(f"Slim tee - {part['asset']}", part["mask"]),
+        )
+
+    if stitches.any():
+        write_part("Stitching", "Cover stitch", wrap_fill_only("Slim tee - Cover stitch", stitches))
+
+    source_svg = SRC / "slim-tee-lineart.svg"
+    source_svg.write_text(wrap_source_svg("Ceriga slim tee line art", ink), encoding="utf-8")
+    print(f"wrote {source_svg}  ({source_svg.stat().st_size / 1024:.0f} KB)")
+
+    sys.path.insert(0, str(HERE))
+    from pack_denim_shorts import rasterize_svg, composite_on_white
+
+    print("raster 2048 / 4096...")
+    rasterize_svg(source_svg, 2048, ss=4).save(SRC / "slim-tee-vector-2048.png")
+    rasterize_svg(source_svg, 4096, ss=2).save(SRC / "slim-tee-vector-4096.png")
+    print("done")
+
+
+if __name__ == "__main__":
+    pack(probe_only="--probe" in sys.argv)

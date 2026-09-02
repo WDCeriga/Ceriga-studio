@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../ui/utils';
 import { Button } from '../ui/button';
@@ -118,6 +126,11 @@ interface PrintsDesignPreviewProps {
   liveCanvasScale?: number;
   /** Phone: when the config sheet is collapsed, pin the *text* formatting bar above the soft keyboard. */
   phoneConfigSheetCollapsed?: boolean;
+  /**
+   * Live garment the user has been configuring (fit, neck, colours, etc.).
+   * When set, replaces the static black tee backdrop so prints sit on their real mockup.
+   */
+  garmentBackdrop?: ReactNode;
 }
 
 const FONT_OPTIONS = [
@@ -1873,6 +1886,7 @@ export function PrintsDesignPreview({
   onSelectedLayerIdChange,
   liveCanvasScale: liveCanvasScaleProp,
   phoneConfigSheetCollapsed = false,
+  garmentBackdrop,
 }: PrintsDesignPreviewProps) {
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
@@ -2409,11 +2423,18 @@ export function PrintsDesignPreview({
         )}
       >
         <div className="relative h-full w-full">
-        <img
-          src={imgBlackTshirt}
-          alt="Garment preview"
-          className="h-auto max-h-full w-full object-contain opacity-0"
-        />
+        {garmentBackdrop ? (
+          <div
+            aria-hidden
+            className="aspect-square h-auto max-h-full w-full opacity-0"
+          />
+        ) : (
+          <img
+            src={imgBlackTshirt}
+            alt="Garment preview"
+            className="h-auto max-h-full w-full object-contain opacity-0"
+          />
+        )}
 
         <div className="absolute inset-0 flex min-h-0 flex-col">
           {narrowViewport &&
@@ -2461,16 +2482,32 @@ export function PrintsDesignPreview({
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-          <img
-            src={imgBlackTshirt}
-            alt="Garment"
-            className="h-full max-h-full w-full object-contain"
-          />
+          <div
+            className={cn(
+              'relative',
+              garmentBackdrop
+                ? 'aspect-square h-full max-h-full w-auto max-w-full'
+                : 'contents',
+            )}
+          >
+          {garmentBackdrop ? (
+            <div className="pointer-events-none absolute inset-0">{garmentBackdrop}</div>
+          ) : (
+            <img
+              src={imgBlackTshirt}
+              alt="Garment"
+              className="h-full max-h-full w-full object-contain"
+            />
+          )}
 
           <div
             ref={zoneRef}
             data-print-design-zone
-            className={cn('absolute overflow-visible', editable && 'touch-none')}
+            className={cn(
+              'absolute overflow-visible',
+              garmentBackdrop && 'pointer-events-auto',
+              editable && 'touch-none',
+            )}
             style={{
               left: `${PREVIEW_ZONE.left}%`,
               right: `${PREVIEW_ZONE.right}%`,
@@ -2740,6 +2777,7 @@ export function PrintsDesignPreview({
               </div>
             );
           })}
+          </div>
           </div>
             </div>
           </div>
