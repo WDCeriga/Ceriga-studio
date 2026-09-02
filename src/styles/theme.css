@@ -395,14 +395,59 @@
 .animate-builder-pop-in {
   animation: builder-pop-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.animate-builder-slide-up-in {
-  animation: builder-slide-up-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+@keyframes studio-canvas-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes studio-tools-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-studio-canvas-in {
+  animation: studio-canvas-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-studio-tools-in {
+  animation: studio-tools-in 480ms 70ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes studio-workspace-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.992);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-studio-workspace-in {
+  animation: studio-workspace-in 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-builder-fade-in,
   .animate-builder-pop-in,
-  .animate-builder-slide-up-in {
+  .animate-builder-slide-up-in,
+  .animate-studio-canvas-in,
+  .animate-studio-tools-in,
+  .animate-studio-workspace-in {
     animation: none !important;
   }
   .press-feedback:active,

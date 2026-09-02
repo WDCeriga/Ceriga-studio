@@ -26,6 +26,9 @@ import {
   Italic,
   Check,
   GripVertical,
+  Brush,
+  Link2,
+  Unlink2,
 } from 'lucide-react';
 import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
 import {
@@ -44,10 +47,28 @@ import {
 import { StudioColorField } from './StudioColorField';
 import { STUDIO_TEXT_MAIN_COLORS, STUDIO_TEXT_POPULAR_COLORS } from '../../data/studioColorPresets';
 import { InlineElementToolbar } from './InlineElementToolbar';
+import { PrintsStudioToolbar } from './printsStudio/PrintsStudioToolbar';
+import { PrintsDrawLayer } from './printsStudio/PrintsDrawLayer';
+import { DRAWING_LAYER_ID, DISTRESS_LAYER_ID, usePrintsStudio } from './printsStudio/PrintsStudioContext';
+import {
+  hydrateFontLibrary,
+  loadUploadLibrary,
+  saveFontToLibrary,
+  saveUploadToLibrary,
+  type SavedUpload,
+} from './printsStudio/designLibrary';
+import {
+  STUDIO_DRAG_MIME,
+  decodeStudioDrag,
+  defaultPatternCount,
+  defaultStudioSize,
+  type StudioAssetKind,
+} from './printsStudio/studioAssets';
+import { StudioGraphic } from './printsStudio/StudioGraphic';
 
 export interface DesignElement {
   id: string;
-  type: 'image' | 'text';
+  type: 'image' | 'text' | 'drawing' | 'shape' | 'pattern' | 'distress';
   content: string;
   x: number;
   y: number;
@@ -95,6 +116,22 @@ export interface DesignElement {
    *  user changes width via handles or adjusters we lock to `element.width` literally
    *  so a 300px wide box renders as 300px even when the text only spans 40px. */
   autoWidth?: boolean;
+  /** Image / drawing — CSS brightness (100 = unchanged). */
+  filterBrightness?: number;
+  /** Image / drawing — CSS contrast (100 = unchanged). */
+  filterContrast?: number;
+  /** Image / drawing — CSS saturation (100 = unchanged). */
+  filterSaturate?: number;
+  /** Pattern tile count / grid density (e.g. 4 = 4×4 checks). */
+  patternCount?: number;
+  /** When true, width and height stay proportional while resizing. Images default on. */
+  aspectLocked?: boolean;
+  /** Front or back of the garment. Missing values are treated as front. */
+  side?: 'front' | 'back';
+}
+
+export function designElementSide(el: Pick<DesignElement, 'side'>): 'front' | 'back' {
+  return el.side ?? 'front';
 }
 
 interface PrintsDesignStepProps {
@@ -105,6 +142,8 @@ interface PrintsDesignStepProps {
   onSelectedLayerIdChange?: (id: string | null) => void;
   /** Narrow / phone: horizontal scroll rows for key actions (Canva-style). */
   usePhoneStrips?: boolean;
+  /** Live garment side so new artwork and the layers list stay on Front or Back. */
+  garmentSide?: 'front' | 'back';
 }
 
 interface PrintsDesignPreviewProps {
@@ -118,6 +157,8 @@ interface PrintsDesignPreviewProps {
   liveCanvasScale?: number;
   /** Phone: when the config sheet is collapsed, pin the *text* formatting bar above the soft keyboard. */
   phoneConfigSheetCollapsed?: boolean;
+  /** Which garment face is on screen. Artwork on the other face is hidden. */
+  garmentSide?: 'front' | 'back';
 }
 
 const FONT_OPTIONS = [
@@ -131,7 +172,6 @@ const FONT_OPTIONS = [
   'Poppins',
 ];
 
-const DESIGN_PRESETS = ['Center Chest', 'Left Chest', 'Back Graphic', 'Full Front'];
 export const PRINT_METHODS = [
   'DTG',
   'DTF',
@@ -170,22 +210,41 @@ const PREVIEW_ZONE = {
  * — unlike a stack of CSS `drop-shadow`s which produces a staggered, blocky result.
  */
 export function hasImageFx(el: {
-  type?: 'image' | 'text';
+  type?: DesignElement['type'];
   borderWidth?: number;
   shadowBlur?: number;
 }): boolean {
-  if (el.type !== 'image') return false;
+  if (el.type !== 'image' && el.type !== 'drawing') return false;
   return (el.borderWidth ?? 0) > 0 || (el.shadowBlur ?? 0) > 0;
 }
 
 /** CSS `filter` value pointing at the per-element SVG `<filter>` — or undefined when unused. */
 export function getImageFilterStyle(el: {
   id: string;
-  type?: 'image' | 'text';
+  type?: 'image' | 'text' | 'drawing';
   borderWidth?: number;
   shadowBlur?: number;
 }): string | undefined {
   return hasImageFx(el) ? `url(#fx-${el.id})` : undefined;
+}
+
+export function getArtworkAdjustFilter(el: {
+  filterBrightness?: number;
+  filterContrast?: number;
+  filterSaturate?: number;
+}): string | undefined {
+  const b = el.filterBrightness ?? 100;
+  const c = el.filterContrast ?? 100;
+  const s = el.filterSaturate ?? 100;
+  if (b === 100 && c === 100 && s === 100) return undefined;
+  return `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+}
+
+export function composeArtworkFilter(
+  el: Parameters<typeof getImageFilterStyle>[0] & Parameters<typeof getArtworkAdjustFilter>[0],
+): string | undefined {
+  const parts = [getImageFilterStyle(el), getArtworkAdjustFilter(el)].filter(Boolean);
+  return parts.length ? parts.join(' ') : undefined;
 }
 
 /** Renders the per-element `<svg>` `<defs>` block. Place inside the same DOM subtree as the img. */
@@ -194,7 +253,7 @@ export function ImageFxDefs({
 }: {
   element: {
     id: string;
-    type?: 'image' | 'text';
+    type?: 'image' | 'text' | 'drawing';
     borderWidth?: number;
     borderColor?: string;
     shadowBlur?: number;
@@ -280,10 +339,10 @@ export function CropEditingOverlay({
     cropLeft?: number;
   };
 }) {
-  const t = Math.max(0, Math.min(95, element.cropTop ?? 0));
-  const r = Math.max(0, Math.min(95, element.cropRight ?? 0));
-  const b = Math.max(0, Math.min(95, element.cropBottom ?? 0));
-  const l = Math.max(0, Math.min(95, element.cropLeft ?? 0));
+  const t = Math.max(0, Math.min(99, element.cropTop ?? 0));
+  const r = Math.max(0, Math.min(99, element.cropRight ?? 0));
+  const b = Math.max(0, Math.min(99, element.cropBottom ?? 0));
+  const l = Math.max(0, Math.min(99, element.cropLeft ?? 0));
   const veil = 'rgba(4,6,12,0.62)';
   return (
     <div
@@ -363,13 +422,13 @@ export function buildImageClipPath(
   },
   opts?: { ignoreCrop?: boolean },
 ): string | undefined {
-  const t = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropTop ?? 0));
-  const r = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropRight ?? 0));
-  const b = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropBottom ?? 0));
-  const l = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(49, el.cropLeft ?? 0));
+  const t = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropTop ?? 0));
+  const r = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropRight ?? 0));
+  const b = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropBottom ?? 0));
+  const l = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropLeft ?? 0));
   // Pixel-based corner radius: applies an equal radius to both axes so non-square
   // images still get true round corners (percentages would produce elliptical ones).
-  const rad = Math.max(0, Math.min(80, el.cornerRadius ?? 0));
+  const rad = Math.max(0, Math.min(50, el.cornerRadius ?? 0));
   const hasCrop = t > 0 || r > 0 || b > 0 || l > 0;
   const hasRound = rad > 0;
   if (!hasCrop && !hasRound) return undefined;
@@ -440,6 +499,7 @@ export type PrintManip =
       startH: number;
       startFontSize: number;
       isImage: boolean;
+      aspectLocked: boolean;
     };
 
 export function PrintTransformOverlay({
@@ -753,6 +813,7 @@ export function PrintsDesignStep({
   selectedLayerId: selectedLayerIdProp,
   onSelectedLayerIdChange,
   usePhoneStrips = false,
+  garmentSide = 'front',
 }: PrintsDesignStepProps) {
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
@@ -766,6 +827,9 @@ export function PrintsDesignStep({
   );
   const [textInput, setTextInput] = useState('');
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
+  const [previousUploads, setPreviousUploads] = useState<SavedUpload[]>(() =>
+    typeof window === 'undefined' ? [] : loadUploadLibrary(),
+  );
   const [listDraggingId, setListDraggingId] = useState<string | null>(null);
   const [listDragOverId, setListDragOverId] = useState<string | null>(null);
   const [listDragDeltaY, setListDragDeltaY] = useState<number>(0);
@@ -783,6 +847,20 @@ export function PrintsDesignStep({
     () => elements.find((item) => item.id === selectedId) ?? null,
     [elements, selectedId],
   );
+  const sideElements = useMemo(
+    () => elements.filter((item) => designElementSide(item) === garmentSide),
+    [elements, garmentSide],
+  );
+  const studio = usePrintsStudio();
+  const setSelectedIdRef = useRef(setSelectedId);
+  setSelectedIdRef.current = setSelectedId;
+  const studioPanelRef = useRef(studio.panel);
+
+  useEffect(() => {
+    void hydrateFontLibrary().then((names) => {
+      if (names.length) setImportedFontFamilies((prev) => Array.from(new Set([...names, ...prev])));
+    });
+  }, []);
 
   useLayoutEffect(() => {
     elementsRef.current = elements;
@@ -801,8 +879,20 @@ export function PrintsDesignStep({
     }
   }, [elements, selectedId, setSelectedId]);
 
+  useEffect(() => {
+    if (studioPanelRef.current === studio.panel) return;
+    studioPanelRef.current = studio.panel;
+    setSelectedIdRef.current(null);
+  }, [studio.panel]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = elements.find((item) => item.id === selectedId);
+    if (el && designElementSide(el) !== garmentSide) setSelectedId(null);
+  }, [garmentSide, selectedId, elements, setSelectedId]);
+
   const allFontOptions = useMemo(
-    () => [...FONT_OPTIONS, ...importedFontFamilies],
+    () => [...importedFontFamilies, ...FONT_OPTIONS.filter((f) => !importedFontFamilies.includes(f))],
     [importedFontFamilies],
   );
 
@@ -854,8 +944,11 @@ export function PrintsDesignStep({
           shadowColor: 'rgba(0,0,0,0.55)',
           shadowOffsetY: 6,
           locked: false,
+          aspectLocked: true,
           printMethod: DEFAULT_PRINT_METHOD,
+          side: garmentSide,
         };
+        setPreviousUploads(saveUploadToLibrary(file.name, next.content));
         onChange([...elements, next]);
         setSelectedId(next.id);
       };
@@ -901,10 +994,58 @@ export function PrintsDesignStep({
       textTransform: 'none',
       letterSpacing: 0,
       printMethod: DEFAULT_PRINT_METHOD,
+      side: garmentSide,
     };
     onChange([...elements, next]);
     setSelectedId(next.id);
     setTextInput('');
+  };
+
+  const placeStudioAsset = (kind: StudioAssetKind, id: string, at?: { x: number; y: number }) => {
+    const zone = document.querySelector('[data-print-design-zone]') as HTMLElement | null;
+    const size = defaultStudioSize(kind, id);
+    const next: DesignElement = {
+      id: `${Date.now()}`,
+      type: kind,
+      content: id,
+      x: at?.x ?? (zone && zone.clientWidth ? zone.clientWidth / 2 : 155),
+      y: at?.y ?? (zone && zone.clientHeight ? zone.clientHeight / 2 : 165),
+      width: size.width,
+      height: size.height,
+      rotation: 0,
+      color: studio.color,
+      borderWidth: kind === 'shape' ? 4 : 0,
+      opacity: 100,
+      locked: false,
+      printMethod: kind === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
+      patternCount: kind === 'pattern' ? defaultPatternCount(id) : undefined,
+      aspectLocked: kind === 'shape' || kind === 'pattern' || kind === 'distress' ? false : undefined,
+      side: garmentSide,
+    };
+    onChange([...elements, next]);
+    setSelectedId(next.id);
+    studio.setTool('select');
+  };
+
+  const reuseUpload = (item: SavedUpload) => {
+    const zone = document.querySelector('[data-print-design-zone]') as HTMLElement | null;
+    const next: DesignElement = {
+      id: `${Date.now()}`,
+      type: 'image',
+      content: item.dataUrl,
+      x: zone && zone.clientWidth ? zone.clientWidth / 2 : 155,
+      y: zone && zone.clientHeight ? zone.clientHeight / 2 : 165,
+      width: 130,
+      height: 130,
+      rotation: 0,
+      opacity: 100,
+      locked: false,
+      aspectLocked: true,
+      printMethod: DEFAULT_PRINT_METHOD,
+      side: garmentSide,
+    };
+    onChange([...elements, next]);
+    setSelectedId(next.id);
   };
 
   const deleteSelected = () => {
@@ -940,20 +1081,11 @@ export function PrintsDesignStep({
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const base = file.name.replace(/\.[^.]+$/, '').replace(/[^\w\s-]+/g, '') || 'Font';
-      const family = `Custom ${base}`.slice(0, 40);
-      const unique = `${family}-${Date.now().toString(36)}`;
-      try {
-        const buf = await file.arrayBuffer();
-        const face = new FontFace(unique, buf);
-        await face.load();
-        document.fonts.add(face);
-        setImportedFontFamilies((prev) => (prev.includes(unique) ? prev : [...prev, unique]));
-        if (selectedId && elements.find((x) => x.id === selectedId)?.type === 'text') {
-          updateSelected({ fontFamily: unique });
-        }
-      } catch {
-        /* invalid font */
+      const unique = await saveFontToLibrary(file);
+      if (!unique) return;
+      setImportedFontFamilies((prev) => (prev.includes(unique) ? prev : [...prev, unique]));
+      if (selectedId && elements.find((x) => x.id === selectedId)?.type === 'text') {
+        updateSelected({ fontFamily: unique });
       }
     };
     input.click();
@@ -989,7 +1121,8 @@ export function PrintsDesignStep({
       rowHeight += gap;
     }
     listDragRowHeightRef.current = rowHeight;
-    listDragFromIndexRef.current = elementsRef.current.findIndex((x) => x.id === elementId);
+    const visible = elementsRef.current.filter((x) => designElementSide(x) === garmentSide);
+    listDragFromIndexRef.current = visible.findIndex((x) => x.id === elementId);
     if (listDragFromIndexRef.current < 0) listDragFromIndexRef.current = 0;
 
     setListDraggingId(elementId);
@@ -999,7 +1132,7 @@ export function PrintsDesignStep({
     const onMove = (ev: PointerEvent) => {
       const d = ev.clientY - listDragStartYRef.current;
       setListDragDeltaY(d);
-      const els = elementsRef.current;
+      const els = elementsRef.current.filter((x) => designElementSide(x) === garmentSide);
       const n = els.length;
       const s = listDragFromIndexRef.current;
       const h = listDragRowHeightRef.current;
@@ -1039,128 +1172,45 @@ export function PrintsDesignStep({
     window.addEventListener('pointercancel', finish);
   };
 
-  const applyPreset = (preset: string) => {
-    if (!selectedId) return;
-
-    const placements: Record<string, Partial<DesignElement>> = {
-      'Center Chest': { x: 160, y: 150, width: 150, height: 80 },
-      'Left Chest': { x: 116, y: 138, width: 95, height: 56 },
-      'Back Graphic': { x: 155, y: 150, width: 180, height: 180 },
-      'Full Front': { x: 155, y: 172, width: 210, height: 210 },
-    };
-
-    updateSelected(placements[preset] || {});
-  };
-
   const rotNorm = selected
     ? ((Math.round(selected.rotation) % 360) + 360) % 360
     : 0;
 
-  const artBtnClass =
-    'h-9 shrink-0 min-w-[6.5rem] border-white/18 bg-white/[0.04] px-2.5 text-[10px] !text-white hover:bg-white/10';
-  const addTextClass = 'h-9 shrink-0 min-w-[6.5rem] bg-[#FF3B30] px-2.5 text-[10px] text-white hover:bg-[#FF3B30]/90';
-
   return (
     <div className="space-y-3.5">
-      <PrintPanel title="Add artwork">
-        {usePhoneStrips ? (
-          <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x [-webkit-overflow-scrolling:touch]">
-            <Button onClick={handleUploadImage} variant="outline" className={artBtnClass}>
-              <Upload className="mr-1.5 h-3.5 w-3.5" />
-              Upload
-            </Button>
-            <Button onClick={handleAddText} className={addTextClass}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add text
-            </Button>
-          </div>
-        ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            onClick={handleUploadImage}
-            variant="outline"
-            className="h-9 border-white/18 bg-white/[0.04] px-2 text-[10px] !text-white hover:bg-white/10"
-          >
-            <Upload className="mr-1.5 h-3.5 w-3.5" />
-            Upload
-          </Button>
-          <Button
-            onClick={handleAddText}
-            className="h-9 bg-[#FF3B30] px-2 text-[10px] text-white hover:bg-[#FF3B30]/90"
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add text
-          </Button>
-        </div>
-        )}
-        <div className="mt-3">
-          <Label className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-            Text content
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              value={textInput}
-              onChange={(e) => setTextInput(e.target.value)}
-              placeholder="Type, then add"
-              className="h-9 flex-1 border-white/12 bg-black/35 text-[11px] text-white placeholder:text-white/28"
-              onKeyDown={(e) => e.key === 'Enter' && handleAddText()}
-            />
-            <Button
-              onClick={handleAddText}
-              title="Add text to design"
-              className="h-9 min-w-9 shrink-0 bg-[#FF3B30] px-2 hover:bg-[#FF3B30]/90"
-              aria-label="Add text to design"
-            >
-              <Check className="h-4 w-4" strokeWidth={2.5} />
-            </Button>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={importFontFile}
-          className="mt-3 h-9 w-full border-white/18 bg-white/[0.04] px-2 text-[10px] !text-white hover:bg-white/10"
-        >
-          <Upload className="mr-1.5 h-3.5 w-3.5" />
-          Import font
-        </Button>
-      </PrintPanel>
-
-      <PrintPanel title="Placement presets">
-        {usePhoneStrips ? (
-          <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
-            {DESIGN_PRESETS.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => applyPreset(preset)}
-                className="shrink-0 min-h-11 rounded-full border border-white/12 bg-black/30 px-4 py-2.5 text-left text-xs font-medium text-white/80 transition hover:border-white/25 hover:text-white"
-              >
-                {preset}
-              </button>
-            ))}
-          </div>
-        ) : (
-        <div className="grid grid-cols-2 gap-2">
-          {DESIGN_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => applyPreset(preset)}
-              className="rounded-xl border border-[#252528] bg-black/25 px-2.5 py-2.5 text-left text-[10px] font-medium text-white/72 transition hover:border-white/22 hover:text-white"
-            >
-              {preset}
-            </button>
-          ))}
-        </div>
-        )}
-      </PrintPanel>
+      <PrintsStudioToolbar
+        compact={usePhoneStrips}
+        layout="workspace"
+        onPlaceAsset={placeStudioAsset}
+        onUpload={handleUploadImage}
+        previousUploads={previousUploads}
+        onReuseUpload={reuseUpload}
+        textInput={textInput}
+        onTextInput={setTextInput}
+        onAddText={handleAddText}
+        onImportFont={importFontFile}
+        fontLibrary={importedFontFamilies}
+        selectedElement={selected}
+        onUpdateSelected={updateSelected}
+      />
 
       {selected ? (
         <PrintPanel title="Selected element">
           <div className="mb-4 flex items-center justify-between gap-2">
             <span className="text-[10px] text-white/45">
-              {selected.type === 'image' ? 'Image' : 'Text'}
+              {selected.type === 'image'
+                ? 'Image'
+                : selected.type === 'drawing'
+                  ? selected.id === DISTRESS_LAYER_ID
+                    ? 'Distressing'
+                    : 'Drawing'
+                  : selected.type === 'shape'
+                    ? 'Shape'
+                    : selected.type === 'pattern'
+                      ? 'Pattern'
+                      : selected.type === 'distress'
+                        ? 'Distressing'
+                        : 'Text'}
             </span>
             <Button
               onClick={deleteSelected}
@@ -1173,6 +1223,7 @@ export function PrintsDesignStep({
           </div>
 
           <div className="space-y-5">
+            {selected.type !== 'distress' ? (
             <div>
               <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                 Printing method
@@ -1224,6 +1275,7 @@ export function PrintsDesignStep({
               </div>
               )}
             </div>
+            ) : null}
 
             {selected.type === 'text' && (
               <>
@@ -1415,6 +1467,38 @@ export function PrintsDesignStep({
               onChange={(n) => updateSelected({ opacity: n })}
             />
 
+            {selected.type === 'image' || selected.type === 'drawing' ? (
+              <div className="space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
+                  Image adjustments
+                </span>
+                <SliderField
+                  label="Brightness"
+                  value={selected.filterBrightness ?? 100}
+                  min={40}
+                  max={160}
+                  suffix="%"
+                  onChange={(n) => updateSelected({ filterBrightness: n })}
+                />
+                <SliderField
+                  label="Contrast"
+                  value={selected.filterContrast ?? 100}
+                  min={40}
+                  max={160}
+                  suffix="%"
+                  onChange={(n) => updateSelected({ filterContrast: n })}
+                />
+                <SliderField
+                  label="Saturation"
+                  value={selected.filterSaturate ?? 100}
+                  min={0}
+                  max={200}
+                  suffix="%"
+                  onChange={(n) => updateSelected({ filterSaturate: n })}
+                />
+              </div>
+            ) : null}
+
             <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
@@ -1447,8 +1531,12 @@ export function PrintsDesignStep({
               <div className="mt-3">
                 <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">Colour</span>
                 <StudioColorField
-                  value={selected.borderColor ?? '#FFFFFF'}
-                  onChange={(h) => updateSelected({ borderColor: h })}
+                  value={selected.type === 'shape' || selected.type === 'pattern' ? selected.color ?? '#FFFFFF' : selected.borderColor ?? '#FFFFFF'}
+                  onChange={(h) =>
+                    selected.type === 'shape' || selected.type === 'pattern'
+                      ? updateSelected({ color: h })
+                      : updateSelected({ borderColor: h })
+                  }
                   mainColors={STUDIO_TEXT_MAIN_COLORS}
                   popularColors={STUDIO_TEXT_POPULAR_COLORS}
                 />
@@ -1459,7 +1547,7 @@ export function PrintsDesignStep({
                     label="Corner rounding"
                     value={selected.cornerRadius ?? 0}
                     min={0}
-                    max={80}
+                    max={50}
                     suffix="px"
                     onChange={(n) => updateSelected({ cornerRadius: n })}
                   />
@@ -1472,6 +1560,32 @@ export function PrintsDesignStep({
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                   Size &amp; rotation
                 </span>
+                <button
+                  type="button"
+                  title={
+                    (selected.aspectLocked ?? selected.type === 'image')
+                      ? 'Width and height are linked'
+                      : 'Width and height are independent'
+                  }
+                  onClick={() =>
+                    updateSelected({
+                      aspectLocked: !(selected.aspectLocked ?? selected.type === 'image'),
+                    })
+                  }
+                  className={cn(
+                    'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-wide',
+                    (selected.aspectLocked ?? selected.type === 'image')
+                      ? 'border-[#FF3B30]/60 bg-[#FF3B30]/15 text-white'
+                      : 'border-white/15 bg-black/30 text-white/70 hover:text-white',
+                  )}
+                >
+                  {(selected.aspectLocked ?? selected.type === 'image') ? (
+                    <Link2 className="h-3 w-3" />
+                  ) : (
+                    <Unlink2 className="h-3 w-3" />
+                  )}
+                  {(selected.aspectLocked ?? selected.type === 'image') ? 'Linked' : 'Unlinked'}
+                </button>
               </div>
               <div className="grid min-w-0 grid-cols-2 gap-2">
                 <SidebarNumberField
@@ -1480,12 +1594,10 @@ export function PrintsDesignStep({
                   value={Math.round(selected.width || 0)}
                   onChange={(v) => {
                     const next = Math.max(8, Math.min(1200, v));
-                    const ratio =
-                      selected.type === 'image' && selected.height
-                        ? selected.width / selected.height
-                        : 0;
+                    const linked = selected.aspectLocked ?? selected.type === 'image';
+                    const ratio = selected.height ? selected.width / selected.height : 0;
                     const patch =
-                      ratio > 0
+                      linked && ratio > 0
                         ? { width: next, height: Math.round(next / ratio) }
                         : { width: next };
                     updateSelected(
@@ -1499,12 +1611,10 @@ export function PrintsDesignStep({
                   value={Math.round(selected.height || 0)}
                   onChange={(v) => {
                     const next = Math.max(8, Math.min(1200, v));
-                    const ratio =
-                      selected.type === 'image' && selected.height
-                        ? selected.width / selected.height
-                        : 0;
+                    const linked = selected.aspectLocked ?? selected.type === 'image';
+                    const ratio = selected.height ? selected.width / selected.height : 0;
                     const patch =
-                      ratio > 0
+                      linked && ratio > 0
                         ? { height: next, width: Math.round(next * ratio) }
                         : { height: next };
                     updateSelected(
@@ -1589,7 +1699,7 @@ export function PrintsDesignStep({
               </div>
             ) : null}
 
-            {selected.type === 'image' ? (
+            {selected.type === 'image' || selected.type === 'distress' ? (
               <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
@@ -1621,7 +1731,7 @@ export function PrintsDesignStep({
                   label="Top"
                   value={selected.cropTop ?? 0}
                   min={0}
-                  max={Math.max(0, 95 - (selected.cropBottom ?? 0))}
+                  max={Math.max(0, 100 - (selected.cropBottom ?? 0))}
                   suffix="%"
                   onChange={(n) => updateSelected({ cropTop: n })}
                 />
@@ -1630,7 +1740,7 @@ export function PrintsDesignStep({
                     label="Right"
                     value={selected.cropRight ?? 0}
                     min={0}
-                    max={Math.max(0, 95 - (selected.cropLeft ?? 0))}
+                    max={Math.max(0, 100 - (selected.cropLeft ?? 0))}
                     suffix="%"
                     onChange={(n) => updateSelected({ cropRight: n })}
                   />
@@ -1640,7 +1750,7 @@ export function PrintsDesignStep({
                     label="Bottom"
                     value={selected.cropBottom ?? 0}
                     min={0}
-                    max={Math.max(0, 95 - (selected.cropTop ?? 0))}
+                    max={Math.max(0, 100 - (selected.cropTop ?? 0))}
                     suffix="%"
                     onChange={(n) => updateSelected({ cropBottom: n })}
                   />
@@ -1650,7 +1760,7 @@ export function PrintsDesignStep({
                     label="Left"
                     value={selected.cropLeft ?? 0}
                     min={0}
-                    max={Math.max(0, 95 - (selected.cropRight ?? 0))}
+                    max={Math.max(0, 100 - (selected.cropRight ?? 0))}
                     suffix="%"
                     onChange={(n) => updateSelected({ cropLeft: n })}
                   />
@@ -1717,23 +1827,23 @@ export function PrintsDesignStep({
         </PrintPanel>
       ) : null}
 
-      <PrintPanel title={`Elements (${elements.length})`}>
+      <PrintPanel title={`Elements (${sideElements.length})`}>
         <div className={cn('space-y-2', listDraggingId && 'list-reorder-active')}>
-          {elements.length === 0 ? (
+          {sideElements.length === 0 ? (
             <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">
-              Upload artwork or add text, then drag on the preview.
+            Pick a tool, then draw, drop a shape, or upload artwork onto the garment.
             </div>
           ) : (
             (() => {
               const sourceIndex = listDraggingId
-                ? elements.findIndex((el) => el.id === listDraggingId)
+                ? sideElements.findIndex((el) => el.id === listDraggingId)
                 : -1;
               const targetIndex =
                 listDraggingId && listDragOverId
-                  ? elements.findIndex((el) => el.id === listDragOverId)
+                  ? sideElements.findIndex((el) => el.id === listDragOverId)
                   : -1;
               const rowH = listDragRowHeightRef.current;
-              return elements.map((element, index) => {
+              return sideElements.map((element, index) => {
                 const isDragging = listDraggingId === element.id;
                 let rowTransform: string | undefined;
                 if (isDragging) {
@@ -1749,7 +1859,7 @@ export function PrintsDesignStep({
                     targetIndex,
                     listDragDeltaY,
                     rowH,
-                    elements.length,
+                    sideElements.length,
                   );
                   if (off !== 0) rowTransform = `translateY(${off}px)`;
                 }
@@ -1789,19 +1899,37 @@ export function PrintsDesignStep({
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/12 bg-white/[0.06] text-white/55">
                       {element.type === 'image' ? (
                         <ImageIcon className="h-3.5 w-3.5" />
+                      ) : element.type === 'drawing' || element.type === 'distress' ? (
+                        <Brush className="h-3.5 w-3.5" />
                       ) : (
                         <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[11px] font-medium text-white">
-                        {element.type === 'image' ? 'Uploaded artwork' : element.content}
+                        {element.type === 'image'
+                          ? 'Uploaded artwork'
+                          : element.id === DISTRESS_LAYER_ID
+                            ? 'Distressing'
+                            : element.type === 'drawing'
+                              ? 'Drawing'
+                              : element.type === 'shape'
+                                ? 'Shape'
+                                : element.type === 'pattern'
+                                  ? 'Pattern'
+                                  : element.type === 'distress'
+                                    ? 'Distressing'
+                                    : element.content}
                       </div>
                       <div className="truncate text-[9.5px] text-white/40">
-                        <span className="text-white/55">
-                          {element.printMethod ?? DEFAULT_PRINT_METHOD}
-                        </span>
-                        {' · '}
+                        {element.type !== 'distress' ? (
+                          <>
+                            <span className="text-white/55">
+                              {element.printMethod ?? DEFAULT_PRINT_METHOD}
+                            </span>
+                            {' · '}
+                          </>
+                        ) : null}
                         {Math.round(element.x)}, {Math.round(element.y)} ·{' '}
                         {Math.round(element.rotation)}°
                       </div>
@@ -1873,7 +2001,19 @@ export function PrintsDesignPreview({
   onSelectedLayerIdChange,
   liveCanvasScale: liveCanvasScaleProp,
   phoneConfigSheetCollapsed = false,
+  garmentSide = 'front',
 }: PrintsDesignPreviewProps) {
+  const studio = usePrintsStudio();
+  const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
+  useEffect(() => {
+    void hydrateFontLibrary().then((names) => {
+      if (names.length) setImportedFontFamilies((prev) => Array.from(new Set([...names, ...prev])));
+    });
+  }, []);
+  const previewFontOptions = useMemo(
+    () => [...importedFontFamilies, ...FONT_OPTIONS.filter((f) => !importedFontFamilies.includes(f))],
+    [importedFontFamilies],
+  );
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
   const selectedId = selectionControlled ? (selectedLayerIdProp ?? null) : fallbackSelectedId;
@@ -1913,8 +2053,10 @@ export function PrintsDesignPreview({
   }, []);
 
   const zoneRef = useRef<HTMLDivElement>(null);
+  const [zoneEl, setZoneEl] = useState<HTMLDivElement | null>(null);
   const elementsRef = useRef(elements);
   const onChangeRef = useRef(onChange);
+  const garmentSideRef = useRef(garmentSide);
   const dragStartClientRef = useRef({ x: 0, y: 0 });
   const dragDidMoveRef = useRef(false);
   const dragPointerCaptureRef = useRef<{ el: HTMLElement; pointerId: number } | null>(null);
@@ -1935,6 +2077,21 @@ export function PrintsDesignPreview({
   useLayoutEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useLayoutEffect(() => {
+    garmentSideRef.current = garmentSide;
+  }, [garmentSide]);
+
+  const visibleElements = useMemo(
+    () => elements.filter((item) => designElementSide(item) === garmentSide),
+    [elements, garmentSide],
+  );
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = elements.find((item) => item.id === selectedId);
+    if (el && designElementSide(el) !== garmentSide) setSelectedId(null);
+  }, [garmentSide, selectedId, elements, setSelectedId]);
 
   useLayoutEffect(() => {
     if (!editingTextId) return;
@@ -2118,20 +2275,31 @@ export function PrintsDesignPreview({
         }
         const sw = (manip.startW + dw) / manip.startW;
         const sh = (manip.startH + dh) / manip.startH;
-        const s = Math.sqrt(Math.max(0.15, Math.min(6, sw * sh)));
-        const nw = clamp(manip.startW * s, manip.isImage ? 32 : 48, manip.isImage ? 520 : 440);
-        const nh = clamp(manip.startH * s, manip.isImage ? 32 : 28, manip.isImage ? 520 : 320);
-        if (manip.isImage) {
-          updateElement(manip.id, { width: nw, height: nh });
+        if (manip.aspectLocked) {
+          const s = Math.sqrt(Math.max(0.15, Math.min(6, sw * sh)));
+          const nw = clamp(manip.startW * s, manip.isImage ? 32 : 48, manip.isImage ? 520 : 440);
+          const nh = clamp(manip.startH * s, manip.isImage ? 32 : 28, manip.isImage ? 520 : 320);
+          if (manip.isImage) {
+            updateElement(manip.id, { width: nw, height: nh });
+          } else {
+            const nfs = clamp(Math.round(manip.startFontSize * s), 12, 120);
+            updateElement(manip.id, {
+              width: nw,
+              height: nh,
+              fontSize: nfs,
+              autoHeight: false,
+              autoWidth: false,
+            });
+          }
         } else {
-          const nfs = clamp(Math.round(manip.startFontSize * s), 12, 120);
-          updateElement(manip.id, {
-            width: nw,
-            height: nh,
-            fontSize: nfs,
-            autoHeight: false,
-            autoWidth: false,
-          });
+          const nw = clamp(manip.startW + dw, manip.isImage ? 32 : 48, manip.isImage ? 520 : 440);
+          const nh = clamp(manip.startH + dh, manip.isImage ? 32 : 28, manip.isImage ? 520 : 320);
+          updateElement(
+            manip.id,
+            manip.isImage
+              ? { width: nw, height: nh }
+              : { width: nw, height: nh, autoHeight: false, autoWidth: false },
+          );
         }
         return;
       }
@@ -2238,7 +2406,9 @@ export function PrintsDesignPreview({
         }
       }
 
-      const snapBoxes: SnapBox[] = elementsRef.current.map((el) => ({
+      const snapBoxes: SnapBox[] = elementsRef.current
+        .filter((el) => designElementSide(el) === garmentSideRef.current)
+        .map((el) => ({
         id: el.id,
         x: el.x,
         y: el.y,
@@ -2352,7 +2522,12 @@ export function PrintsDesignPreview({
   }, [draggingId, dragOffset, editable, manip, narrowViewport]);
 
   const selectedElement = editable ? elements.find((el) => el.id === selectedId) ?? null : null;
-  const showInlineToolbar = Boolean(editable && selectedElement);
+  const showInlineToolbar = Boolean(
+    editable &&
+      selectedElement &&
+      selectedElement.type !== 'drawing' &&
+      !studio.drawing,
+  );
   /** Phone: text styling is sidebar-only — no floating inline bar. */
   const phoneTextUsesSidebarOnly =
     narrowViewport && showInlineToolbar && selectedElement?.type === 'text';
@@ -2389,6 +2564,7 @@ export function PrintsDesignPreview({
                   onPatch={(patch) => updateElement(selectedElement.id, patch)}
                   onDuplicate={() => duplicateElement(selectedElement.id)}
                   onDelete={() => removeElement(selectedElement.id)}
+                  fontOptions={previewFontOptions}
                   compact
                   comfortableCompact
                   variant="slim"
@@ -2441,6 +2617,7 @@ export function PrintsDesignPreview({
                   onPatch={(patch) => updateElement(selectedElement.id, patch)}
                   onDuplicate={() => duplicateElement(selectedElement.id)}
                   onDelete={() => removeElement(selectedElement.id)}
+                  fontOptions={previewFontOptions}
                   variant="slim"
                   onCropModeChange={(cropping) =>
                     setCropEditingId(cropping ? selectedElement.id : null)
@@ -2468,9 +2645,51 @@ export function PrintsDesignPreview({
           />
 
           <div
-            ref={zoneRef}
+            ref={(node) => {
+              zoneRef.current = node;
+              setZoneEl(node);
+            }}
             data-print-design-zone
             className={cn('absolute overflow-visible', editable && 'touch-none')}
+            onDragOver={(e) => {
+              if (!editable) return;
+              if (![STUDIO_DRAG_MIME, 'text/plain'].some((t) => e.dataTransfer.types.includes(t))) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }}
+            onDrop={(e) => {
+              if (!editable || !onChange) return;
+              const payload = decodeStudioDrag(
+                e.dataTransfer.getData(STUDIO_DRAG_MIME) || e.dataTransfer.getData('text/plain'),
+              );
+              if (!payload) return;
+              e.preventDefault();
+              const zone = zoneRef.current;
+              if (!zone) return;
+              const pt = clientToZonePoint(zone, e.clientX, e.clientY);
+              const size = defaultStudioSize(payload.kind, payload.id);
+              const next: DesignElement = {
+                id: `${Date.now()}`,
+                type: payload.kind,
+                content: payload.id,
+                x: pt.x,
+                y: pt.y,
+                width: size.width,
+                height: size.height,
+                rotation: 0,
+                color: studio.color,
+                borderWidth: payload.kind === 'shape' ? 4 : 0,
+                opacity: 100,
+                locked: false,
+                printMethod: payload.kind === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
+                patternCount: payload.kind === 'pattern' ? defaultPatternCount(payload.id) : undefined,
+                aspectLocked: payload.kind === 'shape' || payload.kind === 'pattern' || payload.kind === 'distress' ? false : undefined,
+                side: garmentSide,
+              };
+              onChange([...elements, next]);
+              setSelectedId(next.id);
+              studio.setTool('select');
+            }}
             style={{
               left: `${PREVIEW_ZONE.left}%`,
               right: `${PREVIEW_ZONE.right}%`,
@@ -2496,7 +2715,32 @@ export function PrintsDesignPreview({
               ))}
             </div>
           ) : null}
-          {elements.map((element) => {
+          {editable ? (
+            <PrintsDrawLayer
+              zone={zoneEl}
+              elements={elements}
+              onChange={onChange}
+              editable={editable}
+              garmentSide={garmentSide}
+              adjustFilter={getArtworkAdjustFilter(
+                elements.find((el) => el.type === 'drawing' && designElementSide(el) === garmentSide) ?? {},
+              )}
+            />
+          ) : null}
+          {editable && studio.drawing ? (
+            <div className="pointer-events-none absolute bottom-2 left-1/2 z-[20] -translate-x-1/2 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-[10px] font-medium tracking-wide text-white/80 backdrop-blur-md">
+              {studio.tool === 'eraser' || studio.tool === 'distressEraser'
+                ? 'Eraser'
+                : studio.tool === 'distress'
+                  ? 'Distress brush'
+                  : 'Brush'}
+              {' · '}
+              {studio.tool === 'eraser' || studio.tool === 'distressEraser' || studio.tool === 'distress'
+                ? studio.eraserSize
+                : studio.brushSize}px · {studio.opacity}%
+            </div>
+          ) : null}
+          {visibleElements.map((element) => {
             const selected = selectedId === element.id;
 
             const bw = element.borderWidth ?? 0;
@@ -2517,6 +2761,17 @@ export function PrintsDesignPreview({
               isHeld && dragLivePos ? dragLivePos.x : element.x;
             const liveY =
               isHeld && dragLivePos ? dragLivePos.y : element.y;
+            const isArtwork =
+              element.type === 'image' ||
+              element.type === 'drawing' ||
+              element.type === 'shape' ||
+              element.type === 'pattern' ||
+              element.type === 'distress';
+            const hideDrawingOnCanvas =
+              (element.id === DRAWING_LAYER_ID && (studio.tool === 'brush' || studio.tool === 'eraser')) ||
+              (element.id === DISTRESS_LAYER_ID && (studio.tool === 'distress' || studio.tool === 'distressEraser'));
+
+            if (hideDrawingOnCanvas) return null;
 
             return (
               <div
@@ -2526,6 +2781,7 @@ export function PrintsDesignPreview({
                   'absolute canvas-element-drag',
                   draggingId === element.id && 'z-[15]',
                   isHeld && 'canvas-element-held',
+                  element.id === DRAWING_LAYER_ID && 'pointer-events-none',
                   editable && !isEditingText && (locked ? 'cursor-default' : 'cursor-grab'),
                   editable && !isEditingText && 'select-none touch-none',
                 )}
@@ -2536,8 +2792,7 @@ export function PrintsDesignPreview({
                   width: element.width,
                   maxWidth: element.type === 'text' ? element.width : undefined,
                   minWidth: element.type === 'text' ? 0 : undefined,
-                  height:
-                    element.type === 'image'
+                  height: isArtwork
                       ? element.height
                       : element.autoHeight === false
                         ? element.height
@@ -2547,6 +2802,8 @@ export function PrintsDesignPreview({
                 }}
                 onPointerDown={(e) => {
                   if (!editable) return;
+                  if (studio.drawing) return;
+                  if (element.id === DRAWING_LAYER_ID) return;
                   const t = e.target as HTMLElement;
                   if (t.closest('[data-handles]') || t.closest('[data-inline-toolbar]')) return;
                   e.stopPropagation();
@@ -2572,21 +2829,37 @@ export function PrintsDesignPreview({
                   }
                 }}
               >
-                {element.type === 'image' ? (
+                {isArtwork ? (
                   <>
                     <ImageFxDefs element={element} />
+                    {element.type === 'shape' ||
+                    element.type === 'pattern' ||
+                    (element.type === 'distress' && !element.content.startsWith('data:')) ? (
+                      <div
+                        className="h-full w-full overflow-hidden"
+                        style={{
+                          clipPath: buildImageClipPath(element, {
+                            ignoreCrop: cropEditingId === element.id,
+                          }),
+                        }}
+                      >
+                        <StudioGraphic element={element} />
+                      </div>
+                    ) : (
                     <img
                       src={element.content}
-                      alt="Artwork"
-                      className="h-full w-full object-contain"
+                      alt={element.type === 'drawing' ? 'Drawing' : element.type === 'distress' ? 'Distress' : 'Artwork'}
+                      className="h-full w-full object-fill"
                       style={{
                         transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
+                        transformOrigin: 'center',
                         clipPath: buildImageClipPath(element, {
                           ignoreCrop: cropEditingId === element.id,
                         }),
-                        filter: getImageFilterStyle(element),
+                        filter: composeArtworkFilter(element),
                       }}
                     />
+                    )}
                     {cropEditingId === element.id ? (
                       <CropEditingOverlay element={element} />
                     ) : null}
@@ -2679,7 +2952,7 @@ export function PrintsDesignPreview({
                     </div>
                   </div>
                 )}
-                {selected && editable && !locked && !isEditingText ? (
+                {selected && editable && !locked && !isEditingText && element.type !== 'drawing' ? (
                   <>
                     <PrintTransformOverlay
                       compactHandles={narrowViewport && element.type !== 'text'}
@@ -2726,7 +2999,12 @@ export function PrintsDesignPreview({
                           startW,
                           startH,
                           startFontSize: fs,
-                          isImage: element.type === 'image',
+                          isImage:
+                            element.type === 'image' ||
+                            element.type === 'shape' ||
+                            element.type === 'pattern' ||
+                            element.type === 'distress',
+                          aspectLocked: element.aspectLocked ?? element.type === 'image',
                         });
                       }}
                     />

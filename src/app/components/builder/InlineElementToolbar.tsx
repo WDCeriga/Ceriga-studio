@@ -11,6 +11,7 @@ import {
   Crop,
   FlipHorizontal2,
   Italic,
+  Link2,
   Lock,
   Minus,
   Move3d,
@@ -20,6 +21,7 @@ import {
   Squircle,
   Trash2,
   Type,
+  Unlink2,
   Unlock,
 } from 'lucide-react';
 import type { DesignElement } from './PrintsDesignStep';
@@ -97,7 +99,11 @@ export function InlineElementToolbar({
 }: Props) {
   const slim = variant === 'slim';
   const isText = element.type === 'text';
-  const isImage = element.type === 'image';
+  const isImage =
+    element.type === 'image' ||
+    element.type === 'shape' ||
+    element.type === 'pattern' ||
+    element.type === 'distress';
   const isLocked = element.locked === true;
 
   const [openPanel, setOpenPanel] = useState<
@@ -182,6 +188,7 @@ export function InlineElementToolbar({
   const cropL = element.cropLeft ?? 0;
   const hasCrop = cropT > 0 || cropR > 0 || cropB > 0 || cropL > 0;
   const aspectRatio = element.width && element.height ? element.width / element.height : 1;
+  const aspectLocked = element.aspectLocked ?? isImage;
 
   const bumpSize = (delta: number) =>
     onPatch({ fontSize: Math.max(10, Math.min(160, currentSize + delta)) });
@@ -788,7 +795,7 @@ export function InlineElementToolbar({
               <input
                 type="range"
                 min={0}
-                max={80}
+                max={50}
                 step={1}
                 value={cornerRadius}
                 onChange={(e) => onPatch({ cornerRadius: Number(e.target.value) })}
@@ -807,6 +814,18 @@ export function InlineElementToolbar({
               <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
                 Attributes
               </span>
+              <button
+                type="button"
+                title={aspectLocked ? 'Width and height are linked' : 'Width and height are independent'}
+                onClick={() => onPatch({ aspectLocked: !aspectLocked })}
+                className={cn(
+                  'inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[9px] font-semibold uppercase',
+                  aspectLocked ? 'bg-[#FF3B30]/20 text-white' : 'text-white/60 hover:text-white',
+                )}
+              >
+                {aspectLocked ? <Link2 className="h-3 w-3" /> : <Unlink2 className="h-3 w-3" />}
+                {aspectLocked ? 'Linked' : 'Unlinked'}
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <AttrField
@@ -815,7 +834,7 @@ export function InlineElementToolbar({
                 value={Math.round(element.width || 0)}
                 onChange={(v) => {
                   const next = Math.max(8, Math.min(1200, v));
-                  const patch = isImage
+                  const patch = aspectLocked
                     ? { width: next, height: Math.round(next / aspectRatio) }
                     : { width: next };
                   onPatch(isText ? { ...patch, autoWidth: false } : patch);
@@ -827,7 +846,7 @@ export function InlineElementToolbar({
                 value={Math.round(element.height || 0)}
                 onChange={(v) => {
                   const next = Math.max(8, Math.min(1200, v));
-                  const patch = isImage
+                  const patch = aspectLocked
                     ? { height: next, width: Math.round(next * aspectRatio) }
                     : { height: next };
                   onPatch(isText ? { ...patch, autoHeight: false } : patch);
@@ -1193,6 +1212,20 @@ export function InlineElementToolbar({
               ) : null}
               {openPanel === 'size' ? (
                 <div className="space-y-2.5 px-3 pb-4 pt-1">
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      title={aspectLocked ? 'Width and height are linked' : 'Width and height are independent'}
+                      onClick={() => onPatch({ aspectLocked: !aspectLocked })}
+                      className={cn(
+                        'inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[9px] font-semibold uppercase',
+                        aspectLocked ? 'bg-[#FF3B30]/20 text-white' : 'text-white/60 hover:text-white',
+                      )}
+                    >
+                      {aspectLocked ? <Link2 className="h-3 w-3" /> : <Unlink2 className="h-3 w-3" />}
+                      {aspectLocked ? 'Linked' : 'Unlinked'}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <AttrField
                       label="Width"
@@ -1200,7 +1233,7 @@ export function InlineElementToolbar({
                       value={Math.round(element.width || 0)}
                       onChange={(v) => {
                         const next = Math.max(8, Math.min(1200, v));
-                        const patch = isImage
+                        const patch = aspectLocked
                           ? { width: next, height: Math.round(next / aspectRatio) }
                           : { width: next };
                         onPatch(isText ? { ...patch, autoWidth: false } : patch);
@@ -1212,7 +1245,7 @@ export function InlineElementToolbar({
                       value={Math.round(element.height || 0)}
                       onChange={(v) => {
                         const next = Math.max(8, Math.min(1200, v));
-                        const patch = isImage
+                        const patch = aspectLocked
                           ? { height: next, width: Math.round(next * aspectRatio) }
                           : { height: next };
                         onPatch(isText ? { ...patch, autoHeight: false } : patch);
@@ -1312,7 +1345,7 @@ export function InlineElementToolbar({
                     <input
                       type="range"
                       min={0}
-                      max={80}
+                      max={50}
                       step={1}
                       value={cornerRadius}
                       onChange={(e) => onPatch({ cornerRadius: Number(e.target.value) })}
@@ -1432,11 +1465,11 @@ function CropSlider({
 }: {
   label: string;
   value: number;
-  /** The crop on the opposite edge — we clamp max so the two never overlap past 95%. */
+  /** The crop on the opposite edge — we clamp max so the two never overlap past 100%. */
   otherOpposite: number;
   onChange: (v: number) => void;
 }) {
-  const max = Math.max(0, 95 - otherOpposite);
+  const max = Math.max(0, 100 - otherOpposite);
   const clamped = Math.min(value, max);
   return (
     <div>

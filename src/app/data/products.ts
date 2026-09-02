@@ -50,7 +50,8 @@ export const products: Product[] = [
   {
     id: 'hd-001',
     name: 'Classic Pullover Hoodie',
-    description: 'Versatile hoodie with multiple hood and closure options',
+    description:
+      'Pullover hoodie with Boxy, Cropped, Baggy, Regular and Slim fits. Each panel — body, hood, sleeves, cuffs, pocket, hem — colours on its own.',
     categories: ['Tops', 'Outerwear', 'All'],
     garmentType: 'hoodie',
     image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&h=600&fit=crop',

@@ -300,83 +300,141 @@ const TSHIRT_CONFIG: GarmentSvgConfig = {
   },
 };
 
+/**
+ * Classic pullover hoodie traced from the boxy line art in `src/assets/hoodie-test`.
+ * Same pattern as the test T-shirt: every seam-bounded panel is a closed fill
+ * with that panel's construction ink baked in, so each one takes a colour on its own.
+ */
 const HOODIE_CONFIG: GarmentSvgConfig = {
-  assetRoot: 'hoodie',
+  assetRoot: 'hoodie-test',
   categoryOrder: [
-    'base',
-    'sleeves',
-    'Neckline',
-    'hood',
-    'pockets',
-    'drawstrings',
-    'zips',
-    'zip pull',
-    'fading',
-    'stitching',
+    'Body',
+    'Left sleeve',
+    'Right sleeve',
+    'Rib hem',
+    'Left cuff',
+    'Right cuff',
+    'Hood',
+    'Kangaroo pocket',
   ],
-  optionalCategories: [
-    'pockets',
-    'drawstrings',
-    'zips',
-    'zip pull',
-    'fading',
-    'stitching',
-  ],
-  detailCategories: ['zips', 'zip pull'],
+  optionalCategories: [],
+  detailCategories: [],
   categoryLayerId: {
-    base: 'base',
-    sleeves: 'sleeves',
-    Neckline: 'neck',
-    hood: 'hood',
-    pockets: 'pocket',
-    drawstrings: 'drawstring',
-    zips: 'zip',
-    'zip pull': 'zipPull',
-    fading: 'fading',
-    stitching: 'stitching',
+    Body: 'base',
+    'Left sleeve': 'sleeveLeft',
+    'Right sleeve': 'sleeveRight',
+    'Rib hem': 'bodyHem',
+    'Left cuff': 'sleeveHemLeft',
+    'Right cuff': 'sleeveHemRight',
+    Hood: 'hood',
+    'Kangaroo pocket': 'pocket',
   },
   categoryZIndex: {
-    sleeves: 0,
-    base: 20,
-    Neckline: 28,
-    hood: 32,
-    fading: 38,
-    pockets: 52,
-    drawstrings: 56,
-    zips: 60,
-    'zip pull': 70,
-    stitching: 75,
+    'Left sleeve': 10,
+    'Right sleeve': 10,
+    Body: 20,
+    'Rib hem': 28,
+    'Left cuff': 32,
+    'Right cuff': 32,
+    Hood: 40,
+    'Kangaroo pocket': 52,
   },
   stepCategories: {
-    2: ['base'],
-    3: ['Neckline', 'hood'],
-    4: ['sleeves'],
-    6: ['pockets', 'zips', 'zip pull', 'drawstrings'],
-    7: ['fading'],
-    8: ['stitching'],
+    2: ['Body'],
+    3: ['Hood'],
+    4: ['Left sleeve', 'Right sleeve'],
+    5: ['Rib hem', 'Left cuff', 'Right cuff'],
+    6: ['Kangaroo pocket'],
   },
-  trimBindings: {
-    neck: ['Neckline', 'hood'],
-    pocket: ['pockets', 'zips', 'zip pull', 'drawstrings'],
-  },
-  splitSleeves: true,
+  trimBindings: {},
+  splitSleeves: false,
   splitSleeveHems: false,
-  sleeveCategory: 'sleeves',
-  previewStepMax: 8,
+  perPartColors: true,
+  restrictStepsToPack: true,
+  hiddenCategories: [
+    'Body',
+    'Left sleeve',
+    'Right sleeve',
+    'Rib hem',
+    'Left cuff',
+    'Right cuff',
+    'Hood',
+    'Kangaroo pocket',
+  ],
+  previewStepMax: 6,
   layerLabels: {
     fill: 'Fill',
-    base: 'Base',
-    sleeves: 'Sleeves',
+    base: 'Body',
     sleeveLeft: 'Left sleeve',
     sleeveRight: 'Right sleeve',
-    neck: 'Neckline',
+    bodyHem: 'Rib hem',
+    sleeveHemLeft: 'Left cuff',
+    sleeveHemRight: 'Right cuff',
     hood: 'Hood',
-    pocket: 'Pocket',
-    drawstring: 'Drawstring',
-    zip: 'Zip',
-    zipPull: 'Zip pull',
-    fading: 'Fading',
-    stitching: 'Stitching',
+    pocket: 'Kangaroo pocket',
+  },
+  fits: [
+    { id: 'boxy', name: 'Boxy' },
+    { id: 'cropped', name: 'Cropped' },
+    { id: 'baggy', name: 'Baggy' },
+    { id: 'regular', name: 'Regular' },
+    { id: 'slim', name: 'Slim' },
+  ],
+  /**
+   * Untagged hoodie-test files are the live Boxy pack. Other fits use
+   * `Name (fit).svg` in the same category folders once traced.
+   */
+  fitParts: {
+    boxy: {
+      Body: 'Body',
+      'Left sleeve': 'Left sleeve',
+      'Right sleeve': 'Right sleeve',
+      'Rib hem': 'Rib hem',
+      'Left cuff': 'Left cuff',
+      'Right cuff': 'Right cuff',
+      Hood: 'Hood',
+      'Kangaroo pocket': 'Kangaroo pocket',
+    },
+    cropped: {
+      Body: 'Body (cropped)',
+      'Left sleeve': 'Left sleeve (cropped)',
+      'Right sleeve': 'Right sleeve (cropped)',
+      'Rib hem': 'Rib hem (cropped)',
+      'Left cuff': 'Left cuff (cropped)',
+      'Right cuff': 'Right cuff (cropped)',
+      Hood: 'Hood (cropped)',
+      'Kangaroo pocket': 'Kangaroo pocket (cropped)',
+    },
+    baggy: {
+      Body: 'Body (baggy)',
+      'Left sleeve': 'Left sleeve (baggy)',
+      'Right sleeve': 'Right sleeve (baggy)',
+      'Rib hem': 'Rib hem (baggy)',
+      'Left cuff': 'Left cuff (baggy)',
+      'Right cuff': 'Right cuff (baggy)',
+      Hood: 'Hood (baggy)',
+      'Kangaroo pocket': 'Kangaroo pocket (baggy)',
+    },
+    regular: {
+      Body: 'Body (regular)',
+      'Left sleeve': 'Left sleeve (regular)',
+      'Right sleeve': 'Right sleeve (regular)',
+      'Rib hem': 'Rib hem (regular)',
+      'Left cuff': 'Left cuff (regular)',
+      'Right cuff': 'Right cuff (regular)',
+      Hood: 'Hood (regular)',
+      'Kangaroo pocket': 'Kangaroo pocket (regular)',
+    },
+    slim: {
+      Body: 'Body (slim)',
+      'Left sleeve': 'Left sleeve (slim)',
+      'Right sleeve': 'Right sleeve (slim)',
+      'Rib hem': 'Rib hem (slim)',
+      'Left cuff': 'Left cuff (slim)',
+      'Right cuff': 'Right cuff (slim)',
+      Hood: 'Hood (slim)',
+      'Kangaroo pocket': 'Kangaroo pocket (slim)',
+    },
   },
 };
 
@@ -568,7 +626,7 @@ const svgModules = {
     import: 'default',
     eager: true,
   }),
-  ...import.meta.glob('../../assets/hoodie/**/*.svg', {
+  ...import.meta.glob('../../assets/hoodie-test/**/*.svg', {
     query: '?raw',
     import: 'default',
     eager: true,
@@ -701,23 +759,33 @@ export function getGarmentAssets(
   return assetsByGarmentAndCategory.get(`${garmentType}:${category}`) ?? [];
 }
 
+function isFitPacked(garmentType: GarmentSvgGarmentType, fitId: string): boolean {
+  const parts = GARMENT_CONFIGS[garmentType].fitParts?.[fitId];
+  if (!parts) return true;
+  return Object.entries(parts).every(([category, displayName]) =>
+    getGarmentAssets(garmentType, category).some((asset) => asset.displayName === displayName),
+  );
+}
+
 export function getGarmentPackFits(garmentType: GarmentSvgGarmentType) {
-  return GARMENT_CONFIGS[garmentType].fits ?? [];
+  const fits = GARMENT_CONFIGS[garmentType].fits ?? [];
+  return fits.filter((fit) => isFitPacked(garmentType, fit.id));
 }
 
 export function resolveGarmentPackFit(
   garmentType: GarmentSvgGarmentType,
   fit?: string,
 ): string | undefined {
-  const fits = GARMENT_CONFIGS[garmentType].fits;
-  if (!fits?.length) return undefined;
+  const fits = getGarmentPackFits(garmentType);
+  if (!fits.length) return undefined;
   if (fit && fits.some((option) => option.id === fit)) return fit;
   return fits[0].id;
 }
 
-function inferAssetFitId(displayName: string): string {
+function inferAssetFitId(displayName: string, garmentType: GarmentSvgGarmentType): string {
   const tagged = displayName.match(/\(([^)]+)\)\s*$/);
-  return tagged ? tagged[1].toLowerCase() : 'slim';
+  if (tagged) return tagged[1].toLowerCase();
+  return GARMENT_CONFIGS[garmentType].fits?.[0]?.id ?? 'slim';
 }
 
 export function isAssetAvailableForFit(
@@ -727,7 +795,7 @@ export function isAssetAvailableForFit(
 ): boolean {
   const config = GARMENT_CONFIGS[garmentType];
   if (!config.fits?.length) return true;
-  if (inferAssetFitId(asset.displayName) === fit) return true;
+  if (inferAssetFitId(asset.displayName, garmentType) === fit) return true;
   return config.assetAlsoInFits?.[asset.displayName]?.includes(fit) ?? false;
 }
 

@@ -140,6 +140,28 @@ const fitMeasurements: Record<string, Record<string, Record<string, string>>> = 
     neckOpening: { xs: '19', s: '19', m: '19.5', l: '20', xl: '20.5', xxl: '21' },
     neckDrop: { xs: '2', s: '2', m: '2', l: '2', xl: '2', xxl: '2' },
     shoulderWidth: { xs: '48', s: '50', m: '52', l: '54', xl: '56', xxl: '58' }
+  },
+  cropped: {
+    halfLength: { xs: '52', s: '54', m: '56', l: '58', xl: '60', xxl: '62' },
+    chestWidth: { xs: '54', s: '56', m: '58', l: '61', xl: '64', xxl: '67' },
+    bottomWidth: { xs: '54', s: '56', m: '58', l: '61', xl: '64', xxl: '67' },
+    sleeveLength: { xs: '19', s: '20', m: '21', l: '22', xl: '23', xxl: '24' },
+    armhole: { xs: '25', s: '26.5', m: '28', l: '29.5', xl: '31', xxl: '32.5' },
+    sleeveOpening: { xs: '19', s: '19.5', m: '20', l: '20.5', xl: '21', xxl: '21.5' },
+    neckOpening: { xs: '19', s: '19', m: '19.5', l: '20', xl: '20.5', xxl: '21' },
+    neckDrop: { xs: '2', s: '2', m: '2', l: '2', xl: '2', xxl: '2' },
+    shoulderWidth: { xs: '46', s: '48', m: '50', l: '52', xl: '54', xxl: '56' }
+  },
+  baggy: {
+    halfLength: { xs: '70', s: '72', m: '74', l: '76', xl: '78', xxl: '80' },
+    chestWidth: { xs: '60', s: '62', m: '64', l: '67', xl: '70', xxl: '73' },
+    bottomWidth: { xs: '58', s: '60', m: '62', l: '65', xl: '68', xxl: '71' },
+    sleeveLength: { xs: '25', s: '26', m: '27', l: '28', xl: '29', xxl: '30' },
+    armhole: { xs: '27', s: '28.5', m: '30', l: '31.5', xl: '33', xxl: '34.5' },
+    sleeveOpening: { xs: '21', s: '21.5', m: '22', l: '22.5', xl: '23', xxl: '23.5' },
+    neckOpening: { xs: '19.5', s: '19.5', m: '20', l: '20.5', xl: '21', xxl: '21.5' },
+    neckDrop: { xs: '2', s: '2', m: '2', l: '2', xl: '2', xxl: '2' },
+    shoulderWidth: { xs: '50', s: '52', m: '54', l: '56', xl: '58', xxl: '60' }
   }
 };
 

@@ -104,6 +104,13 @@ import {
   PrintsDesignPreview,
   PrintsDesignStep,
 } from '../components/builder/PrintsDesignStep';
+import { PrintsStudioProvider } from '../components/builder/printsStudio/PrintsStudioContext';
+import {
+  PrintStudioEditorHeading,
+  PrintStudioNavRail,
+  PrintStudioPhaseBar,
+  type BuilderFlowPhase,
+} from '../components/builder/printsStudio/PrintStudioNavRail';
 import { PageLoadingFallback } from '../components/PageLoadingFallback';
 import { TechPackReferenceUpload } from '../components/builder/TechPackReferenceUpload';
 import {
@@ -132,6 +139,7 @@ import {
   supportsGarmentSvgPreview,
   getDefaultGarmentSelection,
   resolveGarmentPackFit,
+  getGarmentPackFits,
   getGarmentCategoriesForStep,
   getGarmentChoiceCategoriesForStep,
   getGarmentSelectionLabel,
@@ -357,7 +365,7 @@ function mapElements(
 function stashBuilderState(s: BuilderState): BuilderState {
   const cloned = cloneBuilderState(s);
   const stash = (el: DesignElement): DesignElement => {
-    if (el.type === 'image' && typeof el.content === 'string' && el.content.startsWith('data:')) {
+    if ((el.type === 'image' || el.type === 'drawing') && typeof el.content === 'string' && el.content.startsWith('data:')) {
       return { ...el, content: stashDataUrl(el.content) };
     }
     return el;
@@ -372,7 +380,7 @@ function stashBuilderState(s: BuilderState): BuilderState {
 function resolveBuilderState(s: BuilderState): BuilderState {
   const cloned = cloneBuilderState(s);
   const resolve = (el: DesignElement): DesignElement => {
-    if (el.type === 'image' && isRefToken(el.content)) {
+    if ((el.type === 'image' || el.type === 'drawing') && isRefToken(el.content)) {
       return { ...el, content: resolveImageRef(el.content) ?? el.content };
     }
     return el;
@@ -388,7 +396,7 @@ function releaseBuilderState(s: BuilderState) {
   const release = (list: DesignElement[] | undefined) => {
     if (!list) return;
     for (const el of list) {
-      if (el.type === 'image' && isRefToken(el.content)) {
+      if ((el.type === 'image' || el.type === 'drawing') && isRefToken(el.content)) {
         releaseImageRef(el.content);
       }
     }
@@ -2066,7 +2074,7 @@ export function Builder() {
             <MeasurementsStep
               garmentType={state.garmentType}
               fit={activeFit || 'regular'}
-              fits={garmentConfig?.fits}
+              fits={garmentSvgType ? getGarmentPackFits(garmentSvgType) : garmentConfig?.fits}
               onFitChange={(fit) =>
                 setState((prev) => ({
                   ...prev,
@@ -2482,7 +2490,8 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(6)}
-              {!techpackSpecFlow && garmentConfig?.trimBindings.pocket?.length ? (
+              {renderPartColorPickers(6)}
+              {!techpackSpecFlow && !garmentConfig?.perPartColors && garmentConfig?.trimBindings.pocket?.length ? (
                 <TrimColorFamilyPicker
                   label={
                     state.garmentType === 'trousers' || state.garmentType === 'shorts'
@@ -2705,6 +2714,7 @@ export function Builder() {
               setState((prev) => ({ ...prev, printsLayerSelectedId: id }))
             }
             usePhoneStrips={isPhone}
+            garmentSide={showFront ? 'front' : 'back'}
           />
         );
 
@@ -2852,7 +2862,9 @@ export function Builder() {
                       value={`${describePrintMethodLabel(p.printMethod)} · ${
                         p.type === 'image'
                           ? 'Artwork'
-                          : p.content.trim().slice(0, 36) + (p.content.trim().length > 36 ? '…' : '')
+                          : p.type === 'drawing'
+                            ? 'Drawing'
+                            : p.content.trim().slice(0, 36) + (p.content.trim().length > 36 ? '…' : '')
                       }`}
                     />
                   ))
@@ -2905,6 +2917,21 @@ export function Builder() {
   };
 
   const isPhone = layoutTier === 'phone';
+  const isPrintDesignStudio = !techpackSpecFlow && currentStep === 9;
+  const handlePrintStudioPhaseSelect = (id: BuilderFlowPhase) => {
+    if (id === 'setup') {
+      handleBack();
+      return;
+    }
+    if (id === 'review') {
+      handleNext();
+      return;
+    }
+    if (id === 'order') {
+      if (visitedSteps.includes(13)) handleStepClick(13);
+      else if (visitedSteps.includes(12)) handleStepClick(12);
+    }
+  };
   /** Uniform square hit areas for phone top bar (Canva-style); preview swatches stay smaller in the center. */
   const phoneNavIconCell =
     'flex size-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg';
@@ -3088,7 +3115,9 @@ export function Builder() {
                 value={`${describePrintMethodLabel(p.printMethod)} — ${
                   p.type === 'image'
                     ? 'Artwork'
-                    : p.content.trim().slice(0, 48) + (p.content.trim().length > 48 ? '…' : '')
+                    : p.type === 'drawing'
+                      ? 'Drawing'
+                      : p.content.trim().slice(0, 48) + (p.content.trim().length > 48 ? '…' : '')
                 }`}
               />
             ))
@@ -3179,9 +3208,10 @@ export function Builder() {
             className={cn(
               'h-9 flex-1 rounded-xl bg-[#CC2D24] text-[11px] font-semibold hover:bg-[#CC2D24]/90',
               isPhone && 'min-h-11',
+              isPrintDesignStudio && 'px-2 text-[10px] leading-tight',
             )}
           >
-            {currentStep === 13 ? 'Order' : 'Continue'}
+            {currentStep === 13 ? 'Order' : isPrintDesignStudio ? 'Continue to Review' : 'Continue'}
             <ChevronRight className="ml-0.5 h-4 w-4" />
           </Button>
         </div>
@@ -3212,7 +3242,13 @@ export function Builder() {
               </button>
             </div>
           ) : null}
-          {showLeftCollapse && !isPhone ? (
+          {isPrintDesignStudio ? (
+            <PrintStudioEditorHeading
+              isPhone={isPhone}
+              showCollapse={showLeftCollapse && !isPhone}
+              onCollapse={() => leftPanelRef.current?.collapse()}
+            />
+          ) : showLeftCollapse && !isPhone ? (
             <div className="mb-3 min-w-0 sm:mb-4">
                 <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
                 <div className="min-w-0 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24] md:text-[10px]">
@@ -3249,6 +3285,7 @@ export function Builder() {
               </h2>
             </div>
           )}
+          {isPrintDesignStudio ? null : (
           <p
             className={cn(
               'mb-4 text-[11px] leading-relaxed text-white/55 md:mb-5 md:text-[11px]',
@@ -3257,7 +3294,17 @@ export function Builder() {
           >
             {stepDescriptionLabel}
           </p>
+          )}
+          <div
+            key={`builder-step-${currentStep}`}
+            className={cn(
+              currentStep === 9 && !techpackSpecFlow
+                ? 'animate-studio-tools-in'
+                : 'animate-builder-fade-in',
+            )}
+          >
           {renderStepContent()}
+          </div>
           {isPhone ? editorNavFooter : null}
         </div>
         {!isPhone ? editorNavFooter : null}
@@ -3460,9 +3507,10 @@ export function Builder() {
             <div
               className={cn(
                 'relative flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-visible px-1',
+                !techpackSpecFlow && 'animate-studio-canvas-in',
                 isPhone && `relative ${phoneFrameClass} overflow-visible`,
                 !isPhone &&
-                  'max-md:max-w-[min(100%,260px)] max-md:max-h-[min(44dvh,360px)] md:max-w-[min(100%,340px)] md:max-h-[min(44vh,380px)] lg:max-w-[min(100%,380px)] lg:max-h-[min(46vh,420px)] xl:max-w-[min(100%,420px)] xl:max-h-[min(50vh,460px)] 2xl:max-w-[min(100%,460px)] 2xl:max-h-[min(56vh,520px)] mx-auto',
+                  'max-md:max-w-[min(100%,300px)] max-md:max-h-[min(52dvh,420px)] md:max-w-[min(100%,400px)] md:max-h-[min(56vh,500px)] lg:max-w-[min(100%,460px)] lg:max-h-[min(62vh,560px)] xl:max-w-[min(100%,520px)] xl:max-h-[min(68vh,640px)] 2xl:max-w-[min(100%,580px)] 2xl:max-h-[min(72vh,720px)] mx-auto',
               )}
             >
               <PrintsDesignPreview
@@ -3475,6 +3523,7 @@ export function Builder() {
                 }
                 liveCanvasScale={previewZoom / 100}
                 phoneConfigSheetCollapsed={isPhone && phoneEditorCollapsed}
+                garmentSide={showFront ? 'front' : 'back'}
                 editable
               />
             </div>
@@ -3687,7 +3736,7 @@ export function Builder() {
               onClick={() => phoneEditorPanelRef.current?.expand()}
               className="h-9 min-h-9 rounded-full border border-[#3A3A40] bg-[#161618]/95 px-5 text-[11px] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.4)] backdrop-blur-md"
             >
-              Edit step
+              {isPrintDesignStudio ? 'Open design tools' : 'Edit step'}
             </Button>
           </div>
         ) : null}
@@ -3696,6 +3745,7 @@ export function Builder() {
   );
 
   return (
+    <PrintsStudioProvider>
     <div
       className={cn(
         'builder-surface flex min-h-0 min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#09090B]',
@@ -4014,12 +4064,33 @@ export function Builder() {
         </div>
       )}
 
-      <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col',
+          isPrintDesignStudio && 'animate-studio-workspace-in',
+        )}
+      >
+        {isPrintDesignStudio && !isPhone ? (
+          <div className="shrink-0 border-b border-white/[0.08] bg-[#0a0a0a]">
+            <PrintStudioPhaseBar
+              current="design"
+              onSelect={handlePrintStudioPhaseSelect}
+              orderUnlocked={visitedSteps.includes(12) || visitedSteps.includes(13)}
+            />
+          </div>
+        ) : null}
+        <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
         {!isPhone ? (
           <aside
-            className="flex w-[4.5rem] shrink-0 flex-col bg-[#09090B] py-2 md:w-[5rem] lg:w-[5.75rem]"
-            aria-label="Builder steps"
+            className={cn(
+              'flex w-[4.5rem] shrink-0 flex-col bg-[#09090B] py-2 md:w-[5rem] lg:w-[5.75rem]',
+              isPrintDesignStudio && 'animate-studio-tools-in',
+            )}
+            aria-label={isPrintDesignStudio ? 'Design tools' : 'Builder steps'}
           >
+            {isPrintDesignStudio ? (
+              <PrintStudioNavRail onActivate={() => leftPanelRef.current?.expand()} />
+            ) : (
             <div className="scrollbar-dark flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden pb-3 pl-1.5 pr-0">
               {visibleBuilderSteps.map((item) => {
                 const current = currentStep === item.id;
@@ -4061,6 +4132,7 @@ export function Builder() {
                 );
               })}
             </div>
+            )}
           </aside>
         ) : null}
 
@@ -4178,12 +4250,27 @@ export function Builder() {
           </PanelGroup>
         )}
         </div>
+        </div>
       </div>
 
       {isPhone ? (
         <div
           className="z-[25] flex shrink-0 flex-col border-t border-white/[0.1] bg-[#080808] shadow-[0_-2px_20px_rgba(0,0,0,0.35)]"
         >
+          {isPrintDesignStudio ? (
+            <div className="pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+              <PrintStudioPhaseBar
+                current="design"
+                onSelect={handlePrintStudioPhaseSelect}
+                orderUnlocked={visitedSteps.includes(12) || visitedSteps.includes(13)}
+              />
+              <PrintStudioNavRail
+                orientation="horizontal"
+                onActivate={() => phoneEditorPanelRef.current?.expand()}
+              />
+            </div>
+          ) : (
+            <>
           <div className="px-2.5 pt-1.5">
             <div className="text-[7px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">Process</div>
             <div className="truncate text-[10px] text-white/50">
@@ -4226,6 +4313,8 @@ export function Builder() {
               );
             })}
           </div>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -4453,6 +4542,7 @@ export function Builder() {
         </div>
       ) : null}
     </div>
+    </PrintsStudioProvider>
   );
 }
 
@@ -4551,7 +4641,7 @@ function VersionThumbnail({ state, currentStep }: VersionThumbnailProps) {
             ? `rotate(${el.rotation} ${cx} ${cy})`
             : undefined;
 
-          if (el.type === 'image' && el.content) {
+          if ((el.type === 'image' || el.type === 'drawing') && el.content) {
             const src = isRefToken(el.content)
               ? resolveImageRef(el.content) ?? ''
               : el.content;

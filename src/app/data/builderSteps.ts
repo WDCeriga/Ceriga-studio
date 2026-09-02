@@ -77,7 +77,7 @@ export const builderSteps: BuilderStep[] = [
     id: 9,
     name: 'prints',
     title: 'Prints & Design',
-    description: 'Upload designs, add text, and customize prints'
+    description: 'Create the garment design on the mockup with shapes, brush, artwork, type, patterns and distressing',
   },
   {
     id: 10,

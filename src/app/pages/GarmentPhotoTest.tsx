@@ -29,6 +29,8 @@ import { Button } from '../components/ui/button';
 import { cn } from '../components/ui/utils';
 import jortsReference from '../../assets/studio-jorts/reference.jpg';
 import jortsMockup from '../../assets/studio-jorts/mockup.json';
+import hoodieReference from '../../assets/studio-hoodie/reference.png';
+import hoodieMockup from '../../assets/studio-hoodie/mockup.json';
 
 interface GarmentPart {
   id: string;
@@ -45,7 +47,36 @@ interface GarmentTraceResult {
   partCount: number;
 }
 
-const DEMO = jortsMockup as unknown as GarmentTraceResult;
+type StudioGarmentId = 'hoodie' | 'shorts';
+
+const GARMENTS: Record<
+  StudioGarmentId,
+  {
+    name: string;
+    fit: 'slim' | 'boxy';
+    type: 'hoodie' | 'shorts';
+    reference: string;
+    demo: GarmentTraceResult;
+    detailLabel: string;
+  }
+> = {
+  hoodie: {
+    name: 'Boxy pullover hoodie',
+    fit: 'boxy',
+    type: 'hoodie',
+    reference: hoodieReference,
+    demo: hoodieMockup as unknown as GarmentTraceResult,
+    detailLabel: 'Hood',
+  },
+  shorts: {
+    name: 'Denim shorts',
+    fit: 'slim',
+    type: 'shorts',
+    reference: jortsReference,
+    demo: jortsMockup as unknown as GarmentTraceResult,
+    detailLabel: 'Waistband',
+  },
+};
 
 const STEP_ICONS: Record<number, LucideIcon> = {
   1: Ruler,
@@ -63,9 +94,11 @@ const STEP_ICONS: Record<number, LucideIcon> = {
   13: FileCheck,
 };
 
-const SHORTS_STEPS = builderSteps.filter(
-  (step) => !step.skipForGarmentTypes?.includes('shorts'),
-);
+function stepsFor(garmentType: 'hoodie' | 'shorts') {
+  return builderSteps.filter(
+    (step) => !step.skipForGarmentTypes?.includes(garmentType),
+  );
+}
 
 const ZOOM_MIN = 50;
 const ZOOM_MAX = 200;
@@ -176,9 +209,12 @@ function CircularProgress({ value }: { value: number }) {
 export function GarmentPhotoTest() {
   const inputRef = useRef<HTMLInputElement>(null);
   const objectUrlRef = useRef('');
+  const [garmentId, setGarmentId] = useState<StudioGarmentId>('hoodie');
+  const garment = GARMENTS[garmentId];
+  const steps = stepsFor(garment.type);
   const [stepId, setStepId] = useState(2);
   const [visited, setVisited] = useState<number[]>([1, 2]);
-  const [fit, setFit] = useState<'slim' | 'boxy'>('slim');
+  const [fit, setFit] = useState<'slim' | 'boxy'>(garment.fit);
   const [unit, setUnit] = useState<'cm' | 'in'>('cm');
   const [showFront, setShowFront] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
@@ -187,14 +223,14 @@ export function GarmentPhotoTest() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [result, setResult] = useState<GarmentTraceResult>(DEMO);
-  const [history, setHistory] = useState<GarmentPart[][]>([DEMO.parts]);
+  const [result, setResult] = useState<GarmentTraceResult>(GARMENTS.hoodie.demo);
+  const [history, setHistory] = useState<GarmentPart[][]>([GARMENTS.hoodie.demo.parts]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [referenceUrl, setReferenceUrl] = useState(jortsReference);
+  const [referenceUrl, setReferenceUrl] = useState(GARMENTS.hoodie.reference);
 
-  const stepIndex = SHORTS_STEPS.findIndex((item) => item.id === stepId);
-  const step = SHORTS_STEPS[Math.max(0, stepIndex)] ?? SHORTS_STEPS[0];
-  const progress = Math.round(((Math.max(0, stepIndex) + 1) / SHORTS_STEPS.length) * 100);
+  const stepIndex = steps.findIndex((item) => item.id === stepId);
+  const step = steps[Math.max(0, stepIndex)] ?? steps[0];
+  const progress = Math.round(((Math.max(0, stepIndex) + 1) / steps.length) * 100);
 
   const renderedParts = useMemo(
     () => result.parts.map((part) => ({
@@ -221,13 +257,25 @@ export function GarmentPhotoTest() {
   }
 
   function goNext() {
-    const next = SHORTS_STEPS[stepIndex + 1];
+    const next = steps[stepIndex + 1];
     if (next) goTo(next.id);
   }
 
   function goBack() {
-    const prev = SHORTS_STEPS[stepIndex - 1];
+    const prev = steps[stepIndex - 1];
     if (prev) goTo(prev.id);
+  }
+
+  function selectGarment(id: StudioGarmentId) {
+    const next = GARMENTS[id];
+    setGarmentId(id);
+    setFit(next.fit);
+    setResult(next.demo);
+    setHistory([next.demo.parts]);
+    setHistoryIndex(0);
+    setReferenceUrl(next.reference);
+    setError('');
+    goTo(2);
   }
 
   function commitParts(parts: GarmentPart[]) {
@@ -296,7 +344,7 @@ export function GarmentPhotoTest() {
 
         <div className="order-last flex min-w-0 flex-1 basis-full flex-col items-center justify-center gap-1 sm:order-none sm:basis-auto sm:flex-row sm:gap-3">
           <div className="truncate text-center text-[13px] font-semibold text-white">
-            Denim shorts — All Parts
+            {garment.name} — All Parts
           </div>
           <div className="hidden h-5 w-px bg-white/10 sm:block" />
           <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
@@ -392,7 +440,7 @@ export function GarmentPhotoTest() {
           aria-label="Builder steps"
         >
           <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden pb-3 pl-1.5 pr-0">
-            {SHORTS_STEPS.map((item) => {
+            {steps.map((item) => {
               const current = stepId === item.id;
               const StepIcon = STEP_ICONS[item.id] ?? Hash;
               return (
@@ -475,13 +523,33 @@ export function GarmentPhotoTest() {
                   </div>
                 </div>
                 <p className="text-[11px] leading-relaxed text-white/40">
-                  This test uses the traced denim shorts mockup. Measurement callouts stay on the canvas when details are shown.
+                  This test uses the traced {garment.name.toLowerCase()} mockup. Measurement callouts stay on the canvas when details are shown.
                 </p>
               </div>
             ) : null}
 
             {step.id === 2 ? (
               <div className="space-y-4">
+                <div>
+                  <div className="mb-2 text-[10px] uppercase tracking-wider text-white/60">Mockup</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(Object.keys(GARMENTS) as StudioGarmentId[]).map((id) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => selectGarment(id)}
+                        className={cn(
+                          'h-9 rounded-xl border px-2 text-[11px] font-semibold',
+                          garmentId === id
+                            ? 'border-[#CC2D24] bg-[#CC2D24]/10 text-white'
+                            : 'border-[#3A3A40] bg-white/[0.04] text-white/70 hover:text-white',
+                        )}
+                      >
+                        {GARMENTS[id].name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-[10px] uppercase tracking-wider text-white/60">Photo reference</span>
@@ -495,7 +563,14 @@ export function GarmentPhotoTest() {
                     </button>
                   </div>
                   <div className="overflow-hidden rounded-lg border border-[#252528] bg-white">
-                    <img src={referenceUrl} alt="Denim shorts reference" className="aspect-[4/3] w-full object-contain" />
+                    <img
+                      src={referenceUrl}
+                      alt={`${garment.name} reference`}
+                      className={cn(
+                        'w-full object-contain',
+                        garmentId === 'hoodie' ? 'aspect-[3/4]' : 'aspect-[4/3]',
+                      )}
+                    />
                   </div>
                   <input
                     ref={inputRef}
@@ -536,7 +611,7 @@ export function GarmentPhotoTest() {
 
             {step.id !== 1 && step.id !== 2 && step.id !== 13 ? (
               <p className="text-[11px] leading-relaxed text-white/40">
-                This photo test is focused on the traced denim shorts mockup and part colours. Later builder steps stay in the rail so the page matches the normal process.
+                This photo test is focused on the traced {garment.name.toLowerCase()} mockup and part colours. Later builder steps stay in the rail so the page matches the normal process.
               </p>
             ) : null}
 
@@ -544,7 +619,7 @@ export function GarmentPhotoTest() {
               <div className="space-y-3 text-[11px] text-white/70">
                 <div className="flex justify-between border-b border-[#252528] pb-2">
                   <span className="text-white/40">Garment</span>
-                  <span>Denim shorts</span>
+                  <span>{garment.name}</span>
                 </div>
                 <div className="flex justify-between border-b border-[#252528] pb-2">
                   <span className="text-white/40">Fit</span>
@@ -575,7 +650,7 @@ export function GarmentPhotoTest() {
               </Button>
               <Button
                 onClick={goNext}
-                disabled={stepIndex >= SHORTS_STEPS.length - 1}
+                disabled={stepIndex >= steps.length - 1}
                 className="h-9 flex-1 rounded-xl bg-[#CC2D24] text-[11px] font-semibold hover:bg-[#CC2D24]/90"
               >
                 Continue
@@ -637,7 +712,7 @@ export function GarmentPhotoTest() {
               />
               {showDetails ? (
                 <div className="pointer-events-none absolute left-6 top-[18%] text-[8px] font-bold uppercase tracking-wider text-[#CC2D24]">
-                  Waistband
+                  {garment.detailLabel}
                 </div>
               ) : null}
             </div>

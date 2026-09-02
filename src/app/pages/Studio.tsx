@@ -49,7 +49,7 @@ const workflows: {
   {
     title: 'Photo to colourable mockup',
     description:
-      'Experimental local test: upload a complete garment photo, trace visible seams, and recolour each detected panel separately.',
+      'Boxy pullover hoodie and denim shorts: colour each traced panel, or upload another garment photo.',
     to: '/studio/garment-photo-test',
     icon: ScanLine,
     tag: 'Test',
