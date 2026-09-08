@@ -4,19 +4,23 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
 import { ArrowLeft } from 'lucide-react';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [resetting, setResetting] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login } = useAuth();
+  const { login, requestPasswordReset } = useAuth();
   const redirectTo = searchParams.get('redirectTo');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     if (!email || !password) return setError('Please fill in all fields');
     try {
       await login(email, password);
@@ -31,8 +35,30 @@ export function Login() {
         /* ignore */
       }
       navigate(onboardingDone ? '/dashboard' : '/onboarding');
-    } catch {
-      setError('Invalid credentials');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid credentials';
+      setError(
+        message.includes('Email not confirmed')
+          ? 'Please verify your email first — check your inbox for the confirmation link.'
+          : message,
+      );
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError('Enter your email above first, then click Forgot password.');
+      return;
+    }
+    setError('');
+    setResetting(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setNotice('Password reset email sent — check your inbox.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send reset email');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -50,18 +76,36 @@ export function Login() {
           <p className="mb-6 mt-1 text-sm text-white/55">Access your Ceriga Studio workspace.</p>
 
           {error && <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
+          {notice && <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="mb-1.5 block text-[11px] uppercase tracking-wider text-white/55">Email</label>
-              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="you@example.com" />
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="you@example.com" autoComplete="email" />
             </div>
             <div>
-              <label htmlFor="password" className="mb-1.5 block text-[11px] uppercase tracking-wider text-white/55">Password</label>
-              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="Enter your password" />
+              <div className="mb-1.5 flex items-center justify-between">
+                <label htmlFor="password" className="block text-[11px] uppercase tracking-wider text-white/55">Password</label>
+                <button
+                  type="button"
+                  onClick={() => void handleForgotPassword()}
+                  disabled={resetting}
+                  className="text-[11px] text-[#E5534A] transition-colors hover:text-[#CC2D24] disabled:opacity-50"
+                >
+                  {resetting ? 'Sending…' : 'Forgot password?'}
+                </button>
+              </div>
+              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="Enter your password" autoComplete="current-password" />
             </div>
             <Button type="submit" className="h-10 w-full bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90">LOG IN</Button>
           </form>
+
+          {!isSupabaseConfigured ? (
+            <p className="mt-3 text-center text-[10px] leading-relaxed text-amber-300/80">
+              Database not configured — sign-in is local preview only. Add Supabase keys to .env
+              (see .env.example).
+            </p>
+          ) : null}
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center" aria-hidden>
@@ -78,34 +122,6 @@ export function Login() {
             Don&apos;t have an account?{' '}
             <Link to="/signup" className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/80">Sign up</Link>
           </p>
-
-          <div className="mt-6 border-t border-[#252528] pt-4">
-            <p className="mb-2 text-center text-[10px] uppercase tracking-wider text-white/35">Demo portals</p>
-            <div className="flex flex-col gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 border-[#CC2D24]/30 bg-[#CC2D24]/10 text-xs text-red-100 hover:bg-[#CC2D24]/20"
-              onClick={async () => {
-                await login('ops@northmills.io', 'demo');
-                navigate('/manufacturer');
-              }}
-            >
-                Enter as manufacturer (North Mills)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 border-white/15 bg-transparent text-xs text-white/70 hover:bg-white/5"
-              onClick={async () => {
-                await login('owner@ceriga.io', 'demo');
-                navigate('/superadmin');
-              }}
-            >
-                Enter as owner / superadmin
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

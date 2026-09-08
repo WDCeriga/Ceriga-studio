@@ -23,18 +23,21 @@ import {
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import {
-  MOCK_SUPER_ORDERS,
   STATUS_LABELS,
   formatMoney,
   getOrderQuoteTiers,
-  getSuperAdminOrder,
   resolveMarginForManufacturer,
   withCalculatedQuoteTiers,
   type CustomerTechPackRef,
   type OrderStatus,
   type SuperAdminOrder,
 } from '../../data/superadminMock';
+import { downloadTechPackPdf } from '../../lib/techPackPdf';
+import { resolveTechPackData } from '../../lib/techPackResolve';
+import type { UserOrder } from '../../data/userOrders';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { formatDeliveryLines, type OrderDeliveryInfo } from '../../data/orderDelivery';
 import { formatOrderQuantitiesSummary } from '../../data/orderQuantities';
 import { getProductById } from '../../data/products';
@@ -155,21 +158,24 @@ function mockQuantity(productName: string) {
 
 export function SuperAdminOrderDetail() {
   const { id } = useParams();
-  const [tick, setTick] = useState(0);
-  void tick;
-  const order = id ? getSuperAdminOrder(id) ?? MOCK_SUPER_ORDERS.find((o) => o.id === id) : undefined;
+  const { orders, patchOrder } = useSuperadminData();
+  const order = id ? orders.find((o) => o.id === id) : undefined;
 
   if (!order) {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
         <Package className="h-10 w-10 text-white/25" />
-        <h2 className="mt-4 text-lg font-semibold text-white">Order not found</h2>
-        <Button asChild className="mt-6 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
-          <Link to="/superadmin/orders">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to orders
-          </Link>
-        </Button>
+        <h2 className="mt-4 text-lg font-semibold text-white">
+          {orders.length === 0 ? 'Loading order…' : 'Order not found'}
+        </h2>
+        {!orders.length ? null : (
+          <Button asChild className="mt-6 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
+            <Link to="/superadmin/orders">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to orders
+            </Link>
+          </Button>
+        )}
       </div>
     );
   }
@@ -178,7 +184,21 @@ export function SuperAdminOrderDetail() {
     return <TechPackOrderDetail order={order} />;
   }
 
-  return <CustomClothingOrderDetail order={order} onOpsChange={() => setTick((n) => n + 1)} />;
+  return (
+    <CustomClothingOrderDetail
+      order={order}
+      onOpsChange={(patch) => {
+        void patchOrder(order.id, patch);
+      }}
+      onOpsSubmitPricing={async () => {
+        const ok = await patchOrder(order.id, {
+          status: 'sent_to_brand',
+          statusLabel: 'Quote sent to brand',
+        });
+        return ok;
+      }}
+    />
+  );
 }
 
 function OrderBackLink() {
@@ -676,6 +696,68 @@ function builderUrl(techPack: CustomerTechPackRef) {
   return `/builder/${techPack.builderProductId}?${params.toString()}`;
 }
 
+/** Generate + download the real tech pack PDF for an order (live from the linked project). */
+async function exportOrderTechPackPdf(order: SuperAdminOrder): Promise<void> {
+  const techPack = order.customerTechPack;
+  const techPackLike = order as unknown as {
+    specifications?: Parameters<typeof resolveTechPackData>[0]['specifications'];
+    orderQuantities?: Parameters<typeof resolveTechPackData>[0]['orderQuantities'];
+  };
+  const { data } = await resolveTechPackData({
+    projectId: techPack?.projectId,
+    productId: techPack?.builderProductId,
+    productName: techPack?.name ?? order.productName,
+    specifications: techPackLike.specifications,
+    orderQuantities: techPackLike.orderQuantities ?? order.orderQuantities,
+  });
+  await downloadTechPackPdf(data);
+}
+
+/** Download button used across the tech pack surfaces. */
+function TechPackDownloadButton({
+  order,
+  label = 'Download PDF',
+  size,
+  variant = 'outline',
+  className,
+}: {
+  order: SuperAdminOrder;
+  label?: string;
+  size?: 'sm' | 'default';
+  variant?: 'outline' | 'default';
+  className?: string;
+}) {
+  const [exporting, setExporting] = useState(false);
+  const handle = async () => {
+    setExporting(true);
+    try {
+      await exportOrderTechPackPdf(order);
+      toast.success('Tech pack PDF downloaded');
+    } catch (err) {
+      console.error('Tech pack export failed', err);
+      toast.error('Could not generate the PDF — try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+  return (
+    <Button
+      size={size}
+      variant={variant}
+      className={className}
+      onClick={() => void handle()}
+      disabled={exporting}
+    >
+      {exporting ? (
+        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Download className="mr-2 h-3.5 w-3.5" />
+      )}
+      {exporting ? 'Generating…' : label}
+    </Button>
+  );
+}
+
 function exportFormatLabel(format?: CustomerTechPackRef['exportFormat']) {
   if (format === 'pdf_bundle') return 'PDF + ZIP bundle';
   return 'PDF export';
@@ -684,11 +766,13 @@ function exportFormatLabel(format?: CustomerTechPackRef['exportFormat']) {
 function TechPackViewerDialog({
   techPack,
   customerName,
+  order,
   open,
   onOpenChange,
 }: {
   techPack: CustomerTechPackRef;
   customerName: string;
+  order: SuperAdminOrder;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -758,14 +842,10 @@ function TechPackViewerDialog({
                 Open in builder
               </a>
             </Button>
-            <Button
-              variant="outline"
+            <TechPackDownloadButton
+              order={order}
               className="flex-1 border-white/15 text-white hover:bg-white/10"
-              onClick={() => toast.success('Mock: tech pack PDF downloaded')}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download PDF
-            </Button>
+            />
           </div>
         </div>
       </DialogContent>
@@ -841,20 +921,18 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
                 Open in builder
               </a>
             </Button>
-            <Button
+            <TechPackDownloadButton
+              order={order}
               size="sm"
-              variant="outline"
+              label="PDF"
               className="border-white/15 text-white hover:bg-white/10"
-              onClick={() => toast.success('Mock: tech pack PDF downloaded')}
-            >
-              <Download className="mr-2 h-3.5 w-3.5" />
-              PDF
-            </Button>
+            />
           </div>
 
           <TechPackViewerDialog
             techPack={techPack}
             customerName={order.userName}
+            order={order}
             open={viewerOpen}
             onOpenChange={setViewerOpen}
           />
@@ -915,13 +993,11 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
 
       <OrderHero order={order} isTechPack statusLabel={techPackStatusLabel(order.status)}>
         {isReady ? (
-          <Button
+          <TechPackDownloadButton
+            order={order}
+            variant="default"
             className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-            onClick={() => toast.success('Mock: tech pack PDF downloaded')}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Download PDF
-          </Button>
+          />
         ) : null}
       </OrderHero>
 
@@ -1005,9 +1081,19 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
 function CustomClothingOrderDetail({
   order,
   onOpsChange,
+  onOpsSubmitPricing,
 }: {
   order: SuperAdminOrder;
-  onOpsChange?: () => void;
+  onOpsChange?: (patch: {
+    tracking?: string | null;
+    opsNotes?: string | null;
+  }) => void;
+  onOpsSubmitPricing?: (rows: {
+    id: string;
+    label: string;
+    cents: number;
+    calculated: number | null;
+  }[]) => Promise<boolean | void>;
 }) {
   const resolved = resolveMarginForManufacturer(order.manufacturerId, order.manufacturerName);
   const marginPercent = order.cerigaMarginPercent ?? resolved.platformMarginPercent;
@@ -1026,6 +1112,7 @@ function CustomClothingOrderDetail({
     return init;
   });
   const [tracking, setTracking] = useState(order.trackingNumber ?? '');
+  const [savingTracking, setSavingTracking] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const canReview = order.status === 'pending_review' && quoteTiers.length > 0;
@@ -1066,12 +1153,19 @@ function CustomClothingOrderDetail({
       toast.error('Enter a valid final price for every quote tier');
       return;
     }
-    setSubmitted(true);
-    toast.success(
-      `Mock: ${rows.length} pricing options sent to brand (${rows
-        .map((r) => `${r.label} ${formatMoney(r.cents)}`)
-        .join(' · ')})`,
-    );
+    void (async () => {
+      const ok = await onOpsSubmitPricing?.(rows);
+      if (ok === false) {
+        toast.error('Could not send pricing to brand');
+        return;
+      }
+      setSubmitted(true);
+      toast.success(
+        `${rows.length} pricing option${rows.length === 1 ? '' : 's'} sent to brand (${rows
+          .map((r) => `${r.label} ${formatMoney(r.cents)}`)
+          .join(' · ')})`,
+      );
+    })();
   };
 
   const pricingLocked =
@@ -1259,7 +1353,7 @@ function CustomClothingOrderDetail({
                     <Button
                       variant="outline"
                       className="border-white/15 text-white hover:bg-white/10"
-                      onClick={() => toast.success('Mock: pricing draft saved')}
+                      onClick={() => toast.info('Draft prices are kept until you submit')}
                     >
                       Save draft
                     </Button>
@@ -1311,9 +1405,17 @@ function CustomClothingOrderDetail({
                 <Button
                   variant="outline"
                   className="w-full border-white/15 text-white hover:bg-white/10"
-                  onClick={() => toast.success('Mock: tracking saved')}
+                  disabled={savingTracking}
+                  onClick={() => {
+                    setSavingTracking(true);
+                    onOpsChange?.({ tracking: tracking.trim() || null });
+                    window.setTimeout(() => {
+                      setSavingTracking(false);
+                      toast.success('Tracking saved');
+                    }, 600);
+                  }}
                 >
-                  Save tracking
+                  {savingTracking ? 'Saving…' : 'Save tracking'}
                 </Button>
               </div>
             </section>

@@ -8,6 +8,7 @@ import {
   uploadOrderFiles,
 } from '../lib/ordersDb';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import type { OrderDeliveryInfo } from './orderDelivery';
 import {
   distributeQuantity,
   emptySizeBreakdown,
@@ -15,6 +16,7 @@ import {
   type OrderQuantityPlan,
   type SizeBreakdown,
 } from './orderQuantities';
+import type { ManufacturerQuoteTierRow } from '../lib/ordersDb';
 
 export type UserOrderKind = 'tech-pack' | 'production';
 
@@ -81,6 +83,23 @@ export type UserOrder = {
     fabricType?: string;
     gsm?: number;
   };
+  /** Delivery contact captured at the brand Delivery step. */
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  /** Full shipping address captured at the brand Delivery step. */
+  delivery?: OrderDeliveryInfo;
+  /** Superadmin assignment */
+  assignedManufacturerId?: string;
+  assignedAt?: string;
+  dueQuoteBy?: string;
+  manufacturerQuote?: ManufacturerQuoteTierRow[];
+  /** Manufacturer-side pipeline status. */
+  factoryStatus?: 'new' | 'reviewing' | 'clarifying' | 'quoted' | 'rejected' | 'in_production' | 'completed';
+  factoryRejectReason?: string;
+  quotedAt?: string;
+  /** Ops-only notes. */
+  opsNotes?: string;
 };
 
 function customClothingSample(): OrderQuantityPlan['sample'] {
@@ -289,6 +308,14 @@ export async function updateUserOrder(
     pricedAt: patch.pricedAt,
     quoteRequest: patch.quoteRequest,
     specifications: patch.specifications,
+    assignedManufacturerId: patch.assignedManufacturerId,
+    assignedAt: patch.assignedAt,
+    dueQuoteBy: patch.dueQuoteBy,
+    manufacturerQuote: patch.manufacturerQuote,
+    factoryStatus: patch.factoryStatus,
+    factoryRejectReason: patch.factoryRejectReason,
+    quotedAt: patch.quotedAt,
+    opsNotes: patch.opsNotes,
   });
   notifyOrdersUpdated();
   return updated;
@@ -302,6 +329,10 @@ export async function createOrderFromSubmit(input: {
   orderQuantities?: OrderQuantityPlan;
   quoteRequest?: UserOrder['quoteRequest'];
   files?: File[];
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  delivery?: OrderDeliveryInfo;
 }): Promise<UserOrder> {
   const isTechPack = input.kind === 'tech-pack';
   const status: UserOrderStatus = isTechPack ? 'awaiting_payment' : 'submitted';
@@ -326,13 +357,16 @@ export async function createOrderFromSubmit(input: {
       exportFormat: isTechPack ? 'pdf' : undefined,
       pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
       quoteRequest: input.quoteRequest,
+      contactName: input.contactName,
+      contactEmail: input.contactEmail,
+      contactPhone: input.contactPhone,
+      delivery: input.delivery,
     };
     DEMO_SEED_ORDERS.unshift(order);
     notifyOrdersUpdated();
     return order;
   }
 
-  let quoteRequest = input.quoteRequest;
   const order = await insertOrderDb({
     kind: input.kind,
     productName: input.productName ?? 'Studio project',
@@ -344,13 +378,17 @@ export async function createOrderFromSubmit(input: {
     orderQuantities: input.orderQuantities,
     exportFormat: isTechPack ? 'pdf' : undefined,
     pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
-    quoteRequest,
+    quoteRequest: input.quoteRequest,
+    contactName: input.contactName,
+    contactEmail: input.contactEmail,
+    contactPhone: input.contactPhone,
+    delivery: input.delivery,
   });
 
   if (input.files && input.files.length > 0) {
     const uploaded = await uploadOrderFiles(order.id, input.files);
-    quoteRequest = {
-      ...quoteRequest,
+    const quoteRequest = {
+      ...input.quoteRequest,
       fileNames: uploaded.map((u) => u.name),
       storagePaths: uploaded.map((u) => u.path),
     };

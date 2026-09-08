@@ -23,14 +23,12 @@ import {
   YAxis,
 } from 'recharts';
 import {
-  MOCK_SUPER_ORDERS,
-  MOCK_SUPER_USERS,
-  MOCK_THREADS,
   STATUS_LABELS,
   formatMoney,
   type OrderStatus,
   type SuperAdminOrder,
 } from '../../data/superadminMock';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import {
   listPortalNotifications,
   countUnreadPortalNotifications,
@@ -166,20 +164,20 @@ function OrderRow({ order }: { order: SuperAdminOrder }) {
 }
 
 export function SuperAdminDashboard() {
-  const pendingOrders = MOCK_SUPER_ORDERS.filter((o) =>
+  const { orders, users, loading } = useSuperadminData();
+  const pendingOrders = orders.filter((o) =>
     ['pending_review', 'assigned'].includes(o.status),
   );
-  const needsReview = MOCK_SUPER_ORDERS.filter((o) => o.status === 'pending_review');
-  const revenueCents = MOCK_SUPER_ORDERS.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0);
+  const needsReview = orders.filter((o) => o.status === 'pending_review');
+  const revenueCents = orders.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0);
   const unreadNotifs = countUnreadPortalNotifications('superadmin');
   const recentNotifs = listPortalNotifications('superadmin').slice(0, 4);
-  const unreadChats = MOCK_THREADS.reduce((sum, t) => sum + t.unread, 0);
-  const activeBrands = MOCK_SUPER_USERS.filter((u) => u.role === 'brand').length;
+  const unreadChats = 0;
 
   const pipeline = PIPELINE_STATUSES.map((status) => ({
     status,
     label: STATUS_LABELS[status],
-    count: MOCK_SUPER_ORDERS.filter((o) => o.status === status).length,
+    count: orders.filter((o) => o.status === status).length,
   }));
   const pipelineMax = Math.max(1, ...pipeline.map((p) => p.count));
 
@@ -192,7 +190,7 @@ export function SuperAdminDashboard() {
       to: '/superadmin/orders/review',
       state: { startOrderId: o.id },
     })),
-    ...MOCK_SUPER_ORDERS.filter((o) => o.status === 'assigned' && o.kind === 'custom_clothing')
+    ...orders.filter((o) => o.status === 'assigned' && o.kind === 'custom_clothing')
       .slice(0, 2)
       .map((o) => ({
         id: `${o.id}-mfg`,
@@ -247,7 +245,7 @@ export function SuperAdminDashboard() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total users"
-          value={String(MOCK_SUPER_USERS.length)}
+          value={String(users.length)}
           icon={Users}
           to="/superadmin/users"
         />
@@ -258,7 +256,7 @@ export function SuperAdminDashboard() {
           to="/superadmin/orders"
         />
         <StatCard
-          label="Revenue (mock)"
+          label="Revenue"
           value={formatMoney(revenueCents)}
           icon={TrendingUp}
           to="/superadmin/statistics"
@@ -450,12 +448,15 @@ export function SuperAdminDashboard() {
             </Link>
           </div>
           <div>
-            {[...MOCK_SUPER_ORDERS]
+            {[...orders]
               .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
               .slice(0, 5)
               .map((o) => (
                 <OrderRow key={o.id} order={o} />
               ))}
+            {!orders.length && !loading ? (
+              <p className="px-5 py-6 text-sm text-white/40">No orders yet.</p>
+            ) : null}
           </div>
         </div>
 
@@ -467,7 +468,7 @@ export function SuperAdminDashboard() {
             </Link>
           </div>
           <ul className="divide-y divide-white/[0.06]">
-            {MOCK_THREADS.map((t) => (
+            {([] as { id: string; name: string; unread: number; lastMessage: string; lastAt: string }[]).map((t) => (
               <li key={t.id}>
                 <Link
                   to="/superadmin/messages"

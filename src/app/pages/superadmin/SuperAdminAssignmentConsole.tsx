@@ -1,14 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { AlertTriangle, ArrowRightLeft, Clock, Package, Route } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  assignOrderToManufacturer,
-  listAssignmentConsoleRows,
-  rerouteOrderToManufacturer,
-} from '../../data/superadminOpsMock';
-import { listManufacturerProfiles } from '../../data/manufacturersMock';
-import { STATUS_LABELS, formatMoney } from '../../data/superadminMock';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
+import { STATUS_LABELS, formatMoney, type OrderStatus, type SuperAdminOrder } from '../../data/superadminMock';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
@@ -41,16 +36,58 @@ type AssignAction = {
   mode: 'assign' | 'reroute';
 };
 
+type ConsoleRow = {
+  order: SuperAdminOrder;
+  overdue: boolean;
+  slaHoursLeft: number | null;
+  needsReroute: boolean;
+};
+
+function daysUntil(iso: string, today = new Date().toISOString().slice(0, 10)): number {
+  const a = new Date(today + 'T12:00:00').getTime();
+  const b = new Date(iso + 'T12:00:00').getTime();
+  return Math.round((b - a) / 86400000);
+}
+
+function buildRows(orders: SuperAdminOrder[]): ConsoleRow[] {
+  const today = new Date().toISOString().slice(0, 10);
+  return orders
+    .filter((o) => o.kind === 'custom_clothing')
+    .filter((o) => ['submitted', 'assigned', 'priced', 'pending_review'].includes(o.status))
+    .map((order) => {
+      const quoteOpen = !order.quoteTiers?.length;
+      const overdue = Boolean(
+        order.dueQuoteBy &&
+          quoteOpen &&
+          !['quoted', 'priced', 'pending_review'].includes(order.factoryQuoteStatus ?? '') &&
+          order.dueQuoteBy < today,
+      );
+      return {
+        order,
+        overdue,
+        slaHoursLeft: order.dueQuoteBy && quoteOpen ? daysUntil(order.dueQuoteBy, today) * 24 : null,
+        needsReroute: order.factoryQuoteStatus === 'rejected' || Boolean(order.factoryRejectReason),
+      };
+    })
+    .sort((a, b) => {
+      if (a.needsReroute !== b.needsReroute) return a.needsReroute ? -1 : 1;
+      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+      const da = a.order.dueQuoteBy ?? '9999';
+      const db = b.order.dueQuoteBy ?? '9999';
+      return da.localeCompare(db);
+    });
+}
+
 export function SuperAdminAssignmentConsole() {
-  const [tick, setTick] = useState(0);
-  void tick;
-  const rows = useMemo(() => listAssignmentConsoleRows(), [tick]);
-  const manufacturers = listManufacturerProfiles().filter((p) => p.status === 'active');
+  const { orders, manufacturers, loading, patchOrder, refresh } = useSuperadminData();
+  const rows = buildRows(orders);
+  const activeManufacturers = manufacturers.filter((m) => m.onboardingComplete);
 
   const [filter, setFilter] = useState<'all' | 'overdue' | 'unassigned' | 'reroute'>('all');
   const [action, setAction] = useState<AssignAction | null>(null);
   const [manufacturerId, setManufacturerId] = useState('');
   const [dueQuoteBy, setDueQuoteBy] = useState(addDaysIso(3));
+  const [committing, setCommitting] = useState(false);
 
   const filtered = rows.filter((r) => {
     if (filter === 'overdue') return r.overdue;
@@ -64,7 +101,7 @@ export function SuperAdminAssignmentConsole() {
   const rerouteCount = rows.filter((r) => r.needsReroute).length;
 
   const openAssign = (orderId: string, productName: string, mode: 'assign' | 'reroute') => {
-    setManufacturerId(manufacturers[0]?.entityId ?? '');
+    setManufacturerId(activeManufacturers[0]?.userId ?? '');
     setDueQuoteBy(addDaysIso(3));
     setAction({ orderId, productName, mode });
   };
@@ -78,23 +115,24 @@ export function SuperAdminAssignmentConsole() {
       toast.error('Set a quote due date');
       return;
     }
-    const fn = action.mode === 'reroute' ? rerouteOrderToManufacturer : assignOrderToManufacturer;
-    const next = fn({
-      orderId: action.orderId,
-      manufacturerId,
-      dueQuoteBy,
-    });
-    if (!next) {
-      toast.error('Could not update assignment');
-      return;
-    }
-    toast.success(
-      action.mode === 'reroute'
-        ? `Re-routed to ${next.manufacturerName}`
-        : `Assigned to ${next.manufacturerName}`,
-    );
-    setAction(null);
-    setTick((n) => n + 1);
+    const target = activeManufacturers.find((m) => m.userId === manufacturerId);
+    setCommitting(true);
+    void (async () => {
+      const ok = await patchOrder(action.orderId, {
+        assignedManufacturerId: manufacturerId,
+        dueQuoteBy,
+      });
+      setCommitting(false);
+      if (!ok) {
+        toast.error('Could not update assignment');
+        return;
+      }
+      toast.success(
+        `${action.mode === 'reroute' ? 'Re-routed' : 'Assigned'} to ${target?.factoryName ?? 'manufacturer'} — notified in their portal`,
+      );
+      setAction(null);
+      void refresh();
+    })();
   };
 
   return (
@@ -210,7 +248,7 @@ export function SuperAdminAssignmentConsole() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-sm text-white/40">
-                    Nothing in this filter.
+                    {loading ? 'Loading pipeline…' : 'Nothing in this filter.'}
                   </td>
                 </tr>
               ) : (
@@ -334,9 +372,10 @@ export function SuperAdminAssignmentConsole() {
                   <SelectValue placeholder="Select factory" />
                 </SelectTrigger>
                 <SelectContent className="border-[#252528] bg-[#161618] text-white">
-                  {manufacturers.map((m) => (
-                    <SelectItem key={m.entityId} value={m.entityId}>
-                      {m.name} · {m.location}
+                  {activeManufacturers.map((m) => (
+                    <SelectItem key={m.userId} value={m.userId}>
+                      {m.factoryName}
+                      {m.moq ? ` · MOQ ${m.moq}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -355,8 +394,9 @@ export function SuperAdminAssignmentConsole() {
               <Button
                 className="flex-1 bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
                 onClick={commit}
+                disabled={committing}
               >
-                Confirm
+                {committing ? 'Saving…' : 'Confirm'}
               </Button>
               <Button
                 variant="outline"

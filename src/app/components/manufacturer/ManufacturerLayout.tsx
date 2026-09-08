@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { fetchMyManufacturerProfile } from '../../data/manufacturerDb';
 import {
   BarChart3,
   Bell,
@@ -41,12 +42,14 @@ const navItems = [
 export function ManufacturerLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user, authReady } = useAuth();
   const { unread: notifUnread } = usePortalNotifications('manufacturer');
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isLgUp, setIsLgUp] = useState(true);
-  const workspace = getFactoryWorkspace();
+  const demoWorkspace = getFactoryWorkspace();
+  const [dbFactoryName, setDbFactoryName] = useState<string | null>(null);
+  const [dbOnboarded, setDbOnboarded] = useState<boolean | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -56,8 +59,34 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener('change', sync);
   }, []);
 
+  useEffect(() => {
+    if (!authReady || !user) return;
+    let cancelled = false;
+    void fetchMyManufacturerProfile()
+      .then((profile) => {
+        if (cancelled) return;
+        if (profile) {
+          setDbFactoryName(profile.factoryName);
+          setDbOnboarded(profile.onboardingComplete);
+        } else {
+          setDbOnboarded(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDbOnboarded(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user]);
+
   const onOnboarding = location.pathname.startsWith('/manufacturer/onboarding');
-  if (!workspace.onboardingComplete && !onOnboarding) {
+
+  // DB-backed onboarding state when configured; fall back to demo workspace for preview.
+  const onboardingComplete = dbOnboarded ?? demoWorkspace.onboardingComplete;
+  const factoryName = dbFactoryName ?? demoWorkspace.factoryName;
+
+  if (authReady && !onboardingComplete && !onOnboarding) {
     return <Navigate to="/manufacturer/onboarding" replace />;
   }
 
@@ -181,7 +210,7 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
           <div className="flex h-full flex-col pt-10">
             <div className="border-b border-[#252528] px-4 py-3">
               <span className="text-sm font-extrabold uppercase tracking-wide text-[#F0EEEE]">
-                {workspace.factoryName}
+                {factoryName}
               </span>
             </div>
             <NavBlock onNavigate={() => setSheetOpen(false)} />
@@ -203,7 +232,7 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
         >
           {!collapsed && (
             <Link to="/manufacturer" className="min-w-0 font-semibold uppercase tracking-wide text-[#F0EEEE]">
-              <span className="block truncate">{workspace.factoryName}</span>
+              <span className="block truncate">{factoryName}</span>
             </Link>
           )}
           <button

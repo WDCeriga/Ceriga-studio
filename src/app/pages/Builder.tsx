@@ -250,6 +250,10 @@ interface BuilderState {
   tshirtLayerTransforms?: Partial<Record<GarmentLayerId, TshirtLayerTransform>>;
   /** One selected SVG asset id per folder under src/assets/{tshirts|hoodie|trousers}. */
   tshirtAssetSelection?: GarmentAssetSelection;
+  /** Live print-zone width (px) when prints were last edited — normalizes saved element coordinates. */
+  printZoneWidth?: number;
+  /** Live print-zone height (px) when prints were last edited. */
+  printZoneHeight?: number;
 }
 
 function cloneBuilderState(s: BuilderState): BuilderState {
@@ -484,7 +488,11 @@ export function Builder() {
   const [projectHydrating, setProjectHydrating] = useState(Boolean(urlProjectId && isSupabaseConfigured));
   const projectHydratedRef = useRef<string | null>(null);
 
-  const [currentStep, setCurrentStep] = useState(() => (isTechpackSpecUrl() ? 9 : 1));
+  const [currentStep, setCurrentStep] = useState(() => {
+    const stepParam = Number(new URLSearchParams(window.location.search).get('step'));
+    if (Number.isFinite(stepParam) && stepParam >= 1 && stepParam <= 13) return stepParam;
+    return isTechpackSpecUrl() ? 9 : 1;
+  });
   const [visitedSteps, setVisitedSteps] = useState<number[]>(() =>
     isTechpackSpecUrl() ? [9] : [1],
   );
@@ -729,6 +737,31 @@ export function Builder() {
   const currentStepRef = useRef(currentStep);
   useEffect(() => {
     currentStepRef.current = currentStep;
+  }, [currentStep]);
+
+  // Record the live print-zone size while the prints editor is mounted so
+  // saved element coordinates can be normalized at PDF export time.
+  useEffect(() => {
+    if (currentStep !== 9) return;
+    let raf = 0;
+    const measure = () => {
+      const zone = document.querySelector('[data-print-design-zone]') as HTMLElement | null;
+      if (zone && zone.clientWidth > 0 && zone.clientHeight > 0) {
+        setState((prev) =>
+          prev.printZoneWidth === zone.clientWidth && prev.printZoneHeight === zone.clientHeight
+            ? prev
+            : { ...prev, printZoneWidth: zone.clientWidth, printZoneHeight: zone.clientHeight },
+        );
+      }
+    };
+    raf = requestAnimationFrame(measure);
+    const t = window.setTimeout(measure, 400);
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+      window.removeEventListener('resize', measure);
+    };
   }, [currentStep]);
 
   const showFrontRef = useRef(showFront);
@@ -4186,6 +4219,8 @@ export function Builder() {
           onClose={() => setShowDownloadModal(false)}
           availableColors={state.colors}
           measurementUnit={state.measurementUnit}
+          builderState={state}
+          projectName={projectName}
         />
       )}
 

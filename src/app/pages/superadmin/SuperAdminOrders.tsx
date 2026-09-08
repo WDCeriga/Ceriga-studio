@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  MOCK_SUPER_ORDERS,
   ORDER_STAGE_GROUPS,
   STATUS_LABELS,
   SUPERADMIN_REVIEW_STATUSES,
@@ -33,6 +32,7 @@ import {
   type OrderStatus,
   type SuperAdminOrder,
 } from '../../data/superadminMock';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { Button } from '../../components/ui/button';
 import {
   Select,
@@ -199,6 +199,7 @@ function SortableHeader({
 
 export function SuperAdminOrders() {
   const navigate = useNavigate();
+  const { orders: MOCK_SUPER_ORDERS, loading, error } = useSuperadminData();
   const [search, setSearch] = useState('');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [stageFilter, setStageFilter] = useState<OrderStageFilter>('all');
@@ -208,7 +209,7 @@ export function SuperAdminOrders() {
 
   const activeOrder = useMemo(
     () => MOCK_SUPER_ORDERS.find((o) => o.id === activeOrderId) ?? null,
-    [activeOrderId],
+    [activeOrderId, MOCK_SUPER_ORDERS],
   );
 
   const stats = useMemo(() => {
@@ -225,7 +226,7 @@ export function SuperAdminOrders() {
       atManufacturer,
       totalValue,
     };
-  }, []);
+  }, [MOCK_SUPER_ORDERS]);
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -244,7 +245,7 @@ export function SuperAdminOrders() {
         STATUS_LABELS[o.status].toLowerCase().includes(q)
       );
     });
-  }, [search, kindFilter, stageFilter]);
+  }, [MOCK_SUPER_ORDERS, search, kindFilter, stageFilter]);
 
   const sortedOrders = useMemo(() => {
     const list = [...filteredOrders];
@@ -378,6 +379,12 @@ export function SuperAdminOrders() {
         </div>
       </div>
 
+      {error ? (
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">
+          Could not load orders: {error}
+        </div>
+      ) : null}
+
       {hasFilters ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
           <span>
@@ -454,7 +461,9 @@ export function SuperAdminOrders() {
                 <tr>
                   <td colSpan={8} className="px-4 py-16 text-center">
                     <Package className="mx-auto h-8 w-8 text-white/20" />
-                    <p className="mt-3 text-sm text-white/45">No orders match your filters.</p>
+                    <p className="mt-3 text-sm text-white/45">
+                      {loading ? 'Loading orders…' : 'No orders match your filters.'}
+                    </p>
                   </td>
                 </tr>
               ) : (

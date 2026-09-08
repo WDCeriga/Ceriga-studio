@@ -5,11 +5,11 @@ import { toast } from 'sonner';
 import {
   ALL_FACTORY_CAPABILITIES,
   ALL_FACTORY_GARMENTS,
-  completeFactoryOnboarding,
   getFactoryWorkspace,
   type FactoryCapability,
   type FactoryGarment,
 } from '../../data/manufacturerPortalMock';
+import { completeOnboardingInDb } from '../../data/manufacturerOnboarding';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -46,19 +46,31 @@ export function ManufacturerOnboarding() {
     setFinishConfirmOpen(true);
   };
 
+  const [saving, setSaving] = useState(false);
+
   const finish = () => {
-    completeFactoryOnboarding({
-      garments,
-      capabilities,
-      shippingRegions: regions
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-      moq: Number(moq) || 50,
-      monthlyCapacity: Number(capacity) || 1000,
-    });
-    toast.success('Factory profile ready — welcome to your inbox');
-    navigate('/manufacturer');
+    setSaving(true);
+    void (async () => {
+      try {
+        await completeOnboardingInDb({
+          factoryName: seed.factoryName,
+          garments,
+          capabilities,
+          shippingRegions: regions
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+          moq: Number(moq) || 50,
+          monthlyCapacity: Number(capacity) || 1000,
+        });
+        toast.success('Factory profile ready — welcome to your inbox');
+        navigate('/manufacturer');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Could not save factory profile');
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
 
   return (
@@ -224,7 +236,7 @@ export function ManufacturerOnboarding() {
         onOpenChange={setFinishConfirmOpen}
         title="Finish factory setup?"
         description={`Confirm ${garments.length} garment type${garments.length === 1 ? '' : 's'} and ${capabilities.length} capacit${capabilities.length === 1 ? 'y' : 'ies'} for order matching.`}
-        confirmLabel="Enter portal"
+        confirmLabel={saving ? 'Saving…' : 'Enter portal'}
         onConfirm={finish}
       />
     </div>

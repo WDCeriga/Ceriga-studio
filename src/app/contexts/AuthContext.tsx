@@ -14,6 +14,8 @@ export type AuthUser = {
   id: string | null;
   email: string;
   name: string;
+  /** Role from public.profiles — brand | manufacturer | worker. */
+  role?: 'brand' | 'manufacturer' | 'worker';
 };
 
 interface AuthContextType {
@@ -25,6 +27,8 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string) => Promise<void>;
   loginWithGoogleProfile: (profile: GoogleProfile) => Promise<void>;
   signupWithGoogleProfile: (profile: GoogleProfile) => Promise<void>;
+  /** Sends a password reset email (Supabase mode only). */
+  requestPasswordReset: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   user: AuthUser | null;
 }
@@ -35,6 +39,25 @@ const LOCAL_USER_KEY = 'user';
 
 function nameFromEmail(email: string): string {
   return email.split('@')[0] || 'User';
+}
+
+/** Read role from public.profiles (RLS: users see their own row). */
+async function fetchUserRole(
+  supabase: ReturnType<typeof getSupabase>,
+  userId: string,
+): Promise<AuthUser['role'] | undefined> {
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!data) return undefined;
+    const role = (data as { role?: string }).role;
+    return role === 'manufacturer' || role === 'worker' || role === 'brand' ? role : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function userFromLocalStorage(): AuthUser | null {
@@ -92,6 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(next);
         setIsAuthenticated(true);
         persistLocalUser(next);
+        void fetchUserRole(supabase, session.user.id).then((role) => {
+          if (role) {
+            setUser((prev) => (prev && prev.id === session.user.id ? { ...prev, role } : prev));
+          }
+        });
       } else {
         setUser(null);
         setIsAuthenticated(false);
@@ -119,6 +147,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(next);
         setIsAuthenticated(true);
         persistLocalUser(next);
+        void fetchUserRole(supabase, session.user.id).then((role) => {
+          if (role) {
+            setUser((prev) => (prev && prev.id === session.user.id ? { ...prev, role } : prev));
+          }
+        });
         void import('../components/builder/measurementGuides').then((mod) => {
           void mod.hydrateMeasurementGuidesFromRemote();
         });
@@ -214,6 +247,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(LOCAL_USER_KEY);
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Password reset is unavailable in local preview mode.');
+    }
+    const supabase = getSupabase();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -224,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         loginWithGoogleProfile,
         signupWithGoogleProfile,
+        requestPasswordReset,
         logout,
         user,
       }}

@@ -6,6 +6,18 @@ import type {
   UserOrderStatus,
 } from '../data/userOrders';
 import type { OrderQuantityPlan } from '../data/orderQuantities';
+import type { OrderDeliveryInfo } from '../data/orderDelivery';
+
+export type ManufacturerQuoteTierRow = {
+  id: string;
+  kind: 'sample' | 'bulk';
+  label: string;
+  totalUnits: number;
+  manufacturerQuoteCents: number;
+  leadTimeDays?: number;
+  deliveryOptionId?: string;
+  shippingQuoteCents?: number;
+};
 
 export type OrderRow = {
   id: string;
@@ -28,6 +40,18 @@ export type OrderRow = {
   priced_at: string | null;
   quote_request: UserOrder['quoteRequest'] | null;
   specifications: UserOrder['specifications'] | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  delivery_address: OrderDeliveryInfo | null;
+  assigned_manufacturer_id: string | null;
+  assigned_at: string | null;
+  due_quote_by: string | null;
+  manufacturer_quote: ManufacturerQuoteTierRow[] | null;
+  factory_status: UserOrder['factoryStatus'] | null;
+  factory_reject_reason: string | null;
+  quoted_at: string | null;
+  ops_notes: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -68,6 +92,18 @@ export function rowToUserOrder(row: OrderRow): UserOrder {
     pricedAt: row.priced_at ?? undefined,
     quoteRequest: row.quote_request ?? undefined,
     specifications: row.specifications ?? undefined,
+    contactName: row.contact_name ?? undefined,
+    contactEmail: row.contact_email ?? undefined,
+    contactPhone: row.contact_phone ?? undefined,
+    delivery: row.delivery_address ?? undefined,
+    assignedManufacturerId: row.assigned_manufacturer_id ?? undefined,
+    assignedAt: row.assigned_at ?? undefined,
+    dueQuoteBy: row.due_quote_by ?? undefined,
+    manufacturerQuote: row.manufacturer_quote ?? undefined,
+    factoryStatus: row.factory_status ?? undefined,
+    factoryRejectReason: row.factory_reject_reason ?? undefined,
+    quotedAt: row.quoted_at ?? undefined,
+    opsNotes: row.ops_notes ?? undefined,
   };
 }
 
@@ -87,7 +123,36 @@ export type CreateOrderDbInput = {
   specifications?: UserOrder['specifications'];
   downloadReady?: boolean;
   revisionUsed?: boolean;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  delivery?: OrderDeliveryInfo;
 };
+
+export type OrderPatch = Partial<{
+  status: UserOrderStatus;
+  statusLabel: string;
+  total: number | null;
+  tracking: string | null;
+  orderQuantities: OrderQuantityPlan | null;
+  priceOptions: OrderPriceOption[] | null;
+  selectedPriceOptionId: string | null;
+  paidAmountCents: number | null;
+  exportFormat: 'pdf' | 'pdf_bundle' | null;
+  revisionUsed: boolean;
+  downloadReady: boolean;
+  pricedAt: string | null;
+  quoteRequest: UserOrder['quoteRequest'] | null;
+  specifications: UserOrder['specifications'] | null;
+  assignedManufacturerId: string | null;
+  assignedAt: string | null;
+  dueQuoteBy: string | null;
+  manufacturerQuote: ManufacturerQuoteTierRow[] | null;
+  factoryStatus: UserOrder['factoryStatus'] | null;
+  factoryRejectReason: string | null;
+  quotedAt: string | null;
+  opsNotes: string | null;
+}>;
 
 export async function listOrders(): Promise<UserOrder[]> {
   requireConfigured();
@@ -136,6 +201,10 @@ export async function insertOrder(input: CreateOrderDbInput): Promise<UserOrder>
     specifications: input.specifications ?? null,
     download_ready: input.downloadReady ?? false,
     revision_used: input.revisionUsed ?? false,
+    contact_name: input.contactName ?? null,
+    contact_email: input.contactEmail ?? null,
+    contact_phone: input.contactPhone ?? null,
+    delivery_address: input.delivery ?? null,
   };
 
   const { data, error } = await supabase.from('orders').insert(payload).select('*').single();
@@ -143,25 +212,7 @@ export async function insertOrder(input: CreateOrderDbInput): Promise<UserOrder>
   return rowToUserOrder(data as OrderRow);
 }
 
-export async function patchOrder(
-  id: string,
-  patch: Partial<{
-    status: UserOrderStatus;
-    statusLabel: string;
-    total: number | null;
-    tracking: string | null;
-    orderQuantities: OrderQuantityPlan | null;
-    priceOptions: OrderPriceOption[] | null;
-    selectedPriceOptionId: string | null;
-    paidAmountCents: number | null;
-    exportFormat: 'pdf' | 'pdf_bundle' | null;
-    revisionUsed: boolean;
-    downloadReady: boolean;
-    pricedAt: string | null;
-    quoteRequest: UserOrder['quoteRequest'] | null;
-    specifications: UserOrder['specifications'] | null;
-  }>,
-): Promise<UserOrder> {
+export async function patchOrder(id: string, patch: OrderPatch): Promise<UserOrder> {
   requireConfigured();
   const supabase = getSupabase();
 
@@ -182,6 +233,18 @@ export async function patchOrder(
   if (patch.pricedAt !== undefined) payload.priced_at = patch.pricedAt;
   if (patch.quoteRequest !== undefined) payload.quote_request = patch.quoteRequest;
   if (patch.specifications !== undefined) payload.specifications = patch.specifications;
+  if (patch.assignedManufacturerId !== undefined) {
+    payload.assigned_manufacturer_id = patch.assignedManufacturerId;
+  }
+  if (patch.assignedAt !== undefined) payload.assigned_at = patch.assignedAt;
+  if (patch.dueQuoteBy !== undefined) payload.due_quote_by = patch.dueQuoteBy;
+  if (patch.manufacturerQuote !== undefined) payload.manufacturer_quote = patch.manufacturerQuote;
+  if (patch.factoryStatus !== undefined) payload.factory_status = patch.factoryStatus;
+  if (patch.factoryRejectReason !== undefined) {
+    payload.factory_reject_reason = patch.factoryRejectReason;
+  }
+  if (patch.quotedAt !== undefined) payload.quoted_at = patch.quotedAt;
+  if (patch.opsNotes !== undefined) payload.ops_notes = patch.opsNotes;
 
   const { data, error } = await supabase
     .from('orders')
@@ -220,4 +283,22 @@ export async function uploadOrderFiles(
     uploaded.push({ path, name: file.name });
   }
   return uploaded;
+}
+
+/** Signed URLs for uploaded files (caller must be the owner or a superadmin). */
+export async function createUploadSignedUrls(
+  paths: string[],
+  expiresIn = 3600,
+): Promise<Record<string, string>> {
+  requireConfigured();
+  if (paths.length === 0) return {};
+  const supabase = getSupabase();
+  const result: Record<string, string> = {};
+  for (const path of paths) {
+    const { data, error } = await supabase.storage
+      .from('order-uploads')
+      .createSignedUrl(path, expiresIn);
+    if (!error && data?.signedUrl) result[path] = data.signedUrl;
+  }
+  return result;
 }

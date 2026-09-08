@@ -21,6 +21,8 @@ type ProjectActionsMenuProps = {
   projectName: string;
   openTo: string;
   openLabel?: string;
+  /** Builder URL used by “Export tech pack” (opens the review step where the real PDF export lives). */
+  exportTo?: string;
   onDelete: () => void;
   onDuplicate?: () => void;
   /** Visual variant for trigger placement */
@@ -32,6 +34,7 @@ export function ProjectActionsMenu({
   projectName,
   openTo,
   openLabel = 'Open',
+  exportTo,
   onDelete,
   onDuplicate,
   variant = 'footer',
@@ -80,12 +83,13 @@ export function ProjectActionsMenu({
           <Pencil className="h-3.5 w-3.5" />
           Rename
         </DropdownMenuItem>
-        <DropdownMenuItem
-          className="cursor-pointer focus:bg-white/10 focus:text-white"
-          onClick={() => toast.success(`Mock: tech pack export queued for “${projectName}”`)}
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export tech pack
+        <DropdownMenuItem asChild className="cursor-pointer focus:bg-white/10 focus:text-white">
+          <Link
+            to={exportTo ?? `${openTo.replace(/\/$/, '')}${openTo.includes('?') ? '&' : '?'}step=13`}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export tech pack
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-white/10" />
         <DropdownMenuItem

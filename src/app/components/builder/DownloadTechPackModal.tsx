@@ -11,13 +11,21 @@ import {
   Image,
   Sparkles,
   ListOrdered,
+  Loader2,
 } from 'lucide-react';
 import type { MeasurementUnit } from '../../lib/measurements';
+import type { BuilderState } from '../../pages/Builder';
+import { buildTechPackData } from '../../lib/techPackData';
+import { downloadTechPackPdf, type TechPackPageOptions } from '../../lib/techPackPdf';
 
 interface DownloadTechPackModalProps {
   onClose: () => void;
   availableColors: Array<{ hex: string; pantone: string }>;
   measurementUnit: MeasurementUnit;
+  /** Live builder state — the source of every value on the PDF. */
+  builderState: BuilderState;
+  /** Project name used on the cover + file name. */
+  projectName: string;
 }
 
 const RED = '#CC2D24';
@@ -117,6 +125,8 @@ export function DownloadTechPackModal({
   onClose,
   availableColors,
   measurementUnit,
+  builderState,
+  projectName,
 }: DownloadTechPackModalProps) {
   const [includeDetailsImage,      setIncludeDetailsImage]      = useState(true);
   const [includeMeasurementTable,  setIncludeMeasurementTable]  = useState(true);
@@ -126,8 +136,7 @@ export function DownloadTechPackModal({
   const [includeArtworkPages,      setIncludeArtworkPages]      = useState(true);
   const [includeQuantity,          setIncludeQuantity]          = useState(true);
   const [selectedTechPackColor,    setSelectedTechPackColor]    = useState('#F5F5F5');
-  const [paperSize,     setPaperSize]     = useState<'A4' | 'Letter'>('Letter');
-  const [orientation,   setOrientation]   = useState<'Portrait' | 'Landscape'>('Portrait');
+  const [paperSize,     setPaperSize]     = useState<'A4' | 'Letter'>('A4');
   const [exportFormat,  setExportFormat]  = useState<'PDF' | 'PDF + ZIP'>('PDF');
   const [generateRealImage,        setGenerateRealImage]        = useState(false);
   const [selectedColorForImage,    setSelectedColorForImage]    = useState(availableColors[0]?.hex || '#000000');
@@ -139,11 +148,6 @@ export function DownloadTechPackModal({
     { hex: '#D4D4D4', name: 'Grey' },
     { hex: '#111111', name: 'Black' },
   ];
-
-  const selectedBgName = useMemo(
-    () => bgOptions.find(o => o.hex === selectedTechPackColor)?.name ?? 'Off-white',
-    [selectedTechPackColor]
-  );
 
   const enabledCount = [
     includeDetailsImage,
@@ -158,36 +162,38 @@ export function DownloadTechPackModal({
   const runDownload = useCallback(async () => {
     setDownloadPhase('working');
     try {
-      if (!navigator.onLine) {
-        throw new Error('offline');
-      }
+      // Let the button paint its working state before the (synchronous) render.
       await new Promise<void>((resolve) => {
-        window.setTimeout(resolve, 900);
+        window.setTimeout(resolve, 40);
       });
-      console.log('Downloading', {
-        includeDetailsImage,
-        includeMeasurementTable,
-        includeMaterialCallouts,
-        includeFrontBackViews,
-        includeConstructionNotes,
-        includeArtworkPages,
-        includeQuantity,
-        selectedTechPackColor,
+      const data = buildTechPackData(builderState, { projectName });
+      const options: Partial<TechPackPageOptions> = {
+        detailsImage: includeDetailsImage,
+        measurementTable: includeMeasurementTable,
+        materialCallouts: includeMaterialCallouts,
+        frontBackViews: includeFrontBackViews,
+        constructionNotes: includeConstructionNotes,
+        artworkPages: includeArtworkPages,
+        quantities: includeQuantity,
         paperSize,
-        orientation,
-        exportFormat,
-        generateRealImage,
-        selectedColorForImage,
-        measurementUnit,
-      });
-      toast.success('Tech pack export started');
+        background: selectedTechPackColor,
+      };
+      await downloadTechPackPdf(data, options);
+      toast.success(
+        includeArtworkPages && builderState.prints.some((p) => p.type === 'image')
+          ? 'Tech pack PDF downloaded — artwork embedded'
+          : 'Tech pack PDF downloaded',
+      );
       setDownloadPhase('idle');
       onClose();
-    } catch {
+    } catch (err) {
+      console.error('Tech pack export failed', err);
       setDownloadPhase('error');
-      toast.error('Export failed — check your connection and try again.');
+      toast.error('Export failed — try again.');
     }
   }, [
+    builderState,
+    projectName,
     includeDetailsImage,
     includeMeasurementTable,
     includeMaterialCallouts,
@@ -197,20 +203,15 @@ export function DownloadTechPackModal({
     includeQuantity,
     selectedTechPackColor,
     paperSize,
-    orientation,
-    exportFormat,
-    generateRealImage,
-    selectedColorForImage,
-    measurementUnit,
     onClose,
   ]);
 
   const pages = [
-    { icon: FileText,      title: 'Detail annotations',     sub: 'Red callouts on preview pages',       enabled: includeDetailsImage,      toggle: () => setIncludeDetailsImage(!includeDetailsImage) },
-    { icon: Ruler,         title: 'Measurement table',      sub: 'Grading and size spec breakdown',      enabled: includeMeasurementTable,  toggle: () => setIncludeMeasurementTable(!includeMeasurementTable) },
-    { icon: Palette,       title: 'Material callouts',      sub: 'Fabrics, trims, labels, finishing',    enabled: includeMaterialCallouts,  toggle: () => setIncludeMaterialCallouts(!includeMaterialCallouts) },
-    { icon: LayoutTemplate,title: 'Front + back views',     sub: 'Both garment sides in the pack',       enabled: includeFrontBackViews,    toggle: () => setIncludeFrontBackViews(!includeFrontBackViews) },
-    { icon: Wrench,        title: 'Construction notes',     sub: 'Stitch, seam, and make-up notes',      enabled: includeConstructionNotes, toggle: () => setIncludeConstructionNotes(!includeConstructionNotes) },
+    { icon: FileText,      title: 'Detail annotations',     sub: 'Red callouts on construction pages',  enabled: includeDetailsImage,      toggle: () => setIncludeDetailsImage(!includeDetailsImage) },
+    { icon: Ruler,         title: 'Measurement table',      sub: 'Graded size spec from your values',    enabled: includeMeasurementTable,  toggle: () => setIncludeMeasurementTable(!includeMeasurementTable) },
+    { icon: Palette,       title: 'Material callouts',      sub: 'Fabric, GSM and colour callouts',      enabled: includeMaterialCallouts,  toggle: () => setIncludeMaterialCallouts(!includeMaterialCallouts) },
+    { icon: LayoutTemplate,title: 'Front + back views',     sub: 'Technical drawings of both sides',     enabled: includeFrontBackViews,    toggle: () => setIncludeFrontBackViews(!includeFrontBackViews) },
+    { icon: Wrench,        title: 'Construction notes',     sub: 'Your per-step notes on each card',     enabled: includeConstructionNotes, toggle: () => setIncludeConstructionNotes(!includeConstructionNotes) },
     { icon: Image,         title: 'Artwork pages',          sub: 'Prints, labels, and packaging pages',  enabled: includeArtworkPages,      toggle: () => setIncludeArtworkPages(!includeArtworkPages) },
     { icon: ListOrdered,   title: 'Order quantities',     sub: 'Per-size units and total in the pack', enabled: includeQuantity,          toggle: () => setIncludeQuantity(!includeQuantity) },
   ];
@@ -239,17 +240,16 @@ export function DownloadTechPackModal({
               Download Tech Pack
             </div>
             <div style={{ fontSize: 11, color: '#ffffff35', marginTop: 3 }}>
-              {enabledCount} of {pages.length} sections included · {paperSize} · {selectedBgName}
+              {enabledCount} of {pages.length} sections included · {paperSize} · Landscape
               {includeMeasurementTable ? (
                 <> · Measurements in {measurementUnit === 'in' ? 'inches' : 'cm'}</>
               ) : null}
               {includeQuantity ? null : <> · Quantities hidden</>}
             </div>
             <p style={{ fontSize: 10, color: '#ffffff40', marginTop: 8, lineHeight: 1.45, maxWidth: 360 }}>
-              Your PDF bundles the sections you toggle above: garment previews with callouts, the measurement
-              table (grading in {measurementUnit === 'in' ? 'inches' : 'centimetres'}), materials and
-              construction notes, print/label/packaging artwork pages, and order quantities — matching what
-              manufacturers expect in a tech pack.
+              The PDF is generated live from your current spec: measurement table, fabric &amp; colour,
+              construction selections and notes, artwork placement, labels &amp; packaging, and order
+              quantities — in the Ceriga landscape factory format.
             </p>
           </div>
           <button
@@ -286,7 +286,7 @@ export function DownloadTechPackModal({
           {/* background */}
           <div style={{ padding: '4px 14px 8px' }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', marginBottom: 10, padding: '4px 2px 0' }}>
-              Background
+              Paper tone
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               {bgOptions.map(opt => (
@@ -317,11 +317,11 @@ export function DownloadTechPackModal({
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', padding: '8px 16px 2px' }}>
               Format
             </div>
-            <SegmentedControl label="Paper size"   options={['A4', 'Letter']}              value={paperSize}    onChange={v => setPaperSize(v as any)} />
+            <SegmentedControl label="Paper size"   options={['A4', 'Letter']}              value={paperSize}    onChange={v => setPaperSize(v as 'A4' | 'Letter')} />
             <Divider />
-            <SegmentedControl label="Orientation"  options={['Portrait', 'Landscape']}      value={orientation}  onChange={v => setOrientation(v as any)} />
+            <SegmentedControl label="Orientation"  options={['Landscape']}                 value="Landscape"    onChange={() => undefined} />
             <Divider />
-            <SegmentedControl label="Export as"    options={['PDF', 'PDF + ZIP']}           value={exportFormat} onChange={v => setExportFormat(v as any)} />
+            <SegmentedControl label="Export as"    options={['PDF', 'PDF + ZIP']}          value={exportFormat} onChange={v => setExportFormat(v as 'PDF' | 'PDF + ZIP')} />
           </div>
 
           {/* separator */}
@@ -332,9 +332,16 @@ export function DownloadTechPackModal({
             <RowToggle
               icon={Sparkles}
               title="Generate product render"
-              sub="AI photorealistic image alongside the PDF"
+              sub="AI photorealistic image alongside the PDF (coming soon)"
               enabled={generateRealImage}
-              onToggle={() => setGenerateRealImage(!generateRealImage)}
+              onToggle={() => {
+                setGenerateRealImage(!generateRealImage);
+                if (!generateRealImage) {
+                  toast.message('AI render is not available yet', {
+                    description: 'The PDF download works fully today.',
+                  });
+                }
+              }}
             />
             {generateRealImage && availableColors.length > 0 && (
               <div style={{ padding: '4px 14px 8px' }}>
@@ -390,8 +397,12 @@ export function DownloadTechPackModal({
             onMouseEnter={e => { if (downloadPhase !== 'working') (e.currentTarget as HTMLElement).style.opacity = '0.88'; }}
             onMouseLeave={e => { if (downloadPhase !== 'working') (e.currentTarget as HTMLElement).style.opacity = '1'; }}
           >
-            <Download style={{ width: 13, height: 13 }} />
-            {downloadPhase === 'working' ? 'Preparing…' : downloadPhase === 'error' ? `Retry ${exportFormat}` : `Download ${exportFormat}`}
+            {downloadPhase === 'working' ? (
+              <Loader2 style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <Download style={{ width: 13, height: 13 }} />
+            )}
+            {downloadPhase === 'working' ? 'Generating…' : downloadPhase === 'error' ? `Retry ${exportFormat}` : `Download ${exportFormat}`}
           </button>
         </div>
 

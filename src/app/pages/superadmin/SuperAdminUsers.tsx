@@ -16,7 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { MOCK_SUPER_USERS, type SuperAdminUser } from '../../data/superadminMock';
+import { type SuperAdminUser } from '../../data/superadminMock';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Checkbox } from '../../components/ui/checkbox';
@@ -163,9 +164,11 @@ export function SuperAdminUsers() {
   const [sentRecipients, setSentRecipients] = useState<SentRecipient[]>([]);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
+  const { users: MOCK_SUPER_USERS, loading: usersLoading } = useSuperadminData();
+
   const activeUser = useMemo(
     () => MOCK_SUPER_USERS.find((u) => u.id === activeUserId) ?? null,
-    [activeUserId],
+    [activeUserId, MOCK_SUPER_USERS],
   );
 
   const roleCounts = useMemo(
@@ -174,7 +177,7 @@ export function SuperAdminUsers() {
       manufacturer: MOCK_SUPER_USERS.filter((u) => u.role === 'manufacturer').length,
       worker: MOCK_SUPER_USERS.filter((u) => u.role === 'worker').length,
     }),
-    [],
+    [MOCK_SUPER_USERS],
   );
 
   const filteredUsers = useMemo(() => {
@@ -188,7 +191,7 @@ export function SuperAdminUsers() {
         u.role.toLowerCase().includes(q)
       );
     });
-  }, [search, listRoleFilter]);
+  }, [MOCK_SUPER_USERS, search, listRoleFilter]);
 
   const sortedUsers = useMemo(() => {
     const list = [...filteredUsers];
@@ -227,7 +230,7 @@ export function SuperAdminUsers() {
 
   const emailPool = useMemo(() => {
     return MOCK_SUPER_USERS.filter((u) => emailRoleFilter === 'all' || u.role === emailRoleFilter);
-  }, [emailRoleFilter]);
+  }, [MOCK_SUPER_USERS, emailRoleFilter]);
 
   const searchedEmailPool = useMemo(() => {
     const q = emailUserSearch.trim().toLowerCase();
@@ -247,7 +250,10 @@ export function SuperAdminUsers() {
   const allEmailPoolSelected =
     searchedEmailPool.length > 0 && searchedEmailPool.every((u) => emailSelectedIds.has(u.id));
 
-  const userRecipients = MOCK_SUPER_USERS.filter((u) => emailSelectedIds.has(u.id));
+  const userRecipients = useMemo(
+    () => MOCK_SUPER_USERS.filter((u) => emailSelectedIds.has(u.id)),
+    [MOCK_SUPER_USERS, emailSelectedIds],
+  );
   const totalRecipientCount = userRecipients.length + customRecipients.length;
 
   const toggleUser = (id: string) => {

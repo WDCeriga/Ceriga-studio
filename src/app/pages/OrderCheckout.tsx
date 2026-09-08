@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Clock, CreditCard, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import {
   checkoutPath,
@@ -71,7 +72,7 @@ export function OrderCheckout() {
       await completeCheckout(id, optionId);
       navigate(`/orders/${id}`);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Payment failed');
+      toast.error(err instanceof Error ? err.message : 'Payment failed');
     } finally {
       setPaying(false);
     }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import {
   ArrowLeft,
@@ -5,13 +6,17 @@ import {
   CreditCard,
   Download,
   FileText,
+  Loader2,
   Pencil,
   RefreshCw,
   Truck,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { OrderQuantitiesSummary } from '../builder/OrderQuantitiesStep';
+import { downloadTechPackPdf } from '../../lib/techPackPdf';
+import { resolveTechPackData } from '../../lib/techPackResolve';
 import {
   canEditOrder,
   canUseFreeRevision,
@@ -378,9 +383,30 @@ export function TechPackAwaitingPayment({ order }: { order: UserOrder }) {
 
 export function TechPackPaid({ order }: { order: UserOrder }) {
   const revisionAvailable = canUseFreeRevision(order);
+  const [exporting, setExporting] = useState(false);
 
   const startRevision = () => {
     void updateUserOrder(order.id, { revisionUsed: true });
+  };
+
+  const handleDownload = async () => {
+    setExporting(true);
+    try {
+      const { data } = await resolveTechPackData({
+        projectId: order.productId,
+        productId: order.productId,
+        productName: order.productName,
+        specifications: order.specifications,
+        orderQuantities: order.orderQuantities,
+      });
+      await downloadTechPackPdf(data);
+      toast.success('Tech pack PDF downloaded');
+    } catch (err) {
+      console.error('Tech pack export failed', err);
+      toast.error('Could not generate the PDF — try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -396,12 +422,15 @@ export function TechPackPaid({ order }: { order: UserOrder }) {
             <Button
               type="button"
               className="h-9 bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"
-              onClick={() => {
-                /* mock download */
-              }}
+              onClick={() => void handleDownload()}
+              disabled={exporting}
             >
-              <Download className="mr-2 h-3.5 w-3.5" />
-              Download tech pack
+              {exporting ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-3.5 w-3.5" />
+              )}
+              {exporting ? 'Generating…' : 'Download tech pack'}
             </Button>
           ) : null}
           {revisionAvailable && order.productId ? (

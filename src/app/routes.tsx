@@ -44,6 +44,13 @@ export const router = createBrowserRouter([
     Component: Signup,
   },
   {
+    path: "/reset-password",
+    lazy: async () => {
+      const { ResetPassword } = await import("./pages/ResetPassword");
+      return { Component: ResetPassword };
+    },
+  },
+  {
     path: "/dashboard",
     lazy: async () => {
       const [{ SidebarLayout: Layout }, { Dashboard }] = await Promise.all([

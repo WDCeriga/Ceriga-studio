@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  MOCK_SUPER_ORDERS,
   STATUS_LABELS,
   formatMoney,
   getOrderQuoteTiers,
@@ -18,6 +17,7 @@ import {
   withCalculatedQuoteTiers,
   type SuperAdminOrder,
 } from '../../data/superadminMock';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { formatOrderQuantitiesSummary } from '../../data/orderQuantities';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -32,8 +32,8 @@ function formatDate(iso: string) {
   });
 }
 
-function getReviewQueue(startOrderId?: string | null) {
-  const pending = MOCK_SUPER_ORDERS.filter((o) => o.status === 'pending_review').sort((a, b) =>
+function getReviewQueue(all: SuperAdminOrder[], startOrderId?: string | null) {
+  const pending = all.filter((o) => o.status === 'pending_review').sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
   if (!startOrderId) return pending;
@@ -204,9 +204,13 @@ function PricingReviewForm({
 export function SuperAdminOrderReviewQueue() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { orders, loading, patchOrder } = useSuperadminData();
   const startOrderId = (location.state as { startOrderId?: string } | null)?.startOrderId;
 
-  const reviewQueue = useMemo(() => getReviewQueue(startOrderId), [startOrderId]);
+  const reviewQueue = useMemo(
+    () => getReviewQueue(orders, startOrderId),
+    [orders, startOrderId],
+  );
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [finished, setFinished] = useState(false);
 
@@ -230,8 +234,18 @@ export function SuperAdminOrderReviewQueue() {
 
   const handleSubmit = (priceCents: number) => {
     if (!current) return;
-    setCompletedIds((prev) => new Set([...prev, current.id]));
-    toast.success(`${current.id} sent to brand · ${formatMoney(priceCents)}`);
+    void (async () => {
+      const ok = await patchOrder(current.id, {
+        status: 'sent_to_brand',
+        statusLabel: 'Quote sent to brand',
+      });
+      if (!ok) {
+        toast.error('Could not save pricing — check your connection');
+        return;
+      }
+      setCompletedIds((prev) => new Set([...prev, current.id]));
+      toast.success(`${current.id} sent to brand · ${formatMoney(priceCents)}`);
+    })();
   };
 
   const exitToOrders = () => navigate('/superadmin/orders');
@@ -240,10 +254,14 @@ export function SuperAdminOrderReviewQueue() {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
         <CheckCircle2 className="h-12 w-12 text-emerald-400/80" />
-        <h1 className="mt-4 text-xl font-semibold text-white">Nothing to review</h1>
-        <Button className="mt-6 bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={exitToOrders}>
-          Back to orders
-        </Button>
+        <h1 className="mt-4 text-xl font-semibold text-white">
+          {loading ? 'Loading queue…' : 'Nothing to review'}
+        </h1>
+        {!loading ? (
+          <Button className="mt-6 bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={exitToOrders}>
+            Back to orders
+          </Button>
+        ) : null}
       </div>
     );
   }
