@@ -30,6 +30,7 @@ import {
   type UserOrder,
 } from '../../data/userOrders';
 import { ProductionQcGallery } from './ProductionQcGallery';
+import { podPlacementSummary } from './podPlacement';
 import { cn } from '../ui/utils';
 
 export function OrderDetailShell({
@@ -223,6 +224,9 @@ export function ProductionAwaitingQuote({ order }: { order: UserOrder }) {
                   {qr.pod.designMode === 'text'
                     ? `Text: “${qr.pod.text ?? ''}”`
                     : 'Front image upload'}
+                  {podPlacementSummary(qr.pod.placement) ? (
+                    <span className="text-white/50"> · {podPlacementSummary(qr.pod.placement)}</span>
+                  ) : null}
                 </dd>
               </div>
             ) : null}
@@ -274,6 +278,12 @@ export function ProductionPriced({ order }: { order: UserOrder }) {
               <div>
                 <dt className="text-[10px] uppercase tracking-wider text-white/40">File</dt>
                 <dd className="mt-0.5 text-white/80">{order.quoteRequest.fileNames.join(', ')}</dd>
+              </div>
+            ) : null}
+            {order.quoteRequest.pod.placement ? (
+              <div>
+                <dt className="text-[10px] uppercase tracking-wider text-white/40">Placement</dt>
+                <dd className="mt-0.5 text-white/80">{podPlacementSummary(order.quoteRequest.pod.placement)}</dd>
               </div>
             ) : null}
           </dl>

@@ -39,6 +39,18 @@ export type OrderPriceOption = {
   priceCents: number;
 };
 
+/** Where + how the POD print sits on the garment (as designed in the studio). */
+export type PodPlacement = {
+  /** Horizontal offset from the center of the chest print zone, -50..50 (% of zone width). */
+  offsetX: number;
+  /** Vertical offset from the center of the chest print zone, -50..50 (% of zone height). */
+  offsetY: number;
+  /** Print scale relative to the chest print zone, 1..160 (%; 100 = fill zone). */
+  scale: number;
+  /** Print rotation in degrees, -180..180. */
+  rotation: number;
+};
+
 export type UserOrder = {
   id: string;
   kind: UserOrderKind;
@@ -71,6 +83,8 @@ export type UserOrder = {
       designMode: 'image' | 'text';
       text?: string;
       textColor?: string;
+      /** Print position/size/rotation as designed in the POD studio. */
+      placement?: PodPlacement;
     };
   };
   specifications?: {
@@ -417,6 +431,8 @@ export async function createPrintOnDemandOrder(input: {
   designMode: 'image' | 'text';
   text?: string;
   textColor?: string;
+  /** Print position/size/rotation chosen in the studio. */
+  placement?: PodPlacement;
   imageFile?: File | null;
 }): Promise<UserOrder> {
   const units = sumBreakdown(input.bySize);
@@ -458,6 +474,7 @@ export async function createPrintOnDemandOrder(input: {
     },
   ];
 
+  const placement = input.placement;
   const quoteRequest: UserOrder['quoteRequest'] = {
     quantity: String(units),
     notes:
@@ -468,6 +485,7 @@ export async function createPrintOnDemandOrder(input: {
       designMode: input.designMode,
       text: input.designMode === 'text' ? input.text?.trim() : undefined,
       textColor: input.designMode === 'text' ? input.textColor : undefined,
+      placement: placement ?? undefined,
     },
     fileNames: input.imageFile ? [input.imageFile.name] : undefined,
   };
