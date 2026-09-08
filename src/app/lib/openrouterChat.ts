@@ -34,13 +34,14 @@ const STATIC_VISION_MODELS = [
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ] as const;
 
-/** Known-good chat models, most preferred first (speed/reliability). */
+/** Known-good chat models, fastest first (time-to-first-token and output
+ * speed from OpenRouter's stats). */
 const PREFERRED_ORDER = [
-  "nvidia/nemotron-3.5-lightning:free",
   "nvidia/nemotron-3-super-120b-a12b:free",
+  "nvidia/nemotron-3.5-lightning:free",
   "poolside/laguna-s-2.1:free",
-  "google/gemma-4-31b-it:free",
   "liquid/lfm-2.5-2.6b:free",
+  "google/gemma-4-31b-it:free",
 ];
 
 /** Not chat models or refuse to serve a plain browser chat (verified 403). */
@@ -327,12 +328,13 @@ tech-pack platform: the garment builder, drafts, exports, orders, pricing,
 and account questions.
 
 Style — this is critical:
+- Be brief. Answer in 1–2 sentences whenever possible, never more than 4
+  short sentences (~60 words). If the answer needs a list, cap it at 3
+  items. Then stop — no recaps, no "let me know if…" filler.
 - Write like a helpful colleague on a chat app, not like a document. Plain,
   conversational sentences. No preamble, no meta talk — never say things
   like "based on the provided text", "as an AI", "here is a summary", or
   "certainly!". Just answer directly.
-- Short replies: usually 1–3 sentences. Only use a list (max 3–4 items) when
-  the user asks for steps or options. One idea per sentence.
 - Plain text only. The chat panel cannot render markdown: absolutely no
   asterisks, hashes, underscores, or bullet symbols. Never write **bold**
   or *italics* — write the words bare. For lists, start each line with a
