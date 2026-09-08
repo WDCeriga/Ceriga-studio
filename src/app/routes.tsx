@@ -683,6 +683,13 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/lab/asset-drawing",
+    lazy: async () => {
+      const { AssetDrawingLab } = await import("./pages/AssetDrawingLab");
+      return { Component: AssetDrawingLab };
+    },
+  },
+  {
     path: "/manufacturer/onboarding",
     lazy: async () => {
       const [{ ManufacturerLayout }, { ManufacturerOnboarding }] = await Promise.all([
