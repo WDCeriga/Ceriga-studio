@@ -2,7 +2,7 @@ const STORAGE_KEY = "ceriga-support-chat-v1";
 
 export type SupportChatStoredMessage =
   | { id: string; role: "user"; text: string; imageSrc?: string }
-  | { id: string; role: "assistant"; text: string };
+  | { id: string; role: "assistant"; text: string; feedback?: "up" | "down" };
 
 function isUserRow(row: unknown): row is SupportChatStoredMessage & { role: "user" } {
   if (!row || typeof row !== "object") return false;
@@ -18,7 +18,12 @@ function isUserRow(row: unknown): row is SupportChatStoredMessage & { role: "use
 function isAssistantRow(row: unknown): row is SupportChatStoredMessage & { role: "assistant" } {
   if (!row || typeof row !== "object") return false;
   const r = row as Record<string, unknown>;
-  return r.role === "assistant" && typeof r.id === "string" && typeof r.text === "string";
+  return (
+    r.role === "assistant" &&
+    typeof r.id === "string" &&
+    typeof r.text === "string" &&
+    (r.feedback === undefined || r.feedback === "up" || r.feedback === "down")
+  );
 }
 
 export function loadSupportChatSession(): SupportChatStoredMessage[] | null {
@@ -30,7 +35,7 @@ export function loadSupportChatSession(): SupportChatStoredMessage[] | null {
     const out: SupportChatStoredMessage[] = [];
     for (const row of data) {
       if (isAssistantRow(row)) {
-        out.push({ id: row.id, role: "assistant", text: row.text });
+        out.push({ id: row.id, role: "assistant", text: row.text, feedback: row.feedback });
       } else if (isUserRow(row)) {
         const src =
           typeof row.imageSrc === "string" && row.imageSrc.length > 0 && !row.imageSrc.startsWith("blob:")
