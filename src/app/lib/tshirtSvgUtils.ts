@@ -4,6 +4,7 @@ export function tintPotraceSvg(
   fill: string,
   mode: 'solid' | 'outline' | 'detail' = 'solid',
   interactive = false,
+  edgeSealWidth = 0,
 ): string {
   let svg = raw
     .replace(/width="2048[^"]*"/i, 'width="100%"')
@@ -21,16 +22,19 @@ export function tintPotraceSvg(
   }
 
   // Only the first (fabric) group is tinted. Construction ink stays #141414.
+  const edgeSeal = edgeSealWidth > 0
+    ? ` stroke="${fill}" stroke-width="${edgeSealWidth}" stroke-linejoin="round" stroke-linecap="round"`
+    : ' stroke="none"';
   let result = svg.replace(
     /(<g transform="[^"]+")[^>]*fill="#000000"[^>]*>/i,
-    `$1 fill="${fill}" stroke="none" fill-rule="evenodd">`,
+    `$1 fill="${fill}"${edgeSeal} fill-rule="evenodd">`,
   );
   if (result === svg) {
     result = svg
       .replace(/fill="#000000"/i, `fill="${fill}"`)
       .replace(
         /(<g transform="[^"]+")[^>]*>/,
-        `$1 fill="${fill}" stroke="none" fill-rule="evenodd">`,
+        `$1 fill="${fill}"${edgeSeal} fill-rule="evenodd">`,
       );
   }
 

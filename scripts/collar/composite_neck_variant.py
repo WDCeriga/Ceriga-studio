@@ -1,7 +1,10 @@
 """Replace the collar on a fit's original line art.
 
-Erases the original neck neighborhood (collar, hole, coverstitch), then pastes
-the aligned donor neck. Sleeves, hem, and side silhouette stay the original.
+Erases the base's collar assembly (opening, band, collar ink, nearby cover
+stitch), then pastes ONLY the aligned donor's collar assembly. Shoulders,
+sleeves, seams, hem and silhouette stay byte-identical base pixels, so every
+neckline of a fit is one continuous garment — the packed Body/sleeve/hem parts
+line up across necklines to the pixel.
 
 Usage:
   python scripts/collar/composite_neck_variant.py
@@ -229,21 +232,24 @@ def fit_donor(base_ink: np.ndarray, don_rgb: np.ndarray, extra_shift: tuple[int,
     return shift_rgb(don_rgb, round(by - dy + ey), round(bx - dx + ex))
 
 
-def neck_zone(ink: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Hole plus the collar/coverstitch around it. Organic — not a rectangle."""
-    height, width = ink.shape
-    ys, xs = _grid(ink.shape)
-    hole = neck_hole(ink)
-    cx = width / 2.0
-    if hole.any():
-        zone = ndimage.binary_dilation(hole, iterations=70)
-    else:
-        zone = (ys < height * 0.45) & (np.abs(xs - cx) < width * 0.20)
-    nx, ny = nape_top(ink)
-    zone |= (ys <= ny + 22) & (np.abs(xs - nx) < max(nape_width(ink) * 0.62, 90))
-    zone &= ys < height * 0.58
-    zone &= np.abs(xs - cx) < width * 0.30
-    return hole, zone
+def collar_assembly(
+    ink_arr: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """The collar assembly of one drawing: opening + band + leaves + their ink.
+
+    The band flood is bounded by the drawn collar outline (same rule the pack
+    uses to colour the band), so the assembly is exactly the part of the
+    garment a neckline change is allowed to touch — never the shoulders.
+    Returns (assembly, hole, core) where core = hole | band | leaves.
+    """
+    hole = neck_hole(ink_arr)
+    if not hole.any():
+        return np.zeros_like(ink_arr), hole, hole
+    band = G.collar_band_mask(hole, ink_arr)
+    leaves = collar_part_masks(ink_arr)
+    core = hole | band | leaves
+    assembly = core | (ink_arr & ndimage.binary_dilation(core, iterations=8))
+    return assembly, hole, core
 
 
 def shoulder_keep(base_ink: np.ndarray) -> np.ndarray:
@@ -362,6 +368,11 @@ def composite(
     extra_shift: tuple[int, int] = (0, 0),
     seal_placket: bool = False,
 ) -> tuple[Image.Image, np.ndarray, dict]:
+    """Paste ONLY the donor's collar assembly onto the base drawing.
+
+    Everything outside the collar neighbourhood stays byte-identical base
+    pixels — that is what makes all necklines of a fit share one body.
+    """
     base_rgb = np.asarray(base.convert("RGB"))
     don_rgb = np.asarray(donor.convert("RGB"))
     if don_rgb.shape != base_rgb.shape:
@@ -371,20 +382,42 @@ def composite(
     base_ink = ink_mask(base_rgb)
     aligned = fit_donor(base_ink, don_rgb, extra_shift=extra_shift)
     aligned_ink = ink_mask(aligned)
-    orig_hole, orig_zone = neck_zone(base_ink)
-    new_hole, new_zone = neck_zone(aligned_ink)
+
+    base_asm, base_hole, base_core = collar_assembly(base_ink)
+    don_asm, new_hole, don_core = collar_assembly(aligned_ink)
     leaf = collar_part_masks(aligned_ink)
     leaf_zone = ndimage.binary_dilation(leaf, iterations=4) if leaf.any() else leaf
-    work = orig_zone | new_zone | leaf_zone
-    keep = shoulder_keep(base_ink) & ~aligned_ink & ~leaf_zone
-    erase = work & ~keep
+
+    # Collar neighbourhood clamp: centred, upper half only. Nothing outside it
+    # may change — this is the guarantee that the body stays the base drawing.
+    height, width = base_ink.shape
+    ys, xs = _grid(base_ink.shape)
+    margin = max(nape_width(base_ink) * 0.5 + 60, 240)
+    clamp = (ys < height * 0.50) & (np.abs(xs - width / 2.0) <= margin)
+
+    paste = don_asm | (
+        aligned_ink & (ndimage.binary_dilation(don_asm, iterations=26) & clamp)
+    )
+    paste &= clamp
+    erase = (
+        base_asm
+        | (base_ink & (ndimage.binary_dilation(base_asm, iterations=26) & clamp))
+        | paste
+    )
+    erase &= clamp
+    keep = shoulder_keep(base_ink)
 
     out = base_rgb.copy()
     out[erase] = 255
-    paste = work & ~keep
     out[paste] = aligned[paste]
-    leftover = erase & base_ink & ~aligned_ink & ~keep
-    out[leftover] = 255
+    # The donor collar can be narrower than the base's (deep V vs V): base ink
+    # erased near the old collar but beyond the donor's own ink would leave a
+    # GAP in the shoulder/nape outline. Restore any erased base ink that the
+    # donor did not repaint and that does not sit inside the donor's new
+    # collar (where the old line must genuinely disappear).
+    guard = ndimage.binary_dilation(don_core, iterations=6)
+    orphan_ink = erase & ~paste & base_ink & ~guard
+    out[orphan_ink] = base_rgb[orphan_ink]
     out[keep] = base_rgb[keep]
 
     # Seal collar-leaf / placket borders so they stay separate fill regions.
@@ -415,26 +448,26 @@ def composite(
         out[leftover] = 255
         out_ink = ink_mask(out)
 
-    height, width = base_ink.shape
     ghost = (
         base_ink
-        & ndimage.binary_dilation(orig_hole, iterations=50)
-        & ~orig_hole
+        & ndimage.binary_dilation(base_hole, iterations=50)
+        & ~base_hole
         & out_ink
         & ~aligned_ink
         & erase
     )
     stats = {
-        "zone": int(work.sum()),
         "erase": int(erase.sum()),
         "paste": int(paste.sum()),
         "ghost": int(ghost.sum()),
+        # The whole point: zero ink changes outside the collar clamp.
+        "body_diff": int(((out_ink != base_ink) & ~clamp).sum()),
         "lower_diff": int((out_ink[height // 2 :] != base_ink[height // 2 :]).sum()),
         "enclosed_base": int(G.enclosed_by(base_ink).sum()),
         "enclosed_out": int(G.enclosed_by(out_ink).sum()),
         "leaked": int((G.enclosed_by(base_ink) & ~G.enclosed_by(out_ink)).sum()),
     }
-    return Image.fromarray(out), work, stats
+    return Image.fromarray(out), paste, stats
 
 
 def mask_preview(rgb: np.ndarray, zone: np.ndarray) -> Image.Image:
@@ -453,6 +486,28 @@ def main() -> None:
         if not ids or job["id"] in ids or any(token in job["id"] for token in ids)
     ]
     for job in jobs:
+        if job['id'].startswith(('regular-', 'oversized-')):
+            from rebuild_reference_necks import composite as reference_composite
+            reference_composite(job['id'])
+            print(f"{job['id']}: rebuilt from reference raster")
+            continue
+        if job['id'] in ('slim-polo', 'slim-thin-crew', 'slim-scoop'):
+            from fix_slim_polo_thin import rebuild
+            rebuild(job['id'])
+            print(f"{job['id']}: rebuilt from registered collar boundaries")
+            continue
+        if job["id"] == "slim-deep-vneck":
+            from fix_slim_deep_vneck import rebuild
+            rebuild()
+            print("slim-deep-vneck: rebuilt from registered collar boundaries")
+            continue
+        if job["id"] == "slim-crew":
+            # This donor needs two-point registration and a measured collar
+            # boundary; a neighbourhood flood also copies its shoulder ink.
+            from fix_slim_crew import rebuild
+            rebuild()
+            print("slim-crew: rebuilt from registered collar boundaries")
+            continue
         base_path = SRC / job["base"]
         donor_path = SRC / job["donor"]
         if not base_path.exists() or not donor_path.exists():
@@ -467,7 +522,8 @@ def main() -> None:
         out_path = SRC / job["out"]
         result.save(out_path)
         print(
-            f"{job['id']}: ghost={stats['ghost']} lower {stats['lower_diff']} "
+            f"{job['id']}: body_diff={stats['body_diff']} lower {stats['lower_diff']} "
+            f"ghost={stats['ghost']} paste={stats['paste']} "
             f"enclosed {stats['enclosed_base']}->{stats['enclosed_out']} "
             f"leaked {stats['leaked']} -> {out_path.name}"
         )

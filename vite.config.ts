@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -8,6 +8,10 @@ import { collarFromPhotoPlugin } from './scripts/collar/vite-plugin'
 import { garmentFromPhotoPlugin } from './scripts/collar/garment-vite-plugin'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// This checkout is also reachable through a symlink in Downloads. Vite resolves
+// module ids to the real path, so root/fs.allow must use the real path too or the
+// strict fs check rejects every file and the app renders a black screen.
+const projectRoot = realpathSync(path.resolve(__dirname))
 
 /** Figma Make exports use `figma:asset/<hash>.png`; serve matching files from `src/assets/`. */
 function resolveFigmaAssets(): Plugin {
@@ -30,6 +34,11 @@ export default defineConfig({
   // Expose Vercel Supabase integration public keys (NEXT_PUBLIC_*) to the client.
   // Do NOT add bare "SUPABASE_" — that would leak SERVICE_ROLE_KEY into the browser.
   envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+  server: {
+    fs: {
+      allow: [projectRoot],
+    },
+  },
   build: {
     chunkSizeWarningLimit: 900,
   },

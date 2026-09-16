@@ -205,6 +205,10 @@ def remove_previous_regular() -> None:
 
 
 def pack(probe_only: bool) -> None:
+    if not probe_only:
+        from rebuild_reference_necks import rebuild
+        rebuild('regular-crew')
+        return
     if not ART_IN.exists():
         raise SystemExit(f"missing {ART_IN}")
 
@@ -262,6 +266,14 @@ def pack(probe_only: bool) -> None:
         print(f"stitch-strip moved {label}: {count}px")
     print(f"nape ribs Inner->Neck: {G.apply_nape_rib_move(masks)}px")
     G.clip_fills_inside_ink(masks, ink, stitches)
+    for part in named:
+        part["mask"] = masks[part["category"]]
+
+    # Keep the body as a continuous underlay so trace hairlines cannot reveal
+    # the white canvas between construction regions.
+    completed = G.complete_garment_coverage(masks, regions.interior, ink)
+    if completed:
+        print(f"completed unassigned fabric: {completed}px")
     for part in named:
         part["mask"] = masks[part["category"]]
 

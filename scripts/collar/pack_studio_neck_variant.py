@@ -50,10 +50,11 @@ VARIANTS: dict[str, dict] = {
         "proof": "slim-crew-closed-regions.png",
         "fill_proof": "slim-crew-fill-proof.png",
         "title": "Slim crew t-shirt",
+        "band_width": 62,
         "outline": "Outline crew",
         "stitch": "Cover stitch crew",
         "seeds": [
-            {"category": "Body", "asset": "Body crew", "seeds": [[507, 1071], [241, 220], [749, 204], [626, 247], [644, 190], [362, 162], [357, 198]]},
+            {"category": "Body", "asset": "Body crew", "seeds": [[507, 1071], [352, 170], [749, 204]]},
             {"category": "Left sleeve", "asset": "Left sleeve", "seeds": [[133, 507]]},
             {"category": "Right sleeve", "asset": "Right sleeve", "seeds": [[888, 507]]},
             {"category": "Body hem", "asset": "Body hem", "seeds": [[230, 1349]]},
@@ -76,7 +77,7 @@ VARIANTS: dict[str, dict] = {
         "outline": "Outline V-neck (boxy)",
         "stitch": "Cover stitch V-neck (boxy)",
         "seeds": [
-            {"category": "Body", "asset": "Body V-neck (boxy)", "seeds": [[510, 726], [261, 277], [700, 250]]},
+            {"category": "Body", "asset": "Body V-neck (boxy)", "seeds": [[510, 732]]},
             {"category": "Left sleeve", "asset": "Left sleeve (boxy)", "seeds": [[128, 556]]},
             {"category": "Right sleeve", "asset": "Right sleeve (boxy)", "seeds": [[894, 556]]},
             {"category": "Body hem", "asset": "Body hem (boxy)", "seeds": [[227, 1302]]},
@@ -94,23 +95,18 @@ VARIANTS: dict[str, dict] = {
                 "category": "Neck",
                 "asset": "V-neck (boxy)",
                 "seeds": [
-                    [487, 272],
-                    [530, 251],
-                    [571, 395],
-                    [395, 317],
-                    [430, 247],
-                    [592, 245],
-                    [443, 385],
-                    [627, 319],
-                    [507, 441],
-                    [379, 240],
-                    [551, 416],
-                    [617, 237],
-                    [552, 271],
-                    [646, 280],
+                    [614, 226],
+                    [504, 389],
+                    [405, 223],
+                    [441, 298],
+                    [540, 365],
+                    [588, 289],
+                    [463, 333],
+                    [566, 326],
+                    [476, 223],
                 ],
             },
-            {"category": "Inner back neck", "asset": "Inner back neck V-neck (boxy)", "seeds": [[511, 348]]},
+            {"category": "Inner back neck", "asset": "Inner back neck V-neck (boxy)", "seeds": [[512, 288]]},
         ],
     },
     "regular-vneck": {
@@ -176,17 +172,18 @@ VARIANTS: dict[str, dict] = {
         "proof": "slim-scoop-closed-regions.png",
         "fill_proof": "slim-scoop-fill-proof.png",
         "title": "Slim scoop t-shirt",
+        "band_width": 62,
         "outline": "Outline scoop",
         "stitch": "Cover stitch scoop",
         "seeds": [
-            {"category": "Body", "asset": "Body scoop", "seeds": [[507, 1071], [810, 230]]},
+            {"category": "Body", "asset": "Body scoop", "seeds": [[507, 1071]]},
             {"category": "Left sleeve", "asset": "Left sleeve", "seeds": [[133, 507]]},
             {"category": "Right sleeve", "asset": "Right sleeve", "seeds": [[888, 507]]},
             {"category": "Body hem", "asset": "Body hem", "seeds": [[230, 1349]]},
             {"category": "Left cuff", "asset": "Left cuff", "seeds": [[91, 597]]},
             {"category": "Right cuff", "asset": "Right cuff", "seeds": [[944, 592]]},
-            {"category": "Neck", "asset": "Scoop neck", "seeds": [[393, 420], [632, 419], [352, 343], [371, 386], [322, 174], [704, 171]]},
-            {"category": "Inner back neck", "asset": "Inner back neck scoop", "seeds": [[512, 313]]},
+            {"category": "Neck", "asset": "Scoop neck", "seeds": [[506, 410], [397, 217], [628, 213], [452, 154]]},
+            {"category": "Inner back neck", "asset": "Inner back neck scoop", "seeds": [[512, 250]]},
         ],
     },
     "regular-scoop": {
@@ -217,7 +214,7 @@ VARIANTS: dict[str, dict] = {
         "outline": "Outline Scoop neck (boxy)",
         "stitch": "Cover stitch Scoop neck (boxy)",
         "seeds": [
-            {"category": "Body", "asset": "Body Scoop neck (boxy)", "seeds": [[510, 726], [261, 277], [700, 250]]},
+            {"category": "Body", "asset": "Body Scoop neck (boxy)", "seeds": [[510, 726]]},
             {"category": "Left sleeve", "asset": "Left sleeve (boxy)", "seeds": [[128, 556]]},
             {"category": "Right sleeve", "asset": "Right sleeve (boxy)", "seeds": [[894, 556]]},
             {"category": "Body hem", "asset": "Body hem (boxy)", "seeds": [[227, 1302]]},
@@ -231,8 +228,12 @@ VARIANTS: dict[str, dict] = {
                 "asset": "Right cuff (boxy)",
                 "seeds": [[872, 695], [927, 656], [986, 627]],
             },
-            {"category": "Neck", "asset": "Scoop neck (boxy)", "seeds": [[370, 229], [418, 243], [500, 237]]},
-            {"category": "Inner back neck", "asset": "Inner back neck Scoop neck (boxy)", "seeds": [[512, 364]]},
+            {
+                "category": "Neck",
+                "asset": "Scoop neck (boxy)",
+                "seeds": [[529, 382], [485, 377], [431, 314], [601, 297], [611, 223], [403, 244]],
+            },
+            {"category": "Inner back neck", "asset": "Inner back neck Scoop neck (boxy)", "seeds": [[512, 278]]},
         ],
     },
     "oversized-scoop": {
@@ -260,6 +261,7 @@ VARIANTS: dict[str, dict] = {
         "proof": "slim-deep-vneck-closed-regions.png",
         "fill_proof": "slim-deep-vneck-fill-proof.png",
         "title": "Slim deep V-neck t-shirt",
+        "band_width": 62,
         "outline": "Outline deep V-neck",
         "stitch": "Cover stitch deep V-neck",
         "seeds": [
@@ -273,15 +275,8 @@ VARIANTS: dict[str, dict] = {
                 "category": "Neck",
                 "asset": "Deep V-neck",
                 "seeds": [
-                    [392, 162],
-                    [351, 171],
-                    [674, 171],
-                    [603, 361],
-                    [624, 273],
-                    [571, 436],
-                    [444, 412],
-                    [480, 495],
-                    [534, 514],
+                    [511, 546], [474, 177], [382, 196],
+                    [648, 167], [592, 383], [426, 365], [620, 292],
                 ],
             },
             {"category": "Inner back neck", "asset": "Inner back neck deep V-neck", "seeds": [[513, 287]]},
@@ -344,15 +339,11 @@ VARIANTS: dict[str, dict] = {
                 "category": "Neck",
                 "asset": "Deep V-neck (boxy)",
                 "seeds": [
-                    [462, 490],
-                    [548, 508],
-                    [467, 258],
-                    [556, 254],
-                    [414, 242],
-                    [594, 405],
-                    [637, 234],
-                    [446, 450],
-                    [344, 242],
+                    [449, 248],
+                    [649, 235],
+                    [532, 526],
+                    [607, 240],
+                    [491, 255],
                 ],
             },
             {"category": "Inner back neck", "asset": "Inner back neck Deep V-neck (boxy)", "seeds": [[510, 361]]},
@@ -394,6 +385,10 @@ VARIANTS: dict[str, dict] = {
         "proof": "slim-polo-closed-regions.png",
         "fill_proof": "slim-polo-fill-proof.png",
         "title": "Slim polo collar t-shirt",
+        # Closed donor cells own the full collar and placket; the registered
+        # rebuild below replaces the generic ring calculation for this asset.
+        "band_width": 24,
+        "keep_collar_above_hole": True,
         "outline": "Outline polo collar",
         "stitch": "Cover stitch polo collar",
         "seeds": [
@@ -406,7 +401,7 @@ VARIANTS: dict[str, dict] = {
             {
                 "category": "Neck",
                 "asset": "Polo collar",
-                "seeds": [[383, 232], [640, 231], [421, 166], [480, 140], [574, 290]],
+                "seeds": [[434, 132], [640, 215], [382, 214], [458, 312], [579, 270]],
             },
             {"category": "Inner back neck", "asset": "Inner back neck polo collar", "seeds": [[511, 234]]},
         ],
@@ -461,13 +456,12 @@ VARIANTS: dict[str, dict] = {
                 "category": "Neck",
                 "asset": "Polo collar (boxy)",
                 "seeds": [
-                    [392, 317],
-                    [635, 317],
-                    [448, 242],
-                    [502, 539],
-                    [348, 248],
-                    [774, 281],
-                    [679, 248],
+                    [635, 298],
+                    [391, 298],
+                    [503, 526],
+                    [548, 450],
+                    [495, 213],
+                    [432, 236],
                 ],
             },
             {"category": "Inner back neck", "asset": "Inner back neck Polo collar (boxy)", "seeds": [[513, 334]]},
@@ -502,13 +496,15 @@ VARIANTS: dict[str, dict] = {
         "proof": "slim-thin-crew-closed-regions.png",
         "fill_proof": "slim-thin-crew-fill-proof.png",
         "title": "Slim thin crew t-shirt",
+        # The product point of this neckline is a *thin* band.
+        "band_width": 40,
         "outline": "Outline thin crew",
         "stitch": "Cover stitch thin crew",
         "seeds": [
             {
                 "category": "Body",
                 "asset": "Body thin crew",
-                "seeds": [[507, 1071], [688, 177], [366, 163]],
+                "seeds": [[507, 1071], [749, 204], [664, 166]],
             },
             {"category": "Left sleeve", "asset": "Left sleeve", "seeds": [[133, 507]]},
             {"category": "Right sleeve", "asset": "Right sleeve", "seeds": [[888, 507]]},
@@ -558,7 +554,7 @@ VARIANTS: dict[str, dict] = {
             {
                 "category": "Body",
                 "asset": "Body Thin crew neck (boxy)",
-                "seeds": [[510, 726], [352, 235], [774, 281]],
+                "seeds": [[510, 726]],
             },
             {"category": "Left sleeve", "asset": "Left sleeve (boxy)", "seeds": [[128, 556]]},
             {"category": "Right sleeve", "asset": "Right sleeve (boxy)", "seeds": [[894, 556]]},
@@ -576,12 +572,12 @@ VARIANTS: dict[str, dict] = {
             {
                 "category": "Neck",
                 "asset": "Thin crew neck (boxy)",
-                "seeds": [[613, 308], [596, 236]],
+                "seeds": [[513, 309], [514, 253]],
             },
             {
                 "category": "Inner back neck",
                 "asset": "Inner back neck Thin crew neck (boxy)",
-                "seeds": [[508, 293]],
+                "seeds": [[512, 296]],
             },
         ],
     },
@@ -613,6 +609,12 @@ VARIANTS: dict[str, dict] = {
         ],
     },
 }
+
+
+def seal_under_ink(mask: np.ndarray, ink: np.ndarray, iterations: int = 2) -> np.ndarray:
+    """Grow a fill under the construction lines so colour meets the outline."""
+    grown = ndimage.binary_dilation(mask, iterations=iterations)
+    return mask | (grown & ink)
 
 
 def key_lineart(path: Path) -> Image.Image:
@@ -678,6 +680,10 @@ def write_part(category: str, asset: str, svg: str) -> Path:
 
 
 def pack(variant_id: str, probe_only: bool) -> None:
+    if (variant_id.startswith(('regular-', 'oversized-')) or variant_id in ('slim-scoop', 'boxy-scoop', 'boxy-vneck', 'boxy-crew', 'boxy-thin-crew', 'boxy-deep-vneck', 'boxy-polo')) and not probe_only:
+        from rebuild_reference_necks import rebuild
+        rebuild(variant_id)
+        return
     spec = VARIANTS.get(variant_id)
     if spec is None:
         names = ", ".join(VARIANTS)
@@ -712,9 +718,27 @@ def pack(variant_id: str, probe_only: bool) -> None:
         return
 
     part_seeds: list[dict] = spec["seeds"]
+    # Claim order matters: the opening-interior pocket belongs to the inner
+    # back, the collar band cells to the neck, and everything else is just
+    # leftover the body picks up. If the body claims first it can swallow
+    # collar band cells, which makes the band vanish into the body colour.
+    PART_ORDER = [
+        "Inner back neck",
+        "Neck",
+        "Body hem",
+        "Left cuff",
+        "Right cuff",
+        "Left sleeve",
+        "Right sleeve",
+        "Body",
+    ]
+    by_category: dict[str, dict] = {entry["category"]: entry for entry in part_seeds}
     claimed: dict[int, str] = {}
     named: list[dict] = []
-    for entry in part_seeds:
+    for category in PART_ORDER:
+        entry = by_category.get(category)
+        if entry is None:
+            continue
         ids: list[int] = []
         name = f"{entry['category']}/{entry['asset']}"
         for x, y in entry["seeds"]:
@@ -723,7 +747,7 @@ def pack(variant_id: str, probe_only: bool) -> None:
                 print(f"  !! {name}: seed ({x}, {y}) is not inside a region")
                 continue
             if region_id in claimed:
-                print(f"  !! {name}: region {region_id} already taken by {claimed[region_id]}")
+                print(f"  !! {name}: seed ({x}, {y}) already taken by {claimed[region_id]}")
                 continue
             claimed[region_id] = name
             ids.append(region_id)
@@ -736,22 +760,85 @@ def pack(variant_id: str, probe_only: bool) -> None:
     for label, count in G.apply_stitch_strip_moves(masks, ink, stitches).items():
         print(f"stitch-strip moved {label}: {count}px")
     print(f"nape ribs Inner->Neck: {G.apply_nape_rib_move(masks)}px")
-    G.clip_fills_inside_ink(masks, ink, stitches)
+    # rib_fix=False: clip_neck_to_rib_band's rim-split/annulus heuristics are
+    # what paint whole shoulder yokes collar-blue. rebuild_collar_band below
+    # replaces them with one deterministic geometric pass.
+    G.clip_fills_inside_ink(masks, ink, stitches, rib_fix=False)
+    # The inner back must stay exactly the pocket behind the opening that its
+    # own seed claimed — never grow by absorption, or it eats collar band cells.
+    absorbed = G.absorb_leftovers(
+        masks, regions.labels, regions.ids, claimed, avoid={"Inner back neck"},
+    )
+    for part, px in absorbed.items():
+        print(f"absorbed leftover {part}: {px}px")
     for part in named:
         part["mask"] = masks[part["category"]]
 
-    missed = [i for i in regions.ids if i not in claimed]
-    if missed:
-        print("  !! regions with no part:", missed)
-        for region_id in missed:
-            print(
-                f"     region {region_id}: {regions.area(region_id)}px "
-                f"at {regions.anchor(region_id)}"
-            )
+    # Every enclosed fabric pixel needs a fill owner. Keep the body as a
+    # continuous underlay so small trace gaps cannot expose the white canvas.
+    completed = G.complete_garment_coverage(masks, regions.interior, ink)
+    if completed:
+        print(f"completed unassigned fabric: {completed}px")
+    for part in named:
+        part["mask"] = masks[part["category"]]
+
+    # Collar rebuild bounded by the drawn ink (the way the V-neck works):
+    # walk the collar outward from the opening and stop at the construction
+    # outline/seam web, so neck colour never leaves the drawing. Replaces the
+    # donor's ragged region claims into one deterministic pass. Polo keeps the
+    # collar leaves drawn above the opening.
+    moved_px = G.rebuild_collar_band(
+        masks,
+        ink,
+        keep_above_hole=spec.get("keep_collar_above_hole", False),
+    )
+    print(f"collar rebuild: band {moved_px}px")
+    if variant_id in ("slim-polo", "slim-thin-crew", "slim-scoop", "boxy-deep-vneck"):
+        from fix_slim_polo_thin import rebuild_fills
+        print(f"closed collar cells: {rebuild_fills(variant_id, masks, ink)}px")
+    if variant_id == "slim-crew":
+        from fix_slim_crew import complete_corner_fills
+        print(f"crew attachment rib cells: {complete_corner_fills(masks, ink)}px")
+    if variant_id == "slim-deep-vneck":
+        from fix_slim_deep_vneck import complete_band_fills
+        print(f"deep V rib cells: {complete_band_fills(masks, ink)}px")
+    if variant_id in ("slim-scoop", "boxy-vneck", "boxy-deep-vneck", "boxy-scoop", "boxy-thin-crew", "boxy-polo"):
+        from fix_slim_polo_thin import rebuild_boxy_clean_fills, clip_boxy_neck_fills
+        print(f"boxy clean collar pixels: {rebuild_boxy_clean_fills(variant_id, masks, ink)}px")
+        print(f"boxy collar spill clipped: {clip_boxy_neck_fills(variant_id, masks, ink)}px")
+    for part in named:
+        if part["category"] in ("Neck", "Body", "Inner back neck"):
+            part["mask"] = masks[part["category"]]
+
+    # Grow every fabric fill a couple of pixels under the construction ink so
+    # parts meet at seams with no white hairline (same step the slim-V default
+    # pack runs; without it variant builds show white cracks at shoulders,
+    # armholes and the hem).
+    from fix_slim_polo_thin import blacken_neck_stitches
+    blackened = blacken_neck_stitches(variant_id, stitches)
+    if blackened:
+        print(f"neck stitch marks moved to outline: {blackened}px")
+
+    construction = ink & ~stitches
+    for part in named:
+        if part["category"] in ("Body", "Neck", "Inner back neck"):
+            part["mask"] = seal_under_ink(part["mask"], construction)
+            masks[part["category"]] = part["mask"]
 
     colour_proof = np.full((*regions.labels.shape, 3), 255, np.uint8)
-    for part in named:
-        colour_proof[part["mask"]] = PROOF_COLORS.get(part["category"], (80, 80, 80))
+    # Paint in the app's z-order (bottom -> top) so the proof shows what the
+    # builder actually stacks: Body first, Neck after (Neck sits above Body in
+    # the app, so at any shared construction-ink pixel the head colour wins).
+    # Painting in claim order (Body last) makes Neck look fragmented/broken.
+    Z_ORDER = [
+        "Body", "Left sleeve", "Right sleeve", "Body hem",
+        "Left cuff", "Right cuff", "Inner back neck", "Neck",
+    ]
+    by_cat = {part["category"]: part["mask"] for part in named}
+    for category in Z_ORDER:
+        mask = by_cat.get(category)
+        if mask is not None:
+            colour_proof[mask] = PROOF_COLORS.get(category, (80, 80, 80))
     colour_proof[stitches] = (180, 180, 180)
     Image.fromarray(colour_proof).save(SRC / spec["fill_proof"])
     print(f"wrote {spec['fill_proof']}")
@@ -759,7 +846,7 @@ def pack(variant_id: str, probe_only: bool) -> None:
     for part in named:
         if part["category"] not in WRITE_CATEGORIES:
             continue
-        if not part["ids"]:
+        if not part["ids"] and not part["mask"].any():
             continue
         write_part(
             part["category"],

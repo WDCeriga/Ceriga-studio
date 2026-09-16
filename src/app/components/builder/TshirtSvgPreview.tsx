@@ -336,8 +336,20 @@ function resolveLayerFill(
   return layer.tint ?? fabricColor;
 }
 
-function InlineSvg({ raw, fill }: { raw: string; fill: string }) {
-  const markup = useMemo(() => tintPotraceSvg(raw, fill, 'solid'), [raw, fill]);
+function InlineSvg({
+  raw,
+  fill,
+  edgeSealWidth = 0,
+}: {
+  raw: string;
+  fill: string;
+  /** Extra same-colour coverage under construction seams, in SVG user units. */
+  edgeSealWidth?: number;
+}) {
+  const markup = useMemo(
+    () => tintPotraceSvg(raw, fill, 'solid', false, edgeSealWidth),
+    [raw, fill, edgeSealWidth],
+  );
 
   return (
     <div
@@ -521,7 +533,6 @@ function PreviewLayer({
   alignOffset,
   clipSide,
   scaleFixedAnchor,
-  selectedLayerId,
   layerId,
 }: {
   layer: ResolvedGarmentLayer;
@@ -532,11 +543,12 @@ function PreviewLayer({
   alignOffset?: { x: number; y: number };
   clipSide?: SleeveSide;
   scaleFixedAnchor?: ScaleAnchor | null;
-  selectedLayerId?: string | null;
   layerId: string;
 }) {
   const fill = resolveLayerFill(layer, fabricColor, bodyColor);
-  const zIndex = layerId === selectedLayerId ? SELECTED_LAYER_Z : layer.zIndex;
+  // Selection raises handles and hit targets only. Raising the fabric itself
+  // covers its construction outline and stitches with the selected colour.
+  const zIndex = layer.zIndex;
 
   return (
     <div
@@ -547,12 +559,17 @@ function PreviewLayer({
       }}
       data-layer-id={layerId}
       data-asset={layer.displayName}
-    >
-      <div
-        className="absolute inset-0"
+    >      <div className="absolute inset-0"
         style={clipSide ? sleeveSideClipStyle(clipSide) : undefined}
       >
-        <InlineSvg raw={layer.svgRaw} fill={fill} />
+        <InlineSvg
+          raw={layer.svgRaw}
+          fill={fill}
+          // The body is the continuous fabric underlay. A small same-colour
+          // stroke closes raster/trace hairlines at the neckline, shoulders,
+          // armholes and hem without changing the visible black outline.
+          edgeSealWidth={layer.id === 'base' ? 72 : 0}
+        />
       </div>
     </div>
   );
@@ -1094,7 +1111,6 @@ export function TshirtSvgPreview({
               alignOffset={alignOffset}
               clipSide={side}
               scaleFixedAnchor={scaleFixedAnchor}
-              selectedLayerId={selectedLayerId}
             />
           );
         })}

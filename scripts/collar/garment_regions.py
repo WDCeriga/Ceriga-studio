@@ -565,10 +565,253 @@ def clip_neck_to_rib_band(masks: dict[str, np.ndarray]) -> tuple[int, int]:
     return int(leak.sum()), from_body
 
 
+def ink_web(
+    ink: np.ndarray,
+    passable_max: int = 600,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Classify drawn ink into (block, passable) after dash bridging.
+
+    block = the large construction web (collar outline + shoulder seams once
+    the dashed lines are bridged) that a collar flood must not cross;
+    passable = small rib ticks / stitch dashes a fill may run over.
+    """
+    bridged, _bridges = bridge_dashes(ink, Settings())
+    ink_lbl, ink_n = ndimage.label(bridged, np.ones((3, 3), bool))
+    areas = np.bincount(ink_lbl.ravel())
+    block = np.zeros_like(ink)
+    passable = np.zeros_like(ink)
+    for i in range(1, ink_n + 1):
+        (block if areas[i] > passable_max else passable)[ink_lbl == i] = True
+    return block, passable
+
+
+def collar_band_mask(
+    hole: np.ndarray,
+    ink: np.ndarray | None,
+    passable_max: int = 600,
+    max_radius: int = 46,
+) -> np.ndarray:
+    """Flood the collar band outward from the opening, bounded by DRAWN ink.
+
+    Walks from the hole across white fabric and rib ticks (small ink) and
+    stops at the big construction-ink web (collar outline + shoulder seams
+    after dash bridging). A max_radius ceiling guards against a seam gap.
+    Used both by rebuild_collar_band (pack time) and the neck-variant
+    compositor (to find the collar area in base and donor drawings).
+    """
+    band = np.zeros_like(hole)
+    if ink is not None and ink.any():
+        block, passable = ink_web(ink, passable_max)
+
+        garment_interior = ndimage.binary_fill_holes(block)
+        interior_white = garment_interior & ~ink
+        # Seed: white pixels just outside the hole (across the thin inner
+        # collar ink) and not more than a collar-width away, so the flood
+        # starts inside the band and cannot jump the outer outline.
+        dist = ndimage.distance_transform_edt(~hole)
+        seed = interior_white & (dist >= 1) & (dist <= 26)
+        # Rest of the flood: white + passable ink, bounded by the block web.
+        # The rib ticks are passable, so the fill runs over them; the collar
+        # outline + shoulder seams are the block, so colour can't escape the
+        # drawing. Clamp to a generous ceiling in case a seam gap leaks.
+        walkable = (interior_white | passable) & ~hole
+        band = ndimage.binary_propagation(seed, mask=walkable)
+        band = band & (dist <= max_radius)
+    else:
+        # No ink available: fall back to a distance ring so we never crash.
+        dist = ndimage.distance_transform_edt(~hole)
+        band = (dist <= 45) & ~hole
+    return band
+
+
+def rebuild_collar_band(
+    masks: dict[str, np.ndarray],
+    ink: np.ndarray | None,
+    keep_above_hole: bool = False,
+    passable_max: int = 600,
+    max_radius: int = 46,
+) -> int:
+    """Rebuild the collar bounded by the DRAWN ink, not a Euclidean radius.
+
+    This is the behaviour that makes the reference V-neck right: its collar
+    fill is exactly the white space between the inner hole edge and the outer
+    collar outline, so colour never leaves the drawing. A distance ring is
+    wrong here — on the donor collars a fixed radius reaches past the drawn
+    band's outer line onto the shoulder yoke (why deep V and scoop spill red
+    onto the shoulders).
+
+    So: walk the collar outward from the hole across white fabric and rib
+    ticks, and STOP at the large connected construction-ink web (the collar
+    outline, which meets the shoulder seams). Result:
+
+      * Inner back neck = the opening itself (its centred component).
+      * Neck            = the ink-bounded collar band (white + rib ticks).
+      * Body            = everything the old masks held beyond that.
+
+    keep_above_hole=True (polo): collar leaves drawn above the opening stay
+    in Neck. passable_max caps how big an ink run may be and still count as a
+    rib tick / stitch dash the flood may cross; the outline/seam web is larger.
+    """
+    neck = masks.get("Neck")
+    inner = masks.get("Inner back neck")
+    body = masks.get("Body")
+    if neck is None or inner is None or not inner.any():
+        return 0
+
+    # --- opening -----------------------------------------------------------------
+    solid = ndimage.binary_fill_holes(inner) | inner
+    solid = ndimage.binary_opening(solid, iterations=2)
+    solid = ndimage.binary_closing(solid, iterations=2)
+    comps, count = ndimage.label(solid, np.ones((3, 3), bool))
+    hole = solid
+    if count > 1:
+        centre_x = solid.shape[1] / 2.0
+        best_score: float | None = None
+        for i in range(1, count + 1):
+            comp = comps == i
+            area = int(comp.sum())
+            if area < 5000:
+                continue
+            ys_c, xs_c = np.nonzero(comp)
+            off = abs(float(xs_c.mean()) - centre_x)
+            score = off * 50.0 - area * 0.001
+            if best_score is None or score < best_score:
+                best_score = score
+                hole = comp
+    hole = ndimage.binary_fill_holes(hole)
+
+    fabric = neck | inner
+    if body is not None:
+        fabric = fabric | body
+
+    band = collar_band_mask(hole, ink, passable_max=passable_max, max_radius=max_radius)
+    if ink is None or not ink.any():
+        # Fallback ring: keep it on real fabric pixels only.
+        band = band & fabric
+
+    strays = inner & ~hole & ~band  # inner-back slivers beyond the band
+    leaves = np.zeros_like(band)
+    if keep_above_hole and ink is not None and ink.any():
+        block, _passable = ink_web(ink, passable_max)
+        row_idx = np.arange(hole.shape[0])[:, None]
+        col_idx = np.arange(hole.shape[1])[None, :]
+        hole_top = int(np.where(hole, row_idx, hole.shape[0]).min())
+        hole_cols = col_idx.ravel()[hole.any(axis=0)]
+        pad = 60
+        leaves = (
+            neck
+            & (row_idx <= hole_top)
+            & (col_idx >= max(0, int(hole_cols.min()) - pad))
+            & (col_idx <= min(hole.shape[1] - 1, int(hole_cols.max()) + pad))
+            & fabric
+            & ~block
+        )
+        lbl, n = ndimage.label(leaves, np.ones((3, 3), bool))
+        for i in range(1, n + 1):
+            comp = lbl == i
+            if int(comp.sum()) < 2000:
+                leaves[comp] = False
+
+    band = band | leaves
+    masks["Inner back neck"] = hole
+    masks["Neck"] = band
+    if body is not None:
+        masks["Body"] = ((body | neck | inner) & ~band & ~hole) | strays
+    return int(band.sum())
+
+
+def absorb_leftovers(
+    masks: dict[str, np.ndarray],
+    labels: np.ndarray,
+    ids: list[int],
+    claimed: dict[int, str],
+    avoid: set[str] | None = None,
+) -> dict[str, int]:
+    """Every ink-enclosed pocket the seeds missed must belong to *some* part.
+
+    Unclaimed pockets used to be dropped, which left white speckle holes inside
+    fills (worst inside collar bands where rib ticks split the band into many
+    cells). Give each leftover region to the already-claimed part sharing the
+    longest border across the separating ink.
+    """
+    from scipy import ndimage
+
+    if not ids:
+        return {}
+    # Which part each region currently belongs to (seeds only, no absorption yet).
+    region_owner = {rid: part for rid, part in claimed.items()}
+
+    # Border length region<->part: count pixels of the region next to each part
+    # mask after a small dilation that crosses the separating ink line.
+    part_keys = [p for p, m in masks.items() if m is not None and m.any()]
+    if not part_keys:
+        return {}
+    dil = {}
+    moved: dict[str, int] = {}
+    leftovers = [rid for rid in ids if rid not in region_owner]
+    leftovers.sort(key=lambda rid: -int(np.count_nonzero(labels == rid)))
+    for rid in leftovers:
+        cell = labels == rid
+        if not cell.any():
+            continue
+        best_part: str | None = None
+        best_score = 0
+        for part in part_keys:
+            if avoid and part in avoid:
+                continue
+            pm = masks.get(part)
+            if pm is None or not pm.any():
+                continue
+            # Cross the ink: neighbours two cells away in both directions.
+            grown = ndimage.binary_dilation(cell, iterations=3)
+            score = int(np.count_nonzero(grown & pm))
+            if score > best_score:
+                best_score = score
+                best_part = part
+        if best_part is None or best_score <= 0:
+            continue
+        masks[best_part] = masks[best_part] | cell
+        region_owner[rid] = best_part
+        moved[best_part] = moved.get(best_part, 0) + int(np.count_nonzero(cell))
+    return moved
+
+
+def complete_garment_coverage(
+    masks: dict[str, np.ndarray],
+    interior: np.ndarray,
+    ink: np.ndarray | None = None,
+    fallback: str = "Body",
+) -> int:
+    """Put every remaining fabric pixel under the base fill.
+
+    Region tracing is intentionally conservative around thick seams and open
+    collar artwork. That is useful for keeping parts apart, but a missed pixel
+    must never become a white hole in the preview. The base body is the safe
+    underlay: detail parts still render above it, while the outline hides any
+    overlap at construction lines. Keep actual ink out of the fill so it stays
+    owned by Outline/Stitching.
+    """
+    body = masks.get(fallback)
+    if body is None:
+        return 0
+    covered = np.zeros_like(interior)
+    for mask in masks.values():
+        if mask is not None:
+            covered |= mask
+    missing = interior & ~covered
+    if ink is not None:
+        missing &= ~ink
+    count = int(missing.sum())
+    if count:
+        masks[fallback] = body | missing
+    return count
+
+
 def clip_fills_inside_ink(
     masks: dict[str, np.ndarray],
     ink: np.ndarray,
     stitches: np.ndarray | None = None,
+    rib_fix: bool = True,
 ) -> None:
     """Keep part colour on the fabric side of every drawn line.
 
@@ -595,7 +838,7 @@ def clip_fills_inside_ink(
         owned = ink & ndimage.binary_dilation(mask, iterations=1) & ~border
         masks[name] = (mask | owned) & ~border
 
-    if "Neck" in masks and "Inner back neck" in masks:
+    if rib_fix and "Neck" in masks and "Inner back neck" in masks:
         hole, band = clip_neck_to_rib_band(masks)
         print(f"rib band: Neck out of hole {hole}px, Body->Neck in band {band}px")
 

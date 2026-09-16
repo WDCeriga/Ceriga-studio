@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { background:#fff; margin:0; font-family:monospace; }
+  #bar { position:fixed; top:0; left:0; right:0; background:#111; color:#fff; padding:6px 10px; z-index:99; font-size:12px; }
+  #zoom { color:#ffd600; }
+  .stage { position:absolute; background:#8ea8c8; overflow:hidden; border:1px solid #333; }
+  .stack { position:absolute; inset:0; transform-origin:50% 10%; }
+  .layer { position:absolute; inset:0; }
+  .layer svg { width:100%; height:100%; display:block; }
+  figure { margin:0; }
+  figcaption { font-size:10px; color:#333; padding:2px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <label><input type="checkbox" id="chkOutline" checked> outline</label>
+  <label><input type="checkbox" id="chkStitch" checked> stitching</label>
+  <label><input type="checkbox" id="chkNeck" checked> neck</label>
+  <label><input type="checkbox" id="chkInner" checked> inner</label>
+  <label><input type="checkbox" id="chkBody" checked> body</label>
+  <button id="reset">reset</button>
+  <span id="zoom"></span>
+</div>
+<div class="stage" id="stage" style="left:60px;top:50px;width:520px;height:520px;">
+  <div class="stack" id="stack"></div>
+</div>
+<div class="stage" id="stage2" style="left:640px;top:50px;width:900px;height:900px;">
+  <div class="stack" id="stack2" style="transform:scale(2.2);"></div>
+</div>
+<figure style="position:absolute;left:60px;top:600px;width:520px;">
+  <img id="imgComp" style="width:100%;border:1px solid #333" alt="composite">
+  <figcaption>slim-crew-composite-bold.png (packed source art)</figcaption>
+</figure>
+<figure style="position:absolute;left:640px;top:1000px;width:520px;">
+  <img id="imgProof" style="width:100%;border:1px solid #333" alt="proof">
+  <figcaption>slim-crew-fill-proof.png (packer region claims)</figcaption>
+</figure>
+<figure style="position:absolute;left:1200px;top:1000px;width:520px;">
+  <img id="imgDonor" style="width:100%;border:1px solid #333" alt="donor">
+  <figcaption>slim-crew-lineart-bold.png (donor drawing)</figcaption>
+</figure>
+<figure style="position:absolute;left:60px;top:1180px;width:520px;">
+  <img id="imgBase" style="width:100%;border:1px solid #333" alt="base">
+  <figcaption>slim-vneck-lineart-bold.png (base drawing)</figcaption>
+</figure>
+<figure style="position:absolute;left:640px;top:1560px;width:900px;">
+  <img id="imgClass" style="width:100%;border:1px solid #333" alt="classified">
+  <figcaption>_diag/slim-crew-classified-neckcrop.png (magenta=leftover residue, green=eaten base ink)</figcaption>
+</figure>
+<script>
+const A = 'src/assets/studio-tshirt/';
+const fs = p => '/@fs/C:/Users/richy/CerigaStudio/Ceriga-studio/' + p.split('/').map(encodeURIComponent).join('/');
+// z-order exactly as garmentSvgCatalog.ts categoryZIndex
+const LAYERS = [
+  { key:'body',   n:'Body/Body crew.svg',                 z:20, fill:'#7f8fd4' },
+  { key:'inner',  n:'Inner back neck/Inner back neck crew.svg', z:40, fill:'#b9c3ea' },
+  { key:'neck',   n:'Neck/Crew neck.svg',                 z:45, fill:'#d64f4f' },
+  { key:'outline',n:'Outline/Outline crew.svg',           z:70, ink:true },
+  { key:'stitch', n:'Stitching/Cover stitch crew.svg',    z:80, fill:'#f2f2f2' },
+];
+// replicate tintPotraceSvg for solid fills
+function tint(svg, fill) {
+  let s = svg.replace(/width="2048[^"]*"/i, 'width="100%"').replace(/height="2048[^"]*"/i, 'height="100%"');
+  return s.replace(/(<g transform="[^"]+")[^>]*fill="#000000"[^>]*>/i, `$1 fill="${fill}" fill-rule="evenodd">`);
+}
+function tintInk(svg) {
+  let s = svg.replace(/width="2048[^"]*"/i, 'width="100%"').replace(/height="2048[^"]*"/i, 'height="100%"');
+  return s.replace(/fill="#000000"/gi, 'fill="none"')
+          .replace(/(<g transform="[^"]+")[^>]*>/, `$1 fill="none" stroke="#141414" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">`);
+}
+async function build(stackId) {
+  const stack = document.getElementById(stackId);
+  stack.innerHTML = '';
+  for (const L of LAYERS) {
+    const res = await fetch(fs(A + L.n));
+    if (!res.ok) { console.error('fail', L.n, res.status); continue; }
+    const raw = await res.text();
+    const div = document.createElement('div');
+    div.className = 'layer';
+    div.dataset.key = L.key;
+    div.style.zIndex = L.z;
+    div.innerHTML = L.ink ? tintInk(raw) : tint(raw, L.fill);
+    stack.appendChild(div);
+  }
+}
+async function main() {
+  await build('stack');
+  await build('stack2');
+  const q = new URLSearchParams(location.search);
+  if (q.get('zoom')) {
+    const [sx, sy, sc] = q.get('zoom').split(',').map(Number);
+    const stack = document.getElementById('stack');
+    stack.style.transformOrigin = sx + '% ' + sy + '%';
+    stack.style.transform = 'scale(' + sc + ')';
+    document.getElementById('stage').scrollIntoView();
+  }
+  if (q.get('hide')) {
+    for (const key of q.get('hide').split(',')) {
+      const cb = document.getElementById('chk' + key[0].toUpperCase() + key.slice(1));
+      if (cb) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
+    }
+  }
+  const chk = k => document.getElementById('chk' + k[0].toUpperCase() + k.slice(1));
+  document.querySelectorAll('input[type=checkbox]').forEach(cb => cb.addEventListener('change', () => {
+    for (const stackId of ['stack','stack2']) {
+      document.querySelectorAll('#' + stackId + ' > .layer').forEach(d => {
+        d.style.display = chk(d.dataset.key).checked ? '' : 'none';
+      });
+    }
+  }));
+  let scale = 1;
+  const stage = document.getElementById('stage');
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    scale *= e.deltaY < 0 ? 1.15 : 1/1.15;
+    scale = Math.max(0.5, Math.min(30, scale));
+    const r = stage.getBoundingClientRect();
+    const ox = (e.clientX - r.left) / r.width, oy = (e.clientY - r.top) / r.height;
+    const stack = document.getElementById('stack');
+    stack.style.transformOrigin = (ox*100) + '% ' + (oy*100) + '%';
+    stack.style.transform = 'scale(' + scale + ')';
+    document.getElementById('zoom').textContent = ' zoom ' + scale.toFixed(2) + 'x @ ' + Math.round(ox*2048) + ',' + Math.round(oy*2048);
+  }, { passive:false });
+  document.getElementById('imgComp').src = fs(A + 'slim-crew-composite-bold.png');
+  document.getElementById('imgProof').src = fs(A + 'slim-crew-fill-proof.png');
+  document.getElementById('imgDonor').src = fs(A + 'slim-crew-lineart-bold.png');
+  document.getElementById('imgClass').src = fs(A + '_diag/slim-crew-classified-neckcrop.png');
+  document.getElementById('reset').onclick = () => { scale = 1; document.getElementById('stack').style.transform = ''; };
+}
+main();
+</script>
+</body>
+</html>

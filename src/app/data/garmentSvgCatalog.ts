@@ -1,4 +1,5 @@
 import type { GarmentType } from './builderSteps';
+import { withLongSleeves } from './tshirtLongSleeves';
 
 export const GARMENT_NONE = '__none__';
 
@@ -235,6 +236,7 @@ export interface ResolveGarmentLayersInput {
 const TSHIRT_CONFIG: GarmentSvgConfig = {
   assetRoot: 'studio-tshirt',
   categoryOrder: [
+    'Sleeve length',
     'Body',
     'Left sleeve',
     'Right sleeve',
@@ -275,7 +277,7 @@ const TSHIRT_CONFIG: GarmentSvgConfig = {
   stepCategories: {
     2: ['Body'],
     3: ['Neck'],
-    4: ['Left sleeve', 'Right sleeve'],
+    4: ['Sleeve length', 'Left sleeve', 'Right sleeve'],
     5: ['Body hem', 'Left cuff', 'Right cuff'],
     8: ['Stitching'],
   },
@@ -352,10 +354,10 @@ const TSHIRT_CONFIG: GarmentSvgConfig = {
     },
   },
   fitPreferred: {
-    slim: { Neck: 'V-neck' },
-    regular: { Neck: 'Crew neck (regular)' },
-    boxy: { Neck: 'Crew neck (boxy)' },
-    oversized: { Neck: 'Crew neck (oversized)' },
+    slim: { Neck: 'V-neck', 'Sleeve length': 'Short sleeve (slim)' },
+    regular: { Neck: 'Crew neck (regular)', 'Sleeve length': 'Short sleeve (regular)' },
+    boxy: { Neck: 'Crew neck (boxy)', 'Sleeve length': 'Short sleeve (boxy)' },
+    oversized: { Neck: 'Crew neck (oversized)', 'Sleeve length': 'Short sleeve (oversized)' },
   },
   selectionLinks: [
     {
@@ -824,7 +826,9 @@ for (const asset of ALL_ASSETS) {
 }
 for (const list of assetsByGarmentAndCategory.values()) {
   list.sort((a, b) =>
-    a.displayName.localeCompare(b.displayName, undefined, { numeric: true }),
+    a.category === 'Sleeve length'
+      ? Number(b.displayName.startsWith('Short sleeve')) - Number(a.displayName.startsWith('Short sleeve')) || a.displayName.localeCompare(b.displayName)
+      : a.displayName.localeCompare(b.displayName, undefined, { numeric: true }),
   );
 }
 
@@ -934,6 +938,8 @@ function pickFitFallbackAsset(
   preferredDisplayName?: string,
 ): GarmentAsset {
   if (currentDisplayName) {
+    const sameChoice = allowed.find(asset => garmentChoiceLabel(asset.displayName) === garmentChoiceLabel(currentDisplayName));
+    if (sameChoice) return sameChoice;
     const style = neckStyleKey(currentDisplayName);
     if (style !== 'other') {
       const match = allowed.find((asset) => neckStyleKey(asset.displayName) === style);
@@ -1088,7 +1094,7 @@ export function applyGarmentFitAndLinks(
       ) {
         next[category] = pickFitFallbackAsset(
           allowed,
-          category === 'Neck' ? getGarmentAsset(current ?? '')?.displayName : undefined,
+          ['Neck', 'Sleeve length'].includes(category) ? getGarmentAsset(current ?? '')?.displayName : undefined,
           config.fitPreferred?.[resolvedFit]?.[category],
         ).id;
       }
@@ -1228,5 +1234,9 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     });
   }
 
-  return layers.sort((a, b) => a.zIndex - b.zIndex);
+  const sleeveChoice = getGarmentAsset(selection['Sleeve length'] ?? '');
+  const resolved = input.garmentType === 'tshirt' && sleeveChoice?.displayName.startsWith('Long sleeve')
+    ? withLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim')
+    : layers;
+  return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

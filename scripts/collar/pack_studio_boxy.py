@@ -212,8 +212,11 @@ def remove_previous_boxy() -> None:
     for category, asset in BOXY_FILES:
         target = SRC / category / f"{asset}.svg"
         if target.exists():
-            target.unlink()
-            print(f"  removed {target.relative_to(SRC)}")
+            try:
+                target.unlink()
+                print(f"  removed {target.relative_to(SRC)}")
+            except PermissionError:
+                print(f"  kept locked {target.relative_to(SRC)}")
 
 
 def pack(probe_only: bool) -> None:
@@ -277,6 +280,17 @@ def pack(probe_only: bool) -> None:
     for part in named:
         part["mask"] = masks[part["category"]]
 
+    # Keep the body as a continuous underlay so trace hairlines cannot reveal
+    # the white canvas between construction regions.
+    completed = G.complete_garment_coverage(masks, regions.interior, ink)
+    if completed:
+        print(f"completed unassigned fabric: {completed}px")
+    from fix_slim_polo_thin import rebuild_boxy_clean_fills, clip_boxy_neck_fills
+    print(f"boxy clean collar pixels: {rebuild_boxy_clean_fills('boxy-crew', masks, ink)}px")
+    print(f"boxy collar spill clipped: {clip_boxy_neck_fills('boxy-crew', masks, ink)}px")
+    for part in named:
+        part["mask"] = masks[part["category"]]
+
     missed = [i for i in regions.ids if i not in claimed]
     if missed:
         print("  !! regions with no part:", missed)
@@ -285,6 +299,11 @@ def pack(probe_only: bool) -> None:
                 f"     region {region_id}: {regions.area(region_id)}px "
                 f"at {regions.anchor(region_id)}"
             )
+
+    from fix_slim_polo_thin import blacken_neck_stitches
+    blackened = blacken_neck_stitches('boxy-crew', stitches)
+    if blackened:
+        print(f"neck stitch marks moved to outline: {blackened}px")
 
     colour_proof = np.full((*regions.labels.shape, 3), 255, np.uint8)
     for part in named:
@@ -312,11 +331,19 @@ def pack(probe_only: bool) -> None:
             wrap_fill_only("Boxy ringer t-shirt - Cover stitch", stitches),
         )
 
+    # Rebuild neckline ownership from the same raster as its outline; the
+    # legacy approximate collar masks above must not replace this final set.
+    from rebuild_reference_necks import rebuild
+    rebuild('boxy-crew')
+
     from pack_denim_shorts import rasterize_svg
 
     print("raster 2048 / 4096...")
     rasterize_svg(source_svg, 2048, ss=4).save(SRC / "boxy-tshirt-vector-2048.png")
-    rasterize_svg(source_svg, 4096, ss=2).save(SRC / "boxy-tshirt-vector-4096.png")
+    try:
+        rasterize_svg(source_svg, 4096, ss=2).save(SRC / "boxy-tshirt-vector-4096.png")
+    except MemoryError:
+        print("  !! skipped 4096 raster preview: not enough memory")
     print("done")
 
 

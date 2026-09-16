@@ -219,12 +219,21 @@ def pack(probe_only: bool) -> None:
 
     missed = [i for i in regions.ids if i not in claimed]
     if missed:
-        print("  !! regions with no part:", missed)
-        for region_id in missed:
-            print(
-                f"     region {region_id}: {regions.area(region_id)}px "
-                f"at {regions.anchor(region_id)}"
-            )
+        print("  !! unclaimed regions (absorbing into border neighbours):", missed)
+    masks = {part["category"]: part["mask"] for part in named}
+    absorbed = G.absorb_leftovers(masks, regions.labels, regions.ids, claimed)
+    for part, px in absorbed.items():
+        print(f"absorbed leftover {part}: {px}px")
+    for part in named:
+        part["mask"] = masks[part["category"]]
+
+    # Keep the body as a continuous underlay: conservative region tracing must
+    # never expose the white canvas through a tiny seam or neckline gap.
+    completed = G.complete_garment_coverage(masks, regions.interior, ink)
+    if completed:
+        print(f"completed unassigned fabric: {completed}px")
+    for part in named:
+        part["mask"] = masks[part["category"]]
 
     colour_proof = np.full((*regions.labels.shape, 3), 255, np.uint8)
     for part in named:
