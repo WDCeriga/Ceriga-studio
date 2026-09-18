@@ -502,7 +502,6 @@ function PreviewLayer({
   alignOffset,
   clipSide,
   scaleFixedAnchor,
-  selectedLayerId,
   layerId,
 }: {
   layer: ResolvedGarmentLayer;
@@ -512,18 +511,18 @@ function PreviewLayer({
   alignOffset?: { x: number; y: number };
   clipSide?: SleeveSide;
   scaleFixedAnchor?: ScaleAnchor | null;
-  selectedLayerId?: string | null;
   layerId: string;
 }) {
   const fill = resolveLayerFill(layer, fabricColor);
-  const zIndex = layerId === selectedLayerId ? SELECTED_LAYER_Z : layer.zIndex;
 
   return (
     <div
       className="pointer-events-none absolute inset-0 touch-none"
       style={{
         ...layerTransformStyle(transform, bbox, alignOffset, scaleFixedAnchor),
-        zIndex,
+        // Selection must not change construction order: raising Body above its
+        // trims hides the rib hem and cuffs wherever the masks overlap.
+        zIndex: layer.zIndex,
       }}
       data-layer-id={layerId}
       data-asset={layer.displayName}
@@ -1065,7 +1064,6 @@ export function TshirtSvgPreview({
               alignOffset={alignOffset}
               clipSide={side}
               scaleFixedAnchor={scaleFixedAnchor}
-              selectedLayerId={selectedLayerId}
             />
           );
         })}

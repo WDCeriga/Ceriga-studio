@@ -685,20 +685,60 @@ function cellBox(cell, pad = 2) {
   };
 }
 
-function boxesFromCells(classified, bbox) {
-  const cuffH = Math.max(28, Math.round(bbox.height * 0.07));
-  const hemH = Math.max(24, Math.round(bbox.height * 0.065));
+function boxesFromCells(classified, bbox, garment, labels, width) {
   const left = classified.leftSleeve;
   const right = classified.rightSleeve;
   const body = classified.body || classified.pocket;
   const bodyX0 = body?.minX ?? Math.round(bbox.minX + bbox.width * 0.22);
   const bodyX1 = body?.maxX ?? Math.round(bbox.maxX - bbox.width * 0.22);
-  const leftBottom = left?.maxY ?? bbox.maxY;
-  const rightBottom = right?.maxY ?? bbox.maxY;
-  const bodyBottom = Math.max(body?.maxY ?? 0, classified.pocket?.maxY ?? 0, classified.hem?.maxY ?? 0);
-  const hemTop = classified.hem?.minY ?? Math.max(bbox.minY + 40, bodyBottom - hemH);
-  const leftCuffTop = classified.leftCuff?.minY ?? leftBottom - cuffH;
-  const rightCuffTop = classified.rightCuff?.minY ?? rightBottom - cuffH;
+  const midX = Math.round((bbox.minX + bbox.maxX) / 2);
+  const hemTop = Math.min(
+    body?.maxY ?? bbox.minY + Math.round(bbox.height * 0.8),
+    classified.hem?.minY ?? Number.POSITIVE_INFINITY,
+  );
+
+  let hemBottom = hemTop;
+  for (let y = hemTop; y <= bbox.maxY; y++) {
+    if (garment[y * width + midX]) hemBottom = y;
+  }
+  let lowerBodyRun = { x0: bodyX0, x1: bodyX1, count: 0 };
+  if (body) {
+    for (let y = hemTop - 1; y >= Math.max(body.minY, hemTop - 32); y--) {
+      let x0 = width;
+      let x1 = -1;
+      let count = 0;
+      for (let x = bbox.minX; x <= bbox.maxX; x++) {
+        if (labels[y * width + x] !== body.id) continue;
+        x0 = Math.min(x0, x);
+        x1 = Math.max(x1, x);
+        count++;
+      }
+      if (count >= Math.max(24, Math.round(bbox.width * 0.1))) {
+        lowerBodyRun = { x0, x1, count };
+        break;
+      }
+    }
+  }
+
+  const sideBottom = (x0, x1) => {
+    let bottom = hemTop;
+    for (let y = hemTop; y <= bbox.maxY; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (garment[y * width + x]) bottom = y;
+      }
+    }
+    return bottom;
+  };
+  const leftCuffTop = left?.maxY ?? Math.round(bbox.minY + bbox.height * 0.9);
+  const rightCuffTop = right?.maxY ?? leftCuffTop;
+  const leftBottom = sideBottom(
+    bbox.minX,
+    Math.round(bbox.minX + bbox.width * 0.24),
+  );
+  const rightBottom = sideBottom(
+    Math.round(bbox.maxX - bbox.width * 0.24),
+    bbox.maxX,
+  );
 
   return {
     leftSleeve: {
@@ -714,32 +754,54 @@ function boxesFromCells(classified, bbox) {
       y1: rightCuffTop - SEAM_GAP,
     },
     leftCuff: {
-      x0: classified.leftCuff?.minX ?? left?.minX ?? bbox.minX,
-      x1: classified.leftCuff?.maxX ?? left?.maxX ?? bodyX0 - SEAM_GAP,
+      x0: left?.minX ?? bbox.minX,
+      x1: left?.maxX ?? bodyX0 - SEAM_GAP,
       y0: leftCuffTop + SEAM_GAP,
-      y1: Math.max(leftBottom, classified.leftCuff?.maxY ?? leftBottom),
+      y1: leftBottom,
     },
     rightCuff: {
-      x0: classified.rightCuff?.minX ?? right?.minX ?? bodyX1 + SEAM_GAP,
-      x1: classified.rightCuff?.maxX ?? right?.maxX ?? bbox.maxX,
+      x0: right?.minX ?? bodyX1 + SEAM_GAP,
+      x1: right?.maxX ?? bbox.maxX,
       y0: rightCuffTop + SEAM_GAP,
-      y1: Math.max(rightBottom, classified.rightCuff?.maxY ?? rightBottom),
+      y1: rightBottom,
     },
     hem: {
-      x0: Math.min(bodyX0, classified.hem?.minX ?? bodyX0),
-      x1: Math.max(bodyX1, classified.hem?.maxX ?? bodyX1),
+      // The sleeve/body construction cells terminate at the actual side-seam
+      // lines. Clamp the waistband to those lines so it cannot claim sleeve
+      // pixels even when the outer silhouettes overlap at the junction.
+      x0: Math.max(lowerBodyRun.x0, left?.maxX ?? lowerBodyRun.x0),
+      x1: Math.min(lowerBodyRun.x1, right?.minX ?? lowerBodyRun.x1),
       y0: hemTop + SEAM_GAP,
-      y1: Math.max(bodyBottom, classified.hem?.maxY ?? bodyBottom),
+      y1: hemBottom,
     },
   };
 }
 
-function makePartSeeds(classified, boxes) {
+function hoodSeedsAboveBody(labels, width, bodyTop) {
+  const seeds = [];
+  const seen = new Set();
+  for (let y = 0; y < bodyTop; y++) {
+    for (let x = 0; x < width; x++) {
+      const id = labels[y * width + x];
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      seeds.push([x, y]);
+    }
+  }
+  return seeds;
+}
+
+function makePartSeeds(classified, boxes, labels, width) {
   const seedsFor = (cell, fallback) =>
     cell ? [[Math.round(cell.cx), Math.round(cell.cy)]] : [fallback];
-  const hoodSeedsList = classified.hoodCells.length
-    ? classified.hoodCells.map((cell) => [Math.round(cell.cx), Math.round(cell.cy)])
-    : [[classified.midX, Math.round((boxes.leftSleeve.y0 + 40) / 2)]];
+  const hoodSeedsList = hoodSeedsAboveBody(
+    labels,
+    width,
+    classified.body?.minY ?? boxes.leftSleeve.y0,
+  );
+  if (!hoodSeedsList.length) {
+    hoodSeedsList.push([classified.midX, Math.round((boxes.leftSleeve.y0 + 40) / 2)]);
+  }
   const hemTop = boxes.hem.y0;
   return [
     {
@@ -812,6 +874,68 @@ function padBox(box, pad, y0Pad = pad) {
   };
 }
 
+function partitionGarmentMasks(candidates, growthDomain, outputDomain, width, height) {
+  const priority = [
+    'Hood',
+    'Kangaroo pocket',
+    'Left cuff',
+    'Right cuff',
+    'Rib hem',
+    'Left sleeve',
+    'Right sleeve',
+    'Body',
+  ];
+  const owner = new Uint8Array(growthDomain.length);
+  const queue = new Int32Array(growthDomain.length);
+  let queueLength = 0;
+
+  for (let ownerId = 1; ownerId <= priority.length; ownerId++) {
+    const mask = candidates[priority[ownerId - 1]];
+    if (!mask) continue;
+    for (let i = 0; i < mask.length; i++) {
+      if (!growthDomain[i] || !mask[i] || owner[i]) continue;
+      owner[i] = ownerId;
+      queue[queueLength++] = i;
+    }
+  }
+
+  for (let cursor = 0; cursor < queueLength; cursor++) {
+    const i = queue[cursor];
+    const x = i % width;
+    const neighbours = [
+      i - width,
+      i + width,
+      x > 0 ? i - 1 : -1,
+      x < width - 1 ? i + 1 : -1,
+    ];
+    for (const next of neighbours) {
+      if (
+        next < 0 ||
+        next >= growthDomain.length ||
+        !growthDomain[next] ||
+        owner[next]
+      ) continue;
+      owner[next] = owner[i];
+      queue[queueLength++] = next;
+    }
+  }
+
+  const partitioned = Object.fromEntries(
+    priority.map((name) => [name, new Uint8Array(outputDomain.length)]),
+  );
+  let missing = 0;
+  for (let i = 0; i < outputDomain.length; i++) {
+    if (!outputDomain[i]) continue;
+    if (!owner[i]) {
+      missing++;
+      continue;
+    }
+    partitioned[priority[owner[i] - 1]][i] = 1;
+  }
+  if (missing) throw new Error(`unassigned garment pixels: ${missing}`);
+  return partitioned;
+}
+
 function buildNamedMasks(labels, garment, ink, width, height, partSeeds) {
   const interiors = subtractMask(garment, ink);
   const parts = [];
@@ -840,30 +964,33 @@ function buildNamedMasks(labels, garment, ink, width, height, partSeeds) {
       }
       if (entry.box) mask = clipToBox(mask, width, height, entry.box);
     }
+    /*
+     * Seeded construction cells already stop at the drawn seam. Do not
+     * fill their holes here: doing so can bridge a curved body/sleeve seam
+     * and let the sleeve claim waistband pixels on the other side.
+     */
     let filled = entry.close
       ? clipToBox(closeMask(mask, width, height, 4), width, height, entry.box)
-      : fillHoles(mask, width, height);
+      : mask;
     if (entry.box) filled = clipToBox(filled, width, height, entry.box);
     byName[entry.name] = filled;
   }
 
-  byName['Left sleeve'] = subtractMask(
-    byName['Left sleeve'],
-    dilate(byName['Left cuff'], width, height, 2),
+  /*
+   * Assign every non-ink fabric pixel to exactly one panel. Construction-line
+   * pixels remain reserved for the fixed black outline layer, forming a clean
+   * separator that no neighbouring colour can cross.
+   */
+  const partitioned = partitionGarmentMasks(
+    byName,
+    garment,
+    interiors,
+    width,
+    height,
   );
-  byName['Right sleeve'] = subtractMask(
-    byName['Right sleeve'],
-    dilate(byName['Right cuff'], width, height, 2),
-  );
-  byName['Rib hem'] = subtractMask(
-    subtractMask(byName['Rib hem'], dilate(byName['Left cuff'], width, height, 2)),
-    dilate(byName['Right cuff'], width, height, 2),
-  );
-  byName['Kangaroo pocket'] = subtractMask(byName['Kangaroo pocket'], byName['Rib hem']);
-  byName.Body = subtractMask(subtractMask(byName.Body, byName['Rib hem']), byName['Kangaroo pocket']);
 
   for (const entry of partSeeds) {
-    const filled = byName[entry.name];
+    const filled = partitioned[entry.name];
     const area = filled.reduce((n, v) => n + v, 0);
     if (area < 200) {
       console.log(`  !! ${entry.name}: empty after clip`);
@@ -1003,7 +1130,7 @@ async function main() {
   );
 
   const classified = classifyInteriorCells(stats, bbox);
-  const boxes = boxesFromCells(classified, bbox);
+  const boxes = boxesFromCells(classified, bbox, garment, labels, width);
   console.log('classified', {
     hood: classified.hoodCells.map((c) => c.id),
     body: classified.body?.id,
@@ -1022,11 +1149,62 @@ async function main() {
     mask,
     width,
     height,
-    makePartSeeds(classified, boxes),
+    makePartSeeds(classified, boxes, labels, width),
   );
+  const requiredPartNames = [
+    'Body',
+    'Kangaroo pocket',
+    'Left sleeve',
+    'Right sleeve',
+    'Left cuff',
+    'Right cuff',
+    'Hood',
+    'Rib hem',
+  ];
+  const missingPartNames = requiredPartNames.filter(
+    (name) => !named.some((part) => part.name === name),
+  );
+  if (missingPartNames.length) {
+    throw new Error(`missing hoodie parts: ${missingPartNames.join(', ')}`);
+  }
+  const areaByName = Object.fromEntries(named.map((part) => [part.name, part.area]));
+  const cuffRatio = areaByName['Left cuff'] / areaByName['Right cuff'];
+  if (cuffRatio < 0.75 || cuffRatio > 1.33) {
+    throw new Error(`asymmetric cuff masks: ratio ${cuffRatio.toFixed(2)}`);
+  }
+  let missingFillPixels = 0;
+  let overlappingFillPixels = 0;
+  let overflowingFillPixels = 0;
+  const fillable = subtractMask(garment, mask);
+  for (let i = 0; i < fillable.length; i++) {
+    const owners = named.reduce((countOwners, part) => countOwners + part.mask[i], 0);
+    if (fillable[i] && owners === 0) missingFillPixels++;
+    if (owners > 1) overlappingFillPixels++;
+    if (!fillable[i] && owners > 0) overflowingFillPixels++;
+  }
+  if (missingFillPixels || overlappingFillPixels || overflowingFillPixels) {
+    throw new Error(
+      `invalid fill partition: ${missingFillPixels} missing, ` +
+        `${overlappingFillPixels} overlapping, ${overflowingFillPixels} overflowing`,
+    );
+  }
+  console.log('  exact fill partition: 0 missing, 0 overlapping, 0 overflowing');
   const proof = new Jimp(width, height, 0xffffffff);
-  named.forEach((part, index) => {
-    const hex = PALETTE[index % PALETTE.length].replace('#', '');
+  const proofZ = {
+    'Left sleeve': 10,
+    'Right sleeve': 10,
+    Body: 20,
+    'Rib hem': 28,
+    'Left cuff': 32,
+    'Right cuff': 32,
+    Hood: 40,
+    'Kangaroo pocket': 52,
+  };
+  const proofColors = Object.fromEntries(
+    named.map((part, index) => [part.name, PALETTE[index % PALETTE.length]]),
+  );
+  [...named].sort((a, b) => proofZ[a.name] - proofZ[b.name]).forEach((part) => {
+    const hex = proofColors[part.name].replace('#', '');
     const r = parseInt(hex.slice(0, 2), 16);
     const g = parseInt(hex.slice(2, 4), 16);
     const b = parseInt(hex.slice(4, 6), 16);
@@ -1088,6 +1266,7 @@ async function main() {
       traceSupersampling: TRACE_SS,
       bitmapInverted: traced.subpaths >= 40,
       fillRule: 'evenodd',
+      exclusiveFillPartition: true,
       viewBox: `0 0 ${width} ${height}`,
       turdsize: 4,
       turnPolicy: 'minority',

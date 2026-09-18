@@ -74,6 +74,16 @@ export interface GarmentAsset {
 
 export type GarmentAssetSelection = Partial<Record<string, string>>;
 
+/** Keep uploaded names intact; simplify only built-in hoodie hood labels. */
+export function getGarmentAssetOptionLabel(
+  asset: Pick<GarmentAsset, 'id' | 'displayName'>,
+): string {
+  if (!asset.id.startsWith('hoodie/Hood/')) return asset.displayName;
+  const name = asset.displayName.replace(/\s*\((boxy|cropped|baggy|regular|slim)\)\s*$/i, '');
+  return name === 'Hood' ? 'Regular Hood' : name === 'Scuba hood' ? 'Scuba Hood'
+    : name === 'Funnel-hood hybrid' ? 'Funnel Hybrid Hood' : name;
+}
+
 /** Runtime neck traced from an uploaded photo, seated on the slim test tee. */
 export const CUSTOM_COLLAR_NECK_ID = 'tshirtTest/Neck/Custom collar';
 export const CUSTOM_COLLAR_BODY_ID = 'tshirtTest/Body/Body Custom collar';
@@ -358,7 +368,6 @@ const HOODIE_CONFIG: GarmentSvgConfig = {
     'Rib hem',
     'Left cuff',
     'Right cuff',
-    'Hood',
     'Kangaroo pocket',
   ],
   previewStepMax: 6,
@@ -392,7 +401,6 @@ const HOODIE_CONFIG: GarmentSvgConfig = {
       'Rib hem': 'Rib hem',
       'Left cuff': 'Left cuff',
       'Right cuff': 'Right cuff',
-      Hood: 'Hood',
       'Kangaroo pocket': 'Kangaroo pocket',
     },
     cropped: {
@@ -402,7 +410,6 @@ const HOODIE_CONFIG: GarmentSvgConfig = {
       'Rib hem': 'Rib hem (cropped)',
       'Left cuff': 'Left cuff (cropped)',
       'Right cuff': 'Right cuff (cropped)',
-      Hood: 'Hood (cropped)',
       'Kangaroo pocket': 'Kangaroo pocket (cropped)',
     },
     baggy: {
@@ -412,7 +419,6 @@ const HOODIE_CONFIG: GarmentSvgConfig = {
       'Rib hem': 'Rib hem (baggy)',
       'Left cuff': 'Left cuff (baggy)',
       'Right cuff': 'Right cuff (baggy)',
-      Hood: 'Hood (baggy)',
       'Kangaroo pocket': 'Kangaroo pocket (baggy)',
     },
     regular: {
@@ -422,7 +428,6 @@ const HOODIE_CONFIG: GarmentSvgConfig = {
       'Rib hem': 'Rib hem (regular)',
       'Left cuff': 'Left cuff (regular)',
       'Right cuff': 'Right cuff (regular)',
-      Hood: 'Hood (regular)',
       'Kangaroo pocket': 'Kangaroo pocket (regular)',
     },
     slim: {
@@ -432,7 +437,6 @@ const HOODIE_CONFIG: GarmentSvgConfig = {
       'Rib hem': 'Rib hem (slim)',
       'Left cuff': 'Left cuff (slim)',
       'Right cuff': 'Right cuff (slim)',
-      Hood: 'Hood (slim)',
       'Kangaroo pocket': 'Kangaroo pocket (slim)',
     },
   },
@@ -807,7 +811,17 @@ export function getGarmentAssetsForFit(
   const assets = getGarmentAssets(garmentType, category);
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   if (!resolvedFit) return assets;
-  return assets.filter((asset) => isAssetAvailableForFit(garmentType, asset, resolvedFit));
+  const available = assets.filter((asset) => isAssetAvailableForFit(garmentType, asset, resolvedFit));
+  // Keep legacy IDs (saved designs) and put the unchanged regular hood first.
+  if (garmentType === 'hoodie' && category === 'Hood') {
+    return available.sort((a, b) => {
+      const rank = (asset: GarmentAsset) =>
+        /^Hood(?:\s*\([^)]+\))?$/.test(asset.displayName) ? 0 :
+          /^Scuba hood(?:\s*\([^)]+\))?$/.test(asset.displayName) ? 1 : 2;
+      return rank(a) - rank(b);
+    });
+  }
+  return available;
 }
 
 export function getGarmentAsset(assetId: string): GarmentAsset | undefined {
@@ -918,7 +932,11 @@ export function applyGarmentFitAndLinks(
         !allowed.some((asset) => asset.id === current) &&
         !keepCustom
       ) {
-        next[category] = allowed[0].id;
+        const previous = getGarmentAsset(current ?? '');
+        const matchingHood = garmentType === 'hoodie' && category === 'Hood' && previous
+          ? allowed.find((asset) => getGarmentAssetOptionLabel(asset) === getGarmentAssetOptionLabel(previous))
+          : undefined;
+        next[category] = (matchingHood ?? allowed[0]).id;
       }
     }
   }
@@ -984,7 +1002,8 @@ export function getGarmentSelectionLabel(
   if (!id || id === GARMENT_NONE) return 'None';
   if (isCustomCollarNeckId(id)) return CUSTOM_COLLAR_NECK_NAME;
   if (isCustomCollarBodyId(id)) return CUSTOM_COLLAR_BODY_NAME;
-  return getGarmentAsset(id)?.displayName ?? id.split('/').pop() ?? 'None';
+  const asset = getGarmentAsset(id);
+  return asset ? getGarmentAssetOptionLabel(asset) : id.split('/').pop() ?? 'None';
 }
 
 export function getGarmentSpecRows(
@@ -1044,7 +1063,7 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       id: layerId,
       category,
       assetId: asset.id,
-      displayName: asset.displayName,
+      displayName: getGarmentAssetOptionLabel(asset),
       svgRaw: asset.svgRaw,
       kind: config.detailCategories.includes(category) ? 'detail' : 'solid',
       tint: input.partColors?.[layerId] ?? trimForCategory(input.garmentType, category, input),

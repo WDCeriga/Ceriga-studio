@@ -1,0 +1,60 @@
+{
+  "variant": "scuba",
+  "label": "Scuba Hood",
+  "source": "source.png",
+  "sourceSha256": "80f45bb4b5ba5ba6fb628490574af4bf6c1ab0c981ee7018b89ee2cd95fdf336",
+  "rasterFirst": true,
+  "oldVariantGeometryUsed": false,
+  "fits": {
+    "boxy": {
+      "regularSha256": "9c615600ae9cb278d2aa3738bb640f30f32c2bfe52a32405050cf4aba1b53b38",
+      "bodySha256": "24a4b7d69e16d8b1318838fcfc024dc48500f46b357d56b1fe7b06ccd6b18dd9",
+      "necklineLeft": 816,
+      "necklineRight": 1230,
+      "bottom": 680,
+      "crownTop": 283,
+      "heightToWidth": 0.96,
+      "candidateSha256": "aec6eaad7fc70cab8cd278678f73fb4b84e90d7ccecc43b5dd8cf1a0a40189e5"
+    },
+    "cropped": {
+      "regularSha256": "a6e4347de5b83df7437d477bc138dd1c799d8567c5571da58e7fda3c931f4ab1",
+      "bodySha256": "41467b86fa13915f48a42a73bd64849aa12accaf0ddebda950e61878fa2d4292",
+      "necklineLeft": 828,
+      "necklineRight": 1214,
+      "bottom": 694,
+      "crownTop": 323,
+      "heightToWidth": 0.96,
+      "candidateSha256": "0e84c0deba9d5905e9f9f298d0c7bdd0d33f9a0345fc3c39f9d9cdcc3207d1d3"
+    },
+    "baggy": {
+      "regularSha256": "07904038ad31215b8e986a3906760db2387c7d82047a5b3b91d64ff042127321",
+      "bodySha256": "860b20dc09b273b0329a7bf80ace873d6bcd8dddada988a0cef330e8f935b30a",
+      "necklineLeft": 825,
+      "necklineRight": 1215,
+      "bottom": 655,
+      "crownTop": 281,
+      "heightToWidth": 0.96,
+      "candidateSha256": "a4d324dc43f20edaa21f2ce0f7c869343d1575572a587c812a0bbf7818ce7db6"
+    },
+    "regular": {
+      "regularSha256": "601f5c92aee2e225df0274c415605cfd8f93fbb54b99cde7b4dd4f53d85804ac",
+      "bodySha256": "4134e24d2aff1fdbb3e431e9c4b99688c508e9f7a5ee91b1f76301d5f49edaa9",
+      "necklineLeft": 812,
+      "necklineRight": 1235,
+      "bottom": 652,
+      "crownTop": 246,
+      "heightToWidth": 0.96,
+      "candidateSha256": "d5b1ff6306f5e4e0c71603ff4f1492f94ec6ac12ebf1276becd74d1ebd2795c6"
+    },
+    "slim": {
+      "regularSha256": "2de10f6754d073c73fa75c789cd34a5d3dca8fc1824222c4ce9aceaaf555ee48",
+      "bodySha256": "82acf0f1e7c1faa661f3b6a834378040fbcb08792c36a5deb3ed3d968ba7592d",
+      "necklineLeft": 827,
+      "necklineRight": 1223,
+      "bottom": 662,
+      "crownTop": 282,
+      "heightToWidth": 0.96,
+      "candidateSha256": "4e0a96554b6d6d6bedd970bd892fc73e23dcf5a37175d19d14af0058c6d4d652"
+    }
+  }
+}

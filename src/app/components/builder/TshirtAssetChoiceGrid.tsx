@@ -1,5 +1,6 @@
 import {
   GARMENT_NONE,
+  getGarmentAssetOptionLabel,
   getGarmentAssets,
   getGarmentAssetsForFit,
   isGarmentCategoryOptional,
@@ -32,7 +33,7 @@ export function GarmentAssetChoiceGrid({
   return (
     <div>
       <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-        {category}
+        {garmentType === 'hoodie' && category === 'Hood' ? 'Hood Type' : category}
       </Label>
       <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
         {allowNone ? (
@@ -62,7 +63,7 @@ export function GarmentAssetChoiceGrid({
             )}
           >
             <div className="break-all text-[10px] font-medium leading-snug sm:text-[11px]">
-              {asset.displayName}
+              {getGarmentAssetOptionLabel(asset)}
             </div>
           </button>
         ))}
