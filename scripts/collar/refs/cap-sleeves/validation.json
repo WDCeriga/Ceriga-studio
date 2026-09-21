@@ -1,0 +1,177 @@
+{
+  "fits": [
+    {
+      "fit": "slim",
+      "bodyOutlineWidth": 6,
+      "protectedNecklineVariants": 6,
+      "tracedOutlineWidths": [
+        6.25,
+        6.0,
+        6.25,
+        6.25,
+        5.75,
+        6.0
+      ],
+      "torsoPreserved": true,
+      "attachmentPreserved": true,
+      "sleeves": [
+        {
+          "side": "left",
+          "tip": [
+            330.0,
+            375.0
+          ],
+          "underarm": [
+            486.0,
+            568.0
+          ],
+          "originalEnd": 641,
+          "newEnd": 568
+        },
+        {
+          "side": "right",
+          "tip": [
+            329.0,
+            374.0
+          ],
+          "underarm": [
+            489.0,
+            568.0
+          ],
+          "originalEnd": 641,
+          "newEnd": 568
+        }
+      ]
+    },
+    {
+      "fit": "regular",
+      "bodyOutlineWidth": 5,
+      "protectedNecklineVariants": 6,
+      "tracedOutlineWidths": [
+        5.5,
+        4.75,
+        4.5,
+        5.5,
+        4.75,
+        4.5
+      ],
+      "torsoPreserved": true,
+      "attachmentPreserved": true,
+      "sleeves": [
+        {
+          "side": "left",
+          "tip": [
+            315.0,
+            540.0
+          ],
+          "underarm": [
+            480.0,
+            722.0
+          ],
+          "originalEnd": 764,
+          "newEnd": 722
+        },
+        {
+          "side": "right",
+          "tip": [
+            315.0,
+            540.0
+          ],
+          "underarm": [
+            479.0,
+            722.0
+          ],
+          "originalEnd": 764,
+          "newEnd": 722
+        }
+      ]
+    },
+    {
+      "fit": "boxy",
+      "bodyOutlineWidth": 5,
+      "protectedNecklineVariants": 6,
+      "tracedOutlineWidths": [
+        5.25,
+        5.0,
+        4.75,
+        4.75,
+        5.25,
+        4.75
+      ],
+      "torsoPreserved": true,
+      "attachmentPreserved": true,
+      "sleeves": [
+        {
+          "side": "left",
+          "tip": [
+            309.0,
+            476.0
+          ],
+          "underarm": [
+            464.0,
+            683.0
+          ],
+          "originalEnd": 728,
+          "newEnd": 683
+        },
+        {
+          "side": "right",
+          "tip": [
+            309.0,
+            474.0
+          ],
+          "underarm": [
+            466.0,
+            683.0
+          ],
+          "originalEnd": 729,
+          "newEnd": 683
+        }
+      ]
+    },
+    {
+      "fit": "oversized",
+      "bodyOutlineWidth": 5,
+      "protectedNecklineVariants": 6,
+      "tracedOutlineWidths": [
+        5.5,
+        4.5,
+        4.75,
+        5.25,
+        4.5,
+        5.25
+      ],
+      "torsoPreserved": true,
+      "attachmentPreserved": true,
+      "sleeves": [
+        {
+          "side": "left",
+          "tip": [
+            361.0,
+            495.0
+          ],
+          "underarm": [
+            488.0,
+            606.0
+          ],
+          "originalEnd": 804,
+          "newEnd": 606
+        },
+        {
+          "side": "right",
+          "tip": [
+            360.0,
+            495.0
+          ],
+          "underarm": [
+            488.0,
+            606.0
+          ],
+          "originalEnd": 804,
+          "newEnd": 606
+        }
+      ]
+    }
+  ],
+  "unchangedAssets": 800
+}

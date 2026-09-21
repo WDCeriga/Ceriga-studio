@@ -1245,7 +1245,8 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     return withLayeredLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim', input.partColors)
       .sort((a, b) => a.zIndex - b.zIndex);
   }
-  const sleeveVariant = sleeveChoice?.displayName.startsWith('Longer short sleeve')
+  const sleeveVariant = sleeveChoice?.displayName.startsWith('Cap Sleeve')
+    ? 'cap' : sleeveChoice?.displayName.startsWith('Longer short sleeve')
     ? 'longer-short' : sleeveChoice?.displayName.startsWith('Long sleeve') ? 'long' : undefined;
   const resolved = input.garmentType === 'tshirt' && sleeveVariant
     ? withLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim', sleeveVariant)
