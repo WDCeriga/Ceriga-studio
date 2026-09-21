@@ -1,0 +1,109 @@
+{
+  "fits": [
+    {
+      "fit": "slim",
+      "extension": 189,
+      "directions": [
+        [
+          -0.3093763457637464,
+          0.9509396808851079
+        ],
+        [
+          -0.30436176964224076,
+          0.9525565144285371
+        ]
+      ],
+      "bodyOutlineWidth": 6,
+      "originalSleeveEnd": 641,
+      "tracedSleeveOutlineWidths": [
+        6.0,
+        6.0
+      ],
+      "protectedNecklineVariants": 6,
+      "newSleeveEnd": 821,
+      "attachmentPreserved": true,
+      "torsoPreserved": true,
+      "shoulderColourExcluded": true,
+      "extraSleeveStrokes": false
+    },
+    {
+      "fit": "regular",
+      "extension": 171,
+      "directions": [
+        [
+          -0.4277159206702026,
+          0.9039132099959826
+        ],
+        [
+          -0.42731596428684065,
+          0.9041023540869737
+        ]
+      ],
+      "bodyOutlineWidth": 5,
+      "originalSleeveEnd": 764,
+      "tracedSleeveOutlineWidths": [
+        5.0,
+        5.0
+      ],
+      "protectedNecklineVariants": 6,
+      "newSleeveEnd": 919,
+      "attachmentPreserved": true,
+      "torsoPreserved": true,
+      "shoulderColourExcluded": true,
+      "extraSleeveStrokes": false
+    },
+    {
+      "fit": "boxy",
+      "extension": 196,
+      "directions": [
+        [
+          -0.5169793849383076,
+          0.8559978478645897
+        ],
+        [
+          -0.5131907712462859,
+          0.8582745669700591
+        ]
+      ],
+      "bodyOutlineWidth": 5,
+      "originalSleeveEnd": 728,
+      "tracedSleeveOutlineWidths": [
+        6.0,
+        6.0
+      ],
+      "protectedNecklineVariants": 6,
+      "newSleeveEnd": 897,
+      "attachmentPreserved": true,
+      "torsoPreserved": true,
+      "shoulderColourExcluded": true,
+      "extraSleeveStrokes": false
+    },
+    {
+      "fit": "oversized",
+      "extension": 190,
+      "directions": [
+        [
+          -0.3985703462874995,
+          0.9171377644935698
+        ],
+        [
+          -0.39870076439298463,
+          0.9170810762808541
+        ]
+      ],
+      "bodyOutlineWidth": 5,
+      "originalSleeveEnd": 804,
+      "tracedSleeveOutlineWidths": [
+        5.0,
+        5.0
+      ],
+      "protectedNecklineVariants": 6,
+      "newSleeveEnd": 978,
+      "attachmentPreserved": true,
+      "torsoPreserved": true,
+      "shoulderColourExcluded": true,
+      "extraSleeveStrokes": false
+    }
+  ],
+  "unchangedAssets": 740
+}

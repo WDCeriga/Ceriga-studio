@@ -1235,8 +1235,10 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   }
 
   const sleeveChoice = getGarmentAsset(selection['Sleeve length'] ?? '');
-  const resolved = input.garmentType === 'tshirt' && sleeveChoice?.displayName.startsWith('Long sleeve')
-    ? withLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim')
+  const sleeveVariant = sleeveChoice?.displayName.startsWith('Longer short sleeve')
+    ? 'longer-short' : sleeveChoice?.displayName.startsWith('Long sleeve') ? 'long' : undefined;
+  const resolved = input.garmentType === 'tshirt' && sleeveVariant
+    ? withLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim', sleeveVariant)
     : layers;
   return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

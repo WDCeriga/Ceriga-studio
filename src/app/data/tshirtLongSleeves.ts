@@ -4,12 +4,17 @@ const parts = import.meta.glob('../../assets/studio-tshirt/long-sleeves/*.svg', 
   query: '?raw', import: 'default', eager: true,
 }) as Record<string, string>;
 
-function part(fit: string, name: string): string {
-  return parts[`../../assets/studio-tshirt/long-sleeves/${fit}-${name}.svg`];
-}
+const longerShortParts = import.meta.glob('../../assets/studio-tshirt/longer-short-sleeves/*.svg', {
+  query: '?raw', import: 'default', eager: true,
+}) as Record<string, string>;
 
 /** Keep the original torso/neck ink and replace only the raster-defined sleeves. */
-export function withLongSleeves(layers: ResolvedGarmentLayer[], fit: string): ResolvedGarmentLayer[] {
+export function withLongSleeves(
+  layers: ResolvedGarmentLayer[], fit: string, variant: 'long' | 'longer-short' = 'long',
+): ResolvedGarmentLayer[] {
+  const assets = variant === 'long' ? parts : longerShortParts;
+  const part = (selectedFit: string, name: string): string =>
+    assets[`../../assets/studio-tshirt/${variant}-sleeves/${selectedFit}-${name}.svg`];
   const keep = part(fit, 'keep');
   if (!keep) return layers;
   const keepUrl = `data:image/svg+xml;base64,${btoa(keep)}`;
@@ -20,10 +25,11 @@ export function withLongSleeves(layers: ResolvedGarmentLayer[], fit: string): Re
   return layers.map(layer => {
     const replacement = replacements[layer.id];
     if (replacement) return { ...layer, svgRaw: part(fit, replacement),
-      assetId: `${layer.assetId}:long`, displayName: `${layer.displayName} — long sleeve` };
+      assetId: `${layer.assetId}:${variant}`,
+      displayName: `${layer.displayName} — ${variant === 'long' ? 'long sleeve' : 'longer short sleeve'}` };
     if (layer.id === 'base' && !['regular', 'oversized'].includes(fit)) return layer;
     if (!['base', 'outline', 'stitching'].includes(layer.id)) return layer;
-    const maskId = `long-sleeve-torso-${fit}-${layer.id}`;
+    const maskId = `${variant}-sleeve-torso-${fit}-${layer.id}`;
     // The mask contains an image, so path-based hit bounds still describe the
     // garment rather than the full-canvas mask. Its alpha is the traced keep area.
     const defs = `<defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:alpha"><image href="${keepUrl}" width="2048" height="2048"/></mask></defs>`;
