@@ -1019,47 +1019,9 @@ def trace(mask: np.ndarray, *, resample: int = Image.NEAREST) -> str:
     mask into a neighbouring piece. Pass LANCZOS only when re-tracing ink,
     where the existing outline assets were built that way.
     """
-    import potrace
+    import trace_svg
 
-    height, width = mask.shape
-    img = Image.fromarray((mask * 255).astype(np.uint8), mode="L")
-    big = np.asarray(
-        img.resize((width * TRACE_SS, height * TRACE_SS), resample)
-    ) >= 128
-    if not big.any():
-        return ""
-
-    bitmap = potrace.Bitmap(big)
-    bitmap.invert()
-    path = bitmap.trace(
-        turdsize=4,
-        turnpolicy=potrace.POTRACE_TURNPOLICY_MINORITY,
-        alphamax=1.0,
-        opticurve=True,
-        opttolerance=0.2,
-    )
-
-    scale, offset_x, offset_y = _place(mask.shape)
-
-    def point(p) -> str:
-        x = 10 * (offset_x + (p.x / TRACE_SS) * scale)
-        y = 10 * (CANVAS - offset_y - (p.y / TRACE_SS) * scale)
-        return f"{round(x):d} {round(y):d}"
-
-    out = []
-    for curve in path:
-        d = [f"M{point(curve.start_point)}"]
-        for segment in curve:
-            if segment.is_corner:
-                d.append(f"L{point(segment.c)}")
-                d.append(f"L{point(segment.end_point)}")
-            else:
-                d.append(
-                    f"C{point(segment.c1)} {point(segment.c2)} {point(segment.end_point)}"
-                )
-        d.append("Z")
-        out.append("".join(d))
-    return " ".join(out)
+    return trace_svg.trace(mask, resample=resample)
 
 
 def wrap_svg(title: str, fill_d: str, ink_d: str) -> str:

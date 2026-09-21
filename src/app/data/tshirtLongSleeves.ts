@@ -21,6 +21,7 @@ export function withLongSleeves(layers: ResolvedGarmentLayer[], fit: string): Re
     const replacement = replacements[layer.id];
     if (replacement) return { ...layer, svgRaw: part(fit, replacement),
       assetId: `${layer.assetId}:long`, displayName: `${layer.displayName} — long sleeve` };
+    if (layer.id === 'base' && !['regular', 'oversized'].includes(fit)) return layer;
     if (!['base', 'outline', 'stitching'].includes(layer.id)) return layer;
     const maskId = `long-sleeve-torso-${fit}-${layer.id}`;
     // The mask contains an image, so path-based hit bounds still describe the
