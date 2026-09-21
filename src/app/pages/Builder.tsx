@@ -132,6 +132,7 @@ import {
   supportsGarmentSvgPreview,
   getDefaultGarmentSelection,
   resolveGarmentPackFit,
+  getGarmentAsset,
   getGarmentCategoriesForStep,
   getGarmentChoiceCategoriesForStep,
   getGarmentSelectionLabel,
@@ -2413,6 +2414,26 @@ export function Builder() {
             <div className="space-y-4">
               {renderGarmentAssetGrids(5)}
               {renderPartColorPickers(5)}
+              {!techpackSpecFlow && garmentSvgType === 'tshirt' &&
+                getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve') &&
+                (['Left', 'Right'] as const).map((side) => {
+                  const layerId = `underlayerHem${side}`;
+                  return (
+                    <TrimColorFamilyPicker
+                      key={layerId}
+                      label={`${side} underlayer sleeve hem`}
+                      value={state.partColors?.[layerId]}
+                      onChange={(hex) => setState((prev) => ({
+                        ...prev,
+                        partColors: { ...prev.partColors, [layerId]: hex },
+                      }))}
+                      onClear={() => setState((prev) => ({
+                        ...prev,
+                        partColors: { ...prev.partColors, [layerId]: undefined },
+                      }))}
+                    />
+                  );
+                })}
               {!techpackSpecFlow && !garmentConfig?.perPartColors && garmentConfig?.trimBindings.cuff?.length ? (
                 <TrimColorFamilyPicker
                   label="Sleeve hem / cuff trim colour"

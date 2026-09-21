@@ -8,6 +8,52 @@ const longerShortParts = import.meta.glob('../../assets/studio-tshirt/longer-sho
   query: '?raw', import: 'default', eager: true,
 }) as Record<string, string>;
 
+const layeredLongParts = import.meta.glob('../../assets/studio-tshirt/layered-long-sleeves/*.svg', {
+  query: '?raw', import: 'default', eager: true,
+}) as Record<string, string>;
+
+export function withLayeredLongSleeves(
+  layers: ResolvedGarmentLayer[], fit: string,
+  partColors: Partial<Record<string, string>> = {},
+): ResolvedGarmentLayer[] {
+  const additions: Record<string, string> = {
+    sleeveLeft: 'left', sleeveRight: 'right', outline: 'outline', stitching: 'stitch',
+  };
+  const resolved = layers.map(layer => {
+    const name = additions[layer.id];
+    if (!name) return layer;
+    const raw = layeredLongParts[`../../assets/studio-tshirt/layered-long-sleeves/${fit}-${name}.svg`];
+    const group = raw?.match(/<g[\s\S]*<\/g>/)?.[0];
+    if (!group) return layer;
+    const svgRaw = name === 'outline'
+      ? layer.svgRaw.replace('</svg>', `${group}</svg>`)
+      : layer.svgRaw.replace('</g>', `${group.replace(/^<g[^>]*>|<\/g>$/g, '')}</g>`);
+    return { ...layer,
+      svgRaw,
+      assetId: `${layer.assetId}:layered-long`,
+      displayName: `${layer.displayName} - Layered Long Sleeve`,
+    };
+  });
+  for (const side of ['left', 'right'] as const) {
+    const suffix = side === 'left' ? 'Left' : 'Right';
+    const sleeve = layers.find(layer => layer.id === `sleeve${suffix}`);
+    const svgRaw = layeredLongParts[`../../assets/studio-tshirt/layered-long-sleeves/${fit}-${side}-hem.svg`];
+    if (!sleeve || !svgRaw) continue;
+    const id = `underlayerHem${suffix}`;
+    resolved.push({
+      id,
+      category: `${suffix} underlayer sleeve hem`,
+      assetId: `${fit}:${id}:layered-long`,
+      displayName: `${suffix} underlayer sleeve hem`,
+      svgRaw,
+      kind: 'solid',
+      tint: partColors[id] ?? sleeve.tint,
+      zIndex: sleeve.zIndex + 1,
+    });
+  }
+  return resolved;
+}
+
 /** Keep the original torso/neck ink and replace only the raster-defined sleeves. */
 export function withLongSleeves(
   layers: ResolvedGarmentLayer[], fit: string, variant: 'long' | 'longer-short' = 'long',

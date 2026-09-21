@@ -1,5 +1,5 @@
 import type { GarmentType } from './builderSteps';
-import { withLongSleeves } from './tshirtLongSleeves';
+import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
 
 export const GARMENT_NONE = '__none__';
 
@@ -490,6 +490,8 @@ const TSHIRT_CONFIG: GarmentSvgConfig = {
     bodyHem: 'Bottom hem',
     sleeveHemLeft: 'Left cuff',
     sleeveHemRight: 'Right cuff',
+    underlayerHemLeft: 'Left underlayer sleeve hem',
+    underlayerHemRight: 'Right underlayer sleeve hem',
     innerBackNeck: 'Inner back',
     neck: 'Neck',
     outline: 'Outline',
@@ -850,6 +852,10 @@ for (const garmentType of Object.keys(GARMENT_CONFIGS) as GarmentSvgGarmentType[
   if (config.splitSleeveHems) {
     map.sleeveHemLeft = map.sleeveHem ?? 5;
     map.sleeveHemRight = map.sleeveHem ?? 5;
+  }
+  if (garmentType === 'tshirt') {
+    map.underlayerHemLeft = 5;
+    map.underlayerHemRight = 5;
   }
   layerStepMaps.set(garmentType, map);
 }
@@ -1235,6 +1241,10 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   }
 
   const sleeveChoice = getGarmentAsset(selection['Sleeve length'] ?? '');
+  if (input.garmentType === 'tshirt' && sleeveChoice?.displayName.startsWith('Layered Long Sleeve')) {
+    return withLayeredLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim', input.partColors)
+      .sort((a, b) => a.zIndex - b.zIndex);
+  }
   const sleeveVariant = sleeveChoice?.displayName.startsWith('Longer short sleeve')
     ? 'longer-short' : sleeveChoice?.displayName.startsWith('Long sleeve') ? 'long' : undefined;
   const resolved = input.garmentType === 'tshirt' && sleeveVariant

@@ -1,0 +1,198 @@
+{
+  "fits": [
+    {
+      "fit": "slim",
+      "bodyOutlineWidth": 6,
+      "sleeveOutlineWidths": [
+        6.0,
+        6.0
+      ],
+      "protectedNecklineVariants": 6,
+      "bodyPreserved": true,
+      "outerSleevesPreserved": true,
+      "hemAligned": true,
+      "horizontalOpenings": true,
+      "closedCuffs": true,
+      "stitchAboveHemColor": true,
+      "smoothJoins": true,
+      "reducedTaper": true,
+      "independentHemMasks": true,
+      "geometry": [
+        {
+          "side": "left",
+          "opening": [
+            311,
+            448
+          ],
+          "wrist": [
+            309,
+            438,
+            1392
+          ],
+          "hemTop": 1364,
+          "stitchRow": 1358
+        },
+        {
+          "side": "right",
+          "opening": [
+            312,
+            451
+          ],
+          "wrist": [
+            310,
+            441,
+            1392
+          ],
+          "hemTop": 1364,
+          "stitchRow": 1358
+        }
+      ]
+    },
+    {
+      "fit": "regular",
+      "bodyOutlineWidth": 5,
+      "sleeveOutlineWidths": [
+        5.0,
+        5.0
+      ],
+      "protectedNecklineVariants": 6,
+      "bodyPreserved": true,
+      "outerSleevesPreserved": true,
+      "hemAligned": true,
+      "horizontalOpenings": true,
+      "closedCuffs": true,
+      "stitchAboveHemColor": true,
+      "smoothJoins": true,
+      "reducedTaper": true,
+      "independentHemMasks": true,
+      "geometry": [
+        {
+          "side": "left",
+          "opening": [
+            303,
+            454
+          ],
+          "wrist": [
+            301,
+            443,
+            1272
+          ],
+          "hemTop": 1244,
+          "stitchRow": 1239
+        },
+        {
+          "side": "right",
+          "opening": [
+            303,
+            454
+          ],
+          "wrist": [
+            301,
+            443,
+            1272
+          ],
+          "hemTop": 1244,
+          "stitchRow": 1239
+        }
+      ]
+    },
+    {
+      "fit": "boxy",
+      "bodyOutlineWidth": 5,
+      "sleeveOutlineWidths": [
+        5.0,
+        5.0
+      ],
+      "protectedNecklineVariants": 6,
+      "bodyPreserved": true,
+      "outerSleevesPreserved": true,
+      "hemAligned": true,
+      "horizontalOpenings": true,
+      "closedCuffs": true,
+      "stitchAboveHemColor": true,
+      "smoothJoins": true,
+      "reducedTaper": true,
+      "independentHemMasks": true,
+      "geometry": [
+        {
+          "side": "left",
+          "opening": [
+            302,
+            435
+          ],
+          "wrist": [
+            300,
+            425,
+            1315
+          ],
+          "hemTop": 1287,
+          "stitchRow": 1282
+        },
+        {
+          "side": "right",
+          "opening": [
+            303,
+            437
+          ],
+          "wrist": [
+            301,
+            427,
+            1315
+          ],
+          "hemTop": 1287,
+          "stitchRow": 1282
+        }
+      ]
+    },
+    {
+      "fit": "oversized",
+      "bodyOutlineWidth": 5,
+      "sleeveOutlineWidths": [
+        5.0,
+        5.0
+      ],
+      "protectedNecklineVariants": 6,
+      "bodyPreserved": true,
+      "outerSleevesPreserved": true,
+      "hemAligned": true,
+      "horizontalOpenings": true,
+      "closedCuffs": true,
+      "stitchAboveHemColor": true,
+      "smoothJoins": true,
+      "reducedTaper": true,
+      "independentHemMasks": true,
+      "geometry": [
+        {
+          "side": "left",
+          "opening": [
+            296,
+            454
+          ],
+          "wrist": [
+            293,
+            442,
+            1273
+          ],
+          "hemTop": 1245,
+          "stitchRow": 1240
+        },
+        {
+          "side": "right",
+          "opening": [
+            296,
+            454
+          ],
+          "wrist": [
+            293,
+            442,
+            1273
+          ],
+          "hemTop": 1245,
+          "stitchRow": 1240
+        }
+      ]
+    }
+  ],
+  "unchangedAssets": 772,
+  "installed": true
+}
