@@ -8,6 +8,7 @@ import React, {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import {
   DEFAULT_TSHIRT_LAYER_TRANSFORM,
   resolveLayerScale,
@@ -219,6 +220,7 @@ export interface TshirtSvgPreviewProps {
   stitchingColor?: string;
   /** Per-part colour keyed by layer id; wins over the fabric colour and trim colours. */
   partColors?: Partial<Record<string, string>>;
+  tshirtHemStyles?: TshirtHemStyles;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
@@ -726,6 +728,7 @@ export function TshirtSvgPreview({
   pocketTrimColor,
   stitchingColor,
   partColors,
+  tshirtHemStyles,
   layerTransforms,
   onLayerTransformChange,
   selectedLayerId = null,
@@ -772,11 +775,12 @@ export function TshirtSvgPreview({
         pocketTrimColor,
         stitchingColor,
         partColors,
+        tshirtHemStyles,
         fit,
         customCollar,
         customCollars,
       }),
-    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, fit, customCollar, customCollars],
+    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, fit, customCollar, customCollars],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);

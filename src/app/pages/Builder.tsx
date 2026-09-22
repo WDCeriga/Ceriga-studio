@@ -127,6 +127,7 @@ import {
 } from '../data/orderQuantities';
 import { cn } from '../components/ui/utils';
 import type { MeasurementUnit } from '../lib/measurements';
+import { TSHIRT_HEM_OPTIONS, type TshirtHemStyle, type TshirtHemStyles } from '../data/tshirtHemStyles';
 import {
   applyGarmentFitAndLinks,
   supportsGarmentSvgPreview,
@@ -265,6 +266,7 @@ interface BuilderState {
   svgPack?: GarmentSvgGarmentType;
   /** Per-part colour keyed by garment layer id, for packs where every part fills on its own. */
   partColors?: Partial<Record<string, string>>;
+  tshirtHemStyles?: TshirtHemStyles;
   /** Photo-traced slim collars + matching body cuts. Each upload is its own Neck option. */
   customCollar?: CustomCollarSvgs | null;
   customCollars?: CustomCollarSvgs[];
@@ -2336,6 +2338,26 @@ export function Builder() {
             <div className="space-y-4">
               {renderGarmentAssetGrids(4)}
               {renderPartColorPickers(4)}
+              {!techpackSpecFlow && garmentSvgType === 'tshirt' &&
+                getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve') &&
+                (['Left', 'Right'] as const).map((side) => {
+                  const layerId = `underSleeve${side}`;
+                  return (
+                    <TrimColorFamilyPicker
+                      key={layerId}
+                      label={`${side} Undersleeve`}
+                      value={state.partColors?.[layerId] ?? '#FFFFFF'}
+                      onChange={(hex) => setState((prev) => ({
+                        ...prev,
+                        partColors: { ...prev.partColors, [layerId]: hex },
+                      }))}
+                      onClear={() => setState((prev) => ({
+                        ...prev,
+                        partColors: { ...prev.partColors, [layerId]: undefined },
+                      }))}
+                    />
+                  );
+                })}
               {!techpackSpecFlow && !garmentConfig?.perPartColors ? (
                 <TrimColorFamilyPicker
                   label="Sleeve colour"
@@ -2413,6 +2435,31 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(5)}
+              {garmentSvgType === 'tshirt' && ([
+                { key: 'sleeve', label: 'Sleeve Hem / Sleeve Cuff' },
+                { key: 'bottom', label: 'Bottom Hem' },
+                ...(getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve')
+                  ? [{ key: 'undersleeve', label: 'Undersleeve Hem' }] : []),
+              ] as { key: keyof TshirtHemStyles; label: string }[]).map(({ key, label }) => (
+                <div key={key} className="space-y-1.5">
+                  <Label className="text-[11px] text-white/70">{label}</Label>
+                  <Select
+                    value={state.tshirtHemStyles?.[key] ?? 'normal'}
+                    onValueChange={(value) => setState((prev) => ({
+                      ...prev, tshirtHemStyles: { ...prev.tshirtHemStyles, [key]: value as TshirtHemStyle },
+                    }))}
+                  >
+                    <SelectTrigger aria-label={label} className="h-9 border-[#252528] bg-white/5 text-[11px] text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TSHIRT_HEM_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
               {renderPartColorPickers(5)}
               {!techpackSpecFlow && garmentSvgType === 'tshirt' &&
                 getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve') &&
@@ -3024,6 +3071,12 @@ export function Builder() {
             {getGarmentSpecRows(garmentSvgType, garmentSelection).map((row) => (
               <SpecRow key={row.label} label={row.label} value={row.value} />
             ))}
+            {garmentSvgType === 'tshirt' && (['sleeve', 'bottom', 'undersleeve'] as const)
+              .filter((key) => key !== 'undersleeve' || getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve'))
+              .map((key) => (
+                <SpecRow key={key} label={key === 'sleeve' ? 'Sleeve Hem / Sleeve Cuff' : key === 'bottom' ? 'Bottom Hem' : 'Undersleeve Hem'}
+                  value={TSHIRT_HEM_OPTIONS.find((option) => option.value === (state.tshirtHemStyles?.[key] ?? 'normal'))?.label ?? 'Normal Hem'} />
+              ))}
           </>
         ) : (
           <>
@@ -3488,6 +3541,7 @@ export function Builder() {
                 selection={garmentSelection}
                 fit={activeFit}
                 partColors={state.partColors}
+                tshirtHemStyles={state.tshirtHemStyles}
                 highlightedMeasurementId={highlightedMeasurementId}
                 imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
               />
@@ -3525,6 +3579,7 @@ export function Builder() {
                       pocketTrimColor={state.pocketTrimColor}
                       stitchingColor={state.stitchingColor}
                       partColors={state.partColors}
+                      tshirtHemStyles={state.tshirtHemStyles}
                       customCollar={state.customCollar}
                       customCollars={state.customCollars}
                       layerTransforms={state.tshirtLayerTransforms}
@@ -3614,6 +3669,7 @@ export function Builder() {
                   pocketTrimColor={state.pocketTrimColor}
                   stitchingColor={state.stitchingColor}
                   partColors={state.partColors}
+                  tshirtHemStyles={state.tshirtHemStyles}
                   customCollar={state.customCollar}
                   customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}

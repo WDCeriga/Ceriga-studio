@@ -35,7 +35,7 @@ export function withLayeredLongSleeves(
   partColors: Partial<Record<string, string>> = {},
 ): ResolvedGarmentLayer[] {
   const additions: Record<string, string> = {
-    sleeveLeft: 'left', sleeveRight: 'right', outline: 'outline', stitching: 'stitch',
+    outline: 'outline', stitching: 'stitch',
   };
   const resolved = layers.map(layer => {
     const name = additions[layer.id];
@@ -55,8 +55,22 @@ export function withLayeredLongSleeves(
   for (const side of ['left', 'right'] as const) {
     const suffix = side === 'left' ? 'Left' : 'Right';
     const sleeve = layers.find(layer => layer.id === `sleeve${suffix}`);
+    const underSleeveRaw = layeredLongParts[`../../assets/studio-tshirt/layered-long-sleeves/${fit}-${side}.svg`];
+    if (!sleeve || !underSleeveRaw) continue;
+    const underSleeveId = `underSleeve${suffix}`;
+    const underSleeveTint = partColors[underSleeveId] ?? '#FFFFFF';
+    resolved.push({
+      id: underSleeveId,
+      category: `${suffix} Undersleeve`,
+      assetId: `${fit}:${underSleeveId}:layered-long`,
+      displayName: `${suffix} Undersleeve`,
+      svgRaw: underSleeveRaw,
+      kind: 'solid',
+      tint: underSleeveTint,
+      zIndex: sleeve.zIndex - 1,
+    });
     const svgRaw = layeredLongParts[`../../assets/studio-tshirt/layered-long-sleeves/${fit}-${side}-hem.svg`];
-    if (!sleeve || !svgRaw) continue;
+    if (!svgRaw) continue;
     const id = `underlayerHem${suffix}`;
     resolved.push({
       id,
@@ -65,7 +79,7 @@ export function withLayeredLongSleeves(
       displayName: `${suffix} underlayer sleeve hem`,
       svgRaw,
       kind: 'solid',
-      tint: partColors[id] ?? sleeve.tint,
+      tint: partColors[id] ?? underSleeveTint,
       zIndex: sleeve.zIndex + 1,
     });
   }

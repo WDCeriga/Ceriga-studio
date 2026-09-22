@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
@@ -341,6 +342,7 @@ export function MeasurementPreview({
   selection,
   fit,
   partColors,
+  tshirtHemStyles,
 }: {
   garmentType?: string;
   color?: string;
@@ -350,6 +352,7 @@ export function MeasurementPreview({
   selection?: GarmentAssetSelection;
   fit?: string;
   partColors?: Partial<Record<string, string>>;
+  tshirtHemStyles?: TshirtHemStyles;
 }) {
   const svgPack: GarmentSvgGarmentType | null =
     garmentType === 'tshirt' ||
@@ -378,6 +381,7 @@ export function MeasurementPreview({
             selection={resolvedSelection}
             fit={fit}
             partColors={partColors}
+            tshirtHemStyles={tshirtHemStyles}
             className={cn('h-full w-full', imgClassName)}
           />
           {overlay ?? <MeasurementGuideOverlay highlightedId={highlightedMeasurementId ?? null} />}

@@ -1,5 +1,6 @@
 import type { GarmentType } from './builderSteps';
 import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
+import { withTshirtHemStyles, type TshirtHemStyles } from './tshirtHemStyles';
 
 export const GARMENT_NONE = '__none__';
 
@@ -218,6 +219,7 @@ export interface ResolveGarmentLayersInput {
   stitchingColor?: string;
   /** Per-layer colour, keyed by layer id. Overrides the fabric colour and trim bindings. */
   partColors?: Partial<Record<string, string>>;
+  tshirtHemStyles?: TshirtHemStyles;
   /** Pack fit, so neck→body links stay on the slim or boxy cut. */
   fit?: string;
   /** Photo-traced collar + matching body cut, used when Neck is a custom upload. */
@@ -1241,15 +1243,18 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   }
 
   const sleeveChoice = getGarmentAsset(selection['Sleeve length'] ?? '');
-  if (input.garmentType === 'tshirt' && sleeveChoice?.displayName.startsWith('Layered Long Sleeve')) {
-    return withLayeredLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim', input.partColors)
-      .sort((a, b) => a.zIndex - b.zIndex);
-  }
+  const fit = resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim';
+  const layered = sleeveChoice?.displayName.startsWith('Layered Long Sleeve');
   const sleeveVariant = sleeveChoice?.displayName.startsWith('Cap Sleeve')
     ? 'cap' : sleeveChoice?.displayName.startsWith('Longer short sleeve')
     ? 'longer-short' : sleeveChoice?.displayName.startsWith('Long sleeve') ? 'long' : undefined;
-  const resolved = input.garmentType === 'tshirt' && sleeveVariant
-    ? withLongSleeves(layers, resolveGarmentPackFit(input.garmentType, input.fit) ?? 'slim', sleeveVariant)
+  let resolved = input.garmentType === 'tshirt' && layered
+    ? withLayeredLongSleeves(layers, fit, input.partColors)
+    : input.garmentType === 'tshirt' && sleeveVariant
+    ? withLongSleeves(layers, fit, sleeveVariant)
     : layers;
+  if (input.garmentType === 'tshirt') {
+    resolved = withTshirtHemStyles(resolved, fit, layered ? 'layered-long' : sleeveVariant ?? 'short', input.tshirtHemStyles);
+  }
   return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

@@ -7,6 +7,30 @@ Two jobs, same rules:
 
 Never ask an image model to “output an SVG”. Models only make rasters. Vectors come from tracing code.
 
+## T-shirt hem construction
+
+The builder applies independent `normal`, `ribbed`, or `none` construction to outer sleeve cuffs, the bottom hem, and layered undersleeve hems. The choices live in `tshirtHemStyles` on the saved builder state. Colour regions remain independently editable for every style.
+
+`build_hem_styles.py` derives vector subtraction masks and construction paths from the existing fill, outline, and stitching assets. The runtime applies them after sleeve replacement; it does not hide ribs with fabric-coloured overlays or alter the original SVG files.
+
+After changing source sleeve or hem geometry, regenerate all four fits and five sleeve variants from the repository root (Python dependencies: numpy, Pillow, opencv-python-headless, resvg-py):
+
+```sh
+python scripts/collar/build_hem_styles.py --install
+```
+
+Use `--fit` and `--variant` without `--install` for isolated diagnostics. Installing a filtered run replaces the generated catalog with only that subset.
+
+With Vite running, execute the browser regression module from the browser console:
+
+```js
+const hemTests = await import('/scripts/collar/test_hem_styles.ts');
+await hemTests.verifyHemStyles();
+await hemTests.hemComparison('boxy', 'Short sleeve', [260, 565, 215, 175]);
+```
+
+The suite checks 60 construction renders, 120 neckline combinations, colour retention, independent controls, and newly transparent gaps. The comparison adds a temporary three-style overlay; reload to remove it. Inspect enlarged cuffs and bottom hems after regenerating, since pixel assertions do not replace visual review.
+
 ---
 
 ## General prompt (paste this with any garment photo)
