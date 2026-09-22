@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
+import type { TshirtStitching } from '../../data/tshirtStitching';
+import type { GarmentDetail } from '../../data/garmentDetails';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
@@ -343,6 +345,10 @@ export function MeasurementPreview({
   fit,
   partColors,
   tshirtHemStyles,
+  tshirtStitching,
+  stitchingColor,
+  garmentDetails,
+  detailView,
 }: {
   garmentType?: string;
   color?: string;
@@ -353,6 +359,10 @@ export function MeasurementPreview({
   fit?: string;
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  tshirtStitching?: TshirtStitching;
+  stitchingColor?: string;
+  garmentDetails?: GarmentDetail[];
+  detailView?: 'front' | 'back';
 }) {
   const svgPack: GarmentSvgGarmentType | null =
     garmentType === 'tshirt' ||
@@ -382,6 +392,10 @@ export function MeasurementPreview({
             fit={fit}
             partColors={partColors}
             tshirtHemStyles={tshirtHemStyles}
+            tshirtStitching={tshirtStitching}
+            stitchingColor={stitchingColor}
+            garmentDetails={garmentDetails}
+            detailView={detailView}
             className={cn('h-full w-full', imgClassName)}
           />
           {overlay ?? <MeasurementGuideOverlay highlightedId={highlightedMeasurementId ?? null} />}

@@ -128,6 +128,10 @@ import {
 import { cn } from '../components/ui/utils';
 import type { MeasurementUnit } from '../lib/measurements';
 import { TSHIRT_HEM_OPTIONS, type TshirtHemStyle, type TshirtHemStyles } from '../data/tshirtHemStyles';
+import type { TshirtStitching } from '../data/tshirtStitching';
+import { TshirtStitchingPanel } from '../components/builder/TshirtStitching';
+import type { GarmentDetail } from '../data/garmentDetails';
+import { GarmentDetailsPanel } from '../components/builder/GarmentDetails';
 import {
   applyGarmentFitAndLinks,
   supportsGarmentSvgPreview,
@@ -267,6 +271,8 @@ interface BuilderState {
   /** Per-part colour keyed by garment layer id, for packs where every part fills on its own. */
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  tshirtStitching?: TshirtStitching;
+  garmentDetails?: GarmentDetail[];
   /** Photo-traced slim collars + matching body cuts. Each upload is its own Neck option. */
   customCollar?: CustomCollarSvgs | null;
   customCollars?: CustomCollarSvgs[];
@@ -481,7 +487,8 @@ function isTechpackSpecUrl(): boolean {
   return new URLSearchParams(window.location.search).get('flow') === 'techpack-spec';
 }
 
-function stepTabTitle(item: BuilderStep, techpackSpecFlow: boolean): string {
+function stepTabTitle(item: BuilderStep, techpackSpecFlow: boolean, garmentType?: string): string {
+  if (item.id === 6 && garmentType === 'tshirt') return 'Trims & Details';
   if (techpackSpecFlow && item.id === 9) return 'Upload design';
   return item.title;
 }
@@ -656,6 +663,13 @@ export function Builder() {
     },
     [syncHistoryAvailability],
   );
+
+  const selectedGarmentDetailId = state.garmentDetails?.find(detail => detail.selected)?.id ?? null;
+  const selectGarmentDetail = (id: string | null) => {
+    _setStateRaw(prev => ({ ...prev, garmentDetails: prev.garmentDetails?.map(detail => ({ ...detail, selected: detail.id === id })) }));
+    setTshirtLayerSelectedId(null);
+    if (id) setShowFront(true);
+  };
 
   useEffect(() => {
     dbProjectIdRef.current = dbProjectId;
@@ -1213,6 +1227,7 @@ export function Builder() {
   const GARMENT_PART_STEPS = { first: 3, last: 8 };
 
   const shouldSkipStep = (stepId: number) => {
+    if (stepId === 6 && state.garmentType === 'tshirt') return false;
     if (builderSteps.find((item) => item.id === stepId)?.skipForGarmentTypes?.includes(state.garmentType)) {
       return true;
     }
@@ -1262,7 +1277,7 @@ export function Builder() {
 
   const step = builderSteps.find((item) => item.id === currentStep);
   const stepTitleLabel =
-    techpackSpecFlow && currentStep === 9 ? 'Upload design' : step?.title ?? '';
+    step ? stepTabTitle(step, techpackSpecFlow, state.garmentType) : '';
   const stepDescriptionLabel =
     techpackSpecFlow && currentStep === 9
       ? 'Attach reference artwork or notes for your factory (spec-only — no on-shirt placement editor).'
@@ -1296,6 +1311,12 @@ export function Builder() {
   const garmentPreviewStepMax = garmentSvgType
     ? getGarmentSvgConfig(garmentSvgType).previewStepMax
     : 0;
+  const stitchingLayers = useMemo(() => garmentSvgType === 'tshirt' ? resolveGarmentLayers({
+    garmentType: 'tshirt', selection: garmentSelection, fit: activeFit,
+    tshirtHemStyles: state.tshirtHemStyles, stitchingColor: state.stitchingColor,
+    partColors: state.partColors, customCollar: state.customCollar, customCollars: state.customCollars,
+  }) : [], [garmentSvgType, garmentSelection, activeFit, state.tshirtHemStyles, state.stitchingColor,
+    state.partColors, state.customCollar, state.customCollars]);
   const showGarmentLayerToolbar =
     isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax;
   const tshirtSelectedAssetName = useMemo(() => {
@@ -2546,6 +2567,12 @@ export function Builder() {
         );
 
       case 6:
+        if (state.garmentType === 'tshirt') {
+          return <GarmentDetailsPanel details={state.garmentDetails ?? []} selectedId={selectedGarmentDetailId}
+            color={state.partColors?.base ?? primaryColor}
+            onSelect={selectGarmentDetail}
+            onChange={garmentDetails => setState(prev => ({ ...prev, garmentDetails }))} />;
+        }
         if (isGarmentSvgFlow) {
           return (
             <div className="space-y-4">
@@ -2682,7 +2709,12 @@ export function Builder() {
         if (isGarmentSvgFlow && garmentSvgType && getGarmentCategoriesForStep(garmentSvgType, 8).length > 0) {
           return (
             <div className="space-y-4">
-              {renderGarmentAssetGrids(8)}
+              {garmentSvgType === 'tshirt' ? (
+                <TshirtStitchingPanel layers={stitchingLayers} fit={activeFit ?? 'slim'}
+                  settings={state.tshirtStitching} hems={state.tshirtHemStyles}
+                  color={state.partColors?.stitching ?? state.stitchingColor}
+                  onChange={tshirtStitching => setState(prev => ({ ...prev, tshirtStitching }))} />
+              ) : renderGarmentAssetGrids(8)}
               {!techpackSpecFlow ? (
                 <TrimColorFamilyPicker
                   label="Stitch / thread colour"
@@ -3031,7 +3063,7 @@ export function Builder() {
   if (projectHydrating) return <PageLoadingFallback />;
 
   const phoneProcessTitle = currentVisibleStep
-    ? stepTabTitle(currentVisibleStep, techpackSpecFlow)
+    ? stepTabTitle(currentVisibleStep, techpackSpecFlow, state.garmentType)
     : 'Step';
 
   const renderSummaryBody = () => (
@@ -3103,6 +3135,9 @@ export function Builder() {
         {state.fadingType ? (
           <SpecRow label="Fading" value={state.fadingType.replace('-', ' ')} capitalize />
         ) : null}
+        {state.garmentType === 'tshirt' && state.garmentDetails?.map(detail => (
+          <SpecRow key={detail.id} label={detail.name} value={`${detail.fill} / ${Math.round(detail.x * 100)}%, ${Math.round(detail.y * 100)}%`} />
+        ))}
         {state.stitchingType ? (
           <SpecRow label="Stitching" value={state.stitchingType.replace('-', ' ')} capitalize />
         ) : null}
@@ -3335,14 +3370,14 @@ export function Builder() {
               </h2>
             </div>
           )}
-          <p
+          {!(currentStep === 6 && state.garmentType === 'tshirt') && <p
             className={cn(
               'mb-4 text-[11px] leading-relaxed text-white/55 md:mb-5 md:text-[11px]',
               isPhone && 'mb-3',
             )}
           >
             {stepDescriptionLabel}
-          </p>
+          </p>}
           {renderStepContent()}
           {isPhone ? editorNavFooter : null}
         </div>
@@ -3542,6 +3577,10 @@ export function Builder() {
                 fit={activeFit}
                 partColors={state.partColors}
                 tshirtHemStyles={state.tshirtHemStyles}
+                tshirtStitching={state.tshirtStitching}
+                stitchingColor={state.stitchingColor}
+                garmentDetails={state.garmentDetails}
+                detailView={showFront ? 'front' : 'back'}
                 highlightedMeasurementId={highlightedMeasurementId}
                 imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
               />
@@ -3580,6 +3619,9 @@ export function Builder() {
                       stitchingColor={state.stitchingColor}
                       partColors={state.partColors}
                       tshirtHemStyles={state.tshirtHemStyles}
+                      tshirtStitching={state.tshirtStitching}
+                      garmentDetails={state.garmentDetails}
+                      detailView={showFront ? 'front' : 'back'}
                       customCollar={state.customCollar}
                       customCollars={state.customCollars}
                       layerTransforms={state.tshirtLayerTransforms}
@@ -3670,6 +3712,12 @@ export function Builder() {
                   stitchingColor={state.stitchingColor}
                   partColors={state.partColors}
                   tshirtHemStyles={state.tshirtHemStyles}
+                  tshirtStitching={state.tshirtStitching}
+                  garmentDetails={state.garmentDetails}
+                  detailView={showFront ? 'front' : 'back'}
+                  selectedDetailId={currentStep === 6 ? selectedGarmentDetailId : null}
+                  onDetailSelect={selectGarmentDetail}
+                  onDetailsChange={currentStep === 6 && showFront ? garmentDetails => setState(prev => ({ ...prev, garmentDetails })) : undefined}
                   customCollar={state.customCollar}
                   customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}
@@ -4164,7 +4212,7 @@ export function Builder() {
                     type="button"
                     onClick={() => handleStepClick(item.id)}
                     disabled={!enabled}
-                    title={stepTabTitle(item, techpackSpecFlow)}
+                    title={stepTabTitle(item, techpackSpecFlow, state.garmentType)}
                     aria-current={current ? 'step' : undefined}
                     className={cn(
                       'builder-focus press-feedback group relative flex w-full shrink-0 flex-col items-center gap-1 px-1 py-2.5 text-center',
@@ -4187,7 +4235,7 @@ export function Builder() {
                       strokeWidth={1.75}
                     />
                     <span className="max-w-[4.75rem] text-[7.5px] font-semibold uppercase leading-tight tracking-[0.06em] md:max-w-none md:text-[9px] md:leading-snug">
-                      {stepTabTitle(item, techpackSpecFlow)}
+                      {stepTabTitle(item, techpackSpecFlow, state.garmentType)}
                     </span>
                   </button>
                 );
@@ -4334,7 +4382,7 @@ export function Builder() {
                   type="button"
                   onClick={() => handleStepClick(item.id)}
                   disabled={!enabled}
-                  title={stepTabTitle(item, techpackSpecFlow)}
+                  title={stepTabTitle(item, techpackSpecFlow, state.garmentType)}
                   className={cn(
                     'builder-focus press-feedback flex min-h-[4rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1.5 py-1.5 text-center',
                     item.id === 10 || item.id === 11
@@ -4352,7 +4400,7 @@ export function Builder() {
                     strokeWidth={1.9}
                   />
                   <span className="line-clamp-2 w-full text-[8px] font-bold uppercase leading-tight tracking-wide">
-                    {stepTabTitle(item, techpackSpecFlow)}
+                    {stepTabTitle(item, techpackSpecFlow, state.garmentType)}
                   </span>
                 </button>
               );

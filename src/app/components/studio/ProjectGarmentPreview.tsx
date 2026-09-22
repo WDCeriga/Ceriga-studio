@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
+import type { TshirtStitching } from '../../data/tshirtStitching';
+import type { GarmentDetail } from '../../data/garmentDetails';
 import type { GarmentType } from '../../data/builderSteps';
 import {
   applyGarmentFitAndLinks,
@@ -39,6 +41,8 @@ export type ProjectPreviewState = {
   fit?: string;
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  tshirtStitching?: TshirtStitching;
+  garmentDetails?: GarmentDetail[];
   customCollar?: CustomCollarSvgs | null;
   customCollars?: CustomCollarSvgs[];
 };
@@ -106,6 +110,8 @@ export function ProjectGarmentPreview({
           stitchingColor={preview.stitchingColor}
           partColors={preview.partColors}
           tshirtHemStyles={preview.tshirtHemStyles}
+          tshirtStitching={preview.tshirtStitching}
+          garmentDetails={preview.garmentDetails}
           customCollar={preview.customCollar}
           customCollars={preview.customCollars}
           layerTransforms={preview.tshirtLayerTransforms}

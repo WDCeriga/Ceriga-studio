@@ -9,6 +9,10 @@ import React, {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
+import type { TshirtStitching } from '../../data/tshirtStitching';
+import { TshirtStitchingLayer } from './TshirtStitching';
+import type { GarmentDetail } from '../../data/garmentDetails';
+import { GarmentDetailsOverlay } from './GarmentDetails';
 import {
   DEFAULT_TSHIRT_LAYER_TRANSFORM,
   resolveLayerScale,
@@ -221,6 +225,12 @@ export interface TshirtSvgPreviewProps {
   /** Per-part colour keyed by layer id; wins over the fabric colour and trim colours. */
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  tshirtStitching?: TshirtStitching;
+  garmentDetails?: GarmentDetail[];
+  detailView?: 'front' | 'back';
+  selectedDetailId?: string | null;
+  onDetailSelect?: (id: string | null) => void;
+  onDetailsChange?: (details: GarmentDetail[]) => void;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
@@ -233,6 +243,7 @@ export interface TshirtSvgPreviewProps {
 }
 
 function mergeTransform(id: string, map?: Partial<Record<string, TshirtLayerTransform>>) {
+  if (id === 'stitching') return { ...DEFAULT_TSHIRT_LAYER_TRANSFORM };
   return { ...DEFAULT_TSHIRT_LAYER_TRANSFORM, ...map?.[id] };
 }
 
@@ -729,6 +740,12 @@ export function TshirtSvgPreview({
   stitchingColor,
   partColors,
   tshirtHemStyles,
+  tshirtStitching,
+  garmentDetails = [],
+  detailView = 'front',
+  selectedDetailId,
+  onDetailSelect,
+  onDetailsChange,
   layerTransforms,
   onLayerTransformChange,
   selectedLayerId = null,
@@ -852,7 +869,7 @@ export function TshirtSvgPreview({
     () =>
       [...layerLayouts]
         .filter((entry) => {
-          if (entry.sourceLayer.id === 'innerBackNeck' || entry.sourceLayer.id === 'outline') {
+          if (['innerBackNeck', 'outline', 'stitching'].includes(entry.sourceLayer.id)) {
             return false;
           }
           return entry.bbox && isValidBBox(entry.bbox);
@@ -862,7 +879,7 @@ export function TshirtSvgPreview({
   );
 
   const selectedLayout = useMemo(
-    () => layerLayouts.find((entry) => entry.id === selectedLayerId) ?? null,
+    () => layerLayouts.find((entry) => entry.id === selectedLayerId && entry.sourceLayer.id !== 'stitching') ?? null,
     [layerLayouts, selectedLayerId],
   );
 
@@ -1097,6 +1114,9 @@ export function TshirtSvgPreview({
         className="relative aspect-square h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0"
       >
         {layerLayouts.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) => {
+          if (sourceLayer.id === 'stitching' && garmentType === 'tshirt') {
+            return <TshirtStitchingLayer key="stitching" layers={layers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} />;
+          }
           const scaleFixedAnchor =
             scaleGestureStorageId && transformStorageId(id) === scaleGestureStorageId
               ? activeScaleAnchor
@@ -1153,6 +1173,11 @@ export function TshirtSvgPreview({
             onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
           />
         ) : null}
+        {garmentType === 'tshirt' && detailView === 'front' && garmentDetails.length > 0 && (() => {
+          const bodyBounds = layerLayouts.find(layout => layout.id === 'base')?.bbox;
+          return bodyBounds ? <GarmentDetailsOverlay details={garmentDetails} bounds={bodyBounds}
+            selectedId={selectedDetailId} onSelect={onDetailSelect} onChange={onDetailsChange} /> : null;
+        })()}
       </div>
 
       {toolHint ? (

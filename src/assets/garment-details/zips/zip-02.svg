@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 240" fill="none">
+  <rect x="4" y="4" width="40" height="232" rx="17" fill="var(--detail-fill, none)" stroke="var(--detail-outline, black)" stroke-width="2"/>
+  <rect x="9" y="9" width="30" height="222" rx="12" stroke="var(--detail-stitch, black)" stroke-width="1.4" stroke-dasharray="4 4"/>
+  <path d="M21 16V225M27 16V225" stroke="var(--detail-outline, black)" stroke-width="1.4"/>
+  <path d="M21 84H27M21 92H27M21 100H27M21 108H27M21 116H27M21 124H27M21 132H27M21 140H27M21 148H27M21 156H27M21 164H27M21 172H27M21 180H27M21 188H27M21 196H27M21 204H27M21 212H27" stroke="var(--detail-hardware, black)" stroke-width="2"/>
+  <path d="M20 15Q24 10 28 15V72L24 80L20 72Z M23 20H25V61H23Z" fill="var(--detail-hardware, none)" fill-rule="evenodd" stroke="var(--detail-outline, black)" stroke-width="1.6"/>
+</svg>

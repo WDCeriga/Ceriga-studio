@@ -7,6 +7,32 @@ Two jobs, same rules:
 
 Never ask an image model to “output an SVG”. Models only make rasters. Vectors come from tracing code.
 
+## T-shirt trims and details
+
+Step 6 is Trims & Details for t-shirts only. Pocket, zip, and button source SVGs live in `src/assets/garment-details`; their sizing, default placement, and supported colour channels live in `src/app/data/garmentDetails.ts`. Add future detail types to that registry and provide an SVG using the same fill, outline, stitch, and hardware CSS variables.
+
+The category picker inserts one of five options from `GARMENT_DETAIL_OPTIONS`. Assets are original outline drawings informed by the supplied reference shapes, without embedded reference images, backgrounds, watermarks, shading, or textures:
+
+- `buttons/button-01.svg` through `button-05.svg`: two-hole rim, four-hole rim, flat four-hole, recessed four-hole, cross stitch.
+- `zips/zip-01.svg` through `zip-05.svg`: classic pull, slim pull, ring pull, framed welt, open zip.
+- `pockets/pocket-01.svg` through `pocket-05.svg`: rounded patch, square patch, pointed patch, envelope flap, divided patch.
+
+Instances store an optional `variant` ID alongside their category. `detailAsset` resolves geometry and colour channels for that variant; missing or unknown variants retain the original category asset. Keep the three original SVGs for saved-project compatibility. Duplicates retain the variant, colours, and scale. Zip variants use their own viewBox aspect ratio and width to maintain consistent default length. Cross-stitch buttons expose thread colour, and flap/divided pockets expose hardware colour.
+
+Each saved `garmentDetails` instance has its own ID, name, colours, x/y position, scale, and selected flag. Coordinates remain relative to the body bounds for compatibility, but may extend outside 0-1 to reach sleeves and the full 2048-square customization canvas. Only the object's center is bounded to the canvas edges; presets apply on creation, never during dragging. `GarmentDetailsOverlay` renders the objects separately above the garment ink, on the front only.
+
+Four corner handles resize proportionally around the opposite corner, with a per-instance scale from 0.2 to 4 (legacy instances without scale use 1). The Size field and handle arrow keys also resize. Dragging and resizing commit once on release for undo; pointer cancellation discards the gesture. Object arrow keys move, and Delete removes the focused object. Selection changes are stored without adding undo entries. Source garment SVGs are never modified. Draft/project serialization includes the instances; remote persistence requires configured Supabase.
+
+With Vite running, execute `await (await import('/scripts/collar/test_garment_details.ts')).verifyGarmentDetails()` in the browser console. This validates all 15 variants plus three legacy assets: SVG decoding and nonblank rendering, transparent backgrounds, viewBox ratios, independent IDs, colour channels, canvas bounds, free collar/sleeve placement, proportional resizing, resize anchors, legacy fallback, and variant serialization. Also verify all five options per category, add/select/duplicate/remove, drag and resize with zoom, front/back visibility, and fit changes in the builder.
+
+## T-shirt stitch rendering
+
+`src/app/data/tshirtStitching.ts` derives stitch centre lines from the resolved garment after sleeve and hem construction. All styles, including the default Standard, use the same curve renderer. Small tracing bumps are smoothed with displacement limited to two garment units; corners and seam endpoints are retained. Original assets, binding edges, ribbing and colour masks are not changed.
+
+Standard uses 9-unit dashes and 9-unit gaps with balanced end margins on the 2048-unit canvas. Double and Triple use parallel dashed rows; Zigzag uses a narrower, open repeat; Overlock uses one rail with spaced loops; Coverstitch uses two clean continuous rails. Every style uses a 1.8-unit round-capped stroke. Thread colours and per-region settings are unchanged.
+
+Stitching stays noninteractive and follows the existing seam clips. No Hem suppresses its corresponding stitches. Regions with no source stitch marks, including the Slim Scoop neckline, do not gain invented stitches. With Vite running, `verifyStitchStyles()` in `scripts/collar/test_hem_styles.ts` checks spacing, pattern distinctions, seam proximity, outline containment (with a one-pixel raster-edge tolerance), per-area colour independence, serialization and No Hem suppression across all fits and sleeve options.
+
 ## T-shirt hem construction
 
 The builder applies independent `normal`, `ribbed`, or `none` construction to outer sleeve cuffs, the bottom hem, and layered undersleeve hems. The choices live in `tshirtHemStyles` on the saved builder state. Colour regions remain independently editable for every style.

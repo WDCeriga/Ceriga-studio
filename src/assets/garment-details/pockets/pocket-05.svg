@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" fill="none">
+  <path d="M8 8H192V180Q192 212 160 212H40Q8 212 8 180Z" fill="var(--detail-fill, none)" stroke="var(--detail-outline, black)" stroke-width="3"/>
+  <path d="M8 45H192M82 45V212M118 45V212" stroke="var(--detail-outline, black)" stroke-width="2"/>
+  <path d="M16 16H184V180Q184 204 160 204H40Q16 204 16 180Z M16 37H184M74 45V203M126 45V203" stroke="var(--detail-stitch, black)" stroke-width="1.8" stroke-dasharray="5 5"/>
+  <circle cx="100" cy="26" r="7" fill="var(--detail-hardware, none)" stroke="var(--detail-outline, black)" stroke-width="2"/>
+</svg>

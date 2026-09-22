@@ -4,6 +4,10 @@ import {
 } from '../../src/app/data/garmentSvgCatalog';
 import { tintPotraceSvg } from '../../src/app/lib/tshirtSvgUtils';
 import type { TshirtHemStyles } from '../../src/app/data/tshirtHemStyles';
+import {
+  measureStitchGeometry, renderStitchStyles, stitchPatternPath, TSHIRT_STITCH_OPTIONS, TSHIRT_STITCH_REGIONS,
+  type StitchRegion, type TshirtStitching,
+} from '../../src/app/data/tshirtStitching';
 
 function check(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -107,4 +111,124 @@ export async function hemComparison(fit: string, variant: string, bounds?: numbe
     gallery.append(cell);
   }
   document.body.append(gallery);
+}
+
+async function stitchPixels(svg: string) {
+  const image = new Image();
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 768;
+  const context = canvas.getContext('2d')!;
+  context.drawImage(image, 0, 0, 768, 768);
+  return context.getImageData(0, 0, 768, 768).data;
+}
+
+export async function verifyStitchStyles() {
+  const straight = [{ x: 0, y: 100 }, { x: 200, y: 100 }];
+  const standard = stitchPatternPath(straight, 'standard');
+  const dashes = standard.split('M').filter(Boolean).map(segment => {
+    const points = segment.split('L').map(point => point.split(',').map(Number));
+    return { start: points[0][0], end: points.at(-1)![0] };
+  });
+  check(dashes.length === 11, 'Standard: inconsistent dash density');
+  for (const [index, dash] of dashes.entries()) {
+    check(Math.abs(dash.end - dash.start - 9) < .02, 'Standard: unequal dash lengths');
+    if (index) check(Math.abs(dash.start - dashes[index - 1].end - 9) < .02, 'Standard: unequal gaps');
+  }
+  check(Math.abs(dashes[0].start - (200 - dashes.at(-1)!.end)) < .02, 'Standard: unbalanced ends');
+  for (const [style, rows] of [['double', 2], ['triple', 3]] as const) {
+    check(stitchPatternPath(straight, style).split('M').length - 1 === dashes.length * rows, `${style}: incorrect parallel rows`);
+  }
+  check(stitchPatternPath(straight, 'coverstitch').split('M').length - 1 === 2, 'Coverstitch: expected two clean rails');
+  check(stitchPatternPath(straight, 'zigzag').split('L').length - 1 === 20, 'Zigzag: excessive density');
+  check(stitchPatternPath(straight, 'overlock').split('M').length - 1 === 11, 'Overlock: excessive loop density');
+  check(stitchPatternPath(straight, 'none') === '', 'No Stitching: visible path');
+  const regions = Object.keys(TSHIRT_STITCH_REGIONS) as StitchRegion[];
+  const none = Object.fromEntries(regions.map(region => [region, { style: 'none' }])) as TshirtStitching;
+  let renders = 0, independentAreas = 0, necklineChecks = 0;
+  for (const fit of ['slim', 'regular', 'boxy', 'oversized']) {
+    for (const sleeve of getGarmentAssetsForFit('tshirt', 'Sleeve length', fit)) {
+      const selection = { ...getDefaultGarmentSelection('tshirt', fit), 'Sleeve length': sleeve.id };
+      const input = { garmentType: 'tshirt' as const, fit, selection, stitchingColor: '#CC2D24', partColors: { base: '#5C7FB6' } };
+      const layers = resolveGarmentLayers(input);
+      const before = JSON.stringify(layers);
+      const source = layers.find(layer => layer.id === 'stitching')!;
+      const geometry = await measureStitchGeometry(layers, fit);
+      const context = `${fit}/${sleeve.displayName}`;
+      check((geometry.rows.undersleeve.length > 0) === sleeve.displayName.startsWith('Layered Long Sleeve'), `${context}: undersleeve visibility`);
+      const baseline = await stitchPixels(tintPotraceSvg(source.svgRaw, source.tint!));
+      const silhouette = (await renderLayers(layers.filter(layer => layer.id !== 'stitching'))).pixels;
+      const signatures = new Set<string>();
+      for (const option of TSHIRT_STITCH_OPTIONS) {
+        const settings = Object.fromEntries(regions.map(region => [region, { style: option.value }])) as TshirtStitching;
+        const svg = renderStitchStyles(source, geometry, settings);
+        check(!new DOMParser().parseFromString(svg, 'image/svg+xml').querySelector('parsererror'), `${context}/${option.value}: invalid SVG`);
+        check(svg.includes('pointer-events="none"') && !svg.includes('tabindex='), `${context}: interactive stitching`);
+        const pixels = await stitchPixels(svg);
+        let ink = 0, offSeam = 0, outside = 0, signature = 2166136261;
+        for (let offset = 0; offset < pixels.length; offset += 4) {
+          const alpha = pixels[offset + 3];
+          signature = Math.imul(signature ^ alpha, 16777619);
+          if (alpha < 32) continue;
+          ink++;
+          const column = offset / 4 % 768, row = Math.floor(offset / 4 / 768);
+          let inside = false;
+          for (let deltaY = -1; deltaY <= 1; deltaY++) for (let deltaX = -1; deltaX <= 1; deltaX++) {
+            const nextX = column + deltaX, nextY = row + deltaY;
+            if (nextX >= 0 && nextX < 768 && nextY >= 0 && nextY < 768 && silhouette[(nextY * 768 + nextX) * 4 + 3] > 16) inside = true;
+          }
+          if (!inside) outside++;
+          let nearby = false;
+          for (let deltaY = -8; deltaY <= 8 && !nearby; deltaY++) for (let deltaX = -8; deltaX <= 8; deltaX++) {
+            const nextX = column + deltaX, nextY = row + deltaY;
+            if (nextX >= 0 && nextX < 768 && nextY >= 0 && nextY < 768 && baseline[(nextY * 768 + nextX) * 4 + 3] > 16) { nearby = true; break; }
+          }
+          if (!nearby) offSeam++;
+        }
+        check(option.value === 'none' ? ink === 0 : ink > 100, `${context}/${option.value}: incorrect visible ink ${ink}`);
+        check(offSeam === 0, `${context}/${option.value}: ${offSeam} pixels float off the source seam`);
+        check(outside === 0, `${context}/${option.value}: ${outside} pixels outside garment`);
+        if (option.value === 'standard') {
+          check(!svg.includes('<image') && !svg.includes('<svg', 4), `${context}: Standard bypassed the clean path renderer`);
+        }
+        signatures.add(`${signature}`);
+        renders++;
+      }
+      check(signatures.size === 7, `${context}: styles not visually distinct`);
+      for (const region of regions.filter(area => geometry.rows[area].length)) {
+        const settings: TshirtStitching = { ...none, [region]: { style: 'zigzag', color: '#10B981' } };
+        const svg = renderStitchStyles(source, geometry, settings);
+        const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml');
+        check(parsed.querySelectorAll('[data-stitch-region]').length === 1, `${context}/${region}: changed another region`);
+        const pixels = await stitchPixels(svg);
+        check(pixels.some((value, offset) => offset % 4 === 3 && value > 128 && pixels[offset - 3] < 30 && pixels[offset - 2] > 170), `${context}/${region}: colour not applied`);
+        const restored = JSON.parse(JSON.stringify(settings));
+        check(renderStitchStyles(source, geometry, restored) === svg, `${context}: serialization changed styles`);
+        independentAreas++;
+      }
+      const noHemStyles: TshirtHemStyles = { sleeve: 'none', bottom: 'none', undersleeve: 'none' };
+      const noHemLayers = resolveGarmentLayers({ ...input, tshirtHemStyles: noHemStyles });
+      const noHemGeometry = await measureStitchGeometry(noHemLayers, fit);
+      const noHemSvg = renderStitchStyles(noHemLayers.find(layer => layer.id === 'stitching')!, noHemGeometry,
+        { sleeve: { style: 'triple' }, bottom: { style: 'zigzag' }, undersleeve: { style: 'overlock' } }, noHemStyles);
+      for (const region of ['sleeve', 'bottom', 'undersleeve']) check(!noHemSvg.includes(`data-stitch-region="${region}"`), `${context}: floating No Hem stitches`);
+      check(JSON.stringify(layers) === before, `${context}: source garment layers mutated`);
+      if (sleeve.displayName.startsWith('Short sleeve')) {
+        for (const neck of getGarmentAssetsForFit('tshirt', 'Neck', fit)) {
+          const neckLayers = resolveGarmentLayers({ ...input, selection: { ...selection, Neck: neck.id } });
+          const neckGeometry = await measureStitchGeometry(neckLayers, fit);
+          if (!neckGeometry.rows.neckline.length) {
+            check(fit === 'slim' && neck.displayName === 'Scoop neck', `${fit}/${neck.displayName}: unexpected missing neckline`);
+            necklineChecks++;
+            continue;
+          }
+          const svg = renderStitchStyles(neckLayers.find(layer => layer.id === 'stitching')!, neckGeometry, { ...none, neckline: { style: 'coverstitch' } });
+          check((await stitchPixels(svg)).some((value, offset) => offset % 4 === 3 && value > 128), `${fit}/${neck.displayName}: empty neckline`);
+          necklineChecks++;
+        }
+      }
+    }
+  }
+  return { renders, independentAreas, necklineChecks, balancedSpacing: true, outlineContainment: true, geometryPreserved: true, noHemSuppression: true, serialization: true };
 }

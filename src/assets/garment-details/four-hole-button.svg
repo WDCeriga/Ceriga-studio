@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <path d="M46 24A22 22 0 1 1 2 24A22 22 0 1 1 46 24Z M21 18A3 3 0 1 1 15 18A3 3 0 1 1 21 18Z M33 18A3 3 0 1 1 27 18A3 3 0 1 1 33 18Z M21 30A3 3 0 1 1 15 30A3 3 0 1 1 21 30Z M33 30A3 3 0 1 1 27 30A3 3 0 1 1 33 30Z" fill="var(--detail-fill, none)" fill-rule="evenodd" stroke="var(--detail-outline, black)" stroke-width="2"/>
+  <circle cx="24" cy="24" r="16" stroke="var(--detail-outline, black)" stroke-width="1.5"/>
+</svg>
