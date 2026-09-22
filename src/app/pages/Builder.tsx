@@ -86,11 +86,12 @@ import {
 
 import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
 import {
-  MEASUREMENT_GUIDE_CLASS_PHONE,
   PREVIEW_STAGE_CLASS,
 } from '../components/builder/measurementPreviewSizing';
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
+import { WashFinishPanel } from '../components/builder/WashFinish';
+import { defaultGarmentWash, WASH_TYPES, type GarmentWash, type WashTool } from '../data/garmentWash';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
 import { CollarPhotoUpload } from '../components/builder/CollarPhotoUpload';
@@ -111,6 +112,9 @@ import {
   LabelsPackagingStep,
   PackagingPreview,
 } from '../components/builder/LabelsPackagingStep';
+import { GarmentLabelsPanel, downloadLabelArtwork, downloadLabelSpecs } from '../components/builder/GarmentLabelsPanel';
+import { GarmentLabelsPreview } from '../components/builder/GarmentLabelsPreview';
+import { LABEL_CATEGORIES, LABEL_POSITIONS, LABEL_METHODS, labelWarnings, type GarmentLabel } from '../data/garmentLabels';
 import { DownloadTechPackModal } from '../components/builder/DownloadTechPackModal';
 import {
   OrderQuantitiesStep,
@@ -131,7 +135,9 @@ import { TSHIRT_HEM_OPTIONS, type TshirtHemStyle, type TshirtHemStyles } from '.
 import type { TshirtStitching } from '../data/tshirtStitching';
 import { TshirtStitchingPanel } from '../components/builder/TshirtStitching';
 import type { GarmentDetail } from '../data/garmentDetails';
+import { decorationsForView, replaceViewDecorations } from '../data/garmentView';
 import { GarmentDetailsPanel } from '../components/builder/GarmentDetails';
+import { ProjectGarmentPreview } from '../components/studio/ProjectGarmentPreview';
 import {
   applyGarmentFitAndLinks,
   supportsGarmentSvgPreview,
@@ -208,6 +214,8 @@ type DetailKey =
   | 'pockets';
 
 interface BuilderState {
+  garmentLabels?: GarmentLabel[];
+  garmentWash?: GarmentWash;
   productId: string;
   garmentType: GarmentType;
   fit?: string;
@@ -374,6 +382,10 @@ function stashBuilderState(s: BuilderState): BuilderState {
   cloned.prints = mapElements(cloned.prints, stash);
   cloned.labels = mapElements(cloned.labels, stash);
   cloned.packaging = mapElements(cloned.packaging, stash);
+  cloned.garmentLabels = cloned.garmentLabels?.map(label => ({ ...label,
+    logo: label.logo ? { ...label.logo, data: label.logo.data.startsWith('data:') ? stashDataUrl(label.logo.data) : label.logo.data } : undefined,
+    fontData: label.fontData?.startsWith('data:') ? stashDataUrl(label.fontData) : label.fontData,
+  }));
   return cloned;
 }
 
@@ -389,6 +401,10 @@ function resolveBuilderState(s: BuilderState): BuilderState {
   cloned.prints = mapElements(cloned.prints, resolve);
   cloned.labels = mapElements(cloned.labels, resolve);
   cloned.packaging = mapElements(cloned.packaging, resolve);
+  cloned.garmentLabels = cloned.garmentLabels?.map(label => ({ ...label,
+    logo: label.logo ? { ...label.logo, data: isRefToken(label.logo.data) ? resolveImageRef(label.logo.data) ?? label.logo.data : label.logo.data } : undefined,
+    fontData: label.fontData && isRefToken(label.fontData) ? resolveImageRef(label.fontData) ?? label.fontData : label.fontData,
+  }));
   return cloned;
 }
 
@@ -405,6 +421,10 @@ function releaseBuilderState(s: BuilderState) {
   release(s.prints);
   release(s.labels);
   release(s.packaging);
+  for (const label of s.garmentLabels ?? []) {
+    if (label.logo && isRefToken(label.logo.data)) releaseImageRef(label.logo.data);
+    if (label.fontData && isRefToken(label.fontData)) releaseImageRef(label.fontData);
+  }
 }
 
 /** Equality check that compares two states without caring whether either side
@@ -489,6 +509,7 @@ function isTechpackSpecUrl(): boolean {
 
 function stepTabTitle(item: BuilderStep, techpackSpecFlow: boolean, garmentType?: string): string {
   if (item.id === 6 && garmentType === 'tshirt') return 'Trims & Details';
+  if (item.id === 7 && garmentType === 'tshirt') return 'Wash & Finish';
   if (techpackSpecFlow && item.id === 9) return 'Upload design';
   return item.title;
 }
@@ -516,6 +537,10 @@ export function Builder() {
     isTechpackSpecUrl() ? [9] : [1],
   );
   const [showFront, setShowFront] = useState(true);
+  const [garmentLabelSelectedId, setGarmentLabelSelectedId] = useState<string | null>(null);
+  const [legacyLabelEditing, setLegacyLabelEditing] = useState(false);
+  const [showWash, setShowWash] = useState(true);
+  const [washTool, setWashTool] = useState<WashTool>({ mode: 'brush', size: 12, strength: 65, softness: 65, erase: false, selectedId: null });
   const [saving, setSaving] = useState(false);
   const [projectName, setProjectName] = useState(product?.name || 'Untitled Project');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -664,11 +689,15 @@ export function Builder() {
     [syncHistoryAvailability],
   );
 
-  const selectedGarmentDetailId = state.garmentDetails?.find(detail => detail.selected)?.id ?? null;
+  const garmentView = showFront ? 'front' : 'back';
+  const garmentWash = useMemo(() => state.garmentWash ?? defaultGarmentWash(), [state.garmentWash]);
+  const changeWash = (wash: GarmentWash) => setState(prev => ({ ...prev, garmentWash: wash }));
+  const visibleGarmentDetails = decorationsForView(state.garmentDetails ?? [], garmentView);
+  const visiblePrints = decorationsForView(state.prints, garmentView);
+  const selectedGarmentDetailId = visibleGarmentDetails.find(detail => detail.selected)?.id ?? null;
   const selectGarmentDetail = (id: string | null) => {
     _setStateRaw(prev => ({ ...prev, garmentDetails: prev.garmentDetails?.map(detail => ({ ...detail, selected: detail.id === id })) }));
     setTshirtLayerSelectedId(null);
-    if (id) setShowFront(true);
   };
 
   useEffect(() => {
@@ -1228,6 +1257,7 @@ export function Builder() {
 
   const shouldSkipStep = (stepId: number) => {
     if (stepId === 6 && state.garmentType === 'tshirt') return false;
+    if (stepId === 7 && resolveProductSvgType(state.garmentType, state.svgPack) === 'tshirt') return false;
     if (builderSteps.find((item) => item.id === stepId)?.skipForGarmentTypes?.includes(state.garmentType)) {
       return true;
     }
@@ -1312,10 +1342,10 @@ export function Builder() {
     ? getGarmentSvgConfig(garmentSvgType).previewStepMax
     : 0;
   const stitchingLayers = useMemo(() => garmentSvgType === 'tshirt' ? resolveGarmentLayers({
-    garmentType: 'tshirt', selection: garmentSelection, fit: activeFit,
+    garmentType: 'tshirt', view: garmentView, selection: garmentSelection, fit: activeFit,
     tshirtHemStyles: state.tshirtHemStyles, stitchingColor: state.stitchingColor,
     partColors: state.partColors, customCollar: state.customCollar, customCollars: state.customCollars,
-  }) : [], [garmentSvgType, garmentSelection, activeFit, state.tshirtHemStyles, state.stitchingColor,
+  }) : [], [garmentSvgType, garmentView, garmentSelection, activeFit, state.tshirtHemStyles, state.stitchingColor,
     state.partColors, state.customCollar, state.customCollars]);
   const showGarmentLayerToolbar =
     isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax;
@@ -2568,10 +2598,13 @@ export function Builder() {
 
       case 6:
         if (state.garmentType === 'tshirt') {
-          return <GarmentDetailsPanel details={state.garmentDetails ?? []} selectedId={selectedGarmentDetailId}
+          return <GarmentDetailsPanel details={visibleGarmentDetails} selectedId={selectedGarmentDetailId}
             color={state.partColors?.base ?? primaryColor}
             onSelect={selectGarmentDetail}
-            onChange={garmentDetails => setState(prev => ({ ...prev, garmentDetails }))} />;
+            view={garmentView}
+            onDuplicateToOtherView={detail => setState(prev => ({ ...prev, garmentDetails: [...(prev.garmentDetails ?? []),
+              { ...detail, id: crypto.randomUUID(), view: showFront ? 'back' : 'front', selected: false }] }))}
+            onChange={garmentDetails => setState(prev => ({ ...prev, garmentDetails: replaceViewDecorations(prev.garmentDetails ?? [], garmentView, garmentDetails) }))} />;
         }
         if (isGarmentSvgFlow) {
           return (
@@ -2654,6 +2687,8 @@ export function Builder() {
         );
 
       case 7:
+        if (garmentSvgType === 'tshirt') return <WashFinishPanel wash={garmentWash} onChange={changeWash}
+          view={garmentView} tool={washTool} onToolChange={setWashTool} showWash={showWash} onShowWashChange={setShowWash} />;
         if (isGarmentSvgFlow && garmentSvgType && getGarmentCategoriesForStep(garmentSvgType, 7).length > 0) {
           return (
             <div className="space-y-4">
@@ -2810,8 +2845,9 @@ export function Builder() {
         }
         return (
           <PrintsDesignStep
-            elements={state.prints}
-            onChange={(prints) => setState((prev) => ({ ...prev, prints }))}
+            key={garmentView}
+            elements={visiblePrints}
+            onChange={(prints) => setState((prev) => ({ ...prev, prints: replaceViewDecorations(prev.prints, garmentView, prints) }))}
             selectedLayerId={state.printsLayerSelectedId}
             onSelectedLayerIdChange={(id) =>
               setState((prev) => ({ ...prev, printsLayerSelectedId: id }))
@@ -2821,8 +2857,15 @@ export function Builder() {
         );
 
       case 10:
+        if (garmentSvgType === 'tshirt' && !legacyLabelEditing) return <div className="space-y-4">
+          <GarmentLabelsPanel labels={state.garmentLabels ?? []} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId}
+            layeredSleeves={Boolean(getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve'))}
+            onChange={garmentLabels => setState(prev => ({ ...prev, garmentLabels }))} />
+          {state.labels.length > 0 && <button type="button" className="text-xs text-white/60 underline" onClick={() => setLegacyLabelEditing(true)}>Legacy flat label artwork</button>}
+        </div>;
         return (
           <div className="space-y-4">
+            {garmentSvgType === 'tshirt' && <button type="button" className="text-xs text-white/60 underline" onClick={() => setLegacyLabelEditing(false)}>Labels &amp; Branding</button>}
             <LabelsPackagingStep
               subStep="label"
               elements={state.labels}
@@ -2943,6 +2986,7 @@ export function Builder() {
                   />
                 </>
               )}
+              {state.garmentWash && <ReviewRow label="Wash & Finish" value={`${WASH_TYPES[state.garmentWash.type]} / ${state.garmentWash.intensity}%`} />}
               {state.fadingType ? (
                 <ReviewRow label="Fading" value={state.fadingType.replace('-', ' ')} />
               ) : null}
@@ -3068,6 +3112,17 @@ export function Builder() {
 
   const renderSummaryBody = () => (
     <div className="space-y-4 text-sm">
+        {(state.garmentLabels ?? []).length > 0 && <section className="space-y-3 border-b border-[#252528] pb-4">
+          <h4 className="text-xs font-semibold text-white">Labels &amp; Branding</h4>
+          {state.garmentLabels!.map(label => <div key={label.id} className="space-y-1 text-xs text-white/65">
+            <strong className="text-white">{label.brand || LABEL_CATEGORIES[label.category]}</strong>
+            <p>{LABEL_METHODS[label.method]} / {label.widthMm} x {label.heightMm} mm</p>
+            <p>{LABEL_POSITIONS[label.position]}</p>
+            {labelWarnings(label).map(warning => <p key={warning} className="text-amber-300">{warning}</p>)}
+            <button type="button" className="underline" onClick={() => void downloadLabelArtwork(label)}>Download label SVG</button>
+          </div>)}
+          <button type="button" className="text-xs text-white underline" onClick={() => downloadLabelSpecs(state.garmentLabels!)}>Download label specifications</button>
+        </section>}
         <SpecRow label="Product" value={product.name} />
         <SpecRow label="Garment Type" value={state.garmentType} capitalize />
         {state.fit ? <SpecRow label="Fit" value={state.fit} capitalize /> : null}
@@ -3132,6 +3187,7 @@ export function Builder() {
             {state.zipType ? <SpecRow label="Zip" value={state.zipType} capitalize /> : null}
           </>
         )}
+        {state.garmentWash && <SpecRow label="Wash & Finish" value={`${WASH_TYPES[state.garmentWash.type]} / ${state.garmentWash.intensity}% / ${state.garmentWash.mode}`} />}
         {state.fadingType ? (
           <SpecRow label="Fading" value={state.fadingType.replace('-', ' ')} capitalize />
         ) : null}
@@ -3535,7 +3591,7 @@ export function Builder() {
             ref={previewStageRef}
             className="relative flex h-full w-full min-h-0 items-center justify-center"
             style={{
-              transform: `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom / 100})`,
+              transform: currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing ? 'none' : `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom / 100})`,
               transformOrigin: 'center center',
               transition:
                 draggingDetail || isPanningCanvas ? 'none' : 'transform 120ms ease-out',
@@ -3582,22 +3638,25 @@ export function Builder() {
                 garmentDetails={state.garmentDetails}
                 detailView={showFront ? 'front' : 'back'}
                 highlightedMeasurementId={highlightedMeasurementId}
-                imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
+                sharedGarmentProps={{ garmentWash: state.garmentWash, showWash, layerTransforms: state.tshirtLayerTransforms,
+                  garmentLabels: state.garmentLabels, labelReferenceWidthMm: Number(state.measurements.chestWidth?.m) * 10 || undefined,
+                  customCollar: state.customCollar, customCollars: state.customCollars,
+                  neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor,
+                  cuffTrimColor: state.cuffTrimColor, pocketTrimColor: state.pocketTrimColor }}
               />
             </div>
           ) : currentStep === 9 ? (
             <div
               className={cn(
                 'relative flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-visible px-1',
-                isPhone && `relative ${phoneFrameClass} overflow-visible`,
-                !isPhone &&
-                  'max-md:max-w-[min(100%,260px)] max-md:max-h-[min(44dvh,360px)] md:max-w-[min(100%,340px)] md:max-h-[min(44vh,380px)] lg:max-w-[min(100%,380px)] lg:max-h-[min(46vh,420px)] xl:max-w-[min(100%,420px)] xl:max-h-[min(50vh,460px)] 2xl:max-w-[min(100%,460px)] 2xl:max-h-[min(56vh,520px)] mx-auto',
+                isPhone && 'px-0',
               )}
             >
               <PrintsDesignPreview
                 className="h-full max-h-full w-full max-w-full"
-                elements={state.prints}
-                onChange={(prints) => setState((prev) => ({ ...prev, prints }))}
+                key={garmentView}
+                elements={visiblePrints}
+                onChange={(prints) => setState((prev) => ({ ...prev, prints: replaceViewDecorations(prev.prints, garmentView, prints) }))}
                 selectedLayerId={state.printsLayerSelectedId}
                 onSelectedLayerIdChange={(id) =>
                   setState((prev) => ({ ...prev, printsLayerSelectedId: id }))
@@ -3608,6 +3667,10 @@ export function Builder() {
                 garmentBackdrop={
                   isGarmentSvgFlow && garmentSvgType ? (
                     <TshirtSvgPreview
+                      garmentWash={state.garmentWash}
+                      garmentLabels={state.garmentLabels}
+                      labelReferenceWidthMm={Number(state.measurements.chestWidth?.m) * 10 || undefined}
+                      showWash={showWash}
                       garmentType={garmentSvgType}
                       color={primaryColor}
                       selection={garmentSelection}
@@ -3650,6 +3713,16 @@ export function Builder() {
                 }
               />
             </div>
+          ) : currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing ? (
+            <GarmentLabelsPreview labels={state.garmentLabels ?? []} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId}
+              onChange={garmentLabels => setState(prev => ({ ...prev, garmentLabels }))}
+              garmentProps={{ garmentType: garmentSvgType, color: primaryColor, selection: garmentSelection, fit: activeFit,
+                garmentWash: state.garmentWash, showWash, detailView: showFront ? 'front' : 'back',
+                neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor, cuffTrimColor: state.cuffTrimColor,
+                pocketTrimColor: state.pocketTrimColor, stitchingColor: state.stitchingColor, partColors: state.partColors,
+                tshirtHemStyles: state.tshirtHemStyles, tshirtStitching: state.tshirtStitching, garmentDetails: state.garmentDetails,
+                customCollar: state.customCollar, customCollars: state.customCollars, layerTransforms: state.tshirtLayerTransforms,
+                labelReferenceWidthMm: Number(state.measurements.chestWidth?.m) * 10 || undefined, className: 'h-full w-full min-h-0' }} />
           ) : currentStep === 10 ? (
             <div
               className={cn(
@@ -3701,6 +3774,13 @@ export function Builder() {
               <div className="pointer-events-none absolute inset-0 bg-gradient-radial from-white/5 to-transparent blur-3xl" />
               {isGarmentSvgFlow && garmentSvgType ? (
                 <TshirtSvgPreview
+                  garmentWash={garmentWash}
+                  garmentLabels={state.garmentLabels}
+                  labelReferenceWidthMm={Number(state.measurements.chestWidth?.m) * 10 || undefined}
+                  showWash={showWash}
+                  washTool={currentStep === 7 ? washTool : undefined}
+                  onWashToolChange={setWashTool}
+                  onWashChange={changeWash}
                   garmentType={garmentSvgType}
                   color={primaryColor}
                   selection={garmentSelection}
@@ -3717,7 +3797,7 @@ export function Builder() {
                   detailView={showFront ? 'front' : 'back'}
                   selectedDetailId={currentStep === 6 ? selectedGarmentDetailId : null}
                   onDetailSelect={selectGarmentDetail}
-                  onDetailsChange={currentStep === 6 && showFront ? garmentDetails => setState(prev => ({ ...prev, garmentDetails })) : undefined}
+                  onDetailsChange={currentStep === 6 ? garmentDetails => setState(prev => ({ ...prev, garmentDetails })) : undefined}
                   customCollar={state.customCollar}
                   customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}
@@ -4650,23 +4730,18 @@ function formatVersionDate(ts: number): string {
 }
 
 /** Which elements to thumbnail based on the step the user was on. */
-function pickThumbnailElements(state: BuilderState, step: number): DesignElement[] {
-  const prints = state.prints ?? [];
+function pickThumbnailElements(state: BuilderState, step: number, showFront = true): DesignElement[] {
+  const prints = decorationsForView(state.prints ?? [], showFront ? 'front' : 'back');
   const labels = state.labels ?? [];
   const packaging = state.packaging ?? [];
-  // Rough step mapping: 5 = Labels, 6 = Packaging. Anything else → prints (with a
-  // fallback to whichever array has content so empty-prints states still get a preview).
-  if (step === 5 && labels.length) return labels;
-  if (step === 6 && packaging.length) return packaging;
-  if (prints.length) return prints;
-  if (labels.length) return labels;
-  if (packaging.length) return packaging;
+  if (step === 10) return labels;
+  if (step === 11) return packaging;
   return prints;
 }
 
 function pickLayerLabel(step: number): string {
-  if (step === 5) return 'Labels';
-  if (step === 6) return 'Packaging';
+  if (step === 10) return 'Labels';
+  if (step === 11) return 'Packaging';
   return 'Prints';
 }
 
@@ -4681,16 +4756,12 @@ interface VersionThumbnailProps {
  * design elements in their saved positions, and text content so users can recognise
  * a version at a glance (like Canva / Figma version history cards).
  */
-function VersionThumbnail({ state, currentStep }: VersionThumbnailProps) {
-  const garmentColor = state.colors?.[0]?.hex || '#2e2e2e';
-  const elements = pickThumbnailElements(state, currentStep);
+function VersionThumbnail({ state, currentStep, showFront }: VersionThumbnailProps) {
+  const elements = pickThumbnailElements(state, currentStep, showFront);
   const layerLabel = pickLayerLabel(currentStep);
 
   const VB_W = 520;
   const VB_H = 560;
-
-  const tshirtPath =
-    'M 110 90 L 190 60 C 210 90 250 105 260 105 C 270 105 310 90 330 60 L 410 90 L 460 175 L 410 200 L 410 510 L 110 510 L 110 200 L 60 175 Z';
 
   return (
     <svg
@@ -4700,25 +4771,11 @@ function VersionThumbnail({ state, currentStep }: VersionThumbnailProps) {
       style={{ background: '#161618' }}
       aria-hidden
     >
-      <defs>
-        <linearGradient id="vh-garment-light" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="#000000" stopOpacity="0.25" />
-        </linearGradient>
-      </defs>
-
       <rect x={0} y={0} width={VB_W} height={VB_H} fill="#161618" />
-
-      <g>
-        <path d={tshirtPath} fill={garmentColor} />
-        <path d={tshirtPath} fill="url(#vh-garment-light)" />
-        <path
-          d={tshirtPath}
-          fill="none"
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth={2}
-        />
-      </g>
+      <foreignObject x={0} y={0} width={VB_W} height={VB_W}>
+        <ProjectGarmentPreview garmentType={state.garmentType} state={state}
+          view={showFront ? 'front' : 'back'} fill={false} className="h-full w-full" />
+      </foreignObject>
 
       <g>
         {elements.map((el) => {

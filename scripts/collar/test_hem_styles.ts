@@ -3,6 +3,8 @@ import {
   type ResolvedGarmentLayer,
 } from '../../src/app/data/garmentSvgCatalog';
 import { tintPotraceSvg } from '../../src/app/lib/tshirtSvgUtils';
+import { getPotraceSvgBBox } from '../../src/app/lib/tshirtSvgUtils';
+import { decorationsForView, replaceViewDecorations } from '../../src/app/data/garmentView';
 import type { TshirtHemStyles } from '../../src/app/data/tshirtHemStyles';
 import {
   measureStitchGeometry, renderStitchStyles, stitchPatternPath, TSHIRT_STITCH_OPTIONS, TSHIRT_STITCH_REGIONS,
@@ -13,9 +15,237 @@ function check(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-export async function renderLayers(layers: ResolvedGarmentLayer[], size = 768) {
+export async function verifyBackViews() {
+  const parts = { base: '#A3C4C9', neck: '#E8C94F', sleeveLeft: '#D85246', sleeveRight: '#428D78',
+    underSleeveLeft: '#446EB8', underSleeveRight: '#BE548D' };
+  let combinations = 0;
+  let stitchChecks = 0;
+  for (const fit of ['slim', 'regular', 'boxy', 'oversized']) {
+    for (const sleeve of getGarmentAssetsForFit('tshirt', 'Sleeve length', fit)) {
+      for (const neck of getGarmentAssetsForFit('tshirt', 'Neck', fit)) {
+        const selection = { ...getDefaultGarmentSelection('tshirt', fit), 'Sleeve length': sleeve.id, Neck: neck.id };
+        const input = { garmentType: 'tshirt' as const, fit, selection, partColors: parts,
+          tshirtHemStyles: { sleeve: 'ribbed', bottom: 'none', undersleeve: 'ribbed' } as TshirtHemStyles };
+        const snapshot = JSON.stringify(input);
+        const front = resolveGarmentLayers(input);
+        const back = resolveGarmentLayers({ ...input, view: 'back' });
+        const label = `${fit}/${sleeve.displayName}/${neck.displayName}`;
+        for (const layer of front.filter(layer => !['base', 'neck', 'innerBackNeck', 'outline', 'stitching'].includes(layer.id))) {
+          check(JSON.stringify(back.find(candidate => candidate.id === layer.id)) === JSON.stringify(layer), `${label}: changed ${layer.id}`);
+        }
+        for (const [id, tint] of Object.entries(parts)) {
+          const layer = back.find(candidate => candidate.id === id);
+          if (layer) check(layer.tint === tint, `${label}: lost ${id} colour`);
+        }
+        check(!back.some(layer => layer.id === 'innerBackNeck'), `${label}: front inner neck remains`);
+        const bounds = getPotraceSvgBBox(back.find(layer => layer.id === 'neck')!.svgRaw)!;
+        check(bounds.maxY - bounds.minY < 110, `${label}: deep front neck on rear`);
+        check(bounds.minY < (fit === 'slim' ? 260 : 365), `${label}: rear collar is below the neck opening`);
+        const image = await renderLayers(back, 256);
+        const frontImage = await renderLayers(front, 256);
+        const frontNeckBounds = getPotraceSvgBBox(front.find(layer => layer.id === 'neck')!.svgRaw)!;
+        const outsideLeft = Math.floor((Math.min(frontNeckBounds.minX, bounds.minX) - 18) / 8);
+        const outsideRight = Math.ceil((Math.max(frontNeckBounds.maxX, bounds.maxX) + 18) / 8);
+        const belowNeck = Math.ceil((Math.max(frontNeckBounds.maxY, 522) + 32) / 8);
+        for (let row = 0; row < 256; row++) {
+          for (let column = 0; column < 256; column++) {
+            if (column >= outsideLeft && column <= outsideRight && row <= belowNeck) continue;
+            const offset = (row * 256 + column) * 4;
+            for (let channel = 0; channel < 4; channel++) {
+              check(Math.abs(image.pixels[offset + channel] - frontImage.pixels[offset + channel]) <= 2,
+                `${label}: changed body outside neck at ${column},${row}`);
+            }
+          }
+        }
+        const center = (Math.round((bounds.maxY + 28) / 8) * 256 + 128) * 4;
+        check(image.pixels[center + 3] > 240, `${label}: hole below rear neck`);
+        check(image.pixels[center] === 163 && image.pixels[center + 1] === 196, `${label}: front neck ink or incorrect body tint remains`);
+        check(JSON.stringify(input) === snapshot, `${label}: input mutated`);
+        check(JSON.stringify(resolveGarmentLayers({ ...input, view: 'front' })) === JSON.stringify(front), `${label}: front changed after toggling`);
+        if (neck.displayName.startsWith('Crew neck')) {
+          const geometry = await measureStitchGeometry(back, fit);
+          check(geometry.rows.neckline.length > 0 && geometry.rows.shoulder.length > 0, `${label}: rear construction stitching missing`);
+          check(geometry.rows.bottom.length === 0, `${label}: no-hem stitching retained`);
+          for (const option of TSHIRT_STITCH_OPTIONS) {
+            const markup = renderStitchStyles(back.find(layer => layer.id === 'stitching')!, geometry,
+              { neckline: { style: option.value, color: '#123456' } }, input.tshirtHemStyles);
+            check(option.value === 'none' ? !markup.includes('#123456') : markup.includes('#123456'), `${label}: rear neckline ${option.value}`);
+            stitchChecks++;
+          }
+        }
+        combinations++;
+      }
+    }
+  }
+  const saved = [{ id: 'legacy', x: 17 }, { id: 'rear', view: 'back' as const, x: 25 }];
+  const next = replaceViewDecorations(saved, 'front', [{ id: 'front', x: 40 }]);
+  check(next[0] === saved[1] && decorationsForView(next, 'front')[0].x === 40, 'opposite-side edits lost');
+  check(decorationsForView(saved, 'front')[0].id === 'legacy', 'legacy item not front-only');
+  check(replaceViewDecorations(next, 'back', []).length === 1, 'side deletion removed other side');
+  check(decorationsForView(JSON.parse(JSON.stringify(next)), 'back')[0].id === 'rear', 'saved side lost');
+  return { combinations, stitchChecks, decorationIsolation: true };
+}
+
+export async function verifyRearCollarConstruction() {
+  let pairs = 0;
+  let clippedColourPixels = 0;
+  const size = 768;
+  const scale = size / 2048;
+  for (const fit of ['slim', 'regular', 'boxy', 'oversized']) {
+    let crewHeight = 0;
+    for (const neck of getGarmentAssetsForFit('tshirt', 'Neck', fit)) {
+      const input = { garmentType: 'tshirt' as const, fit,
+        selection: { ...getDefaultGarmentSelection('tshirt', fit), Neck: neck.id },
+        partColors: { base: '#5C7FB2', neck: '#E32D24', sleeveLeft: '#5C7FB2', sleeveRight: '#5C7FB2' } };
+      const front = resolveGarmentLayers(input);
+      const back = resolveGarmentLayers({ ...input, view: 'back' });
+      const label = `${fit}/${neck.displayName}`;
+      const collar = back.find(layer => layer.id === 'neck')!;
+      const bounds = getPotraceSvgBBox(collar.svgRaw)!;
+      const frontBounds = getPotraceSvgBBox(neck.svgRaw)!;
+      const height = bounds.maxY - bounds.minY;
+      if (neck.displayName.startsWith('Crew neck')) crewHeight = height;
+      if (neck.displayName.startsWith('Thin crew')) check(height < crewHeight, `${label}: thin collar not thinner than crew`);
+      const outline = back.find(layer => layer.id === 'outline')!.svgRaw;
+      const ribbed = !/Polo|Scoop/.test(neck.displayName);
+      check(outline.includes('-ribs') === ribbed, `${label}: wrong rear rib construction`);
+      check(Math.abs(bounds.centerX - 1024) < .01, `${label}: collar not centered`);
+      const collarDocument = new DOMParser().parseFromString(collar.svgRaw, 'image/svg+xml');
+      const contour = collarDocument.querySelector('path')!.getAttribute('d')!;
+      const points = Array.from(contour.matchAll(/[ML]([\d.]+),([\d.]+)/g), match => match.slice(1).map(Number));
+      check(points.length === 146, `${label}: missing source-derived side contour`);
+      for (const original of points) {
+        check(points.some(mirrored => Math.abs(original[0] + mirrored[0] - 20480) < .001 &&
+          Math.abs(original[1] - mirrored[1]) < .001), `${label}: asymmetric vector contour`);
+      }
+      check(points[0][0] > Math.min(...points.map(point => point[0])) + 50,
+        `${label}: vertical end cap replaced the source shoulder angle`);
+      for (let index = 65; index <= 72; index++) {
+        const previous = points[index - 1];
+        const current = points[index];
+        check(Math.abs(current[0] - previous[0]) <= 5 * Math.abs(current[1] - previous[1]) + 50,
+          `${label}: abrupt jump in source shoulder entry`);
+      }
+      const outlineDocument = new DOMParser().parseFromString(outline, 'image/svg+xml');
+      check(!outlineDocument.querySelector('parsererror'), `${label}: invalid outline SVG`);
+      if (ribbed) {
+        const ribPath = outlineDocument.querySelector('[data-rear-ribs]')!.getAttribute('d')!;
+        const ribs = Array.from(ribPath.matchAll(/M([\d.]+),([\d.]+)L([\d.]+),([\d.]+)/g), match => match.slice(1).map(Number));
+        check(ribs.length > 25, `${label}: missing rib sections`);
+        const pitch = ribs[1][0] - ribs[0][0];
+        for (let index = 0; index < ribs.length; index++) {
+          const [startX, startY, endX, endY] = ribs[index];
+          check(startX === endX && endY > startY, `${label}: nonvertical rib`);
+          if (index) check(Math.abs(startX - ribs[index - 1][0] - pitch) < .001, `${label}: uneven rib spacing`);
+          const mirrored = ribs[ribs.length - 1 - index];
+          check(Math.abs(startX + mirrored[0] - 2048) < .001 && Math.abs(startY - mirrored[1]) < .001 &&
+            Math.abs(endY - mirrored[3]) < .001, `${label}: asymmetric ribs`);
+        }
+      }
+      for (const layers of [front, back]) {
+        const image = await renderLayers(layers, size, true);
+        const neckImage = await renderLayers([layers.find(layer => layer.id === 'neck')!], size);
+        for (let offset = 0; offset < image.pixels.length; offset += 4) {
+          if (image.pixels[offset] === 227 && image.pixels[offset + 1] === 45 && image.pixels[offset + 2] === 36 && image.pixels[offset + 3] > 240) {
+            check(neckImage.pixels[offset + 3] > 0, `${label}: collar colour escaped its boundary`);
+            clippedColourPixels++;
+          }
+        }
+        if (layers !== back) continue;
+        const outlineImage = await renderLayers([layers.find(layer => layer.id === 'outline')!], size);
+        for (let row = Math.floor(bounds.minY * scale); row <= Math.ceil(bounds.maxY * scale); row++) {
+          for (let column = Math.floor(bounds.minX * scale); column < size / 2; column++) {
+            const alpha = neckImage.pixels[(row * size + column) * 4 + 3];
+            const mirrored = neckImage.pixels[(row * size + size - 1 - column) * 4 + 3];
+            check(Math.abs(alpha - mirrored) <= 16, `${label}: asymmetric collar silhouette`);
+          }
+        }
+        for (let column = Math.ceil((bounds.minX + 30) * scale); column < (bounds.maxX - 30) * scale; column++) {
+          let first = Math.floor(bounds.minY * scale);
+          while (first < bounds.maxY * scale && neckImage.pixels[(first * size + column) * 4 + 3] < 128) first++;
+          const above = ((first - 4) * size + column) * 4 + 3;
+          check(image.pixels[above] === outlineImage.pixels[above], `${label}: fabric protrudes above collar`);
+          let last = Math.ceil(bounds.maxY * scale);
+          while (last > first && neckImage.pixels[(last * size + column) * 4 + 3] < 128) last--;
+          if (neck.displayName.startsWith('Polo')) {
+            for (let row = first + 4; row < last - 4; row++) {
+              const offset = (row * size + column) * 4;
+              check(image.pixels[offset] === 227 && image.pixels[offset + 1] === 45 && image.pixels[offset + 2] === 36,
+                `${label}: internal fold, placket or stray ink`);
+            }
+          }
+          for (let row = first + 2; row < (frontBounds.maxY + 18) * scale; row++) {
+            check(image.pixels[(row * size + column) * 4 + 3] > 250, `${label}: unclosed fill edge`);
+          }
+          for (let row = Math.ceil((bounds.maxY + 18) * scale); row < (frontBounds.maxY + 18) * scale; row++) {
+            const offset = (row * size + column) * 4;
+            check(Math.abs(image.pixels[offset] - 92) <= 2 && Math.abs(image.pixels[offset + 1] - 127) <= 2 &&
+              Math.abs(image.pixels[offset + 2] - 178) <= 2 && image.pixels[offset + 3] > 250,
+            `${label}: upper-back line or fill artifact at ${column},${row}`);
+          }
+        }
+      }
+      pairs++;
+    }
+  }
+  return { pairs, clippedColourPixels, thinCrewWidth: true, rearRibbing: true,
+    symmetry: true, poloInterior: 'clear', closedFill: true, cleanUpperBack: true };
+}
+
+export async function verifyRearOutlineWeights() {
+  const reports = [];
+  const size = 2048;
+  for (const fit of ['slim', 'regular', 'boxy', 'oversized']) {
+    for (const neck of getGarmentAssetsForFit('tshirt', 'Neck', fit)) {
+      const input = { garmentType: 'tshirt' as const, fit,
+        selection: { ...getDefaultGarmentSelection('tshirt', fit), Neck: neck.id } };
+      const front = resolveGarmentLayers(input).find(layer => layer.id === 'outline')!;
+      const back = resolveGarmentLayers({ ...input, view: 'back' }).find(layer => layer.id === 'outline')!;
+      const bounds = getPotraceSvgBBox(neck.svgRaw)!;
+      const documentSvg = new DOMParser().parseFromString(back.svgRaw, 'image/svg+xml');
+      const collar = documentSvg.querySelector('[data-rear-collar-outline]')!;
+      const shoulder = documentSvg.querySelector('[data-rear-shoulder-outline]')!;
+      const label = `${fit}/${neck.displayName}`;
+      const collarWeight = Number(collar.getAttribute('stroke-width'));
+      const shoulderWeight = Number(shoulder.getAttribute('stroke-width'));
+      check(collar.getAttribute('stroke') === '#141414' && shoulder.getAttribute('stroke') === '#141414',
+        `${label}: outline colour changed`);
+      const images = await Promise.all([renderLayers([front], size), renderLayers([back], size)]);
+      const weights = images.map(image => {
+        const edgeAt = (horizontal: number) => {
+          const column = Math.floor(horizontal);
+          const alpha = (row: number) => image.pixels[(row * size + column) * 4 + 3] / 255;
+          let row = Math.floor(bounds.minY - 30);
+          while (row < bounds.maxY && alpha(row) < .5) row++;
+          const start = row;
+          let width = alpha(row - 1);
+          while (row < bounds.maxY && alpha(row) >= .5) width += alpha(row++);
+          return { start, width: width + alpha(row) };
+        };
+        const weightAt = (horizontal: number) => {
+          const slope = (edgeAt(horizontal + 4).start - edgeAt(horizontal - 4).start) / 8;
+          return edgeAt(horizontal).width / Math.sqrt(1 + slope * slope);
+        };
+        const median = (values: number[]) => values.sort((first, second) => first - second)[Math.floor(values.length / 2)];
+        return {
+          collar: median(Array.from({ length: 41 }, (_, index) => weightAt(bounds.centerX - 50 + index * 2.5))),
+          shoulder: median(Array.from({ length: 17 }, (_, index) =>
+            [weightAt(bounds.minX - 16 - index * 2), weightAt(bounds.maxX + 16 + index * 2)]).flat()),
+        };
+      });
+      check(Math.abs(weights[0].collar - collarWeight) < 1, `${label}: collar weight differs from front`);
+      check(Math.abs(weights[0].shoulder - shoulderWeight) < 1, `${label}: shoulder weight differs from front`);
+      check(Math.abs(weights[1].collar - weights[0].collar) < 1, `${label}: rendered collar weight differs from front`);
+      reports.push({ fit, neck: neck.displayName, collarWeight, shoulderWeight });
+    }
+  }
+  return { pairs: reports.length, rasterTolerance: 'less than one SVG unit', reports };
+}
+
+export async function renderLayers(layers: ResolvedGarmentLayer[], size = 768, sealBody = false) {
   const markup = layers.map(layer => tintPotraceSvg(layer.svgRaw,
-    layer.id === 'outline' ? '#141414' : layer.tint ?? (layer.kind === 'detail' ? '#141414' : '#FFFFFF'))).join('');
+    layer.id === 'outline' ? '#141414' : layer.tint ?? (layer.kind === 'detail' ? '#141414' : '#FFFFFF'),
+    'solid', false, sealBody && layer.id === 'base' ? 72 : 0)).join('');
   const image = new Image();
   image.src = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 2048 2048">${markup}</svg>`)}`;
   await image.decode();

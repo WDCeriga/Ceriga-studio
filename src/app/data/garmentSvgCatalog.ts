@@ -1,6 +1,8 @@
 import type { GarmentType } from './builderSteps';
 import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
 import { withTshirtHemStyles, type TshirtHemStyles } from './tshirtHemStyles';
+import { withTshirtBackView } from './tshirtBackView';
+import type { GarmentView } from './garmentView';
 
 export const GARMENT_NONE = '__none__';
 
@@ -210,6 +212,7 @@ export interface ResolvedGarmentLayer {
 
 export interface ResolveGarmentLayersInput {
   garmentType: GarmentSvgGarmentType;
+  view?: GarmentView;
   selection: GarmentAssetSelection;
   neckTrimColor?: string;
   sleeveTrimColor?: string;
@@ -1255,6 +1258,9 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     : layers;
   if (input.garmentType === 'tshirt') {
     resolved = withTshirtHemStyles(resolved, fit, layered ? 'layered-long' : sleeveVariant ?? 'short', input.tshirtHemStyles);
+    if (input.view === 'back') {
+      resolved = withTshirtBackView(resolved, fit);
+    }
   }
   return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

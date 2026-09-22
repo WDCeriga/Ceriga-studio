@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode, type ComponentProps } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
 import type { GarmentDetail } from '../../data/garmentDetails';
@@ -21,6 +21,7 @@ import {
   type GarmentSvgGarmentType,
 } from '../../data/garmentSvgCatalog';
 import { TshirtSvgPreview } from './TshirtSvgPreview';
+import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from './measurementPreviewSizing';
 import {
   MEASUREMENT_GUIDE_LABELS,
   MeasurementGuideOverlay,
@@ -349,6 +350,7 @@ export function MeasurementPreview({
   stitchingColor,
   garmentDetails,
   detailView,
+  sharedGarmentProps,
 }: {
   garmentType?: string;
   color?: string;
@@ -363,6 +365,7 @@ export function MeasurementPreview({
   stitchingColor?: string;
   garmentDetails?: GarmentDetail[];
   detailView?: 'front' | 'back';
+  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor'>;
 }) {
   const svgPack: GarmentSvgGarmentType | null =
     garmentType === 'tshirt' ||
@@ -382,10 +385,11 @@ export function MeasurementPreview({
   }, [svgPack, selection, fit]);
 
   return (
-    <div className="relative mx-auto flex h-full min-h-0 w-full max-w-full flex-1 items-center justify-center px-2">
+    <div className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
       {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
-        <div className="relative aspect-square w-full max-w-[576px]">
+        <div className={GARMENT_PREVIEW_CANVAS_CLASS}>
           <TshirtSvgPreview
+            {...sharedGarmentProps}
             garmentType={svgPack}
             color={color || '#5C7FB6'}
             selection={resolvedSelection}
@@ -398,7 +402,7 @@ export function MeasurementPreview({
             detailView={detailView}
             className={cn('h-full w-full', imgClassName)}
           />
-          {overlay ?? <MeasurementGuideOverlay highlightedId={highlightedMeasurementId ?? null} />}
+          {overlay ?? <MeasurementGuideOverlay view={detailView} highlightedId={highlightedMeasurementId ?? null} />}
         </div>
       ) : (
         <div className="aspect-square w-full max-w-[576px] rounded-2xl border border-white/10 bg-[#111113]" />

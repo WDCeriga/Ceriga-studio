@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type PointerEvent as ReactPointerEvent } from 'react';
 import { cn } from '../ui/utils';
+import type { GarmentView } from '../../data/garmentView';
 
 export const MEASUREMENT_GUIDE_LABELS = [
   { id: 'halfLength', label: 'A. Half Length' },
@@ -150,17 +151,19 @@ export function useMeasurementGuides(): MeasurementGuideDef[] {
 
 export function MeasurementGuideOverlay({
   highlightedId,
+  view = 'front',
   editable,
   guides,
   onGuidePointerDown,
 }: {
   highlightedId?: string | null;
+  view?: GarmentView;
   editable?: boolean;
   guides?: MeasurementGuideDef[];
   onGuidePointerDown?: (guideId: MeasurementGuideId, event: ReactPointerEvent<SVGGElement>) => void;
 }) {
   const storeGuides = useMeasurementGuides();
-  const activeGuides = guides ?? storeGuides;
+  const activeGuides = (guides ?? storeGuides).filter(guide => view !== 'back' || guide.id !== 'neckDrop');
 
   return (
     <svg

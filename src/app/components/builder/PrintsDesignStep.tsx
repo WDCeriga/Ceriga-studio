@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import type { GarmentView } from '../../data/garmentView';
+import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from './measurementPreviewSizing';
 import { cn } from '../ui/utils';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -54,6 +56,7 @@ import { STUDIO_TEXT_MAIN_COLORS, STUDIO_TEXT_POPULAR_COLORS } from '../../data/
 import { InlineElementToolbar } from './InlineElementToolbar';
 
 export interface DesignElement {
+  view?: GarmentView;
   id: string;
   type: 'image' | 'text';
   content: string;
@@ -2441,7 +2444,7 @@ export function PrintsDesignPreview({
           editable &&
           selectedElement?.type === 'text' &&
           editingTextId !== selectedElement.id ? (
-            <p className="pointer-events-none shrink-0 px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">
+            <p className="pointer-events-none absolute inset-x-0 top-0 z-[100] px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">
               Tap the text on the design again to edit, or drag to move it.
             </p>
           ) : null}
@@ -2450,7 +2453,7 @@ export function PrintsDesignPreview({
           showCanvasChromeToolbar &&
           selectedElement &&
           (selectedElement.type !== 'text' || editingTextId !== selectedElement.id) ? (
-            <div className="pointer-events-none relative z-[100] flex shrink-0 justify-center overflow-visible px-2 pt-2 pb-1">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-[100] flex justify-center overflow-visible px-2 pt-2 pb-1">
               {/*
                 Do not set overflow-x on this wrapper: overflow-x other than visible forces overflow-y
                 to auto and clips the colour/font popovers (absolutely positioned under the bar).
@@ -2481,17 +2484,17 @@ export function PrintsDesignPreview({
               setSelectedId(null);
             }}
           >
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'absolute inset-0')}>
           <div
             className={cn(
               'relative',
               garmentBackdrop
-                ? 'aspect-square h-full max-h-full w-auto max-w-full'
+                ? GARMENT_PREVIEW_CANVAS_CLASS
                 : 'contents',
             )}
           >
           {garmentBackdrop ? (
-            <div className="pointer-events-none absolute inset-0">{garmentBackdrop}</div>
+            <div data-print-garment-backdrop className="pointer-events-none absolute inset-0 isolate z-0">{garmentBackdrop}</div>
           ) : (
             <img
               src={imgBlackTshirt}
@@ -2504,7 +2507,7 @@ export function PrintsDesignPreview({
             ref={zoneRef}
             data-print-design-zone
             className={cn(
-              'absolute overflow-visible',
+              'absolute z-10 overflow-visible',
               garmentBackdrop && 'pointer-events-auto',
               editable && 'touch-none',
             )}

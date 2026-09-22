@@ -1,3 +1,9 @@
+export const GARMENT_PREVIEW_CONTAINER_CLASS =
+  'relative flex h-full w-full min-h-0 [container-type:size] items-center justify-center';
+
+export const GARMENT_PREVIEW_CANVAS_CLASS =
+  'relative aspect-square h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0';
+
 /** Step 1 diagram: a bit smaller on phone so the form gets more vertical room. */
 export const MEASUREMENT_GUIDE_CLASS_PHONE =
   'relative z-[1] mx-auto block h-auto w-auto max-h-[min(40dvh,280px)] max-w-[min(100%,85vw,320px)] shrink-0 object-contain';

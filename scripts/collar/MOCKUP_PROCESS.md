@@ -19,11 +19,46 @@ The category picker inserts one of five options from `GARMENT_DETAIL_OPTIONS`. A
 
 Instances store an optional `variant` ID alongside their category. `detailAsset` resolves geometry and colour channels for that variant; missing or unknown variants retain the original category asset. Keep the three original SVGs for saved-project compatibility. Duplicates retain the variant, colours, and scale. Zip variants use their own viewBox aspect ratio and width to maintain consistent default length. Cross-stitch buttons expose thread colour, and flap/divided pockets expose hardware colour.
 
-Each saved `garmentDetails` instance has its own ID, name, colours, x/y position, scale, and selected flag. Coordinates remain relative to the body bounds for compatibility, but may extend outside 0-1 to reach sleeves and the full 2048-square customization canvas. Only the object's center is bounded to the canvas edges; presets apply on creation, never during dragging. `GarmentDetailsOverlay` renders the objects separately above the garment ink, on the front only.
+Each saved `garmentDetails` instance has its own ID, name, colours, x/y position, scale, selected flag, and optional `view`. Coordinates remain relative to the body bounds for compatibility, but may extend outside 0-1 to reach sleeves and the full 2048-square customization canvas. Only the object's center is bounded to the canvas edges; presets apply on creation, never during dragging. `GarmentDetailsOverlay` renders the active side's objects separately above the garment ink.
 
 Four corner handles resize proportionally around the opposite corner, with a per-instance scale from 0.2 to 4 (legacy instances without scale use 1). The Size field and handle arrow keys also resize. Dragging and resizing commit once on release for undo; pointer cancellation discards the gesture. Object arrow keys move, and Delete removes the focused object. Selection changes are stored without adding undo entries. Source garment SVGs are never modified. Draft/project serialization includes the instances; remote persistence requires configured Supabase.
 
 With Vite running, execute `await (await import('/scripts/collar/test_garment_details.ts')).verifyGarmentDetails()` in the browser console. This validates all 15 variants plus three legacy assets: SVG decoding and nonblank rendering, transparent backgrounds, viewBox ratios, independent IDs, colour channels, canvas bounds, free collar/sleeve placement, proportional resizing, resize anchors, legacy fallback, and variant serialization. Also verify all five options per category, add/select/duplicate/remove, drag and resize with zoom, front/back visibility, and fit changes in the builder.
+
+## T-shirt wash and finish
+
+Step 7 uses `garmentWash` for Clean, Vintage, Mineral, Acid, and Stone finishes. `src/app/data/garmentWash.ts` owns serializable settings and procedural rendering; `WashFinish.tsx` owns controls and mask editing. No wash-specific garment assets are generated, and construction paths remain unchanged.
+
+Style, colour mode, intensity, blend, noise, seed, and wear settings are shared. Placement overrides, brush strokes, and shapes live separately under `views.front` and `views.back`. Missing wash state means Clean; missing side placement falls back to the global placement for compatibility. Natural and bleach tones derive from each fabric region's colour. Seeded texture is deterministic.
+
+Each solid fabric region receives its own source-alpha-clipped wash above its fabric colour, below construction ink, stitching, trims, and prints. Neck openings and the transparent exterior remain unpainted. Placement masks are inverse-mapped through the region's actual transform; edge wear stays in local region coordinates. Presets, wear, shapes, and ordered paint/erase strokes combine non-destructively. SourceAlpha must be converted to white RGB before use in a luminance mask. Brush blur filters use user-space bounds so horizontal and vertical strokes do not disappear with a zero-sized object bounding box.
+
+Brush and saved shape coordinates are normalized to garment bounds. Shape creation and editing controls are currently removed; saved shapes still render. Screen input uses the SVG screen matrix, including canvas zoom. Paint and eraser collect coalesced pointer samples and render quadratic paths by updating mounted mask paths once per animation frame. Soft strokes use individual user-space blur bounds padded by the brush radius plus four blur standard deviations; these bounds expand during drawing, with separate filters for mirrored strokes. Hard brushes omit blur filters. Gestures commit one history entry on release; cancellation discards the draft. Before/After hides rendering without clearing masks. Full builder state serialization carries both sides into history, projects, versions, and previews. Cloud roundtrips require configured Supabase and have not been verified locally.
+
+With Vite running, execute these browser checks:
+
+```js
+const washTests = await import('/scripts/collar/test_wash.ts');
+await washTests.verifyWashMasks();
+await washTests.verifyWashGarments();
+await washTests.verifyWashPreview();
+```
+
+The checks cover 84 style/placement/colour combinations, clipping, deterministic seeds, intensity, paint/erase, eight soft-stroke raster comparisons against broad blur bounds, mirrored saved shapes, serialization, 40 fit/view/sleeve combinations with 312 fabric regions, unchanged construction, transformed placement, and Before/After source preservation. Also exercise paint and eraser gestures, mirroring, cancellation, undo/redo, side switching, zoom, and responsive layout in the builder. Large accumulated stroke histories have not been performance-benchmarked.
+
+## Front and back views
+
+Rear side-entry contours are measured at nine heights from the selected front collar, mirrored, and joined to the shoulders at their widest point. Sample at least two SVG units below the source's topmost bound: the extreme tip can contain ink on only one side and make a scan cross the opening. The construction regression rejects abrupt side-entry jumps as well as vertical end caps. Inspect paired front/back renders for all six collars and four fits; symmetry alone does not prove the source angle was preserved.
+
+Both views use one builder garment configuration. Fit, fabric, part colours, transforms, sleeve construction, hems, and stitch settings remain shared. `resolveGarmentLayers({ ...input, view: 'back' })` applies `tshirtBackView.ts` after sleeve and hem construction, directly to the selected garment layers. Rear profiles use the selected collar's width and central top-neck geometry, centered and mirrored about the garment axis. Thin binding thickness is measured from its front binding; rib pitch and line weight come from the matching source outline. Rear ribs are evenly spaced, vertical, symmetric, and clipped inside the closed contour. Polo is a clean rear stand with no internal fold, front wings, or placket. Shoulder joins use the selected body edge and cubic transitions, not fixed crew anchors. A hidden three-unit body overlap closes the antialiased collar join without changing its visible outline. Front neck ink is cleared through the source neckline plus a 24-unit stitch margin. Outside the collar and short shoulder transitions, the selected garment's body, outline, stitching, sleeves, and hem remain unchanged. Original source assets are not edited.
+
+Prints, text, pockets, zips, and buttons carry `view: 'front' | 'back'`. Missing `view` means front for saved-project compatibility. `decorationsForView` filters the active side; `replaceViewDecorations` merges its edits without replacing the other side. Details can be explicitly copied to the other side with a new identity. Temporary gestures reset when switching views. Saved state retains both arrays and version previews use the saved viewing side.
+
+Measurement previews receive the same garment transforms and trim colours as the other steps. Back hides the front neck-drop guide; the shared measurement values remain unchanged. View changes do not reset canvas zoom or pan.
+
+With Vite running, execute `await (await import('/scripts/collar/test_hem_styles.ts')).verifyBackViews()` in the browser console. It checks 120 fit/sleeve/collar combinations, rear neckline fill and colours, unchanged pixels outside the neck (two-level raster compositing tolerance), 140 rear stitch styles, No Hem suppression, immutable inputs, legacy decoration handling, side deletion, and serialization. Also inspect all fits visually, exercise independent front/back editing and copying, and verify repeated toggles at non-default zoom. Cloud persistence still requires configured Supabase.
+
+Run `verifyRearCollarConstruction()` from the same module for all 24 fit/collar pairs. It uses production body edge sealing and checks exact vector symmetry, centered contours, mirrored vertical ribs, constant rib spacing, collar colour containment, transparent space above the collar, closed opaque joins, a clear Polo interior, and uniform upper-back fill. Raster symmetry permits minor edge antialias differences; vector symmetry does not. The outside-neck comparison includes one raster pixel around the clearing region for antialiasing.
 
 ## T-shirt stitch rendering
 

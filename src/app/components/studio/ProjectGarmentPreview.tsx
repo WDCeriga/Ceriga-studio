@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
 import type { GarmentDetail } from '../../data/garmentDetails';
+import type { GarmentWash } from '../../data/garmentWash';
+import type { GarmentLabel } from '../../data/garmentLabels';
+import type { GarmentView } from '../../data/garmentView';
 import type { GarmentType } from '../../data/builderSteps';
 import {
   applyGarmentFitAndLinks,
@@ -19,6 +22,9 @@ import { cn } from '../ui/utils';
 
 /** Subset of builder state needed to render a draft/dashboard preview. */
 export type ProjectPreviewState = {
+  garmentLabels?: GarmentLabel[];
+  measurements?: Record<string, Record<string, string>>;
+  garmentWash?: GarmentWash;
   garmentType?: string;
   colors?: Array<{ hex?: string; pantone?: string }>;
   neckType?: string;
@@ -54,6 +60,7 @@ function asGarmentType(value: string | undefined, fallback: string): GarmentType
 
 type ProjectGarmentPreviewProps = {
   garmentType: string;
+  view?: GarmentView;
   state?: ProjectPreviewState | Record<string, unknown> | null;
   className?: string;
   /** When true, fill the parent (card media area). */
@@ -66,6 +73,7 @@ type ProjectGarmentPreviewProps = {
  */
 export function ProjectGarmentPreview({
   garmentType,
+  view = 'front',
   state,
   className,
   fill = true,
@@ -99,6 +107,10 @@ export function ProjectGarmentPreview({
         aria-hidden
       >
         <TshirtSvgPreview
+          garmentLabels={preview.garmentLabels}
+          labelReferenceWidthMm={Number(preview.measurements?.chestWidth?.m) * 10 || undefined}
+          garmentWash={preview.garmentWash}
+          detailView={view}
           garmentType={svgType}
           color={color}
           selection={selection}

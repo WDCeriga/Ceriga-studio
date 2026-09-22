@@ -1,6 +1,7 @@
 import pocketSvg from '../../assets/garment-details/patch-pocket.svg?raw';
 import zipSvg from '../../assets/garment-details/short-front-zip.svg?raw';
 import buttonSvg from '../../assets/garment-details/four-hole-button.svg?raw';
+import type { GarmentView } from './garmentView';
 
 export const GARMENT_DETAIL_ASSETS = {
   pocket: { label: 'Pocket', svg: pocketSvg, width: .2, ratio: 200 / 220, x: .72, y: .4, stitch: true, hardware: false },
@@ -47,6 +48,7 @@ export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant'>) {
 
 export interface GarmentDetail {
   id: string;
+  view?: GarmentView;
   type: GarmentDetailType;
   variant?: GarmentDetailVariant;
   name: string;

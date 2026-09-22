@@ -38,6 +38,11 @@ export function tintPotraceSvg(
       );
   }
 
+  result = result.replace(
+    /(<g transform="[^"]+") data-shared-fabric="true"[^>]*>/gi,
+    `$1 data-shared-fabric="true" fill="${fill}"${edgeSeal} fill-rule="evenodd">`,
+  );
+
   if (interactive) {
     result = result.replace(/<path /gi, '<path pointer-events="all" ');
   }

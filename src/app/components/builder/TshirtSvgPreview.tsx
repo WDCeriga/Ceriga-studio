@@ -1,4 +1,5 @@
 import React, {
+  useId,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,10 +10,16 @@ import React, {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
+import { washSvg, type GarmentWash, type WashBounds, type WashTool } from '../../data/garmentWash';
+import { WashEditor } from './WashFinish';
 import type { TshirtStitching } from '../../data/tshirtStitching';
 import { TshirtStitchingLayer } from './TshirtStitching';
+import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from './measurementPreviewSizing';
 import type { GarmentDetail } from '../../data/garmentDetails';
 import { GarmentDetailsOverlay } from './GarmentDetails';
+import { GarmentLabelOverlay } from './GarmentLabelOverlay';
+import type { GarmentLabel } from '../../data/garmentLabels';
+import { decorationsForView, replaceViewDecorations } from '../../data/garmentView';
 import {
   DEFAULT_TSHIRT_LAYER_TRANSFORM,
   resolveLayerScale,
@@ -213,6 +220,11 @@ function applyScaleFromPointerDelta(
 const SELECTED_LAYER_Z = 200;
 
 export interface TshirtSvgPreviewProps {
+  garmentWash?: GarmentWash;
+  showWash?: boolean;
+  washTool?: WashTool;
+  onWashToolChange?: (tool: WashTool) => void;
+  onWashChange?: (wash: GarmentWash) => void;
   garmentType: GarmentSvgGarmentType;
   color: string;
   selection: GarmentAssetSelection;
@@ -227,6 +239,15 @@ export interface TshirtSvgPreviewProps {
   tshirtHemStyles?: TshirtHemStyles;
   tshirtStitching?: TshirtStitching;
   garmentDetails?: GarmentDetail[];
+  garmentLabels?: GarmentLabel[];
+  labelReferenceWidthMm?: number;
+  labelEditor?: {
+    interior: boolean;
+    selectedId: string | null;
+    onSelect: (id: string | null) => void;
+    onChange: (labels: GarmentLabel[]) => void;
+    onFocus: (point: { x: number; y: number }) => void;
+  };
   detailView?: 'front' | 'back';
   selectedDetailId?: string | null;
   onDetailSelect?: (id: string | null) => void;
@@ -547,6 +568,10 @@ function PreviewLayer({
   clipSide,
   scaleFixedAnchor,
   layerId,
+  garmentWash,
+  washBounds,
+  detailView,
+  canvasSize,
 }: {
   layer: ResolvedGarmentLayer;
   fabricColor: string;
@@ -557,8 +582,20 @@ function PreviewLayer({
   clipSide?: SleeveSide;
   scaleFixedAnchor?: ScaleAnchor | null;
   layerId: string;
+  garmentWash?: GarmentWash;
+  washBounds?: WashBounds;
+  detailView: 'front' | 'back';
+  canvasSize: number;
 }) {
   const fill = resolveLayerFill(layer, fabricColor, bodyColor);
+  const washId = useId();
+  const origin = bbox ? (scaleFixedAnchor ? anchorOriginPoint(bbox, scaleFixedAnchor) : { x: bbox.centerX, y: bbox.centerY }) : { x: 1024, y: 1024 };
+  const scale = resolveLayerScale(transform);
+  const placementTransform = new DOMMatrix().translate(origin.x + transform.x * 2048 / canvasSize, origin.y + transform.y * 2048 / canvasSize)
+    .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((alignOffset?.x ?? 0) - origin.x, (alignOffset?.y ?? 0) - origin.y).inverse().toString();
+  const finish = useMemo(() => washBounds && layer.kind === 'solid' && !['outline', 'innerBackNeck'].includes(layer.id)
+    ? washSvg(layer.svgRaw, fill, washBounds, layer.id, garmentWash, detailView, washId, placementTransform) : '',
+    [layer.svgRaw, layer.kind, layer.id, fill, washBounds, garmentWash, detailView, washId, placementTransform]);
   // Selection raises handles and hit targets only. Raising the fabric itself
   // covers its construction outline and stitches with the selected colour.
   const zIndex = layer.zIndex;
@@ -583,6 +620,7 @@ function PreviewLayer({
           // armholes and hem without changing the visible black outline.
           edgeSealWidth={layer.id === 'base' ? 72 : 0}
         />
+        {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
       </div>
     </div>
   );
@@ -730,6 +768,11 @@ function buildLayerLayouts(
 }
 
 export function TshirtSvgPreview({
+  garmentWash,
+  showWash = true,
+  washTool,
+  onWashToolChange,
+  onWashChange,
   garmentType,
   color,
   selection,
@@ -742,6 +785,9 @@ export function TshirtSvgPreview({
   tshirtHemStyles,
   tshirtStitching,
   garmentDetails = [],
+  garmentLabels = [],
+  labelReferenceWidthMm,
+  labelEditor,
   detailView = 'front',
   selectedDetailId,
   onDetailSelect,
@@ -756,6 +802,9 @@ export function TshirtSvgPreview({
   customCollar,
   customCollars,
 }: TshirtSvgPreviewProps) {
+  const [washDraft, setWashDraft] = useState<GarmentWash | null>(null);
+  useEffect(() => setWashDraft(null), [garmentWash, detailView, Boolean(washTool)]);
+  const washEditable = Boolean(washTool && onWashChange && garmentWash?.type !== 'none');
   const gestureRef = useRef<{
     layerId: string;
     storageId: string;
@@ -779,12 +828,13 @@ export function TshirtSvgPreview({
 
   const fabricColor = color || '#5C7FB6';
   const bodyColor = partColors?.base ?? fabricColor;
-  const editable = Boolean(onLayerTransformChange);
+  const editable = Boolean(onLayerTransformChange) && !washEditable && !labelEditor;
 
   const layers = useMemo(
     () =>
       resolveGarmentLayers({
         garmentType,
+        view: detailView,
         selection,
         neckTrimColor,
         sleeveTrimColor,
@@ -797,10 +847,16 @@ export function TshirtSvgPreview({
         customCollar,
         customCollars,
       }),
-    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, fit, customCollar, customCollars],
+    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, fit, customCollar, customCollars],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);
+  const washBounds = useMemo(() => {
+    const bounds = layers.filter(layer => layer.kind === 'solid' && !['outline', 'innerBackNeck'].includes(layer.id))
+      .map(layer => getPotraceSvgBBox(layer.svgRaw)).filter(isValidBBox);
+    return bounds.length ? { minX: Math.min(...bounds.map(bound => bound.minX)), minY: Math.min(...bounds.map(bound => bound.minY)),
+      maxX: Math.max(...bounds.map(bound => bound.maxX)), maxY: Math.max(...bounds.map(bound => bound.maxY)) } : undefined;
+  }, [layers]);
   const sleeveLayer = layers.find((layer) => layer.id === 'sleeves');
   const sleeveHemLayer = layers.find((layer) => layer.id === 'sleeveHem');
 
@@ -1104,14 +1160,14 @@ export function TshirtSvgPreview({
   return (
     <div
       className={cn(
-        'relative flex h-full w-full min-h-0 [container-type:size] items-center justify-center',
+        GARMENT_PREVIEW_CONTAINER_CLASS,
         className,
       )}
       onPointerDown={editable ? handleBackgroundPointerDown : undefined}
     >
       <div
         ref={canvasRef}
-        className="relative aspect-square h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0"
+        className={GARMENT_PREVIEW_CANVAS_CLASS}
       >
         {layerLayouts.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) => {
           if (sourceLayer.id === 'stitching' && garmentType === 'tshirt') {
@@ -1128,6 +1184,10 @@ export function TshirtSvgPreview({
               key={`${sourceLayer.category}-${id}`}
               layerId={id}
               layer={sourceLayer}
+              garmentWash={showWash ? washDraft ?? garmentWash : undefined}
+              washBounds={washBounds}
+              detailView={detailView}
+              canvasSize={canvasSize}
               fabricColor={fabricColor}
               bodyColor={bodyColor}
               transform={displayTransform}
@@ -1161,7 +1221,7 @@ export function TshirtSvgPreview({
             )
           : null}
 
-        {selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
+        {!washEditable && !labelEditor && selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
           <SelectionOutline
             bbox={selectedLayout.bbox}
             transform={selectedDisplayTransform}
@@ -1173,11 +1233,28 @@ export function TshirtSvgPreview({
             onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
           />
         ) : null}
-        {garmentType === 'tshirt' && detailView === 'front' && garmentDetails.length > 0 && (() => {
+        {garmentType === 'tshirt' && garmentDetails.length > 0 && (() => {
           const bodyBounds = layerLayouts.find(layout => layout.id === 'base')?.bbox;
-          return bodyBounds ? <GarmentDetailsOverlay details={garmentDetails} bounds={bodyBounds}
-            selectedId={selectedDetailId} onSelect={onDetailSelect} onChange={onDetailsChange} /> : null;
+          return bodyBounds ? <GarmentDetailsOverlay key={detailView} view={detailView}
+            details={decorationsForView(garmentDetails, detailView)} bounds={bodyBounds}
+            selectedId={selectedDetailId} onSelect={onDetailSelect}
+            onChange={onDetailsChange ? details => onDetailsChange(replaceViewDecorations(garmentDetails, detailView, details)) : undefined} /> : null;
         })()}
+        {garmentType === 'tshirt' && garmentLabels.length > 0 && <GarmentLabelOverlay
+          labels={garmentLabels} view={detailView} referenceWidthMm={labelReferenceWidthMm}
+          interior={labelEditor?.interior} selectedId={labelEditor?.selectedId}
+          onSelect={labelEditor?.onSelect} onChange={labelEditor?.onChange} onFocus={labelEditor?.onFocus}
+          layers={layerLayouts.filter(layout => layout.bbox && layout.sourceLayer.kind === 'solid').map(layout => {
+            const bbox = layout.bbox!;
+            const transform = resolveLayerDisplayTransform(layout.id, layout.transform, bbox);
+            const scale = resolveLayerScale(transform);
+            const matrix = new DOMMatrix().translate(bbox.centerX + transform.x * 2048 / canvasSize, bbox.centerY + transform.y * 2048 / canvasSize)
+              .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
+            return { id: layout.id, svgRaw: layout.sourceLayer.svgRaw, bbox, matrix: matrix.toString() };
+          })} />}
+        {washEditable && showWash && garmentWash && washBounds && washTool && onWashChange && onWashToolChange && <WashEditor
+          key={detailView} wash={washDraft ?? garmentWash} bounds={washBounds} view={detailView} tool={washTool}
+          onToolChange={onWashToolChange} onDraft={setWashDraft} onCommit={onWashChange} />}
       </div>
 
       {toolHint ? (

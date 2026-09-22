@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent } from 'react';
-import { Copy, Plus, Trash2 } from 'lucide-react';
+import { Copy, CopyPlus, Plus, Trash2 } from 'lucide-react';
+import type { GarmentView } from '../../data/garmentView';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, createGarmentDetail, detailAsset, detailPlacement, detailScale, detailSvg, resizeGarmentDetail,
   type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds } from '../../data/garmentDetails';
 import { TrimColorFamilyPicker } from './TrimColorFamilyPicker';
@@ -11,7 +12,9 @@ interface DetailEditorProps {
   onChange: (details: GarmentDetail[]) => void;
 }
 
-export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color }: DetailEditorProps & { color: string }) {
+export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView }: DetailEditorProps & {
+  color: string; view?: GarmentView; onDuplicateToOtherView?: (detail: GarmentDetail) => void;
+}) {
   const [category, setCategory] = useState<GarmentDetailType>('pocket');
   const selected = details.find(detail => detail.id === selectedId);
   const asset = selected && detailAsset(selected);
@@ -52,6 +55,9 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
             onChange([...details, next]); onSelect(next.id); }}><Copy size={14} /></button>
         <button type="button" title={`Remove ${detail.name}`} aria-label={`Remove ${detail.name}`} className="p-2 text-white/60 hover:text-red-400"
           onClick={() => { onChange(details.filter(item => item.id !== detail.id)); if (selectedId === detail.id) onSelect(null); }}><Trash2 size={14} /></button>
+        {onDuplicateToOtherView && <button type="button" title={`Duplicate ${detail.name} to ${view === 'front' ? 'back' : 'front'}`}
+          aria-label={`Duplicate ${detail.name} to ${view === 'front' ? 'back' : 'front'}`} className="p-2 text-white/60 hover:text-white"
+          onClick={() => onDuplicateToOtherView(detail)}><CopyPlus size={14} /></button>}
       </div>)}
     </div>
     {selected && asset && <div className="space-y-4">
@@ -69,8 +75,9 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   </div>;
 }
 
-export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, onChange }: {
+export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, onChange, view = 'front' }: {
   details: GarmentDetail[]; bounds: DetailBounds; selectedId?: string | null;
+  view?: GarmentView;
   onSelect?: (id: string | null) => void; onChange?: (details: GarmentDetail[]) => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -101,7 +108,7 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const cancel = () => { gesture.current = null; draftRef.current = null; setDraft(null); };
-  return <div ref={rootRef} className="pointer-events-none absolute inset-0" style={{ zIndex: 240 }} data-garment-details="front">
+  return <div ref={rootRef} className="pointer-events-none absolute inset-0" style={{ zIndex: 240 }} data-garment-details={view}>
     {details.map(detail => {
       const current = draft?.id === detail.id ? draft : detail;
       const placement = detailPlacement(current, bounds);
