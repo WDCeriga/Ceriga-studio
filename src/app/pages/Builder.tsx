@@ -3506,9 +3506,9 @@ export function Builder() {
           <div
             className={cn(
               'relative flex h-full min-h-0 w-full flex-1 items-center justify-center',
-              !isLabelEditor && 'px-2 py-6 sm:px-4 sm:py-8',
-              !isLabelEditor && isPhone && 'px-1.5 py-5',
-              !isLabelEditor && (isPanningCanvas ? 'cursor-grabbing' : 'cursor-grab'),
+              !isLabelEditor && currentStep !== 11 && 'px-2 py-6 sm:px-4 sm:py-8',
+              !isLabelEditor && currentStep !== 11 && isPhone && 'px-1.5 py-5',
+              !isLabelEditor && currentStep !== 11 && (isPanningCanvas ? 'cursor-grabbing' : 'cursor-grab'),
             )}
             onPointerDown={(e) => {
               const t = e.target as HTMLElement;
@@ -3580,8 +3580,8 @@ export function Builder() {
         <div
           className={cn(
             'relative z-20 flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col items-center justify-center',
-            !isLabelEditor && 'sm:py-1',
-            isPhone || isLabelEditor ? 'py-0' : 'py-0.5',
+            !isLabelEditor && currentStep !== 11 && 'sm:py-1',
+            isPhone || isLabelEditor || currentStep === 11 ? 'py-0' : 'py-0.5',
             previewSurfaceNeedsVisibleOverflow ? 'overflow-visible' : 'overflow-hidden',
           )}
         >
@@ -3711,7 +3711,7 @@ export function Builder() {
           ) : currentStep === 11 ? (
             <div
               className={cn(
-                'flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center px-1',
+                'flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center',
               )}
             >
               <PackagingDesignerPreview design={packagingDesign} garmentColor={primaryColor}

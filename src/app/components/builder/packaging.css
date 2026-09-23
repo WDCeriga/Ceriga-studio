@@ -38,27 +38,39 @@
 .pkg-layers span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pkg-preset { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; }
 .pkg-preset > button:first-child { text-align: left; overflow-wrap: anywhere; }
-.pkg-preview { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: #111113; border: 1px solid #414146; border-radius: 6px; }
-.pkg-preview-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; padding: 10px 12px; background: #111113; color: #f5f5f5; border-bottom: 1px solid #414146; }
-.pkg-preview-toolbar .pkg-actions button { text-transform: capitalize; }
+.pkg-preview { --pkg-canvas: #e7e9ec; --pkg-ink: #303238; --pkg-line: #bfc3c9; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: var(--pkg-canvas); color: var(--pkg-ink); border: 0; border-radius: 0; color-scheme: light; }
+.pkg-preview.pkg-theme-dark { --pkg-canvas: #252528; --pkg-ink: #f2f3f5; --pkg-line: #55555e; color-scheme: dark; }
+.pkg-preview-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0; padding: 14px 16px; background: var(--pkg-canvas); color: var(--pkg-ink); }
+.pkg-preview-toolbar .pkg-actions { gap: 2px; }
+.pkg-preview-toolbar .pkg-actions button { text-transform: none; border-color: transparent; color: var(--pkg-ink); background: transparent; min-height: 36px; padding: 8px 12px; font-weight: 500; }
+.pkg-preview-toolbar .pkg-actions button[aria-pressed=true] { background: var(--pkg-ink); color: var(--pkg-canvas); border-color: var(--pkg-ink); }
+.pkg-preview-toolbar .pkg-actions button:hover { background: #797e8626; color: var(--pkg-ink); border-color: var(--pkg-line); }
+.pkg-preview-toolbar .pkg-actions button[aria-pressed=true]:hover { background: var(--pkg-ink); color: var(--pkg-canvas); }
+.pkg-preview :is(button, input):focus-visible { outline-color: #c12e26; }
+.pkg-preview-title { font-weight: 600; line-height: 1.5; }
 .pkg-backgrounds { display: flex; gap: 8px; margin-left: auto; padding: 3px; }
-.pkg-backgrounds button { height: 26px; width: 26px; border: 2px solid #85858e; border-radius: 50%; }
+.pkg-backgrounds button { height: 26px; width: 26px; border: 1px solid #85858e; border-radius: 50%; }
 .pkg-backgrounds button[aria-pressed=true] { outline: 2px solid #e35d56; outline-offset: 2px; }
 .pkg-stage { position: relative; flex: 1; min-height: 0; min-width: 0; overflow: auto; width: 100%; color-scheme: light; }
 .pkg-preview-viewport { display: flex; align-items: center; justify-content: center; min-width: 100%; min-height: 100%; }
-.pkg-preview-drawing { flex: none; }
+.pkg-preview-drawing { flex: none; min-width: 0; min-height: 0; }
 .pkg-preview-drawing > svg { display: block; }
-.pkg-zoom { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-left: auto; flex: 0 0 auto; color: #f5f5f5; }
-.pkg-zoom button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--pkg-line); border-radius: 4px; }
+.pkg-zoom { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-left: auto; flex: 0 0 auto; color: var(--pkg-ink); }
+.pkg-zoom button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--pkg-ink); }
+.pkg-zoom button:disabled { background: transparent; border-color: transparent; color: #777b83; }
 .pkg-zoom input { width: 64px; min-width: 0; accent-color: var(--pkg-accent); }
 .pkg-zoom output { font-size: 12px; min-width: 36px; text-align: center; font-variant-numeric: tabular-nums; }
 .pkg-stage .pkg-box-view { animation: pkg-view-enter 180ms ease-out; }
 @keyframes pkg-view-enter { from { opacity: .35; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .pkg-stage .pkg-box-view { animation: none; } }
-.pkg-bg-light { background-color: #e7e9ec !important; background-image: radial-gradient(#a5a5ae44 .7px, transparent .7px); background-size: 16px 16px; }
-.pkg-bg-dark { background-color: #252528 !important; }
+.pkg-bg-light { background-color: #e7e9ec !important; background-image: none; }
+.pkg-bg-dark { background-color: #252528 !important; background-image: none; }
 .pkg-bg-checkerboard { background-color: #e7e9ec !important; background-image: conic-gradient(#bfc2c8 25%, transparent 0 50%, #bfc2c8 0 75%, transparent 0); background-size: 20px 20px; }
-.pkg-preview-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; padding: 8px 12px; min-height: 44px; flex-shrink: 0; font-size: 12px; background: #111113; color: #f5f5f5; border-top: 1px solid #414146; }
+.pkg-preview-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; min-height: 52px; flex-shrink: 0; font-size: 12px; line-height: 1.5; background: var(--pkg-canvas); color: var(--pkg-ink); }
+.pkg-preview .pkg-check { color: var(--pkg-ink); }
+.pkg-preview .pkg-check input { color-scheme: light; }
+.pkg-preview .pkg-boundary { color: #b32d23; }
+.pkg-theme-dark .pkg-boundary { color: #ffb59f; }
 .pkg-preview-footer [role=status] { margin-left: auto; font-size: 12px; overflow-wrap: anywhere; }
 .pkg-review dl { display: grid; grid-template-columns: minmax(80px, .4fr) minmax(0, 1fr); gap: 8px 12px; font-size: 11px; }
 .pkg-review dt { color: var(--pkg-muted); }
@@ -70,6 +82,8 @@
 	.pkg-preview-toolbar .pkg-actions button { min-height: 32px; padding: 5px 7px; font-size: 12px; }
 	.pkg-backgrounds { gap: 6px; }
 	.pkg-backgrounds button { width: 22px; height: 22px; }
-	.pkg-preview-footer { padding: 4px 8px; gap: 2px 10px; }
+	.pkg-preview-footer { padding: 8px; gap: 4px 10px; }
+	.pkg-preview-footer .pkg-zoom { gap: 2px; }
+	.pkg-preview-footer .pkg-zoom input { width: 48px; }
 	.pkg-editor input:not([type=checkbox]):not([type=range]):not([type=file]), .pkg-editor select, .pkg-editor textarea { font-size: 16px; }
 }

@@ -79,7 +79,7 @@ export interface PrintRect { x: number; y: number; width: number; height: number
 export function packagingTemplate(id: string) { return PACKAGING_TEMPLATES.find(template => template.id === id) ?? PACKAGING_TEMPLATES[0]; }
 export function createPackagingDesign(id = 'clear'): PackagingDesign {
   const template = packagingTemplate(id);
-  return { templateId: template.id, category: template.category, material: template.material, exterior: template.color, interior: '#e2c49d', opacity: template.transparency === 'clear' ? 0.18 : 0.56, dimensions: { width: 300, height: 380, depth: 80 }, dimensionsConfirmed: false, selectedPanel: template.panels[0] ?? 'front', view: template.category === 'box' || template.category === 'none' ? 'closed' : 'front', shippingLabel: template.category === 'mailer', elements: [], notes: '' };
+  return { templateId: template.id, category: template.category, material: template.material, exterior: template.color, interior: '#e2c49d', opacity: template.transparency === 'clear' ? 0.18 : 0.56, dimensions: { width: 300, height: 380, depth: id === 'carton' ? 220 : 80 }, dimensionsConfirmed: false, selectedPanel: template.panels[0] ?? 'front', view: template.category === 'box' || template.category === 'none' ? 'closed' : 'front', shippingLabel: template.category === 'mailer', elements: [], notes: '' };
 }
 export function createPackagingState(id = 'clear'): PackagingState { return { version: 1, active: id, designs: { [id]: createPackagingDesign(id) }, presets: [] }; }
 export function migrateLegacyPackaging(type?: string, color?: string, notes?: string, elements: { type: string; content: string; width: number; height: number; rotation: number; fontFamily?: string; fontSize?: number; color?: string }[] = []): PackagingState {
@@ -103,7 +103,15 @@ export function printRegion(design: PackagingDesign, panel: PackagingPanel): Pri
   const template = packagingTemplate(design.templateId);
   const size = panelSize(design, panel);
   const margin = Math.min(design.templateId === 'padded' ? 18 : 10, size.width * 0.12, size.height * 0.12);
-  const top = design.category === 'box' ? Math.max(margin, Math.min(template.topExclusion, size.height * 0.45)) : Math.max(margin, template.topExclusion);
+  let top = design.category === 'box' ? margin : Math.max(margin, template.topExclusion);
+  if (design.category === 'box' && (panel === 'front' || panel === 'back')) {
+    const lip = Math.min(design.dimensions.depth * .28, 22);
+    const obstruction = template.closure === 'tape' ? Math.min(design.dimensions.depth * .3, 65)
+      : template.closure === 'drawer' ? Math.min(14, design.dimensions.depth * .24)
+      : template.closure === 'fold' && panel === 'front' ? lip * 1.7
+      : ['fold', 'lift', 'magnet'].includes(template.closure) ? lip : 0;
+    top = Math.min(size.height - margin - 1, obstruction + margin);
+  }
   const width = design.category === 'mailer' && design.shippingLabel && panel === 'front' ? size.width * 0.45 - margin * 2 : size.width - margin * 2;
   return { x: margin, y: top, width: Math.max(1, width), height: Math.max(1, size.height - top - margin) };
 }

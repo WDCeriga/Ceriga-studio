@@ -54,11 +54,155 @@ export function PackagingSurface({ design, panel, guides, selectedId, onSelect, 
 }
 
 type Point = [number, number];
+type Vertex = [number, number, number];
+interface BoxFace { vertices: Vertex[]; panel?: PackagingPanel; interior?: boolean; shade?: number; tape?: boolean; notch?: boolean }
+export function packagingBoxGeometry(design: PackagingDesign, view: PackagingView) {
+  const bulk = design.category === 'none';
+  const { width, height: length, depth } = bulk ? { width: 420, height: 340, depth: 290 } : design.dimensions;
+  const closure = packagingTemplate(design.templateId).closure;
+  const opened = view === 'open' && !bulk;
+  const reverse = view === 'reverse';
+  const thickness = Math.min(4, depth * .06, width * .02, length * .02);
+  const faces: BoxFace[] = [];
+  const add = (vertices: Vertex[], panel?: PackagingPanel, interior = false, shade = 0, tape = false) => faces.push({ vertices, panel, interior, shade, tape });
+  const front = (start: number, end: number, back: number, top: number, bottom: number, panel?: PackagingPanel, interior = false, shade = .08) => add([[start, back, top], [end, back, top], [end, back, bottom], [start, back, bottom]], panel, interior, shade);
+  const topFace = (start: number, end: number, near: number, far: number, level: number, panel?: PackagingPanel, interior = false, shade = 0) => add([[start, far, level], [end, far, level], [end, near, level], [start, near, level]], panel, interior, shade);
+  const side = (across: number, near: number, far: number, top: number, bottom: number, panel?: PackagingPanel, interior = false, shade = .16) => add([[across, near, top], [across, far, top], [across, far, bottom], [across, near, bottom]], panel, interior, shade);
+  const tray = (offset: number, inset = 0) => {
+    const near = offset + inset;
+    const far = offset + length - inset;
+    const low = inset;
+    const high = width - inset;
+    const level = depth - inset;
+    front(low, high, far, level, thickness, undefined, true, .15);
+    side(low, near, far, level, thickness, undefined, true, .1);
+    topFace(low + thickness, high - thickness, near + thickness, far - thickness, thickness, 'interior-base', true, .04);
+    front(low + thickness, high - thickness, near + thickness, level, thickness, undefined, true, .08);
+    side(high - thickness, near, far, level, thickness, undefined, true, .12);
+    side(high, near, far, level, 0, 'right');
+    front(low, high, near, level, 0, 'front');
+    if (closure === 'drawer') {
+      faces[faces.length - 1].notch = true;
+      const halfNotch = Math.min(20, width * .07);
+      topFace(low, width / 2 - halfNotch, near, near + thickness, level, undefined, true);
+      topFace(width / 2 + halfNotch, high, near, near + thickness, level, undefined, true);
+    } else topFace(low, high, near, near + thickness, level, undefined, true);
+    topFace(low, high, far - thickness, far, level, undefined, true);
+    topFace(low, low + thickness, near, far, level, undefined, true);
+    topFace(high - thickness, high, near, far, level, undefined, true);
+  };
+  if (opened) {
+    if (closure === 'fold' || closure === 'magnet' || closure === 'lift') {
+      const lidBack = length + length * .28;
+      const lidTop = depth + length * .96;
+      const lift = closure === 'lift' ? depth * .65 : 0;
+      add([[0, lidBack, lidTop + lift], [width, lidBack, lidTop + lift], [width, length, depth + lift], [0, length, depth + lift]], 'interior-lid', true);
+      const flap = Math.min(depth * .6, width * .16);
+      if (closure === 'fold' || closure === 'lift') {
+        add([[0, lidBack, lidTop + lift], [-flap, lidBack - flap * .2, lidTop - flap * .45 + lift], [-flap, length + flap * .5, depth + flap * .35 + lift], [0, length, depth + lift]], undefined, true, .08);
+        add([[width, lidBack, lidTop + lift], [width + flap, lidBack - flap * .2, lidTop - flap * .45 + lift], [width + flap, length + flap * .5, depth + flap * .35 + lift], [width, length, depth + lift]], undefined, true, .08);
+      }
+      add([[0, lidBack, lidTop + lift], [width, lidBack, lidTop + lift], [width - thickness * 2, lidBack + flap * .55, lidTop + flap * .35 + lift], [thickness * 2, lidBack + flap * .55, lidTop + flap * .35 + lift]], undefined, true, .06);
+    }
+    if (closure === 'tape') {
+      const flap = length / 2;
+      add([[0, length, depth], [width, length, depth], [width, length + flap * .8, depth + flap * .6], [0, length + flap * .8, depth + flap * .6]], undefined, true, .04);
+      add([[0, 0, depth], [0, length, depth], [-width * .46, length, depth + width * .196], [-width * .46, 0, depth + width * .196]], undefined, true, .1);
+    }
+    tray(closure === 'drawer' ? -length * .68 : 0, closure === 'drawer' ? thickness * 1.5 : 0);
+    if (closure === 'tape') {
+      add([[width, 0, depth], [width, length, depth], [width * 1.46, length, depth + width * .196], [width * 1.46, 0, depth + width * .196]], undefined, true, .1);
+      const flap = length / 2;
+      add([[0, 0, depth], [width, 0, depth], [width, -flap * .92, depth - flap * .39], [0, -flap * .92, depth - flap * .39]], undefined, true, .04);
+    }
+    if (closure === 'drawer') {
+      side(width, 0, length, depth, 0, 'right');
+      topFace(0, width, 0, length, depth, 'top');
+    }
+  } else {
+    side(width, 0, length, depth, 0, reverse ? 'left' : 'right');
+    if (closure === 'drawer' && !reverse) {
+      front(0, width, 0, depth, 0, undefined, true, .3);
+      front(thickness * 1.5, width - thickness * 1.5, 0, depth - thickness * 1.5, thickness, 'front');
+      faces[faces.length - 1].notch = true;
+      topFace(0, width, -thickness, 0, thickness, undefined, false, .1);
+    } else front(0, width, 0, depth, 0, reverse ? 'back' : 'front');
+    topFace(0, width, 0, length, depth, 'top');
+    if (closure === 'fold' || closure === 'magnet' || closure === 'lift') {
+      const lip = Math.min(depth * .28, 22);
+      front(0, width, 0, depth, depth - lip, undefined, false, .03);
+      side(width, 0, length, depth, depth - lip, undefined, false, .11);
+      if (closure === 'fold' && !reverse) {
+        const tabWidth = Math.min(width * .18, 55);
+        add([[(width - tabWidth) / 2, -1, depth - lip], [(width + tabWidth) / 2, -1, depth - lip], [(width + tabWidth) / 2 - 4, -1, depth - lip * 1.7], [(width - tabWidth) / 2 + 4, -1, depth - lip * 1.7]], undefined, false, .04);
+      }
+    }
+    if (closure === 'tape') {
+      const tapeWidth = Math.min(48, width * .14);
+      topFace((width - tapeWidth) / 2, (width + tapeWidth) / 2, 0, length, depth, undefined, false, 0);
+      faces[faces.length - 1].tape = true;
+      front((width - tapeWidth) / 2, (width + tapeWidth) / 2, 0, depth, depth - Math.min(depth * .3, 65), undefined, false, 0);
+      faces[faces.length - 1].tape = true;
+    }
+  }
+  return faces;
+}
+function boxProject([across, back, up]: Vertex): Point { return [across * .9 + back * .48, across * .18 - back * .42 - up * .95]; }
+function boxBounds(faces: BoxFace[]) {
+  const points = faces.flatMap(face => face.vertices.map(boxProject));
+  const left = Math.min(...points.map(point => point[0]));
+  const top = Math.min(...points.map(point => point[1]));
+  return { left, top, width: Math.max(...points.map(point => point[0])) - left, height: Math.max(...points.map(point => point[1])) - top };
+}
+function PackagingBox(props: ArtworkProps & { view: PackagingView }) {
+  const { design, view } = props;
+  const faces = packagingBoxGeometry(design, view);
+  const bounds = boxBounds(faces);
+  const envelope = boxBounds([...packagingBoxGeometry(design, 'closed'), ...packagingBoxGeometry(design, 'open')]);
+  const scale = Math.min(540 / envelope.width, 490 / envelope.height);
+  const template = packagingTemplate(design.templateId);
+  const bulk = design.category === 'none';
+  return <g data-box-view={view} className="pkg-box-view" transform={`translate(${320 - (bounds.left + bounds.width / 2) * scale} ${300 - (bounds.top + bounds.height / 2) * scale}) scale(${scale})`}>
+    {faces.map((face, index) => {
+      const points = face.vertices.map(boxProject);
+      const fill = face.tape ? '#ae8956' : bulk ? '#bd9561' : face.interior ? design.interior : design.exterior;
+      const printable = face.panel && !bulk && template.panels.includes(face.panel);
+      const dimensions = face.panel ? panelSize(design, face.panel) : null;
+      const surfacePoints = face.panel === 'top' && view === 'reverse' ? [points[2], points[3], points[0], points[1]] : points;
+      if (face.notch) {
+        const faceWidth = face.vertices[1][0] - face.vertices[0][0];
+        const faceHeight = face.vertices[0][2] - face.vertices[3][2];
+        const notchWidth = Math.min(40, design.dimensions.width * .14);
+        const notchDepth = Math.min(notchWidth * .35, faceHeight * .24);
+        const shape = `M0 0H${(faceWidth - notchWidth) / 2}Q${faceWidth / 2} ${notchDepth * 2} ${(faceWidth + notchWidth) / 2} 0H${faceWidth}V${faceHeight}H0Z`;
+        return <g key={index} data-box-face={face.panel} data-box-material="exterior" transform={projection(points[0], points[1], points[3], faceWidth, faceHeight)}>
+          <path d={shape} fill={fill} />
+          <path d={shape} fill="#000" opacity={face.shade} />
+          {printable && dimensions && <g data-packaging-panel={face.panel} transform={`scale(${faceWidth / dimensions.width} ${faceHeight / dimensions.height})`}><PackagingSurface {...props} guides={props.guides && design.selectedPanel === face.panel} panel={face.panel!} /></g>}
+          <path d={shape} fill="none" stroke="#514d46" strokeWidth="1.15" vectorEffect="non-scaling-stroke" />
+        </g>;
+      }
+      return <g key={index} data-box-face={face.panel ?? (face.tape ? 'tape' : 'construction')} data-box-material={face.interior ? 'interior' : 'exterior'}>
+        <polygon points={points.map(point => point.join(',')).join(' ')} fill={fill} />
+        {!!face.shade && <polygon points={points.map(point => point.join(',')).join(' ')} fill="#000" opacity={face.shade} />}
+        {printable && dimensions && <g data-packaging-panel={face.panel} transform={projection(surfacePoints[0], surfacePoints[1], surfacePoints[3], dimensions.width, dimensions.height)}><PackagingSurface {...props} guides={props.guides && design.selectedPanel === face.panel} panel={face.panel!} /></g>}
+        <polygon points={points.map(point => point.join(',')).join(' ')} fill="none" stroke={face.tape ? '#947243' : '#514d46'} strokeWidth={face.tape ? .65 : 1.15} strokeLinejoin="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+      </g>;
+    })}
+  </g>;
+}
 function projection(origin: Point, across: Point, down: Point, width: number, height: number) {
   return `matrix(${(across[0] - origin[0]) / width} ${(across[1] - origin[1]) / width} ${(down[0] - origin[0]) / height} ${(down[1] - origin[1]) / height} ${origin[0]} ${origin[1]})`;
 }
 export function packagingPreviewFrame(design: PackagingDesign, view = design.view) {
-  const template = packagingTemplate(design.templateId);
+  if ((design.category === 'box' || design.category === 'none') && view !== 'panel') {
+    const bounds = boxBounds(packagingBoxGeometry(design, view));
+    const envelope = boxBounds([...packagingBoxGeometry(design, 'closed'), ...packagingBoxGeometry(design, 'open')]);
+    const scale = Math.min(540 / envelope.width, 490 / envelope.height);
+    const width = Math.max(bounds.width * scale * 1.3, 180);
+    const height = Math.max(bounds.height * scale * 1.3, 180);
+    return `${320 - width / 2} ${300 - height / 2} ${width} ${height}`;
+  }
   let bounds = { x: 140, y: 165, width: 395, height: 315 };
   if (view === 'panel' || (design.category !== 'box' && design.category !== 'none')) {
     const size = view === 'panel' ? panelSize(design, design.selectedPanel) : design.dimensions;
@@ -66,10 +210,6 @@ export function packagingPreviewFrame(design: PackagingDesign, view = design.vie
     const width = size.width * scale;
     const height = size.height * scale;
     bounds = { x: (640 - width) / 2, y: (600 - height) / 2, width, height };
-  } else if (view === 'open' && design.category !== 'none') {
-    bounds = template.closure === 'tape' ? { x: 85, y: 204, width: 499, height: 276 }
-      : template.closure === 'drawer' ? { x: 140, y: 150, width: 380, height: 330 }
-      : { x: 140, y: 70, width: 389, height: 410 };
   }
   const padding = Math.max(bounds.width, bounds.height) * .045;
   return `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${bounds.height + padding * 2}`;
@@ -82,17 +222,6 @@ export function PackagingArtwork(props: ArtworkProps) {
   const isBulk = design.category === 'none';
   const box = design.category === 'box' || isBulk;
   const size = panelSize(design, design.selectedPanel);
-  const panel = (surface: PackagingPanel, origin: Point, across: Point, down: Point, interior = false, shade = 0) => {
-    const dimensions = panelSize(design, surface);
-    const width = dimensions.width;
-    const height = dimensions.height;
-    return <g key={surface} data-packaging-panel={surface} transform={projection(origin, across, down, width, height)}>
-      <rect width={width} height={height} fill={interior ? design.interior : design.exterior} />
-      {shade > 0 && <rect width={width} height={height} fill="#000" opacity={shade} />}
-      {!isBulk && (!interior || surface.startsWith('interior')) && template.panels.includes(surface) && <PackagingSurface {...props} panel={surface} />}
-      <rect width={width} height={height} fill="none" stroke="#53514b" strokeWidth="1.4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
-    </g>;
-  };
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox={props.fit ? packagingPreviewFrame(design, view) : '0 0 640 600'} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`${template.name}, ${view} view`} data-packaging-artwork={template.id} style={{ width: '100%', height: '100%', maxHeight: '100%', overflow: 'visible' }}>
     <defs>
       <filter id={`${unique}-frost`}><feGaussianBlur stdDeviation="5" /></filter>
@@ -136,29 +265,6 @@ export function PackagingArtwork(props: ArtworkProps) {
           {design.category === 'mailer' && design.shippingLabel && front && <rect data-shipping-label="reserved" x={width * .52} y={Math.max(60, height * .28)} width={width * .38} height={Math.min(height * .42, 150)} rx="2" fill="#f9fafb" stroke="#aeb4b7" strokeWidth="1" />}
         </g>
       </g>;
-    })() : <g key={view} data-box-view={view} className="pkg-box-view">
-      {view === 'open' && !isBulk ? <>
-        {template.closure !== 'drawer' && template.closure !== 'tape' && panel('interior-lid', [205, 92], [500, 112], [225, 280], true)}
-        {template.closure === 'fold' && <path d="M205 92 177 110 198 259 225 280M500 112 529 133 524 280 520 300" fill={design.interior} stroke="#6e6252" />}
-        {template.closure === 'magnet' && <><path d="M205 92 205 70 500 90 500 112" fill={design.exterior} stroke="#6e6252" /><circle cx="295" cy="88" r="3" fill="#999" /><circle cx="410" cy="96" r="3" fill="#999" /></>}
-        {template.closure === 'lift' && <path d="M205 92 195 72 490 92 500 112M195 72 184 254 225 280" fill={design.exterior} stroke="#6e6252" />}
-        {template.closure === 'drawer' && <>{panel('top', [200, 150], [495, 170], [140, 280])}<path d="M140 280v75l295 20v-75" fill={design.exterior} stroke="#53514b" /></>}
-        {template.closure === 'tape' && <><path d="M225 280 203 204 498 224 520 300M225 280 142 250 85 369 140 400M520 300 584 280 502 419 435 420" fill={design.exterior} stroke="#6e6252" /></>}
-        {panel('back', [225, 280], [520, 300], [225, 340], true, .08)}
-        {panel('interior-base', [225, 340], [520, 360], [140, 440], true)}
-        {panel('left', [225, 280], [140, 400], [225, 340], true, .12)}
-        {panel('right', [435, 420], [520, 300], [435, 480], false, .2)}
-        {panel('front', [140, 400], [435, 420], [140, 460], false, .08)}
-        {template.closure === 'drawer' && <path d="M267 409q20 23 40 3" fill="none" stroke="#53514b" strokeWidth="2" />}
-      </> : <>
-        {panel(view === 'reverse' ? 'back' : 'front', [140, 280], [435, 310], [140, 450], false, .06)}
-        {panel(view === 'reverse' ? 'left' : 'right', [435, 310], [535, 195], [435, 480], false, .2)}
-        {panel('top', [240, 165], [535, 195], [140, 280])}
-        {['lift', 'magnet'].includes(template.closure) && <path d="M140 310 435 340 535 225" fill="none" stroke="#53514b" strokeWidth="2" />}
-        {template.closure === 'fold' && <path d="M240 165 247 175 522 203 435 302 150 275M270 294v14h45v-10" fill="none" stroke="#53514b" strokeWidth="1.5" />}
-        {template.closure === 'drawer' && <><path d="M151 292 426 320V466L151 438Z" fill="none" stroke="#53514b" /><path d="M264 294q18 26 37 4" fill="none" stroke="#53514b" strokeWidth="2" /></>}
-        {template.closure === 'tape' && <><path d="M387 180 287 295" stroke="#98773e" strokeWidth="25" opacity=".7" /><path d="M287 295v38" stroke="#98773e" strokeWidth="25" opacity=".7" /><path d="M387 180 287 295" stroke="#705f47" strokeWidth="1" /></>}
-      </>}
-    </g>}
+    })() : <PackagingBox {...props} view={view} />}
   </svg>;
 }
