@@ -1,12 +1,26 @@
-import { useRef, useState, type ReactNode } from 'react';
-import { Copy, Download, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Copy, Download, FlipHorizontal2, FlipVertical2, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CARE_OPTIONS, LABEL_CATEGORIES, LABEL_FOLDS, LABEL_FONTS, LABEL_METHODS, LABEL_POSITIONS, LABEL_SHAPES, createGarmentLabel, labelPositions, labelSpecification, labelWarnings, normalizeLabel, unfoldedLabelSize, type CareCategory, type GarmentLabel, type LabelCategory } from '../../data/garmentLabels';
+import { CARE_OPTIONS, DEFAULT_REGION_TRANSFORM, LABEL_CATEGORIES, LABEL_FOLDS, LABEL_FONTS, LABEL_METHODS, LABEL_POSITIONS, LABEL_PRESETS, LABEL_REGIONS, LABEL_SHAPES, applyLabelPreset, createGarmentLabel, labelPositions, labelSpecification, labelWarnings, normalizeLabel, unfoldedLabelSize, type CareCategory, type GarmentLabel, type LabelCategory, type LabelRegion, type LabelRegionTransform } from '../../data/garmentLabels';
 import { LabelArtwork, labelLayout, loadLabelFont } from './LabelArtwork';
 
 const fieldClass = 'w-full min-w-0 rounded border border-white/15 bg-[#161619] px-2 py-2 text-xs text-white [color-scheme:dark]';
 function Field({ title, children }: { title: string; children: ReactNode }) {
   return <label className="grid min-w-0 gap-1 text-[11px] text-white/65">{title}{children}</label>;
+}
+function NumberField({ title, value, min, max, step, onCommit }: { title: string; value: number; min: number; max: number; step: number; onCommit: (value: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const commit = () => {
+    const parsed = Number(draft);
+    const next = draft.trim() && Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : value;
+    setDraft(String(next)); onCommit(next);
+  };
+  return <Field title={title}><input className={fieldClass} type="number" inputMode="decimal" min={min} max={max} step={step} value={draft}
+    onChange={event => setDraft(event.target.value)} onBlur={commit} onKeyDown={event => {
+      if (event.key === 'Enter') event.currentTarget.blur();
+      if (event.key === 'Escape') { setDraft(String(value)); event.preventDefault(); }
+    }} /></Field>;
 }
 function downloadFile(content: string, name: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -75,18 +89,29 @@ export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, lay
   layeredSleeves?: boolean;
 }) {
   const [category, setCategory] = useState<LabelCategory>('neck');
+  const [region, setRegion] = useState<LabelRegion>('top');
   const [error, setError] = useState('');
+  const initialized = useRef(false);
   const latest = useRef({ labels, onChange });
   latest.current = { labels, onChange };
   const selected = labels.find(label => label.id === selectedId);
   const activeCategory = selected?.category ?? category;
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    if (selected) return;
+    const first = labels[0] ?? createGarmentLabel('neck');
+    if (!labels.length) onChange([first]);
+    onSelect(first.id);
+  }, [labels, selected, onChange, onSelect]);
   const update = (patch: Partial<GarmentLabel>) => {
     if (patch.font !== undefined) patch.fontData = labels.find(label => label.font === patch.font)?.fontData;
-    onChange(labels.map(label => label.id === selectedId ? normalizeLabel({ ...label, ...patch }) : label));
+    onChange(labels.map(label => label.id === selectedId ? patch.construction === 'printed'
+      ? applyLabelPreset({ ...label, ...patch }, label.preset ?? 'classic') : normalizeLabel({ ...label, ...patch }) : label));
   };
   const add = () => { const label = createGarmentLabel(activeCategory); onChange([...labels, label]); onSelect(label.id); };
   const text = (key: keyof GarmentLabel, title: string, multiline = false) => <Field title={title}>{multiline ? <textarea className={fieldClass} rows={3} value={String(selected?.[key] ?? '')} onChange={event => update({ [key]: event.target.value })} /> : <input className={fieldClass} value={String(selected?.[key] ?? '')} onChange={event => update({ [key]: event.target.value })} />}</Field>;
-  const number = (key: keyof GarmentLabel, title: string, min: number, max: number, step = .5) => <Field title={title}><input className={fieldClass} type="number" min={min} max={max} step={step} value={Number(selected?.[key] ?? 0)} onChange={event => update({ [key]: event.target.valueAsNumber })} /></Field>;
+  const number = (key: keyof GarmentLabel, title: string, min: number, max: number, step = .5) => <NumberField key={`${selectedId}-${key}`} title={title} value={Number(selected?.[key] ?? 0)} min={min} max={max} step={step} onCommit={value => update({ [key]: value })} />;
   const select = (key: keyof GarmentLabel, title: string, options: Record<string, string>) => <Field title={title}><select className={fieldClass} value={String(selected?.[key] ?? '')} onChange={event => update({ [key]: event.target.value })}>{Object.entries(options).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></Field>;
   const upload = (font: boolean) => {
     const input = document.createElement('input'); input.type = 'file'; input.accept = font ? '.woff,.woff2,.ttf,.otf' : 'image/png,image/svg+xml';
@@ -116,33 +141,62 @@ export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, lay
     }; input.click();
   };
   const layout = selected ? labelLayout(selected) : null;
-  return <div className="space-y-4" data-garment-label-panel="">
-    <div className="grid grid-cols-3 gap-1" role="tablist" aria-label="Label category">{Object.entries(LABEL_CATEGORIES).map(([key, title]) => <button key={key} type="button" role="tab" aria-selected={activeCategory === key} className={`min-h-11 rounded px-1 py-2 text-[10px] ${activeCategory === key ? 'bg-[#CC2D24] text-white' : 'bg-white/5 text-white/65'}`} onClick={() => { setCategory(key as LabelCategory); onSelect(labels.find(label => label.category === key)?.id ?? null); }}>{title}</button>)}</div>
+  const direct = selected?.construction === 'printed';
+  const custom = selected?.editingMode === 'custom';
+  const availableRegions = Object.fromEntries(Object.entries(LABEL_REGIONS).filter(([key]) => layout?.zones.some(zone => zone.key === key) && (!direct || ['top', 'upper', 'bottom'].includes(key))));
+  const activeRegion = region in availableRegions ? region : 'top';
+  const regionTransform = { ...DEFAULT_REGION_TRANSFORM, ...selected?.regions?.[activeRegion] };
+  const updateRegion = (patch: Partial<LabelRegionTransform>) => update({ regions: { ...selected?.regions, [activeRegion]: { ...regionTransform, ...patch } } });
+  const sectionClass = 'space-y-3 border-t border-white/10 pt-4';
+  const legendClass = 'pr-3 text-xs font-semibold text-white/90';
+  return <div className="space-y-5" data-garment-label-panel="">
+    <div className="grid grid-cols-2 gap-1.5" role="tablist" aria-label="Label category">{Object.entries(LABEL_CATEGORIES).map(([key, title]) => <button key={key} type="button" role="tab" aria-selected={activeCategory === key} className={`min-h-10 rounded px-2 py-2 text-xs ${activeCategory === key ? 'bg-[#CC2D24] text-white' : 'bg-white/5 text-white/65 hover:bg-white/10'}`} onClick={() => {
+      setCategory(key as LabelCategory); setRegion('top');
+      const next = labels.find(label => label.category === key) ?? createGarmentLabel(key as LabelCategory);
+      if (!labels.some(label => label.id === next.id)) onChange([...labels, next]);
+      onSelect(next.id);
+    }}>{title}</button>)}</div>
     <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-white">{LABEL_CATEGORIES[activeCategory]}</h3><button type="button" onClick={add} title="Add label" aria-label="Add label" className="rounded p-2 text-white hover:bg-white/10"><Plus size={18} /></button></div>
     <div className="space-y-1">{labels.filter(label => label.category === activeCategory).map((label, index) => <button key={label.id} type="button" onClick={() => onSelect(label.id)} className={`flex w-full items-center justify-between rounded border px-3 py-2 text-left text-xs ${selectedId === label.id ? 'border-[#CC2D24] text-white' : 'border-white/10 text-white/60'}`}><span className="min-w-0 truncate">{label.brand || `${LABEL_CATEGORIES[label.category]} ${index + 1}`}</span><span className="ml-2 shrink-0 text-[10px]">{label.widthMm} x {label.heightMm} mm</span></button>)}</div>
     {selected && <>
-      <div className="flex justify-end gap-1">{[{ Icon: Copy, title: 'Duplicate label', action: () => { const copy = { ...selected, id: crypto.randomUUID() }; onChange([...labels, copy]); onSelect(copy.id); } }, { Icon: RotateCcw, title: 'Restore default placement', action: () => update({ position: labelPositions(selected.category)[0], offsetXmm: 0, offsetYmm: 0, rotation: 0 }) }, { Icon: Trash2, title: 'Delete label', action: () => { onChange(labels.filter(label => label.id !== selected.id)); onSelect(null); } }].map(({ Icon, title, action }) => <button key={title} type="button" title={title} aria-label={title} onClick={action} className="rounded p-2 text-white/70 hover:bg-white/10"><Icon size={16} /></button>)}</div>
-      {selected.category === 'neck' && select('construction', 'Construction', { physical: 'Sewn label', printed: 'Direct neck print' })}
-      {select('method', 'Manufacturing method', Object.fromEntries(Object.entries(LABEL_METHODS).filter(([key]) => selected.construction === 'printed' ? ['heat', 'dtf', 'dtg', 'screen'].includes(key) : ['woven', 'fabric'].includes(key))))}
-      {selected.construction === 'physical' && select('fold', 'Fold', LABEL_FOLDS)}
-      {select('shape', 'Shape', LABEL_SHAPES)}
-      <div className="grid grid-cols-2 gap-2">{number('widthMm', 'Finished width (mm)', 8, 150)}{number('heightMm', 'Finished height (mm)', 8, 250)}{number('marginMm', 'Safe margin (mm)', .5, 25)}{selected.construction === 'physical' && number('foldMm', 'Fold allowance (mm)', 2, 15)}</div>
-      <fieldset className="space-y-3 border-t border-white/10 pt-3"><legend className="px-1 text-xs text-white/70">Text sections</legend>
-        {text('brand', 'Brand / heading', true)}{text('size', 'Size section')}
-        {selected.category === 'care' && <>{text('composition', 'Fibre composition', true)}{text('careText', 'Care instructions', true)}{text('origin', 'Country of origin')}{text('business', 'Business information', true)}</>}
-        {text('additional', 'Footer / additional text', true)}
+      <div className="flex justify-end gap-1">{[{ Icon: Copy, title: 'Duplicate label', action: () => { const copy = { ...selected, id: crypto.randomUUID() }; onChange([...labels, copy]); onSelect(copy.id); } }, { Icon: RotateCcw, title: 'Restore default placement', action: () => update({ position: labelPositions(selected.category)[0], offsetXmm: 0, offsetYmm: 0, rotation: 0 }) }, { Icon: Trash2, title: 'Delete label', action: () => { const remaining = labels.filter(label => label.id !== selected.id); onChange(remaining); onSelect(remaining.find(label => label.category === activeCategory)?.id ?? remaining[0]?.id ?? null); } }].map(({ Icon, title, action }) => <button key={title} type="button" title={title} aria-label={title} onClick={action} className="rounded p-2 text-white/70 hover:bg-white/10"><Icon size={16} /></button>)}</div>
+      <div className="grid grid-cols-2 gap-1 rounded bg-white/5 p-1" role="group" aria-label="Label editing mode">{(['preset', 'custom'] as const).map(mode => <button key={mode} type="button" aria-pressed={(selected.editingMode ?? 'preset') === mode} onClick={() => update({ editingMode: mode })} className="rounded px-2 py-2 text-xs text-white/60 aria-pressed:bg-white/15 aria-pressed:text-white">{mode === 'preset' ? 'Preset Labels' : 'Custom Labels'}</button>)}</div>
+      {selected.category === 'neck' && select('construction', 'Label type', { physical: 'Sewn neck label', printed: 'Direct neck print' })}
+      {(!custom || direct) && <div className="grid grid-cols-3 gap-2" role="group" aria-label="Label presets">{Object.entries(LABEL_PRESETS).map(([key, title]) => <button key={key} type="button" aria-pressed={(selected.preset ?? 'classic') === key} onClick={() => update(applyLabelPreset(selected, key as keyof typeof LABEL_PRESETS))} className="min-w-0 overflow-hidden rounded border border-white/15 bg-white/5 p-1.5 text-[11px] text-white/70 aria-pressed:border-[#e45449] aria-pressed:text-white">
+        <svg aria-hidden="true" viewBox={`-2 -2 ${selected.widthMm + 4} ${selected.heightMm + 4}`} className="mb-2 h-20 w-full rounded bg-[#e7e9ec] p-2"><LabelArtwork label={applyLabelPreset(selected, key as keyof typeof LABEL_PRESETS)} /></svg>{title}
+      </button>)}</div>}
+      <fieldset className={sectionClass}><legend className={legendClass}>Construction & size</legend>
+        {select('method', direct ? 'Print method' : 'Manufacturing method', Object.fromEntries(Object.entries(LABEL_METHODS).filter(([key]) => direct ? ['heat', 'dtf', 'dtg', 'screen'].includes(key) : ['woven', 'fabric'].includes(key))))}
+        {!direct && <div className="grid grid-cols-2 gap-3">{select('fold', 'Construction', LABEL_FOLDS)}{select('shape', 'Shape', LABEL_SHAPES)}</div>}
+        <div className="grid grid-cols-2 gap-3">{number('widthMm', 'Finished width (mm)', 8, 150)}{number('heightMm', 'Finished height (mm)', 8, 250)}{custom && number('marginMm', 'Safe margin (mm)', .5, 25)}{custom && !direct && !['straight', 'die'].includes(selected.fold) && number('foldMm', 'Fold allowance (mm)', 2, 15)}</div>
       </fieldset>
-      <fieldset className="space-y-3 border-t border-white/10 pt-3"><legend className="px-1 text-xs text-white/70">Artwork</legend>
+      <fieldset className={sectionClass}><legend className={legendClass}>Top / Brand identity</legend>
+        {!selected.logo && text('brand', 'Brand / company name')}
         <div className="flex flex-wrap gap-2"><button type="button" onClick={() => upload(false)} className="flex items-center gap-2 rounded border border-white/15 px-3 py-2 text-xs text-white"><Upload size={14} />Logo PNG / SVG</button>{selected.logo && <button type="button" onClick={() => update({ logo: undefined })} title="Remove logo" aria-label="Remove logo" className="p-2 text-white/60"><Trash2 size={16} /></button>}</div>
-        {selected.logo && <><p className="truncate text-[11px] text-white/60">{selected.logo.name}</p><div className="grid grid-cols-3 gap-2">{number('logoWidth', 'Logo size (%)', 5, 100, 1)}{number('logoX', 'Logo X (%)', 0, 100, 1)}{number('logoY', 'Logo Y (%)', 0, 100, 1)}</div></>}
+        {selected.logo && <><p className="truncate text-[11px] text-white/60">{selected.logo.name}</p><div className="grid grid-cols-2 gap-3">{number('logoWidth', 'Logo size (%)', 5, 100, 1)}{number('logoX', 'Logo horizontal (%)', 0, 100, 1)}{number('logoY', 'Logo vertical (%)', 0, 100, 1)}</div></>}
+      </fieldset>
+      <fieldset className={sectionClass}><legend className={legendClass}>Upper middle / Size</legend><div className="grid grid-cols-2 gap-3">{text('size', 'Size')}{select('sizePosition', 'Size position', { left: 'Left', center: 'Centre', right: 'Right' })}</div></fieldset>
+      {!direct && (selected.category === 'care' || selected.category === 'hand') && <fieldset className={sectionClass}><legend className={legendClass}>Middle / {selected.category === 'care' ? 'Composition' : 'Collection'}</legend>{text('composition', selected.category === 'care' ? 'Fibre composition' : 'Core content', true)}</fieldset>}
+      {!direct && selected.category === 'care' && <fieldset className={sectionClass}><legend className={legendClass}>Lower middle / Care</legend>
+        {custom ? <>{text('careText', 'Care instructions', true)}<div className="grid grid-cols-2 gap-3">{Object.entries(CARE_OPTIONS).map(([key, options]) => <Field key={key} title={key.charAt(0).toUpperCase() + key.slice(1)}><select className={fieldClass} value={selected.care[key as CareCategory]} onChange={event => update({ care: { ...selected.care, [key]: event.target.value } })}>{Object.entries(options).map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></Field>)}</div></> : <p className="whitespace-pre-line text-xs leading-relaxed text-white/65">{selected.careText}</p>}
+      </fieldset>}
+      <fieldset className={sectionClass}><legend className={legendClass}>Bottom / Business details</legend>
+        {!direct && (selected.category === 'care' || selected.category === 'hand') && text('origin', 'Country of origin')}
+        {text('business', 'Company details (optional)', true)}{!direct && text('additional', 'Footer (optional)', true)}
+      </fieldset>
+      <fieldset className={sectionClass}><legend className={legendClass}>Region positioning</legend>
+        <Field title="Content region"><select className={fieldClass} value={activeRegion} onChange={event => setRegion(event.target.value as LabelRegion)}>{Object.entries(availableRegions).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</select></Field>
+        <div className="grid grid-cols-2 gap-3">{([['x', 'Horizontal (%)', -100, 100], ['y', 'Vertical (%)', -100, 100], ['scale', 'Region size (%)', 20, 150], ['rotation', 'Text rotation (deg)', -180, 180]] as const).map(([key, title, min, max]) => <NumberField key={`${selected.id}-${activeRegion}-${key}`} title={title} value={regionTransform[key]} min={min} max={max} step={1} onCommit={value => updateRegion({ [key]: value })} />)}</div>
+        <div className="flex gap-2">{([{ key: 'flipX', Icon: FlipHorizontal2, title: 'Flip text horizontally' }, { key: 'flipY', Icon: FlipVertical2, title: 'Flip text vertically' }] as const).map(({ key, Icon, title }) => <button key={key} type="button" title={title} aria-label={title} aria-pressed={regionTransform[key]} onClick={() => updateRegion({ [key]: !regionTransform[key] })} className="rounded border border-white/15 p-2 text-white/70 aria-pressed:bg-white/20"><Icon size={16} /></button>)}<button type="button" title="Reset region" aria-label="Reset region" onClick={() => updateRegion(DEFAULT_REGION_TRANSFORM)} className="rounded p-2 text-white/70 hover:bg-white/10"><RotateCcw size={16} /></button></div>
+      </fieldset>
+      <fieldset className={sectionClass}><legend className={legendClass}>Typography & colour</legend>
         {select('font', 'Font', Object.fromEntries([...new Set([...LABEL_FONTS, ...labels.map(label => label.font)])].map(font => [font, font.startsWith('LabelFont-') ? 'Imported font' : font])))}
         <button type="button" onClick={() => upload(true)} className="flex items-center gap-2 text-xs text-white/70"><Upload size={14} />Import font</button>
-        <div className="grid grid-cols-2 gap-2">{number('fontSizeMm', 'Text size (mm)', 1.5, 20)}{number('letterSpacingMm', 'Letter spacing (mm)', 0, 5, .1)}{select('fontWeight', 'Weight', { 400: 'Regular', 600: 'Semibold', 700: 'Bold' })}{select('textAlign', 'Alignment', { left: 'Left', center: 'Centre', right: 'Right' })}</div>
+        <div className="grid grid-cols-2 gap-3">{number('fontSizeMm', 'Text size (mm)', 1.5, 20)}{select('fontWeight', 'Weight', { 400: 'Regular', 600: 'Semibold', 700: 'Bold' })}{select('textAlign', 'Brand alignment', { left: 'Left', center: 'Centre', right: 'Right' })}</div>
         <div className="flex flex-wrap gap-4">{(['foreground', ...(selected.construction === 'physical' ? ['background', 'border'] : [])] as const).map(key => <Field key={key} title={key === 'foreground' ? 'Ink / thread' : key === 'background' ? 'Fabric' : 'Edge'}><input type="color" aria-label={`${key} colour`} value={String(selected[key as keyof GarmentLabel])} onChange={event => update({ [key]: event.target.value })} className="h-8 w-9 cursor-pointer bg-transparent" /></Field>)}</div>
         {selected.construction === 'physical' && <label className="flex gap-2 text-xs text-white/65"><input type="checkbox" checked={selected.borderEnabled} onChange={event => update({ borderEnabled: event.target.checked })} />Custom border</label>}
       </fieldset>
-      {selected.category === 'care' && <fieldset className="space-y-3 border-t border-white/10 pt-3"><legend className="px-1 text-xs text-white/70">Care symbols</legend>{Object.entries(CARE_OPTIONS).map(([key, options]) => <Field key={key} title={key.charAt(0).toUpperCase() + key.slice(1)}><select className={fieldClass} value={selected.care[key as CareCategory]} onChange={event => update({ care: { ...selected.care, [key]: event.target.value } })}>{Object.entries(options).map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></Field>)}</fieldset>}
-      <fieldset className="space-y-3 border-t border-white/10 pt-3"><legend className="px-1 text-xs text-white/70">Attachment</legend>{select('position', 'Position', Object.fromEntries(labelPositions(selected.category).map(position => [position, LABEL_POSITIONS[position]])))}{selected.category === 'tag' && select('exteriorView', 'Visible side', { front: 'Front', back: 'Back' })}{layeredSleeves && selected.position.startsWith('sleeve-') && select('sleeveLayer', 'Sleeve layer', { outer: 'Outer sleeve', under: 'Under sleeve' })}<div className="grid grid-cols-2 gap-2">{number('offsetXmm', 'Horizontal offset (mm)', -40, 40)}{number('offsetYmm', 'Vertical offset (mm)', -50, 100)}{selected.category === 'tag' && number('rotation', 'Rotation (degrees)', -30, 30, 1)}</div></fieldset>
+      {selected.category !== 'hand' && <fieldset className={sectionClass}><legend className={legendClass}>Garment attachment</legend>{select('position', 'Position on garment', Object.fromEntries(labelPositions(selected.category).map(position => [position, LABEL_POSITIONS[position]])))}{selected.category === 'tag' && select('exteriorView', 'Visible side', { front: 'Front', back: 'Back' })}{layeredSleeves && selected.position.startsWith('sleeve-') && select('sleeveLayer', 'Sleeve layer', { outer: 'Outer sleeve', under: 'Under sleeve' })}<div className="grid grid-cols-2 gap-3">{number('offsetXmm', 'Horizontal offset (mm)', -40, 40)}{number('offsetYmm', 'Vertical offset (mm)', -50, 100)}{selected.category === 'tag' && number('rotation', 'Rotation (degrees)', -30, 30, 1)}</div></fieldset>}
       <div className="space-y-1 border-t border-white/10 pt-3 text-[11px] text-white/65"><strong className="text-white">Manufacturing summary</strong><p>{LABEL_METHODS[selected.method]}{selected.construction === 'physical' ? ` / ${LABEL_FOLDS[selected.fold]}` : ''}</p><p>Finished: {selected.widthMm} x {selected.heightMm} mm</p>{selected.construction === 'physical' && <p>Unfolded: {unfoldedLabelSize(selected).width} x {unfoldedLabelSize(selected).height} mm</p>}<p>{LABEL_POSITIONS[selected.position]}</p><p>Safe margin: {selected.marginMm} mm</p></div>
       {(labelWarnings(selected).length > 0 || layout?.overflow) && <div role="status" className="space-y-1 text-[11px] text-amber-300">{labelWarnings(selected).map(warning => <p key={warning}>{warning}</p>)}{layout?.overflow && <><p>Artwork exceeds safe area. Increase dimensions or reduce artwork.</p>{layout.requiredHeight > selected.heightMm && layout.requiredHeight <= 250 && <button type="button" className="underline" onClick={() => update({ heightMm: layout.requiredHeight + 2 })}>Increase length to {layout.requiredHeight + 2} mm</button>}</>}</div>}
       <button type="button" onClick={() => void downloadLabelArtwork(selected).catch(() => setError('Artwork export failed'))} className="flex items-center gap-2 rounded border border-white/15 px-3 py-2 text-xs text-white"><Download size={14} />Label SVG</button>

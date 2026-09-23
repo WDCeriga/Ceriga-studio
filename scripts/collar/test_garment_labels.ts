@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createGarmentLabel, normalizeLabel, LABEL_FOLDS, LABEL_SHAPES, CARE_OPTIONS, labelPositions, labelVisible, labelWarnings, unfoldedLabelSize, type GarmentLabel, type LabelCategory } from '../../src/app/data/garmentLabels';
+import { applyLabelPreset, createGarmentLabel, normalizeLabel, LABEL_FOLDS, LABEL_SHAPES, LABEL_PRESETS, DEFAULT_REGION_TRANSFORM, CARE_OPTIONS, labelPositions, labelVisible, labelWarnings, unfoldedLabelSize, type GarmentLabel, type LabelCategory } from '../../src/app/data/garmentLabels';
 import { LabelArtwork, labelLayout } from '../../src/app/components/builder/LabelArtwork';
 import { constrainNeckLabel, labelAttachmentMask, labelPlacement, type LabelAttachmentLayer } from '../../src/app/components/builder/GarmentLabelOverlay';
 import { getPotraceSvgBBox, splitPotraceSvgBBoxAtCenter } from '../../src/app/lib/tshirtSvgUtils';
@@ -11,9 +11,9 @@ function check(condition: unknown, message: string): asserts condition {
 
 export async function verifyGarmentLabelArtwork() {
   let constructions = 0;
-  for (const category of ['neck', 'care', 'tag'] as LabelCategory[]) {
+  for (const category of ['neck', 'care', 'tag', 'hand'] as LabelCategory[]) {
     const original = createGarmentLabel(category);
-    check(category === 'care' ? original.careText === '[CARE INSTRUCTIONS]' && labelWarnings(original).includes('Replace template placeholders before production') : !original.brand && !original.composition && !original.origin, 'Invalid label template');
+    check(original.brand && (category !== 'care' || original.careText && Object.values(original.care).every(Boolean)), 'Empty label template');
     for (const fold of Object.keys(LABEL_FOLDS) as GarmentLabel['fold'][]) {
       const label = normalizeLabel({ ...original, fold, brand: 'TEST' });
       const unfolded = unfoldedLabelSize(label);
@@ -23,6 +23,10 @@ export async function verifyGarmentLabelArtwork() {
     }
     for (const position of labelPositions(category)) {
       const label = { ...original, position };
+      if (category === 'hand') {
+        check(!labelVisible(label, 'front') && !labelVisible(label, 'back', true), 'Hand tag must use focused preview');
+        continue;
+      }
       if (position.startsWith('neck-')) {
         check(labelVisible(label, 'front') && !labelVisible(label, 'back', true) && !labelVisible(label, 'back'), 'Neck labels must be front-only');
         continue;
@@ -42,7 +46,8 @@ export async function verifyGarmentLabelArtwork() {
   const printed = normalizeLabel({ ...createGarmentLabel('neck'), construction: 'printed', borderEnabled: true });
   check(!renderToStaticMarkup(createElement(LabelArtwork, { label: printed })).includes('data-label-fabric') && !printed.borderEnabled, 'Direct print has fabric');
   const care = createGarmentLabel('care');
-  check(labelWarnings(care).filter(value => value.includes('symbol incomplete')).length === 5, 'Missing care categories not flagged');
+  check(!labelWarnings(care).some(value => value.includes('symbol incomplete')), 'Default care symbols incomplete');
+  check(labelWarnings({ ...care, care: { washing: '', bleaching: '', drying: '', ironing: '', cleaning: '' } }).filter(value => value.includes('symbol incomplete')).length === 5, 'Missing care categories not flagged');
   for (const [category, options] of Object.entries(CARE_OPTIONS)) {
     for (const value of Object.keys(options).filter(Boolean)) {
       const markup = renderToStaticMarkup(createElement(LabelArtwork, { label: { ...care, care: { ...care.care, [category]: value } } }));
@@ -52,6 +57,15 @@ export async function verifyGarmentLabelArtwork() {
   check(labelLayout({ ...care, brand: 'UNBREAKABLE'.repeat(20) }).overflow, 'Oversized artwork not flagged');
   check(!labelLayout(care).overflow && labelLayout(care).textLines.length >= 6, 'Care template missing readable sections');
   check(labelLayout({ ...createGarmentLabel('neck'), brand: 'CERIGA' }).textLines[0].size > 3, 'Neck heading too small');
+  for (const preset of Object.keys(LABEL_PRESETS) as GarmentLabel['preset'][]) {
+    const label = applyLabelPreset({ ...createGarmentLabel('neck'), construction: 'printed' }, preset!);
+    const layout = labelLayout(label);
+    check(layout.symbols.length === 5 && layout.zones.find(zone => zone.key === 'lower')?.hasSymbols, 'Print preset missing care structure');
+    check(!renderToStaticMarkup(createElement(LabelArtwork, { label })).includes('data-label-guide'), 'Print guides leaked into export');
+  }
+  const transformed = labelLayout(normalizeLabel({ ...care, regions: { top: { ...DEFAULT_REGION_TRANSFORM, rotation: 90, flipX: true, x: 100, y: -100 } } }));
+  check(transformed.zones[0].transform.includes('rotate(90)') && transformed.zones[0].transform.includes('scale(-'), 'Region transforms missing');
+  check(JSON.stringify(transformed.zones.slice(1)) === JSON.stringify(labelLayout(care).zones.slice(1)), 'Brand controls changed another region');
   return { constructions, shapes: Object.keys(LABEL_SHAPES).length, visibility: true, guideFreeArtwork: true, careSymbols: true, serialization: true };
 }
 

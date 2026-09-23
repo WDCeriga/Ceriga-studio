@@ -3311,6 +3311,7 @@ export function Builder() {
     </div>
   );
 
+  const isLabelEditor = currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing;
   const previewSurfaceStyle: CSSProperties = {
     backgroundColor:
       previewBackground === 'transparent'
@@ -3488,7 +3489,7 @@ export function Builder() {
             />
           </div>
         ) : null}
-        <div
+        {!isLabelEditor && <div
           className={cn(
             'pointer-events-none absolute z-[38] flex flex-col gap-1',
             isPhone ? 'right-3 top-1.5' : 'right-2 top-2 sm:right-3 sm:top-3',
@@ -3531,7 +3532,7 @@ export function Builder() {
               Back
             </button>
           </div>
-        </div>
+        </div>}
 
         <div
           className={cn(
@@ -3541,9 +3542,10 @@ export function Builder() {
         >
           <div
             className={cn(
-              'relative flex h-full min-h-0 w-full flex-1 items-center justify-center px-2 py-6 sm:px-4 sm:py-8',
-              isPhone && 'px-1.5 py-5',
-              isPanningCanvas ? 'cursor-grabbing' : 'cursor-grab',
+              'relative flex h-full min-h-0 w-full flex-1 items-center justify-center',
+              !isLabelEditor && 'px-2 py-6 sm:px-4 sm:py-8',
+              !isLabelEditor && isPhone && 'px-1.5 py-5',
+              !isLabelEditor && (isPanningCanvas ? 'cursor-grabbing' : 'cursor-grab'),
             )}
             onPointerDown={(e) => {
               const t = e.target as HTMLElement;
@@ -3614,8 +3616,9 @@ export function Builder() {
         ) : null}
         <div
           className={cn(
-            'relative z-20 flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col items-center justify-center sm:py-1',
-            isPhone ? 'py-0' : 'py-0.5',
+            'relative z-20 flex h-full min-h-0 w-full max-w-full min-w-0 flex-1 flex-col items-center justify-center',
+            !isLabelEditor && 'sm:py-1',
+            isPhone || isLabelEditor ? 'py-0' : 'py-0.5',
             previewSurfaceNeedsVisibleOverflow ? 'overflow-visible' : 'overflow-hidden',
           )}
         >
@@ -3850,7 +3853,7 @@ export function Builder() {
           </div>
         </div>
 
-        {!isPhone ? (
+        {!isPhone && !isLabelEditor ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[36] flex flex-wrap items-end justify-between gap-1.5 px-1.5 pb-1.5 sm:gap-2 sm:px-3 sm:pb-3">
             <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-[#252528] bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
               <Button
@@ -4025,7 +4028,7 @@ export function Builder() {
                 aria-label="Preview background"
               >
                 <div className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg border border-[#252528] bg-white/[0.06] px-1 shadow-inner">
-                  {(['black', 'white', 'transparent'] as const).map((bg) => (
+                  {!isLabelEditor && (['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
                       type="button"
@@ -4170,7 +4173,7 @@ export function Builder() {
                   {showExtraDetails ? 'Hide details' : 'Show details'}
                 </button>
                 <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-[#252528] bg-white/[0.04] p-0.5">
-                  {(['black', 'white', 'transparent'] as const).map((bg) => (
+                  {!isLabelEditor && (['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
                       type="button"

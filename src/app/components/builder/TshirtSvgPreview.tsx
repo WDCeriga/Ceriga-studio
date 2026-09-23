@@ -246,7 +246,7 @@ export interface TshirtSvgPreviewProps {
     selectedId: string | null;
     onSelect: (id: string | null) => void;
     onChange: (labels: GarmentLabel[]) => void;
-    onFocus: (point: { x: number; y: number }) => void;
+    onFocus: (point: { id: string; x: number; y: number; width: number; height: number }) => void;
   };
   detailView?: 'front' | 'back';
   selectedDetailId?: string | null;

@@ -9,6 +9,7 @@ export interface LabelAttachmentLayer {
   bbox: PotraceSvgBBox;
   matrix: string;
 }
+export interface LabelFocus { id: string; x: number; y: number; width: number; height: number }
 type Mask = { pixels: Uint8ClampedArray; size: number };
 const neckAreas = new WeakMap<Mask, { minX: number; maxX: number; minY: number; maxY: number }>();
 export function neckLabelArea(mask: Mask) {
@@ -144,7 +145,7 @@ export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer
 export function GarmentLabelOverlay({ labels, layers, view, interior = false, selectedId, onSelect, onChange, onFocus, referenceWidthMm = 500 }: {
   labels: GarmentLabel[]; layers: LabelAttachmentLayer[]; view: 'front' | 'back'; interior?: boolean;
   selectedId?: string | null; onSelect?: (id: string | null) => void; onChange?: (labels: GarmentLabel[]) => void;
-  onFocus?: (point: { x: number; y: number }) => void; referenceWidthMm?: number;
+  onFocus?: (point: LabelFocus) => void; referenceWidthMm?: number;
 }) {
   const [maskById, setMaskById] = useState<Record<string, Mask>>({});
   const [draft, setDraft] = useState<GarmentLabel | null>(null);
@@ -167,8 +168,12 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
     if (constrained.some((label, index) => JSON.stringify(label) !== JSON.stringify(labels[index]))) onChange(constrained);
   }, [labels, layerKey, referenceWidthMm, maskById, view, onChange]);
   const selected = labels.find(label => label.id === selectedId);
-  const focused = selected ? labelPlacement(selected, layers, referenceWidthMm, maskById)?.center : null;
-  useEffect(() => { if (focused) onFocus?.({ x: focused.x, y: focused.y }); }, [focused?.x, focused?.y, onFocus]);
+  const placement = selected ? labelPlacement(selected, layers, referenceWidthMm, maskById) : null;
+  const corners = placement ? [[placement.x, 0], [placement.x + placement.width, 0], [placement.x, placement.height], [placement.x + placement.width, placement.height]].map(([x, y]) => placement.matrix.transformPoint(new DOMPoint(x, y))) : [];
+  const focused = placement && selected ? { id: selected.id, x: placement.center.x, y: placement.center.y,
+    width: Math.max(...corners.map(point => point.x)) - Math.min(...corners.map(point => point.x)),
+    height: Math.max(...corners.map(point => point.y)) - Math.min(...corners.map(point => point.y)) } : null;
+  useEffect(() => { if (focused) onFocus?.(focused); }, [focused?.id, focused?.x, focused?.y, focused?.width, focused?.height, onFocus]);
   const start = (event: PointerEvent<SVGGElement | SVGRectElement>, label: GarmentLabel, placement: NonNullable<ReturnType<typeof labelPlacement>>, resize: boolean) => {
     if (!onChange || !svgRef.current || event.button !== 0) return;
     event.stopPropagation(); event.preventDefault(); onSelect?.(label.id);
