@@ -110,8 +110,10 @@ import { TechPackReferenceUpload } from '../components/builder/TechPackReference
 import {
   LabelPreview,
   LabelsPackagingStep,
-  PackagingPreview,
 } from '../components/builder/LabelsPackagingStep';
+import { PackagingDesigner, PackagingDesignerPreview } from '../components/builder/PackagingDesigner';
+import { PackagingReview } from '../components/builder/PackagingReview';
+import { migrateLegacyPackaging, mapPackagingImages, type PackagingState } from '../data/packaging';
 import { GarmentLabelsPanel, downloadLabelArtwork, downloadLabelSpecs } from '../components/builder/GarmentLabelsPanel';
 import { GarmentLabelsPreview } from '../components/builder/GarmentLabelsPreview';
 import { LABEL_CATEGORIES, LABEL_POSITIONS, LABEL_METHODS, labelWarnings, type GarmentLabel } from '../data/garmentLabels';
@@ -214,6 +216,7 @@ type DetailKey =
   | 'pockets';
 
 interface BuilderState {
+  packagingDesign?: PackagingState;
   garmentLabels?: GarmentLabel[];
   garmentWash?: GarmentWash;
   productId: string;
@@ -382,6 +385,7 @@ function stashBuilderState(s: BuilderState): BuilderState {
   cloned.prints = mapElements(cloned.prints, stash);
   cloned.labels = mapElements(cloned.labels, stash);
   cloned.packaging = mapElements(cloned.packaging, stash);
+  cloned.packagingDesign = mapPackagingImages(cloned.packagingDesign, content => content.startsWith('data:') ? stashDataUrl(content) : content);
   cloned.garmentLabels = cloned.garmentLabels?.map(label => ({ ...label,
     logo: label.logo ? { ...label.logo, data: label.logo.data.startsWith('data:') ? stashDataUrl(label.logo.data) : label.logo.data } : undefined,
     fontData: label.fontData?.startsWith('data:') ? stashDataUrl(label.fontData) : label.fontData,
@@ -401,6 +405,7 @@ function resolveBuilderState(s: BuilderState): BuilderState {
   cloned.prints = mapElements(cloned.prints, resolve);
   cloned.labels = mapElements(cloned.labels, resolve);
   cloned.packaging = mapElements(cloned.packaging, resolve);
+  cloned.packagingDesign = mapPackagingImages(cloned.packagingDesign, content => resolveImageRef(content) ?? content);
   cloned.garmentLabels = cloned.garmentLabels?.map(label => ({ ...label,
     logo: label.logo ? { ...label.logo, data: isRefToken(label.logo.data) ? resolveImageRef(label.logo.data) ?? label.logo.data : label.logo.data } : undefined,
     fontData: label.fontData && isRefToken(label.fontData) ? resolveImageRef(label.fontData) ?? label.fontData : label.fontData,
@@ -421,6 +426,7 @@ function releaseBuilderState(s: BuilderState) {
   release(s.prints);
   release(s.labels);
   release(s.packaging);
+  mapPackagingImages(s.packagingDesign, content => { releaseImageRef(content); return content; });
   for (const label of s.garmentLabels ?? []) {
     if (label.logo && isRefToken(label.logo.data)) releaseImageRef(label.logo.data);
     if (label.fontData && isRefToken(label.fontData)) releaseImageRef(label.fontData);
@@ -692,6 +698,10 @@ export function Builder() {
   const garmentView = showFront ? 'front' : 'back';
   const garmentWash = useMemo(() => state.garmentWash ?? defaultGarmentWash(), [state.garmentWash]);
   const changeWash = (wash: GarmentWash) => setState(prev => ({ ...prev, garmentWash: wash }));
+  const packagingValue = state.packagingDesign ?? migrateLegacyPackaging(state.packagingType, state.packagingColor, state.extraDetails.packaging, state.packaging);
+  const packagingDesign = packagingValue.designs[packagingValue.active];
+  const [packagingBoundary, setPackagingBoundary] = useState(false);
+  const changePackaging = (packagingDesign: PackagingState) => setState(prev => ({ ...prev, packagingDesign }));
   const visibleGarmentDetails = decorationsForView(state.garmentDetails ?? [], garmentView);
   const visiblePrints = decorationsForView(state.prints, garmentView);
   const selectedGarmentDetailId = visibleGarmentDetails.find(detail => detail.selected)?.id ?? null;
@@ -2901,38 +2911,10 @@ export function Builder() {
 
       case 11:
         return (
-          <div className="space-y-4">
-            <LabelsPackagingStep
-              subStep="packaging"
-              elements={state.packaging}
-              onElementsChange={(packaging) => setState((prev) => ({ ...prev, packaging }))}
-              notes={state.extraDetails.packaging || ''}
-              onNotesChange={(value) =>
-                setState((prev) => ({
-                  ...prev,
-                  extraDetails: { ...prev.extraDetails, packaging: value },
-                }))
-              }
-              planValue={state.packagingType ?? 'polybag'}
-              onPlanChange={(packagingType) =>
-                setState((prev) => ({
-                  ...prev,
-                  packagingType,
-                  packaging: packagingType === 'none' ? [] : prev.packaging,
-                  packagingLayerSelectedId: packagingType === 'none' ? null : prev.packagingLayerSelectedId,
-                }))
-              }
-              selectedLayerId={state.packagingLayerSelectedId}
-              onSelectedLayerIdChange={(id) =>
-                setState((prev) => ({ ...prev, packagingLayerSelectedId: id }))
-              }
-              previewBaseColor={state.packagingColor ?? '#F5F5F5'}
-              onPreviewBaseColorChange={(hex) =>
-                setState((prev) => ({ ...prev, packagingColor: hex }))
-              }
-              usePhoneStrips={isPhone}
-            />
-          </div>
+          <PackagingDesigner key={packagingValue.active} value={packagingValue} onChange={changePackaging}
+            selectedId={state.packagingLayerSelectedId} onSelect={id => setState(prev => ({ ...prev, packagingLayerSelectedId: id }))}
+            onBoundary={setPackagingBoundary} hasGarmentMeasurements={Object.values(state.measurements).some(values => Object.values(values).some(value => Number(value) > 0))}
+            legacy={!state.packagingDesign && state.packaging.length > 0} />
         );
 
       case 12:
@@ -3017,14 +2999,6 @@ export function Builder() {
               {state.labelColor ? (
                 <ReviewRow label="Label colour" value={state.labelColor} swatch={state.labelColor} />
               ) : null}
-              <ReviewRow label="Packaging" value={formatPlanSummary('packaging', state.packagingType)} />
-              {state.packagingColor ? (
-                <ReviewRow
-                  label="Packaging colour"
-                  value={state.packagingColor}
-                  swatch={state.packagingColor}
-                />
-              ) : null}
               <ReviewRow
                 label="Order quantities"
                 value={
@@ -3035,6 +3009,7 @@ export function Builder() {
               />
             </div>
 
+            <PackagingReview design={state.packagingDesign || state.packagingType || state.packaging.length ? packagingDesign : undefined} />
             <div className="space-y-2">
               <Button
                 onClick={() => setShowDownloadModal(true)}
@@ -3283,19 +3258,7 @@ export function Builder() {
             </div>
           </div>
         ) : null}
-        <SpecRow label="Packaging" value={formatPlanSummary('packaging', state.packagingType)} />
-        {state.packagingColor ? (
-          <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Packaging colour</div>
-            <div className="flex items-center gap-2">
-              <div
-                className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
-                style={{ backgroundColor: state.packagingColor }}
-              />
-              <span className="text-sm font-semibold text-white">{state.packagingColor}</span>
-            </div>
-          </div>
-        ) : null}
+        <PackagingReview design={state.packagingDesign || state.packagingType || state.packaging.length ? packagingDesign : undefined} />
         <OrderQuantitiesSummary plan={state.orderQuantities} />
 
         {summaryStepNotes ? (
@@ -3489,7 +3452,7 @@ export function Builder() {
             />
           </div>
         ) : null}
-        {!isLabelEditor && <div
+        {!isLabelEditor && currentStep !== 11 && <div
           className={cn(
             'pointer-events-none absolute z-[38] flex flex-col gap-1',
             isPhone ? 'right-3 top-1.5' : 'right-2 top-2 sm:right-3 sm:top-3',
@@ -3593,7 +3556,7 @@ export function Builder() {
             ref={previewStageRef}
             className="relative flex h-full w-full min-h-0 items-center justify-center"
             style={{
-              transform: currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing ? 'none' : `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom / 100})`,
+              transform: currentStep === 11 || (currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing) ? 'none' : `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom / 100})`,
               transformOrigin: 'center center',
               transition:
                 draggingDetail || isPanningCanvas ? 'none' : 'transform 120ms ease-out',
@@ -3748,23 +3711,13 @@ export function Builder() {
           ) : currentStep === 11 ? (
             <div
               className={cn(
-                'flex max-h-full w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center overflow-visible px-1',
-                isPhone && phoneFrameClass,
+                'flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center px-1',
               )}
             >
-              <PackagingPreview
-                color={state.packagingColor ?? '#F5F5F5'}
-                elements={state.packaging}
-                onElementsChange={(packaging) =>
-                  setState((prev) => ({ ...prev, packaging }))
-                }
-                selectedId={state.packagingLayerSelectedId}
-                onSelectedIdChange={(id) =>
-                  setState((prev) => ({ ...prev, packagingLayerSelectedId: id }))
-                }
-                liveCanvasScale={previewZoom / 100}
-                phoneConfigSheetCollapsed={isPhone && phoneEditorCollapsed}
-              />
+              <PackagingDesignerPreview design={packagingDesign} garmentColor={primaryColor}
+                onChange={design => changePackaging({ ...packagingValue, designs: { ...packagingValue.designs, [packagingValue.active]: design } })}
+                selectedId={state.packagingLayerSelectedId} onSelect={id => setState(prev => ({ ...prev, packagingLayerSelectedId: id }))}
+                limited={packagingBoundary} onBoundary={setPackagingBoundary} />
             </div>
           ) : (
             <div
@@ -3853,7 +3806,7 @@ export function Builder() {
           </div>
         </div>
 
-        {!isPhone && !isLabelEditor ? (
+        {!isPhone && !isLabelEditor && currentStep !== 11 ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[36] flex flex-wrap items-end justify-between gap-1.5 px-1.5 pb-1.5 sm:gap-2 sm:px-3 sm:pb-3">
             <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-[#252528] bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
               <Button
