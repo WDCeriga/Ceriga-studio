@@ -22,9 +22,10 @@ export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: Ne
   const neck = layers.find(layer => layer.id === 'neck');
   const outline = layers.find(layer => layer.id === 'outline');
   const stitching = layers.find(layer => layer.id === 'stitching');
-  if (!neck || !outline) return layers;
+  const base = layers.find(layer => layer.id === 'base');
+  if (!neck || !outline || !base) return layers;
   const raw = finish === 'raw';
-  const key = `${finish}:${neck.svgRaw}:${outline.svgRaw}:${stitching?.svgRaw}`;
+  const key = `${finish}:${neck.svgRaw}:${outline.svgRaw}:${base.svgRaw}:${stitching?.svgRaw}`;
   let result = cache.get(key);
   if (!result) {
     const parsed = new DOMParser().parseFromString(neck.svgRaw, 'image/svg+xml');
@@ -39,13 +40,13 @@ export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: Ne
     const rearEdge = original.querySelector('[data-rear-collar-outline]');
     const profile = rearEdge ? undefined : rearCollarProfile(neck, bounds.minX, bounds.maxX, outline);
     const edgeWidth = rearEdge ? Number(rearEdge.getAttribute('stroke-width')) * 10 : profile!.collarWeight * 10;
-    const ribWidth = (profile?.ribWidth ?? 1.8) * 10;
-    const ribPitch = (profile?.ribPitch ?? 7) * 10;
     const mounted = document.createElementNS(namespace, 'svg');
     mounted.style.cssText = 'position:fixed;left:-10000px;visibility:hidden';
     document.body.append(mounted);
     let border = band;
-    let ribs = '';
+    let joins = '';
+    let openArea = '';
+    let lowerEdge = '';
     try {
       const contours = paths.flatMap(path => {
         const data = path.getAttribute('d') ?? '';
@@ -57,47 +58,48 @@ export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: Ne
         const bounds = probe.getBBox();
         return { data, probe, area: bounds.width * bounds.height };
       }).sort((first, second) => second.area - first.area);
-      const opening = contours[1] ?? contours[0];
       if (raw) border = contours[0]?.data ?? band;
-      if (finish === 'ribbed' && opening) {
-        const fabric = document.createElementNS(namespace, 'path');
-        fabric.setAttribute('d', band);
-        fabric.setAttribute('fill-rule', 'evenodd');
-        mounted.append(fabric);
-        const length = opening.probe.getTotalLength();
-        for (let distance = 0; distance < length; distance += ribPitch) {
-          const point = opening.probe.getPointAtLength(distance);
-          const before = opening.probe.getPointAtLength(Math.max(0, distance - 12));
-          const after = opening.probe.getPointAtLength(Math.min(length, distance + 12));
-          const magnitude = Math.hypot(after.x - before.x, after.y - before.y) || 1;
-          const normalX = -(after.y - before.y) / magnitude;
-          const normalY = (after.x - before.x) / magnitude;
-          for (const direction of [-1, 1]) {
-            let start: DOMPoint | undefined;
-            let end: DOMPoint | undefined;
-            for (let offset = 8; offset <= 1400; offset += 12) {
-              const sample = new DOMPoint(point.x + normalX * offset * direction, point.y + normalY * offset * direction);
-              if (!fabric.isPointInFill(sample)) {
-                if (start || offset > 32) break;
-                continue;
-              }
-              start ??= sample;
-              end = sample;
-            }
-            if (start && end) ribs += `M${start.x},${start.y}L${end.x},${end.y}`;
-          }
-        }
+      if (raw && contours.length) {
+        const probe = contours[0].probe;
+        const count = Math.ceil(probe.getTotalLength() / 8);
+        const points = Array.from({ length: count }, (_, index) => probe.getPointAtLength(index * probe.getTotalLength() / count));
+        const center = (bounds.minX + bounds.maxX) * 5;
+        const corner = (left: boolean) => points.reduce((best, point, index) =>
+          (left ? point.x < center : point.x >= center) && (best < 0 || point.y > points[best].y) ? index : best, -1);
+        const left = corner(true);
+        const right = corner(false);
+        const arc = (start: number, stop: number) => Array.from({ length: (stop - start + count) % count + 1 }, (_, index) => points[(start + index) % count]);
+        const candidates = [arc(left, right), arc(right, left)];
+        const lower = candidates.sort((first, second) => first.reduce((sum, point) => sum + point.y, 0) / first.length - second.reduce((sum, point) => sum + point.y, 0) / second.length)[0];
+        lowerEdge = lower.map((point, index) => `${index ? 'L' : 'M'}${point.x},${point.y}`).join('');
+        openArea = `${lowerEdge}L${lower[lower.length - 1].x},20480L${lower[0].x},20480Z`;
+      }
+      if (!raw && contours.length === 2 && !rearEdge) {
+        const center = (bounds.minX + bounds.maxX) * 5;
+        const corners = contours.map(contour => {
+          const length = contour.probe.getTotalLength();
+          const points = Array.from({ length: Math.ceil(length / 8) }, (_, index) => contour.probe.getPointAtLength(index * 8));
+          return [points.filter(point => point.x < center), points.filter(point => point.x >= center)]
+            .map(side => side.reduce((highest, point) => point.y > highest.y ? point : highest));
+        });
+        joins = corners[0].map((point, index) => `M${point.x},${point.y}L${corners[1][index].x},${corners[1][index].y}`).join('');
       }
     } finally { mounted.remove(); }
     let geometryId = 0;
     for (let index = 0; index < band.length; index++) geometryId = (Math.imul(geometryId, 31) + band.charCodeAt(index)) | 0;
     const id = `neck-finish-${neck.assetId.replace(/[^a-z0-9]/gi, '-')}-${finish}-${geometryId >>> 0}`;
     const clear = (source: string, suffix: string) => clearNeckArea(source, raw ? border : band, transform, `${id}-${suffix}`);
-    const clip = `<defs><clipPath id="${id}-band"><path transform="${transform}" d="${band}" clip-rule="evenodd"/></clipPath></defs>`;
-    const ribbing = ribs ? `<g clip-path="url(#${id}-band)"><path data-neck-ribbing="true" transform="${transform}" d="${ribs}" fill="none" stroke="#141414" stroke-width="${ribWidth}"/></g>` : '';
-    const edge = `<path data-neck-edge="true" transform="${transform}" d="${border}" fill="none" stroke="#141414" stroke-width="${edgeWidth}" stroke-linejoin="round"/>`;
+    const body = new DOMParser().parseFromString(base.svgRaw, 'image/svg+xml');
+    const bodyPath = Array.from(body.querySelectorAll('g[transform] > path')).map(path => path.getAttribute('d') ?? '').join(' ');
+    const neckRegion = `M${bounds.minX - 20},${bounds.minY - 20}H${bounds.maxX + 20}V${bounds.maxY + 20}H${bounds.minX - 20}Z`;
+    const retainedInk = raw
+      ? `<rect width="2048" height="2048" fill="white"/><path transform="${transform}" d="${openArea}" fill="black"/><path transform="${transform}" d="${lowerEdge}" fill="none" stroke="white" stroke-width="${edgeWidth * 2}"/>`
+      : `<rect width="2048" height="2048" fill="white"/><path transform="${transform}" d="${band}" fill="black" fill-rule="evenodd"/><path transform="${transform}" d="${band}" fill="none" stroke="white" stroke-width="${edgeWidth * 2}"/><path transform="${transform}" d="${bodyPath}" fill="none" stroke="white" stroke-width="${edgeWidth * 2}"/><path transform="${transform}" d="${joins}" fill="none" stroke="white" stroke-width="${edgeWidth}"/>`;
+    const bodyMask = raw ? `<mask id="${id}-body-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:luminance"><path d="M0,0H2048V2048H0Z ${neckRegion}" fill="white" fill-rule="evenodd"/><path transform="${transform}" d="${bodyPath}" fill="white" stroke="white" stroke-width="${edgeWidth * 2}"/></mask>` : '';
+    const inkMask = `<defs><mask id="${id}-source-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:luminance">${retainedInk}</mask>${bodyMask}</defs>`;
+    const bodyClip = raw ? ` mask="url(#${id}-body-ink)"` : '';
     result = {
-      outline: clear(outline.svgRaw, 'outline').replace(/<\/svg>\s*$/, `${clip}<g data-neck-finish="${finish}">${ribbing}${edge}</g></svg>`),
+      outline: outline.svgRaw.replace(/(<svg[^>]*>)/, `$1${inkMask}<g${bodyClip}><g data-neck-finish="${finish}" mask="url(#${id}-source-ink)">`).replace(/<\/svg>\s*$/, '</g></g></svg>'),
       neck: neck.svgRaw.replace('<svg ', `<svg data-neck-finish="${raw ? 'raw' : finish}" `),
       stitching: raw && stitching ? clear(stitching.svgRaw, 'stitching') : stitching?.svgRaw,
       cutout: raw ? { path: border, transform, id } : undefined,
