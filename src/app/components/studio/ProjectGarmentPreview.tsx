@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
+import type { NeckFinish } from '../../data/tshirtNeckFinish';
 import type { GarmentDetail } from '../../data/garmentDetails';
 import type { GarmentWash } from '../../data/garmentWash';
 import type { GarmentLabel } from '../../data/garmentLabels';
@@ -47,6 +48,7 @@ export type ProjectPreviewState = {
   fit?: string;
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  neckFinish?: NeckFinish;
   tshirtStitching?: TshirtStitching;
   garmentDetails?: GarmentDetail[];
   customCollar?: CustomCollarSvgs | null;
@@ -122,6 +124,7 @@ export function ProjectGarmentPreview({
           stitchingColor={preview.stitchingColor}
           partColors={preview.partColors}
           tshirtHemStyles={preview.tshirtHemStyles}
+          neckFinish={preview.neckFinish}
           tshirtStitching={preview.tshirtStitching}
           garmentDetails={preview.garmentDetails}
           customCollar={preview.customCollar}

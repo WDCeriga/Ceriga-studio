@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode, type ComponentProps } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
+import type { NeckFinish } from '../../data/tshirtNeckFinish';
 import type { GarmentDetail } from '../../data/garmentDetails';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -346,6 +347,7 @@ export function MeasurementPreview({
   fit,
   partColors,
   tshirtHemStyles,
+  neckFinish,
   tshirtStitching,
   stitchingColor,
   garmentDetails,
@@ -361,6 +363,7 @@ export function MeasurementPreview({
   fit?: string;
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  neckFinish?: NeckFinish;
   tshirtStitching?: TshirtStitching;
   stitchingColor?: string;
   garmentDetails?: GarmentDetail[];
@@ -396,6 +399,7 @@ export function MeasurementPreview({
             fit={fit}
             partColors={partColors}
             tshirtHemStyles={tshirtHemStyles}
+            neckFinish={neckFinish}
             tshirtStitching={tshirtStitching}
             stitchingColor={stitchingColor}
             garmentDetails={garmentDetails}

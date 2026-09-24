@@ -1,7 +1,8 @@
 import hemGeometry from '../../assets/studio-tshirt/hem-styles.json';
 import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
 import type { TshirtHemStyles } from './tshirtHemStyles';
-import { getPotraceSvgBBox } from '../lib/tshirtSvgUtils';
+import { hemGroupEnabled, resolveHemSettings } from './tshirtHemStyles';
+import { constructionColor, getPotraceSvgBBox } from '../lib/tshirtSvgUtils';
 
 export const TSHIRT_STITCH_OPTIONS = [
   { value: 'standard', label: 'Standard Stitch' },
@@ -13,20 +14,27 @@ export const TSHIRT_STITCH_OPTIONS = [
   { value: 'none', label: 'No Stitching' },
 ] as const;
 export const TSHIRT_STITCH_REGIONS = {
-  sleeve: 'Sleeve stitching', bottom: 'Bottom hem stitching',
-  shoulder: 'Shoulder stitching', neckline: 'Neckline stitching',
-  undersleeve: 'Undersleeve stitching',
+  neckline: 'Neck / collar', sleeve: 'Sleeve hem', bottom: 'Bottom hem',
+  shoulder: 'Shoulder', armhole: 'Armhole', side: 'Side seam',
+  undersleeve: 'Underlayer cuff',
 } as const;
 export type StitchRegion = keyof typeof TSHIRT_STITCH_REGIONS;
 export type StitchStyle = typeof TSHIRT_STITCH_OPTIONS[number]['value'];
-export type TshirtStitching = Partial<Record<StitchRegion, { style?: StitchStyle; color?: string }>>;
+export const STITCH_THREAD_OPTIONS = { fine: 'Fine', regular: 'Regular', heavy: 'Heavy' } as const;
+export type StitchSettings = { style?: StitchStyle; color?: string; thread?: keyof typeof STITCH_THREAD_OPTIONS };
+export type TshirtStitching = Partial<Record<StitchRegion, StitchSettings>> & { global?: StitchSettings };
+export function updateStitchSettings(settings: TshirtStitching, patch: StitchSettings, region: StitchRegion, applyToAll: boolean): TshirtStitching {
+  if (!applyToAll) return { ...settings, [region]: { ...resolveStitchSettings(settings, region), ...patch } };
+  const global = { style: 'standard' as const, thread: 'regular' as const, ...settings.global, ...patch };
+  return { ...settings, global, ...Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(key => [key, { ...global }])) };
+}
 type Point = { x: number; y: number };
 type Mark = Point & { tangent: Point };
-export type StitchGeometry = { clips: Record<StitchRegion, string>; rows: Record<StitchRegion, Point[][]> };
+export type StitchGeometry = { clips: Record<StitchRegion, string>; rows: Record<StitchRegion, Point[][]>; hemClips?: Record<string, { stitchCut: string }> };
 const cache = new Map<string, Promise<StitchGeometry>>();
 const namespace = 'http://www.w3.org/2000/svg';
 const regions = Object.keys(TSHIRT_STITCH_REGIONS) as StitchRegion[];
-const emptyRows = (): StitchGeometry['rows'] => ({ sleeve: [], bottom: [], shoulder: [], neckline: [], undersleeve: [] });
+const emptyRows = (): StitchGeometry['rows'] => ({ sleeve: [], bottom: [], shoulder: [], neckline: [], undersleeve: [], armhole: [], side: [] });
 const distance = (first: Point, second: Point) => Math.hypot(first.x - second.x, first.y - second.y);
 const colorValue = (value?: string) => /^#[\da-f]{6}$/i.test(value ?? '') ? value! : '#B0B0B0';
 
@@ -38,7 +46,7 @@ export function stitchVariant(layers: ResolvedGarmentLayer[]) {
 
 export function stitchRegionClips(layers: ResolvedGarmentLayer[], fit: string): StitchGeometry['clips'] {
   const geometry = (hemGeometry as Record<string, Record<string, { stitchCut: string }>>)[`${fit}:${stitchVariant(layers)}`] ?? {};
-  const clips = { sleeve: '', bottom: '', shoulder: '', neckline: '', undersleeve: '' };
+  const clips = { sleeve: '', bottom: '', shoulder: '', neckline: '', undersleeve: '', armhole: '', side: '' };
   for (const [id, region] of Object.entries(geometry)) {
     const area = id === 'bodyHem' ? 'bottom' : id.startsWith('underlayer') ? 'undersleeve' : 'sleeve';
     clips[area] += ` ${region.stitchCut}`;
@@ -53,7 +61,28 @@ export function stitchRegionClips(layers: ResolvedGarmentLayer[], fit: string): 
     clips.neckline = `M${left},${top}H${right}V${bottom}H${left}Z`;
   }
   clips.shoulder = `M0,0H1536V1536H0Z ${clips.sleeve} ${clips.bottom} ${clips.undersleeve} ${clips.neckline}`;
+  clips.armhole = clips.shoulder;
+  clips.side = clips.shoulder;
   return clips;
+}
+
+export function availableStitchRegions(geometry: StitchGeometry, hems?: TshirtHemStyles): StitchRegion[] {
+  return regions.filter(region => geometry.rows[region].length > 0 && hemGroupEnabled(hems, region));
+}
+
+export function resolveStitchSettings(settings: TshirtStitching, region: StitchRegion): StitchSettings {
+  return settings[region] ?? settings.global ?? (region === 'armhole' || region === 'side' ? settings.shoulder : undefined) ?? {};
+}
+
+export function stitchFocus(geometry: StitchGeometry, region: StitchRegion) {
+  const row = [...geometry.rows[region]].sort((first, second) => second.length - first.length)[0];
+  if (!row?.length) return { x: 1024, y: 1024, scale: 1 };
+  const middle = row[Math.floor(row.length / 2)];
+  return { x: middle.x, y: middle.y, scale: 3.4 };
+}
+
+export function stitchRegionPath(geometry: StitchGeometry, region: StitchRegion) {
+  return geometry.rows[region].map(row => curvePath(row)).join('');
 }
 
 function traceRows(marks: Mark[]): Point[][] {
@@ -121,7 +150,14 @@ export async function measureStitchGeometry(layers: ResolvedGarmentLayer[], fit:
   const source = layers.find(layer => layer.id === 'stitching');
   const clips = stitchRegionClips(layers, fit);
   if (!source) return { clips, rows: emptyRows() };
-  const key = source.svgRaw + clips.neckline;
+  const sleeveBounds = layers.filter(layer => layer.id === 'sleeveLeft' || layer.id === 'sleeveRight')
+    .map(layer => getPotraceSvgBBox(layer.svgRaw)).filter(bounds => bounds != null);
+  const neckLayer = layers.find(layer => layer.id === 'neck');
+  const neckBounds = neckLayer && getPotraceSvgBBox(neckLayer.svgRaw);
+  const shoulderDepth = neckBounds ? neckBounds.minY + (neckBounds.maxX - neckBounds.minX) / 2 : 0;
+  const sleeveTop = Math.max(Math.min(...sleeveBounds.map(bounds => bounds.minY)), shoulderDepth);
+  const sleeveBottom = Math.max(...sleeveBounds.map(bounds => bounds.maxY));
+  const key = source.svgRaw + JSON.stringify(clips) + sleeveTop + ':' + sleeveBottom;
   const existing = cache.get(key);
   if (existing) return existing;
   const pending = (async () => {
@@ -135,7 +171,7 @@ export async function measureStitchGeometry(layers: ResolvedGarmentLayer[], fit:
     const pixels = context.getImageData(0, 0, 1536, 1536).data;
     const visited = new Uint8Array(1536 * 1536);
     const masks = Object.fromEntries(regions.map(region => [region, new Path2D(clips[region])])) as Record<StitchRegion, Path2D>;
-    const marks: Record<StitchRegion, Mark[]> = { sleeve: [], bottom: [], shoulder: [], neckline: [], undersleeve: [] };
+    const marks: Record<StitchRegion, Mark[]> = { sleeve: [], bottom: [], shoulder: [], neckline: [], undersleeve: [], armhole: [], side: [] };
     for (let seed = 0; seed < visited.length; seed++) {
       if (visited[seed] || pixels[seed * 4 + 3] < 80) continue;
       const queue = [seed];
@@ -159,10 +195,12 @@ export async function measureStitchGeometry(layers: ResolvedGarmentLayer[], fit:
       const angle = .5 * Math.atan2(2 * (product / queue.length - centerX * centerY),
         squareX / queue.length - centerX * centerX - squareY / queue.length + centerY * centerY);
       const region = (['undersleeve', 'sleeve', 'bottom', 'neckline'] as StitchRegion[])
-        .find(area => context.isPointInPath(masks[area], centerX, centerY, 'evenodd')) ?? 'shoulder';
+        .find(area => context.isPointInPath(masks[area], centerX, centerY, 'evenodd')) ??
+        (centerY / .75 > sleeveBottom ? 'side' : centerY / .75 >= sleeveTop ? 'armhole' : 'shoulder');
       marks[region].push({ x: centerX / .75, y: centerY / .75, tangent: { x: Math.cos(angle), y: Math.sin(angle) } });
     }
-    return { clips, rows: Object.fromEntries(regions.map(region => [region, traceRows(marks[region])])) as StitchGeometry['rows'] };
+    const rows = Object.fromEntries(regions.map(region => [region, traceRows(marks[region])])) as StitchGeometry['rows'];
+    return { clips, rows };
   })();
   cache.set(key, pending);
   if (cache.size > 24) cache.delete(cache.keys().next().value!);
@@ -239,16 +277,27 @@ export function stitchPatternPath(points: Point[], style: StitchStyle): string {
   return path;
 }
 
-export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: StitchGeometry, settings: TshirtStitching, hems?: TshirtHemStyles): string {
+export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: StitchGeometry, settings: TshirtStitching, hems?: TshirtHemStyles, fabricColors?: Record<string, string>, prefix = ''): string {
   const groups = regions.map(region => {
-    if (region in (hems ?? {}) && hems?.[region as keyof TshirtHemStyles] === 'none') return '';
-    const style = settings[region]?.style ?? 'standard';
+    if (!hemGroupEnabled(hems, region)) return '';
+    const resolved = resolveStitchSettings(settings, region);
+    const style = resolved.style ?? 'standard';
     if (style === 'none') return '';
-    const color = colorValue(settings[region]?.color ?? source.tint);
-    const clipId = `stitch-region-${region}`;
+    const width = { fine: 2.1, regular: 2.7, heavy: 3.4 }[resolved.thread ?? 'regular'];
     const path = geometry.rows[region].map(row => stitchPatternPath(row, style)).join('');
-    const content = `<path d="${path}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
-    return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${geometry.clips[region]}"/></clipPath></defs><g data-stitch-region="${region}" data-stitch-style="${style}" clip-path="url(#${clipId})">${content}</g>`;
+    const physical = Object.entries(geometry.hemClips ?? {}).filter(([id]) =>
+      (id === 'bodyHem' ? 'bottom' : id.startsWith('underlayer') ? 'undersleeve' : 'sleeve') === region);
+    const parts = physical.length ? physical.map(([id, clip]) => ({ id, clip: clip.stitchCut, hem: resolveHemSettings(hems, id) }))
+      : [{ id: region, clip: geometry.clips[region], hem: undefined }];
+    return parts.map(part => {
+      if (part.hem?.finish === 'none') return '';
+      const selectedColor = colorValue(part.hem?.stitchColor || resolved.color || source.tint);
+      const fabric = fabricColors?.[part.id] ?? fabricColors?.[region] ?? fabricColors?.base;
+      const color = fabric ? constructionColor(fabric, selectedColor) : selectedColor;
+      const clipId = `${prefix}stitch-region-${part.id}`;
+      const content = `<path d="${path}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${part.clip}"/></clipPath></defs><g data-stitch-region="${region}" data-hem-stitch="${part.id}" data-stitch-style="${style}" clip-path="url(#${clipId})">${content}</g>`;
+    }).join('');
   }).join('');
   return `<svg xmlns="${namespace}" width="2048" height="2048" viewBox="0 0 2048 2048" pointer-events="none" aria-hidden="true">${groups}</svg>`;
 }

@@ -22,14 +22,16 @@ const rearCollarCache = new Map<string, { upper: number[]; lower: number[];
   side: { inset: number; vertical: number }[]; ribPitch: number; ribWidth: number;
   collarWeight: number; shoulderWeight: number }>();
 
-function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: number, outline: ResolvedGarmentLayer) {
-  const cached = rearCollarCache.get(neck.assetId);
+export function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: number, outline: ResolvedGarmentLayer) {
+  const key = neck.svgRaw + outline.svgRaw;
+  const cached = rearCollarCache.get(key);
   if (cached) return cached;
   const documentSvg = new DOMParser().parseFromString(neck.svgRaw, 'image/svg+xml');
   const mounted = document.importNode(documentSvg.documentElement, true);
   mounted.setAttribute('style', 'position:fixed;left:-10000px;top:0;visibility:hidden');
   document.body.appendChild(mounted);
-  const paths = Array.from(mounted.querySelectorAll('path'));
+  const paths = Array.from(mounted.querySelectorAll<SVGPathElement>('path:not([data-collar-backing])'));
+  const sharedGeometry = !!mounted.querySelector('[data-collar-centerline]');
   const bounds = getPotraceSvgBBox(neck.svgRaw)!;
   const upper: number[] = [];
   const lower: number[] = [];
@@ -81,13 +83,25 @@ function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: numb
     return { inset: ((sourceLeft - bounds.minX) + (bounds.maxX - sourceRight)) / 2, vertical };
   });
   mounted.innerHTML = new DOMParser().parseFromString(outline.svgRaw, 'image/svg+xml').documentElement.innerHTML;
-  const inkPaths = Array.from(mounted.querySelectorAll('path'));
+  const inkPaths = Array.from(mounted.querySelectorAll('path'))
+    .filter(path => !path.closest('defs, [data-collar-ribbing], [data-collar-border]'));
+  const collarBorder = mounted.querySelector<SVGPathElement>('[data-collar-border] path');
+  const collarRibs = mounted.querySelector<SVGPathElement>('[data-collar-ribbing] path');
+  const collarClip = mounted.querySelector<SVGPathElement>('clipPath path');
+  const collarMask = mounted.querySelector<SVGPathElement>('mask path');
+  const containsInk = (horizontal: number, vertical: number) => {
+    const point = new DOMPoint(horizontal * 10, (2048 - vertical) * 10);
+    if (collarBorder?.isPointInStroke(point) ||
+      (collarClip?.isPointInFill(point) && collarRibs?.isPointInStroke(point))) return true;
+    if (collarMask && (collarMask.isPointInFill(point) || collarMask.isPointInStroke(point))) return false;
+    return inkPaths.some(path => path.isPointInFill(point));
+  };
   const runs: { start: number; width: number }[] = [];
   let start: number | undefined;
   for (let horizontal = left + (right - left) * .25; horizontal <= right - (right - left) * .25; horizontal += .5) {
     const index = Math.round((horizontal - left) / (right - left) * 64);
     const vertical = rearUpper[index] + sourceThickness / 2;
-    const ink = inkPaths.some(path => path.isPointInFill(new DOMPoint(horizontal * 10, (2048 - vertical) * 10)));
+    const ink = containsInk(horizontal, vertical);
     if (ink && start === undefined) start = horizontal;
     if (!ink && start !== undefined) {
       runs.push({ start, width: horizontal - start });
@@ -96,10 +110,10 @@ function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: numb
   }
   const median = (values: number[], fallback: number) => values.length
     ? values.sort((first, second) => first - second)[Math.floor(values.length / 2)] : fallback;
-  const ribPitch = Math.max(5, Math.min(12, median(runs.slice(1).map((run, index) => run.start - runs[index].start), 7)));
-  const ribWidth = Math.max(1.2, Math.min(2.8, median(runs.map(run => run.width), 1.8)));
+  const ribPitch = sharedGeometry ? 16 : Math.max(5, Math.min(12, median(runs.slice(1).map((run, index) => run.start - runs[index].start), 7)));
+  const ribWidth = sharedGeometry ? 1 : Math.max(1.2, Math.min(2.8, median(runs.map(run => run.width), 1.8)));
   const edgeAt = (horizontal: number) => {
-    const contains = (vertical: number) => inkPaths.some(path => path.isPointInFill(new DOMPoint(horizontal * 10, (2048 - vertical) * 10)));
+    const contains = (vertical: number) => containsInk(horizontal, vertical);
     let vertical = bounds.minY - 30;
     while (vertical < bounds.maxY && !contains(vertical)) vertical += .25;
     const start = vertical;
@@ -108,7 +122,8 @@ function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: numb
   };
   const edgeWeight = (horizontal: number) => {
     const edge = edgeAt(horizontal);
-    const slope = (edgeAt(horizontal + 2).start - edgeAt(horizontal - 2).start) / 4;
+    const step = collarBorder ? 4 : 2;
+    const slope = (edgeAt(horizontal + step).start - edgeAt(horizontal - step).start) / (step * 2);
     return edge.width / Math.sqrt(1 + slope * slope);
   };
   const collarWeight = median(Array.from({ length: 41 }, (_, index) =>
@@ -118,7 +133,8 @@ function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: numb
   const profile = { upper: rearUpper, lower: rearUpper.map(vertical => vertical + thickness), side, ribPitch, ribWidth,
     collarWeight, shoulderWeight };
   mounted.remove();
-  rearCollarCache.set(neck.assetId, profile);
+  rearCollarCache.set(key, profile);
+  if (rearCollarCache.size > 24) rearCollarCache.delete(rearCollarCache.keys().next().value!);
   return profile;
 }
 
@@ -231,7 +247,7 @@ export function withTshirtBackView(
           ribs.push(`M${horizontal},${upper + 2}L${horizontal},${lower - 2}`);
         }
       }
-      const ribInk = `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><path data-rear-ribs="true" d="${ribs.join(' ')}" fill="none" stroke="#141414" stroke-width="${profile.ribWidth}"/></svg>`;
+      const ribInk = `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048"><path data-rear-ribs="true" d="${ribs.join(' ')}" fill="none" stroke="#141414" stroke-opacity="${selectedNeck.svgRaw.includes('data-collar-centerline') ? .7 : 1}" stroke-width="${profile.ribWidth}"/></svg>`;
       const construction = ribs.length ? clearNeck(ribInk, bandShape(), `${prefix}-ribs`, true) : '';
       const shoulder = `${shoulderCurve('left')} M${right - attachment.inset},${attachment.vertical} ${shoulderCurve('right')}`;
       const ink = stitching

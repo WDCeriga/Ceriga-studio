@@ -12,11 +12,11 @@ import React, {
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import { washSvg, type GarmentWash, type WashBounds, type WashTool } from '../../data/garmentWash';
 import { WashEditor } from './WashFinish';
-import type { TshirtStitching } from '../../data/tshirtStitching';
-import { TshirtStitchingLayer } from './TshirtStitching';
+import { availableStitchRegions, stitchFocus, type TshirtStitching } from '../../data/tshirtStitching';
+import { StitchRegionOverlay, TshirtStitchingLayer, useStitchGeometry, type StitchEditor } from './TshirtStitching';
 import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from './measurementPreviewSizing';
-import type { GarmentDetail } from '../../data/garmentDetails';
-import { GarmentDetailsOverlay } from './GarmentDetails';
+import { detailPlacement, detailRotation, zipHardwareGeometry, detailAsset, type GarmentDetail, type DetailBounds } from '../../data/garmentDetails';
+import { GarmentDetailsOverlay, type DetailEditorState } from './GarmentDetails';
 import { GarmentLabelOverlay } from './GarmentLabelOverlay';
 import type { GarmentLabel } from '../../data/garmentLabels';
 import { decorationsForView, replaceViewDecorations } from '../../data/garmentView';
@@ -42,6 +42,9 @@ import {
 } from '../../data/tshirtCuffDefaults';
 import {
   TSHIRT_DETAIL_COLOR,
+  constructionColor,
+  renderConstructionSvg,
+  renderFabricSvg,
   computeSleeveHemAlignOffsetForSide,
   getPotraceSvgBBox,
   isValidBBox,
@@ -51,6 +54,7 @@ import {
   type SleeveSide,
 } from '../../lib/tshirtSvgUtils';
 import { cn } from '../ui/utils';
+import type { NeckFinish } from '../../data/tshirtNeckFinish';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -237,7 +241,10 @@ export interface TshirtSvgPreviewProps {
   /** Per-part colour keyed by layer id; wins over the fabric colour and trim colours. */
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  neckFinish?: NeckFinish;
   tshirtStitching?: TshirtStitching;
+  stitchEditor?: StitchEditor;
+  hemEditor?: { regions: { id: string; name: string }[]; region: string; closeUp: boolean; onSelect: (id: string) => void };
   garmentDetails?: GarmentDetail[];
   garmentLabels?: GarmentLabel[];
   labelReferenceWidthMm?: number;
@@ -252,6 +259,9 @@ export interface TshirtSvgPreviewProps {
   selectedDetailId?: string | null;
   onDetailSelect?: (id: string | null) => void;
   onDetailsChange?: (details: GarmentDetail[]) => void;
+  onDetailBoundsChange?: (bounds: DetailBounds | undefined) => void;
+  onBuiltinDetailsChange?: (details: GarmentDetail[]) => void;
+  detailEditor?: DetailEditorState;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
@@ -364,25 +374,33 @@ function resolveLayerFill(
   fabricColor: string,
   bodyColor: string,
 ): string {
-  if (layer.id === 'outline') return '#141414';
-  if (layer.id === 'innerBackNeck') return lightenHex(bodyColor);
-  if (layer.kind === 'detail') return layer.tint ?? TSHIRT_DETAIL_COLOR;
+  if (layer.id === 'outline') return constructionColor(bodyColor);
+  if (layer.id === 'innerBackNeck') return lightenHex(bodyColor, .12);
+  if (layer.kind === 'detail') return constructionColor(bodyColor, layer.tint ?? TSHIRT_DETAIL_COLOR);
   return layer.tint ?? fabricColor;
 }
 
 function InlineSvg({
   raw,
   fill,
+  fabricColor,
+  linework = false,
+  regions,
   edgeSealWidth = 0,
 }: {
   raw: string;
   fill: string;
+  fabricColor?: string;
+  linework?: boolean;
+  regions?: { raw: string; color: string }[];
   /** Extra same-colour coverage under construction seams, in SVG user units. */
   edgeSealWidth?: number;
 }) {
+  const id = useId().replace(/:/g, '');
   const markup = useMemo(
-    () => tintPotraceSvg(raw, fill, 'solid', false, edgeSealWidth),
-    [raw, fill, edgeSealWidth],
+    () => linework ? renderConstructionSvg(raw, fabricColor ?? fill, fill, id, regions)
+      : edgeSealWidth ? tintPotraceSvg(raw, fill, 'solid', false, edgeSealWidth) : renderFabricSvg(raw, fill),
+    [raw, fill, fabricColor, linework, regions, id, edgeSealWidth],
   );
 
   return (
@@ -560,6 +578,7 @@ function SelectionOutline({
 
 function PreviewLayer({
   layer,
+  layers,
   fabricColor,
   bodyColor,
   transform,
@@ -574,6 +593,7 @@ function PreviewLayer({
   canvasSize,
 }: {
   layer: ResolvedGarmentLayer;
+  layers: ResolvedGarmentLayer[];
   fabricColor: string;
   bodyColor: string;
   transform: TshirtLayerTransform;
@@ -588,6 +608,8 @@ function PreviewLayer({
   canvasSize: number;
 }) {
   const fill = resolveLayerFill(layer, fabricColor, bodyColor);
+  const regions = useMemo(() => layers.filter(part => part.kind === 'solid' && !['base', 'outline', 'innerBackNeck'].includes(part.id))
+    .map(part => ({ raw: part.svgRaw, color: resolveLayerFill(part, fabricColor, bodyColor) })), [layers, fabricColor, bodyColor]);
   const washId = useId();
   const origin = bbox ? (scaleFixedAnchor ? anchorOriginPoint(bbox, scaleFixedAnchor) : { x: bbox.centerX, y: bbox.centerY }) : { x: 1024, y: 1024 };
   const scale = resolveLayerScale(transform);
@@ -614,11 +636,10 @@ function PreviewLayer({
       >
         <InlineSvg
           raw={layer.svgRaw}
-          fill={fill}
-          // The body is the continuous fabric underlay. A small same-colour
-          // stroke closes raster/trace hairlines at the neckline, shoulders,
-          // armholes and hem without changing the visible black outline.
-          edgeSealWidth={layer.id === 'base' ? 72 : 0}
+          fill={layer.id === 'outline' ? '#141414' : fill}
+          fabricColor={bodyColor}
+          linework={layer.id === 'outline' || layer.kind === 'detail'}
+          regions={regions}
         />
         {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
       </div>
@@ -783,7 +804,10 @@ export function TshirtSvgPreview({
   stitchingColor,
   partColors,
   tshirtHemStyles,
+  neckFinish,
   tshirtStitching,
+  stitchEditor,
+  hemEditor,
   garmentDetails = [],
   garmentLabels = [],
   labelReferenceWidthMm,
@@ -792,6 +816,9 @@ export function TshirtSvgPreview({
   selectedDetailId,
   onDetailSelect,
   onDetailsChange,
+  onDetailBoundsChange,
+  onBuiltinDetailsChange,
+  detailEditor,
   layerTransforms,
   onLayerTransformChange,
   selectedLayerId = null,
@@ -828,7 +855,7 @@ export function TshirtSvgPreview({
 
   const fabricColor = color || '#5C7FB6';
   const bodyColor = partColors?.base ?? fabricColor;
-  const editable = Boolean(onLayerTransformChange) && !washEditable && !labelEditor;
+  const editable = Boolean(onLayerTransformChange) && !washEditable && !labelEditor && !stitchEditor;
 
   const layers = useMemo(
     () =>
@@ -843,11 +870,12 @@ export function TshirtSvgPreview({
         stitchingColor,
         partColors,
         tshirtHemStyles,
+        neckFinish,
         fit,
         customCollar,
         customCollars,
       }),
-    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, fit, customCollar, customCollars],
+    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);
@@ -1151,11 +1179,82 @@ export function TshirtSvgPreview({
     [onSelectedLayerChange],
   );
 
+  const displayBounds = (id: string) => {
+      const layout = layerLayouts.find(item => item.id === id);
+      if (!layout?.bbox) return undefined;
+      const { bbox } = layout;
+      const transform = resolveLayerDisplayTransform(layout.id, layout.transform, bbox);
+      const { scaleX, scaleY } = resolveLayerScale(transform);
+      const matrix = new DOMMatrix().translate(bbox.centerX + transform.x * 2048 / canvasSize, bbox.centerY + transform.y * 2048 / canvasSize)
+        .rotate(transform.rotation).scale(scaleX, scaleY)
+        .translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
+      const points = [[bbox.minX, bbox.minY], [bbox.maxX, bbox.minY], [bbox.maxX, bbox.maxY], [bbox.minX, bbox.maxY]]
+        .map(([pointX, pointY]) => matrix.transformPoint({ x: pointX, y: pointY }));
+      return { minX: Math.min(...points.map(point => point.x)), maxX: Math.max(...points.map(point => point.x)),
+        minY: Math.min(...points.map(point => point.y)), maxY: Math.max(...points.map(point => point.y)) };
+  };
+  const detailBounds = (() => {
+    const body = displayBounds('base');
+    if (!body) return undefined;
+    return { ...body, maxY: Math.max(body.maxY, displayBounds('bodyHem')?.maxY ?? body.maxY), necklineY: displayBounds('neck')?.maxY };
+  })();
+  useEffect(() => { onDetailBoundsChange?.(detailBounds); }, [onDetailBoundsChange, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY, detailBounds?.necklineY]);
+
+  useEffect(() => {
+    if (!onBuiltinDetailsChange || !detailBounds) return;
+    const bodyWidth = detailBounds.maxX - detailBounds.minX;
+    const bodyHeight = detailBounds.maxY - detailBounds.minY;
+    const categories = getGarmentSvgConfig(garmentType).stepCategories[6] ?? [];
+    const candidates: GarmentDetail[] = [];
+    for (const layout of layerLayouts) {
+      if (!layout.bbox || !categories.includes(layout.sourceLayer.category)) continue;
+      const { bbox, transform, sourceLayer } = layout;
+      const scale = resolveLayerScale(transform);
+      const matrix = new DOMMatrix().translate(bbox.centerX + transform.x * 2048 / canvasSize, bbox.centerY + transform.y * 2048 / canvasSize)
+        .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
+      const center = matrix.transformPoint({ x: bbox.centerX, y: bbox.centerY });
+      candidates.push({ id: `builtin-${detailView}-${layout.id}`, type: 'pocket', name: `${sourceLayer.category}: ${sourceLayer.displayName}`, view: detailView,
+        x: (center.x - detailBounds.minX) / bodyWidth, y: (center.y - detailBounds.minY) / bodyHeight,
+        scale: 1, scaleX: Math.abs(scale.scaleX), scaleY: Math.abs(scale.scaleY), rotation: transform.rotation,
+        flipX: scale.scaleX < 0, flipY: scale.scaleY < 0, lockProportions: /pull|button|toggle|aglet/i.test(sourceLayer.category),
+        fill: resolveLayerFill(sourceLayer, fabricColor, bodyColor), outline: '#141414', stitch: '#707070', hardware: '#D4D4D4', selected: false,
+        sourceLayerId: layout.id, catalogueAsset: { id: sourceLayer.assetId, crop: bbox, width: (bbox.maxX - bbox.minX) / bodyWidth, ratio: (bbox.maxX - bbox.minX) / (bbox.maxY - bbox.minY) } });
+    }
+    onBuiltinDetailsChange(candidates);
+  }, [onBuiltinDetailsChange, layerLayouts, canvasSize, garmentType, detailView, fabricColor, bodyColor, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY]);
+  const overriddenTrimIds = new Set(decorationsForView(garmentDetails, detailView).map(detail => detail.sourceLayerId).filter(Boolean));
+
+  const { geometry: stitchGeometry } = useStitchGeometry(layers, fit ?? 'slim', Boolean(stitchEditor));
+  const visibleStitchRegions = stitchGeometry ? availableStitchRegions(stitchGeometry, tshirtHemStyles) : [];
+  const focusedStitchRegion = stitchEditor && visibleStitchRegions.includes(stitchEditor.region) ? stitchEditor.region : visibleStitchRegions[0];
+  const stitchCamera = stitchEditor?.closeUp && stitchGeometry && focusedStitchRegion
+    ? stitchFocus(stitchGeometry, focusedStitchRegion) : { x: 1024, y: 1024, scale: 1 };
+  const detailCamera = (() => {
+    const selected = decorationsForView(garmentDetails, detailView).find(detail => detail.id === selectedDetailId);
+    if (!detailEditor?.closeUp || !selected || !detailBounds) return undefined;
+    const placement = detailPlacement(selected, detailBounds);
+    if (selected.type !== 'zip') return { x: placement.left + placement.width / 2, y: placement.top + placement.height / 2, scale: Math.min(6, Math.max(2, 700 / Math.max(placement.width, placement.height))) };
+    const sourceWidth = Number(new DOMParser().parseFromString(detailAsset(selected).svg, 'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2]) || 48;
+    const sourceHeight = sourceWidth * placement.height / placement.width;
+    const hardware = zipHardwareGeometry(selected, sourceWidth, sourceHeight);
+    const pullY = (hardware.pullY + 22 * hardware.hardwareScale) / sourceHeight;
+    const offsetY = ((selected.flipY ? 1 - pullY : pullY) - .5) * placement.height;
+    const radians = detailRotation(selected) * Math.PI / 180;
+    return { x: placement.left + placement.width / 2 - Math.sin(radians) * offsetY,
+      y: placement.top + placement.height / 2 + Math.cos(radians) * offsetY, scale: Math.min(8, Math.max(2, 280 / placement.width)) };
+  })();
+  const hemBounds = hemEditor ? displayBounds(hemEditor.region) : undefined;
+  const hemCamera = hemEditor?.closeUp && hemBounds ? {
+    x: (hemBounds.minX + hemBounds.maxX) / 2, y: (hemBounds.minY + hemBounds.maxY) / 2,
+    scale: Math.min(5, Math.max(1.2, 1500 / Math.max(hemBounds.maxX - hemBounds.minX, hemBounds.maxY - hemBounds.minY))),
+  } : undefined;
+  const previewCamera = hemCamera ?? detailCamera ?? stitchCamera;
+
   const toolHint = useMemo(() => {
-    if (!editable || !selectedLayerId) return null;
+    if (!editable || !selectedLayerId || hemEditor) return null;
     if (gestureLayerId) return `Adjusting ${selectedDisplayName}…`;
     return 'Drag to move · corner/edge handles to stretch · ↻ to rotate';
-  }, [editable, gestureLayerId, selectedDisplayName, selectedLayerId]);
+  }, [editable, gestureLayerId, selectedDisplayName, selectedLayerId, hemEditor]);
 
   return (
     <div
@@ -1163,15 +1262,25 @@ export function TshirtSvgPreview({
         GARMENT_PREVIEW_CONTAINER_CLASS,
         className,
       )}
-      onPointerDown={editable ? handleBackgroundPointerDown : undefined}
+      onPointerDown={editable && !hemEditor ? handleBackgroundPointerDown : undefined}
+      style={stitchEditor || detailCamera || hemEditor ? { overflow: 'hidden' } : undefined}
     >
       <div
         ref={canvasRef}
-        className={GARMENT_PREVIEW_CANVAS_CLASS}
+        className={cn(GARMENT_PREVIEW_CANVAS_CLASS, 'motion-reduce:!transition-none')}
+        data-stitch-camera={stitchEditor ? `${focusedStitchRegion}:${stitchEditor.closeUp ? 'close-up' : 'garment'}` : undefined}
+        data-detail-camera={detailCamera ? 'close-up' : 'garment'}
+        data-hem-camera={hemEditor ? `${hemEditor.region}:${hemEditor.closeUp ? 'close-up' : 'garment'}` : undefined}
+        style={stitchEditor || detailCamera || hemEditor ? {
+          transform: `translate(${(1024 - previewCamera.x) / 2048 * 100 * previewCamera.scale}%, ${(1024 - previewCamera.y) / 2048 * 100 * previewCamera.scale}%) scale(${previewCamera.scale})`,
+          transition: detailCamera ? undefined : 'transform 850ms cubic-bezier(.22,.68,0,1)',
+          transformOrigin: 'center',
+        } : undefined}
       >
         {layerLayouts.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) => {
+          if (overriddenTrimIds.has(id)) return null;
           if (sourceLayer.id === 'stitching' && garmentType === 'tshirt') {
-            return <TshirtStitchingLayer key="stitching" layers={layers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} />;
+            return <TshirtStitchingLayer key="stitching" layers={layers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} fabricColor={fabricColor} />;
           }
           const scaleFixedAnchor =
             scaleGestureStorageId && transformStorageId(id) === scaleGestureStorageId
@@ -1184,6 +1293,7 @@ export function TshirtSvgPreview({
               key={`${sourceLayer.category}-${id}`}
               layerId={id}
               layer={sourceLayer}
+              layers={layers}
               garmentWash={showWash ? washDraft ?? garmentWash : undefined}
               washBounds={washBounds}
               detailView={detailView}
@@ -1199,9 +1309,9 @@ export function TshirtSvgPreview({
           );
         })}
 
-        {editable
+        {editable && !hemEditor
           ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>
-              bbox ? (
+              bbox && !overriddenTrimIds.has(id) ? (
                 <LayerHitTarget
                   key={`hit-${id}`}
                   layerId={id}
@@ -1221,7 +1331,25 @@ export function TshirtSvgPreview({
             )
           : null}
 
-        {!washEditable && !labelEditor && selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
+        {stitchEditor && stitchGeometry && focusedStitchRegion && <StitchRegionOverlay geometry={stitchGeometry}
+          hems={tshirtHemStyles} editor={{ ...stitchEditor, region: focusedStitchRegion }} />}
+
+        {hemEditor && <svg viewBox="0 0 2048 2048" aria-label="Hem selection" className="pointer-events-none absolute inset-0 z-[250] h-full w-full">
+          {hemEditor.regions.map(region => {
+            const bounds = displayBounds(region.id);
+            if (!bounds) return null;
+            const active = region.id === hemEditor.region;
+            return <g key={region.id}>
+              <rect data-hem-hit={region.id} x={bounds.minX - 5} y={bounds.minY - 5} width={bounds.maxX - bounds.minX + 10} height={bounds.maxY - bounds.minY + 10}
+                fill="transparent" stroke="none"
+                pointerEvents="all" role="button" tabIndex={0} aria-label={`Select ${region.name}`} aria-pressed={active} className="cursor-pointer"
+                onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); hemEditor.onSelect(region.id); }}
+                onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); hemEditor.onSelect(region.id); } }} />
+            </g>;
+          })}
+        </svg>}
+
+        {!washEditable && !labelEditor && !stitchEditor && !hemEditor && selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
           <SelectionOutline
             bbox={selectedLayout.bbox}
             transform={selectedDisplayTransform}
@@ -1233,11 +1361,12 @@ export function TshirtSvgPreview({
             onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
           />
         ) : null}
-        {garmentType === 'tshirt' && garmentDetails.length > 0 && (() => {
-          const bodyBounds = layerLayouts.find(layout => layout.id === 'base')?.bbox;
+        {garmentDetails.length > 0 && (() => {
+          const bodyBounds = detailBounds;
           return bodyBounds ? <GarmentDetailsOverlay key={detailView} view={detailView}
             details={decorationsForView(garmentDetails, detailView)} bounds={bodyBounds}
             selectedId={selectedDetailId} onSelect={onDetailSelect}
+            editor={detailEditor}
             onChange={onDetailsChange ? details => onDetailsChange(replaceViewDecorations(garmentDetails, detailView, details)) : undefined} /> : null;
         })()}
         {garmentType === 'tshirt' && garmentLabels.length > 0 && <GarmentLabelOverlay
@@ -1257,6 +1386,9 @@ export function TshirtSvgPreview({
           onToolChange={onWashToolChange} onDraft={setWashDraft} onCommit={onWashChange} />}
       </div>
 
+      {hemEditor && <div className="pointer-events-none absolute left-2 top-2 z-[260] bg-white/90 px-2 py-1 text-xs text-[#292929]">
+        {hemEditor.regions.find(region => region.id === hemEditor.region)?.name}
+      </div>}
       {toolHint ? (
         <p className="pointer-events-none absolute -bottom-6 left-1/2 z-10 w-max max-w-full -translate-x-1/2 text-center text-[9px] leading-snug text-white/35">
           {toolHint}

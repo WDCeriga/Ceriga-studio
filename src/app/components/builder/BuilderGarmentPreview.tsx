@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import type { GarmentType } from '../../data/builderSteps';
 import { cn } from '../ui/utils';
+import { constructionColor } from '../../lib/tshirtSvgUtils';
 
 export interface BuilderGarmentPreviewProps {
   garmentType: GarmentType;
@@ -649,7 +650,7 @@ export function BuilderGarmentPreview({
 }: BuilderGarmentPreviewProps) {
   const uid = useId().replace(/:/g, '');
   const fill = color || '#5C7FB6';
-  const stroke = shade(fill, -0.35);
+  const stroke = constructionColor(fill, shade(fill, -0.35));
   const gradientId = `garment-light-${uid}`;
 
   return (
@@ -681,7 +682,7 @@ export function BuilderGarmentPreview({
               zipType,
               fadingType,
               stitchingType,
-              stitchingColor,
+              stitchingColor: constructionColor(fill, stitchingColor ?? stroke),
               neckTrimColor,
               sleeveTrimColor,
               pocketTrimColor,

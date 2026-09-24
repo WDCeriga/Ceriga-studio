@@ -33,7 +33,7 @@ export function GarmentAssetChoiceGrid({
   return (
     <div>
       <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-        {category}
+        {category === 'Neck' ? 'Neck shape' : category}
       </Label>
       <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
         {allowNone ? (

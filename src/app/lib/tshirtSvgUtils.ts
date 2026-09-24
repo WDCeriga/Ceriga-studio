@@ -1,3 +1,90 @@
+export function fabricLuminance(color: string): number {
+  const expanded = color.replace(/^#([\da-f])([\da-f])([\da-f])$/i, '#$1$1$2$2$3$3');
+  if (!/^#[\da-f]{6}$/i.test(expanded)) return 1;
+  const channels = [1, 3, 5].map(offset => {
+    const channel = parseInt(expanded.slice(offset, offset + 2), 16) / 255;
+    return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+  });
+  return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+}
+
+export function constructionColor(fabric: string, preferred = '#141414'): string {
+  const background = fabricLuminance(fabric);
+  const contrast = (color: string) => {
+    const ink = fabricLuminance(color);
+    return (Math.max(background, ink) + .05) / (Math.min(background, ink) + .05);
+  };
+  if (contrast(preferred) >= 3) return preferred;
+  return contrast('#929292') > contrast('#242424') ? '#929292' : '#242424';
+}
+
+export function renderFabricSvg(raw: string, fill: string): string {
+  const tinted = tintPotraceSvg(raw, fill);
+  if (typeof DOMParser === 'undefined') return tinted;
+  const parsed = new DOMParser().parseFromString(tinted, 'image/svg+xml');
+  const fabric = parsed.querySelector('g[transform]');
+  for (const element of parsed.querySelectorAll('[stroke]')) {
+    if (element.closest('defs')) continue;
+    const stroke = element.getAttribute('stroke')!;
+    if (/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(stroke)) element.setAttribute('stroke', constructionColor(fill, stroke));
+  }
+  if (fabric && fabricLuminance(fill) < .06 && parsed.documentElement.getAttribute('data-neck-finish') !== 'raw') {
+    fabric.setAttribute('stroke', '#505050');
+    fabric.setAttribute('stroke-width', '12');
+    fabric.setAttribute('stroke-linejoin', 'round');
+    fabric.setAttribute('paint-order', 'stroke fill');
+    fabric.setAttribute('data-fabric-edge-highlight', 'true');
+  }
+  return new XMLSerializer().serializeToString(parsed.documentElement);
+}
+
+export function renderConstructionSvg(
+  raw: string, fabric: string, preferred: string, id: string,
+  regions: { raw: string; color: string }[] = [],
+): string {
+  const ink = constructionColor(fabric, preferred);
+  const tinted = tintPotraceSvg(raw, ink);
+  if (typeof DOMParser === 'undefined') return tinted;
+  const parsed = new DOMParser().parseFromString(tinted, 'image/svg+xml');
+  const root = parsed.documentElement;
+  const namespace = 'http://www.w3.org/2000/svg';
+  for (const element of parsed.querySelectorAll('[fill], [stroke]')) {
+    if (element.closest('defs')) continue;
+    for (const attribute of ['fill', 'stroke']) {
+      const value = element.getAttribute(attribute);
+      if (value && /^(?:#[\da-f]{3}(?:[\da-f]{3})?|black|white)$/i.test(value)) element.setAttribute(attribute, 'currentColor');
+    }
+  }
+  const drawing = parsed.createElementNS(namespace, 'g');
+  drawing.setAttribute('id', `${id}-ink`);
+  for (const child of Array.from(root.childNodes)) drawing.append(child);
+  root.append(drawing);
+  root.setAttribute('color', ink);
+  regions.forEach((region, index) => {
+    const color = constructionColor(region.color, preferred);
+    if (color === ink) return;
+    const mask = parsed.createElementNS(namespace, 'mask');
+    mask.setAttribute('id', `${id}-region-${index}`);
+    mask.setAttribute('maskUnits', 'userSpaceOnUse');
+    mask.setAttribute('x', '0'); mask.setAttribute('y', '0');
+    mask.setAttribute('width', '2048'); mask.setAttribute('height', '2048');
+    mask.setAttribute('style', 'mask-type:alpha');
+    const image = parsed.createElementNS(namespace, 'image');
+    image.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(region.raw)}`);
+    image.setAttribute('width', '2048'); image.setAttribute('height', '2048');
+    mask.append(image);
+    const defs = parsed.createElementNS(namespace, 'defs');
+    defs.append(mask);
+    root.append(defs);
+    const overlay = parsed.createElementNS(namespace, 'use');
+    overlay.setAttribute('href', `#${id}-ink`);
+    overlay.setAttribute('mask', `url(#${id}-region-${index})`);
+    overlay.setAttribute('color', color);
+    root.append(overlay);
+  });
+  return new XMLSerializer().serializeToString(root);
+}
+
 /** Prepare potrace SVG exports for inline rendering. */
 export function tintPotraceSvg(
   raw: string,
@@ -317,7 +404,8 @@ function measureAllPotraceBBoxes(
   try {
     const svg = host.querySelector('svg');
     const group = svg?.querySelector('g[transform]') as SVGGElement | null;
-    const paths = Array.from(host.querySelectorAll('svg path')) as SVGPathElement[];
+    const paths = Array.from(host.querySelectorAll<SVGPathElement>('svg path'))
+      .filter(path => !path.closest('defs, [data-hem-decoration]'));
     if (!group || paths.length === 0) return { full: null, left: null, right: null };
 
     const { tx, ty, sx, sy } = parsePotraceGroupTransform(group.getAttribute('transform') ?? '');

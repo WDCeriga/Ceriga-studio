@@ -2,6 +2,8 @@ import type { GarmentType } from './builderSteps';
 import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
 import { withTshirtHemStyles, type TshirtHemStyles } from './tshirtHemStyles';
 import { withTshirtBackView } from './tshirtBackView';
+import { withTshirtCollarContours } from './tshirtCollarContours';
+import { withTshirtNeckFinish, type NeckFinish } from './tshirtNeckFinish';
 import type { GarmentView } from './garmentView';
 
 export const GARMENT_NONE = '__none__';
@@ -223,6 +225,7 @@ export interface ResolveGarmentLayersInput {
   /** Per-layer colour, keyed by layer id. Overrides the fabric colour and trim bindings. */
   partColors?: Partial<Record<string, string>>;
   tshirtHemStyles?: TshirtHemStyles;
+  neckFinish?: NeckFinish;
   /** Pack fit, so neck→body links stay on the slim or boxy cut. */
   fit?: string;
   /** Photo-traced collar + matching body cut, used when Neck is a custom upload. */
@@ -1257,10 +1260,19 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     ? withLongSleeves(layers, fit, sleeveVariant)
     : layers;
   if (input.garmentType === 'tshirt') {
+    resolved = withTshirtCollarContours(resolved);
     resolved = withTshirtHemStyles(resolved, fit, layered ? 'layered-long' : sleeveVariant ?? 'short', input.tshirtHemStyles);
     if (input.view === 'back') {
       resolved = withTshirtBackView(resolved, fit);
     }
+    resolved = withTshirtNeckFinish(resolved, input.neckFinish);
+  } else {
+    resolved = resolved.map(layer => {
+      const color = input.tshirtHemStyles?.editing?.regions?.[layer.id]?.color;
+      if (color === undefined) return layer;
+      const parentId = layer.id.startsWith('sleeveHem') ? layer.id.replace('sleeveHem', 'sleeve') : 'base';
+      return { ...layer, tint: color || resolved.find(parent => parent.id === parentId)?.tint };
+    });
   }
   return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

@@ -9,7 +9,7 @@ export interface LabelAttachmentLayer {
   bbox: PotraceSvgBBox;
   matrix: string;
 }
-export interface LabelFocus { id: string; x: number; y: number; width: number; height: number }
+export interface LabelFocus { id: string; x: number; y: number; width: number; height: number; context?: { x: number; y: number; width: number; height: number } }
 type Mask = { pixels: Uint8ClampedArray; size: number };
 const neckAreas = new WeakMap<Mask, { minX: number; maxX: number; minY: number; maxY: number }>();
 export function neckLabelArea(mask: Mask) {
@@ -170,10 +170,25 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
   const selected = labels.find(label => label.id === selectedId);
   const placement = selected ? labelPlacement(selected, layers, referenceWidthMm, maskById) : null;
   const corners = placement ? [[placement.x, 0], [placement.x + placement.width, 0], [placement.x, placement.height], [placement.x + placement.width, placement.height]].map(([x, y]) => placement.matrix.transformPoint(new DOMPoint(x, y))) : [];
+  const contextLayers = selected?.category === 'neck' || selected?.position.startsWith('neck-')
+    ? layers.filter(layer => ['neck', 'innerBackNeck'].includes(layer.id))
+    : selected?.position.startsWith('sleeve-')
+      ? layers.filter(layer => ['sleeve', 'underSleeve', 'sleeveHem', 'underSleeveHem'].some(prefix => layer.id === `${prefix}${selected.position.endsWith('left') ? 'Left' : 'Right'}`))
+      : [];
+  const contextCorners = contextLayers.length ? [...corners, ...contextLayers.flatMap(layer => {
+    const matrix = new DOMMatrix(layer.matrix);
+    const bounds = layer.bbox;
+    return [[bounds.minX, bounds.minY], [bounds.maxX, bounds.minY], [bounds.minX, bounds.maxY], [bounds.maxX, bounds.maxY]].map(([x, y]) => matrix.transformPoint(new DOMPoint(x, y)));
+  })] : [];
+  const contextMinX = Math.min(...contextCorners.map(point => point.x));
+  const contextMaxX = Math.max(...contextCorners.map(point => point.x));
+  const contextMinY = Math.min(...contextCorners.map(point => point.y));
+  const contextMaxY = Math.max(...contextCorners.map(point => point.y));
   const focused = placement && selected ? { id: selected.id, x: placement.center.x, y: placement.center.y,
     width: Math.max(...corners.map(point => point.x)) - Math.min(...corners.map(point => point.x)),
-    height: Math.max(...corners.map(point => point.y)) - Math.min(...corners.map(point => point.y)) } : null;
-  useEffect(() => { if (focused) onFocus?.(focused); }, [focused?.id, focused?.x, focused?.y, focused?.width, focused?.height, onFocus]);
+    height: Math.max(...corners.map(point => point.y)) - Math.min(...corners.map(point => point.y)),
+    context: contextCorners.length ? { x: (contextMinX + contextMaxX) / 2, y: (contextMinY + contextMaxY) / 2, width: contextMaxX - contextMinX, height: contextMaxY - contextMinY } : undefined } : null;
+  useEffect(() => { if (focused) onFocus?.(focused); }, [focused?.id, focused?.x, focused?.y, focused?.width, focused?.height, focused?.context?.x, focused?.context?.y, focused?.context?.width, focused?.context?.height, onFocus]);
   const start = (event: PointerEvent<SVGGElement | SVGRectElement>, label: GarmentLabel, placement: NonNullable<ReturnType<typeof labelPlacement>>, resize: boolean) => {
     if (!onChange || !svgRef.current || event.button !== 0) return;
     event.stopPropagation(); event.preventDefault(); onSelect?.(label.id);
@@ -206,7 +221,11 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
           <LabelArtwork label={label} guide={Boolean(onChange && selectedId === label.id)} />
           {onChange && <rect width={label.widthMm} height={label.heightMm} fill="transparent" />}
         </g>
-        {onChange && selectedId === label.id && <rect data-label-handle="" x={placement.width / 2 - 7} y={placement.height - 7} width="14" height="14" fill="white" stroke="#cc2d24" strokeWidth="2" style={{ pointerEvents: 'auto', touchAction: 'none', cursor: 'nwse-resize' }} onPointerDown={event => start(event, label, placement, true)} />}
+        {onChange && selectedId === label.id && <g data-label-handle="" style={{ pointerEvents: 'auto', touchAction: 'none', cursor: 'nwse-resize' }} onPointerDown={event => start(event, label, placement, true)}>
+          <title>Resize label</title>
+          <rect x={placement.width / 2 - 7} y={placement.height - 7} width="14" height="14" fill="transparent" />
+          <rect x={placement.width / 2 - 1.4} y={placement.height - 1.4} width="2.8" height="2.8" rx=".4" fill="white" stroke="#8f5551" strokeWidth=".8" vectorEffect="non-scaling-stroke" />
+        </g>}
       </g>;
     })}
   </svg>;

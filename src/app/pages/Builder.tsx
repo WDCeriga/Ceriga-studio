@@ -133,10 +133,12 @@ import {
 } from '../data/orderQuantities';
 import { cn } from '../components/ui/utils';
 import type { MeasurementUnit } from '../lib/measurements';
-import { TSHIRT_HEM_OPTIONS, type TshirtHemStyle, type TshirtHemStyles } from '../data/tshirtHemStyles';
-import type { TshirtStitching } from '../data/tshirtStitching';
+import { TSHIRT_HEM_OPTIONS, availableHemRegions, resolveHemSettings, type TshirtHemStyles } from '../data/tshirtHemStyles';
+import { HemCuffsPanel } from '../components/builder/HemCuffsPanel';
+import type { StitchRegion, TshirtStitching } from '../data/tshirtStitching';
+import { NECK_FINISH_OPTIONS, type NeckFinish } from '../data/tshirtNeckFinish';
 import { TshirtStitchingPanel } from '../components/builder/TshirtStitching';
-import type { GarmentDetail } from '../data/garmentDetails';
+import { copyDetailToOpposite, type GarmentDetail, type DetailBounds } from '../data/garmentDetails';
 import { decorationsForView, replaceViewDecorations } from '../data/garmentView';
 import { GarmentDetailsPanel } from '../components/builder/GarmentDetails';
 import { ProjectGarmentPreview } from '../components/studio/ProjectGarmentPreview';
@@ -229,6 +231,7 @@ interface BuilderState {
   gsm?: string;
   colors: Array<{ hex: string; pantone: string }>;
   neckType?: string;
+  neckFinish?: NeckFinish;
   sleeveType?: string;
   sleeveLength?: string;
   hemType?: string;
@@ -544,6 +547,7 @@ export function Builder() {
   );
   const [showFront, setShowFront] = useState(true);
   const [garmentLabelSelectedId, setGarmentLabelSelectedId] = useState<string | null>(null);
+  const [garmentLabelTagView, setGarmentLabelTagView] = useState<'front' | 'back'>('front');
   const [legacyLabelEditing, setLegacyLabelEditing] = useState(false);
   const [showWash, setShowWash] = useState(true);
   const [washTool, setWashTool] = useState<WashTool>({ mode: 'brush', size: 12, strength: 65, softness: 65, erase: false, selectedId: null });
@@ -696,6 +700,14 @@ export function Builder() {
   );
 
   const garmentView = showFront ? 'front' : 'back';
+  const [stitchRegion, setStitchRegion] = useState<StitchRegion>('neckline');
+  const [stitchCloseUp, setStitchCloseUp] = useState(false);
+  useEffect(() => {
+    if (currentStep === 8) { setStitchCloseUp(false); setStitchRegion('neckline'); }
+  }, [currentStep]);
+  const stitchEditor = { region: stitchRegion, closeUp: stitchCloseUp, onSelect: setStitchRegion };
+  const [hemRegion, setHemRegion] = useState('bodyHem');
+  const [hemCloseUp, setHemCloseUp] = useState(false);
   const garmentWash = useMemo(() => state.garmentWash ?? defaultGarmentWash(), [state.garmentWash]);
   const changeWash = (wash: GarmentWash) => setState(prev => ({ ...prev, garmentWash: wash }));
   const packagingValue = state.packagingDesign ?? migrateLegacyPackaging(state.packagingType, state.packagingColor, state.extraDetails.packaging, state.packaging);
@@ -703,6 +715,15 @@ export function Builder() {
   const [packagingBoundary, setPackagingBoundary] = useState(false);
   const changePackaging = (packagingDesign: PackagingState) => setState(prev => ({ ...prev, packagingDesign }));
   const visibleGarmentDetails = decorationsForView(state.garmentDetails ?? [], garmentView);
+  const [garmentDetailBounds, setGarmentDetailBounds] = useState<DetailBounds>();
+  const [builtinDetails, setBuiltinDetails] = useState<GarmentDetail[]>([]);
+  const updateBuiltinDetails = useCallback((details: GarmentDetail[]) => setBuiltinDetails(previous => JSON.stringify(previous) === JSON.stringify(details) ? previous : details), []);
+  const [detailPart, setDetailPart] = useState<'zip' | 'pull'>('zip');
+  const [detailCloseUp, setDetailCloseUp] = useState(false);
+  const [detailSnap, setDetailSnap] = useState(true);
+  const [detailDraft, setDetailDraft] = useState<GarmentDetail | null>(null);
+  const detailEditor = { part: detailPart, closeUp: detailCloseUp, onPartChange: setDetailPart, onCloseUpChange: setDetailCloseUp,
+    snap: detailSnap, onSnapChange: setDetailSnap, draft: detailDraft, onDraftChange: setDetailDraft };
   const visiblePrints = decorationsForView(state.prints, garmentView);
   const selectedGarmentDetailId = visibleGarmentDetails.find(detail => detail.selected)?.id ?? null;
   const selectGarmentDetail = (id: string | null) => {
@@ -1353,12 +1374,22 @@ export function Builder() {
     : 0;
   const stitchingLayers = useMemo(() => garmentSvgType === 'tshirt' ? resolveGarmentLayers({
     garmentType: 'tshirt', view: garmentView, selection: garmentSelection, fit: activeFit,
-    tshirtHemStyles: state.tshirtHemStyles, stitchingColor: state.stitchingColor,
+    tshirtHemStyles: state.tshirtHemStyles, neckFinish: state.neckFinish, stitchingColor: state.stitchingColor,
     partColors: state.partColors, customCollar: state.customCollar, customCollars: state.customCollars,
-  }) : [], [garmentSvgType, garmentView, garmentSelection, activeFit, state.tshirtHemStyles, state.stitchingColor,
+  }) : [], [garmentSvgType, garmentView, garmentSelection, activeFit, state.tshirtHemStyles, state.neckFinish, state.stitchingColor,
     state.partColors, state.customCollar, state.customCollars]);
   const showGarmentLayerToolbar =
-    isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax;
+    isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax &&
+    currentStep !== 5 && !(garmentSvgType === 'tshirt' && currentStep === 8);
+  const hemLayers = useMemo(() => garmentSvgType ? resolveGarmentLayers({
+    garmentType: garmentSvgType, view: garmentView, selection: garmentSelection, fit: activeFit,
+    tshirtHemStyles: state.tshirtHemStyles, partColors: state.partColors,
+    cuffTrimColor: state.cuffTrimColor, sleeveTrimColor: state.sleeveTrimColor,
+  }) : [], [garmentSvgType, garmentView, garmentSelection, activeFit, state.tshirtHemStyles,
+    state.partColors, state.cuffTrimColor, state.sleeveTrimColor]);
+  const hemRegions = availableHemRegions(hemLayers, garmentSvgType ?? '');
+  const activeHemRegion = hemRegions.find(region => region.id === hemRegion)?.id ?? hemRegions[0]?.id ?? '';
+  const hemEditor = { regions: hemRegions, region: activeHemRegion, closeUp: hemCloseUp, onSelect: setHemRegion };
   const tshirtSelectedAssetName = useMemo(() => {
     if (!tshirtLayerSelectedId || !garmentSvgType) return undefined;
     return resolveGarmentLayers({
@@ -2072,7 +2103,10 @@ export function Builder() {
 
   const renderGarmentAssetGrids = (step: number) => {
     if (!garmentSvgType) return null;
-    return getGarmentChoiceCategoriesForStep(garmentSvgType, step).map((category) => (
+    return getGarmentChoiceCategoriesForStep(garmentSvgType, step)
+      .filter(category => step !== 5 || state.tshirtHemStyles?.editing?.applyAll !== false ||
+        hemRegions.find(region => region.id === activeHemRegion)?.category === category)
+      .map((category) => (
       <GarmentAssetChoiceGrid
         key={category}
         garmentType={garmentSvgType}
@@ -2090,6 +2124,7 @@ export function Builder() {
         onSelect={(assetId) =>
           setState((prev) => ({
             ...prev,
+            garmentDetails: step === 6 ? prev.garmentDetails?.filter(detail => (detail.view ?? 'front') !== garmentView || detail.sourceLayerId !== garmentConfig?.categoryLayerId[category]) : prev.garmentDetails,
             tshirtAssetSelection: applyGarmentFitAndLinks(
               garmentSvgType,
               {
@@ -2298,6 +2333,18 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(3)}
+              {garmentSvgType === 'tshirt' ? (
+                <div>
+                  <Label htmlFor="neck-finish" className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">Neck finish</Label>
+                  <select id="neck-finish" value={state.neckFinish ?? ''}
+                    onChange={event => setState(prev => ({ ...prev, neckFinish: (event.target.value || undefined) as NeckFinish | undefined }))}
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full rounded-md border border-[#252528] bg-[#171719] px-3 py-2 text-xs text-white [&>option]:bg-[#171719] [&>option]:text-white">
+                    <option value="">Original finish</option>
+                    {NECK_FINISH_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </div>
+              ) : null}
               {garmentSvgType === 'tshirtTest' ? (
                 <CollarPhotoUpload
                   disabled={activeFit !== 'slim'}
@@ -2495,61 +2542,11 @@ export function Builder() {
         if (isGarmentSvgFlow) {
           return (
             <div className="space-y-4">
-              {renderGarmentAssetGrids(5)}
-              {garmentSvgType === 'tshirt' && ([
-                { key: 'sleeve', label: 'Sleeve Hem / Sleeve Cuff' },
-                { key: 'bottom', label: 'Bottom Hem' },
-                ...(getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve')
-                  ? [{ key: 'undersleeve', label: 'Undersleeve Hem' }] : []),
-              ] as { key: keyof TshirtHemStyles; label: string }[]).map(({ key, label }) => (
-                <div key={key} className="space-y-1.5">
-                  <Label className="text-[11px] text-white/70">{label}</Label>
-                  <Select
-                    value={state.tshirtHemStyles?.[key] ?? 'normal'}
-                    onValueChange={(value) => setState((prev) => ({
-                      ...prev, tshirtHemStyles: { ...prev.tshirtHemStyles, [key]: value as TshirtHemStyle },
-                    }))}
-                  >
-                    <SelectTrigger aria-label={label} className="h-9 border-[#252528] bg-white/5 text-[11px] text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TSHIRT_HEM_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-              {renderPartColorPickers(5)}
-              {!techpackSpecFlow && garmentSvgType === 'tshirt' &&
-                getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve') &&
-                (['Left', 'Right'] as const).map((side) => {
-                  const layerId = `underlayerHem${side}`;
-                  return (
-                    <TrimColorFamilyPicker
-                      key={layerId}
-                      label={`${side} underlayer sleeve hem`}
-                      value={state.partColors?.[layerId]}
-                      onChange={(hex) => setState((prev) => ({
-                        ...prev,
-                        partColors: { ...prev.partColors, [layerId]: hex },
-                      }))}
-                      onClear={() => setState((prev) => ({
-                        ...prev,
-                        partColors: { ...prev.partColors, [layerId]: undefined },
-                      }))}
-                    />
-                  );
-                })}
-              {!techpackSpecFlow && !garmentConfig?.perPartColors && garmentConfig?.trimBindings.cuff?.length ? (
-                <TrimColorFamilyPicker
-                  label="Sleeve hem / cuff trim colour"
-                  value={state.cuffTrimColor}
-                  onChange={(hex) => setState((prev) => ({ ...prev, cuffTrimColor: hex }))}
-                  onClear={() => setState((prev) => ({ ...prev, cuffTrimColor: undefined }))}
-                />
-              ) : null}
+              <HemCuffsPanel regions={hemRegions} styles={state.tshirtHemStyles} selectedId={activeHemRegion}
+                closeUp={hemCloseUp} fabricColor={primaryColor} stitchColor={state.stitchingColor}
+                onSelect={setHemRegion} onCloseUp={setHemCloseUp}
+                onChange={tshirtHemStyles => setState(prev => ({ ...prev, tshirtHemStyles }))} />
+              {garmentSvgType !== 'tshirt' && renderGarmentAssetGrids(5)}
               <div>
                 <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                   Extra Details
@@ -2607,20 +2604,20 @@ export function Builder() {
         );
 
       case 6:
-        if (state.garmentType === 'tshirt') {
-          return <GarmentDetailsPanel details={visibleGarmentDetails} selectedId={selectedGarmentDetailId}
+        if (state.garmentType === 'tshirt' || isGarmentSvgFlow) {
+          return <div className="space-y-4">{state.garmentType !== 'tshirt' && renderGarmentAssetGrids(6)}<GarmentDetailsPanel details={visibleGarmentDetails} selectedId={selectedGarmentDetailId}
+            bounds={garmentDetailBounds}
+            referenceWidthCm={Number(state.measurements.chestWidth?.m) || undefined}
+            unit={state.measurementUnit}
+            builtins={builtinDetails.filter(detail => detail.view === garmentView && !visibleGarmentDetails.some(item => item.sourceLayerId === detail.sourceLayerId && !item.hidden))}
+            editor={detailEditor}
             color={state.partColors?.base ?? primaryColor}
             onSelect={selectGarmentDetail}
             view={garmentView}
-            onDuplicateToOtherView={detail => setState(prev => ({ ...prev, garmentDetails: [...(prev.garmentDetails ?? []),
-              { ...detail, id: crypto.randomUUID(), view: showFront ? 'back' : 'front', selected: false }] }))}
-            onChange={garmentDetails => setState(prev => ({ ...prev, garmentDetails: replaceViewDecorations(prev.garmentDetails ?? [], garmentView, garmentDetails) }))} />;
-        }
-        if (isGarmentSvgFlow) {
-          return (
-            <div className="space-y-4">
-              {renderGarmentAssetGrids(6)}
-              {!techpackSpecFlow && garmentConfig?.trimBindings.pocket?.length ? (
+            copiedIds={(state.garmentDetails ?? []).filter(detail => detail.view === (showFront ? 'back' : 'front')).map(detail => detail.copiedFromId ?? '')}
+            onDuplicateToOtherView={detail => setState(prev => ({ ...prev, garmentDetails: copyDetailToOpposite(prev.garmentDetails ?? [], detail, garmentView) }))}
+            onChange={garmentDetails => setState(prev => ({ ...prev, garmentDetails: replaceViewDecorations(prev.garmentDetails ?? [], garmentView, garmentDetails) }))} />
+              {state.garmentType !== 'tshirt' && !techpackSpecFlow && garmentConfig?.trimBindings.pocket?.length ? (
                 <TrimColorFamilyPicker
                   label={
                     state.garmentType === 'trousers' || state.garmentType === 'shorts'
@@ -2634,7 +2631,7 @@ export function Builder() {
                   onClear={() => setState((prev) => ({ ...prev, pocketTrimColor: undefined }))}
                 />
               ) : null}
-              <div>
+              {state.garmentType !== 'tshirt' && <div>
                 <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
                   Extra Details
                 </Label>
@@ -2649,9 +2646,8 @@ export function Builder() {
                   className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add pocket or zip requirements..."
                 />
-              </div>
-            </div>
-          );
+              </div>}
+            </div>;
         }
         return (
           <div className="space-y-4">
@@ -2757,10 +2753,11 @@ export function Builder() {
               {garmentSvgType === 'tshirt' ? (
                 <TshirtStitchingPanel layers={stitchingLayers} fit={activeFit ?? 'slim'}
                   settings={state.tshirtStitching} hems={state.tshirtHemStyles}
+                  editor={stitchEditor} onCloseUpChange={setStitchCloseUp}
                   color={state.partColors?.stitching ?? state.stitchingColor}
                   onChange={tshirtStitching => setState(prev => ({ ...prev, tshirtStitching }))} />
               ) : renderGarmentAssetGrids(8)}
-              {!techpackSpecFlow ? (
+              {!techpackSpecFlow && garmentSvgType !== 'tshirt' ? (
                 <TrimColorFamilyPicker
                   label="Stitch / thread colour"
                   value={state.stitchingColor}
@@ -2869,6 +2866,7 @@ export function Builder() {
       case 10:
         if (garmentSvgType === 'tshirt' && !legacyLabelEditing) return <div className="space-y-4">
           <GarmentLabelsPanel labels={state.garmentLabels ?? []} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId}
+            tagView={garmentLabelTagView} onTagViewChange={setGarmentLabelTagView}
             layeredSleeves={Boolean(getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve'))}
             onChange={garmentLabels => setState(prev => ({ ...prev, garmentLabels }))} />
           {state.labels.length > 0 && <button type="button" className="text-xs text-white/60 underline" onClick={() => setLegacyLabelEditing(true)}>Legacy flat label artwork</button>}
@@ -3133,12 +3131,15 @@ export function Builder() {
             {getGarmentSpecRows(garmentSvgType, garmentSelection).map((row) => (
               <SpecRow key={row.label} label={row.label} value={row.value} />
             ))}
-            {garmentSvgType === 'tshirt' && (['sleeve', 'bottom', 'undersleeve'] as const)
-              .filter((key) => key !== 'undersleeve' || getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve'))
-              .map((key) => (
-                <SpecRow key={key} label={key === 'sleeve' ? 'Sleeve Hem / Sleeve Cuff' : key === 'bottom' ? 'Bottom Hem' : 'Undersleeve Hem'}
-                  value={TSHIRT_HEM_OPTIONS.find((option) => option.value === (state.tshirtHemStyles?.[key] ?? 'normal'))?.label ?? 'Normal Hem'} />
-              ))}
+            {state.neckFinish ? <SpecRow label="Neck finish" value={NECK_FINISH_OPTIONS.find(option => option.value === state.neckFinish)?.label ?? state.neckFinish} /> : null}
+            {hemRegions.map(region => {
+              const hem = resolveHemSettings(state.tshirtHemStyles, region.id);
+              return <SpecRow key={region.id} label={region.name} value={[
+                region.adjustable ? TSHIRT_HEM_OPTIONS.find(option => option.value === hem.finish)?.label : 'Native construction',
+                hem.color ? `Fabric ${hem.color}` : '', hem.stitchColor ? `Stitch ${hem.stitchColor}` : '',
+                region.adjustable ? `${Math.round((hem.depth ?? 1) * 100)}% allowance` : '',
+              ].filter(Boolean).join(' · ')} />;
+            })}
           </>
         ) : (
           <>
@@ -3599,6 +3600,7 @@ export function Builder() {
                 fit={activeFit}
                 partColors={state.partColors}
                 tshirtHemStyles={state.tshirtHemStyles}
+                neckFinish={state.neckFinish}
                 tshirtStitching={state.tshirtStitching}
                 stitchingColor={state.stitchingColor}
                 garmentDetails={state.garmentDetails}
@@ -3648,6 +3650,7 @@ export function Builder() {
                       stitchingColor={state.stitchingColor}
                       partColors={state.partColors}
                       tshirtHemStyles={state.tshirtHemStyles}
+                      neckFinish={state.neckFinish}
                       tshirtStitching={state.tshirtStitching}
                       garmentDetails={state.garmentDetails}
                       detailView={showFront ? 'front' : 'back'}
@@ -3681,12 +3684,14 @@ export function Builder() {
             </div>
           ) : currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing ? (
             <GarmentLabelsPreview labels={state.garmentLabels ?? []} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId}
+              tagView={garmentLabelTagView} onTagViewChange={setGarmentLabelTagView}
+              animateEntry={currentStepRef.current === 9}
               onChange={garmentLabels => setState(prev => ({ ...prev, garmentLabels }))}
               garmentProps={{ garmentType: garmentSvgType, color: primaryColor, selection: garmentSelection, fit: activeFit,
                 garmentWash: state.garmentWash, showWash, detailView: showFront ? 'front' : 'back',
                 neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor, cuffTrimColor: state.cuffTrimColor,
                 pocketTrimColor: state.pocketTrimColor, stitchingColor: state.stitchingColor, partColors: state.partColors,
-                tshirtHemStyles: state.tshirtHemStyles, tshirtStitching: state.tshirtStitching, garmentDetails: state.garmentDetails,
+                tshirtHemStyles: state.tshirtHemStyles, neckFinish: state.neckFinish, tshirtStitching: state.tshirtStitching, garmentDetails: state.garmentDetails,
                 customCollar: state.customCollar, customCollars: state.customCollars, layerTransforms: state.tshirtLayerTransforms,
                 labelReferenceWidthMm: Number(state.measurements.chestWidth?.m) * 10 || undefined, className: 'h-full w-full min-h-0' }} />
           ) : currentStep === 10 ? (
@@ -3714,7 +3719,7 @@ export function Builder() {
                 'flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center',
               )}
             >
-              <PackagingDesignerPreview design={packagingDesign} garmentColor={primaryColor}
+              <PackagingDesignerPreview design={packagingDesign} garmentColor={primaryColor} garmentType={garmentSvgType ?? 'garment'}
                 onChange={design => changePackaging({ ...packagingValue, designs: { ...packagingValue.designs, [packagingValue.active]: design } })}
                 selectedId={state.packagingLayerSelectedId} onSelect={id => setState(prev => ({ ...prev, packagingLayerSelectedId: id }))}
                 limited={packagingBoundary} onBoundary={setPackagingBoundary} />
@@ -3735,6 +3740,8 @@ export function Builder() {
                   labelReferenceWidthMm={Number(state.measurements.chestWidth?.m) * 10 || undefined}
                   showWash={showWash}
                   washTool={currentStep === 7 ? washTool : undefined}
+                  stitchEditor={currentStep === 8 && garmentSvgType === 'tshirt' ? stitchEditor : undefined}
+                  hemEditor={currentStep === 5 ? hemEditor : undefined}
                   onWashToolChange={setWashTool}
                   onWashChange={changeWash}
                   garmentType={garmentSvgType}
@@ -3748,10 +3755,14 @@ export function Builder() {
                   stitchingColor={state.stitchingColor}
                   partColors={state.partColors}
                   tshirtHemStyles={state.tshirtHemStyles}
+                  neckFinish={state.neckFinish}
                   tshirtStitching={state.tshirtStitching}
                   garmentDetails={state.garmentDetails}
                   detailView={showFront ? 'front' : 'back'}
                   selectedDetailId={currentStep === 6 ? selectedGarmentDetailId : null}
+                  onDetailBoundsChange={setGarmentDetailBounds}
+                  onBuiltinDetailsChange={updateBuiltinDetails}
+                  detailEditor={currentStep === 6 ? detailEditor : undefined}
                   onDetailSelect={selectGarmentDetail}
                   onDetailsChange={currentStep === 6 ? garmentDetails => setState(prev => ({ ...prev, garmentDetails })) : undefined}
                   customCollar={state.customCollar}
