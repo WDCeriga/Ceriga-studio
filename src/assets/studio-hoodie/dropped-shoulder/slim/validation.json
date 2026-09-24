@@ -1,0 +1,95 @@
+{
+  "fit": "slim",
+  "center": 1024.5,
+  "neckline": {
+    "x": 827,
+    "y": 573
+  },
+  "underarm": {
+    "x": 721,
+    "y": 905
+  },
+  "lineWidth": 2.6832815729997477,
+  "bounds": {
+    "Body": {
+      "top": 573,
+      "bottom": 1636,
+      "left": 643,
+      "right": 1406
+    },
+    "Left sleeve": {
+      "top": 680,
+      "bottom": 1756,
+      "left": 540,
+      "right": 720
+    },
+    "Right sleeve": {
+      "top": 680,
+      "bottom": 1756,
+      "left": 1328,
+      "right": 1508
+    },
+    "Rib hem": {
+      "top": 1611,
+      "bottom": 1726,
+      "left": 699,
+      "right": 1350
+    },
+    "Left cuff": {
+      "top": 1757,
+      "bottom": 1867,
+      "left": 546,
+      "right": 647
+    },
+    "Right cuff": {
+      "top": 1757,
+      "bottom": 1867,
+      "left": 1400,
+      "right": 1502
+    },
+    "Hood": {
+      "top": 93,
+      "bottom": 659,
+      "left": 823,
+      "right": 1227
+    },
+    "Kangaroo pocket": {
+      "top": 1283,
+      "bottom": 1618,
+      "left": 788,
+      "right": 1256
+    }
+  },
+  "seamStart": {
+    "x": 606,
+    "y": 744
+  },
+  "seamEnd": {
+    "x": 720.5,
+    "y": 940
+  },
+  "shoulderDropPixels": 64,
+  "missing": 0,
+  "overlap": 0,
+  "overflow": 0,
+  "seamAsymmetry": 0,
+  "erasedInk": 2581,
+  "transferredShoulder": 14948,
+  "lostBodyPixels": 0,
+  "changedLowerPixels": 0,
+  "holes": 0,
+  "antialiasedBoundaryPixels": [
+    {
+      "x": 1328,
+      "y": 937,
+      "alpha": 199
+    },
+    {
+      "x": 720,
+      "y": 941,
+      "alpha": 198
+    }
+  ],
+  "cut": 952,
+  "provenance": "Existing Ceriga panels rasterized; original Dropped Shoulder partition; Potrace-generated upper paths; original lower paths retained. Photo used only as a construction reference."
+}

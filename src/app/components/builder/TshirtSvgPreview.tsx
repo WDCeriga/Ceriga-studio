@@ -405,6 +405,7 @@ function SelectionOutline({
   onMove,
   onScale,
   onRotate,
+  rotationSide,
 }: {
   bbox: PotraceSvgBBox;
   transform: TshirtLayerTransform;
@@ -414,6 +415,7 @@ function SelectionOutline({
   onMove?: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onScale?: (e: ReactPointerEvent<HTMLDivElement>, anchor: ScaleAnchor) => void;
   onRotate?: (e: ReactPointerEvent<HTMLDivElement>) => void;
+  rotationSide?: 'left' | 'right';
 }) {
   const rect = bboxToPercentRect(bbox);
 
@@ -470,8 +472,11 @@ function SelectionOutline({
         />
 
         {onRotate ? (
-          <div className="pointer-events-none absolute left-1/2 top-full flex -translate-x-1/2 flex-col items-center">
-            <div className="w-px bg-black/15" style={{ height: SEL_HANDLE.stem }} />
+          <div className={cn('pointer-events-none absolute flex items-center',
+            rotationSide === 'left' ? 'right-full top-1/2 -translate-y-1/2 flex-row-reverse'
+              : rotationSide === 'right' ? 'left-full top-1/2 -translate-y-1/2 flex-row'
+                : 'left-1/2 top-full -translate-x-1/2 flex-col')}>
+            <div className="bg-black/15" style={{ width: rotationSide ? SEL_HANDLE.stem : 1, height: rotationSide ? 1 : SEL_HANDLE.stem }} />
             <div
               role="button"
               tabIndex={-1}
@@ -540,6 +545,7 @@ function PreviewLayer({
 function LayerHitTarget({
   layerId,
   displayName,
+  shapeRaw,
   zIndexBase,
   bbox,
   transform,
@@ -549,6 +555,7 @@ function LayerHitTarget({
 }: {
   layerId: string;
   displayName: string;
+  shapeRaw?: string;
   zIndexBase: number;
   bbox: PotraceSvgBBox;
   transform: TshirtLayerTransform;
@@ -558,6 +565,12 @@ function LayerHitTarget({
 }) {
   const rect = bboxToPercentRect(bbox);
   const zIndex = selected ? SELECTED_LAYER_Z + 10 : 100 + zIndexBase;
+  const hitSvg = shapeRaw
+    ? tintPotraceSvg(shapeRaw, 'transparent', 'solid', true)
+        .replace(/fill="[^"]*"/g, 'fill="transparent"')
+        .replace(/id="([^"]+)"/g, `id="hit-${layerId}-$1"`)
+        .replace(/url\(#([^)]+)\)/g, `url(#hit-${layerId}-$1)`)
+    : undefined;
 
   return (
     <div
@@ -577,7 +590,8 @@ function LayerHitTarget({
           'absolute cursor-pointer rounded-sm touch-none',
           selected ? '' : 'hover:bg-white/[0.04]',
         )}
-        style={{ ...rect, pointerEvents: 'auto' }}
+        style={hitSvg ? { inset: 0, pointerEvents: 'none' } : { ...rect, pointerEvents: 'auto' }}
+        dangerouslySetInnerHTML={hitSvg ? { __html: hitSvg } : undefined}
         onPointerDown={onPointerDown}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') onPointerDown(e as unknown as ReactPointerEvent<HTMLDivElement>);
@@ -1074,6 +1088,7 @@ export function TshirtSvgPreview({
                 <LayerHitTarget
                   key={`hit-${id}`}
                   layerId={id}
+                  shapeRaw={garmentType === 'hoodie' && ['base', 'sleeveLeft', 'sleeveRight'].includes(id) ? sourceLayer.svgRaw : undefined}
                   displayName={
                     side
                       ? `${side === 'left' ? 'Left' : 'Right'} ${sourceLayer.displayName}`
@@ -1084,7 +1099,12 @@ export function TshirtSvgPreview({
                   transform={transform}
                   alignOffset={alignOffset}
                   selected={selectedLayerId === id}
-                  onPointerDown={(e) => handleLayerPointerDown(id, e)}
+                  onPointerDown={(e) => {
+                    handleLayerPointerDown(id, e);
+                    if (selectedLayerId === id && garmentType === 'hoodie' && ['base', 'sleeveLeft', 'sleeveRight'].includes(id)) {
+                      startGesture(id, e, 'move');
+                    }
+                  }}
                 />
               ) : null,
             )
@@ -1097,7 +1117,10 @@ export function TshirtSvgPreview({
             alignOffset={selectedLayout.alignOffset}
             scaleFixedAnchor={activeScaleAnchor}
             zIndex={SELECTED_LAYER_Z + 20}
-            onMove={editable ? (e) => startGesture(selectedLayerId, e, 'move') : undefined}
+            rotationSide={garmentType === 'hoodie'
+              ? selectedLayerId === 'sleeveLeft' ? 'left' : selectedLayerId === 'sleeveRight' ? 'right' : undefined
+              : undefined}
+            onMove={editable && !(garmentType === 'hoodie' && ['base', 'sleeveLeft', 'sleeveRight'].includes(selectedLayerId)) ? (e) => startGesture(selectedLayerId, e, 'move') : undefined}
             onScale={editable ? (e, anchor) => startGesture(selectedLayerId, e, 'scale', anchor) : undefined}
             onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
           />

@@ -78,6 +78,10 @@ export type GarmentAssetSelection = Partial<Record<string, string>>;
 export function getGarmentAssetOptionLabel(
   asset: Pick<GarmentAsset, 'id' | 'displayName'>,
 ): string {
+  if (asset.id.startsWith('hoodie/Left sleeve/')) {
+    if (asset.displayName.startsWith('Dropped Shoulder ')) return 'Dropped Shoulder Sleeve';
+    return asset.displayName.startsWith('Raglan ') ? 'Raglan Sleeve' : 'Set-in Sleeve';
+  }
   if (!asset.id.startsWith('hoodie/Hood/')) return asset.displayName;
   const name = asset.displayName.replace(/\s*\((boxy|cropped|baggy|regular|slim)\)\s*$/i, '');
   return name === 'Hood' ? 'Regular Hood' : name === 'Scuba hood' ? 'Scuba Hood'
@@ -363,7 +367,6 @@ const HOODIE_CONFIG: GarmentSvgConfig = {
   restrictStepsToPack: true,
   hiddenCategories: [
     'Body',
-    'Left sleeve',
     'Right sleeve',
     'Rib hem',
     'Left cuff',
@@ -813,11 +816,10 @@ export function getGarmentAssetsForFit(
   if (!resolvedFit) return assets;
   const available = assets.filter((asset) => isAssetAvailableForFit(garmentType, asset, resolvedFit));
   // Keep legacy IDs (saved designs) and put the unchanged regular hood first.
-  if (garmentType === 'hoodie' && category === 'Hood') {
+  if (garmentType === 'hoodie' && (category === 'Hood' || category === 'Left sleeve')) {
     return available.sort((a, b) => {
       const rank = (asset: GarmentAsset) =>
-        /^Hood(?:\s*\([^)]+\))?$/.test(asset.displayName) ? 0 :
-          /^Scuba hood(?:\s*\([^)]+\))?$/.test(asset.displayName) ? 1 : 2;
+        /^(?:Hood|Left sleeve)(?:\s*\([^)]+\))?$/.test(asset.displayName) ? 0 : 1;
       return rank(a) - rank(b);
     });
   }
@@ -873,6 +875,24 @@ export function applyGarmentSelectionLinks(
   const links = GARMENT_CONFIGS[garmentType].selectionLinks;
   const resolvedFit = fit ? resolveGarmentPackFit(garmentType, fit) : undefined;
   let next = selection;
+  if (garmentType === 'hoodie') {
+    const activeFit = resolvedFit ?? resolveGarmentPackFit(garmentType);
+    const fitSuffix = activeFit === 'boxy' ? '' : ` (${activeFit})`;
+    const categories = ['Body', 'Left sleeve', 'Right sleeve'];
+    const sleeve = getGarmentAsset(selection['Left sleeve'] ?? '');
+    const prefix = sleeve?.displayName.startsWith('Dropped Shoulder ') ? 'Dropped Shoulder '
+      : isHoodieRaglanSelection(selection) ? 'Raglan ' : '';
+    const wanted = categories.map((category) => getGarmentAssetsForFit('hoodie', category, activeFit).find(
+      (asset) => asset.displayName === `${prefix}${category}${fitSuffix}`,
+    ));
+    next = { ...next };
+    categories.forEach((category, index) => {
+      const asset = wanted.every(Boolean) ? wanted[index] : getGarmentAssets('hoodie', category).find(
+        (candidate) => candidate.displayName === `${category}${fitSuffix}`,
+      );
+      if (asset) next[category] = asset.id;
+    });
+  }
   if (isCustomCollarNeckId(selection.Neck) && resolvedFit !== 'boxy') {
     const pair = customCollarPairId(selection.Neck);
     next = {
@@ -896,6 +916,11 @@ export function applyGarmentSelectionLinks(
   return next;
 }
 
+export function isHoodieRaglanSelection(selection: GarmentAssetSelection): boolean {
+  const sleeve = getGarmentAsset(selection['Left sleeve'] ?? '');
+  return sleeve?.garmentType === 'hoodie' && sleeve.displayName.startsWith('Raglan Left sleeve');
+}
+
 /**
  * Lock the parts the current fit owns, drop any choice that fit does not offer,
  * then apply neck→body cut links so a V-neck never sits on a crew body.
@@ -911,6 +936,7 @@ export function applyGarmentFitAndLinks(
 
   if (resolvedFit && config.fitParts?.[resolvedFit]) {
     for (const [category, displayName] of Object.entries(config.fitParts[resolvedFit])) {
+      if (garmentType === 'hoodie' && category === 'Left sleeve') continue;
       const asset = getGarmentAssets(garmentType, category).find(
         (candidate) => candidate.displayName === displayName,
       );
@@ -933,7 +959,7 @@ export function applyGarmentFitAndLinks(
         !keepCustom
       ) {
         const previous = getGarmentAsset(current ?? '');
-        const matchingHood = garmentType === 'hoodie' && category === 'Hood' && previous
+        const matchingHood = garmentType === 'hoodie' && (category === 'Hood' || category === 'Left sleeve') && previous
           ? allowed.find((asset) => getGarmentAssetOptionLabel(asset) === getGarmentAssetOptionLabel(previous))
           : undefined;
         next[category] = (matchingHood ?? allowed[0]).id;

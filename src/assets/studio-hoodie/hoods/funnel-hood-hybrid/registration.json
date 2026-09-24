@@ -1,0 +1,54 @@
+{
+  "variant": "funnel-hood-hybrid",
+  "displayName": "Funnel-hood hybrid",
+  "masterFit": "regular",
+  "viewBox": "0 0 2048 2048",
+  "anchor": "bottom-center neckline",
+  "fits": {
+    "boxy": {
+      "asset": "src/assets/hoodie-test/Hood/Funnel-hood hybrid.svg",
+      "necklineAnchor": {
+        "x": 10234,
+        "y": 13680
+      },
+      "scaleX": 0.962148,
+      "scaleY": 0.964029
+    },
+    "cropped": {
+      "asset": "src/assets/hoodie-test/Hood/Funnel-hood hybrid (cropped).svg",
+      "necklineAnchor": {
+        "x": 10213,
+        "y": 13560
+      },
+      "scaleX": 0.908446,
+      "scaleY": 1.021583
+    },
+    "baggy": {
+      "asset": "src/assets/hoodie-test/Hood/Funnel-hood hybrid (baggy).svg",
+      "necklineAnchor": {
+        "x": 10207,
+        "y": 13947
+      },
+      "scaleX": 0.936835,
+      "scaleY": 0.951978
+    },
+    "regular": {
+      "asset": "src/assets/hoodie-test/Hood/Funnel-hood hybrid (regular).svg",
+      "necklineAnchor": {
+        "x": 10234,
+        "y": 13960
+      },
+      "scaleX": 1,
+      "scaleY": 1
+    },
+    "slim": {
+      "asset": "src/assets/hoodie-test/Hood/Funnel-hood hybrid (slim).svg",
+      "necklineAnchor": {
+        "x": 10254,
+        "y": 13880
+      },
+      "scaleX": 0.958836,
+      "scaleY": 1.019245
+    }
+  }
+}

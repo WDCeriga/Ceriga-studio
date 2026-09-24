@@ -1,0 +1,80 @@
+{
+  "variant": "oversized",
+  "label": "Oversized Hood",
+  "source": "source.png",
+  "sourceSha256": "d955e12aa59bfef10e40e3908dcaa043e1458057a778092bc4895e240091b832",
+  "rasterFirst": true,
+  "oldVariantGeometryUsed": false,
+  "fits": {
+    "boxy": {
+      "regularSha256": "9c615600ae9cb278d2aa3738bb640f30f32c2bfe52a32405050cf4aba1b53b38",
+      "bodySha256": "24a4b7d69e16d8b1318838fcfc024dc48500f46b357d56b1fe7b06ccd6b18dd9",
+      "necklineLeft": 816,
+      "necklineRight": 1230,
+      "bottom": 680,
+      "crownTop": 43,
+      "heightToWidth": 1.5391304347826085,
+      "matchRegularHeight": false,
+      "traceSmoothing": 0.5,
+      "regularHeightScale": 1.18,
+      "crownWidthScale": 1.2,
+      "candidateSha256": "7aa7163cb578723b9eef4e236ff28f7188162530641a8d8ce690b80bf8a27857"
+    },
+    "cropped": {
+      "regularSha256": "a6e4347de5b83df7437d477bc138dd1c799d8567c5571da58e7fda3c931f4ab1",
+      "bodySha256": "41467b86fa13915f48a42a73bd64849aa12accaf0ddebda950e61878fa2d4292",
+      "necklineLeft": 828,
+      "necklineRight": 1214,
+      "bottom": 694,
+      "crownTop": 24,
+      "heightToWidth": 1.7357512953367875,
+      "matchRegularHeight": false,
+      "traceSmoothing": 0.5,
+      "regularHeightScale": 1.18,
+      "crownWidthScale": 1.2,
+      "candidateSha256": "b034fd7dc400cba3521ea7cd7963b2989b54276747198d4661837c000eef5b64"
+    },
+    "baggy": {
+      "regularSha256": "07904038ad31215b8e986a3906760db2387c7d82047a5b3b91d64ff042127321",
+      "bodySha256": "860b20dc09b273b0329a7bf80ace873d6bcd8dddada988a0cef330e8f935b30a",
+      "necklineLeft": 825,
+      "necklineRight": 1215,
+      "bottom": 655,
+      "crownTop": 24,
+      "heightToWidth": 1.617948717948718,
+      "matchRegularHeight": false,
+      "traceSmoothing": 0.5,
+      "regularHeightScale": 1.18,
+      "crownWidthScale": 1.2,
+      "candidateSha256": "ed386aaa0aba6baf5d8323763eb00f86aeca2c6a85fa0236df41da7fe5be70d6"
+    },
+    "regular": {
+      "regularSha256": "601f5c92aee2e225df0274c415605cfd8f93fbb54b99cde7b4dd4f53d85804ac",
+      "bodySha256": "4134e24d2aff1fdbb3e431e9c4b99688c508e9f7a5ee91b1f76301d5f49edaa9",
+      "necklineLeft": 812,
+      "necklineRight": 1235,
+      "bottom": 652,
+      "crownTop": 24,
+      "heightToWidth": 1.4846335697399526,
+      "matchRegularHeight": false,
+      "traceSmoothing": 0.5,
+      "regularHeightScale": 1.18,
+      "crownWidthScale": 1.2,
+      "candidateSha256": "1060399b9acf7606804ad301fde905a36fa2d1bdf4051c3dd0a089ea37da4670"
+    },
+    "slim": {
+      "regularSha256": "2de10f6754d073c73fa75c789cd34a5d3dca8fc1824222c4ce9aceaaf555ee48",
+      "bodySha256": "82acf0f1e7c1faa661f3b6a834378040fbcb08792c36a5deb3ed3d968ba7592d",
+      "necklineLeft": 827,
+      "necklineRight": 1223,
+      "bottom": 662,
+      "crownTop": 24,
+      "heightToWidth": 1.6111111111111112,
+      "matchRegularHeight": false,
+      "traceSmoothing": 0.5,
+      "regularHeightScale": 1.18,
+      "crownWidthScale": 1.2,
+      "candidateSha256": "982359ac9ba59be4488516ed48ec95acdcd9d462815e3de19603b43d9f6eb515"
+    }
+  }
+}

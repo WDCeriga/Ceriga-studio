@@ -69,14 +69,16 @@ function interiorDistance(mask) {
   }
   return d;
 }
-async function trace(mask) {
+async function trace(mask, smoothing = 0) {
   const box = profile(mask);
   const left = Math.max(0, box.left - 3), top = Math.max(0, box.top - 3);
   const width = Math.min(W - left, box.right - left + 4), height = Math.min(W - top, box.maxY - top + 4);
   // Node Potrace blackOnWhite explicitly sets ink polarity; the Python Bitmap
   // constructor inversion does not apply to this implementation.
-  const png = await sharp(Buffer.from(mask), { raw: { width: W, height: W, channels: 1 } })
-    .extract({ left, top, width, height }).negate().resize(width * 3, height * 3, { kernel: 'lanczos3' }).threshold(128).png().toBuffer();
+  let raster = sharp(Buffer.from(mask), { raw: { width: W, height: W, channels: 1 } })
+    .extract({ left, top, width, height }).negate();
+  if (smoothing) raster = raster.blur(smoothing);
+  const png = await raster.resize(width * 3, height * 3, { kernel: 'lanczos3' }).threshold(128).png().toBuffer();
   const svg = await new Promise((resolve, reject) => potrace.trace(png, {
     turdSize: 4, turnPolicy: potrace.Potrace.TURNPOLICY_MINORITY, alphaMax: 1,
     optCurve: true, optTolerance: 0.2, threshold: 128, blackOnWhite: true, color: '#000000',
@@ -88,19 +90,36 @@ async function trace(mask) {
     return cmd + values.map((v, i) => (i % 2 ? (W - top - v / 3) * 10 : (left + v / 3) * 10).toFixed(2)).join(' ');
   });
 }
-function wrap(title, fill, ink) {
+function wrap(title, fill, ink, inkColour = '#141414') {
   const group = 'transform="translate(0,2048) scale(0.1,-0.1)"';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048">\n<title>${title}</title>\n<g ${group} fill="#000000" stroke="none"><path d="${fill}" fill-rule="evenodd"/></g>\n<g ${group} fill="#141414" stroke="none"><path d="${ink}" fill="#141414" fill-rule="evenodd"/></g>\n</svg>\n`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048">\n<title>${title}</title>\n<g ${group} fill="#000000" stroke="none"><path d="${fill}" fill-rule="evenodd"/></g>\n<g ${group} fill="${inkColour}" stroke="none"><path d="${ink}" fill="${inkColour}" fill-rule="evenodd"/></g>\n</svg>\n`;
 }
-export function candidate(variant, fit) { return `${ROOT}/${variant.id}/fits/${fit}.svg`; }
-export function compositeCandidate(variant, fit, coloured = true) {
+export function candidate(variant, fit, root = ROOT) { return `${root}/${variant.id}/fits/${fit}.svg`; }
+export function compositeCandidate(variant, fit, coloured = true, root = ROOT) {
   const parts = ['Left sleeve', 'Right sleeve', 'Body', 'Rib hem', 'Left cuff', 'Right cuff', 'Hood', 'Kangaroo pocket'];
   const colours = ['#9cb6c7', '#9cb6c7', '#e4ddd0', '#81989a', '#b5a4d7', '#b5a4d7', variant.id === 'scuba' ? '#e97766' : '#83b7a0', '#e4ddd0'];
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048">${parts.map((part, i) => inner(tint(part === 'Hood' ? fs.readFileSync(candidate(variant, fit), 'utf8') : readAsset(part, fit), coloured ? colours[i] : '#ffffff'))).join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048">${parts.map((part, i) => inner(tint(part === 'Hood' ? fs.readFileSync(candidate(variant, fit, root), 'utf8') : readAsset(part, fit), coloured ? colours[i] : '#ffffff'))).join('')}</svg>`;
 }
-export async function rebuildHoods(only) {
-  for (const variant of variants.filter((entry) => !only || entry.id === only)) {
-    const dir = `${ROOT}/${variant.id}`;
+export function scubaBodyDimensions(body, attachment, fit, necklineAttachment = false) {
+  const bounds = profile(body);
+  const chestRow = Math.round(bounds.top + (bounds.maxY - bounds.top) * 0.25);
+  let chestLeft = W, chestRight = -1;
+  for (let column = 0; column < W; column++) {
+    if (body[chestRow * W + column] < 128) continue;
+    chestLeft = Math.min(chestLeft, column);
+    chestRight = column;
+  }
+  const chestWidth = chestRight - chestLeft + 1;
+  const chestRatio = { boxy: 0.66, cropped: 0.68, baggy: 0.66, regular: 0.67, slim: 0.71 }[fit];
+  if (!chestRatio || chestWidth < 1) throw new Error(`Cannot measure Scuba chest for ${fit}`);
+  const crownWidth = Math.round(chestWidth * chestRatio);
+  const attachmentWidth = necklineAttachment ? attachment.right - attachment.left
+    : Math.round(Math.max((attachment.right - attachment.left) * 1.12, crownWidth * 0.96));
+  return { chestRow, chestWidth, chestRatio, crownWidth, attachmentWidth };
+}
+export async function rebuildHoods(only, { root = ROOT, variantDefinitions = variants } = {}) {
+  for (const variant of variantDefinitions.filter((entry) => !only || entry.id === only)) {
+    const dir = `${root}/${variant.id}`;
     fs.mkdirSync(`${dir}/fits`, { recursive: true });
     fs.mkdirSync(`${dir}/proofs`, { recursive: true });
     const sourceBytes = fs.readFileSync(`${dir}/source.png`);
@@ -112,14 +131,15 @@ export async function rebuildHoods(only) {
       ink[i] = Math.round(255 * Math.max(0, Math.min(1, (246 - contrast) / 126)));
     }
     const fill = silhouette(ink), src = profile(fill);
+    const sourceAttachment = variant.necklineAttachment ? neckline(fill) : src;
     const sourceDistance = interiorDistance(fill);
-    const innerInk = Uint8Array.from(ink, (v, i) => sourceDistance[i] > 12 ? v : 0);
+    const innerInk = Uint8Array.from(ink, (v, i) => sourceDistance[i] > (variant.bodyRelativeScuba ? 20 : 12) ? v : 0);
     const area = fill.reduce((s, v) => s + (v >= 128), 0);
     if (area < (src.right - src.left) * (src.maxY - src.top) * 0.45) throw new Error(`${variant.id}: open raster silhouette`);
     const keyed = Buffer.alloc(W * W * 4);
     for (let i = 0; i < ink.length; i++) keyed[i * 4 + 3] = ink[i];
     await sharp(keyed, { raw: { width: W, height: W, channels: 4 } }).png().toFile(`${dir}/keyed-lineart.png`);
-    fs.writeFileSync(`${dir}/source-lineart.svg`, wrap(`${variant.label} - new raster trace`, '', await trace(ink)));
+    fs.writeFileSync(`${dir}/source-lineart.svg`, wrap(`${variant.label} - new raster trace`, '', await trace(ink), variant.inkColour));
     const manifest = { variant: variant.id, label: variant.label, source: 'source.png', sourceSha256: hash(sourceBytes), rasterFirst: true, oldVariantGeometryUsed: false, fits: {} };
     const tiles = [];
     for (const fit of fits) {
@@ -127,30 +147,63 @@ export async function rebuildHoods(only) {
       const regularFill = alpha(await rawSvg(layer(regular, 0), W));
       const regularInk = alpha(await rawSvg(layer(regular, 1), W));
       const target = neckline(alpha(await rawSvg(regular, W)));
+      const originalAttachment = { left: target.left, right: target.right };
       const body = alpha(await rawSvg(readAsset('Body', fit), W));
+      const bodySizing = variant.bodyRelativeScuba ? scubaBodyDimensions(body, target, fit, variant.necklineAttachment) : null;
+      if (bodySizing) {
+        const center = (target.left + target.right) / 2;
+        const originalLeft = target.left, originalRight = target.right;
+        target.left = Math.round(center - bodySizing.attachmentWidth / 2);
+        target.right = target.left + bodySizing.attachmentWidth;
+        for (let column = target.left; column <= target.right; column++) {
+          if (column >= originalLeft && column <= originalRight) continue;
+          let shoulderTop = 0;
+          while (shoulderTop < W && body[shoulderTop * W + column] < 128) shoulderTop++;
+          if (shoulderTop === W) throw new Error(`${fit}: attachment extends beyond shoulder`);
+          target.bottom[column] = shoulderTop;
+        }
+      }
       const nextFill = new Uint8Array(W * W), nextInk = new Uint8Array(W * W);
       const width = target.right - target.left;
-      // Size against the neckline/shoulders, not the height of the old hood.
-      const height = width * variant.aspect;
+      const height = variant.regularHeightScale
+        ? Math.min((target.maxY - target.top) * variant.regularHeightScale, target.maxY - 24)
+        : variant.matchRegularHeight ? target.maxY - target.top : width * variant.aspect;
       const top = target.maxY - height;
-      for (let x = target.left; x <= target.right; x++) {
-        const sx = src.left + (x - target.left) / width * (src.right - src.left);
-        const sx0 = Math.floor(sx), sx1 = Math.min(W - 1, sx0 + 1), fraction = sx - sx0;
+      const fittingLeft = bodySizing ? Math.floor((target.left + target.right - bodySizing.crownWidth) / 2) : target.left;
+      const fittingRight = bodySizing ? Math.ceil((target.left + target.right + bodySizing.crownWidth) / 2) : target.right;
+      for (let x = fittingLeft; x <= fittingRight; x++) {
+        const sx = sourceAttachment.left + (x - target.left) / width * (sourceAttachment.right - sourceAttachment.left);
+        const sx0 = Math.max(0, Math.min(W - 1, Math.floor(sx))), sx1 = Math.min(W - 1, sx0 + 1), fraction = sx - Math.floor(sx);
         const sourceBottom = src.bottom[sx0] * (1 - fraction) + src.bottom[sx1] * fraction;
-        const bottom = target.bottom[x];
+        const bottom = x >= target.left && x <= target.right ? target.bottom[x] : top + height * 0.68;
         for (let y = Math.max(0, Math.floor(top)); y <= bottom; y++) {
-          const sy = src.top + (y - top) / (bottom - top) * (sourceBottom - src.top);
+          let sourceX = sx;
+          let sy = src.top + (y - top) / (bottom - top) * (sourceBottom - src.top);
+          if (bodySizing) {
+            const collarTop = top + height * 0.68;
+            const sourceCollarTop = src.top + (src.maxY - src.top) * 0.68;
+            const progress = y <= collarTop ? 0 : Math.min(1, (y - collarTop) / (bottom - collarTop));
+            const blend = progress * progress * (3 - 2 * progress);
+            const rowWidth = bodySizing.crownWidth + (width - bodySizing.crownWidth) * blend;
+            const sourceWidth = (src.right - src.left) * (1 - blend)
+              + (sourceAttachment.right - sourceAttachment.left) * blend;
+            sourceX = (src.left + src.right) / 2 + (x - (target.left + target.right) / 2) / rowWidth * sourceWidth;
+            sy = y <= collarTop
+              ? src.top + (y - top) / height * (src.maxY - src.top)
+              : sourceCollarTop + progress * (sourceBottom - sourceCollarTop);
+          }
           const i = y * W + x;
-          nextFill[i] = Math.round(sample(fill, sx, sy));
-          nextInk[i] = Math.round(sample(innerInk, sx, sy));
-          if (y >= bottom - 4) {
-            nextFill[i] = Math.max(regularFill[i], regularInk[i]);
-            nextInk[i] = regularInk[i];
+          nextFill[i] = Math.round(sample(fill, sourceX, sy));
+          nextInk[i] = Math.round(sample(innerInk, sourceX, sy));
+          if (y >= bottom - 4 && x >= target.left && x <= target.right) {
+            const shoulderExtension = bodySizing && (x < originalAttachment.left || x > originalAttachment.right);
+            nextFill[i] = shoulderExtension ? 255 : Math.max(regularFill[i], regularInk[i]);
+            nextInk[i] = shoulderExtension ? 0 : regularInk[i];
           }
           if (body[i] >= 128) nextFill[i] = 0;
         }
       }
-      if (variant.id === 'scuba') {
+      if (variant.id === 'scuba' && !variant.preserveSideContour) {
         // A compact upright scuba side panel has no exterior notches. Close
         // the column slivers caused by seating the source's narrow base.
         for (let x = target.left; x <= target.right; x++) {
@@ -162,21 +215,85 @@ export async function rebuildHoods(only) {
           }
         }
       }
-      // Derive a continuous two-pixel construction outline from the adapted
-      // raster boundary; source exterior ink is not stretched into fold marks.
+      if (variant.crownWidthScale && !bodySizing) {
+        const originalFill = nextFill.slice(), originalInk = nextInk.slice();
+        const center = (target.left + target.right) / 2;
+        const transitionBottom = bodySizing ? target.maxY - height * 0.09 : target.maxY - width * 0.32;
+        const transitionLength = bodySizing ? height * 0.31 : width * 0.3;
+        let crownWidthScale = variant.crownWidthScale;
+        if (bodySizing) {
+          let crownLeft = W, crownRight = -1;
+          for (let row = Math.max(0, Math.floor(top)); row < top + height * 0.6; row++) {
+            for (let column = target.left; column <= target.right; column++) {
+              if (originalFill[row * W + column] < 128) continue;
+              crownLeft = Math.min(crownLeft, column);
+              crownRight = Math.max(crownRight, column);
+            }
+          }
+          crownWidthScale = bodySizing.crownWidth / (crownRight - crownLeft + 1);
+        }
+        for (let y = Math.max(0, Math.floor(top)); y < transitionBottom; y++) {
+          const progress = Math.min(1, (transitionBottom - y) / transitionLength);
+          const blend = bodySizing ? progress * progress * (3 - 2 * progress) : progress;
+          const scale = 1 + (crownWidthScale - 1) * blend;
+          const left = Math.max(0, Math.floor(center - width * scale / 2) - 1);
+          const right = Math.min(W - 1, Math.ceil(center + width * scale / 2) + 1);
+          for (let x = left; x <= right; x++) {
+            const index = y * W + x;
+            const sourceX = center + (x - center) / scale;
+            nextFill[index] = body[index] >= 128 ? 0 : Math.round(sample(originalFill, sourceX, y));
+            nextInk[index] = Math.round(sample(originalInk, sourceX, y));
+          }
+        }
+      }
+      if (bodySizing) {
+        for (let column = target.left; column <= target.right; column++) {
+          if (column >= originalAttachment.left && column <= originalAttachment.right) continue;
+          const shoulderTop = target.bottom[column];
+          let hoodBottom = shoulderTop - 1;
+          while (hoodBottom > top && nextFill[hoodBottom * W + column] < 128) hoodBottom--;
+          for (let row = hoodBottom; row <= shoulderTop; row++) {
+            const index = row * W + column;
+            if (body[index] < 128) nextFill[index] = 255;
+            nextInk[index] = 0;
+          }
+        }
+      }
       const distance = interiorDistance(nextFill);
       for (let i = 0; i < distance.length; i++) {
-        if (distance[i] > 0 && distance[i] <= 2) nextInk[i] = 255;
+        if (variant.matchRegularInk && distance[i] <= (variant.outlineWidth ?? 2) + 3) nextInk[i] = 0;
+        if (distance[i] > 0 && distance[i] <= (variant.outlineWidth ?? 2)) nextInk[i] = 255;
       }
-      const svg = wrap(`${fit} - ${variant.label}`, await trace(nextFill), await trace(nextInk));
-      fs.writeFileSync(candidate(variant, fit), svg);
+      if (variant.matchRegularInk) {
+        for (let x = target.left; x <= target.right; x++) {
+          for (let y = target.bottom[x] - 8; y <= target.bottom[x]; y++) {
+            nextInk[y * W + x] = variant.singleAttachmentLine && y < target.bottom[x] - 1 ? 0 : regularInk[y * W + x];
+          }
+        }
+      }
+      const svg = wrap(`${fit} - ${variant.label}`, await trace(nextFill, variant.traceSmoothing), await trace(nextInk, variant.traceSmoothing), variant.inkColour);
+      fs.writeFileSync(candidate(variant, fit, root), svg);
       manifest.fits[fit] = {
         regularSha256: hash(regular), bodySha256: hash(readAsset('Body', fit)),
         necklineLeft: target.left, necklineRight: target.right, bottom: target.maxY,
-        crownTop: Math.round(top), heightToWidth: variant.aspect, candidateSha256: hash(svg),
+        crownTop: Math.round(top), heightToWidth: height / width,
+        matchRegularHeight: Boolean(variant.matchRegularHeight), traceSmoothing: variant.traceSmoothing ?? 0,
+        regularHeightScale: variant.regularHeightScale ?? 1,
+        crownWidthScale: variant.crownWidthScale ?? 1,
+        outlineWidth: variant.outlineWidth ?? 2,
+        preserveSideContour: Boolean(variant.preserveSideContour),
+        singleAttachmentLine: Boolean(variant.singleAttachmentLine),
+        necklineAttachment: Boolean(variant.necklineAttachment),
+        inkColour: variant.inkColour ?? '#141414',
+        bodySizing,
+        candidateSha256: hash(svg),
       };
-      await sharp(Buffer.from(compositeCandidate(variant, fit))).flatten({ background: 'white' }).png().toFile(`${dir}/proofs/${fit}.png`);
-      tiles.push({ input: await sharp(Buffer.from(compositeCandidate(variant, fit))).resize(410, 410).png().toBuffer(), left: fits.indexOf(fit) * 410, top: 0 });
+      await sharp(Buffer.from(compositeCandidate(variant, fit, true, root))).flatten({ background: 'white' }).png().toFile(`${dir}/proofs/${fit}.png`);
+      if (variant.singleAttachmentLine) {
+        await sharp(Buffer.from(compositeCandidate(variant, fit, false, root).replaceAll('#141414', '#000000')))
+          .flatten({ background: 'white' }).threshold(128).png().toFile(`${dir}/proofs/${fit}-lineart.png`);
+      }
+      tiles.push({ input: await sharp(Buffer.from(compositeCandidate(variant, fit, true, root))).resize(410, 410).png().toBuffer(), left: fits.indexOf(fit) * 410, top: 0 });
       console.log(`${variant.label} / ${fit}: NEW raster traced; ${width}px width x ${Math.round(height)}px height`);
     }
     await sharp({ create: { width: 2050, height: 410, channels: 4, background: 'white' } }).composite(tiles).png().toFile(`${dir}/proofs/all-fits.png`);

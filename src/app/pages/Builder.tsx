@@ -85,6 +85,7 @@ import {
 } from 'react-resizable-panels';
 
 import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
+import { MeasurementGuideOverlay } from '../components/builder/measurementGuides';
 import {
   MEASUREMENT_GUIDE_CLASS_PHONE,
   PREVIEW_STAGE_CLASS,
@@ -3496,12 +3497,33 @@ export function Builder() {
                 isPhone && 'px-0',
               )}
             >
-              <MeasurementPreview
-                garmentType={state.garmentType}
-                color={primaryColor}
-                highlightedMeasurementId={highlightedMeasurementId}
-                imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
-              />
+              {state.garmentType === 'hoodie' && garmentSvgType ? (
+                <div className="relative aspect-square w-full max-w-[576px]">
+                  <TshirtSvgPreview
+                    garmentType={garmentSvgType}
+                    color={primaryColor}
+                    selection={garmentSelection}
+                    fit={activeFit}
+                    neckTrimColor={state.neckTrimColor}
+                    sleeveTrimColor={state.sleeveTrimColor}
+                    cuffTrimColor={state.cuffTrimColor}
+                    pocketTrimColor={state.pocketTrimColor}
+                    partColors={state.partColors}
+                    customCollar={state.customCollar}
+                    customCollars={state.customCollars}
+                    layerTransforms={state.tshirtLayerTransforms}
+                    className="h-full w-full min-h-0"
+                  />
+                  <MeasurementGuideOverlay highlightedId={highlightedMeasurementId} />
+                </div>
+              ) : (
+                <MeasurementPreview
+                  garmentType={state.garmentType}
+                  color={primaryColor}
+                  highlightedMeasurementId={highlightedMeasurementId}
+                  imgClassName={isPhone ? MEASUREMENT_GUIDE_CLASS_PHONE : PREVIEW_STAGE_CLASS}
+                />
+              )}
             </div>
           ) : currentStep === 9 ? (
             <div

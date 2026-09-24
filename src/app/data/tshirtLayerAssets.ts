@@ -99,6 +99,7 @@ export {
   GARMENT_NONE,
   applyGarmentFitAndLinks,
   applyGarmentSelectionLinks,
+  isHoodieRaglanSelection,
   CUSTOM_COLLAR_BODY_ID,
   CUSTOM_COLLAR_BODY_NAME,
   CUSTOM_COLLAR_NECK_ID,

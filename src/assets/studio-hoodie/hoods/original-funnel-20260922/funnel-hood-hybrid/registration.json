@@ -1,0 +1,65 @@
+{
+  "variant": "funnel-hood-hybrid",
+  "label": "Funnel Hybrid Hood",
+  "source": "source.png",
+  "sourceSha256": "5615667cfb7bd1e811f611bda8be2c8aa92997b312e1d3a41dcb4f0c08ee7148",
+  "rasterFirst": true,
+  "oldVariantGeometryUsed": false,
+  "fits": {
+    "boxy": {
+      "regularSha256": "9c615600ae9cb278d2aa3738bb640f30f32c2bfe52a32405050cf4aba1b53b38",
+      "bodySha256": "24a4b7d69e16d8b1318838fcfc024dc48500f46b357d56b1fe7b06ccd6b18dd9",
+      "necklineLeft": 816,
+      "necklineRight": 1230,
+      "bottom": 680,
+      "crownTop": 140,
+      "heightToWidth": 1.3043478260869565,
+      "matchRegularHeight": true,
+      "candidateSha256": "bb8f04d5c285c325d4c2515ad6e5e3c8b905611088cd16803d2c5de7ed793214"
+    },
+    "cropped": {
+      "regularSha256": "a6e4347de5b83df7437d477bc138dd1c799d8567c5571da58e7fda3c931f4ab1",
+      "bodySha256": "41467b86fa13915f48a42a73bd64849aa12accaf0ddebda950e61878fa2d4292",
+      "necklineLeft": 828,
+      "necklineRight": 1214,
+      "bottom": 694,
+      "crownTop": 120,
+      "heightToWidth": 1.4870466321243523,
+      "matchRegularHeight": true,
+      "candidateSha256": "1e3d06ce8e2b1b12fd4929fb109ee397e5b28e873a144b1fe818a30a6e6de485"
+    },
+    "baggy": {
+      "regularSha256": "07904038ad31215b8e986a3906760db2387c7d82047a5b3b91d64ff042127321",
+      "bodySha256": "860b20dc09b273b0329a7bf80ace873d6bcd8dddada988a0cef330e8f935b30a",
+      "necklineLeft": 825,
+      "necklineRight": 1215,
+      "bottom": 655,
+      "crownTop": 120,
+      "heightToWidth": 1.3717948717948718,
+      "matchRegularHeight": true,
+      "candidateSha256": "bf77b96ef859224377b499a556e8f1f192c566ccb1c00d18aa9b9ca171861897"
+    },
+    "regular": {
+      "regularSha256": "601f5c92aee2e225df0274c415605cfd8f93fbb54b99cde7b4dd4f53d85804ac",
+      "bodySha256": "4134e24d2aff1fdbb3e431e9c4b99688c508e9f7a5ee91b1f76301d5f49edaa9",
+      "necklineLeft": 812,
+      "necklineRight": 1235,
+      "bottom": 652,
+      "crownTop": 92,
+      "heightToWidth": 1.3238770685579195,
+      "matchRegularHeight": true,
+      "candidateSha256": "4a5ed5a32e6bc4e7f869b1bead68ccd53f595d4864bca5399aa3a77db8313e67"
+    },
+    "slim": {
+      "regularSha256": "2de10f6754d073c73fa75c789cd34a5d3dca8fc1824222c4ce9aceaaf555ee48",
+      "bodySha256": "82acf0f1e7c1faa661f3b6a834378040fbcb08792c36a5deb3ed3d968ba7592d",
+      "necklineLeft": 827,
+      "necklineRight": 1223,
+      "bottom": 662,
+      "crownTop": 89,
+      "heightToWidth": 1.446969696969697,
+      "matchRegularHeight": true,
+      "candidateSha256": "5f7eda2f6ba6dd2204471b507eec128a65bbea0baf8e8a8b31984a170cca1c19"
+    }
+  }
+}

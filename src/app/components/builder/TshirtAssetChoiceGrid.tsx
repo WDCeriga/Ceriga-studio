@@ -33,7 +33,7 @@ export function GarmentAssetChoiceGrid({
   return (
     <div>
       <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-        {garmentType === 'hoodie' && category === 'Hood' ? 'Hood Type' : category}
+        {garmentType === 'hoodie' && category === 'Hood' ? 'Hood Type' : garmentType === 'hoodie' && category === 'Left sleeve' ? 'Sleeve Construction' : category}
       </Label>
       <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
         {allowNone ? (
@@ -54,6 +54,7 @@ export function GarmentAssetChoiceGrid({
           <button
             key={asset.id}
             type="button"
+            aria-pressed={selected === asset.id}
             onClick={() => onSelect(asset.id)}
             className={cn(
               'rounded-md border px-2 py-1.5 text-center transition sm:rounded-lg sm:px-2.5 sm:py-2',
@@ -62,7 +63,7 @@ export function GarmentAssetChoiceGrid({
                 : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
             )}
           >
-            <div className="break-all text-[10px] font-medium leading-snug sm:text-[11px]">
+            <div className={cn('text-[10px] font-medium leading-snug sm:text-[11px]', garmentType === 'hoodie' && category === 'Left sleeve' ? 'break-normal' : 'break-all')}>
               {getGarmentAssetOptionLabel(asset)}
             </div>
           </button>

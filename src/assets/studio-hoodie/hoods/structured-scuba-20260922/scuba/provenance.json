@@ -1,0 +1,6 @@
+{
+  "reference": "User-supplied blue Scuba hoodie illustration is the requested shape reference: rounded dome, oval recessed opening, lining seams and a curved high collar flowing into the shoulders. Canvas raster construction followed by Potrace; no hand-authored SVG paths. Regular Hood is the line-quality benchmark.",
+  "sourceSha256": "8333172c9407921aaaa02d12d0de5f510d6bf26cf12d79581acbce4710d03e91",
+  "method": "Original 4096px Canvas drawing downsampled to binary 2048px raster; recessed curved opening, raised chin collar and shaped crown panels; Potrace-only SVG geometry with source-sized viewBox.",
+  "reusedRejectedGeometry": false
+}

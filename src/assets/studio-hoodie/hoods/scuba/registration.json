@@ -1,0 +1,59 @@
+{
+  "variant": "scuba",
+  "displayName": "Scuba Hood",
+  "method": "raster lower-contour registration",
+  "source": "regular/mockup.json",
+  "viewBox": "0 0 2048 2048",
+  "fits": {
+    "boxy": {
+      "regularSha256": "9c615600ae9cb278d2aa3738bb640f30f32c2bfe52a32405050cf4aba1b53b38",
+      "necklineLeft": 816,
+      "necklineRight": 1230,
+      "bottom": 680,
+      "crownTop": 189,
+      "scaleX": 0.9605568445475638,
+      "scaleY": 0.7738582677165355,
+      "asset": "src/assets/hoodie-test/Hood/Scuba hood.svg"
+    },
+    "cropped": {
+      "regularSha256": "a6e4347de5b83df7437d477bc138dd1c799d8567c5571da58e7fda3c931f4ab1",
+      "necklineLeft": 825,
+      "necklineRight": 1216,
+      "bottom": 694,
+      "crownTop": 172,
+      "scaleX": 0.9071925754060325,
+      "scaleY": 0.8225826771653544,
+      "asset": "src/assets/hoodie-test/Hood/Scuba hood (cropped).svg"
+    },
+    "baggy": {
+      "regularSha256": "07904038ad31215b8e986a3906760db2387c7d82047a5b3b91d64ff042127321",
+      "necklineLeft": 819,
+      "necklineRight": 1222,
+      "bottom": 655,
+      "crownTop": 168,
+      "scaleX": 0.9350348027842227,
+      "scaleY": 0.7666929133858268,
+      "asset": "src/assets/hoodie-test/Hood/Scuba hood (baggy).svg"
+    },
+    "regular": {
+      "regularSha256": "601f5c92aee2e225df0274c415605cfd8f93fbb54b99cde7b4dd4f53d85804ac",
+      "necklineLeft": 808,
+      "necklineRight": 1238,
+      "bottom": 652,
+      "crownTop": 142,
+      "scaleX": 0.9976798143851509,
+      "scaleY": 0.8025196850393701,
+      "asset": "src/assets/hoodie-test/Hood/Scuba hood (regular).svg"
+    },
+    "slim": {
+      "regularSha256": "2de10f6754d073c73fa75c789cd34a5d3dca8fc1824222c4ce9aceaaf555ee48",
+      "necklineLeft": 819,
+      "necklineRight": 1231,
+      "bottom": 662,
+      "crownTop": 141,
+      "scaleX": 0.9559164733178654,
+      "scaleY": 0.8211496062992127,
+      "asset": "src/assets/hoodie-test/Hood/Scuba hood (slim).svg"
+    }
+  }
+}

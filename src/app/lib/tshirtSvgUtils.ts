@@ -34,6 +34,11 @@ export function tintPotraceSvg(
       );
   }
 
+  result = result.replace(
+    /(<g\b[^>]*data-linked-fabric="true"[^>]*fill=")#000000"/gi,
+    `$1${fill}"`,
+  );
+
   if (interactive) {
     result = result.replace(/<path /gi, '<path pointer-events="all" ');
   }

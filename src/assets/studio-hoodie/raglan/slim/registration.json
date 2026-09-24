@@ -1,0 +1,62 @@
+{
+  "center": 1024.5,
+  "neckline": {
+    "x": 827,
+    "y": 573
+  },
+  "underarm": {
+    "x": 721,
+    "y": 905
+  },
+  "lineWidth": 2.6832815729997477,
+  "bounds": {
+    "Body": {
+      "top": 573,
+      "bottom": 1636,
+      "left": 643,
+      "right": 1406
+    },
+    "Left sleeve": {
+      "top": 680,
+      "bottom": 1756,
+      "left": 540,
+      "right": 720
+    },
+    "Right sleeve": {
+      "top": 680,
+      "bottom": 1756,
+      "left": 1328,
+      "right": 1508
+    },
+    "Rib hem": {
+      "top": 1611,
+      "bottom": 1726,
+      "left": 699,
+      "right": 1350
+    },
+    "Left cuff": {
+      "top": 1757,
+      "bottom": 1867,
+      "left": 546,
+      "right": 647
+    },
+    "Right cuff": {
+      "top": 1757,
+      "bottom": 1867,
+      "left": 1400,
+      "right": 1502
+    },
+    "Hood": {
+      "top": 93,
+      "bottom": 659,
+      "left": 823,
+      "right": 1227
+    },
+    "Kangaroo pocket": {
+      "top": 1283,
+      "bottom": 1618,
+      "left": 788,
+      "right": 1256
+    }
+  }
+}

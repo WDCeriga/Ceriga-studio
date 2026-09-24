@@ -1,0 +1,6 @@
+{
+  "reference": "Existing Regular Hood raster construction style; no previous variant geometry reused.",
+  "sourceSha256": "40e9f9958a553303daf16c588278732dff63ed7f735acc63f98a547dfc906034",
+  "method": "4096px Canvas raster with shared primary/secondary/seam line hierarchy, arched opening, center and lining panel seams; Potrace-only SVG geometry.",
+  "reusedRejectedGeometry": false
+}
