@@ -63,7 +63,7 @@ export function GarmentAssetChoiceGrid({
                 : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
             )}
           >
-            <div className={cn('text-[10px] font-medium leading-snug sm:text-[11px]', garmentType === 'hoodie' && category === 'Left sleeve' ? 'break-normal' : 'break-all')}>
+            <div className={cn('text-[10px] font-medium leading-snug sm:text-[11px]', garmentType === 'hoodie' && (category === 'Left sleeve' || category === 'Hood') ? 'break-normal' : 'break-all')}>
               {getGarmentAssetOptionLabel(asset)}
             </div>
           </button>

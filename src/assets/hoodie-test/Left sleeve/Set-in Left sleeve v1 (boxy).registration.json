@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "fit": "boxy",
+  "construction": "set-in",
+  "part": "sleeveLeft",
+  "side": "left",
+  "version": "v1",
+  "source": {
+    "path": "src/assets/studio-hoodie/hoodie-lineart-bold.png",
+    "width": 1024,
+    "height": 1536,
+    "sha256": "844ee5f6d3477f0f3b325cfc6ca3f556f055bb8d73844adf7d381e647e1b3bae"
+  },
+  "fileName": "Set-in Left sleeve v1 (boxy).svg",
+  "assetId": "hoodie/Left sleeve/Set-in Left sleeve v1 (boxy)",
+  "label": "Set-in Sleeve v1 (regenerated left)",
+  "compatibilityFamily": "hoodie/boxy/set-in/left-v1",
+  "transformReferenceAssetId": "hoodie/Left sleeve/Left sleeve",
+  "registration": {
+    "canvas": [
+      2048,
+      2048
+    ],
+    "scale": 1.3333333333333333,
+    "offsetX": 341.3333333333333,
+    "offsetY": 0
+  },
+  "defaultTransform": {
+    "x": 0,
+    "y": 0,
+    "scale": 1,
+    "rotation": 0
+  },
+  "dependencies": {
+    "Body": {
+      "path": "src/assets/hoodie-test/Body/Body.svg",
+      "sha256": "c893ea33c378bca00eb2f512c36952fd406092193deecc75b72b8fb9015f8f45"
+    },
+    "Left sleeve": {
+      "path": "src/assets/hoodie-test/Left sleeve/Left sleeve.svg",
+      "sha256": "2fa83c6d8e8ca49e97049f43a4c00a048be32ebf4914cccd61519c3bee424794"
+    },
+    "Right sleeve": {
+      "path": "src/assets/hoodie-test/Right sleeve/Right sleeve.svg",
+      "sha256": "e04523c2fbc1c11117e53df746bc1ac5d6dcc7f1c092d8044b3c0bfe2ee41b82"
+    },
+    "Left cuff": {
+      "path": "src/assets/hoodie-test/Left cuff/Left cuff.svg",
+      "sha256": "f4467fa082fbcf49de4cdbda2362740b322347d0f5f17e0d4276f8fddb665e52"
+    },
+    "Right cuff": {
+      "path": "src/assets/hoodie-test/Right cuff/Right cuff.svg",
+      "sha256": "5c07db93f4f865fbe69808883d0729f06b04526a15d959481f202d21936fc6ff"
+    },
+    "Hood": {
+      "path": "src/assets/hoodie-test/Hood/Hood.svg",
+      "sha256": "37c362fdd01363e6ecd89a75cc4ef4a59e220ad588f9e9928c419dde3d9a4d41"
+    },
+    "Rib hem": {
+      "path": "src/assets/hoodie-test/Rib hem/Rib hem.svg",
+      "sha256": "a9ab6b0d77f66b809b130d750d05eefdde93deb7bbede632889a29e3caab6a8b"
+    },
+    "Kangaroo pocket": {
+      "path": "src/assets/hoodie-test/Kangaroo pocket/Kangaroo pocket.svg",
+      "sha256": "8133752a996861c676ed6e77a851d61f8a50a6278070f935436f78d974f75dc1"
+    }
+  },
+  "svgSha256": "56fee4089c87ef32d97affe9f9aa9bca576b36508d1e322b42e3307a5ce4eb93",
+  "generator": {
+    "path": "scripts/collar/pack_hoodie.mjs",
+    "sha256": "7e8006c985e02b17aae1faf318150841ba51c26ff04f27e8ea5e94286e24eec8",
+    "process": {
+      "rasterFirst": true,
+      "whiteKey": "luminance-ramp",
+      "contrast": 1.35,
+      "traceSupersampling": 3,
+      "bitmapInverted": true,
+      "fillRule": "evenodd",
+      "exclusiveFillPartition": true,
+      "viewBox": "0 0 2048 2048",
+      "sourceWidth": 1024,
+      "sourceHeight": 1536,
+      "turdsize": 4,
+      "turnPolicy": "minority"
+    }
+  },
+  "measurements": {
+    "attachments": {
+      "Body": {
+        "originalContact": 4786,
+        "retainedContact": 4786,
+        "contact": 4786,
+        "boundaryBounds": {
+          "left": 537,
+          "top": 840,
+          "right": 647,
+          "bottom": 1573
+        },
+        "boundarySha256": "4e583301d84d06b128f1a1a39efa3bf629d2780b19e7165d7c144b0e0cb63c8d"
+      },
+      "Left cuff": {
+        "originalContact": 785,
+        "retainedContact": 785,
+        "contact": 785,
+        "boundaryBounds": {
+          "left": 444,
+          "top": 1662,
+          "right": 602,
+          "bottom": 1670
+        },
+        "boundarySha256": "d180a5e67d8a5bffcf099b48ee00d78be3f441528375c535feb41235ccbd8037"
+      }
+    },
+    "originalBounds": {
+      "left": 429,
+      "top": 841,
+      "right": 646,
+      "bottom": 1669
+    },
+    "candidateBounds": {
+      "left": 429,
+      "top": 841,
+      "right": 646,
+      "bottom": 1669
+    },
+    "overlaps": 0,
+    "connectedFraction": 1,
+    "enclosedGapPixels": 0
+  }
+}

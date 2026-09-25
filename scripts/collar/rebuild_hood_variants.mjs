@@ -117,7 +117,8 @@ export function scubaBodyDimensions(body, attachment, fit, necklineAttachment = 
     : Math.round(Math.max((attachment.right - attachment.left) * 1.12, crownWidth * 0.96));
   return { chestRow, chestWidth, chestRatio, crownWidth, attachmentWidth };
 }
-export async function rebuildHoods(only, { root = ROOT, variantDefinitions = variants } = {}) {
+export async function rebuildHoods(only, { root = ROOT, variantDefinitions = variants, selectedFits = fits } = {}) {
+  if (!selectedFits.length || selectedFits.some(fit => !fits.includes(fit))) throw new Error('Unknown hoodie fit');
   for (const variant of variantDefinitions.filter((entry) => !only || entry.id === only)) {
     const dir = `${root}/${variant.id}`;
     fs.mkdirSync(`${dir}/fits`, { recursive: true });
@@ -142,7 +143,7 @@ export async function rebuildHoods(only, { root = ROOT, variantDefinitions = var
     fs.writeFileSync(`${dir}/source-lineart.svg`, wrap(`${variant.label} - new raster trace`, '', await trace(ink), variant.inkColour));
     const manifest = { variant: variant.id, label: variant.label, source: 'source.png', sourceSha256: hash(sourceBytes), rasterFirst: true, oldVariantGeometryUsed: false, fits: {} };
     const tiles = [];
-    for (const fit of fits) {
+    for (const fit of selectedFits) {
       const regular = readAsset('Hood', fit);
       const regularFill = alpha(await rawSvg(layer(regular, 0), W));
       const regularInk = alpha(await rawSvg(layer(regular, 1), W));
@@ -174,8 +175,10 @@ export async function rebuildHoods(only, { root = ROOT, variantDefinitions = var
       for (let x = fittingLeft; x <= fittingRight; x++) {
         const sx = sourceAttachment.left + (x - target.left) / width * (sourceAttachment.right - sourceAttachment.left);
         const sx0 = Math.max(0, Math.min(W - 1, Math.floor(sx))), sx1 = Math.min(W - 1, sx0 + 1), fraction = sx - Math.floor(sx);
-        const sourceBottom = src.bottom[sx0] * (1 - fraction) + src.bottom[sx1] * fraction;
-        const bottom = x >= target.left && x <= target.right ? target.bottom[x] : top + height * 0.68;
+        const outsideAttachment = x < target.left || x > target.right;
+        const taperSide = bodySizing && variant.taperToNeckline && outsideAttachment;
+        const sourceBottom = taperSide ? src.maxY : src.bottom[sx0] * (1 - fraction) + src.bottom[sx1] * fraction;
+        const bottom = outsideAttachment ? (taperSide ? target.maxY : top + height * 0.68) : target.bottom[x];
         for (let y = Math.max(0, Math.floor(top)); y <= bottom; y++) {
           let sourceX = sx;
           let sy = src.top + (y - top) / (bottom - top) * (sourceBottom - src.top);
@@ -293,10 +296,10 @@ export async function rebuildHoods(only, { root = ROOT, variantDefinitions = var
         await sharp(Buffer.from(compositeCandidate(variant, fit, false, root).replaceAll('#141414', '#000000')))
           .flatten({ background: 'white' }).threshold(128).png().toFile(`${dir}/proofs/${fit}-lineart.png`);
       }
-      tiles.push({ input: await sharp(Buffer.from(compositeCandidate(variant, fit, true, root))).resize(410, 410).png().toBuffer(), left: fits.indexOf(fit) * 410, top: 0 });
+      tiles.push({ input: await sharp(Buffer.from(compositeCandidate(variant, fit, true, root))).resize(410, 410).png().toBuffer(), left: selectedFits.indexOf(fit) * 410, top: 0 });
       console.log(`${variant.label} / ${fit}: NEW raster traced; ${width}px width x ${Math.round(height)}px height`);
     }
-    await sharp({ create: { width: 2050, height: 410, channels: 4, background: 'white' } }).composite(tiles).png().toFile(`${dir}/proofs/all-fits.png`);
+    await sharp({ create: { width: selectedFits.length * 410, height: 410, channels: 4, background: 'white' } }).composite(tiles).png().toFile(`${dir}/proofs/all-fits.png`);
     fs.writeFileSync(`${dir}/registration.json`, JSON.stringify(manifest, null, 2) + '\n');
   }
 }

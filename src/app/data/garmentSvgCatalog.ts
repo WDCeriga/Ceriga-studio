@@ -74,10 +74,44 @@ export interface GarmentAsset {
 
 export type GarmentAssetSelection = Partial<Record<string, string>>;
 
+interface HoodiePartRegistration {
+  schemaVersion: number;
+  assetId: string;
+  label: string;
+  fit: string;
+  construction?: string;
+  part: string;
+  compatibilityFamily: string;
+  transformReferenceAssetId: string;
+}
+
+const hoodieRegistrations = Object.values(import.meta.glob(
+  ['../../assets/hoodie-test/Left sleeve/*.registration.json', '../../assets/hoodie-test/Hood/*.registration.json'],
+  { eager: true, import: 'default' },
+)) as HoodiePartRegistration[];
+
+const previousScubaHoods = import.meta.glob<string>(
+  '../../assets/studio-hoodie/hoods/supplied-scuba-20260925/previous/*.svg',
+  { eager: true, query: '?raw', import: 'default' },
+);
+
+function hoodieRegistration(assetId: string): HoodiePartRegistration | undefined {
+  return hoodieRegistrations.find(registration => registration.assetId === assetId
+    && registration.schemaVersion === 1 && registration.fit === 'boxy'
+    && ((registration.construction === 'set-in' && registration.part === 'sleeveLeft'
+      && registration.compatibilityFamily === 'hoodie/boxy/set-in/left-v1'
+      && registration.transformReferenceAssetId === 'hoodie/Left sleeve/Left sleeve')
+    || (registration.part === 'hood' && assetId.startsWith('hoodie/Hood/')
+      && registration.compatibilityFamily === 'hoodie/boxy/neckline-v1'
+      && registration.transformReferenceAssetId === 'hoodie/Hood/Scuba hood')));
+}
+
 /** Keep uploaded names intact; simplify only built-in hoodie hood labels. */
 export function getGarmentAssetOptionLabel(
   asset: Pick<GarmentAsset, 'id' | 'displayName'>,
 ): string {
+  const registration = hoodieRegistration(asset.id);
+  if (registration) return registration.label;
   if (asset.id.startsWith('hoodie/Left sleeve/')) {
     if (asset.displayName.startsWith('Dropped Shoulder ')) return 'Dropped Shoulder Sleeve';
     return asset.displayName.startsWith('Raglan ') ? 'Raglan Sleeve' : 'Set-in Sleeve';
@@ -210,6 +244,7 @@ export interface ResolvedGarmentLayer {
   assetId: string;
   displayName: string;
   svgRaw: string;
+  transformReferenceSvg?: string;
   kind: 'solid' | 'detail';
   tint?: string;
   zIndex: number;
@@ -800,6 +835,8 @@ export function isAssetAvailableForFit(
   asset: GarmentAsset,
   fit: string,
 ): boolean {
+  const registration = hoodieRegistration(asset.id);
+  if (registration) return registration.fit === fit;
   const config = GARMENT_CONFIGS[garmentType];
   if (!config.fits?.length) return true;
   if (inferAssetFitId(asset.displayName, garmentType) === fit) return true;
@@ -811,7 +848,10 @@ export function getGarmentAssetsForFit(
   category: string,
   fit?: string,
 ): GarmentAsset[] {
-  const assets = getGarmentAssets(garmentType, category);
+  const categoryAssets = getGarmentAssets(garmentType, category);
+  const assets = garmentType === 'hoodie' && category === 'Hood'
+    ? categoryAssets.filter((asset) => /^(?:Hood|Scuba hood)(?:\s*\([^)]+\))?$/.test(asset.displayName))
+    : categoryAssets;
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   if (!resolvedFit) return assets;
   const available = assets.filter((asset) => isAssetAvailableForFit(garmentType, asset, resolvedFit));
@@ -892,6 +932,10 @@ export function applyGarmentSelectionLinks(
       );
       if (asset) next[category] = asset.id;
     });
+    const registration = sleeve && hoodieRegistration(sleeve.id);
+    if (registration && registration.fit === activeFit && prefix === '' && wanted.every(Boolean)) {
+      next['Left sleeve'] = sleeve.id;
+    }
   }
   if (isCustomCollarNeckId(selection.Neck) && resolvedFit !== 'boxy') {
     const pair = customCollarPairId(selection.Neck);
@@ -949,6 +993,10 @@ export function applyGarmentFitAndLinks(
       if (config.hiddenCategories?.includes(category)) continue;
       const allowed = getGarmentAssetsForFit(garmentType, category, resolvedFit);
       const current = next[category];
+      const savedHood = garmentType === 'hoodie' && category === 'Hood'
+        ? getGarmentAssets(garmentType, category).find((asset) => asset.id === current)
+        : undefined;
+      const keepSavedHood = savedHood && isAssetAvailableForFit(garmentType, savedHood, resolvedFit);
       const keepCustom =
         resolvedFit === 'slim' &&
         ((category === 'Neck' && isCustomCollarNeckId(current)) ||
@@ -956,6 +1004,7 @@ export function applyGarmentFitAndLinks(
       if (
         allowed.length &&
         !allowed.some((asset) => asset.id === current) &&
+        !keepSavedHood &&
         !keepCustom
       ) {
         const previous = getGarmentAsset(current ?? '');
@@ -1085,12 +1134,19 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     const layerId = config.categoryLayerId[category];
     if (!layerId) continue;
 
+    const referenceAssetId = hoodieRegistration(asset.id)?.transformReferenceAssetId;
+    const referenceAsset = getGarmentAsset(referenceAssetId ?? asset.id);
+    const previousScuba = asset.garmentType === 'hoodie' && category === 'Hood' && referenceAsset
+      ? previousScubaHoods[`../../assets/studio-hoodie/hoods/supplied-scuba-20260925/previous/${referenceAsset.fileName}`]
+      : undefined;
+
     layers.push({
       id: layerId,
       category,
       assetId: asset.id,
       displayName: getGarmentAssetOptionLabel(asset),
       svgRaw: asset.svgRaw,
+      transformReferenceSvg: previousScuba ?? (referenceAssetId ? referenceAsset?.svgRaw : undefined),
       kind: config.detailCategories.includes(category) ? 'detail' : 'solid',
       tint: input.partColors?.[layerId] ?? trimForCategory(input.garmentType, category, input),
       zIndex: config.categoryZIndex[category] ?? 0,

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "assetId": "hoodie/Hood/Reference Scuba hood v1 (boxy)",
+  "fileName": "Reference Scuba hood v1 (boxy).svg",
+  "label": "Reference Scuba Hood v1",
+  "fit": "boxy",
+  "part": "hood",
+  "compatibilityFamily": "hoodie/boxy/neckline-v1",
+  "transformReferenceAssetId": "hoodie/Hood/Scuba hood",
+  "defaultTransform": {
+    "x": 0,
+    "y": 0,
+    "scale": 1,
+    "rotation": 0
+  },
+  "source": {
+    "fileName": "Reference Scuba hood v1 (boxy).source.png",
+    "sha256": "de6819ccf427b8777602f497c705598ee769b1a58b1d1554facf7b21d6eb440f",
+    "reference": "User-attached black hoodie photograph, 2026-09-25; visually interpreted, photo bytes not archived",
+    "method": "New symmetric Canvas technical drawing followed by raster fitting and Potrace; not a photo pixel trace",
+    "visibleDesign": "Rounded structured crown, deep face opening, raised centre-front edges, opening binding and side-panel seams",
+    "hiddenInterfaces": "Existing registered Boxy Regular hood neckline and body; no inferred photographic measurements, rear view or zip"
+  },
+  "registration": {
+    "canvas": [
+      2048,
+      2048
+    ],
+    "method": "Raster column fitting to existing Regular hood neckline, clipped against existing body",
+    "necklineLeft": 816,
+    "necklineRight": 1230,
+    "necklineBottom": 680,
+    "boundarySha256": "473190771696129591449998220efd03a09654b4f0e14bd89ba5a5af35cad2ce"
+  },
+  "dependencies": {
+    "src/assets/hoodie-test/Body/Body.svg": "c893ea33c378bca00eb2f512c36952fd406092193deecc75b72b8fb9015f8f45",
+    "src/assets/hoodie-test/Left sleeve/Left sleeve.svg": "2fa83c6d8e8ca49e97049f43a4c00a048be32ebf4914cccd61519c3bee424794",
+    "src/assets/hoodie-test/Right sleeve/Right sleeve.svg": "e04523c2fbc1c11117e53df746bc1ac5d6dcc7f1c092d8044b3c0bfe2ee41b82",
+    "src/assets/hoodie-test/Left cuff/Left cuff.svg": "f4467fa082fbcf49de4cdbda2362740b322347d0f5f17e0d4276f8fddb665e52",
+    "src/assets/hoodie-test/Right cuff/Right cuff.svg": "5c07db93f4f865fbe69808883d0729f06b04526a15d959481f202d21936fc6ff",
+    "src/assets/hoodie-test/Hood/Hood.svg": "37c362fdd01363e6ecd89a75cc4ef4a59e220ad588f9e9928c419dde3d9a4d41",
+    "src/assets/hoodie-test/Rib hem/Rib hem.svg": "a9ab6b0d77f66b809b130d750d05eefdde93deb7bbede632889a29e3caab6a8b",
+    "src/assets/hoodie-test/Kangaroo pocket/Kangaroo pocket.svg": "8133752a996861c676ed6e77a851d61f8a50a6278070f935436f78d974f75dc1",
+    "src/assets/hoodie-test/Hood/Scuba hood.svg": "5b2042fcb8f75740de9baa439dc8ecc87ddbd0980c7421a82669664c59ff1a16",
+    "src/assets/hoodie-test/Body/Raglan Body.svg": "74f18c8b091a6499331c295a276254809794990c50d0bc774237084c2f5db176",
+    "src/assets/hoodie-test/Body/Dropped Shoulder Body.svg": "d559a810c550cdf372de1d9ad3036688a8a35c3e675eeae74d6d45499c026513"
+  },
+  "generator": {
+    "scripts/collar/build_reference_scuba.mjs": "bbf8a9825724a3b93bf6dda65c7486e13c7f0cfcf5e00587418d530f63becd89",
+    "scripts/collar/rebuild_hood_variants.mjs": "993ab98389985d707a8d196d1682db675be63404477bb9cb0b59efb88b4a7a74"
+  },
+  "svgSha256": "46898c56a4a8f88f78fdc0f395860618c9e054e6ad9b07753351e04eb8550755",
+  "measurements": {
+    "attachments": {
+      "src/assets/hoodie-test/Body/Body.svg": {
+        "missing": 0,
+        "overlap": 0
+      },
+      "src/assets/hoodie-test/Body/Raglan Body.svg": {
+        "missing": 0,
+        "overlap": 0
+      },
+      "src/assets/hoodie-test/Body/Dropped Shoulder Body.svg": {
+        "missing": 0,
+        "overlap": 0
+      }
+    },
+    "bounds": {
+      "left": 704,
+      "right": 1343,
+      "top": 140,
+      "bottom": 680
+    },
+    "changedFraction": 0.1606608997792175,
+    "inkPixels": 16356
+  }
+}

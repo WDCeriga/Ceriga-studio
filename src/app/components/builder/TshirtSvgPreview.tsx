@@ -15,6 +15,7 @@ import {
   type TshirtLayerTransform,
 } from '../../data/tshirtLayerAssets';
 import {
+  applyGarmentFitAndLinks,
   getGarmentSvgConfig,
   garmentSourceLayerId,
   garmentTransformStorageId,
@@ -39,6 +40,7 @@ import {
   type SleeveSide,
 } from '../../lib/tshirtSvgUtils';
 import { cn } from '../ui/utils';
+import { usesHoodieAssembly } from '../../data/hoodieAssembly';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -218,6 +220,7 @@ export interface TshirtSvgPreviewProps {
   /** Per-part colour keyed by layer id; wins over the fabric colour and trim colours. */
   partColors?: Partial<Record<string, string>>;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
+  hoodieAssemblyVersion?: number;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
   onSelectedLayerChange?: (id: string | null) => void;
@@ -369,29 +372,24 @@ function SelectionHandle({
   const cursor =
     variant === 'edge-v' ? 'ew-resize' : variant === 'edge-h' ? 'ns-resize' : 'nwse-resize';
 
+  if (!onPointerDown) return null;
+
   return (
     <div
       role="button"
       tabIndex={-1}
       aria-label="Scale"
-      className={cn(
-        'absolute rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)]',
-        onPointerDown ? 'pointer-events-auto' : 'pointer-events-none',
-      )}
+      className="pointer-events-auto absolute rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)]"
       style={{
         ...anchor,
         ...size,
         border: '1px solid rgba(0,0,0,0.2)',
-        cursor: onPointerDown ? cursor : undefined,
+        cursor,
       }}
-      onPointerDown={
-        onPointerDown
-          ? (e) => {
-              e.stopPropagation();
-              onPointerDown(e, scaleAnchor);
-            }
-          : undefined
-      }
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onPointerDown(e, scaleAnchor);
+      }}
     />
   );
 }
@@ -613,7 +611,7 @@ function expandPreviewLayers(
   const expanded: ExpandedPreviewLayer[] = [];
 
   for (const layer of layers) {
-    const fullBbox = getPotraceSvgBBox(layer.svgRaw);
+    const fullBbox = getPotraceSvgBBox(layer.transformReferenceSvg ?? layer.svgRaw);
 
     if (config.splitSleeves && layer.id === 'sleeves') {
       const { left, right } = splitPotraceSvgBBoxAtCenter(layer.svgRaw);
@@ -702,6 +700,7 @@ export function TshirtSvgPreview({
   pocketTrimColor,
   partColors,
   layerTransforms,
+  hoodieAssemblyVersion,
   onLayerTransformChange,
   selectedLayerId = null,
   onSelectedLayerChange,
@@ -734,12 +733,14 @@ export function TshirtSvgPreview({
 
   const fabricColor = color || '#5C7FB6';
   const editable = Boolean(onLayerTransformChange);
+  const selectable = editable || Boolean(onSelectedLayerChange);
+  const assembled = usesHoodieAssembly(garmentType, hoodieAssemblyVersion, layerTransforms);
 
   const layers = useMemo(
     () =>
       resolveGarmentLayers({
         garmentType,
-        selection,
+        selection: assembled ? applyGarmentFitAndLinks(garmentType, selection, fit) : selection,
         neckTrimColor,
         sleeveTrimColor,
         cuffTrimColor,
@@ -749,7 +750,7 @@ export function TshirtSvgPreview({
         customCollar,
         customCollars,
       }),
-    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, partColors, fit, customCollar, customCollars],
+    [garmentType, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, partColors, fit, customCollar, customCollars, assembled],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);
@@ -1054,7 +1055,8 @@ export function TshirtSvgPreview({
         'relative flex h-full w-full min-h-0 [container-type:size] items-center justify-center',
         className,
       )}
-      onPointerDown={editable ? handleBackgroundPointerDown : undefined}
+      onPointerDown={selectable ? handleBackgroundPointerDown : undefined}
+      data-hoodie-assembly={garmentType === 'hoodie' ? assembled ? 'v1' : 'legacy' : undefined}
     >
       <div
         ref={canvasRef}
@@ -1082,13 +1084,13 @@ export function TshirtSvgPreview({
           );
         })}
 
-        {editable
+        {selectable
           ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>
               bbox ? (
                 <LayerHitTarget
                   key={`hit-${id}`}
                   layerId={id}
-                  shapeRaw={garmentType === 'hoodie' && ['base', 'sleeveLeft', 'sleeveRight'].includes(id) ? sourceLayer.svgRaw : undefined}
+                  shapeRaw={garmentType === 'hoodie' && (assembled || ['base', 'sleeveLeft', 'sleeveRight'].includes(id)) ? sourceLayer.svgRaw : undefined}
                   displayName={
                     side
                       ? `${side === 'left' ? 'Left' : 'Right'} ${sourceLayer.displayName}`

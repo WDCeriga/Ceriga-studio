@@ -16,6 +16,8 @@ import { cn } from '../ui/utils';
 /** Subset of builder state needed to render a draft/dashboard preview. */
 export type ProjectPreviewState = {
   garmentType?: string;
+  fit?: string;
+  hoodieAssemblyVersion?: number;
   colors?: Array<{ hex?: string; pantone?: string }>;
   neckType?: string;
   sleeveType?: string;
@@ -71,10 +73,10 @@ export function ProjectGarmentPreview({
   const selection = useMemo(() => {
     if (!svgType) return null;
     return {
-      ...getDefaultGarmentSelection(svgType),
+      ...getDefaultGarmentSelection(svgType, preview.fit),
       ...preview.tshirtAssetSelection,
     };
-  }, [svgType, preview.tshirtAssetSelection]);
+  }, [svgType, preview.tshirtAssetSelection, preview.fit]);
 
   if (svgType && selection) {
     return (
@@ -90,6 +92,8 @@ export function ProjectGarmentPreview({
           garmentType={svgType}
           color={color}
           selection={selection}
+          fit={preview.fit}
+          hoodieAssemblyVersion={preview.hoodieAssemblyVersion}
           neckTrimColor={preview.neckTrimColor}
           sleeveTrimColor={preview.sleeveTrimColor}
           cuffTrimColor={preview.cuffTrimColor}

@@ -93,6 +93,7 @@ import {
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
+import { HOODIE_ASSEMBLY_VERSION } from '../data/hoodieAssembly';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
 import { CollarPhotoUpload } from '../components/builder/CollarPhotoUpload';
 import { TrimColorFamilyPicker } from '../components/builder/TrimColorFamilyPicker';
@@ -267,6 +268,7 @@ interface BuilderState {
   quantityBySize?: Record<string, number>;
   /** PNG layer offsets for garment SVG compositor (drag / scale per part). */
   tshirtLayerTransforms?: Partial<Record<GarmentLayerId, TshirtLayerTransform>>;
+  hoodieAssemblyVersion?: number;
   /** One selected SVG asset id per folder under src/assets/{tshirts|hoodie|trousers}. */
   tshirtAssetSelection?: GarmentAssetSelection;
   /** SVG part pack pinned by the product, when it differs from the garment type default. */
@@ -589,6 +591,7 @@ export function Builder() {
   const [state, _setStateRaw] = useState<BuilderState>({
     productId: productId || '',
     garmentType: product?.garmentType || 'tshirt',
+    hoodieAssemblyVersion: !urlProjectId && product?.garmentType === 'hoodie' ? HOODIE_ASSEMBLY_VERSION : undefined,
     fit: (() => {
       const svgType = product?.garmentType
         ? resolveProductSvgType(product.garmentType, product.svgPack)
@@ -3512,6 +3515,7 @@ export function Builder() {
                     customCollar={state.customCollar}
                     customCollars={state.customCollars}
                     layerTransforms={state.tshirtLayerTransforms}
+                    hoodieAssemblyVersion={state.hoodieAssemblyVersion}
                     className="h-full w-full min-h-0"
                   />
                   <MeasurementGuideOverlay highlightedId={highlightedMeasurementId} />
@@ -3612,6 +3616,7 @@ export function Builder() {
                   customCollar={state.customCollar}
                   customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}
+                  hoodieAssemblyVersion={state.hoodieAssemblyVersion}
                   onLayerTransformChange={(id, transform) =>
                     setState((prev) => ({
                       ...prev,

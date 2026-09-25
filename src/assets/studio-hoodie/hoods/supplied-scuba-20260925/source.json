@@ -1,0 +1,111 @@
+{
+  "sourceSha256": "66eec8999286a48fdb4f4b132b2f60caedb832fa76792e95e7464e7a19777940",
+  "width": 1143,
+  "height": 1376,
+  "selected": [
+    {
+      "id": 1,
+      "area": 14801,
+      "minX": 490,
+      "maxX": 647,
+      "minY": 11,
+      "maxY": 121,
+      "border": false
+    },
+    {
+      "id": 2,
+      "area": 19601,
+      "minX": 366,
+      "maxX": 496,
+      "minY": 22,
+      "maxY": 474,
+      "border": false
+    },
+    {
+      "id": 3,
+      "area": 19440,
+      "minX": 640,
+      "maxX": 769,
+      "minY": 22,
+      "maxY": 475,
+      "border": false
+    },
+    {
+      "id": 4,
+      "area": 9755,
+      "minX": 375,
+      "maxX": 760,
+      "minY": 115,
+      "maxY": 358,
+      "border": false
+    },
+    {
+      "id": 5,
+      "area": 53998,
+      "minX": 416,
+      "maxX": 720,
+      "minY": 128,
+      "maxY": 344,
+      "border": false
+    },
+    {
+      "id": 6,
+      "area": 2910,
+      "minX": 389,
+      "maxX": 444,
+      "minY": 177,
+      "maxY": 308,
+      "border": false
+    },
+    {
+      "id": 7,
+      "area": 2875,
+      "minX": 692,
+      "maxX": 746,
+      "minY": 177,
+      "maxY": 308,
+      "border": false
+    },
+    {
+      "id": 9,
+      "area": 14079,
+      "minX": 443,
+      "maxX": 563,
+      "minY": 351,
+      "maxY": 501,
+      "border": false
+    },
+    {
+      "id": 10,
+      "area": 450,
+      "minX": 566,
+      "maxX": 568,
+      "minY": 351,
+      "maxY": 501,
+      "border": false
+    },
+    {
+      "id": 11,
+      "area": 14135,
+      "minX": 571,
+      "maxX": 691,
+      "minY": 351,
+      "maxY": 501,
+      "border": false
+    }
+  ],
+  "key": {
+    "contrast": 1.35,
+    "transparent": 246,
+    "opaque": 120
+  },
+  "trace": {
+    "upsample": 3,
+    "threshold": 128,
+    "turdSize": 4,
+    "turnPolicy": "minority",
+    "alphaMax": 1,
+    "optCurve": true,
+    "polarity": "Node Potrace blackOnWhite=true; negate alpha, not Python Bitmap inversion"
+  }
+}

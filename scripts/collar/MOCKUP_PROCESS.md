@@ -7,7 +7,184 @@ Two jobs, same rules:
 
 Never ask an image model to “output an SVG”. Models only make rasters. Vectors come from tracing code.
 
+## Registered hoodie sleeve demonstration
+
+Scope: **Boxy / Set-in / left sleeve**, against the existing Boxy body and cuff.
+Only this replacement is certified. The new sleeve is freshly raster-traced from
+the existing drawing, so its silhouette intentionally matches the original.
+No T-shirt geometry or files are used. Other hoodie assets are not regenerated.
+
+Installed asset ID: `hoodie/Left sleeve/Set-in Left sleeve v1 (boxy)`.
+Its SVG and `.registration.json` sidecar live in `src/assets/hoodie-test/Left sleeve/`.
+The original `hoodie/Left sleeve/Left sleeve` remains available and unchanged.
+
+### Registration versus editing
+
+The 1024 x 1536 source maps to a shared 2048 x 2048 canvas with scale `4/3`,
+horizontal padding `1024/3` and vertical padding `0`. Identity user transform is
+`{ x: 0, y: 0, scale: 1, rotation: 0 }`. No per-part positioning guesses are used.
+Fabric interiors are exclusive; fixed seam ink connects adjacent panels.
+
+All structural parts remain independently movable, resizable and rotatable.
+Reset removes the selected part's user transform, restoring registered placement.
+Colours and custom artwork transforms remain independent. Moving a sleeve away
+from its socket is allowed: registration defines the default, not a lock.
+
+The manifest declares compatibility family `hoodie/boxy/set-in/left-v1` and the
+original sleeve as `transformReferenceAssetId`. The builder uses that original
+bounding box/pivot for both compatible versions, preserving user adjustments
+when switching between them. The regenerated option is available only for Boxy
+Set-in; other fits and Raglan keep their existing linked selections.
+
+New hoodie projects store `hoodieAssemblyVersion: 1`, independently of user edits.
+Saved transform maps are never cleared or migrated automatically. Unversioned and
+unknown-version projects retain legacy preview behavior. Thumbnails receive the
+same fit/version. The browser fixture checks serialized saved transforms, not
+cloud save/hydration.
+
+### Generate, inspect, then install
+
+Run from the hoodie repository after installing its npm dependencies:
+
+```powershell
+node scripts/collar/build_hoodie_part.mjs scripts/collar/refs/boxy-set-in-left-v1.json
+```
+
+The command prints a unique staging directory under `.tmp-hoodie-assembly/`.
+Inspect its `registered-proof.png` (candidate with the seven unchanged parts),
+candidate SVG and `registration.json`. Generation never writes live assets.
+The initial demonstration was installed with:
+
+```powershell
+node scripts/collar/export_hoodie_test.mjs .tmp-hoodie-assembly/boxy-set-in-left-v1-fZYyN7
+```
+
+For another run, use its printed staging directory. Reinstalling v1 is rejected:
+existing versions are never overwritten. Installation validates before copying,
+validates the installed pair again, checks all prior asset hashes, and removes
+only newly created files on failure. No old assets are deleted.
+
+Validation covers pinned source/dependency hashes, source dimensions, XML and
+full-canvas SVG structure, identity placement, compatible fit/construction/side,
+fabric overlap, connected coverage and enclosed gaps. The candidate must retain
+at least 98% of both original attachment boundaries, stay within 16 pixels of
+the original bounds and leave no more than 16 enclosed empty pixels. This v1
+retains 4786/4786 body contact pixels and 785/785 cuff contact pixels, with zero
+fabric overlap and zero enclosed gaps.
+
+### Partner workflow for a future compatible sleeve
+
+1. Keep the full 1024 x 1536 Boxy drawing in `src/assets/studio-hoodie/`; do not
+   crop, recenter or rescale the sleeve. Preserve its body armhole and cuff join.
+2. Create a new recipe based on `scripts/collar/refs/boxy-set-in-left-v1.json`.
+   Use a new version (for example `v2`), source path and source SHA-256. Obtain the
+   hash with `Get-FileHash <source-path> -Algorithm SHA256` and lowercase it.
+3. Keep `fit: boxy`, `construction: set-in`, `part: sleeveLeft`, `side: left`.
+   Run the generation command with the new recipe. The generator records the
+   current eight dependencies and measures the actual traced attachment joins.
+4. Review the staged proof, then run the exporter with that staging directory.
+   The JSON sidecar makes the new option discoverable without a catalog ID edit.
+5. In the builder, test default attachment, movement, resize, rotation, swaps
+   with the original and Reset. Do not accept a failed validator by weakening it.
+
+This is a constrained compatible-replacement workflow, not automatic fitting of
+arbitrary sleeve crops or new constructions. Changes to the body/cuff interface,
+other fits, right sleeves or hoods require separate approval and registration work.
+
+### Verification and visual review
+
+With the hoodie Vite server already running:
+
+```powershell
+node scripts/collar/test_hoodie_assembly.mjs
+$env:CERIGA_BASE_URL = 'http://localhost:5174'
+node scripts/collar/check_hoodie_assembly_browser.mjs
+node scripts/collar/validate_hoodie_pack.mjs
+npm run build
+```
+
+The policy/generation test checks deterministic SVG output, installed registration,
+15 invalid candidates, duplicate-install rejection and preservation of live assets.
+The Edge/Playwright browser test covers all eight editable parts, six attachment
+contacts, fabric overlap, connected coverage, gaps, colours, Raglan round-trip,
+generated sleeve move/resize/rotate/Reset, compatible swaps, desktop/mobile,
+serialized legacy transforms and independent artwork editing. Proofs and results
+are written under `.tmp-hoodie-assembly/`, not source assets.
+
+Open `http://localhost:5174/builder/hd-001`, choose **Boxy**, continue to the
+configuration, open **Sleeves**, and choose **Set-in Sleeve v1 (regenerated left)**.
+Compare with **Set-in Sleeve**. Click the left sleeve to select it, then drag it;
+use its scale and rotation handles, swap versions while edited, then **Reset**.
+Stop after this demonstration for visual approval before generating other assets.
+
 ---
+
+## Reference Scuba hood v1
+
+This separate test variant is **Boxy only**, compatible with the existing Set-in,
+Raglan and Dropped Shoulder bodies. ID:
+`hoodie/Hood/Reference Scuba hood v1 (boxy)`. Its SVG, registration sidecar and
+binary source PNG are in `src/assets/hoodie-test/Hood/`. Regular Hood and Scuba
+Hood remain unchanged. No other fit, rear geometry or zipper is generated.
+
+The user's black hoodie attachment supplies visible design direction: rounded
+structured crown, large deep opening, raised centre-front edges and panel seams.
+This is a new Canvas-authored technical drawing traced through Potrace, not a
+photo pixel trace. The attachment bytes were unavailable for archival; the
+manifest says so, and the older lavender reference photo is not substituted.
+The face opening depicts the inner hood panel, not a transparent hole through
+the garment. There is no photographic texture, shading or copied body detail.
+
+Placement is derived from the actual registered Regular hood neckline column
+profile and the Boxy body mask on the common 2048 canvas. Crown width follows
+the measured body chest; height follows the registered hood. Those dimensions
+are not measurements inferred from the photo. Only this variant enables the
+smooth side-panel taper; existing generators retain their default behavior.
+
+The manifest pins the source, generator and dependency hashes, measured neckline
+boundary, identity user transform and validation results. The final SVG must
+pass strict XML/two-layer checks, clipping/alignment checks, and zero missing
+neckline pixels and zero interior fabric overlap for all three Boxy bodies.
+Its combined silhouette/ink raster difference from Scuba is about 16.1% of
+their union, exceeding the 8% guard against a renamed copy.
+
+Generate and validate before installing, from this repository:
+
+```powershell
+node scripts/collar/build_reference_scuba.mjs --generate
+node scripts/collar/build_reference_scuba.mjs --validate <printed-staging-directory>
+node scripts/collar/build_reference_scuba.mjs --install <printed-staging-directory>
+```
+
+Review the staged `registered-proof.png`, `original-scuba.png`, SVG and sidecar.
+The initial install used `.tmp-hoodie-assembly/reference-scuba-v1-d0noB9`.
+Installation is additive/exclusive, validates again after copying and checks
+all prior asset hashes. Reinstalling an existing version is rejected. Future
+design changes require a new versioned filename/ID and a new visual review;
+do not use `publish_rebuilt_hoods.mjs`, which replaces canonical hood assets.
+
+The hood stays selectable, movable, resizable, rotatable and recolourable.
+Its transform reference is the original Scuba hood, so compatible swaps retain
+the same pivot and user edits. Reset removes only the hood's user transform.
+Regular Hood retains its own existing pivot. No transform locking is involved.
+
+```powershell
+node scripts/collar/test_reference_scuba.mjs
+node scripts/collar/test_hoodie_assembly.mjs
+node scripts/collar/check_hoodie_assembly_browser.mjs
+npm run build
+```
+
+The reference test checks deterministic regeneration, duplicate/invalid install
+rejection, all prior asset hashes, browser move/resize/rotate/colour/Reset,
+original/new/Regular swaps, construction and front/back roundtrips, and mobile
+rendering. A local JSON fixture survives a browser reload with its selection,
+colour and transforms. This is not authenticated cloud save/hydration coverage.
+Screenshots are under `.tmp-hoodie-assembly/reference-scuba-browser/`.
+
+At `http://localhost:5174/builder/hd-001`, choose **Boxy**, continue through Fabric,
+then open **Neck / Collar** and select **Reference Scuba Hood v1**. Compare it with
+**Scuba Hood** and **Regular Hood**. Stop for visual approval after this variant.
 
 ## General prompt (paste this with any garment photo)
 

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "fit": "boxy",
+  "construction": "set-in",
+  "part": "sleeveLeft",
+  "side": "left",
+  "version": "v1",
+  "source": {
+    "path": "src/assets/studio-hoodie/hoodie-lineart-bold.png",
+    "width": 1024,
+    "height": 1536,
+    "sha256": "844ee5f6d3477f0f3b325cfc6ca3f556f055bb8d73844adf7d381e647e1b3bae"
+  }
+}

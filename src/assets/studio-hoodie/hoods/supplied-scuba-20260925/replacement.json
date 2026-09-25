@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "sourceSha256": "66eec8999286a48fdb4f4b132b2f60caedb832fa76792e95e7464e7a19777940",
+  "sourceWidth": 1143,
+  "sourceHeight": 1376,
+  "description": "Supplied line-art raster; isolated hood only. Crown/opening uniformly scaled; lower collar registered to existing neckline.",
+  "sourceTrace": "hood-source.svg",
+  "defaultTransform": {
+    "x": 0,
+    "y": 0,
+    "scale": 1,
+    "rotation": 0
+  },
+  "fits": {
+    "boxy": {
+      "scale": 1.0670103092783505,
+      "translateX": 418.00515463917526,
+      "translateY": 143.29381443298973,
+      "collarStart": 364.4,
+      "maximumSeamAdjustment": 5.0979381443298735,
+      "outlineWidth": 4,
+      "inkExpansion": 0,
+      "regularSha256": "37c362fdd01363e6ecd89a75cc4ef4a59e220ad588f9e9928c419dde3d9a4d41",
+      "previousScubaSha256": "5b2042fcb8f75740de9baa439dc8ecc87ddbd0980c7421a82669664c59ff1a16",
+      "svgSha256": "8b8a4a9aa22bb387344801d871b8e9a6ecbadd9dc95c493354fb1b4bbb3b920c",
+      "bodies": {
+        "Body": "c893ea33c378bca00eb2f512c36952fd406092193deecc75b72b8fb9015f8f45",
+        "Raglan Body": "74f18c8b091a6499331c295a276254809794990c50d0bc774237084c2f5db176",
+        "Dropped Shoulder Body": "d559a810c550cdf372de1d9ad3036688a8a35c3e675eeae74d6d45499c026513"
+      }
+    },
+    "cropped": {
+      "scale": 0.9948453608247423,
+      "translateX": 456.9226804123711,
+      "translateY": 193.5927835051546,
+      "collarStart": 364.4,
+      "maximumSeamAdjustment": 12.29381443298962,
+      "outlineWidth": 4,
+      "inkExpansion": 0.5,
+      "regularSha256": "cbfda9d24b297be05f4d16a7ab6e08dc7fabe10001206b5527745e7673cc0054",
+      "previousScubaSha256": "e1ac172ebc8503728e4a5a6ba4d07f2881438d10ad7013e431634bd3883f8d83",
+      "svgSha256": "7467c77a46feadcf0fbe28a8327d74d16661bcdd9b9dc3f4eb48c6cb5c04fd4a",
+      "bodies": {
+        "Body": "dcda2ff0511190b2dc00c1dee8b385002420249a41adfd21f7d96dd7de72e2bf",
+        "Raglan Body": "5d818d51374976e0b4081f1281f20d024813497120f2072400594216cfea7988",
+        "Dropped Shoulder Body": "3d51ab07a30ce2fbb530c821c952eb9a70aa4c277df97c989dcb0a9898935ebe"
+      }
+    },
+    "baggy": {
+      "scale": 1.0051546391752577,
+      "translateX": 450.0773195876289,
+      "translateY": 149.4072164948454,
+      "collarStart": 364.4,
+      "maximumSeamAdjustment": 6.87113402061857,
+      "outlineWidth": 3,
+      "inkExpansion": 0,
+      "regularSha256": "7c3ada1800a418d7358435bbc120e9c478c73c2fbccef4ea34324c8d3378a06c",
+      "previousScubaSha256": "6a6cdbdcb30e7fb4aa322ea911494b83ad90d92798f4927d24abdc679b3576f5",
+      "svgSha256": "9ebaa92255532a946e63964e17852c78d9feca4c9084aaa067fc8fd2cca88bac",
+      "bodies": {
+        "Body": "9692c2732f605b76257e1f4fd0d271b17e7d1a1c1e78bad71b3e59e74b1d4ced",
+        "Raglan Body": "916cd8ae63d091bf763b04d4a2c6beca326595f9d42117b0b9df78dffd4ba50c",
+        "Dropped Shoulder Body": "a04dc5bebf3e34a8599ae9e5965d28fcb16e0226567043cbe116755d801b06cd"
+      }
+    },
+    "regular": {
+      "scale": 1.0902061855670102,
+      "translateX": 405.3530927835052,
+      "translateY": 103.62628865979389,
+      "collarStart": 364.4,
+      "maximumSeamAdjustment": 6.564432989690772,
+      "outlineWidth": 4,
+      "inkExpansion": 0,
+      "regularSha256": "43f617a567ccc2e7971f560cad958386971cf94ee39b3cd64cc850b3a4d42ce2",
+      "previousScubaSha256": "3fbde62052f1b633362ab5ff00d6a170b7f3530a53437e6c85b13da42dac6f1a",
+      "svgSha256": "efea2fb4e00f53ae4d0d8bea4668cb070ed741d0020428c653f4743d07a2dfb1",
+      "bodies": {
+        "Body": "2359ecf79465885ac4911d4a2c7eaa64050846dbebbe6bda3449bb281cb894f3",
+        "Raglan Body": "43f79f52cec43907466f6ae51db003e04e84551243a2cabe00dda7b8df6fc43d",
+        "Dropped Shoulder Body": "93600506449379b3196e809cada00104ef76d5e6045a039dbef1b6e29d21e96c"
+      }
+    },
+    "slim": {
+      "scale": 1.0206185567010309,
+      "translateX": 446.3092783505155,
+      "translateY": 148.62886597938143,
+      "collarStart": 364.4,
+      "maximumSeamAdjustment": 9.505154639175203,
+      "outlineWidth": 3,
+      "inkExpansion": 0,
+      "regularSha256": "ffca4a664d790dda6fb735245c77e2345ebae614b4b60c7a9d1a034bc4caa5a1",
+      "previousScubaSha256": "b2cbe4904d8f9db98e2ec6d15de551698c3f0ae6af88e788e606f45f98218ad7",
+      "svgSha256": "ad7891dcf901a25a129b77b1c267e8cc54e275f97cb1ce8abd8105a3cb5049fe",
+      "bodies": {
+        "Body": "588376f34191b0e4de6a27813d4e5a82c2822659308fbe5991c4542db872d7e1",
+        "Raglan Body": "746342aa0f0ecdc233b58ba2eac6e3d8f3d5d9005f6a188cf57a13bb0e755d54",
+        "Dropped Shoulder Body": "f36a690fbb2b8c5f5461e504b4eec6707533c626788c931f5c0c72a1bbc28254"
+      }
+    }
+  }
+}

@@ -19,17 +19,6 @@ const potrace = require('potrace');
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
-const ASSETS = path.join(
-  process.env.USERPROFILE || '',
-  '.cursor/projects/c-Users-User-Documents-Ceriga-studio/assets',
-);
-
-const FIT = (process.argv[2] || 'boxy').toLowerCase();
-const LINEART_SRC = process.argv[3]
-  ? path.resolve(process.argv[3])
-  : path.join(ASSETS, `hoodie-${FIT}-lineart-bold.png`);
-const PHOTO_SRC = process.argv[4] ? path.resolve(process.argv[4]) : '';
-const OUT = path.join(ROOT, 'src/assets/studio-hoodie', FIT === 'boxy' ? '' : `fits/${FIT}`);
 
 const WHITE_CUTOFF = 246;
 const INK_CUTOFF = 120;
@@ -1051,7 +1040,14 @@ function hslToRgb(h, s, l) {
   ];
 }
 
-async function main() {
+export async function packHoodie({ fit, source, output, photo = '', onlyPart, skipRaster = false }) {
+  const FIT = fit;
+  const LINEART_SRC = path.resolve(source);
+  const PHOTO_SRC = photo;
+  const OUT = path.resolve(output);
+  if (OUT.startsWith(path.join(ROOT, 'src', 'assets') + path.sep)) {
+    throw new Error('Generate into staging, never into live assets');
+  }
   fs.mkdirSync(OUT, { recursive: true });
   if (!fs.existsSync(LINEART_SRC)) {
     throw new Error(`missing line art: ${LINEART_SRC}`);
@@ -1092,7 +1088,7 @@ async function main() {
   fs.writeFileSync(path.join(OUT, 'hoodie-lineart.svg'), sourceSvg);
   console.log('wrote hoodie-lineart.svg');
 
-  if (!process.env.SKIP_RASTER) {
+  if (!skipRaster && !process.env.SKIP_RASTER) {
     console.log('raster 2048...');
     const v2048 = rasterizePath(traced.d, width, height, 2048, 2);
     await v2048.writeAsync(path.join(OUT, 'hoodie-vector-2048.png'));
@@ -1225,8 +1221,9 @@ async function main() {
 
   for (let index = 0; index < named.length; index++) {
     const part = named[index];
+    if (onlyPart && part.name !== onlyPart) continue;
     const partTrace = await traceMask(part.mask, width, height);
-    if (!partTrace.d) continue;
+    if (!partTrace.d) throw new Error(`Empty traced part: ${part.name}`);
     const fillD = transformPath(partTrace.d, mapper);
     const isCuff = part.name.endsWith('cuff');
     let inkRegion = andMask(mask, dilate(part.mask, width, height, 3));
@@ -1267,7 +1264,9 @@ async function main() {
       bitmapInverted: traced.subpaths >= 40,
       fillRule: 'evenodd',
       exclusiveFillPartition: true,
-      viewBox: `0 0 ${width} ${height}`,
+      viewBox: '0 0 2048 2048',
+      sourceWidth: width,
+      sourceHeight: height,
       turdsize: 4,
       turnPolicy: 'minority',
     },
@@ -1275,9 +1274,16 @@ async function main() {
   const target = path.join(OUT, 'mockup.json');
   fs.writeFileSync(target, JSON.stringify(result));
   console.log(`wrote mockup.json (${(fs.statSync(target).size / 1024).toFixed(0)} KB, ${parts.length} parts)`);
+  return result;
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const fit = (process.argv[2] || 'boxy').toLowerCase();
+  if (!['boxy', 'cropped', 'baggy', 'regular', 'slim'].includes(fit)) throw new Error('Unknown fit');
+  packHoodie({
+    fit,
+    source: process.argv[3] || path.join(ROOT, 'src/assets/studio-hoodie', fit === 'boxy' ? '' : `fits/${fit}`, 'hoodie-lineart-bold.png'),
+    output: path.join(ROOT, '.tmp-hoodie-assembly', `pack-${fit}`),
+    photo: process.argv[4],
+  }).catch((error) => { console.error(error); process.exitCode = 1; });
+}
