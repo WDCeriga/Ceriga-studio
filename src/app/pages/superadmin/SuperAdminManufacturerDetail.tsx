@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import {
   ArrowLeft,
@@ -19,11 +19,6 @@ import { toast } from 'sonner';
 import {
   ALL_GARMENT_CATEGORIES,
   COMMON_CERTIFICATIONS,
-  formatMoneyCents,
-  getManufacturerOrderStats,
-  getManufacturerProfile,
-  getManufacturerUser,
-  patchManufacturerControl,
   type GarmentCategory,
   type ManufacturerStatus,
 } from '../../data/manufacturersMock';
@@ -35,13 +30,11 @@ import {
   type ProfileAccessConfig,
 } from '../../data/crmAccessMock';
 import { resolveMarginForPlan } from '../../data/superadminPricingMock';
-import { MOCK_SUPER_ORDERS, STATUS_LABELS, formatMoney } from '../../data/superadminMock';
-import {
-  getFactoryScorecard,
-  getFactoryTeamAudit,
-  FACTORY_PERMISSION_LABEL,
-} from '../../data/superadminFactoryOpsMock';
+import { STATUS_LABELS, formatMoney } from '../../data/superadminMock';
+import { adminPatchManufacturerProfile, getPlatformSetting, setPlatformSetting } from '../../lib/superadminDb';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
@@ -62,6 +55,34 @@ type PendingConfirm =
   | { kind: 'remove-page'; pageId: string; pageLabel: string }
   | { kind: 'save-produce' }
   | { kind: 'save-certs' };
+
+function formatMoneyCents(cents: number): string {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+}
+
+function defaultManufacturerAccess(userId: string): ProfileAccessConfig {
+  return {
+    userId,
+    audience: 'manufacturers',
+    roleLabel: 'Manufacturer',
+    enabledPages: PAGE_ACCESS.manufacturers.map((p) => p.id),
+    manufacturerPlanId: MANUFACTURER_PLANS[0]?.id ?? 'standard',
+  };
+}
+
+const ACTIVE_ORDER_STATUSES = new Set([
+  'assigned',
+  'priced',
+  'pending_review',
+  'sent_to_brand',
+  'paid',
+  'in_production',
+  'shipped',
+]);
 
 function sameList(a: string[], b: string[]) {
   if (a.length !== b.length) return false;
@@ -96,32 +117,58 @@ function formatDate(iso: string) {
 
 export function SuperAdminManufacturerDetail() {
   const { id } = useParams<{ id: string }>();
-  const seed = id ? getManufacturerProfile(id) : undefined;
-  const user = id ? getManufacturerUser(id) : undefined;
-  const existing = id ? getProfileAccess(id) : undefined;
+  const { manufacturerList, orders, loading, refresh } = useSuperadminData();
+  const seed = id ? manufacturerList.find((m) => m.userId === id) : undefined;
   const pages = PAGE_ACCESS.manufacturers;
 
-  const [status, setStatus] = useState<ManufacturerStatus | null>(seed?.status ?? null);
-  const [notes, setNotes] = useState(seed?.internalNotes ?? '');
-  const [garmentTypes, setGarmentTypes] = useState<GarmentCategory[]>(
-    () => seed?.garmentTypes ?? [],
-  );
-  const [specialties, setSpecialties] = useState<string[]>(() => seed?.specialties ?? []);
+  const [hydrated, setHydrated] = useState(false);
+  const [status, setStatus] = useState<ManufacturerStatus | null>(null);
+  const [notes, setNotes] = useState('');
+  const [garmentTypes, setGarmentTypes] = useState<GarmentCategory[]>([]);
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [specialtyDraft, setSpecialtyDraft] = useState('');
-  const [certifications, setCertifications] = useState<string[]>(
-    () => seed?.certifications ?? [],
-  );
+  const [certifications, setCertifications] = useState<string[]>([]);
   const [certDraft, setCertDraft] = useState('');
-  const [config, setConfig] = useState<ProfileAccessConfig | null>(() =>
-    existing ? { ...existing } : null,
-  );
+  const [config, setConfig] = useState<ProfileAccessConfig | null>(null);
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
-  const [savedMatching, setSavedMatching] = useState(() => ({
-    garmentTypes: [...(seed?.garmentTypes ?? [])] as GarmentCategory[],
-    specialties: [...(seed?.specialties ?? [])],
-    certifications: [...(seed?.certifications ?? [])],
-  }));
+  const [saving, setSaving] = useState(false);
+  const [savedMatching, setSavedMatching] = useState({
+    garmentTypes: [] as GarmentCategory[],
+    specialties: [] as string[],
+    certifications: [] as string[],
+  });
+
+  useEffect(() => {
+    if (!id || !seed) return;
+    let cancelled = false;
+    void (async () => {
+      const existing = getProfileAccess(id);
+      let access = existing ? { ...existing } : defaultManufacturerAccess(id);
+      try {
+        const remote = await getPlatformSetting<ProfileAccessConfig>(`crm_access_${id}`);
+        if (remote?.userId === id) access = remote;
+      } catch {
+        /* use local/default */
+      }
+      if (cancelled) return;
+      setStatus(seed.status);
+      setNotes(seed.internalNotes);
+      setGarmentTypes([...(seed.garmentTypes as GarmentCategory[])]);
+      setSpecialties([...seed.specialties]);
+      setCertifications([...seed.certifications]);
+      setConfig(access);
+      setSavedMatching({
+        garmentTypes: [...(seed.garmentTypes as GarmentCategory[])],
+        specialties: [...seed.specialties],
+        certifications: [...seed.certifications],
+      });
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, seed]);
 
   const produceDirty =
     !sameList(garmentTypes, savedMatching.garmentTypes) ||
@@ -133,21 +180,42 @@ export function SuperAdminManufacturerDetail() {
     [config?.enabledPages],
   );
 
-  if (!id || !seed || !user || !config || !status) {
+  const manufacturerOrders = useMemo(() => {
+    if (!id) return [];
+    return orders
+      .filter((o) => o.manufacturerId === id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [orders, id]);
+
+  const orderStats = useMemo(() => {
+    const totalQuoteCents = manufacturerOrders.reduce(
+      (sum, o) => sum + (o.manufacturerQuoteCents ?? 0),
+      0,
+    );
+    return {
+      totalOrders: manufacturerOrders.length,
+      activeOrders: manufacturerOrders.filter((o) => ACTIVE_ORDER_STATUSES.has(o.status)).length,
+      completedOrders: manufacturerOrders.filter((o) => o.status === 'completed').length,
+      totalQuoteCents,
+    };
+  }, [manufacturerOrders]);
+
+  if (loading || (seed && !hydrated)) {
+    return <PageLoadingFallback />;
+  }
+
+  if (!id || !seed || !config || !status) {
     return <Navigate to="/superadmin/manufacturers" replace />;
   }
 
   const profile = seed;
-  const orderStats = getManufacturerOrderStats(profile.entityId);
-  const scorecard = getFactoryScorecard(profile.userId);
-  const teamAudit = getFactoryTeamAudit(profile.userId);
-  const recentOrders = MOCK_SUPER_ORDERS.filter((o) => o.manufacturerId === profile.entityId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 8);
+  const recentOrders = manufacturerOrders.slice(0, 8);
   const margin = resolveMarginForPlan(config.manufacturerPlanId);
-  const capacityLoad = scorecard?.capacityPct ?? Math.min(
+  const capacityLoad = Math.min(
     100,
-    Math.round((orderStats.activeOrders / Math.max(profile.capacityUnitsPerMonth / 200, 1)) * 100),
+    Math.round(
+      (orderStats.activeOrders / Math.max(profile.capacityUnitsPerMonth / 200, 1)) * 100,
+    ),
   );
 
   const togglePage = (pageId: string, on: boolean) => {
@@ -166,50 +234,70 @@ export function SuperAdminManufacturerDetail() {
     });
   };
 
-  const runConfirmed = () => {
+  const persistAccess = async (nextConfig: ProfileAccessConfig) => {
+    upsertProfileAccess(nextConfig);
+    await setPlatformSetting(`crm_access_${nextConfig.userId}`, nextConfig);
+  };
+
+  const runConfirmed = async () => {
     if (!confirm || !config) return;
     if (confirm.kind === 'status') {
       setStatus(confirm.next);
-    } else if (confirm.kind === 'save') {
-      commitSave();
-    } else if (confirm.kind === 'pages') {
+      setConfirm(null);
+      return;
+    }
+    if (confirm.kind === 'pages') {
       setConfig({
         ...config,
         enabledPages: confirm.mode === 'all' ? pages.map((p) => p.id) : [],
       });
-    } else if (confirm.kind === 'remove-page') {
-      const nextConfig = {
-        ...config,
-        enabledPages: config.enabledPages.filter((pid) => pid !== confirm.pageId),
-      };
-      setConfig(nextConfig);
-      upsertProfileAccess(nextConfig);
-      toast.success(`Removed “${confirm.pageLabel}” from portal access`);
-    } else if (confirm.kind === 'save-produce') {
-      if (garmentTypes.length === 0) {
-        toast.error('Select at least one product type for order matching');
-        setConfirm(null);
-        return;
-      }
-      patchManufacturerControl(profile.userId, {
-        garmentTypes,
-        specialties,
-      });
-      setSavedMatching((prev) => ({
-        ...prev,
-        garmentTypes: [...garmentTypes],
-        specialties: [...specialties],
-      }));
-      toast.success('Product types & specialities saved for order matching');
-    } else if (confirm.kind === 'save-certs') {
-      patchManufacturerControl(profile.userId, { certifications });
-      setSavedMatching((prev) => ({
-        ...prev,
-        certifications: [...certifications],
-      }));
-      toast.success('Certifications saved');
+      setConfirm(null);
+      return;
     }
-    setConfirm(null);
+
+    setSaving(true);
+    try {
+      if (confirm.kind === 'save') {
+        await commitSave();
+      } else if (confirm.kind === 'remove-page') {
+        const nextConfig = {
+          ...config,
+          enabledPages: config.enabledPages.filter((pid) => pid !== confirm.pageId),
+        };
+        setConfig(nextConfig);
+        await persistAccess(nextConfig);
+        toast.success(`Removed “${confirm.pageLabel}” from portal access`);
+      } else if (confirm.kind === 'save-produce') {
+        if (garmentTypes.length === 0) {
+          toast.error('Select at least one product type for order matching');
+          return;
+        }
+        await adminPatchManufacturerProfile(profile.userId, {
+          garments: garmentTypes,
+          specialties,
+        });
+        setSavedMatching((prev) => ({
+          ...prev,
+          garmentTypes: [...garmentTypes],
+          specialties: [...specialties],
+        }));
+        await refresh();
+        toast.success('Product types & specialities saved for order matching');
+      } else if (confirm.kind === 'save-certs') {
+        await adminPatchManufacturerProfile(profile.userId, { certifications });
+        setSavedMatching((prev) => ({
+          ...prev,
+          certifications: [...certifications],
+        }));
+        await refresh();
+        toast.success('Certifications saved');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+      setConfirm(null);
+    }
   };
 
   const toggleGarment = (g: GarmentCategory) => {
@@ -248,7 +336,7 @@ export function SuperAdminManufacturerDetail() {
     toast.message('Certification added — save to apply');
   };
 
-  const commitSave = () => {
+  const commitSave = async () => {
     if (garmentTypes.length === 0) {
       toast.error('Select at least one product type for order matching');
       return;
@@ -257,19 +345,20 @@ export function SuperAdminManufacturerDetail() {
       toast.error('Confirm or cancel the commercial plan change first');
       return;
     }
-    patchManufacturerControl(profile.userId, {
+    await adminPatchManufacturerProfile(profile.userId, {
       status,
       internalNotes: notes.trim(),
-      garmentTypes,
+      garments: garmentTypes,
       specialties,
       certifications,
     });
-    upsertProfileAccess(config);
+    await persistAccess(config);
     setSavedMatching({
       garmentTypes: [...garmentTypes],
       specialties: [...specialties],
       certifications: [...certifications],
     });
+    await refresh();
     toast.success(`Controls saved for ${profile.name}`);
   };
 
@@ -378,8 +467,8 @@ export function SuperAdminManufacturerDetail() {
           {[
             { label: 'Orders assigned', value: orderStats.totalOrders, icon: Package },
             { label: 'In pipeline', value: orderStats.activeOrders, icon: Factory },
-            { label: 'Avg. quote', value: `${profile.avgQuoteDays}d`, icon: Clock },
-            { label: 'On-time', value: `${profile.onTimeRate}%`, icon: TrendingUp },
+            { label: 'Lead time', value: profile.leadTimeDays ? `${profile.leadTimeDays}d` : '—', icon: Clock },
+            { label: 'Capacity / mo', value: profile.capacityUnitsPerMonth || '—', icon: TrendingUp },
           ].map((stat) => (
             <div key={stat.label} className="bg-[#111113] px-5 py-4">
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/38">
@@ -392,61 +481,41 @@ export function SuperAdminManufacturerDetail() {
         </div>
       </div>
 
-      {/* Factory scorecard — same KPIs as manufacturer stats export */}
+      {/* Factory scorecard */}
       <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
               Factory scorecard
             </p>
-            <h2 className="mt-1 text-base font-semibold text-white">
-              {scorecard?.periodLabel ?? 'Last 90 days'}
-              {scorecard?.live ? (
-                <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-200">
-                  Live stats
-                </span>
-              ) : null}
-            </h2>
+            <h2 className="mt-1 text-base font-semibold text-white">Live order stats</h2>
             <p className="mt-0.5 text-[11px] text-white/40">
-              Win rate, quote hours, OTIF, and capacity from the factory analytics export.
+              Derived from assigned orders in the database.
             </p>
           </div>
-          {scorecard ? (
-            <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200/80">
-                Network rank
-              </p>
-              <p className="text-xl font-semibold tabular-nums text-amber-100">
-                #{scorecard.rank}
-                <span className="ml-1.5 text-sm font-normal text-amber-100/60">
-                  · score {scorecard.score}
-                </span>
-              </p>
-            </div>
-          ) : null}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {[
             {
-              label: 'Win rate',
-              value: `${scorecard?.winRate ?? profile.winRate}%`,
-              hint: 'Quotes won',
+              label: 'Assigned',
+              value: String(orderStats.totalOrders),
+              hint: 'All time',
             },
             {
-              label: 'Quote hours',
-              value: `${scorecard?.avgQuoteHours ?? Math.round(profile.avgQuoteDays * 24)}h`,
-              hint: 'Avg response',
+              label: 'Active',
+              value: String(orderStats.activeOrders),
+              hint: 'In pipeline',
             },
             {
-              label: 'OTIF',
-              value: `${scorecard?.otifPct ?? '—'}%`,
-              hint: 'On time in full',
+              label: 'Completed',
+              value: String(orderStats.completedOrders),
+              hint: 'Done',
             },
             {
-              label: 'On-time',
-              value: `${scorecard?.onTimePct ?? profile.onTimeRate}%`,
-              hint: 'Delivery OT',
+              label: 'Quoted £',
+              value: formatMoneyCents(orderStats.totalQuoteCents),
+              hint: 'Factory quotes',
             },
             {
               label: 'Capacity use',
@@ -454,9 +523,9 @@ export function SuperAdminManufacturerDetail() {
               hint: 'Booked vs monthly',
             },
             {
-              label: 'Quote→order',
-              value: `${scorecard?.quoteToOrderRate ?? profile.quoteToOrderRate}%`,
-              hint: `${scorecard?.completed ?? orderStats.completedOrders} done`,
+              label: 'MOQ',
+              value: String(profile.moq),
+              hint: 'Units',
             },
           ].map((m) => (
             <div
@@ -472,8 +541,7 @@ export function SuperAdminManufacturerDetail() {
           ))}
         </div>
         <p className="mt-3 text-[10px] text-white/30">
-          Quoted {formatMoneyCents(orderStats.totalQuoteCents)} · Active{' '}
-          {formatDate(profile.lastActive)} · See rankings in Statistics → Manufacturers
+          Last active {formatDate(profile.lastActive)}
         </p>
       </section>
 
@@ -812,114 +880,22 @@ export function SuperAdminManufacturerDetail() {
 
         {/* Access + orders */}
         <div className="space-y-6 lg:col-span-3">
-          {teamAudit ? (
-            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
-                    <Users className="h-4 w-4 text-violet-300" />
-                  </span>
-                  <div>
-                    <h2 className="text-sm font-semibold text-white">Team audit</h2>
-                    <p className="mt-0.5 text-[11px] text-white/40">
-                      Read-only mirror of factory Team &amp; roles — who can quote, decline,
-                      shipping, and materials.
-                    </p>
-                  </div>
-                </div>
-                {teamAudit.live ? (
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-emerald-200">
-                    Live roster
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-semibold uppercase text-white/40">
-                    Snapshot
-                  </span>
-                )}
+          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
+                <Users className="h-4 w-4 text-violet-300" />
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold text-white">Team audit</h2>
+                <p className="mt-0.5 text-[11px] text-white/40">
+                  Factory team roster will appear here once manufacturer portal roles sync to Ceriga.
+                </p>
               </div>
-
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[560px] text-left">
-                  <thead>
-                    <tr className="border-b border-[#252528] text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                      <th className="pb-2 pr-3">Person</th>
-                      <th className="pb-2 pr-3">Role</th>
-                      <th className="pb-2 pr-2 text-center">Quote</th>
-                      <th className="pb-2 pr-2 text-center">Decline</th>
-                      <th className="pb-2 pr-2 text-center">Ship</th>
-                      <th className="pb-2 text-center">Mats</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teamAudit.members.map((m) => (
-                      <tr key={m.id} className="border-b border-white/[0.04] last:border-0">
-                        <td className="py-2.5 pr-3">
-                          <p className="text-sm text-white/85">{m.name}</p>
-                          <p className="text-[11px] text-white/40">{m.email}</p>
-                          {m.hasCustomOverride ? (
-                            <p className="mt-0.5 text-[10px] font-medium text-amber-300/90">
-                              Custom permission override
-                            </p>
-                          ) : null}
-                        </td>
-                        <td className="py-2.5 pr-3">
-                          <span className="rounded-md border border-[#252528] bg-white/[0.04] px-1.5 py-0.5 text-[10px] capitalize text-white/60">
-                            {m.role}
-                          </span>
-                          <p className="mt-1 text-[10px] text-white/35">
-                            {m.status === 'invited' ? 'Invited' : `Active · ${formatDate(m.lastActive)}`}
-                          </p>
-                        </td>
-                        {(
-                          [
-                            m.canQuote,
-                            m.canDecline,
-                            m.canEditShipping,
-                            m.canEditMaterials,
-                          ] as boolean[]
-                        ).map((on, i) => (
-                          <td key={i} className="py-2.5 pr-2 text-center">
-                            <span
-                              className={cn(
-                                'inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold',
-                                on
-                                  ? 'bg-emerald-500/15 text-emerald-200'
-                                  : 'bg-white/5 text-white/25',
-                              )}
-                            >
-                              {on ? 'Y' : '—'}
-                            </span>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {teamAudit.permissionMatrix
-                  .filter((row) =>
-                    ['quote', 'decline', 'edit_shipping', 'edit_materials'].includes(
-                      row.permission,
-                    ),
-                  )
-                  .map((row) => (
-                    <div
-                      key={row.permission}
-                      className="rounded-lg border border-[#252528] bg-black/20 px-3 py-2"
-                    >
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                        {FACTORY_PERMISSION_LABEL[row.permission]}
-                      </p>
-                      <p className="mt-0.5 text-[12px] text-white/70">
-                        {row.memberNames.length > 0 ? row.memberNames.join(', ') : 'Nobody'}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-            </section>
-          ) : null}
+            </div>
+            <p className="mt-6 rounded-xl border border-dashed border-white/12 px-4 py-8 text-center text-sm text-white/40">
+              No team members synced yet.
+            </p>
+          </section>
 
           <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1075,7 +1051,7 @@ export function SuperAdminManufacturerDetail() {
                 ? 'danger'
                 : 'default'
         }
-        onConfirm={runConfirmed}
+        onConfirm={() => void runConfirmed()}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router';
 import {
   ArrowRight,
@@ -22,6 +22,7 @@ import {
   DEFAULT_USD_TO_EUR_RATE,
   formatEurAmount,
   formatPricingMoney,
+  getDefaultPricingConfig,
   getPricingConfig,
   getRevenueSummary,
   inputToCents,
@@ -34,8 +35,10 @@ import {
   type RevenueSource,
 } from '../../data/superadminPricingMock';
 import { MANUFACTURER_PLANS } from '../../data/crmAccessMock';
-import { MOCK_SUPER_ORDERS } from '../../data/superadminMock';
+import { getPlatformSetting, setPlatformSetting } from '../../lib/superadminDb';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { Button } from '../../components/ui/button';
 import {
   Dialog,
@@ -260,7 +263,9 @@ function QuoteCalculatorSection() {
 }
 
 export function SuperAdminPricing() {
-  const [config, setConfig] = useState<PlatformPricingConfig>(() => getPricingConfig());
+  const { orders, loading: ordersLoading } = useSuperadminData();
+  const [config, setConfig] = useState<PlatformPricingConfig>(() => getDefaultPricingConfig());
+  const [configLoading, setConfigLoading] = useState(true);
   const [ledgerVersion, setLedgerVersion] = useState(0);
   const [sourceFilter, setSourceFilter] = useState<RevenueSource | 'all'>('all');
   const [manualOpen, setManualOpen] = useState(false);
@@ -278,13 +283,37 @@ export function SuperAdminPricing() {
     planName: string;
     next: boolean;
   } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const remote = await getPlatformSetting<PlatformPricingConfig>('pricing');
+        if (cancelled) return;
+        if (remote) {
+          upsertPricingConfig(remote);
+          setConfig(getPricingConfig());
+        } else {
+          setConfig(getDefaultPricingConfig());
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to load pricing');
+      } finally {
+        if (!cancelled) setConfigLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const ledger = useMemo(
-    () => buildRevenueLedger(MOCK_SUPER_ORDERS),
-    [ledgerVersion],
+    () => buildRevenueLedger(orders),
+    [orders, ledgerVersion],
   );
   const summary = useMemo(() => getRevenueSummary(ledger), [ledger]);
-  const pendingReviews = countPendingReviews(MOCK_SUPER_ORDERS);
+  const pendingReviews = countPendingReviews(orders);
 
   const filteredLedger = useMemo(() => {
     if (sourceFilter === 'all') return ledger;
@@ -305,11 +334,24 @@ export function SuperAdminPricing() {
     }));
   };
 
-  const saveConfig = () => {
-    upsertPricingConfig(config);
-    setConfig(getPricingConfig());
-    toast.success('Pricing rules saved');
+  const saveConfig = async () => {
+    setSaving(true);
+    try {
+      upsertPricingConfig(config);
+      const normalized = getPricingConfig();
+      await setPlatformSetting('pricing', normalized);
+      setConfig(normalized);
+      toast.success('Pricing rules saved');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (ordersLoading || configLoading) {
+    return <PageLoadingFallback />;
+  }
 
   const updateTechPack = (patch: Partial<PlatformPricingConfig['techPack']>) => {
     setConfig((c) => ({ ...c, techPack: { ...c.techPack, ...patch } }));
@@ -379,8 +421,11 @@ export function SuperAdminPricing() {
             Pricing
           </h1>
         </div>
-        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={saveConfig}>
-          Save all rules
+        <Button
+          className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
+          disabled={saving}
+          onClick={() => void saveConfig()}
+        >          Save all rules
         </Button>
       </div>
 
@@ -752,7 +797,7 @@ export function SuperAdminPricing() {
         description={
           publishConfirm?.next
             ? 'This plan will appear on the public pricing page for new subscribers.'
-            : 'This plan will be hidden from the public pricing page. Existing subscribers are unaffected in this mock.'
+            : 'This plan will be hidden from the public pricing page. Existing subscribers are unaffected.'
         }
         confirmLabel={publishConfirm?.next ? 'Publish' : 'Unpublish'}
         tone={publishConfirm?.next ? 'default' : 'danger'}

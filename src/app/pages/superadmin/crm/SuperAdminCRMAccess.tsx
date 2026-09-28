@@ -1,6 +1,8 @@
 import { Link } from 'react-router';
 import { Building2, ChevronRight, Users } from 'lucide-react';
 import { AUDIENCE_META, getProfilesForAudience, type AccessAudience } from '../../../data/crmAccessMock';
+import { useSuperadminData } from '../../../hooks/useSuperadminData';
+import { PageLoadingFallback } from '../../../components/PageLoadingFallback';
 import { AccessBreadcrumb } from './accessShared';
 import { cn } from '../../../components/ui/utils';
 
@@ -13,6 +15,12 @@ const AUDIENCE_ICONS = {
 const AUDIENCES: Exclude<AccessAudience, 'manufacturers'>[] = ['users', 'workers'];
 
 export function SuperAdminCRMAccess() {
+  const { users, loading } = useSuperadminData();
+
+  if (loading) {
+    return <PageLoadingFallback />;
+  }
+
   return (
     <div className="space-y-6">
       <AccessBreadcrumb />
@@ -37,37 +45,32 @@ export function SuperAdminCRMAccess() {
         {AUDIENCES.map((audience) => {
           const meta = AUDIENCE_META[audience];
           const Icon = AUDIENCE_ICONS[audience];
-          const count = getProfilesForAudience(audience).length;
+          const count = getProfilesForAudience(audience, users).length;
 
           return (
             <Link
               key={audience}
               to={`/superadmin/crm/access/${audience}`}
-              className="group rounded-2xl border border-[#252528] bg-[#111113] p-5 transition hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)]"
-              style={{
-                background: `linear-gradient(145deg, ${meta.accent}10 0%, #111113 55%)`,
-              }}
+              className={cn(
+                'group flex items-center justify-between gap-4 rounded-2xl border border-[#252528] bg-[#111113] p-5 transition hover:border-white/15',
+              )}
             >
-              <div
-                className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-[#252528] bg-black/30"
-                style={{ color: meta.accent }}
-              >
-                <Icon className="h-5 w-5" />
-              </div>
-              <h2 className="text-lg font-semibold text-white">{meta.title}</h2>
-              <div className="mt-5 flex items-center justify-between border-t border-[#252528] pt-4">
-                <span className="text-[11px] text-white/35">
-                  {count} profile{count === 1 ? '' : 's'}
-                </span>
+              <div className="flex items-start gap-4">
                 <span
-                  className={cn(
-                    'inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#CC2D24]',
-                  )}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl"
+                  style={{ background: `${meta.accent}18`, color: meta.accent }}
                 >
-                  Open
-                  <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                  <Icon className="h-5 w-5" />
                 </span>
+                <div>
+                  <h2 className="text-base font-semibold text-white">{meta.title}</h2>
+                  <p className="mt-1 text-sm text-white/45">{meta.subtitle}</p>
+                  <p className="mt-3 text-[11px] tabular-nums text-white/35">
+                    {count} account{count === 1 ? '' : 's'}
+                  </p>
+                </div>
               </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-[#CC2D24]" />
             </Link>
           );
         })}

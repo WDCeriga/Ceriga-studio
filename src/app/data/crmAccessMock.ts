@@ -183,9 +183,30 @@ function syncManufacturerPlansFromStore(): void {
 
 syncManufacturerPlansFromStore();
 
-export function getProfilesForAudience(audience: AccessAudience): SuperAdminUser[] {
+export function getProfilesForAudience(
+  audience: AccessAudience,
+  users: SuperAdminUser[] = MOCK_SUPER_USERS,
+): SuperAdminUser[] {
   const role = AUDIENCE_META[audience].userRole;
-  return MOCK_SUPER_USERS.filter((u) => u.role === role);
+  return users.filter((u) => u.role === role);
+}
+
+export function ensureProfileAccess(
+  user: SuperAdminUser,
+  audience: AccessAudience,
+): ProfileAccessConfig {
+  const existing = getProfileAccess(user.id);
+  if (existing) return existing;
+  const next: ProfileAccessConfig = {
+    userId: user.id,
+    audience,
+    roleLabel: DEFAULT_ROLE_LABELS[audience],
+    enabledPages: defaultPages(audience),
+    manufacturerPlanId: audience === 'manufacturers' ? 'growth' : undefined,
+    workerRoleId: audience === 'workers' ? DEFAULT_WORKER_ROLE : undefined,
+  };
+  upsertProfileAccess(next);
+  return next;
 }
 
 export function getProfileAccess(userId: string): ProfileAccessConfig | undefined {

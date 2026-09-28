@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
   Factory,
   FileText,
@@ -12,15 +12,26 @@ import {
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { ChatAttachment, ChatMessage, ChatThread } from '../../data/superadminMock';
 import {
-  MOCK_THREADS,
-  type ChatAttachment,
-  type ChatMessage,
-  type ChatThread,
-} from '../../data/superadminMock';
+  createAdminChatThread,
+  listAdminChatMessages,
+  listAdminChatThreads,
+  markAdminThreadRead,
+  sendAdminChatMessage,
+} from '../../lib/adminChatDb';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
+import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { ScrollArea } from '../../components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
 import { cn } from '../../components/ui/utils';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -61,18 +72,6 @@ function formatFileSize(bytes?: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function seedMessages(threads: ChatThread[]) {
-  return Object.fromEntries(
-    threads.map((t) => [
-      t.id,
-      (t.messages ?? []).map((m) => ({
-        ...m,
-        attachments: m.attachments?.map((a) => ({ ...a })),
-      })),
-    ]),
-  ) as Record<string, ChatMessage[]>;
 }
 
 function ThreadAvatar({ thread, size = 'md' }: { thread: ChatThread; size?: 'sm' | 'md' }) {
@@ -199,31 +198,113 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function SuperAdminMessages() {
-  const [active, setActive] = useState(MOCK_THREADS[0]?.id ?? '');
+  const { users, manufacturerList } = useSuperadminData();
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState('');
   const [search, setSearch] = useState('');
   const [draft, setDraft] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
-  const [messagesByThread, setMessagesByThread] = useState(() => seedMessages(MOCK_THREADS));
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [newQuery, setNewQuery] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef(pendingAttachments);
 
-  const thread = MOCK_THREADS.find((t) => t.id === active);
-  const messages = thread ? (messagesByThread[thread.id] ?? []) : [];
-  const totalUnread = MOCK_THREADS.reduce((sum, t) => sum + t.unread, 0);
+  const thread = threads.find((t) => t.id === active);
+  const totalUnread = threads.reduce((sum, t) => sum + t.unread, 0);
   const canSend = draft.trim().length > 0 || pendingAttachments.length > 0;
+
+  const refreshThreads = useCallback(async () => {
+    try {
+      const next = await listAdminChatThreads();
+      setThreads(next);
+      setActive((prev) => {
+        if (prev && next.some((t) => t.id === prev)) return prev;
+        return next[0]?.id ?? '';
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load messages');
+      setThreads([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshThreads();
+  }, [refreshThreads]);
+
+  useEffect(() => {
+    if (!active) {
+      setMessages([]);
+      return;
+    }
+    let cancelled = false;
+    setMessagesLoading(true);
+    void (async () => {
+      try {
+        const rows = await listAdminChatMessages(active);
+        if (cancelled) return;
+        setMessages(rows);
+        await markAdminThreadRead(active);
+        setThreads((prev) =>
+          prev.map((t) => (t.id === active ? { ...t, unread: 0 } : t)),
+        );
+      } catch (err) {
+        if (!cancelled) {
+          toast.error(err instanceof Error ? err.message : 'Failed to load thread');
+          setMessages([]);
+        }
+      } finally {
+        if (!cancelled) setMessagesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [active]);
 
   const filteredThreads = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return MOCK_THREADS;
-    return MOCK_THREADS.filter(
+    if (!q) return threads;
+    return threads.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
         t.lastMessage.toLowerCase().includes(q) ||
         threadRoleLabel(t).toLowerCase().includes(q),
     );
-  }, [search]);
+  }, [search, threads]);
+
+  const newCandidates = useMemo(() => {
+    const q = newQuery.trim().toLowerCase();
+    const brands = users
+      .filter((u) => u.role === 'brand')
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        type: 'brand' as const,
+      }));
+    const factories = manufacturerList.map((m) => ({
+      id: m.userId,
+      name: m.name,
+      email: m.email,
+      type: 'manufacturer' as const,
+    }));
+    return [...brands, ...factories].filter((c) => {
+      if (!q) return true;
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.type.includes(q)
+      );
+    });
+  }, [users, manufacturerList, newQuery]);
 
   useEffect(() => {
     pendingRef.current = pendingAttachments;
@@ -301,35 +382,65 @@ export function SuperAdminMessages() {
     e.target.value = '';
   };
 
-  const sendMessage = () => {
-    if (!thread || !canSend) return;
+  const sendMessage = async () => {
+    if (!thread || !canSend || sending) return;
 
     const text = draft.trim();
-    const now = new Date().toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
     const attachments: ChatAttachment[] = pendingAttachments.map(({ id: _id, ...rest }) => rest);
 
-    setMessagesByThread((prev) => ({
-      ...prev,
-      [thread.id]: [
-        ...(prev[thread.id] ?? []),
-        {
-          id: `local-${Date.now()}`,
-          from: 'ceriga',
-          text,
-          at: now,
-          attachments: attachments.length > 0 ? attachments : undefined,
-        },
-      ],
-    }));
-
-    setDraft('');
-    setPendingAttachments([]);
-    toast.success('Message sent');
+    setSending(true);
+    try {
+      const saved = await sendAdminChatMessage({
+        threadId: thread.id,
+        body: text,
+        attachments: attachments.length > 0 ? attachments : undefined,
+      });
+      setMessages((prev) => [...prev, saved]);
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === thread.id
+            ? {
+                ...t,
+                lastMessage: text.slice(0, 200) || 'Attachment',
+                lastAt: saved.at,
+                unread: 0,
+              }
+            : t,
+        ),
+      );
+      setDraft('');
+      setPendingAttachments([]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send');
+    } finally {
+      setSending(false);
+    }
   };
+
+  const startConversation = async (candidate: {
+    id: string;
+    name: string;
+    type: 'brand' | 'manufacturer';
+  }) => {
+    try {
+      const created = await createAdminChatThread({
+        participantUserId: candidate.id,
+        participantType: candidate.type,
+        subject: candidate.name,
+      });
+      setThreads((prev) => [created, ...prev]);
+      setActive(created.id);
+      setNewOpen(false);
+      setNewQuery('');
+      toast.success(`Started conversation with ${candidate.name}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not create conversation');
+    }
+  };
+
+  if (loading) {
+    return <PageLoadingFallback />;
+  }
 
   return (
     <div className="space-y-6">
@@ -365,7 +476,7 @@ export function SuperAdminMessages() {
             <Button
               size="sm"
               className="mt-3 w-full bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-              onClick={() => toast.success('Mock: invite flow')}
+              onClick={() => setNewOpen(true)}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               New conversation
@@ -375,7 +486,9 @@ export function SuperAdminMessages() {
           <ScrollArea className="max-h-[38vh] lg:max-h-none lg:flex-1">
             <div className="p-2">
               {filteredThreads.length === 0 ? (
-                <p className="px-3 py-8 text-center text-sm text-white/40">No matches.</p>
+                <p className="px-3 py-8 text-center text-sm text-white/40">
+                  {threads.length === 0 ? 'No conversations yet.' : 'No matches.'}
+                </p>
               ) : (
                 filteredThreads.map((t) => {
                   const selected = active === t.id;
@@ -451,9 +564,15 @@ export function SuperAdminMessages() {
 
               <ScrollArea className="flex-1">
                 <div className="space-y-4 px-4 py-5 sm:px-6">
-                  {messages.map((message) => (
-                    <MessageBubble key={message.id} message={message} />
-                  ))}
+                  {messagesLoading ? (
+                    <p className="py-8 text-center text-sm text-white/40">Loading messages…</p>
+                  ) : messages.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-white/40">No messages yet — say hello.</p>
+                  ) : (
+                    messages.map((message) => (
+                      <MessageBubble key={message.id} message={message} />
+                    ))
+                  )}
                   <div ref={bottomRef} />
                 </div>
               </ScrollArea>
@@ -544,15 +663,15 @@ export function SuperAdminMessages() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        sendMessage();
+                        void sendMessage();
                       }
                     }}
                   />
                   <Button
                     size="icon"
                     className="h-10 w-10 shrink-0 rounded-xl bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-                    disabled={!canSend}
-                    onClick={sendMessage}
+                    disabled={!canSend || sending}
+                    onClick={() => void sendMessage()}
                   >
                     <Send className="h-4 w-4" />
                   </Button>
@@ -564,11 +683,62 @@ export function SuperAdminMessages() {
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#252528] bg-white/[0.03] text-white/25">
                 <MessageSquare className="h-7 w-7" />
               </span>
-              <p className="text-sm text-white/45">Select a conversation</p>
+              <p className="text-sm text-white/45">
+                {threads.length === 0
+                  ? 'Start a conversation with a brand or manufacturer'
+                  : 'Select a conversation'}
+              </p>
             </div>
           )}
         </section>
       </div>
+
+      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+        <DialogContent className="border-[#252528] bg-[#111113] text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New conversation</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={newQuery}
+            onChange={(e) => setNewQuery(e.target.value)}
+            placeholder="Search brands or manufacturers…"
+            className="border-[#252528] bg-black/30 text-white"
+          />
+          <ScrollArea className="mt-2 h-64">
+            <div className="space-y-1 pr-2">
+              {newCandidates.length === 0 ? (
+                <p className="py-8 text-center text-sm text-white/40">No accounts found.</p>
+              ) : (
+                newCandidates.map((c) => (
+                  <button
+                    key={`${c.type}-${c.id}`}
+                    type="button"
+                    onClick={() => void startConversation(c)}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-[#252528] hover:bg-white/[0.04]"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-white">{c.name}</p>
+                      <p className="truncate text-xs text-white/40">{c.email}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] uppercase tracking-wide text-white/35">
+                      {c.type}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="border-white/15 text-white"
+              onClick={() => setNewOpen(false)}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

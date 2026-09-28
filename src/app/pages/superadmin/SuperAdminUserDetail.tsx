@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import {
   ArrowLeft,
@@ -15,12 +15,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  MOCK_SUPER_ORDERS,
-  MOCK_SUPER_USERS,
   STATUS_LABELS,
   formatMoney,
   type SuperAdminUser,
 } from '../../data/superadminMock';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -41,6 +40,7 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { cn } from '../../components/ui/utils';
+import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 
 const ROLE_LABEL: Record<SuperAdminUser['role'], string> = {
   brand: 'Brand',
@@ -106,31 +106,43 @@ function daysSince(iso: string) {
 
 export function SuperAdminUserDetail() {
   const { id } = useParams();
-  const user = MOCK_SUPER_USERS.find((u) => u.id === id);
+  const { users, orders, loading, patchProfile, refresh } = useSuperadminData();
+  const user = users.find((u) => u.id === id);
 
-  const [credits, setCredits] = useState(user?.credits ?? 0);
+  const [credits, setCredits] = useState(0);
   const [creditDelta, setCreditDelta] = useState('');
-  const [role, setRole] = useState<SuperAdminUser['role']>(user?.role ?? 'brand');
+  const [role, setRole] = useState<SuperAdminUser['role']>('brand');
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailStep, setEmailStep] = useState<'compose' | 'sent'>('compose');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [confirmKind, setConfirmKind] = useState<'credits' | 'role' | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setCredits(user.credits);
+    setRole(user.role);
+  }, [user]);
 
   const userOrders = useMemo(
     () =>
       user
-        ? MOCK_SUPER_ORDERS.filter((o) => o.userId === user.id).sort((a, b) =>
-            b.createdAt.localeCompare(a.createdAt),
-          )
+        ? orders
+            .filter((o) => o.userId === user.id)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         : [],
-    [user],
+    [user, orders],
   );
 
   const orderValueCents = useMemo(
     () => userOrders.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0),
     [userOrders],
   );
+
+  if (loading) {
+    return <PageLoadingFallback />;
+  }
 
   if (!user) {
     return (
@@ -174,16 +186,29 @@ export function SuperAdminUserDetail() {
     setConfirmKind('role');
   };
 
-  const runConfirmed = () => {
-    if (confirmKind === 'credits') {
-      const delta = Number(creditDelta);
-      setCredits((c) => Math.max(0, c + delta));
-      setCreditDelta('');
-      toast.success(`Mock: ${delta > 0 ? 'added' : 'removed'} ${Math.abs(delta)} messages`);
-    } else if (confirmKind === 'role') {
-      toast.success(`Mock: role updated to ${ROLE_LABEL[role]}`);
+  const runConfirmed = async () => {
+    setSaving(true);
+    try {
+      if (confirmKind === 'credits') {
+        const delta = Number(creditDelta);
+        const next = Math.max(0, credits + delta);
+        const ok = await patchProfile(user.id, { messageCredits: next });
+        if (!ok) throw new Error('Could not update credits');
+        setCredits(next);
+        setCreditDelta('');
+        toast.success(`${delta > 0 ? 'Added' : 'Removed'} ${Math.abs(delta)} message credits`);
+      } else if (confirmKind === 'role') {
+        const ok = await patchProfile(user.id, { role });
+        if (!ok) throw new Error('Could not update role');
+        toast.success(`Role updated to ${ROLE_LABEL[role]}`);
+        await refresh();
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Update failed');
+    } finally {
+      setSaving(false);
+      setConfirmKind(null);
     }
-    setConfirmKind(null);
   };
 
   const sendEmail = () => {
@@ -195,6 +220,8 @@ export function SuperAdminUserDetail() {
       toast.error('Write your message');
       return;
     }
+    // Opens the user's mail client — no mock send.
+    window.location.href = `mailto:${encodeURIComponent(user.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setEmailStep('sent');
   };
 
@@ -392,8 +419,8 @@ export function SuperAdminUserDetail() {
                 <dd className="font-mono text-xs text-white/70">{user.id}</dd>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <dt className="text-white/45">Email verified</dt>
-                <dd className="text-emerald-400/90">Yes (mock)</dd>
+                <dt className="text-white/45">Last active</dt>
+                <dd className="text-right text-white">{formatDate(user.lastActive)}</dd>
               </div>
             </dl>
           </section>

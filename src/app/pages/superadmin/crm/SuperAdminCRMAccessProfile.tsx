@@ -1,19 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { Calendar, Mail, Shield } from 'lucide-react';
 import { toast } from 'sonner';
-import { MOCK_SUPER_USERS } from '../../../data/superadminMock';
 import {
   AUDIENCE_META,
   PAGE_ACCESS,
   WORKER_ROLE_TEMPLATES,
   applyWorkerRoleTemplate,
-  getProfileAccess,
+  ensureProfileAccess,
   upsertProfileAccess,
   type AccessAudience,
   type ProfileAccessConfig,
 } from '../../../data/crmAccessMock';
+import { getPlatformSetting, setPlatformSetting } from '../../../lib/superadminDb';
+import { useSuperadminData } from '../../../hooks/useSuperadminData';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
+import { PageLoadingFallback } from '../../../components/PageLoadingFallback';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
@@ -33,29 +35,45 @@ function formatDate(iso: string) {
 
 export function SuperAdminCRMAccessProfile() {
   const { audience: audienceParam, userId } = useParams<{ audience: string; userId: string }>();
-
-  if (audienceParam === 'manufacturers' && userId) {
-    return <Navigate to={`/superadmin/manufacturers/${userId}`} replace />;
-  }
-  if (audienceParam === 'manufacturers') {
-    return <Navigate to="/superadmin/manufacturers" replace />;
-  }
-
-  const user = MOCK_SUPER_USERS.find((u) => u.id === userId);
-  const existing = userId ? getProfileAccess(userId) : undefined;
+  const { users, loading } = useSuperadminData();
 
   const audience =
     audienceParam && VALID_AUDIENCES.has(audienceParam)
       ? (audienceParam as AccessAudience)
       : null;
 
-  const [config, setConfig] = useState<ProfileAccessConfig | null>(() => {
-    if (!user || !audience || !existing) return null;
-    return { ...existing };
-  });
+  const user = userId ? users.find((u) => u.id === userId) : undefined;
+  const [config, setConfig] = useState<ProfileAccessConfig | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const [confirmKind, setConfirmKind] = useState<
     'save' | 'pages-all' | 'pages-none' | { template: string } | null
   >(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!user || !audience) {
+      setConfig(null);
+      setHydrated(true);
+      return;
+    }
+    let cancelled = false;
+    setHydrated(false);
+    void (async () => {
+      let access = ensureProfileAccess(user, audience);
+      try {
+        const remote = await getPlatformSetting<ProfileAccessConfig>(`crm_access_${user.id}`);
+        if (remote?.userId === user.id) access = remote;
+      } catch {
+        /* use local/default */
+      }
+      if (cancelled) return;
+      setConfig({ ...access });
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, audience]);
 
   const meta = audience ? AUDIENCE_META[audience] : null;
   const pages = audience ? PAGE_ACCESS[audience] : [];
@@ -64,6 +82,17 @@ export function SuperAdminCRMAccessProfile() {
     () => new Set(config?.enabledPages ?? []),
     [config?.enabledPages],
   );
+
+  if (audienceParam === 'manufacturers' && userId) {
+    return <Navigate to={`/superadmin/manufacturers/${userId}`} replace />;
+  }
+  if (audienceParam === 'manufacturers') {
+    return <Navigate to="/superadmin/manufacturers" replace />;
+  }
+
+  if (loading || !hydrated) {
+    return <PageLoadingFallback />;
+  }
 
   if (!audience || !meta || !user || !config) {
     return (
@@ -94,16 +123,19 @@ export function SuperAdminCRMAccessProfile() {
     setConfirmKind('save');
   };
 
-  const runConfirmed = () => {
+  const runConfirmed = async () => {
     if (!config) return;
-    if (confirmKind === 'save') {
-      upsertProfileAccess(config);
-      toast.success(`Saved access for ${user.name}`);
-    } else if (confirmKind === 'pages-all') {
+    if (confirmKind === 'pages-all') {
       setConfig({ ...config, enabledPages: pages.map((p) => p.id) });
-    } else if (confirmKind === 'pages-none') {
+      setConfirmKind(null);
+      return;
+    }
+    if (confirmKind === 'pages-none') {
       setConfig({ ...config, enabledPages: [] });
-    } else if (confirmKind && typeof confirmKind === 'object' && 'template' in confirmKind) {
+      setConfirmKind(null);
+      return;
+    }
+    if (confirmKind && typeof confirmKind === 'object' && 'template' in confirmKind) {
       const roleId = confirmKind.template;
       const nextPages = applyWorkerRoleTemplate(roleId);
       const role = WORKER_ROLE_TEMPLATES.find((r) => r.id === roleId);
@@ -114,8 +146,22 @@ export function SuperAdminCRMAccessProfile() {
         enabledPages: nextPages,
       });
       toast.message(`Applied ${role?.name ?? 'role'} template`);
+      setConfirmKind(null);
+      return;
     }
-    setConfirmKind(null);
+    if (confirmKind === 'save') {
+      setSaving(true);
+      try {
+        upsertProfileAccess(config);
+        await setPlatformSetting(`crm_access_${config.userId}`, config);
+        toast.success(`Saved access for ${user.name}`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Save failed');
+      } finally {
+        setSaving(false);
+        setConfirmKind(null);
+      }
+    }
   };
 
   return (
@@ -131,7 +177,7 @@ export function SuperAdminCRMAccessProfile() {
             <p className="mt-0.5 text-sm text-white/45">{user.email}</p>
           </div>
         </div>
-        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={save}>
+        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" disabled={saving} onClick={save}>
           Save access
         </Button>
       </div>
@@ -161,7 +207,7 @@ export function SuperAdminCRMAccessProfile() {
             <Input
               value={config.roleLabel}
               onChange={(e) => setConfig({ ...config, roleLabel: e.target.value })}
-              className="border-white/15 bg-white/5 text-white"
+              className="mt-2 border-white/15 bg-white/5 text-white"
             />
           </div>
 
@@ -220,17 +266,13 @@ export function SuperAdminCRMAccessProfile() {
                 return (
                   <label
                     key={page.id}
-                    className={cn(
-                      'flex cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3 transition',
-                      on
-                        ? 'border-[#CC2D24]/25 bg-[#CC2D24]/8'
-                        : 'border-[#252528] bg-black/20',
-                    )}
+                    className="flex items-center justify-between gap-4 rounded-xl border border-[#252528] bg-black/20 px-3 py-3"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white">{page.label}</p>
+                      <p className="text-[11px] text-white/40">{page.description}</p>
                     </div>
-                    <Switch checked={on} onCheckedChange={(v) => togglePage(page.id, v)} />
+                    <Switch checked={on} onCheckedChange={(checked) => togglePage(page.id, checked)} />
                   </label>
                 );
               })}
@@ -251,28 +293,20 @@ export function SuperAdminCRMAccessProfile() {
               ? 'Enable all pages?'
               : confirmKind === 'pages-none'
                 ? 'Clear all page access?'
-                : confirmKind && typeof confirmKind === 'object'
-                  ? `Apply ${WORKER_ROLE_TEMPLATES.find((r) => r.id === confirmKind.template)?.name ?? 'role'} template?`
-                  : 'Confirm?'
+                : 'Apply role template?'
         }
         description={
           confirmKind === 'save'
-            ? `Persist page access for ${user.name}.`
+            ? `Update portal access for ${user.name}.`
             : confirmKind === 'pages-all'
-              ? 'Turn on every page listed for this profile.'
+              ? 'All pages for this audience will be enabled.'
               : confirmKind === 'pages-none'
-                ? 'Remove all page access until you re-enable pages and save.'
-                : 'This overwrites the current page checklist with the role template.'
+                ? 'This account will lose access to every page until you re-enable some.'
+                : 'Page permissions will be replaced by the selected template.'
         }
-        confirmLabel={
-          confirmKind === 'save'
-            ? 'Save access'
-            : confirmKind === 'pages-none'
-              ? 'Clear all'
-              : 'Confirm'
-        }
+        confirmLabel={confirmKind === 'save' ? 'Save' : 'Confirm'}
         tone={confirmKind === 'pages-none' ? 'danger' : 'default'}
-        onConfirm={runConfirmed}
+        onConfirm={() => void runConfirmed()}
       />
     </div>
   );

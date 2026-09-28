@@ -10,14 +10,8 @@ import {
   YAxis,
 } from 'recharts';
 import { ChevronRight, Factory, Search } from 'lucide-react';
-import {
-  getManufacturerOrderStats,
-  getManufacturerOverviewStats,
-  getManufacturerPlanLabel,
-  listManufacturerProfiles,
-  type GarmentCategory,
-  type ManufacturerProfile,
-} from '../../data/manufacturersMock';
+import { useSuperadminData } from '../../hooks/useSuperadminData';
+import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { cn } from '../../components/ui/utils';
 
 const RED = '#CC2D24';
@@ -37,13 +31,13 @@ const axisProps = {
   axisLine: false as const,
 };
 
-const STATUS_STYLE: Record<ManufacturerProfile['status'], string> = {
+const STATUS_STYLE: Record<'active' | 'paused' | 'onboarding', string> = {
   active: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
   paused: 'border-white/15 bg-white/5 text-white/50',
   onboarding: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
 };
 
-function GarmentChip({ label }: { label: GarmentCategory | string }) {
+function GarmentChip({ label }: { label: string }) {
   return (
     <span className="rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[10px] font-medium text-white/65">
       {label}
@@ -52,22 +46,43 @@ function GarmentChip({ label }: { label: GarmentCategory | string }) {
 }
 
 export function SuperAdminManufacturers() {
+  const { manufacturerList, loading } = useSuperadminData();
   const [search, setSearch] = useState('');
-  const [garmentFilter, setGarmentFilter] = useState<GarmentCategory | 'all'>('all');
-  const overview = getManufacturerOverviewStats();
-  const profiles = listManufacturerProfiles();
+  const [garmentFilter, setGarmentFilter] = useState<string | 'all'>('all');
+
+  const overview = useMemo(() => {
+    const activePartners = manufacturerList.filter((p) => p.status === 'active').length;
+    const totalOrdersAssigned = manufacturerList.reduce((sum, p) => sum + p.assignedOrders, 0);
+    const garmentCounts = new Map<string, number>();
+    for (const p of manufacturerList) {
+      for (const g of p.garmentTypes) {
+        garmentCounts.set(g, (garmentCounts.get(g) ?? 0) + 1);
+      }
+    }
+    const garmentCoverage = Array.from(garmentCounts.entries())
+      .map(([type, partners]) => ({ type, partners }))
+      .sort((a, b) => b.partners - a.partners || a.type.localeCompare(b.type));
+    const throughput = [...manufacturerList]
+      .sort((a, b) => b.assignedOrders - a.assignedOrders)
+      .slice(0, 8)
+      .map((p) => ({
+        name: p.name.length > 14 ? `${p.name.slice(0, 12)}…` : p.name,
+        orders: p.assignedOrders,
+      }));
+    return { activePartners, totalOrdersAssigned, garmentCoverage, throughput };
+  }, [manufacturerList]);
 
   const garmentFilters = useMemo(() => {
-    const set = new Set<GarmentCategory>();
-    for (const p of profiles) {
+    const set = new Set<string>();
+    for (const p of manufacturerList) {
       for (const g of p.garmentTypes) set.add(g);
     }
     return Array.from(set).sort();
-  }, [profiles]);
+  }, [manufacturerList]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return profiles.filter((p) => {
+    return manufacturerList.filter((p) => {
       if (garmentFilter !== 'all' && !p.garmentTypes.includes(garmentFilter)) return false;
       if (!q) return true;
       return (
@@ -78,7 +93,11 @@ export function SuperAdminManufacturers() {
         p.garmentTypes.some((g) => g.toLowerCase().includes(q))
       );
     });
-  }, [profiles, search, garmentFilter]);
+  }, [manufacturerList, search, garmentFilter]);
+
+  if (loading) {
+    return <PageLoadingFallback />;
+  }
 
   return (
     <div className="space-y-8">
@@ -99,8 +118,11 @@ export function SuperAdminManufacturers() {
         {[
           { label: 'Active partners', value: String(overview.activePartners) },
           { label: 'Orders assigned', value: String(overview.totalOrdersAssigned) },
-          { label: 'Avg. quote time', value: `${overview.avgQuoteDays}d` },
-          { label: 'On-time rate', value: `${overview.avgOnTimeRate}%` },
+          { label: 'Total partners', value: String(manufacturerList.length) },
+          {
+            label: 'Onboarding',
+            value: String(manufacturerList.filter((p) => p.status === 'onboarding').length),
+          },
         ].map((kpi) => (
           <div
             key={kpi.label}
@@ -118,42 +140,52 @@ export function SuperAdminManufacturers() {
         <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 lg:col-span-3">
           <h2 className="text-sm font-semibold text-white">Partner throughput</h2>
           <div className="mt-4 h-[220px] w-full min-w-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={overview.throughput}>
-                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="name" {...axisProps} interval={0} angle={-10} textAnchor="end" height={46} />
-                <YAxis {...axisProps} />
-                <Tooltip contentStyle={chartTooltipStyle} />
-                <Bar dataKey="orders" fill={RED} radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {overview.throughput.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-white/40">
+                No assigned orders yet
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={overview.throughput}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                  <XAxis dataKey="name" {...axisProps} interval={0} angle={-10} textAnchor="end" height={46} />
+                  <YAxis {...axisProps} allowDecimals={false} />
+                  <Tooltip contentStyle={chartTooltipStyle} />
+                  <Bar dataKey="orders" fill={RED} radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
         <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-white">Garment coverage</h2>
           <p className="mt-1 text-[11px] text-white/35">How many factories cover each product type</p>
-          <ul className="mt-4 space-y-2.5">
-            {overview.garmentCoverage.map((row) => (
-              <li key={row.type} className="flex items-center justify-between gap-3">
-                <span className="text-sm text-white/75">{row.type}</span>
-                <div className="flex min-w-[120px] items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${(row.partners / Math.max(overview.activePartners, 1)) * 100}%`,
-                        background: AMBER,
-                      }}
-                    />
+          {overview.garmentCoverage.length === 0 ? (
+            <p className="mt-6 text-sm text-white/40">No garment types listed yet.</p>
+          ) : (
+            <ul className="mt-4 space-y-2.5">
+              {overview.garmentCoverage.map((row) => (
+                <li key={row.type} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-white/75">{row.type}</span>
+                  <div className="flex min-w-[120px] items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(row.partners / Math.max(overview.activePartners || manufacturerList.length, 1)) * 100}%`,
+                          background: AMBER,
+                        }}
+                      />
+                    </div>
+                    <span className="w-4 text-right text-[11px] tabular-nums text-white/45">
+                      {row.partners}
+                    </span>
                   </div>
-                  <span className="w-4 text-right text-[11px] tabular-nums text-white/45">
-                    {row.partners}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
@@ -162,7 +194,7 @@ export function SuperAdminManufacturers() {
           <div>
             <h2 className="text-sm font-semibold text-white">All manufacturers</h2>
             <p className="mt-1 text-[11px] text-white/35">
-              {filtered.length} of {profiles.length} partners
+              {filtered.length} of {manufacturerList.length} partners
             </p>
           </div>
           <div className="relative max-w-md flex-1 sm:max-w-xs">
@@ -209,70 +241,62 @@ export function SuperAdminManufacturers() {
 
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
-            <p className="text-sm text-white/45">No manufacturers match.</p>
+            <p className="text-sm text-white/45">
+              {manufacturerList.length === 0
+                ? 'No manufacturer accounts yet.'
+                : 'No manufacturers match.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((profile) => {
-              const stats = getManufacturerOrderStats(profile.entityId);
-              const plan = getManufacturerPlanLabel(profile.userId);
-              return (
-                <Link
-                  key={profile.userId}
-                  to={`/superadmin/manufacturers/${profile.userId}`}
-                  className="group flex flex-col gap-4 rounded-2xl border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.14] sm:flex-row sm:items-center sm:justify-between sm:p-5"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold text-white">{profile.name}</h3>
-                      <span
-                        className={cn(
-                          'rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                          STATUS_STYLE[profile.status],
-                        )}
-                      >
-                        {profile.status}
-                      </span>
-                      <span className="rounded-md border border-amber-500/25 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
-                        {plan}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[12px] text-white/40">
-                      {profile.location}, {profile.country} · MOQ {profile.moq} · Lead {profile.leadTimeDays}d
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {profile.garmentTypes.map((g) => (
-                        <GarmentChip key={g} label={g} />
-                      ))}
-                    </div>
+            {filtered.map((profile) => (
+              <Link
+                key={profile.userId}
+                to={`/superadmin/manufacturers/${profile.userId}`}
+                className="group flex flex-col gap-4 rounded-2xl border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.14] sm:flex-row sm:items-center sm:justify-between sm:p-5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-semibold text-white">{profile.name}</h3>
+                    <span
+                      className={cn(
+                        'rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                        STATUS_STYLE[profile.status],
+                      )}
+                    >
+                      {profile.status}
+                    </span>
                   </div>
+                  <p className="mt-1 text-[12px] text-white/40">
+                    {profile.location}, {profile.country} · MOQ {profile.moq} · Lead{' '}
+                    {profile.leadTimeDays}d
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {profile.garmentTypes.map((g) => (
+                      <GarmentChip key={g} label={g} />
+                    ))}
+                  </div>
+                </div>
 
-                  <div className="flex shrink-0 items-center gap-6 sm:gap-8">
-                    <div className="grid grid-cols-3 gap-4 text-center sm:gap-5">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wider text-white/35">Orders</div>
-                        <div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
-                          {stats.totalOrders}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wider text-white/35">Quote</div>
-                        <div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
-                          {profile.avgQuoteDays}d
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wider text-white/35">On-time</div>
-                        <div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
-                          {profile.onTimeRate}%
-                        </div>
+                <div className="flex shrink-0 items-center gap-6 sm:gap-8">
+                  <div className="grid grid-cols-2 gap-4 text-center sm:gap-5">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-white/35">Orders</div>
+                      <div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
+                        {profile.assignedOrders}
                       </div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-[#CC2D24]" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-white/35">Capacity</div>
+                      <div className="mt-0.5 text-sm font-semibold tabular-nums text-white">
+                        {profile.capacityUnitsPerMonth || '—'}
+                      </div>
+                    </div>
                   </div>
-                </Link>
-              );
-            })}
+                  <ChevronRight className="h-4 w-4 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-[#CC2D24]" />
+                </div>
+              </Link>
+            ))}
           </div>
         )}
       </div>

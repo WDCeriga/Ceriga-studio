@@ -446,7 +446,9 @@ function CustomerCard({ order }: { order: SuperAdminOrder }) {
           variant="outline"
           size="sm"
           className="border-white/15 bg-white/[0.03] text-white/80 hover:bg-white/10 hover:text-white"
-          onClick={() => toast.success(`Mock: email sent to ${order.userEmail}`)}
+          onClick={() => {
+            window.location.href = `mailto:${encodeURIComponent(order.userEmail)}?subject=${encodeURIComponent(`Ceriga order ${order.id}`)}`;
+          }}
         >
           <Mail className="h-3.5 w-3.5" />
         </Button>
@@ -679,7 +681,7 @@ function ProductionPulseCard({
         open={flagOpen}
         onOpenChange={setFlagOpen}
         title="Flag QC for brand?"
-        description="Marks this order so ops can push the brand to review published QC photos. Does not auto-message in this mock."
+        description="Marks this order so ops can push the brand to review published QC photos."
         confirmLabel="Flag for brand"
         onConfirm={() => {
           flagQcForBrand(order.id, 'Please review published QC photos');
@@ -1052,7 +1054,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button
                   className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-                  onClick={() => toast.success('Mock: PDF downloaded')}
+                  onClick={() => toast.message('Open the tech pack from the order workspace to download')}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download PDF
@@ -1060,7 +1062,9 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
                 <Button
                   variant="outline"
                   className="border-white/15 text-white hover:bg-white/10"
-                  onClick={() => toast.success('Mock: download link resent')}
+                  onClick={() => {
+                    window.location.href = `mailto:${encodeURIComponent(order.userEmail)}?subject=${encodeURIComponent(`Download link for order ${order.id}`)}`;
+                  }}
                 >
                   <Mail className="mr-2 h-4 w-4" />
                   Resend link

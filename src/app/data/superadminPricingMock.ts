@@ -93,31 +93,11 @@ const DEFAULT_CONFIG: PlatformPricingConfig = {
 
 let pricingConfig: PlatformPricingConfig = structuredClone(DEFAULT_CONFIG);
 
-let manualLedgerRows: RevenueLedgerRow[] = [
-  {
-    id: 'rev-man-1',
-    date: '2026-03-28',
-    source: 'manual',
-    customerName: 'Northshore Retail Group',
-    description: 'White-label onboarding workshop (offline)',
-    quantity: 1,
-    revenueCents: 250000,
-    manufacturerCostCents: 0,
-    manufacturerShippingCents: 0,
-    currency: 'GBP',
-  },
-  {
-    id: 'rev-chat-1',
-    date: '2026-04-01',
-    source: 'chat_subscription',
-    customerName: 'Threadline Apparel',
-    description: 'Scale plan — April 2026',
-    revenueCents: 4900,
-    manufacturerCostCents: 0,
-    manufacturerShippingCents: 0,
-    currency: 'EUR',
-  },
-];
+let manualLedgerRows: RevenueLedgerRow[] = [];
+
+export function getDefaultPricingConfig(): PlatformPricingConfig {
+  return normalizePricingConfig(structuredClone(DEFAULT_CONFIG));
+}
 
 export function getPricingConfig(): PlatformPricingConfig {
   return normalizePricingConfig(structuredClone(pricingConfig));

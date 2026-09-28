@@ -995,3 +995,133 @@ create policy "order_uploads_admin_read"
     bucket_id = 'order-uploads'
     and public.is_superadmin()
   );
+
+-- ---------------------------------------------------------------------------
+-- Demock: profiles credits, manufacturer status, platform settings, admin chat
+-- ---------------------------------------------------------------------------
+
+alter table public.profiles
+  add column if not exists message_credits integer not null default 0;
+
+alter table public.manufacturer_profiles
+  add column if not exists status text not null default 'onboarding'
+    check (status in ('active', 'paused', 'onboarding')),
+  add column if not exists specialties text[] not null default '{}'::text[],
+  add column if not exists certifications text[] not null default '{}'::text[],
+  add column if not exists country text,
+  add column if not exists city text;
+
+drop policy if exists "manufacturer_profiles_insert_superadmin" on public.manufacturer_profiles;
+create policy "manufacturer_profiles_insert_superadmin"
+  on public.manufacturer_profiles for insert
+  to authenticated
+  with check (public.is_superadmin());
+
+create table if not exists public.platform_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.platform_settings enable row level security;
+
+drop policy if exists "platform_settings_select_superadmin" on public.platform_settings;
+drop policy if exists "platform_settings_upsert_superadmin" on public.platform_settings;
+
+create policy "platform_settings_select_superadmin"
+  on public.platform_settings for select
+  to authenticated
+  using (public.is_superadmin());
+
+create policy "platform_settings_upsert_superadmin"
+  on public.platform_settings for all
+  to authenticated
+  using (public.is_superadmin())
+  with check (public.is_superadmin());
+
+insert into public.platform_settings (key, value)
+values (
+  'pricing',
+  '{
+    "techPack": {"currency": "EUR", "pdfCents": 2900, "bundleCents": 4900},
+    "chatPlans": [
+      {"id": "free", "tier": "Free", "monthlyCents": 0, "messageLimit": 20, "published": true},
+      {"id": "studio", "tier": "Studio", "monthlyCents": 1900, "messageLimit": 500, "published": true},
+      {"id": "scale", "tier": "Scale", "monthlyCents": 4900, "messageLimit": 2000, "published": true, "featured": true},
+      {"id": "business", "tier": "Business", "monthlyCents": 9900, "messageLimit": 10000, "published": true}
+    ],
+    "production": {
+      "currency": "GBP",
+      "defaultPlanId": "standard",
+      "estimatedDutiesPercent": 0,
+      "planMargins": [
+        {"planId": "standard", "planName": "Standard", "platformMarginPercent": 17.5},
+        {"planId": "preferred", "planName": "Preferred", "platformMarginPercent": 15},
+        {"planId": "priority", "planName": "Priority", "platformMarginPercent": 12}
+      ]
+    }
+  }'::jsonb
+)
+on conflict (key) do nothing;
+
+create table if not exists public.admin_chat_threads (
+  id uuid primary key default gen_random_uuid(),
+  participant_user_id uuid not null references auth.users (id) on delete cascade,
+  participant_type text not null check (participant_type in ('brand', 'manufacturer')),
+  subject text not null default 'Conversation',
+  last_message text not null default '',
+  last_message_at timestamptz not null default now(),
+  unread_admin integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists admin_chat_threads_updated_idx
+  on public.admin_chat_threads (last_message_at desc);
+
+create table if not exists public.admin_chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.admin_chat_threads (id) on delete cascade,
+  sender text not null check (sender in ('admin', 'participant')),
+  body text not null default '',
+  attachments jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists admin_chat_messages_thread_idx
+  on public.admin_chat_messages (thread_id, created_at);
+
+alter table public.admin_chat_threads enable row level security;
+alter table public.admin_chat_messages enable row level security;
+
+drop policy if exists "admin_chat_threads_superadmin" on public.admin_chat_threads;
+drop policy if exists "admin_chat_threads_participant" on public.admin_chat_threads;
+drop policy if exists "admin_chat_messages_superadmin" on public.admin_chat_messages;
+drop policy if exists "admin_chat_messages_participant" on public.admin_chat_messages;
+
+create policy "admin_chat_threads_superadmin"
+  on public.admin_chat_threads for all
+  to authenticated
+  using (public.is_superadmin())
+  with check (public.is_superadmin());
+
+create policy "admin_chat_threads_participant"
+  on public.admin_chat_threads for select
+  to authenticated
+  using (auth.uid() = participant_user_id);
+
+create policy "admin_chat_messages_superadmin"
+  on public.admin_chat_messages for all
+  to authenticated
+  using (public.is_superadmin())
+  with check (public.is_superadmin());
+
+create policy "admin_chat_messages_participant"
+  on public.admin_chat_messages for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.admin_chat_threads t
+      where t.id = thread_id and t.participant_user_id = auth.uid()
+    )
+  );

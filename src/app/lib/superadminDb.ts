@@ -169,28 +169,218 @@ export async function fetchAllOrders(): Promise<SuperAdminOrder[]> {
 export async function fetchAllUsers(): Promise<SuperAdminUser[]> {
   requireConfigured();
   const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, email, full_name, role, created_at, updated_at')
-    .order('created_at', { ascending: false });
+  const [{ data, error }, { data: orderRows }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, email, full_name, role, message_credits, created_at, updated_at')
+      .order('created_at', { ascending: false }),
+    supabase.from('orders').select('user_id'),
+  ]);
   if (error) throw error;
+
+  const orderCounts = new Map<string, number>();
+  for (const row of (orderRows ?? []) as { user_id: string }[]) {
+    orderCounts.set(row.user_id, (orderCounts.get(row.user_id) ?? 0) + 1);
+  }
+
   return ((data ?? []) as {
     id: string;
     email: string;
     full_name: string | null;
     role: string;
+    message_credits: number | null;
     created_at: string;
     updated_at: string;
   }[]).map((row) => ({
     id: row.id,
     name: row.full_name || row.email.split('@')[0] || 'User',
     email: row.email,
-    credits: 0,
+    credits: row.message_credits ?? 0,
     role: row.role === 'manufacturer' || row.role === 'worker' ? row.role : 'brand',
     createdAt: row.created_at.slice(0, 10),
     lastActive: row.updated_at.slice(0, 10),
-    ordersCount: 0,
+    ordersCount: orderCounts.get(row.id) ?? 0,
   }));
+}
+
+export async function adminPatchProfile(
+  id: string,
+  patch: { role?: SuperAdminUser['role']; messageCredits?: number; fullName?: string },
+): Promise<void> {
+  requireConfigured();
+  const supabase = getSupabase();
+  const payload: Record<string, unknown> = {};
+  if (patch.role !== undefined) payload.role = patch.role;
+  if (patch.messageCredits !== undefined) payload.message_credits = Math.max(0, patch.messageCredits);
+  if (patch.fullName !== undefined) payload.full_name = patch.fullName;
+  const { error } = await supabase.from('profiles').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export type ManufacturerListItem = {
+  userId: string;
+  entityId: string;
+  name: string;
+  email: string;
+  location: string;
+  country: string;
+  status: 'active' | 'paused' | 'onboarding';
+  garmentTypes: string[];
+  specialties: string[];
+  certifications: string[];
+  moq: number;
+  leadTimeDays: number;
+  capacityUnitsPerMonth: number;
+  joinedAt: string;
+  lastActive: string;
+  internalNotes: string;
+  onboardingComplete: boolean;
+  assignedOrders: number;
+};
+
+export async function fetchManufacturerList(): Promise<ManufacturerListItem[]> {
+  requireConfigured();
+  const supabase = getSupabase();
+  const [{ data, error }, { data: orderRows }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select(
+        'id, email, updated_at, created_at, manufacturer_profiles ( factory_name, contact_email, address_line, city, country, status, garments, specialties, certifications, moq, typical_lead_days, monthly_capacity, internal_notes, onboarding_complete, updated_at )',
+      )
+      .eq('role', 'manufacturer')
+      .order('created_at', { ascending: true }),
+    supabase.from('orders').select('assigned_manufacturer_id').not('assigned_manufacturer_id', 'is', null),
+  ]);
+  if (error) throw error;
+
+  const assigned = new Map<string, number>();
+  for (const row of (orderRows ?? []) as { assigned_manufacturer_id: string }[]) {
+    assigned.set(
+      row.assigned_manufacturer_id,
+      (assigned.get(row.assigned_manufacturer_id) ?? 0) + 1,
+    );
+  }
+
+  return ((data ?? []) as {
+    id: string;
+    email: string;
+    created_at: string;
+    updated_at: string;
+    manufacturer_profiles:
+      | {
+          factory_name: string;
+          contact_email: string | null;
+          address_line: string | null;
+          city: string | null;
+          country: string | null;
+          status: string;
+          garments: string[];
+          specialties: string[];
+          certifications: string[];
+          moq: number;
+          typical_lead_days: number | null;
+          monthly_capacity: number;
+          internal_notes: string | null;
+          onboarding_complete: boolean;
+          updated_at: string;
+        }[]
+      | null;
+  }[]).map((row) => {
+    const mp = row.manufacturer_profiles?.[0];
+    const status =
+      mp?.status === 'active' || mp?.status === 'paused' || mp?.status === 'onboarding'
+        ? mp.status
+        : mp?.onboarding_complete
+          ? 'active'
+          : 'onboarding';
+    return {
+      userId: row.id,
+      entityId: row.id,
+      name: mp?.factory_name ?? row.email,
+      email: mp?.contact_email || row.email,
+      location: mp?.city || mp?.address_line || '—',
+      country: mp?.country || '—',
+      status,
+      garmentTypes: mp?.garments ?? [],
+      specialties: mp?.specialties ?? [],
+      certifications: mp?.certifications ?? [],
+      moq: mp?.moq ?? 50,
+      leadTimeDays: mp?.typical_lead_days ?? 0,
+      capacityUnitsPerMonth: mp?.monthly_capacity ?? 0,
+      joinedAt: row.created_at.slice(0, 10),
+      lastActive: (mp?.updated_at ?? row.updated_at).slice(0, 10),
+      internalNotes: mp?.internal_notes ?? '',
+      onboardingComplete: mp?.onboarding_complete ?? false,
+      assignedOrders: assigned.get(row.id) ?? 0,
+    };
+  });
+}
+
+export async function adminPatchManufacturerProfile(
+  userId: string,
+  patch: {
+    status?: 'active' | 'paused' | 'onboarding';
+    internalNotes?: string;
+    garments?: string[];
+    specialties?: string[];
+    certifications?: string[];
+    factoryName?: string;
+  },
+): Promise<void> {
+  requireConfigured();
+  const supabase = getSupabase();
+  const payload: Record<string, unknown> = {};
+  if (patch.status !== undefined) payload.status = patch.status;
+  if (patch.internalNotes !== undefined) payload.internal_notes = patch.internalNotes;
+  if (patch.garments !== undefined) payload.garments = patch.garments;
+  if (patch.specialties !== undefined) payload.specialties = patch.specialties;
+  if (patch.certifications !== undefined) payload.certifications = patch.certifications;
+  if (patch.factoryName !== undefined) payload.factory_name = patch.factoryName;
+
+  const { data: existing } = await supabase
+    .from('manufacturer_profiles')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!existing) {
+    const { error } = await supabase.from('manufacturer_profiles').insert({
+      user_id: userId,
+      factory_name: patch.factoryName ?? 'Factory',
+      ...payload,
+    });
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await supabase
+    .from('manufacturer_profiles')
+    .update(payload)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function getPlatformSetting<T>(key: string): Promise<T | null> {
+  requireConfigured();
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('platform_settings')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.value as T) ?? null;
+}
+
+export async function setPlatformSetting(key: string, value: unknown): Promise<void> {
+  requireConfigured();
+  const supabase = getSupabase();
+  const { error } = await supabase.from('platform_settings').upsert({
+    key,
+    value,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw error;
 }
 
 /** Manufacturer accounts for the assignment console. */

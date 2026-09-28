@@ -9,30 +9,26 @@ import {
   getProfilesForAudience,
   type AccessAudience,
 } from '../../../data/crmAccessMock';
+import { useSuperadminData } from '../../../hooks/useSuperadminData';
+import { PageLoadingFallback } from '../../../components/PageLoadingFallback';
 import { AccessBreadcrumb, BackLink, ProfileCard } from './accessShared';
 
 const VALID_AUDIENCES = new Set<string>(['users', 'workers']);
 
 export function SuperAdminCRMAccessList() {
   const { audience: audienceParam } = useParams<{ audience: string }>();
+  const { users, loading } = useSuperadminData();
   const [search, setSearch] = useState('');
 
-  if (audienceParam === 'manufacturers') {
-    return <Navigate to="/superadmin/manufacturers" replace />;
-  }
+  const audience =
+    audienceParam && VALID_AUDIENCES.has(audienceParam)
+      ? (audienceParam as AccessAudience)
+      : null;
 
-  if (!audienceParam || !VALID_AUDIENCES.has(audienceParam)) {
-    return (
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
-        <p className="text-sm text-white/50">Unknown audience.</p>
-      </div>
-    );
-  }
-
-  const audience = audienceParam as AccessAudience;
-  const meta = AUDIENCE_META[audience];
-  const profiles = getProfilesForAudience(audience);
-  const totalPages = PAGE_ACCESS[audience].length;
+  const profiles = useMemo(
+    () => (audience ? getProfilesForAudience(audience, users) : []),
+    [audience, users],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -43,6 +39,25 @@ export function SuperAdminCRMAccessList() {
         p.email.toLowerCase().includes(q),
     );
   }, [profiles, search]);
+
+  if (audienceParam === 'manufacturers') {
+    return <Navigate to="/superadmin/manufacturers" replace />;
+  }
+
+  if (!audience) {
+    return (
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
+        <p className="text-sm text-white/50">Unknown audience.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <PageLoadingFallback />;
+  }
+
+  const meta = AUDIENCE_META[audience];
+  const totalPages = PAGE_ACCESS[audience].length;
 
   return (
     <div className="space-y-6">
@@ -74,21 +89,20 @@ export function SuperAdminCRMAccessList() {
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
-          <p className="text-sm text-white/45">No profiles match.</p>
+          <p className="text-sm text-white/45">
+            {profiles.length === 0 ? 'No accounts in this audience yet.' : 'No profiles match.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((user) => {
-            const access = getProfileAccess(user.id);
-            const enabledCount = access ? countEnabledPages(access) : totalPages;
-
+          {filtered.map((profile) => {
+            const access = getProfileAccess(profile.id);
             return (
               <ProfileCard
-                key={user.id}
-                user={user}
+                key={profile.id}
+                user={profile}
                 audience={audience}
-                meta={meta}
-                enabledCount={enabledCount}
+                enabledCount={access ? countEnabledPages(access) : 0}
                 totalPages={totalPages}
               />
             );
