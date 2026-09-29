@@ -8,7 +8,13 @@ export function fabricLuminance(color: string): number {
   return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
 }
 
+function isDarkNeutralFabric(color: string): boolean {
+  const expanded = color.replace(/^#([\da-f])([\da-f])([\da-f])$/i, '#$1$1$2$2$3$3');
+  return /^#([\da-f]{2})\1\1$/i.test(expanded) && fabricLuminance(expanded) < .18;
+}
+
 export function constructionColor(fabric: string, preferred = '#141414'): string {
+  if (!isDarkNeutralFabric(fabric)) return preferred;
   const background = fabricLuminance(fabric);
   const contrast = (color: string) => {
     const ink = fabricLuminance(color);
@@ -28,7 +34,7 @@ export function renderFabricSvg(raw: string, fill: string): string {
     const stroke = element.getAttribute('stroke')!;
     if (/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(stroke)) element.setAttribute('stroke', constructionColor(fill, stroke));
   }
-  if (fabric && fabricLuminance(fill) < .06 && parsed.documentElement.getAttribute('data-neck-finish') !== 'raw') {
+  if (fabric && isDarkNeutralFabric(fill) && fabricLuminance(fill) < .06 && parsed.documentElement.getAttribute('data-neck-finish') !== 'raw') {
     fabric.setAttribute('stroke', '#505050');
     fabric.setAttribute('stroke-width', '12');
     fabric.setAttribute('stroke-linejoin', 'round');
@@ -126,7 +132,7 @@ export function tintPotraceSvg(
   }
 
   result = result.replace(
-    /(<g transform="[^"]+") data-shared-fabric="true"[^>]*>/gi,
+    /(<g transform="[^"]+")[^>]*\bdata-shared-fabric="true"[^>]*>/gi,
     `$1 data-shared-fabric="true" fill="${fill}"${edgeSeal} fill-rule="evenodd">`,
   );
 
@@ -208,6 +214,36 @@ function splitPathSubpaths(d: string): string[] {
   if (!trimmed) return [];
   const parts = trimmed.split(/(?=[Mm])/).map((part) => part.trim()).filter(Boolean);
   return parts.length > 0 ? parts : [trimmed];
+}
+
+export function filledFabricSilhouette(raw: string, includeInk = false): string {
+  const document = new DOMParser().parseFromString(raw, 'image/svg+xml');
+  const root = document.documentElement;
+  const fabric = root.querySelector('g');
+  if (!fabric) return raw;
+  for (const child of Array.from(root.children)) {
+    if (child !== fabric && (!includeInk || child.localName !== 'g')) child.remove();
+    else if (includeInk) {
+      child.setAttribute('fill', '#000000');
+      child.setAttribute('data-shared-fabric', 'true');
+    }
+  }
+  for (const path of Array.from(root.querySelectorAll('path'))) {
+    if (includeInk) path.removeAttribute('fill');
+    let startX = 0;
+    let startY = 0;
+    const contours = splitPathSubpaths(path.getAttribute('d') ?? '').map(subpath => {
+      const move = subpath.match(/^([Mm])\s*([-+]?\d*\.?\d+(?:e[-+]?\d+)?)[\s,]+([-+]?\d*\.?\d+(?:e[-+]?\d+)?)/i);
+      if (!move || !/[zZ]\s*$/.test(subpath)) return null;
+      startX = Number(move[2]) + (move[1] === 'm' ? startX : 0);
+      startY = Number(move[3]) + (move[1] === 'm' ? startY : 0);
+      const contour = path.cloneNode(false) as SVGPathElement;
+      contour.setAttribute('d', `M${startX} ${startY}${subpath.slice(move[0].length)}`);
+      return contour;
+    });
+    if (contours.every(contour => contour !== null)) path.replaceWith(...contours as SVGPathElement[]);
+  }
+  return new XMLSerializer().serializeToString(root);
 }
 
 function potracePointToViewBox(

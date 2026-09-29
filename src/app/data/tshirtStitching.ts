@@ -299,5 +299,11 @@ export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: Stitc
       return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${part.clip}"/></clipPath></defs><g data-stitch-region="${region}" data-hem-stitch="${part.id}" data-stitch-style="${style}" clip-path="url(#${clipId})">${content}</g>`;
     }).join('');
   }).join('');
-  return `<svg xmlns="${namespace}" width="2048" height="2048" viewBox="0 0 2048 2048" pointer-events="none" aria-hidden="true">${groups}</svg>`;
+  const collarMask = source.svgRaw.includes('custom-collar-')
+    ? new DOMParser().parseFromString(source.svgRaw, 'image/svg+xml').querySelector('mask[id^="custom-collar-"]')
+    : null;
+  const content = collarMask
+    ? `<defs>${new XMLSerializer().serializeToString(collarMask)}</defs><g mask="url(#${collarMask.id})">${groups}</g>`
+    : groups;
+  return `<svg xmlns="${namespace}" width="2048" height="2048" viewBox="0 0 2048 2048" pointer-events="none" aria-hidden="true">${content}</svg>`;
 }

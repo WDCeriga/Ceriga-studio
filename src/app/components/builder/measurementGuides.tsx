@@ -167,7 +167,7 @@ export function MeasurementGuideOverlay({
   onSelect?: (guideId: MeasurementGuideId) => void;
 }) {
   const storeGuides = useMeasurementGuides();
-  const activeGuides = (guides ?? storeGuides).filter(guide => view !== 'back' || guide.id !== 'neckDrop');
+  const activeGuides = (guides ?? storeGuides).filter(guide => guides || view !== 'back' || guide.id !== 'neckDrop');
 
   return (
     <svg
@@ -183,7 +183,7 @@ export function MeasurementGuideOverlay({
         const active = highlightedId === null || highlightedId === guide.id;
         const opacity = highlightedId && !active ? 0.22 : 0.92;
         const labelOpacity = highlightedId && !active ? 0.35 : 1;
-        const width = guides ? 112 : guide.label.length > 12 ? 176 : 140;
+        const width = guide.label.length > 12 ? 176 : 140;
         const start = { x: guide.dimensionX ?? guide.x1, y: guide.dimensionY ?? guide.y1 };
         const end = { x: guide.dimensionX ?? guide.x2, y: guide.dimensionY ?? guide.y2 };
         const x =

@@ -85,6 +85,8 @@ import {
 } from 'react-resizable-panels';
 
 import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
+import { CustomAssetMeasurements, editAssetDimension, type AssetMeasurementSnapshot } from '../components/builder/CustomAssetMeasurements';
+import { getLocalProject, saveLocalProject } from '../lib/localProjects';
 import {
   PREVIEW_STAGE_CLASS,
 } from '../components/builder/measurementPreviewSizing';
@@ -94,7 +96,8 @@ import { WashFinishPanel } from '../components/builder/WashFinish';
 import { defaultGarmentWash, WASH_TYPES, type GarmentWash, type WashTool } from '../data/garmentWash';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
-import { CollarPhotoUpload } from '../components/builder/CollarPhotoUpload';
+import { CustomAssetUpload } from '../components/builder/CustomAssetUpload';
+import { activeCustomAssets, installCustomAsset, updateCustomAssetTransform, type CustomAssetCategory, type CustomAssetState } from '../data/customAssets';
 import { TrimColorFamilyPicker } from '../components/builder/TrimColorFamilyPicker';
 import { GarmentPartColorPickers } from '../components/builder/GarmentPartColorPickers';
 import { StudioColorField } from '../components/builder/StudioColorField';
@@ -160,8 +163,6 @@ import {
   garmentTransformStorageId,
   customCollarNeckId,
   listCustomCollars,
-  newCustomCollarId,
-  uniqueCustomCollarName,
   type CustomCollarSvgs,
   type GarmentAssetSelection,
   type GarmentSvgGarmentType,
@@ -217,7 +218,7 @@ type DetailKey =
   | 'hem'
   | 'pockets';
 
-interface BuilderState {
+interface BuilderState extends CustomAssetState {
   packagingDesign?: PackagingState;
   garmentLabels?: GarmentLabel[];
   garmentWash?: GarmentWash;
@@ -388,6 +389,8 @@ function stashBuilderState(s: BuilderState): BuilderState {
   cloned.prints = mapElements(cloned.prints, stash);
   cloned.labels = mapElements(cloned.labels, stash);
   cloned.packaging = mapElements(cloned.packaging, stash);
+  cloned.garmentDetails = cloned.garmentDetails?.map(detail => detail.patch?.artwork?.startsWith('data:')
+    ? { ...detail, patch: { ...detail.patch, artwork: stashDataUrl(detail.patch.artwork) } } : detail);
   cloned.packagingDesign = mapPackagingImages(cloned.packagingDesign, content => content.startsWith('data:') ? stashDataUrl(content) : content);
   cloned.garmentLabels = cloned.garmentLabels?.map(label => ({ ...label,
     logo: label.logo ? { ...label.logo, data: label.logo.data.startsWith('data:') ? stashDataUrl(label.logo.data) : label.logo.data } : undefined,
@@ -408,6 +411,8 @@ function resolveBuilderState(s: BuilderState): BuilderState {
   cloned.prints = mapElements(cloned.prints, resolve);
   cloned.labels = mapElements(cloned.labels, resolve);
   cloned.packaging = mapElements(cloned.packaging, resolve);
+  cloned.garmentDetails = cloned.garmentDetails?.map(detail => detail.patch?.artwork && isRefToken(detail.patch.artwork)
+    ? { ...detail, patch: { ...detail.patch, artwork: resolveImageRef(detail.patch.artwork) ?? detail.patch.artwork } } : detail);
   cloned.packagingDesign = mapPackagingImages(cloned.packagingDesign, content => resolveImageRef(content) ?? content);
   cloned.garmentLabels = cloned.garmentLabels?.map(label => ({ ...label,
     logo: label.logo ? { ...label.logo, data: isRefToken(label.logo.data) ? resolveImageRef(label.logo.data) ?? label.logo.data : label.logo.data } : undefined,
@@ -429,6 +434,9 @@ function releaseBuilderState(s: BuilderState) {
   release(s.prints);
   release(s.labels);
   release(s.packaging);
+  for (const detail of s.garmentDetails ?? []) {
+    if (detail.patch?.artwork && isRefToken(detail.patch.artwork)) releaseImageRef(detail.patch.artwork);
+  }
   mapPackagingImages(s.packagingDesign, content => { releaseImageRef(content); return content; });
   for (const label of s.garmentLabels ?? []) {
     if (label.logo && isRefToken(label.logo.data)) releaseImageRef(label.logo.data);
@@ -538,7 +546,7 @@ export function Builder() {
   const [dbProjectId, setDbProjectId] = useState<string | null>(urlProjectId);
   const dbProjectIdRef = useRef<string | null>(urlProjectId);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
-  const [projectHydrating, setProjectHydrating] = useState(Boolean(urlProjectId && isSupabaseConfigured));
+  const [projectHydrating, setProjectHydrating] = useState(Boolean(urlProjectId && (urlProjectId.startsWith('local-') || isSupabaseConfigured)));
   const projectHydratedRef = useRef<string | null>(null);
 
   const [currentStep, setCurrentStep] = useState(() => (isTechpackSpecUrl() ? 9 : 1));
@@ -560,6 +568,8 @@ export function Builder() {
   const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
   const [isPanningCanvas, setIsPanningCanvas] = useState(false);
   const [highlightedMeasurementId, setHighlightedMeasurementId] = useState<string | null>(null);
+  const [selectedMeasurementAssetId, setSelectedMeasurementAssetId] = useState<string | null>(null);
+  const [assetMeasurementSnapshot, setAssetMeasurementSnapshot] = useState<AssetMeasurementSnapshot>({ view: 'front', assets: [] });
   const [tshirtLayerSelectedId, setTshirtLayerSelectedId] = useState<GarmentLayerId | null>(null);
   /** When true, the phone configuration sheet (not the step icons) is fully collapsed. */
   const [phoneEditorCollapsed, setPhoneEditorCollapsed] = useState(false);
@@ -742,7 +752,7 @@ export function Builder() {
   }, [urlProjectId]);
 
   useEffect(() => {
-    if (!urlProjectId || !isSupabaseConfigured) {
+    if (!urlProjectId || (!urlProjectId.startsWith('local-') && !isSupabaseConfigured)) {
       setProjectHydrating(false);
       return;
     }
@@ -756,7 +766,7 @@ export function Builder() {
 
     void (async () => {
       try {
-        const row = await getProject(urlProjectId);
+        const row = urlProjectId.startsWith('local-') ? await getLocalProject<BuilderState>(urlProjectId) : await getProject(urlProjectId);
         if (cancelled) return;
         if (!row) {
           toast.error('Project not found');
@@ -1192,12 +1202,13 @@ export function Builder() {
 
   const handleSave = useCallback(
     async (showToast = true) => {
-      if (!navigator.onLine) {
+      const localDraft = !usingSupabase || Boolean(dbProjectIdRef.current?.startsWith('local-'));
+      if (!navigator.onLine && !localDraft) {
         setSaveError('offline');
         if (showToast) toast.error('Offline — draft not synced. Reconnect and try again.');
         return;
       }
-      if (usingSupabase && !isAuthenticated) {
+      if (!localDraft && !isAuthenticated) {
         setSaveError('failed');
         if (showToast) toast.error('Sign in to save your draft to the cloud');
         return;
@@ -1207,14 +1218,16 @@ export function Builder() {
       setSaving(true);
 
       const persist = async () => {
-        if (!usingSupabase) {
-          await new Promise<void>((resolve) => {
-            window.setTimeout(resolve, 420);
-          });
-          if (showToast) {
-            toast.message('Cloud DB not configured', {
-              description: 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env',
-            });
+        if (localDraft) {
+          const id = dbProjectIdRef.current?.startsWith('local-') ? dbProjectIdRef.current : `local-${crypto.randomUUID()}`;
+          await saveLocalProject({ id, name: projectName, product_id: productId || state.productId || '', current_step: currentStep, state });
+          if (id !== dbProjectIdRef.current) {
+            dbProjectIdRef.current = id;
+            setDbProjectId(id);
+            projectHydratedRef.current = id;
+            const next = new URLSearchParams(searchParams);
+            next.set('projectId', id);
+            setSearchParams(next, { replace: true });
           }
           return;
         }
@@ -1373,26 +1386,30 @@ export function Builder() {
     ? getGarmentSvgConfig(garmentSvgType).previewStepMax
     : 0;
   const stitchingLayers = useMemo(() => garmentSvgType === 'tshirt' ? resolveGarmentLayers({
+    customAssetState: state,
     garmentType: 'tshirt', view: garmentView, selection: garmentSelection, fit: activeFit,
     tshirtHemStyles: state.tshirtHemStyles, neckFinish: state.neckFinish, stitchingColor: state.stitchingColor,
     partColors: state.partColors, customCollar: state.customCollar, customCollars: state.customCollars,
   }) : [], [garmentSvgType, garmentView, garmentSelection, activeFit, state.tshirtHemStyles, state.neckFinish, state.stitchingColor,
-    state.partColors, state.customCollar, state.customCollars]);
+    state.partColors, state.customCollar, state.customCollars, state.customAssets, state.customAssetInstances]);
   const showGarmentLayerToolbar =
     isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax &&
     currentStep !== 5 && !(garmentSvgType === 'tshirt' && currentStep === 8);
   const hemLayers = useMemo(() => garmentSvgType ? resolveGarmentLayers({
+    customAssetState: state,
     garmentType: garmentSvgType, view: garmentView, selection: garmentSelection, fit: activeFit,
     tshirtHemStyles: state.tshirtHemStyles, partColors: state.partColors,
     cuffTrimColor: state.cuffTrimColor, sleeveTrimColor: state.sleeveTrimColor,
   }) : [], [garmentSvgType, garmentView, garmentSelection, activeFit, state.tshirtHemStyles,
-    state.partColors, state.cuffTrimColor, state.sleeveTrimColor]);
+    state.partColors, state.cuffTrimColor, state.sleeveTrimColor, state.customAssets, state.customAssetInstances]);
   const hemRegions = availableHemRegions(hemLayers, garmentSvgType ?? '');
   const activeHemRegion = hemRegions.find(region => region.id === hemRegion)?.id ?? hemRegions[0]?.id ?? '';
   const hemEditor = { regions: hemRegions, region: activeHemRegion, closeUp: hemCloseUp, onSelect: setHemRegion };
   const tshirtSelectedAssetName = useMemo(() => {
     if (!tshirtLayerSelectedId || !garmentSvgType) return undefined;
     return resolveGarmentLayers({
+      customAssetState: state,
+      view: garmentView,
       garmentType: garmentSvgType,
       selection: garmentSelection,
       neckTrimColor: state.neckTrimColor,
@@ -1415,6 +1432,9 @@ export function Builder() {
     state.pocketTrimColor,
     state.customCollar,
     state.customCollars,
+    state.customAssets,
+    state.customAssetInstances,
+    garmentView,
   ]);
 
   const garmentConfig = garmentSvgType ? getGarmentSvgConfig(garmentSvgType) : null;
@@ -2101,6 +2121,36 @@ export function Builder() {
     );
   };
 
+  const renderCustomAssets = (category: CustomAssetCategory) => {
+    if (!garmentSvgType || !['tshirt', 'tshirtTest'].includes(garmentSvgType)) return null;
+    return <CustomAssetUpload category={category} garmentType={garmentSvgType} fit={activeFit} view={garmentView}
+      previewColor={state.partColors?.neck ?? state.neckTrimColor ?? primaryColor}
+      assets={state.customAssets ?? []}
+      selectedIds={activeCustomAssets(state, garmentSvgType, activeFit, garmentView).map(item => item.definition.id)}
+      onAccept={(asset, additionalAssets = []) => {
+        setState(prev => [asset, ...additionalAssets].reduce((next, definition) => installCustomAsset(next, definition, garmentSvgType, activeFit, garmentView, prev.partColors?.base ?? primaryColor, garmentDetailBounds), prev));
+        if (asset.category !== 'pocket') setTshirtLayerSelectedId(asset.registration.layerId as GarmentLayerId);
+      }}
+      onRename={(id, name) => setState(prev => ({ ...prev,
+        customAssets: prev.customAssets?.map(asset => asset.id === id ? { ...asset, name } : asset),
+        garmentDetails: prev.garmentDetails?.map(detail => detail.customAsset?.id === id ? { ...detail, name, customAsset: { ...detail.customAsset, name } } : detail),
+      }))}
+      onRemove={id => setState(prev => ({ ...prev,
+        customAssets: prev.customAssets?.filter(asset => asset.id !== id),
+        customAssetInstances: Object.fromEntries(Object.entries(prev.customAssetInstances ?? {}).filter(([, instance]) => instance.definitionId !== id)),
+        garmentDetails: prev.garmentDetails?.filter(detail => detail.customAsset?.id !== id),
+      }))}
+      renderPreview={(asset, additionalAssets = []) => {
+        const preview = [asset, ...additionalAssets].reduce((next, definition) => installCustomAsset(next, definition, garmentSvgType, activeFit, garmentView, state.partColors?.base ?? primaryColor, garmentDetailBounds), state);
+        return <TshirtSvgPreview garmentType={garmentSvgType} fit={activeFit} detailView={garmentView} color={primaryColor}
+          selection={garmentSelection} customAssetState={preview} garmentDetails={preview.garmentDetails}
+          customCollar={state.customCollar} customCollars={state.customCollars} layerTransforms={state.tshirtLayerTransforms}
+          partColors={state.partColors} neckTrimColor={state.neckTrimColor} sleeveTrimColor={state.sleeveTrimColor}
+          cuffTrimColor={state.cuffTrimColor} tshirtHemStyles={state.tshirtHemStyles} neckFinish={state.neckFinish}
+          className="h-full w-full"/>;
+      }}/ >;
+  };
+
   const renderGarmentAssetGrids = (step: number) => {
     if (!garmentSvgType) return null;
     return getGarmentChoiceCategoriesForStep(garmentSvgType, step)
@@ -2111,7 +2161,9 @@ export function Builder() {
         key={category}
         garmentType={garmentSvgType}
         category={category}
-        selected={garmentSelection[category]}
+        selected={activeCustomAssets(state, garmentSvgType, activeFit, garmentView)
+          .some(item => item.definition.registration.layerId === garmentConfig?.categoryLayerId[category])
+          ? '' : garmentSelection[category]}
         fit={activeFit}
         extraAssets={
           category === 'Neck'
@@ -2124,6 +2176,10 @@ export function Builder() {
         onSelect={(assetId) =>
           setState((prev) => ({
             ...prev,
+            customAssetInstances: Object.fromEntries(Object.entries(prev.customAssetInstances ?? {}).filter(([, instance]) => {
+              const asset = prev.customAssets?.find(item => item.id === instance.definitionId);
+              return instance.view !== garmentView || !asset || !(step === 3 && asset.category === 'collar' || step === 4 && asset.category === 'sleeve');
+            })),
             garmentDetails: step === 6 ? prev.garmentDetails?.filter(detail => (detail.view ?? 'front') !== garmentView || detail.sourceLayerId !== garmentConfig?.categoryLayerId[category]) : prev.garmentDetails,
             tshirtAssetSelection: applyGarmentFitAndLinks(
               garmentSvgType,
@@ -2204,6 +2260,15 @@ export function Builder() {
                   },
                 }))
               }
+            />
+            <CustomAssetMeasurements
+              assets={assetMeasurementSnapshot.view === garmentView ? assetMeasurementSnapshot.assets : []}
+              unit={state.measurementUnit} view={garmentView} selectedId={selectedMeasurementAssetId} onSelect={setSelectedMeasurementAssetId}
+              onEdit={(asset, field, value) => {
+                const result = editAssetDimension(state, asset, field, value);
+                if (result.changes) setState(prev => ({ ...prev, ...result.changes }));
+                return result.error;
+              }}
             />
             <div>
               <Label
@@ -2333,6 +2398,7 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(3)}
+              {renderCustomAssets('collar')}
               {garmentSvgType === 'tshirt' ? (
                 <div>
                   <Label htmlFor="neck-finish" className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">Neck finish</Label>
@@ -2344,45 +2410,6 @@ export function Builder() {
                     {NECK_FINISH_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </div>
-              ) : null}
-              {garmentSvgType === 'tshirtTest' ? (
-                <CollarPhotoUpload
-                  disabled={activeFit !== 'slim'}
-                  disabledReason="Switch to Slim on measurements to upload a collar photo."
-                  onTraced={(collar) => {
-                    setState((prev) => {
-                      const existing = listCustomCollars(prev.customCollar, prev.customCollars);
-                      const id = newCustomCollarId();
-                      const displayName = uniqueCustomCollarName(
-                        collar.displayName || 'Uploaded collar',
-                        existing.map((entry) => entry.displayName || ''),
-                      );
-                      const entry: CustomCollarSvgs = {
-                        ...collar,
-                        id,
-                        displayName,
-                      };
-                      return {
-                        ...prev,
-                        fit: 'slim',
-                        customCollar: entry,
-                        customCollars: [...existing, entry],
-                        tshirtAssetSelection: garmentSvgType
-                          ? applyGarmentFitAndLinks(
-                              garmentSvgType,
-                              {
-                                ...getDefaultGarmentSelection(garmentSvgType, 'slim'),
-                                ...prev.tshirtAssetSelection,
-                                Neck: customCollarNeckId(id),
-                              },
-                              'slim',
-                            )
-                          : prev.tshirtAssetSelection,
-                      };
-                    });
-                    toast.success(`${collar.displayName || 'Uploaded collar'} is on the tee`);
-                  }}
-                />
               ) : null}
               {renderPartColorPickers(3)}
               {!techpackSpecFlow && !garmentConfig?.perPartColors ? (
@@ -2445,6 +2472,7 @@ export function Builder() {
           return (
             <div className="space-y-4">
               {renderGarmentAssetGrids(4)}
+              {renderCustomAssets('sleeve')}
               {renderPartColorPickers(4)}
               {!techpackSpecFlow && garmentSvgType === 'tshirt' &&
                 getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve') &&
@@ -2605,9 +2633,9 @@ export function Builder() {
 
       case 6:
         if (state.garmentType === 'tshirt' || isGarmentSvgFlow) {
-          return <div className="space-y-4">{state.garmentType !== 'tshirt' && renderGarmentAssetGrids(6)}<GarmentDetailsPanel details={visibleGarmentDetails} selectedId={selectedGarmentDetailId}
+          return <div className="space-y-4">{state.garmentType !== 'tshirt' && renderGarmentAssetGrids(6)}{renderCustomAssets('pocket')}<GarmentDetailsPanel details={visibleGarmentDetails} selectedId={selectedGarmentDetailId}
             bounds={garmentDetailBounds}
-            referenceWidthCm={Number(state.measurements.chestWidth?.m) || undefined}
+            referenceWidthCm={Number(state.measurements.chestWidth?.m) || 50}
             unit={state.measurementUnit}
             builtins={builtinDetails.filter(detail => detail.view === garmentView && !visibleGarmentDetails.some(item => item.sourceLayerId === detail.sourceLayerId && !item.hidden))}
             editor={detailEditor}
@@ -2616,6 +2644,11 @@ export function Builder() {
             view={garmentView}
             copiedIds={(state.garmentDetails ?? []).filter(detail => detail.view === (showFront ? 'back' : 'front')).map(detail => detail.copiedFromId ?? '')}
             onDuplicateToOtherView={detail => setState(prev => ({ ...prev, garmentDetails: copyDetailToOpposite(prev.garmentDetails ?? [], detail, garmentView) }))}
+            onMoveToView={(detail, view) => {
+              setState(prev => ({ ...prev, garmentDetails: prev.garmentDetails?.map(item => item.id === detail.id ? { ...item, view,
+                ...(item.customAsset && view !== (item.view ?? 'front') ? { customAsset: { ...item.customAsset, provenance: 'derived' as const } } : {}) } : item) }));
+              setShowFront(view === 'front');
+            }}
             onChange={garmentDetails => setState(prev => ({ ...prev, garmentDetails: replaceViewDecorations(prev.garmentDetails ?? [], garmentView, garmentDetails) }))} />
               {state.garmentType !== 'tshirt' && !techpackSpecFlow && garmentConfig?.trimBindings.pocket?.length ? (
                 <TrimColorFamilyPicker
@@ -3440,6 +3473,8 @@ export function Builder() {
                 if (!tshirtLayerSelectedId) return;
                 const storageId = garmentTransformStorageId(tshirtLayerSelectedId);
                 setState((prev) => {
+                  const customAssetInstances = updateCustomAssetTransform(prev, garmentSvgType ?? '', activeFit, garmentView, storageId);
+                  if (customAssetInstances) return { ...prev, customAssetInstances };
                   if (!prev.tshirtLayerTransforms?.[storageId]) return prev;
                   const nextTransforms = { ...prev.tshirtLayerTransforms };
                   delete nextTransforms[storageId];
@@ -3606,7 +3641,12 @@ export function Builder() {
                 garmentDetails={state.garmentDetails}
                 detailView={showFront ? 'front' : 'back'}
                 highlightedMeasurementId={highlightedMeasurementId}
-                sharedGarmentProps={{ garmentWash: state.garmentWash, showWash, layerTransforms: state.tshirtLayerTransforms,
+                prints={state.prints}
+                measurementUnit={state.measurementUnit}
+                selectedAssetId={selectedMeasurementAssetId}
+                onAssetSelect={setSelectedMeasurementAssetId}
+                onAssetMeasurementsChange={setAssetMeasurementSnapshot}
+                sharedGarmentProps={{ customAssetState: state, garmentWash: state.garmentWash, showWash, layerTransforms: state.tshirtLayerTransforms,
                   garmentLabels: state.garmentLabels, labelReferenceWidthMm: Number(state.measurements.chestWidth?.m) * 10 || undefined,
                   customCollar: state.customCollar, customCollars: state.customCollars,
                   neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor,
@@ -3655,6 +3695,7 @@ export function Builder() {
                       garmentDetails={state.garmentDetails}
                       detailView={showFront ? 'front' : 'back'}
                       customCollar={state.customCollar}
+                      customAssetState={state}
                       customCollars={state.customCollars}
                       layerTransforms={state.tshirtLayerTransforms}
                       className="h-full w-full min-h-0"
@@ -3692,7 +3733,7 @@ export function Builder() {
                 neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor, cuffTrimColor: state.cuffTrimColor,
                 pocketTrimColor: state.pocketTrimColor, stitchingColor: state.stitchingColor, partColors: state.partColors,
                 tshirtHemStyles: state.tshirtHemStyles, neckFinish: state.neckFinish, tshirtStitching: state.tshirtStitching, garmentDetails: state.garmentDetails,
-                customCollar: state.customCollar, customCollars: state.customCollars, layerTransforms: state.tshirtLayerTransforms,
+                customAssetState: state, customCollar: state.customCollar, customCollars: state.customCollars, layerTransforms: state.tshirtLayerTransforms,
                 labelReferenceWidthMm: Number(state.measurements.chestWidth?.m) * 10 || undefined, className: 'h-full w-full min-h-0' }} />
           ) : currentStep === 10 ? (
             <div
@@ -3766,17 +3807,14 @@ export function Builder() {
                   onDetailSelect={selectGarmentDetail}
                   onDetailsChange={currentStep === 6 ? garmentDetails => setState(prev => ({ ...prev, garmentDetails })) : undefined}
                   customCollar={state.customCollar}
+                  customAssetState={state}
                   customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}
-                  onLayerTransformChange={(id, transform) =>
-                    setState((prev) => ({
-                      ...prev,
-                      tshirtLayerTransforms: {
-                        ...prev.tshirtLayerTransforms,
-                        [id]: transform,
-                      },
-                    }))
-                  }
+                  onLayerTransformChange={(id, transform) => setState(prev => {
+                    const customAssetInstances = updateCustomAssetTransform(prev, garmentSvgType, activeFit, garmentView, id, transform);
+                    return customAssetInstances ? { ...prev, customAssetInstances }
+                      : { ...prev, tshirtLayerTransforms: { ...prev.tshirtLayerTransforms, [id]: transform } };
+                  })}
                   selectedLayerId={tshirtLayerSelectedId}
                   onSelectedLayerChange={handleTshirtLayerSelect}
                   liveCanvasScale={previewZoom / 100}

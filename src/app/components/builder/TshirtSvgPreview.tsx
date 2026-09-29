@@ -55,6 +55,7 @@ import {
 } from '../../lib/tshirtSvgUtils';
 import { cn } from '../ui/utils';
 import type { NeckFinish } from '../../data/tshirtNeckFinish';
+import type { MeasurementSource } from './measurementGeometry';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -223,7 +224,10 @@ function applyScaleFromPointerDelta(
 /** Selected layer + its handles render above all garment layers. */
 const SELECTED_LAYER_Z = 200;
 
+import { customAssetTransforms } from '../../data/customAssets';
+
 export interface TshirtSvgPreviewProps {
+  customAssetState?: import('../../data/customAssets').CustomAssetState;
   garmentWash?: GarmentWash;
   showWash?: boolean;
   washTool?: WashTool;
@@ -250,16 +254,17 @@ export interface TshirtSvgPreviewProps {
   labelReferenceWidthMm?: number;
   labelEditor?: {
     interior: boolean;
-    selectedId: string | null;
-    onSelect: (id: string | null) => void;
-    onChange: (labels: GarmentLabel[]) => void;
-    onFocus: (point: { id: string; x: number; y: number; width: number; height: number }) => void;
+    selectedId?: string | null;
+    onSelect?: (id: string | null) => void;
+    onChange?: (labels: GarmentLabel[]) => void;
+    onFocus?: (point: { id: string; x: number; y: number; width: number; height: number }) => void;
   };
   detailView?: 'front' | 'back';
   selectedDetailId?: string | null;
   onDetailSelect?: (id: string | null) => void;
   onDetailsChange?: (details: GarmentDetail[]) => void;
   onDetailBoundsChange?: (bounds: DetailBounds | undefined) => void;
+  renderMeasurements?: (sources: MeasurementSource[], bounds: DetailBounds | undefined) => React.ReactNode;
   onBuiltinDetailsChange?: (details: GarmentDetail[]) => void;
   detailEditor?: DetailEditorState;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
@@ -374,6 +379,7 @@ function resolveLayerFill(
   fabricColor: string,
   bodyColor: string,
 ): string {
+  if (layer.colorBinding === 'body') return bodyColor;
   if (layer.id === 'outline') return constructionColor(bodyColor);
   if (layer.id === 'innerBackNeck') return lightenHex(bodyColor, .12);
   if (layer.kind === 'detail') return constructionColor(bodyColor, layer.tint ?? TSHIRT_DETAIL_COLOR);
@@ -817,9 +823,10 @@ export function TshirtSvgPreview({
   onDetailSelect,
   onDetailsChange,
   onDetailBoundsChange,
+  renderMeasurements,
   onBuiltinDetailsChange,
   detailEditor,
-  layerTransforms,
+  layerTransforms: builtinLayerTransforms,
   onLayerTransformChange,
   selectedLayerId = null,
   onSelectedLayerChange,
@@ -828,7 +835,10 @@ export function TshirtSvgPreview({
   fit,
   customCollar,
   customCollars,
+  customAssetState,
 }: TshirtSvgPreviewProps) {
+  const layerTransforms = useMemo(() => customAssetTransforms(customAssetState ?? {}, garmentType, fit ?? 'slim', detailView ?? 'front', builtinLayerTransforms),
+    [customAssetState, garmentType, fit, detailView, builtinLayerTransforms]);
   const [washDraft, setWashDraft] = useState<GarmentWash | null>(null);
   useEffect(() => setWashDraft(null), [garmentWash, detailView, Boolean(washTool)]);
   const washEditable = Boolean(washTool && onWashChange && garmentWash?.type !== 'none');
@@ -874,8 +884,9 @@ export function TshirtSvgPreview({
         fit,
         customCollar,
         customCollars,
+        customAssetState,
       }),
-    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars],
+    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars, customAssetState],
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);
@@ -1381,6 +1392,16 @@ export function TshirtSvgPreview({
               .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
             return { id: layout.id, svgRaw: layout.sourceLayer.svgRaw, bbox, matrix: matrix.toString() };
           })} />}
+        {renderMeasurements?.(layerLayouts.filter(layout => layout.bbox && layout.sourceLayer.kind === 'solid' && !overriddenTrimIds.has(layout.id)).map(layout => {
+          const bbox = layout.bbox!;
+          const transform = resolveLayerDisplayTransform(layout.id, layout.transform, bbox);
+          const scale = resolveLayerScale(transform);
+          const matrix = new DOMMatrix().translate(bbox.centerX + transform.x * 2048 / canvasSize, bbox.centerY + transform.y * 2048 / canvasSize)
+            .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
+          const assetName = getGarmentSvgConfig(garmentType).stepCategories[6]?.includes(layout.sourceLayer.category)
+            ? `${layout.sourceLayer.category}: ${layout.sourceLayer.displayName}` : undefined;
+          return { id: layout.id, svgRaw: layout.sourceLayer.svgRaw, bbox, matrix: matrix.toString(), assetName };
+        }), detailBounds)}
         {washEditable && showWash && garmentWash && washBounds && washTool && onWashChange && onWashToolChange && <WashEditor
           key={detailView} wash={washDraft ?? garmentWash} bounds={washBounds} view={detailView} tool={washTool}
           onToolChange={onWashToolChange} onDraft={setWashDraft} onCommit={onWashChange} />}

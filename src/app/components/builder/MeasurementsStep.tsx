@@ -22,10 +22,12 @@ import {
   type GarmentSvgGarmentType,
 } from '../../data/garmentSvgCatalog';
 import { TshirtSvgPreview } from './TshirtSvgPreview';
-import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from './measurementPreviewSizing';
+import { CustomAssetMeasurementLayer, type AssetMeasurementSnapshot } from './CustomAssetMeasurements';
+import { PrintsDesignPreview, type DesignElement } from './PrintsDesignStep';
+import { isInteriorLabel } from '../../data/garmentLabels';
+import { GARMENT_PREVIEW_CONTAINER_CLASS } from './measurementPreviewSizing';
 import {
   MEASUREMENT_GUIDE_LABELS,
-  MeasurementGuideOverlay,
   type MeasurementGuideId,
 } from './measurementGuides';
 
@@ -353,6 +355,11 @@ export function MeasurementPreview({
   garmentDetails,
   detailView,
   sharedGarmentProps,
+  prints = [],
+  selectedAssetId,
+  onAssetSelect,
+  onAssetMeasurementsChange,
+  measurementUnit = 'cm',
 }: {
   garmentType?: string;
   color?: string;
@@ -368,7 +375,12 @@ export function MeasurementPreview({
   stitchingColor?: string;
   garmentDetails?: GarmentDetail[];
   detailView?: 'front' | 'back';
-  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor'>;
+  prints?: DesignElement[];
+  selectedAssetId?: string | null;
+  onAssetSelect?: (id: string | null) => void;
+  onAssetMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
+  measurementUnit?: MeasurementUnit;
+  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'customAssetState' | 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor' | 'garmentLabels' | 'labelReferenceWidthMm'>;
 }) {
   const svgPack: GarmentSvgGarmentType | null =
     garmentType === 'tshirt' ||
@@ -388,9 +400,10 @@ export function MeasurementPreview({
   }, [svgPack, selection, fit]);
 
   return (
-    <div className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
+    <div data-measurement-preview className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
       {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
-        <div className={GARMENT_PREVIEW_CANVAS_CLASS}>
+        <PrintsDesignPreview elements={prints.filter(print => (print.view ?? 'front') === (detailView ?? 'front'))} editable={false}
+          className="h-full w-full" garmentBackdrop={<>
           <TshirtSvgPreview
             {...sharedGarmentProps}
             garmentType={svgPack}
@@ -404,10 +417,15 @@ export function MeasurementPreview({
             stitchingColor={stitchingColor}
             garmentDetails={garmentDetails}
             detailView={detailView}
+            labelEditor={{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
+            renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer sources={sources} bounds={bounds}
+              details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
+              referenceWidthCm={sharedGarmentProps?.labelReferenceWidthMm ? sharedGarmentProps.labelReferenceWidthMm / 10 : 50}
+              unit={measurementUnit} selectedId={selectedAssetId} highlightedId={highlightedMeasurementId} onSelect={onAssetSelect} onMeasurementsChange={onAssetMeasurementsChange} />}
             className={cn('h-full w-full', imgClassName)}
           />
-          {overlay ?? <MeasurementGuideOverlay view={detailView} highlightedId={highlightedMeasurementId ?? null} />}
-        </div>
+          {overlay}
+        </>} />
       ) : (
         <div className="aspect-square w-full max-w-[576px] rounded-2xl border border-white/10 bg-[#111113]" />
       )}

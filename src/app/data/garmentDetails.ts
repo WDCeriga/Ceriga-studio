@@ -4,17 +4,21 @@ import buttonSvg from '../../assets/garment-details/four-hole-button.svg?raw';
 import type { GarmentView } from './garmentView';
 import { getGarmentAsset } from './garmentSvgCatalog';
 import { tintPotraceSvg } from '../lib/tshirtSvgUtils';
+import { DEFAULT_PATCH, patchSvg, type PatchSettings } from './garmentPatches';
+import type { CustomAssetDefinition } from './customAssets';
 
 export const GARMENT_DETAIL_ASSETS = {
   pocket: { label: 'Pocket', svg: pocketSvg, width: .2, ratio: 200 / 220, x: .72, y: .4, stitch: true, hardware: false },
   zip: { label: 'Zip', svg: zipSvg, width: .055, ratio: 48 / 240, x: .5, y: .31, stitch: true, hardware: true },
   button: { label: 'Button', svg: buttonSvg, width: .06, ratio: 1, x: .5, y: .43, stitch: false, hardware: false },
+  patch: { label: 'Patch', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160"><rect x="5" y="5" width="190" height="150" rx="12" fill="#DDD" stroke="#555" stroke-width="5" stroke-dasharray="3 2"/></svg>', width: .2, ratio: 1.25, x: .35, y: .4, stitch: true, hardware: false },
 } as const;
 
 export type GarmentDetailType = keyof typeof GARMENT_DETAIL_ASSETS;
 
 const variantSvgs = import.meta.glob<string>('../../assets/garment-details/*/*.svg', { eager: true, query: '?raw', import: 'default' });
 export const GARMENT_DETAIL_OPTIONS = {
+  patch: [],
   button: [
     { id: 'button-01', label: 'Two-hole rim', stitch: false, hardware: false },
     { id: 'button-02', label: 'Four-hole rim', stitch: false, hardware: false },
@@ -66,13 +70,19 @@ export function zipPullThumbnail(style: ZipPullStyle) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -5 44 60"><path d="${shape.path}" fill="#D4D4D4" fill-rule="evenodd" stroke="#141414" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
 }
 
-export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset'>) {
+export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset' | 'patch' | 'customAsset'>) {
+  if (detail.customAsset) {
+    const asset = detail.customAsset;
+    return { ...GARMENT_DETAIL_ASSETS[asset.detailType ?? 'pocket'], label: asset.name, svg: asset.svg,
+      width: asset.registration.width ?? .2, ratio: asset.registration.ratio ?? 1, stitch: false, hardware: false };
+  }
   if (detail.catalogueAsset) {
     const descriptor = detail.catalogueAsset;
     const source = getGarmentAsset(descriptor.id);
     if (source) return { ...GARMENT_DETAIL_ASSETS.pocket, label: source.displayName, svg: source.svgRaw, width: descriptor.width, ratio: descriptor.ratio };
   }
   const base = GARMENT_DETAIL_ASSETS[detail.type];
+  if (detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) return { ...base, ratio: 1 };
   const option = GARMENT_DETAIL_OPTIONS[detail.type].find(option => option.id === detail.variant);
   if (!option) return base;
   const svg = variantSvgs[`../../assets/garment-details/${detail.type}s/${option.id}.svg`];
@@ -105,6 +115,8 @@ export interface GarmentDetail {
   flipY?: boolean;
   copiedFromId?: string;
   catalogueAsset?: { id: string; width: number; ratio: number; crop: DetailBounds };
+  customAsset?: CustomAssetDefinition;
+  placementArea?: 'canvas';
   sourceLayerId?: string;
   hidden?: boolean;
   arrangementId?: string;
@@ -113,6 +125,7 @@ export interface GarmentDetail {
   outline: string;
   stitch: string;
   hardware: string;
+  patch?: PatchSettings;
 }
 
 export interface DetailBounds { minX: number; minY: number; maxX: number; maxY: number; necklineY?: number }
@@ -122,7 +135,7 @@ export function createGarmentDetail(type: GarmentDetailType, details: GarmentDet
   let number = 1;
   while (details.some(detail => detail.name === `${asset.label} ${number}`)) number++;
   return { id: crypto.randomUUID(), type, variant, name: `${asset.label} ${number}`, x: asset.x, y: asset.y,
-    scale: 1, lockProportions: type === 'button', selected: true, fill, outline: '#141414', stitch: '#707070', hardware: '#D4D4D4' };
+    scale: 1, lockProportions: type === 'button', selected: true, fill, outline: '#141414', stitch: '#707070', hardware: '#D4D4D4', ...(type === 'patch' ? { patch: { ...DEFAULT_PATCH } } : {}) };
 }
 
 export function detailScale(scale = 1) {
@@ -140,26 +153,31 @@ export function detailRotation(detail: GarmentDetail) {
 
 export function detailPlacement(detail: GarmentDetail, bounds: DetailBounds) {
   const asset = detailAsset(detail);
+  const limits = detail.placementArea === 'canvas' ? { minX: 0, minY: 0, maxX: 2048, maxY: 2048 } : bounds;
+  const availableWidth = limits.maxX - limits.minX;
+  const availableHeight = limits.maxY - limits.minY;
   const bodyWidth = bounds.maxX - bounds.minX;
   const bodyHeight = bounds.maxY - bounds.minY;
   const baseWidth = bodyWidth * asset.width;
   const radians = detailRotation(detail) * Math.PI / 180;
   const cosine = Math.abs(Math.cos(radians));
   const sine = Math.abs(Math.sin(radians));
-  let width = Math.min(cosine * bodyWidth + sine * bodyHeight, Math.max(12, baseWidth * detailAxisScale(detail, 'x')));
-  let height = Math.min(sine * bodyWidth + cosine * bodyHeight, Math.max(12, baseWidth / asset.ratio * detailAxisScale(detail, 'y')));
-  const fit = Math.min(1, bodyWidth / (cosine * width + sine * height), bodyHeight / (sine * width + cosine * height));
+  let width = Math.min(cosine * availableWidth + sine * availableHeight, Math.max(12, baseWidth * detailAxisScale(detail, 'x')));
+  let height = Math.min(sine * availableWidth + cosine * availableHeight, Math.max(12, baseWidth / asset.ratio * detailAxisScale(detail, 'y')));
+  if (detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) height = width;
+  const fit = Math.min(1, availableWidth / (cosine * width + sine * height), availableHeight / (sine * width + cosine * height));
   width *= fit; height *= fit;
   const extentX = cosine * width + sine * height;
   const extentY = sine * width + cosine * height;
-  const x = Math.max(extentX / 2 / bodyWidth, Math.min(1 - extentX / 2 / bodyWidth, Number.isFinite(detail.x) ? detail.x : asset.x));
-  const y = Math.max(extentY / 2 / bodyHeight, Math.min(1 - extentY / 2 / bodyHeight, Number.isFinite(detail.y) ? detail.y : asset.y));
+  const x = Math.max((limits.minX - bounds.minX + extentX / 2) / bodyWidth, Math.min((limits.maxX - bounds.minX - extentX / 2) / bodyWidth, Number.isFinite(detail.x) ? detail.x : asset.x));
+  const y = Math.max((limits.minY - bounds.minY + extentY / 2) / bodyHeight, Math.min((limits.maxY - bounds.minY - extentY / 2) / bodyHeight, Number.isFinite(detail.y) ? detail.y : asset.y));
   return { x, y, width, height, left: bounds.minX + x * bodyWidth - width / 2,
     top: bounds.minY + y * bodyHeight - height / 2 };
 }
 
 export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds, cornerX: number, cornerY: number, dx: number, dy: number): GarmentDetail {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || (!cornerX && !cornerY)) return detail;
+  const limits = detail.placementArea === 'canvas' ? { minX: 0, minY: 0, maxX: 2048, maxY: 2048 } : bounds;
   const placement = detailPlacement(detail, bounds);
   const bodyWidth = bounds.maxX - bounds.minX;
   const bodyHeight = bounds.maxY - bounds.minY;
@@ -173,7 +191,7 @@ export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds,
   const sine = Math.sin(radians);
   const localDx = dx * cosine + dy * sine;
   const localDy = -dx * sine + dy * cosine;
-  const corners = [[bounds.minX, bounds.minY], [bounds.maxX, bounds.minY], [bounds.maxX, bounds.maxY], [bounds.minX, bounds.maxY]]
+  const corners = [[limits.minX, limits.minY], [limits.maxX, limits.minY], [limits.maxX, limits.maxY], [limits.minX, limits.maxY]]
     .map(([pointX, pointY]) => ({ x: (pointX - centerX) * cosine + (pointY - centerY) * sine,
       y: -(pointX - centerX) * sine + (pointY - centerY) * cosine }));
   const left = Math.min(...corners.map(point => point.x));
@@ -188,7 +206,7 @@ export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds,
   const minHeight = Math.min(maxHeight, Math.max(12, baseHeight * .2));
   let width = cornerX ? Math.max(minWidth, Math.min(maxWidth, placement.width + cornerX * localDx)) : placement.width;
   let height = cornerY ? Math.max(minHeight, Math.min(maxHeight, placement.height + cornerY * localDy)) : placement.height;
-  if (detail.lockProportions) {
+  if (detail.lockProportions || detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) {
     const diagonalX = cornerX * placement.width;
     const diagonalY = cornerY * placement.height;
     const desired = 1 + (localDx * diagonalX + localDy * diagonalY) / (diagonalX ** 2 + diagonalY ** 2);
@@ -204,10 +222,10 @@ export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds,
     const startY = centerY + sine * edgeX * placement.width / 2 + cosine * edgeY * placement.height / 2;
     const deltaX = (cosine * (cornerX + edgeX) * (width - placement.width) - sine * (cornerY + edgeY) * (height - placement.height)) / 2;
     const deltaY = (sine * (cornerX + edgeX) * (width - placement.width) + cosine * (cornerY + edgeY) * (height - placement.height)) / 2;
-    if (deltaX > 0) fraction = Math.min(fraction, (bounds.maxX - startX) / deltaX);
-    if (deltaX < 0) fraction = Math.min(fraction, (bounds.minX - startX) / deltaX);
-    if (deltaY > 0) fraction = Math.min(fraction, (bounds.maxY - startY) / deltaY);
-    if (deltaY < 0) fraction = Math.min(fraction, (bounds.minY - startY) / deltaY);
+    if (deltaX > 0) fraction = Math.min(fraction, (limits.maxX - startX) / deltaX);
+    if (deltaX < 0) fraction = Math.min(fraction, (limits.minX - startX) / deltaX);
+    if (deltaY > 0) fraction = Math.min(fraction, (limits.maxY - startY) / deltaY);
+    if (deltaY < 0) fraction = Math.min(fraction, (limits.minY - startY) / deltaY);
   }
   width = placement.width + (width - placement.width) * Math.max(0, fraction);
   height = placement.height + (height - placement.height) * Math.max(0, fraction);
@@ -235,7 +253,10 @@ export function setDetailTransform(detail: GarmentDetail, bounds: DetailBounds, 
   const baseHeight = baseWidth / detailAsset(detail).ratio;
   let width = patch.width ?? original.width;
   let height = patch.height ?? original.height;
-  if (detail.lockProportions) {
+  if (detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) {
+    width = patch.width ?? patch.height ?? original.width;
+    height = width;
+  } else if (detail.lockProportions) {
     if (patch.width !== undefined) height = original.height * width / original.width;
     else if (patch.height !== undefined) width = original.width * height / original.height;
   }
@@ -301,7 +322,9 @@ export function copyDetailToOpposite(details: GarmentDetail[], source: GarmentDe
   const opposite = view === 'front' ? 'back' : 'front';
   if (details.some(detail => detail.view === opposite && detail.copiedFromId === source.id)) return details;
   const identity = createGarmentDetail(source.type, details, source.fill, source.variant);
-  return [...details, { ...source, id: identity.id, name: source.catalogueAsset ? `${source.name} copy` : identity.name, sourceLayerId: undefined, arrangementId: undefined, view: opposite, selected: false, copiedFromId: source.id,
+  return [...details, { ...source, id: identity.id, name: source.catalogueAsset || source.customAsset ? `${source.name} copy` : identity.name,
+    customAsset: source.customAsset ? { ...source.customAsset, provenance: 'derived' } : undefined,
+    sourceLayerId: undefined, arrangementId: undefined, view: opposite, selected: false, copiedFromId: source.id,
     x: 1 - source.x, rotation: (360 - detailRotation(source)) % 360, flipX: !source.flipX }];
 }
 
@@ -398,12 +421,13 @@ function renderZipParts(svg: Element, detail: GarmentDetail, width: number, heig
 }
 
 export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: 'body' | 'pull') {
+  if (detail.type === 'patch' && !detail.customAsset) return patchSvg(detail, displayRatio ?? detailAsset(detail).ratio * detailAxisScale(detail, 'x') / detailAxisScale(detail, 'y'));
   const asset = detailAsset(detail);
-  const raw = detail.catalogueAsset ? tintPotraceSvg(asset.svg, /^#[\da-f]{6}$/i.test(detail.fill) ? detail.fill : '#141414') : asset.svg;
+  const raw = detail.catalogueAsset || detail.customAsset ? tintPotraceSvg(asset.svg, /^#[\da-f]{6}$/i.test(detail.fill) ? detail.fill : '#141414') : asset.svg;
   let template = detailTemplates.get(raw);
   if (!template) {
     template = new DOMParser().parseFromString(raw, 'image/svg+xml').documentElement;
-    if (!detail.catalogueAsset) detailTemplates.set(raw, template);
+    if (!detail.catalogueAsset && !detail.customAsset) detailTemplates.set(raw, template);
   }
   const svg = template.cloneNode(true) as Element;
   svg.setAttribute('preserveAspectRatio', 'none');
@@ -417,7 +441,7 @@ export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: '
     svg.appendChild(group);
     svg.setAttribute('viewBox', `0 0 ${crop.maxX - crop.minX} ${crop.maxY - crop.minY}`);
   }
-  if (detail.type === 'zip') {
+  if (detail.type === 'zip' && !detail.customAsset) {
     const [, , sourceWidth] = svg.getAttribute('viewBox')!.split(/\s+/).map(Number);
     const ratio = displayRatio ?? asset.ratio * detailAxisScale(detail, 'x') / detailAxisScale(detail, 'y');
     const height = Math.max(12, sourceWidth / ratio);

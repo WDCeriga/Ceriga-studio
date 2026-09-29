@@ -5,6 +5,7 @@ import { withTshirtBackView } from './tshirtBackView';
 import { withTshirtCollarContours } from './tshirtCollarContours';
 import { withTshirtNeckFinish, type NeckFinish } from './tshirtNeckFinish';
 import type { GarmentView } from './garmentView';
+import { withCustomAssets, type CustomAssetState } from './customAssets';
 
 export const GARMENT_NONE = '__none__';
 
@@ -209,10 +210,12 @@ export interface ResolvedGarmentLayer {
   svgRaw: string;
   kind: 'solid' | 'detail';
   tint?: string;
+  colorBinding?: 'body';
   zIndex: number;
 }
 
 export interface ResolveGarmentLayersInput {
+  customAssetState?: CustomAssetState;
   garmentType: GarmentSvgGarmentType;
   view?: GarmentView;
   selection: GarmentAssetSelection;
@@ -1274,5 +1277,6 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       return { ...layer, tint: color || resolved.find(parent => parent.id === parentId)?.tint };
     });
   }
+  resolved = withCustomAssets(resolved, input.customAssetState ?? {}, input.garmentType, fit, input.view ?? 'front');
   return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }
