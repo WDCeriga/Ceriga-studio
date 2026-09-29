@@ -24,6 +24,8 @@ import {
 } from "../data/supportChatSession";
 import { askOpenRouter, type ChatTurn, type ChatTextPart, type ChatImagePart } from "../lib/openrouterChat";
 import { getBuilderChatContext } from "../lib/builderChatContext";
+import { formatAiTargetsForPrompt, listAiTargets } from "../lib/aiCursor/targets";
+import { useAiCursorOptional } from "../contexts/AiCursorContext";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "./ui/utils";
 
@@ -95,6 +97,7 @@ export function SupportChatPanel({
   onDesktopExpandedChange,
   className,
 }: SupportChatPanelProps) {
+  const aiCursor = useAiCursorOptional();
   const [messages, setMessages] = useState<SupportChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -154,9 +157,11 @@ export function SupportChatPanel({
       void (async () => {
         let streamId: string | null = null;
         try {
+          const targetsBlock = formatAiTargetsForPrompt(listAiTargets());
+          const contextParts = [builderContextRef.current, targetsBlock].filter(Boolean);
           const result = await askOpenRouter(history, {
             signal: controller.signal,
-            contextBlock: builderContextRef.current,
+            contextBlock: contextParts.length > 0 ? contextParts.join("\n\n") : null,
             onDelta: (accumulated) => {
               if (controller.signal.aborted) return;
               if (!streamId) {
@@ -176,7 +181,12 @@ export function SupportChatPanel({
           // Promote whatever was streamed (or the fallback) to a persisted
           // message and surface its follow-up suggestions.
           setMessages((m) => [...m, { id: streamId ?? newId(), role: "assistant", text: finalText }]);
-          if (result.ok) setFollowUps(result.followUps);
+          if (result.ok) {
+            setFollowUps(result.followUps);
+            if (result.cursorActions.length > 0 && aiCursor) {
+              void aiCursor.runActions(result.cursorActions);
+            }
+          }
         } finally {
           if (!controller.signal.aborted) {
             requestAbortRef.current = null;
@@ -187,7 +197,7 @@ export function SupportChatPanel({
         }
       })();
     },
-    [cancelPendingReply],
+    [cancelPendingReply, aiCursor],
   );
 
   /** Convert the visible message list into chat history for the model.
@@ -214,8 +224,9 @@ export function SupportChatPanel({
   useEffect(() => {
     if (layout === "sheet" && !sheetOpen) {
       cancelPendingReply();
+      aiCursor?.clearCursor();
     }
-  }, [layout, sheetOpen, cancelPendingReply]);
+  }, [layout, sheetOpen, cancelPendingReply, aiCursor]);
 
   /** Fetch builder context when the chat becomes visible; refetch per open
    * so the context tracks the project the user last touched. */

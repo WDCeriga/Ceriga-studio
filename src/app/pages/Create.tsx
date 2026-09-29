@@ -24,6 +24,8 @@ export function Create() {
       {/* Primary: design tech pack */}
       <Link
         to="/catalog"
+        data-ai-target="create-tech-pack"
+        data-ai-label="Design a tech pack"
         className="group relative mb-4 flex w-full overflow-hidden rounded-[6px] border border-[#CC2D24]/35 bg-[#111113] text-left transition-colors hover:border-[#CC2D24]/60"
       >
         <div className="pointer-events-none absolute inset-0 opacity-80">
@@ -58,6 +60,8 @@ export function Create() {
       {/* Print on demand */}
       <Link
         to="/create/print"
+        data-ai-target="create-print-on-demand"
+        data-ai-label="Print on demand"
         className="group mb-4 flex w-full flex-col overflow-hidden rounded-[6px] border border-[#252528] bg-[#161618] text-left transition-colors hover:border-[#333338] sm:flex-row sm:items-stretch"
       >
         <div className="flex min-w-0 flex-1 flex-col justify-center p-5 sm:p-6">
@@ -85,6 +89,8 @@ export function Create() {
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Link
           to="/create/manufacturer"
+          data-ai-target="create-upload-quote"
+          data-ai-label="Upload a tech pack for a Ceriga quote"
           className="group flex flex-col rounded-[6px] border border-[#252528] bg-[#161618] p-5 transition-colors hover:border-[#333338] sm:flex-row sm:items-start sm:gap-4"
         >
           <div className="mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] border border-[#2E2E32] bg-[#111113] text-[#E5534A] sm:mb-0">
@@ -107,6 +113,8 @@ export function Create() {
 
         <Link
           to="/packaging"
+          data-ai-target="create-packaging-only"
+          data-ai-label="Packaging only"
           className="group flex flex-col rounded-[6px] border border-[#252528] bg-[#161618] p-5 transition-colors hover:border-[#333338] sm:flex-row sm:items-start sm:gap-4"
         >
           <div className="mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] border border-[#2E2E32] bg-[#111113] text-[#E5534A] sm:mb-0">

@@ -230,12 +230,16 @@ export function Dashboard() {
           <Link
             to="/projects"
             className="inline-flex items-center gap-1 text-[13px] text-[#A3A3A8] hover:text-[#F0EEEE]"
+            data-ai-target="dashboard-view-all-projects"
+            data-ai-label="View all projects"
           >
             View all <ArrowRight className="h-3.5 w-3.5" />
           </Link>
           <Link
             to="/create"
             className="inline-flex items-center gap-1 text-[13px] text-[#E5534A] hover:text-[#CC2D24]"
+            data-ai-target="dashboard-new-project-link"
+            data-ai-label="New project link"
           >
             New project <ArrowRight className="h-3.5 w-3.5" />
           </Link>
@@ -246,6 +250,8 @@ export function Dashboard() {
         <Link
           to="/create"
           className="flex min-h-[280px] flex-col items-center justify-center gap-2.5 rounded-[6px] border border-dashed border-[#333338] px-6 text-center transition-colors hover:border-[#3A3A40] hover:bg-[#1C1C1E]"
+          data-ai-target="start-project-button"
+          data-ai-label="Start a new project"
         >
           <div className="flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-[#3A3A40]">
             <Plus className="h-4 w-4 text-[#8A8A90]" />

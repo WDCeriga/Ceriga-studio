@@ -130,3 +130,32 @@
   border-radius: var(--ceriga-radius);
   color: var(--ceriga-text);
 }
+
+/* AI Cursor Buddy — highlight for [data-ai-target] while the AI is pointing */
+[data-ai-highlighted='true'] {
+  position: relative;
+  z-index: 2;
+  outline: 2px solid rgba(204, 45, 36, 0.9);
+  outline-offset: 4px;
+  box-shadow:
+    0 0 0 8px rgba(204, 45, 36, 0.12),
+    0 0 28px rgba(204, 45, 36, 0.35);
+  transition:
+    outline-color 0.2s ease,
+    box-shadow 0.25s ease;
+  animation: ai-target-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ai-target-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 8px rgba(204, 45, 36, 0.1),
+      0 0 22px rgba(204, 45, 36, 0.28);
+  }
+  50% {
+    box-shadow:
+      0 0 0 10px rgba(204, 45, 36, 0.18),
+      0 0 34px rgba(204, 45, 36, 0.45);
+  }
+}

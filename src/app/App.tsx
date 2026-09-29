@@ -5,6 +5,8 @@ import { router } from "./routes";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationsProvider } from "./contexts/NotificationsContext";
+import { AiCursorProvider } from "./contexts/AiCursorContext";
+import { AiCursorOverlay } from "./components/AiCursorOverlay";
 import { PageLoadingFallback } from "./components/PageLoadingFallback";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
@@ -32,12 +34,13 @@ function ProductionConfigError() {
 
 function App() {
   const inner = (
-    <>
+    <AiCursorProvider>
       <Suspense fallback={<PageLoadingFallback />}>
         <RouterProvider router={router} />
       </Suspense>
+      <AiCursorOverlay />
       <Toaster />
-    </>
+    </AiCursorProvider>
   );
   if (isProdBuild && !isSupabaseConfigured) {
     return <ProductionConfigError />;

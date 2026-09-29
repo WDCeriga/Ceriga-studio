@@ -16,6 +16,8 @@ export function DashboardLiveChat() {
         <button
           type="button"
           onClick={() => setOpen(true)}
+          data-ai-target="chat-with-us-button"
+          data-ai-label="Open Chat with us"
           className={cn(
             "fixed z-[95] flex items-center gap-2.5 rounded-[6px] border border-[#252528] bg-[#161618] px-3 py-2.5 text-[#F0EEEE] transition-colors hover:border-[#333338] hover:bg-[#1C1C1E] active:scale-[0.98] sm:px-3.5",
             "bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] sm:bottom-6 sm:right-6",

@@ -98,6 +98,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
               to={item.path}
               onClick={onNavigate}
               title={collapsed ? item.label : undefined}
+              data-ai-target={`nav-${item.label.toLowerCase()}`}
+              data-ai-label={`Sidebar: ${item.label}`}
               className={navClass(active, collapsed)}
             >
               <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -110,6 +112,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             to="/superadmin"
             onClick={onNavigate}
             title={collapsed ? 'Superadmin' : undefined}
+            data-ai-target="nav-superadmin"
+            data-ai-label="Sidebar: Superadmin"
             className={navClass(isActive('/superadmin'), collapsed)}
           >
             <Shield className="h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -122,6 +126,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           to="/settings"
           onClick={onNavigate}
           title={collapsed ? 'Settings' : undefined}
+          data-ai-target="nav-settings"
+          data-ai-label="Sidebar: Settings"
           className={navClass(isActive('/settings'), collapsed)}
         >
           <Settings className="h-4 w-4 shrink-0" strokeWidth={1.75} />
