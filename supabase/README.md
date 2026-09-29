@@ -31,19 +31,21 @@ That script creates / updates:
 - `packaging_library` — reusable packaging design snapshots
 - `brand_notifications` — in-app notification inbox
 - `measurement_guide_packs` — shared measurement lines per garment SVG asset (read: signed-in users; write: emails in `superadmin_emails`)
-- `superadmin_emails` — allowlist for who can edit measurement guides
+- `superadmin_emails` — allowlist for superadmin console access (users, orders, RLS); also who can edit measurement guides
 - Storage bucket `order-uploads` — uploaded tech-pack files for quote requests (path `{user_id}/{order_id}/…`)
 
 If you already ran an older `schema.sql`, re-run the full file (it uses `if not exists` / `drop policy if exists`) so the new tables, RLS policies, and storage bucket are applied.
 
 **Storage note:** If the bucket insert fails in the SQL editor, create a private bucket named `order-uploads` in **Storage** and re-run the storage policies section.
 
-To let another account edit guides in production:
+To grant **full superadmin console** access (list all users/orders, assignment, etc.), add the **exact sign-in email** (Google or email/password):
 
 ```sql
 insert into public.superadmin_emails (email) values ('you@example.com')
 on conflict do nothing;
 ```
+
+Re-sign in after adding your email so the JWT picks up the new RLS permissions.
 
 ## 4. Auth
 In Supabase: **Authentication → Providers**

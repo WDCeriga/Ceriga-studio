@@ -23,7 +23,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { cn } from '../ui/utils';
 import { usePortalNotifications } from '../../hooks/usePortalNotifications';
-import { canAccessSuperadmin } from '../../lib/superadminAccess';
+import { useSuperadminGate } from '../../hooks/useSuperadminGate';
 import { PageLoadingFallback } from '../PageLoadingFallback';
 
 const RED = '#CC2D24';
@@ -46,6 +46,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, authReady } = useAuth();
+  const { gateReady, allowed: superadminAllowed } = useSuperadminGate();
   const { unread: notifUnread } = usePortalNotifications('superadmin');
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -59,11 +60,11 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
     return () => mq.removeEventListener('change', sync);
   }, []);
 
-  if (!authReady) {
+  if (!authReady || !gateReady) {
     return <PageLoadingFallback />;
   }
 
-  if (!canAccessSuperadmin(user?.email)) {
+  if (!superadminAllowed) {
     return <Navigate to="/dashboard" replace />;
   }
 

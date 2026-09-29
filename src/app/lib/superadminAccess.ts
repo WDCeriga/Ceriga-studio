@@ -17,8 +17,10 @@ function normalizeEmail(email: string): { full: string; local: string } {
   return { full, local };
 }
 
-/** True when the signed-in user is allowlisted or assigned as an internal worker with superadmin pages. */
-export function canAccessSuperadmin(email: string | null | undefined): boolean {
+/**
+ * Local preview only (no Supabase). For production, use `fetchIsSuperadmin()` / `useSuperadminGate`.
+ */
+export function canAccessSuperadminLocalPreview(email: string | null | undefined): boolean {
   if (!email) return false;
   const { full, local } = normalizeEmail(email);
 
@@ -31,4 +33,9 @@ export function canAccessSuperadmin(email: string | null | undefined): boolean {
 
   const access = getProfileAccess(mockUser.id);
   return Boolean(access?.enabledPages.some((page) => page.startsWith('superadmin_')));
+}
+
+/** @deprecated Use `useSuperadminGate` when guarding routes. */
+export function canAccessSuperadmin(email: string | null | undefined): boolean {
+  return canAccessSuperadminLocalPreview(email);
 }

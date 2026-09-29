@@ -17,6 +17,18 @@ function requireConfigured(): void {
   }
 }
 
+/** Matches RLS `public.is_superadmin()` — full email must be in `superadmin_emails`. */
+export async function fetchIsSuperadmin(): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc('is_superadmin');
+  if (error) {
+    console.warn('[superadmin] is_superadmin RPC failed:', error.message);
+    return false;
+  }
+  return data === true;
+}
+
 /** DB order status → superadmin pipeline status. */
 function toSuperStatus(order: UserOrder): OrderStatus {
   if (order.factoryStatus === 'quoted') return 'pending_review';

@@ -164,7 +164,7 @@ export function SuperAdminUsers() {
   const [sentRecipients, setSentRecipients] = useState<SentRecipient[]>([]);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
-  const { users: MOCK_SUPER_USERS, loading: usersLoading } = useSuperadminData();
+  const { users: MOCK_SUPER_USERS, loading: usersLoading, error: usersError } = useSuperadminData();
 
   const activeUser = useMemo(
     () => MOCK_SUPER_USERS.find((u) => u.id === activeUserId) ?? null,
@@ -432,6 +432,12 @@ export function SuperAdminUsers() {
         ))}
       </div>
 
+      {usersError ? (
+        <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">
+          Could not load users: {usersError}
+        </div>
+      ) : null}
+
       {/* Search + role pills */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative max-w-md flex-1">
@@ -551,11 +557,23 @@ export function SuperAdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {sortedUsers.length === 0 ? (
+              {usersLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-16 text-center text-sm text-white/45">
+                    Loading users…
+                  </td>
+                </tr>
+              ) : sortedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-16 text-center">
                     <UsersIcon className="mx-auto h-8 w-8 text-white/20" />
-                    <p className="mt-3 text-sm text-white/45">No users match your filters.</p>
+                    <p className="mt-3 text-sm text-white/45">
+                      {search.trim() || listRoleFilter !== 'all'
+                        ? 'No users match your filters.'
+                        : usersError
+                          ? 'Users could not be loaded.'
+                          : 'No profiles in the database yet.'}
+                    </p>
                   </td>
                 </tr>
               ) : (
