@@ -204,13 +204,16 @@ export type ChatMessage = {
 
 export type ChatThread = {
   id: string;
-  type: 'manufacturer' | 'user';
+  type: 'manufacturer' | 'user' | 'alibaba';
+  channel?: 'ceriga' | 'alibaba';
   name: string;
   subtitle: string;
   lastMessage: string;
   lastAt: string;
   unread: number;
   messages: ChatMessage[];
+  externalConversationId?: string;
+  externalPeerAccountId?: string;
 };
 
 export type SuperAdminNotificationItem = {

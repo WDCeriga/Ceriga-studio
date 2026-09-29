@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getPlatformSetting, setPlatformSetting } from '../../lib/superadminDb';
+import {
+  getAlibabaConnectionStatus,
+  type AlibabaConnectionStatus,
+} from '../../lib/alibabaChat';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -27,14 +31,17 @@ export function SuperAdminSettings() {
   const [notifications, setNotifications] = useState<NotificationSettings>(DEFAULT_NOTIFICATIONS);
   const [sendgridKey, setSendgridKey] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
+  const [alibabaStatus, setAlibabaStatus] = useState<AlibabaConnectionStatus | null>(null);
+  const [checkingAlibaba, setCheckingAlibaba] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const [notif, keys] = await Promise.all([
+        const [notif, keys, alibaba] = await Promise.all([
           getPlatformSetting<NotificationSettings>('notifications'),
           getPlatformSetting<ApiKeySettings>('api_keys'),
+          getAlibabaConnectionStatus(),
         ]);
         if (cancelled) return;
         if (notif) setNotifications({ ...DEFAULT_NOTIFICATIONS, ...notif });
@@ -42,6 +49,7 @@ export function SuperAdminSettings() {
           setHasStoredKey(true);
           setSendgridKey('');
         }
+        setAlibabaStatus(alibaba);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to load settings');
       } finally {
@@ -82,6 +90,21 @@ export function SuperAdminSettings() {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const refreshAlibaba = async () => {
+    setCheckingAlibaba(true);
+    try {
+      const status = await getAlibabaConnectionStatus();
+      setAlibabaStatus(status);
+      if (status.configured) {
+        toast.success(`Alibaba connected (account ${status.accountId})`);
+      } else {
+        toast.message(status.message || 'Alibaba secrets are not configured yet');
+      }
+    } finally {
+      setCheckingAlibaba(false);
     }
   };
 
@@ -150,6 +173,65 @@ export function SuperAdminSettings() {
             onClick={() => void saveApiKeys()}
           >
             Save
+          </Button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-orange-500/20 bg-[#111113] p-5 sm:p-6">
+        <h2 className="text-sm font-semibold text-white">Alibaba.com messages</h2>
+        <p className="mt-2 text-sm leading-relaxed text-white/50">
+          Buyer inbox sync uses Alibaba Open Platform IM APIs via Supabase Edge Functions. Do not put
+          App Secret or session tokens in <code className="text-white/70">VITE_*</code> env vars.
+        </p>
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-white/55">
+          <li>
+            Create an app at{' '}
+            <a
+              href="https://developer.alibaba.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-orange-300 underline-offset-2 hover:underline"
+            >
+              developer.alibaba.com
+            </a>{' '}
+            and apply for IM message APIs.
+          </li>
+          <li>OAuth-authorize your Alibaba.com buyer account to obtain a session token.</li>
+          <li>
+            Set Edge Function secrets:{' '}
+            <code className="text-white/70">ALIBABA_APP_KEY</code>,{' '}
+            <code className="text-white/70">ALIBABA_APP_SECRET</code>,{' '}
+            <code className="text-white/70">ALIBABA_SESSION</code>,{' '}
+            <code className="text-white/70">ALIBABA_ACCOUNT_ID</code>.
+          </li>
+          <li>
+            Deploy <code className="text-white/70">alibaba-status</code>,{' '}
+            <code className="text-white/70">alibaba-sync</code>, and{' '}
+            <code className="text-white/70">alibaba-send</code>, then sync from Messages.
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span
+            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+              alibabaStatus?.configured
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                : 'border-white/15 bg-white/[0.04] text-white/55'
+            }`}
+          >
+            {alibabaStatus?.configured
+              ? `Connected · account ${alibabaStatus.accountId}`
+              : alibabaStatus && 'message' in alibabaStatus && alibabaStatus.message
+                ? alibabaStatus.message
+                : 'Not connected'}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-orange-500/30 text-orange-100"
+            disabled={checkingAlibaba}
+            onClick={() => void refreshAlibaba()}
+          >
+            {checkingAlibaba ? 'Checking…' : 'Check connection'}
           </Button>
         </div>
       </section>

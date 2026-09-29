@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import {
   Factory,
   FileText,
+  Globe2,
   ImagePlus,
   MessageSquare,
   Paperclip,
+  RefreshCw,
   Search,
   Send,
   User,
@@ -20,6 +22,11 @@ import {
   markAdminThreadRead,
   sendAdminChatMessage,
 } from '../../lib/adminChatDb';
+import {
+  getAlibabaConnectionStatus,
+  syncAlibabaInbox,
+  type AlibabaConnectionStatus,
+} from '../../lib/alibabaChat';
 import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { Button } from '../../components/ui/button';
@@ -40,6 +47,7 @@ const FILE_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip';
 
 type PendingAttachment = ChatAttachment & { id: string };
+type ChannelFilter = 'all' | 'brand' | 'manufacturer' | 'alibaba';
 
 function initials(name: string) {
   return name
@@ -50,10 +58,12 @@ function initials(name: string) {
 }
 
 function threadRoleLabel(thread: ChatThread) {
+  if (thread.type === 'alibaba') return 'Alibaba';
   return thread.type === 'manufacturer' ? 'Manufacturer' : 'Brand';
 }
 
 function threadAccent(thread: ChatThread) {
+  if (thread.type === 'alibaba') return '#ff6a00';
   return thread.type === 'manufacturer' ? '#f59e0b' : '#38bdf8';
 }
 
@@ -96,7 +106,9 @@ function ThreadAvatar({ thread, size = 'md' }: { thread: ChatThread; size?: 'sm'
           size === 'sm' ? 'h-4 w-4' : 'h-5 w-5',
         )}
       >
-        {thread.type === 'manufacturer' ? (
+        {thread.type === 'alibaba' ? (
+          <Globe2 className={cn('text-orange-300', size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
+        ) : thread.type === 'manufacturer' ? (
           <Factory className={cn('text-amber-300', size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
         ) : (
           <User className={cn('text-sky-300', size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3')} />
@@ -203,11 +215,14 @@ export function SuperAdminMessages() {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState('');
   const [search, setSearch] = useState('');
+  const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
   const [draft, setDraft] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [alibabaStatus, setAlibabaStatus] = useState<AlibabaConnectionStatus | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [newQuery, setNewQuery] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -216,8 +231,11 @@ export function SuperAdminMessages() {
   const pendingRef = useRef(pendingAttachments);
 
   const thread = threads.find((t) => t.id === active);
+  const isAlibabaThread = thread?.type === 'alibaba' || thread?.channel === 'alibaba';
   const totalUnread = threads.reduce((sum, t) => sum + t.unread, 0);
-  const canSend = draft.trim().length > 0 || pendingAttachments.length > 0;
+  const canSend =
+    draft.trim().length > 0 || (!isAlibabaThread && pendingAttachments.length > 0);
+  const alibabaConfigured = alibabaStatus?.configured === true;
 
   const refreshThreads = useCallback(async () => {
     try {
@@ -235,9 +253,15 @@ export function SuperAdminMessages() {
     }
   }, []);
 
+  const refreshAlibabaStatus = useCallback(async () => {
+    const status = await getAlibabaConnectionStatus();
+    setAlibabaStatus(status);
+  }, []);
+
   useEffect(() => {
     void refreshThreads();
-  }, [refreshThreads]);
+    void refreshAlibabaStatus();
+  }, [refreshThreads, refreshAlibabaStatus]);
 
   useEffect(() => {
     if (!active) {
@@ -271,14 +295,23 @@ export function SuperAdminMessages() {
 
   const filteredThreads = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return threads;
-    return threads.filter(
-      (t) =>
+    return threads.filter((t) => {
+      if (channelFilter === 'brand' && t.type !== 'user') return false;
+      if (channelFilter === 'manufacturer' && t.type !== 'manufacturer') return false;
+      if (channelFilter === 'alibaba' && t.type !== 'alibaba') return false;
+      if (!q) return true;
+      return (
         t.name.toLowerCase().includes(q) ||
         t.lastMessage.toLowerCase().includes(q) ||
-        threadRoleLabel(t).toLowerCase().includes(q),
-    );
-  }, [search, threads]);
+        threadRoleLabel(t).toLowerCase().includes(q)
+      );
+    });
+  }, [search, threads, channelFilter]);
+
+  const alibabaThreadCount = useMemo(
+    () => threads.filter((t) => t.type === 'alibaba').length,
+    [threads],
+  );
 
   const newCandidates = useMemo(() => {
     const q = newQuery.trim().toLowerCase();
@@ -386,7 +419,9 @@ export function SuperAdminMessages() {
     if (!thread || !canSend || sending) return;
 
     const text = draft.trim();
-    const attachments: ChatAttachment[] = pendingAttachments.map(({ id: _id, ...rest }) => rest);
+    const attachments: ChatAttachment[] = isAlibabaThread
+      ? []
+      : pendingAttachments.map(({ id: _id, ...rest }) => rest);
 
     setSending(true);
     try {
@@ -394,6 +429,7 @@ export function SuperAdminMessages() {
         threadId: thread.id,
         body: text,
         attachments: attachments.length > 0 ? attachments : undefined,
+        channel: isAlibabaThread ? 'alibaba' : 'ceriga',
       });
       setMessages((prev) => [...prev, saved]);
       setThreads((prev) =>
@@ -414,6 +450,31 @@ export function SuperAdminMessages() {
       toast.error(err instanceof Error ? err.message : 'Failed to send');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleSyncAlibaba = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const status = await getAlibabaConnectionStatus();
+      setAlibabaStatus(status);
+      if (!status.configured) {
+        toast.error(
+          status.message ||
+            'Alibaba is not connected. Add Edge Function secrets (see Settings).',
+        );
+        return;
+      }
+      const result = await syncAlibabaInbox();
+      await refreshThreads();
+      toast.success(
+        `Synced ${result.conversations} Alibaba conversation${result.conversations === 1 ? '' : 's'}`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Alibaba sync failed');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -442,6 +503,16 @@ export function SuperAdminMessages() {
     return <PageLoadingFallback />;
   }
 
+  const channelTabs: { id: ChannelFilter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'brand', label: 'Brand' },
+    { id: 'manufacturer', label: 'Manufacturer' },
+    { id: 'alibaba', label: 'Alibaba' },
+  ];
+
+  const showAlibabaConnectPanel =
+    channelFilter === 'alibaba' && !alibabaConfigured && alibabaThreadCount === 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -453,12 +524,24 @@ export function SuperAdminMessages() {
             Messages
           </h1>
         </div>
-        {totalUnread > 0 ? (
-          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CC2D24]/30 bg-[#CC2D24]/10 px-3 py-1.5 text-xs font-medium text-red-100">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" />
-            {totalUnread} unread
-          </span>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-orange-500/30 text-orange-200 hover:bg-orange-500/10"
+            disabled={syncing}
+            onClick={() => void handleSyncAlibaba()}
+          >
+            <RefreshCw className={cn('mr-2 h-3.5 w-3.5', syncing && 'animate-spin')} />
+            {syncing ? 'Syncing…' : 'Sync Alibaba'}
+          </Button>
+          {totalUnread > 0 ? (
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CC2D24]/30 bg-[#CC2D24]/10 px-3 py-1.5 text-xs font-medium text-red-100">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" />
+              {totalUnread} unread
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
@@ -473,10 +556,28 @@ export function SuperAdminMessages() {
                 className="h-10 border-[#252528] bg-black/30 pl-9 text-sm text-white placeholder:text-white/30"
               />
             </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {channelTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setChannelFilter(tab.id)}
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 text-[11px] font-medium transition',
+                    channelFilter === tab.id
+                      ? 'border-white/20 bg-white/10 text-white'
+                      : 'border-[#252528] text-white/45 hover:border-white/15 hover:text-white/70',
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
             <Button
               size="sm"
               className="mt-3 w-full bg-[#CC2D24] hover:bg-[#CC2D24]/90"
               onClick={() => setNewOpen(true)}
+              disabled={channelFilter === 'alibaba'}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               New conversation
@@ -485,9 +586,33 @@ export function SuperAdminMessages() {
 
           <ScrollArea className="max-h-[38vh] lg:max-h-none lg:flex-1">
             <div className="p-2">
-              {filteredThreads.length === 0 ? (
+              {showAlibabaConnectPanel ? (
+                <div className="mx-1 rounded-xl border border-orange-500/25 bg-orange-500/[0.06] px-3 py-5 text-center">
+                  <Globe2 className="mx-auto h-6 w-6 text-orange-300/80" />
+                  <p className="mt-3 text-sm font-medium text-white">Connect Alibaba.com</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-white/50">
+                    Buyer IM sync needs Open Platform App Key, Secret, session token, and account
+                    id on Edge Function secrets. Until those are approved, this channel stays empty.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-4 border-orange-500/35 text-orange-100"
+                    disabled={syncing}
+                    onClick={() => void handleSyncAlibaba()}
+                  >
+                    Check connection
+                  </Button>
+                </div>
+              ) : filteredThreads.length === 0 ? (
                 <p className="px-3 py-8 text-center text-sm text-white/40">
-                  {threads.length === 0 ? 'No conversations yet.' : 'No matches.'}
+                  {channelFilter === 'alibaba'
+                    ? alibabaConfigured
+                      ? 'No Alibaba conversations yet — hit Sync Alibaba.'
+                      : 'Alibaba is not connected.'
+                    : threads.length === 0
+                      ? 'No conversations yet.'
+                      : 'No matches.'}
                 </p>
               ) : (
                 filteredThreads.map((t) => {
@@ -578,6 +703,11 @@ export function SuperAdminMessages() {
               </ScrollArea>
 
               <div className="border-t border-[#252528] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
+                {isAlibabaThread ? (
+                  <p className="mb-3 text-[11px] text-white/40">
+                    Alibaba send is text-only. Attachments are not supported yet.
+                  </p>
+                ) : null}
                 <input
                   ref={imageInputRef}
                   type="file"
@@ -595,7 +725,7 @@ export function SuperAdminMessages() {
                   onChange={onFileChange}
                 />
 
-                {pendingAttachments.length > 0 ? (
+                {pendingAttachments.length > 0 && !isAlibabaThread ? (
                   <div className="mb-3 flex flex-wrap gap-2">
                     {pendingAttachments.map((attachment) => (
                       <div
@@ -635,30 +765,36 @@ export function SuperAdminMessages() {
                 ) : null}
 
                 <div className="flex items-end gap-2 rounded-2xl border border-[#252528] bg-black/40 p-2">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
-                    onClick={() => imageInputRef.current?.click()}
-                    aria-label="Upload image"
-                  >
-                    <ImagePlus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
-                    onClick={() => fileInputRef.current?.click()}
-                    aria-label="Upload file"
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
+                  {!isAlibabaThread ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
+                        onClick={() => imageInputRef.current?.click()}
+                        aria-label="Upload image"
+                      >
+                        <ImagePlus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
+                        onClick={() => fileInputRef.current?.click()}
+                        aria-label="Upload file"
+                      >
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : null}
                   <Input
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    placeholder="Write a message…"
+                    placeholder={
+                      isAlibabaThread ? 'Reply on Alibaba…' : 'Write a message…'
+                    }
                     className="min-h-10 flex-1 border-0 bg-transparent text-sm text-white shadow-none placeholder:text-white/30 focus-visible:ring-0"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -684,9 +820,11 @@ export function SuperAdminMessages() {
                 <MessageSquare className="h-7 w-7" />
               </span>
               <p className="text-sm text-white/45">
-                {threads.length === 0
-                  ? 'Start a conversation with a brand or manufacturer'
-                  : 'Select a conversation'}
+                {showAlibabaConnectPanel
+                  ? 'Connect Alibaba to sync buyer conversations'
+                  : threads.length === 0
+                    ? 'Start a conversation with a brand or manufacturer'
+                    : 'Select a conversation'}
               </p>
             </div>
           )}

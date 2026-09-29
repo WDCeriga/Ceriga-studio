@@ -62,3 +62,34 @@ In Supabase: **Authentication → Providers**
 - Free-tier projects **pause after ~7 days** of no DB activity; resume in the dashboard or upgrade to Pro for production.
 - Large print images inside builder state inflate the `state` JSONB column; later we can move assets to Supabase Storage.
 - Manufacturer / factory portal screens still use local demo data; brand studio data (projects, orders, packaging library, notifications) uses Supabase when configured.
+
+## 6. Alibaba.com buyer messages (superadmin inbox)
+
+Superadmin **Messages** can sync and send Alibaba.com IM threads via Edge Functions. Buyer TradeManager access requires Open Platform approval — until secrets + API permission exist, the Alibaba channel shows a connect state.
+
+### Credentials (server-only)
+
+1. Create an app at https://developer.alibaba.com and apply for IM APIs (`alibaba.interaction.im.*`).
+2. OAuth-authorize your Alibaba.com **buyer** account → session token.
+3. Set secrets on the Supabase project (not in Vite `.env`):
+
+```bash
+supabase secrets set \
+  ALIBABA_APP_KEY=your_app_key \
+  ALIBABA_APP_SECRET=your_app_secret \
+  ALIBABA_SESSION=your_oauth_session \
+  ALIBABA_ACCOUNT_ID=your_account_id
+```
+
+4. Deploy functions:
+
+```bash
+supabase functions deploy alibaba-status
+supabase functions deploy alibaba-sync
+supabase functions deploy alibaba-send
+```
+
+5. Re-run [`schema.sql`](./schema.sql) so `admin_chat_threads` / `admin_chat_messages` include Alibaba channel columns.
+6. In the app: **Superadmin → Messages → Sync Alibaba**, or check status under **Settings**.
+
+Functions live under [`functions/`](./functions/). They require a signed-in superadmin JWT and never expose App Secret to the browser.
