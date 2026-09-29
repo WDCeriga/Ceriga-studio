@@ -10,8 +10,10 @@ Same four steps for every neck (crew, V, mock/funnel, …):
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
@@ -139,7 +141,6 @@ def keep_strong_ink(keyed: Image.Image) -> Image.Image:
     """
     rgba = np.array(keyed.convert("RGBA"))
     strong = rgba[..., 3] >= STRONG_INK
-    strong = LA.drop_speckles(strong, min_area=24)
     if not strong.any():
         return keyed
     rgba[..., 3] = np.where(strong, 255, 0).astype(np.uint8)
@@ -157,8 +158,8 @@ def _closed_pockets(ink: np.ndarray) -> tuple[np.ndarray, int]:
         if xs.size
         else ink.size
     )
-    for iterations in (2, 3, 4, 6, 8, 10, 12, 16):
-        sealed = ndimage.binary_closing(ink, iterations=iterations)
+    for iterations in (0, 1, 2):
+        sealed = ndimage.binary_closing(ink, iterations=iterations) if iterations else ink
         exterior = flood_from_border(~sealed)
         pockets = (~exterior) & ~sealed
         labeled, count = ndimage.label(pockets)
@@ -174,6 +175,8 @@ def _closed_pockets(ink: np.ndarray) -> tuple[np.ndarray, int]:
         )
         if useful_area > best_area:
             best, best_count, best_area = labeled, count, useful_area
+        if count >= 2 and useful_area >= bbox_area * 0.08:
+            break
     return best, best_count
 
 
@@ -183,7 +186,8 @@ def _head_opening_from_pockets(
     ink: np.ndarray,
     crew_hole: np.ndarray,
 ) -> np.ndarray:
-    """Pick the upper central enclosed pocket as the true head opening."""
+    """Pick a central open cavity, not a thin rear band or surrounding panel."""
+    del crew_hole
     ys, xs = np.where(ink)
     if xs.size == 0:
         raise CollarError("Generated collar drawing is empty")
@@ -200,7 +204,10 @@ def _head_opening_from_pockets(
         pocket = labeled == index
         pys, pxs = np.where(pocket)
         area = int(pxs.size)
-        if area < max(80, bbox_area * 0.006) or area > bbox_area * 0.48:
+        if area < max(80, bbox_area * 0.006) or area > bbox_area * 0.85:
+            continue
+        enclosed = ndimage.binary_fill_holes(pocket) & ~pocket
+        if np.any(enclosed & (labeled > 0) & (labeled != index)):
             continue
         pcx = float(pxs.mean())
         pcy = float(pys.mean())
@@ -216,13 +223,21 @@ def _head_opening_from_pockets(
             continue
         centrality = 1.0 - min(abs(pcx - cx) / max((x1 - x0) / 2.0, 1.0), 1.0)
         vertical = 1.0 - min(abs(pcy - target_y) / max(y1 - y0, 1), 1.0)
-        topness = 1.0 - min((float(pys.min()) - y0) / max(y1 - y0, 1), 1.0)
-        overlap = float((pocket & ndimage.binary_dilation(crew_hole, iterations=20)).sum())
+        clearance = float(ndimage.distance_transform_edt(pocket).max())
+        center_rows = np.flatnonzero(pocket[:, int(round(cx))])
+        upper_aperture = (
+            center_rows.size > 0
+            and float(pxs.max() - pxs.min()) > (x1 - x0) * 0.4
+            and float(pys.max() - pys.min()) < (y1 - y0) * 0.35
+            and float(pys.min()) < y0 + (y1 - y0) * 0.12
+            and int(center_rows[0]) <= float(pys.min()) + (y1 - y0) * 0.03
+        )
         score = (
-            centrality * 3.0
+            centrality
             + vertical
-            + topness * 18.0
-            + overlap / max(area, 1) * 0.25
+            + area / bbox_area * 12.0
+            + clearance / max(x1 - x0, 1) * 8.0
+            + (20.0 if upper_aperture else 0.0)
         )
         if score > best_score:
             best, best_score = pocket, score
@@ -283,7 +298,7 @@ def seated_collar(
 
     if int(fabric.sum()) < 1200:
         raise CollarError("Generated collar fabric panels are incomplete")
-    strokes = ink_strokes(LA.to_strokes(ink, max_width=3)) & ~opening
+    strokes = ink.copy()
     return fabric, strokes, opening
 
 
@@ -309,6 +324,12 @@ def body_for_custom_opening(
     polo and funnel collars while preserving the actual custom head opening.
     """
     body_with_socket = body | collar | socket_hole
+    socket_rows, socket_columns = np.where(collar | socket_hole)
+    if socket_rows.size:
+        socket_area = np.zeros_like(body)
+        socket_area[max(0, int(socket_rows.min()) - 24):int(socket_rows.max()) + 25,
+                    max(0, int(socket_columns.min()) - 24):int(socket_columns.max()) + 25] = True
+        body_with_socket |= ndimage.binary_fill_holes(body_with_socket) & socket_area
     return body_with_socket & ~opening
 
 
@@ -368,33 +389,122 @@ def shoulder_ends(mask: np.ndarray) -> tuple[tuple[int, int], tuple[int, int]]:
     return (left_x, left_y), (right_x, right_y)
 
 
-def place_on_crew(keyed: Image.Image, art_hw: tuple[int, int]) -> np.ndarray:
-    """Map the drawing's shoulder extrema onto (354, 210) and (671, 210).
-
-    Scale down if the nape would otherwise paste above y=0 and get cropped.
-    """
+def collar_placement(keyed: Image.Image, art_hw: tuple[int, int],
+                     dest_left: tuple[int, int], dest_right: tuple[int, int]) -> tuple[float, float, float]:
+    """Return one uniform scale and translation for all source regions."""
     height, width = art_hw
     alpha = np.asarray(keyed.convert("RGBA").getchannel("A"))
     (ax, ay), (bx, _by) = shoulder_ends(alpha >= STRONG_INK)
-    scale = (DEST_RIGHT[0] - DEST_LEFT[0]) / max(bx - ax, 1)
+    scale = (dest_right[0] - dest_left[0]) / max(bx - ax, 1)
     if ay > 0:
-        scale = min(scale, (DEST_LEFT[1] - 48) / ay)
+        scale = min(scale, (dest_left[1] - 48) / ay)
     new_w = max(1, round(keyed.width * scale))
     new_h = max(1, round(keyed.height * scale))
-    py = round(DEST_LEFT[1] - ay * scale)
+    py = round(dest_left[1] - ay * scale)
     if py + new_h > height - 8 and new_h > 0:
         room = height - 8 - max(py, 20)
         if room > 40:
             scale *= room / new_h
             new_w = max(1, round(keyed.width * scale))
             new_h = max(1, round(keyed.height * scale))
-            py = round(DEST_LEFT[1] - ay * scale)
-    px = round(DEST_LEFT[0] - ax * scale)
-    py = max(24, py)
-    fitted = keyed.convert("RGBA").resize((new_w, new_h), Image.NEAREST)
+            py = round(dest_left[1] - ay * scale)
+    px = (dest_left[0] + dest_right[0] - (ax + bx) * scale) / 2
+    py = max(24.0, dest_left[1] - ay * scale)
+    if px < 0 or px + keyed.width * scale > width or py + keyed.height * scale > height:
+        raise CollarError("Collar does not fit the canvas without clipping")
+    return scale, px, py
+
+
+def place_on_crew(keyed: Image.Image, art_hw: tuple[int, int],
+                  dest_left: tuple[int, int] = DEST_LEFT, dest_right: tuple[int, int] = DEST_RIGHT) -> np.ndarray:
+    """Rasterize the uniform registration, preserving thin source ink."""
+    height, width = art_hw
+    scale, px, py = collar_placement(keyed, art_hw, dest_left, dest_right)
+    alpha = np.asarray(keyed.convert("RGBA").getchannel("A"))
+    new_w = max(1, round(keyed.width * scale))
+    new_h = max(1, round(keyed.height * scale))
+    sampling_alpha = alpha
+    if scale < 1:
+        footprint = int(np.ceil(1 / scale)) | 1
+        sampling_alpha = ndimage.maximum_filter(alpha, size=footprint)
+    fitted = Image.new("RGBA", (new_w, new_h), (0, 0, 0, 0))
+    fitted.putalpha(Image.fromarray(sampling_alpha).resize((new_w, new_h), Image.NEAREST))
     canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    canvas.paste(fitted, (px, py), fitted)
+    canvas.paste(fitted, (round(px), round(py)), fitted)
     return np.asarray(canvas.getchannel("A"))
+
+
+def registered_collar_svg(band: np.ndarray, ink: np.ndarray, name: str,
+                          art_hw: tuple[int, int], placement: tuple[float, float, float]) -> str:
+    source_scale = T.CANVAS / max(band.shape)
+    art_scale = T.CANVAS / max(art_hw)
+    scale, left, top = placement
+    factor = scale * art_scale / source_scale
+    source_offset_x = (T.CANVAS - band.shape[1] * source_scale) / 2
+    source_offset_y = (T.CANVAS - band.shape[0] * source_scale) / 2
+    translate_x = (T.CANVAS - art_hw[1] * art_scale) / 2 + left * art_scale - source_offset_x * factor
+    translate_y = (T.CANVAS - art_hw[0] * art_scale) / 2 + top * art_scale + (T.CANVAS - source_offset_y) * factor
+    root = ET.fromstring(T.wrap_svg(name, T.trace(band), T.trace(ink)))
+    for group in root.findall("{http://www.w3.org/2000/svg}g"):
+        group.set("transform", f"translate({translate_x},{translate_y}) scale({factor * 0.1},{-factor * 0.1})")
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    return ET.tostring(root, encoding="unicode")
+
+
+def place_region(mask: np.ndarray, art_hw: tuple[int, int],
+                 placement: tuple[float, float, float]) -> np.ndarray:
+    scale, left, top = placement
+    return ndimage.affine_transform(mask.astype(np.uint8), np.eye(2) / scale,
+                                    offset=(-top / scale, -left / scale),
+                                    output_shape=art_hw, order=0, prefilter=False) > 0
+
+
+def validate_collar_fidelity(svg: str, fabric: np.ndarray, ink: np.ndarray,
+                             opening: np.ndarray, art_hw: tuple[int, int],
+                             placement: tuple[float, float, float]) -> None:
+    """Render registered vectors back into source coordinates before acceptance."""
+    import resvg_py
+
+    scale, left, top = placement
+    art_scale = T.CANVAS / max(art_hw)
+    height, width = fabric.shape
+    view_left = (T.CANVAS - art_hw[1] * art_scale) / 2 + left * art_scale
+    view_top = (T.CANVAS - art_hw[0] * art_scale) / 2 + top * art_scale
+    rendered = []
+    for layer_index in range(2):
+        root = ET.fromstring(svg)
+        groups = root.findall("{http://www.w3.org/2000/svg}g")
+        if len(groups) != 2:
+            raise CollarError("Final asset differs significantly from generated drawing: missing layers")
+        root.remove(groups[1 - layer_index])
+        root.set("viewBox", f"{view_left} {view_top} {width * scale * art_scale} {height * scale * art_scale}")
+        root.set("width", str(width))
+        root.set("height", str(height))
+        png = resvg_py.svg_to_bytes(svg_string=ET.tostring(root, encoding="unicode"), width=width, height=height)
+        rendered.append(np.asarray(Image.open(io.BytesIO(png)).convert("RGBA"))[..., 3] >= 128)
+    rendered_fabric, rendered_ink = rendered
+    errors = []
+    union = int((fabric | rendered_fabric).sum())
+    if int((fabric & rendered_fabric).sum()) / max(union, 1) < 0.96:
+        errors.append("fabric silhouette or band thickness changed")
+    if int((opening & rendered_fabric).sum()) / max(int(opening.sum()), 1) > 0.01:
+        errors.append("head opening was filled")
+    near_rendered = ndimage.binary_dilation(rendered_ink, iterations=1)
+    near_source = ndimage.binary_dilation(ink, iterations=1)
+    if int((ink & near_rendered).sum()) / max(int(ink.sum()), 1) < 0.98:
+        errors.append("construction lines were lost")
+    if int((rendered_ink & near_source).sum()) / max(int(rendered_ink.sum()), 1) < 0.98:
+        errors.append("construction lines were displaced")
+    components, count = ndimage.label(ink, np.ones((3, 3), bool))
+    for index, bounds in enumerate(ndimage.find_objects(components, count), start=1):
+        if bounds is None:
+            continue
+        region = components[bounds] == index
+        if int(region.sum()) >= 4 and int((region & near_rendered[bounds]).sum()) / int(region.sum()) < 0.90:
+            errors.append("a seam or detail disappeared")
+            break
+    if errors:
+        raise CollarError("Final asset differs significantly from generated drawing: " + "; ".join(errors))
 
 
 def flood_from_border(open_cells: np.ndarray) -> np.ndarray:
@@ -691,6 +801,14 @@ def build(photo: Image.Image) -> dict:
     progress("lineart", "Drawing construction line art of only the collar")
     drawing, source, kind, model_name = lineart_from_photo(photo)
     progress("lineart", f"Line art ready ({source}{', ' + model_name if model_name else ''})")
+    return build_from_drawing(drawing, source, kind, model_name)
+
+
+def build_from_drawing(
+    drawing: Image.Image, source: str = "technical", kind: str = "custom", model_name: str = "",
+    *, socket_masks: dict[str, np.ndarray] | None = None,
+    anchors: tuple[tuple[int, int], tuple[int, int]] = (DEST_LEFT, DEST_RIGHT),
+) -> dict:
     debug_image("01-lineart", drawing)
 
     progress("key", "Keying white out with a luminance ramp")
@@ -698,9 +816,12 @@ def build(photo: Image.Image) -> dict:
     debug_image("02-keyed", keyed)
 
     progress("place", "Seating the uploaded collar on the slim shoulder socket")
-    if not CREW_MASKS.is_file():
-        raise CollarError(f"missing crew masks at {CREW_MASKS}")
-    crew = np.load(CREW_MASKS)
+    if socket_masks is None:
+        if not CREW_MASKS.is_file():
+            raise CollarError(f"missing crew masks at {CREW_MASKS}")
+        with np.load(CREW_MASKS) as stored:
+            socket_masks = {key: stored[key].copy() for key in stored.files}
+    crew = socket_masks
     collar = crew["collar"].astype(bool)
     interior = crew["interior"].astype(bool)
     body = crew["body"].astype(bool)
@@ -713,12 +834,15 @@ def build(photo: Image.Image) -> dict:
     keyed = keep_strong_ink(keyed)
     keyed = crop_ink(keyed, pad=8)
 
-    placed = place_on_crew(keyed, art_hw)
-    ink = placed >= STRONG_INK
-    debug_image("03-placed-ink", ink)
+    ink = np.asarray(keyed.getchannel("A")) >= STRONG_INK
+    placement = collar_placement(keyed, art_hw, *anchors)
+    debug_image("03-source-ink", ink)
     progress("potrace", "Tracing a solid collar fill with construction outlines")
-    band, neck_ink, opening = seated_collar(ink, collar, hole)
-    band = heal_fabric(band, opening)
+    empty = np.zeros_like(ink)
+    source_band, source_ink, source_opening = seated_collar(ink, empty, empty)
+    band = place_region(source_band, art_hw, placement)
+    neck_ink = place_region(source_ink, art_hw, placement)
+    opening = place_region(source_opening, art_hw, placement)
     debug_image("04-fabric", band)
     debug_image("05-construction-ink", neck_ink)
     body_fill = body_for_custom_opening(body, collar, hole, opening)
@@ -731,11 +855,8 @@ def build(photo: Image.Image) -> dict:
     validate_part_masks(band, neck_ink, opening, body_fill, collar, body)
 
     name = display_name_for(kind, model_name)
-    fill_d = T.trace(band)
-    ink_d = T.trace(neck_ink)
-    if not fill_d.strip():
-        raise CollarError("Generated collar fabric could not be traced")
-    neck_svg = T.wrap_svg(f"Ceriga test t-shirt - {name}", fill_d, ink_d)
+    neck_svg = registered_collar_svg(source_band, source_ink, name, art_hw, placement)
+    validate_collar_fidelity(neck_svg, source_band, ink, source_opening, art_hw, placement)
     body_svg = T.wrap_svg(
         f"Ceriga test t-shirt - Body {name}",
         T.trace(body_fill),

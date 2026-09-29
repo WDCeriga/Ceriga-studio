@@ -4,8 +4,8 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { collarFromPhotoPlugin } from './scripts/collar/vite-plugin'
 import { garmentFromPhotoPlugin } from './scripts/collar/garment-vite-plugin'
+import { customAssetPlugin } from './scripts/collar/custom-asset-plugin'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // This checkout is also reachable through a symlink in Downloads. Vite resolves
@@ -48,8 +48,8 @@ export default defineConfig({
     // Tailwind is not being actively used – do not remove them
     react(),
     tailwindcss(),
-    collarFromPhotoPlugin(),
     garmentFromPhotoPlugin(),
+    customAssetPlugin(),
   ],
   resolve: {
     alias: {

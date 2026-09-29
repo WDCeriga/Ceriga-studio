@@ -251,12 +251,12 @@ def validate_lineart(image: Image.Image) -> tuple[bool, list[str], float]:
 
 
 def clean_lineart(image: Image.Image) -> Image.Image:
-    grey = ImageOps.autocontrast(image.convert("L"), cutoff=1)
+    grey = ImageOps.autocontrast(image.convert("L"), cutoff=(0, 1))
     if float(np.median(np.asarray(grey))) < 128:
         grey = ImageOps.invert(grey)
     grey = grey.filter(ImageFilter.GaussianBlur(radius=0.25))
     ink = np.asarray(grey) < 168
-    ink = drop_speckles(ink, min_area=18)
+    ink = drop_speckles(ink, min_area=4)
     ink = to_strokes(ink, max_width=5)
     rgb = np.full((*ink.shape, 3), 255, dtype=np.uint8)
     rgb[ink] = 0

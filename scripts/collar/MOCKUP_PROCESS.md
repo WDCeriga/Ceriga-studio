@@ -7,6 +7,168 @@ Two jobs, same rules:
 
 Never ask an image model to “output an SVG”. Models only make rasters. Vectors come from tracing code.
 
+## Custom assets: Azure AI upload pipeline
+
+The builder's Neck / Collar, Sleeves and Pocket uploads share `CustomAssetUpload.tsx`
+and the local `/api/custom-assets` middleware. Photo references use Astra analysis
+through Azure OpenAI Responses, then a separate Azure GPT Image edit deployment
+for the technical raster. Local cleanup, Potrace and part-specific registration
+produce the SVG. Astra never authors final SVG. There is no Gemini fallback in
+this upload flow; the duplicate legacy collar button and its route are no longer
+registered. Saved legacy collars remain supported. Historical Gemini CLI helpers
+and the separate full-garment photo test are not part of this migration.
+
+The detail upload offers Pockets, Buttons, Zips and Patches in Photo / Azure AI mode.
+Uploaded patches preserve their traced silhouette and artwork, use free placement,
+and appear in Patches with independent colour, size and position controls. Procedural
+patch construction controls remain exclusive to patches created with Add patch.
+
+Photo analysis can identify up to 16 attached pocket, zip, button or patch components.
+Each component is processed and traced separately; the parent drawing excludes
+those components. Analysis bounds include complete assemblies, including zip
+surrounds and attachment stitching. These regions are blanked with a small margin
+in a copy of the parent reference before raster generation, which reconstructs the
+underlying fabric. The untouched reference remains available for child extraction
+and review. Separation still depends on accurate bounds and reconstruction.
+Accept installs the complete bundle together, with independent
+colour, size and position controls in the corresponding detail sections. Initial
+placement uses the reference bounds and remains editable, including sleeve hardware
+outside the torso. If review finds a separation or construction defect, multi-part
+processing makes one corrective redraw using that feedback and reviews it again.
+A component that still fails prevents partial installation. Local drawing
+tracing remains single-part and does not run semantic component recognition.
+In Photo / Azure AI mode, Astra-classified technical drawings of pockets, buttons,
+zips and patches can retain their source geometry instead of being redrawn. A
+monochrome, whitespace and ink-density guard allows antialiased line art, including
+denser isolated component crops. Attached component regions are removed from the
+parent copy; children use the untouched source. Extraction must pass Astra isolation
+review before tracing. A failed semantic review falls back to reconstruction;
+request or malformed-review errors still stop processing. Collars and sleeves do
+not use this preservation path.
+Multi-part recognition and upload handling are covered by mocked tests. A live
+synthetic pocket-and-zip reference passed parent isolation review and tracing after
+region removal, but its separate zip failed both reviews for changed proportions
+(narrow tape and undersized slider/pull). No bundle was installed. On the user's
+exact JPEG, source-preserving pocket extraction passed review and tracing, but the
+zip crop exceeded the original antialias guard and entered redraw. The guard was
+adjusted with a dense antialiased-crop regression; all 37 custom asset tests pass.
+The subsequent exact-image retry was blocked during analysis by Azure HTTP 429
+(token rate limit). End-to-end separation of that image remains unverified.
+
+Zip registration permits dark-pixel coverage below 35%, rather than the 18%
+limit retained for other mask-based parts. Closed-contour, boundary, background
+and render checks remain active. A manually bounded zip crop from the exact JPEG
+measured 18.28% ink after cleanup and passed preservation, cleanup, registration,
+Potrace and render validation locally with this change. This check does not verify
+Azure's component bounds or semantic review. Density errors now report measured
+coverage and the applicable limit; registration errors name the actual detail type.
+
+### Server configuration
+
+Set these in the project root `.env.local` (ignored by git), then restart Vite:
+
+```dotenv
+CERIGA_AZURE_API_KEY=<your Azure resource key>
+CERIGA_AZURE_ENDPOINT=https://richyjames6643-0474-resource.openai.azure.com/openai/v1/
+CERIGA_AZURE_REASONING_DEPLOYMENT=gpt-6-astra
+CERIGA_AZURE_IMAGE_DEPLOYMENT=gpt-image-2
+CERIGA_AZURE_IMAGE_API_VERSION=2025-04-01-preview
+```
+
+The image API version is optional and defaults to the value above. The image
+deployment must belong to the same Azure resource; both calls use its server-side
+`api-key` header. Never prefix secrets with `VITE_` or `NEXT_PUBLIC_`. Requests go
+to `/openai/v1/responses` for analysis and
+`/openai/deployments/{deployment}/images/edits?api-version={version}` for raster
+editing. Only base64 PNG/JPEG/WebP image responses are accepted from image editing.
+
+`gpt-6-astra` performs analysis only; `gpt-image-2` produces the raster. Both
+configured deployments and the routes above were exercised successfully live.
+Missing required configuration stops photo processing explicitly; the Local trace
+mode remains entirely local. Generated raster quality and registration are checked for
+each upload, not assumed from deployment availability.
+
+Live verification passed end to end for the V-neck collar photograph and a
+recognizable flap-pocket technical reference submitted through Photo mode.
+The pocket test is not evidence of arbitrary photograph quality. Sleeve analysis
+and image generation succeeded for a cropped raglan drawing, but registration
+correctly rejected its hanging orientation: the armhole was not on the required
+right edge. A catalog outline was rejected by Astra as ambiguous. A successful
+live sleeve upload is still unverified; use a clear compatible reference before
+claiming all three photo workflows are proven.
+
+Live diagnostics exposed two local raster defects now covered by regressions:
+sparse ink below 1% must not be discarded by contrast normalization, and thin
+collar contours must retain pixel coverage when downsampled onto the neck socket.
+The image prompt also suppresses rib/knit hatching in favor of bounded white
+panels and essential seams. Boundary, socket and black-fill guards remain active.
+
+Use the project's Python environment with Pillow, numpy, scipy, resvg-py and
+`requests>=2.32.4,<3`. Install the added dependency with
+`python -m pip install "requests>=2.32.4,<3"` using that environment. Potrace 1.16
+must be available via `POTRACE`, `POTRACE_EXE`, PATH, or the middleware's local
+`.venv/tools/potrace-1.16.win64/potrace.exe` discovery. `PYTHON` can override the
+middleware's interpreter. This backend runs under Vite development only; a static
+production build does not provide the Python upload service.
+
+### Local verification
+
+Collar registration now infers fabric and the opening at the cleaned drawing's
+source resolution, retains its construction ink, and traces before applying one
+uniform scale and translation. Minimal contour closing replaces aggressive gap
+filling. Opening selection no longer favors the upper rear band or overlap with
+the stock crew opening. No named collar preset replaces uploaded geometry.
+Measured Slim socket anchors still control placement; other fits remain unsupported.
+The paired body fills the old neck socket and removes the uploaded opening locally.
+
+The registered collar is rendered back into source coordinates before it can be
+returned: fabric IoU must reach 96%, opening fill must stay below 1%, and ink
+coverage in both directions must reach 98% within one source pixel. Detached ink
+components of at least four pixels must retain 90% coverage. Failure reports
+"Final asset differs significantly from generated drawing" and prevents Accept.
+This checks tracing fidelity against inferred masks, not semantic correctness of
+every possible opening. Opening inference remains heuristic.
+
+FINAL ASSET offers Garment and Collar Close-up views of the same registered SVG.
+The close-up preserves the selected collar color and does not regenerate artwork.
+Layered-V regressions cover rear-band retention, transparent opening, a short seam,
+center join, local body changes, and rejection of filled holes or scale drift.
+The browser fixture is synthetic, not the user's original uploaded raster; exact
+reference verification still requires that CLEAN DRAWING image. Responsive mobile
+verification remains pending because the integrated browser did not honor resizing.
+
+Start `npm run dev -- --host 127.0.0.1` and use its reported URL.
+
+1. Collar: open the main T-shirt or test tee in Slim, front view, Neck / Collar, Upload. Other collar
+   sockets are intentionally disabled; uploading never silently changes fit.
+2. Sleeve: open the main tee, front view, Sleeves, Upload. Select left or right.
+   All four fits are supported. Technical input must be one canonical left sleeve
+   with its armhole at the right; registration mirrors it for a right sleeve.
+3. Pocket: open Trims & Details, Custom Pocket, Upload. Both tee packs and both
+   views support placement. Accepted pockets retain independent measurements.
+4. Choose Photo · Azure AI and a single-part crop. Check ORIGINAL, CLEAN DRAWING and
+   FINAL ASSET, then Accept. The upload's category is locked to its builder section.
+   A photo identified as another part must fail, leaving Accept disabled. Local
+   technical drawings use the user-confirmed category, not semantic AI analysis.
+5. Test missing configuration, a rejected Azure request, an open technical contour,
+   and a crop touching the boundary. The error should identify the failing stage
+   and cause. Failed or cancelled processing must not install a partial asset.
+6. Accept a valid asset, change its colour and measurements, save and reload.
+   The stored vector should restore without a new API call.
+
+Run `python -m unittest discover -s scripts/collar -p test_custom_assets.py` with
+the project interpreter. Tests cover mocked Azure contracts and failures plus real
+local tracing for collar, pocket and eight fit/side sleeve combinations. In the
+browser console, run the existing offline fixture and state checks:
+
+```js
+const assets = await import('/scripts/collar/test_custom_assets.tsx');
+await assets.processFixture('collar');
+await assets.processFixture('sleeve');
+await assets.processFixture('pocket');
+await assets.verifyCustomAssetState();
+```
+
 ## T-shirt trims and details
 
 Step 6 is Trims & Details for t-shirts only. Pocket, zip, and button source SVGs live in `src/assets/garment-details`; their sizing, default placement, and supported colour channels live in `src/app/data/garmentDetails.ts`. Add future detail types to that registry and provide an SVG using the same fill, outline, stitch, and hardware CSS variables.

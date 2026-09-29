@@ -28,6 +28,10 @@ INK_CUTOFF = 120
 CONTRAST = 1.35
 
 
+class TraceError(RuntimeError):
+    pass
+
+
 def _potrace_candidates() -> list[str]:
     candidates = [
         os.environ.get("POTRACE"),
@@ -178,7 +182,10 @@ def trace(mask, *, resample: int = Image.NEAREST) -> str:
     big = np.asarray(img.resize((width * TRACE_SS, height * TRACE_SS), resample)) >= 128
     if not big.any():
         return ""
-    return _transform_svg_path_d(_run_potrace(big), mask.shape)
+    try:
+        return _transform_svg_path_d(_run_potrace(big), mask.shape)
+    except (OSError, ValueError, RuntimeError, ET.ParseError) as error:
+        raise TraceError(f"Local trace failed: {error}") from error
 
 
 def source_svg(title: str, alpha: Image.Image) -> str:
