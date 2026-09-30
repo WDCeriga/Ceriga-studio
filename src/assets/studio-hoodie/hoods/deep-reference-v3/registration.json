@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "styleId": "oversized-deep",
+  "status": "registration-review-only",
+  "installed": false,
+  "shapeSha256": "37919ed8a2132fc3bc46bebb966189217fe39eef7d5d615a17a0e0c2de7d9beb",
+  "method": "Uniform source transform; exact body exclusion mask and existing neckline contact strip. No hood-body or opening warp.",
+  "compatibleConstructionTested": "Body (set-in)",
+  "fits": {
+    "slim": {
+      "scale": 1.7387914230019492,
+      "translateX": 417.2923976608188,
+      "translateY": 23.863547758284653,
+      "gaps": 0,
+      "unwantedFabricOverlap": 0,
+      "maximumAttachmentChange": 10,
+      "shoulderCollisions": 0,
+      "conversionDifferences": 22,
+      "packedSha256": "19f4fa5f64e6cca984a7a4358721b49cfe1a8f4909c749aef4f924783c46aee6",
+      "changedPixels": 2133,
+      "bodySha256": "588376f34191b0e4de6a27813d4e5a82c2822659308fbe5991c4542db872d7e1",
+      "candidateSha256": "d2b519adaec7d73d51804f4b304e1f626be97b2916e7faabe86799191ee2188e",
+      "drawstrings": "Rigidly transformed with the hood; intentional chest overlap, excluded from fabric-intersection test.",
+      "socket": {
+        "left": 827,
+        "right": 1223,
+        "bottom": 662
+      }
+    },
+    "regular": {
+      "scale": 1.7387914230019492,
+      "translateX": 415.7923976608188,
+      "translateY": 13.863547758284653,
+      "gaps": 0,
+      "unwantedFabricOverlap": 0,
+      "maximumAttachmentChange": 17,
+      "shoulderCollisions": 0,
+      "conversionDifferences": 24,
+      "packedSha256": "c95d5feeb2cb4ca7c769d8156b60a288a58a5003a7e360070d60f1336b5d112c",
+      "changedPixels": 4289,
+      "bodySha256": "2359ecf79465885ac4911d4a2c7eaa64050846dbebbe6bda3449bb281cb894f3",
+      "candidateSha256": "2c7176da3f6cd88592759d8ec9feb1ae7e8fe6f5d1b119ccb04cfd91b8704f70",
+      "drawstrings": "Rigidly transformed with the hood; intentional chest overlap, excluded from fabric-intersection test.",
+      "socket": {
+        "left": 812,
+        "right": 1235,
+        "bottom": 652
+      }
+    },
+    "boxy": {
+      "scale": 1.7387914230019492,
+      "translateX": 415.2923976608188,
+      "translateY": 41.86354775828465,
+      "gaps": 0,
+      "unwantedFabricOverlap": 0,
+      "maximumAttachmentChange": 17,
+      "shoulderCollisions": 0,
+      "conversionDifferences": 16,
+      "packedSha256": "c9e0c8227ccff421e1b52a25eb676977a0db3e6fdf1f3be9446b77494778f7d1",
+      "changedPixels": 4288,
+      "bodySha256": "c893ea33c378bca00eb2f512c36952fd406092193deecc75b72b8fb9015f8f45",
+      "candidateSha256": "19b494825ce901dd5984528e2e7fa9b0da0f5396bfc00488e775bfcc59ccfbc5",
+      "drawstrings": "Rigidly transformed with the hood; intentional chest overlap, excluded from fabric-intersection test.",
+      "socket": {
+        "left": 816,
+        "right": 1230,
+        "bottom": 680
+      }
+    },
+    "cropped": {
+      "scale": 1.7387914230019492,
+      "translateX": 413.2923976608188,
+      "translateY": 55.86354775828465,
+      "gaps": 0,
+      "unwantedFabricOverlap": 0,
+      "maximumAttachmentChange": 14,
+      "shoulderCollisions": 0,
+      "conversionDifferences": 31,
+      "packedSha256": "7ac9cf4ca36147e9003be4a40493715bccbf3aa675cbb28f0108cac89885e908",
+      "changedPixels": 1720,
+      "bodySha256": "dcda2ff0511190b2dc00c1dee8b385002420249a41adfd21f7d96dd7de72e2bf",
+      "candidateSha256": "ec1f1f35d22c712032fb41d71ceac82c571c42633d57f63945eb658443a01476",
+      "drawstrings": "Rigidly transformed with the hood; intentional chest overlap, excluded from fabric-intersection test.",
+      "socket": {
+        "left": 828,
+        "right": 1214,
+        "bottom": 694
+      }
+    },
+    "baggy": {
+      "scale": 1.7387914230019492,
+      "translateX": 412.2923976608188,
+      "translateY": 16.863547758284653,
+      "gaps": 0,
+      "unwantedFabricOverlap": 0,
+      "maximumAttachmentChange": 11,
+      "shoulderCollisions": 0,
+      "conversionDifferences": 15,
+      "packedSha256": "673fb5c2966ee6b137344259f7b8b3adb9b741896cf6244f31ccc0c32e0a0878",
+      "changedPixels": 2593,
+      "bodySha256": "9692c2732f605b76257e1f4fd0d271b17e7d1a1c1e78bad71b3e59e74b1d4ced",
+      "candidateSha256": "9e493d7d5f607615869ec97ae55900a57f930eca38d07ca0aa00658089377a67",
+      "drawstrings": "Rigidly transformed with the hood; intentional chest overlap, excluded from fabric-intersection test.",
+      "socket": {
+        "left": 825,
+        "right": 1215,
+        "bottom": 655
+      }
+    }
+  },
+  "scaleCalibration": {
+    "source": "reference.png",
+    "reference": {
+      "necklineBottom": 367,
+      "torsoHem": 880,
+      "crownTop": 25
+    },
+    "method": "Calibrate reference neckline-to-torso-hem distance on approved Boxy; preserve that uniform hood scale across all fits.",
+    "fit": "boxy",
+    "torsoCanvasHeight": 892,
+    "scale": 1.7387914230019492
+  },
+  "liveAssetsUnchanged": true
+}

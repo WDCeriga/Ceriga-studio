@@ -1,0 +1,16 @@
+{
+  "sourceSha256": "5f2307d7c29f219cece901eb676777f27961d0b23cb05d6d395fa0b44d9db412",
+  "originalWidth": 1024,
+  "originalHeight": 1024,
+  "normalizedCanvas": [
+    768,
+    768
+  ],
+  "frontCrop": {
+    "left": 110,
+    "top": 58,
+    "width": 145,
+    "height": 190
+  },
+  "status": "source-inspection"
+}

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oversized / Deep Hood - Shape Review</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #252525; background: #f2f3f2; font-family: Georgia, serif; }
+    header { padding: 24px 28px 18px; border-bottom: 1px solid #c7ccc9; }
+    h1 { margin: 0 0 10px; font-size: 28px; font-weight: 500; }
+    p, label, output, a { font-family: "Segoe UI", sans-serif; font-size: 14px; line-height: 1.5; }
+    p { margin: 6px 0; }
+    main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    section { min-width: 0; padding: 22px 28px; border-bottom: 1px solid #c7ccc9; }
+    section:nth-child(odd) { border-right: 1px solid #c7ccc9; }
+    h2 { margin: 0 0 12px; font-size: 21px; font-weight: 500; }
+    .stage { height: 560px; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
+    .stage > img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+    .hood { position: relative; height: 100%; max-width: 100%; aspect-ratio: 580 / 760; }
+    .hood > img, .hood > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+    input { accent-color: #d62939; width: 180px; max-width: 100%; }
+    output { min-width: 40px; }
+    a { color: #176a58; }
+    .swatch { display: inline-block; width: 10px; height: 10px; background: #d62939; margin-right: 6px; }
+    #error { color: #a3212e; }
+    @media (max-width: 700px) {
+      header, section { padding: 18px; }
+      main { grid-template-columns: minmax(0, 1fr); }
+      section:nth-child(odd) { border-right: 0; }
+      .stage { height: auto; aspect-ratio: 1; }
+      .stage.closeup { aspect-ratio: 580 / 760; }
+      h1 { font-size: 25px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Oversized / Deep Hood</h1>
+    <p>Shape review only. Registration paused. Not installed or published.</p>
+    <p>No drawstrings or eyelets are visible in the supplied reference; none have been added. Layer count is unconfirmed.</p>
+    <p id="error" role="alert" hidden></p>
+  </header>
+  <main>
+    <section>
+      <h2>1. Supplied Reference</h2>
+      <div class="stage"><img src="reference.png" alt="Supplied front and back hoodie reference"></div>
+      <p><a href="reference.png" target="_blank">Full reference</a> &middot; <a href="front-crop.png" target="_blank">Front hood close-up</a></p>
+    </section>
+    <section>
+      <h2>2. Recreated Hood SVG</h2>
+      <div class="stage closeup"><div class="hood" id="standalone"></div></div>
+      <p>Source trace, before neckline registration. White fabric and dark construction lines.</p>
+      <p><a href="front-source.svg" target="_blank">Original SVG asset</a></p>
+    </section>
+    <section>
+      <h2>3. Reference Overlay</h2>
+      <div class="stage closeup"><div class="hood" id="overlay"><img src="front-crop.png" alt="Reference hood crop beneath the red recreated SVG trace"></div></div>
+      <div class="controls">
+        <label for="opacity"><span class="swatch"></span>Trace opacity</label>
+        <input id="opacity" type="range" min="0" max="100" value="70">
+        <output id="opacity-value" for="opacity">70%</output>
+      </div>
+      <p>Red: recreated construction ink. Underneath: reference. Same crop coordinates; no registration warp.</p>
+    </section>
+    <section>
+      <h2>4. Boxy Assembly Draft</h2>
+      <div class="stage"><img src="boxy-registered.png" alt="Earlier Boxy hoodie assembly with the recreated deep hood"></div>
+      <p>Earlier saved proof, not a validated result of the latest registration attempt. Body unchanged.</p>
+      <p><a href="boxy-registered.png" target="_blank">Full assembly proof</a></p>
+    </section>
+  </main>
+  <script type="module">
+    try {
+      const response = await fetch('./front-source.svg');
+      if (!response.ok) throw new Error('Source SVG could not be loaded.');
+      const source = new DOMParser().parseFromString(await response.text(), 'image/svg+xml');
+      if (source.querySelector('parsererror')) throw new Error('Source SVG could not be parsed.');
+      const standalone = document.importNode(source.documentElement, true);
+      standalone.setAttribute('viewBox', '0 0 580 760');
+      standalone.removeAttribute('width');
+      standalone.removeAttribute('height');
+      standalone.setAttribute('role', 'img');
+      standalone.setAttribute('aria-label', 'Recreated source hood SVG, without neckline registration');
+      standalone.querySelector('g').setAttribute('fill', '#ffffff');
+      document.querySelector('#standalone').append(standalone);
+      const overlay = standalone.cloneNode(true);
+      overlay.querySelector('g').remove();
+      overlay.querySelector('g').setAttribute('fill', '#d62939');
+      overlay.setAttribute('aria-label', 'Recreated construction ink overlay in red');
+      overlay.style.opacity = '0.7';
+      document.querySelector('#overlay').append(overlay);
+      document.querySelector('#opacity').addEventListener('input', event => {
+        overlay.style.opacity = Number(event.target.value) / 100;
+        document.querySelector('#opacity-value').value = `${event.target.value}%`;
+      });
+      document.body.dataset.ready = 'true';
+    } catch (error) {
+      const message = document.querySelector('#error');
+      message.hidden = false;
+      message.textContent = error.message;
+    }
+  </script>
+</body>
+</html>

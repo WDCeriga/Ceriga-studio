@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boxy - Regular vs Oversized / Deep Hood</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #202423; background: #fafbf9; font-family: "Segoe UI", sans-serif; letter-spacing: 0; }
+    main { max-width: 1440px; margin: auto; padding: 24px; }
+    header { border-bottom: 1px solid #cbd2ce; padding-bottom: 16px; }
+    h1 { font-size: 24px; font-weight: 600; margin: 0 0 8px; }
+    p { margin: 0; color: #51635b; font-size: 14px; }
+    section { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; }
+    figure { margin: 0; min-width: 0; }
+    h2 { font-size: 18px; line-height: 1.3; margin: 0 0 12px; min-height: 48px; }
+    img { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+    a { color: #245d49; text-underline-offset: 3px; }
+    footer { margin-top: 18px; font-size: 14px; }
+    @media (max-width: 600px) {
+      main { padding: 12px; }
+      section { gap: 8px; }
+      h1 { font-size: 20px; }
+      h2 { font-size: 15px; min-height: 58px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Boxy Hood Comparison</h1>
+      <p>Staged registration / Awaiting approval</p>
+    </header>
+    <section aria-label="Boxy hood comparison">
+      <figure>
+        <h2>Regular Hood</h2>
+        <a href="boxy-regular.svg"><img src="boxy-regular.png" width="1000" height="1000" alt="Existing Regular Hood on the unchanged Boxy body"></a>
+      </figure>
+      <figure>
+        <h2>Oversized / Deep Hood</h2>
+        <a href="boxy-registered.svg"><img src="boxy-registered.png" width="1000" height="1000" alt="Reference-scaled Oversized Deep Hood on the same unchanged Boxy body"></a>
+      </figure>
+    </section>
+    <footer><a href="boxy-attachment.png">Deep neckline detail</a></footer>
+  </main>
+</body>
+</html>

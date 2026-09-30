@@ -1,4 +1,5 @@
 import type { GarmentType } from './builderSteps';
+import { getHoodBundleAsset, getHoodBundleVariantForFit } from './hoodBundles';
 
 export const GARMENT_NONE = '__none__';
 
@@ -112,6 +113,8 @@ export function getGarmentAssetOptionLabel(
 ): string {
   const registration = hoodieRegistration(asset.id);
   if (registration) return registration.label;
+  const hood = getHoodBundleAsset(asset.id);
+  if (hood) return hood.bundle.label;
   if (asset.id.startsWith('hoodie/Left sleeve/')) {
     if (asset.displayName.startsWith('Dropped Shoulder ')) return 'Dropped Shoulder Sleeve';
     return asset.displayName.startsWith('Raglan ') ? 'Raglan Sleeve' : 'Set-in Sleeve';
@@ -837,6 +840,8 @@ export function isAssetAvailableForFit(
 ): boolean {
   const registration = hoodieRegistration(asset.id);
   if (registration) return registration.fit === fit;
+  const hood = garmentType === 'hoodie' ? getHoodBundleAsset(asset.id) : undefined;
+  if (hood) return hood.variant.fit === fit;
   const config = GARMENT_CONFIGS[garmentType];
   if (!config.fits?.length) return true;
   if (inferAssetFitId(asset.displayName, garmentType) === fit) return true;
@@ -850,7 +855,7 @@ export function getGarmentAssetsForFit(
 ): GarmentAsset[] {
   const categoryAssets = getGarmentAssets(garmentType, category);
   const assets = garmentType === 'hoodie' && category === 'Hood'
-    ? categoryAssets.filter((asset) => /^(?:Hood|Scuba hood)(?:\s*\([^)]+\))?$/.test(asset.displayName))
+    ? categoryAssets.filter((asset) => getHoodBundleAsset(asset.id) !== undefined)
     : categoryAssets;
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   if (!resolvedFit) return assets;
@@ -1008,8 +1013,19 @@ export function applyGarmentFitAndLinks(
         !keepCustom
       ) {
         const previous = getGarmentAsset(current ?? '');
+        const bundledHood = garmentType === 'hoodie' && category === 'Hood' && previous
+          ? getHoodBundleVariantForFit(previous.id, resolvedFit)
+          : undefined;
+        if (garmentType === 'hoodie' && category === 'Hood'
+          && getHoodBundleAsset(current)?.variant.frontConstruction === 'crossover') {
+          const exact = allowed.find(asset => asset.id === bundledHood?.views.front.assetId);
+          if (exact) next[category] = exact.id;
+          continue;
+        }
         const matchingHood = garmentType === 'hoodie' && (category === 'Hood' || category === 'Left sleeve') && previous
-          ? allowed.find((asset) => getGarmentAssetOptionLabel(asset) === getGarmentAssetOptionLabel(previous))
+          ? allowed.find((asset) => bundledHood
+            ? asset.id === bundledHood.views.front.assetId
+            : getGarmentAssetOptionLabel(asset) === getGarmentAssetOptionLabel(previous))
           : undefined;
         next[category] = (matchingHood ?? allowed[0]).id;
       }
@@ -1135,8 +1151,10 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     if (!layerId) continue;
 
     const referenceAssetId = hoodieRegistration(asset.id)?.transformReferenceAssetId;
-    const referenceAsset = getGarmentAsset(referenceAssetId ?? asset.id);
+    const hood = getHoodBundleAsset(asset.id);
+    const referenceAsset = getGarmentAsset(referenceAssetId ?? hood?.variant.registration.referenceAssetId ?? asset.id);
     const previousScuba = asset.garmentType === 'hoodie' && category === 'Hood' && referenceAsset
+      && (!hood || hood.variant.registration.referenceSource === 'previous-scuba')
       ? previousScubaHoods[`../../assets/studio-hoodie/hoods/supplied-scuba-20260925/previous/${referenceAsset.fileName}`]
       : undefined;
 
@@ -1146,7 +1164,8 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       assetId: asset.id,
       displayName: getGarmentAssetOptionLabel(asset),
       svgRaw: asset.svgRaw,
-      transformReferenceSvg: previousScuba ?? (referenceAssetId ? referenceAsset?.svgRaw : undefined),
+      transformReferenceSvg: previousScuba ?? (referenceAssetId || (hood && hood.variant.registration.referenceAssetId !== asset.id)
+        ? referenceAsset?.svgRaw : undefined),
       kind: config.detailCategories.includes(category) ? 'detail' : 'solid',
       tint: input.partColors?.[layerId] ?? trimForCategory(input.garmentType, category, input),
       zIndex: config.categoryZIndex[category] ?? 0,

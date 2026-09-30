@@ -92,6 +92,8 @@ import {
 } from '../components/builder/measurementPreviewSizing';
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
+import { HoodieStitchingPanel } from '../components/builder/HoodieStitching';
+import type { HoodieStitching } from '../data/hoodieStitching';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
 import { HOODIE_ASSEMBLY_VERSION } from '../data/hoodieAssembly';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
@@ -232,6 +234,7 @@ interface BuilderState {
   stitchingType?: string;
   /** Thread / contrast stitch colour (hex) */
   stitchingColor?: string;
+  hoodieStitching?: HoodieStitching;
   neckTrimColor?: string;
   sleeveTrimColor?: string;
   /** Cuff / sleeve-hem trim (t-shirt SVG preview). */
@@ -1228,6 +1231,7 @@ export function Builder() {
     if (stepId < GARMENT_PART_STEPS.first || stepId > GARMENT_PART_STEPS.last) return false;
 
     const pack = resolveProductSvgType(state.garmentType, state.svgPack);
+    if (pack === 'hoodie' && stepId === 8) return false;
     if (!pack || !getGarmentSvgConfig(pack).restrictStepsToPack) return false;
     return getGarmentCategoriesForStep(pack, stepId).length === 0;
   };
@@ -1305,6 +1309,9 @@ export function Builder() {
   const garmentPreviewStepMax = garmentSvgType
     ? getGarmentSvgConfig(garmentSvgType).previewStepMax
     : 0;
+  const hoodieStitchLayers = useMemo(() => garmentSvgType === 'hoodie' ? resolveGarmentLayers({
+    garmentType: 'hoodie', selection: garmentSelection, fit: activeFit,
+  }) : [], [garmentSvgType, garmentSelection, activeFit]);
   const showGarmentLayerToolbar =
     isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax;
   const tshirtSelectedAssetName = useMemo(() => {
@@ -2624,6 +2631,10 @@ export function Builder() {
         );
 
       case 8:
+        if (garmentSvgType === 'hoodie' && !techpackSpecFlow) {
+          return <HoodieStitchingPanel layers={hoodieStitchLayers} settings={state.hoodieStitching}
+            onChange={hoodieStitching => setState(prev => ({ ...prev, hoodieStitching }))} />;
+        }
         if (isGarmentSvgFlow && garmentSvgType && getGarmentCategoriesForStep(garmentSvgType, 8).length > 0) {
           return (
             <div className="space-y-4">
@@ -3516,6 +3527,7 @@ export function Builder() {
                     customCollars={state.customCollars}
                     layerTransforms={state.tshirtLayerTransforms}
                     hoodieAssemblyVersion={state.hoodieAssemblyVersion}
+                    hoodieStitching={state.hoodieStitching}
                     className="h-full w-full min-h-0"
                   />
                   <MeasurementGuideOverlay highlightedId={highlightedMeasurementId} />
@@ -3617,6 +3629,7 @@ export function Builder() {
                   customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}
                   hoodieAssemblyVersion={state.hoodieAssemblyVersion}
+                  hoodieStitching={state.hoodieStitching}
                   onLayerTransformChange={(id, transform) =>
                     setState((prev) => ({
                       ...prev,

@@ -313,7 +313,8 @@ function measureAllPotraceBBoxes(
   try {
     const svg = host.querySelector('svg');
     const group = svg?.querySelector('g[transform]') as SVGGElement | null;
-    const paths = Array.from(host.querySelectorAll('svg path')) as SVGPathElement[];
+    const paths = Array.from(host.querySelectorAll<SVGPathElement>('svg path'))
+      .filter(path => !path.closest('defs, mask, clipPath'));
     if (!group || paths.length === 0) return { full: null, left: null, right: null };
 
     const { tx, ty, sx, sy } = parsePotraceGroupTransform(group.getAttribute('transform') ?? '');
@@ -353,7 +354,14 @@ function measureAllPotraceBBoxes(
       try {
         const b = path.getBBox();
         if (b.width > 0 || b.height > 0 || b.x !== 0 || b.y !== 0) {
-          const viewBox = potraceLocalBBoxToViewBox(b, metrics);
+          let viewBox = potraceLocalBBoxToViewBox(b, metrics);
+          const clipId = path.getAttribute('clip-path')?.match(/^url\(#([^)]+)\)$/)?.[1];
+          const clip = clipId ? Array.from(svg?.querySelectorAll('clipPath') ?? []).find(element => element.id === clipId) : undefined;
+          if (viewBox && clip?.children.length === 1 && clip.getAttribute('clipPathUnits') !== 'objectBoundingBox') {
+            const clipShape = clip.firstElementChild as SVGGraphicsElement;
+            const clipBounds = potraceLocalBBoxToViewBox(clipShape.getBBox(), metrics);
+            if (clipBounds) viewBox = intersectBBoxes(viewBox, clipBounds);
+          }
           if (viewBox) {
             ({ minX: fullMinX, maxX: fullMaxX, minY: fullMinY, maxY: fullMaxY } = unionIntoExtents(
               fullMinX,

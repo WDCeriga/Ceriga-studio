@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "styleId": "oversized-deep",
+  "status": "registration-review-only",
+  "installed": false,
+  "shapeSha256": "37919ed8a2132fc3bc46bebb966189217fe39eef7d5d615a17a0e0c2de7d9beb",
+  "method": "Uniform source transform; exact body exclusion mask and existing neckline contact strip. No hood-body or opening warp.",
+  "compatibleConstructionTested": "Body (set-in)",
+  "fits": {
+    "boxy": {
+      "scale": 1.7387914230019492,
+      "translateX": 415.2923976608188,
+      "translateY": 41.86354775828465,
+      "gaps": 0,
+      "unwantedFabricOverlap": 0,
+      "maximumAttachmentChange": 17,
+      "shoulderCollisions": 0,
+      "conversionDifferences": 16,
+      "packedSha256": "c9e0c8227ccff421e1b52a25eb676977a0db3e6fdf1f3be9446b77494778f7d1",
+      "changedPixels": 4288,
+      "bodySha256": "c893ea33c378bca00eb2f512c36952fd406092193deecc75b72b8fb9015f8f45",
+      "candidateSha256": "19b494825ce901dd5984528e2e7fa9b0da0f5396bfc00488e775bfcc59ccfbc5",
+      "drawstrings": "Rigidly transformed with the hood; intentional chest overlap, excluded from fabric-intersection test.",
+      "socket": {
+        "left": 816,
+        "right": 1230,
+        "bottom": 680
+      }
+    }
+  },
+  "scaleCalibration": {
+    "source": "../reference.png",
+    "reference": {
+      "necklineBottom": 367,
+      "torsoHem": 880,
+      "crownTop": 25
+    },
+    "method": "Match reference neckline-to-torso-hem distance to Boxy; never normalize to Regular hood size.",
+    "torsoCanvasHeight": 892,
+    "scale": 1.7387914230019492,
+    "regular": {
+      "crownY": 140,
+      "width": 415,
+      "height": 540
+    },
+    "deep": {
+      "crownY": 85,
+      "width": 502,
+      "height": 595
+    }
+  },
+  "liveAssetsUnchanged": true
+}

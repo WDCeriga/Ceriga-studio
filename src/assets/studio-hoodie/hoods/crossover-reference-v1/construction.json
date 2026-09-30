@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "frontConstruction": "crossover",
+  "sourceFile": "crossover.jfif",
+  "sourceSha256": "39dcc8fcbf33e7c7d40085f27c519ea0f20f939826fa1c4ae17d258e6aec35c8",
+  "method": "Reference-derived overlapping front panels; existing crown, upper opening band, attachment and cords retained. Original covered fabric and ink removed before inserting replacement panels.",
+  "authorization": "User requested reference-based crossover assets and live selection; visual review remains available.",
+  "fits": {
+    "regular/boxy": {
+      "file": "regular-boxy.svg",
+      "sha256": "8e1226112cb0d3a48441f3d7ac461605244f02ea4b31990b5f76e9a29ae9b0c1",
+      "standardSha256": "37c362fdd01363e6ecd89a75cc4ef4a59e220ad588f9e9928c419dde3d9a4d41",
+      "startY": 550,
+      "left": 935.5,
+      "right": 1110,
+      "bottom": 680,
+      "changedPixels": 4061,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M935.5 550 C996.575 608.5 1026.24 651.4 1054.16 677 L796 690 L796 550 Z",
+        "front": "M1110 550 C1048.925 608.5 1019.26 651.4 994.83 678 L1250 690 L1250 550 Z"
+      }
+    },
+    "regular/cropped": {
+      "file": "regular-cropped.svg",
+      "sha256": "4c2070a161184d2a9d3095aa9da4adf4e1e0c1b840d0fc7100d1b173846a687e",
+      "standardSha256": "cbfda9d24b297be05f4d16a7ab6e08dc7fabe10001206b5527745e7673cc0054",
+      "startY": 556,
+      "left": 923,
+      "right": 1119,
+      "bottom": 694,
+      "changedPixels": 4236,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M923 556 C991.6 618.1 1024.92 663.64 1056.28 691 L805 704 L805 556 Z",
+        "front": "M1119 556 C1050.4 618.1 1017.08 663.64 989.64 692 L1236 704 L1236 556 Z"
+      }
+    },
+    "regular/baggy": {
+      "file": "regular-baggy.svg",
+      "sha256": "cce26f1ddbf0714526df0c5b449bb1a1e2cdba3d026a680723421e562b8bde95",
+      "standardSha256": "7c3ada1800a418d7358435bbc120e9c478c73c2fbccef4ea34324c8d3378a06c",
+      "startY": 527,
+      "left": 934.5,
+      "right": 1105.5,
+      "bottom": 655,
+      "changedPixels": 3829,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M934.5 527 C994.35 584.6 1023.42 626.84 1050.78 652 L799 665 L799 527 Z",
+        "front": "M1105.5 527 C1045.65 584.6 1016.58 626.84 992.64 653 L1242 665 L1242 527 Z"
+      }
+    },
+    "regular/regular": {
+      "file": "regular-regular.svg",
+      "sha256": "4304c9c20d76761b6e8597096befc45babd33fb7507562ddca45deb2287cf2dd",
+      "standardSha256": "43f617a567ccc2e7971f560cad958386971cf94ee39b3cd64cc850b3a4d42ce2",
+      "startY": 518,
+      "left": 912,
+      "right": 1134,
+      "bottom": 652,
+      "changedPixels": 5024,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M912 518 C989.7 578.3 1027.44 622.52 1062.96 649 L788 662 L788 518 Z",
+        "front": "M1134 518 C1056.3 578.3 1018.56 622.52 987.48 650 L1258 662 L1258 518 Z"
+      }
+    },
+    "regular/slim": {
+      "file": "regular-slim.svg",
+      "sha256": "e094ed81c0a05534be0a336142e714afe81b62ca0895338060c2b7daca899b4f",
+      "standardSha256": "ffca4a664d790dda6fb735245c77e2345ebae614b4b60c7a9d1a034bc4caa5a1",
+      "startY": 524,
+      "left": 922,
+      "right": 1129,
+      "bottom": 662,
+      "changedPixels": 4536,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M922 524 C994.45 586.1 1029.64 631.64 1062.76 659 L799 672 L799 524 Z",
+        "front": "M1129 524 C1056.55 586.1 1021.36 631.64 992.38 660 L1251 672 L1251 524 Z"
+      }
+    },
+    "oversized-deep/boxy": {
+      "file": "oversized-deep-boxy.svg",
+      "sha256": "90c2ca86ab363405ba82d0e27fea95e32f2b6fceeee9988da28de6c39083b941",
+      "standardSha256": "c9e0c8227ccff421e1b52a25eb676977a0db3e6fdf1f3be9446b77494778f7d1",
+      "startY": 537,
+      "left": 919,
+      "right": 1129.5,
+      "bottom": 680,
+      "changedPixels": 4003,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M919 537 C992.675 601.35 1028.46 648.54 1062.14 677 L750 690 L750 537 Z",
+        "front": "M1129.5 537 C1055.825 601.35 1020.04 648.54 990.57 678 L1295 690 L1295 537 Z"
+      }
+    },
+    "oversized-deep/cropped": {
+      "file": "oversized-deep-cropped.svg",
+      "sha256": "771c34a251b28f523148d7117bbe577047307b2fca125bf2eb7bc2715b9aca10",
+      "standardSha256": "7ac9cf4ca36147e9003be4a40493715bccbf3aa675cbb28f0108cac89885e908",
+      "startY": 551,
+      "left": 917,
+      "right": 1127.5,
+      "bottom": 694,
+      "changedPixels": 3664,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M917 551 C990.675 615.35 1026.46 662.54 1060.14 691 L748 704 L748 551 Z",
+        "front": "M1127.5 551 C1053.825 615.35 1018.04 662.54 988.57 692 L1293 704 L1293 551 Z"
+      }
+    },
+    "oversized-deep/baggy": {
+      "file": "oversized-deep-baggy.svg",
+      "sha256": "b720d7dfe579799fbb0f439607c5b22fcb5382fb5943cabfed92e54de72d46a5",
+      "standardSha256": "673fb5c2966ee6b137344259f7b8b3adb9b741896cf6244f31ccc0c32e0a0878",
+      "startY": 512,
+      "left": 916,
+      "right": 1126.5,
+      "bottom": 655,
+      "changedPixels": 3722,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M916 512 C989.675 576.35 1025.46 623.54 1059.14 652 L747 665 L747 512 Z",
+        "front": "M1126.5 512 C1052.825 576.35 1017.04 623.54 987.57 653 L1292 665 L1292 512 Z"
+      }
+    },
+    "oversized-deep/regular": {
+      "file": "oversized-deep-regular.svg",
+      "sha256": "86823879dc4983d6d8fd0bb24c9681af0a3b9afb59d5f2bc4dded991f1707619",
+      "standardSha256": "c95d5feeb2cb4ca7c769d8156b60a288a58a5003a7e360070d60f1336b5d112c",
+      "startY": 509,
+      "left": 919,
+      "right": 1130,
+      "bottom": 652,
+      "changedPixels": 4146,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M919 509 C992.85 573.35 1028.72 620.54 1062.48 649 L750 662 L750 509 Z",
+        "front": "M1130 509 C1056.15 573.35 1020.28 620.54 990.74 650 L1296 662 L1296 509 Z"
+      }
+    },
+    "oversized-deep/slim": {
+      "file": "oversized-deep-slim.svg",
+      "sha256": "cd7576c06a788bcdc6852150dc8bec3883e5a3bd579eaf51a300f4983f9e138e",
+      "standardSha256": "19f4fa5f64e6cca984a7a4358721b49cfe1a8f4909c749aef4f924783c46aee6",
+      "startY": 519,
+      "left": 921,
+      "right": 1131.5,
+      "bottom": 662,
+      "changedPixels": 3630,
+      "crownUnchanged": true,
+      "attachmentUnchanged": true,
+      "frontPanels": {
+        "rear": "M921 519 C994.675 583.35 1030.46 630.54 1064.14 659 L752 672 L752 519 Z",
+        "front": "M1131.5 519 C1057.825 583.35 1022.04 630.54 992.57 660 L1297 672 L1297 519 Z"
+      }
+    }
+  }
+}

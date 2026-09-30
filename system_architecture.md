@@ -1,8 +1,140 @@
 # Asset Architecture
 
+## Hood bundles
+
+`src/app/data/hoodBundles.ts` is the hood metadata registry. It does not generate,
+modify or install geometry. `garmentSvgCatalog.ts` uses it for built-in hood
+discovery, labels, fit compatibility, same-style fit switching and registration
+reference selection. Existing renderer output remains unchanged.
+
+| Stable bundle ID | Style ID | Initial variants |
+| --- | --- | --- |
+| `ceriga/hood/regular` | `regular` | Existing Regular front SVGs for all five fits |
+| `ceriga/hood/scuba` | `scuba` | Existing Scuba front SVGs for all five fits |
+| `ceriga/hood/oversized-deep` | `oversized-deep` | Reference-v3 front SVGs for Slim, Regular, Boxy, Cropped and Baggy |
+
+Schema v2 separates family from front construction. `HoodSelection` is the
+derived selection contract (the registry's stable `styleId` supplies `hoodStyle`):
+
+```ts
+type HoodSelection = {
+	hoodStyle: 'regular' | 'oversized-deep' | 'scuba' | `custom:${string}`;
+	frontConstruction: 'standard' | 'crossover';
+};
+```
+
+| Hood Type | Front Construction | Current availability |
+| --- | --- | --- |
+| Regular Hood | Standard / Crossover | Both enabled across all five fits, with distinct SVGs |
+| Oversized / Deep Hood | Standard / Crossover | Both enabled across all five fits, with distinct SVGs |
+| Scuba Hood | Standard | Existing construction only; no crossover option |
+
+The UI groups assets by family, then displays a separate Front Construction
+segmented control. Availability is fit-specific and requires a selectable variant
+and a catalog asset. Construction changes select an actual asset ID, not an SVG
+overlay or extra linework. Regular/Deep family changes retain construction;
+missing combinations disable that family choice rather than selecting Standard.
+Choosing Scuba explicitly selects its only construction, Standard. If a saved
+Crossover has no asset for a requested fit, retain its ID rather than silently
+substituting Standard; that construction option is unavailable for the new fit.
+
+Every variant declares `frontConstruction` and `approval`. Existing installed
+standard assets use `approval: { status: 'existing' }` to preserve their current
+availability without asserting new approval. New assets use `pending` until
+approved, then `{ status: 'approved', referenceIds: [...] }`. Crossover requires
+reference-linked approval; `existing` cannot enable it. Compatibility, approval,
+fit and exact construction are checked by resolvers. An unavailable crossover
+request returns no asset, never a standard asset posing as crossover. Layer and
+drawstring choices remain independent of front construction.
+
+### Crossover reference and approval boundary
+
+The user authorized building and enabling Crossover using `crossover.jfif`, the
+FIRST technical reference, and clarified that each existing hood must stay the
+same except for the crossover front. This authorization is recorded by the
+reference-linked `approved` availability gate; it is not a claim of subsequent
+visual sign-off. Scuba remains unchanged.
+
+`scripts/collar/build_crossover_hoods.mjs <reference> --install` builds ten
+distinct SVGs. It preserves original Bezier artwork, replaces covered lower
+fabric and ink with ordered overlapping panels, and retains Deep drawstrings.
+The original crown and upper band are checked with a one-channel-level raster
+rounding tolerance; the per-column lower silhouette must be identical. Standard
+asset hashes must remain unchanged. No new body or sleeve geometry is authored.
+
+Proofs and source hashes live in `studio-hoodie/hoods/crossover-reference-v1`:
+isolated/technical SVGs, source overlay, family comparisons, five-fit assemblies,
+builder screenshots and `construction.json`. Live IDs use `Regular Crossover Hood`
+and `Deep Crossover Hood`, with the existing fit suffix convention. Crossover
+uses its family's Standard transform reference because the outer bounds are
+unchanged, preserving selection, scaling and Reset origins.
+
+Each variant has a stable ID and option ID, fit, construction/drawstring states,
+front asset ID, nullable future back asset and socket ID, front neckline reference,
+compatible body constructions, and registration metadata. The placement remains
+baked into the 2048-square asset, with identity as the default user transform.
+Socket profiles are `null`, not guessed measurements. Existing Scuba variants
+retain the archived Scuba pivot; Regular retains its own pivot. No rear asset or
+rear attachment is claimed. The `oversized` fit type reserves a future contract;
+it is not an enabled fit and is never aliased to Boxy or Baggy.
+
+The schema recognizes single-layer/double-layer and drawstring/no-drawstring.
+`constructionOptions` is the vocabulary, not a list of available geometry.
+Existing variants are `as-authored`: no alternate construction has been certified.
+`getHoodBundleConstructionVariant` returns only an exact authored combination,
+otherwise `undefined`. Placeholders have no variants and never appear in the
+picker. New geometry must come from user-supplied references; archived experiments
+and the staged Regular reference drawings are not automatically installed.
+
+Persistence remains `tshirtAssetSelection.Hood = <existing asset ID>`; bundle
+metadata is derived, not copied into saved state. Compatible fit changes resolve
+by stable bundle/option/front-construction identity. Hidden registered hood IDs keep their legacy
+resolution path. There is no state migration or history change. Color stays in
+`partColors.hood`, with the original fabric tint and construction ink behavior.
+Transforms stay in `tshirtLayerTransforms.hood`; Reset removes that entry through
+the existing Builder handler. Selection, color and other part transforms survive.
+
+Future custom hood packages can use `custom:<id>` style IDs, user-reference
+provenance and the same variant contract after validation/registration. This is a
+schema extension point only, not upload support, an upload endpoint or dynamic
+installation. Future back rendering also requires explicit view wiring and
+validated rear sockets; front assets are not reused as rear geometry.
+
+Run `node scripts/collar/test_hood_bundles.mjs` for the pinned pre-bundle rendering
+baseline (160 fit/construction transitions), saved-ID round trips, socket metadata
+and unavailable-option checks. Add `--browser` to start an ephemeral Vite server
+and test actual hood edits, Reset, undo/redo and fit switching in Edge. The test
+closes its server/browser. Saved-state checks cover serialization and resolution,
+not authenticated cloud storage. Update the baseline only for approved changes
+to existing geometry/rendering behavior, never merely to make a failure pass.
+
 ## Hood registration and selection
 
-The Neck / Collar stage exposes Regular Hood and Scuba Hood for all five fits. The user's new Scuba request supersedes the earlier Regular-only restriction. Funnel Hybrid Hood and Oversized Hood remain archived. Existing Regular Hood IDs and geometry remain unchanged. The catalog preserves Scuba across fit changes and falls back to Regular for removed variants.
+The Neck / Collar stage exposes Regular Hood, Oversized / Deep Hood and Scuba Hood for all five fits. Funnel Hybrid Hood and the old Oversized Hood remain archived. Existing Regular and Scuba IDs and geometry remain unchanged. The catalog preserves bundle/option identity across fit changes.
+
+### Reference-derived Oversized / Deep Hood
+
+The approved `deep-reference-v3/shape.json` records the user-supplied `newneck.png`
+reference and the unchanged silhouette/opening. `register_deep_shape.mjs` applies
+uniform scale and translation to the hood and cords, with only a local neckline
+contact strip and body-exclusion mask. Original Bezier paths are retained, not
+re-traced. Two fabric/ink groups use the established inverted canvas coordinates;
+SVG definitions are excluded from transform bounds and the contact clip bounds
+are respected. Default user transforms remain identity.
+
+The five installed `Oversized Deep Hood` assets are the `reference-v3` option in
+`oversized-deep`, with authored drawstrings and unspecified layer construction.
+Only set-in bodies are geometry-certified; raglan/dropped-shoulder and rear views
+are not claimed. No body, sleeve, cuff, hem, pocket, Regular or Scuba asset changed.
+
+Run `node scripts/collar/register_deep_shape.mjs` for geometric checks and proofs.
+Before initial installation, `node scripts/collar/test_hood_bundles.mjs --staged-deep --browser`
+exposes candidates through a test-only Vite overlay. The resulting hash report
+gates `register_deep_shape.mjs --install`, which refuses existing targets.
+After installation, `test_hood_bundles.mjs --browser` verifies the live catalog,
+all 25 Deep fit transitions, per-fit Reset/undo/redo, visible transform bounds,
+unchanged other parts, and 160 pinned legacy snapshots. Reports and the five-fit
+review are retained in `src/assets/studio-hoodie/hoods/deep-reference-v3`.
 
 ### Current high-neck Scuba
 

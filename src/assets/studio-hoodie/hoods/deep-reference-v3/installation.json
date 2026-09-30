@@ -1,0 +1,50 @@
+{
+  "styleId": "oversized-deep",
+  "reference": "shape.json",
+  "assets": [
+    {
+      "source": "src\\assets\\studio-hoodie\\hoods\\deep-reference-v3\\slim-live.svg",
+      "target": "src\\assets\\hoodie-test\\Hood\\Oversized Deep Hood (slim).svg",
+      "sha256": "19f4fa5f64e6cca984a7a4358721b49cfe1a8f4909c749aef4f924783c46aee6",
+      "previousSha256": "ae1697d769386ddb45fed34fbe1d24f9a552047bf2fc5e81eadab67757f2c65e"
+    },
+    {
+      "source": "src\\assets\\studio-hoodie\\hoods\\deep-reference-v3\\regular-live.svg",
+      "target": "src\\assets\\hoodie-test\\Hood\\Oversized Deep Hood (regular).svg",
+      "sha256": "c95d5feeb2cb4ca7c769d8156b60a288a58a5003a7e360070d60f1336b5d112c",
+      "previousSha256": "7fe17492913d8cd67eebfbb16a1e6562b4412acf1a9ca1c13fc3167208e93f98"
+    },
+    {
+      "source": "src\\assets\\studio-hoodie\\hoods\\deep-reference-v3\\boxy-live.svg",
+      "target": "src\\assets\\hoodie-test\\Hood\\Oversized Deep Hood.svg",
+      "sha256": "c9e0c8227ccff421e1b52a25eb676977a0db3e6fdf1f3be9446b77494778f7d1",
+      "previousSha256": "e873548b1fbf05604d02b5498a99acd8b34e38d9fba34c70abd1737d29d33e54"
+    },
+    {
+      "source": "src\\assets\\studio-hoodie\\hoods\\deep-reference-v3\\cropped-live.svg",
+      "target": "src\\assets\\hoodie-test\\Hood\\Oversized Deep Hood (cropped).svg",
+      "sha256": "7ac9cf4ca36147e9003be4a40493715bccbf3aa675cbb28f0108cac89885e908",
+      "previousSha256": "044903132a8d8048473e4a5cd0806b747038b212dd69382fa9df0e8ff028ac4b"
+    },
+    {
+      "source": "src\\assets\\studio-hoodie\\hoods\\deep-reference-v3\\baggy-live.svg",
+      "target": "src\\assets\\hoodie-test\\Hood\\Oversized Deep Hood (baggy).svg",
+      "sha256": "673fb5c2966ee6b137344259f7b8b3adb9b741896cf6244f31ccc0c32e0a0878",
+      "previousSha256": "083a70232f26d01e05e1b137a26b883a3c53a546ef5d13dc5b3185fa43b30fa3"
+    }
+  ],
+  "existingAssetsUnchanged": false,
+  "protectedAssetsUnchanged": true,
+  "scaleCalibration": {
+    "source": "reference.png",
+    "reference": {
+      "necklineBottom": 367,
+      "torsoHem": 880,
+      "crownTop": 25
+    },
+    "method": "Calibrate reference neckline-to-torso-hem distance on approved Boxy; preserve that uniform hood scale across all fits.",
+    "fit": "boxy",
+    "torsoCanvasHeight": 892,
+    "scale": 1.7387914230019492
+  }
+}

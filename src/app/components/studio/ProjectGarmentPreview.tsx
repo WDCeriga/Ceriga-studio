@@ -8,6 +8,7 @@ import {
   type GarmentSvgGarmentType,
 } from '../../data/garmentSvgCatalog';
 import type { TshirtLayerTransform } from '../../data/tshirtLayerAssets';
+import type { HoodieStitching } from '../../data/hoodieStitching';
 import { BuilderGarmentPreview } from '../builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../builder/TshirtSvgPreview';
 import { GarmentFlatIcon } from './GarmentFlatIcon';
@@ -29,6 +30,7 @@ export type ProjectPreviewState = {
   fadingType?: string;
   stitchingType?: string;
   stitchingColor?: string;
+  hoodieStitching?: HoodieStitching;
   neckTrimColor?: string;
   sleeveTrimColor?: string;
   cuffTrimColor?: string;
@@ -94,6 +96,7 @@ export function ProjectGarmentPreview({
           selection={selection}
           fit={preview.fit}
           hoodieAssemblyVersion={preview.hoodieAssemblyVersion}
+          hoodieStitching={preview.hoodieStitching}
           neckTrimColor={preview.neckTrimColor}
           sleeveTrimColor={preview.sleeveTrimColor}
           cuffTrimColor={preview.cuffTrimColor}

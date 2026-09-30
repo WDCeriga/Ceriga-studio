@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hoodie Seam Review</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eceef0; color: #18181b; font: 16px Georgia, serif; }
+    header { padding: 24px 32px; border-bottom: 1px solid #b8bdc2; }
+    h1 { margin: 0; font-size: 24px; }
+    main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 24px; }
+    section { min-width: 0; }
+    #waistband-cuff { grid-column: 1 / -1; }
+    #waistband-cuff svg.proof { aspect-ratio: 1230 / 290; }
+    h2 { font: 600 16px Georgia, serif; margin: 0 0 8px; }
+    svg.proof { display: block; width: 100%; aspect-ratio: 1; background: #fff; }
+    @media (max-width: 700px) { main { grid-template-columns: 1fr; padding: 12px; } }
+  </style>
+</head>
+<body>
+  <header><h1>Hoodie Seam Review</h1></header>
+  <main></main>
+  <script type="module">
+    import { resolveGarmentLayers, getDefaultGarmentSelection, getGarmentAssetsForFit, applyGarmentFitAndLinks } from '/src/app/data/garmentSvgCatalog.ts';
+    import { getHoodBundleAsset } from '/src/app/data/hoodBundles.ts';
+    import { measureHoodieSeams } from '/src/app/data/hoodieSeamGeometry.ts';
+    import { stitchPatternPath } from '/src/app/data/hoodieStitching.ts';
+    import { tintPotraceSvg } from '/src/app/lib/tshirtSvgUtils.ts';
+
+    const query = new URLSearchParams(location.search);
+    const fit = query.get('fit') || 'boxy';
+    const grid = query.has('grid');
+    const shots = [
+      ['regular', 'Regular Hood / Standard', 'regular', 'standard', 'set-in', [780, 80, 490, 650]],
+      ['deep-crossover', 'Oversized / Deep / Crossover', 'oversized-deep', 'crossover', 'set-in', [730, 60, 600, 650]],
+      ['scuba', 'Scuba Hood', 'scuba', 'standard', 'set-in', [760, 110, 540, 600]],
+      ['set-in', 'Set-in Sleeve Join', 'regular', 'standard', 'set-in', [460, 590, 460, 440]],
+      ['raglan', 'Raglan Sleeve Join', 'regular', 'standard', 'raglan', [460, 590, 460, 440]],
+      ['pocket', 'Kangaroo Pocket', 'regular', 'standard', 'set-in', [620, 1140, 820, 530]],
+      ['waistband-cuff', 'Waistband / Cuff', 'regular', 'standard', 'set-in', [420, 1500, 1230, 290]],
+      ['regular-crossover', 'Regular Hood / Crossover', 'regular', 'crossover', 'set-in', [780, 80, 490, 650]],
+      ['deep-standard', 'Oversized / Deep / Standard', 'oversized-deep', 'standard', 'set-in', [730, 60, 600, 650]],
+    ];
+    const namespace = 'http://www.w3.org/2000/svg';
+    for (const [id, title, family, construction, sleeve, bounds] of shots) {
+      let selection = getDefaultGarmentSelection('hoodie', fit);
+      const hood = getGarmentAssetsForFit('hoodie', 'Hood', fit).find(asset => {
+        const descriptor = getHoodBundleAsset(asset.id);
+        return descriptor?.bundle.styleId === family && descriptor.variant.frontConstruction === construction;
+      });
+      selection.Hood = hood.id;
+      if (sleeve === 'raglan') {
+        const asset = getGarmentAssetsForFit('hoodie', 'Left sleeve', fit).find(asset => /Raglan/.test(asset.id));
+        selection = applyGarmentFitAndLinks('hoodie', { ...selection, 'Left sleeve': asset.id }, fit);
+      }
+      const layers = resolveGarmentLayers({ garmentType: 'hoodie', fit, selection });
+      const geometry = await measureHoodieSeams(layers);
+      const section = document.createElement('section');
+      section.id = id;
+      const heading = document.createElement('h2');
+      heading.textContent = `${title} / ${fit}`;
+      section.append(heading);
+      const proof = document.createElementNS(namespace, 'svg');
+      proof.setAttribute('class', 'proof');
+      proof.setAttribute('viewBox', bounds.join(' '));
+      for (const layer of [...layers].sort((first, second) => first.zIndex - second.zIndex)) {
+        const raw = tintPotraceSvg(layer.svgRaw, '#545b63').replace(/id="([^"]+)"/g, `id="${id}-$1"`).replace(/url\(#([^)]+)\)/g, `url(#${id}-$1)`);
+        const source = new DOMParser().parseFromString(raw, 'image/svg+xml').documentElement;
+        source.setAttribute('width', '2048');
+        source.setAttribute('height', '2048');
+        proof.append(document.importNode(source, true));
+        if (!grid) {
+          const panel = geometry[layer.id];
+          const maskId = `${id}-${layer.id}-clearance`;
+          const group = document.createElementNS(namespace, 'g');
+          group.innerHTML = `<defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><image href="${panel.clearanceMask}" width="2048" height="2048"/></mask></defs>`;
+          for (const seam of panel.seams) {
+            const curve = document.createElementNS(namespace, 'path');
+            curve.setAttribute('d', seam.path);
+            const path = document.createElementNS(namespace, 'path');
+            path.setAttribute('d', stitchPatternPath(curve, 'double'));
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', '#FFEF00');
+            path.setAttribute('stroke-width', '3.4');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('mask', `url(#${maskId})`);
+            path.dataset.region = seam.region;
+            group.append(path);
+          }
+          proof.append(group);
+        }
+      }
+      if (grid) {
+        for (let position = 0; position <= 2048; position += 50) {
+          const lines = document.createElementNS(namespace, 'path');
+          lines.setAttribute('d', `M${position} 0V2048 M0 ${position}H2048`);
+          lines.setAttribute('stroke', '#ff7777');
+          lines.setAttribute('stroke-width', '.6');
+          proof.append(lines);
+          for (const [column, row] of [[position + 2, bounds[1] + 15], [bounds[0] + 3, position - 2]]) {
+            const text = document.createElementNS(namespace, 'text');
+            text.setAttribute('x', column);
+            text.setAttribute('y', row);
+            text.setAttribute('fill', '#ff5555');
+            text.setAttribute('font-size', '11');
+            text.textContent = position;
+            proof.append(text);
+          }
+        }
+      }
+      section.append(proof);
+      document.querySelector('main').append(section);
+    }
+    document.body.dataset.ready = 'true';
+  </script>
+</body>
+</html>

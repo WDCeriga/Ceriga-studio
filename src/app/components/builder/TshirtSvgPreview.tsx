@@ -41,6 +41,9 @@ import {
 } from '../../lib/tshirtSvgUtils';
 import { cn } from '../ui/utils';
 import { usesHoodieAssembly } from '../../data/hoodieAssembly';
+import type { HoodieStitching } from '../../data/hoodieStitching';
+import type { HoodiePanelSeams } from '../../data/hoodieSeamGeometry';
+import { HoodieStitchLayer, useHoodieSeams } from './HoodieStitching';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -221,6 +224,7 @@ export interface TshirtSvgPreviewProps {
   partColors?: Partial<Record<string, string>>;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   hoodieAssemblyVersion?: number;
+  hoodieStitching?: HoodieStitching;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
   onSelectedLayerChange?: (id: string | null) => void;
@@ -506,6 +510,8 @@ function PreviewLayer({
   clipSide,
   scaleFixedAnchor,
   layerId,
+  stitching,
+  seams,
 }: {
   layer: ResolvedGarmentLayer;
   fabricColor: string;
@@ -515,6 +521,8 @@ function PreviewLayer({
   clipSide?: SleeveSide;
   scaleFixedAnchor?: ScaleAnchor | null;
   layerId: string;
+  stitching?: HoodieStitching;
+  seams?: HoodiePanelSeams;
 }) {
   const fill = resolveLayerFill(layer, fabricColor);
 
@@ -535,6 +543,7 @@ function PreviewLayer({
         style={clipSide ? sleeveSideClipStyle(clipSide) : undefined}
       >
         <InlineSvg raw={layer.svgRaw} fill={fill} />
+        {stitching && seams && <HoodieStitchLayer panel={seams} settings={stitching} />}
       </div>
     </div>
   );
@@ -701,6 +710,7 @@ export function TshirtSvgPreview({
   partColors,
   layerTransforms,
   hoodieAssemblyVersion,
+  hoodieStitching,
   onLayerTransformChange,
   selectedLayerId = null,
   onSelectedLayerChange,
@@ -754,6 +764,7 @@ export function TshirtSvgPreview({
   );
 
   const garmentConfig = getGarmentSvgConfig(garmentType);
+  const hoodieSeams = useHoodieSeams(layers, garmentType === 'hoodie' && Boolean(hoodieStitching));
   const sleeveLayer = layers.find((layer) => layer.id === 'sleeves');
   const sleeveHemLayer = layers.find((layer) => layer.id === 'sleeveHem');
 
@@ -1057,6 +1068,8 @@ export function TshirtSvgPreview({
       )}
       onPointerDown={selectable ? handleBackgroundPointerDown : undefined}
       data-hoodie-assembly={garmentType === 'hoodie' ? assembled ? 'v1' : 'legacy' : undefined}
+      data-stitch-ready={hoodieSeams.geometry ? 'true' : undefined}
+      data-stitch-error={hoodieSeams.failed || undefined}
     >
       <div
         ref={canvasRef}
@@ -1080,6 +1093,8 @@ export function TshirtSvgPreview({
               alignOffset={alignOffset}
               clipSide={side}
               scaleFixedAnchor={scaleFixedAnchor}
+              stitching={garmentType === 'hoodie' ? hoodieStitching : undefined}
+              seams={hoodieSeams.geometry?.[id]}
             />
           );
         })}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "style": "regular",
+  "canvas": [
+    2048,
+    2048
+  ],
+  "status": "construction-reference-only",
+  "registered": false,
+  "reference": "User-supplied four-view regular hood drawing; manually reconstructed from visible contours, then rasterized and Potrace traced. Original attachment bytes unavailable.",
+  "poses": "Lowered and raised views of the same normal-depth hood, not separate hood styles.",
+  "fabric": "Single tintable fabric group; lining uses the same fabric color. Fixed technical ink.",
+  "attachment": "Reference attachment contour retained. No fit-specific registration, rear body validation or live installation performed.",
+  "sourceToCanvas": {
+    "scale": 3.5,
+    "crownTop": 300,
+    "centerX": 1024
+  },
+  "generatorSha256": "d0f62d4798c4f96b48082aa70e83c4013cd9e2145be1818851aa38465adcfb34",
+  "assets": [
+    {
+      "file": "front-lowered.svg",
+      "sha256": "7b077a878123430f895e52b6bde18eed05ff4f35a86e8a4e4b35a906cabfd651",
+      "view": "front",
+      "pose": "lowered"
+    },
+    {
+      "file": "back-lowered.svg",
+      "sha256": "808f4c1362bfdd5755cd902c6aa092fd19b69121743332417abb932c25975bc7",
+      "view": "back",
+      "pose": "lowered"
+    },
+    {
+      "file": "front-raised.svg",
+      "sha256": "dc408b4103c7f22535c0580fd9916c20682369f935dc351695a1db3a3d8aeb9a",
+      "view": "front",
+      "pose": "raised"
+    },
+    {
+      "file": "back-raised.svg",
+      "sha256": "dfa7061dc85fb774bec8c90bdd026c5289aa9c79fb06a4fbcdf7c293584f8064",
+      "view": "back",
+      "pose": "raised"
+    }
+  ]
+}

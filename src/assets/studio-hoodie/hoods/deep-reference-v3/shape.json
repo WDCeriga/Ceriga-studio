@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "styleId": "oversized-deep",
+  "status": "shape-review-only",
+  "registered": false,
+  "installed": false,
+  "sourceFile": "newneck.png",
+  "sourceSha256": "b3c2f6eccf6be79de5787925e515c4972635d09eb4162bd4c4ba282c381b01e5",
+  "sourceDimensions": [
+    700,
+    980
+  ],
+  "method": "Manual Bezier reconstruction of visible reference contours; simplified construction ink. Not an exact pixel trace.",
+  "preserved": [
+    "peaked crown",
+    "outer silhouette",
+    "deep opening",
+    "opening edge band",
+    "inward panel seams",
+    "curved reference attachment",
+    "two long front drawstrings"
+  ],
+  "simplified": [
+    "dotted stitching omitted",
+    "secondary lower-tail lines removed",
+    "drawstrings simplified and mirrored"
+  ],
+  "eyelets": "Cord exits retained; no separate metal rings invented.",
+  "constructionLayers": "unconfirmed",
+  "sourceToCanvas": {
+    "scale": 2.8,
+    "centerX": 1024,
+    "crownY": 170,
+    "purpose": "Isolated canvas framing only; no garment socket or fit registration."
+  },
+  "assets": [
+    {
+      "file": "isolated.svg",
+      "sha256": "549f201484959791133b3c45e874205bf173d02d0ef7fff1007cffe7c7414727"
+    },
+    {
+      "file": "technical.svg",
+      "sha256": "4ac0ddd7adb3f9946f728e4e317fb3c15f310cb2d72a8db619aaa63e59a74c9b"
+    }
+  ],
+  "validation": {
+    "twoGroups": true,
+    "nonempty": true,
+    "unclipped": true,
+    "liveAssetsUnchanged": true,
+    "approvedSilhouetteUnchanged": true,
+    "approvedOpeningUnchanged": true
+  }
+}
