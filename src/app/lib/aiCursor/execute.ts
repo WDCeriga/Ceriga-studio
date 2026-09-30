@@ -15,7 +15,7 @@ export type AiCursorDriver = {
   animateTo: (point: AiCursorPoint, durationMs?: number) => Promise<void>;
 };
 
-const DEFAULT_MOVE_MS = 720;
+const DEFAULT_MOVE_MS = 380;
 
 export async function executeAiCursorAction(
   action: AiCursorAction,

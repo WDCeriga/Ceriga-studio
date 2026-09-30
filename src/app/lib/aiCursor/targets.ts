@@ -66,12 +66,12 @@ export async function ensureTargetVisible(el: HTMLElement): Promise<void> {
     rect.right <= window.innerWidth - margin;
 
   if (!fullyVisible) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    await waitForScrollSettle(el);
+    el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+    await waitForScrollSettle(el, 280);
   }
 }
 
-function waitForScrollSettle(el: HTMLElement, timeoutMs = 900): Promise<void> {
+function waitForScrollSettle(el: HTMLElement, timeoutMs = 280): Promise<void> {
   return new Promise((resolve) => {
     let last = `${el.getBoundingClientRect().top},${el.getBoundingClientRect().left}`;
     let stableFrames = 0;

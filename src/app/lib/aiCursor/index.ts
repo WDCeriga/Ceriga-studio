@@ -4,7 +4,8 @@ export type {
   AiCursorPoint,
   AiCursorVisualState,
 } from './types';
-export { parseAiCursorActions } from './parseAiActions';
+export { parseAiCursorActions, extractAiCursorActionsFromStream } from './parseAiActions';
+export { guessCursorActionsFromUserMessage } from './eager';
 export {
   findAiTarget,
   listAiTargets,

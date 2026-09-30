@@ -25,6 +25,7 @@ import {
 import { askOpenRouter, type ChatTurn, type ChatTextPart, type ChatImagePart } from "../lib/openrouterChat";
 import { getBuilderChatContext } from "../lib/builderChatContext";
 import { formatAiTargetsForPrompt, listAiTargets } from "../lib/aiCursor/targets";
+import { guessCursorActionsFromUserMessage } from "../lib/aiCursor/eager";
 import { useAiCursorOptional } from "../contexts/AiCursorContext";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "./ui/utils";
@@ -154,14 +155,50 @@ export function SupportChatPanel({
       setFollowUps([]);
       const controller = new AbortController();
       requestAbortRef.current = controller;
+
+      // Instant cursor when the user clearly asks to be shown a control —
+      // don't wait for the LLM first token.
+      const lastUser = [...history].reverse().find((t) => t.role === "user");
+      const lastUserText =
+        typeof lastUser?.content === "string"
+          ? lastUser.content
+          : Array.isArray(lastUser?.content)
+            ? lastUser.content
+                .filter((p): p is ChatTextPart => p.type === "text")
+                .map((p) => p.text)
+                .join(" ")
+            : "";
+      const targets = listAiTargets();
+      const eager = guessCursorActionsFromUserMessage(lastUserText, targets);
+      let cursorStarted = false;
+      if (eager.length > 0 && aiCursor) {
+        cursorStarted = true;
+        void aiCursor.runActions(eager);
+      }
+
       void (async () => {
         let streamId: string | null = null;
         try {
-          const targetsBlock = formatAiTargetsForPrompt(listAiTargets());
+          const targetsBlock = formatAiTargetsForPrompt(targets);
           const contextParts = [builderContextRef.current, targetsBlock].filter(Boolean);
           const result = await askOpenRouter(history, {
             signal: controller.signal,
             contextBlock: contextParts.length > 0 ? contextParts.join("\n\n") : null,
+            onCursorActions: (actions) => {
+              if (controller.signal.aborted || !aiCursor || actions.length === 0) return;
+              // Prefer the model's target if it arrives; skip if we already
+              // pointed at the same id eagerly.
+              if (
+                cursorStarted &&
+                eager[0]?.action === "move_cursor" &&
+                actions[0]?.action === "move_cursor" &&
+                eager[0].target === actions[0].target
+              ) {
+                return;
+              }
+              cursorStarted = true;
+              void aiCursor.runActions(actions);
+            },
             onDelta: (accumulated) => {
               if (controller.signal.aborted) return;
               if (!streamId) {
@@ -178,14 +215,19 @@ export function SupportChatPanel({
               ? FALLBACK_REPLIES.noKey
               : FALLBACK_REPLIES.generic;
           const finalText = result.ok ? result.text : fallbackText;
-          // Promote whatever was streamed (or the fallback) to a persisted
-          // message and surface its follow-up suggestions.
           setMessages((m) => [...m, { id: streamId ?? newId(), role: "assistant", text: finalText }]);
           if (result.ok) {
             setFollowUps(result.followUps);
-            if (result.cursorActions.length > 0 && aiCursor) {
+            if (!cursorStarted && result.cursorActions.length > 0 && aiCursor) {
               void aiCursor.runActions(result.cursorActions);
             }
+          }
+        } catch {
+          if (!controller.signal.aborted) {
+            setMessages((m) => [
+              ...m,
+              { id: streamId ?? newId(), role: "assistant", text: FALLBACK_REPLIES.generic },
+            ]);
           }
         } finally {
           if (!controller.signal.aborted) {
@@ -224,9 +266,10 @@ export function SupportChatPanel({
   useEffect(() => {
     if (layout === "sheet" && !sheetOpen) {
       cancelPendingReply();
-      aiCursor?.clearCursor();
+      // Keep the AI cursor visible after closing the sheet so the user can
+      // still see what was pointed at (especially on full-screen mobile chat).
     }
-  }, [layout, sheetOpen, cancelPendingReply, aiCursor]);
+  }, [layout, sheetOpen, cancelPendingReply]);
 
   /** Fetch builder context when the chat becomes visible; refetch per open
    * so the context tracks the project the user last touched. */

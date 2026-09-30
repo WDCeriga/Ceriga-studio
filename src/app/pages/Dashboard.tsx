@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router';
 import { Plus, ArrowRight } from 'lucide-react';
 import { builderPath, type ProjectFlowType } from '../lib/projectFlow';
-import { DashboardLiveChat } from '../components/DashboardLiveChat';
 import { NotificationBell } from '../components/NotificationBell';
 import { ProjectGarmentPreview } from '../components/studio/ProjectGarmentPreview';
 import {
@@ -296,8 +295,6 @@ export function Dashboard() {
           </Link>
         </p>
       )}
-
-      <DashboardLiveChat />
     </div>
   );
 }

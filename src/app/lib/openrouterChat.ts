@@ -11,7 +11,11 @@
  * the key server-side.
  */
 
-import { parseAiCursorActions } from "./aiCursor/parseAiActions";
+import {
+  extractAiCursorActionsFromStream,
+  parseAiCursorActions,
+  stripAiCursorActionLines,
+} from "./aiCursor/parseAiActions";
 import type { AiCursorAction } from "./aiCursor/types";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -22,13 +26,14 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
  * the runtime discovery below normally makes this irrelevant.
  */
 const STATIC_TEXT_MODELS = [
-  "nvidia/nemotron-3.5-lightning:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
   "poolside/laguna-s-2.1:free",
+  "cohere/north-mini-code:free",
   "liquid/lfm-2.5-2.6b:free",
-  "google/gemma-4-31b-it:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "nvidia/nemotron-3.5-lightning:free",
 ] as const;
+
+/** Primary free chat model (benched for TTFT + AI_ACTIONS). Change here — not via env. */
+const PRIMARY_MODEL: string = STATIC_TEXT_MODELS[0];
 
 /** Static fallback for image-input conversations. */
 const STATIC_VISION_MODELS = [
@@ -37,15 +42,25 @@ const STATIC_VISION_MODELS = [
   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
 ] as const;
 
-/** Known-good chat models, fastest first (time-to-first-token and output
- * speed from OpenRouter's stats). */
+/** @deprecated Prefer STATIC_TEXT_MODELS — kept as alias for modelChain. */
+const FREE_MODELS = STATIC_TEXT_MODELS;
+/** @deprecated Prefer STATIC_VISION_MODELS. */
+const FREE_VISION_MODELS = STATIC_VISION_MODELS;
+
+/**
+ * Fastest usable free chat models first (live-benched for TTFT + Ceriga
+ * AI_ACTIONS compliance). Avoid default-on heavy reasoning models.
+ */
 const PREFERRED_ORDER = [
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "nvidia/nemotron-3.5-lightning:free",
   "poolside/laguna-s-2.1:free",
+  "cohere/north-mini-code:free",
   "liquid/lfm-2.5-2.6b:free",
+  "nvidia/nemotron-3.5-lightning:free",
   "google/gemma-4-31b-it:free",
 ];
+
+/** Cap how many models we try — long fallback chains feel frozen. */
+const MAX_MODEL_ATTEMPTS = 3;
 
 /** Not chat models or refuse to serve a plain browser chat (verified 403). */
 const EXCLUDE_PATTERN =
@@ -98,25 +113,27 @@ function isUsableChatModel(m: OpenRouterModel, needsVision: boolean): boolean {
 }
 
 /**
- * Build the model chain at runtime from OpenRouter's live catalogue so
- * delisted models never break the chat. Order: env-configured primary, then
- * known-good preferences, then everything else newest-first. Falls back to
- * the static lists when the catalogue is unreachable.
+ * Prefer the static fast chain immediately so we don't block on the models
+ * catalogue. Refresh the catalogue in the background for later turns.
  */
 async function resolveModelChain(apiKey: string, history: ChatTurn[]): Promise<string[]> {
   const needsVision = historyHasImage(history);
-  const catalog = await fetchModelCatalog(apiKey);
+  const primary = PRIMARY_MODEL;
+  const staticFallback = needsVision ? [...STATIC_VISION_MODELS] : [...STATIC_TEXT_MODELS];
+  const fastChain = [primary, ...staticFallback.filter((m) => m !== primary)].slice(
+    0,
+    MAX_MODEL_ATTEMPTS,
+  );
 
-  if (!catalog) {
-    const fallback = needsVision ? [...STATIC_VISION_MODELS] : [...STATIC_TEXT_MODELS];
-    const primary = primaryModel();
-    return [primary, ...fallback.filter((m) => m !== primary)];
+  // Warm / refresh catalogue without delaying this request.
+  void fetchModelCatalog(apiKey);
+
+  if (!modelsCache?.models?.length) {
+    return fastChain;
   }
 
-  const usable = catalog.filter((m) => isUsableChatModel(m, needsVision));
+  const usable = modelsCache.models.filter((m) => isUsableChatModel(m, needsVision));
   const usableIds = new Set(usable.map((m) => m.id));
-
-  const primary = primaryModel();
   const ordered: string[] = [];
   const push = (id: string) => {
     if (usableIds.has(id) && !ordered.includes(id)) ordered.push(id);
@@ -124,38 +141,23 @@ async function resolveModelChain(apiKey: string, history: ChatTurn[]): Promise<s
 
   push(primary);
   for (const id of PREFERRED_ORDER) push(id);
-  if (needsVision) {
-    // Prefer vision-capable models the user has had success with implicitly
-    // (same preference list applies); anything else vision-capable goes next.
-    for (const m of usable.filter((m) => m.architecture?.input_modalities?.includes("image"))) push(m.id);
-  }
-  // Remainder: newest first — new free models are usually fast and available.
-  for (const m of [...usable]
-    .filter((m) => !ordered.includes(m.id))
-    .sort((a, b) => (b.created ?? 0) - (a.created ?? 0))) {
-    push(m.id);
-  }
+  for (const id of staticFallback) push(id);
 
-  return ordered.length > 0 ? ordered : [primary, ...(needsVision ? STATIC_VISION_MODELS : STATIC_TEXT_MODELS)];
+  return (ordered.length > 0 ? ordered : fastChain).slice(0, MAX_MODEL_ATTEMPTS);
 }
 
-function primaryModel(): string {
-  const env = import.meta.env as Record<string, string | undefined>;
-  return (env.VITE_OPENROUTER_MODEL ?? env.OPENROUTER_MODEL)?.trim() || FREE_MODELS[0];
-}
-
-/** De-duplicated model chain: configured primary first, then the rest.
+/** De-duplicated model chain: primary first, then the rest.
  * Conversations with image attachments use the vision-capable chain. */
 function modelChain(history: ChatTurn[]): string[] {
   const chain = historyHasImage(history) ? [...FREE_VISION_MODELS] : [...FREE_MODELS];
-  const primary = primaryModel();
-  return [primary, ...chain.filter((m) => m !== primary)];
+  return [PRIMARY_MODEL, ...chain.filter((m) => m !== PRIMARY_MODEL)];
 }
 
-const MAX_HISTORY = 12; // messages sent to the model (excludes welcome/system)
-/** Per-model cap. Free reasoning models can take a while before the first
- * content token, so this needs generous headroom. */
-const TIMEOUT_MS = 120_000;
+const MAX_HISTORY = 10;
+/** Per-model request timeout — fail over quickly instead of hanging. */
+const TIMEOUT_MS = 35_000;
+/** Keep replies short so streaming finishes faster. */
+const MAX_TOKENS = 160;
 
 export type ChatRole = "user" | "assistant";
 
@@ -366,18 +368,20 @@ Accuracy:
   external AI provider. You are "the Ceriga assistant".
 
 AI Cursor Buddy (visual guidance only — never claim you click for the user):
-- When guiding the user to a control that is listed in the request context as
-  an AI-targetable UI element, point at it with a structured action line.
-- After your answer (and before FOLLOWUPS), add at most one line:
-  AI_ACTIONS: [{"action":"move_cursor","target":"<exact-id>"}]
-  Allowed actions only: move_cursor, highlight, clear_cursor.
-  Use the exact target ids from the context list — never invent ids or
-  screen coordinates. Prefer move_cursor (it also highlights). Use
-  clear_cursor when finishing a tour or when no pointing is needed.
-  Example: AI_ACTIONS: [{"action":"move_cursor","target":"nav-create"}]
-- If you are not pointing at anything, omit AI_ACTIONS entirely (or use
-  AI_ACTIONS: none). Never mention AI_ACTIONS, data-ai-target, or the
-  cursor system to the user — those lines are stripped before display.
+- When guiding the user to a control listed in the request context, point at it.
+- CRITICAL SPEED RULE: if you will point, put AI_ACTIONS as the VERY FIRST line
+  of your reply (before the spoken answer), then write 1 short sentence, then
+  FOLLOWUPS. Example:
+  AI_ACTIONS: [{"action":"move_cursor","target":"start-project-button"}]
+  Tap New project on the home screen to start.
+  FOLLOWUPS: Choose a garment | What is packaging-only? | View drafts
+- Allowed actions only: move_cursor, highlight, clear_cursor.
+  Use exact target ids from the context list — never invent ids or coordinates.
+  Prefer move_cursor. Use clear_cursor only when finishing a tour.
+- If the user asks you to point, show, highlight, or find a button/control,
+  always include AI_ACTIONS with the best matching on-screen target id.
+- If you are not pointing, omit AI_ACTIONS (or AI_ACTIONS: none). Never mention
+  AI_ACTIONS, data-ai-target, or the cursor system to the user.
 
 Ending every reply:
 - After your answer (and after AI_ACTIONS if any), add exactly one final
@@ -429,28 +433,23 @@ export function parseAssistantPayload(raw: string): {
 } {
   let text = raw.trimEnd();
   let followUps: string[] = [];
-  let cursorActions: AiCursorAction[] = [];
+  // Prefer actions found anywhere (including a leading first line).
+  let cursorActions = extractAiCursorActionsFromStream(text);
+  text = stripAiCursorActionLines(text);
 
-  for (let i = 0; i < 4; i++) {
-    const actionsMatch = text.match(/\n?\s*AI_ACTIONS:\s*[^\n]*\s*$/i);
+  for (let i = 0; i < 3; i++) {
     const followMatch = text.match(/\n?\s*FOLLOWUPS:\s*[^\n]*\s*$/i);
-    if (!actionsMatch && !followMatch) break;
+    if (!followMatch) break;
+    const parsed = parseFollowUps(text);
+    if (parsed.followUps.length > 0) followUps = parsed.followUps;
+    text = parsed.text;
+  }
 
-    const aIdx = actionsMatch?.index ?? -1;
-    const fIdx = followMatch?.index ?? -1;
-
-    if (actionsMatch && aIdx >= fIdx) {
-      const parsed = parseAiCursorActions(text);
-      cursorActions = [...parsed.actions, ...cursorActions];
-      text = parsed.text;
-      continue;
-    }
-
-    if (followMatch) {
-      const parsed = parseFollowUps(text);
-      if (parsed.followUps.length > 0) followUps = parsed.followUps;
-      text = parsed.text;
-    }
+  // Also accept a trailing AI_ACTIONS if extract somehow missed it.
+  if (cursorActions.length === 0) {
+    const trailing = parseAiCursorActions(text);
+    cursorActions = trailing.actions;
+    text = trailing.text;
   }
 
   return { text: text.trim(), followUps, cursorActions };
@@ -458,16 +457,20 @@ export function parseAssistantPayload(raw: string): {
 
 /** Hide incomplete trailer lines while tokens are still streaming. */
 export function stripAssistantTrailersForDisplay(raw: string): string {
-  return raw
-    .replace(/\n?\s*AI_ACTIONS:\s*[^\n]*$/i, "")
+  return stripAiCursorActionLines(raw)
     .replace(/\n?\s*FOLLOWUPS:\s*[^\n]*$/i, "")
     .trimEnd();
 }
 
 export type OpenRouterStreamOptions = {
   signal?: AbortSignal;
-  /** Called after each token with the full accumulated reply so far. */
+  /** Called after each token with the display-ready accumulated reply so far. */
   onDelta?: (accumulated: string) => void;
+  /**
+   * Fired once as soon as a complete AI_ACTIONS line appears in the stream
+   * (often the first line) so the cursor can move before the spoken reply ends.
+   */
+  onCursorActions?: (actions: AiCursorAction[]) => void;
   /**
    * Optional user-specific context (e.g. their current builder project)
    * appended to the system prompt for this request.
@@ -528,7 +531,7 @@ export async function askOpenRouter(
     };
   }
 
-  const { signal, onDelta, contextBlock } = options;
+  const { signal, onDelta, onCursorActions, contextBlock } = options;
   const trimmed = history.slice(-MAX_HISTORY);
   const messages = [
     { role: "system", content: contextBlock ? `${SYSTEM_PROMPT}\n\n${contextBlock}` : SYSTEM_PROMPT },
@@ -545,6 +548,7 @@ export async function askOpenRouter(
       signal.addEventListener("abort", () => controller.abort(), { once: true });
     }
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let cursorEmitted = false;
     try {
       const res = await fetch(OPENROUTER_URL, {
         method: "POST",
@@ -556,7 +560,13 @@ export async function askOpenRouter(
           "HTTP-Referer": typeof window !== "undefined" ? window.location.origin : "https://ceriga.io",
           "X-Title": "Ceriga Studio",
         },
-        body: JSON.stringify({ model, messages, stream: true }),
+        body: JSON.stringify({
+          model,
+          messages,
+          stream: true,
+          max_tokens: MAX_TOKENS,
+          temperature: 0.4,
+        }),
       });
 
       if (!res.ok) {
@@ -570,14 +580,26 @@ export async function askOpenRouter(
         continue;
       }
 
-      const raw = (await readSseStream(res, (full) => {
-        (onDelta ?? (() => {}))(stripAssistantTrailersForDisplay(full));
-      })).trim();
+      const raw = (
+        await readSseStream(res, (full) => {
+          if (!cursorEmitted && onCursorActions) {
+            const early = extractAiCursorActionsFromStream(full);
+            if (early.length > 0) {
+              cursorEmitted = true;
+              onCursorActions(early);
+            }
+          }
+          (onDelta ?? (() => {}))(stripAssistantTrailersForDisplay(full));
+        })
+      ).trim();
       if (!raw) {
         lastError = `OpenRouter ${model} → empty response`;
         continue;
       }
       const { text, followUps, cursorActions } = parseAssistantPayload(raw);
+      if (!cursorEmitted && cursorActions.length > 0 && onCursorActions) {
+        onCursorActions(cursorActions);
+      }
       return { ok: true, text, model, followUps, cursorActions };
     } catch (err) {
       lastError = err instanceof Error ? `OpenRouter ${model} → ${err.message}` : `OpenRouter ${model} failed`;

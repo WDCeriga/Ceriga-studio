@@ -1,5 +1,7 @@
 import type { AiCursorAction } from './types';
 
+/** Match an AI_ACTIONS line anywhere (streaming or final). */
+const ACTIONS_ANYWHERE = /(?:^|\n)\s*AI_ACTIONS:\s*([^\n]*)/i;
 const ACTIONS_LINE = /\n?\s*AI_ACTIONS:\s*([^\n]*)\s*$/i;
 
 const ALLOWED = new Set(['move_cursor', 'highlight', 'clear_cursor']);
@@ -33,6 +35,21 @@ function parseOne(raw: unknown): AiCursorAction | null {
   return null;
 }
 
+function parsePayload(payload: string): AiCursorAction[] {
+  const trimmed = payload.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'none' || trimmed === '[]') return [];
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    return list
+      .map(parseOne)
+      .filter((a): a is AiCursorAction => a !== null)
+      .slice(0, 6);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Strip a trailing `AI_ACTIONS: [...]` line from an assistant reply and
  * return the structured actions. Malformed payloads yield an empty list.
@@ -44,21 +61,25 @@ export function parseAiCursorActions(raw: string): {
   const match = raw.match(ACTIONS_LINE);
   if (!match) return { text: raw.trim(), actions: [] };
 
-  const payload = match[1].trim();
+  const actions = parsePayload(match[1]);
   const text = raw.slice(0, match.index).trim();
-  if (!payload || payload.toLowerCase() === 'none' || payload === '[]') {
-    return { text, actions: [] };
-  }
+  return { text, actions };
+}
 
-  try {
-    const parsed: unknown = JSON.parse(payload);
-    const list = Array.isArray(parsed) ? parsed : [parsed];
-    const actions = list
-      .map(parseOne)
-      .filter((a): a is AiCursorAction => a !== null)
-      .slice(0, 6);
-    return { text, actions };
-  } catch {
-    return { text, actions: [] };
-  }
+/**
+ * Extract cursor actions from a partial or complete stream as soon as a
+ * complete `AI_ACTIONS: [...]` line appears (not only at the end).
+ */
+export function extractAiCursorActionsFromStream(raw: string): AiCursorAction[] {
+  const match = raw.match(ACTIONS_ANYWHERE);
+  if (!match) return [];
+  return parsePayload(match[1]);
+}
+
+/** Remove any AI_ACTIONS line(s) from display text (leading, middle, or trailing). */
+export function stripAiCursorActionLines(raw: string): string {
+  return raw
+    .replace(/(?:^|\n)\s*AI_ACTIONS:\s*[^\n]*/gi, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }

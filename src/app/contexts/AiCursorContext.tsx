@@ -49,7 +49,7 @@ export function AiCursorProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const animateTo = useCallback(
-    (next: AiCursorPoint, durationMs = 720) => {
+    (next: AiCursorPoint, durationMs = 380) => {
       cancelAnimation();
       const from = pointRef.current;
       const start = performance.now();

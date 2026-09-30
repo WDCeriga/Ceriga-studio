@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationsProvider } from "./contexts/NotificationsContext";
 import { AiCursorProvider } from "./contexts/AiCursorContext";
 import { AiCursorOverlay } from "./components/AiCursorOverlay";
+import { GlobalLiveChatHost } from "./components/GlobalLiveChatHost";
 import { PageLoadingFallback } from "./components/PageLoadingFallback";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { isSupabaseConfigured } from "./lib/supabaseClient";
@@ -38,6 +39,7 @@ function App() {
       <Suspense fallback={<PageLoadingFallback />}>
         <RouterProvider router={router} />
       </Suspense>
+      <GlobalLiveChatHost router={router} />
       <AiCursorOverlay />
       <Toaster />
     </AiCursorProvider>
