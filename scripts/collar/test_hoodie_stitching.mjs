@@ -23,7 +23,7 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/builder/hd-001`);
-  for (let step = 0; step < 6; step++) await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  for (let step = 0; step < 7; step++) await page.getByRole('button', { name: 'Continue', exact: true }).click();
   const sources = () => page.locator('[data-layer-id] > div > div').evaluateAll(nodes => nodes.map(node => node.innerHTML));
   const before = await sources();
   assert.equal(await page.locator('[data-hoodie-stitches]').count(), 0);

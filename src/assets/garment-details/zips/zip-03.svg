@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 240" fill="none">
+  <path d="M7 4H41V228L24 236L7 228Z" fill="var(--detail-fill, none)" stroke="var(--detail-outline, black)" stroke-width="2"/>
+  <path d="M12 10V224L24 230L36 224V10" stroke="var(--detail-stitch, black)" stroke-width="1.4" stroke-dasharray="4 4"/>
+  <path d="M18 15H30V223H18Z" fill="var(--detail-hardware, none)" stroke="var(--detail-outline, black)" stroke-width="1.6"/>
+  <path d="M18 64H30M18 72H30M18 80H30M18 88H30M18 96H30M18 104H30M18 112H30M18 120H30M18 128H30M18 136H30M18 144H30M18 152H30M18 160H30M18 168H30M18 176H30M18 184H30M18 192H30M18 200H30M18 208H30M18 216H30" stroke="var(--detail-outline, black)" stroke-width="1.4"/>
+  <path d="M17 12H31V30H17Z" fill="var(--detail-hardware, none)" stroke="var(--detail-outline, black)" stroke-width="1.6"/>
+  <path d="M36 44A12 16 0 1 1 12 44A12 16 0 1 1 36 44Z M31 44A7 10 0 1 0 17 44A7 10 0 1 0 31 44Z" fill="var(--detail-hardware, none)" fill-rule="evenodd" stroke="var(--detail-outline, black)" stroke-width="1.6"/>
+</svg>

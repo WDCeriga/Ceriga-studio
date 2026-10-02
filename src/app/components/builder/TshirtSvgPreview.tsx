@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -44,6 +45,15 @@ import { usesHoodieAssembly } from '../../data/hoodieAssembly';
 import type { HoodieStitching } from '../../data/hoodieStitching';
 import type { HoodiePanelSeams } from '../../data/hoodieSeamGeometry';
 import { HoodieStitchLayer, useHoodieSeams } from './HoodieStitching';
+import { washSvg, type GarmentWash, type WashBounds } from '../../data/garmentWash';
+import { hoodieWashRegion, resolveHoodieWash, updateHoodieWash, type HoodieWash, type HoodieWashTarget } from '../../data/hoodieWash';
+import { WashEditor, type HoodieWashTool } from './WashFinish';
+import { hoodExteriorWashSource } from '../../data/hoodieWashMask';
+import { GarmentDetailsOverlay, type DetailEditorState } from './GarmentDetails';
+import type { DetailBounds, GarmentDetail } from '../../data/garmentDetails';
+import type { GarmentLabel } from '../../data/garmentLabels';
+import { hoodieLabelAttachment, type HoodieLabelView } from '../../data/hoodieLabels';
+import { GarmentLabelOverlay, type LabelAttachmentLayer, type LabelFocus } from './GarmentLabelOverlay';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -225,6 +235,24 @@ export interface TshirtSvgPreviewProps {
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   hoodieAssemblyVersion?: number;
   hoodieStitching?: HoodieStitching;
+  hoodieWash?: HoodieWash;
+  garmentDetails?: GarmentDetail[];
+  garmentLabels?: GarmentLabel[];
+  hoodieLabelView?: HoodieLabelView;
+  labelInterior?: boolean;
+  onLabelFocus?: (focus: LabelFocus) => void;
+  selectedLabelId?: string | null;
+  onLabelSelect?: (id: string | null) => void;
+  onLabelsChange?: (labels: GarmentLabel[]) => void;
+  detailEditor?: DetailEditorState;
+  selectedDetailId?: string | null;
+  onDetailSelect?: (id: string | null) => void;
+  onDetailsChange?: (details: GarmentDetail[]) => void;
+  onDetailBoundsChange?: (bounds: Record<string, DetailBounds>) => void;
+  showWash?: boolean;
+  washTarget?: HoodieWashTarget;
+  washTool?: HoodieWashTool;
+  onWashChange?: (wash: HoodieWash) => void;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
   onSelectedLayerChange?: (id: string | null) => void;
@@ -309,6 +337,13 @@ function layerTransformStyle(
         : `translate(${t.x}px, ${t.y}px) rotate(${t.rotation}deg) scale(${scaleX}, ${scaleY})`,
     transformOrigin: `${originX} ${originY}`,
   };
+}
+
+function layerCanvasMatrix(transform: TshirtLayerTransform, canvasSize: number, bbox?: PotraceSvgBBox | null, alignOffset?: { x: number; y: number }, anchor?: ScaleAnchor | null) {
+  const origin = bbox ? (anchor ? anchorOriginPoint(bbox, anchor) : { x: bbox.centerX, y: bbox.centerY }) : { x: 1024, y: 1024 };
+  const scale = resolveLayerScale(transform);
+  return new DOMMatrix().translate(origin.x + transform.x * TSHIRT_CANVAS / canvasSize, origin.y + transform.y * TSHIRT_CANVAS / canvasSize)
+    .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((alignOffset?.x ?? 0) - origin.x, (alignOffset?.y ?? 0) - origin.y);
 }
 
 function bboxToPercentRect(bbox: PotraceSvgBBox): React.CSSProperties {
@@ -512,6 +547,22 @@ function PreviewLayer({
   layerId,
   stitching,
   seams,
+  wash,
+  washBounds,
+  canvasSize,
+  details = [],
+  labels = [],
+  labelLayers = [],
+  labelInterior = false,
+  onLabelFocus,
+  selectedLabelId,
+  onLabelSelect,
+  onLabelsChange,
+  selectedDetailId,
+  onDetailSelect,
+  onDetailsChange,
+  canvasElement,
+  detailEditor,
 }: {
   layer: ResolvedGarmentLayer;
   fabricColor: string;
@@ -523,8 +574,52 @@ function PreviewLayer({
   layerId: string;
   stitching?: HoodieStitching;
   seams?: HoodiePanelSeams;
+  wash?: GarmentWash;
+  washBounds: WashBounds;
+  canvasSize: number;
+  details?: GarmentDetail[];
+  labels?: GarmentLabel[];
+  labelLayers?: LabelAttachmentLayer[];
+  labelInterior?: boolean;
+  onLabelFocus?: (focus: LabelFocus) => void;
+  selectedLabelId?: string | null;
+  onLabelSelect?: (id: string | null) => void;
+  onLabelsChange?: (labels: GarmentLabel[]) => void;
+  selectedDetailId?: string | null;
+  onDetailSelect?: (id: string | null) => void;
+  onDetailsChange?: (details: GarmentDetail[]) => void;
+  canvasElement?: HTMLDivElement | null;
+  detailEditor?: DetailEditorState;
 }) {
+  const trimMask = useMemo(() => `data:image/svg+xml,${encodeURIComponent(layer.svgRaw)}`, [layer.svgRaw]);
   const fill = resolveLayerFill(layer, fabricColor);
+  const washId = useId();
+  const exteriorOnly = layerId === 'hood' && (wash?.views.front.placement ?? wash?.placement) === 'hood';
+  const [exterior, setExterior] = useState<{ raw: string; source: string } | null>(null);
+  useEffect(() => {
+    if (!exteriorOnly) return;
+    let active = true;
+    hoodExteriorWashSource(layer.svgRaw, layer.assetId).then(source => {
+      if (active) setExterior({ raw: layer.svgRaw, source });
+    }).catch(() => { if (active) setExterior(null); });
+    return () => { active = false; };
+  }, [exteriorOnly, layer.svgRaw, layer.assetId]);
+  const exteriorSource = exterior?.raw === layer.svgRaw ? exterior.source : undefined;
+  const placementTransform = layerCanvasMatrix(transform, canvasSize, bbox, alignOffset, scaleFixedAnchor).inverse().toString();
+  const focusMatrix = layerCanvasMatrix(transform, canvasSize, bbox, alignOffset, scaleFixedAnchor).toString();
+  const reportFocus = useCallback((focus: LabelFocus) => {
+    const matrix = new DOMMatrix(focusMatrix);
+    const project = (box: { x: number; y: number; width: number; height: number }) => {
+      const points = [-1, 1].flatMap(horizontal => [-1, 1].map(vertical => matrix.transformPoint(new DOMPoint(box.x + horizontal * box.width / 2, box.y + vertical * box.height / 2))));
+      const minX = Math.min(...points.map(point => point.x)), maxX = Math.max(...points.map(point => point.x));
+      const minY = Math.min(...points.map(point => point.y)), maxY = Math.max(...points.map(point => point.y));
+      return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, width: maxX - minX, height: maxY - minY };
+    };
+    onLabelFocus?.({ id: focus.id, ...project(focus), context: focus.context ? project(focus.context) : undefined });
+  }, [focusMatrix, onLabelFocus]);
+  const finish = useMemo(() => layer.kind === 'solid' && hoodieWashRegion(layerId) && (!exteriorOnly || exteriorSource)
+    ? washSvg(layer.svgRaw, fill, washBounds, layerId, wash, 'front', washId, placementTransform, exteriorOnly ? exteriorSource : undefined) : '',
+    [layer.kind, layer.svgRaw, layerId, fill, washBounds, wash, washId, placementTransform, exteriorOnly, exteriorSource]);
 
   return (
     <div
@@ -539,11 +634,22 @@ function PreviewLayer({
       data-asset={layer.displayName}
     >
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 z-10"
         style={clipSide ? sleeveSideClipStyle(clipSide) : undefined}
       >
         <InlineSvg raw={layer.svgRaw} fill={fill} />
+        {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:block [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
         {stitching && seams && <HoodieStitchLayer panel={seams} settings={stitching} />}
+        {bbox && details.length > 0 && <GarmentDetailsOverlay key={layer.assetId} details={details} bounds={bbox} maskSource={trimMask}
+          selectedId={selectedDetailId} onSelect={onDetailSelect} onChange={onDetailsChange}
+          editor={detailEditor}
+          screenMatrix={() => {
+            const rect = canvasElement!.getBoundingClientRect();
+            return new DOMMatrix().translate(rect.left, rect.top).scale(rect.width / TSHIRT_CANVAS)
+              .multiply(layerCanvasMatrix(transform, canvasSize, bbox, alignOffset, scaleFixedAnchor));
+          }} />}
+        {labels.length > 0 && <GarmentLabelOverlay labels={labels} layers={labelLayers} view="front" interior={labelInterior}
+          selectedId={selectedLabelId} onSelect={onLabelSelect} onChange={onLabelsChange} onFocus={reportFocus} />}
       </div>
     </div>
   );
@@ -711,6 +817,24 @@ export function TshirtSvgPreview({
   layerTransforms,
   hoodieAssemblyVersion,
   hoodieStitching,
+  hoodieWash,
+  garmentDetails = [],
+  garmentLabels = [],
+  hoodieLabelView = 'exterior',
+  labelInterior = false,
+  onLabelFocus,
+  selectedLabelId,
+  onLabelSelect,
+  onLabelsChange,
+  detailEditor,
+  selectedDetailId,
+  onDetailSelect,
+  onDetailsChange,
+  onDetailBoundsChange,
+  showWash = true,
+  washTarget = 'global',
+  washTool,
+  onWashChange,
   onLayerTransformChange,
   selectedLayerId = null,
   onSelectedLayerChange,
@@ -740,10 +864,17 @@ export function TshirtSvgPreview({
   const [scaleDragDelta, setScaleDragDelta] = useState({ dx: 0, dy: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState(TSHIRT_CANVAS);
+  const [washDraft, setWashDraft] = useState<GarmentWash | null>(null);
+  useEffect(() => setWashDraft(null), [hoodieWash, washTarget, washTool, fit, selection]);
+  const editWash = resolveHoodieWash(hoodieWash, washTarget);
+  const washEditing = garmentType === 'hoodie' && Boolean(washTool);
+  const washEditable = washEditing && showWash && editWash.type !== 'none'
+    && (washTarget === 'global' || Boolean(hoodieWash?.regions[washTarget]));
+  const renderedWash = washDraft ? updateHoodieWash(hoodieWash, washTarget, washDraft) : hoodieWash;
 
   const fabricColor = color || '#5C7FB6';
-  const editable = Boolean(onLayerTransformChange);
-  const selectable = editable || Boolean(onSelectedLayerChange);
+  const editable = Boolean(onLayerTransformChange) && !washEditing && !onDetailsChange && !onLabelsChange;
+  const selectable = !washEditing && !onDetailsChange && !onLabelsChange && (editable || Boolean(onSelectedLayerChange));
   const assembled = usesHoodieAssembly(garmentType, hoodieAssemblyVersion, layerTransforms);
 
   const layers = useMemo(
@@ -800,6 +931,22 @@ export function TshirtSvgPreview({
       garmentType,
     ),
   );
+
+  const washBounds = useMemo(() => {
+    const points = layerLayouts.filter(layer => layer.bbox && layer.sourceLayer.kind === 'solid').flatMap(layer => {
+      const bounds = layer.bbox!;
+      const matrix = layerCanvasMatrix(layer.transform, canvasSize, bounds, layer.alignOffset);
+      return [[bounds.minX, bounds.minY], [bounds.maxX, bounds.minY], [bounds.minX, bounds.maxY], [bounds.maxX, bounds.maxY]]
+        .map(([horizontal, vertical]) => new DOMPoint(horizontal, vertical).matrixTransform(matrix));
+    });
+    return points.length ? { minX: Math.min(...points.map(point => point.x)), minY: Math.min(...points.map(point => point.y)),
+      maxX: Math.max(...points.map(point => point.x)), maxY: Math.max(...points.map(point => point.y)) }
+      : { minX: 0, minY: 0, maxX: TSHIRT_CANVAS, maxY: TSHIRT_CANVAS };
+  }, [layerLayouts, canvasSize]);
+
+  useEffect(() => {
+    onDetailBoundsChange?.(Object.fromEntries(layerLayouts.filter(layer => layer.bbox && layer.sourceLayer.kind === 'solid').map(layer => [layer.id, layer.bbox!])));
+  }, [layerLayouts, onDetailBoundsChange]);
 
   useLayoutEffect(() => {
     setLayerLayouts(
@@ -1076,11 +1223,16 @@ export function TshirtSvgPreview({
         className="relative aspect-square h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0"
       >
         {layerLayouts.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) => {
+          if (labelInterior && sourceLayer.category === 'Pocket') return null;
           const scaleFixedAnchor =
             scaleGestureStorageId && transformStorageId(id) === scaleGestureStorageId
               ? activeScaleAnchor
               : null;
           const displayTransform = resolveLayerDisplayTransform(id, transform, bbox);
+          const details = garmentType === 'hoodie' && !labelInterior ? garmentDetails.filter(detail => (detail.view ?? 'front') === 'front' && (detail.attachment ?? 'base') === id) : [];
+          const labels = garmentType === 'hoodie' ? garmentLabels.filter(label => hoodieLabelAttachment(label) === id) : [];
+          const labelLayers = layerLayouts.filter(entry => (entry.id === 'base' || entry.id === id) && entry.bbox)
+            .map(entry => ({ id: entry.id, svgRaw: entry.sourceLayer.svgRaw, bbox: entry.bbox!, matrix: 'matrix(1,0,0,1,0,0)' }));
 
           return (
             <PreviewLayer
@@ -1095,6 +1247,22 @@ export function TshirtSvgPreview({
               scaleFixedAnchor={scaleFixedAnchor}
               stitching={garmentType === 'hoodie' ? hoodieStitching : undefined}
               seams={hoodieSeams.geometry?.[id]}
+              wash={garmentType === 'hoodie' && !labelInterior && showWash && hoodieWashRegion(id) ? resolveHoodieWash(renderedWash, hoodieWashRegion(id)!) : undefined}
+              washBounds={washBounds}
+              canvasSize={canvasSize}
+              details={details}
+              labels={labels}
+              labelLayers={labelLayers}
+              labelInterior={labelInterior}
+              onLabelFocus={onLabelFocus}
+              selectedLabelId={selectedLabelId}
+              onLabelSelect={onLabelSelect}
+              onLabelsChange={onLabelsChange ? next => onLabelsChange(garmentLabels.map(label => next.find(item => item.id === label.id) ?? label)) : undefined}
+              detailEditor={detailEditor}
+              selectedDetailId={selectedDetailId}
+              onDetailSelect={onDetailSelect}
+              canvasElement={canvasRef.current}
+              onDetailsChange={onDetailsChange ? next => onDetailsChange(garmentDetails.flatMap(detail => details.some(item => item.id === detail.id) ? next.filter(item => item.id === detail.id) : [detail])) : undefined}
             />
           );
         })}
@@ -1127,7 +1295,7 @@ export function TshirtSvgPreview({
             )
           : null}
 
-        {selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
+        {!washEditing && selectedLayout?.bbox && selectedLayerId && selectedDisplayTransform ? (
           <SelectionOutline
             bbox={selectedLayout.bbox}
             transform={selectedDisplayTransform}
@@ -1142,6 +1310,10 @@ export function TshirtSvgPreview({
             onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
           />
         ) : null}
+        {washEditable && washTool && onWashChange && <WashEditor
+          key={`${washTarget}-${fit}-${selection.Hood}-${JSON.stringify(editWash)}`}
+          wash={editWash} bounds={washBounds} view="front" tool={washTool}
+          onDraft={setWashDraft} onCommit={wash => onWashChange(updateHoodieWash(hoodieWash, washTarget, wash))} />}
       </div>
 
       {toolHint ? (

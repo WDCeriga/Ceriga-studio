@@ -68,6 +68,12 @@ const bodyMappings: Record<string, BodyMapping> = {
   },
 };
 
+export function hoodieNecklineLandmarks(fit: string) {
+  const mapping = bodyMappings[fit];
+  if (!mapping) return null;
+  return { center: mapping.center, sideX: mapping.neck[0][0], sideY: mapping.neck[0][1], frontY: mapping.neck[3][1] };
+}
+
 function mirrored(curve: Cubic, center: number): Cubic {
   return curve.map(([column, row]) => [2 * center - column, row]) as Cubic;
 }

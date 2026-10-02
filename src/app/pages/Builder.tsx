@@ -92,8 +92,15 @@ import {
 } from '../components/builder/measurementPreviewSizing';
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
+import { GarmentLabelsPreview } from '../components/builder/GarmentLabelsPreview';
 import { HoodieStitchingPanel } from '../components/builder/HoodieStitching';
 import type { HoodieStitching } from '../data/hoodieStitching';
+import { HoodieWashPanel, type HoodieWashTool } from '../components/builder/WashFinish';
+import { HoodieDetailsPanel } from '../components/builder/HoodieDetails';
+import type { DetailBounds, GarmentDetail } from '../data/garmentDetails';
+import type { GarmentLabel } from '../data/garmentLabels';
+import { HoodieLabelsPanel } from '../components/builder/HoodieLabels';
+import { hoodieWashRegion, type HoodieWash, type HoodieWashTarget } from '../data/hoodieWash';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
 import { HOODIE_ASSEMBLY_VERSION } from '../data/hoodieAssembly';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
@@ -235,6 +242,9 @@ interface BuilderState {
   /** Thread / contrast stitch colour (hex) */
   stitchingColor?: string;
   hoodieStitching?: HoodieStitching;
+  hoodieWash?: HoodieWash;
+  garmentDetails?: GarmentDetail[];
+  garmentLabels?: GarmentLabel[];
   neckTrimColor?: string;
   sleeveTrimColor?: string;
   /** Cuff / sleeve-hem trim (t-shirt SVG preview). */
@@ -520,6 +530,19 @@ export function Builder() {
     isTechpackSpecUrl() ? [9] : [1],
   );
   const [showFront, setShowFront] = useState(true);
+  const [showWash, setShowWash] = useState(true);
+  const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState('base');
+  const [detailBounds, setDetailBounds] = useState<Record<string, DetailBounds>>({});
+  const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null);
+  const [hoodieLabelView, setHoodieLabelView] = useState<'exterior' | 'interior'>('exterior');
+  const [detailPart, setDetailPart] = useState<'zip' | 'pull'>('zip');
+  const [detailSnap, setDetailSnap] = useState(true);
+  const [detailDraft, setDetailDraft] = useState<GarmentDetail | null>(null);
+  const detailEditor = { part: detailPart, onPartChange: setDetailPart, snap: detailSnap, onSnapChange: setDetailSnap,
+    draft: detailDraft, onDraftChange: setDetailDraft, closeUp: false, onCloseUpChange: () => {} };
+  const [washTarget, setWashTarget] = useState<HoodieWashTarget>('global');
+  const [washTool, setWashTool] = useState<HoodieWashTool>({ mode: 'brush', shape: 'oval', size: 12, strength: 70, softness: 65, erase: false, selectedId: null });
   const [saving, setSaving] = useState(false);
   const [projectName, setProjectName] = useState(product?.name || 'Untitled Project');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -1231,7 +1254,7 @@ export function Builder() {
     if (stepId < GARMENT_PART_STEPS.first || stepId > GARMENT_PART_STEPS.last) return false;
 
     const pack = resolveProductSvgType(state.garmentType, state.svgPack);
-    if (pack === 'hoodie' && stepId === 8) return false;
+    if (pack === 'hoodie' && (stepId === 7 || stepId === 8)) return false;
     if (!pack || !getGarmentSvgConfig(pack).restrictStepsToPack) return false;
     return getGarmentCategoriesForStep(pack, stepId).length === 0;
   };
@@ -1288,6 +1311,9 @@ export function Builder() {
       : (currentStep / builderSteps.length) * 100;
   const primaryColor = state.colors[0]?.hex || '#5C7FB6';
   const garmentSvgType = resolveProductSvgType(state.garmentType, state.svgPack);
+  useEffect(() => {
+    if (garmentSvgType === 'hoodie' && [6, 7, 10].includes(currentStep)) setShowFront(true);
+  }, [garmentSvgType, currentStep]);
   const isGarmentSvgFlow = garmentSvgType != null && supportsGarmentSvgPreview(state.garmentType);
   const activeFit = garmentSvgType
     ? resolveGarmentPackFit(garmentSvgType, state.fit) ?? state.fit
@@ -1313,7 +1339,7 @@ export function Builder() {
     garmentType: 'hoodie', selection: garmentSelection, fit: activeFit,
   }) : [], [garmentSvgType, garmentSelection, activeFit]);
   const showGarmentLayerToolbar =
-    isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax;
+    isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax && !(garmentSvgType === 'hoodie' && currentStep === 7);
   const tshirtSelectedAssetName = useMemo(() => {
     if (!tshirtLayerSelectedId || !garmentSvgType) return undefined;
     return resolveGarmentLayers({
@@ -2502,6 +2528,9 @@ export function Builder() {
             <div className="space-y-4">
               {renderGarmentAssetGrids(6)}
               {renderPartColorPickers(6)}
+              {garmentSvgType === 'hoodie' && !techpackSpecFlow && <HoodieDetailsPanel details={state.garmentDetails ?? []}
+                onChange={garmentDetails => setState(prev => ({ ...prev, garmentDetails }))} selectedId={selectedDetailId} onSelect={setSelectedDetailId}
+                target={detailTarget} onTargetChange={setDetailTarget} bounds={detailBounds} color={primaryColor} editor={detailEditor} />}
               {!techpackSpecFlow && !garmentConfig?.perPartColors && garmentConfig?.trimBindings.pocket?.length ? (
                 <TrimColorFamilyPicker
                   label={
@@ -2579,6 +2608,13 @@ export function Builder() {
         );
 
       case 7:
+        if (garmentSvgType === 'hoodie' && !techpackSpecFlow) {
+          return <HoodieWashPanel settings={state.hoodieWash}
+            onChange={hoodieWash => setState(prev => ({ ...prev, hoodieWash }))}
+            target={washTarget} onTargetChange={setWashTarget} tool={washTool} onToolChange={setWashTool}
+            showWash={showWash} onShowWashChange={setShowWash}
+            regions={hoodieStitchLayers.map(layer => hoodieWashRegion(layer.id)).filter((region): region is NonNullable<typeof region> => Boolean(region))} />;
+        }
         if (isGarmentSvgFlow && garmentSvgType && getGarmentCategoriesForStep(garmentSvgType, 7).length > 0) {
           return (
             <div className="space-y-4">
@@ -2734,6 +2770,10 @@ export function Builder() {
         );
 
       case 10:
+        if (garmentSvgType === 'hoodie' && !techpackSpecFlow) return <HoodieLabelsPanel
+          labels={state.garmentLabels ?? []} selectedId={selectedLabelId} onSelect={setSelectedLabelId}
+          view={hoodieLabelView} onViewChange={setHoodieLabelView}
+          onChange={garmentLabels => setState(prev => ({ ...prev, garmentLabels }))} />;
         return (
           <div className="space-y-4">
             <LabelsPackagingStep
@@ -3403,6 +3443,8 @@ export function Builder() {
             <button
               type="button"
               onClick={() => setShowFront(false)}
+              disabled={garmentSvgType === 'hoodie' && [6, 7, 10].includes(currentStep)}
+              title={garmentSvgType === 'hoodie' && [6, 7, 10].includes(currentStep) ? 'Back editing unavailable: this hoodie pack contains front assets only' : undefined}
               className={cn(
                 'builder-focus flex flex-col items-center justify-center rounded-lg font-bold uppercase leading-tight tracking-wide transition-colors',
                 isPhone
@@ -3528,6 +3570,10 @@ export function Builder() {
                     layerTransforms={state.tshirtLayerTransforms}
                     hoodieAssemblyVersion={state.hoodieAssemblyVersion}
                     hoodieStitching={state.hoodieStitching}
+                    hoodieWash={state.hoodieWash}
+                    garmentDetails={state.garmentDetails}
+                    garmentLabels={state.garmentLabels}
+                    showWash={showWash}
                     className="h-full w-full min-h-0"
                   />
                   <MeasurementGuideOverlay highlightedId={highlightedMeasurementId} />
@@ -3565,7 +3611,7 @@ export function Builder() {
                 editable
               />
             </div>
-          ) : currentStep === 10 ? (
+          ) : currentStep === 10 && (garmentSvgType !== 'hoodie' || techpackSpecFlow) ? (
             <div
               className={cn(
                 'flex max-h-full w-full min-w-0 max-w-full flex-1 cursor-default items-center justify-center overflow-visible px-1',
@@ -3583,6 +3629,17 @@ export function Builder() {
                 liveCanvasScale={previewZoom / 100}
                 phoneConfigSheetCollapsed={isPhone && phoneEditorCollapsed}
               />
+            </div>
+          ) : currentStep === 10 && garmentSvgType === 'hoodie' ? (
+            <div className="h-full min-h-0 w-full pb-12">
+              <GarmentLabelsPreview labels={state.garmentLabels ?? []} selectedId={selectedLabelId} onSelect={setSelectedLabelId}
+                onChange={garmentLabels => setState(prev => ({ ...prev, garmentLabels }))} animateEntry
+                garmentProps={{ garmentType: garmentSvgType, color: primaryColor, selection: garmentSelection, fit: activeFit,
+                  neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor, cuffTrimColor: state.cuffTrimColor,
+                  pocketTrimColor: state.pocketTrimColor, partColors: state.partColors, customCollar: state.customCollar,
+                  customCollars: state.customCollars, layerTransforms: state.tshirtLayerTransforms,
+                  hoodieAssemblyVersion: state.hoodieAssemblyVersion, hoodieStitching: state.hoodieStitching,
+                  hoodieWash: state.hoodieWash, garmentDetails: state.garmentDetails, showWash, hoodieLabelView }} />
             </div>
           ) : currentStep === 11 ? (
             <div
@@ -3630,6 +3687,22 @@ export function Builder() {
                   layerTransforms={state.tshirtLayerTransforms}
                   hoodieAssemblyVersion={state.hoodieAssemblyVersion}
                   hoodieStitching={state.hoodieStitching}
+                  hoodieWash={state.hoodieWash}
+                  garmentDetails={state.garmentDetails}
+                  garmentLabels={state.garmentLabels}
+                  selectedLabelId={currentStep === 10 ? selectedLabelId : null}
+                  hoodieLabelView={currentStep === 10 ? hoodieLabelView : 'exterior'}
+                  onLabelSelect={currentStep === 10 ? setSelectedLabelId : undefined}
+                  onLabelsChange={garmentSvgType === 'hoodie' && currentStep === 10 ? garmentLabels => setState(prev => ({ ...prev, garmentLabels })) : undefined}
+                  selectedDetailId={selectedDetailId}
+                  detailEditor={currentStep === 6 ? detailEditor : undefined}
+                  onDetailSelect={setSelectedDetailId}
+                  onDetailsChange={garmentSvgType === 'hoodie' && currentStep === 6 ? garmentDetails => setState(prev => ({ ...prev, garmentDetails })) : undefined}
+                  onDetailBoundsChange={setDetailBounds}
+                  showWash={showWash}
+                  washTarget={washTarget}
+                  washTool={garmentSvgType === 'hoodie' && currentStep === 7 ? washTool : undefined}
+                  onWashChange={hoodieWash => setState(prev => ({ ...prev, hoodieWash }))}
                   onLayerTransformChange={(id, transform) =>
                     setState((prev) => ({
                       ...prev,

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" fill="none">
+  <path d="M8 8H192V184Q192 212 164 212H36Q8 212 8 184Z" fill="var(--detail-fill, none)" stroke="var(--detail-outline, black)" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M16 16H184V182Q184 204 162 204H38Q16 204 16 182Z" stroke="var(--detail-stitch, black)" stroke-width="1.8" stroke-dasharray="6 5"/>
+  <path d="M16 46H184" stroke="var(--detail-stitch, black)" stroke-width="1.8" stroke-dasharray="6 5"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <circle cx="24" cy="24" r="22" fill="var(--detail-fill, none)" stroke="var(--detail-outline, black)" stroke-width="1.6"/>
+  <circle cx="24" cy="24" r="17" stroke="var(--detail-outline, black)" stroke-width="1.2"/>
+  <path d="M18 15L24 21L30 15L33 18L27 24L33 30L30 33L24 27L18 33L15 30L21 24L15 18Z" fill="var(--detail-stitch, none)" stroke="var(--detail-outline, black)" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>

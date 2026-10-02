@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <path d="M46 24A22 22 0 1 1 2 24A22 22 0 1 1 46 24Z M21 20A2 2 0 1 0 17 20A2 2 0 1 0 21 20Z M31 20A2 2 0 1 0 27 20A2 2 0 1 0 31 20Z M21 28A2 2 0 1 0 17 28A2 2 0 1 0 21 28Z M31 28A2 2 0 1 0 27 28A2 2 0 1 0 31 28Z" fill="var(--detail-fill, none)" fill-rule="evenodd" stroke="var(--detail-outline, black)" stroke-width="1.6"/>
+  <circle cx="24" cy="24" r="12" stroke="var(--detail-outline, black)" stroke-width="1.2"/>
+  <circle cx="24" cy="24" r="19" stroke="var(--detail-outline, black)" stroke-width="1.2"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 240" fill="none">
+  <path d="M4 4H25L29 105L22 236H4Z M39 4H60V236H42L35 105Z" fill="var(--detail-fill, none)" stroke="var(--detail-outline, black)" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M10 10V230M54 10V230" stroke="var(--detail-stitch, black)" stroke-width="1.4" stroke-dasharray="4 4"/>
+  <path d="M25 10L29 103M39 10L35 103M29 119L23 230M35 119L41 230" stroke="var(--detail-hardware, black)" stroke-width="4"/>
+  <path d="M26 16H29M26 24H29M26 32H29M27 40H30M27 48H30M27 56H30M28 64H31M28 72H31M28 80H31M35 16H38M35 24H38M35 32H38M34 40H37M34 48H37M34 56H37M33 64H36M33 72H36M33 80H36M28 149H35M27 157H36M27 165H36M26 173H37M26 181H37M25 189H38M25 197H38M24 205H39M24 213H39M23 221H40" stroke="var(--detail-outline, black)" stroke-width="1.4"/>
+  <path d="M25 91H39V113L35 120H29L25 113Z M27 108H37V141H27Z M30 115V133H34V115Z" fill="var(--detail-hardware, none)" fill-rule="evenodd" stroke="var(--detail-outline, black)" stroke-width="1.6" stroke-linejoin="round"/>
+</svg>
