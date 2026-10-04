@@ -15,6 +15,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const [entryPending, setEntryPending] = useState(animateEntry);
   const [animatedTarget, setAnimatedTarget] = useState<string | null>(null);
   const [showGarment, setShowGarment] = useState(true);
+  const [neckDebug, setNeckDebug] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [focus, setFocus] = useState<LabelFocus | null>(null);
   const previousSelectedId = useRef(selectedId);
@@ -25,6 +26,12 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const neckSelected = selected?.category === 'neck' || selected?.position.startsWith('neck-');
   const ready = focus?.id === selected?.id && Boolean(focus?.width && focus?.height);
   const targetKey = `${selectedId}:${selected?.position}`;
+  useEffect(() => {
+    if (garmentProps.garmentType !== 'hoodie' || !neckSelected) return;
+    setAnimatedTarget(targetKey);
+    setMode(garmentProps.hoodieLabelView === 'interior' ? 'closeup' : 'garment');
+    setZoom(1);
+  }, [garmentProps.garmentType, garmentProps.hoodieLabelView, neckSelected]);
   useEffect(() => {
     if (previousSelectedId.current === selectedId) return;
     previousSelectedId.current = selectedId;
@@ -47,13 +54,15 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const scale = closeup && framing ? Math.min(tagEditing ? 22 : 18, 2048 * (cameraFocus?.context ? (tagEditing ? .9 : .8) : (tagEditing ? .64 : .68 * .8)) / Math.max(framing.width, framing.height)) * zoom : zoom;
   const point = closeup && framing ? framing : { x: 1024, y: 1024 };
   const contextVisible = !closeup || showGarment;
-  const interior = Boolean(selected && !neckSelected && isInteriorLabel(selected));
+  const interior = Boolean(selected && !neckSelected && isInteriorLabel(selected)
+    && (garmentProps.garmentType !== 'hoodie' || (closeup && selected.category === 'care')));
   const controlClass = 'rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/10 aria-pressed:bg-white/15 aria-pressed:text-white';
   return <div className="flex h-full min-h-0 w-full flex-col" data-label-editing-surface="" data-label-preview-behavior="tshirt" onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
     <div className="z-10 flex shrink-0 flex-wrap items-center justify-center gap-1 border-b border-white/10 bg-[#111113] p-1.5">
       {!handSelected && selected && <>
         <div role="group" aria-label="Label preview mode"><button type="button" className={controlClass} aria-pressed={!closeup} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('garment'); setZoom(1); }}>Garment</button><button type="button" className={controlClass} aria-pressed={closeup} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('closeup'); setZoom(1); }}>Label Close-up</button></div>
         <span className="px-2 text-[11px] text-white/50">{interior || neckSelected ? 'Inside' : 'Outside'}</span>
+        {neckSelected && garmentProps.garmentType === 'hoodie' && <label className="flex items-center gap-1.5 px-2 text-[11px] text-white/70"><input type="checkbox" checked={neckDebug} onChange={event => setNeckDebug(event.target.checked)} />Neck geometry</label>}
         <label className="flex items-center gap-1.5 px-2 text-[11px] text-white/70"><input type="checkbox" checked={contextVisible} disabled={!closeup} onChange={event => setShowGarment(event.target.checked)} />Show Garment</label>
       </>}
       <div className="flex items-center">{[{ Icon: Minus, title: 'Zoom out label editor', action: () => setZoom(value => Math.max(.5, value - .25)) }, { Icon: Plus, title: 'Zoom in label editor', action: () => setZoom(value => Math.min(2, value + .25)) }, { Icon: RotateCcw, title: 'Reset editing zoom', action: () => { setZoom(1); setPan({ x: 0, y: 0 }); } }, { Icon: Maximize, title: 'Fit active label', action: () => { setEntryPending(false); setAnimatedTarget(null); setMode('closeup'); setZoom(1); setPan({ x: 0, y: 0 }); } }].map(({ Icon, title, action }) => <button key={title} type="button" title={title} aria-label={title} onClick={action} className={controlClass}><Icon size={14} /></button>)}</div>
@@ -64,10 +73,11 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
       onPointerMove={event => { const gesture = panGesture.current; if (gesture?.pointer === event.pointerId) setPan({ x: gesture.origin.x + event.clientX - gesture.x, y: gesture.origin.y + event.clientY - gesture.y }); }}
       onPointerUp={() => { panGesture.current = null; }} onPointerCancel={() => { panGesture.current = null; }} onLostPointerCapture={() => { panGesture.current = null; }}
       className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden [container-type:size]" style={{ touchAction: careCloseup ? 'none' : undefined, cursor: careCloseup ? 'grab' : undefined, backgroundColor: '#e7e9ec', backgroundImage: 'radial-gradient(#cdd1d6 .6px, transparent .6px)', backgroundSize: '16px 16px' }}>
-      {!handSelected && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible [&_[data-hoodie-neck-context]]:visible' : ''}`} style={{ transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
+      {!handSelected && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey && !(garmentProps.garmentType === 'hoodie' && neckSelected) ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible [&_[data-hoodie-neck-context]]:visible' : ''}`} style={{ transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
         <TshirtSvgPreview {...garmentProps} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
           onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} selectedLabelId={selected?.id ?? null}
-          labelInterior={interior} onLabelSelect={onSelect} onLabelsChange={onChange} onLabelFocus={setFocus} />
+          hoodieLabelView={garmentProps.garmentType === 'hoodie' && neckSelected ? (closeup ? 'interior' : 'exterior') : garmentProps.hoodieLabelView}
+          labelInterior={interior} neckDebug={neckDebug} onLabelSelect={onSelect} onLabelsChange={onChange} onLabelFocus={setFocus} />
       </div>}
       {selected && handSelected && <svg data-isolated-label="" aria-label="Active label close-up" viewBox={`-${selected.widthMm * .2} -${selected.heightMm * .2} ${selected.widthMm * 1.4} ${selected.heightMm * 1.4}`} className="absolute h-[85%] w-[85%] transition-transform duration-[650ms] ease-in-out motion-reduce:transition-none" style={{ transform: `scale(${zoom * .8})` }}><LabelArtwork label={selected} guide={selected.construction === 'printed'} /></svg>}
       {!selected && <button type="button" onClick={() => { const label = createGarmentLabel('neck'); onChange([...labels, label]); onSelect(label.id); }} className="absolute z-10 flex items-center gap-2 rounded border border-black/20 bg-white px-4 py-3 text-sm text-[#252528]"><Tag size={18} />Add label</button>}

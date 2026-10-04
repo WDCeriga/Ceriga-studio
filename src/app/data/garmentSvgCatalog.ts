@@ -1,5 +1,6 @@
 import type { GarmentType } from './builderSteps';
 import { getHoodBundleAsset, getHoodBundleVariantForFit } from './hoodBundles';
+import { sweatshirtNeckline, withSweatshirtNeckline } from './hoodieNecklines';
 
 export const GARMENT_NONE = '__none__';
 
@@ -1111,8 +1112,10 @@ export function getGarmentSpecRows(
         Object.values(config.stepCategories).flat().includes(category),
     )
     .map((category) => ({
-      label: category,
-      value: getGarmentSelectionLabel(garmentType, selection, category),
+      label: garmentType === 'hoodie' && category === 'Hood' ? 'Neck / Collar' : category,
+      value: garmentType === 'hoodie' && category === 'Hood' && sweatshirtNeckline(selection)
+        ? `${sweatshirtNeckline(selection)!.label} (${selection.NeckFinish ?? sweatshirtNeckline(selection)!.finish}, ${selection.NeckFinishWidth ?? '1'}x)`
+        : getGarmentSelectionLabel(garmentType, selection, category),
     }));
 }
 
@@ -1172,5 +1175,8 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     });
   }
 
-  return layers.sort((a, b) => a.zIndex - b.zIndex);
+  const resolved = input.garmentType === 'hoodie'
+    ? withSweatshirtNeckline(layers, selection, input.fit ?? 'regular', input.partColors?.neck ?? input.neckTrimColor)
+    : layers;
+  return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

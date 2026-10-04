@@ -1,58 +1,9 @@
 import { createGarmentLabel, labelBlocks, type GarmentLabel } from './garmentLabels';
-import { getHoodBundleAsset } from './hoodBundles';
+import type { HoodieNeckGeometry } from './hoodieNeckGeometry';
 
 export type HoodieLabelView = 'exterior' | 'interior';
 
-const backNeckMappings: Record<string, { center: number; seam: number; arch: number; side: number; bottom: number }> = {
-  slim: { center: 1025, seam: 425, arch: 265, side: 390, bottom: 620 },
-  regular: { center: 1023, seam: 418, arch: 265, side: 383, bottom: 610 },
-  boxy: { center: 1023, seam: 445, arch: 295, side: 402, bottom: 635 },
-  cropped: { center: 1021, seam: 460, arch: 292, side: 417, bottom: 656 },
-  baggy: { center: 1021, seam: 440, arch: 292, side: 408, bottom: 615 },
-};
-
-export function hoodieInnerBackNeck(fit: string, hoodAssetId: string) {
-  const neck = backNeckMappings[fit];
-  const hood = getHoodBundleAsset(hoodAssetId);
-  if (!neck || !hood) return null;
-  const scuba = hood.bundle.styleId === 'scuba';
-  const deep = hood.bundle.styleId === 'oversized-deep';
-  const crossover = hood.variant.frontConstruction === 'crossover';
-  const seamY = scuba ? neck.seam - 19 : neck.bottom - (deep ? 100 : 85) - (crossover ? 28 : 0);
-  const halfWidth = scuba ? 140 : deep ? 175 : 155;
-  const arch = scuba ? neck.arch + 20 : deep ? neck.arch - 30 : neck.arch;
-  const side = scuba ? neck.seam - 70 : neck.side;
-  const frontEdgeY = seamY + (scuba ? 29 : 34);
-  const center = neck.center;
-  const minX = center - 65;
-  const maxX = center + 65;
-  const minY = seamY - 10;
-  const maxY = seamY + (scuba ? 48 : 84);
-  const panelPath = `M${center - halfWidth} ${arch - 10} H${center + halfWidth} V${maxY + 10} H${center - halfWidth}Z`;
-  const seamPath = `M${center - halfWidth} ${seamY + 17} Q${center} ${seamY - 17} ${center + halfWidth} ${seamY + 17}`;
-  const exteriorOpeningPath = `M${center} ${arch} C${center - halfWidth * .65} ${arch} ${center - halfWidth} ${side - 60} ${center - halfWidth} ${side} C${center - halfWidth} ${frontEdgeY - 45} ${center - 45} ${frontEdgeY} ${center} ${frontEdgeY} C${center + 45} ${frontEdgeY} ${center + halfWidth} ${frontEdgeY - 45} ${center + halfWidth} ${side} C${center + halfWidth} ${side - 60} ${center + halfWidth * .65} ${arch} ${center} ${arch}Z`;
-  const apertureMask = (path: string) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="white" fill-rule="evenodd" d="M0 0H2048V2048H0Z ${path}"/></svg>`)}")`;
-  return {
-    id: 'innerBackNeck' as const,
-    center: { x: center, y: seamY + 20 },
-    bounds: { minX, maxX, minY, maxY },
-    rotation: { min: -10, max: 10 },
-    scale: { min: .5, max: 2 },
-    seamY,
-    frontEdgeY,
-    panelPath,
-    exteriorOpeningPath,
-    seamPath,
-    seamCoverPath: `M${center - halfWidth - 10} ${arch - 10} H${center + halfWidth + 10} V${seamY + 23} Q${center} ${seamY - 11} ${center - halfWidth - 10} ${seamY + 23}Z`,
-    apertureMask: apertureMask(exteriorOpeningPath),
-    exteriorApertureMask: apertureMask(exteriorOpeningPath),
-    hoodStyle: hood.bundle.styleId,
-    construction: hood.variant.frontConstruction,
-    occlusion: { exterior: 'partial' as const, interior: 'behind-hood-and-back-seam' as const },
-  };
-}
-
-export type HoodieInnerBackNeck = NonNullable<ReturnType<typeof hoodieInnerBackNeck>>;
+export type HoodieInnerBackNeck = HoodieNeckGeometry;
 
 export function hoodieNeckLabelPlacement(label: GarmentLabel, region: HoodieInnerBackNeck, bodyWidth: number) {
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -63,7 +14,9 @@ export function hoodieNeckLabelPlacement(label: GarmentLabel, region: HoodieInne
   const rawWidth = label.widthMm * unit, rawHeight = label.heightMm * unit;
   const rotatedWidth = rawWidth * cosine + rawHeight * sine;
   const rotatedHeight = rawHeight * cosine + rawWidth * sine;
-  const { minX, maxX, minY, maxY } = region.bounds;
+  const { minX, maxX } = region.labelAnchor.bounds;
+  const minY = Math.min(region.labelAnchor.bounds.minY, region.openingBounds.minY + 24);
+  const maxY = label.category === 'care' ? region.bounds.maxY + rawHeight * region.scale.max : region.bounds.maxY;
   const maxScale = Math.min(region.scale.max, (maxX - minX) / rotatedWidth, (maxY - minY) / rotatedHeight);
   if (!Number.isFinite(maxScale) || maxScale < region.scale.min || unit <= 0) return null;
   const scale = clamp(label.neckScale ?? 1, region.scale.min, maxScale);
@@ -77,7 +30,7 @@ export function hoodieNeckLabelPlacement(label: GarmentLabel, region: HoodieInne
 }
 
 export function isHoodieNeckLabel(label: GarmentLabel) {
-  return label.category === 'neck';
+  return label.category === 'neck' || (label.category === 'care' && label.position.startsWith('neck-'));
 }
 
 export const HOODIE_LABEL_POSITIONS = {
@@ -85,6 +38,7 @@ export const HOODIE_LABEL_POSITIONS = {
 } as const;
 
 export function hoodieLabelAttachment(label: GarmentLabel) {
+  if (isHoodieNeckLabel(label)) return null;
   if (label.category === 'care') return 'base';
   if (label.category !== 'tag' || label.exteriorView !== 'front') return null;
   if (label.position === 'sleeve-left') return 'sleeveHemLeft';
@@ -93,7 +47,7 @@ export function hoodieLabelAttachment(label: GarmentLabel) {
 }
 
 export function hoodieLabelVisibility(label: GarmentLabel) {
-  if (isHoodieNeckLabel(label)) return 'Neck preview unavailable: inside back-neck geometry is missing. Label settings are retained.';
+  if (isHoodieNeckLabel(label)) return 'Inside back neck';
   if (label.category === 'care') return 'Interior garment attachment';
   if (label.category === 'hand') return 'Hand tag';
   if (label.exteriorView === 'back') return 'Back attachment: specification only. No back geometry is available.';

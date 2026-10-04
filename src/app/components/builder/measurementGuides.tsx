@@ -13,7 +13,7 @@ export const MEASUREMENT_GUIDE_LABELS = [
   { id: 'shoulderWidth', label: 'I. Shoulder to Shoulder' },
 ] as const;
 
-export type MeasurementGuideId = (typeof MEASUREMENT_GUIDE_LABELS)[number]['id'];
+export type MeasurementGuideId = string;
 
 export type MeasurementGuideDef = {
   id: MeasurementGuideId;
@@ -25,6 +25,8 @@ export type MeasurementGuideDef = {
   labelX: number;
   labelY: number;
   labelAlign: 'left' | 'center' | 'right';
+  dimensionX?: number;
+  dimensionY?: number;
 };
 
 const DEFAULT_MEASUREMENT_GUIDES: MeasurementGuideDef[] = [
@@ -153,11 +155,13 @@ export function MeasurementGuideOverlay({
   editable,
   guides,
   onGuidePointerDown,
+  onHighlight,
 }: {
   highlightedId?: string | null;
   editable?: boolean;
   guides?: MeasurementGuideDef[];
   onGuidePointerDown?: (guideId: MeasurementGuideId, event: ReactPointerEvent<SVGGElement>) => void;
+  onHighlight?: (guideId: string | null) => void;
 }) {
   const storeGuides = useMeasurementGuides();
   const activeGuides = guides ?? storeGuides;
@@ -170,13 +174,15 @@ export function MeasurementGuideOverlay({
       )}
       viewBox="0 0 1000 1000"
       preserveAspectRatio="none"
-      aria-hidden="true"
+      aria-label="Garment measurement guides"
     >
       {activeGuides.map((guide) => {
         const active = highlightedId === null || highlightedId === guide.id;
         const opacity = highlightedId && !active ? 0.22 : 0.92;
         const labelOpacity = highlightedId && !active ? 0.35 : 1;
         const width = guide.label.length > 12 ? 176 : 140;
+        const start = { x: guide.dimensionX ?? guide.x1, y: guide.dimensionY ?? guide.y1 };
+        const end = { x: guide.dimensionX ?? guide.x2, y: guide.dimensionY ?? guide.y2 };
         const x =
           guide.labelAlign === 'center'
             ? guide.labelX - width / 2
@@ -194,33 +200,44 @@ export function MeasurementGuideOverlay({
           <g
             key={guide.id}
             opacity={opacity}
-            style={{ cursor: editable ? 'grab' : 'default' }}
+            data-measurement-guide={guide.id}
+            aria-label={guide.label}
+            aria-pressed={highlightedId === guide.id}
+            role={onHighlight ? 'button' : undefined}
+            tabIndex={onHighlight ? 0 : undefined}
+            style={{ cursor: editable ? 'grab' : onHighlight ? 'pointer' : 'default', pointerEvents: onHighlight || editable ? 'auto' : 'none' }}
+            onPointerEnter={() => onHighlight?.(guide.id)}
+            onPointerLeave={() => onHighlight?.(null)}
+            onFocus={() => onHighlight?.(guide.id)}
+            onBlur={() => onHighlight?.(null)}
+            onClick={event => { event.stopPropagation(); onHighlight?.(guide.id); }}
+            onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onHighlight?.(guide.id); } }}
             onPointerDown={(event) => {
               if (!editable || !onGuidePointerDown) return;
               onGuidePointerDown(guide.id, event);
             }}
           >
-            {editable ? (
+            {editable || onHighlight ? (
               <line
-                x1={guide.x1}
-                y1={guide.y1}
-                x2={guide.x2}
-                y2={guide.y2}
+                x1={start.x}
+                y1={start.y}
+                x2={end.x}
+                y2={end.y}
                 stroke="transparent"
                 strokeWidth={26}
                 strokeLinecap="round"
               />
             ) : null}
             <line
-              x1={guide.x1}
-              y1={guide.y1}
-              x2={guide.x2}
-              y2={guide.y2}
+              x1={start.x}
+              y1={start.y}
+              x2={end.x}
+              y2={end.y}
               stroke="#FF3B30"
-              strokeWidth={3}
-              strokeDasharray="8 7"
+              strokeWidth={highlightedId === guide.id ? 2.5 : 1.3}
               strokeLinecap="round"
             />
+            <path d={`M${guide.x1},${guide.y1}L${start.x},${start.y}M${guide.x2},${guide.y2}L${end.x},${end.y}M${(start.x + end.x) / 2},${(start.y + end.y) / 2}L${guide.labelX},${guide.labelY}`} fill="none" stroke="#FF3B30" strokeWidth={.8} opacity={.6} />
             <circle cx={guide.x1} cy={guide.y1} r={4.5} fill="#F2F0EC" stroke="#FF3B30" strokeWidth={2} />
             <circle cx={guide.x2} cy={guide.y2} r={4.5} fill="#F2F0EC" stroke="#FF3B30" strokeWidth={2} />
             <circle
@@ -235,12 +252,11 @@ export function MeasurementGuideOverlay({
               <div
                 xmlns="http://www.w3.org/1999/xhtml"
                 className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border border-[#FF3B30]/30 bg-black/55 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-sm',
+                  'flex h-8 items-center gap-1 rounded border border-[#FF3B30]/30 bg-[#171719] px-1 text-[14px] font-medium text-white',
                   textAlign,
                 )}
                 style={{ opacity: labelOpacity }}
               >
-                <span className="text-[#FF3B30]">{guide.id.toUpperCase()}</span>
                 <span>{guide.label}</span>
               </div>
             </foreignObject>

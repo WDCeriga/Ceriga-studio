@@ -85,7 +85,7 @@ import {
 } from 'react-resizable-panels';
 
 import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
-import { MeasurementGuideOverlay } from '../components/builder/measurementGuides';
+import { CustomAssetMeasurementLayer, type AssetMeasurementSnapshot } from '../components/builder/CustomAssetMeasurements';
 import {
   MEASUREMENT_GUIDE_CLASS_PHONE,
   PREVIEW_STAGE_CLASS,
@@ -95,6 +95,7 @@ import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
 import { GarmentLabelsPreview } from '../components/builder/GarmentLabelsPreview';
 import { HoodieStitchingPanel } from '../components/builder/HoodieStitching';
 import type { HoodieStitching } from '../data/hoodieStitching';
+import { SWEATSHIRT_NECKLINES, selectSweatshirtConstruction, sweatshirtNeckline, type SweatshirtNeckline } from '../data/hoodieNecklines';
 import { HoodieWashPanel, type HoodieWashTool } from '../components/builder/WashFinish';
 import { HoodieDetailsPanel } from '../components/builder/HoodieDetails';
 import type { DetailBounds, GarmentDetail } from '../data/garmentDetails';
@@ -552,6 +553,7 @@ export function Builder() {
   const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
   const [isPanningCanvas, setIsPanningCanvas] = useState(false);
   const [highlightedMeasurementId, setHighlightedMeasurementId] = useState<string | null>(null);
+  const [hoodieMeasurements, setHoodieMeasurements] = useState<AssetMeasurementSnapshot>();
   const [tshirtLayerSelectedId, setTshirtLayerSelectedId] = useState<GarmentLayerId | null>(null);
   /** When true, the phone configuration sheet (not the step icons) is fully collapsed. */
   const [phoneEditorCollapsed, setPhoneEditorCollapsed] = useState(false);
@@ -2077,6 +2079,7 @@ export function Builder() {
                 ...getDefaultGarmentSelection(garmentSvgType, activeFit),
                 ...prev.tshirtAssetSelection,
                 [category]: assetId,
+                ...(garmentSvgType === 'hoodie' && category === 'Hood' ? { NeckConstruction: 'hood' } : {}),
               },
               activeFit,
             ),
@@ -2138,6 +2141,10 @@ export function Builder() {
               }
               highlightedMeasurementId={highlightedMeasurementId}
               onHighlightedMeasurementIdChange={setHighlightedMeasurementId}
+              geometrySnapshot={hoodieMeasurements}
+              measurementView={showFront ? 'front' : 'back'}
+              referenceWidthCm={Number(state.measurements.hoodieReference?.outlineWidth) || 56}
+              onReferenceWidthChange={width => setState(prev => ({ ...prev, measurements: { ...prev.measurements, hoodieReference: { outlineWidth: String(width) } } }))}
               onMeasurementChange={(measurementId, size, value) =>
                 setState((prev) => ({
                   ...prev,
@@ -2278,7 +2285,43 @@ export function Builder() {
         if (isGarmentSvgFlow) {
           return (
             <div className="space-y-4">
-              {renderGarmentAssetGrids(3)}
+              {garmentSvgType === 'hoodie' && <div className="space-y-4">
+                <label className="block text-xs text-white/70">
+                  Neck / Collar
+                  <select aria-label="Neck / Collar" value={sweatshirtNeckline(garmentSelection)?.id ?? 'hood'}
+                    className="mt-2 block w-full rounded border border-white/15 bg-[#202023] p-2 text-sm text-white"
+                    onChange={event => setState(prev => ({ ...prev, tshirtAssetSelection: selectSweatshirtConstruction(
+                      { ...garmentSelection, ...prev.tshirtAssetSelection }, event.target.value as 'hood' | SweatshirtNeckline) }))}>
+                    <option value="hood">Hood</option>
+                    {SWEATSHIRT_NECKLINES.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                  </select>
+                </label>
+                {sweatshirtNeckline(garmentSelection) && <>
+                  <fieldset>
+                    <legend className="mb-2 text-xs text-white/70">Neck Finish</legend>
+                    <div className="flex gap-5">
+                      {(['ribbed', 'clean'] as const).map(finish => <label key={finish} className="flex items-center gap-2 text-xs text-white">
+                        <input type="radio" name="sweatshirt-neck-finish" value={finish}
+                          checked={(garmentSelection.NeckFinish ?? sweatshirtNeckline(garmentSelection)!.finish) === finish}
+                          onChange={() => setState(prev => ({ ...prev, tshirtAssetSelection: { ...garmentSelection, ...prev.tshirtAssetSelection, NeckFinish: finish } }))} />
+                        {finish === 'ribbed' ? 'Ribbed' : 'Clean'}
+                      </label>)}
+                    </div>
+                  </fieldset>
+                  <label className="block text-xs text-white/70">Finish Width
+                    <div className="mt-2 flex items-center gap-3">
+                      <input className="min-w-0 flex-1" type="range" aria-label="Finish Width" min="0.4" max="1.8" step="0.1"
+                        value={garmentSelection.NeckFinishWidth ?? '1'}
+                        onChange={event => setState(prev => ({ ...prev, tshirtAssetSelection: { ...garmentSelection, ...prev.tshirtAssetSelection, NeckFinishWidth: event.target.value } }))} />
+                      <output className="w-10 tabular-nums">{Number(garmentSelection.NeckFinishWidth ?? 1).toFixed(1)}x</output>
+                    </div>
+                  </label>
+                  <TrimColorFamilyPicker label="Neckline colour" value={state.partColors?.neck ?? state.neckTrimColor}
+                    onChange={hex => setState(prev => ({ ...prev, partColors: { ...prev.partColors, neck: hex } }))}
+                    onClear={() => setState(prev => ({ ...prev, neckTrimColor: undefined, partColors: { ...prev.partColors, neck: undefined } }))} />
+                </>}
+              </div>}
+              {!(garmentSvgType === 'hoodie' && sweatshirtNeckline(garmentSelection)) && renderGarmentAssetGrids(3)}
               {garmentSvgType === 'tshirtTest' ? (
                 <CollarPhotoUpload
                   disabled={activeFit === 'boxy'}
@@ -2318,7 +2361,7 @@ export function Builder() {
                   }}
                 />
               ) : null}
-              {renderPartColorPickers(3)}
+              {!(garmentSvgType === 'hoodie' && sweatshirtNeckline(garmentSelection)) && renderPartColorPickers(3)}
               {!techpackSpecFlow && !garmentConfig?.perPartColors ? (
                 <TrimColorFamilyPicker
                   label="Neck / collar trim colour"
@@ -3554,7 +3597,8 @@ export function Builder() {
               )}
             >
               {state.garmentType === 'hoodie' && garmentSvgType ? (
-                <div className="relative aspect-square w-full max-w-[576px]">
+                <div className="relative aspect-square w-full max-w-[576px]" data-measurement-preview>
+                  {showFront ? <>
                   <TshirtSvgPreview
                     garmentType={garmentSvgType}
                     color={primaryColor}
@@ -3574,9 +3618,13 @@ export function Builder() {
                     garmentDetails={state.garmentDetails}
                     garmentLabels={state.garmentLabels}
                     showWash={showWash}
+                    renderMeasurements={sources => <CustomAssetMeasurementLayer sources={sources} fit={activeFit || 'regular'} view="front"
+                      referenceWidthCm={Number(state.measurements.hoodieReference?.outlineWidth) || 56}
+                      details={state.garmentDetails} highlightedId={highlightedMeasurementId} onHighlight={setHighlightedMeasurementId}
+                      onMeasurementsChange={setHoodieMeasurements} />}
                     className="h-full w-full min-h-0"
                   />
-                  <MeasurementGuideOverlay highlightedId={highlightedMeasurementId} />
+                  </> : <div role="status" className="flex h-full items-center justify-center px-8 text-center text-sm text-white/60">Back measurement geometry unavailable</div>}
                 </div>
               ) : (
                 <MeasurementPreview

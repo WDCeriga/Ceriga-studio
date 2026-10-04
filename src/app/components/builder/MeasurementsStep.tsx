@@ -12,6 +12,7 @@ import {
 import { cn } from '../ui/utils';
 import { getDefaultTshirtSelection } from '../../data/tshirtAssetCatalog';
 import { TshirtSvgPreview } from './TshirtSvgPreview';
+import { CustomAssetMeasurements, type AssetMeasurementSnapshot } from './CustomAssetMeasurements';
 import {
   MEASUREMENT_GUIDE_LABELS,
   MeasurementGuideOverlay,
@@ -30,6 +31,10 @@ interface MeasurementsStepProps {
   onHighlightedMeasurementIdChange?: (id: string | null) => void;
   /** When set, only these fits are offered (e.g. Slim / Boxy on the test pack). */
   fits?: readonly { id: string; name: string }[];
+  geometrySnapshot?: AssetMeasurementSnapshot;
+  measurementView?: 'front' | 'back';
+  referenceWidthCm?: number;
+  onReferenceWidthChange?: (width: number) => void;
 }
 
 function MeasurementUnitToggle({
@@ -176,6 +181,10 @@ export function MeasurementsStep({
   highlightedMeasurementId,
   onHighlightedMeasurementIdChange,
   fits,
+  geometrySnapshot,
+  measurementView = 'front',
+  referenceWidthCm = 56,
+  onReferenceWidthChange,
 }: MeasurementsStepProps) {
   const currentMeasurements = fit && fitMeasurements[fit] ? fitMeasurements[fit] : fitMeasurements.regular;
   const fitChoices = fits?.length ? fits : fitOptions;
@@ -256,7 +265,45 @@ export function MeasurementsStep({
       </div>
 
       {/* Measurement Table */}
-      <div>
+      {garmentType === 'hoodie' ? <div className="space-y-3" data-hoodie-measurement-table>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-[10px] uppercase tracking-wider text-white/60">Measurement ({measurementUnitLabel(measurementUnit)})</Label>
+          <MeasurementUnitToggle unit={measurementUnit} onChange={onMeasurementUnitChange} />
+        </div>
+        {measurementView === 'back' ? <p role="status" className="text-xs text-white/60">Back measurements unavailable: no back SVG geometry in this hoodie pack.</p> : <>
+          <label className="flex items-center justify-between gap-3 text-[10px] text-white/60">
+            Body outline reference ({measurementUnit})
+            <Input type="number" min={1} step={.1} aria-label="Body outline reference" value={formatMeasurementDisplay(String(referenceWidthCm), measurementUnit)}
+              onChange={event => { const value = Number(parseMeasurementInput(event.target.value, measurementUnit)); if (Number.isFinite(value) && value > 0) onReferenceWidthChange?.(value); }}
+              className="h-7 w-20 border-white/20 bg-white/10 text-center text-[10px] text-white/90" />
+          </label>
+          <p className="text-[9px] text-white/45">Front drawing estimates. Size and factory grading unverified.</p>
+          <div className="overflow-hidden rounded-lg border border-[#252528] bg-white/5" onPointerLeave={() => setHighlightedMeasurementId(null)}>
+            <div className="no-scrollbar overflow-x-auto">
+              <table className="w-full text-xs md:text-xs">
+                <thead><tr className="border-b border-[#252528]">
+                  {['Measurement', 'Value', 'Unit', 'Tolerance'].map(label => <th key={label} className="px-1 py-1 text-left text-[10px] font-semibold text-white/70 md:px-2 md:py-1.5 md:font-medium md:text-white/60">{label}</th>)}
+                </tr></thead>
+                <tbody>{geometrySnapshot?.measurements.map(measurement => <tr key={measurement.id} data-measurement-row={measurement.id}
+                  aria-selected={activeHighlightedMeasurementId === measurement.id}
+                  className={cn('border-b border-white/5 hover:bg-white/5', activeHighlightedMeasurementId === measurement.id && 'bg-white/7')}
+                  onPointerEnter={() => setHighlightedMeasurementId(measurement.id)} onFocus={() => setHighlightedMeasurementId(measurement.id)} onBlur={() => setHighlightedMeasurementId(null)}>
+                  <td className="px-1 py-0.5 text-left text-[10px] font-semibold leading-tight text-white/90 md:px-2 md:py-1.5 md:font-medium md:text-white/80">{measurement.label}</td>
+                  <td className="px-0.5 py-px md:px-1 md:py-1"><Input readOnly aria-label={`${measurement.label} value`} value={formatMeasurementDisplay(String(measurement.valueCm), measurementUnit)}
+                    className="h-6 min-h-[26px] w-full min-w-0 rounded border border-white/20 bg-white/10 px-1 text-center text-[10px] tabular-nums text-white/90 md:h-7" /></td>
+                  <td className="px-1 text-[10px] text-white/60">{measurementUnit}</td>
+                  <td className="px-0.5 py-px md:px-1 md:py-1"><Input type="text" inputMode="decimal" aria-label={`${measurement.label} tolerance`} placeholder="-"
+                    value={formatMeasurementDisplay(measurements[`hoodie:${measurement.id}`]?.tolerance ?? '', measurementUnit)}
+                    onChange={event => onMeasurementChange(`hoodie:${measurement.id}`, 'tolerance', parseMeasurementInput(event.target.value, measurementUnit))}
+                    className="h-6 min-h-[26px] w-full min-w-0 rounded border border-white/20 bg-white/10 px-1 text-center text-[10px] tabular-nums text-white/90 md:h-7" /></td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          </div>
+          {!geometrySnapshot?.measurements.length && <p role="status" className="text-xs text-white/50">Loading measurement geometry...</p>}
+          <CustomAssetMeasurements assets={geometrySnapshot?.assets ?? []} unit={measurementUnit} highlightedId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId} />
+        </>}
+      </div> : <div>
         <div className="mb-1.5 flex min-w-0 flex-row items-center justify-between gap-2 md:mb-2 md:gap-3">
           <Label className="min-w-0 flex-1 truncate pr-1 text-[10px] uppercase leading-snug tracking-wider text-white/60 md:text-[10px]">
             Measurement ({measurementUnitLabel(measurementUnit)})
@@ -343,7 +390,7 @@ export function MeasurementsStep({
             </table>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

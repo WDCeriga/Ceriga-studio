@@ -52,8 +52,11 @@ import { hoodExteriorWashSource } from '../../data/hoodieWashMask';
 import { GarmentDetailsOverlay, type DetailEditorState } from './GarmentDetails';
 import type { DetailBounds, GarmentDetail } from '../../data/garmentDetails';
 import type { GarmentLabel } from '../../data/garmentLabels';
-import { hoodieLabelAttachment, type HoodieLabelView } from '../../data/hoodieLabels';
+import { hoodieLabelAttachment, isHoodieNeckLabel, type HoodieLabelView } from '../../data/hoodieLabels';
+import { hoodieNeckGeometry, type HoodieNeckGeometry } from '../../data/hoodieNeckGeometry';
+import { HoodieNeckLabels, HoodieNeckDebug } from './HoodieNeckLabels';
 import { GarmentLabelOverlay, type LabelAttachmentLayer, type LabelFocus } from './GarmentLabelOverlay';
+import type { MeasurementSource } from './measurementGeometry';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -239,6 +242,7 @@ export interface TshirtSvgPreviewProps {
   garmentDetails?: GarmentDetail[];
   garmentLabels?: GarmentLabel[];
   hoodieLabelView?: HoodieLabelView;
+  neckDebug?: boolean;
   labelInterior?: boolean;
   onLabelFocus?: (focus: LabelFocus) => void;
   selectedLabelId?: string | null;
@@ -249,6 +253,7 @@ export interface TshirtSvgPreviewProps {
   onDetailSelect?: (id: string | null) => void;
   onDetailsChange?: (details: GarmentDetail[]) => void;
   onDetailBoundsChange?: (bounds: Record<string, DetailBounds>) => void;
+  renderMeasurements?: (sources: MeasurementSource[]) => React.ReactNode;
   showWash?: boolean;
   washTarget?: HoodieWashTarget;
   washTool?: HoodieWashTool;
@@ -554,6 +559,9 @@ function PreviewLayer({
   labels = [],
   labelLayers = [],
   labelInterior = false,
+  neckLabels = [],
+  neckInterior = false,
+  neckDebug = false,
   onLabelFocus,
   selectedLabelId,
   onLabelSelect,
@@ -581,6 +589,9 @@ function PreviewLayer({
   labels?: GarmentLabel[];
   labelLayers?: LabelAttachmentLayer[];
   labelInterior?: boolean;
+  neckLabels?: GarmentLabel[];
+  neckInterior?: boolean;
+  neckDebug?: boolean;
   onLabelFocus?: (focus: LabelFocus) => void;
   selectedLabelId?: string | null;
   onLabelSelect?: (id: string | null) => void;
@@ -592,6 +603,18 @@ function PreviewLayer({
   detailEditor?: DetailEditorState;
 }) {
   const trimMask = useMemo(() => `data:image/svg+xml,${encodeURIComponent(layer.svgRaw)}`, [layer.svgRaw]);
+  const [neckState, setNeckState] = useState<{ raw: string; region?: HoodieNeckGeometry; error?: string } | null>(null);
+  const needsNeck = layerId === 'hood';
+  useEffect(() => {
+    if (!needsNeck) return;
+    let active = true;
+    hoodieNeckGeometry(layer.svgRaw, layer.assetId).then(region => {
+      if (active) setNeckState({ raw: layer.svgRaw, region });
+    }).catch(error => { if (active) setNeckState({ raw: layer.svgRaw, error: String(error) }); });
+    return () => { active = false; };
+  }, [needsNeck, layer.svgRaw, layer.assetId]);
+  const neck = needsNeck && neckState?.raw === layer.svgRaw ? neckState.region : undefined;
+  const bodyBounds = labelLayers.find(entry => entry.id === 'base')?.bbox ?? washBounds;
   const fill = resolveLayerFill(layer, fabricColor);
   const washId = useId();
   const exteriorOnly = layerId === 'hood' && (wash?.views.front.placement ?? wash?.placement) === 'hood';
@@ -637,8 +660,23 @@ function PreviewLayer({
         className="absolute inset-0 z-10"
         style={clipSide ? sleeveSideClipStyle(clipSide) : undefined}
       >
-        <InlineSvg raw={layer.svgRaw} fill={fill} />
-        {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:block [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
+        <div className="absolute inset-0" data-inner-back-neck-surface={neck ? layer.assetId : undefined}
+          style={neck && neckInterior ? { visibility: 'hidden' } : undefined}>
+          <InlineSvg raw={layer.svgRaw} fill={fill} />
+          {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:block [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
+        </div>
+        {neck && <>
+          <HoodieNeckLabels labels={neckLabels} region={neck} bodyWidth={bodyBounds.maxX - bodyBounds.minX}
+            interior={neckInterior} selectedId={selectedLabelId} onSelect={onLabelSelect} onChange={onLabelsChange} onFocus={reportFocus} />
+          <div className={`pointer-events-none absolute inset-0 ${neckInterior ? 'z-10' : 'z-30'}`} data-front-neck-occlusion={layer.assetId}
+            data-neck-inspection={neckInterior ? 'front-suppressed' : 'exterior'}
+            style={neckInterior ? { opacity: .24 } : { maskImage: `url(${neck.frontOcclusionMask})`, maskSize: '100% 100%' }}>
+            <InlineSvg raw={layer.svgRaw} fill={neckInterior ? '#e53935' : fill} />
+            {!neckInterior && finish && <div className="absolute inset-0 [&>svg]:block [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
+          </div>
+          {neckDebug && <HoodieNeckDebug region={neck} source={`data:image/svg+xml,${encodeURIComponent(tintPotraceSvg(layer.svgRaw, '#d63384'))}`} />}
+        </>}
+        {needsNeck && neckState?.raw === layer.svgRaw && neckState.error && <span role="status" data-neck-error={neckState.error}>Neck geometry unavailable</span>}
         {stitching && seams && <HoodieStitchLayer panel={seams} settings={stitching} />}
         {bbox && details.length > 0 && <GarmentDetailsOverlay key={layer.assetId} details={details} bounds={bbox} maskSource={trimMask}
           selectedId={selectedDetailId} onSelect={onDetailSelect} onChange={onDetailsChange}
@@ -727,6 +765,12 @@ function expandPreviewLayers(
 
   for (const layer of layers) {
     const fullBbox = getPotraceSvgBBox(layer.transformReferenceSvg ?? layer.svgRaw);
+    if (garmentType === 'hoodie' && layer.id === 'neck' && layer.assetId.startsWith('sweatshirt-')) {
+      const base = layers.find(candidate => candidate.id === 'base');
+      expanded.push({ id: layer.id, sourceLayer: layer, transform: mergeTransform('base', layerTransforms),
+        bbox: base ? getPotraceSvgBBox(base.transformReferenceSvg ?? base.svgRaw) : fullBbox });
+      continue;
+    }
 
     if (config.splitSleeves && layer.id === 'sleeves') {
       const { left, right } = splitPotraceSvgBBoxAtCenter(layer.svgRaw);
@@ -821,6 +865,7 @@ export function TshirtSvgPreview({
   garmentDetails = [],
   garmentLabels = [],
   hoodieLabelView = 'exterior',
+  neckDebug = false,
   labelInterior = false,
   onLabelFocus,
   selectedLabelId,
@@ -831,6 +876,7 @@ export function TshirtSvgPreview({
   onDetailSelect,
   onDetailsChange,
   onDetailBoundsChange,
+  renderMeasurements,
   showWash = true,
   washTarget = 'global',
   washTool,
@@ -1230,7 +1276,8 @@ export function TshirtSvgPreview({
               : null;
           const displayTransform = resolveLayerDisplayTransform(id, transform, bbox);
           const details = garmentType === 'hoodie' && !labelInterior ? garmentDetails.filter(detail => (detail.view ?? 'front') === 'front' && (detail.attachment ?? 'base') === id) : [];
-          const labels = garmentType === 'hoodie' ? garmentLabels.filter(label => hoodieLabelAttachment(label) === id) : [];
+          const labels = garmentType === 'hoodie' ? garmentLabels.filter(label => hoodieLabelAttachment(label) === id
+            && (label.category !== 'care' || labelInterior)) : [];
           const labelLayers = layerLayouts.filter(entry => (entry.id === 'base' || entry.id === id) && entry.bbox)
             .map(entry => ({ id: entry.id, svgRaw: entry.sourceLayer.svgRaw, bbox: entry.bbox!, matrix: 'matrix(1,0,0,1,0,0)' }));
 
@@ -1252,6 +1299,9 @@ export function TshirtSvgPreview({
               canvasSize={canvasSize}
               details={details}
               labels={labels}
+              neckLabels={garmentType === 'hoodie' && id === 'hood' ? garmentLabels.filter(isHoodieNeckLabel) : undefined}
+              neckInterior={hoodieLabelView === 'interior'}
+              neckDebug={neckDebug}
               labelLayers={labelLayers}
               labelInterior={labelInterior}
               onLabelFocus={onLabelFocus}
@@ -1266,6 +1316,12 @@ export function TshirtSvgPreview({
             />
           );
         })}
+
+        {renderMeasurements?.(layerLayouts.filter(entry => entry.bbox && entry.sourceLayer.kind === 'solid').map(entry => ({
+          id: entry.id, assetId: entry.sourceLayer.assetId, svgRaw: entry.sourceLayer.svgRaw,
+          displayName: entry.sourceLayer.displayName,
+          matrix: layerCanvasMatrix(entry.transform, canvasSize, entry.bbox, entry.alignOffset).toString(),
+        })))}
 
         {selectable
           ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>

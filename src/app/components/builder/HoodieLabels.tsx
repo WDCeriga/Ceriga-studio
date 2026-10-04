@@ -11,7 +11,7 @@ export function HoodieLabelsPanel({ labels, selectedId, onSelect, onChange, view
   view: HoodieLabelView; onViewChange: (view: HoodieLabelView) => void;
 }) {
   const selected = labels.find(label => label.id === selectedId);
-  useEffect(() => { if (selected) onViewChange(isHoodieNeckLabel(selected) ? 'interior' : 'exterior'); }, [selected?.id, onViewChange]);
+  useEffect(() => { if (selected) onViewChange(isHoodieNeckLabel(selected) ? 'interior' : 'exterior'); }, [selected?.id, selected?.position, onViewChange]);
   const index = labels.findIndex(label => label.id === selectedId);
   const reorder = (direction: number) => {
     const next = [...labels];
@@ -24,7 +24,7 @@ export function HoodieLabelsPanel({ labels, selectedId, onSelect, onChange, view
       <button type="button" title="Reset labels" aria-label="Reset labels" disabled={!labels.length}
         className="p-2 text-white/65 disabled:opacity-30" onClick={() => { onChange([]); onSelect(null); }}><RotateCcw size={16} /></button>
     </div>
-    {selected?.category === 'neck' && <div className="grid grid-cols-2 gap-1" role="group" aria-label="Label garment context">
+    {selected && isHoodieNeckLabel(selected) && <div className="grid grid-cols-2 gap-1" role="group" aria-label="Label garment context">
       {(['exterior', 'interior'] as const).map(context => <button key={context} type="button" aria-pressed={view === context}
         className="rounded bg-white/5 px-3 py-2 text-xs text-white/70 aria-pressed:bg-white/20" onClick={() => onViewChange(context)}>
         {context === 'interior' ? 'Interior neck' : 'Exterior'}</button>)}

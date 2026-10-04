@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hoodie Measurement Review</title>
+  <style>
+    body { margin: 0; background: #111113; color: white; font-family: sans-serif; }
+    header { padding: 16px 24px; border-bottom: 1px solid #303035; }
+    h1 { margin: 0 0 12px; font-size: 20px; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 13px; }
+    .controls select { padding: 4px 8px; color: white; background: #242428; }
+    main { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; padding: 24px; max-width: 1300px; margin: auto; }
+    aside { min-width: 0; }
+    .preview { aspect-ratio: 1; width: 100%; max-width: 850px; position: relative; background: #242629; }
+    @media(max-width: 700px) { main { display: flex; flex-direction: column-reverse; padding: 12px; gap: 16px; } header { padding: 12px; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import React, { useState } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import '/src/styles/index.css';
+    import { TshirtSvgPreview } from '/src/app/components/builder/TshirtSvgPreview.tsx';
+    import { MeasurementsStep } from '/src/app/components/builder/MeasurementsStep.tsx';
+    import { CustomAssetMeasurementLayer } from '/src/app/components/builder/CustomAssetMeasurements.tsx';
+    import { getDefaultGarmentSelection } from '/src/app/data/garmentSvgCatalog.ts';
+    import { HOOD_BUNDLES } from '/src/app/data/hoodBundles.ts';
+    import { createGarmentDetail } from '/src/app/data/garmentDetails.ts';
+    const configurations = [
+      ['regular', 'Regular Hood', 'regular', 'standard'],
+      ['deep', 'Oversized / Deep Hood', 'oversized-deep', 'standard'],
+      ['scuba', 'Scuba Hood', 'scuba', 'standard'],
+      ['regular-crossover', 'Regular Crossover', 'regular', 'crossover'],
+      ['deep-crossover', 'Deep Crossover', 'oversized-deep', 'crossover'],
+    ];
+    const fits = ['slim', 'regular', 'boxy', 'cropped', 'baggy'].map(id => ({ id, name: id[0].toUpperCase() + id.slice(1) }));
+    function Review() {
+      const [fit, setFit] = useState('regular');
+      const [hood, setHood] = useState('regular');
+      const [view, setView] = useState('front');
+      const [unit, setUnit] = useState('cm');
+      const [reference, setReference] = useState(56);
+      const [measurements, setMeasurements] = useState({});
+      const [snapshot, setSnapshot] = useState();
+      const [highlighted, setHighlighted] = useState(null);
+      const [showPatch, setShowPatch] = useState(false);
+      const [patch] = useState(() => ({ ...createGarmentDetail('patch', [], '#9f4540'), id: 'review-patch', attachment: 'base', view: 'front' }));
+      const configuration = configurations.find(item => item[0] === hood);
+      const bundle = HOOD_BUNDLES.find(item => item.styleId === configuration[2]);
+      const variant = bundle.variants.find(item => item.fit === fit && item.frontConstruction === configuration[3]);
+      const selection = { ...getDefaultGarmentSelection('hoodie', fit), Hood: variant.views.front.assetId };
+      const details = showPatch ? [patch] : [];
+      return React.createElement(React.Fragment, null,
+        React.createElement('header', null, React.createElement('h1', null, 'Hoodie Measurements'),
+          React.createElement('div', { className: 'controls' },
+            React.createElement('label', null, 'Hood ', React.createElement('select', { 'aria-label': 'Hood', value: hood, onChange: event => setHood(event.target.value) }, configurations.map(item => React.createElement('option', { key: item[0], value: item[0] }, item[1])))),
+            React.createElement('label', null, 'View ', React.createElement('select', { 'aria-label': 'View', value: view, onChange: event => setView(event.target.value) }, ['front', 'back'].map(value => React.createElement('option', { key: value }, value)))),
+            React.createElement('label', null, React.createElement('input', { type: 'checkbox', checked: showPatch, onChange: event => setShowPatch(event.target.checked) }), ' Patch'))),
+        React.createElement('main', null,
+          React.createElement('aside', null, React.createElement(MeasurementsStep, {
+            garmentType: 'hoodie', fit, fits, onFitChange: setFit, measurements,
+            onMeasurementChange: (id, size, value) => setMeasurements(previous => ({ ...previous, [id]: { ...previous[id], [size]: value } })),
+            measurementUnit: unit, onMeasurementUnitChange: setUnit, geometrySnapshot: snapshot, measurementView: view,
+            referenceWidthCm: reference, onReferenceWidthChange: setReference,
+            highlightedMeasurementId: highlighted, onHighlightedMeasurementIdChange: setHighlighted,
+          })),
+          React.createElement('div', { className: 'preview', 'data-measurement-preview': '', 'data-fit': fit, 'data-hood': hood }, view === 'front'
+            ? React.createElement(TshirtSvgPreview, { garmentType: 'hoodie', color: '#77948e', fit, selection, hoodieAssemblyVersion: 1, garmentDetails: details,
+              renderMeasurements: sources => React.createElement(CustomAssetMeasurementLayer, { sources, fit, view, referenceWidthCm: reference, details,
+                highlightedId: highlighted, onHighlight: setHighlighted, onMeasurementsChange: setSnapshot }) })
+            : React.createElement('p', { role: 'status' }, 'Back measurement geometry unavailable'))));
+    }
+    createRoot(document.getElementById('root')).render(React.createElement(Review));
+  </script>
+</body>
+</html>

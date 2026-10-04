@@ -24,7 +24,7 @@ try {
   const panel = page.getByRole('region', { name: 'Hoodie labels and branding' });
   await panel.waitFor();
   const sources = () => page.locator('[data-layer-id]').evaluateAll(nodes => nodes.map(node => ({
-    id: node.dataset.layerId, style: node.getAttribute('style'), svg: node.querySelector('svg')?.outerHTML,
+    id: node.dataset.layerId, style: node.getAttribute('style'), svg: (node.querySelector('[data-inner-back-neck-surface] svg') ?? node.querySelector('svg'))?.outerHTML,
   })));
   const original = await sources();
   assert.equal(original.length, 8);
@@ -56,6 +56,9 @@ try {
   await panel.getByRole('tab', { name: 'Care Labels', exact: true }).click();
   assert.match(await panel.getByRole('note').textContent(), /illustrative only/);
   const care = page.locator('[data-layer-id="base"] [data-garment-label]');
+  await page.getByRole('button', { name: 'Garment', exact: true }).click();
+  assert.equal(await care.count(), 0, 'Care label must be hidden in the normal front view');
+  await page.getByRole('button', { name: 'Label Close-up', exact: true }).click();
   await care.waitFor();
   assert.equal(await care.count(), 1);
   assert.match(await care.locator('..').getAttribute('mask'), /^url\(#/);
@@ -68,6 +71,7 @@ try {
   await page.getByRole('button', { name: 'Reset editing zoom', exact: true }).click();
   await page.screenshot({ path: `${directory}/shared-care-label.png` });
   await page.getByRole('button', { name: 'Garment', exact: true }).click();
+  assert.equal(await care.count(), 0);
   await panel.getByRole('tab', { name: 'Neck Labels', exact: true }).click();
   await panel.getByRole('button', { name: 'Add label', exact: true }).click();
   await panel.getByRole('button', { name: 'Brand / logo', exact: true }).click();
@@ -92,9 +96,9 @@ try {
   const neckTransform = () => neck().getAttribute('transform');
   const neckDefault = await neckTransform();
   const neckBounds = await neck().boundingBox();
-  await page.mouse.move(neckBounds.x + neckBounds.width / 2, neckBounds.y + neckBounds.height / 2);
+  await page.mouse.move(neckBounds.x + neckBounds.width / 2, neckBounds.y + 3);
   await page.mouse.down();
-  await page.mouse.move(neckBounds.x + neckBounds.width / 2 + 7, neckBounds.y + neckBounds.height / 2 + 3, { steps: 4 });
+  await page.mouse.move(neckBounds.x + neckBounds.width / 2 + 7, neckBounds.y + 6, { steps: 4 });
   await page.mouse.up();
   const neckMoved = await neckTransform();
   assert.notEqual(neckMoved, neckDefault);
@@ -109,8 +113,18 @@ try {
     await page.mouse.move(handle.x + handle.width / 2 + horizontal, handle.y + handle.height / 2 + vertical, { steps: 4 });
     await page.mouse.up();
   };
-  await dragNeckHandle('scale', 4, 3);
-  assert(Number(await neck().getAttribute('data-neck-scale')) > 1);
+  await dragNeckHandle('resize', 8, 6);
+  const resizedWidth = Number(await panel.getByRole('spinbutton', { name: 'Finished width (mm)', exact: true }).inputValue());
+  const resizedHeight = Number(await panel.getByRole('spinbutton', { name: 'Finished height (mm)', exact: true }).inputValue());
+  assert(resizedWidth > 60 && resizedHeight > 30, 'Neck resize must update actual dimensions');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  assert.equal(Number(await panel.getByRole('spinbutton', { name: 'Finished width (mm)', exact: true }).inputValue()), 60);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  assert.equal(Number(await panel.getByRole('spinbutton', { name: 'Finished width (mm)', exact: true }).inputValue()), resizedWidth);
+  await page.getByRole('button', { name: 'Resize neck label', exact: true }).press('ArrowLeft');
+  assert.equal(Number(await panel.getByRole('spinbutton', { name: 'Finished width (mm)', exact: true }).inputValue()), Math.round((resizedWidth - 1) * 10) / 10);
+  await number('Finished width (mm)', 60);
+  await number('Finished height (mm)', 30);
   await dragNeckHandle('rotate', 4, 0);
   assert(Number(await neck().getAttribute('data-neck-rotation')) > 0);
   await number('Rotation (degrees)', -10);
@@ -219,6 +233,7 @@ try {
   }
   console.log('PASS: size/care/brand; dimensions; typography/colour/content order; logo/font upload; cuff/hem placement; move/resize/history/cancel; rotation; independent tags/order; Reset/remount; native layers; mobile controls.');
 
+  if (!process.argv.includes('--editor-only')) {
   await page.setViewportSize({ width: 900, height: 900 });
   await page.evaluate(async () => {
     const React = (await import('/node_modules/.vite/deps/react.js')).default;
@@ -344,6 +359,9 @@ try {
   console.log(`PASS: ${variants.length} fit/hood combinations; neck/size/care/back pixel isolation; three native attachment contexts; nonblank tags; wash/stitch/trim coexistence; JSON reload; asset hashes unchanged.`);
   console.log(`Review images: ${directory}`);
   console.log('PASS: innerBackNeck direct move/scale/rotate/reset/history; exterior occlusion; 225 rotated-bounds cases; 25 interior hood contexts, body transforms and JSON roundtrips.');
+  }
+  assert.deepEqual(errors, []);
+  assert.deepEqual(assetHashes(), protectedAssets);
 } finally {
   await browser?.close();
   await server.close();

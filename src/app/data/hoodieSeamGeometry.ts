@@ -53,12 +53,15 @@ export function measureHoodieSeams(layers: ResolvedGarmentLayer[]): Promise<Hood
     const rasters = Object.fromEntries(await Promise.all(layers.map(async layer => [layer.id, await rasterize(layer.svgRaw)] as const)));
     const descriptor = getHoodBundleAsset(layers.find(layer => layer.id === 'hood')?.assetId);
     const bodyLayer = layers.find(layer => layer.id === 'base');
+    const sweatshirtFit = bodyLayer?.svgRaw.match(/data-sweatshirt-fit="([^"]+)"/)?.[1];
     const sleeveConstruction = bodyLayer?.displayName.startsWith('Raglan') ? 'raglan'
       : bodyLayer?.displayName.startsWith('Dropped') ? 'dropped-shoulder' : 'set-in';
     const result: HoodieSeamGeometry = {};
     for (const layer of layers) {
       const raster = rasters[layer.id];
       let seams: HoodieSeam[] = [];
+      if (sweatshirtFit) seams = bodyPanelSeams(sweatshirtFit, layer.id, sleeveConstruction)
+        .filter(seam => seam.region !== 'neckline');
       if (descriptor) {
         const { fit, frontConstruction } = descriptor.variant;
         if (layer.id !== 'hood') seams = bodyPanelSeams(fit, layer.id, sleeveConstruction);

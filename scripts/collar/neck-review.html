@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hoodie Neck Construction Review</title>
+  <style>
+    html body { margin: 0; background: #eceef0; color: #202124; font-family: Georgia, serif; }
+    header { padding: 18px 24px; border-bottom: 1px solid #b8bdc2; }
+    h1 { font-size: 22px; margin: 0 0 12px; }
+    .controls, .legend { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; font-size: 14px; }
+    .legend { margin-top: 12px; }
+    .legend span::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-right: 6px; background: var(--swatch); }
+    main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 24px; }
+    section { min-width: 0; }
+    h2 { font-size: 16px; margin: 0; padding: 10px; background: #fff; }
+    .pair { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .viewport { aspect-ratio: 1; overflow: hidden; background: #fff; position: relative; }
+    .camera { width: 100%; height: 100%; transform-origin: center; }
+    @media (prefers-reduced-motion: reduce) { .camera { transition: none; } }
+    select { border: 1px solid #989da2; padding: 3px 8px; background: white; }
+    @media (max-width: 900px) { main { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 580px) { main, .pair { grid-template-columns: minmax(0, 1fr); } main { padding: 12px; } header { padding: 16px 12px; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import React, { useState } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import '/src/styles/index.css';
+    import { TshirtSvgPreview } from '/src/app/components/builder/TshirtSvgPreview.tsx';
+    import { getDefaultGarmentSelection } from '/src/app/data/garmentSvgCatalog.ts';
+    import { HOOD_BUNDLES } from '/src/app/data/hoodBundles.ts';
+    import { createGarmentLabel } from '/src/app/data/garmentLabels.ts';
+
+    const configurations = [
+      ['regular', 'Regular Hood', 'regular', 'standard'],
+      ['deep', 'Oversized / Deep', 'oversized-deep', 'standard'],
+      ['regular-crossover', 'Regular + Crossover', 'regular', 'crossover'],
+      ['deep-crossover', 'Deep + Crossover', 'oversized-deep', 'crossover'],
+      ['scuba', 'Scuba Hood', 'scuba', 'standard'],
+    ];
+    function Proof({ configuration, fit, debug, printed, showLabel, closeup, showCare, label, setLabel, care, setCare, inspection = closeup, suffix = '' }) {
+      const [focus, setFocus] = useState(null);
+      const activeLabel = showCare ? care : label;
+      const bundle = HOOD_BUNDLES.find(candidate => candidate.styleId === configuration[2]);
+      const variant = bundle.variants.find(candidate => candidate.fit === fit && candidate.frontConstruction === configuration[3]);
+      const selection = { ...getDefaultGarmentSelection('hoodie', fit), Hood: variant.views.front.assetId };
+      const framing = focus?.context;
+      const scale = closeup && framing ? 2048 / Math.max(framing.width, framing.height) * .86 : 1;
+      const center = closeup && framing ? framing : { x: 1024, y: 1024 };
+      return React.createElement('section', { id: configuration[0] + suffix, 'data-ready': Boolean(focus) },
+        React.createElement('h2', null, configuration[1] + (suffix ? inspection ? ' / Interior Neck' : ' / Exterior' : '')),
+        React.createElement('div', { className: 'viewport' },
+          React.createElement('div', { className: 'camera', style: { transform: `scale(${scale}) translate(${(1024 - center.x) / 2048 * 100}%, ${(1024 - center.y) / 2048 * 100}%)` } },
+            React.createElement(TshirtSvgPreview, { garmentType: 'hoodie', fit, selection, color: '#667b81', hoodieAssemblyVersion: 1,
+              garmentLabels: showLabel ? [{ ...activeLabel, construction: printed ? 'printed' : 'physical' }] : [],
+              selectedLabelId: activeLabel.id, onLabelFocus: setFocus, onLabelsChange: next => (showCare ? setCare : setLabel)(next[0]),
+              hoodieLabelView: inspection ? 'interior' : 'exterior', neckDebug: debug }))));
+    }
+    function ConfigurationProofs({ configuration, comparison, ...props }) {
+      const [label, setLabel] = useState(() => ({ ...createGarmentLabel('neck'), id: configuration[0], brand: 'CERIGA', widthMm: 50, heightMm: 22 }));
+      const [care, setCare] = useState(() => ({ ...createGarmentLabel('care'), id: `${configuration[0]}-care`, position: 'neck-inside' }));
+      const shared = { ...props, configuration, label, setLabel, care, setCare };
+      return comparison
+        ? React.createElement('div', { className: 'pair', 'data-comparison': configuration[0] },
+          [false, true].map(inspection => React.createElement(Proof, { ...shared, key: String(inspection),
+            closeup: true, inspection, suffix: inspection ? '-interior' : '-exterior' })))
+        : React.createElement(Proof, shared);
+    }
+    function Review() {
+      const [fit, setFit] = useState(new URLSearchParams(location.search).get('fit') || 'boxy');
+      const [debug, setDebug] = useState(false);
+      const [printed, setPrinted] = useState(false);
+      const [showLabel, setShowLabel] = useState(true);
+      const [showCare, setShowCare] = useState(false);
+      const [closeup, setCloseup] = useState(true);
+      const [comparison, setComparison] = useState(new URLSearchParams(location.search).has('compare'));
+      const toggle = (title, checked, update) => React.createElement('label', { key: title },
+        React.createElement('input', { type: 'checkbox', checked, onChange: event => update(event.target.checked) }), ` ${title}`);
+      return React.createElement(React.Fragment, null,
+        React.createElement('header', null, React.createElement('h1', null, 'Hoodie Neck Construction'),
+          React.createElement('div', { className: 'controls' },
+            React.createElement('label', null, 'Fit ', React.createElement('select', { 'aria-label': 'Fit', value: fit, onChange: event => setFit(event.target.value) },
+              ['slim', 'regular', 'boxy', 'cropped', 'baggy'].map(value => React.createElement('option', { key: value }, value)))),
+            toggle('Debug overlays', debug, setDebug), toggle('Printed', printed, setPrinted),
+            toggle('Neck label', showLabel, setShowLabel), toggle('Interior neck', closeup, setCloseup), toggle('Care label at neck', showCare, setShowCare), toggle('Compare views', comparison, setComparison)),
+          debug && React.createElement('div', { className: 'legend' },
+            [['#00b8d9', 'Hood opening mask'], ['#00cc66', 'innerBackNeck'], ['#de9500', 'Label anchor / bounds'], ['#d63384', 'Front occlusion']].map(([color, title]) =>
+              React.createElement('span', { key: title, style: { '--swatch': color } }, title)))),
+        React.createElement('main', null, configurations.map(configuration => React.createElement(ConfigurationProofs, {
+          key: configuration[0], configuration, comparison, fit, debug, printed, showLabel, closeup, showCare,
+        }))));
+    }
+    createRoot(document.getElementById('root')).render(React.createElement(Review));
+  </script>
+</body>
+</html>

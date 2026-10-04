@@ -12,6 +12,12 @@ export interface LabelAttachmentLayer {
 }
 export interface LabelFocus { id: string; x: number; y: number; width: number; height: number; context?: { x: number; y: number; width: number; height: number } }
 type Mask = { pixels: Uint8ClampedArray; size: number };
+export function labelDragUpdate(label: GarmentLabel, horizontalMm: number, verticalMm: number, resize: boolean) {
+  const snap = (value: number) => Math.round(value * 10) / 10;
+  return normalizeLabel({ ...label, ...(resize
+    ? { widthMm: snap(label.widthMm + horizontalMm * 2), heightMm: snap(label.heightMm + verticalMm) }
+    : { offsetXmm: snap(label.offsetXmm + horizontalMm), offsetYmm: snap(label.offsetYmm + verticalMm) }) });
+}
 const neckAreas = new WeakMap<Mask, { minX: number; maxX: number; minY: number; maxY: number }>();
 export function neckLabelArea(mask: Mask) {
   const cached = neckAreas.get(mask);
@@ -192,8 +198,7 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
     const point = active.inverse.transformPoint(new DOMPoint(event.clientX, event.clientY));
     const dx = (point.x - active.start.x) / active.unit;
     const dy = (point.y - active.start.y) / active.unit;
-    const snap = (value: number) => Math.round(value * 10) / 10;
-    draftRef.current = normalizeLabel({ ...active.label, ...(active.resize ? { widthMm: snap(active.label.widthMm + dx * 2), heightMm: snap(active.label.heightMm + dy) } : { offsetXmm: snap(active.label.offsetXmm + dx), offsetYmm: snap(active.label.offsetYmm + dy) }) });
+    draftRef.current = labelDragUpdate(active.label, dx, dy, active.resize);
     setDraft(draftRef.current);
   };
   return <svg ref={svgRef} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 250 }} data-garment-label-overlay="" onPointerMove={move} onPointerUp={event => {
