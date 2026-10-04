@@ -1232,9 +1232,11 @@ export function TshirtSvgPreview({
   const handleLayerPointerDown = useCallback(
     (layerId: string, e: ReactPointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
-      onSelectedLayerChange?.(layerId);
+      const linkedNeck = garmentType === 'hoodie' && layerId === 'neck'
+        && layerLayouts.some(entry => entry.id === 'neck' && entry.sourceLayer.assetId.startsWith('sweatshirt-'));
+      onSelectedLayerChange?.(linkedNeck ? 'base' : layerId);
     },
-    [onSelectedLayerChange],
+    [garmentType, layerLayouts, onSelectedLayerChange],
   );
 
   const handleBackgroundPointerDown = useCallback(
