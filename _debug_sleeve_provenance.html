@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sleeve Stage Provenance</title></head>
+<body>
+<script type="module">
+import '/src/styles/index.css';
+import { mountSleeveNormalizationReview } from '/scripts/collar/test_custom_assets.tsx';
+const response = await fetch('/_debug_sleeve_provenance.json', { cache: 'no-store' });
+if (!response.ok) throw new Error('Run scripts/collar/_audit_sleeve_provenance.py first.');
+const capture = await response.json();
+mountSleeveNormalizationReview(capture.asset, capture.original, capture.mode);
+</script>
+</body>
+</html>

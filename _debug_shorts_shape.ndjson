@@ -1,0 +1,4 @@
+{"type": "progress", "step": "analysis", "label": "Astra: identifying denim shorts and visible construction"}
+{"type": "progress", "step": "redraw", "label": "GPT Image technical raster generation"}
+{"type": "progress", "step": "registration", "label": "Astra: locating source parts on the technical redraw"}
+{"type":"error","error":"Garment reconstruction timed out. Retry."}

@@ -1,42 +1,44 @@
 import { createBrowserRouter, Navigate } from "react-router";
-import { Home } from "./pages/Home";
-import { Features } from "./pages/Features";
-import { HowItWorks } from "./pages/HowItWorks";
-import { PricingPage } from "./pages/PricingPage";
-import { Onboarding } from "./pages/Onboarding";
-import { Login } from "./pages/Login";
-import { Signup } from "./pages/Signup";
+import { PageLoadingFallback } from "./components/PageLoadingFallback";
 import { NotFound } from "./pages/NotFound";
 import { SidebarLayout } from "./components/SidebarLayout";
 
 export const router = createBrowserRouter([
+  ...(import.meta.env.DEV ? [{ path: '/garment-import-review', lazy: async () => ({ Component: (await import('./pages/GarmentImportReview')).GarmentImportReview }) }] : []),
   {
     path: "/",
-    Component: Home,
+    HydrateFallback: PageLoadingFallback,
+    lazy: async () => ({ Component: (await import("./pages/Home")).Home }),
   },
   {
     path: "/features",
-    Component: Features,
+    HydrateFallback: PageLoadingFallback,
+    lazy: async () => ({ Component: (await import("./pages/Features")).Features }),
   },
   {
     path: "/how-it-works",
-    Component: HowItWorks,
+    HydrateFallback: PageLoadingFallback,
+    lazy: async () => ({ Component: (await import("./pages/HowItWorks")).HowItWorks }),
   },
   {
     path: "/pricing",
-    Component: PricingPage,
+    HydrateFallback: PageLoadingFallback,
+    lazy: async () => ({ Component: (await import("./pages/PricingPage")).PricingPage }),
   },
   {
     path: "/onboarding",
-    Component: Onboarding,
+    HydrateFallback: PageLoadingFallback,
+    lazy: async () => ({ Component: (await import("./pages/Onboarding")).Onboarding }),
   },
   {
     path: "/login",
-    Component: Login,
+    HydrateFallback: PageLoadingFallback,
+    lazy: async () => ({ Component: (await import("./pages/Login")).Login }),
   },
   {
     path: "/signup",
-    Component: Signup,
+    HydrateFallback: PageLoadingFallback,
+    lazy: async () => ({ Component: (await import("./pages/Signup")).Signup }),
   },
   {
     path: "/dashboard",

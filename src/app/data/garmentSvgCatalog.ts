@@ -6,6 +6,7 @@ import { withTshirtCollarContours } from './tshirtCollarContours';
 import { withTshirtNeckFinish, type NeckFinish } from './tshirtNeckFinish';
 import type { GarmentView } from './garmentView';
 import { withCustomAssets, type CustomAssetState } from './customAssets';
+import { importedGarmentLayers } from './importedGarment';
 
 export const GARMENT_NONE = '__none__';
 
@@ -203,6 +204,11 @@ function virtualCustomAsset(
 }
 
 export interface ResolvedGarmentLayer {
+  constructionSvg?: string;
+  stitchSvg?: string;
+  stitchColor?: string;
+  stitchWeight?: number;
+  washable?: boolean;
   id: string;
   category: string;
   assetId: string;
@@ -211,6 +217,7 @@ export interface ResolvedGarmentLayer {
   kind: 'solid' | 'detail';
   tint?: string;
   colorBinding?: 'body';
+  hemSource?: 'uploaded';
   zIndex: number;
 }
 
@@ -1216,6 +1223,10 @@ function trimForCategory(
 }
 
 export function resolveGarmentLayers(input: ResolveGarmentLayersInput): ResolvedGarmentLayer[] {
+  if (input.customAssetState?.importedGarment) {
+    return importedGarmentLayers(input.customAssetState.importedGarment, input.view ?? 'front', input.partColors)
+      .sort((first, second) => first.zIndex - second.zIndex);
+  }
   const config = GARMENT_CONFIGS[input.garmentType];
   const selection = applyGarmentSelectionLinks(
     input.garmentType,
@@ -1277,6 +1288,6 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       return { ...layer, tint: color || resolved.find(parent => parent.id === parentId)?.tint };
     });
   }
-  resolved = withCustomAssets(resolved, input.customAssetState ?? {}, input.garmentType, fit, input.view ?? 'front');
+  resolved = withCustomAssets(resolved, input.customAssetState ?? {}, input.garmentType, fit, input.view ?? 'front', input.tshirtHemStyles);
   return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

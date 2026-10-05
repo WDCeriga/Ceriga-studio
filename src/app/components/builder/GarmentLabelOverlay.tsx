@@ -42,6 +42,7 @@ export function neckLabelArea(mask: Mask) {
 }
 
 export function constrainNeckLabel(label: GarmentLabel, layers: LabelAttachmentLayer[], referenceWidthMm: number, maskById: Record<string, Mask>) {
+  if (label.manualPosition !== undefined) return label;
   if (label.category !== 'neck' && !label.position.startsWith('neck-')) return label;
   const base = layers.find(layer => layer.id === 'base');
   const mask = maskById.innerBackNeck;
@@ -93,7 +94,22 @@ function boundary(mask: Mask | undefined, axis: 'x' | 'y', fixed: number, min: n
   return last ? max : min;
 }
 
-export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer[], referenceWidthMm: number, maskById: Record<string, Mask> = {}) {
+export interface LabelPlacementBounds { minX: number; minY: number; maxX: number; maxY: number }
+
+export function manualLabelPlacement(label: GarmentLabel, bounds: LabelPlacementBounds | undefined, referenceWidthMm: number) {
+  if (label.category === 'hand' || !label.manualPosition || !bounds || bounds.maxX <= bounds.minX || bounds.maxY <= bounds.minY) return null;
+  const unit = (bounds.maxX - bounds.minX) / (referenceWidthMm > 0 ? referenceWidthMm : 500);
+  const width = label.widthMm * unit;
+  const height = label.heightMm * unit;
+  const x = bounds.minX + label.manualPosition.x * (bounds.maxX - bounds.minX);
+  const y = bounds.minY + label.manualPosition.y * (bounds.maxY - bounds.minY);
+  const matrix = new DOMMatrix().translate(x, y).rotate(label.rotation).translate(0, -height / 2);
+  return { matrix, x: -width / 2, width, height, unit, center: new DOMPoint(x, y), layerId: 'manual' };
+}
+
+export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer[], referenceWidthMm: number, maskById: Record<string, Mask> = {}, manualBounds?: LabelPlacementBounds) {
+  if (label.category === 'hand') return null;
+  if (label.manualPosition !== undefined) return manualLabelPlacement(label, manualBounds ?? layers.find(layer => layer.id === 'base')?.bbox, referenceWidthMm);
   label = constrainNeckLabel(label, layers, referenceWidthMm, maskById);
   const base = layers.find(layer => layer.id === 'base');
   if (!base) return null;
@@ -142,10 +158,11 @@ export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer
   return { matrix, x: -width / 2, width, height, unit, center, layerId: layer.id };
 }
 
-export function GarmentLabelOverlay({ labels, layers, view, interior = false, selectedId, onSelect, onChange, onFocus, referenceWidthMm = 500 }: {
+export function GarmentLabelOverlay({ labels, layers, view, interior = false, selectedId, onSelect, onChange, onFocus, referenceWidthMm = 500, manualPlacement = false, manualBounds }: {
   labels: GarmentLabel[]; layers: LabelAttachmentLayer[]; view: 'front' | 'back'; interior?: boolean;
   selectedId?: string | null; onSelect?: (id: string | null) => void; onChange?: (labels: GarmentLabel[]) => void;
   onFocus?: (point: LabelFocus) => void; referenceWidthMm?: number;
+  manualPlacement?: boolean; manualBounds?: LabelPlacementBounds;
 }) {
   const [maskById, setMaskById] = useState<Record<string, Mask>>({});
   const [draft, setDraft] = useState<GarmentLabel | null>(null);
@@ -154,23 +171,25 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
   const svgRef = useRef<SVGSVGElement>(null);
   const layerKey = layers.map(layer => layer.svgRaw).join('|');
   useEffect(() => {
+    if (manualPlacement) return;
     let active = true;
     void Promise.all(layers.map(async layer => [layer.id, await labelAttachmentMask(layer.svgRaw)] as const)).then(entries => { if (active) setMaskById(Object.fromEntries(entries)); }).catch(() => { if (active) setMaskById({}); });
     return () => { active = false; };
-  }, [layerKey]);
+  }, [layerKey, manualPlacement]);
   useEffect(() => { gesture.current = null; draftRef.current = null; setDraft(null); }, [view, interior, layerKey]);
   useEffect(() => {
     if (gesture.current && gesture.current.label.id !== selectedId) { gesture.current = null; draftRef.current = null; setDraft(null); }
   }, [selectedId]);
   useEffect(() => {
-    if (!onChange || view !== 'front' || !maskById.innerBackNeck) return;
+    if (manualPlacement || !onChange || view !== 'front' || !maskById.innerBackNeck) return;
     const constrained = labels.map(label => constrainNeckLabel(label, layers, referenceWidthMm, maskById));
     if (constrained.some((label, index) => JSON.stringify(label) !== JSON.stringify(labels[index]))) onChange(constrained);
-  }, [labels, layerKey, referenceWidthMm, maskById, view, onChange]);
+  }, [labels, layerKey, referenceWidthMm, maskById, view, onChange, manualPlacement]);
   const selected = labels.find(label => label.id === selectedId);
-  const placement = selected ? labelPlacement(selected, layers, referenceWidthMm, maskById) : null;
+  const place = (label: GarmentLabel) => manualPlacement && label.manualPosition === undefined ? null : labelPlacement(label, layers, referenceWidthMm, maskById, manualBounds);
+  const placement = selected && labelVisible(selected, view, interior) ? place(selected) : null;
   const corners = placement ? [[placement.x, 0], [placement.x + placement.width, 0], [placement.x, placement.height], [placement.x + placement.width, placement.height]].map(([x, y]) => placement.matrix.transformPoint(new DOMPoint(x, y))) : [];
-  const contextLayers = selected?.category === 'neck' || selected?.position.startsWith('neck-')
+  const contextLayers = manualPlacement || selected?.manualPosition !== undefined ? [] : selected?.category === 'neck' || selected?.position.startsWith('neck-')
     ? layers.filter(layer => ['neck', 'innerBackNeck'].includes(layer.id))
     : selected?.position.startsWith('sleeve-')
       ? layers.filter(layer => ['sleeve', 'underSleeve', 'sleeveHem', 'underSleeveHem'].some(prefix => layer.id === `${prefix}${selected.position.endsWith('left') ? 'Left' : 'Right'}`))
@@ -204,8 +223,21 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
     const dx = (point.x - active.start.x) / active.unit;
     const dy = (point.y - active.start.y) / active.unit;
     const snap = (value: number) => Math.round(value * 10) / 10;
-    draftRef.current = constrainNeckLabel(normalizeLabel({ ...active.label, ...(active.resize ? { widthMm: snap(active.label.widthMm + dx * 2), heightMm: snap(active.label.heightMm + dy) } : { offsetXmm: snap(active.label.offsetXmm + dx), offsetYmm: snap(active.label.offsetYmm + dy) }) }), layers, referenceWidthMm, maskById);
+    const angle = active.label.rotation * Math.PI / 180;
+    const manualOffset = active.label.manualPosition && manualBounds ? { manualPosition: {
+      x: active.label.manualPosition.x + (dx * Math.cos(angle) - dy * Math.sin(angle)) * active.unit / (manualBounds.maxX - manualBounds.minX),
+      y: active.label.manualPosition.y + (dx * Math.sin(angle) + dy * Math.cos(angle)) * active.unit / (manualBounds.maxY - manualBounds.minY),
+    } } : { offsetXmm: snap(active.label.offsetXmm + dx), offsetYmm: snap(active.label.offsetYmm + dy) };
+    draftRef.current = constrainNeckLabel(normalizeLabel({ ...active.label, ...(active.resize ? { widthMm: snap(active.label.widthMm + dx * 2), heightMm: snap(active.label.heightMm + dy) } : manualOffset) }), layers, referenceWidthMm, maskById);
     setDraft(draftRef.current);
+  };
+  const awaitingPlacement = selected && selected.category !== 'hand' && (manualPlacement || selected.manualPosition === null) && !selected.manualPosition && selected.exteriorView === view;
+  const positionSelected = (x: number, y: number) => {
+    if (!selected || selected.category === 'hand' || !manualBounds || !onChange) return;
+    onChange(labels.map(label => label.id === selected.id ? normalizeLabel({ ...label, manualPosition: {
+      x: (x - manualBounds.minX) / (manualBounds.maxX - manualBounds.minX),
+      y: (y - manualBounds.minY) / (manualBounds.maxY - manualBounds.minY),
+    } }) : label));
   };
   return <svg ref={svgRef} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 250 }} data-garment-label-overlay="" onPointerMove={move} onPointerUp={event => {
     if (gesture.current?.pointer !== event.pointerId) return;
@@ -213,9 +245,16 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
     if (committed) onChange?.(labels.map(label => label.id === committed.id ? committed : label));
     gesture.current = null; draftRef.current = null; setDraft(null);
   }} onPointerCancel={() => { gesture.current = null; draftRef.current = null; setDraft(null); }} onLostPointerCapture={() => { gesture.current = null; draftRef.current = null; setDraft(null); }}>
+    {awaitingPlacement && manualBounds && onChange && <rect data-label-placement-target="" data-label-guide="" x={manualBounds.minX} y={manualBounds.minY} width={manualBounds.maxX - manualBounds.minX} height={manualBounds.maxY - manualBounds.minY} fill="transparent" style={{ pointerEvents: 'auto', cursor: 'crosshair' }} role="button" tabIndex={0} aria-label="Position selected label on garment; press Enter to place at center" onPointerDown={event => {
+      if (event.button !== 0) return;
+      event.stopPropagation(); event.preventDefault();
+      const matrix = svgRef.current?.getScreenCTM(); if (!matrix) return;
+      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+      positionSelected(point.x, point.y);
+    }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); positionSelected((manualBounds.minX + manualBounds.maxX) / 2, (manualBounds.minY + manualBounds.maxY) / 2); } }} />}
     {labels.filter(label => labelVisible(label, view, interior)).map(saved => {
       const label = constrainNeckLabel(draft?.id === saved.id ? draft : saved, layers, referenceWidthMm, maskById);
-      const placement = labelPlacement(label, layers, referenceWidthMm, maskById); if (!placement) return null;
+      const placement = place(label); if (!placement) return null;
       return <g key={label.id} transform={placement.matrix.toString()} data-garment-label={label.id} data-attachment-layer={placement.layerId}>
         <g transform={`translate(${placement.x} 0) scale(${placement.unit})`} onPointerDown={event => start(event, label, placement, false)} onClick={() => onSelect?.(label.id)} style={{ pointerEvents: onSelect ? 'auto' : 'none', touchAction: 'none', cursor: onChange ? 'move' : undefined }} role={onSelect ? 'button' : undefined} tabIndex={onSelect ? 0 : undefined} aria-label={`Select ${label.brand || label.category} label`} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onSelect?.(label.id); }}>
           <LabelArtwork label={label} guide={Boolean(onChange && selectedId === label.id)} />

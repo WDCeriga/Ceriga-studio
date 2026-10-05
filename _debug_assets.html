@@ -54,5 +54,16 @@ for (const [name, fill] of items) {
     .catch(err => { cap.textContent = name + ' — ERR ' + err.message; });
 }
 </script>
+<script type="module">
+const collarFixture = new URLSearchParams(location.search).get('collar');
+if (collarFixture === 'approved' || collarFixture === 'captured' || collarFixture === 'edit') {
+  document.head.querySelector('style')?.remove();
+  document.body.replaceChildren();
+  const { mountRegisteredCollarReview, mountManualCollarEditor } = await import('/scripts/collar/test_custom_assets.tsx');
+  const response = await fetch(collarFixture === 'captured' ? '/_debug_registered_collar_captured.json' : '/_debug_registered_collar.json');
+  if (!response.ok) throw new Error('Registered collar preview is unavailable');
+  (collarFixture === 'edit' ? mountManualCollarEditor : mountRegisteredCollarReview)(await response.json());
+}
+</script>
 </body>
 </html>

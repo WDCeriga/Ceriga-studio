@@ -58,14 +58,7 @@ export interface TshirtLayerTransform {
   rotation: number;
 }
 
-export const DEFAULT_TSHIRT_LAYER_TRANSFORM: TshirtLayerTransform = {
-  x: 0,
-  y: 0,
-  scale: 1,
-  scaleX: 1,
-  scaleY: 1,
-  rotation: 0,
-};
+export { DEFAULT_TSHIRT_LAYER_TRANSFORM } from './garmentLayerTransform';
 
 export function resolveLayerScale(t: TshirtLayerTransform): { scaleX: number; scaleY: number } {
   const fallback = t.scale ?? 1;

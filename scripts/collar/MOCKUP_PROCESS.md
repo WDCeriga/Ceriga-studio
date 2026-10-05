@@ -33,8 +33,53 @@ and review. Separation still depends on accurate bounds and reconstruction.
 Accept installs the complete bundle together, with independent
 colour, size and position controls in the corresponding detail sections. Initial
 placement uses the reference bounds and remains editable, including sleeve hardware
-outside the torso. If review finds a separation or construction defect, multi-part
-processing makes one corrective redraw using that feedback and reviews it again.
+outside the torso. If review finds a separation or construction defect, non-sleeve multi-part
+uploads receive one corrective redraw using that feedback
+and are reviewed again. Sleeve generation explicitly excludes neighboring torso
+contours and must not replace observed cuff stripes or solid joins with invented
+ribbing or dashed stitching. This correction path is covered by mocked review
+tests; the user's striped sleeve has not been verified live after this change.
+Sleeve technical review now measures reference and generated centerline length,
+upper width, cuff opening, armhole endpoint width, taper and silhouette aspect.
+Vision supplies normalized landmarks in each supplied image; code converts them
+to pixel coordinates before measuring, retaining rotation and scale independence.
+Length is normalized by armhole width; upper, cuff and armhole widths by length;
+taper is cuff/upper width; aspect is the outline extent along/across the sleeve axis.
+These are estimates from vision landmarks, not calibrated physical measurements.
+For each ratio, drift is `max(generated/reference, reference/generated) - 1`.
+No catalog fit or ideal sleeve dimensions enter technical review.
+GOOD MATCH means high-confidence estimates with at most 20% drift and no issues.
+NEEDS REVIEW covers moderate drift, uncertain projection/landmarks or moderate
+construction issues and continues to tracing, registration and enabled Accept.
+REJECTED means high-confidence drift above 50%, clearly reversed/lost reference
+taper, or evidence-backed major structural/construction failure. Taper reversal
+uses reference/drawing ratios on opposite sides of 0.8 and 1.2; taper removal means
+a reference below 0.75 or above 1/0.75 becomes nearly straight (0.9 to 1.1).
+Only REJECTED triggers one corrective redraw, keeping the original measured target
+fixed. Malformed review responses stop processing without a corrective redraw.
+The opposite sleeve inherits the canonical review and is mirrored locally.
+`sleeveReview` in the result records both ratio sets, confidence, drift, thresholds
+and evidence separately from registration status. Registration logic is unchanged.
+Sleeve photo analysis also requires `sleeveOutline`, a normalized perimeter following
+the sleeve, cuff and actual armhole seam, excluding the shoulder/torso wedge.
+The generator receives a copy masked outside that perimeter, with a two-pixel
+margin to retain boundary ink. Attached component regions are then removed as usual.
+Review and child extraction still use the untouched original. Missing or invalid
+outlines stop processing before generation; semantic accuracy still depends on Astra.
+All 40 custom-asset tests pass, including synthetic shoulder removal, cuff retention,
+original-reference review and invalid-outline rejection. The exact sleeve upload
+has not been verified live with perimeter masking.
+Sleeve registration first keeps the existing sideways placement when it fits.
+If it overflows, registration searches bounded downward poses, fixing the armhole
+edge and progressively turning the distal sleeve and cuff. The outward centreline
+length is retained; this is a pose adaptation, not a rigid copy of the source.
+Nonfolding and full-outline canvas checks reject impossible poses before tracing.
+The fixed attachment edge is explicitly rasterized to retain thin shoulder tips.
+The former fixed 650-pixel width limit is removed; actual canvas bounds still apply.
+Regressions cover wide sleeves on all four fits and both sides, retained cuff
+construction, overlong-sleeve rejection, and real Boxy tracing/render validation.
+The exact Azure drawing from the reported canvas failure was not retained by the
+failed request, so its end-to-end retry remains unverified.
 A component that still fails prevents partial installation. Local drawing
 tracing remains single-part and does not run semantic component recognition.
 In Photo / Azure AI mode, Astra-classified technical drawings of pockets, buttons,
@@ -524,6 +569,32 @@ Do not crop it. Do not open the hem. Do not invent a different neck.
 | Builder tint does nothing useful | Outline strokes, not fills | Job B closed fill + ink |
 
 ---
+
+## Whole Garment Import measurement tables
+
+The imported measurement panel builds both tables from the detected garment's current-view measurement guides, not a fixed T-shirt or shorts row list. The XS–XXL table contains editable, initially blank user-supplied size specifications. Values are stored in `importedGarment.sizeMeasurements[view][measurementId][size]` in millimetres; the cm/mm control converts display only. Entries are committed on blur or Enter, and clearing a cell removes its value. Front and back entries remain independent. Size entries do not calibrate the photo or generate grading for other sizes.
+
+The separate photo-reference table retains Measurement, Value, Unit and Status, with optional one-dimension calibration. Both tables highlight the same geometry guide. Development review fixtures are available at `/garment-import-review?garment=shorts`, `?garment=tshirt` and `?garment=hoodie`; these are synthetic SVG fixtures, not live photo-analysis results. `test_generic_garment_measurements.ts` covers generated size rows, empty defaults, unit display, serialization and view isolation.
+
+Explicit semantic part types take precedence over descriptive references to other parts: a body described as lying beneath a hem or placket overlay remains the body. Chest guides use shared sleeve/body armhole junctions when available; otherwise the method explicitly identifies the chest level as estimated. Visible plackets, including detail-layer overlays, add length and width measurements only to their owning view, regardless of garment name. Sampled lower-facing hem/cuff contours are measured across the complete connected edge rather than a single tiny segment, excluding near-vertical side seams. `test_imported_henley_measurements.ts` covers these cases, contour resampling and view isolation. Photo-derived geometry still requires calibration and does not constitute an exact production specification.
+
+### Whole-garment analysis contract
+
+Whole Garment Import classifies garment type independently of material; it is not restricted to denim or shorts. Analysis and redraw prompts preserve the detected garment construction. Semantic regions include body, sleeves, cuffs, neckband, collar, hood, yoke, placket, skirt and lining in addition to panels, pockets, closures and trims. Unknown material is allowed when explicitly documented; an unidentifiable garment is rejected before redraw. Source classification, view and evidence remain authoritative when mapping the technical redraw. Detail controls retain their source region's builder category and display name.
+
+Whole-garment analysis and redraw registration request Azure Responses server-sent events (`stream: true`, `store: false`). This avoids waiting for the entire detailed geometry response before receiving any data; Requests' HTTP `stream=True` alone does not enable server-side streaming. Only a terminal completed response proceeds to manifest validation; partial deltas, truncated streams and failed/incomplete responses never install a garment. Ordinary JSON responses remain supported. Transport retains its 24 MB response cap, 15-second connection timeout and 240-second idle-read timeout; the reconstruction endpoint retains its 900-second overall deadline. Requests are not automatically resubmitted after an interruption. Transport error messages distinguish source analysis from redraw registration, and connection failures from response timeouts.
+
+Run the offline backend regressions from this directory with `python -m unittest test_generic_garment_import`. Use the project virtual environment and set `POTRACE_EXE` to the installed Potrace executable if it is not on PATH. The tests mock Azure responses but run real segmentation and SVG tracing for denim shorts, non-denim shorts, a T-shirt and a hoodie, each as a separate front or back reference. They do not establish live model classification quality. The current upload endpoint still processes one image per request; paired-image and combined-image orchestration are not covered or completed by this change.
+
+### Independent colours, optional labels and estimated backs
+
+Fabric & Colour exposes every colourable region in the active view, including body, sleeves, neck/hood, cuffs and hems. Shared source colour groups are scoped by construction role, so a sleeve colour does not recolour the body or neck merely because all regions started with the same fabric. Matching sleeve pairs can remain linked; explicitly independent regions stay independent. Material-wide recolouring remains an explicit action. Analysis requests separately bounded, editable construction zones even when their initial colours match. Hem bands require visible edge/seam evidence: old imports without that geometry need a clearer reference and re-analysis, not an invented fixed-width strip.
+
+Labels & Branding is opt-in: opening the panel or browsing label categories must not create labels. Use Add; deleting the last label leaves the garment empty. Imported sewn labels use explicit manual placement rather than assuming template-specific neck, sleeve or hem anchors. Hand tags are standalone two-sided designs, like template-builder hand tags: they have no garment placement target or position controls and never render attached to the garment, including when an older saved tag has placement coordinates. Saved tag content remains editable and exportable.
+
+For eligible front neckband geometry, a derived inner-neck fabric backing fills the opening using the neckband hull minus its actual outline and overlapping source parts. Hood interiors use a genuinely enclosed aperture formed by observed hood panels and, when needed, observed attached closure geometry; open exterior gaps are not filled. Existing lining, hood fabric, hardware and torso remain uncovered. The backing follows body colour with 12% lightening; a panelled torso can instead use the source hood-crown colour. It never recolours the rear exterior, rear binding, placket or buttons. This is a preview-only, nonselectable visual layer, not an observed source part or measurement surface. Unsupported families, ambiguous or invalid outlines and nonidentity part transforms omit the backing instead of inventing a placement; neckband-only derivation still requires an unambiguous body. The captured panelled-hoodie front-outline regression is available at `/garment-import-review?garment=hoodie&construction=panelled`; it has no observed back, and its test metadata/colours are scaffolding rather than a fresh analysis result.
+
+A front-only import still has no back until an explicit action. **Generate estimated back** builds separate local rear geometry from supported structural outlines, adapting the upper neckline, hood envelope or waist edge without copying front-only pockets, labels, fasteners or stitching. It is marked **ESTIMATED / not observed**, retains low geometry confidence, supplies no back photograph, and inherits no physical calibration. Unknown or unsuitable outlines return an explanation rather than fabricated geometry. The estimate is editable and can be replaced with a real back reference while preserving the front. This is not a prediction of hidden construction or production measurements. Connected torso panels are assembled into one rear exterior rather than requiring a single front body polygon. Separated halves can join only through valid, body-attached central closure geometry, clipped to the torso bounds; disconnected or ambiguous assemblies remain unsupported. Multiple hood panels contribute one estimated exterior envelope, without carrying front panel seams onto the back. Attachments to assembled torso panels resolve to the new rear body. The offline inferred-back tests cover eight garment families, panelled construction, closure-gap rejection and real-view replacement; live image-analysis quality remains unverified.
 
 ## Commands (local)
 

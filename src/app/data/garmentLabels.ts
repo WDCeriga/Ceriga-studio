@@ -70,6 +70,8 @@ export interface GarmentLabel {
   textAlign: 'left' | 'center' | 'right';
   position: LabelPosition;
   exteriorView: 'front' | 'back';
+  /** Undefined preserves template attachment; null awaits placement; coordinates are relative to garment bounds. */
+  manualPosition?: { x: number; y: number } | null;
   sleeveLayer?: 'outer' | 'under';
   offsetXmm: number;
   offsetYmm: number;
@@ -131,8 +133,8 @@ function captureTagFace(label: GarmentLabel): TagFaceDesign {
 }
 
 export function switchTagFace(label: GarmentLabel, side: 'front' | 'back'): GarmentLabel {
-  if (label.category !== 'tag' || side === label.exteriorView) return label;
-  const blank = createGarmentLabel('tag');
+  if (!['tag', 'hand'].includes(label.category) || side === label.exteriorView) return label;
+  const blank = createGarmentLabel(label.category);
   blank.brand = ''; blank.blocks = labelBlocks(blank).map(block => ({ ...block, enabled: false }));
   const design = label.faces?.[side] ?? captureTagFace(blank);
   return { ...label, ...structuredClone(design), exteriorView: side, faces: { ...label.faces, [label.exteriorView]: captureTagFace(label) } };
@@ -145,7 +147,7 @@ export function copyTagFrontToBack(label: GarmentLabel): GarmentLabel {
 }
 
 export function labelExportFaces(label: GarmentLabel): GarmentLabel[] {
-  return [label];
+  return label.category === 'hand' ? (['front', 'back'] as const).map(side => normalizeLabel(switchTagFace(label, side))) : [label];
 }
 
 export function labelPositions(category: LabelCategory): LabelPosition[] {
@@ -155,8 +157,9 @@ export function labelPositions(category: LabelCategory): LabelPosition[] {
   return ['sleeve-left', 'sleeve-right', 'seam-left', 'seam-right', 'hem'];
 }
 
-export function createGarmentLabel(category: LabelCategory): GarmentLabel {
+export function createGarmentLabel(category: LabelCategory, manualPlacement = false): GarmentLabel {
   const label: GarmentLabel = {
+    ...(manualPlacement && category !== 'hand' ? { manualPosition: null } : {}),
     id: crypto.randomUUID(), category, construction: 'physical', method: category === 'care' || category === 'hand' ? 'fabric' : 'woven', fold: category === 'neck' ? 'end' : category === 'hand' ? 'die' : 'centre',
     shape: category === 'care' ? 'vertical' : 'rectangle', widthMm: category === 'care' ? 40 : category === 'tag' ? 20 : 50,
     heightMm: category === 'care' ? 100 : category === 'hand' ? 85 : 25, foldMm: 5, marginMm: 2,
@@ -209,7 +212,8 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
     sleeveLayer: label.sleeveLayer === 'under' ? 'under' : 'outer',
     logoX: finite(label.logoX, 50, 0, 100), logoY: finite(label.logoY, 25, 0, 100),
     offsetXmm: finite(label.offsetXmm, 0, -40, 40), offsetYmm: finite(label.offsetYmm, 0, -50, 100),
-    rotation: label.category === 'tag' ? finite(label.rotation, 0, -30, 30) : 0,
+    manualPosition: label.category === 'hand' || label.manualPosition === undefined ? undefined : label.manualPosition && Number.isFinite(label.manualPosition.x) && Number.isFinite(label.manualPosition.y) ? { x: finite(label.manualPosition.x, .5, 0, 1), y: finite(label.manualPosition.y, .5, 0, 1) } : null,
+    rotation: label.category === 'hand' ? 0 : label.manualPosition !== undefined ? finite(label.rotation, 0, -180, 180) : label.category === 'tag' ? finite(label.rotation, 0, -30, 30) : 0,
     editingMode: label.editingMode === 'custom' ? 'custom' : 'preset',
     preset: label.preset && label.preset in LABEL_PRESETS ? label.preset : 'classic',
     sizePosition: label.sizePosition === 'left' || label.sizePosition === 'right' ? label.sizePosition : 'center',
@@ -241,11 +245,13 @@ export function unfoldedLabelSize(label: GarmentLabel) {
 }
 
 export function isInteriorLabel(label: GarmentLabel) {
+  if (label.manualPosition !== undefined) return false;
   return label.position !== 'neck-outside' && (label.position.startsWith('neck-') || label.position.startsWith('care-'));
 }
 
 export function labelVisible(label: GarmentLabel, view: 'front' | 'back', interior = false) {
   if (label.category === 'hand') return false;
+  if (label.manualPosition !== undefined) return Boolean(label.manualPosition) && view === label.exteriorView;
   if (label.category === 'neck' || label.position.startsWith('neck-')) return view === 'front';
   if (isInteriorLabel(label)) return interior;
   return !interior && (label.position === 'neck-outside' ? view === 'back' : view === label.exteriorView);
@@ -267,6 +273,7 @@ export function labelTextSections(label: GarmentLabel) {
 
 export function labelWarnings(label: GarmentLabel) {
   const warnings: string[] = [];
+  if (label.category !== 'hand' && label.manualPosition === null) warnings.push('Choose a position on the garment before production');
   if (labelTextSections(label).some(section => /\[[^\]]+\]/.test(section.text))) warnings.push('Replace template placeholders before production');
   if (label.blocks) {
     for (const block of label.blocks.filter(block => block.enabled)) {
@@ -287,7 +294,8 @@ export function labelWarnings(label: GarmentLabel) {
 }
 
 export function labelSpecification(label: GarmentLabel) {
-  return { ...label, ...(label.category === 'tag' && label.faces ? { faces: { ...label.faces, [label.exteriorView]: captureTagFace(label) } } : {}), categoryName: LABEL_CATEGORIES[label.category], manufacturingMethod: LABEL_METHODS[label.method], attachment: LABEL_POSITIONS[label.position],
+  if (label.category === 'hand') label = { ...normalizeLabel(label), faces: Object.fromEntries(labelExportFaces(label).map(face => [face.exteriorView, captureTagFace(face)])) };
+  return { ...label, ...(['tag', 'hand'].includes(label.category) && label.faces ? { faces: { ...label.faces, [label.exteriorView]: captureTagFace(label) } } : {}), categoryName: LABEL_CATEGORIES[label.category], manufacturingMethod: LABEL_METHODS[label.method], attachment: label.category === 'hand' ? 'Standalone hand tag' : label.manualPosition !== undefined ? label.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[label.position],
     ...(label.blocks ? { care: { washing: '', bleaching: '', drying: '', ironing: '', cleaning: '' }, careText: label.blocks.some(block => block.key === 'careText' && block.enabled) ? MANUFACTURER_CARE_NOTE : '', careResponsibility: 'manufacturer' } : {}),
     finishedMm: { width: label.widthMm, height: label.heightMm }, unfoldedMm: unfoldedLabelSize(label),
     incomplete: labelWarnings(label), productionNote: 'Confirm fold allowances, care instructions, artwork and attachment with the manufacturer before production.' };

@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Copy, Download, FlipHorizontal2, FlipVertical2, Plu
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CARE_OPTIONS, DEFAULT_REGION_TRANSFORM, LABEL_CATEGORIES, LABEL_FOLDS, LABEL_FONTS, LABEL_METHODS, LABEL_POSITIONS, LABEL_PRESETS, LABEL_REGIONS, LABEL_SHAPES, LABEL_SIZE_VERTICAL, applyLabelPreset, createGarmentLabel, labelPositions, labelSpecification, labelWarnings, normalizeLabel, unfoldedLabelSize, type CareCategory, type GarmentLabel, type LabelCategory, type LabelRegion, type LabelRegionTransform } from '../../data/garmentLabels';
 import { LabelArtwork, labelLayout, loadLabelFont } from './LabelArtwork';
-import { LABEL_BLOCKS, LABEL_HIERARCHIES, MANUFACTURER_CARE_NOTE, applyLabelHierarchy, labelBlocks, labelExportFaces, type LabelBlock, type LabelBlockKey } from '../../data/garmentLabels';
+import { LABEL_BLOCKS, LABEL_HIERARCHIES, MANUFACTURER_CARE_NOTE, applyLabelHierarchy, labelBlocks, labelExportFaces, switchTagFace, type LabelBlock, type LabelBlockKey } from '../../data/garmentLabels';
 
 const fieldClass = 'w-full min-w-0 rounded border border-white/15 bg-[#161619] px-2 py-2 text-xs text-white [color-scheme:dark]';
 function Field({ title, children }: { title: string; children: ReactNode }) {
@@ -32,7 +32,7 @@ export async function downloadLabelArtwork(label: GarmentLabel) {
   await loadLabelFont(label);
   await document.fonts.ready;
   const svg = renderToStaticMarkup(<svg xmlns="http://www.w3.org/2000/svg" width={`${label.widthMm}mm`} height={`${label.heightMm}mm`} viewBox={`0 0 ${label.widthMm} ${label.heightMm}`}><LabelArtwork label={label} /></svg>);
-  downloadFile(svg, `${label.category}-${label.id}${label.category === 'tag' ? `-${label.exteriorView}` : ''}.svg`, 'image/svg+xml');
+  downloadFile(svg, `${label.category}-${label.id}${['tag', 'hand'].includes(label.category) ? `-${label.exteriorView}` : ''}.svg`, 'image/svg+xml');
 }
 export async function downloadLabelPdf(labels: GarmentLabel[]) {
   const { jsPDF } = await import('jspdf');
@@ -40,7 +40,7 @@ export async function downloadLabelPdf(labels: GarmentLabel[]) {
   for (const [index, label] of labels.flatMap(labelExportFaces).entries()) {
     if (index) pdf.addPage();
     await loadLabelFont(label); await document.fonts.ready;
-    pdf.setFontSize(14); pdf.text(`${LABEL_CATEGORIES[label.category]} ${index + 1}${label.category === 'tag' ? ` - ${label.exteriorView}` : ''}`, 20, 18);
+    pdf.setFontSize(14); pdf.text(`${LABEL_CATEGORIES[label.category]} ${index + 1}${['tag', 'hand'].includes(label.category) ? ` - ${label.exteriorView}` : ''}`, 20, 18);
     const scale = Math.min(1, 170 / label.widthMm, 240 / label.heightMm);
     const pixelsPerMm = Math.min(24, 4096 / Math.max(label.widthMm, label.heightMm));
     const rasterWidth = Math.ceil(label.widthMm * pixelsPerMm);
@@ -57,8 +57,11 @@ export async function downloadLabelPdf(labels: GarmentLabel[]) {
       `ID: ${label.id}`, `Method: ${LABEL_METHODS[label.method]}`, `Fold: ${LABEL_FOLDS[label.fold]}`,
       `Finished: ${label.widthMm} x ${label.heightMm} mm; unfolded: ${unfolded.width} x ${unfolded.height} mm`,
       `Safe margin: ${label.marginMm} mm; fold allowance: ${label.foldMm} mm`,
-      `Attachment: ${LABEL_POSITIONS[label.position]}; exterior view: ${label.exteriorView}`,
-      `Offsets: ${label.offsetXmm}, ${label.offsetYmm} mm; rotation: ${label.rotation} degrees; sleeve: ${label.sleeveLayer ?? 'outer'}`,
+      ...(label.category === 'hand' ? [`Standalone hand tag; artwork face: ${label.exteriorView}`] : [
+        `Attachment: ${labelSpecification(label).attachment}; exterior view: ${label.exteriorView}`,
+        ...(label.manualPosition ? [`Manual position: ${label.manualPosition.x * 100}% across, ${label.manualPosition.y * 100}% down garment bounds`] : []),
+        `Offsets: ${label.offsetXmm}, ${label.offsetYmm} mm; rotation: ${label.rotation} degrees; sleeve: ${label.sleeveLayer ?? 'outer'}`,
+      ]),
       `Font: ${label.font}; size: ${label.fontSizeMm} mm; weight: ${label.fontWeight}; spacing: ${label.letterSpacingMm} mm`,
       `Size area: ${LABEL_SIZE_VERTICAL[label.sizeVertical ?? 'center']}; alignment: ${label.sizePosition ?? 'center'}; font: ${label.sizeFontSizeMm ?? label.fontSizeMm * 1.15} mm; scale: ${label.sizeScale ?? 100}%`,
       `Ink: ${label.foreground}; fabric: ${label.background}; border: ${label.borderEnabled ? label.border : 'none'}`,
@@ -87,29 +90,21 @@ function readData(file: File): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('File could not be read')); reader.readAsDataURL(file); });
 }
 
-export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, layeredSleeves = false, tagView = 'front', onTagViewChange }: {
+export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, layeredSleeves = false, manualPlacement = false, tagView = 'front', onTagViewChange }: {
   labels: GarmentLabel[]; selectedId: string | null; onSelect: (id: string | null) => void; onChange: (labels: GarmentLabel[]) => void;
-  layeredSleeves?: boolean;
+  layeredSleeves?: boolean; manualPlacement?: boolean;
   tagView?: 'front' | 'back'; onTagViewChange?: (side: 'front' | 'back') => void;
 }) {
   const [category, setCategory] = useState<LabelCategory>('neck');
   const [region, setRegion] = useState<LabelRegion>('top');
   const [blockKey, setBlockKey] = useState<LabelBlockKey>('brand');
   const [error, setError] = useState('');
-  const initialized = useRef(false);
   const latest = useRef({ labels, onChange });
   latest.current = { labels, onChange };
   const current = labels.find(label => label.id === selectedId);
   const activeCategory = current?.category ?? category;
   const selected = current?.category === 'tag' && current.exteriorView !== tagView ? undefined : current;
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-    if (current) return;
-    const first = labels[0] ?? createGarmentLabel('neck');
-    if (!labels.length) onChange([first]);
-    onSelect(first.id);
-  }, [labels, selected, onChange, onSelect]);
+  const manual = selected?.category !== 'hand' && (manualPlacement || selected?.manualPosition !== undefined);
   const update = (patch: Partial<GarmentLabel>) => {
     if (patch.font !== undefined) patch.fontData = labels.find(label => label.font === patch.font)?.fontData;
     onChange(labels.map(label => label.id === selectedId ? normalizeLabel({ ...label, ...patch }) : label));
@@ -123,11 +118,12 @@ export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, lay
     [reordered[index], reordered[index + direction]] = [reordered[index + direction], reordered[index]];
     update({ blocks: reordered });
   };
-  const add = () => { const label = { ...createGarmentLabel(activeCategory), exteriorView: activeCategory === 'tag' ? tagView : 'front' as const }; onChange([...labels, label]); onSelect(label.id); };
+  const add = () => { const label = { ...createGarmentLabel(activeCategory, manualPlacement), exteriorView: activeCategory === 'tag' ? tagView : 'front' as const }; onChange([...labels, label]); onSelect(label.id); };
   const changeTagView = (side: 'front' | 'back') => {
     onTagViewChange?.(side);
+    setCategory('tag');
     const next = labels.find(label => label.category === 'tag' && label.exteriorView === side);
-    if (next) onSelect(next.id);
+    onSelect(next?.id ?? null);
   };
   const updateText = (key: keyof GarmentLabel, value: string) => update({ [key]: value, blocks: blocks.map(block => block.key === key && value.trim() ? { ...block, enabled: true } : block) });
   const text = (key: keyof GarmentLabel, title: string, multiline = false) => <Field title={title}>{multiline ? <textarea className={fieldClass} rows={3} value={String(selected?.[key] ?? '')} onChange={event => updateText(key, event.target.value)} /> : <input className={fieldClass} value={String(selected?.[key] ?? '')} onChange={event => updateText(key, event.target.value)} />}</Field>;
@@ -176,19 +172,23 @@ export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, lay
   return <div className="space-y-5" data-garment-label-panel="">
     <div className="grid grid-cols-2 gap-1.5" role="tablist" aria-label="Label category">{Object.entries(LABEL_CATEGORIES).map(([key, title]) => <button key={key} type="button" role="tab" aria-selected={activeCategory === key} className={`min-h-10 rounded px-2 py-2 text-xs ${activeCategory === key ? 'bg-[#CC2D24] text-white' : 'bg-white/5 text-white/65 hover:bg-white/10'}`} onClick={() => {
       setCategory(key as LabelCategory); setRegion('top'); setBlockKey('brand');
-      const next = labels.find(label => label.category === key && (key !== 'tag' || label.exteriorView === tagView)) ?? labels.find(label => label.category === key) ?? { ...createGarmentLabel(key as LabelCategory), exteriorView: key === 'tag' ? tagView : 'front' as const };
-      if (!labels.some(label => label.id === next.id)) onChange([...labels, next]);
-      onSelect(next.id);
+      const next = labels.find(label => label.category === key && (key !== 'tag' || label.exteriorView === tagView));
+      onSelect(next?.id ?? null);
     }}>{title}</button>)}</div>
     <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-white">{LABEL_CATEGORIES[activeCategory]}</h3><button type="button" onClick={add} title="Add label" aria-label="Add label" className="rounded p-2 text-white hover:bg-white/10"><Plus size={18} /></button></div>
     {activeCategory === 'tag' && <div className="grid grid-cols-2 gap-1" role="group" aria-label="Tag garment side">{(['front', 'back'] as const).map(side => <button key={side} type="button" aria-pressed={tagView === side} onClick={() => changeTagView(side)} className="rounded bg-white/5 px-3 py-2 text-xs text-white/70 aria-pressed:bg-white/20">{side === 'front' ? 'Front' : 'Back'}</button>)}</div>}
     <div className="space-y-1">{labels.filter(label => label.category === activeCategory && (label.category !== 'tag' || label.exteriorView === tagView)).map((label, index) => <button key={label.id} type="button" onClick={() => onSelect(label.id)} className={`flex w-full items-center justify-between rounded border px-3 py-2 text-left text-xs ${selectedId === label.id ? 'border-[#CC2D24] text-white' : 'border-white/10 text-white/60'}`}><span className="min-w-0 truncate">{label.brand || `${LABEL_CATEGORIES[label.category]} ${index + 1}`}</span><span className="ml-2 shrink-0 text-[10px]">{label.widthMm} x {label.heightMm} mm</span></button>)}</div>
-    {activeCategory === 'tag' && !labels.some(label => label.category === 'tag' && label.exteriorView === tagView) && <p className="text-xs text-white/55">No tags on the {tagView}.</p>}
+    {!selected && <p className="text-xs text-white/55">{activeCategory === 'tag' ? `No tag selected on the ${tagView}. ` : 'No label selected. '}Select a saved label or use Add label to create one. Nothing is added automatically.</p>}
     {selected && <>
-      <div className="flex justify-end gap-1">{[{ Icon: Copy, title: 'Duplicate label', action: () => { const copy = { ...selected, id: crypto.randomUUID() }; onChange([...labels, copy]); onSelect(copy.id); } }, { Icon: RotateCcw, title: 'Restore default placement', action: () => update({ position: labelPositions(selected.category)[0], offsetXmm: 0, offsetYmm: 0, rotation: 0 }) }, { Icon: Trash2, title: 'Delete label', action: () => { const remaining = labels.filter(label => label.id !== selected.id); onChange(remaining); onSelect(remaining.find(label => label.category === activeCategory)?.id ?? remaining[0]?.id ?? null); } }].map(({ Icon, title, action }) => <button key={title} type="button" title={title} aria-label={title} onClick={action} className="rounded p-2 text-white/70 hover:bg-white/10"><Icon size={16} /></button>)}</div>
+      <div className="flex justify-end gap-1">{[
+        { Icon: Copy, title: 'Duplicate label', action: () => { const copy = normalizeLabel({ ...selected, id: crypto.randomUUID(), ...(manual ? { manualPosition: null } : {}) }); onChange([...labels, copy]); onSelect(copy.id); } },
+        ...(selected.category === 'hand' ? [] : [{ Icon: RotateCcw, title: manual ? 'Choose placement again' : 'Restore default placement', action: () => update(manual ? { manualPosition: null } : { position: labelPositions(selected.category)[0], offsetXmm: 0, offsetYmm: 0, rotation: 0 }) }]),
+        { Icon: Trash2, title: 'Delete label', action: () => { const remaining = labels.filter(label => label.id !== selected.id); setCategory(activeCategory); onChange(remaining); onSelect(remaining.find(label => label.category === activeCategory && (label.category !== 'tag' || label.exteriorView === tagView))?.id ?? null); } },
+      ].map(({ Icon, title, action }) => <button key={title} type="button" title={title} aria-label={title} onClick={action} className="rounded p-2 text-white/70 hover:bg-white/10"><Icon size={16} /></button>)}</div>
       <div className="grid grid-cols-2 gap-1 rounded bg-white/5 p-1" role="group" aria-label="Label editing mode">{(['preset', 'custom'] as const).map(mode => <button key={mode} type="button" aria-pressed={(selected.editingMode ?? 'preset') === mode} onClick={() => update({ editingMode: mode })} className="rounded px-2 py-2 text-xs text-white/60 aria-pressed:bg-white/15 aria-pressed:text-white">{mode === 'preset' ? 'Preset Labels' : 'Custom Labels'}</button>)}</div>
+      {selected.category === 'hand' && <div className="grid grid-cols-2 gap-1" role="group" aria-label="Hand tag face">{(['front', 'back'] as const).map(side => <button key={side} type="button" aria-pressed={selected.exteriorView === side} onClick={() => update(switchTagFace(selected, side))} className="rounded bg-white/5 px-3 py-2 text-xs text-white/70 aria-pressed:bg-white/20">{side === 'front' ? 'Front' : 'Back'}</button>)}</div>}
       {selected.category === 'neck' && select('construction', 'Label type', { physical: 'Sewn neck label', printed: 'Direct neck print' })}
-      {selected.category === 'tag' && tagView === 'front' && <button type="button" onClick={() => { const copy = { ...structuredClone(selected), id: crypto.randomUUID(), exteriorView: 'back' as const, faces: undefined }; onChange([...labels, copy]); onTagViewChange?.('back'); onSelect(copy.id); }} className="flex items-center gap-2 text-xs text-white/70"><Copy size={14} />Copy front to back</button>}
+      {selected.category === 'tag' && tagView === 'front' && <button type="button" onClick={() => { const copy = { ...structuredClone(selected), id: crypto.randomUUID(), exteriorView: 'back' as const, faces: undefined, ...(manual ? { manualPosition: null } : {}) }; onChange([...labels, copy]); onTagViewChange?.('back'); onSelect(copy.id); }} className="flex items-center gap-2 text-xs text-white/70"><Copy size={14} />Copy front to back</button>}
       {!custom && <div className="grid grid-cols-3 gap-2" role="group" aria-label="Label presets">{Object.entries(LABEL_PRESETS).filter(([key]) => key !== 'care-stack' || direct || selected.method !== 'woven').map(([key, title]) => <button key={key} type="button" aria-pressed={(selected.preset ?? 'classic') === key} onClick={() => { update(applyLabelPreset(selected, key as keyof typeof LABEL_PRESETS)); if (key === 'care-stack') setBlockKey('careText'); }} className="min-w-0 overflow-hidden rounded border border-white/15 bg-white/5 p-1.5 text-[11px] text-white/70 aria-pressed:border-[#e45449] aria-pressed:text-white">
         <svg aria-hidden="true" viewBox={`-2 -2 ${selected.widthMm + 4} ${selected.heightMm + 4}`} className="mb-2 h-20 w-full rounded bg-[#e7e9ec] p-2"><LabelArtwork label={applyLabelPreset(selected, key as keyof typeof LABEL_PRESETS)} /></svg>{title}
       </button>)}</div>}
@@ -235,7 +235,11 @@ export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, lay
         <div className="flex flex-wrap gap-4">{(selected.construction === 'physical' ? ['background', 'border'] : ['border']).map(key => <Field key={key} title={key === 'background' ? 'Label fabric' : 'Border colour'}><input type="color" aria-label={`${key} colour`} value={String(selected[key as keyof GarmentLabel])} onChange={event => update({ [key]: event.target.value })} className="h-8 w-9 cursor-pointer bg-transparent" /></Field>)}</div>
         <label className="flex gap-2 text-xs text-white/65"><input type="checkbox" checked={selected.borderEnabled} onChange={event => update({ borderEnabled: event.target.checked })} />Custom border</label>
       </fieldset>
-      {selected.category !== 'hand' && <fieldset className={sectionClass}><legend className={legendClass}>Garment attachment</legend>{select('position', 'Position on garment', Object.fromEntries(labelPositions(selected.category).map(position => [position, LABEL_POSITIONS[position]])))}{selected.category === 'tag' && select('exteriorView', 'Visible side', { front: 'Front', back: 'Back' })}{layeredSleeves && selected.position.startsWith('sleeve-') && select('sleeveLayer', 'Sleeve layer', { outer: 'Outer sleeve', under: 'Under sleeve' })}<div className="grid grid-cols-2 gap-3">{number('offsetXmm', 'Horizontal offset (mm)', -40, 40)}{number('offsetYmm', 'Vertical offset (mm)', -50, 100)}{selected.category === 'tag' && number('rotation', 'Rotation (degrees)', -30, 30, 1)}</div></fieldset>}
+      {manual ? <fieldset className={sectionClass}><legend className={legendClass}>Manual garment attachment</legend>
+        <p className="text-xs text-white/60">{selected.manualPosition ? 'Drag the label on the garment or adjust its position below.' : 'Click the garment preview to position this label. It stays off the garment until you choose a position.'}</p>
+        {select('exteriorView', 'Visible side', { front: 'Front', back: 'Back' })}
+        {selected.manualPosition && <div className="grid grid-cols-2 gap-3">{(['x', 'y'] as const).map(axis => <NumberField key={`${selected.id}-${axis}`} title={`${axis === 'x' ? 'Horizontal' : 'Vertical'} position (%)`} value={selected.manualPosition![axis] * 100} min={0} max={100} step={1} onCommit={value => update({ manualPosition: { ...selected.manualPosition!, [axis]: value / 100 } })} />)}{number('rotation', 'Rotation (degrees)', -180, 180, 1)}</div>}
+      </fieldset> : selected.category !== 'hand' && <fieldset className={sectionClass}><legend className={legendClass}>Garment attachment</legend>{select('position', 'Position on garment', Object.fromEntries(labelPositions(selected.category).map(position => [position, LABEL_POSITIONS[position]])))}{selected.category === 'tag' && select('exteriorView', 'Visible side', { front: 'Front', back: 'Back' })}{layeredSleeves && selected.position.startsWith('sleeve-') && select('sleeveLayer', 'Sleeve layer', { outer: 'Outer sleeve', under: 'Under sleeve' })}<div className="grid grid-cols-2 gap-3">{number('offsetXmm', 'Horizontal offset (mm)', -40, 40)}{number('offsetYmm', 'Vertical offset (mm)', -50, 100)}{selected.category === 'tag' && number('rotation', 'Rotation (degrees)', -30, 30, 1)}</div></fieldset>}
       <div className="space-y-1 border-t border-white/10 pt-3 text-[11px] text-white/65"><strong className="text-white">Manufacturing summary</strong><p>{LABEL_METHODS[selected.method]}{selected.construction === 'physical' ? ` / ${LABEL_FOLDS[selected.fold]}` : ''}</p><p>Finished: {selected.widthMm} x {selected.heightMm} mm</p>{selected.construction === 'physical' && <p>Unfolded: {unfoldedLabelSize(selected).width} x {unfoldedLabelSize(selected).height} mm</p>}<p>{LABEL_POSITIONS[selected.position]}</p><p>Safe margin: {selected.marginMm} mm</p></div>
       {(labelWarnings(selected).length > 0 || layout?.overflow) && <div role="status" className="space-y-1 text-[11px] text-amber-300">{labelWarnings(selected).map(warning => <p key={warning}>{warning}</p>)}{layout?.overflow && <><p>Artwork exceeds safe area. Increase dimensions or reduce artwork.</p>{layout.requiredHeight > selected.heightMm && layout.requiredHeight <= 250 && <button type="button" className="underline" onClick={() => update({ heightMm: layout.requiredHeight + 2 })}>Increase length to {layout.requiredHeight + 2} mm</button>}</>}</div>}
       <button type="button" onClick={() => void downloadLabelArtwork(selected).catch(() => setError('Artwork export failed'))} className="flex items-center gap-2 rounded border border-white/15 px-3 py-2 text-xs text-white"><Download size={14} />Label SVG</button>

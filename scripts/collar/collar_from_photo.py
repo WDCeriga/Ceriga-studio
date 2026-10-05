@@ -10,6 +10,7 @@ Same four steps for every neck (crew, V, mock/funnel, …):
 from __future__ import annotations
 
 import argparse
+import base64
 import io
 import json
 import sys
@@ -147,18 +148,19 @@ def keep_strong_ink(keyed: Image.Image) -> Image.Image:
     return Image.fromarray(rgba, "RGBA")
 
 
-def _closed_pockets(ink: np.ndarray) -> tuple[np.ndarray, int]:
+def _closed_pockets(ink: np.ndarray) -> tuple[np.ndarray, int, np.ndarray]:
     """White regions enclosed by the generated raster construction lines."""
     best = np.zeros_like(ink, dtype=np.int32)
     best_count = 0
     best_area = 0
+    best_outer = np.zeros_like(ink)
     ys, xs = np.where(ink)
     bbox_area = (
         max((int(xs.max()) - int(xs.min()) + 1) * (int(ys.max()) - int(ys.min()) + 1), 1)
         if xs.size
         else ink.size
     )
-    for iterations in (0, 1, 2):
+    for iterations in range(max(3, int(np.ceil(np.sqrt(bbox_area) * 0.025)))):
         sealed = ndimage.binary_closing(ink, iterations=iterations) if iterations else ink
         exterior = flood_from_border(~sealed)
         pockets = (~exterior) & ~sealed
@@ -170,14 +172,19 @@ def _closed_pockets(ink: np.ndarray) -> tuple[np.ndarray, int]:
             sum(
                 float(size)
                 for size in sizes
-                if 80 <= float(size) <= bbox_area * 0.72
+                if 80 <= float(size)
             )
         )
         if useful_area > best_area:
             best, best_count, best_area = labeled, count, useful_area
+            best_outer = ~exterior
         if count >= 2 and useful_area >= bbox_area * 0.08:
-            break
-    return best, best_count
+            try:
+                _head_opening_from_pockets(labeled, count, ink, np.zeros_like(ink))
+            except CollarError:
+                continue
+            return labeled, count, ~exterior
+    return best, best_count, best_outer
 
 
 def _head_opening_from_pockets(
@@ -219,7 +226,7 @@ def _head_opening_from_pockets(
             continue
         # Plackets and V inserts sit below the collar. They can overlap the
         # crew socket strongly, but they are never the head opening.
-        if pcy > opening_limit_y:
+        if pcy > opening_limit_y or float(pys.max()) > y0 + (y1 - y0) * 0.95:
             continue
         centrality = 1.0 - min(abs(pcx - cx) / max((x1 - x0) / 2.0, 1.0), 1.0)
         vertical = 1.0 - min(abs(pcy - target_y) / max(y1 - y0, 1), 1.0)
@@ -251,7 +258,7 @@ def seated_collar(
     collar: np.ndarray,
     hole: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Build fabric from the uploaded collar's closed raster regions.
+    """Subtract the head opening from the closed outer enclosure.
 
     The catalog crew mask is used only as a placement/socket reference. It is
     never inserted into the custom collar fill.
@@ -261,29 +268,12 @@ def seated_collar(
     # components again here breaks tiny joins and opens otherwise closed outer
     # contours, especially at mock-neck folds and V-point seams.
     ink = ink.copy()
-    labeled, count = _closed_pockets(ink)
+    labeled, count, outer = _closed_pockets(ink)
     if count == 0:
         raise CollarError("Generated collar outlines are not closed")
 
     opening = _head_opening_from_pockets(labeled, count, ink, hole)
-    fabric = np.zeros_like(ink)
-    iys, ixs = np.where(ink)
-    ink_bbox_area = max(
-        (int(ixs.max()) - int(ixs.min()) + 1) * (int(iys.max()) - int(iys.min()) + 1),
-        1,
-    )
-    sizes = ndimage.sum(labeled > 0, labeled, index=range(1, count + 1))
-    for index, size in enumerate(sizes, start=1):
-        pocket = labeled == index
-        if np.array_equal(pocket, opening):
-            continue
-        if 80 <= float(size) <= ink_bbox_area * 0.72:
-            fabric |= pocket
-
-    # Include only ink directly bordering a fabric panel. This closes the
-    # raster edge under the black overlay without creating a coloured halo.
-    fabric |= ink & ndimage.binary_dilation(fabric, iterations=2)
-    fabric = ndimage.binary_fill_holes(fabric | opening) & ~opening
+    fabric = ndimage.binary_fill_holes(outer) & ~opening
 
     # Remove small detached pockets while preserving real leaves/plackets.
     parts, part_count = ndimage.label(fabric)
@@ -434,8 +424,316 @@ def place_on_crew(keyed: Image.Image, art_hw: tuple[int, int],
     return np.asarray(canvas.getchannel("A"))
 
 
+def collar_topology(ink: np.ndarray) -> dict[str, np.ndarray]:
+    empty = np.zeros_like(ink)
+    fabric, strokes, opening = seated_collar(ink, empty, empty)
+    outer = ndimage.binary_fill_holes(fabric | opening)
+    outer_boundary = outer & ~ndimage.binary_erosion(outer)
+    inner_boundary = ndimage.binary_dilation(opening) & ~opening
+    attachment = np.zeros_like(ink)
+    columns = np.flatnonzero(outer.any(axis=0))
+    attachment[outer.shape[0] - 1 - np.argmax(outer[::-1, columns], axis=0), columns] = True
+    attachment_ink = strokes & ndimage.binary_dilation(attachment, iterations=2)
+    opening_ink = strokes & ndimage.binary_dilation(inner_boundary, iterations=2) & ~attachment_ink
+    boundary_ink = strokes & ndimage.binary_dilation(outer_boundary, iterations=2) & ~attachment_ink & ~opening_ink
+    return {"fabric": fabric, "opening": opening, "outer": outer,
+            "outerBoundary": boundary_ink, "innerBoundary": opening_ink,
+            "attachment": attachment, "attachmentInk": attachment_ink,
+            "constructionInk": strokes & ~(attachment_ink | opening_ink | boundary_ink)}
+
+
+def closest_curve_points(points: np.ndarray, curve: np.ndarray) -> np.ndarray:
+    segments = np.diff(curve, axis=0)
+    relative = points[:, None, :] - curve[None, :-1, :]
+    fraction = np.clip(np.sum(relative * segments, axis=2) / np.sum(segments ** 2, axis=1), 0, 1)
+    projected = curve[None, :-1, :] + fraction[..., None] * segments
+    nearest = np.argmin(np.sum((projected - points[:, None, :]) ** 2, axis=2), axis=1)
+    return projected[np.arange(points.shape[0]), nearest]
+
+
+def standing_collar_placement(topology: dict[str, np.ndarray], socket: np.ndarray,
+                              art_hw: tuple[int, int]) -> tuple[float, float, float] | None:
+    opening_rows = np.flatnonzero(topology["opening"].any(axis=1))
+    outer_rows = np.flatnonzero(topology["outer"].any(axis=1))
+    if not opening_rows.size or opening_rows[-1] > outer_rows[0] + np.ptp(outer_rows) * 0.45:
+        return None
+    source_columns = np.flatnonzero(topology["attachment"].any(axis=0))
+    target_columns = np.flatnonzero(socket.any(axis=0))
+    if source_columns.size < 2 or target_columns.size < 2:
+        raise CollarError("Standing collar attachment boundary is unresolved")
+    scale = float(np.ptp(target_columns) / np.ptp(source_columns))
+    left = float(target_columns[0] - source_columns[0] * scale)
+    source_rows = np.argmax(topology["attachment"][:, source_columns], axis=0)
+    target_rows = socket.shape[0] - 1 - np.argmax(socket[::-1, target_columns], axis=0)
+    fitted_rows = np.interp(source_columns * scale + left, target_columns, target_rows)
+    top = float(np.mean(fitted_rows - source_rows * scale))
+    if (top + outer_rows[0] * scale < 8 or top + outer_rows[-1] * scale >= art_hw[0] - 8
+            or left + source_columns[0] * scale < 8 or left + source_columns[-1] * scale >= art_hw[1] - 8):
+        raise CollarError("Standing collar cannot retain its height within the target canvas")
+    from scipy.optimize import minimize
+
+    target_points = np.column_stack((target_columns, ndimage.gaussian_filter1d(target_rows.astype(float), 1)))
+    source_points = np.column_stack((source_columns * scale, source_rows * scale))
+
+    def fitting_error(offset: np.ndarray) -> float:
+        placed = source_points + offset
+        matched = closest_curve_points(placed, target_points)
+        matched[source_columns.size // 2] = target_points[target_columns.size // 2]
+        return float(np.linalg.norm(matched - placed, axis=1).max())
+
+    adjustment = float(np.ptp(outer_rows) * scale * 0.05)
+    lower = max(top - adjustment, 8 - outer_rows[0] * scale)
+    upper = min(top + adjustment, art_hw[0] - 9 - outer_rows[-1] * scale)
+    horizontal_bounds = (max(left - adjustment, 8 - source_columns[0] * scale),
+                         min(left + adjustment, art_hw[1] - 9 - source_columns[-1] * scale))
+    initial = np.array([left, top])
+    optimized = minimize(fitting_error, initial, bounds=(horizontal_bounds, (lower, upper)),
+                         method="Powell", options={"xtol": 1e-7, "ftol": 1e-7})
+    if optimized.success and fitting_error(optimized.x) < fitting_error(initial):
+        left, top = map(float, optimized.x)
+    return scale, left, top
+
+
+def constrained_attachment_curve(source_columns: np.ndarray, source_rows: np.ndarray,
+                                 destinations: np.ndarray, depth: float,
+                                 movement_limit: float, socket_curve: np.ndarray):
+    from scipy.interpolate import BSpline
+    from scipy.optimize import minimize
+
+    span = float(np.ptp(source_columns))
+    parameter = (source_columns - source_columns[0]) / span
+    knots = np.r_[np.zeros(4), np.linspace(0, 1, 21)[1:-1], np.ones(4)]
+    count = len(knots) - 4
+    basis = BSpline(knots, np.eye(count), 3)
+    design = basis(parameter)
+    anchors = np.array([0, len(parameter) // 2, len(parameter) - 1])
+    anchor_design = design[anchors]
+    curvature = np.diff(np.eye(count), n=2, axis=0)
+    normal_matrix = design.T @ design + 0.1 * curvature.T @ curvature
+    system = np.block([[normal_matrix, anchor_design.T],
+                       [anchor_design, np.zeros((3, 3))]])
+    source_coefficients = np.linalg.solve(system, np.r_[design.T @ source_rows, source_rows[anchors]])[:count]
+    source_curve = BSpline(knots, source_coefficients, 3)
+    source_derivative = source_curve.derivative()
+    source_second = source_curve.derivative(2)
+    margin = float(np.abs(source_curve(parameter) - source_rows).max()) + 1
+    usable_depth = depth - margin
+    if usable_depth <= 0:
+        raise CollarError("Needs Review: source attachment cannot resolve a protected strip")
+
+    def strip_basis(sample_rows: np.ndarray, sample_columns: np.ndarray) -> np.ndarray:
+        initial = np.clip((sample_columns - source_columns[0]) / span, 0, 1)
+        nearest = initial.copy()
+        for _ in range(8):
+            curve_rows = source_curve(nearest)
+            slope = source_derivative(nearest)
+            numerator = (source_columns[0] + nearest * span - sample_columns) * span + (curve_rows - sample_rows) * slope
+            denominator = span ** 2 + slope ** 2 + (curve_rows - sample_rows) * source_second(nearest)
+            nearest = np.clip(nearest - np.clip(numerator / np.maximum(denominator, span ** 2 * 0.1), -0.1, 0.1), 0, 1)
+        distance = np.hypot(source_columns[0] + nearest * span - sample_columns,
+                            source_curve(nearest) - sample_rows)
+        weight = np.clip(1 - distance / usable_depth, 0, 1)
+        weight = np.where(sample_rows >= source_curve(initial), 1, weight)
+        return basis(nearest) * weight[..., None]
+
+    samples = np.linspace(0, 1, 161)
+    slope = source_derivative(samples)
+    normals = np.column_stack((-slope, np.full_like(slope, span)))
+    normals /= np.linalg.norm(normals, axis=1)[:, None]
+    edge = np.column_stack((source_columns[0] + samples * span, source_curve(samples)))
+    strip = edge[:, None, :] - np.linspace(0, usable_depth, 9)[None, :, None] * normals[:, None, :]
+    constraint_columns, constraint_rows = strip.reshape(-1, 2).T
+    horizontal = (strip_basis(constraint_rows, constraint_columns + 0.5)
+                  - strip_basis(constraint_rows, constraint_columns - 0.5))
+    vertical = (strip_basis(constraint_rows + 0.5, constraint_columns)
+                - strip_basis(constraint_rows - 0.5, constraint_columns))
+    smoothness = basis.derivative(2)(samples) / span ** 2
+    target_delta = destinations - np.column_stack((source_columns, source_rows))
+    hessian = design.T @ design + 0.02 * np.eye(count) + span ** 4 * 0.00003 * smoothness.T @ smoothness / len(samples)
+    target = design.T @ target_delta
+    equality = np.kron(np.eye(2), anchor_design)
+    equality_target = target_delta[anchors].T.ravel()
+    system = np.block([[hessian, anchor_design.T], [anchor_design, np.zeros((3, 3))]])
+    initial = np.linalg.solve(system, np.vstack((target, target_delta[anchors])))[:count].T.ravel()
+    sample_design = basis(samples)
+    tangent_design = basis.derivative()(samples) / span
+
+    def objective(coefficients: np.ndarray) -> float:
+        controls = coefficients.reshape(2, count).T
+        return float(np.sum(controls * (hessian @ controls)) - 2 * np.sum(controls * target))
+
+    def gradient(coefficients: np.ndarray) -> np.ndarray:
+        controls = coefficients.reshape(2, count).T
+        return (2 * (hessian @ controls - target)).T.ravel()
+
+    def geometry(coefficients: np.ndarray) -> np.ndarray:
+        horizontal_controls, vertical_controls = coefficients.reshape(2, count)
+        jacobian = ((1 + horizontal @ horizontal_controls) * (1 + vertical @ vertical_controls)
+                    - (vertical @ horizontal_controls) * (horizontal @ vertical_controls))
+        movement = sample_design @ coefficients.reshape(2, count).T
+        return np.r_[jacobian - 0.23, 1 + tangent_design @ horizontal_controls - 0.1,
+                     1 - np.sum(movement ** 2, axis=1) / movement_limit ** 2]
+
+    def geometry_gradient(coefficients: np.ndarray) -> np.ndarray:
+        horizontal_controls, vertical_controls = coefficients.reshape(2, count)
+        jacobian_horizontal = ((1 + vertical @ vertical_controls)[:, None] * horizontal
+                               - (horizontal @ vertical_controls)[:, None] * vertical)
+        jacobian_vertical = ((1 + horizontal @ horizontal_controls)[:, None] * vertical
+                             - (vertical @ horizontal_controls)[:, None] * horizontal)
+        movement = sample_design @ coefficients.reshape(2, count).T
+        return np.vstack((np.hstack((jacobian_horizontal, jacobian_vertical)),
+                          np.hstack((tangent_design, np.zeros_like(tangent_design))),
+                          np.hstack(tuple(-2 * movement[:, axis, None] * sample_design / movement_limit ** 2
+                                          for axis in (0, 1)))))
+
+    for _ in range(4):
+        fitted = minimize(objective, initial, jac=gradient, method="SLSQP", constraints=[
+            {"type": "eq", "fun": lambda controls: equality @ controls - equality_target,
+             "jac": lambda controls: equality},
+            {"type": "ineq", "fun": geometry, "jac": geometry_gradient},
+        ], options={"ftol": 1e-8, "maxiter": 150})
+        if (not fitted.success or np.max(np.abs(equality @ fitted.x - equality_target)) > 1e-5
+                or float(geometry(fitted.x).min()) < -1e-6):
+            raise CollarError("Needs Review: no smooth attachment fit satisfies the locked strip and fold-risk limits")
+        initial = fitted.x
+        mapped = np.column_stack((source_columns, source_rows)) + design @ fitted.x.reshape(2, count).T
+        contacts = closest_curve_points(mapped, socket_curve)
+        contacts[anchors] = destinations[anchors]
+        target = design.T @ (contacts - np.column_stack((source_columns, source_rows)))
+    controls = fitted.x.reshape(2, count).T
+    fitted_delta = design @ controls
+
+    def displacement(sample_rows: np.ndarray, sample_columns: np.ndarray):
+        shape = sample_rows.shape
+        flat_rows, flat_columns = sample_rows.ravel(), sample_columns.ravel()
+        result = np.empty((flat_rows.size, 2))
+        for start in range(0, flat_rows.size, 32768):
+            stop = min(start + 32768, flat_rows.size)
+            result[start:stop] = strip_basis(flat_rows[start:stop], flat_columns[start:stop]) @ controls
+        return result[:, 1].reshape(shape), result[:, 0].reshape(shape)
+
+    return fitted_delta, displacement
+
+
+def fit_attachment_zone(topology: dict[str, np.ndarray], socket: np.ndarray,
+                        placement: tuple[float, float, float]) -> tuple[dict[str, np.ndarray], dict]:
+    scale, left, top = placement
+    attachment = topology["attachment"]
+    source_columns = np.flatnonzero(attachment.any(axis=0))
+    source_rows = np.argmax(attachment[:, source_columns], axis=0)
+    source_points = np.column_stack((source_columns * scale + left, source_rows * scale + top))
+    target_columns = np.flatnonzero(socket.any(axis=0))
+    target_rows = socket.shape[0] - 1 - np.argmax(socket[::-1, target_columns], axis=0)
+    target_points = np.column_stack((target_columns, ndimage.gaussian_filter1d(target_rows.astype(float), 1)))
+    matched = closest_curve_points(source_points, target_points)
+    center = source_columns.size // 2
+    matched[center] = target_points[target_columns.size // 2]
+    raw_delta = (matched - source_points) / scale
+    outer_rows = np.flatnonzero(topology["outer"].any(axis=1))
+    collar_height = float(np.ptp(outer_rows))
+    if float(np.linalg.norm(raw_delta[[0, center, -1]], axis=1).max()) > collar_height * 0.12:
+        raise CollarError("Needs Review: attachment needs more than a small local correction; collar body was not distorted")
+    depth = collar_height * 0.15
+    delta, curve_displacement = constrained_attachment_curve(
+        source_columns, source_rows, np.column_stack((source_columns, source_rows)) + raw_delta,
+        depth, collar_height * 0.12, (target_points - (left, top)) / scale)
+    maximum_movement = float(np.linalg.norm(delta, axis=1).max())
+    height, width = attachment.shape
+    height += max(0, int(np.ceil(delta[:, 1].max()))) + 3
+    rows, columns = np.indices((height, width), dtype=float)
+    source_attachment = np.pad(attachment, ((0, height - attachment.shape[0]), (0, 0)))
+    distance = ndimage.distance_transform_edt(~source_attachment)
+    below_edge = rows >= np.interp(columns, source_columns, source_rows)
+    field = np.stack(curve_displacement(rows, columns))
+
+    def displacement(sample_rows: np.ndarray, sample_columns: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        return tuple(ndimage.map_coordinates(component, [sample_rows, sample_columns],
+                                            order=1, mode="nearest", prefilter=False) for component in field)
+
+    row_shift, column_shift = displacement(rows, columns)
+    row_by_row, row_by_column = np.gradient(rows + row_shift)
+    column_by_row, column_by_column = np.gradient(columns + column_shift)
+    jacobian = row_by_row * column_by_column - row_by_column * column_by_row
+    source_outer = np.pad(topology["outer"], ((0, height - attachment.shape[0]), (0, 0)))
+    if float(jacobian[source_outer].min()) <= 0.2:
+        raise CollarError("Needs Review: attachment correction would fold or self-intersect the collar")
+    inverse_rows, inverse_columns = rows.copy(), columns.copy()
+    for _ in range(160):
+        inverse_shift_rows, inverse_shift_columns = displacement(inverse_rows, inverse_columns)
+        inverse_rows = (inverse_rows + rows - inverse_shift_rows) * 0.5
+        inverse_columns = (inverse_columns + columns - inverse_shift_columns) * 0.5
+    inverse_shift_rows, inverse_shift_columns = displacement(inverse_rows, inverse_columns)
+    inverse_error = np.hypot(inverse_rows + inverse_shift_rows - rows,
+                             inverse_columns + inverse_shift_columns - columns)
+    if float(inverse_error.max()) > 0.05:
+        raise CollarError("Needs Review: attachment correction could not be inverted without geometry loss")
+    warped = {key: ndimage.map_coordinates(mask.astype(np.uint8), [inverse_rows, inverse_columns],
+                                         order=0, mode="constant", prefilter=False) > 0
+              for key, mask in topology.items()}
+    original_opening = np.pad(topology["opening"], ((0, height - attachment.shape[0]), (0, 0)))
+    if not np.array_equal(warped["opening"], original_opening):
+        raise CollarError("Attachment correction would alter the approved head opening")
+    protected = (distance >= depth) & ~below_edge
+    for key, original in topology.items():
+        padded = np.pad(original, ((0, height - attachment.shape[0]), (0, 0)))
+        if not np.array_equal(warped[key][protected], padded[protected]):
+            raise CollarError("Needs Review: attachment correction changed the locked collar body")
+    edge_row_shift, edge_column_shift = displacement(source_rows, source_columns)
+    mapped_edge = source_points + np.column_stack((edge_column_shift, edge_row_shift)) * scale
+    residual = np.linalg.norm(mapped_edge - closest_curve_points(mapped_edge, target_points), axis=1)
+    raster_rows, raster_columns = np.nonzero(warped["attachment"])
+    raster_edge = np.column_stack((raster_columns * scale + left, raster_rows * scale + top))
+    raw_target = np.column_stack((target_columns, target_rows))
+    raster_residual = np.linalg.norm(raster_edge - closest_curve_points(raster_edge, raw_target), axis=1)
+    anchor_residual = np.linalg.norm(mapped_edge[[0, center, -1]] - matched[[0, center, -1]], axis=1)
+    if not raster_residual.size or max(float(residual.max()), float(raster_residual.max()), float(anchor_residual.max())) > 2:
+        raise CollarError("Needs Review: registered attachment edge does not overlap the shirt neckline after local adaptation")
+    if np.any(np.diff(mapped_edge[:, 0]) <= 0):
+        raise CollarError("Registered attachment edge reverses or self-intersects")
+    if np.any(warped["fabric"] & warped["opening"]):
+        raise CollarError("Registered collar fabric covers the opening")
+    enclosed = ndimage.binary_fill_holes(warped["fabric"] | warped["opening"])
+    if np.any(enclosed & ~(warped["fabric"] | warped["opening"])):
+        raise CollarError("Registered collar fabric contains an unintended hole")
+    coverage = float(warped["constructionInk"].sum() / max(warped["fabric"].sum(), 1))
+    if coverage > 0.12:
+        raise CollarError("Construction ink covers too much collar fabric")
+    return warped, {"mode": "constrained-cubic-spline-attachment", "bodyScaleLocked": True,
+                    "openingUnchanged": True, "maxLocalMovement": maximum_movement * scale,
+                    "attachmentZoneFraction": 0.15,
+                    "outsideAttachmentUnchanged": True,
+                    "maxRasterAttachmentDistance": float(raster_residual.max()),
+                    "maxAnchorDistance": float(anchor_residual.max()),
+                    "maxAttachmentDistance": float(residual.max()),
+                    "minimumJacobian": float(jacobian[source_outer].min()),
+                    "constructionInkCoverage": coverage}
+
+
+def raster_stroke_path(mask: np.ndarray) -> str:
+    segments = []
+    source_scale = T.CANVAS / max(mask.shape)
+    offset_x = (T.CANVAS - mask.shape[1] * source_scale) / 2
+    offset_y = (T.CANVAS - mask.shape[0] * source_scale) / 2
+    for row_index in np.flatnonzero(mask.any(axis=1)):
+        changes = np.diff(np.pad(mask[row_index].astype(np.int8), (1, 1)))
+        for start, stop in zip(np.flatnonzero(changes == 1), np.flatnonzero(changes == -1)):
+            row = (T.CANVAS - offset_y - (row_index + 0.5) * source_scale) * 10
+            segments.append(f"M{(offset_x + start * source_scale) * 10:.4f},{row:.4f} L{(offset_x + stop * source_scale) * 10:.4f},{row:.4f}")
+    return " ".join(segments)
+
+
+def topology_previews(topology: dict[str, np.ndarray]) -> dict[str, str]:
+    previews = {}
+    for key in ("fabric", "opening", "outerBoundary", "innerBoundary", "attachment", "constructionInk"):
+        buffer = io.BytesIO()
+        Image.fromarray(np.where(topology[key], 0, 255).astype(np.uint8)).save(buffer, format="PNG")
+        previews[key] = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    return previews
+
+
 def registered_collar_svg(band: np.ndarray, ink: np.ndarray, name: str,
-                          art_hw: tuple[int, int], placement: tuple[float, float, float]) -> str:
+                          art_hw: tuple[int, int], placement: tuple[float, float, float],
+                          *, topology: dict[str, np.ndarray] | None = None) -> str:
     source_scale = T.CANVAS / max(band.shape)
     art_scale = T.CANVAS / max(art_hw)
     scale, left, top = placement
@@ -444,9 +742,19 @@ def registered_collar_svg(band: np.ndarray, ink: np.ndarray, name: str,
     source_offset_y = (T.CANVAS - band.shape[0] * source_scale) / 2
     translate_x = (T.CANVAS - art_hw[1] * art_scale) / 2 + left * art_scale - source_offset_x * factor
     translate_y = (T.CANVAS - art_hw[0] * art_scale) / 2 + top * art_scale + (T.CANVAS - source_offset_y) * factor
-    root = ET.fromstring(T.wrap_svg(name, T.trace(band), T.trace(ink)))
+    root = ET.fromstring(T.wrap_svg(name, T.trace(band), ""))
     for group in root.findall("{http://www.w3.org/2000/svg}g"):
         group.set("transform", f"translate({translate_x},{translate_y}) scale({factor * 0.1},{-factor * 0.1})")
+    fabric_group, ink_group = root.findall("{http://www.w3.org/2000/svg}g")
+    fabric_group.set("data-topology", "collar-fabric-minus-opening")
+    ink_group.clear()
+    ink_group.attrib.update({"transform": fabric_group.get("transform", ""),
+                             "fill": "none", "stroke": "#141414", "stroke-width": str(source_scale * 10), "stroke-linecap": "butt"})
+    if topology is None:
+        topology = collar_topology(ink)
+    for key in ("outerBoundary", "innerBoundary", "attachmentInk", "constructionInk"):
+        ET.SubElement(ink_group, "{http://www.w3.org/2000/svg}path", {
+            "data-topology": key, "fill": "none", "d": raster_stroke_path(topology[key])})
     ET.register_namespace("", "http://www.w3.org/2000/svg")
     return ET.tostring(root, encoding="unicode")
 
@@ -835,11 +1143,18 @@ def build_from_drawing(
     keyed = crop_ink(keyed, pad=8)
 
     ink = np.asarray(keyed.getchannel("A")) >= STRONG_INK
-    placement = collar_placement(keyed, art_hw, *anchors)
     debug_image("03-source-ink", ink)
     progress("potrace", "Tracing a solid collar fill with construction outlines")
-    empty = np.zeros_like(ink)
-    source_band, source_ink, source_opening = seated_collar(ink, empty, empty)
+    topology = collar_topology(ink)
+    placement = standing_collar_placement(topology, collar, art_hw)
+    attachment_checks = None
+    if placement is None:
+        placement = collar_placement(keyed, art_hw, *anchors)
+    else:
+        topology, attachment_checks = fit_attachment_zone(topology, collar, placement)
+        ink = (topology["outerBoundary"] | topology["innerBoundary"]
+               | topology["attachmentInk"] | topology["constructionInk"])
+    source_band, source_ink, source_opening = topology["fabric"], ink, topology["opening"]
     band = place_region(source_band, art_hw, placement)
     neck_ink = place_region(source_ink, art_hw, placement)
     opening = place_region(source_opening, art_hw, placement)
@@ -855,7 +1170,7 @@ def build_from_drawing(
     validate_part_masks(band, neck_ink, opening, body_fill, collar, body)
 
     name = display_name_for(kind, model_name)
-    neck_svg = registered_collar_svg(source_band, source_ink, name, art_hw, placement)
+    neck_svg = registered_collar_svg(source_band, source_ink, name, art_hw, placement, topology=topology)
     validate_collar_fidelity(neck_svg, source_band, ink, source_opening, art_hw, placement)
     body_svg = T.wrap_svg(
         f"Ceriga test t-shirt - Body {name}",
@@ -868,6 +1183,8 @@ def build_from_drawing(
         "source": source,
         "kind": kind,
         "displayName": name,
+        "collarTopology": {"version": 1, "previews": topology_previews(topology),
+                   "placement": list(placement), "attachmentChecks": attachment_checks},
     }
 
 

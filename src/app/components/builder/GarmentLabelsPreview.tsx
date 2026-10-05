@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, Maximize, Minus, Plus, RotateCcw, Tag } from 'lucide-react';
-import { createGarmentLabel, isInteriorLabel, labelSpecification, LABEL_POSITIONS, type GarmentLabel } from '../../data/garmentLabels';
+import { Download, Maximize, Minus, Plus, RotateCcw } from 'lucide-react';
+import { isInteriorLabel, labelSpecification, LABEL_POSITIONS, type GarmentLabel } from '../../data/garmentLabels';
 import { TshirtSvgPreview, type TshirtSvgPreviewProps } from './TshirtSvgPreview';
 import { LabelArtwork } from './LabelArtwork';
 import type { LabelFocus } from './GarmentLabelOverlay';
@@ -59,7 +59,10 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const current = labels.find(label => label.id === selectedId);
   const tagEditing = current?.category === 'tag';
   const selected = tagEditing && current.exteriorView !== tagView ? undefined : current;
-  const [mode, setMode] = useState<'garment' | 'closeup'>(animateEntry ? 'garment' : 'closeup');
+  const imported = Boolean(garmentProps.customAssetState?.importedGarment);
+  const manual = selected?.category !== 'hand' && (imported || selected?.manualPosition !== undefined);
+  const unplaced = manual && selected && !selected.manualPosition;
+  const [mode, setMode] = useState<'garment' | 'closeup'>(animateEntry || manual ? 'garment' : 'closeup');
   const [entryPending, setEntryPending] = useState(animateEntry);
   const [animatedTarget, setAnimatedTarget] = useState<string | null>(null);
   const [showGarment, setShowGarment] = useState(true);
@@ -73,10 +76,11 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const [exportError, setExportError] = useState('');
   useEffect(() => {
     setPan({ x: 0, y: 0 });
-  }, [selectedId, selected?.position]);
+    if (manual) { setMode('garment'); setZoom(1); }
+  }, [selectedId, selected?.position, manual, Boolean(unplaced)]);
   const handSelected = selected?.category === 'hand';
-  const neckSelected = selected?.category === 'neck' || selected?.position.startsWith('neck-');
-  const ready = focus?.id === selected?.id && Boolean(focus?.width && focus?.height);
+  const neckSelected = !manual && (selected?.category === 'neck' || selected?.position.startsWith('neck-'));
+  const ready = Boolean(selected && !unplaced && focus?.id === selected.id && focus?.width && focus?.height);
   const targetKey = `${selectedId}:${selected?.position}`;
   useEffect(() => {
     if (previousSelectedId.current === selectedId) return;
@@ -84,25 +88,25 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
     setAnimatedTarget(targetKey);
   }, [selectedId, targetKey]);
   useEffect(() => {
-    if (!entryPending || !ready || handSelected) return;
+    if (manual || !entryPending || !ready || handSelected) return;
     const timer = window.setTimeout(() => { setAnimatedTarget(targetKey); setMode('closeup'); setEntryPending(false); }, 180);
     return () => window.clearTimeout(timer);
-  }, [entryPending, ready, handSelected, targetKey]);
+  }, [entryPending, ready, handSelected, targetKey, manual]);
   useEffect(() => {
     if (!animatedTarget) return;
     const timer = window.setTimeout(() => setAnimatedTarget(null), 1850);
     return () => window.clearTimeout(timer);
   }, [animatedTarget, mode]);
-  const closeup = mode === 'closeup' || handSelected;
-  const careCloseup = closeup && selected?.category === 'care';
-  const cameraFocus = selected && focus?.width && focus?.height ? focus : null;
+  const closeup = Boolean(selected) && !unplaced && (mode === 'closeup' || handSelected) && (!manual || mode === 'closeup' && !entryPending);
+  const careCloseup = !manual && closeup && selected?.category === 'care';
+  const cameraFocus = !unplaced && selected && focus?.id === selected.id && focus?.width && focus?.height ? focus : null;
   const framing = cameraFocus?.context ?? cameraFocus;
   const scale = closeup && framing ? Math.min(tagEditing ? 22 : 18, 2048 * (cameraFocus?.context ? (tagEditing ? .9 : .8) : (tagEditing ? .64 : .68 * .8)) / Math.max(framing.width, framing.height)) * zoom : zoom;
   const point = closeup && framing ? framing : { x: 1024, y: 1024 };
   const contextVisible = !closeup || showGarment;
   const controlClass = 'rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/10 aria-pressed:bg-white/15 aria-pressed:text-white';
-  const interior = Boolean(selected && !neckSelected && isInteriorLabel(selected));
-  const view = tagEditing ? tagView : 'front';
+  const interior = Boolean(!manual && selected && !neckSelected && isInteriorLabel(selected));
+  const view = tagEditing ? tagView : manual ? selected?.exteriorView ?? garmentProps.detailView ?? 'front' : 'front';
   const downloadPlacement = async () => {
     try {
       await document.fonts.ready;
@@ -129,17 +133,18 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
       onPointerMove={event => { const gesture = panGesture.current; if (gesture?.pointer === event.pointerId) setPan({ x: gesture.origin.x + event.clientX - gesture.x, y: gesture.origin.y + event.clientY - gesture.y }); }}
       onPointerUp={() => { panGesture.current = null; }} onPointerCancel={() => { panGesture.current = null; }} onLostPointerCapture={() => { panGesture.current = null; }}
       className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden [container-type:size]" style={{ touchAction: careCloseup ? 'none' : undefined, cursor: careCloseup ? 'grab' : undefined, backgroundColor: '#e7e9ec', backgroundImage: 'radial-gradient(#cdd1d6 .6px, transparent .6px)', backgroundSize: '16px 16px' }}>
-      {!handSelected && current && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible' : ''}`} style={{ transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
+      {!handSelected && (selected || imported) && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible' : ''}`} style={{ transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
         <TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
           onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />
       </div>}
       {selected && handSelected && <svg data-isolated-label="" aria-label="Active label close-up" viewBox={`-${selected.widthMm * .2} -${selected.heightMm * .2} ${selected.widthMm * 1.4} ${selected.heightMm * 1.4}`} className="absolute h-[85%] w-[85%] transition-transform duration-[650ms] ease-in-out motion-reduce:transition-none" style={{ transform: `scale(${zoom * .8})` }}><LabelArtwork label={selected} guide={selected.construction === 'printed'} /></svg>}
-      {!current && <button type="button" onClick={() => { const label = createGarmentLabel('neck'); onChange([...labels, label]); onSelect(label.id); }} className="absolute z-10 flex items-center gap-2 rounded border border-black/20 bg-white px-4 py-3 text-sm text-[#252528]"><Tag size={18} />Add label</button>}
+      {!selected && <p role="status" className="pointer-events-none absolute z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#252528]">{labels.length ? 'Select a saved label or use Add label in the panel. No label is selected for this view.' : 'No labels added. Choose any label category and use Add label in the panel when you are ready.'}</p>}
+      {unplaced && <p role="status" className="pointer-events-none absolute bottom-4 z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#252528]">Click the garment to position your label. No attachment location is assumed.</p>}
     </div>
     <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/10 bg-[#111113] px-2 py-2 text-[10px] text-white/65">
-      {selected ? <><span>{selected.widthMm} x {selected.heightMm} mm</span><span>{LABEL_POSITIONS[selected.position]}</span></> : <span>No label selected</span>}
+      {selected ? <><span>{selected.widthMm} x {selected.heightMm} mm</span><span>{handSelected ? `Standalone hand tag — ${selected.exteriorView}` : manual ? selected.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[selected.position]}</span></> : <span>No label selected</span>}
       {selected && <span>{handSelected ? 'Hand tag' : interior || neckSelected ? 'Interior attachment' : `${view === 'back' ? 'Back' : 'Front'} exterior`}</span>}
-      {!handSelected && !garmentProps.labelReferenceWidthMm && <span className="text-white/45">Scale reference: 500 mm chest</span>}
+      {selected && !handSelected && !garmentProps.labelReferenceWidthMm && <span className="text-white/45">Scale reference: 500 mm {manual ? 'garment width (approximate)' : 'chest'}</span>}
       {exportError && <span role="alert" className="text-red-300">{exportError}</span>}
     </div>
   </div>;

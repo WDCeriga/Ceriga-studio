@@ -1,9 +1,10 @@
-import { spawn } from 'node:child_process'
+import { spawn, execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Plugin } from 'vite'
+import { loadEnv, type Plugin } from 'vite'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SCRIPT = path.resolve(__dirname, 'garment_from_photo.py')
@@ -44,14 +45,22 @@ function decodePhoto(raw: Buffer): Buffer {
 }
 
 export function garmentFromPhotoPlugin(): Plugin {
+  let reconstructing = false
   return {
     name: 'garment-from-photo',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url?.split('?')[0] !== '/api/garment-from-photo') return next()
+        const route = req.url?.split('?')[0]
+        const reconstruction = route === '/api/garment-reconstruction'
+        if (!reconstruction && route !== '/api/garment-from-photo') return next()
+        if (req.headers.origin && !['http:', 'https:'].some(protocol => req.headers.origin === `${protocol}//${req.headers.host}`)) {
+          res.statusCode = 403
+          res.end('Origin not allowed')
+          return
+        }
         if (req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ ok: true, provider: 'local-seam-trace' }))
+          res.end(JSON.stringify({ ok: true, provider: reconstruction ? 'azure-garment-reconstruction-v1' : 'local-seam-trace' }))
           return
         }
         if (req.method !== 'POST') {
@@ -62,24 +71,53 @@ export function garmentFromPhotoPlugin(): Plugin {
 
         res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
         res.setHeader('Cache-Control', 'no-store')
+        if (reconstruction && reconstructing) {
+          res.statusCode = 409
+          res.end(`${JSON.stringify({ type: 'error', error: 'Another garment is processing. Try again when it finishes.' })}\n`)
+          return
+        }
+        if (reconstruction) reconstructing = true
         let tmpDir = ''
         try {
-          const bytes = decodePhoto(await readBody(req))
+          const raw = await readBody(req)
+          const payload = reconstruction ? JSON.parse(raw.toString('utf8')) : null
+          if (reconstruction && (typeof payload?.imageBase64 !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(payload.imageBase64))) throw new Error('Expected a base64 image upload')
+          const bytes = reconstruction ? Buffer.from(payload.imageBase64, 'base64') : decodePhoto(raw)
+          if (bytes.length > 12 * 1024 * 1024) throw new Error('Image is too large (maximum 12 MB)')
           tmpDir = await mkdtemp(path.join(os.tmpdir(), 'ceriga-garment-'))
           const photoPath = path.join(tmpDir, 'photo.png')
           await writeFile(photoPath, bytes)
+          const env = { ...process.env, ...loadEnv(server.config.mode, server.config.root, '') }
+          const localPython = path.join(server.config.root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python')
+          const localPotrace = path.join(server.config.root, '.venv/tools/potrace-1.16.win64/potrace.exe')
+          if (!env.POTRACE && !env.POTRACE_EXE && existsSync(localPotrace)) env.POTRACE = localPotrace
           const { bin, prefix } = pythonCommand()
-          const child = spawn(bin, [...prefix, '-u', SCRIPT, photoPath], {
+          const child = spawn(env.PYTHON || (existsSync(localPython) ? localPython : bin), [...prefix, '-u', SCRIPT, photoPath, ...(reconstruction ? ['--reconstruct'] : [])], {
             cwd: __dirname,
-            env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
+            env: { ...env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
             stdio: ['ignore', 'pipe', 'pipe'],
             windowsHide: true,
           })
           let stdout = ''
           let stderr = ''
+          const cancel = () => {
+            if (!child.pid || child.exitCode !== null) return
+            if (process.platform === 'win32') execFile('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true }, () => {})
+            else child.kill('SIGTERM')
+          }
+          res.on('close', cancel)
+          const timer = setTimeout(() => {
+            if (!res.writableEnded && !res.destroyed) res.end(`${JSON.stringify({ type: 'error', error: 'Garment reconstruction timed out. Retry.' })}\n`)
+            cancel()
+          }, 900_000)
           child.stdout.on('data', (chunk: Buffer) => {
             stdout += chunk.toString('utf8')
-            res.write(chunk)
+            if (stdout.length > 24_000_000) {
+              if (!res.writableEnded && !res.destroyed) res.end(`${JSON.stringify({ type: 'error', error: 'Garment output is too large.' })}\n`)
+              cancel()
+              return
+            }
+            if (!res.writableEnded && !res.destroyed) res.write(chunk)
           })
           child.stderr.on('data', (chunk: Buffer) => {
             stderr += chunk.toString('utf8')
@@ -91,6 +129,9 @@ export function garmentFromPhotoPlugin(): Plugin {
             }
           })
           child.on('close', async (code) => {
+            clearTimeout(timer)
+            res.off('close', cancel)
+            if (reconstruction) reconstructing = false
             if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
             if (res.writableEnded) return
             const hasError = stdout.includes('"type": "error"') || stdout.includes('"type":"error"')
@@ -98,13 +139,14 @@ export function garmentFromPhotoPlugin(): Plugin {
               res.write(`${JSON.stringify({
                 type: 'error',
                 ok: false,
-                error: stderr.trim().split('\n').slice(-6).join(' ').slice(0, 500)
+                error: (reconstruction ? '' : stderr.trim().split('\n').slice(-6).join(' ').slice(0, 500))
                   || `Garment trace exited ${code}`,
               })}\n`)
             }
             res.end()
           })
         } catch (error) {
+          if (reconstruction) reconstructing = false
           if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
           const message = error instanceof Error ? error.message : 'Garment upload failed'
           if (!res.writableEnded) {

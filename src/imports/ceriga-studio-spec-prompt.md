@@ -308,7 +308,13 @@ The flat-lay preview becomes interactive on this step.
 - Uploaded artwork previews at low opacity inside the zone on the preview
 
 ### Step 9 — Labels & tags
-No SVG layer swap. Fields only.
+All label options remain available, but labels are optional. Opening this step, switching categories or sides, and deleting the last label must never create a label. Use **Add label** explicitly; existing saved labels remain selectable.
+For a whole-garment import, a new sewn label stays off the garment until the user clicks its position in the full garment preview (or focuses the placement target and presses Enter to choose the center). Drag or percentage-position controls adjust the placement afterward. No neck, sleeve, or other template attachment is inferred for an arbitrary import. Template apparel retains its existing attachment presets after explicit Add.
+
+Hand tags are always standalone, including for imports. Add explicitly, edit their front/back faces, and export artwork/specifications without placing them on the garment. They have no garment-position controls, pending-placement warning, or placement target; previously saved hand-tag coordinates are ignored and removed on normalization/export.
+The accessible imported placement surface is `[data-label-placement-target]` inside `[data-garment-label-overlay]`; click a position or focus it and press Enter/Space. Bounds come from imported part geometry, including polygon-based fixtures, rather than requiring Potrace paths.
+
+Focused regression checks: `node scripts\collar\run_optional_label_tests.mjs` (includes real preview integration for hoodie/T-shirt front, estimated back, and merged reconstructed back fixtures).
 - Neck label type: Woven, Printed transfer, Heat transfer, No label
 - Neck label artwork upload
 - Care label: Standard (auto-generated from fabric composition), Custom upload

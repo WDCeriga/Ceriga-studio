@@ -97,7 +97,10 @@ import { defaultGarmentWash, WASH_TYPES, type GarmentWash, type WashTool } from 
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
 import { CustomAssetUpload } from '../components/builder/CustomAssetUpload';
-import { activeCustomAssets, installCustomAsset, updateCustomAssetTransform, type CustomAssetCategory, type CustomAssetState } from '../data/customAssets';
+import { CustomAssetEditorPanel } from '../components/builder/CustomAssetEditor';
+import { setAssetUserTransform, type AssetUserTransform } from '../data/customAssetEditing';
+import { activeCustomAssets, installCustomAsset, setCustomCollarEdits, updateCustomAssetTransform, type CustomAssetCategory, type CustomAssetState } from '../data/customAssets';
+import { collarEditGeometry } from '../data/customCollarEditing';
 import { TrimColorFamilyPicker } from '../components/builder/TrimColorFamilyPicker';
 import { GarmentPartColorPickers } from '../components/builder/GarmentPartColorPickers';
 import { StudioColorField } from '../components/builder/StudioColorField';
@@ -217,6 +220,9 @@ type DetailKey =
   | 'sleeves'
   | 'hem'
   | 'pockets';
+
+import { ImportedGarmentEditor, ImportedMeasurementOverlay } from '../components/builder/ImportedGarmentEditor';
+import { canAcceptImportedConstruction, importedBuilderCategories, recolorImportedParts } from '../data/importedGarment';
 
 interface BuilderState extends CustomAssetState {
   packagingDesign?: PackagingState;
@@ -1300,6 +1306,12 @@ export function Builder() {
   const GARMENT_PART_STEPS = { first: 3, last: 8 };
 
   const shouldSkipStep = (stepId: number) => {
+    if (state.importedGarment) {
+      if (stepId >= 3 && stepId <= 6) return ![...state.importedGarment.parts, ...(state.importedGarment.detailLayers ?? [])]
+        .some(part => part.builderCategory && importedBuilderCategories[part.builderCategory]?.step === stepId);
+      if (stepId === 8) return !state.importedGarment.parts.some(part => part.stitchSvg?.includes('<path')) && !state.importedGarment.detailLayers?.some(detail => detail.stitchSvg?.includes('<path'));
+      return false;
+    }
     if (stepId === 6 && state.garmentType === 'tshirt') return false;
     if (stepId === 7 && resolveProductSvgType(state.garmentType, state.svgPack) === 'tshirt') return false;
     if (builderSteps.find((item) => item.id === stepId)?.skipForGarmentTypes?.includes(state.garmentType)) {
@@ -1363,8 +1375,8 @@ export function Builder() {
         100
       : (currentStep / builderSteps.length) * 100;
   const primaryColor = state.colors[0]?.hex || '#5C7FB6';
-  const garmentSvgType = resolveProductSvgType(state.garmentType, state.svgPack);
-  const isGarmentSvgFlow = garmentSvgType != null && supportsGarmentSvgPreview(state.garmentType);
+  const garmentSvgType = resolveProductSvgType(state.importedGarment?.manifest.garmentType ?? state.garmentType, state.importedGarment ? undefined : state.svgPack) ?? (state.importedGarment ? 'tshirt' : null);
+  const isGarmentSvgFlow = Boolean(state.importedGarment) || garmentSvgType != null && supportsGarmentSvgPreview(state.garmentType);
   const activeFit = garmentSvgType
     ? resolveGarmentPackFit(garmentSvgType, state.fit) ?? state.fit
     : state.fit;
@@ -1382,6 +1394,9 @@ export function Builder() {
         : {},
     [garmentSvgType, state.tshirtAssetSelection, activeFit],
   );
+  const [customAssetCanvasSize, setCustomAssetCanvasSize] = useState(2048);
+  const changeCustomAssetTransform = (id: string, transform?: AssetUserTransform) => setState(prev => ({ ...prev,
+    customAssetInstances: setAssetUserTransform(prev, garmentSvgType ?? '', activeFit, garmentView, id, transform, prev.customSleevesLinked !== false) }));
   const garmentPreviewStepMax = garmentSvgType
     ? getGarmentSvgConfig(garmentSvgType).previewStepMax
     : 0;
@@ -1393,7 +1408,7 @@ export function Builder() {
   }) : [], [garmentSvgType, garmentView, garmentSelection, activeFit, state.tshirtHemStyles, state.neckFinish, state.stitchingColor,
     state.partColors, state.customCollar, state.customCollars, state.customAssets, state.customAssetInstances]);
   const showGarmentLayerToolbar =
-    isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax &&
+    !state.importedGarment && isGarmentSvgFlow && currentStep >= 2 && currentStep <= garmentPreviewStepMax &&
     currentStep !== 5 && !(garmentSvgType === 'tshirt' && currentStep === 8);
   const hemLayers = useMemo(() => garmentSvgType ? resolveGarmentLayers({
     customAssetState: state,
@@ -1573,6 +1588,10 @@ export function Builder() {
   };
 
   const handleNext = () => {
+    if ((searchParams.get('import') === 'photo' || state.importedGarment) && (!state.importedGarment?.accepted || !canAcceptImportedConstruction(state.importedGarment))) {
+      toast.error('Review and accept the imported construction before continuing.');
+      return;
+    }
     if (currentStep === 13) {
       navigate('/delivery', {
         state: {
@@ -1671,6 +1690,10 @@ export function Builder() {
       stepId: number,
       opts?: { allowUnvisited?: boolean; toggleIfSame?: boolean },
     ) => {
+      if ((searchParams.get('import') === 'photo' || state.importedGarment) && (!state.importedGarment?.accepted || !canAcceptImportedConstruction(state.importedGarment)) && stepId > 2) {
+        toast.error('Review and accept the imported construction first.');
+        return;
+      }
       if (shouldSkipStep(stepId)) return;
       if (!opts?.allowUnvisited && !visitedSteps.includes(stepId)) return;
 
@@ -1689,7 +1712,7 @@ export function Builder() {
       }
       setCurrentStep(stepId);
     },
-    [currentStep, layoutTier, visitedSteps, state.garmentType],
+    [currentStep, layoutTier, visitedSteps, state.garmentType, state.importedGarment, searchParams],
   );
 
   const handleStepClick = (stepId: number) => {
@@ -1700,13 +1723,21 @@ export function Builder() {
     (layerId: GarmentLayerId | null) => {
       setTshirtLayerSelectedId(layerId);
       if (!layerId || !garmentSvgType) return;
+      if (state.importedGarment) {
+        const part = state.importedGarment.parts.find(part => part.id === layerId);
+        if (part?.builderCategory && state.importedGarment.accepted && canAcceptImportedConstruction(state.importedGarment)) {
+          keepLayerSelectionOnStepChangeRef.current = true;
+          openBuilderStep(importedBuilderCategories[part.builderCategory].step, { allowUnvisited: true });
+        }
+        return;
+      }
       const stepId = garmentBuilderStepForLayerId(garmentSvgType, layerId);
       if (stepId != null) {
         keepLayerSelectionOnStepChangeRef.current = true;
         openBuilderStep(stepId, { allowUnvisited: true });
       }
     },
-    [garmentSvgType, openBuilderStep],
+    [garmentSvgType, openBuilderStep, state.importedGarment],
   );
 
   /** Drag empty preview space to pan the canvas (assets still drag via their own hit targets). */
@@ -2127,8 +2158,11 @@ export function Builder() {
       previewColor={state.partColors?.neck ?? state.neckTrimColor ?? primaryColor}
       assets={state.customAssets ?? []}
       selectedIds={activeCustomAssets(state, garmentSvgType, activeFit, garmentView).map(item => item.definition.id)}
-      onAccept={(asset, additionalAssets = []) => {
-        setState(prev => [asset, ...additionalAssets].reduce((next, definition) => installCustomAsset(next, definition, garmentSvgType, activeFit, garmentView, prev.partColors?.base ?? primaryColor, garmentDetailBounds), prev));
+      onAccept={(asset, additionalAssets = [], collarEdits) => {
+        setState(prev => {
+          const installed = [asset, ...additionalAssets].reduce((next, definition) => installCustomAsset(next, definition, garmentSvgType, activeFit, garmentView, prev.partColors?.base ?? primaryColor, garmentDetailBounds), prev);
+          return collarEdits ? { ...installed, ...setCustomCollarEdits(installed, garmentSvgType, activeFit, garmentView, asset.registration.layerId, collarEdits) } : installed;
+        });
         if (asset.category !== 'pocket') setTshirtLayerSelectedId(asset.registration.layerId as GarmentLayerId);
       }}
       onRename={(id, name) => setState(prev => ({ ...prev,
@@ -2140,9 +2174,15 @@ export function Builder() {
         customAssetInstances: Object.fromEntries(Object.entries(prev.customAssetInstances ?? {}).filter(([, instance]) => instance.definitionId !== id)),
         garmentDetails: prev.garmentDetails?.filter(detail => detail.customAsset?.id !== id),
       }))}
-      renderPreview={(asset, additionalAssets = []) => {
-        const preview = [asset, ...additionalAssets].reduce((next, definition) => installCustomAsset(next, definition, garmentSvgType, activeFit, garmentView, state.partColors?.base ?? primaryColor, garmentDetailBounds), state);
-        return <TshirtSvgPreview garmentType={garmentSvgType} fit={activeFit} detailView={garmentView} color={primaryColor}
+      renderPreview={(asset, additionalAssets = [], canvasOverlay, collarEditor) => {
+        const installed = [asset, ...additionalAssets].reduce((next, definition) => installCustomAsset(next, definition, garmentSvgType, activeFit, garmentView, state.partColors?.base ?? primaryColor, garmentDetailBounds), state);
+        const preview = collarEditor ? { ...installed, ...setCustomCollarEdits(installed, garmentSvgType, activeFit, garmentView, asset.registration.layerId, collarEditor.edits) } : installed;
+        return <TshirtSvgPreview canvasOverlay={canvasOverlay} garmentType={garmentSvgType} fit={activeFit} detailView={garmentView} color={primaryColor}
+          selectedLayerId={collarEditor ? asset.registration.layerId : undefined}
+          onSelectedLayerChange={collarEditor ? () => {} : undefined}
+          onLayerTransformChange={collarEditor ? () => {} : undefined}
+          onCustomAssetTransformChange={collarEditor ? () => {} : undefined}
+          onCustomCollarEditsChange={collarEditor ? (_id, edits) => collarEditor.onChange(edits) : undefined}
           selection={garmentSelection} customAssetState={preview} garmentDetails={preview.garmentDetails}
           customCollar={state.customCollar} customCollars={state.customCollars} layerTransforms={state.tshirtLayerTransforms}
           partColors={state.partColors} neckTrimColor={state.neckTrimColor} sleeveTrimColor={state.sleeveTrimColor}
@@ -2152,7 +2192,7 @@ export function Builder() {
   };
 
   const renderGarmentAssetGrids = (step: number) => {
-    if (!garmentSvgType) return null;
+    if (!garmentSvgType || state.importedGarment) return null;
     return getGarmentChoiceCategoriesForStep(garmentSvgType, step)
       .filter(category => step !== 5 || state.tshirtHemStyles?.editing?.applyAll !== false ||
         hemRegions.find(region => region.id === activeHemRegion)?.category === category)
@@ -2197,7 +2237,7 @@ export function Builder() {
   };
 
   const renderPartColorPickers = (step: number) => {
-    if (!garmentSvgType || !garmentConfig?.perPartColors || techpackSpecFlow) return null;
+    if (!garmentSvgType || state.importedGarment || !garmentConfig?.perPartColors || techpackSpecFlow) return null;
     return (
       <GarmentPartColorPickers
         garmentType={garmentSvgType}
@@ -2214,6 +2254,8 @@ export function Builder() {
   };
 
   const renderStepContent = () => {
+    if (searchParams.get('import') === 'photo' && !state.importedGarment) return null;
+    if (state.importedGarment && (!state.importedGarment.accepted || !canAcceptImportedConstruction(state.importedGarment) || [1, 3, 4, 5, 6, 8].includes(currentStep))) return null;
     switch (currentStep) {
       case 1:
         return (
@@ -2300,7 +2342,8 @@ export function Builder() {
         const applyFabricHex = (hex: string) => {
           const n = normalizeHex6(hex);
           const match = fabricColors.find((c) => normalizeHex6(c.hex) === n);
-          setState((prev) => ({ ...prev, colors: [{ hex: n, pantone: match?.pantone ?? '' }] }));
+          setState((prev) => ({ ...prev, colors: [{ hex: n, pantone: match?.pantone ?? '' }],
+            partColors: prev.importedGarment ? { ...prev.partColors, ...Object.fromEntries(prev.importedGarment.parts.filter(part => part.colorable).map(part => [part.id, n])) } : prev.partColors }));
         };
 
         return (
@@ -2897,8 +2940,9 @@ export function Builder() {
         );
 
       case 10:
-        if (garmentSvgType === 'tshirt' && !legacyLabelEditing) return <div className="space-y-4">
+        if ((state.importedGarment || garmentSvgType === 'tshirt') && !legacyLabelEditing) return <div className="space-y-4">
           <GarmentLabelsPanel labels={state.garmentLabels ?? []} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId}
+            manualPlacement={Boolean(state.importedGarment)}
             tagView={garmentLabelTagView} onTagViewChange={setGarmentLabelTagView}
             layeredSleeves={Boolean(getGarmentAsset(garmentSelection['Sleeve length'] ?? '')?.displayName.startsWith('Layered Long Sleeve'))}
             onChange={garmentLabels => setState(prev => ({ ...prev, garmentLabels }))} />
@@ -2906,7 +2950,7 @@ export function Builder() {
         </div>;
         return (
           <div className="space-y-4">
-            {garmentSvgType === 'tshirt' && <button type="button" className="text-xs text-white/60 underline" onClick={() => setLegacyLabelEditing(false)}>Labels &amp; Branding</button>}
+            {(state.importedGarment || garmentSvgType === 'tshirt') && <button type="button" className="text-xs text-white/60 underline" onClick={() => setLegacyLabelEditing(false)}>Labels &amp; Branding</button>}
             <LabelsPackagingStep
               subStep="label"
               elements={state.labels}
@@ -3432,7 +3476,26 @@ export function Builder() {
           >
             {stepDescriptionLabel}
           </p>}
+          {(state.importedGarment || searchParams.get('import') === 'photo') && <ImportedGarmentEditor
+            value={state.importedGarment} step={currentStep} view={garmentView} selectedId={tshirtLayerSelectedId} onSelect={id => setTshirtLayerSelectedId(id as GarmentLayerId | null)}
+            highlightedMeasurementId={highlightedMeasurementId} onHighlightMeasurement={setHighlightedMeasurementId}
+            colors={state.partColors}
+            onColor={(id, color, scope) => setState(previous => previous.importedGarment ? { ...previous, partColors: recolorImportedParts(previous.importedGarment, id, color, scope, previous.partColors) } : previous)}
+            onResetColors={() => setState(previous => ({ ...previous, partColors: {} }))}
+            onReplace={() => setState(previous => ({ ...previous, importedGarment: undefined, partColors: {}, tshirtLayerTransforms: {},
+              garmentWash: undefined, garmentDetails: [], garmentLabels: [], prints: [], labels: [], measurements: {},
+              customAssets: [], customAssetInstances: {}, tshirtHemStyles: undefined, tshirtStitching: undefined }))}
+            onChange={importedGarment => {
+              if (!state.importedGarment || !importedGarment.parts.some(part => part.view === garmentView)) {
+                setProjectName(`Imported ${importedGarment.manifest.garmentType}`); setShowFront(importedGarment.parts.some(part => part.view === 'front'));
+              }
+              setState(previous => ({ ...previous, garmentType: importedGarment.manifest.garmentType, importedGarment }));
+            }}/ >}
           {renderStepContent()}
+          {showGarmentLayerToolbar && garmentSvgType && <CustomAssetEditorPanel state={state} garmentType={garmentSvgType} fit={activeFit}
+            view={garmentView} selectedId={tshirtLayerSelectedId} canvasSize={customAssetCanvasSize}
+            onSelect={id => handleTshirtLayerSelect(id as GarmentLayerId)} onChange={changeCustomAssetTransform}
+            onOptionsChange={options => setState(prev => ({ ...prev, ...options }))} />}
           {isPhone ? editorNavFooter : null}
         </div>
         {!isPhone ? editorNavFooter : null}
@@ -3472,6 +3535,14 @@ export function Builder() {
               onResetTransform={() => {
                 if (!tshirtLayerSelectedId) return;
                 const storageId = garmentTransformStorageId(tshirtLayerSelectedId);
+                if (activeCustomAssets(state, garmentSvgType ?? '', activeFit, garmentView).some(item => item.definition.category === 'collar' && item.definition.registration.layerId === storageId && collarEditGeometry(item.definition.svg))) {
+                  setState(prev => ({ ...prev, ...setCustomCollarEdits(prev, garmentSvgType ?? '', activeFit, garmentView, storageId) }));
+                  return;
+                }
+                if (activeCustomAssets(state, garmentSvgType ?? '', activeFit, garmentView).some(item => item.definition.registration.layerId === storageId)) {
+                  changeCustomAssetTransform(storageId);
+                  return;
+                }
                 setState((prev) => {
                   const customAssetInstances = updateCustomAssetTransform(prev, garmentSvgType ?? '', activeFit, garmentView, storageId);
                   if (customAssetInstances) return { ...prev, customAssetInstances };
@@ -3502,7 +3573,9 @@ export function Builder() {
           >
             <button
               type="button"
-              onClick={() => setShowFront(true)}
+              onClick={() => { setShowFront(true); setTshirtLayerSelectedId(null); setHighlightedMeasurementId(null); }}
+              disabled={Boolean(state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'front'))}
+              title={state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'front') ? 'Upload front reference' : 'Front'}
               className={cn(
                 'builder-focus flex flex-col items-center justify-center rounded-lg font-bold uppercase leading-tight tracking-wide transition-colors',
                 isPhone
@@ -3517,7 +3590,9 @@ export function Builder() {
             </button>
             <button
               type="button"
-              onClick={() => setShowFront(false)}
+              onClick={() => { setShowFront(false); setTshirtLayerSelectedId(null); setHighlightedMeasurementId(null); }}
+              disabled={Boolean(state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'back'))}
+              title={state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'back') ? 'Upload back reference' : 'Back'}
               className={cn(
                 'builder-focus flex flex-col items-center justify-center rounded-lg font-bold uppercase leading-tight tracking-wide transition-colors',
                 isPhone
@@ -3530,6 +3605,8 @@ export function Builder() {
             >
               Back
             </button>
+            {state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'back') && <span className="max-w-24 px-1 text-center text-[9px] text-amber-200">Upload back reference</span>}
+            {!showFront && state.importedGarment?.manifest.backView?.inference && <span role="status" title={state.importedGarment.manifest.backView.inference.notice} className="max-w-28 px-1 text-center text-[9px] text-amber-200">Estimated back · not observed</span>}
           </div>
         </div>}
 
@@ -3621,7 +3698,7 @@ export function Builder() {
             previewSurfaceNeedsVisibleOverflow ? 'overflow-visible' : 'overflow-hidden',
           )}
         >
-          {currentStep === 1 ? (
+          {searchParams.get('import') === 'photo' && !state.importedGarment ? <div aria-label="Awaiting garment source" /> : currentStep === 1 && !state.importedGarment ? (
             <div
               className={cn(
                 'flex h-full min-h-0 w-full flex-1 items-center justify-center overflow-hidden px-1',
@@ -3723,7 +3800,7 @@ export function Builder() {
                 }
               />
             </div>
-          ) : currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing ? (
+          ) : currentStep === 10 && (state.importedGarment || garmentSvgType === 'tshirt') && !legacyLabelEditing ? (
             <GarmentLabelsPreview labels={state.garmentLabels ?? []} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId}
               tagView={garmentLabelTagView} onTagViewChange={setGarmentLabelTagView}
               animateEntry={currentStepRef.current === 9}
@@ -3777,6 +3854,7 @@ export function Builder() {
               {isGarmentSvgFlow && garmentSvgType ? (
                 <TshirtSvgPreview
                   garmentWash={garmentWash}
+                  renderMeasurements={currentStep === 1 && state.importedGarment ? () => <ImportedMeasurementOverlay value={state.importedGarment!} view={garmentView} highlightedId={highlightedMeasurementId}/> : undefined}
                   garmentLabels={state.garmentLabels}
                   labelReferenceWidthMm={Number(state.measurements.chestWidth?.m) * 10 || undefined}
                   showWash={showWash}
@@ -3810,6 +3888,9 @@ export function Builder() {
                   customAssetState={state}
                   customCollars={state.customCollars}
                   layerTransforms={state.tshirtLayerTransforms}
+                  onCustomAssetTransformChange={changeCustomAssetTransform}
+                  onCustomCollarEditsChange={(id, edits) => setState(prev => ({ ...prev, ...setCustomCollarEdits(prev, garmentSvgType, activeFit, garmentView, id, edits) }))}
+                  onCustomAssetCanvasSizeChange={setCustomAssetCanvasSize}
                   onLayerTransformChange={(id, transform) => setState(prev => {
                     const customAssetInstances = updateCustomAssetTransform(prev, garmentSvgType, activeFit, garmentView, id, transform);
                     return customAssetInstances ? { ...prev, customAssetInstances }
@@ -4246,6 +4327,7 @@ export function Builder() {
               <button
                 type="button"
                 onClick={() => setShowReviewDrawer(true)}
+                disabled={Boolean((searchParams.get('import') === 'photo' || state.importedGarment) && (!state.importedGarment?.accepted || !canAcceptImportedConstruction(state.importedGarment)))}
                 className="builder-focus press-feedback flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-black hover:bg-white/90"
               >
                 <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />

@@ -34,12 +34,12 @@ export const TSHIRT_HEM_OPTIONS = [
 type HemGeometry = Record<'normalCut' | 'noneCut' | 'stitchCut' | 'fill' | 'ribbing' | 'extraStitch' | 'extraSeam', string>;
 const geometry = geometryData as Record<string, Record<string, HemGeometry>>;
 
-export type HemRegion = { id: string; name: string; category: string; adjustable: boolean; color?: string };
+export type HemRegion = { id: string; name: string; category: string; adjustable: boolean; color?: string; source?: 'uploaded' };
 export function availableHemRegions(layers: ResolvedGarmentLayer[], garmentType: string): HemRegion[] {
   const names: Record<string, string> = { sleeveHemLeft: 'Left sleeve hem / cuff', sleeveHemRight: 'Right sleeve hem / cuff',
     bodyHem: 'Bottom hem', underlayerHemLeft: 'Left underlayer cuff', underlayerHemRight: 'Right underlayer cuff', trouserHem: 'Leg hem' };
   return layers.filter(layer => names[layer.id]).map(layer => ({ id: layer.id, name: names[layer.id], category: layer.category,
-    adjustable: garmentType === 'tshirt', color: layer.tint }));
+    adjustable: garmentType === 'tshirt' && layer.hemSource !== 'uploaded', color: layer.tint, source: layer.hemSource }));
 }
 
 function bandTransform(path: string, depth: number): string {

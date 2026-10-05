@@ -1,12 +1,51 @@
+import svgpath from 'svgpath';
+import { collarBackFabric, collarBodyFabric, collarEditGeometry, editedCollarPoint, editedCollarSvg, validCollarEdits, type CollarManualEdits } from './customCollarEditing';
 import type { TshirtLayerTransform } from './tshirtLayerAssets';
 import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
-import { DEFAULT_TSHIRT_LAYER_TRANSFORM } from './tshirtLayerAssets';
+import { DEFAULT_TSHIRT_LAYER_TRANSFORM } from './garmentLayerTransform';
 import { createGarmentDetail, detailPlacement, type DetailBounds, type GarmentDetail } from './garmentDetails';
 import { filledFabricSilhouette, getPotraceSvgBBox } from '../lib/tshirtSvgUtils';
+import { assetUserPlacement } from './customAssetEditing';
+import { sleeveGeometry, validateSleeveReconstruction, type SleeveReconstruction } from './sleeveReconstruction';
+import { resolveHemSettings, type TshirtHemStyles } from './tshirtHemStyles';
 
 export type CustomAssetCategory = 'collar' | 'sleeve' | 'pocket';
 export type CustomDetailType = 'pocket' | 'button' | 'zip' | 'patch';
 export type AssetView = 'front' | 'back';
+const sleeveMetricKeys = ['lengthRatio', 'upperWidthRatio', 'cuffWidthRatio', 'armholeWidthRatio', 'taperRatio', 'aspectRatio'] as const;
+type SleeveMetrics = Record<typeof sleeveMetricKeys[number], number>;
+export interface SleeveDrawingReview {
+  status: 'Good match' | 'Needs review' | 'Rejected';
+  reference: SleeveMetrics & { confidence: 'high' | 'medium' | 'low' };
+  generated: SleeveMetrics & { confidence: 'high' | 'medium' | 'low' };
+  relativeDrift: SleeveMetrics;
+  thresholds: { goodMatch: number; majorMismatch: number };
+  issues: string[];
+  rejections: string[];
+}
+
+export interface CollarDrawingReview {
+  status: 'Good Match' | 'Needs Review' | 'Rejected';
+  confidence: 'high' | 'medium' | 'low';
+  reference: Record<'construction' | 'texture' | 'opening' | 'height' | 'attachment' | 'seams', string>;
+  generated: CollarDrawingReview['reference'];
+  differences: { feature: string; referenceEvidence: string; drawingEvidence: string; severity: 'minor' | 'moderate' | 'major'; confidence: 'high' | 'medium' | 'low'; basis: 'visible' | 'ambiguous' | 'preset' }[];
+}
+
+export function validateCollarReview(value: CollarDrawingReview): CollarDrawingReview {
+  const text = (item: unknown) => typeof item === 'string' && !!item.trim() && item.length <= 4000;
+  if (!value || !['high', 'medium', 'low'].includes(value.confidence)
+    || ![value.reference, value.generated].every(image => image && ['construction', 'texture', 'opening', 'height', 'attachment', 'seams'].every(key => text(image[key as keyof typeof image])))
+    || !Array.isArray(value.differences) || value.differences.length > 32 || value.differences.some(difference => !difference
+      || ![difference.feature, difference.referenceEvidence, difference.drawingEvidence].every(text)
+      || !['minor', 'moderate', 'major'].includes(difference.severity) || !['high', 'medium', 'low'].includes(difference.confidence)
+      || !['visible', 'ambiguous', 'preset'].includes(difference.basis))) throw new Error('Incomplete collar comparison. Retry processing.');
+  const rejected = value.differences.some(difference => difference.basis === 'visible' && difference.severity === 'major' && difference.confidence === 'high');
+  const uncertain = value.confidence !== 'high' || value.differences.some(difference => difference.basis !== 'preset');
+  const status = rejected ? 'Rejected' : uncertain ? 'Needs Review' : 'Good Match';
+  if (value.status !== status) throw new Error('Collar comparison status does not match its evidence. Retry processing.');
+  return structuredClone(value);
+}
 
 export interface CustomAssetDefinition {
   version: 1;
@@ -29,27 +68,48 @@ export interface CustomAssetDefinition {
     defaultTransform: TshirtLayerTransform;
     side?: 'left' | 'right';
     cuff?: 'integrated';
+    status?: 'Exact registration' | 'Adaptive registration' | 'Needs review' | 'Rejected';
+    adaptation?: { capFraction: number; scaleReduction: number; minimumScaleReduction: number; uniformScale: number; rotation: number; bodyArmholeAdjusted: boolean; rigidPixels: number };
     width?: number;
     ratio?: number;
     relativePlacement?: { parentId: string; x: number; y: number; width: number };
     anchors?: Record<string, unknown>;
   };
   validation: { version: 1; status: 'passed'; checks: string[] };
+  sleeveReview?: SleeveDrawingReview;
+  collarReview?: CollarDrawingReview;
+  sleeveReconstruction?: SleeveReconstruction;
   colorBindings: { fabric: string; ink: string };
 }
 
 export interface CustomAssetInstance {
   definitionId: string;
   view: AssetView;
-  userTransform: TshirtLayerTransform;
+  userTransform: TshirtLayerTransform & { mirror?: boolean };
+  userTransformVersion?: 2;
+  collarEdits?: CollarManualEdits;
 }
 
 export interface CustomAssetState {
+  importedGarment?: import('./importedGarment').ImportedGarment;
   customAssets?: CustomAssetDefinition[];
   customAssetInstances?: Record<string, CustomAssetInstance>;
+  customSleevesLinked?: boolean;
+  customAssetAspectLocked?: boolean;
 }
 
 export const customAssetKey = (view: AssetView, layerId: string) => `${view}:${layerId}`;
+
+export function setCustomCollarEdits(state: CustomAssetState, garmentType: string, fit: string, view: AssetView, layerId: string, edits?: CollarManualEdits): CustomAssetState {
+  const asset = activeCustomAssets(state, garmentType, fit, view).find(item => item.definition.category === 'collar' && item.definition.registration.layerId === layerId);
+  if (!asset) return state;
+  const geometry = collarEditGeometry(asset.definition.svg);
+  if (!geometry || (edits && !validCollarEdits(geometry, edits))) return state;
+  return { ...state, customAssetInstances: { ...state.customAssetInstances, [customAssetKey(view, layerId)]: {
+    ...asset.instance, collarEdits: edits ? structuredClone(edits) : undefined,
+    userTransform: { ...DEFAULT_TSHIRT_LAYER_TRANSFORM }, userTransformVersion: 2,
+  } } };
+}
 
 export function compatibleAsset(asset: CustomAssetDefinition, garmentType: string, fit: string, view: AssetView): boolean {
   return asset.version === 1 && asset.validation.status === 'passed'
@@ -88,6 +148,23 @@ export function acceptedDefinition(value: CustomAssetDefinition & { cleanDrawing
     || (value.category === 'collar' && !value.bodySvg)
     || (value.category === 'sleeve' && !value.keepSvg)) invalid();
   const registration = value.registration;
+  const collarReview = value.collarReview && validateCollarReview(value.collarReview);
+  if (collarReview && (value.category !== 'collar' || collarReview.status === 'Rejected')) invalid();
+  const sleeveReview = value.sleeveReview;
+  if (sleeveReview && (value.category !== 'sleeve' || !['Good match', 'Needs review'].includes(sleeveReview.status)
+    || ![sleeveReview.reference, sleeveReview.generated].every(metrics => metrics && ['high', 'medium', 'low'].includes(metrics.confidence)
+      && sleeveMetricKeys.every(key => Number.isFinite(metrics[key]) && metrics[key] > 0))
+    || !sleeveReview.relativeDrift || !sleeveMetricKeys.every(key => Number.isFinite(sleeveReview.relativeDrift[key]) && sleeveReview.relativeDrift[key] >= 0)
+    || sleeveReview.thresholds?.goodMatch !== .2 || sleeveReview.thresholds?.majorMismatch !== .5
+    || !Array.isArray(sleeveReview.issues) || sleeveReview.issues.length > 20 || sleeveReview.issues.some(issue => typeof issue !== 'string' || issue.length > 1000)
+    || !Array.isArray(sleeveReview.rejections) || sleeveReview.rejections.length)) invalid();
+  if (value.category === 'sleeve' && registration.status !== undefined
+    && !['Exact registration', 'Adaptive registration', 'Needs review'].includes(registration.status)) invalid();
+  const adaptation = value.category === 'sleeve' ? registration.adaptation : undefined;
+  if (adaptation && (![adaptation.capFraction, adaptation.scaleReduction, adaptation.minimumScaleReduction, adaptation.uniformScale, adaptation.rotation, adaptation.rigidPixels].every(Number.isFinite)
+    || adaptation.capFraction < .1 || adaptation.capFraction > .2 || adaptation.minimumScaleReduction < .4
+    || adaptation.scaleReduction < adaptation.minimumScaleReduction || adaptation.scaleReduction > 1 || adaptation.uniformScale <= 0
+    || adaptation.rigidPixels <= 0 || typeof adaptation.bodyArmholeAdjusted !== 'boolean')) invalid();
   const relative = registration.relativePlacement;
   if (relative && (value.category !== 'pocket' || ![relative.x, relative.y, relative.width].every(Number.isFinite)
     || Math.abs(relative.x) > 10 || Math.abs(relative.y) > 10 || relative.width <= 0 || relative.width > 10)) invalid();
@@ -121,10 +198,14 @@ export function acceptedDefinition(value: CustomAssetDefinition & { cleanDrawing
     compatibility: { garmentTypes: list(value.compatibility.garmentTypes, ['tshirt', 'tshirtTest']), fits: list(value.compatibility.fits, ['slim', 'regular', 'boxy', 'oversized']), views: list(value.compatibility.views, ['front', 'back']) as AssetView[] },
     registration: { profile: expectedProfile, version: 1, layerId: expectedLayer, socket: text(registration.socket, 100),
       defaultTransform: { x: transform.x, y: transform.y, scale: transform.scale, scaleX: transform.scaleX ?? transform.scale, scaleY: transform.scaleY ?? transform.scale, rotation: transform.rotation },
-      ...(value.category === 'sleeve' ? { side: registration.side, cuff: 'integrated' as const } : {}),
+      ...(value.category === 'sleeve' ? { side: registration.side, cuff: 'integrated' as const, status: registration.status ?? 'Exact registration',
+        ...(adaptation ? { adaptation: { ...adaptation } } : {}) } : {}),
       ...(value.category === 'pocket' ? { width: registration.width, ratio: registration.ratio } : {}),
       ...(relative ? { relativePlacement: { parentId: text(relative.parentId, 100), x: relative.x, y: relative.y, width: relative.width } } : {}), anchors },
     validation: { version: 1, status: 'passed', checks: list(value.validation.checks, ['boundary', 'trace', 'registration', 'render-nonempty', 'canvas-bounds', 'drawing-fidelity']) },
+    ...(sleeveReview ? { sleeveReview: structuredClone(sleeveReview) } : {}),
+    ...(collarReview ? { collarReview } : {}),
+    ...(value.sleeveReconstruction ? { sleeveReconstruction: validateSleeveReconstruction(value.sleeveReconstruction) } : {}),
     colorBindings: { fabric: '#000000', ink: '#141414' },
   };
 }
@@ -141,14 +222,63 @@ export function acceptedAssetBundle(value: CustomAssetDefinition & { additionalA
   return definitions;
 }
 
-export function withCustomAssets(layers: ResolvedGarmentLayer[], state: CustomAssetState, garmentType: string, fit: string, view: AssetView): ResolvedGarmentLayer[] {
+export function deriveOppositeSleeve(definitions: CustomAssetDefinition[], registeredSleeve?: CustomAssetDefinition): CustomAssetDefinition[] {
+  const [sleeve, ...components] = definitions.map(acceptedDefinition);
+  if (!sleeve || sleeve.category !== 'sleeve' || components.some(asset => asset.category !== 'pocket' || asset.registration.relativePlacement?.parentId !== sleeve.id)) {
+    throw new Error('A validated sleeve bundle is required for mirroring.');
+  }
+  const mirror = (source: string) => {
+    const document = new DOMParser().parseFromString(source, 'image/svg+xml');
+    const root = document.documentElement as unknown as SVGSVGElement;
+    const box = root.viewBox.baseVal;
+    for (const element of Array.from(root.children)) {
+      if (!['g', 'path'].includes(element.localName)) continue;
+      const matrix = (element as SVGGraphicsElement).transform.baseVal.consolidate()?.matrix;
+      if (matrix && (matrix.b !== 0 || matrix.c !== 0)) throw new Error('Sleeve SVG has an unsupported transform.');
+      const horizontalScale = matrix?.a ?? 1;
+      if (horizontalScale === 0) throw new Error('Sleeve SVG has a degenerate transform.');
+      const offset = (2 * box.x + box.width - 2 * (matrix?.e ?? 0)) / horizontalScale;
+      const paths = element.localName === 'path' ? [element] : Array.from(element.querySelectorAll('path'));
+      for (const path of paths) {
+        path.setAttribute('d', svgpath(path.getAttribute('d') ?? '').matrix([-1, 0, 0, 1, offset, 0]).toString());
+      }
+    }
+    return new XMLSerializer().serializeToString(root);
+  };
+  const side = sleeve.registration.side === 'left' ? 'right' : 'left';
+  const registered = registeredSleeve ? acceptedDefinition(registeredSleeve) : undefined;
+  if (registered && (registered.category !== 'sleeve' || registered.registration.side !== side || registered.id === sleeve.id
+    || registered.provenance !== 'derived' || JSON.stringify(registered.compatibility) !== JSON.stringify(sleeve.compatibility))) {
+    throw new Error('Opposite sleeve does not match the requested garment socket.');
+  }
+  const id = registered?.id ?? crypto.randomUUID();
+  const target = sleeve.registration.anchors?.target as number[][] | undefined;
+  const rasterWidth = sleeve.registration.adaptation ? 1536 : 1024;
+  const opposite = registered ?? acceptedDefinition({ ...sleeve, id, provenance: 'derived', svg: mirror(sleeve.svg), keepSvg: mirror(sleeve.keepSvg!),
+    registration: { ...sleeve.registration, side, layerId: side === 'left' ? 'sleeveLeft' : 'sleeveRight',
+      socket: `studio-${sleeve.compatibility.fits[0]}-${side}-armhole-v1`,
+      defaultTransform: { ...sleeve.registration.defaultTransform, x: -sleeve.registration.defaultTransform.x, rotation: -sleeve.registration.defaultTransform.rotation },
+      anchors: { ...sleeve.registration.anchors, ...(target ? { target: target.map(([horizontal, vertical]) => [rasterWidth - 1 - horizontal, vertical]) } : {}) } } });
+  return [opposite, ...components.map(asset => acceptedDefinition({ ...asset, id: crypto.randomUUID(), provenance: 'derived', svg: mirror(asset.svg),
+    registration: { ...asset.registration, relativePlacement: { ...asset.registration.relativePlacement!, parentId: id } } }))];
+}
+
+export function withCustomAssets(layers: ResolvedGarmentLayer[], state: CustomAssetState, garmentType: string, fit: string, view: AssetView, hemStyles?: TshirtHemStyles): ResolvedGarmentLayer[] {
   let resolved = layers;
-  for (const { definition } of activeCustomAssets(state, garmentType, fit, view)) {
+  for (const { definition, instance } of activeCustomAssets(state, garmentType, fit, view)) {
     if (definition.category === 'pocket') continue;
     const layerId = definition.registration.layerId;
     if (definition.category === 'collar') {
       const neck = resolved.find(layer => layer.id === 'neck');
-      const bounds = [neck && getPotraceSvgBBox(neck.svgRaw), getPotraceSvgBBox(definition.svg)].filter(Boolean);
+      const collarSvg = editedCollarSvg(definition.svg, instance.collarEdits);
+      const translated = Boolean(instance.collarEdits?.translation?.x || instance.collarEdits?.translation?.y);
+      const geometry = collarEditGeometry(definition.svg);
+      const movedPoints = geometry?.paths.flatMap(path => path.points.map(item => editedCollarPoint(geometry, instance.collarEdits, item.point)));
+      const movedBounds = movedPoints?.length ? {
+        minX: Math.min(...movedPoints.map(point => point.x)), minY: Math.min(...movedPoints.map(point => point.y)),
+        maxX: Math.max(...movedPoints.map(point => point.x)), maxY: Math.max(...movedPoints.map(point => point.y)),
+      } : undefined;
+      const bounds = [neck && getPotraceSvgBBox(neck.svgRaw), getPotraceSvgBBox(definition.svg), movedBounds].filter(Boolean);
       if (garmentType === 'tshirt' && bounds.length) {
         const left = Math.min(...bounds.map(box => box!.minX));
         const top = Math.min(...bounds.map(box => box!.minY)) - 8;
@@ -156,47 +286,87 @@ export function withCustomAssets(layers: ResolvedGarmentLayer[], state: CustomAs
         const bottom = Math.max(...bounds.map(box => box!.maxY)) + 8;
         resolved = resolved.filter(layer => layer.id !== 'innerBackNeck').map(layer => {
           if (!['outline', 'stitching'].includes(layer.id)) return layer;
-          const padding = layer.id === 'stitching' ? 24 : 0;
+          const padding = layer.id === 'stitching' ? 24 : translated ? 8 : 0;
           const keep = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="white" fill-rule="evenodd" d="M0 0H2048V2048H0Z M${left - padding} ${top - padding}H${right + padding}V${bottom + padding}H${left - padding}Z"/></svg>`;
           const maskId = `custom-collar-${definition.id.replace(/[^a-z0-9-]/gi, '')}-${layer.id}`;
           const defs = `<defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:alpha"><image href="data:image/svg+xml;base64,${btoa(keep)}" width="2048" height="2048"/></mask></defs>`;
-          const joins = layer.id === 'outline' ? customCollarShoulderJoins(layer.svgRaw, definition.svg, left, right, top, bottom) : '';
+          const joins = layer.id === 'outline' && !translated ? customCollarShoulderJoins(layer.svgRaw, definition.svg, left, right, top, bottom) : '';
           return { ...layer, svgRaw: layer.svgRaw.replace(/(<svg[^>]*>)/, `$1${defs}<g mask="url(#${maskId})">`).replace('</svg>', `</g>${joins}</svg>`) };
         });
       }
+      const hasExplicitOpening = definition.svg.includes('data-topology="collar-fabric-minus-opening"');
       resolved = [...resolved.filter(layer => layer.id !== 'innerBackNeck'), {
         id: 'innerBackNeck', category: 'Inner back neck', assetId: definition.id,
-        displayName: 'Custom collar backing', svgRaw: filledFabricSilhouette(definition.svg, true),
-        kind: 'solid', colorBinding: 'body', zIndex: (neck?.zIndex ?? 45) - 1,
+        displayName: 'Custom collar backing', svgRaw: hasExplicitOpening
+          ? collarBackFabric(definition.svg, instance.collarEdits) ?? definition.svg
+          : filledFabricSilhouette(definition.svg, true),
+        kind: 'solid' as const, colorBinding: 'body' as const, zIndex: (neck?.zIndex ?? 45) - 1,
       }];
       resolved = resolved.map(layer => layer.id === 'neck' || layer.id === 'base'
-        ? { ...layer, assetId: definition.id, displayName: definition.name, svgRaw: layer.id === 'neck' ? definition.svg : definition.bodySvg! }
+        ? { ...layer, assetId: definition.id, displayName: definition.name, svgRaw: layer.id === 'neck' ? collarSvg
+          : bounds.length ? collarBodyFabric(layer.svgRaw, definition.bodySvg!, geometry, instance.collarEdits, {
+            minX: Math.min(...bounds.map(box => box!.minX)), minY: Math.min(...bounds.map(box => box!.minY)),
+            maxX: Math.max(...bounds.map(box => box!.maxX)), maxY: Math.max(...bounds.map(box => box!.maxY)),
+          }) : layer.svgRaw }
         : layer);
       continue;
     }
     const side = definition.registration.side === 'left' ? 'Left' : 'Right';
+    const sleeve = resolved.find(layer => layer.id === layerId);
+    const cuffId = `sleeveHem${side}`;
+    const cuffSettings = resolveHemSettings(hemStyles, cuffId);
+    const model = definition.sleeveReconstruction;
+    const geometry = model ? sleeveGeometry({ ...model, edits: { ...model.edits,
+      bodyColor: sleeve?.tint || model.edits.bodyColor } }) : undefined;
     const keepUrl = `data:image/svg+xml;base64,${btoa(definition.keepSvg!)}`;
     resolved = resolved.filter(layer => ![`sleeveHem${side}`, `underSleeve${side}`, `underlayerHem${side}`].includes(layer.id)).map(layer => {
-      if (layer.id === layerId) return { ...layer, assetId: definition.id, displayName: definition.name, svgRaw: definition.svg };
+      if (layer.id === layerId) {
+        const svgRaw = geometry?.svg ?? definition.svg;
+        return { ...layer, assetId: definition.id, displayName: definition.name, svgRaw };
+      }
       if (!['base', 'outline', 'stitching'].includes(layer.id)) return layer;
       const maskId = `custom-${definition.id.replace(/[^a-z0-9-]/gi, '')}-${layer.id}`;
       const defs = `<defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:alpha"><image href="${keepUrl}" width="2048" height="2048"/></mask></defs>`;
       return { ...layer, svgRaw: layer.svgRaw.replace(/(<svg[^>]*>)/, `$1${defs}<g mask="url(#${maskId})">`).replace('</svg>', '</g></svg>') };
     });
+    if (geometry?.cuffSvg && sleeve) {
+      const cuffSvg = new DOMParser().parseFromString(geometry.cuffSvg, 'image/svg+xml');
+      for (const ink of cuffSvg.querySelectorAll('[fill="#141414"]')) ink.setAttribute('fill', cuffSettings.stitchColor || '#141414');
+      resolved.push({ id: cuffId, category: 'Sleeve hem', assetId: definition.id,
+        displayName: `${side} uploaded cuff`, svgRaw: new XMLSerializer().serializeToString(cuffSvg.documentElement),
+        kind: 'solid', hemSource: 'uploaded', tint: cuffSettings.color || model?.edits.cuffColor || sleeve.tint || model?.edits.bodyColor,
+        zIndex: sleeve.zIndex + 1 });
+    }
   }
   return resolved;
 }
 
 export function customAssetTransforms(state: CustomAssetState, garmentType: string, fit: string, view: AssetView,
-  builtins?: Partial<Record<string, TshirtLayerTransform>>) {
+  builtins?: Partial<Record<string, TshirtLayerTransform>>, canvasSize = 2048) {
   const transforms = { ...builtins };
   for (const { definition, instance } of activeCustomAssets(state, garmentType, fit, view)) {
     const base = definition.registration.defaultTransform;
     const user = instance.userTransform;
-    if (definition.category === 'collar') transforms.base = { ...DEFAULT_TSHIRT_LAYER_TRANSFORM };
-    transforms[definition.registration.layerId] = { x: base.x + user.x, y: base.y + user.y,
+    transforms[definition.registration.layerId] = instance.userTransformVersion === 2 ? assetUserPlacement(definition, user, canvasSize) : { x: base.x + user.x, y: base.y + user.y,
       scale: base.scale * user.scale, scaleX: (base.scaleX ?? base.scale) * (user.scaleX ?? user.scale),
       scaleY: (base.scaleY ?? base.scale) * (user.scaleY ?? user.scale), rotation: base.rotation + user.rotation };
+    if (definition.sleeveReconstruction?.style.cuff) {
+      const cuffSvg = sleeveGeometry(definition.sleeveReconstruction).cuffSvg;
+      const cuff = cuffSvg && getPotraceSvgBBox(cuffSvg);
+      const sleeve = getPotraceSvgBBox(definition.svg);
+      if (cuff && sleeve) {
+        const transform = transforms[definition.registration.layerId]!;
+        const horizontal = cuff.centerX - sleeve.centerX;
+        const vertical = cuff.centerY - sleeve.centerY;
+        const radians = transform.rotation * Math.PI / 180;
+        const scaledX = horizontal * (transform.scaleX ?? transform.scale);
+        const scaledY = vertical * (transform.scaleY ?? transform.scale);
+        const side = definition.registration.side === 'left' ? 'Left' : 'Right';
+        transforms[`sleeveHem${side}`] = { ...transform,
+          x: transform.x + (scaledX * Math.cos(radians) - scaledY * Math.sin(radians) - horizontal) * canvasSize / 2048,
+          y: transform.y + (scaledX * Math.sin(radians) + scaledY * Math.cos(radians) - vertical) * canvasSize / 2048 };
+      }
+    }
     if (definition.category === 'collar') transforms.innerBackNeck = { ...transforms.neck! };
   }
   return transforms;
@@ -244,7 +414,7 @@ export function updateCustomAssetTransform(state: CustomAssetState, garmentType:
     scale: transform.scale / base.scale, scaleX: (transform.scaleX ?? transform.scale) / (base.scaleX ?? base.scale),
     scaleY: (transform.scaleY ?? transform.scale) / (base.scaleY ?? base.scale), rotation: transform.rotation - base.rotation }
     : { ...DEFAULT_TSHIRT_LAYER_TRANSFORM };
-  return { ...state.customAssetInstances, [customAssetKey(view, layerId)]: { ...active.instance, userTransform } };
+  return { ...state.customAssetInstances, [customAssetKey(view, layerId)]: { ...active.instance, userTransform, userTransformVersion: undefined } };
 }
 
 const shoulderJoinCache = new Map<string, string>();

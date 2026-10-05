@@ -11,6 +11,8 @@ No SVG paths are authored by hand; every path comes from a raster mask.
 from __future__ import annotations
 
 import argparse
+import base64
+import io
 import json
 import os
 import sys
@@ -319,9 +321,101 @@ def build(photo: Image.Image) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("photo")
+    parser.add_argument("--reconstruct", action="store_true")
     args = parser.parse_args()
-    result = build(Image.open(args.photo))
+    result = reconstruct(Path(args.photo).read_bytes()) if args.reconstruct else build(Image.open(args.photo))
     print(json.dumps(result), flush=True)
+
+
+def reconstruct(source_bytes: bytes) -> dict:
+    from asset_providers import AstraProvider
+    from garment_manifest import identity, segment_drawing
+
+    with Image.open(io.BytesIO(source_bytes)) as opened:
+        if opened.width * opened.height > 24_000_000:
+            raise GarmentError("Source image exceeds 24 megapixels.")
+        photo = ImageOps.exif_transpose(opened).convert("RGB")
+    provider = AstraProvider(dict(os.environ))
+    provider.raster.require_configuration()
+    progress("analysis", "Astra: identifying garment type and visible construction")
+    analysis = provider.analyzeGarment(photo)
+    drawing = provider.raster.generateWholeGarmentRaster(photo, analysis, lambda label: progress("redraw", label))
+    drawing = drawing.resize((RASTER, RASTER), Image.Resampling.LANCZOS)
+    progress("registration", "Astra: locating source parts on the technical redraw")
+    mapped = provider.analyzeGarment(drawing, source_manifest=analysis)
+    stage_buffer = io.BytesIO()
+    drawing.save(stage_buffer, format="PNG")
+    print(json.dumps({"type": "reconstruction-draft", "sourceManifest": analysis, "manifest": mapped,
+                      "sourceImageHash": identity("source", source_bytes),
+                      "cleanDrawing": "data:image/png;base64," + base64.b64encode(stage_buffer.getvalue()).decode("ascii")}), flush=True)
+    return trace_reconstruction(photo, source_bytes, analysis, drawing, mapped)
+
+
+def trace_reconstruction(photo: Image.Image, source_bytes: bytes, analysis: dict, drawing: Image.Image, mapped: dict) -> dict:
+    from garment_manifest import detail_ink, identity, segment_drawing, validate_manifest
+
+    analysis = validate_manifest(analysis)
+    mapped = validate_manifest(mapped)
+    progress("segmentation", "Tracing semantic fabric regions and separate construction ink")
+    masks, contours, stitches, notes = segment_drawing(drawing, mapped)
+    detail_layers = []
+    detail_lines = np.zeros_like(contours)
+    detail_stitches = np.zeros_like(stitches)
+    for region in mapped["regions"]:
+        solid, thread = detail_ink(region, drawing.size)
+        detail_lines |= solid
+        detail_stitches |= thread
+        groups = {}
+        for edge in region["visibleEdges"]:
+            category, name = region["builderCategory"], region["userFacingName"]
+            groups.setdefault((category, name), []).append(edge)
+        for index, ((category, name), edges) in enumerate(groups.items()):
+            solid, thread = detail_ink({"visibleEdges": edges}, drawing.size)
+            if solid.any() or thread.any():
+                detail_layers.append({"id": f"detail-{region['id']}-{index}", "partId": region["id"], "name": region["name"],
+                                      "builderCategory": category, "userFacingName": name,
+                                      "view": mapped["view"], "visibleEdges": edges,
+                                      "constructionSvg": wrap_ink_svg(region["name"] + " visible edges", solid),
+                                      "stitchSvg": wrap_ink_svg(region["name"] + " topstitching", thread)})
+    buffer = io.BytesIO()
+    drawing.save(buffer, format="PNG")
+    drawing_bytes = buffer.getvalue()
+    source_id = identity("source", source_bytes)
+    analysis_id = identity("analysis", {"source": source_id, "manifest": analysis})
+    drawing_id = identity("drawing", drawing_bytes)
+    segmentation_id = identity("segmentation", {"drawing": drawing_id, "manifest": mapped, "algorithm": "source-construction-outlines-v2"})
+    garment_id = identity("garment", [source_id, analysis_id, drawing_id, segmentation_id])
+    parts = []
+    for order, (region, mask) in enumerate(zip(mapped["regions"], masks)):
+        if not mask.any():
+            continue
+        rows, columns = np.where(mask)
+        bounds = [float(columns.min() / drawing.width), float(rows.min() / drawing.height), float((columns.max() + 1) / drawing.width), float((rows.max() + 1) / drawing.height)]
+        part_ink = contours & ~detail_lines & ndimage.binary_dilation(mask, iterations=1)
+        part_stitches = stitches & ~detail_stitches & ndimage.binary_dilation(mask, iterations=2)
+        parts.append({**region, "svg": wrap_fill_svg(region["name"], mask), "area": int(mask.sum()),
+                      "color": "#62788b" if region["material"] == "denim" else "#b2ada3", "parentGarment": garment_id,
+                      "layerOrder": order, "view": mapped["view"], "transform": {"x": 0, "y": 0, "scale": 1, "rotation": 0},
+                      "geometryBounds": bounds, "measurement": {"unit": "relative", "width": bounds[2] - bounds[0], "height": bounds[3] - bounds[1]},
+                      "constructionSvg": wrap_ink_svg(region["name"] + " construction", part_ink),
+                      "stitchSvg": wrap_ink_svg(region["name"] + " stitches", part_stitches)})
+    if not any(part["layerKind"] == "structural" for part in parts):
+        raise ValueError("No source-supported structural outline could be committed. Review construction evidence before retrying.")
+    preview = photo.copy()
+    preview.thumbnail((1024, 1024))
+    source_buffer = io.BytesIO()
+    preview.save(source_buffer, format="JPEG", quality=85)
+    return {"type": "result", "ok": True, "source": "azure-garment-reconstruction-v1", "parts": parts,
+            "constructionVersion": 2,
+            "detailLayers": detail_layers,
+            "proposedBoundaries": [region for region in mapped["regions"] if region["boundary"]["confidence"] < .8],
+            "lineArtSvg": wrap_ink_svg("Construction", contours), "stitchSvg": wrap_ink_svg("Stitching", stitches),
+            "partCount": len(parts), "manifest": mapped, "sourceManifest": analysis,
+            "sourceImage": "data:image/jpeg;base64," + base64.b64encode(source_buffer.getvalue()).decode("ascii"),
+            "cleanDrawing": "data:image/png;base64," + base64.b64encode(drawing_bytes).decode("ascii"),
+            "reviewNotes": notes + mapped["uncertainties"] + ["Construction outlines and seam-adjacent stitch candidates require comparison with the source."],
+            "provenance": {"sourceImageHash": source_id, "analysisId": analysis_id, "drawingId": drawing_id,
+                           "segmentationId": segmentation_id, "garmentVersion": garment_id}, "accepted": False}
 
 
 if __name__ == "__main__":
