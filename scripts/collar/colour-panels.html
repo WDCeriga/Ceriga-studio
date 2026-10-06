@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><title>Imported seam colour regression</title></head>
+<body style="background:#171719;color:white;padding:24px;font:14px sans-serif">
+<h1>Imported seam colour regression</h1><p>Synthetic geometry, not a live AI result. Visible seams divide colour only; the three construction pieces remain unchanged.</p>
+<pre id="validation">Running…</pre><div id="review"></div>
+<script type="module">
+import '/src/styles/index.css';
+import { verifyImportedColourPanels, mountColourPanelReview } from './test_imported_colour_panels.tsx';
+const result = document.querySelector('#validation');
+try {
+  result.textContent = JSON.stringify(await verifyImportedColourPanels(), null, 2);
+  result.dataset.status = 'passed';
+  mountColourPanelReview(document.querySelector('#review'));
+} catch (error) { result.dataset.status = 'failed'; result.textContent = error.stack; }
+</script></body></html>

@@ -204,6 +204,7 @@ function virtualCustomAsset(
 }
 
 export interface ResolvedGarmentLayer {
+  colourPanels?: { id: string; svgRaw: string; tint: string }[];
   constructionSvg?: string;
   stitchSvg?: string;
   stitchColor?: string;

@@ -3,10 +3,13 @@ import { ArrowDown, ArrowUp, Check, ImagePlus, Merge, Scissors, Shapes, RotateCc
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { canAcceptImportedConstruction, importedBuilderCategories, importedControlGroups, importedRegionTypes, mergeImportedGarmentView, normalizeImportedGarment, type ImportedGarment, type ImportedMeasurementId, type ImportedPart, type ImportedStitchSettings } from '../../data/importedGarment';
 import { importedMeasurementGuides } from '../../data/importedGarmentMeasurements';
+import { importedColourPanels } from '../../data/importedGarmentColourPanels';
 import { mergeImportedParts, reviseImportedGarment, splitImportedPart } from '../../data/importedGarmentEditing';
 import { tintPotraceSvg } from '../../lib/tshirtSvgUtils';
 import { ImportedSizeTable } from './ImportedSizeTable';
 import { editEstimatedBackOutline, generateEstimatedBack } from '../../data/importedGarmentBack';
+import { importedGarmentSvg, type ImportedDrawingStyle } from '../../data/importedGarmentExport';
+import { GarmentInputTypeControl, ImportedGarmentTraceReview, readGarmentImage, useGarmentInputType } from './ImportedGarmentTraceReview';
 
 const inputClass = 'w-full min-w-0 rounded border border-white/20 bg-[#202024] px-2 py-1.5 text-xs text-white';
 const buttonClass = 'inline-flex min-h-8 items-center justify-center gap-2 rounded border border-white/20 px-2 py-1 text-xs disabled:opacity-40';
@@ -21,7 +24,8 @@ function validateResult(value: ImportedGarment) {
     ids.add(part.id);
   }
   for (const raw of [...value.parts.flatMap(part => [part.svg, part.constructionSvg, part.stitchSvg]),
-    ...(value.detailLayers ?? []).flatMap(detail => [detail.constructionSvg, detail.stitchSvg])]) {
+    ...(value.detailLayers ?? []).flatMap(detail => [detail.constructionSvg, detail.stitchSvg]),
+    ...(value.tracePreview ? [value.tracePreview.tracedSvg] : [])]) {
       const root = new DOMParser().parseFromString(raw, 'image/svg+xml');
       if (root.querySelector('parsererror') || root.documentElement.localName !== 'svg') throw new Error('Invalid traced SVG.');
       for (const element of root.querySelectorAll('*')) {
@@ -49,13 +53,21 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
-  const [review, setReview] = useState(false);
+  const [review, setReview] = useState<'front' | 'back' | null>(null);
   const [stitchScope, setStitchScope] = useState('all');
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
   const groups = value ? importedControlGroups(value).map(group => ({ ...group, parts: group.parts.filter(part => part.view === view), details: group.details.filter(detail => detail.view === view) })).filter(group => group.parts.length || group.details.length) : [];
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
+  const [appendView, setAppendView] = useState<'front' | 'back' | undefined>();
+  const [traceReview, setTraceReview] = useState(false);
+  const frontInput = useGarmentInputType(frontFile);
+  const backInput = useGarmentInputType(backFile);
+  const viewMetadata = value?.manifest[view === 'front' ? 'frontView' : 'backView'];
+  const tracePreview = viewMetadata?.tracePreview ?? (value?.manifest.view === view ? value.tracePreview : undefined);
+  const traceOnly = (viewMetadata?.processingMode ?? (value?.manifest.view === view ? value.processingMode : undefined)) === 'trace-only';
+  const stageView = (file: File, side: 'front' | 'back') => { setFrontFile(file); setBackFile(null); setAppendView(side); };
   const upload = async (file: File, back?: File | null, appendView?: 'front' | 'back') => {
     if ([file, back].some(item => item && (item.size > 12 * 1024 * 1024 || !/^image\/(png|jpeg|webp)$/.test(item.type)))) { setError('Choose a PNG, JPEG or WebP under 12 MB per image.'); return; }
     request.current?.abort();
@@ -63,36 +75,42 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
     request.current = controller;
     setBusy(true); setError(''); setProgress('Preparing source image');
     try {
-      const readImage = (image: File) => new Promise<string>((resolve, reject) => {
-        const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = reject; reader.readAsDataURL(image);
-      });
-      const imageBase64 = await readImage(file);
-      const backImageBase64 = back ? await readImage(back) : undefined;
+      const imageBase64 = await readGarmentImage(file);
+      const backImageBase64 = back ? await readGarmentImage(back) : undefined;
       if (controller.signal.aborted) return;
-      const response = await fetch('/api/garment-reconstruction', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, backImageBase64, requestedView: appendView }), signal: controller.signal });
-      if (!response.ok || !response.body) throw new Error(`Reconstruction service unavailable (${response.status}).`);
-      const reader = response.body.getReader(), decoder = new TextDecoder();
-      let pending = '', result: ImportedGarment | undefined;
-      const consume = (line: string) => {
-        if (!line.trim()) return;
-        const event = JSON.parse(line);
-        if (event.type === 'error') throw new Error(event.error || 'Reconstruction failed.');
-        if (event.type === 'progress') setProgress(event.label);
-        if (event.type === 'result') result = validateResult(event);
+      const processImage = async (imageBase64: string, inputType: typeof frontInput.type, requestedView: 'front' | 'back') => {
+        const response = await fetch('/api/garment-reconstruction', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64, inputType, requestedView }), signal: controller.signal });
+        if (!response.ok || !response.body) throw new Error(`Reconstruction service unavailable (${response.status}).`);
+        const reader = response.body.getReader(), decoder = new TextDecoder();
+        let pending = '', result: ImportedGarment | undefined;
+        const consume = (line: string) => {
+          if (!line.trim()) return;
+          const event = JSON.parse(line);
+          if (event.type === 'error') throw new Error(event.error || 'Reconstruction failed.');
+          if (event.type === 'progress') setProgress(event.label);
+          if (event.type === 'result') result = validateResult(event);
+        };
+        while (true) {
+          const next = await reader.read();
+          pending += decoder.decode(next.value, { stream: !next.done });
+          const lines = pending.split('\n'); pending = lines.pop()!; lines.forEach(consume);
+          if (next.done) break;
+        }
+        consume(pending);
+        if (!result) throw new Error('The service did not return a complete garment trace.');
+        return result;
       };
-      while (true) {
-        const next = await reader.read();
-        pending += decoder.decode(next.value, { stream: !next.done });
-        const lines = pending.split('\n'); pending = lines.pop()!; lines.forEach(consume);
-        if (next.done) break;
+      let result = await processImage(imageBase64, frontInput.requestType, appendView ?? 'front');
+      if (backImageBase64 && !controller.signal.aborted) {
+        const backResult = await processImage(backImageBase64, backInput.requestType, 'back');
+        result = mergeImportedGarmentView(result, backResult, 'back');
       }
-      consume(pending);
-      if (!result) throw new Error('The service did not return a complete semantic garment.');
       if (!controller.signal.aborted) {
         const next = appendView && value ? mergeImportedGarmentView(value, result, appendView) : result;
         if (!appendView) onReplace();
-        onChange(next); onSelect(null); setFrontFile(null); setBackFile(null);
+        onChange(next); onSelect(null); setFrontFile(null); setBackFile(null); setAppendView(undefined);
+        setTraceReview(Boolean(result.tracePreview));
       }
     } catch (failure) {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Upload failed.');
@@ -112,37 +130,42 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
 
   return <section className="mb-5 space-y-3 border-b border-white/15 pb-4 text-xs text-white" aria-label="Imported garment">
     <h3 className="font-semibold">Whole Garment Import</h3>
-    {step === 1 && <div className="space-y-2">
-      <p className="text-white/60">Upload a garment reference, or front and back together. A combined image can contain both views.</p>
+    {(step === 1 || appendView) && <div className="space-y-2">
+      <p className="text-white/60">{appendView ? `Importing the ${appendView} view. Choose the input type, then process this image.` : 'Upload a garment photo or an already-clean mockup. Clean drawings are traced as supplied, without redrawing.'}</p>
+      <GarmentInputTypeControl control={frontInput} disabled={busy}/>
+      {backFile && <GarmentInputTypeControl label="Back input type" control={backInput} disabled={busy}/>}
       <div className="flex flex-wrap gap-2">
-        <label className={buttonClass}><ImagePlus size={14}/>{frontFile?.name ?? (value ? 'Replace garment reference' : 'Choose garment / front image')}<input aria-label="Upload whole garment" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { setFrontFile(event.target.files?.[0] ?? null); event.target.value = ''; }}/></label>
-        <label className={buttonClass}><ImagePlus size={14}/>{backFile?.name ?? 'Choose back image (optional)'}<input aria-label="Choose back image" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { setBackFile(event.target.files?.[0] ?? null); event.target.value = ''; }}/></label>
-        <button className={buttonClass} disabled={busy || !frontFile} onClick={() => frontFile && void upload(frontFile, backFile)}>Analyse garment</button>
+        <label className={buttonClass}><ImagePlus size={14}/>{frontFile?.name ?? (value ? 'Replace garment reference' : 'Choose garment / front image')}<input aria-label="Upload whole garment" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { setFrontFile(event.target.files?.[0] ?? null); setAppendView(undefined); event.target.value = ''; }}/></label>
+        <label className={buttonClass}><ImagePlus size={14}/>{backFile?.name ?? 'Choose back image (optional)'}<input aria-label="Choose back image" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy || Boolean(appendView)} onChange={event => { setBackFile(event.target.files?.[0] ?? null); event.target.value = ''; }}/></label>
+        <button className={buttonClass} disabled={busy || !frontFile || frontInput.detecting || backInput.detecting} onClick={() => frontFile && void upload(frontFile, backFile, appendView)}>{frontInput.type === 'trace-only' ? 'Trace garment' : 'Process garment'}</button>
       </div>
     </div>}
     {busy && <div role="status" className="flex items-center justify-between gap-2"><span>{progress}</span><button className={buttonClass} title="Cancel reconstruction" onClick={() => { request.current?.abort(); setBusy(false); }}><X size={14}/></button></div>}
     {error && <p role="alert" className="text-red-300">{error}</p>}
     {value && <>
-      <div className="flex flex-wrap items-center justify-between gap-2"><span className="capitalize">{value.manifest.garmentType} · {value.manifest.subtype} · {Math.round(value.manifest.confidence * 100)}% confidence</span><button className={buttonClass} onClick={() => setReview(true)}><Shapes size={14}/>Review construction (optional)</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><span className="capitalize">{traceOnly ? 'Clean mockup · direct source trace' : `${value.manifest.garmentType} · ${value.manifest.subtype} · ${Math.round(value.manifest.confidence * 100)}% confidence`}</span><button className={buttonClass} onClick={() => setReview(view)}><Shapes size={14}/>Review construction (optional)</button></div>
+      {tracePreview && <><button className={buttonClass} onClick={() => setTraceReview(true)}>Review source → raster → key → SVG → overlay</button>
+        <ImportedGarmentTraceReview preview={tracePreview} open={traceReview} onOpenChange={setTraceReview} traceOnly={traceOnly}/></>}
+      {traceOnly && <p className="text-white/60">Original silhouette and construction ink preserved. No semantic garment reconstruction or hidden geometry is added.{!value.parts.some(part => part.view === view && part.colorable) && ' This faithful trace has no inferred colour fills; its ink and stitches stay together.'}</p>}
       {(['front', 'back'] as const).filter(side => !value.parts.some(part => part.view === side)).map(side => <div key={side} className="space-y-2 rounded border border-amber-400/30 p-2">
         <p className="text-amber-200">{side === 'back' ? 'Back reference missing' : 'Front reference required'}. Hidden details have not been generated.</p>
-        <label className={buttonClass}><ImagePlus size={14}/>Upload {side} reference<input aria-label={`Upload ${side} reference`} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file, null, side); }}/></label>
-        {side === 'back' && <><p className="text-white/60">Or explicitly create an editable estimate from the front silhouette, with an approximate rear neckline / hood / waistline. No rear pockets or hidden trims are assumed. No provider call is made.</p><button className={buttonClass} disabled={busy} onClick={() => {
+        <label className={buttonClass}><ImagePlus size={14}/>Upload {side} reference<input aria-label={`Upload ${side} reference`} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) stageView(file, side); }}/></label>
+        {side === 'back' && value.processingMode !== 'trace-only' && <><p className="text-white/60">Or explicitly create an editable estimate from the front silhouette, with an approximate rear neckline / hood / waistline. No rear pockets or hidden trims are assumed. No provider call is made.</p><button className={buttonClass} disabled={busy} onClick={() => {
           const result = generateEstimatedBack(value);
           if (!result.available) { setError(result.reason); return; }
-          setError(''); onChange(result.garment); onSelect(null);
+          setError(''); onChange(result.garment); onSelect(null); setReview('back');
         }}>Generate estimated back</button></>}
       </div>)}
-      {value.manifest.backView?.inference && <div role="status" className="space-y-2 rounded border border-amber-400/40 p-2 text-amber-200"><p>{value.manifest.backView.inference.notice}</p>
-        <label className={buttonClass}><ImagePlus size={14}/>Replace estimate with real back<input aria-label="Replace estimated back with real back reference" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file, null, 'back'); }}/></label>
+      {value.manifest.backView?.inference && <div role="status" className="space-y-2 rounded border border-amber-400/40 p-2 text-amber-200"><p>Estimated back — inferred from front geometry</p><p>{value.manifest.backView.inference.notice}</p>
+        <label className={buttonClass}><ImagePlus size={14}/>Replace estimate with real back<input aria-label="Replace estimated back with real back reference" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) stageView(file, 'back'); }}/></label>
       </div>}
-      {!value.accepted && canAcceptImportedConstruction(value) && <button className={`${buttonClass} bg-white/10`} onClick={() => onChange({ ...value, accepted: true, reviewed: true })}><Check size={14}/>Use detected garment</button>}
+      {!value.accepted && canAcceptImportedConstruction(value) && <button className={`${buttonClass} bg-white/10`} onClick={() => onChange({ ...value, accepted: true, reviewed: true })}><Check size={14}/>{value.manifest.backView?.inference ? 'Use garment with estimated back' : traceOnly ? 'Use traced mockup' : 'Use detected garment'}</button>}
       {!canAcceptImportedConstruction(value) && <p role="status" className="text-amber-300">Legacy partition result. Source construction must be re-analyzed.</p>}
-      {step === 2 && <p className="text-white/60">Colour each detected construction region independently. If a sleeve, neck or hem region is missing, use a clearer reference and re-analyse; invisible boundaries are not cut arbitrarily.</p>}
+      {(step === 2 || step === 4) && <p className="text-white/60">Visible seams automatically divide fabric into separately colourable panels, including on saved imports. Panel colours do not change the garment shape or construction. Unfinished lines and stitching do not create arbitrary cuts.</p>}
       {canAcceptImportedConstruction(value) && <ImportedGroupedControls value={value} garmentView={view} onChange={onChange} selectedId={selectedId} onSelect={onSelect} colors={colors} onColor={onColor} step={step}/>}
       {step === 1 && <ImportedMeasurements value={value} view={view} onChange={onChange} highlightedId={highlightedMeasurementId} onHighlight={onHighlightMeasurement}/>}
       {step === 8 && <div className="space-y-2"><h4 className="font-semibold">Stitching</h4><select aria-label="Thread group" className={inputClass} value={stitchScope} onChange={event => setStitchScope(event.target.value)}><option value="all">Whole garment</option>{groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}</select><div className="flex items-center gap-3"><input aria-label="Thread colour" type="color" value={thread.color} onChange={event => changeStitches({ color: event.target.value })}/><label><input type="checkbox" checked={thread.visible} onChange={event => changeStitches({ visible: event.target.checked })}/> Visible</label></div><label className="block">Thread weight<input aria-label="Thread weight" type="range" min="1" max="4" step=".25" value={thread.weight} onChange={event => changeStitches({ weight: Number(event.target.value) })} className="w-full"/></label></div>}
-      <ImportedRegionReview value={value} open={review} onOpenChange={setReview} onChange={onChange} selectedId={selectedId} onSelect={onSelect} colors={colors} onColor={onColor}/>
+      <ImportedRegionReview value={value} open={review !== null} initialView={review ?? view} onOpenChange={open => setReview(open ? view : null)} onChange={onChange} selectedId={selectedId} onSelect={onSelect} colors={colors} onColor={onColor}/>
     </>}
   </section>;
 }
@@ -231,24 +254,27 @@ export function ImportedMeasurementOverlay({ value, view = 'front', highlightedI
 
 function ImportedGroupedControls({ value, onChange, selectedId, onSelect, colors, onColor, step, garmentView }: { value: ImportedGarment; onChange: (value: ImportedGarment) => void; selectedId: string | null; onSelect: (id: string | null) => void;
   colors?: Partial<Record<string, string>>; onColor: (id: string, color: string, scope: 'group') => void; step?: number; garmentView?: 'front' | 'back' }) {
-  const groups = importedControlGroups(value)
+  const panels = importedColourPanels(value);
+  const parentId = (id: string) => panels.find(panel => panel.id === id)?.partId ?? id;
+  const groups = importedControlGroups(value, true, colors)
     .map(group => ({ ...group, parts: group.parts.filter(part => !garmentView || part.view === garmentView), details: group.details.filter(detail => !garmentView || detail.view === garmentView) }))
     .filter(group => (group.parts.length || group.details.length) && (step === undefined || (step === 2 ? group.parts.some(part => part.colorable) : importedBuilderCategories[group.category].step === step)));
   return <div aria-label="Grouped construction controls" className="space-y-4 text-xs">{Object.entries(importedBuilderCategories).map(([category, definition]) => {
     const entries = groups.filter(group => group.category === category);
-    return entries.length > 0 && <section key={category}><h4 className="mb-2 font-semibold">{definition.title}</h4>{entries.map(group => <div key={group.id} className={`flex min-h-10 items-center justify-between gap-2 border-b border-white/10 ${group.parts.some(part => part.id === selectedId) ? 'bg-white/10' : ''}`}>
-      <button className="min-w-0 flex-1 break-words py-2 text-left" aria-pressed={[...group.parts, ...group.details].some(part => part.id === selectedId)} onClick={() => onSelect(group.parts[0]?.id ?? group.details[0].id)}>{group.name}</button>
+    return entries.length > 0 && <section key={category}><h4 className="mb-2 font-semibold">{definition.title}</h4>{entries.map(group => <div key={group.id} className={`flex min-h-10 items-center justify-between gap-2 border-b border-white/10 ${group.parts.some(part => parentId(part.id) === selectedId) ? 'bg-white/10' : ''}`}>
+      <button className="min-w-0 flex-1 break-words py-2 text-left" aria-pressed={[...group.parts, ...group.details].some(part => parentId(part.id) === selectedId)} onClick={() => onSelect(parentId(group.parts[0]?.id ?? group.details[0].id))}>{group.name}</button>
       {group.parts.find(part => part.colorable) && <input className="h-7 w-8 shrink-0 bg-transparent" type="color" aria-label={`${group.name} colour`} title={`${group.name} colour`} value={colors?.[group.parts.find(part => part.colorable)!.id] ?? group.parts.find(part => part.colorable)!.color} onChange={event => onColor(group.parts.find(part => part.colorable)!.id, event.target.value, 'group')}/>}
       {!group.parts.length && <input type="checkbox" aria-label={`${group.name} visible`} checked={!value.hiddenDetailGroups?.includes(group.id)} onChange={event => onChange({ ...value, hiddenDetailGroups: event.target.checked ? value.hiddenDetailGroups?.filter(id => id !== group.id) : [...(value.hiddenDetailGroups ?? []), group.id] })}/>}
     </div>)}</section>;
   })}</div>;
 }
 
-function ImportedRegionReview({ value, open, onOpenChange, onChange, selectedId, onSelect, colors, onColor }: { value: ImportedGarment; open: boolean; onOpenChange: (open: boolean) => void;
+function ImportedRegionReview({ value, open, initialView, onOpenChange, onChange, selectedId, onSelect, colors, onColor }: { value: ImportedGarment; open: boolean; initialView: 'front' | 'back'; onOpenChange: (open: boolean) => void;
   onChange: (value: ImportedGarment) => void; selectedId: string | null; onSelect: (id: string | null) => void;
   colors?: Partial<Record<string, string>>; onColor: (id: string, color: string, scope: 'group') => void }) {
   const [view, setView] = useState('source');
-  const [garmentView, setGarmentView] = useState<'front' | 'back'>(value.manifest.view);
+  const [garmentView, setGarmentView] = useState<'front' | 'back'>(initialView);
+  useEffect(() => { if (open) { setGarmentView(initialView); setView('interpretation'); } }, [open, initialView]);
   const [mode, setMode] = useState<'select' | 'split'>('select');
   const [points, setPoints] = useState<Point[]>([]);
   const [other, setOther] = useState('');
@@ -261,6 +287,15 @@ function ImportedRegionReview({ value, open, onOpenChange, onChange, selectedId,
   const source = useRef(value); source.current = value;
   const selected = value.parts.find(part => part.id === selectedId);
   const inferred = garmentView === 'back' && value.manifest.backView?.inference;
+  const viewMetadata = garmentView === 'back' ? value.manifest.backView : value.manifest.frontView;
+  const cleanDrawing = viewMetadata?.cleanDrawing ?? (garmentView === value.manifest.view ? value.cleanDrawing : undefined);
+  const downloadDrawing = (style: ImportedDrawingStyle) => {
+    const url = URL.createObjectURL(new Blob([importedGarmentSvg(value, garmentView, style, colors)], { type: 'image/svg+xml' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = `${garmentView}-${style}${inferred ? '-estimated' : ''}.svg`;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const patchPart = (patch: Partial<ImportedPart>) => onChange(reviseImportedGarment(value, value.parts.map(part => part.id === selectedId ? { ...part, ...patch } : part)));
   const geometryEdit = async (action: () => Promise<ImportedGarment>) => {
     const before = value; setWorking(true); setError('');
@@ -287,7 +322,12 @@ function ImportedRegionReview({ value, open, onOpenChange, onChange, selectedId,
   };
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="flex h-[92dvh] w-[96vw] max-w-[1250px] flex-col overflow-hidden border-white/20 bg-[#161618] p-4 text-white sm:max-w-[1250px]">
     <DialogTitle>{value.manifest.garmentType} · construction review</DialogTitle>
-    {inferred && <p className="text-xs text-amber-200">{inferred.notice}</p>}
+    {inferred && <p className="text-xs text-amber-200">Estimated back — inferred from front geometry. {inferred.notice}</p>}
+    {valid && <div className="flex flex-wrap gap-2" aria-label="Download garment drawings">
+      <button className={buttonClass} onClick={() => downloadDrawing('technical')}>Download technical flat SVG</button>
+      <button className={buttonClass} onClick={() => downloadDrawing('outline')}>Download outline SVG</button>
+      <button className={buttonClass} onClick={() => downloadDrawing('construction')}>Download construction overlay SVG</button>
+    </div>}
     {inferred && selected?.view === 'back' && selected.outline && view === 'regions' && <details className="max-h-40 overflow-auto text-xs"><summary>Edit estimated outline vertices (relative 0–1)</summary><p>Changes remain inferred, not source-confirmed. Select a region, then adjust its vertices.</p>
       {selected.outline.map((point, index) => <div className="flex gap-2" key={index}><span>{index + 1}</span>{([0, 1] as const).map(axis => <input key={axis} aria-label={`Estimated vertex ${index + 1} ${axis === 0 ? 'x' : 'y'}`} className={inputClass} type="number" min="0" max="1" step="0.005" value={point[axis]} onChange={event => {
         if (!event.target.value) return;
@@ -299,10 +339,10 @@ function ImportedRegionReview({ value, open, onOpenChange, onChange, selectedId,
     <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col"><div className="mb-2 flex flex-wrap gap-2" role="tablist" aria-label="Import review stages">{['source', 'interpretation', 'boundaries', 'regions', 'controls'].map((tab, index) => <button role="tab" aria-selected={view === tab} className={`${buttonClass} capitalize ${view === tab ? 'bg-white/15' : ''}`} key={tab} onClick={() => { setView(tab); setMode('select'); setPoints([]); }}>{index + 1}. {tab}</button>)}</div>
         <div className="relative min-h-[220px] flex-1 overflow-hidden bg-[#f7f7f7]">
-          {inferred && (view === 'source' || view === 'interpretation') ? <p className="p-5 text-sm text-amber-900">{inferred.notice} No back source image exists. Choose Regions to edit the estimated outline.</p> : view === 'source' || view === 'interpretation' || !valid ? <img src={value.sourceImages?.[garmentView] ?? (garmentView === value.manifest.view ? value.sourceImage : '')} alt={`Source ${value.manifest.garmentType} ${garmentView}`} className="absolute inset-0 h-full w-full object-contain"/> :
+          {inferred && view === 'source' ? <p className="p-5 text-sm text-amber-900">{inferred.notice} No back source image exists. Choose Regions to edit the estimated outline.</p> : view === 'source' || !valid ? <img src={value.sourceImages?.[garmentView] ?? (garmentView === value.manifest.view ? value.sourceImage : '')} alt={`Source ${value.manifest.garmentType} ${garmentView}`} className="absolute inset-0 h-full w-full object-contain"/> :
             <svg viewBox="0 0 2048 2048" className="absolute inset-0 h-full w-full touch-none" aria-label="Construction region review" onPointerDown={event => { if (mode !== 'select') setPoints(previous => [...previous, coordinate(event)]); else onSelect(null); }}>
               {value.parts.filter(part => part.view === garmentView && (view !== 'boundaries' || part.layerKind === 'structural')).map(part => <g key={part.id} data-review-part={part.id} onPointerEnter={() => setHovered(part.id)} onPointerLeave={() => setHovered(null)} onPointerDown={event => { if (mode === 'select') { event.stopPropagation(); onSelect(part.id); } }} style={{ cursor: mode === 'select' ? 'pointer' : 'crosshair' }}>
-                <g dangerouslySetInnerHTML={{ __html: tintPotraceSvg(part.svg, part.id === selectedId || part.id === hovered ? '#f1c985' : view === 'boundaries' ? '#ffffff' : '#e7e9e8') }}/>
+                <g dangerouslySetInnerHTML={{ __html: tintPotraceSvg(part.svg, part.id === selectedId || part.id === hovered ? '#f1c985' : view === 'boundaries' ? '#ffffff' : colors?.[part.id] ?? part.color) }}/>
                 <g pointerEvents="none" dangerouslySetInnerHTML={{ __html: part.constructionSvg }}/>
                 {view !== 'boundaries' && <g pointerEvents="none" dangerouslySetInnerHTML={{ __html: tintPotraceSvg(part.stitchSvg, '#8b7856') }}/>}
                 {(showAll || view === 'boundaries') && part.layerKind === 'structural' && part.outline && <polygon points={part.outline.map(point => point.map(number => number * 2048).join(',')).join(' ')} fill="none" stroke="#177b70" strokeWidth="3" pointerEvents="none"/>}
@@ -321,7 +361,7 @@ function ImportedRegionReview({ value, open, onOpenChange, onChange, selectedId,
       </div>
       <div className="max-h-[35dvh] w-full shrink-0 space-y-3 overflow-y-auto text-xs md:max-h-none md:w-72">
         {!valid && <p role="alert" className="text-amber-300">Unverified legacy segmentation. No construction regions or grouped controls are approved. Upload the source again to run construction analysis.</p>}
-        {(view === 'source' || view === 'interpretation') && <><h3 className="font-semibold">{value.manifest.subtype}</h3><p>{value.sourceManifest.construction}</p><p className="text-white/60">{value.sourceManifest.materialEvidence}</p>{valid && value.sourceManifest.regions.map(part => <div className="border-b border-white/15 pb-2" key={part.id}><h4>{part.name} · {part.layerKind}</h4><p className="text-white/60">{part.boundary?.evidence}</p><span>{Math.round((part.boundary?.confidence ?? 0) * 100)}% confidence</span></div>)}</>}
+        {(view === 'source' || view === 'interpretation') && (inferred ? <><h3 className="font-semibold">Estimated rear construction</h3><ul className="space-y-2 text-amber-200">{inferred.limitations.map(note => <li key={note}>{note}</li>)}</ul></> : <><h3 className="font-semibold">{value.manifest.subtype}</h3><p>{value.sourceManifest.construction}</p><p className="text-white/60">{value.sourceManifest.materialEvidence}</p>{valid && value.sourceManifest.regions.map(part => <div className="border-b border-white/15 pb-2" key={part.id}><h4>{part.name} · {part.layerKind}</h4><p className="text-white/60">{part.boundary?.evidence}</p><span>{Math.round((part.boundary?.confidence ?? 0) * 100)}% confidence</span></div>)}</>)}
         {view === 'controls' && valid && <ImportedGroupedControls value={value} garmentView={garmentView} onChange={onChange} selectedId={selectedId} onSelect={onSelect} colors={colors} onColor={onColor}/>}
         {view === 'boundaries' && valid && <><h3 className="font-semibold">Source-supported boundaries</h3>{value.manifest.regions.filter(part => part.layerKind === 'structural').map(part => <div className="border-b border-white/15 pb-2" key={part.id}><strong>{part.name}</strong><p>{part.boundary?.boundaryType} · {Math.round((part.boundary?.confidence ?? 0) * 100)}%</p><p className="text-white/60">{part.boundary?.evidence}</p>{(part.boundary?.confidence ?? 0) < .8 && <div className="flex items-center justify-between text-amber-300"><span>Uncommitted proposal</span><button className={buttonClass} title={`Delete proposal for ${part.name}`} onClick={() => onChange({ ...value, proposedBoundaries: value.proposedBoundaries?.filter(proposal => proposal.id !== part.id), manifest: { ...value.manifest, regions: value.manifest.regions.filter(region => region.id !== part.id) }, reviewed: false, accepted: false })}><Trash2 size={14}/></button></div>}</div>)}</>}
         {view === 'regions' && valid && <label className="block">Construction piece<select className={inputClass} value={selectedId ?? ''} onChange={event => onSelect(event.target.value || null)}><option value="">Select a piece</option>{value.parts.filter(part => part.view === garmentView).map(part => <option key={part.id} value={part.id}>{part.name}</option>)}</select></label>}
@@ -332,8 +372,8 @@ function ImportedRegionReview({ value, open, onOpenChange, onChange, selectedId,
           <p className="text-white/60">{selected.evidence}</p></>}
         {error && <p role="alert" className="text-red-300">{error}</p>}
         <details open><summary className="font-semibold text-amber-300">Review findings ({value.reviewNotes.length})</summary><ul className="mt-2 space-y-2 text-white/70">{value.reviewNotes.map((note, index) => <li key={index}>{note}</li>)}</ul></details>
-        <details><summary>Technical redraw and provenance</summary><img src={value.cleanDrawing} alt="Unverified AI technical redraw" className="mt-2 w-full bg-white"/><dl className="mt-2 space-y-2 break-all text-[10px] text-white/60">{Object.entries(value.provenance).map(([key, entry]) => <div key={key}><dt>{key}</dt><dd>{entry}</dd></div>)}</dl></details>
-        <label className="flex gap-2"><input type="checkbox" disabled={!valid} checked={value.reviewed ?? false} onChange={event => onChange({ ...value, reviewed: event.target.checked, accepted: false })}/><span>I compared the source, construction boundaries and grouped controls.</span></label>
+        <details><summary>Technical redraw and provenance</summary>{!inferred && cleanDrawing && <img src={cleanDrawing} alt="Source-proportioned construction drawing" className="mt-2 w-full bg-white"/>}<dl className="mt-2 space-y-2 break-all text-[10px] text-white/60">{Object.entries(value.provenance).map(([key, entry]) => <div key={key}><dt>{key}</dt><dd>{entry}</dd></div>)}</dl></details>
+        <label className="flex gap-2"><input type="checkbox" disabled={!valid} checked={value.reviewed ?? false} onChange={event => onChange({ ...value, reviewed: event.target.checked, accepted: false })}/><span>{inferred ? 'I reviewed the estimated rear construction and understand that it is not confirmed by a back photo.' : 'I compared the source, construction boundaries and grouped controls.'}</span></label>
         <button className={`${buttonClass} w-full bg-[#a92924]`} disabled={!valid || !value.reviewed || working} onClick={() => { onChange({ ...value, accepted: true }); onOpenChange(false); }}><Check size={14}/>Accept imported garment</button>
       </div>
     </div>

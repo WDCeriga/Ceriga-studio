@@ -10,6 +10,8 @@ import React, {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
+import { fabricPartsFromLayers, resolvePartFabric, type FabricAssignments, type GarmentFabric } from '../../data/garmentFabrics';
+import { renderTexturedFabricSvg } from '../../lib/fabricRendering';
 import { washSvg, type GarmentWash, type WashBounds, type WashTool } from '../../data/garmentWash';
 import { WashEditor } from './WashFinish';
 import { availableStitchRegions, stitchFocus, type TshirtStitching } from '../../data/tshirtStitching';
@@ -18,9 +20,11 @@ import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from '.
 import { garmentPreviewBounds, garmentPreviewLayerBounds } from './garmentPreviewBounds';
 import { detailPlacement, detailRotation, zipHardwareGeometry, detailAsset, type GarmentDetail, type DetailBounds } from '../../data/garmentDetails';
 import { GarmentDetailsOverlay, type DetailEditorState } from './GarmentDetails';
+import { compileOpeningGeometry, constructOpenings, openingLayerClip, openingPolygonPath, type OpeningSource } from '../../data/garmentOpenings';
+import { OpeningConstruction } from './OpeningConstruction';
 import { GarmentLabelOverlay } from './GarmentLabelOverlay';
 import type { GarmentLabel } from '../../data/garmentLabels';
-import { decorationsForView, replaceViewDecorations } from '../../data/garmentView';
+import { decorationsForView } from '../../data/garmentView';
 import {
   DEFAULT_TSHIRT_LAYER_TRANSFORM,
   resolveLayerScale,
@@ -45,11 +49,9 @@ import {
   TSHIRT_DETAIL_COLOR,
   constructionColor,
   renderConstructionSvg,
-  renderFabricSvg,
   computeSleeveHemAlignOffsetForSide,
   isValidBBox,
   splitPotraceSvgBBoxAtCenter,
-  tintPotraceSvg,
   type PotraceSvgBBox,
   type SleeveSide,
 } from '../../lib/tshirtSvgUtils';
@@ -230,6 +232,7 @@ import { collarEditGeometry, type CollarManualEdits } from '../../data/customCol
 import type { AssetUserTransform } from '../../data/customAssetEditing';
 
 export interface TshirtSvgPreviewProps {
+  fabricAssignments?: FabricAssignments;
   canvasOverlay?: React.ReactNode;
   customAssetState?: import('../../data/customAssets').CustomAssetState;
   onCustomAssetTransformChange?: (id: string, transform?: AssetUserTransform) => void;
@@ -400,7 +403,11 @@ function InlineSvg({
   linework = false,
   regions,
   edgeSealWidth = 0,
+  fabric,
+  interior = false,
 }: {
+  fabric?: GarmentFabric;
+  interior?: boolean;
   raw: string;
   fill: string;
   fabricColor?: string;
@@ -412,8 +419,8 @@ function InlineSvg({
   const id = useId().replace(/:/g, '');
   const markup = useMemo(
     () => linework ? renderConstructionSvg(raw, fabricColor ?? fill, fill, id, regions)
-      : edgeSealWidth ? tintPotraceSvg(raw, fill, 'solid', false, edgeSealWidth) : renderFabricSvg(raw, fill),
-    [raw, fill, fabricColor, linework, regions, id, edgeSealWidth],
+      : renderTexturedFabricSvg(raw, fill, fabric, id, interior, edgeSealWidth),
+    [raw, fill, fabricColor, linework, regions, id, edgeSealWidth, fabric, interior],
   );
 
   return (
@@ -604,7 +611,14 @@ function PreviewLayer({
   washBounds,
   detailView,
   canvasSize,
+  openingCut,
+  fabric,
+  fabricAssignments,
+  interior,
 }: {
+  fabricAssignments?: FabricAssignments;
+  fabric?: GarmentFabric;
+  interior?: boolean;
   layer: ResolvedGarmentLayer;
   layers: ResolvedGarmentLayer[];
   fabricColor: string;
@@ -619,10 +633,11 @@ function PreviewLayer({
   washBounds?: WashBounds;
   detailView: 'front' | 'back';
   canvasSize: number;
+  openingCut?: ReturnType<typeof constructOpenings>['removed'];
 }) {
   const fill = resolveLayerFill(layer, fabricColor, bodyColor);
   const regions = useMemo(() => layers.filter(part => part.kind === 'solid' && !['base', 'outline', 'innerBackNeck'].includes(part.id))
-    .map(part => ({ raw: part.svgRaw, color: resolveLayerFill(part, fabricColor, bodyColor) })), [layers, fabricColor, bodyColor]);
+    .flatMap(part => [{ raw: part.svgRaw, color: resolveLayerFill(part, fabricColor, bodyColor) }, ...(part.colourPanels ?? []).map(panel => ({ raw: panel.svgRaw, color: panel.tint ?? resolveLayerFill(part, fabricColor, bodyColor) }))]), [layers, fabricColor, bodyColor]);
   const washId = useId();
   const origin = bbox ? (scaleFixedAnchor ? anchorOriginPoint(bbox, scaleFixedAnchor) : { x: bbox.centerX, y: bbox.centerY }) : { x: 1024, y: 1024 };
   const scale = resolveLayerScale(transform);
@@ -634,6 +649,8 @@ function PreviewLayer({
   // Selection raises handles and hit targets only. Raising the fabric itself
   // covers its construction outline and stitches with the selected colour.
   const zIndex = layer.zIndex;
+  const openingClipId = `${washId.replace(/:/g, '')}-opening`;
+  const openingClip = useMemo(() => openingCut?.length ? openingLayerClip(openingCut, new DOMMatrix(placementTransform)) : '', [openingCut, placementTransform]);
 
   return (
     <div
@@ -643,20 +660,31 @@ function PreviewLayer({
         zIndex,
       }}
       data-layer-id={layerId}
+      data-fabric-id={fabric?.id}
       data-asset={layer.displayName}
-    >      <div className="absolute inset-0"
+    >
+      {openingClip && <svg className="absolute h-0 w-0" aria-hidden><defs><clipPath id={openingClipId} clipPathUnits="objectBoundingBox"><path d={openingClip} transform="scale(0.00048828125)" clipRule="evenodd" /></clipPath></defs></svg>}
+      <div className="absolute inset-0" data-opening-cut={openingClip ? layerId : undefined} style={openingClip ? { clipPath: `url(#${openingClipId})` } : undefined}>
+      <div className="absolute inset-0"
         style={clipSide ? sleeveSideClipStyle(clipSide) : undefined}
       >
         <InlineSvg
           raw={layer.svgRaw}
+          fabric={fabric}
+          interior={interior}
           fill={layer.id === 'outline' ? '#141414' : fill}
           fabricColor={bodyColor}
           linework={layer.id === 'outline' || layer.kind === 'detail'}
           regions={regions}
         />
+        {layer.colourPanels?.map(panel => {
+          const panelFabric = resolvePartFabric(fabricAssignments, { id: panel.id, label: '', role: 'panel' }) ?? fabric;
+          return <div key={panel.id} data-colour-panel={panel.id} data-fabric-id={panelFabric?.id} className="pointer-events-none absolute inset-0"><InlineSvg raw={panel.svgRaw} fill={panel.tint ?? fill} fabricColor={bodyColor} fabric={panelFabric} interior={interior} /></div>;
+        })}
         {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
-        {layer.constructionSvg && <div className="absolute inset-0"><InlineSvg raw={layer.constructionSvg} fill="#141414" fabricColor={fill} linework /></div>}
+        {layer.constructionSvg && <div className="absolute inset-0"><InlineSvg raw={layer.constructionSvg} fill="#141414" fabricColor={fill} linework regions={regions} /></div>}
         {layer.stitchSvg && <div className="absolute inset-0 [&_path]:[stroke:var(--imported-thread)] [&_path]:[stroke-width:var(--imported-thread-weight)] [&_path]:[stroke-linejoin:round]" style={{ '--imported-thread': layer.stitchColor ?? '#b09c72', '--imported-thread-weight': Math.max(0, (layer.stitchWeight ?? 1) - 1) * 20 } as CSSProperties}><InlineSvg raw={layer.stitchSvg} fill={layer.stitchColor ?? '#b09c72'} fabricColor={fill} linework /></div>}
+      </div>
       </div>
     </div>
   );
@@ -807,6 +835,7 @@ function buildLayerLayouts(
 }
 
 export function TshirtSvgPreview({
+  fabricAssignments,
   canvasOverlay,
   garmentWash,
   showWash = true,
@@ -854,6 +883,8 @@ export function TshirtSvgPreview({
   onCustomAssetCanvasSizeChange,
 }: TshirtSvgPreviewProps) {
   const [washDraft, setWashDraft] = useState<GarmentWash | null>(null);
+  const [openingDraft, setOpeningDraft] = useState<GarmentDetail | null>(null);
+  const openingClipPrefix = useId().replace(/:/g, '');
   useEffect(() => setWashDraft(null), [garmentWash, detailView, Boolean(washTool)]);
   const washEditable = Boolean(washTool && onWashChange && garmentWash?.type !== 'none');
   const gestureRef = useRef<{
@@ -908,6 +939,7 @@ export function TshirtSvgPreview({
     [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars, customAssetState],
   );
 
+  const fabricParts = useMemo(() => new Map(fabricPartsFromLayers(layers, garmentType).map(part => [part.id, part])), [layers, garmentType]);
   const garmentConfig = getGarmentSvgConfig(garmentType);
   const washBounds = useMemo(() => garmentPreviewBounds(
     layers.filter(layer => layer.kind === 'solid' && !['outline', 'innerBackNeck'].includes(layer.id))
@@ -1223,7 +1255,22 @@ export function TshirtSvgPreview({
       return { minX: Math.min(...points.map(point => point.x)), maxX: Math.max(...points.map(point => point.x)),
         minY: Math.min(...points.map(point => point.y)), maxY: Math.max(...points.map(point => point.y)) };
   };
-  const detailBounds = (() => {
+  const openingGeometry = useMemo(() => {
+    const sources: OpeningSource[] = [];
+    for (const layout of layerLayouts) {
+      const { sourceLayer, bbox } = layout;
+      if (!bbox || sourceLayer.kind !== 'solid') continue;
+      const role = layout.id === 'base' ? 'body' : layout.id === 'neck' ? 'neck' : layout.id === 'bodyHem' ? 'hem' : undefined;
+      if (!role) continue;
+      const transform = resolveLayerDisplayTransform(layout.id, layout.transform, bbox);
+      const scale = resolveLayerScale(transform);
+      const matrix = new DOMMatrix().translate(bbox.centerX + transform.x * 2048 / canvasSize, bbox.centerY + transform.y * 2048 / canvasSize)
+        .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
+      sources.push({ id: layout.id, raw: sourceLayer.svgRaw, role, matrix });
+    }
+    return compileOpeningGeometry(sources);
+  }, [layerLayouts, resolveLayerDisplayTransform, canvasSize]);
+  const detailBounds: DetailBounds | undefined = (() => {
     if (customAssetState?.importedGarment) {
       const bounds = layers.filter(layer => layer.kind === 'solid').map(layer => displayBounds(layer.id)).filter(Boolean);
       return bounds.length ? { minX: Math.min(...bounds.map(bound => bound!.minX)), minY: Math.min(...bounds.map(bound => bound!.minY)),
@@ -1231,9 +1278,23 @@ export function TshirtSvgPreview({
     }
     const body = displayBounds('base');
     if (!body) return undefined;
-    return { ...body, maxY: Math.max(body.maxY, displayBounds('bodyHem')?.maxY ?? body.maxY), necklineY: displayBounds('neck')?.maxY };
+    return { ...body, maxY: Math.max(body.maxY, displayBounds('bodyHem')?.maxY ?? body.maxY), necklineY: displayBounds('neck')?.maxY, openingGeometry };
   })();
-  useEffect(() => { onDetailBoundsChange?.(detailBounds); }, [onDetailBoundsChange, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY, detailBounds?.necklineY]);
+  useEffect(() => { onDetailBoundsChange?.(detailBounds); }, [onDetailBoundsChange, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY, detailBounds?.necklineY, openingGeometry]);
+  const liveDetails = useMemo(() => decorationsForView(garmentDetails, detailView).map(detail => {
+    const draft = openingDraft ?? detailEditor?.draft;
+    return draft?.id === detail.id ? draft : detail;
+  }), [garmentDetails, detailView, openingDraft, detailEditor?.draft]);
+  const openingStage = detailEditor?.openingStage ?? 'final';
+  const openingCutsVisible = openingStage === 'construction' || openingStage === 'final';
+  const visibleDetailHardware = useMemo(() => openingStage === 'final' ? liveDetails : liveDetails.filter(detail => !detail.opening), [liveDetails, openingStage]);
+  const openings = useMemo(() => detailBounds && openingCutsVisible ? constructOpenings(liveDetails, detailBounds) : undefined,
+    [liveDetails, openingCutsVisible, openingGeometry, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY]);
+  const stitchOpeningClip = useMemo(() => openings?.inkCut.length ? openingLayerClip(openings.inkCut) : '', [openings]);
+  const backNeckLayer = layers.find(layer => layer.id === 'innerBackNeck');
+  const openingInteriorColor = backNeckLayer
+    ? resolveLayerFill(backNeckLayer, fabricColor, bodyColor)
+    : lightenHex(bodyColor, .12);
 
   useEffect(() => {
     if (!onBuiltinDetailsChange || !detailBounds) return;
@@ -1317,21 +1378,34 @@ export function TshirtSvgPreview({
           transformOrigin: 'center',
         } : undefined}
       >
+        {!!openings?.removed.length && <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+          <path data-opening-interior="" d={openingPolygonPath(openings.removed)} fill={openingInteriorColor} fillRule="evenodd" />
+        </svg>}
         {layerLayouts.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) => {
           if (overriddenTrimIds.has(id)) return null;
           if (sourceLayer.id === 'stitching' && garmentType === 'tshirt') {
-            return <TshirtStitchingLayer key="stitching" layers={layers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} fabricColor={fabricColor} />;
+            return <React.Fragment key="stitching">
+              {stitchOpeningClip && <svg className="absolute h-0 w-0" aria-hidden><defs><clipPath id={`${openingClipPrefix}-stitch`} clipPathUnits="objectBoundingBox"><path d={stitchOpeningClip} transform="scale(0.00048828125)" clipRule="evenodd" /></clipPath></defs></svg>}
+              <div className="pointer-events-none absolute inset-0" style={{ clipPath: stitchOpeningClip ? `url(#${openingClipPrefix}-stitch)` : undefined, zIndex: sourceLayer.zIndex }}>
+                <TshirtStitchingLayer layers={layers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} fabricColor={fabricColor} />
+              </div>
+            </React.Fragment>;
           }
           const scaleFixedAnchor =
             scaleGestureStorageId && transformStorageId(id) === scaleGestureStorageId
               ? activeScaleAnchor
               : null;
           const displayTransform = resolveLayerDisplayTransform(id, transform, bbox);
+          const fabricPart = fabricParts.get(id);
 
           return (
             <PreviewLayer
               key={`${sourceLayer.category}-${id}`}
               layerId={id}
+              fabric={fabricPart ? resolvePartFabric(fabricAssignments, fabricPart) : undefined}
+              fabricAssignments={fabricAssignments}
+              interior={fabricPart?.interior}
+              openingCut={id === 'outline' ? openings?.inkCut : openingGeometry.panels.some(panel => panel.id === id) ? openings?.removed : undefined}
               layer={sourceLayer}
               layers={layers}
               garmentWash={showWash ? washDraft ?? garmentWash : undefined}
@@ -1409,11 +1483,19 @@ export function TshirtSvgPreview({
         {garmentDetails.length > 0 && (() => {
           const bodyBounds = detailBounds;
           return bodyBounds ? <GarmentDetailsOverlay key={detailView} view={detailView}
-            details={decorationsForView(garmentDetails, detailView)} bounds={bodyBounds}
+            details={visibleDetailHardware} bounds={bodyBounds}
             selectedId={selectedDetailId} onSelect={onDetailSelect}
             editor={detailEditor}
-            onChange={onDetailsChange ? details => onDetailsChange(replaceViewDecorations(garmentDetails, detailView, details)) : undefined} /> : null;
+            onChange={onDetailsChange ? details => onDetailsChange(garmentDetails.flatMap(detail => {
+              if ((detail.view ?? 'front') !== detailView || (openingStage !== 'final' && detail.opening)) return [detail];
+              const next = details.find(candidate => candidate.id === detail.id);
+              return next ? [next] : [];
+            })) : undefined} /> : null;
         })()}
+        {detailBounds && openingStage !== 'before' && liveDetails.some(detail => detail.opening) && <OpeningConstruction stage={openingStage} details={liveDetails} bounds={detailBounds} selectedId={selectedDetailId}
+          onSelect={onDetailSelect} stitching={tshirtStitching}
+          onDraftChange={draft => { setOpeningDraft(draft); detailEditor?.onDraftChange?.(draft); }}
+          onChange={onDetailsChange ? next => onDetailsChange(garmentDetails.map(detail => detail.id === next.id ? next : detail)) : undefined} />}
         {(garmentType === 'tshirt' || customAssetState?.importedGarment) && garmentLabels.length > 0 && <GarmentLabelOverlay
           labels={garmentLabels} view={detailView} referenceWidthMm={labelReferenceWidthMm}
           manualPlacement={Boolean(customAssetState?.importedGarment)} manualBounds={detailBounds}

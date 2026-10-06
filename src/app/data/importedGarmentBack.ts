@@ -1,5 +1,5 @@
 import polygonClipping from 'polygon-clipping';
-import { canAcceptImportedConstruction, hasImportedGarmentView, normalizeImportedGarment, type ImportedGarment, type ImportedPart, type ImportedPoint, type ImportedViewMetadata } from './importedGarment';
+import { canAcceptImportedConstruction, hasImportedGarmentView, isImportedHardware, normalizeImportedGarment, type ImportedGarment, type ImportedPart, type ImportedPoint, type ImportedViewMetadata } from './importedGarment';
 import { importedGarmentFamily } from './importedGarmentMeasurements';
 
 type Point = ImportedPoint;
@@ -26,13 +26,16 @@ function cleanOutline(points: Point[]): Point[] {
 const path = (points: Point[]) => `M${points.map(([x, y]) => `${+(x * 2048).toFixed(4)},${+(y * 2048).toFixed(4)}`).join('L')}Z`;
 const svg = (points: Point[], outline = false) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path d="${path(points)}" fill="${outline ? 'none' : '#000000'}"${outline ? ' stroke="#172033" stroke-width="2"' : ''}/></svg>`;
 
-/** Replace only the upper arc between geometric anchors; the sides and hem are untouched. */
-function replaceTop(points: Point[], left: number, right: number, depth: number, maximumY: number): Point[] | undefined {
-  if (left === right) return;
+function topArcs(points: Point[], left: number, right: number) {
   const walk = (a: number, b: number) => { const result = [points[a]]; for (let i = (a + 1) % points.length; i !== b; i = (i + 1) % points.length) result.push(points[i]); return [...result, points[b]]; };
   const forward = walk(left, right), backward = walk(right, left);
   const upper = Math.max(...forward.map(p => p[1])) <= Math.max(...backward.map(p => p[1])) ? forward : backward;
-  const rest = upper === forward ? backward : forward;
+  return { upper, rest: upper === forward ? backward : forward };
+}
+/** Replace only the upper arc between geometric anchors; the sides and hem are untouched. */
+function replaceTop(points: Point[], left: number, right: number, depth: number, maximumY: number): Point[] | undefined {
+  if (left === right) return;
+  const { upper, rest } = topArcs(points, left, right);
   if (upper.some(p => p[1] > maximumY)) return;
   const a = upper[0], b = upper[upper.length - 1];
   const edge: Point[] = depth ? [a, [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3 + depth], [a[0] + (b[0] - a[0]) * 2 / 3, a[1] + (b[1] - a[1]) * 2 / 3 + depth], b] : [a, b];
@@ -51,6 +54,58 @@ function rearNeck(points: Point[], neck?: ImportedPart): Point[] | undefined {
   // A deliberately shallow technical rear neckline, not a prediction of exact neck depth.
   return replaceTop(points, a.index, b.index, Math.min(height * .012, (b.p[0] - a.p[0]) * .08), top + height * .28);
 }
+function rearSleevelessNeck(points: Point[]): Point[] | undefined {
+  const [left, top, right, bottom] = box(points), width = right - left, height = bottom - top, middle = (left + right) / 2;
+  const pick = (side: 'left' | 'right') => {
+    const candidates = points.map((p, index) => ({ p, index })).filter(({ p }) => side === 'left' ? p[0] < middle : p[0] > middle);
+    const shoulderY = Math.min(...candidates.map(({ p }) => p[1]));
+    // Inner corners of the two strap caps, independent of winding or edge sampling.
+    return candidates.filter(({ p }) => p[1] <= shoulderY + height * .015)
+      .sort((a, b) => side === 'left' ? b.p[0] - a.p[0] : a.p[0] - b.p[0])[0];
+  };
+  const a = pick('left'), b = pick('right');
+  if (!a || !b || Math.abs(a.p[1] - b.p[1]) > height * .2 || b.p[0] - a.p[0] < width * .12 || b.p[0] - a.p[0] > width * .85) return;
+  const { upper, rest } = topArcs(points, a.index, b.index);
+  if (upper.some(p => p[1] > top + height * .85)) return;
+  const start = upper[0], end = upper[upper.length - 1];
+  const frontDepth = Math.max(...upper.map(([x, y]) => y - (start[1] + (end[1] - start[1]) * (x - start[0]) / (end[0] - start[0]))));
+  if (frontDepth <= height * .02) return;
+  // Keep the scoop family and exposed straps, not a high crew-neck block. The depth
+  // remains an explicitly estimated fraction of the observed opening, never a rear measurement.
+  const depth = Math.min(frontDepth * .55, height * .32);
+  const edge: Point[] = Array.from({ length: 49 }, (_, i) => {
+    if (i === 0) return start;
+    if (i === 48) return end;
+    const angle = Math.PI * i / 48, t = (1 - Math.cos(angle)) / 2;
+    return [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t + depth * Math.sin(angle)];
+  });
+  return cleanOutline([...edge, ...rest.slice(1, -1)]);
+}
+
+function shoulderFastenings(source: ImportedPart[], body: ImportedPart, bodyIds: string[]): ImportedPart[] {
+  const [left, top, right, bottom] = box(body.outline!), width = right - left, height = bottom - top, middle = (left + right) / 2;
+  const result: ImportedPart[] = [];
+  for (const part of source) {
+    if (!isImportedHardware(part) || !/\b(buckle|clasp|fastenings?)\b/.test(role(part)) || ['label', 'decoration', 'button'].includes(part.semanticType)) continue;
+    if (!part.outline || !validOutline(cleanOutline(part.outline)) || (part.transform && (part.transform.x !== 0 || part.transform.y !== 0 || part.transform.scale !== 1 || part.transform.rotation !== 0))) continue;
+    const parent = source.find(candidate => candidate.id === part.attachmentTo);
+    // A clasp may attach to a visible rear shoulder fold in the front photo. Only
+    // its contact with the approved body is evidence; the lining/fold is not copied.
+    if (!parent || (!bodyIds.includes(parent.id) && !/\bshoulder straps?\b/.test(role(parent)))) continue;
+    const bounds = box(part.outline), centre = (bounds[0] + bounds[2]) / 2;
+    if (bounds[2] - bounds[0] > width * .2 || bounds[3] - bounds[1] > height * .22 || bounds[1] < top - height * .22 || bounds[3] > top + height * .15 || Math.abs(centre - middle) < width * .15) continue;
+    if (result.some(other => ((other.bounds[0] + other.bounds[2]) / 2 < middle) === (centre < middle))) continue;
+    try {
+      if (!polygonClipping.intersection([cleanOutline(part.outline)], [body.outline!]).length) continue;
+    } catch { continue; }
+    const [x0, y0, x1, y1] = bounds, radius = Math.min(x1 - x0, y1 - y0) * .16;
+    const points: Point[] = [[x0 + radius, y0], [x1 - radius, y0], [x1, y0 + radius], [x1, y1 - radius], [x1 - radius, y1], [x0 + radius, y1], [x0, y1 - radius], [x0, y0 + radius]];
+    result.push(geometry({ ...part, name: `${centre < middle ? 'left' : 'right'} shoulder clasp`, userFacingName: 'shoulder clasp',
+      structuralRole: 'estimated shoulder clasp', measurementRole: 'shoulder fastening', semanticType: 'panel', layerKind: 'detail', structural: false,
+      attachmentTo: body.id, builderCategory: 'trims-details' }, points));
+  }
+  return result;
+}
 function rearWaist(points: Point[]): Point[] | undefined {
   const [left, top, right, bottom] = box(points), height = bottom - top;
   const upper = points.map((p, index) => ({ p, index })).filter(({ p }) => p[1] <= top + height * .25);
@@ -66,7 +121,10 @@ function rearHood(points: Point[]): Point[] {
 }
 function geometry(part: ImportedPart, points: Point[]): ImportedPart {
   const bounds = box(points);
-  return { ...part, outline: points, bounds, geometryBounds: bounds, svg: svg(points), constructionSvg: svg(points, true), stitchSvg: emptySvg,
+  const mask = part.structuralRole === 'estimated shoulder clasp'
+    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path d="${path(points)}" fill="none" stroke="#000000" stroke-width="${Math.min(bounds[2] - bounds[0], bounds[3] - bounds[1]) * 2048 * .14}" stroke-linejoin="round"/></svg>`
+    : svg(points);
+  return { ...part, outline: points, bounds, geometryBounds: bounds, svg: mask, constructionSvg: svg(points, true), stitchSvg: emptySvg,
     seed: [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2], area: Math.abs(signedArea(points)) * 2048 * 2048,
     measurement: { unit: 'relative', width: bounds[2] - bounds[0], height: bounds[3] - bounds[1] } };
 }
@@ -102,19 +160,46 @@ export function generateEstimatedBack(value: ImportedGarment): EstimatedBackResu
   const unavailable = (reason: string): EstimatedBackResult => ({ available: false, reason: `Estimated back unavailable: ${reason}` });
   if (hasImportedGarmentView(value, 'back')) return unavailable('a back view already exists. Upload a real back reference to replace it.');
   if (!canAcceptImportedConstruction(value) || !hasImportedGarmentView(value, 'front')) return unavailable('reviewed structural front outlines are required.');
-  const family = importedGarmentFamily(value.manifest.garmentType);
+  const family = importedGarmentFamily(value.manifest.garmentType === 'other' ? value.manifest.subtype : value.manifest.garmentType);
   if (family === 'unknown') return unavailable('this garment family has no conservative rear-outline rule.');
   const source = value.parts.filter(part => part.view === 'front');
-  const excluded = /\b(pocket|flap|fly|placket|button|rivet|zip|label|decoration|belt loop|collar|neckband|yoke|lining)\b/;
-  const structural = source.filter(part => part.layerKind === 'structural' && !excluded.test(role(part)));
+  const excluded = /\b(pocket|flap|fly|placket|button|rivet|zip|label|decoration|belt loop|collar|neckband|yoke|lining|drawstring)\b/;
+  const attachedToLining = (part: ImportedPart): boolean => {
+    const visited = new Set<string>();
+    let current: ImportedPart | undefined = part;
+    while (current && !visited.has(current.id)) {
+      if (current.semanticType === 'lining') return true;
+      visited.add(current.id);
+      current = source.find(candidate => candidate.id === current!.attachmentTo);
+    }
+    return false;
+  };
+  const structural = source.filter(part => part.layerKind === 'structural' && !excluded.test(role(part)) && !isImportedHardware(part) && !attachedToLining(part));
+  const sleeveless = family === 'top' && /\b(tank|camisole|singlet|sleeveless|racerback|vest)\b/i.test(`${value.manifest.garmentType} ${value.manifest.subtype}`) && !structural.some(part => /\bsleeve\b/.test(role(part)));
   const main = structural.filter(part => family === 'bifurcated' ? /\b(leg|panel)\b/.test(role(part)) : family === 'skirt' ? /\b(skirt|panel)\b/.test(role(part)) : /\b(body|torso|bodice)\b/.test(role(part)));
   if (!main.length) return unavailable('the main body or leg silhouette cannot be separated confidently.');
-  if (!structural.every(part => /\b(body|torso|bodice|leg|panel|skirt|sleeve|cuff|hem|waistband|hood)\b/.test(role(part)))) return unavailable('an unidentified structural panel could change the rear silhouette.');
+  const bodyPanels = [...main];
+  if (sleeveless) {
+    const attached = new Set(main.map(part => part.id));
+    const supports = structural.filter(part => !main.includes(part) && /\b(straps?|bindings?)\b/.test(role(part)));
+    let remaining = supports;
+    while (remaining.length) {
+      const connected = remaining.filter(part => attached.has(part.attachmentTo ?? ''));
+      if (!connected.length) return unavailable('the sleeveless straps or bindings lack a body attachment.');
+      connected.forEach(part => { attached.add(part.id); main.push(part); });
+      remaining = remaining.filter(part => !attached.has(part.id));
+    }
+  }
+  if (!structural.every(part => main.includes(part) || /\b(body|torso|bodice|leg|panel|skirt|sleeve|cuff|hem|waistband|hood)\b/.test(role(part)))) return unavailable('an unidentified structural panel could change the rear silhouette.');
   for (const part of structural) {
     if (!part.outline || !validOutline(cleanOutline(part.outline))) return unavailable(`the ${part.name} outline is missing, degenerate or intersecting.`);
     if (part.transform && (part.transform.x !== 0 || part.transform.y !== 0 || part.transform.scale !== 1 || part.transform.rotation !== 0)) return unavailable('transformed front parts need resolved outlines first.');
   }
-  const combinedBody = (family === 'top' || family === 'dress') && main.length > 1 ? assembleBody(main, source) : undefined;
+  // Integral straps already define the approved exterior; overlay binding widths
+  // must not inflate its armholes, side seams or hem. Separate straps still assemble.
+  const silhouette = sleeveless && main.every(part => bodyPanels.includes(part) || /\bbindings?\b/.test(role(part))) ? bodyPanels : main;
+  const combinedBody = (family === 'top' || family === 'dress') && main.length > 1
+    ? silhouette.length === 1 ? cleanOutline(silhouette[0].outline!) : assembleBody(silhouette, source) : undefined;
   if ((family === 'top' || family === 'dress') && main.length > 1 && !combinedBody) return unavailable('the body panels do not form a connected silhouette with an observed closure.');
   const hoods = structural.filter(part => /\bhood\b/.test(role(part)));
   const groups: { part: ImportedPart; sourceIds: string[]; isMain: boolean }[] = [];
@@ -128,19 +213,25 @@ export function generateEstimatedBack(value: ImportedGarment): EstimatedBackResu
       groups.push({ part: geometry({ ...part, name: 'hood', userFacingName: 'hood', structuralRole: 'hood exterior', measurementRole: 'hood outline', attachmentTo: null, symmetryPartner: null }, rearHood(hoods.flatMap(item => item.outline!))), sourceIds: hoods.map(item => item.id), isMain: false });
     } else groups.push({ part, sourceIds: [part.id], isMain: main.includes(part) });
   }
+  if (sleeveless) {
+    const body = groups.find(group => group.isMain)!;
+    for (const part of shoulderFastenings(source, body.part, body.sourceIds)) groups.push({ part, sourceIds: [part.id], isMain: false });
+  }
   const neck = source.find(part => /\b(neckband|collar)\b/.test(role(part)));
   const ids = new Map(groups.flatMap(({ sourceIds }, index) => sourceIds.map(id => [id, `estimated-back-${index + 1}`] as const)));
   if ([...ids.values()].some(id => value.parts.some(part => part.id === id))) return unavailable('estimated part IDs conflict with an existing part.');
   const parts: ImportedPart[] = [];
   for (const { part, isMain } of groups) {
     let points: Point[] | undefined = cleanOutline(part.outline!);
-    if (isMain && (family === 'top' || family === 'dress')) points = rearNeck(points, neck);
+    if (isMain && (family === 'top' || family === 'dress')) points = sleeveless ? rearSleevelessNeck(points) : rearNeck(points, neck);
     else if (/\bhood\b/.test(role(part))) points = rearHood(points);
-    else if (/\bwaistband\b/.test(role(part)) || family === 'skirt' && main.includes(part)) points = rearWaist(points);
+    // Separate waistbands retain their validated perimeter; flattening a thin or tilted band can erase it.
+    else if (family === 'skirt' && main.includes(part)) points = rearWaist(points);
     if (!points || !validOutline(points)) return unavailable(`the ${part.name} upper edge lacks usable rear anchors.`);
-    const id = ids.get(part.id)!;
+    const id = ids.get(part.id)!, hardware = part.structuralRole === 'estimated shoulder clasp';
+    const partEvidence = hardware ? 'User-requested estimated shoulder fastening: simplified attachment carryover from front contact, not observed rear hardware or mechanism.' : evidence;
     parts.push(geometry({ ...part, id, view: 'back', name: `Estimated back ${part.name.replace(/\bfront\b/gi, '').trim()}`,
-      userFacingName: `Estimated ${part.userFacingName ?? part.name}`, evidence, boundary: { boundaryType: 'silhouette', confidence: .35, evidence },
+      userFacingName: `Estimated ${part.userFacingName ?? part.name}`, evidence: partEvidence, boundary: { boundaryType: hardware ? 'hardware-edge' : 'silhouette', confidence: .35, evidence: partEvidence },
       structuralRole: part.structuralRole?.replace(/front/gi, 'back'), measurementRole: part.measurementRole?.replace(/front/gi, 'back'),
       attachmentTo: ids.get(part.attachmentTo ?? '') ?? null, symmetryPartner: ids.get(part.symmetryPartner ?? '') ?? null,
       layerOrder: value.parts.length + parts.length, editableIndependently: true, colourGroup: id,
@@ -148,8 +239,10 @@ export function generateEstimatedBack(value: ImportedGarment): EstimatedBackResu
   }
   const inference: NonNullable<ImportedViewMetadata['inference']> = { kind: 'estimated-back', method: 'conservative-outline-v1', basedOnView: 'front', notice: estimatedBackNotice,
     limitations: ['Silhouette proportions are inherited assumptions, not back observations or production dimensions.',
-      'Rear neckline/waistline is a conservative technical approximation; hood uses only its exterior envelope.',
-      'Front-only details, pockets, labels, fasteners and stitching are omitted. Unknown rear details are not generated.',
+      'Rear neckline/skirt waistline is a conservative technical approximation; hood uses only its exterior envelope. Separate waistband perimeters are inherited from the front, not observed at the back.',
+      ...(sleeveless ? ['Sleeveless strap caps, outer armholes, side seams and crop hem retain the approved front silhouette. A shallower smooth rear scoop is estimated, not observed.',
+        'Only shoulder clasps with validated front-body contact are carried over as simplified estimated loops attached to the rear body. Their mechanism, rear strap folds, bindings and racerback shape require a real back reference.'] : []),
+      'Front-only details, branding, pockets, labels, buttons and stitching are omitted. Other than qualified shoulder attachment loops, fasteners and unknown rear details are not generated.',
       'No back photograph or physical calibration is supplied. A real back upload replaces this estimate.'] };
   const measurementCalibrations = { ...value.measurementCalibrations }; delete measurementCalibrations.back;
   return { available: true, garment: normalizeImportedGarment({ ...value, parts: [...value.parts, ...parts],
@@ -157,7 +250,7 @@ export function generateEstimatedBack(value: ImportedGarment): EstimatedBackResu
     measurementCalibration: value.measurementCalibration && (value.measurementCalibration.view ?? value.manifest.view) === 'back' ? undefined : value.measurementCalibration,
     measurementCalibrations, commonCalibrationDimensions: value.commonCalibrationDimensions?.filter(item => !item.views.includes('back')),
     calibration: value.calibration && value.parts.some(part => part.id === value.calibration!.partId && part.view === 'front') ? value.calibration : undefined,
-    reviewNotes: [...value.reviewNotes, estimatedBackNotice], revision: (value.revision ?? 0) + 1, reviewed: false,
+    reviewNotes: [...value.reviewNotes, estimatedBackNotice], revision: (value.revision ?? 0) + 1, reviewed: false, accepted: false,
   }) };
 }
 

@@ -58,8 +58,8 @@ export const builderSteps: BuilderStep[] = [
   {
     id: 6,
     name: 'pockets',
-    title: 'Pockets & Zips',
-    description: 'Add pockets and zip details'
+    title: 'Openings & Closures',
+    description: 'Construct zip openings and add pockets, buttons or patches'
   },
   {
     id: 7,

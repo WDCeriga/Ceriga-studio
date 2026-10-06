@@ -1,6 +1,7 @@
 import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
 import { deriveImportedMeasurementSchema } from './importedGarmentMeasurements';
 import { importedNeckBackingLayer } from './importedGarmentNeckBacking';
+import { importedColourPanels, importedColourParts } from './importedGarmentColourPanels';
 
 export type ImportedGarmentView = 'front' | 'back';
 export type ImportedPoint = [number, number];
@@ -9,8 +10,8 @@ export type ImportedRegionType = typeof importedRegionTypes[number];
 export const importedBuilderCategories = {
   'fabric-colour': { title: 'Fabric & Colour', step: 2 },
   'hem-cuffs': { title: 'Hem & Cuffs', step: 5 },
-  'pockets-zips': { title: 'Pockets & Zips', step: 6 },
-  'trims-details': { title: 'Trims & Details', step: 6 },
+  'pockets-zips': { title: 'Openings & Closures', step: 6 },
+  'trims-details': { title: 'Openings & Closures', step: 6 },
   'neck-hood': { title: 'Neck / Hood', step: 3 },
   sleeves: { title: 'Sleeves', step: 4 },
   'custom-details': { title: 'Garment Details', step: 6 },
@@ -43,7 +44,26 @@ export interface ImportedRegion {
   editableIndependently?: boolean;
   view?: ImportedGarmentView;
 }
+export type ImportedInputType = 'auto' | 'photo' | 'trace-only';
+export interface ImportedInputDetection {
+  mode: 'photo' | 'trace-only';
+  confidence: number;
+  reason: string;
+}
+export interface ImportedTracePreview {
+  technicalRaster?: string;
+  comparisonSource?: 'technical-redraw';
+  sourceRaster: string;
+  cleanedRaster: string;
+  keyedRaster: string;
+  tracedSvg: string;
+  overlayRaster: string;
+  metrics: Record<string, unknown>;
+}
 export interface ImportedViewMetadata {
+  processingMode?: 'photo' | 'trace-only';
+  inputDetection?: ImportedInputDetection;
+  tracePreview?: ImportedTracePreview;
   view: ImportedGarmentView;
   partIds: string[];
   detailLayerIds: string[];
@@ -158,6 +178,9 @@ export type ImportedSizeMeasurements = Partial<Record<ImportedGarmentView, Recor
 
 export interface ImportedGarment {
   source: 'azure-garment-reconstruction-v1';
+  processingMode?: 'photo' | 'trace-only';
+  inputDetection?: ImportedInputDetection;
+  tracePreview?: ImportedTracePreview;
   parts: ImportedPart[];
   lineArtSvg: string;
   stitchSvg: string;
@@ -187,16 +210,23 @@ export interface ImportedGarment {
   fixtureProvenance?: { synthetic: true; description: string };
 }
 
+export function isImportedHardware(part: ImportedRegion): boolean {
+  return ['button', 'rivet', 'zip'].includes(part.semanticType) || part.boundary?.boundaryType === 'hardware-edge' ||
+    part.semanticType === 'panel' && /\b(hardware|metalware|metal ware|buckles?|clasps?|sliders?|adjusters?|rings?|eyelets?|grommets?|hooks?|snaps?|fasteners?|fastenings?|zippers?)\b/.test(`${part.structuralRole ?? ''} ${part.measurementRole ?? ''}`.toLowerCase().replace(/[_-]/g, ' '));
+}
+
 export function importedGarmentLayers(garment: ImportedGarment, view: 'front' | 'back', colors?: Partial<Record<string, string>>): ResolvedGarmentLayer[] {
+  const panels = importedColourPanels(garment);
   const layers: ResolvedGarmentLayer[] = garment.parts.filter(part => part.view === view).map(part => {
     const stitches = { visible: true, color: '#b09c72', weight: 1, ...garment.stitches, ...garment.stitchOverrides?.[part.id] };
     return {
       id: part.id, assetId: `${garment.provenance.garmentVersion}:${part.id}`, category: part.semanticType,
       displayName: part.name, svgRaw: part.svg, kind: 'solid', zIndex: part.layerOrder,
       tint: part.colorable ? colors?.[part.id] ?? part.color : part.color,
+      colourPanels: panels.filter(panel => panel.partId === part.id).map(panel => ({ id: panel.id, svgRaw: panel.svg, tint: colors?.[panel.id] ?? colors?.[part.id] ?? part.color })),
       constructionSvg: part.constructionSvg, stitchSvg: stitches.visible ? part.stitchSvg : undefined,
       stitchColor: stitches.color, stitchWeight: stitches.weight,
-      washable: !['button', 'rivet', 'zip', 'label', 'decoration'].includes(part.semanticType),
+      washable: part.structuralRole !== 'source-ink' && (garment.manifest[part.view === 'front' ? 'frontView' : 'backView']?.processingMode ?? garment.processingMode) !== 'trace-only' && !isImportedHardware(part) && !['label', 'decoration'].includes(part.semanticType),
     };
   });
   const backing = importedNeckBackingLayer(garment, view, colors);
@@ -212,13 +242,15 @@ export function importedGarmentLayers(garment: ImportedGarment, view: 'front' | 
 }
 
 export function recolorImportedParts(garment: ImportedGarment, id: string, color: string, scope: 'part' | 'symmetry' | 'material' | 'group', previous: Partial<Record<string, string>> = {}) {
-  const selected = garment.parts.find(part => part.id === id);
-  if (!selected) return previous;
-  return { ...previous, ...Object.fromEntries(garment.parts.filter(part => part.colorable &&
+  const parts = [...garment.parts, ...importedColourParts(garment).filter(part => !garment.parts.some(original => original.id === part.id))];
+  const selected = parts.find(part => part.id === id);
+  if (!selected?.colorable) return previous;
+  const targets = parts.filter(part => part.colorable &&
     (part.id === id || scope === 'group' && !selected.editableIndependently && !part.editableIndependently &&
       Boolean(selected.colourGroup) && selected.colourGroup === part.colourGroup && constructionRole(selected) === constructionRole(part) ||
-      scope === 'symmetry' && selected.symmetryPartner === part.id || scope === 'material' && selected.material === part.material))
-    .map(part => [part.id, color])) };
+      scope === 'symmetry' && selected.symmetryPartner === part.id || scope === 'material' && selected.material === part.material));
+  const children = importedColourPanels(garment).filter(panel => targets.some(part => part.id === panel.partId));
+  return { ...previous, ...Object.fromEntries([...targets, ...children].map(part => [part.id, color])) };
 }
 
 export function importedPartDimensions(garment: ImportedGarment, part: ImportedPart) {
@@ -230,10 +262,10 @@ export function importedPartDimensions(garment: ImportedGarment, part: ImportedP
   return { width: part.measurement.width * scale, height: part.measurement.height * scale };
 }
 
-export function importedControlGroups(garment: ImportedGarment) {
+export function importedControlGroups(garment: ImportedGarment, colourControls = false, colors?: Partial<Record<string, string>>) {
   const groups = new Map<string, { id: string; name: string; category: keyof typeof importedBuilderCategories; parts: ImportedPart[]; details: ImportedConstructionDetail[] }>();
   if (garment.constructionVersion !== 2) return [];
-  for (const part of garment.parts) {
+  for (const part of colourControls ? importedColourParts(garment, colors) : garment.parts) {
     const category = part.builderCategory ?? 'custom-details';
     const name = part.editableIndependently ? part.name : part.userFacingName ?? part.name;
     const id = `${category}:${name}`;
@@ -276,6 +308,7 @@ function constructionRole(part: ImportedPart): string {
 }
 
 function categoryForPart(part: ImportedPart): keyof typeof importedBuilderCategories {
+  if (isImportedHardware(part)) return part.semanticType === 'zip' ? 'pockets-zips' : 'trims-details';
   const role = constructionRole(part);
   if (['neck', 'neckband', 'collar', 'hood'].includes(role)) return 'neck-hood';
   if (role === 'sleeve') return 'sleeves';
@@ -301,7 +334,12 @@ export function normalizeImportedGarment(garment: ImportedGarment): ImportedGarm
       garment.sourceManifest.regions.find(source => source.id === region.id)?.view ?? (views.length === 1 ? views[0] : undefined),
   }));
   const viewMetadata = (view: ImportedGarmentView): ImportedViewMetadata | undefined => views.includes(view) ? {
-    ...garment.manifest[view === 'front' ? 'frontView' : 'backView'], view, sourceImage: normalized.sourceImages?.[view],
+    ...garment.manifest[view === 'front' ? 'frontView' : 'backView'],
+    ...(view === garment.manifest.view ? {
+      processingMode: garment.processingMode ?? garment.manifest[view === 'front' ? 'frontView' : 'backView']?.processingMode,
+      inputDetection: garment.inputDetection ?? garment.manifest[view === 'front' ? 'frontView' : 'backView']?.inputDetection,
+      tracePreview: garment.tracePreview ?? garment.manifest[view === 'front' ? 'frontView' : 'backView']?.tracePreview,
+    } : {}), view, sourceImage: normalized.sourceImages?.[view],
     partIds: parts.filter(part => part.view === view).map(part => part.id),
     detailLayerIds: (garment.detailLayers ?? []).filter(detail => detail.view === view).map(detail => detail.id),
   } : undefined;
@@ -344,7 +382,8 @@ function normalizedGarmentClassification(value: string): string {
 export function mergeImportedGarmentView(existing: ImportedGarment, incoming: ImportedGarment, view: ImportedGarmentView): ImportedGarment {
   existing = normalizeImportedGarment(existing);
   incoming = normalizeImportedGarment(incoming);
-  if (normalizedGarmentClassification(existing.manifest.garmentType) !== normalizedGarmentClassification(incoming.manifest.garmentType))
+  if (existing.processingMode !== 'trace-only' && incoming.processingMode !== 'trace-only' &&
+    normalizedGarmentClassification(existing.manifest.garmentType) !== normalizedGarmentClassification(incoming.manifest.garmentType))
     throw new Error('Cannot merge views with mismatched garment classification.');
   if (!hasImportedGarmentView(incoming, view)) throw new Error(`The import does not contain reconstructed ${view} geometry.`);
   const retainedParts = existing.parts.filter(part => part.view !== view);
@@ -373,6 +412,7 @@ export function mergeImportedGarmentView(existing: ImportedGarment, incoming: Im
     return { ...(garment.manifest.view === selectedView ? {
       sourceImage: garment.sourceImage, sourceImageHash: garment.provenance.sourceImageHash, cleanDrawing: garment.cleanDrawing,
       lineArtSvg: garment.lineArtSvg, stitchSvg: garment.stitchSvg, provenance: garment.provenance,
+      processingMode: garment.processingMode, inputDetection: garment.inputDetection, tracePreview: garment.tracePreview,
     } : {}), ...supplied, view: selectedView,
     partIds: garment.parts.filter(part => part.view === selectedView).map(part => part.id),
     detailLayerIds: (garment.detailLayers ?? []).filter(detail => detail.view === selectedView).map(detail => detail.id) };
@@ -398,7 +438,8 @@ export function mergeImportedGarmentView(existing: ImportedGarment, incoming: Im
       ...(hasImportedGarmentView(existing, otherView) ? { [otherKey]: metadata(existing, otherView) } : {}),
       uncertainties: [...new Set([...existing.manifest.uncertainties.filter(note => note !== replacedInferenceNotice), ...incoming.manifest.uncertainties])] },
     sourceManifest: { ...existing.sourceManifest, regions: sourceRegions, [viewKey]: metadata(incoming, view) },
-    ...(primaryReplaced ? { sourceImage: incomingViewMetadata.sourceImage ?? '', cleanDrawing: incomingViewMetadata.cleanDrawing ?? '',
+    ...(primaryReplaced ? { processingMode: incomingViewMetadata.processingMode, inputDetection: incomingViewMetadata.inputDetection,
+      tracePreview: incomingViewMetadata.tracePreview, sourceImage: incomingViewMetadata.sourceImage ?? '', cleanDrawing: incomingViewMetadata.cleanDrawing ?? '',
       lineArtSvg: incomingViewMetadata.lineArtSvg ?? '', stitchSvg: incomingViewMetadata.stitchSvg ?? '',
       provenance: incomingViewMetadata.provenance ?? { ...incoming.provenance, sourceImageHash: incomingViewMetadata.sourceImageHash ?? '' } } : {}),
     proposedBoundaries: [

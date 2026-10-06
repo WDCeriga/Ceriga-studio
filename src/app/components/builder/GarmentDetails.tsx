@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Copy, CopyPlus, Plus, Upload, Trash2, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw, ArrowDownToLine, Maximize, ZoomIn, AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, AlignStartVertical, AlignEndVertical } from 'lucide-react';
 import type { GarmentView } from '../../data/garmentView';
+import { createOpening, openingNecklineReach } from '../../data/garmentOpenings';
+import { OpeningControls } from './OpeningControls';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
   type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
 import { TrimColorFamilyPicker } from './TrimColorFamilyPicker';
@@ -22,8 +24,12 @@ export interface DetailEditorState {
   onCloseUpChange: (closeUp: boolean) => void;
   snap?: boolean;
   onSnapChange?: (snap: boolean) => void;
+  openingSnap?: boolean;
+  onOpeningSnapChange?: (snap: boolean) => void;
   draft?: GarmentDetail | null;
   onDraftChange?: (draft: GarmentDetail | null) => void;
+  openingStage?: 'before' | 'path' | 'construction' | 'final';
+  onOpeningStageChange?: (stage: 'before' | 'path' | 'construction' | 'final') => void;
 }
 
 function DetailNumberInput({ value, onChange, label, step = .1, min, max }: { value: number; onChange: (value: number) => void; label: string; step?: number; min?: number; max?: number }) {
@@ -108,9 +114,9 @@ function ZipPullMeasurements({ detail, bounds, onChange, referenceWidthCm, unit 
   </details>;
 }
 
-function DetailArtwork({ detail, ratio }: { detail: GarmentDetail; ratio: number }) {
-  const body = useMemo(() => detailSvg(detail, ratio, 'body'), [ratio, detail.type, detail.variant, detail.scaleX, detail.scaleY,
-    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.id]);
+function DetailArtwork({ detail, ratio, joinedNeckline }: { detail: GarmentDetail; ratio: number; joinedNeckline: boolean }) {
+  const body = useMemo(() => detailSvg(detail, ratio, 'body', joinedNeckline), [ratio, joinedNeckline, detail.type, detail.variant, detail.scaleX, detail.scaleY,
+    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.opening, detail.id]);
   return <><span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: body }} />
     {detail.type === 'zip' && !detail.customAsset && <span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: detailSvg(detail, ratio, 'pull') }} />}</>;
 }
@@ -185,13 +191,15 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   referenceWidthCm?: number;
   unit?: MeasurementUnit;
 }) {
-  const [category, setCategory] = useState<GarmentDetailType>('pocket');
+  const [category, setCategory] = useState<GarmentDetailType>('zip');
   const [builtinError, setBuiltinError] = useState('');
   const selected = editor?.draft && editor.draft.id === selectedId ? editor.draft : details.find(detail => detail.id === selectedId);
   const asset = selected && detailAsset(selected);
   const update = (patch: Partial<GarmentDetail>) => onChange(details.map(detail => detail.id === selectedId ? { ...detail, ...patch } : detail));
   const add = (type: GarmentDetailType, variant?: GarmentDetailVariant) => {
-    const detail = { ...createGarmentDetail(type, details, type === 'patch' ? '#D4D4D4' : color, variant), view };
+    const overlay = { ...createGarmentDetail(type, details, type === 'patch' ? '#D4D4D4' : color, variant), view };
+    const detail = type === 'zip' && bounds ? createOpening(overlay, bounds, 'neckline') : overlay;
+    editor?.onOpeningStageChange?.('final');
     onChange([...details, detail]);
     onSelect(detail.id);
   };
@@ -221,13 +229,13 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         {(['pocket', 'zip', 'button'] as const).map(type => <button key={type} type="button"
           aria-pressed={category === type} onClick={() => setCategory(type)}
           className={`min-w-0 border-b-2 px-1 py-2 text-xs ${category === type ? 'border-[#CC2D24] text-white' : 'border-transparent text-white/50 hover:text-white'}`}>
-          {GARMENT_DETAIL_ASSETS[type].label}s
+          {type === 'zip' ? 'Openings & Closures' : `${GARMENT_DETAIL_ASSETS[type].label}s`}
         </button>)}
       </div>
       <div role="group" aria-label={`${GARMENT_DETAIL_ASSETS[category].label} options`} className="grid grid-cols-3 gap-2">
         {GARMENT_DETAIL_OPTIONS[category].map(option => <button key={option.id} type="button"
           aria-label={`Add ${GARMENT_DETAIL_ASSETS[category].label} ${option.id.slice(-2)}: ${option.label}`}
-          title={option.label} onClick={() => add(category, option.id)}
+          title={option.label} disabled={category === 'zip' && !bounds} onClick={() => add(category, option.id)}
           className="flex min-w-0 flex-col items-center gap-2 rounded-md border border-white/15 bg-white/5 p-2 text-[10px] leading-tight text-white hover:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#CC2D24]">
           <img alt="" src={`data:image/svg+xml,${encodeURIComponent(detailAsset({ type: category, variant: option.id }).svg)}`} className="h-16 w-full bg-white object-contain p-1.5" />
           <span className="flex min-h-7 items-center gap-1"><Plus size={12} className="shrink-0" /><span className="break-words">{option.label}</span></span>
@@ -251,11 +259,12 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
           {detail.name}{detail.variant && <span className="mt-0.5 block text-[10px] text-white/45">{detailAsset(detail).label}</span>}</button>
         <button type="button" title={`Duplicate ${detail.name}`} aria-label={`Duplicate ${detail.name}`} className="p-2 text-white/60 hover:text-white"
           onClick={() => { const identity = createGarmentDetail(detail.type, details, detail.fill);
-            const next = { ...detail, id: identity.id, name: identity.name, sourceLayerId: undefined, arrangementId: undefined, selected: true, scale: detailScale(detail.scale), x: detail.x + .04, y: detail.y + .04 };
+            const copy = { ...detail, id: identity.id, name: identity.name, sourceLayerId: undefined, arrangementId: undefined, selected: true, scale: detailScale(detail.scale) };
+            const next = bounds ? setDetailTransform(copy, bounds, { x: detail.x + .04, y: detail.y + .04 }) : { ...copy, x: detail.x + .04, y: detail.y + .04 };
             onChange([...details, next]); onSelect(next.id); }}><Copy size={14} /></button>
         <button type="button" title={`Remove ${detail.name}`} aria-label={`Remove ${detail.name}`} className="p-2 text-white/60 hover:text-red-400"
           onClick={() => { onChange(detail.sourceLayerId ? details.map(item => item.id === detail.id ? { ...item, hidden: true, selected: false } : item) : details.filter(item => item.id !== detail.id)); if (selectedId === detail.id) onSelect(null); }}><Trash2 size={14} /></button>
-        {onDuplicateToOtherView && <button type="button" title={copiedIds.includes(detail.id) ? 'Opposite-side copy already exists' : `Copy ${detail.name} to opposite side (${view === 'front' ? 'back' : 'front'})`}
+        {onDuplicateToOtherView && !detail.opening && <button type="button" title={copiedIds.includes(detail.id) ? 'Opposite-side copy already exists' : `Copy ${detail.name} to opposite side (${view === 'front' ? 'back' : 'front'})`}
           aria-label={`Copy ${detail.name} to opposite side`} disabled={copiedIds.includes(detail.id)} className="p-2 text-white/60 hover:text-white disabled:opacity-30"
           onClick={() => onDuplicateToOtherView(detail)}><CopyPlus size={14} /></button>}
       </div>)}
@@ -268,6 +277,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         {(['front', 'back'] as const).map(side => <button key={side} type="button" aria-pressed={view === side} onClick={() => onMoveToView(selected, side)} className={`flex-1 rounded border border-white/15 py-2 text-xs capitalize text-white ${view === side ? 'bg-white/20' : ''}`}>{side}</button>)}
       </div>}
       {selected.type === 'patch' && !selected.customAsset && <PatchControls key={selected.id} detail={selected} onChange={update} />}
+      {selected.type === 'zip' && !selected.customAsset && <OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor} />}
       {editor && <div className="flex flex-wrap items-center justify-between gap-2">
         {selected.type === 'zip' && !selected.customAsset && <div role="group" aria-label="Edit zip part" className="flex border-b border-white/15">
           {(['zip', 'pull'] as const).map(part => <button key={part} type="button" aria-pressed={editor.part === part} onClick={() => editor.onPartChange(part)}
@@ -313,11 +323,11 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
             <img alt="" src={`data:image/svg+xml,${encodeURIComponent(zipPullThumbnail(style.id))}`} className="h-20 w-full bg-white object-contain p-1" />
             <span className="flex min-h-7 items-center justify-center text-center">{style.label}</span></button>)}
         </div>
-        <label className="flex items-center gap-3 text-xs text-white/60">Pull position
+        {!selected.opening && <label className="flex items-center gap-3 text-xs text-white/60">Pull position
           <input className="min-w-0 flex-1 accent-[#CC2D24]" type="range" min="0" max="100" step="1" aria-label="Zip pull position"
             value={Math.round((selected.zipSliderPosition ?? (selected.variant === 'zip-05' ? .34 : 0)) * 100)}
             onChange={event => update({ zipSliderPosition: event.currentTarget.valueAsNumber / 100 })} />
-        </label>
+        </label>}
         <label className="flex items-center justify-between gap-3 text-xs text-white/60">Pull orientation
           <select aria-label="Zip pull orientation" value={selected.zipPullSide ?? 'center'} onChange={event => update({ zipPullSide: event.target.value as GarmentDetail['zipPullSide'] })}
             className="rounded border border-white/15 bg-[#202023] p-2 text-white"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select>
@@ -355,8 +365,11 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
   const [draft, setDraft] = useState<GarmentDetail | null>(null);
   const draftRef = useRef<GarmentDetail | null>(null);
   const [guides, setGuides] = useState<DetailGuide[]>([]);
+  const moveFrame = useRef<number | null>(null);
+  type MovePoint = Pick<PointerEvent<HTMLElement>, 'pointerId' | 'clientX' | 'clientY' | 'altKey'>;
+  const pendingMove = useRef<MovePoint | null>(null);
   const editable = Boolean(onChange);
-  const move = (event: PointerEvent<HTMLElement>) => {
+  const move = (event: MovePoint) => {
     const active = gesture.current;
     if (!active || active.pointerId !== event.pointerId) return;
     const dx = (event.clientX - active.startX) / active.canvasScale;
@@ -364,11 +377,31 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
     const result = active.pullAction ? { detail: adjustZipPull(active.origin, bounds, dx, dy, active.pullAction), guides: [] }
       : active.rotationCenter ? { detail: setDetailTransform(active.origin, bounds, { rotation: detailRotation(active.origin) +
         Math.atan2(event.clientY - active.rotationCenter.y, event.clientX - active.rotationCenter.x) * 180 / Math.PI - active.startAngle! }), guides: [] }
-      : detailGesture(active.origin, bounds, details, dx, dy, active.corner, (editor?.snap ?? true) && !event.altKey ? 6 / active.canvasScale : 0);
+      : detailGesture(active.origin, bounds, details, dx, dy, active.corner,
+        (active.origin.opening ? editor?.openingSnap ?? false : editor?.snap ?? true) && !event.altKey ? 6 / active.canvasScale : 0);
     draftRef.current = result.detail;
     setGuides(result.guides);
     setDraft(draftRef.current);
     editor?.onDraftChange?.(draftRef.current);
+  };
+  const latestMove = useRef(move);
+  latestMove.current = move;
+  const clearQueuedMove = () => {
+    if (moveFrame.current !== null) cancelAnimationFrame(moveFrame.current);
+    moveFrame.current = null;
+    pendingMove.current = null;
+  };
+  useEffect(() => () => clearQueuedMove(), []);
+  const queueMove = (event: MovePoint) => {
+    if (gesture.current?.pointerId !== event.pointerId) return;
+    pendingMove.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, altKey: event.altKey };
+    if (moveFrame.current !== null) return;
+    moveFrame.current = requestAnimationFrame(() => {
+      moveFrame.current = null;
+      const point = pendingMove.current;
+      pendingMove.current = null;
+      if (point) latestMove.current(point);
+    });
   };
   const start = (event: PointerEvent<HTMLElement | SVGElement>, detail: GarmentDetail, corner?: { x: number; y: number }, pullAction?: 'move' | 'resize', rotate = false) => {
     if (!editable || event.button !== 0) return;
@@ -384,14 +417,14 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
     draftRef.current = null;
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const cancel = () => { gesture.current = null; draftRef.current = null; setDraft(null); setGuides([]); editor?.onDraftChange?.(null); };
+  const cancel = () => { clearQueuedMove(); gesture.current = null; draftRef.current = null; setDraft(null); setGuides([]); editor?.onDraftChange?.(null); };
   return <div ref={rootRef} className="pointer-events-none absolute inset-0" style={{ zIndex: 240 }} data-garment-details={view}>
     {guides.length > 0 && <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 5 }} aria-hidden="true" data-detail-guides="">
       {guides.map(guide => <line key={`${guide.axis}:${guide.value}`} x1={guide.axis === 'x' ? guide.value : bounds.minX} x2={guide.axis === 'x' ? guide.value : bounds.maxX}
         y1={guide.axis === 'y' ? guide.value : bounds.minY} y2={guide.axis === 'y' ? guide.value : bounds.maxY} stroke="#A76556" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />)}
     </svg>}
     {details.filter(detail => !detail.hidden).map(detail => {
-      const current = draft?.id === detail.id ? draft : detail;
+      const current = draft?.id === detail.id ? draft : editor?.draft?.id === detail.id ? editor.draft : detail;
       const placement = detailPlacement(current, bounds);
       const selected = editable && selectedId === detail.id;
       const pullSelected = selected && detail.type === 'zip' && !detail.customAsset && editor?.part === 'pull';
@@ -405,17 +438,20 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
         className="pointer-events-none absolute"
         style={{ left: `${placement.left / 2048 * 100}%`, top: `${placement.top / 2048 * 100}%`, width: `${placement.width / 2048 * 100}%`, height: `${placement.height / 2048 * 100}%`,
           transform: `rotate(${detailRotation(current)}deg)`, zIndex: selected ? 1 : undefined }}
-        onPointerMove={event => { event.stopPropagation(); move(event); }}
+        onPointerMove={event => { event.stopPropagation(); queueMove(event); }}
         onPointerUp={event => {
           if (gesture.current?.pointerId !== event.pointerId) return;
-          event.stopPropagation(); move(event);
+          event.stopPropagation(); clearQueuedMove(); move(event);
           const next = draftRef.current;
-          if (next && (next.x !== detail.x || next.y !== detail.y || next.scale !== detailScale(detail.scale) || next.scaleX !== detail.scaleX || next.scaleY !== detail.scaleY || next.zipSliderPosition !== detail.zipSliderPosition || next.zipPullScale !== detail.zipPullScale || next.rotation !== detail.rotation)) {
+          // Preview props can already contain the draft; compare against the drag origin instead.
+          const origin = gesture.current.origin;
+          if (next && (next.x !== origin.x || next.y !== origin.y || next.scale !== detailScale(origin.scale) || next.scaleX !== origin.scaleX || next.scaleY !== origin.scaleY || next.zipSliderPosition !== origin.zipSliderPosition || next.zipPullScale !== origin.zipPullScale || next.rotation !== origin.rotation || JSON.stringify(next.opening) !== JSON.stringify(origin.opening))) {
             onChange?.(details.map(item => item.id === next.id ? next : { ...item, selected: false }));
           }
           cancel();
         }}
-        onPointerCancel={cancel}>
+        onPointerCancel={cancel}
+        onLostPointerCapture={event => { if (gesture.current?.pointerId === event.pointerId) cancel(); }}>
         <button type="button" aria-label={`${detail.name} on garment`} aria-pressed={editable ? selected : undefined} tabIndex={editable ? 0 : -1}
         className={`absolute inset-0 h-full w-full touch-none bg-transparent p-0 ${editable ? 'pointer-events-auto cursor-move' : 'pointer-events-none'}`}
         style={{ outline: selected && !pullSelected ? '1px dashed #CC2D24' : undefined, outlineOffset: 6 }}
@@ -428,12 +464,14 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
           if (!editable || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
           event.preventDefault(); event.stopPropagation();
           const increment = event.shiftKey ? 10 : 1;
-          const next = { ...detail, x: placement.x + (event.key === 'ArrowLeft' ? -increment : event.key === 'ArrowRight' ? increment : 0) / (bounds.maxX - bounds.minX),
-            y: placement.y + (event.key === 'ArrowUp' ? -increment : event.key === 'ArrowDown' ? increment : 0) / (bounds.maxY - bounds.minY) };
-          const clamped = detailPlacement(next, bounds);
-          onChange?.(details.map(item => item.id === detail.id ? { ...next, x: clamped.x, y: clamped.y } : item));
+          const next = setDetailTransform(detail, bounds, {
+            x: placement.x + (event.key === 'ArrowLeft' ? -increment : event.key === 'ArrowRight' ? increment : 0) / (bounds.maxX - bounds.minX),
+            y: placement.y + (event.key === 'ArrowUp' ? -increment : event.key === 'ArrowDown' ? increment : 0) / (bounds.maxY - bounds.minY),
+          });
+          onChange?.(details.map(item => item.id === detail.id ? next : item));
         }}>
-        <DetailArtwork detail={current} ratio={placement.width / placement.height} />
+        {editable && detail.type === 'zip' && <span aria-hidden="true" className="absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: 'max(100%, 24px)' }} />}
+        <DetailArtwork detail={current} ratio={placement.width / placement.height} joinedNeckline={openingNecklineReach(current, bounds) > 0} />
         </button>
         {editable && detail.type === 'zip' && !detail.customAsset && editor && <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${sourceWidth} ${sourceHeight}`}>
           <g transform={`translate(${current.flipX ? sourceWidth : 0} ${current.flipY ? sourceHeight : 0}) scale(${current.flipX ? -1 : 1} ${current.flipY ? -1 : 1})`}>
@@ -453,8 +491,8 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
             </g>
           </g>
         </svg>}
-        {selected && !pullSelected && <button type="button" aria-label={`Rotate ${detail.name}`} title={`Rotate ${detail.name}`} className="pointer-events-auto absolute flex h-5 w-5 touch-none items-center justify-center rounded-full border border-[#CC2D24] bg-white text-[#CC2D24]"
-          style={{ left: '50%', top: -38, transform: 'translateX(-50%)' }} onPointerDown={event => start(event, detail, undefined, undefined, true)}
+        {selected && !pullSelected && <button type="button" aria-label={`Rotate ${detail.name}`} title={`Rotate ${detail.name}`} className="pointer-events-auto absolute flex h-8 w-8 touch-none items-center justify-center rounded-full border border-[#CC2D24] bg-white text-[#CC2D24]"
+                  style={{ left: '50%', top: -50, transform: 'translateX(-50%)' }} onPointerDown={event => start(event, detail, undefined, undefined, true)}
           onKeyDown={event => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return; event.preventDefault(); event.stopPropagation();
             const next = setDetailTransform(detail, bounds, { rotation: detailRotation(detail) + (['ArrowLeft', 'ArrowDown'].includes(event.key) ? -1 : 1) * (event.shiftKey ? 15 : 1) });
             onChange?.(details.map(item => item.id === detail.id ? next : item)); }}><RotateCw size={12} /></button>}

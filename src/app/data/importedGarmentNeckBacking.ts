@@ -83,7 +83,7 @@ function hoodBackingLayer(garment: ImportedGarment, parts: ImportedPart[], hoods
 
 /** A preview-only fill of an observed neckline/hood opening, never a reconstructed/source part. */
 export function importedNeckBackingLayer(garment: ImportedGarment, view: ImportedGarmentView, colors?: Partial<Record<string, string>>): ResolvedGarmentLayer | null {
-  if (view !== 'front') return null;
+  if (view !== 'front' || (garment.manifest.frontView?.processingMode ?? (garment.manifest.view === view ? garment.processingMode : undefined)) === 'trace-only') return null;
   const parts = garment.parts.filter(part => part.view === view);
   const hoods = parts.filter(part => part.semanticType === 'hood');
   if (hoods.length) return hoodBackingLayer(garment, parts, hoods, colors);

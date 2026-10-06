@@ -91,6 +91,42 @@ class CustomAssetsTests(unittest.TestCase):
         self.assertNotIn("Exclude labels", prompt)
         self.assertIn("asymmetry", prompt)
 
+    def test_source_analysis_checks_construction_without_extra_requests(self):
+        provider = AstraProvider({"CERIGA_AZURE_API_KEY": "test", "CERIGA_AZURE_ENDPOINT": "https://example.test",
+                                  "CERIGA_AZURE_REASONING_DEPLOYMENT": "astra", "CERIGA_AZURE_IMAGE_DEPLOYMENT": "image"})
+        manifest = self.garment_manifest_fixture()
+        payload = {"status": "completed", "output": [{"type": "message", "content": [
+            {"type": "output_text", "text": json.dumps(manifest)}]}]}
+        image = Image.new("RGB", (100, 100), "white")
+        with patch.object(provider.transport, "post", return_value=payload) as post, \
+             patch.object(provider.raster, "generateWholeGarmentRaster") as raster:
+            source = provider.analyzeGarment(image)
+            source_prompt = post.call_args.kwargs["json"]["input"][0]["content"][0]["text"]
+            self.assertEqual(post.call_count, 1)
+            provider.analyzeGarment(image, source_manifest=source)
+            registration_prompt = post.call_args.kwargs["json"]["input"][0]["content"][0]["text"]
+            self.assertEqual(post.call_count, 2)
+            raster.assert_not_called()
+        for requirement in (
+            "SOURCE CONSTRUCTION COVERAGE", "every garment family", "outer perimeter", "internal joins",
+            "shoulder/strap", "short upright seams", "neck and armhole bindings", "hardware attachments",
+            "both sides independently", "hems", "cuffs", "panel joins", "pockets", "fastenings",
+            "visibleEdges", "creases", "prints", "occlusion", "uncertainties", "not a template",
+            "On shoulder-fastened garments", "INNER UPPER/REAR strap faces on both sides",
+            "upright rear/upper binding or strap-return attachment lines",
+            "from visible rear-neckline binding corners down toward the TOP of shoulder clasps",
+            "distinct from lower FRONT strap ends below the hardware",
+            "outer REAR shoulder silhouettes; finding either of those does not account for the inner upper/rear lines",
+            "only where source-visible sewn/finished-edge evidence supports them, stopping at occlusion",
+            "never assume a connection through hardware or hidden fabric",
+            "or add a line just to satisfy this check",
+        ):
+            with self.subTest(requirement=requirement):
+                self.assertIn(requirement, source_prompt, msg=f"Missing source instruction: {requirement}")
+        self.assertNotIn("SOURCE CONSTRUCTION COVERAGE", registration_prompt)
+        self.assertIn("copy the EXACT visibleEdges ID set", registration_prompt)
+        self.assertIn("Never rename, add, omit, combine, or move an edge", registration_prompt)
+
     def test_garment_mapping_cannot_promote_source_evidence(self):
         import copy
         provider = AstraProvider({"CERIGA_AZURE_API_KEY": "test", "CERIGA_AZURE_ENDPOINT": "https://example.test",
@@ -146,7 +182,7 @@ class CustomAssetsTests(unittest.TestCase):
         self.assertFalse(np.any(masks[0] & masks[1]))
         self.assertTrue(masks[0][100, 50])
         self.assertTrue(masks[1][100, 150])
-        self.assertGreater(int(stitches.sum()), 0)
+        self.assertEqual(int(stitches.sum()), 0, "Raster ink without source seam evidence must not become stitching")
         self.assertFalse(np.any(contours & stitches))
         self.assertFalse(notes)
         again = segment_drawing(image, validate_manifest(manifest))

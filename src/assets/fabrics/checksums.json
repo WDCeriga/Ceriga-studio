@@ -1,0 +1,80 @@
+[
+  {
+    "fabricPresetId": "single-jersey",
+    "sourceSha256": "7596056deda8f1a8d5a65278a9918131e6fa28d2268685c289a12897503baadc",
+    "outputSha256": "f4951292501acb1cbc41b9507c36134370b528907ae49736ceabd71ddd28e56a"
+  },
+  {
+    "fabricPresetId": "interlock-jersey",
+    "sourceSha256": "e51d8d8bc6f0741f5d93393a17c1b55b444b116e83c30cf4c41601a4b3a5bc43",
+    "outputSha256": "f78878f90a8806ef600c30c036b6e6e5b2f349b99701e1e91c7974a87e3ae368"
+  },
+  {
+    "fabricPresetId": "french-terry",
+    "sourceSha256": "a3081266a3e65deed7b3ef18dc6d226f66f6ac230d51df485db3c79c9b2d47d1",
+    "outputSha256": "6f554eb47063e29853e26ed21cc4227c7dc084f9d3873e152f2b7dcb46e79b1d",
+    "reverseFile": "procedural/french-terry-reverse.png",
+    "reverseSha256": "2ad0e2c5a4617b4c50d09629e2e94f1295dc929726c1a81f5355d4a6aa3a0243"
+  },
+  {
+    "fabricPresetId": "loopback-jersey",
+    "sourceSha256": "c4fe146f83b32d2ff28b570d506129330cb213b0ebc6ac8701ce2f55333755eb",
+    "outputSha256": "02e8704d3742203a94f6e926070760783cc5a71012e23ac2cac39c14a3f0114b",
+    "reverseFile": "procedural/loopback-jersey-reverse.png",
+    "reverseSha256": "ae7d6b95574b0cf9e606492e56960e303a1f6bb181cfd4b81aaeb64f91c55311"
+  },
+  {
+    "fabricPresetId": "heavyweight-fleece",
+    "sourceSha256": "2c4ededd0811064786f4fb0a907492e88445a22635d38f1499fd562b5f480510",
+    "outputSha256": "617d3c68ce448d656b20a7a895560b5cefe8d8fb0cec9b8f0840e57160779e1a",
+    "reverseFile": "procedural/heavyweight-fleece-reverse.png",
+    "reverseSha256": "ec6d5d216ace9f5dd1fef6f6b140ff83356ae689169d36560fa2d40552427716"
+  },
+  {
+    "fabricPresetId": "brushed-fleece",
+    "sourceSha256": "7f1f68ffacfd218ccd89f7349ba97710dcbace84e619269ca9be7dcd089ef26c",
+    "outputSha256": "b8fe3562ae76d702cd23edb3c6ef907a06550d2ab2e872c33fd70144a0e3e208",
+    "reverseFile": "procedural/brushed-fleece-reverse.png",
+    "reverseSha256": "85f82f3e452cfdfc419c9912bc02217d04f3e2f55f6ac334b1f3edcbe53b1969"
+  },
+  {
+    "fabricPresetId": "rib-1x1",
+    "sourceSha256": "e7dd09ac716356e06a250184d4a1313ebdb36d3e3198d1743433cc4ee53c4d3c",
+    "outputSha256": "8363f56b8a3a505a46eb0030c20e48b4d67f3019888ed4b4a78451988bd2bf1b"
+  },
+  {
+    "fabricPresetId": "rib-2x2",
+    "sourceSha256": "35d8c6a0d94bf6825f26c496f5efb987013bfd8ece916123e42fec9c7d08e037",
+    "outputSha256": "9895a384c06534c2e03dde1aae9f8e1728f453c0bec2497cb9898ae1f59dcdae"
+  },
+  {
+    "fabricPresetId": "waffle",
+    "sourceSha256": "4790a4fb1272cc479fc238e6d0a94de0f1239ef041cafc81709b24b8f7a80596",
+    "outputSha256": "3ac9c04b8ef1db8bb42338913df24581dcbdba2aaa1fec9a11e9e27e3d7b5f66"
+  },
+  {
+    "fabricPresetId": "pique",
+    "sourceSha256": "7a791b4a6e5404f29d3b0a869b9e6e373213aae504f04a8c308cd14f523c9ced",
+    "outputSha256": "df5d65db0e20b97d7a7ec42bd8c4026970a37bdecdde3cbc1ee6f1b36a3430f4"
+  },
+  {
+    "fabricPresetId": "mesh",
+    "sourceSha256": "724bd114453f61c732847335fc86ce666d23d62337635ebdd1fb21d2a9ba2321",
+    "outputSha256": "5efeced5796f14a4bfb7642e561cc0495cb52cbe238b6f745edfc45ad23031d4"
+  },
+  {
+    "fabricPresetId": "nylon-taslan",
+    "sourceSha256": "60e169f52f86efdff53a597dadc6e6b1722162692c4e7577b9ccf76d4b15eb75",
+    "outputSha256": "7ab4211d31bb9a8b32d9beb3cadd1dfc604e6f45c8423441590d99ab8967aa9d"
+  },
+  {
+    "fabricPresetId": "cotton-twill",
+    "sourceSha256": "92895142ea523b5a53e079fd11dc5dd78a3861075932b5b8179652cb1756d654",
+    "outputSha256": "f0f5cd14a497c89bf87eba424b61071d5721943891a42d5e500548b9961de542"
+  },
+  {
+    "fabricPresetId": "denim-twill",
+    "sourceSha256": "4a1d34077a5c999f590a31a056be5f70edac19f254b6d970e41942b335788575",
+    "outputSha256": "d0f6fdfba3284c1421c7ea3a3eceed3ac2a032f12b5a5e88cb8d55a38065aaa7"
+  }
+]

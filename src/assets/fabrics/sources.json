@@ -1,0 +1,484 @@
+{
+  "schemaVersion": 3,
+  "reviewedOn": "2026-10-06",
+  "policy": "Priority: exact real CC0 scan; supplied/Ceriga-owned swatch with redistribution rights; exact commercial CC-BY with stored attribution; deliberately authored construction-specific procedural material. No unrelated scan substitutes or shared construction maps. Procedural sources remain review-required until visual approval.",
+  "processing": "Scans: luminance high-pass neutral-alpha normalization removes source dye/lighting. Procedural: original deterministic 512px 2x supersampled periodic construction-height fields; mean-centered relief, standard deviation normalization, neutral black/white alpha capped at 72/255. All material maps require per-construction scale/opacity. No source dye is rendered. Smooth face and loop/brushed reverse are separate.",
+  "research": [
+    {
+      "provider": "Poly Haven",
+      "url": "https://api.polyhaven.com/assets?t=textures",
+      "result": "Denim Fabric 03 explicitly identifies denim twill. knitted_fleece does not verify jersey/interlock/sweatshirt weight. terry_cloth describes towel terry, not the requested sweatshirt constructions. polar_fleece identifies napped polar fleece, not the smooth-faced brushed-reverse sweatshirt preset."
+    },
+    {
+      "provider": "ambientCG",
+      "url": "https://ambientcg.com/api/v2/full_json?q=Fabric&limit=100",
+      "result": "Fabric031 woven wool, Fabric034 felt and Fabric068 wool do not establish the requested structures. Fabric070 sportswear tags do not confirm performance-mesh openings. Fabric078 does not identify taslan. Procedural assets are excluded from real-scan sourcing. Checked both catalog pages."
+    },
+    {
+      "provider": "CGBookcase",
+      "url": "https://www.cgbookcase.com/textures",
+      "result": "Fabric 01–09 and Fabric 10 small identify pbr-procedural in asset metadata, despite CC0 licensing. Not photographed construction sources."
+    },
+    {
+      "provider": "ShareTextures",
+      "url": "https://www.sharetextures.com/p/license",
+      "result": "Excluded: custom CC0-based terms prohibit asset redistribution without written permission; not unrestricted CC0 for bundling."
+    },
+    {
+      "provider": "TextureCan",
+      "url": "https://www.texturecan.com/details/577/",
+      "result": "CC0 redistribution policy confirmed. Fabrics 0079 (jumper) explicitly carries Procedural / Substance Designer tags; not a photographed jersey/interlock source. Checked current fabric category; no exact photographed construction established from those entries."
+    },
+    {
+      "provider": "3DTextures.me",
+      "url": "https://3dtextures.me/tag/fabric/",
+      "result": "CC0 policy confirmed, but checked knitted/lace entries are Substance-generated or decorative. No requested photographed construction verified."
+    },
+    {
+      "provider": "Wikimedia Commons",
+      "url": "https://commons.wikimedia.org/wiki/File:Fumarel_piqu%C3%A9_polo_shirt.jpg",
+      "result": "Candidate only: 4032x3024 photograph described as a piqué polo shirt; Fumarel1987 declares own work and CC0. Not bundled: a flat, logo-free, structurally usable crop and tile quality have not been verified. Singlejersey.jpg, Interlockjersey.jpg and Knitted Waffle fabric.jpg use CC-BY-SA, not the required CC0. Yale textile 1935.556 is a 480x295 cross-knit historical fragment, not verified 1x1/2x2 rib."
+    },
+    {
+      "provider": "PublicDomainPictures",
+      "url": "https://www.publicdomainpictures.net/",
+      "result": "Search could not be verified beyond generic results because of an access challenge. No asset or license assumed valid; no images bundled."
+    }
+  ],
+  "presets": [
+    {
+      "fabricPresetId": "single-jersey",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Fine single-bed V-loop wales; smooth matte face with minimal yarn relief.",
+        "seed": 101,
+        "recommendedTextureScale": 660
+      },
+      "source": {
+        "assetId": "ceriga-single-jersey-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#single-jersey",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#single-jersey",
+        "constructionEvidence": "Fine single-bed V-loop wales; smooth matte face with minimal yarn relief.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "single-jersey-source.png",
+        "originalFile": "procedural/single-jersey-source.png",
+        "normalizedFile": "procedural/single-jersey.png",
+        "sourceSha256": "7596056deda8f1a8d5a65278a9918131e6fa28d2268685c289a12897503baadc",
+        "normalizedSha256": "f4951292501acb1cbc41b9507c36134370b528907ae49736ceabd71ddd28e56a"
+      }
+    },
+    {
+      "fabricPresetId": "interlock-jersey",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Compact double-knit face: offset intermeshing loop beds, subdued valleys and denser gauge than single jersey.",
+        "seed": 211,
+        "recommendedTextureScale": 720
+      },
+      "source": {
+        "assetId": "ceriga-interlock-jersey-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#interlock-jersey",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#interlock-jersey",
+        "constructionEvidence": "Compact double-knit face: offset intermeshing loop beds, subdued valleys and denser gauge than single jersey.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "interlock-jersey-source.png",
+        "originalFile": "procedural/interlock-jersey-source.png",
+        "normalizedFile": "procedural/interlock-jersey.png",
+        "sourceSha256": "e51d8d8bc6f0741f5d93393a17c1b55b444b116e83c30cf4c41601a4b3a5bc43",
+        "normalizedSha256": "f78878f90a8806ef600c30c036b6e6e5b2f349b99701e1e91c7974a87e3ae368"
+      }
+    },
+    {
+      "fabricPresetId": "french-terry",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Smooth sweatshirt face wales; separate short, irregular sinker-loop reverse. Loops are never applied to the outside.",
+        "seed": 307,
+        "recommendedTextureScale": 540
+      },
+      "source": {
+        "assetId": "ceriga-french-terry-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#french-terry",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#french-terry",
+        "constructionEvidence": "Smooth sweatshirt face wales; separate short, irregular sinker-loop reverse. Loops are never applied to the outside.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "french-terry-source.png",
+        "originalFile": "procedural/french-terry-source.png",
+        "normalizedFile": "procedural/french-terry.png",
+        "sourceSha256": "a3081266a3e65deed7b3ef18dc6d226f66f6ac230d51df485db3c79c9b2d47d1",
+        "normalizedSha256": "6f554eb47063e29853e26ed21cc4227c7dc084f9d3873e152f2b7dcb46e79b1d"
+      },
+      "reverse": {
+        "normalizedFile": "procedural/french-terry-reverse.png",
+        "normalizedSha256": "2ad0e2c5a4617b4c50d09629e2e94f1295dc929726c1a81f5355d4a6aa3a0243",
+        "description": "Short terry sinker-loop reverse; dedicated to French terry."
+      }
+    },
+    {
+      "fabricPresetId": "loopback-jersey",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Fine stable knit face with separate elongated laid-in loop reverse; no loop pattern on the face.",
+        "seed": 409,
+        "recommendedTextureScale": 495
+      },
+      "source": {
+        "assetId": "ceriga-loopback-jersey-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#loopback-jersey",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#loopback-jersey",
+        "constructionEvidence": "Fine stable knit face with separate elongated laid-in loop reverse; no loop pattern on the face.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "loopback-jersey-source.png",
+        "originalFile": "procedural/loopback-jersey-source.png",
+        "normalizedFile": "procedural/loopback-jersey.png",
+        "sourceSha256": "c4fe146f83b32d2ff28b570d506129330cb213b0ebc6ac8701ce2f55333755eb",
+        "normalizedSha256": "02e8704d3742203a94f6e926070760783cc5a71012e23ac2cac39c14a3f0114b"
+      },
+      "reverse": {
+        "normalizedFile": "procedural/loopback-jersey-reverse.png",
+        "normalizedSha256": "ae7d6b95574b0cf9e606492e56960e303a1f6bb181cfd4b81aaeb64f91c55311",
+        "description": "Elongated laid-in loopback reverse, not a terry face substitute."
+      }
+    },
+    {
+      "fabricPresetId": "heavyweight-fleece",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Dense sweatshirt knit face with short soft fibres; separate compact lofted fleece reverse. Weight is specification metadata, not inferred from a photograph.",
+        "seed": 503,
+        "recommendedTextureScale": 350
+      },
+      "source": {
+        "assetId": "ceriga-heavyweight-fleece-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#heavyweight-fleece",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#heavyweight-fleece",
+        "constructionEvidence": "Dense sweatshirt knit face with short soft fibres; separate compact lofted fleece reverse. Weight is specification metadata, not inferred from a photograph.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "heavyweight-fleece-source.png",
+        "originalFile": "procedural/heavyweight-fleece-source.png",
+        "normalizedFile": "procedural/heavyweight-fleece.png",
+        "sourceSha256": "2c4ededd0811064786f4fb0a907492e88445a22635d38f1499fd562b5f480510",
+        "normalizedSha256": "617d3c68ce448d656b20a7a895560b5cefe8d8fb0cec9b8f0840e57160779e1a"
+      },
+      "reverse": {
+        "normalizedFile": "procedural/heavyweight-fleece-reverse.png",
+        "normalizedSha256": "ec6d5d216ace9f5dd1fef6f6b140ff83356ae689169d36560fa2d40552427716",
+        "description": "Dense short-fibre loft on fleece reverse, independently authored."
+      }
+    },
+    {
+      "fabricPresetId": "brushed-fleece",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Soft smooth face with attenuated knit channels and fine aligned brushed filaments; independent directional brushed reverse.",
+        "seed": 601,
+        "recommendedTextureScale": 380
+      },
+      "source": {
+        "assetId": "ceriga-brushed-fleece-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#brushed-fleece",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#brushed-fleece",
+        "constructionEvidence": "Soft smooth face with attenuated knit channels and fine aligned brushed filaments; independent directional brushed reverse.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "brushed-fleece-source.png",
+        "originalFile": "procedural/brushed-fleece-source.png",
+        "normalizedFile": "procedural/brushed-fleece.png",
+        "sourceSha256": "7f1f68ffacfd218ccd89f7349ba97710dcbace84e619269ca9be7dcd089ef26c",
+        "normalizedSha256": "b8fe3562ae76d702cd23edb3c6ef907a06550d2ab2e872c33fd70144a0e3e208"
+      },
+      "reverse": {
+        "normalizedFile": "procedural/brushed-fleece-reverse.png",
+        "normalizedSha256": "85f82f3e452cfdfc419c9912bc02217d04f3e2f55f6ac334b1f3edcbe53b1969",
+        "description": "Longer directional brushed nap, distinct from dense heavyweight fleece."
+      }
+    },
+    {
+      "fabricPresetId": "rib-1x1",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Alternating single front-knit and back-purl columns with narrow vertical channels.",
+        "seed": 701,
+        "recommendedTextureScale": 360
+      },
+      "source": {
+        "assetId": "ceriga-rib-1x1-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#rib-1x1",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#rib-1x1",
+        "constructionEvidence": "Alternating single front-knit and back-purl columns with narrow vertical channels.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "rib-1x1-source.png",
+        "originalFile": "procedural/rib-1x1-source.png",
+        "normalizedFile": "procedural/rib-1x1.png",
+        "sourceSha256": "e7dd09ac716356e06a250184d4a1313ebdb36d3e3198d1743433cc4ee53c4d3c",
+        "normalizedSha256": "8363f56b8a3a505a46eb0030c20e48b4d67f3019888ed4b4a78451988bd2bf1b"
+      }
+    },
+    {
+      "fabricPresetId": "rib-2x2",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Two front-knit columns followed by two recessed purl columns; paired stitch topology and wider rib channels.",
+        "seed": 809,
+        "recommendedTextureScale": 400
+      },
+      "source": {
+        "assetId": "ceriga-rib-2x2-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#rib-2x2",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#rib-2x2",
+        "constructionEvidence": "Two front-knit columns followed by two recessed purl columns; paired stitch topology and wider rib channels.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "rib-2x2-source.png",
+        "originalFile": "procedural/rib-2x2-source.png",
+        "normalizedFile": "procedural/rib-2x2.png",
+        "sourceSha256": "35d8c6a0d94bf6825f26c496f5efb987013bfd8ece916123e42fec9c7d08e037",
+        "normalizedSha256": "9895a384c06534c2e03dde1aae9f8e1728f453c0bec2497cb9898ae1f59dcdae"
+      }
+    },
+    {
+      "fabricPresetId": "waffle",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Rounded recessed square knit cells with soft walls and fine yarn structure, not a graphic grid.",
+        "seed": 907,
+        "recommendedTextureScale": 320
+      },
+      "source": {
+        "assetId": "ceriga-waffle-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#waffle",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#waffle",
+        "constructionEvidence": "Rounded recessed square knit cells with soft walls and fine yarn structure, not a graphic grid.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "waffle-source.png",
+        "originalFile": "procedural/waffle-source.png",
+        "normalizedFile": "procedural/waffle.png",
+        "sourceSha256": "4790a4fb1272cc479fc238e6d0a94de0f1239ef041cafc81709b24b8f7a80596",
+        "normalizedSha256": "3ac9c04b8ef1db8bb42338913df24581dcbdba2aaa1fec9a11e9e27e3d7b5f66"
+      }
+    },
+    {
+      "fabricPresetId": "pique",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Fine offset tuck-knit relief over a compact loop ground; restrained polo-scale cellular structure.",
+        "seed": 1009,
+        "recommendedTextureScale": 645
+      },
+      "source": {
+        "assetId": "ceriga-pique-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#pique",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#pique",
+        "constructionEvidence": "Fine offset tuck-knit relief over a compact loop ground; restrained polo-scale cellular structure.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "pique-source.png",
+        "originalFile": "procedural/pique-source.png",
+        "normalizedFile": "procedural/pique.png",
+        "sourceSha256": "7a791b4a6e5404f29d3b0a869b9e6e373213aae504f04a8c308cd14f523c9ced",
+        "normalizedSha256": "df5d65db0e20b97d7a7ec42bd8c4026970a37bdecdde3cbc1ee6f1b36a3430f4"
+      }
+    },
+    {
+      "fabricPresetId": "mesh",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Tiny staggered elongated performance-knit openings, soft yarn rims; tonal relief only, no transparent garment cutouts.",
+        "seed": 1103,
+        "recommendedTextureScale": 645
+      },
+      "source": {
+        "assetId": "ceriga-mesh-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#mesh",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#mesh",
+        "constructionEvidence": "Tiny staggered elongated performance-knit openings, soft yarn rims; tonal relief only, no transparent garment cutouts.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "mesh-source.png",
+        "originalFile": "procedural/mesh-source.png",
+        "normalizedFile": "procedural/mesh.png",
+        "sourceSha256": "724bd114453f61c732847335fc86ce666d23d62337635ebdd1fb21d2a9ba2321",
+        "normalizedSha256": "5efeced5796f14a4bfb7642e561cc0495cb52cbe238b6f745edfc45ad23031d4"
+      }
+    },
+    {
+      "fabricPresetId": "nylon-taslan",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Air-textured irregular filament grain with short-scale directional micro-crinkle. No checkerboard, generic crosshatch or borrowed woven scan.",
+        "seed": 1201,
+        "recommendedTextureScale": 390
+      },
+      "source": {
+        "assetId": "ceriga-nylon-taslan-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#nylon-taslan",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#nylon-taslan",
+        "constructionEvidence": "Air-textured irregular filament grain with short-scale directional micro-crinkle. No checkerboard, generic crosshatch or borrowed woven scan.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "nylon-taslan-source.png",
+        "originalFile": "procedural/nylon-taslan-source.png",
+        "normalizedFile": "procedural/nylon-taslan.png",
+        "sourceSha256": "60e169f52f86efdff53a597dadc6e6b1722162692c4e7577b9ccf76d4b15eb75",
+        "normalizedSha256": "7ab4211d31bb9a8b32d9beb3cadd1dfc604e6f45c8423441590d99ab8967aa9d"
+      }
+    },
+    {
+      "fabricPresetId": "cotton-twill",
+      "status": "review-required",
+      "reason": "No usable exact scan or supplied owned swatch established in the recorded research. Dedicated authored construction study provided for visual review; not a photograph.",
+      "sourceType": "procedural",
+      "sourceStatus": "review-required",
+      "procedural": {
+        "generator": "scripts/collar/generate_fabric_materials.mjs",
+        "version": 1,
+        "recipe": "Fine 2-over-1 interlacing warp/weft floats with diagonal progression and subdued yarn relief; no denim scan reuse.",
+        "seed": 1301,
+        "recommendedTextureScale": 430
+      },
+      "source": {
+        "assetId": "ceriga-cotton-twill-v1",
+        "provider": "Ceriga authored",
+        "page": "scripts/collar/generate_fabric_materials.mjs#cotton-twill",
+        "evidenceUrl": "scripts/collar/generate_fabric_materials.mjs#cotton-twill",
+        "constructionEvidence": "Fine 2-over-1 interlacing warp/weft floats with diagonal progression and subdued yarn relief; no denim scan reuse.",
+        "license": "LicenseRef-Ceriga-Authored",
+        "licenseUrl": "scripts/collar/generate_fabric_materials.mjs",
+        "licensePage": "scripts/collar/generate_fabric_materials.mjs",
+        "download": "generated locally",
+        "originalFilename": "cotton-twill-source.png",
+        "originalFile": "procedural/cotton-twill-source.png",
+        "normalizedFile": "procedural/cotton-twill.png",
+        "sourceSha256": "92895142ea523b5a53e079fd11dc5dd78a3861075932b5b8179652cb1756d654",
+        "normalizedSha256": "f0f5cd14a497c89bf87eba424b61071d5721943891a42d5e500548b9961de542"
+      }
+    },
+    {
+      "fabricPresetId": "denim-twill",
+      "status": "verified",
+      "reason": "Dedicated light-blue denim twill photograph with explicit provider construction description and photography credit. Preset GSM/composition remain specification metadata, not measured scan properties.",
+      "source": {
+        "assetId": "denim_fabric_03",
+        "provider": "Poly Haven",
+        "page": "https://polyhaven.com/a/denim_fabric_03",
+        "evidenceUrl": "https://api.polyhaven.com/info/denim_fabric_03",
+        "constructionEvidence": "Provider identifies light blue denim twill with subtle weave, matte surface; colormass credited for Photography, Rico Cilliers for Processing.",
+        "license": "CC0-1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "licensePage": "https://polyhaven.com/license",
+        "download": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric_03/denim_fabric_03_diff_1k.jpg",
+        "originalFilename": "denim_fabric_03_diff_1k.jpg",
+        "originalFile": "originals/denim_fabric_03_diff_1k.jpg",
+        "normalizedFile": "denim.png",
+        "sourceSha256": "4a1d34077a5c999f590a31a056be5f70edac19f254b6d970e41942b335788575",
+        "normalizedSha256": "d0f6fdfba3284c1421c7ea3a3eceed3ac2a032f12b5a5e88cb8d55a38065aaa7"
+      },
+      "sourceType": "scan-cc0",
+      "sourceStatus": "verified"
+    }
+  ],
+  "attributionPolicy": "CC-BY sources must store creator, assetName, sourceUrl, license and attribution text in source.attribution. No CC-BY assets are currently bundled. Ceriga-authored output is not labelled CC0 or photographic; external source rights are not claimed."
+}

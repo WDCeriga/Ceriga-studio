@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fabric comparison · 4× close-up</title><link rel="stylesheet" href="./fabric-review.css"></head>
+<body><h1>Fabric &amp; Colour · 4× close-up comparison</h1>
+<nav class="review-nav"><a href="./fabric-review.html#fabric-comparison">Normal builder zoom</a><a href="./fabric-closeup.html#fabric-comparison" aria-current="page">4× close-up comparison</a></nav>
+<p>The same garment renderer and material settings at 4× magnification — not a separate enlarged pattern. All 14 constructions share one review grid with raw sources, normalized maps and both zoom levels. One verified CC0 denim source; 13 procedural constructions with visual review pending, not photographic scans. Missing sources remain explicitly unresolved.</p>
+<details><summary>Renderer and assignment checks (separate from source availability)</summary><pre id="validation" data-status="running">Running model, browser and pixel-conservation checks…</pre></details><div id="review"></div>
+<script type="module">
+import '/src/styles/index.css';
+import { verifyFabricRendering, mountFabricReview } from './test_fabric_rendering.tsx';
+mountFabricReview(document.querySelector('#review'), true);
+const output = document.querySelector('#validation');
+try { const result = await verifyFabricRendering(); output.textContent = JSON.stringify(result, null, 2); output.dataset.status = 'passed'; }
+catch (error) { output.textContent = error.stack; output.dataset.status = 'failed'; }
+</script></body></html>

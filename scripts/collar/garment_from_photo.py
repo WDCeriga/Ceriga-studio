@@ -1,12 +1,9 @@
-"""Full garment photo -> locally generated colourable technical-flat layers.
+"""Whole-garment upload routing: auto detection, photo redraw, or exact raster tracing.
 
-This experimental Studio pipeline does not use image-model credits. It:
-1. isolates the garment from a light/neutral background,
-2. derives a clean silhouette and construction/seam ink,
-3. uses those seam barriers to split the raster into regions,
-4. traces every region with the same potrace convention as the builder.
-
-No SVG paths are authored by hand; every path comes from a raster mask.
+Clean artwork bypasses providers and reconstruction. Photo uploads generate a
+black-and-white raster before white keying and Potrace. The named reconstruct()
+API retains its source-registered semantic projection for existing callers, and
+--local-only keeps the legacy experimental local importer available.
 """
 from __future__ import annotations
 
@@ -319,50 +316,148 @@ def build(photo: Image.Image) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Detect or import a whole garment without redrawing clean artwork.")
     parser.add_argument("photo")
-    parser.add_argument("--reconstruct", action="store_true")
+    parser.add_argument("--reconstruct", action="store_true", help="Compatibility alias for the upload pipeline")
+    parser.add_argument("--input-type", choices=("auto", "photo", "trace-only"), default="auto")
+    parser.add_argument("--detect-input", action="store_true", help="Return local input detection JSON without processing")
+    parser.add_argument("--view", choices=("front", "back"), default="front")
+    parser.add_argument("--local-only", action="store_true", help="Use the legacy experimental local photo importer")
     args = parser.parse_args()
-    result = reconstruct(Path(args.photo).read_bytes()) if args.reconstruct else build(Image.open(args.photo))
+    source_bytes = Path(args.photo).read_bytes()
+    if args.detect_input:
+        from garment_trace_only import detect_input
+        result = detect_input(source_bytes)
+    elif args.local_only:
+        with Image.open(io.BytesIO(source_bytes)) as photo:
+            result = build(photo)
+    else:
+        result = process_upload(source_bytes, input_type=args.input_type, view=args.view)
     print(json.dumps(result), flush=True)
 
 
-def reconstruct(source_bytes: bytes) -> dict:
+def process_upload(source_bytes: bytes, *, input_type: str = "auto", view: str = "front") -> dict:
+    """Route before creating a provider; trace-only artwork is never reconstructed."""
+    if input_type not in {"auto", "photo", "trace-only"}:
+        raise GarmentError("inputType must be auto, photo or trace-only.")
+    if view not in {"front", "back"}:
+        raise GarmentError("requestedView must be front or back.")
+    from garment_trace_only import detect_input, trace_only
+
+    detection = detect_input(source_bytes) if input_type == "auto" else None
+    mode = detection["mode"] if detection is not None else input_type
+    if mode == "trace-only":
+        result = trace_only(source_bytes, view=view)
+    elif mode == "photo":
+        result = redraw_photo(source_bytes, view=view)
+    else:
+        raise GarmentError("Input detection returned an unsupported mode.")
+    result["processingMode"] = mode
+    result["inputDetection"] = detection or {"mode": mode, "confidence": 1.0, "reason": "Explicit input-type selection; automatic routing bypassed."}
+    metadata = result["manifest"][f"{view}View"]
+    metadata.update(processingMode=mode, inputDetection=result["inputDetection"], tracePreview=result["tracePreview"])
+    return result
+
+
+def redraw_photo(source_bytes: bytes, *, view: str = "front") -> dict:
+    """Photo -> provider BW raster redraw -> white key -> Potrace (never SVG-first)."""
     from asset_providers import AstraProvider
-    from garment_manifest import identity, segment_drawing
+    from garment_manifest import identity
+    from garment_trace_only import trace_only
 
     with Image.open(io.BytesIO(source_bytes)) as opened:
         if opened.width * opened.height > 24_000_000:
             raise GarmentError("Source image exceeds 24 megapixels.")
         photo = ImageOps.exif_transpose(opened).convert("RGB")
     provider = AstraProvider(dict(os.environ))
-    provider.raster.require_configuration()
-    progress("analysis", "Astra: identifying garment type and visible construction")
+    progress("analysis", "Identifying source-confirmed garment construction")
     analysis = provider.analyzeGarment(photo)
+    analysis = {**analysis, "view": view}
+    progress("redraw", "Redrawing the source garment as a black-and-white raster, preserving its proportions")
     drawing = provider.raster.generateWholeGarmentRaster(photo, analysis, lambda label: progress("redraw", label))
-    drawing = drawing.resize((RASTER, RASTER), Image.Resampling.LANCZOS)
-    progress("registration", "Astra: locating source parts on the technical redraw")
-    mapped = provider.analyzeGarment(drawing, source_manifest=analysis)
+    buffer = io.BytesIO()
+    drawing.save(buffer, format="PNG")
+    drawing_bytes = buffer.getvalue()
+    progress("key", "Keying the redraw's white background before tracing its actual ink")
+    result = trace_only(drawing_bytes, view=view)
+    source_buffer = io.BytesIO()
+    photo.thumbnail((1024, 1024))
+    photo.save(source_buffer, format="PNG")
+    source_url = "data:image/png;base64," + base64.b64encode(source_buffer.getvalue()).decode("ascii")
+    drawing_url = "data:image/png;base64," + base64.b64encode(drawing_bytes).decode("ascii")
+    result.update(processingMode="photo", sourceManifest=analysis, sourceImage=source_url,
+                  sourceImages={view: source_url}, cleanDrawing=drawing_url)
+    result["provenance"].update(sourceImageHash=identity("source", source_bytes),
+                                analysisId=identity("analysis", json.dumps(analysis, sort_keys=True).encode()))
+    for key in ("garmentType", "material", "subtype", "fit", "construction", "materialEvidence", "confidence"):
+        if key in analysis:
+            result["manifest"][key] = analysis[key]
+    result["manifest"][f"{view}View"].update(sourceImageHash=result["provenance"]["sourceImageHash"],
+                                             sourceImage=source_url, cleanDrawing=drawing_url)
+    result["process"].update(externalServicesUsed=True, inputStage="azure-technical-redraw")
+    result["tracePreview"].update(sourceRaster=source_url, technicalRaster=drawing_url,
+                                  comparisonSource="technical-redraw")
+    result["reviewNotes"] = [
+        "Photo mode: source construction analysis, Azure black-and-white technical raster redraw, then the shared white-key and Potrace pipeline.",
+        "Compare the technical redraw with the original photo for construction fidelity. The overlay and pixel metrics compare the SVG against the redraw, not the photograph.",
+        "The traced construction ink stays together. No semantic colour fills or separately editable stitch paths are inferred.",
+        *[note for note in result["reviewNotes"] if "Potrace smoothing" in note],
+    ]
+    result["manifest"]["uncertainties"] = list(analysis.get("uncertainties", [])) + result["reviewNotes"][1:]
+    return result
+
+
+def reconstruct(source_bytes: bytes) -> dict:
+    from asset_providers import AstraProvider
+    from garment_manifest import identity
+    from garment_source_geometry import SourceGeometryError, segment_source
+    from garment_technical_flat import segment_technical, supports_technical_flat
+
+    with Image.open(io.BytesIO(source_bytes)) as opened:
+        if opened.width * opened.height > 24_000_000:
+            raise GarmentError("Source image exceeds 24 megapixels.")
+        photo = ImageOps.exif_transpose(opened).convert("RGB")
+    provider = AstraProvider(dict(os.environ))
+    progress("analysis", "Astra: identifying construction on the original garment photo")
+    feedback = None
+    for attempt in range(2):
+        try:
+            analysis = provider.analyzeGarment(photo, geometry_feedback=feedback)
+            technical_flat = supports_technical_flat(analysis)
+            progress("registration", "Fairing source construction into a balanced technical flat" if technical_flat else "Preserving source-photo proportions and tracing its visible fabric")
+            drawing, mapped, segmentation = (segment_technical if technical_flat else segment_source)(photo, analysis, RASTER)
+            break
+        except (SourceGeometryError, ValueError) as exc:
+            if attempt or not (isinstance(exc, SourceGeometryError) or "cutout" in str(exc).lower()):
+                raise
+            feedback = str(exc)
+            progress("analysis", "Rechecking source geometry before installing any garment parts")
     stage_buffer = io.BytesIO()
     drawing.save(stage_buffer, format="PNG")
     print(json.dumps({"type": "reconstruction-draft", "sourceManifest": analysis, "manifest": mapped,
                       "sourceImageHash": identity("source", source_bytes),
                       "cleanDrawing": "data:image/png;base64," + base64.b64encode(stage_buffer.getvalue()).decode("ascii")}), flush=True)
-    return trace_reconstruction(photo, source_bytes, analysis, drawing, mapped)
+    return trace_reconstruction(photo, source_bytes, analysis, drawing, mapped, source_segmentation=segmentation, technical_flat=technical_flat)
 
 
-def trace_reconstruction(photo: Image.Image, source_bytes: bytes, analysis: dict, drawing: Image.Image, mapped: dict) -> dict:
-    from garment_manifest import detail_ink, identity, segment_drawing, validate_manifest
+def trace_reconstruction(photo: Image.Image, source_bytes: bytes, analysis: dict, drawing: Image.Image, mapped: dict, *, source_segmentation: tuple | None = None, technical_flat: bool = False) -> dict:
+    from garment_manifest import EXCLUDED_REGION_TYPES, MIN_BOUNDARY_CONFIDENCE, detail_ink, identity, segment_drawing, validate_manifest
 
     analysis = validate_manifest(analysis)
     mapped = validate_manifest(mapped)
     progress("segmentation", "Tracing semantic fabric regions and separate construction ink")
-    masks, contours, stitches, notes = segment_drawing(drawing, mapped)
+    masks, contours, stitches, notes = source_segmentation if source_segmentation is not None else segment_drawing(drawing, mapped)
     detail_layers = []
     detail_lines = np.zeros_like(contours)
     detail_stitches = np.zeros_like(stitches)
-    for region in mapped["regions"]:
+    for region_index, region in enumerate(mapped["regions"]):
+        visible = np.ones_like(contours)
+        if technical_flat:
+            visible = ndimage.binary_dilation(masks[region_index])
+            for foreground in masks[region_index + 1:]:
+                visible &= ~foreground
         solid, thread = detail_ink(region, drawing.size)
+        solid, thread = solid & visible, thread & visible
         detail_lines |= solid
         detail_stitches |= thread
         groups = {}
@@ -370,7 +465,8 @@ def trace_reconstruction(photo: Image.Image, source_bytes: bytes, analysis: dict
             category, name = region["builderCategory"], region["userFacingName"]
             groups.setdefault((category, name), []).append(edge)
         for index, ((category, name), edges) in enumerate(groups.items()):
-            solid, thread = detail_ink({"visibleEdges": edges}, drawing.size)
+            solid, thread = detail_ink({**region, "visibleEdges": edges}, drawing.size)
+            solid, thread = solid & visible, thread & visible
             if solid.any() or thread.any():
                 detail_layers.append({"id": f"detail-{region['id']}-{index}", "partId": region["id"], "name": region["name"],
                                       "builderCategory": category, "userFacingName": name,
@@ -383,7 +479,11 @@ def trace_reconstruction(photo: Image.Image, source_bytes: bytes, analysis: dict
     source_id = identity("source", source_bytes)
     analysis_id = identity("analysis", {"source": source_id, "manifest": analysis})
     drawing_id = identity("drawing", drawing_bytes)
-    segmentation_id = identity("segmentation", {"drawing": drawing_id, "manifest": mapped, "algorithm": "source-construction-outlines-v2"})
+    if technical_flat:
+        algorithm = "source-matched-technical-flat-v2"
+    else:
+        algorithm = "source-locked-photo-edges-v4" if source_segmentation is not None else "source-construction-outlines-v3-hardware-cutouts-no-labels"
+    segmentation_id = identity("segmentation", {"drawing": drawing_id, "manifest": mapped, "algorithm": algorithm})
     garment_id = identity("garment", [source_id, analysis_id, drawing_id, segmentation_id])
     parts = []
     for order, (region, mask) in enumerate(zip(mapped["regions"], masks)):
@@ -391,13 +491,28 @@ def trace_reconstruction(photo: Image.Image, source_bytes: bytes, analysis: dict
             continue
         rows, columns = np.where(mask)
         bounds = [float(columns.min() / drawing.width), float(rows.min() / drawing.height), float((columns.max() + 1) / drawing.width), float((rows.max() + 1) / drawing.height)]
-        part_ink = contours & ~detail_lines & ndimage.binary_dilation(mask, iterations=1)
+        part_ink = (mask & ~ndimage.binary_erosion(mask)) if technical_flat else (contours & ~detail_lines & ndimage.binary_dilation(mask, iterations=1))
         part_stitches = stitches & ~detail_stitches & ndimage.binary_dilation(mask, iterations=2)
-        parts.append({**region, "svg": wrap_fill_svg(region["name"], mask), "area": int(mask.sum()),
-                      "color": "#62788b" if region["material"] == "denim" else "#b2ada3", "parentGarment": garment_id,
+        fill_path = T.trace(mask)
+        fill_svg = T.wrap_svg(region["name"], fill_path, "")
+        if technical_flat:
+            construction_svg = T.wrap_svg(region["name"] + " construction", "", fill_path).replace(
+                f'fill="{T.INK_COLOR}" fill-rule="evenodd"',
+                'fill="none" stroke="#141414" stroke-width="28" stroke-linejoin="round" stroke-linecap="round"',
+            )
+        else:
+            construction_svg = wrap_ink_svg(region["name"] + " construction", part_ink)
+        if technical_flat and region["semanticType"] in {"body", "lining"} and "rib" in (region["material"] + analysis["materialEvidence"]).lower():
+            from garment_technical_flat import rib_paths
+            ribs = rib_paths(mask)
+            fill_svg = fill_svg.replace("</svg>", f'<g data-texture="rib" fill="none" stroke="#141414" stroke-width="1.4" opacity="0.16"><path d="{ribs}"/></g></svg>')
+        hardware = region["boundary"]["boundaryType"] == "hardware-edge" or region["semanticType"] in {"button", "rivet", "zip"}
+        color = ("#b7bbc0" if hardware else "#f4f3ef") if technical_flat else ("#62788b" if region["material"] == "denim" else "#b2ada3")
+        parts.append({**region, "svg": fill_svg, "area": int(mask.sum()),
+                      "color": color, "parentGarment": garment_id,
                       "layerOrder": order, "view": mapped["view"], "transform": {"x": 0, "y": 0, "scale": 1, "rotation": 0},
                       "geometryBounds": bounds, "measurement": {"unit": "relative", "width": bounds[2] - bounds[0], "height": bounds[3] - bounds[1]},
-                      "constructionSvg": wrap_ink_svg(region["name"] + " construction", part_ink),
+                      "constructionSvg": construction_svg,
                       "stitchSvg": wrap_ink_svg(region["name"] + " stitches", part_stitches)})
     if not any(part["layerKind"] == "structural" for part in parts):
         raise ValueError("No source-supported structural outline could be committed. Review construction evidence before retrying.")
@@ -408,7 +523,9 @@ def trace_reconstruction(photo: Image.Image, source_bytes: bytes, analysis: dict
     return {"type": "result", "ok": True, "source": "azure-garment-reconstruction-v1", "parts": parts,
             "constructionVersion": 2,
             "detailLayers": detail_layers,
-            "proposedBoundaries": [region for region in mapped["regions"] if region["boundary"]["confidence"] < .8],
+            "proposedBoundaries": [region for region in mapped["regions"] if region["semanticType"] not in EXCLUDED_REGION_TYPES
+                                   and (region["boundary"]["confidence"] < MIN_BOUNDARY_CONFIDENCE
+                                        or any(cutout["confidence"] < MIN_BOUNDARY_CONFIDENCE for cutout in region["cutouts"]))],
             "lineArtSvg": wrap_ink_svg("Construction", contours), "stitchSvg": wrap_ink_svg("Stitching", stitches),
             "partCount": len(parts), "manifest": mapped, "sourceManifest": analysis,
             "sourceImage": "data:image/jpeg;base64," + base64.b64encode(source_buffer.getvalue()).decode("ascii"),

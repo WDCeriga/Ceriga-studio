@@ -4,6 +4,7 @@ import type { TshirtStitching } from '../../data/tshirtStitching';
 import type { NeckFinish } from '../../data/tshirtNeckFinish';
 import type { GarmentDetail } from '../../data/garmentDetails';
 import type { GarmentWash } from '../../data/garmentWash';
+import type { FabricAssignments } from '../../data/garmentFabrics';
 import type { GarmentLabel } from '../../data/garmentLabels';
 import type { GarmentView } from '../../data/garmentView';
 import type { GarmentType } from '../../data/builderSteps';
@@ -26,6 +27,7 @@ export type ProjectPreviewState = {
   garmentLabels?: GarmentLabel[];
   measurements?: Record<string, Record<string, string>>;
   garmentWash?: GarmentWash;
+  fabricAssignments?: FabricAssignments;
   garmentType?: string;
   colors?: Array<{ hex?: string; pantone?: string }>;
   neckType?: string;
@@ -112,6 +114,7 @@ export function ProjectGarmentPreview({
           garmentLabels={preview.garmentLabels}
           labelReferenceWidthMm={Number(preview.measurements?.chestWidth?.m) * 10 || undefined}
           garmentWash={preview.garmentWash}
+          fabricAssignments={preview.fabricAssignments}
           detailView={view}
           garmentType={svgType}
           color={color}
@@ -147,6 +150,7 @@ export function ProjectGarmentPreview({
         aria-hidden
       >
         <BuilderGarmentPreview
+          fabricAssignments={preview.fabricAssignments}
           garmentType={type}
           color={color}
           neckType={preview.neckType}

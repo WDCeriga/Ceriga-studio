@@ -78,7 +78,7 @@ export function importedGarmentFamily(garmentType: string): 'bifurcated' | 'top'
   if (/\b(shorts?|trousers?|pants?|jeans?|joggers?|leggings?)\b/.test(type)) return 'bifurcated';
   if (/\b(dress|gown|tunic)\b/.test(type)) return 'dress';
   if (/\bskirt\b/.test(type)) return 'skirt';
-  if (/\b(tee|t shirt|tshirt|shirt|hoodie|sweatshirt|sweater|jacket|coat|top|vest)\b/.test(type)) return 'top';
+  if (/\b(tee|t shirt|tshirt|shirt|hoodie|sweatshirt|sweater|jacket|coat|top|vest|tank|camisole|singlet)\b/.test(type)) return 'top';
   return 'unknown';
 }
 

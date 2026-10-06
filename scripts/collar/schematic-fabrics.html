@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Schematic fabric regression</title>
+  <style>
+    body { margin: 24px; background: #e9edf1; color: #15202b; font: 14px system-ui; }
+    main { display: grid; grid-template-columns: repeat(3, 320px); gap: 16px; }
+    article { padding: 12px; border: 1px solid #bcc8d2; background: white; }
+    h2 { margin: 0 0 8px; font-size: 15px; }
+    svg { display: block; width: 296px; height: 340px; }
+    p { max-width: 1000px; }
+  </style>
+</head>
+<body>
+  <h1>Fallback schematic: original versus assigned fabrics</h1>
+  <p>Normal-scale regression fixture. Geometry, colours and construction stay identical; only existing filled surfaces receive texture. Only denim has a verified dedicated CC0 scan. All other assignments and reverse faces remain plain while their sources are unresolved. Unfilled pockets and hardware never receive their own fabric.</p>
+  <main id="fixtures"></main>
+  <script type="module">
+    import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { BuilderGarmentPreview } from '/src/app/components/builder/BuilderGarmentPreview.tsx';
+    const common = { color: '#5c7fb6', sleeveLength: 'long', cuffType: 'ribbed', hemType: 'ribbed', pocketType: 'patch', neckTrimColor: '#35597f', sleeveTrimColor: '#35597f' };
+    const fabrics = { assignments: { base: 'french-terry', sleeveLeft: 'mesh', sleeveRight: 'denim-twill', sleeveHemLeft: 'rib-2x2', sleeveHemRight: 'rib-1x1', neck: 'rib-2x2', hem: 'rib-1x1', hood: 'french-terry', hoodInterior: 'heavyweight-fleece', waistband: 'rib-2x2' }, unlinkedGroups: ['sleeves', 'cuffs'] };
+    const material = (base, neck) => ({ garmentType: 'tshirt', color: '#c4cbd1', neckTrimColor: '#c4cbd1', sleeveLength: 'short', fabricAssignments: { assignments: { ...(base ? { base } : {}), ...(neck ? { neck } : {}) }, unlinkedGroups: [] } });
+    const variants = [
+      ['T-shirt · no fabric (baseline)', material()],
+      ['Body · mesh unresolved', material('mesh')],
+      ['Body · single jersey unresolved', material('single-jersey')],
+      ['Neck · rib / jersey body unresolved', material('single-jersey', 'rib-1x1')],
+      ['Body · fine denim twill scan', material('denim-twill')],
+      ['Sweatshirt · no fabric (baseline)', { garmentType: 'sweatshirt' }],
+      ['Sweatshirt · terry / mesh / denim', { garmentType: 'sweatshirt', fabricAssignments: fabrics }],
+      ['Jacket · rib collar / twill body / nylon sleeves', { garmentType: 'jacket', neckType: 'shirt', zipType: 'full', fabricAssignments: { ...fabrics, assignments: { ...fabrics.assignments, base: 'cotton-twill', sleeveLeft: 'nylon-taslan', sleeveRight: 'nylon-taslan', neck: 'rib-2x2' } } }],
+      ['Dress · sleeveless, no cuff texture', { garmentType: 'dress', sleeveType: 'sleeveless', neckType: 'square', fabricAssignments: fabrics }],
+      ['Skirt · waistband / body / hem', { garmentType: 'skirt', fabricAssignments: fabrics }],
+      ['Hoodie · face and reverse assignments (denim only verified)', { garmentType: 'hoodie', neckType: 'hood-double', fabricAssignments: fabrics }],
+    ];
+    createRoot(document.getElementById('fixtures')).render(React.createElement(React.Fragment, null, variants.map(([label, props]) => React.createElement('article', { key: label }, React.createElement('h2', null, label), React.createElement(BuilderGarmentPreview, { ...common, ...props })))));
+  </script>
+</body>
+</html>

@@ -78,6 +78,38 @@ export function createGarmentRegressionFixture(type: GarmentRegressionType, both
   });
 }
 
+/** Synthetic cropped tank with separate shoulder straps, scoop binding and legacy panel-classified buckles. */
+export function createCroppedTankFixture(): ImportedGarment {
+  const fixture = createGarmentRegressionFixture('tee');
+  const template = fixture.parts.find(part => part.semanticType === 'body')!;
+  const parts: ImportedPart[] = [];
+  const add = (name: string, role: string, outline: ImportedPoint[], hardware = false) => {
+    const xs = outline.map(p => p[0]), ys = outline.map(p => p[1]);
+    const bounds = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    parts.push({ ...template, id: `front:${name}`, name, semanticType: role === 'body' ? 'body' : 'panel',
+      structuralRole: role, measurementRole: `${role} outline`, outline, bounds, geometryBounds: bounds,
+      seed: [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2], transform: { ...template.transform },
+      area: Math.abs(outline.reduce((sum, p, i) => { const q = outline[(i + 1) % outline.length]; return sum + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2,
+      material: hardware ? 'metal' : 'cotton jersey', color: hardware ? '#b8bec5' : '#8d969c',
+      builderCategory: hardware ? 'trims-details' : 'fabric-colour', colourGroup: name,
+      attachmentTo: role === 'body' ? null : 'front:body', symmetryPartner: null,
+      boundary: { boundaryType: hardware ? 'hardware-edge' : 'panel-edge', confidence: .95, evidence: syntheticEvidence },
+      svg: svg(outline), constructionSvg: '', stitchSvg: '', layerOrder: parts.length,
+      measurement: { unit: 'relative', width: bounds[2] - bounds[0], height: bounds[3] - bounds[1] },
+    });
+  };
+  add('body', 'body', [[.28, .43], [.39, .43], [.45, .48], [.55, .48], [.61, .43], [.72, .43], [.74, .46], [.81, .49], [.77, .7], [.23, .7], [.19, .49], [.26, .46]]);
+  const strap: ImportedPoint[] = [[.28, .14], [.34, .14], [.35, .32], [.39, .43], [.28, .43], [.3, .35]];
+  add('left-strap', 'shoulder-strap', strap);
+  add('right-strap', 'shoulder-strap', mirror(strap));
+  add('scoop-binding', 'neckline-binding', [[.39, .43], [.45, .48], [.55, .48], [.61, .43], [.6, .45], [.55, .5], [.45, .5], [.4, .45]]);
+  const buckle: ImportedPoint[] = [[.265, .1], [.355, .1], [.355, .145], [.265, .145]];
+  add('left-buckle', 'shoulder-buckle', buckle, true);
+  add('right-buckle', 'shoulder-buckle', mirror(buckle), true);
+  const manifest = { ...fixture.manifest, garmentType: 'vest', subtype: 'Synthetic cropped scoop-neck tank with metal shoulder fastenings', regions: parts };
+  return normalizeImportedGarment({ ...fixture, parts, detailLayers: [], manifest, sourceManifest: manifest });
+}
+
 /** Parent review-page contract; tshirt is the public alias for the tee fixture. */
 export function garmentRegressionFixture(type: 'shorts' | 'tshirt' | 'hoodie', withBack: boolean): ImportedGarment {
   const garment = createGarmentRegressionFixture(type === 'tshirt' ? 'tee' : type, withBack);

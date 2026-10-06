@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Openings &amp; Closures — T-shirt milestone review</title>
+  </head>
+  <body style="margin:0">
+    <main id="milestones" aria-label="T-shirt opening construction review"></main>
+    <script type="module">
+      import { renderOpeningMilestones, getOpeningTestFixtures, verifyGarmentOpenings, verifyOpeningPreview } from './test_garment_openings.ts';
+      try {
+        if (new URLSearchParams(location.search).has('validate')) {
+          const { verifyOpeningControls, verifyOpeningDragCommit } = await import('./test_opening_controls.tsx');
+          console.info('Zip validation: geometry');
+          const geometry = await verifyGarmentOpenings();
+          console.info('Zip validation: preview');
+          const preview = await verifyOpeningPreview();
+          console.info('Zip validation: controls');
+          const controls = verifyOpeningControls(getOpeningTestFixtures()[0].bounds);
+          const drag = await verifyOpeningDragCommit(getOpeningTestFixtures()[0].bounds);
+          document.getElementById('milestones').textContent = JSON.stringify({ geometry, preview, controls, drag });
+          document.getElementById('milestones').dataset.validation = 'passed';
+        } else if (new URLSearchParams(location.search).has('interaction')) {
+          const { mountOpeningDragFixture } = await import('./test_opening_controls.tsx');
+          globalThis.__openingInteraction = mountOpeningDragFixture(getOpeningTestFixtures()[0].bounds);
+        } else {
+          await renderOpeningMilestones(document.getElementById('milestones'));
+        }
+      } catch (error) {
+        document.getElementById('milestones').textContent = `Could not render milestone review: ${error.message}`;
+        console.error(error);
+      }
+    </script>
+  </body>
+</html>

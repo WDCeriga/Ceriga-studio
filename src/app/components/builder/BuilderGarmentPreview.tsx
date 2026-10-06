@@ -1,5 +1,9 @@
-import { useId } from 'react';
+import { createContext, createElement, useContext, useId, type SVGProps } from 'react';
 import type { GarmentType } from '../../data/builderSteps';
+import { resolvePartFabric, type FabricAssignments, type FabricPart } from '../../data/garmentFabrics';
+import { schematicFabricParts } from '../../data/schematicFabricParts';
+import { fabricPatternScale, fabricTextureMotif } from '../../lib/fabricRendering';
+import { fabricScanSurface } from '../../lib/fabricTextureScans';
 import { cn } from '../ui/utils';
 import { constructionColor } from '../../lib/tshirtSvgUtils';
 
@@ -19,11 +23,46 @@ export interface BuilderGarmentPreviewProps {
   neckTrimColor?: string;
   sleeveTrimColor?: string;
   pocketTrimColor?: string;
+  fabricAssignments?: FabricAssignments;
   className?: string;
 }
 
 const VB_W = 520;
 const VB_H = 560;
+
+const FabricContext = createContext<{ assignments?: FabricAssignments; parts: FabricPart[] }>({ parts: [] });
+
+function FabricShape({ as, partId, ...props }: SVGProps<SVGElement> & {
+  as: 'path' | 'rect' | 'ellipse';
+  partId: string;
+}) {
+  const uid = useId().replace(/:/g, '');
+  const { assignments, parts } = useContext(FabricContext);
+  const part = parts.find(candidate => candidate.id === partId);
+  const fabric = part && resolvePartFabric(assignments, part);
+  if (!part || !fabric) return createElement(as, props);
+  const patternId = `schematic-fabric-${uid}`;
+  return (
+    <>
+      <defs>
+        <pattern
+          id={patternId}
+          width={10}
+          height={10}
+          patternUnits="userSpaceOnUse"
+          patternTransform={`scale(${fabricPatternScale(fabric, VB_W, !!part.interior)})`}
+          data-fabric-texture={fabric.id}
+          data-fabric-status={fabricScanSurface(fabric, !!part.interior)?.sourceStatus ?? 'unresolved'}
+          data-fabric-surface={part.interior && fabric.interiorTexture ? fabric.interiorTexture : 'face'}
+        >
+          <rect width={10} height={10} fill={props.fill} />
+          <g dangerouslySetInnerHTML={{ __html: fabricTextureMotif(fabric, !!part.interior) }} />
+        </pattern>
+      </defs>
+      {createElement(as, { ...props, fill: `url(#${patternId})`, 'data-fabric-part': partId, 'data-fabric-base': props.fill })}
+    </>
+  );
+}
 
 const TOP_TORSO =
   'M 110 200 L 110 510 L 410 510 L 410 200 L 330 120 L 260 120 L 190 120 Z';
@@ -109,7 +148,7 @@ function NeckLayer({
     if (resolvedNeck === 'fullzip' || resolvedNeck === 'halfzip') {
       return (
         <g>
-          <path
+          <FabricShape as="path" partId="hood"
             d="M 190 120 Q 260 55 330 120 L 330 95 Q 260 35 190 95 Z"
             fill={shade(fill, -0.08)}
             stroke={stroke}
@@ -129,7 +168,7 @@ function NeckLayer({
     const hoodDepth = resolvedNeck === 'hood-double' ? 48 : 38;
     return (
       <g>
-        <path
+        <FabricShape as="path" partId="hood"
           d={`M 175 115 Q 260 ${115 - hoodDepth} 345 115 L 335 130 Q 260 ${130 - hoodDepth + 12} 185 130 Z`}
           fill={shade(fill, -0.12)}
           stroke={stroke}
@@ -143,7 +182,7 @@ function NeckLayer({
             strokeWidth={4}
           />
         ) : null}
-        <ellipse cx={cx} cy={118} rx={42} ry={14} fill={shade(fill, -0.2)} stroke={stroke} strokeWidth={1} />
+        <FabricShape as="ellipse" partId="hoodInterior" cx={cx} cy={118} rx={42} ry={14} fill={shade(fill, -0.2)} stroke={stroke} strokeWidth={1} />
       </g>
     );
   }
@@ -152,8 +191,8 @@ function NeckLayer({
     if (neckType === 'shirt') {
       return (
         <g>
-          <path d="M 190 120 L 210 155 L 230 120" fill={trim} stroke={stroke} strokeWidth={1} />
-          <path d="M 330 120 L 310 155 L 290 120" fill={trim} stroke={stroke} strokeWidth={1} />
+          <FabricShape as="path" partId="neck" d="M 190 120 L 210 155 L 230 120" fill={trim} stroke={stroke} strokeWidth={1} />
+          <FabricShape as="path" partId="neck" d="M 330 120 L 310 155 L 290 120" fill={trim} stroke={stroke} strokeWidth={1} />
           <path d="M 230 120 L 260 135 L 290 120" fill="none" stroke={stroke} strokeWidth={1.5} />
         </g>
       );
@@ -161,14 +200,14 @@ function NeckLayer({
     if (neckType === 'zip') {
       return (
         <g>
-          <rect x={240} y={95} width={40} height={35} rx={4} fill={trim} stroke={stroke} strokeWidth={1} />
+          <FabricShape as="rect" partId="neck" x={240} y={95} width={40} height={35} rx={4} fill={trim} stroke={stroke} strokeWidth={1} />
           <line x1={cx} y1={130} x2={cx} y2={510} stroke={trimColor ?? '#666'} strokeWidth={3} />
         </g>
       );
     }
     if (neckType === 'mock') {
       return (
-        <rect x={215} y={95} width={90} height={45} rx={6} fill={trim} stroke={stroke} strokeWidth={1.5} />
+        <FabricShape as="rect" partId="neck" x={215} y={95} width={90} height={45} rx={6} fill={trim} stroke={stroke} strokeWidth={1.5} />
       );
     }
   }
@@ -177,14 +216,14 @@ function NeckLayer({
     return (
       <g>
         <path d="M 190 120 L 260 195 L 330 120" fill="none" stroke={stroke} strokeWidth={2.5} />
-        <path d="M 198 120 L 260 188 L 322 120 Z" fill={shade(fill, -0.15)} stroke={trim} strokeWidth={3} />
+        <FabricShape as="path" partId="neck" d="M 198 120 L 260 188 L 322 120 Z" fill={shade(fill, -0.15)} stroke={trim} strokeWidth={3} />
       </g>
     );
   }
 
   if (neckType === 'mock') {
     return (
-      <rect x={215} y={95} width={90} height={50} rx={8} fill={trim} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="rect" partId="neck" x={215} y={95} width={90} height={50} rx={8} fill={trim} stroke={stroke} strokeWidth={1.5} />
     );
   }
 
@@ -196,7 +235,7 @@ function NeckLayer({
     return (
       <g>
         <path d={d} fill="none" stroke={stroke} strokeWidth={2.5} />
-        <path
+        <FabricShape as="path" partId="neck"
           d={neckType === 'square' ? 'M 208 120 L 208 168 L 312 168 L 312 120 Z' : 'M 208 120 Q 260 198 312 120 Z'}
           fill={shade(fill, -0.15)}
           stroke={trim}
@@ -209,7 +248,7 @@ function NeckLayer({
   // crew (default)
   return (
     <g>
-      <ellipse cx={cx} cy={128} rx={48} ry={18} fill={shade(fill, -0.15)} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="ellipse" partId="neck" cx={cx} cy={128} rx={48} ry={18} fill={shade(fill, -0.15)} stroke={stroke} strokeWidth={1.5} />
       <ellipse cx={cx} cy={128} rx={48} ry={18} fill="none" stroke={trim} strokeWidth={4} />
     </g>
   );
@@ -257,8 +296,8 @@ function SleeveLayer({
 
   return (
     <g>
-      <path d={leftPath} fill={fill} stroke={stroke} strokeWidth={1.5} />
-      <path d={rightPath} fill={fill} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="path" partId="sleeveLeft" d={leftPath} fill={fill} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="path" partId="sleeveRight" d={rightPath} fill={fill} stroke={stroke} strokeWidth={1.5} />
       {sleeveType === 'raglan' ? (
         <>
           <line x1={190 + raglanOffset} y1={120} x2={60} y2={175} stroke={stroke} strokeWidth={1.5} strokeDasharray="4 3" />
@@ -320,7 +359,7 @@ function CuffBand({
 
   const bandH = cuffType === 'banded' ? 10 : 14;
   return (
-    <rect
+    <FabricShape as="rect" partId={side === 'left' ? 'sleeveHemLeft' : 'sleeveHemRight'}
       x={x}
       y={y - bandH}
       width={w}
@@ -368,7 +407,7 @@ function HemLayer({
 
   if (hemType === 'ribbed') {
     return (
-      <rect x={110} y={y - 16} width={300} height={16} fill={shade(fill, -0.22)} stroke={stroke} strokeWidth={1} />
+      <FabricShape as="rect" partId="hem" x={110} y={y - 16} width={300} height={16} fill={shade(fill, -0.22)} stroke={stroke} strokeWidth={1} />
     );
   }
 
@@ -555,8 +594,8 @@ function renderBottoms(
   if (garmentType === 'skirt') {
     return (
       <g>
-        <rect x={170} y={120} width={180} height={24} rx={4} fill={shade(fill, -0.1)} stroke={stroke} strokeWidth={1.5} />
-        <path
+        <FabricShape as="rect" partId="waistband" x={170} y={120} width={180} height={24} rx={4} fill={shade(fill, -0.1)} stroke={stroke} strokeWidth={1.5} />
+        <FabricShape as="path" partId="base"
           d={`M 160 144 L 180 ${hemY} L 340 ${hemY} L 360 144 Z`}
           fill={fill}
           stroke={stroke}
@@ -569,9 +608,9 @@ function renderBottoms(
 
   return (
     <g>
-      <rect x={150} y={120} width={220} height={28} rx={6} fill={shade(fill, -0.1)} stroke={stroke} strokeWidth={1.5} />
-      <path d={`M 165 148 L 175 ${legH} L 245 ${legH} L 255 148 Z`} fill={fill} stroke={stroke} strokeWidth={1.5} />
-      <path d={`M 275 148 L 285 ${legH} L 355 ${legH} L 365 148 Z`} fill={fill} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="rect" partId="waistband" x={150} y={120} width={220} height={28} rx={6} fill={shade(fill, -0.1)} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="path" partId="base" d={`M 165 148 L 175 ${legH} L 245 ${legH} L 255 148 Z`} fill={fill} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="path" partId="base" d={`M 275 148 L 285 ${legH} L 355 ${legH} L 365 148 Z`} fill={fill} stroke={stroke} strokeWidth={1.5} />
       <HemLayer hemType={hemType} fill={fill} stroke={stroke} y={legH} />
       {pocketType && pocketType !== 'none' ? (
         <PocketLayer pocketType={pocketType === 'kangaroo' ? 'patch' : pocketType} trimColor={pocketTrim} stroke={stroke} />
@@ -605,7 +644,7 @@ function renderTop(
 
   return (
     <g>
-      <path d={TOP_TORSO} fill={fill} stroke={stroke} strokeWidth={1.5} />
+      <FabricShape as="path" partId="base" d={TOP_TORSO} fill={fill} stroke={stroke} strokeWidth={1.5} />
       <SleeveLayer
         sleeveType={sleeveType}
         sleeveLength={sleeveLength}
@@ -646,12 +685,14 @@ export function BuilderGarmentPreview({
   neckTrimColor,
   sleeveTrimColor,
   pocketTrimColor,
+  fabricAssignments,
   className,
 }: BuilderGarmentPreviewProps) {
   const uid = useId().replace(/:/g, '');
   const fill = color || '#5C7FB6';
   const stroke = constructionColor(fill, shade(fill, -0.35));
   const gradientId = `garment-light-${uid}`;
+  const parts = schematicFabricParts({ garmentType, neckType, sleeveType, sleeveLength, hemType, cuffType, pocketType, zipType });
 
   return (
     <svg
@@ -668,30 +709,32 @@ export function BuilderGarmentPreview({
         </linearGradient>
       </defs>
 
-      {isTopGarment(garmentType)
-        ? renderTop(
-            {
-              garmentType,
-              color: fill,
-              neckType,
-              sleeveType,
-              sleeveLength,
-              hemType,
-              cuffType,
-              pocketType,
-              zipType,
-              fadingType,
-              stitchingType,
-              stitchingColor: constructionColor(fill, stitchingColor ?? stroke),
-              neckTrimColor,
-              sleeveTrimColor,
-              pocketTrimColor,
-            },
-            fill,
-            stroke,
-            uid,
-          )
-        : renderBottoms(garmentType, fill, stroke, hemType, pocketType, pocketTrimColor)}
+      <FabricContext.Provider value={{ assignments: fabricAssignments, parts }}>
+        {isTopGarment(garmentType)
+          ? renderTop(
+              {
+                garmentType,
+                color: fill,
+                neckType,
+                sleeveType,
+                sleeveLength,
+                hemType,
+                cuffType,
+                pocketType,
+                zipType,
+                fadingType,
+                stitchingType,
+                stitchingColor: constructionColor(fill, stitchingColor ?? stroke),
+                neckTrimColor,
+                sleeveTrimColor,
+                pocketTrimColor,
+              },
+              fill,
+              stroke,
+              uid,
+            )
+          : renderBottoms(garmentType, fill, stroke, hemType, pocketType, pocketTrimColor)}
+      </FabricContext.Provider>
 
       <rect
         x={0}

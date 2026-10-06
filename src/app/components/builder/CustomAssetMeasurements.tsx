@@ -49,7 +49,7 @@ export function editAssetDimension(state: AssetState, asset: AssetMeasurement, f
   if (asset.id.startsWith('detail:')) {
     const details = state.garmentDetails ?? [];
     const detail = details.find(item => item.id === asset.sourceId && (item.view ?? 'front') === asset.view);
-    if (!detail) return { error: 'Select this built-in trim in Trims & Details before resizing it.' };
+    if (!detail) return { error: 'Select this built-in trim in Openings & Closures before resizing it.' };
     if (positioning) {
       if (detail.type !== 'patch' && detail.customAsset?.category !== 'pocket') return invalid;
       const normalized = value / asset.cmPerUnit / (field === 'left' ? asset.bounds.maxX - asset.bounds.minX : asset.bounds.maxY - asset.bounds.minY);
