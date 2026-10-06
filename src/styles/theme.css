@@ -334,20 +334,12 @@
     transition: none !important;
   }
 
-  /* ── Picked-up / held feedback for design elements on the canvas ──
-     Kept intentionally cheap so the element stays silky-smooth during drag:
-     just a cursor change + a GPU-composited box-shadow ring. No filters, no
-     scale, no animated pseudo-elements — those cause per-frame repaints.
-  */
+  /* Drag feedback uses the cursor; selection chrome belongs to the transform handles. */
   .canvas-element-drag {
     @apply will-change-transform;
   }
   .canvas-element-held {
     cursor: grabbing !important;
-    box-shadow:
-      0 0 0 1.5px rgba(255, 59, 48, 0.55),
-      0 10px 22px rgba(0, 0, 0, 0.45);
-    border-radius: 4px;
   }
 }
 

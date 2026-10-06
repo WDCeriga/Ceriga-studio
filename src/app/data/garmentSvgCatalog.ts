@@ -92,14 +92,14 @@ const hoodieRegistrations = Object.values(import.meta.glob(
 
 const previousScubaHoods = import.meta.glob<string>(
   '../../assets/studio-hoodie/hoods/supplied-scuba-20260925/previous/*.svg',
-  { eager: true, query: '?raw', import: 'default' },
+  { query: '?raw', import: 'default' },
 );
 
 function hoodieRegistration(assetId: string): HoodiePartRegistration | undefined {
   return hoodieRegistrations.find(registration => registration.assetId === assetId
     && registration.schemaVersion === 1 && registration.fit === 'boxy'
-    && ((registration.construction === 'set-in' && registration.part === 'sleeveLeft'
-      && registration.compatibilityFamily === 'hoodie/boxy/set-in/left-v1'
+    && ((registration.construction === 'dolman' && registration.part === 'sleeveLeft'
+      && registration.compatibilityFamily === 'hoodie/boxy/dolman/v1'
       && registration.transformReferenceAssetId === 'hoodie/Left sleeve/Left sleeve')
     || (registration.part === 'hood' && assetId.startsWith('hoodie/Hood/')
       && registration.compatibilityFamily === 'hoodie/boxy/neckline-v1'
@@ -666,24 +666,38 @@ const svgModules = {
   ...import.meta.glob('../../assets/tshirts/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
   }),
   ...import.meta.glob('../../assets/hoodie-test/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
   }),
   ...import.meta.glob('../../assets/trousers/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
   }),
   ...import.meta.glob('../../assets/tshirt-test/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
   }),
-} as Record<string, string>;
+} as Record<string, () => Promise<string>>;
+
+const svgLoaders = { ...svgModules, ...previousScubaHoods };
+const svgSources = new Map<string, string>();
+const svgLoads = new Map<string, Promise<void>>();
+const assetPaths = new Map<string, string>();
+
+function loadSvgSource(path: string): Promise<void> {
+  const existing = svgLoads.get(path);
+  if (existing) return existing;
+  const loading = svgLoaders[path]().then((raw) => {
+    svgSources.set(path, raw);
+  }).catch((error) => {
+    svgLoads.delete(path);
+    throw error;
+  });
+  svgLoads.set(path, loading);
+  return loading;
+}
 
 function fileNameToDisplayName(fileName: string): string {
   return fileName.replace(/\.svg$/i, '');
@@ -705,18 +719,20 @@ function parseGlobPath(
 const ALL_ASSETS: GarmentAsset[] = (Object.keys(GARMENT_CONFIGS) as GarmentSvgGarmentType[]).flatMap(
   (garmentType) => {
     const config = GARMENT_CONFIGS[garmentType];
-    return Object.entries(svgModules)
-      .map(([path, svgRaw]) => {
+    return Object.keys(svgModules)
+      .map((path) => {
         const parsed = parseGlobPath(path, garmentType);
         if (!parsed) return null;
         const { category, fileName } = parsed;
         if (!config.categoryOrder.includes(category)) return null;
+        const id = `${garmentType}/${category}/${fileNameToDisplayName(fileName)}`;
+        assetPaths.set(id, path);
         return {
-          id: `${garmentType}/${category}/${fileNameToDisplayName(fileName)}`,
+          id,
           category,
           fileName,
           displayName: fileNameToDisplayName(fileName),
-          svgRaw,
+          get svgRaw() { return svgSources.get(path) ?? ''; },
           garmentType,
         };
       })
@@ -859,7 +875,8 @@ export function getGarmentAssetsForFit(
   if (garmentType === 'hoodie' && (category === 'Hood' || category === 'Left sleeve')) {
     return available.sort((a, b) => {
       const rank = (asset: GarmentAsset) =>
-        /^(?:Hood|Left sleeve)(?:\s*\([^)]+\))?$/.test(asset.displayName) ? 0 : 1;
+        /^(?:Hood|Left sleeve)(?:\s*\([^)]+\))?$/.test(asset.displayName) ? 0
+          : asset.displayName === 'Dolman Left sleeve' ? 2 : 1;
       return rank(a) - rank(b);
     });
   }
@@ -920,7 +937,8 @@ export function applyGarmentSelectionLinks(
     const fitSuffix = activeFit === 'boxy' ? '' : ` (${activeFit})`;
     const categories = ['Body', 'Left sleeve', 'Right sleeve'];
     const sleeve = getGarmentAsset(selection['Left sleeve'] ?? '');
-    const prefix = sleeve?.displayName.startsWith('Dropped Shoulder ') ? 'Dropped Shoulder '
+    const prefix = sleeve?.displayName === 'Dolman Left sleeve' ? 'Dolman '
+      : sleeve?.displayName.startsWith('Dropped Shoulder ') ? 'Dropped Shoulder '
       : isHoodieRaglanSelection(selection) ? 'Raglan ' : '';
     const wanted = categories.map((category) => getGarmentAssetsForFit('hoodie', category, activeFit).find(
       (asset) => asset.displayName === `${prefix}${category}${fitSuffix}`,
@@ -977,6 +995,10 @@ export function applyGarmentFitAndLinks(
   const config = GARMENT_CONFIGS[garmentType];
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   let next = { ...selection };
+
+  if (garmentType === 'hoodie' && next['Left sleeve'] === 'hoodie/Left sleeve/Set-in Left sleeve v1 (boxy)') {
+    next['Left sleeve'] = 'hoodie/Left sleeve/Dolman Left sleeve';
+  }
 
   if (resolvedFit && config.fitParts?.[resolvedFit]) {
     for (const [category, displayName] of Object.entries(config.fitParts[resolvedFit])) {
@@ -1113,6 +1135,35 @@ function trimForCategory(
   return undefined;
 }
 
+function garmentLayerSvgPaths(input: ResolveGarmentLayersInput): string[] {
+  const config = GARMENT_CONFIGS[input.garmentType];
+  const selection = applyGarmentSelectionLinks(input.garmentType, input.selection, input.fit);
+  const paths = new Set<string>();
+  for (const category of config.categoryOrder) {
+    const asset = getGarmentAsset(selection[category] ?? '');
+    if (!asset || !config.categoryLayerId[category]) continue;
+    const path = assetPaths.get(asset.id);
+    if (path) paths.add(path);
+    const referenceId = hoodieRegistration(asset.id)?.transformReferenceAssetId;
+    const reference = getGarmentAsset(referenceId ?? asset.id);
+    const referencePath = referenceId ? assetPaths.get(referenceId) : undefined;
+    if (referencePath) paths.add(referencePath);
+    if (asset.garmentType === 'hoodie' && category === 'Hood' && reference) {
+      const previousPath = `../../assets/studio-hoodie/hoods/supplied-scuba-20260925/previous/${reference.fileName}`;
+      if (previousScubaHoods[previousPath]) paths.add(previousPath);
+    }
+  }
+  return [...paths];
+}
+
+export function areGarmentLayerSvgsLoaded(input: ResolveGarmentLayersInput): boolean {
+  return garmentLayerSvgPaths(input).every((path) => svgSources.has(path));
+}
+
+export async function loadGarmentLayerSvgs(input: ResolveGarmentLayersInput): Promise<void> {
+  await Promise.all(garmentLayerSvgPaths(input).map(loadSvgSource));
+}
+
 export function resolveGarmentLayers(input: ResolveGarmentLayersInput): ResolvedGarmentLayer[] {
   const config = GARMENT_CONFIGS[input.garmentType];
   const selection = applyGarmentSelectionLinks(
@@ -1137,7 +1188,7 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     const referenceAssetId = hoodieRegistration(asset.id)?.transformReferenceAssetId;
     const referenceAsset = getGarmentAsset(referenceAssetId ?? asset.id);
     const previousScuba = asset.garmentType === 'hoodie' && category === 'Hood' && referenceAsset
-      ? previousScubaHoods[`../../assets/studio-hoodie/hoods/supplied-scuba-20260925/previous/${referenceAsset.fileName}`]
+      ? svgSources.get(`../../assets/studio-hoodie/hoods/supplied-scuba-20260925/previous/${referenceAsset.fileName}`)
       : undefined;
 
     layers.push({

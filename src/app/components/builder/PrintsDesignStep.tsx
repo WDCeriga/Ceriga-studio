@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal, flushSync } from 'react-dom';
+import { textCurveRadius, updateTextCurve, type TextCurvePatch } from '../../lib/textCurveControls';
 import { cn } from '../ui/utils';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,24 +14,31 @@ import {
   BringToFront,
   SendToBack,
   Minus,
-  FlipHorizontal2,
   Copy,
   Square,
   Lock,
   Unlock,
   RotateCw,
+  RotateCcw,
+  Scan,
   AlignLeft,
   AlignCenter,
   AlignRight,
   AlignJustify,
   Italic,
+  List,
+  ListOrdered,
   Check,
   GripVertical,
   Brush,
   Link2,
   Unlink2,
+  Eye,
+  EyeOff,
+  PenTool,
+  ImagePlus,
+  Waves,
 } from 'lucide-react';
-import imgBlackTshirt from 'figma:asset/5ee0ca76b195616586aa1b9f9185c6dec1cdd3a7.png';
 import {
   snapDragInZone,
   getRenderedTextBoxInZone,
@@ -46,8 +54,25 @@ import {
 } from '../../lib/designLayerOrder';
 import { StudioColorField } from './StudioColorField';
 import { STUDIO_TEXT_MAIN_COLORS, STUDIO_TEXT_POPULAR_COLORS } from '../../data/studioColorPresets';
+import {
+  completeTextListInputMarker,
+  continueTextListInput,
+  formatTextListInput,
+  parseTextListInput,
+  type TextListKind,
+} from '../../lib/textListEditing';
 import { InlineElementToolbar } from './InlineElementToolbar';
+import { FlipControls } from './printsStudio/FlipControls';
+import { artworkFlipStyle } from '../../lib/artworkFlip';
+import { canMergeLayer, mergeLayersIssue, flattenDesignLayers, replaceMergedLayers } from '../../lib/mergeDesignLayers';
+import { PATTERN_CATALOG } from '../../lib/patternCatalog';
+import { changePatternType, initialPatternSettings, patternAppearance, type PatternPatch, type CustomPatternSource } from '../../lib/patternEditing';
+import { canGroupLayer, groupLayersIssue, groupDesignLayers, ungroupLayersIssue, ungroupDesignLayer, toggleLayerSelection } from '../../lib/designGroups';
+import { DesignGroupArtwork } from './printsStudio/DesignGroupArtwork';
+import { normalizeCrop, buildArtworkClipPath, type CropInsets } from '../../lib/artworkCrop';
+import { CropEditorControls, CropEditingOverlay as InteractiveCropOverlay } from './printsStudio/CropEditor';
 import { PrintsStudioToolbar } from './printsStudio/PrintsStudioToolbar';
+import { ASSET_LIBRARY_DRAG_MIME, useAssetWorkspaceContext } from './printsStudio/AssetWorkspace';
 import { PrintsDrawLayer } from './printsStudio/PrintsDrawLayer';
 import { DRAWING_LAYER_ID, DISTRESS_LAYER_ID, usePrintsStudio } from './printsStudio/PrintsStudioContext';
 import {
@@ -59,44 +84,119 @@ import {
 } from './printsStudio/designLibrary';
 import {
   STUDIO_DRAG_MIME,
+  canFillShape,
   decodeStudioDrag,
   defaultPatternCount,
   defaultStudioSize,
   type StudioAssetKind,
 } from './printsStudio/studioAssets';
 import { StudioGraphic } from './printsStudio/StudioGraphic';
+import { DesignAssetSurface } from './printsStudio/DesignAssetSurface';
+import { artworkAtPoint } from '../../lib/artworkHitTesting';
+import { drawingMaskCss, useGarmentDrawingMask } from './printsStudio/useGarmentDrawingMask';
+import { targetContains, useGarmentPatternTargets } from './printsStudio/useGarmentPatternTargets';
+import type { Quad } from '../../lib/designGeometry';
+import { parsePaint, paintCss, paintDataUrl, solidPaint } from '../../lib/studioPaint';
+import { DEFAULT_IMAGE_ADJUSTMENTS, IMAGE_ADJUSTMENTS, imageAdjustmentFilter, snapImageRotation, type ImageAdjustmentValues } from '../../lib/imageAdjustments';
+import { ImageAdjustmentDefs } from './printsStudio/ImageAdjustmentDefs';
+import type { ImageFilterSettings } from '../../lib/imageFilters';
+import type { TextEffect } from '../../lib/textEffects';
+import { TextEffectsPanel } from './printsStudio/TextEffectsPanel';
+import { ShapeEffectsPanel } from './printsStudio/ShapeEffectsPanel';
+import { ShapePropertiesPanel } from './printsStudio/ShapePropertiesPanel';
+import { ShapePathEditor, ShapePolygonDraft } from './printsStudio/ShapePathEditor';
+import { shapeToEditablePath, type ShapePath } from '../../lib/shapeGeometry';
+import { FilteredImage } from './printsStudio/FilteredImage';
+import { CustomAreaGraphic } from './printsStudio/CustomAreaGraphic';
+import { TextArtwork } from './printsStudio/TextArtwork';
+import { createWarpSettings, resizeWarpGrid, warpGrid, type WarpPreset, type WarpSettings } from '../../lib/warpGeometry';
+import { customAreaBounds, customAreaGeometryPatch, customAreaPath, customAreaTransformedPath, customAreaViewport, nearestCustomAreaSegment, splitCustomAreaSegment, type CustomAreaPoint } from '../../lib/customAreaGeometry';
+import { shapePointMapping } from '../../lib/shapePathEditing';
+import { CustomAreaPathEditor } from './printsStudio/CustomAreaPathEditor';
+import { CustomAreaPathControls } from './printsStudio/CustomAreaPathControls';
+import { CustomAreaAppearanceControls } from './printsStudio/CustomAreaAppearanceControls';
 
-export interface DesignElement {
+export interface DesignElement extends ImageAdjustmentValues {
   id: string;
-  type: 'image' | 'text' | 'drawing' | 'shape' | 'pattern' | 'distress';
+  layerName?: string;
+  imageFilter?: ImageFilterSettings;
+  textEffects?: TextEffect[];
+  type: 'image' | 'text' | 'drawing' | 'shape' | 'pattern' | 'distress' | 'customArea' | 'group';
+  children?: DesignElement[];
+  groupSourceWidth?: number;
+  groupSourceHeight?: number;
+  /** Retains the original coordinate system after ungrouping transformed artwork. */
+  groupTransformEnvelope?: boolean;
   content: string;
   x: number;
   y: number;
   width: number;
   height: number;
   rotation: number;
+  shapeGeometry?: 'bounds';
+  shapeFilled?: boolean;
+  shapeParameters?: Record<string, number | string>;
+  shapePath?: ShapePath;
+  shapeFillColor?: string;
+  shapeStrokeColor?: string;
+  shapeEffects?: TextEffect[];
+  perspective?: Quad;
   fontSize?: number;
   fontFamily?: string;
   color?: string;
   /** Text blocks only */
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   fontStyle?: 'normal' | 'italic';
+  fontWeight?: 'normal' | 'bold';
   textTransform?: 'none' | 'uppercase' | 'lowercase';
   /** Letter spacing in px */
   letterSpacing?: number;
+  /** Text line height in percent of font size. */
+  lineSpacing?: number;
+  textFillMode?: 'filled' | 'outline' | 'fill-outline';
+  textUnderline?: boolean;
+  textStrikethrough?: boolean;
+  textLinePosition?: 'top' | 'middle' | 'bottom' | 'none';
+  textLineColor?: string;
+  textLineThickness?: number;
+  textLineOffset?: number;
+  textCurveAmount?: number;
+  textCurveShape?: 'arc' | 'circle';
+  textCurveDirection?: 'up' | 'down';
+  textCurveRadius?: number;
+  textCurveSpacing?: number;
+  textCurveSide?: 'inside' | 'outside';
+  textCurveOriginalBox?: {
+    width: number;
+    height: number;
+    autoWidth?: boolean;
+    autoHeight?: boolean;
+    aspectLocked?: boolean;
+    textCurveRadius?: number;
+  };
+  verticalText?: boolean;
+  textList?: 'none' | 'bulleted' | 'numbered';
+  textListLineStyles?: TextListKind[];
+  textListIndent?: number;
   /** Outline width in px (0 = none) */
   borderWidth?: number;
   borderColor?: string;
   /** 0–100 */
   opacity?: number;
-  /** Mirror artwork horizontally (images) */
+  /** Mirror artwork contents without moving garment or Custom Area clipping boundaries. */
   flipHorizontal?: boolean;
+  flipVertical?: boolean;
   /** Drop shadow blur (0 = none); follows glyph / image alpha */
   shadowBlur?: number;
   shadowColor?: string;
+  shadowOffsetX?: number;
   shadowOffsetY?: number;
+  shadowOpacity?: number;
+  shadowEdge?: 'sharp' | 'round';
+  textShadowEnabled?: boolean;
   /** When true, print cannot be dragged on the preview */
   locked?: boolean;
+  hidden?: boolean;
   /** Print process for this layer (DTG, DTF, etc.) */
   printMethod?: string;
   /** Image only — rounds the rendered artwork corners (px). */
@@ -122,8 +222,41 @@ export interface DesignElement {
   filterContrast?: number;
   /** Image / drawing — CSS saturation (100 = unchanged). */
   filterSaturate?: number;
+  filterBlur?: number;
   /** Pattern tile count / grid density (e.g. 4 = 4×4 checks). */
   patternCount?: number;
+  patternScale?: number;
+  patternSpacing?: number;
+  patternRotation?: number;
+  patternThickness?: number;
+  patternRandomise?: boolean;
+  patternSeed?: number;
+  patternSpacingX?: number;
+  patternSpacingY?: number;
+  patternColors?: string[];
+  patternRoughness?: number;
+  patternVariation?: number;
+  patternSource?: string;
+  patternSourceName?: string;
+  patternSourceWidth?: number;
+  patternSourceHeight?: number;
+  patternRepeat?: 'grid' | 'brick' | 'half-drop' | 'mirror' | 'random';
+  patternRandomPosition?: number;
+  patternRandomRotation?: number;
+  patternMinScale?: number;
+  patternMaxScale?: number;
+  patternTarget?: string;
+  customAreaPoints?: CustomAreaPoint[];
+  customAreaViewWidth?: number;
+  customAreaViewHeight?: number;
+  customAreaOutline?: { enabled: boolean; color: string; width: number; opacity: number; style: 'solid' | 'dashed' | 'dotted' };
+  customAreaTexture?: string;
+  customAreaFillTransform?: { scale: number; rotation: number; x: number; y: number; opacity: number };
+  customAreaOpen?: boolean;
+  customAreaName?: string;
+  customAreaPattern?: string;
+  customAreaImage?: string;
+  warp?: WarpSettings;
   /** When true, width and height stay proportional while resizing. Images default on. */
   aspectLocked?: boolean;
   /** Front or back of the garment. Missing values are treated as front. */
@@ -136,7 +269,8 @@ export function designElementSide(el: Pick<DesignElement, 'side'>): 'front' | 'b
 
 interface PrintsDesignStepProps {
   elements: DesignElement[];
-  onChange: (elements: DesignElement[]) => void;
+  /** Merge supplies selection atomically so Undo never restores a deleted selection. */
+  onChange: (elements: DesignElement[], selectedLayerId?: string) => void;
   /** When set with `onSelectedLayerIdChange`, selection is controlled (sync with live preview). */
   selectedLayerId?: string | null;
   onSelectedLayerIdChange?: (id: string | null) => void;
@@ -146,9 +280,16 @@ interface PrintsDesignStepProps {
   garmentSide?: 'front' | 'back';
 }
 
+export type PrintsCanvasSize = { width: number; height: number };
+
 interface PrintsDesignPreviewProps {
+  assetMode?: boolean;
+  canvasSize?: PrintsCanvasSize;
+  onCanvasSizeChange?: (size: PrintsCanvasSize) => void;
+  garmentInteractive?: boolean;
+  garmentPreview: ReactNode | ((sceneScale: number) => ReactNode);
   elements: DesignElement[];
-  onChange?: (elements: DesignElement[]) => void;
+  onChange?: (elements: DesignElement[], selectedLayerId?: string) => void;
   editable?: boolean;
   className?: string;
   selectedLayerId?: string | null;
@@ -183,6 +324,14 @@ export const PRINT_METHODS = [
 
 export const DEFAULT_PRINT_METHOD = PRINT_METHODS[0];
 
+const WARP_PRESETS: { id: WarpPreset; label: string }[] = [
+  { id: 'arc', label: 'Arc' }, { id: 'arc-lower', label: 'Arc Lower' },
+  { id: 'arc-upper', label: 'Arc Upper' }, { id: 'arch', label: 'Arch' },
+  { id: 'bulge', label: 'Bulge' }, { id: 'squeeze', label: 'Squeeze' },
+  { id: 'wave', label: 'Wave' }, { id: 'flag', label: 'Flag' },
+  { id: 'fish', label: 'Fish' }, { id: 'rise', label: 'Rise' },
+];
+
 /** Longer labels for consistent terminology in the UI (abbrev + plain English). */
 export const PRINT_METHOD_DESCRIPTIONS: Record<(typeof PRINT_METHODS)[number], string> = {
   DTG: 'Direct-to-garment (DTG)',
@@ -213,8 +362,10 @@ export function hasImageFx(el: {
   type?: DesignElement['type'];
   borderWidth?: number;
   shadowBlur?: number;
+  textShadowEnabled?: boolean;
 }): boolean {
-  if (el.type !== 'image' && el.type !== 'drawing') return false;
+  if (el.type !== 'image' && el.type !== 'drawing' && el.type !== 'text') return false;
+  if (el.type === 'text') return el.textShadowEnabled ?? (el.shadowBlur ?? 0) > 0;
   return (el.borderWidth ?? 0) > 0 || (el.shadowBlur ?? 0) > 0;
 }
 
@@ -224,26 +375,19 @@ export function getImageFilterStyle(el: {
   type?: 'image' | 'text' | 'drawing';
   borderWidth?: number;
   shadowBlur?: number;
+  textShadowEnabled?: boolean;
 }): string | undefined {
   return hasImageFx(el) ? `url(#fx-${el.id})` : undefined;
 }
 
-export function getArtworkAdjustFilter(el: {
-  filterBrightness?: number;
-  filterContrast?: number;
-  filterSaturate?: number;
-}): string | undefined {
-  const b = el.filterBrightness ?? 100;
-  const c = el.filterContrast ?? 100;
-  const s = el.filterSaturate ?? 100;
-  if (b === 100 && c === 100 && s === 100) return undefined;
-  return `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+export function getArtworkAdjustFilter(el: ImageAdjustmentValues & { id?: string }): string | undefined {
+  return imageAdjustmentFilter(el);
 }
 
 export function composeArtworkFilter(
   el: Parameters<typeof getImageFilterStyle>[0] & Parameters<typeof getArtworkAdjustFilter>[0],
 ): string | undefined {
-  const parts = [getImageFilterStyle(el), getArtworkAdjustFilter(el)].filter(Boolean);
+  const parts = [getArtworkAdjustFilter(el), getImageFilterStyle(el)].filter(Boolean);
   return parts.length ? parts.join(' ') : undefined;
 }
 
@@ -258,15 +402,26 @@ export function ImageFxDefs({
     borderColor?: string;
     shadowBlur?: number;
     shadowColor?: string;
+    shadowOffsetX?: number;
     shadowOffsetY?: number;
+    shadowOpacity?: number;
+    shadowEdge?: 'sharp' | 'round';
+    textShadowEnabled?: boolean;
   };
 }) {
   if (!hasImageFx(element)) return null;
-  const bw = Math.max(0, element.borderWidth ?? 0);
+  const bw = element.type === 'text' ? 0 : Math.max(0, element.borderWidth ?? 0);
   const bc = element.borderColor ?? '#FFFFFF';
   const sb = Math.max(0, element.shadowBlur ?? 0);
+  const hasShadow = sb > 0 || (element.type === 'text' && element.textShadowEnabled === true);
   const sc = element.shadowColor ?? '#000000';
-  const so = element.shadowOffsetY ?? 6;
+  const sx = element.type === 'text'
+    ? Math.max(-8, Math.min(8, element.shadowOffsetX ?? 0))
+    : element.shadowOffsetX ?? 0;
+  const so = element.type === 'text'
+    ? Math.max(-8, Math.min(8, element.shadowOffsetY ?? 2))
+    : element.shadowOffsetY ?? 6;
+  const shadowOpacity = Math.max(0, Math.min(100, element.shadowOpacity ?? 100)) / 100;
   return (
     <svg
       aria-hidden
@@ -276,10 +431,10 @@ export function ImageFxDefs({
       <defs>
         <filter
           id={`fx-${element.id}`}
-          x="-50%"
-          y="-50%"
-          width="200%"
-          height="200%"
+          x="-100%"
+          y="-100%"
+          width="300%"
+          height="300%"
           colorInterpolationFilters="sRGB"
         >
           {bw > 0 ? (
@@ -290,7 +445,7 @@ export function ImageFxDefs({
                 radius={bw}
                 result="outlineMask"
               />
-              <feFlood floodColor={bc} result="outlineFill" />
+              {parsePaint(bc) ? <feImage href={paintDataUrl(bc)} x="-50%" y="-50%" width="200%" height="200%" preserveAspectRatio="none" result="outlineFill" /> : <feFlood floodColor={bc} result="outlineFill" />}
               <feComposite
                 in="outlineFill"
                 in2="outlineMask"
@@ -299,13 +454,28 @@ export function ImageFxDefs({
               />
             </>
           ) : null}
-          {sb > 0 ? (
+          {hasShadow ? (
             <>
-              <feGaussianBlur in="SourceAlpha" stdDeviation={sb / 2} result="shadowBlur" />
-              <feOffset in="shadowBlur" dx={0} dy={so} result="shadowOffset" />
-              <feFlood floodColor={sc} result="shadowFill" />
+              {element.shadowEdge === 'round' ? (
+                <feMorphology
+                  in="SourceAlpha"
+                  operator="dilate"
+                  radius={Math.max(0.5, sb * 0.08)}
+                  result="shadowSource"
+                />
+              ) : null}
+              <feGaussianBlur
+                in={element.shadowEdge === 'round' ? 'shadowSource' : 'SourceAlpha'}
+                stdDeviation={sb / 2}
+                result="shadowBlur"
+              />
+              <feOffset in="shadowBlur" dx={sx} dy={so} result="shadowOffset" />
+              {parsePaint(sc) ? <feImage href={paintDataUrl(sc)} x="-50%" y="-50%" width="200%" height="200%" preserveAspectRatio="none" result="shadowFill" /> : <feFlood floodColor={sc} result="shadowFill" />}
+              <feComponentTransfer in="shadowFill" result="shadowFillOpacity">
+                <feFuncA type="linear" slope={shadowOpacity} />
+              </feComponentTransfer>
               <feComposite
-                in="shadowFill"
+                in="shadowFillOpacity"
                 in2="shadowOffset"
                 operator="in"
                 result="shadowShape"
@@ -313,7 +483,7 @@ export function ImageFxDefs({
             </>
           ) : null}
           <feMerge>
-            {sb > 0 ? <feMergeNode in="shadowShape" /> : null}
+            {hasShadow ? <feMergeNode in="shadowShape" /> : null}
             {bw > 0 ? <feMergeNode in="outlineShape" /> : null}
             <feMergeNode in="SourceGraphic" />
           </feMerge>
@@ -339,75 +509,11 @@ export function CropEditingOverlay({
     cropLeft?: number;
   };
 }) {
-  const t = Math.max(0, Math.min(99, element.cropTop ?? 0));
-  const r = Math.max(0, Math.min(99, element.cropRight ?? 0));
-  const b = Math.max(0, Math.min(99, element.cropBottom ?? 0));
-  const l = Math.max(0, Math.min(99, element.cropLeft ?? 0));
-  const veil = 'rgba(4,6,12,0.62)';
-  return (
-    <div
-      className="pointer-events-none absolute inset-0"
-      aria-hidden
-      style={{ zIndex: 2 }}
-    >
-      {t > 0 ? (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: `${t}%`, background: veil }} />
-      ) : null}
-      {b > 0 ? (
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${b}%`, background: veil }} />
-      ) : null}
-      {l > 0 ? (
-        <div style={{ position: 'absolute', top: `${t}%`, bottom: `${b}%`, left: 0, width: `${l}%`, background: veil }} />
-      ) : null}
-      {r > 0 ? (
-        <div style={{ position: 'absolute', top: `${t}%`, bottom: `${b}%`, right: 0, width: `${r}%`, background: veil }} />
-      ) : null}
-      <div
-        style={{
-          position: 'absolute',
-          top: `${t}%`,
-          bottom: `${b}%`,
-          left: `${l}%`,
-          right: `${r}%`,
-          border: '1.5px dashed rgba(255,255,255,0.95)',
-          boxShadow: '0 0 0 1px rgba(0,0,0,0.55), 0 0 18px rgba(0,0,0,0.35)',
-          boxSizing: 'border-box',
-        }}
-      >
-        {(
-          [
-            { top: -1, left: -1, bt: true, bl: true },
-            { top: -1, right: -1, bt: true, br: true },
-            { bottom: -1, left: -1, bb: true, bl: true },
-            { bottom: -1, right: -1, bb: true, br: true },
-          ] as const
-        ).map((corner, i) => (
-          <span
-            key={i}
-            style={{
-              position: 'absolute',
-              width: 14,
-              height: 14,
-              top: corner.top,
-              left: corner.left,
-              right: corner.right,
-              bottom: corner.bottom,
-              borderTop: corner.bt ? '3px solid #FFFFFF' : undefined,
-              borderBottom: corner.bb ? '3px solid #FFFFFF' : undefined,
-              borderLeft: corner.bl ? '3px solid #FFFFFF' : undefined,
-              borderRight: corner.br ? '3px solid #FFFFFF' : undefined,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
+  return <InteractiveCropOverlay element={element} />;
 }
 
 /**
- * Combined `clip-path: inset(t r b l round X%)` from crop fields + corner rounding.
- * Corner radius is stored as a percentage (0–50%) so the rounding scales with the element size,
- * matching Canva's "corner rounding" slider.
+ * Shared non-destructive crop insets with pixel-based corner rounding.
  *
  * Pass `ignoreCrop: true` to get only the rounded-corner part (useful while actively editing a
  * crop so the user can see the full artwork).
@@ -422,18 +528,7 @@ export function buildImageClipPath(
   },
   opts?: { ignoreCrop?: boolean },
 ): string | undefined {
-  const t = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropTop ?? 0));
-  const r = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropRight ?? 0));
-  const b = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropBottom ?? 0));
-  const l = opts?.ignoreCrop ? 0 : Math.max(0, Math.min(100, el.cropLeft ?? 0));
-  // Pixel-based corner radius: applies an equal radius to both axes so non-square
-  // images still get true round corners (percentages would produce elliptical ones).
-  const rad = Math.max(0, Math.min(50, el.cornerRadius ?? 0));
-  const hasCrop = t > 0 || r > 0 || b > 0 || l > 0;
-  const hasRound = rad > 0;
-  if (!hasCrop && !hasRound) return undefined;
-  const roundPart = hasRound ? ` round ${rad}px` : '';
-  return `inset(${t}% ${r}% ${b}% ${l}%${roundPart})`;
+  return buildArtworkClipPath(el, opts);
 }
 
 /** Align snap “middle” guides with the visible shirt centre (mockup perspective). */
@@ -513,6 +608,7 @@ export function PrintTransformOverlay({
   compactHandles = false,
   /** Phone + text: only corner scale + right-edge width (no rotate, other edges, or extra corners). */
   phoneTextMinimal = false,
+  tight = false,
 }: {
   onRotatePointerDown: (e: React.PointerEvent) => void;
   onResizePointerDown: (e: React.PointerEvent, h: ResizeHandle) => void;
@@ -520,8 +616,9 @@ export function PrintTransformOverlay({
   comfortableTouch?: boolean;
   compactHandles?: boolean;
   phoneTextMinimal?: boolean;
+  tight?: boolean;
 }) {
-  const inv = uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
+  const inv = !tight && uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
   const invStyle =
     inv === 1
       ? undefined
@@ -536,12 +633,12 @@ export function PrintTransformOverlay({
       >
         <div
           className="pointer-events-none absolute rounded-md border-2 bg-gradient-to-b from-[#CC2D24]/10 to-transparent"
-          style={{ borderColor: `${HANDLE_RED}cc`, inset: '-1px' }}
+          style={{ borderColor: `${HANDLE_RED}cc`, inset: tight ? 0 : '-1px', borderRadius: tight ? 0 : undefined }}
         />
         <button
           type="button"
           aria-label="Scale from corner"
-          className="pointer-events-auto absolute -left-1.5 -top-1.5 z-[60] h-3 w-3 touch-none rounded-full border-2 border-zinc-300/95 bg-white shadow-sm active:scale-95"
+          className="pointer-events-auto absolute -left-1.5 -top-1.5 z-[60] h-3 w-3 touch-none rounded-full before:absolute before:inset-0.5 before:rounded-full before:border before:border-zinc-300/95 before:bg-white before:shadow-sm active:scale-95"
           onPointerDown={(e) => onResizePointerDown(e, 'nw')}
         />
         <button
@@ -557,9 +654,8 @@ export function PrintTransformOverlay({
   const large = comfortableTouch && !compactHandles;
   const dot = cn(
     /** `pointer-events-auto`: parent `data-handles` uses `pointer-events-none` so handles stay above the inline toolbar without stealing clicks from the pill. */
-    'pointer-events-auto absolute z-[60] touch-none items-center justify-center rounded-full bg-[#09090B] active:scale-95',
-    compactHandles ? 'flex h-2.5 w-2.5 border border-[#CC2D24]' : 'border-2',
-    !compactHandles && (large ? 'flex h-5 w-5' : 'flex h-3.5 w-3.5'),
+    'pointer-events-auto absolute z-[60] flex touch-none items-center justify-center rounded-full before:absolute before:rounded-full before:border before:border-[#CC2D24] before:bg-[#09090B] active:scale-95',
+    compactHandles ? 'h-2.5 w-2.5 before:inset-0.5' : large ? 'h-5 w-5 before:inset-1' : 'h-3.5 w-3.5 before:inset-[3px]',
   );
   /** Single red ring (border only) — avoid border + box-shadow or duplicate rings on mobile. */
   const dotStyle = compactHandles ? undefined : { borderColor: HANDLE_RED };
@@ -579,7 +675,7 @@ export function PrintTransformOverlay({
           'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#CC2D24]/12 to-transparent',
           off.box,
         )}
-        style={{ borderColor: `${HANDLE_RED}aa` }}
+        style={{ borderColor: `${HANDLE_RED}aa`, inset: tight ? 0 : undefined, borderRadius: tight ? 0 : undefined }}
       />
       <button
         type="button"
@@ -727,6 +823,8 @@ function SliderField({
   max,
   onChange,
   suffix,
+  step = 1,
+  onReset,
 }: {
   label: string;
   value: number;
@@ -734,21 +832,29 @@ function SliderField({
   max: number;
   onChange: (n: number) => void;
   suffix: string;
+  step?: number;
+  onReset?: () => void;
 }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{label}</span>
-        <span className="text-[10px] font-semibold tabular-nums text-white/65">
-          {value}
-          {suffix}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-semibold tabular-nums text-white/65">{value}{suffix}</span>
+          {onReset && <button type="button" aria-label={`Reset ${label}`} title={`Reset ${label}`}
+            onClick={onReset} className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-white/55 hover:bg-white/10 hover:text-white">
+            <RotateCcw className="h-3 w-3" />
+          </button>}
+        </div>
       </div>
       <input
         type="range"
+        aria-label={label}
         min={min}
         max={max}
+        step={step}
         value={value}
+        onDoubleClick={onReset}
         onChange={(e) => onChange(Number(e.target.value))}
         className="h-2 w-full cursor-pointer accent-[#FF3B30] disabled:opacity-40"
       />
@@ -791,8 +897,8 @@ export function SidebarNumberField({
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {
             const n = Number(draft);
-            if (Number.isFinite(n)) onChange(n);
-            else setDraft(String(value));
+            if (!Number.isFinite(n)) setDraft(String(value));
+            else if (n !== value) onChange(n);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
@@ -815,6 +921,8 @@ export function PrintsDesignStep({
   usePhoneStrips = false,
   garmentSide = 'front',
 }: PrintsDesignStepProps) {
+  const assetWorkspace = useAssetWorkspaceContext();
+  const assetMode = Boolean(assetWorkspace?.project);
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
   const selectedId = selectionControlled ? (selectedLayerIdProp ?? null) : fallbackSelectedId;
@@ -848,13 +956,65 @@ export function PrintsDesignStep({
     [elements, selectedId],
   );
   const sideElements = useMemo(
-    () => elements.filter((item) => designElementSide(item) === garmentSide),
+    () => elements.filter((item) => designElementSide(item) === garmentSide && !item.customAreaOpen),
     [elements, garmentSide],
   );
   const studio = usePrintsStudio();
   const setSelectedIdRef = useRef(setSelectedId);
   setSelectedIdRef.current = setSelectedId;
   const studioPanelRef = useRef(studio.panel);
+  useEffect(() => {
+    if (selectedId?.startsWith('asset-')) studio.setTool('select');
+  }, [selectedId, studio.setTool]);
+  const [mergeIds, setMergeIds] = useState<string[]>([]);
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
+  const mergeIssue = mergeLayersIssue(elements, mergeIds);
+  const groupIssue = groupLayersIssue(elements, mergeIds);
+  const ungroupIssue = ungroupLayersIssue(selected);
+  const groupSelectedLayers = () => {
+    if (groupIssue || merging) return;
+    const id = `group-${crypto.randomUUID()}`;
+    studio.setTool('select');
+    onChange(groupDesignLayers(elements, mergeIds, id), id);
+    if (!selectionControlled) setSelectedId(id);
+    setMergeIds([]); setMergeError(null);
+  };
+  const ungroupSelectedLayer = () => {
+    if (ungroupIssue || !selected || merging) return;
+    const next = ungroupDesignLayer(elements, selected.id, () => `group-${crypto.randomUUID()}`);
+    const nextIds = next.filter(element => !elements.some(old => old.id === element.id)).map(element => element.id);
+    studio.setTool('select');
+    onChange(next, nextIds[0] ?? null);
+    if (!selectionControlled) setSelectedId(nextIds[0] ?? null);
+    setMergeIds(nextIds); setMergeError(null);
+  };
+  const activeSideRef = useRef(garmentSide);
+  activeSideRef.current = garmentSide;
+  useEffect(() => { setMergeIds([]); setMergeError(null); }, [garmentSide]);
+  useEffect(() => {
+    setMergeIds(previous => previous.filter(id => elements.some(element => element.id === id && (canGroupLayer(element) || canMergeLayer(element)))));
+  }, [elements]);
+  const mergeSelectedLayers = async () => {
+    if (mergeIssue || merging) return;
+    const renderer = studio.layerRenderer.current;
+    if (!renderer) { setMergeError('The garment preview is not ready.'); return; }
+    const snapshot = elements;
+    const side = garmentSide;
+    setMerging(true); setMergeError(null);
+    studio.setTool('select'); studio.setCropEditingId(null);
+    studio.setWarpEditingId(null); studio.setDistortEditingId(null);
+    try {
+      const artwork = await renderer(mergeIds);
+      if (elementsRef.current !== snapshot || activeSideRef.current !== side) throw new Error('The design changed during merging. Select the layers and try again.');
+      const id = `merged-${crypto.randomUUID()}`;
+      onChangeRef.current(replaceMergedLayers(snapshot, mergeIds, artwork, id), id);
+      if (!selectionControlled) setSelectedId(id);
+      setMergeIds([]);
+    } catch (error) {
+      setMergeError(error instanceof Error ? error.message : 'The layers could not be merged. Nothing was changed.');
+    } finally { setMerging(false); }
+  };
 
   useEffect(() => {
     void hydrateFontLibrary().then((names) => {
@@ -882,8 +1042,10 @@ export function PrintsDesignStep({
   useEffect(() => {
     if (studioPanelRef.current === studio.panel) return;
     studioPanelRef.current = studio.panel;
+    const current = elementsRef.current.find(element => element.id === selectedId);
+    if (studio.panel === 'patterns' && (current?.type === 'pattern' || current?.customAreaPattern)) return;
     setSelectedIdRef.current(null);
-  }, [studio.panel]);
+  }, [studio.panel, selectedId]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -901,14 +1063,30 @@ export function PrintsDesignStep({
     onChange(elements.map((item) => (item.id === selectedId ? { ...item, ...patch } : item)));
   };
 
+  const startCustomArea = () => {
+    setSelectedId(null);
+    studio.setCustomAreaPointSelection(null);
+  };
+
   const updateFontSize = (delta: number) => {
     if (!selected || selected.type !== 'text') return;
     const next = Math.max(12, Math.min(96, (selected.fontSize ?? 30) + delta));
+    if (selected.textCurveShape === 'circle' && (selected.textCurveAmount ?? 0) > 0) {
+      const radius = textCurveRadius(selected);
+      const size = Math.ceil((radius + next) * 2);
+      updateSelected({ fontSize: next, width: size, height: size });
+      return;
+    }
     updateSelected({
       fontSize: next,
       width: Math.max(110, Math.min(260, (selected.width || 170) + delta * 2)),
       height: Math.max(40, next + 18),
     });
+  };
+
+  const updateCurve = (patch: TextCurvePatch) => {
+    if (!selected || selected.type !== 'text') return;
+    updateSelected(updateTextCurve(selected, patch));
   };
 
   const handleUploadImage = () => {
@@ -967,10 +1145,12 @@ export function PrintsDesignStep({
       cx = zone.clientWidth / 2;
       cy = zone.clientHeight / 2;
     }
+    const listInput = parseTextListInput(textInput);
     const next: DesignElement = {
       id: `${Date.now()}`,
       type: 'text',
-      content: textInput,
+      content: listInput.content,
+      textListLineStyles: listInput.lineStyles,
       x: cx,
       y: cy,
       width: narrow ? 132 : 170,
@@ -987,12 +1167,34 @@ export function PrintsDesignStep({
       flipHorizontal: false,
       shadowBlur: 0,
       shadowColor: 'rgba(0,0,0,0.55)',
-      shadowOffsetY: 6,
+      shadowOffsetX: 0,
+      shadowOffsetY: 2,
+      shadowOpacity: 70,
+      shadowEdge: 'round',
+      textShadowEnabled: false,
       locked: false,
       textAlign: 'center',
       fontStyle: 'normal',
       textTransform: 'none',
       letterSpacing: 0,
+      lineSpacing: 115,
+      fontWeight: 'normal',
+      textFillMode: 'filled',
+      textUnderline: false,
+      textStrikethrough: false,
+      textLinePosition: 'none',
+      textLineColor: '#FFFFFF',
+      textLineThickness: 0.5,
+      textLineOffset: 0,
+      textCurveAmount: 0,
+      textCurveShape: 'arc',
+      textCurveDirection: 'up',
+      textCurveRadius: 260,
+      textCurveSpacing: 0,
+      textCurveSide: 'outside',
+      verticalText: false,
+      textList: 'none',
+      textListIndent: 18,
       printMethod: DEFAULT_PRINT_METHOD,
       side: garmentSide,
     };
@@ -1001,15 +1203,36 @@ export function PrintsDesignStep({
     setTextInput('');
   };
 
-  const placeStudioAsset = (kind: StudioAssetKind, id: string, at?: { x: number; y: number }) => {
+  const capturePatternLayer = async (id: string): Promise<CustomPatternSource> => {
+    const source = elements.find(element => element.id === id && canMergeLayer(element));
+    const renderer = studio.layerRenderer.current;
+    if (!source || !renderer) throw new Error('Select a visible compatible design layer.');
+    const snapshot = elements;
+    const side = garmentSide;
+    studio.setTool('select'); studio.setCropEditingId(null); studio.setWarpEditingId(null); studio.setDistortEditingId(null);
+    const artwork = await renderer([id]);
+    if (elementsRef.current !== snapshot || activeSideRef.current !== side) throw new Error('The design changed while preparing the source. Choose the layer again.');
+    return { src: artwork.content, name: source.type === 'text' ? source.content : `${source.type} layer`, width: artwork.width, height: artwork.height };
+  };
+
+  const placeStudioAsset = (kind: StudioAssetKind, id: string, settings?: PatternPatch) => {
+    studio.setPathEditingId(null);
+    if (kind === 'shape' && id === 'custom-polygon') {
+      setSelectedId(null);
+      studio.setCropEditingId(null); studio.setWarpEditingId(null); studio.setDistortEditingId(null);
+      studio.setTool('shapePolygon');
+      return;
+    }
+    const appearance = kind === 'pattern' ? { ...initialPatternSettings(id, studio.color), ...patternAppearance(settings) } : {};
+    if (kind === 'pattern' && id === 'custom' && !appearance.patternSource) return;
     const zone = document.querySelector('[data-print-design-zone]') as HTMLElement | null;
     const size = defaultStudioSize(kind, id);
     const next: DesignElement = {
       id: `${Date.now()}`,
       type: kind,
       content: id,
-      x: at?.x ?? (zone && zone.clientWidth ? zone.clientWidth / 2 : 155),
-      y: at?.y ?? (zone && zone.clientHeight ? zone.clientHeight / 2 : 165),
+      x: zone && zone.clientWidth ? zone.clientWidth / 2 : 155,
+      y: zone && zone.clientHeight ? zone.clientHeight / 2 : 165,
       width: size.width,
       height: size.height,
       rotation: 0,
@@ -1021,6 +1244,7 @@ export function PrintsDesignStep({
       patternCount: kind === 'pattern' ? defaultPatternCount(id) : undefined,
       aspectLocked: kind === 'shape' || kind === 'pattern' || kind === 'distress' ? false : undefined,
       side: garmentSide,
+      ...appearance,
     };
     onChange([...elements, next]);
     setSelectedId(next.id);
@@ -1057,20 +1281,24 @@ export function PrintsDesignStep({
 
   const removeElementById = (id: string) => {
     const remaining = elements.filter((item) => item.id !== id);
-    onChange(remaining);
-    setSelectedId((sid) => (sid === id ? null : sid));
+    const nextSelectedId = selectedId === id ? null : selectedId;
+    onChange(remaining, nextSelectedId);
+    setSelectedId(nextSelectedId);
   };
 
   const duplicateSelected = () => {
     if (!selected) return;
+    const duplicateSource = (element: DesignElement): DesignElement => ({
+      ...element, id: crypto.randomUUID(),
+      ...(element.children ? { children: element.children.map(duplicateSource) } : {}),
+    });
     const copy: DesignElement = {
-      ...selected,
-      id: `${Date.now()}`,
+      ...duplicateSource(selected),
       x: selected.x + 14,
       y: selected.y + 14,
       locked: false,
     };
-    onChange([...elements, copy]);
+    onChange([...elements, copy], copy.id);
     setSelectedId(copy.id);
   };
 
@@ -1192,6 +1420,10 @@ export function PrintsDesignStep({
         fontLibrary={importedFontFamilies}
         selectedElement={selected}
         onUpdateSelected={updateSelected}
+        onStartCustomArea={startCustomArea}
+        patternDocumentKey={`${assetWorkspace?.project?.id ?? 'garment'}:${garmentSide}`}
+        patternLayers={sideElements.filter(element => canMergeLayer(element) && element.type !== 'pattern').map(element => ({ id: element.id, name: element.type === 'text' ? element.content.slice(0, 50) : `${element.type} — ${element.id.slice(-6)}` }))}
+        onCapturePatternLayer={capturePatternLayer}
       />
 
       {selected ? (
@@ -1208,9 +1440,11 @@ export function PrintsDesignStep({
                     ? 'Shape'
                     : selected.type === 'pattern'
                       ? 'Pattern'
+                      : selected.type === 'customArea'
+                        ? 'Custom Area'
                       : selected.type === 'distress'
                         ? 'Distressing'
-                        : 'Text'}
+                        : selected.type === 'group' ? 'Group' : 'Text'}
             </span>
             <Button
               onClick={deleteSelected}
@@ -1223,7 +1457,175 @@ export function PrintsDesignStep({
           </div>
 
           <div className="space-y-5">
-            {selected.type !== 'distress' ? (
+            <label className="block space-y-2 text-[10px] font-medium uppercase tracking-wider text-white/50">
+              Layer name
+              <Input aria-label="Layer name" maxLength={120} value={selected.layerName ?? ''} placeholder={selected.type === 'text' ? selected.content : selected.type} onChange={event => updateSelected({ layerName: event.target.value || undefined })} />
+            </label>
+            {selected.type === 'shape' && <>
+              <ShapePropertiesPanel element={selected} onChange={updateSelected} />
+              <div className="space-y-2 rounded-xl border border-white/15 p-3">
+                <Button type="button" disabled={selected.locked} aria-pressed={studio.pathEditingId === selected.id}
+                  onClick={() => {
+                    if (studio.pathEditingId === selected.id) { studio.setPathEditingId(null); return; }
+                    if (!selected.shapePath) updateSelected({ shapePath: shapeToEditablePath(selected) });
+                    studio.setTool('select'); studio.setCropEditingId(null); studio.setWarpEditingId(null); studio.setDistortEditingId(null);
+                    studio.setPathEditingId(selected.id);
+                  }} className="h-8 text-[10px]">
+                  {studio.pathEditingId === selected.id ? 'Done Editing Path' : selected.shapePath ? 'Edit Path' : 'Convert to Editable Path'}
+                </Button>
+                <p className="text-[10px] text-white/50">Shift-click anchors to select several. Drag anchors or curve handles. Double-click a segment to add a point. Delete removes selected points. Escape exits.</p>
+              </div>
+              <ShapeEffectsPanel element={selected} onChange={updateSelected}
+                images={[
+                  ...elements.filter(item => item.type === 'image').map(item => ({ name: item.layerName ?? 'Uploaded image', src: item.content })),
+                  ...previousUploads.map(item => ({ name: item.name, src: item.dataUrl })),
+                  ...(assetWorkspace?.library ?? []).map(item => ({ name: item.name, src: item.preview })),
+                ]} />
+            </>}
+            {canFillShape(selected) ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Solid fill</span>
+                  <Button type="button" variant="outline" size="sm" aria-label="Solid fill"
+                    aria-pressed={selected.shapeFilled ?? false} disabled={selected.locked}
+                    onClick={() => updateSelected({ shapeFilled: !selected.shapeFilled })}
+                    className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10">
+                    {selected.shapeFilled ? 'On' : 'Off'}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-white/45">Fill the inside using the shape colour.</p>
+              </div>
+            ) : null}
+            {selected.type === 'customArea' ? (
+              <div className="space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
+                <Label className="block text-[9px] font-bold uppercase tracking-[0.14em] text-white/55">
+                  Custom Area Properties
+                </Label>
+                <Input aria-label="Custom Area name" value={selected.customAreaName ?? 'Custom Area'}
+                  onChange={(event) => updateSelected({ customAreaName: event.target.value })}
+                  className="h-9 border-white/12 bg-black/35 text-[11px] text-white" />
+                <div>
+                  <Label className="mb-2 block text-[9px] font-semibold uppercase tracking-wide text-white/45">Fill</Label>
+                  <StudioColorField allowGradients value={selected.color ?? '#E53935'}
+                    onChange={(color) => updateSelected({ color, customAreaPattern: undefined, customAreaImage: undefined, customAreaTexture: undefined })}
+                    mainColors={STUDIO_TEXT_MAIN_COLORS} popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                    mainLabel="Area fill" popularLabel="Quick colours" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-semibold uppercase tracking-wide text-white/45" htmlFor="custom-area-pattern">Pattern fill</label>
+                  <select id="custom-area-pattern" aria-label="Custom Area pattern"
+                    value={selected.customAreaPattern ?? 'none'}
+                    onChange={(event) => { updateSelected(event.target.value === 'none' ? { customAreaPattern: undefined } : changePatternType(selected, event.target.value)); if (event.target.value === 'custom') studio.setPanel('patterns'); }}
+                    className="h-9 w-full rounded-lg border border-white/12 bg-black/35 px-2 text-[11px] text-white">
+                    <option value="none">None</option>{PATTERN_CATALOG.map(pattern => <option key={pattern.id} value={pattern.id}>{pattern.label}</option>)}
+                  </select>
+                </div>
+                <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/12 bg-black/25 text-[10px] font-semibold text-white/75 hover:text-white">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  {selected.customAreaImage ? 'Replace image fill' : 'Add image fill'}
+                  <input aria-label="Custom Area image fill" type="file" accept="image/*" className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => updateSelected({ customAreaImage: String(reader.result ?? ''), customAreaPattern: undefined, customAreaTexture: undefined });
+                      reader.readAsDataURL(file);
+                      event.target.value = '';
+                    }} />
+                </label>
+                {selected.customAreaImage ? <button type="button" onClick={() => updateSelected({ customAreaImage: undefined })} className="text-[10px] text-white/50 hover:text-white">Remove image fill</button> : null}
+                <CustomAreaPathControls element={selected} onChange={updateSelected} />
+                <fieldset disabled={selected.locked}><CustomAreaAppearanceControls element={selected} onChange={updateSelected} /></fieldset>
+                <SliderField label="Grain" value={selected.filterGrain ?? 0} min={0} max={100} suffix="%"
+                  onChange={(value) => updateSelected({ filterGrain: value })} />
+                <SliderField label="Texture" value={selected.filterNoise ?? 0} min={0} max={100} suffix="%"
+                  onChange={(value) => updateSelected({ filterNoise: value })} />
+              </div>
+            ) : null}
+            <div data-distortion-settings>
+              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
+                Transform
+              </Label>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" title="Distort" aria-label="Distort"
+                  aria-pressed={studio.distortEditingId === selected.id} disabled={selected.locked === true}
+                  className={cn('h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10', studio.distortEditingId === selected.id && 'border-[#FF3B30] bg-[#FF3B30]/12')}
+                  onClick={() => { studio.setTool('select'); studio.setWarpEditingId(null); studio.setDistortEditingId(studio.distortEditingId === selected.id ? null : selected.id); }}>
+                  <Scan className="mr-1 h-3 w-3" />
+                  Distort
+                </Button>
+                <Button type="button" variant="outline" title="Reset perspective" aria-label="Reset perspective"
+                  disabled={selected.locked === true || !selected.perspective}
+                  className="h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10"
+                  onClick={() => { studio.setDistortEditingId(null); updateSelected({ perspective: undefined }); }}>
+                  <RotateCcw className="mr-1 h-3 w-3" />
+                  Reset
+                </Button>
+                <Button type="button" variant="outline" title="Warp" aria-label="Warp"
+                  aria-pressed={studio.warpEditingId === selected.id} disabled={selected.locked === true}
+                  className={cn('h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10', studio.warpEditingId === selected.id && 'border-[#FF3B30] bg-[#FF3B30]/12')}
+                  onClick={() => {
+                    if (studio.warpEditingId === selected.id) studio.setWarpEditingId(null);
+                    else {
+                      studio.setDistortEditingId(null);
+                      studio.setWarpEditingId(selected.id);
+                      if (!selected.warp) updateSelected({ warp: createWarpSettings() });
+                    }
+                  }}>
+                  <Waves className="mr-1 h-3 w-3" /> Warp
+                </Button>
+              </div>
+            </div>
+            {selected.warp && studio.warpEditingId === selected.id ? (() => {
+              const settings = selected.warp!;
+              const updateWarp = (patch: Partial<WarpSettings>) => updateSelected({ warp: { ...settings, ...patch } });
+              return <div className="space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3" data-warp-properties>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/55">Warp</Label>
+                  <Button type="button" variant="outline" size="sm" aria-label="Reset Warp"
+                    className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
+                    onClick={() => { updateSelected({ warp: undefined }); studio.setWarpEditingId(null); }}>
+                    <RotateCcw className="mr-1 h-3 w-3" /> Reset Warp
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['preset', 'freeform'] as const).map((mode) => <button key={mode} type="button"
+                    aria-pressed={settings.mode === mode}
+                    onClick={() => updateWarp(mode === 'freeform'
+                      ? { mode, points: settings.mode === 'preset' ? warpGrid(settings) : settings.points }
+                      : { mode })}
+                    className={cn('h-9 rounded-lg border text-[10px] font-semibold', settings.mode === mode ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-white/10 bg-black/25 text-white/65')}>
+                    {mode === 'preset' ? 'Preset Warp' : 'Freeform'}
+                  </button>)}
+                </div>
+                {settings.mode === 'preset' ? <>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {WARP_PRESETS.map((preset) => <button key={preset.id} type="button"
+                      aria-pressed={settings.preset === preset.id} onClick={() => updateWarp({ preset: preset.id, bend: settings.bend === 0 ? 50 : settings.bend })}
+                      className={cn('h-8 rounded-lg border px-2 text-[10px] font-medium', settings.preset === preset.id ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-white/10 bg-black/25 text-white/65')}>
+                      {preset.label}
+                    </button>)}
+                  </div>
+                  <SliderField label="Bend" value={settings.bend} min={-100} max={100} suffix="%" onChange={(bend) => updateWarp({ bend })} />
+                  <SliderField label="Horizontal Distortion" value={settings.horizontalDistortion} min={-100} max={100} suffix="%" onChange={(horizontalDistortion) => updateWarp({ horizontalDistortion })} />
+                  <SliderField label="Vertical Distortion" value={settings.verticalDistortion} min={-100} max={100} suffix="%" onChange={(verticalDistortion) => updateWarp({ verticalDistortion })} />
+                </> : <>
+                  <div className="space-y-1">
+                    <label htmlFor="warp-grid-density" className="text-[9px] font-semibold uppercase tracking-wide text-white/45">Warp grid</label>
+                    <select id="warp-grid-density" aria-label="Warp grid density" value={settings.gridSize}
+                      onChange={(event) => {
+                        const gridSize = Number(event.target.value) as 2 | 3 | 4;
+                        updateWarp({ gridSize, points: resizeWarpGrid(settings, gridSize) });
+                      }}
+                      className="h-9 w-full rounded-lg border border-white/12 bg-black/35 px-2 text-[11px] text-white">
+                      <option value={2}>2 × 2</option><option value={3}>3 × 3</option><option value={4}>4 × 4</option>
+                    </select>
+                  </div>
+                  <p className="text-[10px] leading-relaxed text-white/48">Drag the mesh points on the design to reshape it.</p>
+                </>}
+              </div>;
+            })() : null}
+            {!assetMode && selected.type !== 'distress' ? (
             <div>
               <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                 Printing method
@@ -1278,8 +1680,8 @@ export function PrintsDesignStep({
             ) : null}
 
             {selected.type === 'text' && (
-              <>
-                <div>
+              <div className="flex flex-col gap-4">
+                <div className="order-1">
                   <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                     Font
                   </Label>
@@ -1324,7 +1726,7 @@ export function PrintsDesignStep({
                   )}
                 </div>
 
-                <div>
+                <div className="order-4">
                   <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                     Alignment
                   </Label>
@@ -1355,7 +1757,212 @@ export function PrintsDesignStep({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="order-5 grid grid-cols-3 gap-1.5">
+                  {([
+                    ['Bold', selected.fontWeight === 'bold', { fontWeight: selected.fontWeight === 'bold' ? 'normal' : 'bold' }],
+                    ['Underline', selected.textUnderline === true, { textUnderline: !selected.textUnderline }],
+                    ['Strikethrough', selected.textStrikethrough === true, { textStrikethrough: !selected.textStrikethrough }],
+                  ] as const).map(([label, active, patch]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => updateSelected(patch)}
+                      className={cn(
+                        'h-9 rounded-lg border px-1.5 text-[10px] font-semibold text-white/75',
+                        active ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-[#252528] bg-black/25',
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="order-9">
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
+                    Fill style
+                  </Label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {([
+                      ['Filled', 'filled'],
+                      ['Outline only', 'outline'],
+                      ['Fill + outline', 'fill-outline'],
+                    ] as const).map(([label, value]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={(selected.textFillMode ?? ((selected.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')) === value}
+                        onClick={() => updateSelected({
+                          textFillMode: value,
+                          ...(value === 'filled' ? {} : {
+                            borderWidth: (selected.borderWidth ?? 0) || 0.25,
+                            borderColor: selected.borderColor ?? '#FFFFFF',
+                          }),
+                        })}
+                        className={cn(
+                          'min-h-9 rounded-lg border px-1 text-[9px] font-medium text-white/70',
+                          (selected.textFillMode ?? ((selected.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')) === value
+                            ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white'
+                            : 'border-[#252528] bg-black/25',
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {(selected.textFillMode ?? ((selected.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')) !== 'filled' ? (
+                    <>
+                      <div className="mt-3">
+                        <SliderField
+                          label="Outline thickness"
+                          value={selected.borderWidth ?? 0.25}
+                          min={0}
+                          max={4}
+                          suffix="px"
+                          step={0.05}
+                          onChange={value => updateSelected({ borderWidth: value })}
+                        />
+                      </div>
+                      <div className="mt-3">
+                        <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">Outline colour</span>
+                        <StudioColorField
+                          value={selected.borderColor ?? selected.color ?? '#FFFFFF'}
+                          onChange={value => updateSelected({ borderColor: value })}
+                          mainColors={STUDIO_TEXT_MAIN_COLORS}
+                          popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                          mainLabel="Outline colours"
+                          popularLabel="Popular"
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                <div className="order-11 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    aria-label="Vertical text"
+                    aria-pressed={selected.verticalText === true}
+                    onClick={() => updateSelected({ verticalText: !selected.verticalText })}
+                    className={cn(
+                      'h-9 rounded-lg border text-[10px] font-medium',
+                      selected.verticalText ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-[#252528] bg-black/25 text-white/70',
+                    )}
+                  >
+                    Vertical
+                  </button>
+                  {(['bulleted', 'numbered'] as const).map((kind) => {
+                    const Icon = kind === 'bulleted' ? List : ListOrdered;
+                    const active = selected.textList === kind || selected.textListLineStyles?.includes(kind) === true;
+                    const allActive = selected.textListLineStyles?.length
+                      ? selected.textListLineStyles.every((lineKind) => lineKind === kind)
+                      : selected.textList === kind;
+                    return (
+                      <button
+                        key={kind}
+                        type="button"
+                        aria-label={kind === 'bulleted' ? 'Bullet list' : 'Numbered list'}
+                        aria-pressed={active}
+                        onClick={() => updateSelected({
+                          textList: allActive ? 'none' : kind,
+                          textListLineStyles: undefined,
+                        })}
+                        className={cn(
+                          'flex h-9 items-center justify-center rounded-lg border',
+                          active ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-[#252528] bg-black/25 text-white/70',
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+                {(selected.textList !== 'none' && selected.textList !== undefined) || selected.textListLineStyles?.some((kind) => kind !== 'none') ? (
+                  <div className="order-12">
+                    <SliderField
+                      label="List indentation"
+                      value={selected.textListIndent ?? 18}
+                      min={0}
+                      max={64}
+                      suffix="px"
+                      onChange={value => updateSelected({ textListIndent: value })}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="order-last space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
+                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.14em] text-white/45">
+                    <span>Curved text</span>
+                    <span>{selected.textCurveAmount ?? 0}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={selected.textCurveAmount ?? 0}
+                    aria-label="Curve amount"
+                    onChange={event => updateCurve({ textCurveAmount: Number(event.target.value) })}
+                    className="h-2 w-full cursor-pointer accent-[#FF3B30]"
+                  />
+                  <label className="flex flex-col gap-1 text-[9px] uppercase text-white/40">
+                    Curve shape
+                    <select
+                      value={selected.textCurveShape ?? 'arc'}
+                      onChange={event => updateCurve({
+                        textCurveShape: event.target.value as 'arc' | 'circle',
+                        ...(event.target.value === 'circle' ? { textCurveAmount: 100 } : {}),
+                      })}
+                      className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
+                    >
+                      <option value="arc">Arc</option>
+                      <option value="circle">Circle</option>
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col gap-1 text-[9px] uppercase text-white/40">
+                      Direction
+                      <select
+                        value={selected.textCurveDirection ?? 'up'}
+                        onChange={event => updateSelected({ textCurveDirection: event.target.value as 'up' | 'down' })}
+                        className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
+                      >
+                        <option value="up">Up</option>
+                        <option value="down">Down</option>
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-[9px] uppercase text-white/40">
+                      Curve side
+                      <select
+                        value={selected.textCurveSide ?? 'outside'}
+                        onChange={event => updateSelected({ textCurveSide: event.target.value as 'inside' | 'outside' })}
+                        className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
+                      >
+                        <option value="outside">Outside</option>
+                        <option value="inside">Inside</option>
+                      </select>
+                    </label>
+                  </div>
+                  <SliderField
+                    label="Radius"
+                    value={textCurveRadius(selected)}
+                    min={selected.textCurveShape === 'circle' ? 32 : 80}
+                    max={selected.textCurveShape === 'circle' ? 160 : 500}
+                    suffix="px"
+                    step={1}
+                    onChange={value => updateCurve({ textCurveRadius: value })}
+                  />
+                  <SliderField
+                    label="Curve spacing"
+                    value={Math.max(-0.5, Math.min(8, selected.textCurveSpacing ?? 0))}
+                    min={-0.5}
+                    max={8}
+                    suffix="px"
+                    step={0.25}
+                    onChange={value => updateSelected({ textCurveSpacing: value })}
+                  />
+                </div>
+
+                <div className="order-5 flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -1391,7 +1998,7 @@ export function PrintsDesignStep({
                   </Button>
                 </div>
 
-                <div>
+                <div className="order-6">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <Label className="mb-0 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                       Letter spacing
@@ -1411,7 +2018,61 @@ export function PrintsDesignStep({
                   />
                 </div>
 
-                <div>
+                <div className="order-7">
+                  <SliderField
+                    label="Line spacing"
+                    value={selected.lineSpacing ?? 115}
+                    min={80}
+                    max={240}
+                    suffix="%"
+                    onChange={value => updateSelected({ lineSpacing: value })}
+                  />
+                </div>
+
+                <div className="order-10 space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
+                  <div>
+                    <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
+                      Line position
+                    </Label>
+                    <select
+                      value={selected.textLinePosition ?? 'none'}
+                      onChange={event => updateSelected({ textLinePosition: event.target.value as NonNullable<DesignElement['textLinePosition']> })}
+                      className="h-9 w-full rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] text-white"
+                    >
+                      <option value="none">Off</option>
+                      <option value="top">Top</option>
+                      <option value="middle">Middle</option>
+                      <option value="bottom">Bottom</option>
+                    </select>
+                  </div>
+                  <SliderField
+                    label="Line thickness"
+                    value={selected.textLineThickness ?? 0.5}
+                    min={0.1}
+                    max={4}
+                    step={0.1}
+                    suffix="px"
+                    onChange={value => updateSelected({ textLineThickness: value })}
+                  />
+                  <SliderField
+                    label="Line offset"
+                    value={selected.textLineOffset ?? 0}
+                    min={-20}
+                    max={30}
+                    suffix="px"
+                    onChange={value => updateSelected({ textLineOffset: value })}
+                  />
+                  <StudioColorField
+                    value={selected.textLineColor ?? selected.borderColor ?? '#FFFFFF'}
+                    onChange={value => updateSelected({ textLineColor: value })}
+                    mainColors={STUDIO_TEXT_MAIN_COLORS}
+                    popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                    mainLabel="Line colours"
+                    popularLabel="Popular"
+                  />
+                </div>
+
+                <div className="order-2">
                   <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                     Font size
                   </Label>
@@ -1422,21 +2083,101 @@ export function PrintsDesignStep({
                   />
                 </div>
 
-                <div>
+                <div className="order-3">
                   <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                     Text colour
                   </Label>
-                  <StudioColorField
+                  <StudioColorField allowGradients
                     value={selected.color ?? '#FFFFFF'}
                     onChange={(h) => updateSelected({ color: h })}
                     mainColors={STUDIO_TEXT_MAIN_COLORS}
                     popularColors={STUDIO_TEXT_POPULAR_COLORS}
                   />
                 </div>
-              </>
+
+                <div className="order-8 space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Text shadow</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-pressed={selected.textShadowEnabled === true}
+                      onClick={() => updateSelected({
+                        textShadowEnabled: !selected.textShadowEnabled,
+                        shadowBlur: !selected.textShadowEnabled && (selected.shadowBlur ?? 0) === 0
+                          ? 6
+                          : selected.shadowBlur ?? 0,
+                        shadowOpacity: selected.shadowOpacity ?? 70,
+                        shadowColor: selected.shadowColor ?? '#000000',
+                      })}
+                      className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
+                    >
+                      {selected.textShadowEnabled ? 'On' : 'Off'}
+                    </Button>
+                  </div>
+                  <StudioColorField
+                    value={selected.shadowColor ?? '#000000'}
+                    onChange={value => updateSelected({ shadowColor: value })}
+                    mainColors={STUDIO_TEXT_MAIN_COLORS}
+                    popularColors={STUDIO_TEXT_POPULAR_COLORS}
+                    mainLabel="Shadow colours"
+                    popularLabel="Popular"
+                  />
+                  <SliderField
+                    label="Opacity"
+                    value={selected.shadowOpacity ?? 70}
+                    min={0}
+                    max={100}
+                    suffix="%"
+                    onChange={value => updateSelected({ shadowOpacity: value })}
+                  />
+                  <SliderField
+                    label="Offset X"
+                    value={Math.max(-8, Math.min(8, selected.shadowOffsetX ?? 0))}
+                    min={-8}
+                    max={8}
+                    suffix="px"
+                    step={0.25}
+                    onChange={value => updateSelected({ shadowOffsetX: value })}
+                  />
+                  <SliderField
+                    label="Offset Y"
+                    value={Math.max(-8, Math.min(8, selected.shadowOffsetY ?? 2))}
+                    min={-8}
+                    max={8}
+                    suffix="px"
+                    step={0.25}
+                    onChange={value => updateSelected({ shadowOffsetY: value })}
+                  />
+                  <SliderField
+                    label="Softness / blur"
+                    value={selected.shadowBlur ?? 0}
+                    min={0}
+                    max={40}
+                    suffix="px"
+                    onChange={value => updateSelected({ shadowBlur: value })}
+                  />
+                  <label className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-white/45">
+                    Edge
+                    <select
+                      value={selected.shadowEdge ?? 'sharp'}
+                      onChange={event => updateSelected({ shadowEdge: event.target.value as 'sharp' | 'round' })}
+                      className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
+                    >
+                      <option value="sharp">Sharp</option>
+                      <option value="round">Round</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="order-11">
+                  <TextEffectsPanel element={selected} onChange={updateSelected}
+                    images={elements.filter(item => item.type === 'image').map(item => ({ name: item.layerName ?? 'Uploaded image', src: item.content }))} />
+                </div>
+              </div>
             )}
 
-            <div>
+            {!selected.patternTarget ? <div>
               <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
                 Rotation
               </Label>
@@ -1456,7 +2197,7 @@ export function PrintsDesignStep({
                   aria-label="Rotation"
                 />
               </div>
-            </div>
+            </div> : null}
 
             <SliderField
               label="Opacity"
@@ -1468,52 +2209,35 @@ export function PrintsDesignStep({
             />
 
             {selected.type === 'image' || selected.type === 'drawing' ? (
-              <div className="space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                  Image adjustments
-                </span>
-                <SliderField
-                  label="Brightness"
-                  value={selected.filterBrightness ?? 100}
-                  min={40}
-                  max={160}
-                  suffix="%"
-                  onChange={(n) => updateSelected({ filterBrightness: n })}
-                />
-                <SliderField
-                  label="Contrast"
-                  value={selected.filterContrast ?? 100}
-                  min={40}
-                  max={160}
-                  suffix="%"
-                  onChange={(n) => updateSelected({ filterContrast: n })}
-                />
-                <SliderField
-                  label="Saturation"
-                  value={selected.filterSaturate ?? 100}
-                  min={0}
-                  max={200}
-                  suffix="%"
-                  onChange={(n) => updateSelected({ filterSaturate: n })}
-                />
+              <div className="space-y-3 border-y border-[#252528] py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Image adjustments</span>
+                  <button type="button" onClick={() => updateSelected({ ...DEFAULT_IMAGE_ADJUSTMENTS })}
+                    className="flex h-8 shrink-0 items-center gap-1 text-[10px] text-white/65 hover:text-white">
+                    <RotateCcw className="h-3 w-3" /> Reset All
+                  </button>
+                </div>
+                {IMAGE_ADJUSTMENTS.map(setting => <SliderField
+                  key={setting.key} label={setting.label} value={selected[setting.key] ?? setting.default}
+                  min={setting.min} max={setting.max} step={setting.step} suffix={setting.suffix}
+                  onChange={value => updateSelected({ [setting.key]: value })}
+                  onReset={() => updateSelected({ [setting.key]: setting.default })}
+                />)}
               </div>
             ) : null}
 
+            {selected.type !== 'text' && selected.type !== 'shape' && selected.type !== 'pattern' && selected.type !== 'distress' && selected.id !== DISTRESS_LAYER_ID ? (
             <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                  {selected.type === 'text' ? 'Text outline' : 'Border'}
-                </span>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Border</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    updateSelected({
-                      borderWidth: (selected.borderWidth ?? 0) > 0 ? 0 : 2,
-                      borderColor: selected.borderColor ?? '#FFFFFF',
-                    })
-                  }
+                  onClick={() => updateSelected({
+                    borderWidth: (selected.borderWidth ?? 0) > 0 ? 0 : 2,
+                    borderColor: selected.borderColor ?? '#FFFFFF',
+                  })}
                   className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
                 >
                   <Square className="mr-1 h-3 w-3" />
@@ -1530,13 +2254,9 @@ export function PrintsDesignStep({
               />
               <div className="mt-3">
                 <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">Colour</span>
-                <StudioColorField
-                  value={selected.type === 'shape' || selected.type === 'pattern' ? selected.color ?? '#FFFFFF' : selected.borderColor ?? '#FFFFFF'}
-                  onChange={(h) =>
-                    selected.type === 'shape' || selected.type === 'pattern'
-                      ? updateSelected({ color: h })
-                      : updateSelected({ borderColor: h })
-                  }
+                <StudioColorField allowGradients
+                  value={selected.borderColor ?? '#FFFFFF'}
+                  onChange={(h) => updateSelected({ borderColor: h })}
                   mainColors={STUDIO_TEXT_MAIN_COLORS}
                   popularColors={STUDIO_TEXT_POPULAR_COLORS}
                 />
@@ -1554,8 +2274,9 @@ export function PrintsDesignStep({
                 </div>
               ) : null}
             </div>
+            ) : null}
 
-            <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
+            {!selected.patternTarget ? <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
                   Size &amp; rotation
@@ -1643,7 +2364,7 @@ export function PrintsDesignStep({
                   />
                 ) : null}
               </div>
-            </div>
+            </div> : <p className="text-[10px] text-white/50">This fill follows its garment section. Use the Patterns controls to change the repeat without moving its boundary.</p>}
 
             {selected.type === 'image' ? (
               <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
@@ -1668,7 +2389,7 @@ export function PrintsDesignStep({
                   </Button>
                 </div>
                 <SliderField
-                  label="Blur"
+                  label="Shadow blur"
                   value={selected.shadowBlur ?? 0}
                   min={0}
                   max={40}
@@ -1689,7 +2410,7 @@ export function PrintsDesignStep({
                   <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
                     Colour
                   </span>
-                  <StudioColorField
+                  <StudioColorField allowGradients
                     value={selected.shadowColor ?? '#000000'}
                     onChange={(h) => updateSelected({ shadowColor: h })}
                     mainColors={STUDIO_TEXT_MAIN_COLORS}
@@ -1699,84 +2420,13 @@ export function PrintsDesignStep({
               </div>
             ) : null}
 
-            {selected.type === 'image' || selected.type === 'distress' ? (
-              <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                    Crop
-                  </span>
-                  {((selected.cropTop ?? 0) > 0 ||
-                    (selected.cropRight ?? 0) > 0 ||
-                    (selected.cropBottom ?? 0) > 0 ||
-                    (selected.cropLeft ?? 0) > 0) && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        updateSelected({
-                          cropTop: 0,
-                          cropRight: 0,
-                          cropBottom: 0,
-                          cropLeft: 0,
-                        })
-                      }
-                      className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
-                    >
-                      Reset
-                    </Button>
-                  )}
-                </div>
-                <SliderField
-                  label="Top"
-                  value={selected.cropTop ?? 0}
-                  min={0}
-                  max={Math.max(0, 100 - (selected.cropBottom ?? 0))}
-                  suffix="%"
-                  onChange={(n) => updateSelected({ cropTop: n })}
-                />
-                <div className="mt-3">
-                  <SliderField
-                    label="Right"
-                    value={selected.cropRight ?? 0}
-                    min={0}
-                    max={Math.max(0, 100 - (selected.cropLeft ?? 0))}
-                    suffix="%"
-                    onChange={(n) => updateSelected({ cropRight: n })}
-                  />
-                </div>
-                <div className="mt-3">
-                  <SliderField
-                    label="Bottom"
-                    value={selected.cropBottom ?? 0}
-                    min={0}
-                    max={Math.max(0, 100 - (selected.cropTop ?? 0))}
-                    suffix="%"
-                    onChange={(n) => updateSelected({ cropBottom: n })}
-                  />
-                </div>
-                <div className="mt-3">
-                  <SliderField
-                    label="Left"
-                    value={selected.cropLeft ?? 0}
-                    min={0}
-                    max={Math.max(0, 100 - (selected.cropRight ?? 0))}
-                    suffix="%"
-                    onChange={(n) => updateSelected({ cropLeft: n })}
-                  />
-                </div>
-              </div>
-            ) : null}
+            <Button type="button" variant="outline" disabled={selected.locked}
+              onClick={() => { studio.setTool('select'); studio.setCropEditingId(selected.id); }}>
+              Crop artwork
+            </Button>
 
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                onClick={() => updateSelected({ flipHorizontal: !selected.flipHorizontal })}
-                className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
-              >
-                <FlipHorizontal2 className="mr-1.5 h-3 w-3" />
-                Flip
-              </Button>
+              <FlipControls element={selected} onChange={updateSelected} />
               <Button
                 variant="outline"
                 onClick={duplicateSelected}
@@ -1827,11 +2477,33 @@ export function PrintsDesignStep({
         </PrintPanel>
       ) : null}
 
-      <PrintPanel title={`Elements (${sideElements.length})`}>
+      <PrintPanel title={`Layers (${sideElements.length})`}>
+        <div className="mb-3 space-y-2">
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="flex-1" disabled={Boolean(groupIssue) || merging} onClick={groupSelectedLayers} title={groupIssue ?? 'Group editable children to move, resize, rotate or warp together'}>Group</Button>
+            <Button type="button" variant="outline" className="flex-1" disabled={Boolean(ungroupIssue) || merging} onClick={ungroupSelectedLayer} title={ungroupIssue ?? 'Restore children without flattening artwork'}>Ungroup</Button>
+          </div>
+          <p className="text-[10px] text-white/50">Check layers or Shift-click their names, then Group to transform together. Grouping retains editable sources.</p>
+          {mergeIds.length > 1 && groupIssue ? <p className="text-[10px] text-white/50">{groupIssue}</p> : null}
+          {selected?.type === 'group' ? <div className="space-y-2 rounded border border-white/10 p-2">
+            <p className="text-[10px] text-white/50">{ungroupIssue ?? 'Resized, flipped, cropped, distorted or warped children retain editable transform envelopes when ungrouped.'}</p>
+            {(selected.children ?? []).map((child, index) => <label key={child.id} className="block text-[10px] text-white/60">
+              Source {index + 1}: {child.layerName ?? child.type}
+              {child.type === 'text' ? <Input disabled={Boolean(selected.locked || child.locked)} aria-label={`Edit group source ${index + 1} text`} value={child.content} onChange={event => updateSelected({ children: selected.children!.map(item => item.id === child.id ? { ...item, content: event.target.value } : item) })} /> : null}
+              {child.color !== undefined ? <Input disabled={Boolean(selected.locked || child.locked)} aria-label={`Edit group source ${index + 1} color`} value={child.color} onChange={event => updateSelected({ children: selected.children!.map(item => item.id === child.id ? { ...item, color: event.target.value } : item) })} /> : null}
+            </label>)}
+          </div> : null}
+          <Button type="button" variant="outline" className="w-full" disabled={Boolean(mergeIssue) || merging}
+            onClick={() => void mergeSelectedLayers()} title={mergeIssue ?? 'Flatten selected layers into one editable image'}>
+            {merging ? 'Merging…' : 'Merge Layers'}{mergeIds.length > 0 ? ` (${mergeIds.length})` : ''}
+          </Button>
+          <p className="text-[10px] text-white/50">{mergeIssue ?? 'Appearance is flattened; Undo restores the original layers.'}</p>
+          {mergeError ? <p role="alert" className="text-xs text-red-400">{mergeError}</p> : null}
+        </div>
         <div className={cn('space-y-2', listDraggingId && 'list-reorder-active')}>
           {sideElements.length === 0 ? (
             <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">
-            Pick a tool, then draw, drop a shape, or upload artwork onto the garment.
+            Pick a tool, then draw, drop a shape, or upload artwork onto the {assetMode ? 'artboard' : 'garment'}.
             </div>
           ) : (
             (() => {
@@ -1881,6 +2553,13 @@ export function PrintsDesignStep({
                         : 'border-[#252528] bg-black/25 hover:border-white/18',
                   )}
                 >
+                  <input type="checkbox" aria-label={`Select layer ${index + 1} for group or merge`} className="ml-2 shrink-0"
+                    checked={mergeIds.includes(element.id)} disabled={(!canGroupLayer(element) && !canMergeLayer(element)) || merging}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setMergeIds(previous => checked ? [...previous, element.id] : previous.filter(id => id !== element.id));
+                      setMergeError(null);
+                    }} />
                   <div
                     role="button"
                     tabIndex={0}
@@ -1893,12 +2572,21 @@ export function PrintsDesignStep({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedId(element.id)}
+                    onClick={(event) => {
+                      studio.setTool('select');
+                      if (event.shiftKey && (canGroupLayer(element) || canMergeLayer(element)) && !merging) {
+                        setMergeIds(previous => toggleLayerSelection(previous.length ? previous : selectedId && selectedId !== element.id && elements.some(item => item.id === selectedId && canGroupLayer(item)) ? [selectedId] : [], element.id));
+                        setMergeError(null);
+                      }
+                      setSelectedId(element.id);
+                    }}
                     className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-0.5 pr-2 text-left"
                   >
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/12 bg-white/[0.06] text-white/55">
                       {element.type === 'image' ? (
                         <ImageIcon className="h-3.5 w-3.5" />
+                      ) : element.type === 'customArea' ? (
+                        <PenTool className="h-3.5 w-3.5" />
                       ) : element.type === 'drawing' || element.type === 'distress' ? (
                         <Brush className="h-3.5 w-3.5" />
                       ) : (
@@ -1907,7 +2595,7 @@ export function PrintsDesignStep({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[11px] font-medium text-white">
-                        {element.type === 'image'
+                        {element.type === 'group' ? `${element.layerName ?? 'Group'} (${element.children?.length ?? 0})` : element.layerName ?? (element.type === 'image'
                           ? 'Uploaded artwork'
                           : element.id === DISTRESS_LAYER_ID
                             ? 'Distressing'
@@ -1915,11 +2603,13 @@ export function PrintsDesignStep({
                               ? 'Drawing'
                               : element.type === 'shape'
                                 ? 'Shape'
-                                : element.type === 'pattern'
+                                : element.type === 'customArea'
+                                  ? element.customAreaName || 'Custom Area'
+                                  : element.type === 'pattern'
                                   ? 'Pattern'
                                   : element.type === 'distress'
                                     ? 'Distressing'
-                                    : element.content}
+                                    : element.content)}
                       </div>
                       <div className="truncate text-[9.5px] text-white/40">
                         {element.type !== 'distress' ? (
@@ -1935,6 +2625,13 @@ export function PrintsDesignStep({
                       </div>
                     </div>
                   </button>
+                  <button
+                    type="button"
+                    aria-label={`${element.hidden ? 'Show' : 'Hide'} ${element.type === 'customArea' ? 'Custom Area' : element.type} layer`}
+                    title={element.hidden ? 'Show layer' : 'Hide layer'}
+                    onClick={() => { studio.setTool('select'); onChange(elements.map(item => item.id === element.id ? { ...item, hidden: !item.hidden } : item)); }}
+                    className="flex shrink-0 items-center justify-center border-l border-[#252528] px-2 text-white/50 hover:text-white"
+                  >{element.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button>
                   <button
                     type="button"
                     className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#252528] px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
@@ -1993,6 +2690,11 @@ export function PrintsDesignStep({
 }
 
 export function PrintsDesignPreview({
+  assetMode = false,
+  canvasSize,
+  onCanvasSizeChange,
+  garmentInteractive = false,
+  garmentPreview,
   elements,
   onChange,
   editable = false,
@@ -2004,6 +2706,25 @@ export function PrintsDesignPreview({
   garmentSide = 'front',
 }: PrintsDesignPreviewProps) {
   const studio = usePrintsStudio();
+  const assetWorkspace = useAssetWorkspaceContext();
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [frameSize, setFrameSize] = useState<PrintsCanvasSize>({ width: 0, height: 0 });
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const measure = () => setFrameSize(previous => previous.width === frame.clientWidth && previous.height === frame.clientHeight
+      ? previous : { width: frame.clientWidth, height: frame.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+  const validCanvasSize = canvasSize && Number.isFinite(canvasSize.width) && Number.isFinite(canvasSize.height) && canvasSize.width > 0 && canvasSize.height > 0 ? canvasSize : null;
+  useLayoutEffect(() => {
+    if (editable && !validCanvasSize && frameSize.width > 0 && frameSize.height > 0) onCanvasSizeChange?.(frameSize);
+  }, [editable, validCanvasSize, frameSize, onCanvasSizeChange]);
+  const sceneScale = validCanvasSize && frameSize.width > 0 && frameSize.height > 0
+    ? Math.min(frameSize.width / validCanvasSize.width, frameSize.height / validCanvasSize.height) : 1;
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
   useEffect(() => {
     void hydrateFontLibrary().then((names) => {
@@ -2031,6 +2752,10 @@ export function PrintsDesignPreview({
   );
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [liveShapePath, setLiveShapePath] = useState<{ id: string; path: ShapePath } | null>(null);
+  useEffect(() => {
+    if (studio.pathEditingId && !elements.some(item => item.id === studio.pathEditingId && item.id === selectedId && item.type === 'shape' && item.shapePath && !item.locked && designElementSide(item) === garmentSide)) studio.setPathEditingId(null);
+  }, [elements, selectedId, garmentSide, studio.pathEditingId, studio.setPathEditingId]);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   /** Live x/y while a drag is in progress. Kept *local* so the parent never
    *  re-renders per frame — that's the main reason dragging used to feel glitchy. */
@@ -2054,6 +2779,43 @@ export function PrintsDesignPreview({
 
   const zoneRef = useRef<HTMLDivElement>(null);
   const [zoneEl, setZoneEl] = useState<HTMLDivElement | null>(null);
+  const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode);
+  const patternTargets = useGarmentPatternTargets(zoneEl, garmentSide);
+  useEffect(() => {
+    if (!editable) return;
+    const render = async (ids: string[]) => {
+      const zone = zoneRef.current;
+      if (!zone) throw new Error('The garment preview is not ready.');
+      return flattenDesignLayers(zone, elements.filter(element => designElementSide(element) === garmentSide), ids);
+    };
+    studio.layerRenderer.current = render;
+    return () => { if (studio.layerRenderer.current === render) studio.layerRenderer.current = null; };
+  }, [editable, elements, garmentSide, studio.layerRenderer]);
+  const [patternHover, setPatternHover] = useState<{ kind: 'part' | 'area'; id: string } | null>(null);
+  const findPatternTarget = (clientX: number, clientY: number) => {
+    const zone = zoneRef.current;
+    if (!zone) return null;
+    const point = clientToZonePoint(zone, clientX, clientY);
+    for (const area of [...elements].reverse()) {
+      if (area.type !== 'customArea' || area.hidden || area.locked || area.customAreaOpen || designElementSide(area) !== garmentSide) continue;
+      const local = customAreaLocalPoint(point, area);
+      const context = document.createElement('canvas').getContext('2d');
+      if (context?.isPointInPath(new Path2D(customAreaPath(area.customAreaPoints ?? [])), local.x, local.y)
+        && (assetMode || patternTargets.some(target => targetContains(target, point.x, point.y)))) return { kind: 'area' as const, id: area.id };
+    }
+    const part = patternTargets.find(target => targetContains(target, point.x, point.y));
+    return part ? { kind: 'part' as const, id: part.id } : null;
+  };
+  useEffect(() => {
+    const clear = () => setPatternHover(null);
+    window.addEventListener('dragend', clear);
+    window.addEventListener('drop', clear);
+    return () => { window.removeEventListener('dragend', clear); window.removeEventListener('drop', clear); };
+  }, []);
+  const [customAreaDraft, setCustomAreaDraft] = useState<CustomAreaPoint[]>([]);
+  const [customAreaCursor, setCustomAreaCursor] = useState<CustomAreaPoint | null>(null);
+  const [liveCustomAreaPoints, setLiveCustomAreaPoints] = useState<{ id: string; points: CustomAreaPoint[] } | null>(null);
+  const customAreaDraftIdRef = useRef<string | null>(null);
   const elementsRef = useRef(elements);
   const onChangeRef = useRef(onChange);
   const garmentSideRef = useRef(garmentSide);
@@ -2062,6 +2824,12 @@ export function PrintsDesignPreview({
   const dragPointerCaptureRef = useRef<{ el: HTMLElement; pointerId: number } | null>(null);
   const textTapRef = useRef<{ id: string; alreadySelected: boolean } | null>(null);
   const editDraftRef = useRef('');
+  const beginTextEditing = (element: DesignElement) => {
+    const draft = formatTextListInput(element.content, element.textListLineStyles, element.textList ?? 'none');
+    setEditingTextId(element.id);
+    setEditDraft(draft);
+    editDraftRef.current = draft;
+  };
   const [alignmentGuides, setAlignmentGuides] = useState<{
     vertical: number[];
     horizontal: number[];
@@ -2083,7 +2851,7 @@ export function PrintsDesignPreview({
   }, [garmentSide]);
 
   const visibleElements = useMemo(
-    () => elements.filter((item) => designElementSide(item) === garmentSide),
+    () => elements.filter((item) => designElementSide(item) === garmentSide && !item.hidden && !item.customAreaOpen),
     [elements, garmentSide],
   );
 
@@ -2141,11 +2909,110 @@ export function PrintsDesignPreview({
     }
   }, [elements, selectedId, setSelectedId]);
 
-  const updateElement = (id: string, patch: Partial<DesignElement>) => {
+  const updateElement = (id: string, patch: Partial<DesignElement>, select = false) => {
     const fn = onChangeRef.current;
     if (!fn) return;
-    fn(elementsRef.current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+    fn(elementsRef.current.map((item) => (item.id === id ? { ...item, ...patch } : item)), select ? id : undefined);
   };
+
+  useEffect(() => {
+    const openArea = elements.find((element) => element.customAreaOpen);
+    if (openArea) {
+      customAreaDraftIdRef.current = openArea.id;
+      setCustomAreaDraft(openArea.customAreaPoints ?? []);
+      studio.setTool('customArea');
+      return;
+    }
+    const restored = elements.find(item => item.id === customAreaDraftIdRef.current && item.type === 'customArea');
+    customAreaDraftIdRef.current = null;
+    setCustomAreaDraft([]);
+    if (restored) { setSelectedId(restored.id); studio.setTool('customAreaEdit'); }
+  }, [elements]);
+
+  useEffect(() => {
+    if (studio.tool === 'customArea') return;
+    const draftId = customAreaDraftIdRef.current;
+    if (!draftId) return;
+    customAreaDraftIdRef.current = null;
+    onChangeRef.current?.(elementsRef.current.filter((element) => element.id !== draftId));
+    setCustomAreaDraft([]);
+    setCustomAreaCursor(null);
+  }, [studio.tool]);
+
+  const closeCustomArea = () => {
+    const area = elementsRef.current.find(item => item.id === customAreaDraftIdRef.current && item.customAreaOpen);
+    const draft = area?.customAreaPoints ?? [];
+    if (!area || draft.length < 3) return;
+    const bounds = customAreaBounds(draft);
+    const name = `Custom Area ${elementsRef.current.filter(item => item.type === 'customArea').length}`;
+    updateElement(area.id, {
+      ...bounds, customAreaOpen: false, customAreaName: name, content: name,
+      customAreaViewWidth: bounds.width, customAreaViewHeight: bounds.height,
+      customAreaPoints: draft.map(vertex => ({ x: vertex.x - (bounds.x - bounds.width / 2), y: vertex.y - (bounds.y - bounds.height / 2) })),
+    }, true);
+    setSelectedId(area.id); studio.setCustomAreaPointSelection({ id: area.id, index: 0 });
+    setCustomAreaDraft([]); setCustomAreaCursor(null); customAreaDraftIdRef.current = null;
+    studio.setTool('customAreaEdit');
+  };
+
+  const handleCustomAreaPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!editable || event.button !== 0 || !zoneRef.current) return;
+    const zone = zoneRef.current;
+    const point = clientToZonePoint(zone, event.clientX, event.clientY);
+    if (studio.tool === 'customArea') {
+      event.preventDefault();
+      event.stopPropagation();
+      const openArea = elementsRef.current.find((element) => element.id === customAreaDraftIdRef.current && element.customAreaOpen);
+      const draft = openArea?.customAreaPoints ?? customAreaDraft;
+      const start = draft[0];
+      const closeRadius = 18 / zoneScaleFactor(zone);
+      if (draft.length >= 3 && start && Math.hypot(start.x - point.x, start.y - point.y) <= closeRadius && openArea) {
+        closeCustomArea();
+        return;
+      }
+      const nextPoints = [...draft, point];
+      setCustomAreaDraft(nextPoints);
+      if (openArea) updateElement(openArea.id, { customAreaPoints: nextPoints });
+      else {
+        const areaCount = elementsRef.current.filter((element) => element.type === 'customArea').length;
+        const name = `Custom Area ${areaCount + 1}`;
+        const next: DesignElement = {
+          id: `custom-area-${Date.now()}`, type: 'customArea', customAreaOpen: true,
+          customAreaName: name, content: name, customAreaPoints: nextPoints,
+          x: point.x, y: point.y, width: 1, height: 1, rotation: 0,
+          color: studio.color, opacity: 100, side: garmentSide,
+        };
+        customAreaDraftIdRef.current = next.id;
+        onChangeRef.current?.([...elementsRef.current, next]);
+      }
+      return;
+    }
+    if (studio.tool !== 'customAreaAddPoint') return;
+    const area = elementsRef.current.find((element) => element.id === selectedId && element.type === 'customArea');
+    if (!area || area.locked) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const localPoint = customAreaLocalPoint(point, area);
+    const points = area.customAreaPoints ?? [];
+    const nearest = nearestCustomAreaSegment(points, localPoint);
+    const nextPoints = splitCustomAreaSegment(points, nearest.index, nearest.t);
+    updateElement(area.id, customAreaGeometryPatch(nextPoints, area));
+    studio.setCustomAreaPointSelection({ id: area.id, index: nearest.index + 1 });
+    studio.setTool('customAreaEdit');
+  };
+
+  const customAreaLocalPoint = (point: CustomAreaPoint, area: DesignElement): CustomAreaPoint => {
+    const radians = -area.rotation * Math.PI / 180;
+    const dx = point.x - area.x;
+    const dy = point.y - area.y;
+    const local = shapePointMapping(area).inverse({
+      x: (dx * Math.cos(radians) - dy * Math.sin(radians) + area.width / 2) / area.width * 100,
+      y: (dx * Math.sin(radians) + dy * Math.cos(radians) + area.height / 2) / area.height * 100,
+    });
+    const viewport = customAreaViewport(area);
+    return { x: local.x / 100 * viewport.width, y: local.y / 100 * viewport.height };
+  };
+
 
   const removeElement = (id: string) => {
     const fn = onChangeRef.current;
@@ -2157,18 +3024,24 @@ export function PrintsDesignPreview({
   useEffect(() => {
     if (!editingTextId || selectedId === editingTextId) return;
     const el = elementsRef.current.find((item) => item.id === editingTextId);
-    const draft = editDraftRef.current.trim();
+    const draft = editDraftRef.current;
     if (draft.length === 0 && el?.type === 'text') {
       removeElement(editingTextId);
       setEditingTextId(null);
       return;
     }
     const fn = onChangeRef.current;
-    const next = draft.length > 0 ? draft : (el?.content ?? '');
+    const next = parseTextListInput(draft);
     if (fn && el) {
       fn(
         elementsRef.current.map((item) =>
-          item.id === editingTextId ? { ...item, content: next } : item,
+          item.id === editingTextId
+            ? {
+                ...item,
+                content: next.content,
+                textListLineStyles: next.lineStyles,
+              }
+            : item,
         ),
       );
     }
@@ -2187,7 +3060,7 @@ export function PrintsDesignPreview({
       y: src.y + 14,
       locked: false,
     };
-    fn([...elementsRef.current, copy]);
+    fn([...elementsRef.current, copy], copy.id);
     setSelectedId(copy.id);
   };
 
@@ -2196,14 +3069,27 @@ export function PrintsDesignPreview({
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t?.closest('input, textarea, [contenteditable="true"], select')) return;
-      if (editingTextId) return;
+      if (editingTextId || studio.pathEditingId || studio.tool === 'shapePolygon') return;
 
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (studio.tool === 'customArea' && customAreaDraftIdRef.current) {
+          removeElement(customAreaDraftIdRef.current);
+          customAreaDraftIdRef.current = null;
+          setCustomAreaDraft([]);
+          studio.setTool('select');
+          return;
+        }
+        if (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint') {
+          studio.setCustomAreaPointSelection(null);
+          studio.setTool('select');
+          return;
+        }
         setSelectedId(null);
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint') { e.preventDefault(); return; }
         if (!selectedId) return;
         e.preventDefault();
         removeElement(selectedId);
@@ -2228,7 +3114,7 @@ export function PrintsDesignPreview({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editable, selectedId, editingTextId, setSelectedId]);
+  }, [editable, selectedId, editingTextId, setSelectedId, studio.tool, studio.pathEditingId, studio.setTool, studio.setCustomAreaPointSelection]);
 
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
 
@@ -2241,13 +3127,17 @@ export function PrintsDesignPreview({
         const deltaDeg = ((cur - manip.startAngle) * 180) / Math.PI;
         let next = manip.startRot + deltaDeg;
         next = ((next % 360) + 360) % 360;
+        if (elementsRef.current.find(element => element.id === manip.id)?.type === 'image') next = snapImageRotation(next);
         updateElement(manip.id, { rotation: next });
         return;
       }
       const z = zoneRef.current;
       const s = z ? zoneScaleFactor(z) : 1;
-      const dx = (e.clientX - manip.startX) / s;
-      const dy = (e.clientY - manip.startY) / s;
+      const angle = (elementsRef.current.find(element => element.id === manip.id)?.rotation ?? 0) * Math.PI / 180;
+      const screenX = (e.clientX - manip.startX) / s;
+      const screenY = (e.clientY - manip.startY) / s;
+      const dx = 2 * (screenX * Math.cos(angle) + screenY * Math.sin(angle));
+      const dy = 2 * (-screenX * Math.sin(angle) + screenY * Math.cos(angle));
       const h = manip.handle;
       const corners: ResizeHandle[] = ['nw', 'ne', 'sw', 'se'];
       if (corners.includes(h)) {
@@ -2486,9 +3376,7 @@ export function PrintsDesignPreview({
       ) {
         const el = elementsRef.current.find((item) => item.id === draggingId);
         if (el?.type === 'text') {
-          setEditingTextId(el.id);
-          setEditDraft(el.content);
-          editDraftRef.current = el.content;
+          beginTextEditing(el);
         }
       }
       /* Commit the live drag position to the real element state — this is the
@@ -2525,19 +3413,49 @@ export function PrintsDesignPreview({
   const showInlineToolbar = Boolean(
     editable &&
       selectedElement &&
-      selectedElement.type !== 'drawing' &&
+      !studio.cropEditingId &&
+      studio.warpEditingId !== selectedElement.id &&
       !studio.drawing,
   );
-  /** Phone: text styling is sidebar-only — no floating inline bar. */
-  const phoneTextUsesSidebarOnly =
-    narrowViewport && showInlineToolbar && selectedElement?.type === 'text';
   const showCanvasChromeToolbar = Boolean(
-    showInlineToolbar && selectedElement && !phoneTextUsesSidebarOnly,
+    showInlineToolbar && selectedElement && !selectedElement.patternTarget,
   );
-  /** Element whose Crop panel is currently open — we render the full image + dim overlay. */
-  const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+  const { cropEditingId, setCropEditingId } = studio;
+  const [cropDraft, setCropDraft] = useState<CropInsets>(() => normalizeCrop({}));
+  useLayoutEffect(() => {
+    if (!editable || !cropEditingId) return;
+    const element = elements.find(item => item.id === cropEditingId);
+    if (element) setCropDraft(normalizeCrop(element));
+  }, [cropEditingId, editable]);
+  useEffect(() => {
+    if (!editable || !cropEditingId) return;
+    if (!selectedElement || selectedElement.id !== cropEditingId || selectedElement.locked
+      || designElementSide(selectedElement) !== garmentSide || studio.drawing) setCropEditingId(null);
+  }, [editable, cropEditingId, selectedElement, garmentSide, studio.drawing, setCropEditingId]);
+  useEffect(() => {
+    if (!editable || !cropEditingId) return;
+    setDistortEditingId(null); setWarpEditingId(null);
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); setCropEditingId(null); }
+    };
+    window.addEventListener('keydown', cancel, true);
+    return () => window.removeEventListener('keydown', cancel, true);
+  }, [editable, cropEditingId]);
+  const applyCrop = () => {
+    if (editable && selectedElement && !selectedElement.locked && cropEditingId === selectedElement.id) {
+      updateElement(selectedElement.id, normalizeCrop(cropDraft));
+    }
+    setCropEditingId(null);
+  };
+  const { distortEditingId, setDistortEditingId } = studio;
+  const { warpEditingId, setWarpEditingId } = studio;
+  useEffect(() => { setDistortEditingId(null); }, [selectedId, garmentSide, selectedElement?.locked, setDistortEditingId]);
+  useEffect(() => { setWarpEditingId(null); }, [selectedId, garmentSide, selectedElement?.locked, setWarpEditingId]);
+  useEffect(() => { if (studio.drawing) setDistortEditingId(null); }, [studio.drawing, setDistortEditingId]);
+  useEffect(() => { if (studio.drawing) setWarpEditingId(null); }, [studio.drawing, setWarpEditingId]);
+  useEffect(() => { if (distortEditingId) setCropEditingId(null); }, [distortEditingId]);
 
-  const liveCanvasS = liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1;
+  const liveCanvasS = (liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1) * sceneScale;
   const uiInvRaw = 1 / liveCanvasS;
   /** On phone, avoid over-scaling handles when the preview is zoomed out. */
   const uiInv = narrowViewport ? Math.min(uiInvRaw, 2.25) : uiInvRaw;
@@ -2549,6 +3467,11 @@ export function PrintsDesignPreview({
         className,
       )}
     >
+      {editable && cropEditingId && selectedElement?.id === cropEditingId ? (
+        <div data-editor-chrome data-crop-editor className="absolute inset-x-0 top-0 z-[210] flex justify-center p-2">
+          <CropEditorControls draft={cropDraft} onChange={setCropDraft} onApply={applyCrop} onCancel={() => setCropEditingId(null)} />
+        </div>
+      ) : null}
       {narrowViewport && showCanvasChromeToolbar && selectedElement && typeof document !== 'undefined'
         ? createPortal(
             <div
@@ -2559,7 +3482,7 @@ export function PrintsDesignPreview({
               }}
             >
               <div className="pointer-events-auto mx-auto w-full min-w-0 max-w-[min(18.5rem,calc(100vw-5.75rem))] sm:mx-auto sm:w-max sm:max-w-[calc(100vw-1rem)]">
-                <InlineElementToolbar
+                <InlineElementToolbar allowGradients
                   element={selectedElement}
                   onPatch={(patch) => updateElement(selectedElement.id, patch)}
                   onDuplicate={() => duplicateElement(selectedElement.id)}
@@ -2569,9 +3492,7 @@ export function PrintsDesignPreview({
                   comfortableCompact
                   variant="slim"
                   className="!max-w-[min(18.5rem,calc(100vw-5.75rem))] sm:!max-w-[min(22rem,calc(100vw-2rem))]"
-                  onCropModeChange={(cropping) =>
-                    setCropEditingId(cropping ? selectedElement.id : null)
-                  }
+                  onRequestCrop={() => setCropEditingId(selectedElement.id)}
                 />
               </div>
             </div>,
@@ -2579,24 +3500,22 @@ export function PrintsDesignPreview({
           )
         : null}
       <div
+        ref={frameRef}
         className={cn(
           'relative min-h-0 w-full flex-1',
           narrowViewport && editable && 'overflow-hidden rounded-xl',
         )}
       >
-        <div className="relative h-full w-full">
-        <img
-          src={imgBlackTshirt}
-          alt="Garment preview"
-          className="h-auto max-h-full w-full object-contain opacity-0"
-        />
-
+        <div data-design-canvas className="relative h-full w-full" style={validCanvasSize ? {
+          position: 'absolute', width: validCanvasSize.width, height: validCanvasSize.height,
+          left: '50%', top: '50%', transform: `translate(-50%, -50%) scale(${sceneScale})`,
+        } : undefined}>
         <div className="absolute inset-0 flex min-h-0 flex-col">
           {narrowViewport &&
           editable &&
           selectedElement?.type === 'text' &&
           editingTextId !== selectedElement.id ? (
-            <p className="pointer-events-none shrink-0 px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">
+            <p className="pointer-events-none absolute inset-x-0 top-0 z-50 px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">
               Tap the text on the design again to edit, or drag to move it.
             </p>
           ) : null}
@@ -2605,44 +3524,83 @@ export function PrintsDesignPreview({
           showCanvasChromeToolbar &&
           selectedElement &&
           (selectedElement.type !== 'text' || editingTextId !== selectedElement.id) ? (
-            <div className="pointer-events-none relative z-[100] flex shrink-0 justify-center overflow-visible px-2 pt-2 pb-1">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-[100] flex justify-center overflow-visible px-2 pt-2 pb-1">
               {/*
                 Do not set overflow-x on this wrapper: overflow-x other than visible forces overflow-y
                 to auto and clips the colour/font popovers (absolutely positioned under the bar).
                 Horizontal scroll is handled inside InlineElementToolbar on the button row.
               */}
               <div className="pointer-events-auto min-w-0 max-w-full [-webkit-overflow-scrolling:touch]">
-                <InlineElementToolbar
+                <InlineElementToolbar allowGradients
                   element={selectedElement}
                   onPatch={(patch) => updateElement(selectedElement.id, patch)}
                   onDuplicate={() => duplicateElement(selectedElement.id)}
                   onDelete={() => removeElement(selectedElement.id)}
                   fontOptions={previewFontOptions}
                   variant="slim"
-                  onCropModeChange={(cropping) =>
-                    setCropEditingId(cropping ? selectedElement.id : null)
-                  }
+                  onRequestCrop={() => setCropEditingId(selectedElement.id)}
                 />
               </div>
             </div>
           ) : null}
           <div
             className="relative z-0 min-h-0 flex-1"
-            onPointerDown={(e) => {
-              if (!editable) return;
-              const t = e.target as HTMLElement;
-              if (t.closest('[data-print-id]') || t.closest('[data-handles]')) return;
-              if (t.closest('[data-inline-toolbar]')) return;
-              if (t.closest('[data-inline-toolbar-popover]')) return;
-              setSelectedId(null);
+            onPointerMove={(event) => {
+              const root = editable && !studio.drawing && studio.tool === 'select' && zoneRef.current
+                ? artworkAtPoint(zoneRef.current, event.clientX, event.clientY) : null;
+              const element = elements.find(item => item.id === root?.dataset.printId);
+              event.currentTarget.style.cursor = draggingId ? 'grabbing' : element && !element.locked ? 'grab' : '';
+            }}
+            onPointerDownCapture={(e) => {
+              if (!editable || cropEditingId || studio.drawing || studio.pathEditingId || studio.tool === 'shapePolygon' || studio.tool === 'customArea' || studio.tool === 'customAreaAddPoint') return;
+              if ((e.target as Element).closest('[data-handles], [data-editor-chrome], [data-inline-toolbar], [data-inline-toolbar-popover], textarea')) return;
+              const zone = zoneRef.current;
+              if (!zone) return;
+              const root = artworkAtPoint(zone, e.clientX, e.clientY);
+              const element = elements.find(item => item.id === root?.dataset.printId);
+              if (!root || !element) { setSelectedId(null); if (studio.tool === 'customAreaEdit') studio.setTool('select'); return; }
+              if (studio.tool === 'customAreaEdit') {
+                if (element.id === selectedId) { studio.setCustomAreaPointSelection(null); return; }
+                studio.setTool('select');
+              }
+              e.stopPropagation();
+              const wasSel = selectedId === element.id;
+              setSelectedId(element.id);
+              textTapRef.current = { id: element.id, alreadySelected: wasSel };
+              dragStartClientRef.current = { x: e.clientX, y: e.clientY };
+              dragDidMoveRef.current = false;
+              if (element.locked || (element.patternTarget && patternTargets.some(target => target.id === element.patternTarget))) return;
+              e.preventDefault();
+              const ptr = clientToZonePoint(zone, e.clientX, e.clientY);
+              setManip(null);
+              setDraggingId(element.id);
+              setDragOffset({ x: ptr.x - element.x, y: ptr.y - element.y });
+              try {
+                root.setPointerCapture(e.pointerId);
+                dragPointerCaptureRef.current = { el: root, pointerId: e.pointerId };
+              } catch {
+                dragPointerCaptureRef.current = null;
+              }
+            }}
+            onDoubleClick={(e) => {
+              if (!editable || cropEditingId || studio.drawing || studio.pathEditingId || studio.tool === 'shapePolygon' || !zoneRef.current || studio.tool === 'customArea' || studio.tool === 'customAreaAddPoint') return;
+              if ((e.target as Element).closest('[data-editor-chrome], [data-handles], textarea')) return;
+              const root = artworkAtPoint(zoneRef.current, e.clientX, e.clientY);
+              const element = elements.find(item => item.id === root?.dataset.printId);
+              if (element?.type !== 'text' || element.locked) return;
+              e.stopPropagation(); e.preventDefault();
+              setSelectedId(element.id);
+              beginTextEditing(element);
+              setDraggingId(null);
+              textTapRef.current = null;
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-          <img
-            src={imgBlackTshirt}
-            alt="Garment"
-            className="h-full max-h-full w-full object-contain"
-          />
+          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-white/35" style={{ backgroundColor: '#ededed', backgroundImage: 'conic-gradient(#cfcfcf 25%, transparent 0 50%, #cfcfcf 0 75%, transparent 0)', backgroundSize: '24px 24px', boxShadow: '0 8px 32px #0008' }} /> : (
+          <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: garmentInteractive ? 'auto' : 'none' }} data-print-garment-preview>
+            {typeof garmentPreview === 'function' ? garmentPreview(sceneScale) : garmentPreview}
+          </div>
+          )}
 
           <div
             ref={(node) => {
@@ -2650,30 +3608,70 @@ export function PrintsDesignPreview({
               setZoneEl(node);
             }}
             data-print-design-zone
-            className={cn('absolute overflow-visible', editable && 'touch-none')}
+            data-asset-artboard={assetMode ? '' : undefined}
+            className={cn('absolute z-10', assetMode ? 'overflow-hidden' : 'overflow-visible', editable && 'touch-none', editable && studio.tool === 'customArea' && 'cursor-crosshair')}
+            onPointerDown={handleCustomAreaPointerDown}
+            onPointerMove={(event) => {
+              if (studio.tool === 'customArea' && zoneRef.current) setCustomAreaCursor(clientToZonePoint(zoneRef.current, event.clientX, event.clientY));
+            }}
             onDragOver={(e) => {
               if (!editable) return;
-              if (![STUDIO_DRAG_MIME, 'text/plain'].some((t) => e.dataTransfer.types.includes(t))) return;
+              if (![STUDIO_DRAG_MIME, ASSET_LIBRARY_DRAG_MIME, 'text/plain'].some((t) => e.dataTransfer.types.includes(t))) return;
               e.preventDefault();
               e.dataTransfer.dropEffect = 'copy';
+              if (e.dataTransfer.types.includes('application/x-ceriga-pattern')) {
+                const target = findPatternTarget(e.clientX, e.clientY);
+                setPatternHover(target);
+                e.dataTransfer.dropEffect = target ? 'copy' : 'none';
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPatternHover(null);
             }}
             onDrop={(e) => {
               if (!editable || !onChange) return;
+              const assetId = e.dataTransfer.getData(ASSET_LIBRARY_DRAG_MIME);
+              if (assetId) {
+                e.preventDefault();
+                const asset = assetWorkspace?.library.find(item => item.id === assetId);
+                if (asset && zoneRef.current) assetWorkspace?.insert(asset, clientToZonePoint(zoneRef.current, e.clientX, e.clientY));
+                return;
+              }
               const payload = decodeStudioDrag(
                 e.dataTransfer.getData(STUDIO_DRAG_MIME) || e.dataTransfer.getData('text/plain'),
               );
               if (!payload) return;
               e.preventDefault();
+              if (payload.kind === 'shape' && payload.id === 'custom-polygon') {
+                setSelectedId(null); studio.setPathEditingId(null); studio.setTool('shapePolygon'); return;
+              }
               const zone = zoneRef.current;
               if (!zone) return;
               const pt = clientToZonePoint(zone, e.clientX, e.clientY);
-              const size = defaultStudioSize(payload.kind, payload.id);
+              const target = payload.kind === 'pattern' ? findPatternTarget(e.clientX, e.clientY) : null;
+              setPatternHover(null);
+              if (payload.kind === 'pattern' && !target && !assetMode) return;
+              const appearance = payload.kind === 'pattern' ? { ...initialPatternSettings(payload.id, studio.color), ...patternAppearance(payload.settings) } : {};
+              if (payload.kind === 'pattern' && payload.id === 'custom' && !appearance.patternSource) return;
+              if (target?.kind === 'area') {
+                onChange(elements.map(element => element.id === target.id ? {
+                  ...element, customAreaPattern: payload.id, customAreaImage: undefined, customAreaTexture: undefined,
+                  ...appearance, flipHorizontal: element.flipHorizontal, flipVertical: element.flipVertical,
+                } : element));
+                setSelectedId(target.id);
+                studio.setTool('select');
+                return;
+              }
+              const part = target?.kind === 'part' ? patternTargets.find(part => part.id === target.id) : undefined;
+              const size = part?.bounds ?? defaultStudioSize(payload.kind, payload.id);
               const next: DesignElement = {
                 id: `${Date.now()}`,
                 type: payload.kind,
                 content: payload.id,
-                x: pt.x,
-                y: pt.y,
+                x: part?.bounds.x ?? pt.x,
+                y: part?.bounds.y ?? pt.y,
+                patternTarget: part?.id,
+                patternSeed: payload.kind === 'pattern' ? Date.now() : undefined,
                 width: size.width,
                 height: size.height,
                 rotation: 0,
@@ -2685,18 +3683,31 @@ export function PrintsDesignPreview({
                 patternCount: payload.kind === 'pattern' ? defaultPatternCount(payload.id) : undefined,
                 aspectLocked: payload.kind === 'shape' || payload.kind === 'pattern' || payload.kind === 'distress' ? false : undefined,
                 side: garmentSide,
+                ...appearance,
               };
               onChange([...elements, next]);
               setSelectedId(next.id);
               studio.setTool('select');
             }}
             style={{
-              left: `${PREVIEW_ZONE.left}%`,
-              right: `${PREVIEW_ZONE.right}%`,
-              top: `${PREVIEW_ZONE.top}%`,
-              bottom: `${PREVIEW_ZONE.bottom}%`,
+              left: assetMode ? 0 : `${PREVIEW_ZONE.left}%`,
+              right: assetMode ? 0 : `${PREVIEW_ZONE.right}%`,
+              top: assetMode ? 0 : `${PREVIEW_ZONE.top}%`,
+              bottom: assetMode ? 0 : `${PREVIEW_ZONE.bottom}%`,
+              pointerEvents: editable ? undefined : 'none',
             }}
           >
+          {patternHover && (() => {
+            const part = patternHover.kind === 'part' ? patternTargets.find(target => target.id === patternHover.id) : undefined;
+            const area = patternHover.kind === 'area' ? elements.find(element => element.id === patternHover.id) : undefined;
+            return <div className="pointer-events-none absolute inset-0 z-[30]" data-pattern-drop-target={patternHover.id}>
+              {part ? <div className="absolute inset-0 bg-[#FF3B30]/40" style={{ maskImage: `url("${part.url}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat' }} /> : null}
+              {area ? <svg className="absolute overflow-visible" viewBox={`0 0 ${area.width} ${area.height}`} style={{ left: area.x, top: area.y, width: area.width, height: area.height, transform: `translate(-50%, -50%) rotate(${area.rotation}deg)`, maskImage: drawingMask ? drawingMaskCss(drawingMask, area.width, area.height, area.x, area.y, area.rotation) : undefined }}>
+                <path d={customAreaTransformedPath(area)} fill="rgba(255,59,48,0.35)" stroke="#FF3B30" strokeWidth="2" />
+              </svg> : null}
+              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/85 px-3 py-1 text-xs text-white" role="status">Fill {part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
+            </div>;
+          })()}
           {editable && alignmentGuides ? (
             <div className="pointer-events-none absolute inset-0 z-[5]" aria-hidden>
               {alignmentGuides.vertical.map((lx, i) => (
@@ -2715,9 +3726,13 @@ export function PrintsDesignPreview({
               ))}
             </div>
           ) : null}
+          {editable && (studio.tool === 'brush' || studio.tool === 'eraser') && elements
+            .filter(element => element.id === DRAWING_LAYER_ID && designElementSide(element) === garmentSide)
+            .map(element => <ImageAdjustmentDefs key={element.id} element={element} />)}
           {editable ? (
             <PrintsDrawLayer
               zone={zoneEl}
+              garmentMask={drawingMask}
               elements={elements}
               onChange={onChange}
               editable={editable}
@@ -2726,6 +3741,32 @@ export function PrintsDesignPreview({
                 elements.find((el) => el.type === 'drawing' && designElementSide(el) === garmentSide) ?? {},
               )}
             />
+          ) : null}
+          {editable && studio.tool === 'shapePolygon' && <ShapePolygonDraft key={garmentSide}
+            width={zoneEl?.clientWidth ?? 1} height={zoneEl?.clientHeight ?? 1} color={studio.color}
+            onCancel={() => studio.setTool('select')}
+            onComplete={points => {
+              const minX = Math.min(...points.map(p => p.x)), minY = Math.min(...points.map(p => p.y));
+              const width = Math.max(1, Math.max(...points.map(p => p.x)) - minX), height = Math.max(1, Math.max(...points.map(p => p.y)) - minY);
+              const next: DesignElement = { id: crypto.randomUUID(), type: 'shape', content: 'custom-polygon',
+                x: minX + width / 2, y: minY + height / 2, width, height, rotation: 0, color: studio.color,
+                shapeFilled: true, borderWidth: 2, opacity: 100, side: garmentSide, aspectLocked: false,
+                shapePath: { closed: true, nodes: points.map(p => ({ x: (p.x - minX) / width * 100, y: (p.y - minY) / height * 100 })) } };
+              onChange?.([...elements, next]); setSelectedId(next.id); studio.setTool('select');
+            }} />}
+          {editable && studio.tool === 'customArea' && customAreaDraft.length >= 3 && <button type="button" data-editor-chrome
+            className="pointer-events-auto absolute bottom-2 left-1/2 z-50 -translate-x-1/2 rounded bg-zinc-950 px-3 py-2 text-xs text-white"
+            onPointerDown={event => event.stopPropagation()} onClick={closeCustomArea}>Close Path</button>}
+          {editable && studio.tool === 'customArea' && customAreaDraft.length > 0 ? (
+            <svg className="pointer-events-none absolute inset-0 z-40 h-full w-full overflow-visible" viewBox={`0 0 ${zoneEl?.clientWidth ?? 1} ${zoneEl?.clientHeight ?? 1}`} preserveAspectRatio="none" aria-label="Custom Area in progress">
+              {customAreaDraft.length > 0 ? <polyline points={[...customAreaDraft, ...(customAreaCursor ? [customAreaCursor] : [])].map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#CC2D24" strokeWidth={2} strokeDasharray="5 4" /> : null}
+              {customAreaDraft.map((point, index) => {
+                const close = index === 0 && customAreaDraft.length >= 3 && customAreaCursor !== null && zoneEl !== null
+                  && Math.hypot(point.x - customAreaCursor.x, point.y - customAreaCursor.y) <= 18 / zoneScaleFactor(zoneEl);
+                return <circle key={index} cx={point.x} cy={point.y} r={close ? 11 : index === 0 ? 7 : 5}
+                  fill={close ? '#CC2D24' : '#FFFFFF'} stroke="#09090B" strokeWidth={2} />;
+              })}
+            </svg>
           ) : null}
           {editable && studio.drawing ? (
             <div className="pointer-events-none absolute bottom-2 left-1/2 z-[20] -translate-x-1/2 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-[10px] font-medium tracking-wide text-white/80 backdrop-blur-md">
@@ -2748,28 +3789,32 @@ export function PrintsDesignPreview({
             const op = (element.opacity ?? 100) / 100;
             const locked = element.locked === true;
             const isEditingText = editingTextId === element.id;
-            const displayFont = (() => {
-              const base = element.fontSize ?? 30;
-              if (!narrowViewport) return base;
-              return Math.max(12, Math.round(base * 0.78));
-            })();
+            const displayFont = element.fontSize ?? 30;
             /** iOS zooms the page on focus if input font is under 16px — avoid while editing. */
             const editFontSize = narrowViewport ? Math.max(16, displayFont) : displayFont;
 
+            const patternPart = element.patternTarget ? patternTargets.find(target => target.id === element.patternTarget) : undefined;
+            if (element.patternTarget && !patternPart) return null;
+            const visualElement = patternPart ? { ...element, ...patternPart.bounds, rotation: 0 }
+              : element.type === 'customArea' && liveCustomAreaPoints?.id === element.id
+                ? { ...element, customAreaViewWidth: customAreaViewport(element).width, customAreaViewHeight: customAreaViewport(element).height, customAreaPoints: liveCustomAreaPoints.points }
+                : liveShapePath?.id === element.id ? { ...element, shapePath: liveShapePath.path } : element;
             const isHeld = draggingId === element.id && editable && !locked;
             const liveX =
-              isHeld && dragLivePos ? dragLivePos.x : element.x;
+              isHeld && dragLivePos ? dragLivePos.x : visualElement.x;
             const liveY =
-              isHeld && dragLivePos ? dragLivePos.y : element.y;
+              isHeld && dragLivePos ? dragLivePos.y : visualElement.y;
             const isArtwork =
               element.type === 'image' ||
               element.type === 'drawing' ||
               element.type === 'shape' ||
               element.type === 'pattern' ||
+              element.type === 'customArea' ||
+              element.type === 'group' ||
               element.type === 'distress';
-            const hideDrawingOnCanvas =
+            const hideDrawingOnCanvas = editable && (
               (element.id === DRAWING_LAYER_ID && (studio.tool === 'brush' || studio.tool === 'eraser')) ||
-              (element.id === DISTRESS_LAYER_ID && (studio.tool === 'distress' || studio.tool === 'distressEraser'));
+              (element.id === DISTRESS_LAYER_ID && (studio.tool === 'distress' || studio.tool === 'distressEraser')));
 
             if (hideDrawingOnCanvas) return null;
 
@@ -2777,6 +3822,7 @@ export function PrintsDesignPreview({
               <div
                 key={element.id}
                 data-print-id={element.id}
+                data-artwork-hit-disabled={element.id === DRAWING_LAYER_ID ? '' : undefined}
                 className={cn(
                   'absolute canvas-element-drag',
                   draggingId === element.id && 'z-[15]',
@@ -2789,80 +3835,92 @@ export function PrintsDesignPreview({
                   left: liveX,
                   top: liveY,
                   // Text: design `width` is the wrap width; with `autoHeight` the box grows with lines.
-                  width: element.width,
+                  width: visualElement.width,
                   maxWidth: element.type === 'text' ? element.width : undefined,
                   minWidth: element.type === 'text' ? 0 : undefined,
                   height: isArtwork
-                      ? element.height
+                      ? visualElement.height
                       : element.autoHeight === false
                         ? element.height
                         : undefined,
                   opacity: op,
-                  transform: `translate(-50%, -50%) rotate(${element.rotation}deg)`,
-                }}
-                onPointerDown={(e) => {
-                  if (!editable) return;
-                  if (studio.drawing) return;
-                  if (element.id === DRAWING_LAYER_ID) return;
-                  const t = e.target as HTMLElement;
-                  if (t.closest('[data-handles]') || t.closest('[data-inline-toolbar]')) return;
-                  e.stopPropagation();
-                  const wasSel = selectedId === element.id;
-                  setSelectedId(element.id);
-                  textTapRef.current = { id: element.id, alreadySelected: wasSel };
-                  dragStartClientRef.current = { x: e.clientX, y: e.clientY };
-                  dragDidMoveRef.current = false;
-                  if (locked) return;
-                  e.preventDefault();
-                  const zone = zoneRef.current;
-                  if (!zone) return;
-                  const ptr = clientToZonePoint(zone, e.clientX, e.clientY);
-                  setManip(null);
-                  setDraggingId(element.id);
-                  setDragOffset({ x: ptr.x - element.x, y: ptr.y - element.y });
-                  try {
-                    const el = e.currentTarget as HTMLElement;
-                    el.setPointerCapture(e.pointerId);
-                    dragPointerCaptureRef.current = { el, pointerId: e.pointerId };
-                  } catch {
-                    dragPointerCaptureRef.current = null;
-                  }
+                  pointerEvents: 'none',
+                  transform: `translate(-50%, -50%) rotate(${visualElement.rotation}deg)`,
                 }}
               >
+                {editable && selected && element.type === 'image' && manip?.kind === 'rotate' && manip.id === element.id && element.rotation === 0 && (
+                  <div data-editor-chrome data-rotation-snap className="pointer-events-none absolute inset-y-0 left-1/2 z-50 border-l border-emerald-400">
+                    <span role="status" className="absolute left-2 top-1/2 -translate-y-1/2 rounded bg-emerald-950 px-2 py-1 text-[10px] font-semibold text-emerald-200" style={{ scale: uiInv }}>0°</span>
+                  </div>
+                )}
+                {editable && selected && !locked && studio.pathEditingId === element.id && visualElement.shapePath && <ShapePathEditor
+                  key={element.id} element={visualElement} scale={1 / uiInv}
+                  onChange={shapePath => updateElement(element.id, { shapePath })}
+                  onPreview={path => setLiveShapePath(path ? { id: element.id, path } : null)}
+                  onDone={() => studio.setPathEditingId(null)} />}
+                {editable && selected && !locked && !cropEditingId && element.type === 'customArea' && (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint') && <CustomAreaPathEditor
+                  key={element.id} element={element} scale={1 / uiInv}
+                  onChange={points => updateElement(element.id, customAreaGeometryPatch(points, element))}
+                  onPreview={points => setLiveCustomAreaPoints(points ? { id: element.id, points } : null)} />}
+                <DesignAssetSurface element={visualElement} selected={selected && editable && !locked && !isEditingText && !cropEditingId && studio.pathEditingId !== element.id && !(element.type === 'customArea' && (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint')) && !patternPart}
+                  cropping={editable && cropEditingId === element.id}
+                  cropOverlay={<InteractiveCropOverlay element={cropDraft} onChange={setCropDraft} width={visualElement.width} height={visualElement.height} />}
+                  garmentMask={patternPart ?? drawingMask} position={{ x: liveX, y: liveY }}
+                  distort={distortEditingId === element.id && !studio.drawing}
+                  warpEditing={warpEditingId === element.id && !studio.drawing}
+                  onWarpChange={(warp) => updateElement(element.id, { warp })}
+                  scale={1 / uiInv} onChange={patch => updateElement(element.id, patch)}
+                  overlay={<PrintTransformOverlay tight compactHandles={narrowViewport && element.type !== 'text'}
+                    phoneTextMinimal={narrowViewport && element.type === 'text'} uiInverseScale={uiInv}
+                    onRotatePointerDown={event => {
+                      event.stopPropagation(); event.preventDefault();
+                      const zone = zoneRef.current;
+                      if (!zone) return;
+                      const center = zonePointToClient(zone, element.x, element.y);
+                      setDraggingId(null);
+                      setManip({ kind: 'rotate', id: element.id, startRot: element.rotation, cx: center.x, cy: center.y,
+                        startAngle: Math.atan2(event.clientY - center.y, event.clientX - center.x) });
+                    }}
+                    onResizePointerDown={(event, handle) => {
+                      event.stopPropagation(); event.preventDefault(); setDraggingId(null);
+                      const root = (event.currentTarget as HTMLElement).closest('[data-print-id]');
+                      const content = root?.querySelector('[data-asset-content]') as HTMLElement | null;
+                      setManip({ kind: 'resize', id: element.id, handle, startX: event.clientX, startY: event.clientY,
+                        startW: element.width, startH: content?.offsetHeight || element.height, startFontSize: element.fontSize ?? 30,
+                        isImage: element.type !== 'text', aspectLocked: element.aspectLocked ?? element.type === 'image' });
+                    }} />}
+                >
                 {isArtwork ? (
                   <>
                     <ImageFxDefs element={element} />
-                    {element.type === 'shape' ||
+                    <ImageAdjustmentDefs element={element} />
+                    {element.type === 'group' ? <DesignGroupArtwork element={visualElement} /> : element.type === 'customArea' ? (
+                      <CustomAreaGraphic
+                        element={visualElement}
+                        points={visualElement.customAreaPoints ?? []}
+                        garmentMask={drawingMask ? drawingMaskCss(drawingMask, visualElement.width, visualElement.height, liveX, liveY, visualElement.rotation) : undefined}
+                      />
+                    ) : element.type === 'shape' ||
                     element.type === 'pattern' ||
                     (element.type === 'distress' && !element.content.startsWith('data:')) ? (
-                      <div
-                        className="h-full w-full overflow-hidden"
-                        style={{
-                          clipPath: buildImageClipPath(element, {
-                            ignoreCrop: cropEditingId === element.id,
-                          }),
-                        }}
-                      >
-                        <StudioGraphic element={element} />
+                      <div className={cn('h-full w-full', element.type !== 'shape' && 'overflow-hidden')}>
+                        <StudioGraphic element={visualElement} />
                       </div>
                     ) : (
-                    <img
-                      src={element.content}
+                    <div className="relative h-full w-full" style={{ filter: composeArtworkFilter(element) }}>
+                    <FilteredImage
+                      source={element.content}
+                      settings={element.type === 'image' ? element.imageFilter : undefined}
                       alt={element.type === 'drawing' ? 'Drawing' : element.type === 'distress' ? 'Distress' : 'Artwork'}
                       className="h-full w-full object-fill"
                       style={{
-                        transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
-                        transformOrigin: 'center',
-                        clipPath: buildImageClipPath(element, {
-                          ignoreCrop: cropEditingId === element.id,
-                        }),
-                        filter: composeArtworkFilter(element),
+                        ...artworkFlipStyle(element),
+                        opacity: element.color ? 0 : undefined,
                       }}
                     />
+                    {element.color && <div className="pointer-events-none absolute inset-0" style={{ background: paintCss(element.color), maskImage: `url("${element.content}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat', ...artworkFlipStyle(element) }} />}
+                    </div>
                     )}
-                    {cropEditingId === element.id ? (
-                      <CropEditingOverlay element={element} />
-                    ) : null}
                   </>
                 ) : isEditingText ? (
                   <textarea
@@ -2873,41 +3931,73 @@ export function PrintsDesignPreview({
                     autoComplete="off"
                     autoCorrect="off"
                     onChange={(ev) => {
+                      const marker = (ev.nativeEvent as InputEvent).isComposing ? null : completeTextListInputMarker(
+                        ev.target.value,
+                        ev.target.selectionStart,
+                      );
+                      if (marker) {
+                        editDraftRef.current = marker.content;
+                        // Commit before moving the caret so rapid typing cannot race a deferred selection.
+                        flushSync(() => setEditDraft(marker.content));
+                        editAreaRef.current?.setSelectionRange(marker.caret, marker.caret);
+                        return;
+                      }
                       setEditDraft(ev.target.value);
                       editDraftRef.current = ev.target.value;
                     }}
                     onBlur={() => {
-                      const trimmed = editDraftRef.current.trim();
-                      if (trimmed.length === 0) {
+                      const draft = editDraftRef.current;
+                      if (draft.trim().length === 0) {
                         removeElement(element.id);
                         setEditingTextId(null);
                         return;
                       }
-                      updateElement(element.id, { content: trimmed });
+                      const parsed = parseTextListInput(draft);
+                      updateElement(element.id, {
+                        content: parsed.content,
+                        textListLineStyles: parsed.lineStyles,
+                      });
                       setEditingTextId(null);
                     }}
                     onKeyDown={(ev) => {
                       if (ev.key === 'Escape') {
-                        setEditDraft(element.content);
-                        editDraftRef.current = element.content;
+                        ev.preventDefault();
+                        const original = formatTextListInput(element.content, element.textListLineStyles, element.textList ?? 'none');
+                        setEditDraft(original);
+                        editDraftRef.current = original;
                         setEditingTextId(null);
+                      } else if (ev.key === 'Enter' && !ev.shiftKey && !ev.nativeEvent.isComposing) {
+                        const result = continueTextListInput(
+                          ev.currentTarget.value,
+                          ev.currentTarget.selectionStart,
+                          ev.currentTarget.selectionEnd,
+                        );
+                        if (result) {
+                          ev.preventDefault();
+                          editDraftRef.current = result.content;
+                          flushSync(() => setEditDraft(result.content));
+                          editAreaRef.current?.setSelectionRange(result.caret, result.caret);
+                        }
                       }
                       ev.stopPropagation();
                     }}
                     onPointerDown={(ev) => ev.stopPropagation()}
                     rows={1}
-                    className="z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#FF3B30] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
+                    className="pointer-events-auto z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#FF3B30] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
                     style={{
-                      color: element.color ?? '#FFFFFF',
+                      color: solidPaint(element.color),
                       fontFamily: element.fontFamily ?? 'Inter',
                       fontSize: editFontSize,
-                      lineHeight: 1.15,
+                      fontWeight: element.fontWeight === 'bold' ? 700 : element.fontWeight === 'normal' ? 400 : 600,
+                      lineHeight: `${element.lineSpacing ?? 115}%`,
                       width: '100%',
                       maxWidth: '100%',
                       minHeight: element.autoHeight === false ? element.height : undefined,
                       textAlign: element.textAlign ?? 'center',
                       fontStyle: element.fontStyle ?? 'normal',
                       textTransform: element.textTransform ?? 'none',
+                      writingMode: element.verticalText ? 'vertical-rl' : undefined,
+                      textOrientation: element.verticalText ? 'upright' : undefined,
                       letterSpacing:
                         element.letterSpacing != null ? `${element.letterSpacing}px` : undefined,
                       outline: '1px solid rgba(255, 59, 48, 0.55)',
@@ -2916,100 +4006,23 @@ export function PrintsDesignPreview({
                   />
                 ) : (
                   <div className="relative w-full min-w-0 max-w-full">
-                    <div
-                      data-text-body
+                    <ImageFxDefs element={element} />
+                    <TextArtwork
+                      element={element}
+                      fontSize={displayFont}
                       onDoubleClick={(ev) => {
                         if (!editable || locked) return;
                         ev.stopPropagation();
                         ev.preventDefault();
                         setSelectedId(element.id);
-                        setEditingTextId(element.id);
-                        setEditDraft(element.content);
-                        editDraftRef.current = element.content;
+                        beginTextEditing(element);
                         setDraggingId(null);
                         textTapRef.current = null;
                       }}
-                      className="w-full whitespace-normal break-words font-semibold [overflow-wrap:anywhere]"
-                      style={{
-                        color: element.color ?? '#FFFFFF',
-                        fontFamily: element.fontFamily ?? 'Inter',
-                        fontSize: displayFont,
-                        lineHeight: 1.15,
-                        width: '100%',
-                        maxWidth: '100%',
-                        minHeight: element.autoHeight === false ? element.height : undefined,
-                        textAlign: element.textAlign ?? 'center',
-                        fontStyle: element.fontStyle ?? 'normal',
-                        textTransform: element.textTransform ?? 'none',
-                        letterSpacing:
-                          element.letterSpacing != null ? `${element.letterSpacing}px` : undefined,
-                        transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
-                        WebkitTextStroke: bw > 0 ? `${bw}px ${bc}` : undefined,
-                        paintOrder: bw > 0 ? ('stroke fill' as const) : undefined,
-                      }}
-                    >
-                      {element.content}
-                    </div>
+                    />
                   </div>
                 )}
-                {selected && editable && !locked && !isEditingText && element.type !== 'drawing' ? (
-                  <>
-                    <PrintTransformOverlay
-                      compactHandles={narrowViewport && element.type !== 'text'}
-                      phoneTextMinimal={narrowViewport && element.type === 'text'}
-                      uiInverseScale={uiInv}
-                      onRotatePointerDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        const z = zoneRef.current;
-                        if (!z) return;
-                        const c = zonePointToClient(z, element.x, element.y);
-                        const startAngle = Math.atan2(e.clientY - c.y, e.clientX - c.x);
-                        setDraggingId(null);
-                        setManip({
-                          kind: 'rotate',
-                          id: element.id,
-                          startRot: element.rotation,
-                          cx: c.x,
-                          cy: c.y,
-                          startAngle,
-                        });
-                      }}
-                      onResizePointerDown={(e, handle) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setDraggingId(null);
-                        const fs = element.fontSize ?? 30;
-                        let startW = element.width;
-                        let startH = element.height;
-                        if (element.type === 'text' && zoneRef.current) {
-                          const measured = getRenderedTextBoxInZone(zoneRef.current, element.id, {
-                            width: element.width,
-                            height: Math.max(element.height ?? 0, fs + 18),
-                          });
-                          startW = measured.width;
-                          startH = measured.height;
-                        }
-                        setManip({
-                          kind: 'resize',
-                          id: element.id,
-                          handle,
-                          startX: e.clientX,
-                          startY: e.clientY,
-                          startW,
-                          startH,
-                          startFontSize: fs,
-                          isImage:
-                            element.type === 'image' ||
-                            element.type === 'shape' ||
-                            element.type === 'pattern' ||
-                            element.type === 'distress',
-                          aspectLocked: element.aspectLocked ?? element.type === 'image',
-                        });
-                      }}
-                    />
-                  </>
-                ) : null}
+                </DesignAssetSurface>
                 {locked && editable ? (
                   <div className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#CC2D24]/50 bg-black/80 text-[#CC2D24]">
                     <Lock className="h-2.5 w-2.5" />

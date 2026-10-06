@@ -1,42 +1,35 @@
-import { createBrowserRouter, Navigate } from "react-router";
-import { Home } from "./pages/Home";
-import { Features } from "./pages/Features";
-import { HowItWorks } from "./pages/HowItWorks";
-import { PricingPage } from "./pages/PricingPage";
-import { Onboarding } from "./pages/Onboarding";
-import { Login } from "./pages/Login";
-import { Signup } from "./pages/Signup";
+import { createBrowserRouter, Navigate, type RouteObject } from "react-router";
 import { NotFound } from "./pages/NotFound";
-import { SidebarLayout } from "./components/SidebarLayout";
+import { PageLoadingFallback } from "./components/PageLoadingFallback";
 
-export const router = createBrowserRouter([
+const routes: RouteObject[] = [
   {
     path: "/",
-    Component: Home,
+    lazy: async () => ({ Component: (await import("./pages/Home")).Home }),
   },
   {
     path: "/features",
-    Component: Features,
+    lazy: async () => ({ Component: (await import("./pages/Features")).Features }),
   },
   {
     path: "/how-it-works",
-    Component: HowItWorks,
+    lazy: async () => ({ Component: (await import("./pages/HowItWorks")).HowItWorks }),
   },
   {
     path: "/pricing",
-    Component: PricingPage,
+    lazy: async () => ({ Component: (await import("./pages/PricingPage")).PricingPage }),
   },
   {
     path: "/onboarding",
-    Component: Onboarding,
+    lazy: async () => ({ Component: (await import("./pages/Onboarding")).Onboarding }),
   },
   {
     path: "/login",
-    Component: Login,
+    lazy: async () => ({ Component: (await import("./pages/Login")).Login }),
   },
   {
     path: "/signup",
-    Component: Signup,
+    lazy: async () => ({ Component: (await import("./pages/Signup")).Signup }),
   },
   {
     path: "/dashboard",
@@ -843,4 +836,9 @@ export const router = createBrowserRouter([
     path: "*",
     Component: NotFound,
   },
-]);
+];
+
+export const router = createBrowserRouter(routes.map((route) => ({
+  ...route,
+  HydrateFallback: PageLoadingFallback,
+})));

@@ -13,7 +13,6 @@ import {
   Minus,
   Plus,
   Copy,
-  FlipHorizontal2,
   Image as ImageIcon,
   AlignLeft,
   AlignCenter,
@@ -29,13 +28,16 @@ import {
   PrintTransformOverlay,
   type PrintManip,
   type ResizeHandle,
-  buildImageClipPath,
-  CropEditingOverlay,
   getImageFilterStyle,
   ImageFxDefs,
   SidebarNumberField,
 } from './PrintsDesignStep';
 import { InlineElementToolbar } from './InlineElementToolbar';
+import { CropEditingOverlay, CropEditorControls } from './printsStudio/CropEditor';
+import { buildArtworkClipPath, normalizeCrop, type CropInsets } from '../../lib/artworkCrop';
+import { TextArtwork } from './printsStudio/TextArtwork';
+import { FlipControls } from './printsStudio/FlipControls';
+import { artworkFlipStyle } from '../../lib/artworkFlip';
 import { StudioColorField } from './StudioColorField';
 import { cn } from '../ui/utils';
 import {
@@ -307,6 +309,12 @@ export function LabelsPackagingStep({
   const updateFontSize = (delta: number) => {
     if (!selected || selected.type !== 'text') return;
     const next = Math.max(12, Math.min(64, (selected.fontSize ?? 20) + delta));
+    if (selected.textCurveShape === 'circle') {
+      const radius = Math.max(80, Math.min(500, selected.textCurveRadius ?? 260));
+      const size = Math.ceil((radius + next) * 2);
+      updateSelected({ fontSize: next, height: size, width: size });
+      return;
+    }
     updateSelected({ fontSize: next, height: next + 18, width: Math.max(90, (selected.width || 120) + delta * 2) });
   };
 
@@ -786,15 +794,25 @@ export function LabelsPackagingStep({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() =>
+                    onClick={() => {
+                      const active = selected.type === 'text'
+                        ? selected.textFillMode
+                          ? selected.textFillMode !== 'filled'
+                          : (selected.borderWidth ?? 0) > 0
+                        : (selected.borderWidth ?? 0) > 0;
                       updateSelected({
-                        borderWidth: (selected.borderWidth ?? 0) > 0 ? 0 : 2,
+                        borderWidth: active ? 0 : selected.type === 'text' ? 1 : 2,
                         borderColor: selected.borderColor ?? '#111111',
-                      })
-                    }
+                        ...(selected.type === 'text' ? { textFillMode: active ? 'filled' : 'fill-outline' } : {}),
+                      });
+                    }}
                     className="h-7 border-white/20 px-2 text-[9px] !text-white hover:bg-white/10"
                   >
-                    {(selected.borderWidth ?? 0) > 0 ? 'Off' : 'On'}
+                    {(selected.type === 'text'
+                      ? selected.textFillMode
+                        ? selected.textFillMode !== 'filled'
+                        : (selected.borderWidth ?? 0) > 0
+                      : (selected.borderWidth ?? 0) > 0) ? 'Off' : 'On'}
                   </Button>
                 </div>
                 <div className="mb-2 flex items-center justify-between">
@@ -802,7 +820,7 @@ export function LabelsPackagingStep({
                     Thickness
                   </Label>
                   <span className="text-[10px] tabular-nums text-white/50">
-                    {selected.borderWidth ?? 0}px
+                    {(selected.type === 'text' && selected.textFillMode !== 'filled' ? selected.borderWidth ?? 1 : selected.borderWidth ?? 0)}px
                   </span>
                 </div>
                 <input
@@ -810,8 +828,16 @@ export function LabelsPackagingStep({
                   min={0}
                   max={8}
                   step={0.5}
-                  value={selected.borderWidth ?? 0}
-                  onChange={(e) => updateSelected({ borderWidth: Number(e.target.value) })}
+                  value={selected.type === 'text' && selected.textFillMode !== 'filled'
+                    ? selected.borderWidth ?? 1
+                    : selected.borderWidth ?? 0}
+                  onChange={(e) => {
+                    const width = Number(e.target.value);
+                    updateSelected({
+                      borderWidth: width,
+                      ...(selected.type === 'text' ? { textFillMode: width > 0 ? 'fill-outline' : 'filled' } : {}),
+                    });
+                  }}
                   className="h-2 w-full cursor-pointer accent-[#FF3B30]"
                 />
                 <div className="mt-3">
@@ -1000,16 +1026,7 @@ export function LabelsPackagingStep({
                   <Copy className="mr-1 h-3 w-3" />
                   Duplicate
                 </Button>
-                {selected.type === 'image' ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => updateSelected({ flipHorizontal: !selected.flipHorizontal })}
-                    className="col-span-2 h-8 border-white/20 px-2 text-[10px] !text-white hover:bg-white/10"
-                  >
-                    <FlipHorizontal2 className="mr-1 h-3 w-3" />
-                    Flip horizontal
-                  </Button>
-                ) : null}
+                <FlipControls element={selected} onChange={updateSelected} />
                 <div className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-[#252528] bg-black/20 px-2 py-2 text-center text-[10px] leading-snug text-white/60">
                   <Move className="h-3 w-3 shrink-0" />
                   Drag to move · corners scale · sides stretch · double-click text to edit
@@ -1706,10 +1723,32 @@ function DesignSurface({
     narrowViewport &&
     showInlineToolbar &&
     selectedElement?.type === 'text';
-  const showChromeToolbar = Boolean(
-    showInlineToolbar && selectedElement && !phoneTextUsesSidebarOnly,
-  );
-  const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+  const showChromeToolbar = Boolean(showInlineToolbar && selectedElement && !phoneTextUsesSidebarOnly);
+  const [cropSession, setCropSession] = useState<{ id: string; draft: CropInsets } | null>(null);
+  const cropEditingId = editable && selectedElement && !selectedElement.locked && cropSession?.id === selectedElement.id
+    ? cropSession.id : null;
+  useEffect(() => {
+    if (!editable || !selectedElement || selectedElement.locked || selectedElement.id !== cropSession?.id) setCropSession(null);
+  }, [editable, selectedElement?.id, selectedElement?.locked, cropSession?.id]);
+  const requestCrop = () => {
+    if (!selectedElement || selectedElement.locked) return;
+    setEditingTextId(null);
+    setDraggingId(null);
+    setManip(null);
+    setCropSession({ id: selectedElement.id, draft: normalizeCrop(selectedElement) });
+  };
+  const changeCropDraft = (draft: CropInsets) => setCropSession(session => session ? { ...session, draft } : null);
+  const cropControls = cropEditingId && cropSession ? (
+    <CropEditorControls
+      draft={cropSession.draft}
+      onChange={changeCropDraft}
+      onApply={() => {
+        updateElement(cropEditingId, normalizeCrop(cropSession.draft));
+        setCropSession(null);
+      }}
+      onCancel={() => setCropSession(null)}
+    />
+  ) : null;
 
   const liveCanvasS = liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1;
   const uiInvRaw = 1 / liveCanvasS;
@@ -1718,6 +1757,7 @@ function DesignSurface({
   return (
     <div
       data-label-packaging-root
+      onKeyDownCapture={event => { if (event.key === 'Escape' && cropEditingId) { event.preventDefault(); event.stopPropagation(); setCropSession(null); } }}
       className="relative flex w-full max-w-full min-w-0 flex-col items-center overflow-x-hidden"
       onPointerDown={(e) => {
         if (!editable) return;
@@ -1734,6 +1774,11 @@ function DesignSurface({
       }}
     >
       <div className="relative flex w-full max-w-full flex-col items-center">
+        {phoneTextUsesSidebarOnly && selectedElement ? (
+          <div data-editor-chrome data-crop-editor className="relative z-30 mb-2" onPointerDown={event => event.stopPropagation()}>
+            {cropControls ?? <button data-editor-chrome data-crop-editor type="button" disabled={selectedElement.locked} onClick={requestCrop} className="rounded bg-[#18181b] px-3 py-2 text-xs text-white disabled:opacity-40">Crop</button>}
+          </div>
+        ) : null}
         {narrowViewport && showChromeToolbar && selectedElement && typeof document !== 'undefined'
           ? createPortal(
               <div
@@ -1753,10 +1798,9 @@ function DesignSurface({
                     comfortableCompact
                     variant="slim"
                     className="!max-w-[min(16rem,calc(100vw-6.75rem))] sm:!max-w-[min(24rem,calc(100vw-2rem))]"
-                    onCropModeChange={(cropping) =>
-                      setCropEditingId(cropping ? selectedElement.id : null)
-                    }
+                    onRequestCrop={requestCrop}
                   />
+                  {cropControls}
                 </div>
               </div>,
               document.body,
@@ -1779,10 +1823,9 @@ function DesignSurface({
                 onDuplicate={() => duplicateElement(selectedElement.id)}
                 onDelete={() => removeElement(selectedElement.id)}
                 variant="slim"
-                onCropModeChange={(cropping) =>
-                  setCropEditingId(cropping ? selectedElement.id : null)
-                }
+                onRequestCrop={requestCrop}
               />
+              {cropControls}
             </div>
           </div>
         ) : null}
@@ -1917,6 +1960,7 @@ function DesignSurface({
                   }
                 }}
               >
+                <div className="relative h-full w-full" style={{ clipPath: buildArtworkClipPath(element, { ignoreCrop: cropEditingId === element.id }) }}>
                 {element.type === 'image' ? (
                   <>
                     <ImageFxDefs element={element} />
@@ -1925,16 +1969,10 @@ function DesignSurface({
                       alt="Artwork"
                       className="h-full w-full object-contain"
                       style={{
-                        transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,
-                        clipPath: buildImageClipPath(element, {
-                          ignoreCrop: cropEditingId === element.id,
-                        }),
+                        ...artworkFlipStyle(element),
                         filter: getImageFilterStyle(element),
                       }}
                     />
-                    {cropEditingId === element.id ? (
-                      <CropEditingOverlay element={element} />
-                    ) : null}
                   </>
                 ) : isEditingText ? (
                   <textarea
@@ -1973,7 +2011,8 @@ function DesignSurface({
                       color: element.color ?? defaultOnSurfaceText,
                       fontFamily: element.fontFamily ?? 'Inter',
                       fontSize: editFontSize,
-                      lineHeight: 1.15,
+                      fontWeight: element.fontWeight === 'bold' ? 700 : element.fontWeight === 'normal' ? 400 : 600,
+                      lineHeight: `${element.lineSpacing ?? 115}%`,
                       width: '100%',
                       maxWidth: '100%',
                       minHeight: element.autoHeight === false ? element.height : undefined,
@@ -1982,14 +2021,19 @@ function DesignSurface({
                       letterSpacing:
                         element.letterSpacing != null ? `${element.letterSpacing}px` : undefined,
                       textTransform: 'none',
+                      writingMode: element.verticalText ? 'vertical-rl' : undefined,
+                      textOrientation: element.verticalText ? 'upright' : undefined,
                       outline: '1px solid rgba(255, 59, 48, 0.55)',
                       outlineOffset: '2px',
                     }}
                   />
                 ) : (
                   <div className="relative w-full min-w-0 max-w-full">
-                    <div
-                      data-text-body
+                    <ImageFxDefs element={element} />
+                    <TextArtwork
+                      element={element}
+                      fontSize={displayFont}
+                      defaultColor={defaultOnSurfaceText}
                       onDoubleClick={(ev) => {
                         if (!editable) return;
                         ev.stopPropagation();
@@ -2001,29 +2045,14 @@ function DesignSurface({
                         setDraggingId(null);
                         textTapRef.current = null;
                       }}
-                      className="w-full whitespace-normal break-words font-semibold [overflow-wrap:anywhere]"
-                      style={{
-                        color: element.color ?? defaultOnSurfaceText,
-                        fontFamily: element.fontFamily ?? 'Inter',
-                        fontSize: displayFont,
-                        lineHeight: 1.15,
-                        width: '100%',
-                        maxWidth: '100%',
-                        minHeight: element.autoHeight === false ? element.height : undefined,
-                        textAlign: element.textAlign ?? 'center',
-                        fontStyle: element.fontStyle ?? 'normal',
-                        textTransform: element.textTransform ?? 'none',
-                        letterSpacing:
-                          element.letterSpacing != null ? `${element.letterSpacing}px` : undefined,
-                        WebkitTextStroke: bw > 0 ? `${bw}px ${bc}` : undefined,
-                        paintOrder: bw > 0 ? ('stroke fill' as const) : undefined,
-                      }}
-                    >
-                      {element.content}
-                    </div>
+                    />
                   </div>
                 )}
-                {selected && editable && !isEditingText ? (
+                </div>
+                {cropEditingId === element.id && cropSession ? (
+                  <CropEditingOverlay element={cropSession.draft} onChange={changeCropDraft} width={element.width} height={element.height} />
+                ) : null}
+                {selected && editable && !isEditingText && cropEditingId !== element.id ? (
                   <PrintTransformOverlay
                     compactHandles={narrowViewport && element.type !== 'text'}
                     phoneTextMinimal={narrowViewport && element.type === 'text'}
@@ -2113,4 +2142,3 @@ function NumberStepper({
     </div>
   );
 }
-

@@ -4,6 +4,7 @@ import { cn } from '../ui/utils';
 import { Input } from '../ui/input';
 import { AdvancedColorPopover } from './AdvancedColorPopover';
 import { normalizeHex6 } from '../../lib/colorUtils';
+import { paintCss, parsePaint, solidPaint } from '../../lib/studioPaint';
 
 function PresetGrid({
   colors,
@@ -56,6 +57,7 @@ export function StudioColorField({
   onClear,
   clearLabel = 'Clear',
   clearVisible = true,
+  allowGradients = false,
 }: {
   value: string;
   onChange: (hex: string) => void;
@@ -67,8 +69,9 @@ export function StudioColorField({
   onClear?: () => void;
   clearLabel?: string;
   clearVisible?: boolean;
+  allowGradients?: boolean;
 }) {
-  const hex = normalizeHex6(value);
+  const hex = normalizeHex6(solidPaint(value));
   const [hexDraft, setHexDraft] = useState(hex);
 
   useEffect(() => {
@@ -76,19 +79,19 @@ export function StudioColorField({
   }, [hex]);
 
   const commitHexInput = () => {
-    onChange(normalizeHex6(hexDraft));
+    if (hexDraft !== hex) onChange(normalizeHex6(hexDraft));
   };
 
   return (
     <div className={cn('space-y-1.5 sm:space-y-2', className)}>
       <div className="flex min-w-0 items-stretch gap-2">
-        <AdvancedColorPopover value={hex} onChange={onChange}>
+        <AdvancedColorPopover value={value} onChange={onChange} allowGradients={allowGradients}>
           <button
             type="button"
             className="group relative aspect-square w-[3.25rem] shrink-0 overflow-hidden rounded-xl border border-white/18 bg-black/30 shadow-inner transition hover:border-white/32 sm:aspect-[5/3] sm:w-[5.5rem]"
             aria-label="Open colour picker"
           >
-            <span className="absolute inset-0" style={{ backgroundColor: hex }} aria-hidden />
+            <span className="absolute inset-0" style={{ background: allowGradients ? paintCss(value) : hex }} aria-hidden />
             <span
               className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border border-white/12 bg-black/55 text-white shadow-sm backdrop-blur-sm transition group-hover:bg-black/65 sm:h-6 sm:w-6"
               aria-hidden
@@ -117,7 +120,7 @@ export function StudioColorField({
 
       <div>
         <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{mainLabel}</div>
-        <PresetGrid colors={mainColors} selected={hex} onSelect={onChange} />
+        <PresetGrid colors={mainColors} selected={parsePaint(value) ? '' : hex} onSelect={onChange} />
       </div>
 
       <div>

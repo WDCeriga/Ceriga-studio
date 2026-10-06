@@ -11,11 +11,19 @@ fs.mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const errors = [];
 const colours = ['#CE584E', '#3AA883', '#E5B84A', '#508CC4', '#A36BBD', '#D380A0', '#76AD52', '#BE7844'];
+const dolman = process.argv.includes('--dolman');
+const initialLabel = dolman ? 'Dolman Sleeve' : 'Set-in Sleeve';
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${process.env.CERIGA_BASE_URL || 'http://localhost:5174'}/builder/hd-001`);
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  const choices = page.getByRole('button', { name: 'Dolman Sleeve', exact: true }).locator('..').locator('button');
+  assert.deepEqual(await choices.allTextContents().then(labels => labels.map(label => label.replace('Set-in Sleeve v1 (regenerated left)', ''))), ['Set-in Sleeve', 'Dropped Shoulder Sleeve', 'Raglan Sleeve', 'Dolman Sleeve']);
+  if (dolman) await page.getByRole('button', { name: initialLabel, exact: true }).click();
+  await page.locator('[data-layer-id="base"] svg').waitFor();
   assert.equal(await page.locator('[data-hoodie-assembly]').getAttribute('data-hoodie-assembly'), 'v1');
   await page.getByRole('button', { name: 'Background white', exact: true }).click();
   const parts = await page.locator('[data-layer-id]').evaluateAll(nodes => nodes.map(node => {
@@ -100,10 +108,13 @@ try {
   const uncoveredPixels = exterior.reduce((sum, value) => sum + (value === 0 ? 1 : 0), 0);
   assert(uncoveredPixels <= 16, `Enclosed transparent gaps: ${uncoveredPixels} pixels`);
   for (const [index, part] of parts.entries()) {
+    if (await page.getByRole('button', { name: 'Deselect', exact: true }).isVisible()) await page.getByRole('button', { name: 'Deselect', exact: true }).click();
     const canvas = await page.locator('[data-layer-id="base"] svg').boundingBox();
     const point = { x: canvas.x + canvas.width * part.sample.x / size, y: canvas.y + canvas.height * part.sample.y / size };
     await page.mouse.click(point.x, point.y);
-    assert((await page.getByRole('status', { name: 'Selected garment part' }).innerText()).includes(part.name), `${part.id}: wrong selection`);
+    const selected = await page.getByRole('status', { name: 'Selected garment part' }).innerText();
+    if (!selected.includes(part.name)) await page.screenshot({ path: `${output}/selection-failure.png`, fullPage: true });
+    assert(selected.includes(part.name), `${part.id}: expected ${part.name}, got ${selected} at ${JSON.stringify(point)}`);
     assert.equal(await page.getByRole('button', { name: 'Scale', exact: true }).count(), 8);
     assert.equal(await page.getByRole('button', { name: 'Rotate', exact: true }).count(), 1);
     assert.equal(await page.getByTitle('Reset position & scale', { exact: true }).count(), 1);
@@ -114,25 +125,28 @@ try {
     await page.getByTitle('Reset position & scale', { exact: true }).click();
     assert.deepEqual(await page.locator('[data-layer-id]').evaluateAll(nodes => nodes.map(node => node.style.transform)), parts.map(entry => entry.transform));
     const input = page.getByRole('textbox', { name: 'Hex colour', exact: true });
-    const inputIndex = part.id === 'sleeveRight' || part.id === 'sleeveHemLeft' ? 1 : part.id === 'sleeveHemRight' ? 2 : 0;
+    const inputIndex = part.id === 'base' || part.id === 'sleeveRight' || part.id === 'sleeveHemLeft' ? 1 : part.id === 'sleeveHemRight' ? 2 : 0;
     await input.nth(inputIndex).fill(colours[index]);
     await input.nth(inputIndex).press('Enter');
     await page.waitForFunction(({ id, colour }) => document.querySelector(`[data-layer-id="${id}"] svg > g`)?.getAttribute('fill') === colour, { id: part.id, colour: colours[index] });
   }
   await page.getByRole('button', { name: 'Deselect', exact: true }).click();
   const coloured = await page.locator('[data-layer-id]').evaluateAll(nodes => nodes.map(node => ({ id: node.dataset.layerId, svg: node.querySelector('svg').outerHTML, transform: node.style.transform })));
-  await page.getByRole('button', { name: /^Sleeves$/i }).click();
+  if (!await page.getByRole('button', { name: 'Raglan Sleeve', exact: true }).isVisible()) await page.getByRole('button', { name: /^Sleeves$/i }).click();
   await page.getByRole('button', { name: 'Raglan Sleeve', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('[data-layer-id="sleeveLeft"] title')?.textContent.includes('Raglan'));
   assert.equal(await page.locator('[data-layer-id]').count(), 8);
-  await page.getByRole('button', { name: 'Set-in Sleeve', exact: true }).click();
+  await page.getByRole('button', { name: initialLabel, exact: true }).click();
   assert.deepEqual(await page.locator('[data-layer-id]').evaluateAll(nodes => nodes.map(node => ({ id: node.dataset.layerId, svg: node.querySelector('svg').outerHTML, transform: node.style.transform }))), coloured);
-  const variantLabel = 'Set-in Sleeve v1 (regenerated left)';
+  const variantLabel = 'Dolman Sleeve';
   const sleeve = page.locator('[data-layer-id="sleeveLeft"]');
   const sleeveStyle = () => sleeve.evaluate(node => ({ transform: node.style.transform, origin: node.style.transformOrigin }));
   const originalStyle = await sleeveStyle();
-  const unchangedParts = await page.locator('[data-layer-id]:not([data-layer-id="sleeveLeft"])').evaluateAll(nodes => nodes.map(node => node.outerHTML));
+  const unchangedSelector = '[data-layer-id]:not([data-layer-id="base"]):not([data-layer-id="sleeveLeft"]):not([data-layer-id="sleeveRight"])';
+  const unchangedParts = await page.locator(unchangedSelector).evaluateAll(nodes => nodes.map(node => node.outerHTML));
   await page.getByRole('button', { name: variantLabel, exact: true }).click();
-  await page.waitForFunction(() => document.querySelector('[data-layer-id="sleeveLeft"] title')?.textContent.includes('v1'));
+  await page.waitForFunction(() => document.querySelector('[data-layer-id="sleeveLeft"] title')?.textContent.includes('Dolman'));
+  for (const id of ['base', 'sleeveLeft', 'sleeveRight']) assert((await page.locator(`[data-layer-id="${id}"] title`).textContent()).includes('Dolman'));
   assert.deepEqual(await sleeveStyle(), originalStyle, 'New sleeve must start at the same registered transform');
   const leftPart = parts.find(part => part.id === 'sleeveLeft');
   const canvas = await page.locator('[data-layer-id="base"] svg').boundingBox();
@@ -171,7 +185,7 @@ try {
   }
   await page.getByTitle('Reset position & scale', { exact: true }).click();
   assert.deepEqual(await sleeveStyle(), originalStyle, 'Reset must restore registered placement after move/resize/rotate');
-  assert.deepEqual(await page.locator('[data-layer-id]:not([data-layer-id="sleeveLeft"])').evaluateAll(nodes => nodes.map(node => node.outerHTML)), unchangedParts, 'Sleeve replacement must not change other parts');
+  assert.deepEqual(await page.locator(unchangedSelector).evaluateAll(nodes => nodes.map(node => node.outerHTML)), unchangedParts, 'Dolman replacement must not change hood, cuffs, hem or pocket');
   await page.getByRole('button', { name: 'Set-in Sleeve', exact: true }).click();
   assert.deepEqual(await sleeveStyle(), originalStyle);
   await page.getByRole('button', { name: variantLabel, exact: true }).click();
@@ -256,7 +270,7 @@ try {
   await fixture.waitForFunction(() => window.fixtureArtwork[0].rotation !== 0);
   assert.deepEqual(errors, []);
   fs.writeFileSync(`${output}/results.json`, JSON.stringify({ overlaps, contacts, connectedFraction, uncoveredPixels, editableParts: parts.map(part => part.id), generatedSleeveMoveResizeRotateReset: true, compatibleReplacementPreservesTransforms: true, constructionRoundTrip: true, legacyTransformsPreserved: true, independentArtworkTransforms: true, errors }, null, 2));
-  console.log('Boxy Set-in hoodie: attached parts, editable structure, generated sleeve move/resize/rotate/reset and compatible swaps, colours, construction round trip, responsive rendering, legacy compatibility and independent artwork editing passed.');
+  console.log(`Boxy ${initialLabel}: attached parts, editable structure, Dolman move/resize/rotate/reset and compatible swaps, colours, construction round trip, responsive rendering, legacy compatibility and independent artwork editing passed.`);
 } finally {
   await browser.close();
 }

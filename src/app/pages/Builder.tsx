@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -92,6 +93,8 @@ import {
 } from '../components/builder/measurementPreviewSizing';
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
+import { getUserOrderById } from '../data/userOrders';
+import { ProjectGarmentPreview, ProjectGarmentViews } from '../components/studio/ProjectGarmentPreview';
 import { TshirtLayerToolbar } from '../components/builder/TshirtLayerToolbar';
 import { HOODIE_ASSEMBLY_VERSION } from '../data/hoodieAssembly';
 import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceGrid';
@@ -107,6 +110,8 @@ import {
   PrintsDesignStep,
 } from '../components/builder/PrintsDesignStep';
 import { PrintsStudioProvider } from '../components/builder/printsStudio/PrintsStudioContext';
+import { AssetWorkspaceProvider, AssetWorkspaceHeader, AssetWorkspaceDialogs } from '../components/builder/printsStudio/AssetWorkspace';
+import { useAssetWorkspace } from '../components/builder/printsStudio/useAssetWorkspace';
 import {
   PrintStudioEditorHeading,
   PrintStudioNavRail,
@@ -247,6 +252,7 @@ interface BuilderState {
   referenceUploadFileNames?: string;
   detailPositions: Partial<Record<DetailKey, { top: string; left: string }>>;
   prints: DesignElement[];
+  printsCanvasSize?: { width: number; height: number };
   labels: DesignElement[];
   packaging: DesignElement[];
   /** Neck label product option; `none` = skip custom label */
@@ -371,6 +377,9 @@ function stashBuilderState(s: BuilderState): BuilderState {
     if ((el.type === 'image' || el.type === 'drawing') && typeof el.content === 'string' && el.content.startsWith('data:')) {
       return { ...el, content: stashDataUrl(el.content) };
     }
+    if (el.type === 'customArea' && el.customAreaImage?.startsWith('data:')) {
+      return { ...el, customAreaImage: stashDataUrl(el.customAreaImage) };
+    }
     return el;
   };
   cloned.prints = mapElements(cloned.prints, stash);
@@ -385,6 +394,9 @@ function resolveBuilderState(s: BuilderState): BuilderState {
   const resolve = (el: DesignElement): DesignElement => {
     if ((el.type === 'image' || el.type === 'drawing') && isRefToken(el.content)) {
       return { ...el, content: resolveImageRef(el.content) ?? el.content };
+    }
+    if (el.type === 'customArea' && isRefToken(el.customAreaImage)) {
+      return { ...el, customAreaImage: resolveImageRef(el.customAreaImage) };
     }
     return el;
   };
@@ -402,6 +414,7 @@ function releaseBuilderState(s: BuilderState) {
       if ((el.type === 'image' || el.type === 'drawing') && isRefToken(el.content)) {
         releaseImageRef(el.content);
       }
+      if (el.type === 'customArea' && isRefToken(el.customAreaImage)) releaseImageRef(el.customAreaImage);
     }
   };
   release(s.prints);
@@ -631,6 +644,28 @@ export function Builder() {
     })(),
   });
 
+  const navigationStateHydratedRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (urlProjectId || navigationStateHydratedRef.current === location.state) return;
+    const navigation = location.state as {
+      designState?: Partial<BuilderState>;
+      returnToOrderId?: string;
+    } | null;
+    const saved = navigation?.designState ?? (navigation?.returnToOrderId
+      ? getUserOrderById(navigation.returnToOrderId)?.designState
+      : undefined);
+    if (!saved) return;
+    navigationStateHydratedRef.current = location.state;
+    _setStateRaw((previous) => normalizeBuilderState({
+      ...previous,
+      ...saved,
+      productId: productId ?? previous.productId,
+      labelLayerSelectedId: null,
+      packagingLayerSelectedId: null,
+      printsLayerSelectedId: null,
+    } as BuilderState));
+  }, [location.state, productId, urlProjectId]);
+
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
@@ -640,8 +675,8 @@ export function Builder() {
   const redoStackRef = useRef<BuilderState[]>([]);
   const dragUndoSnapshotRef = useRef<BuilderState | null>(null);
 
-  const [undoAvailable, setUndoAvailable] = useState(false);
-  const [redoAvailable, setRedoAvailable] = useState(false);
+  const [garmentUndoAvailable, setUndoAvailable] = useState(false);
+  const [garmentRedoAvailable, setRedoAvailable] = useState(false);
 
   const syncHistoryAvailability = useCallback(() => {
     setUndoAvailable(undoStackRef.current.length > 0);
@@ -665,6 +700,45 @@ export function Builder() {
     },
     [syncHistoryAvailability],
   );
+
+  const assetWorkspace = useAssetWorkspace({
+    onPlaceOnGarment: (asset, point) => {
+      const size = state.printsCanvasSize;
+      const width = Math.min(180, (size?.width ?? 400) * 0.5);
+      const id = `asset-${crypto.randomUUID()}`;
+      const element: DesignElement = {
+        id, type: 'image', content: asset.preview, layerName: asset.name,
+        x: point?.x ?? (size?.width ?? 400) * 0.45,
+        y: point?.y ?? (size?.height ?? 460) * 0.435,
+        width, height: width * asset.height / asset.width, rotation: 0,
+        opacity: 100, aspectLocked: true, side: showFront ? 'front' : 'back', printMethod: DEFAULT_PRINT_METHOD,
+      };
+      setState(previous => ({ ...previous, prints: [...previous.prints, element], printsLayerSelectedId: id }));
+    },
+  });
+  const assetMode = assetWorkspace.project !== null;
+  const undoAvailable = assetMode ? assetWorkspace.canUndo : garmentUndoAvailable;
+  const redoAvailable = assetMode ? assetWorkspace.canRedo : garmentRedoAvailable;
+  const designElements = assetWorkspace.project?.elements ?? state.prints;
+  const designSelectedId = assetMode ? assetWorkspace.selectedId : state.printsLayerSelectedId;
+  const changeDesign = (prints: DesignElement[], selectedLayerId?: string) => {
+    if (assetMode) assetWorkspace.change(prints, selectedLayerId);
+    else setState(previous => ({ ...previous, prints, printsLayerSelectedId: selectedLayerId ?? previous.printsLayerSelectedId }));
+  };
+  const selectDesign = (id: string | null) => {
+    if (assetMode) assetWorkspace.select(id);
+    else setState(previous => previous.printsLayerSelectedId === id ? previous : { ...previous, printsLayerSelectedId: id });
+  };
+  const garmentViewport = useRef<{ zoom: number; pan: { x: number; y: number } } | null>(null);
+  useLayoutEffect(() => {
+    if (assetMode && !garmentViewport.current) {
+      garmentViewport.current = { zoom: previewZoom, pan: previewPan };
+      setPreviewZoom(100); setPreviewPan({ x: 0, y: 0 });
+    } else if (!assetMode && garmentViewport.current) {
+      setPreviewZoom(garmentViewport.current.zoom); setPreviewPan(garmentViewport.current.pan);
+      garmentViewport.current = null;
+    }
+  }, [assetMode]);
 
   useEffect(() => {
     dbProjectIdRef.current = dbProjectId;
@@ -738,6 +812,7 @@ export function Builder() {
   }, [urlProjectId, productId, syncHistoryAvailability]);
 
   const undo = useCallback(() => {
+    if (assetMode) { assetWorkspace.undo(); return; }
     if (undoStackRef.current.length === 0) return;
     _setStateRaw((current) => {
       const prev = undoStackRef.current.pop()!;
@@ -746,9 +821,10 @@ export function Builder() {
       syncHistoryAvailability();
       return prev;
     });
-  }, [syncHistoryAvailability]);
+  }, [syncHistoryAvailability, assetMode, assetWorkspace.undo]);
 
   const redo = useCallback(() => {
+    if (assetMode) { assetWorkspace.redo(); return; }
     if (redoStackRef.current.length === 0) return;
     _setStateRaw((current) => {
       const next = redoStackRef.current.pop()!;
@@ -757,7 +833,7 @@ export function Builder() {
       syncHistoryAvailability();
       return next;
     });
-  }, [syncHistoryAvailability]);
+  }, [syncHistoryAvailability, assetMode, assetWorkspace.redo]);
 
   /* ── Version history ─────────────────────────────────────────────
    * Sibling of undo/redo: long-term named snapshots users can jump back to.
@@ -1047,7 +1123,7 @@ export function Builder() {
     };
     shell.addEventListener('wheel', onWheel, { passive: false });
     return () => shell.removeEventListener('wheel', onWheel);
-  }, [currentStep, layoutTier]);
+  }, [currentStep, layoutTier, assetWorkspace.project?.id]);
 
   /** Phone: two-finger pinch to zoom the preview. */
   useEffect(() => {
@@ -1096,7 +1172,7 @@ export function Builder() {
       el.removeEventListener('touchend', onEnd);
       el.removeEventListener('touchcancel', onEnd);
     };
-  }, [layoutTier]);
+  }, [layoutTier, assetWorkspace.project?.id]);
 
   const prevPhoneEditorCollapsed = useRef(phoneEditorCollapsed);
   useEffect(() => {
@@ -1438,7 +1514,8 @@ export function Builder() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        handleSave(false);
+        if (assetMode) void assetWorkspace.save();
+        else handleSave(false);
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
@@ -1451,7 +1528,7 @@ export function Builder() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [handleSave, undo, redo]);
+  }, [handleSave, undo, redo, assetMode, assetWorkspace.save]);
 
   const markVisitedThrough = (stepId: number) => {
     if (techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0) {
@@ -1470,6 +1547,7 @@ export function Builder() {
   };
 
   const handleNext = () => {
+    if (assetMode) { assetWorkspace.back(); return; }
     if (currentStep === 13) {
       navigate('/delivery', {
         state: {
@@ -1477,6 +1555,8 @@ export function Builder() {
           productName: product?.name ?? 'Studio project',
           garmentType: state.garmentType,
           orderQuantities: state.orderQuantities,
+          designState: cloneBuilderState(state),
+          returnToOrderId: (location.state as { returnToOrderId?: string } | null)?.returnToOrderId,
         },
       });
       return;
@@ -1511,6 +1591,7 @@ export function Builder() {
   };
 
   const handleBack = () => {
+    if (assetMode) { assetWorkspace.back(); return; }
     if (techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0) {
       const idx = techpackNavigationList.indexOf(currentStep);
       if (idx > 0) {
@@ -1568,6 +1649,7 @@ export function Builder() {
       stepId: number,
       opts?: { allowUnvisited?: boolean; toggleIfSame?: boolean },
     ) => {
+      if (assetMode) { assetWorkspace.back(); return; }
       if (shouldSkipStep(stepId)) return;
       if (!opts?.allowUnvisited && !visitedSteps.includes(stepId)) return;
 
@@ -1586,7 +1668,7 @@ export function Builder() {
       }
       setCurrentStep(stepId);
     },
-    [currentStep, layoutTier, visitedSteps, state.garmentType],
+    [currentStep, layoutTier, visitedSteps, state.garmentType, assetMode, assetWorkspace.back],
   );
 
   const handleStepClick = (stepId: number) => {
@@ -2711,14 +2793,12 @@ export function Builder() {
         }
         return (
           <PrintsDesignStep
-            elements={state.prints}
-            onChange={(prints) => setState((prev) => ({ ...prev, prints }))}
-            selectedLayerId={state.printsLayerSelectedId}
-            onSelectedLayerIdChange={(id) =>
-              setState((prev) => ({ ...prev, printsLayerSelectedId: id }))
-            }
+            elements={designElements}
+            onChange={changeDesign}
+            selectedLayerId={designSelectedId}
+            onSelectedLayerIdChange={selectDesign}
             usePhoneStrips={isPhone}
-            garmentSide={showFront ? 'front' : 'back'}
+            garmentSide={assetMode || showFront ? 'front' : 'back'}
           />
         );
 
@@ -2923,6 +3003,7 @@ export function Builder() {
   const isPhone = layoutTier === 'phone';
   const isPrintDesignStudio = !techpackSpecFlow && currentStep === 9;
   const handlePrintStudioPhaseSelect = (id: BuilderFlowPhase) => {
+    if (assetMode) { assetWorkspace.back(); return; }
     if (id === 'setup') {
       handleBack();
       return;
@@ -3185,7 +3266,7 @@ export function Builder() {
   const renderEditorMain = (opts?: { leftPanelCollapse?: boolean }) => {
     const showLeftCollapse = Boolean(opts?.leftPanelCollapse);
     /** Laptop / tablet: pinned to the bottom of the sidebar (not inside the scroll stack). Phone: stays below step content inside the scroll area. */
-    const editorNavFooter = (
+    const editorNavFooter = !assetMode && (
       <div
         className={cn(
           'border-t border-[#252528] bg-[#09090B]/50 pt-4',
@@ -3299,16 +3380,17 @@ export function Builder() {
             {stepDescriptionLabel}
           </p>
           )}
-          <div
+          <fieldset
+            disabled={assetMode && assetWorkspace.busy}
             key={`builder-step-${currentStep}`}
-            className={cn(
+            className={cn('min-w-0',
               currentStep === 9 && !techpackSpecFlow
                 ? 'animate-studio-tools-in'
                 : 'animate-builder-fade-in',
             )}
           >
           {renderStepContent()}
-          </div>
+          </fieldset>
           {isPhone ? editorNavFooter : null}
         </div>
         {!isPhone ? editorNavFooter : null}
@@ -3324,15 +3406,16 @@ export function Builder() {
         isPhone ? 'h-full min-h-0 w-full min-w-0 flex-1' : 'h-full min-h-0 min-w-0 flex-1',
       )}
     >
+      <AssetWorkspaceHeader />
       <div
         ref={previewShellRef}
         className={cn(
           'relative flex min-h-0 flex-1 flex-col',
           isPhone && draggingDetail && 'touch-none',
         )}
-        style={previewSurfaceStyle}
+        style={assetMode ? { backgroundColor: '#171719' } : previewSurfaceStyle}
       >
-        {showGarmentLayerToolbar ? (
+        {!assetMode && showGarmentLayerToolbar ? (
           <div
             className={cn(
               'pointer-events-none absolute inset-x-0 z-[39] flex justify-center px-2',
@@ -3362,7 +3445,7 @@ export function Builder() {
             />
           </div>
         ) : null}
-        <div
+        {!assetMode && <div
           className={cn(
             'pointer-events-none absolute z-[38] flex flex-col gap-1',
             isPhone ? 'right-3 top-1.5' : 'right-2 top-2 sm:right-3 sm:top-3',
@@ -3405,7 +3488,7 @@ export function Builder() {
               Back
             </button>
           </div>
-        </div>
+        </div>}
 
         <div
           className={cn(
@@ -3421,7 +3504,7 @@ export function Builder() {
             )}
             onPointerDown={(e) => {
               const t = e.target as HTMLElement;
-              if (t.closest('[data-inline-toolbar]')) return;
+              if (t.closest('[data-inline-toolbar], [data-crop-editor]')) return;
               if (
                 t.closest('[data-tshirt-hit-target]') ||
                 t.closest('[data-tshirt-selection]')
@@ -3436,7 +3519,7 @@ export function Builder() {
                 ) {
                   return;
                 }
-                setState((prev) => ({ ...prev, printsLayerSelectedId: null }));
+                selectDesign(null);
               } else if (currentStep === 10) {
                 if (
                   t.closest('[data-surface-id]') ||
@@ -3500,7 +3583,12 @@ export function Builder() {
                 isPhone && 'px-0',
               )}
             >
-              {state.garmentType === 'hoodie' && garmentSvgType ? (
+              {state.prints.length > 0 ? (
+                <div className="relative h-full w-full">
+                  <ProjectGarmentPreview garmentType={state.garmentType} state={state} garmentSide={showFront ? 'front' : 'back'} />
+                  {state.garmentType === 'hoodie' || state.garmentType === 'tshirt' ? <MeasurementGuideOverlay highlightedId={highlightedMeasurementId} /> : null}
+                </div>
+              ) : state.garmentType === 'hoodie' && garmentSvgType ? (
                 <div className="relative aspect-square w-full max-w-[576px]">
                   <TshirtSvgPreview
                     garmentType={garmentSvgType}
@@ -3529,7 +3617,7 @@ export function Builder() {
                 />
               )}
             </div>
-          ) : currentStep === 9 ? (
+          ) : currentStep === 9 || currentStep >= 12 ? (
             <div
               className={cn(
                 'relative flex h-full min-h-0 w-full min-w-0 flex-1 items-center justify-center overflow-visible px-1',
@@ -3540,17 +3628,57 @@ export function Builder() {
               )}
             >
               <PrintsDesignPreview
+                assetMode={assetMode}
+                canvasSize={assetWorkspace.project ?? state.printsCanvasSize}
+                onCanvasSizeChange={assetMode ? undefined : (printsCanvasSize) => _setStateRaw(previous => ({ ...previous, printsCanvasSize }))}
                 className="h-full max-h-full w-full max-w-full"
-                elements={state.prints}
-                onChange={(prints) => setState((prev) => ({ ...prev, prints }))}
-                selectedLayerId={state.printsLayerSelectedId}
-                onSelectedLayerIdChange={(id) =>
-                  setState((prev) => ({ ...prev, printsLayerSelectedId: id }))
+                garmentPreview={
+                  isGarmentSvgFlow && garmentSvgType ? (
+                    <TshirtSvgPreview
+                      garmentType={garmentSvgType}
+                      color={primaryColor}
+                      selection={garmentSelection}
+                      fit={activeFit}
+                      neckTrimColor={state.neckTrimColor}
+                      sleeveTrimColor={state.sleeveTrimColor}
+                      cuffTrimColor={state.cuffTrimColor}
+                      pocketTrimColor={state.pocketTrimColor}
+                      partColors={state.partColors}
+                      customCollar={state.customCollar}
+                      customCollars={state.customCollars}
+                      layerTransforms={state.tshirtLayerTransforms}
+                      hoodieAssemblyVersion={state.hoodieAssemblyVersion}
+                      className="h-full w-full min-h-0"
+                    />
+                  ) : (
+                    <BuilderGarmentPreview
+                      garmentType={state.garmentType}
+                      color={primaryColor}
+                      neckType={state.neckType}
+                      sleeveType={state.sleeveType}
+                      sleeveLength={state.sleeveLength}
+                      hemType={state.hemType}
+                      cuffType={state.cuffType}
+                      pocketType={state.pocketType}
+                      zipType={state.zipType}
+                      fadingType={state.fadingType}
+                      stitchingType={state.stitchingType}
+                      stitchingColor={state.stitchingColor}
+                      neckTrimColor={state.neckTrimColor}
+                      sleeveTrimColor={state.sleeveTrimColor}
+                      pocketTrimColor={state.pocketTrimColor}
+                      className="h-full max-h-full w-full object-contain"
+                    />
+                  )
                 }
+                elements={designElements}
+                onChange={changeDesign}
+                selectedLayerId={designSelectedId}
+                onSelectedLayerIdChange={selectDesign}
                 liveCanvasScale={previewZoom / 100}
                 phoneConfigSheetCollapsed={isPhone && phoneEditorCollapsed}
-                garmentSide={showFront ? 'front' : 'back'}
-                editable
+                garmentSide={assetMode || showFront ? 'front' : 'back'}
+                editable={currentStep === 9 && !assetWorkspace.busy}
               />
             </div>
           ) : currentStep === 10 ? (
@@ -3602,7 +3730,7 @@ export function Builder() {
               )}
             >
               <div className="pointer-events-none absolute inset-0 bg-gradient-radial from-white/5 to-transparent blur-3xl" />
-              {isGarmentSvgFlow && garmentSvgType ? (
+              <PrintsDesignPreview elements={state.prints} canvasSize={state.printsCanvasSize} garmentSide={showFront ? 'front' : 'back'} garmentInteractive garmentPreview={(sceneScale) => isGarmentSvgFlow && garmentSvgType ? (
                 <TshirtSvgPreview
                   garmentType={garmentSvgType}
                   color={primaryColor}
@@ -3628,7 +3756,7 @@ export function Builder() {
                   }
                   selectedLayerId={tshirtLayerSelectedId}
                   onSelectedLayerChange={handleTshirtLayerSelect}
-                  liveCanvasScale={previewZoom / 100}
+                  liveCanvasScale={(previewZoom / 100) * sceneScale}
                   className="h-full w-full min-h-0"
                 />
               ) : (
@@ -3657,7 +3785,7 @@ export function Builder() {
                       : PREVIEW_STAGE_CLASS,
                   )}
                 />
-              )}
+              )} />
             </div>
           )}
         </div>
@@ -3713,7 +3841,7 @@ export function Builder() {
                 Drag empty · Ctrl+scroll
               </span>
             </div>
-            <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#252528] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
+            <div className={cn('pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#252528] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2', assetMode && '!hidden')}>
               <CircularProgress value={progress} compact />
               <div>
                 <div className="text-[11px] font-bold tabular-nums text-white sm:text-xs">
@@ -3772,7 +3900,9 @@ export function Builder() {
   );
 
   return (
-    <PrintsStudioProvider>
+    <AssetWorkspaceProvider value={assetWorkspace}>
+    <PrintsStudioProvider workspaceId={assetWorkspace.project?.id ?? 'garment'}>
+    <AssetWorkspaceDialogs />
     <div
       className={cn(
         'builder-surface flex min-h-0 min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#09090B]',
@@ -3805,7 +3935,7 @@ export function Builder() {
                   'p-0 !text-white/60 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]',
                 )}
               >
-                <Link to="/catalog" className="flex size-full items-center justify-center">
+                <Link to="/catalog" onClick={event => { if (assetMode) { event.preventDefault(); assetWorkspace.back(); } }} className="flex size-full items-center justify-center">
                   <ArrowLeft className={phoneNavIconClass} strokeWidth={2} />
                 </Link>
               </Button>
@@ -3818,6 +3948,7 @@ export function Builder() {
                 )}
                 aria-label="Edit project name"
                 title="Edit name"
+                disabled={assetMode}
                 onClick={() => setIsEditingName(true)}
               >
                 <SquarePen className={phoneNavIconClass} strokeWidth={2} />
@@ -3837,7 +3968,7 @@ export function Builder() {
               </div>
             ) : (
               <div
-                className="flex min-w-0 flex-1 justify-center px-2"
+                className={cn('flex min-w-0 flex-1 justify-center px-2', assetMode && '!hidden')}
                 role="group"
                 aria-label="Preview background"
               >
@@ -3880,6 +4011,7 @@ export function Builder() {
               <button
                 type="button"
                 onClick={() => setShowExtraDetails((prev) => !prev)}
+                hidden={assetMode}
                 className={cn(
                   phoneNavIconCell,
                   'builder-focus press-feedback transition-colors',
@@ -3922,7 +4054,7 @@ export function Builder() {
                 onClick={() => setShowVersionHistory(true)}
                 aria-label="Version history"
                 title="Version history"
-                className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white')}
+                className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white', assetMode && '!hidden')}
               >
                 <History className={phoneNavIconClass} strokeWidth={2} />
               </Button>
@@ -3938,7 +4070,7 @@ export function Builder() {
                 aria-label="Back to catalog"
                 className="h-8 w-8 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white sm:h-7 sm:w-auto sm:px-2 sm:text-[10px]"
               >
-                <Link to="/catalog">
+                <Link to="/catalog" onClick={event => { if (assetMode) { event.preventDefault(); assetWorkspace.back(); } }}>
                   <ArrowLeft className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
                   <span className="hidden sm:inline">BACK</span>
                 </Link>
@@ -3963,8 +4095,8 @@ export function Builder() {
                 ) : (
                   <div
                     className="cursor-pointer truncate text-center text-[13px] font-semibold text-white hover:text-white/85"
-                    onClick={() => setIsEditingName(true)}
-                    title="Rename project"
+                    onClick={() => { if (!assetMode) setIsEditingName(true); }}
+                    title={assetMode ? 'Garment project' : 'Rename project'}
                   >
                     {projectName}
                   </div>
@@ -3973,7 +4105,7 @@ export function Builder() {
 
               <div className="hidden h-5 w-px bg-white/10 sm:block" aria-hidden />
 
-              <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+              <div className={cn('flex flex-wrap items-center justify-center gap-1.5 sm:gap-2', assetMode && '!hidden')}>
                 <button
                   type="button"
                   onClick={() => setShowExtraDetails((prev) => !prev)}
@@ -4047,18 +4179,18 @@ export function Builder() {
                   onClick={() => setShowVersionHistory(true)}
                   aria-label="Version history"
                   title="Version history"
-                  className="h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white"
+                  className={cn('h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white', assetMode && '!hidden')}
                 >
                   <History className="h-4 w-4" />
                 </Button>
               </div>
               <span className="text-[9px] font-medium uppercase tracking-wider text-white/35">
-                {saving ? 'Saving…' : !networkOnline ? 'Offline' : saveError ? 'Not synced' : 'Saved'}
+                {assetMode ? (assetWorkspace.busy ? 'Saving asset…' : assetWorkspace.dirty ? 'Unsaved asset' : 'Asset Builder') : saving ? 'Saving…' : !networkOnline ? 'Offline' : saveError ? 'Not synced' : 'Saved'}
               </span>
               <button
                 type="button"
                 onClick={() => setShowReviewDrawer(true)}
-                className="builder-focus press-feedback flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-black hover:bg-white/90"
+                className={cn('builder-focus press-feedback flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-black hover:bg-white/90', assetMode && '!hidden')}
               >
                 <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
                 Review
@@ -4168,6 +4300,9 @@ export function Builder() {
           currentStep === 13 ? (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#09090B]">
               <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden border-t border-white/[0.04] bg-[#0c0c0c]">
+                <div className="shrink-0 p-4">
+                  <ProjectGarmentViews garmentType={state.garmentType} state={state} />
+                </div>
                 {renderEditorMain()}
               </div>
             </div>
@@ -4398,6 +4533,9 @@ export function Builder() {
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+              <div className="mb-5">
+                <ProjectGarmentViews garmentType={state.garmentType} state={state} />
+              </div>
               {renderSummaryBody()}
             </div>
           </aside>
@@ -4570,6 +4708,7 @@ export function Builder() {
       ) : null}
     </div>
     </PrintsStudioProvider>
+    </AssetWorkspaceProvider>
   );
 }
 
@@ -4618,7 +4757,10 @@ interface VersionThumbnailProps {
  * design elements in their saved positions, and text content so users can recognise
  * a version at a glance (like Canva / Figma version history cards).
  */
-function VersionThumbnail({ state, currentStep }: VersionThumbnailProps) {
+function VersionThumbnail({ state, currentStep, showFront }: VersionThumbnailProps) {
+  if (currentStep !== 10 && currentStep !== 11) {
+    return <ProjectGarmentPreview garmentType={state.garmentType} state={resolveBuilderState(state)} garmentSide={showFront ? 'front' : 'back'} />;
+  }
   const garmentColor = state.colors?.[0]?.hex || '#2e2e2e';
   const elements = pickThumbnailElements(state, currentStep);
   const layerLabel = pickLayerLabel(currentStep);

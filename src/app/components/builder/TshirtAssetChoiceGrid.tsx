@@ -64,7 +64,12 @@ export function GarmentAssetChoiceGrid({
             )}
           >
             <div className={cn('text-[10px] font-medium leading-snug sm:text-[11px]', garmentType === 'hoodie' && (category === 'Left sleeve' || category === 'Hood') ? 'break-normal' : 'break-all')}>
-              {getGarmentAssetOptionLabel(asset)}
+              {asset.id === 'hoodie/Left sleeve/Dolman Left sleeve' ? (
+                <span className="grid items-center">
+                  <span aria-hidden="true" className="invisible col-start-1 row-start-1">Set-in Sleeve v1 (regenerated left)</span>
+                  <span className="col-start-1 row-start-1">{getGarmentAssetOptionLabel(asset)}</span>
+                </span>
+              ) : getGarmentAssetOptionLabel(asset)}
             </div>
           </button>
         ))}

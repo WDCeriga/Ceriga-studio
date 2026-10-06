@@ -1,3 +1,7 @@
+import { PATTERN_CATALOG } from '../../../lib/patternCatalog';
+import { shapeIsClosed, type ShapeGeometryElement } from '../../../lib/shapeGeometry';
+import { patternAppearance, type PatternPatch } from '../../../lib/patternEditing';
+
 export type StudioAssetKind = 'shape' | 'pattern' | 'distress';
 
 export interface StudioAsset {
@@ -15,15 +19,34 @@ export const SHAPE_ASSETS: StudioAsset[] = [
   { id: 'triangle', label: 'Triangle', kind: 'shape' },
   { id: 'star', label: 'Star', kind: 'shape' },
   { id: 'arrow', label: 'Arrow', kind: 'shape' },
+  { id: 'polygon', label: 'Polygon', kind: 'shape' },
+  { id: 'diamond', label: 'Diamond', kind: 'shape' },
+  { id: 'rounded-rect', label: 'Rounded Rectangle', kind: 'shape' },
+  { id: 'arc', label: 'Arc', kind: 'shape' },
+  { id: 'ring', label: 'Ring', kind: 'shape' },
+  { id: 'semicircle', label: 'Semi-Circle', kind: 'shape' },
+  { id: 'cross', label: 'Cross / Plus', kind: 'shape' },
+  { id: 'chevron', label: 'Chevron', kind: 'shape' },
+  { id: 'trapezoid', label: 'Trapezoid', kind: 'shape' },
+  { id: 'parallelogram', label: 'Parallelogram', kind: 'shape' },
+  { id: 'heart', label: 'Heart', kind: 'shape' },
+  { id: 'lightning-bolt', label: 'Lightning Bolt', kind: 'shape' },
+  { id: 'crescent', label: 'Crescent', kind: 'shape' },
+  { id: 'spiral', label: 'Spiral', kind: 'shape' },
+  { id: 'wave', label: 'Wave', kind: 'shape' },
+  { id: 'burst', label: 'Burst / Sunburst', kind: 'shape' },
+  { id: 'badge', label: 'Badge / Seal', kind: 'shape' },
+  { id: 'speech-bubble', label: 'Speech Bubble', kind: 'shape' },
+  { id: 'cloud', label: 'Cloud', kind: 'shape' },
+  { id: 'blob', label: 'Blob', kind: 'shape' },
+  { id: 'custom-polygon', label: 'Custom Polygon', kind: 'shape' },
 ];
 
-export const PATTERN_ASSETS: StudioAsset[] = [
-  { id: 'stripes', label: 'Stripes', kind: 'pattern' },
-  { id: 'stripes-h', label: 'H-Stripes', kind: 'pattern' },
-  { id: 'checks', label: 'Checks', kind: 'pattern' },
-  { id: 'dots', label: 'Dots', kind: 'pattern' },
-  { id: 'diagonal', label: 'Diagonal', kind: 'pattern' },
-];
+export function canFillShape(element: ShapeGeometryElement) {
+  return element.type === 'shape' && shapeIsClosed(element);
+}
+
+export const PATTERN_ASSETS: StudioAsset[] = PATTERN_CATALOG.map(({ id, label }) => ({ id, label, kind: 'pattern' }));
 
 export const DISTRESS_ASSETS: StudioAsset[] = [
   { id: 'holes', label: 'Holes', kind: 'distress' },
@@ -33,23 +56,23 @@ export const DISTRESS_ASSETS: StudioAsset[] = [
 
 export const STUDIO_DRAG_MIME = 'application/x-ceriga-asset';
 
-export function encodeStudioDrag(kind: StudioAssetKind, id: string) {
-  return JSON.stringify({ kind, id });
+export function encodeStudioDrag(kind: StudioAssetKind, id: string, settings?: PatternPatch) {
+  return JSON.stringify({ kind, id, ...(kind === 'pattern' && settings ? { settings: patternAppearance(settings) } : {}) });
 }
 
-export function decodeStudioDrag(raw: string | undefined | null): { kind: StudioAssetKind; id: string } | null {
+export function decodeStudioDrag(raw: string | undefined | null): { kind: StudioAssetKind; id: string; settings?: PatternPatch } | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as { kind?: StudioAssetKind; id?: string };
-    if (!parsed.kind || !parsed.id) return null;
-    return { kind: parsed.kind, id: parsed.id };
+    const parsed = JSON.parse(raw) as { kind?: StudioAssetKind; id?: string; settings?: unknown };
+    if (!parsed || ![...SHAPE_ASSETS, ...PATTERN_ASSETS, ...DISTRESS_ASSETS].some(asset => asset.kind === parsed.kind && asset.id === parsed.id)) return null;
+    return { kind: parsed.kind!, id: parsed.id!, ...(parsed.kind === 'pattern' && parsed.settings ? { settings: patternAppearance(parsed.settings) } : {}) };
   } catch {
     return null;
   }
 }
 
 export function defaultStudioSize(kind: StudioAssetKind, id?: string): { width: number; height: number } {
-  if (kind === 'shape' && (id === 'line' || id === 'zigzag' || id === 'squiggly')) {
+  if (kind === 'shape' && (id === 'line' || id === 'zigzag' || id === 'squiggly' || id === 'wave')) {
     return { width: 120, height: id === 'line' ? 22 : 40 };
   }
   if (kind === 'shape') return { width: 88, height: 88 };

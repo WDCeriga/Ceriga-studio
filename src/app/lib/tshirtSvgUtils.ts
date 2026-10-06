@@ -290,6 +290,7 @@ function unionIntoExtents(
 function measureAllPotraceBBoxes(
   svgRaw: string,
   canvas = 2048,
+  includeSideBounds = true,
 ): {
   full: PotraceSvgBBox | null;
   left: PotraceSvgBBox | null;
@@ -366,6 +367,8 @@ function measureAllPotraceBBoxes(
         }
       } catch { /* ignore */ }
 
+      if (!includeSideBounds) return;
+
       splitPathSubpaths(path.getAttribute('d') ?? '').forEach((subpath) => {
         const viewBox = measureTempPath(subpath);
         if (!viewBox) return;
@@ -383,6 +386,8 @@ function measureAllPotraceBBoxes(
     });
 
     const full = bboxFromExtents(fullMinX, fullMinY, fullMaxX, fullMaxY);
+    if (!includeSideBounds) return { full, left: null, right: null };
+
     let left = measurePrimarySideBBox(group, metrics, subpathEntries, 'left', mid, canvas);
     let right = measurePrimarySideBBox(group, metrics, subpathEntries, 'right', mid, canvas);
 
@@ -427,7 +432,10 @@ function getPotraceGeometry(svgRaw: string, canvas = 2048) {
  * Results are cached per raw SVG string.
  */
 export function getPotraceSvgBBox(svgRaw: string): PotraceSvgBBox | null {
-  return getPotraceGeometry(svgRaw).full;
+  if (bboxCache.has(svgRaw)) return bboxCache.get(svgRaw)!;
+  const { full } = measureAllPotraceBBoxes(svgRaw, 2048, false);
+  bboxCache.set(svgRaw, full);
+  return full;
 }
 
 export function splitBBoxAtCenter(bbox: PotraceSvgBBox, canvas = 2048): {

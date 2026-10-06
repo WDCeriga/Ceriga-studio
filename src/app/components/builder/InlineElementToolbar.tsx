@@ -4,13 +4,15 @@ import {
   AlignJustify,
   AlignLeft,
   AlignRight,
+  Bold,
   CaseSensitive,
   ChevronDown,
   ChevronRight,
   Copy,
   Crop,
-  FlipHorizontal2,
   Italic,
+  Strikethrough,
+  Underline,
   Link2,
   Lock,
   Minus,
@@ -25,6 +27,10 @@ import {
   Unlock,
 } from 'lucide-react';
 import type { DesignElement } from './PrintsDesignStep';
+import { FlipControls } from './printsStudio/FlipControls';
+import { textCurveRadius, updateTextCurve, type TextCurvePatch } from '../../lib/textCurveControls';
+import { PaintInput } from './AdvancedColorPopover';
+import { paintCss, solidPaint } from '../../lib/studioPaint';
 import { cn } from '../ui/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
 import {
@@ -48,6 +54,7 @@ type TextTransform = NonNullable<DesignElement['textTransform']>;
 
 interface Props {
   element: DesignElement;
+  allowGradients?: boolean;
   onPatch: (patch: Partial<DesignElement>) => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -61,6 +68,7 @@ interface Props {
    * "crop editing" preview (full image with dimmed overlays on the cropped regions, Canva-style).
    */
   onCropModeChange?: (cropping: boolean) => void;
+  onRequestCrop?: () => void;
   className?: string;
   /** When the bar is fixed above the mobile keyboard, open menus upward so they stay on-screen. */
   popoverOpenAbove?: boolean;
@@ -69,6 +77,127 @@ interface Props {
    * Size / Flip controls (resize & rotation stay on-canvas; advanced styling stays in the sidebar).
    */
   variant?: 'full' | 'slim';
+}
+
+function TextEffectControls({
+  element,
+  onPatch,
+}: {
+  element: DesignElement;
+  onPatch: (patch: Partial<DesignElement>) => void;
+}) {
+  const range = (
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    suffix: string,
+    onChange: (value: number) => void,
+    disabled = false,
+    step = 1,
+  ) => (
+    <label className="block">
+      <span className="mb-1 flex items-center justify-between text-[9px] font-semibold uppercase tracking-wider text-white/55">
+        {label}<span>{value}{suffix}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        onChange={event => onChange(Number(event.target.value))}
+        onPointerDown={event => event.stopPropagation()}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
+      />
+    </label>
+  );
+  const updateCurve = (patch: TextCurvePatch) => onPatch(updateTextCurve(element, patch));
+
+  return (
+    <div className="space-y-2 border-t border-white/[0.07] pt-2">
+      <label className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-wider text-white/55">
+        Shadow enabled
+        <input
+          type="checkbox"
+          checked={element.textShadowEnabled ?? (element.shadowBlur ?? 0) > 0}
+          onChange={event => onPatch({ textShadowEnabled: event.target.checked })}
+        />
+      </label>
+      {range('Shadow opacity', element.shadowOpacity ?? 100, 0, 100, '%', value => onPatch({ shadowOpacity: value }))}
+      {range('Shadow X', Math.max(-8, Math.min(8, element.shadowOffsetX ?? 0)), -8, 8, 'px', value => onPatch({ shadowOffsetX: value }), false, 0.25)}
+      {range('Shadow Y', Math.max(-8, Math.min(8, element.shadowOffsetY ?? 2)), -8, 8, 'px', value => onPatch({ shadowOffsetY: value }), false, 0.25)}
+      <select
+        aria-label="Shadow edge"
+        value={element.shadowEdge ?? 'sharp'}
+        onChange={event => onPatch({ shadowEdge: event.target.value as 'sharp' | 'round' })}
+        className="h-7 w-full rounded-md border border-[#252528] bg-[#111] px-2 text-[10px] text-white"
+      >
+        <option value="sharp">Sharp shadow edge</option>
+        <option value="round">Round shadow edge</option>
+      </select>
+      {range('Line spacing', element.lineSpacing ?? 115, 80, 240, '%', value => onPatch({ lineSpacing: value }))}
+      {range(
+        'Curve amount',
+        element.textCurveAmount ?? 0,
+        0,
+        100,
+        '%',
+        value => updateCurve({ textCurveAmount: value }),
+      )}
+      <select
+        aria-label="Curve shape"
+        value={element.textCurveShape ?? 'arc'}
+        onChange={event => updateCurve({
+          textCurveShape: event.target.value as 'arc' | 'circle',
+          ...(event.target.value === 'circle' ? { textCurveAmount: 100 } : {}),
+        })}
+        className="h-7 w-full rounded-md border border-[#252528] bg-[#111] px-2 text-[10px] text-white"
+      >
+        <option value="arc">Arc</option>
+        <option value="circle">Circle</option>
+      </select>
+      {(element.textCurveAmount ?? 0) > 0 ? (
+        <>
+          {range('Curve radius', textCurveRadius(element), element.textCurveShape === 'circle' ? 32 : 80, element.textCurveShape === 'circle' ? 160 : 500, 'px', value => updateCurve({ textCurveRadius: value }), false, 1)}
+          <select
+            aria-label="Curve direction and side"
+            value={`${element.textCurveDirection ?? 'up'}:${element.textCurveSide ?? 'outside'}`}
+            onChange={event => {
+              const [textCurveDirection, textCurveSide] = event.target.value.split(':');
+              onPatch({
+                textCurveDirection: textCurveDirection as 'up' | 'down',
+                textCurveSide: textCurveSide as 'inside' | 'outside',
+              });
+            }}
+            className="h-7 w-full rounded-md border border-[#252528] bg-[#111] px-2 text-[10px] text-white"
+          >
+            <option value="up:outside">Up · outside</option>
+            <option value="up:inside">Up · inside</option>
+            <option value="down:outside">Down · outside</option>
+            <option value="down:inside">Down · inside</option>
+          </select>
+        </>
+      ) : null}
+      <select
+        aria-label="Text fill style"
+        value={element.textFillMode ?? ((element.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')}
+        onChange={event => {
+          const textFillMode = event.target.value as NonNullable<DesignElement['textFillMode']>;
+          onPatch({
+            textFillMode,
+            ...(textFillMode === 'filled' ? {} : { borderWidth: (element.borderWidth ?? 0) || 0.25 }),
+          });
+        }}
+        className="h-7 w-full rounded-md border border-[#252528] bg-[#111] px-2 text-[10px] text-white"
+      >
+        <option value="filled">Filled</option>
+        <option value="outline">Outline only</option>
+        <option value="fill-outline">Fill + outline</option>
+      </select>
+    </div>
+  );
 }
 
 const ALIGNS: { id: TextAlign; icon: typeof AlignLeft }[] = [
@@ -86,6 +215,7 @@ const TEXT_TRANSFORMS: TextTransform[] = ['none', 'uppercase', 'lowercase'];
  */
 export function InlineElementToolbar({
   element,
+  allowGradients = false,
   onPatch,
   onDuplicate,
   onDelete,
@@ -93,6 +223,7 @@ export function InlineElementToolbar({
   compact = false,
   comfortableCompact = false,
   onCropModeChange,
+  onRequestCrop,
   className,
   popoverOpenAbove = false,
   variant = 'full',
@@ -179,7 +310,10 @@ export function InlineElementToolbar({
   const currentCase = (element.textTransform ?? 'none') as TextTransform;
   const currentColor = element.color ?? '#FFFFFF';
   const opacity = element.opacity ?? 100;
-  const outline = element.borderWidth ?? 0;
+  const outline = isText
+    && (element.textFillMode ?? ((element.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')) !== 'filled'
+    ? element.borderWidth ?? 0.25
+    : element.borderWidth ?? 0;
   const outlineColor = element.borderColor ?? '#FFFFFF';
   const cornerRadius = element.cornerRadius ?? 0;
   const cropT = element.cropTop ?? 0;
@@ -190,8 +324,16 @@ export function InlineElementToolbar({
   const aspectRatio = element.width && element.height ? element.width / element.height : 1;
   const aspectLocked = element.aspectLocked ?? isImage;
 
+  const patchFontSize = (fontSize: number) =>
+    onPatch({
+      fontSize,
+      ...(element.textCurveShape === 'circle' && (element.textCurveAmount ?? 0) > 0 ? {
+        width: Math.ceil((textCurveRadius(element) + fontSize) * 2),
+        height: Math.ceil((textCurveRadius(element) + fontSize) * 2),
+      } : {}),
+    });
   const bumpSize = (delta: number) =>
-    onPatch({ fontSize: Math.max(10, Math.min(160, currentSize + delta)) });
+    patchFontSize(Math.max(10, Math.min(160, currentSize + delta)));
 
   const cycleAlign = () => {
     const idx = ALIGNS.findIndex((a) => a.id === currentAlign);
@@ -289,7 +431,7 @@ export function InlineElementToolbar({
                 disabled={isLocked}
                 onChange={(e) => {
                   const v = Number(e.target.value);
-                  if (Number.isFinite(v)) onPatch({ fontSize: Math.max(10, Math.min(160, v)) });
+                  if (Number.isFinite(v)) patchFontSize(Math.max(10, Math.min(160, v)));
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
                 className={cn(
@@ -329,13 +471,25 @@ export function InlineElementToolbar({
                   'block rounded-full border border-white/30 shadow-[0_0_0_1px_rgba(0,0,0,0.35)_inset]',
                   compact ? 'h-4 w-4' : 'h-4 w-4',
                 )}
-                style={{ backgroundColor: currentColor }}
+                style={{ background: paintCss(currentColor) }}
               />
             </button>
 
             <Divider />
 
             {/* Italic */}
+            <button
+              type="button"
+              onClick={() => onPatch({ fontWeight: element.fontWeight === 'bold' ? 'normal' : 'bold' })}
+              disabled={isLocked}
+              className={cn(iconBtn, element.fontWeight === 'bold' && 'bg-white/10 text-white')}
+              title="Bold"
+              aria-label="Bold"
+              aria-pressed={element.fontWeight === 'bold'}
+            >
+              <Bold className={ic} />
+            </button>
+
             <button
               type="button"
               onClick={() =>
@@ -348,6 +502,30 @@ export function InlineElementToolbar({
               aria-pressed={element.fontStyle === 'italic'}
             >
               <Italic className={ic} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onPatch({ textUnderline: !element.textUnderline })}
+              disabled={isLocked}
+              className={cn(iconBtn, element.textUnderline && 'bg-white/10 text-white')}
+              title="Underline"
+              aria-label="Underline"
+              aria-pressed={element.textUnderline === true}
+            >
+              <Underline className={ic} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onPatch({ textStrikethrough: !element.textStrikethrough })}
+              disabled={isLocked}
+              className={cn(iconBtn, element.textStrikethrough && 'bg-white/10 text-white')}
+              title="Strikethrough"
+              aria-label="Strikethrough"
+              aria-pressed={element.textStrikethrough === true}
+            >
+              <Strikethrough className={ic} />
             </button>
 
             <Divider />
@@ -399,40 +577,14 @@ export function InlineElementToolbar({
           </>
         ) : null}
 
-        {isImage ? (
-          <>
             <button
               type="button"
-              onClick={() => togglePanel('effects')}
-              disabled={isLocked}
-              className={cn(textBtn, openPanel === 'effects' && 'bg-white/10 text-white')}
-              title="Adjustments"
-            >
-              <Sparkles className={ic} />
-              {!compact && <span className="font-semibold">Adjust</span>}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => togglePanel('border')}
-              disabled={isLocked}
-              className={cn(textBtn, openPanel === 'border' && 'bg-white/10 text-white')}
-              title="Outline & corners"
-            >
-              <span
-                className="block h-4 w-4 shrink-0"
-                style={{
-                  border: outline > 0 ? `2px solid ${outlineColor}` : '1px dashed rgba(255,255,255,0.45)',
-                  borderRadius:
-                    cornerRadius > 0 ? `${Math.min(8, cornerRadius / 10)}px` : '2px',
-                }}
-              />
-              {!compact && <span className="font-semibold">Outline</span>}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => togglePanel('crop')}
+              onClick={() => {
+                if (onRequestCrop) {
+                  setOpenPanel(null);
+                  onRequestCrop();
+                } else togglePanel('crop');
+              }}
               disabled={isLocked}
               className={cn(textBtn, openPanel === 'crop' && 'bg-white/10 text-white')}
               title="Crop"
@@ -441,8 +593,6 @@ export function InlineElementToolbar({
               <Crop className={ic} />
               {!compact && <span className="font-semibold">Crop</span>}
             </button>
-          </>
-        ) : null}
 
         {!slim ? (
           <>
@@ -460,23 +610,12 @@ export function InlineElementToolbar({
             </button>
 
             <Divider />
-
-            {/* Flip horizontal (both) */}
-            <button
-              type="button"
-              onClick={() => onPatch({ flipHorizontal: !element.flipHorizontal })}
-              disabled={isLocked}
-              className={cn(iconBtn, element.flipHorizontal && 'bg-white/10 text-white')}
-              title="Flip horizontally"
-              aria-label="Flip horizontally"
-              aria-pressed={Boolean(element.flipHorizontal)}
-            >
-              <FlipHorizontal2 className={ic} />
-            </button>
           </>
         ) : (
           <Divider />
         )}
+
+        <FlipControls element={element} onChange={onPatch} compact className={iconBtn} />
 
         {/* Lock / unlock position — always enabled so a locked element can be unlocked from the bar */}
         <button
@@ -567,8 +706,8 @@ export function InlineElementToolbar({
           />
           <div className="flex items-center gap-2 border-t border-white/[0.07] px-2 py-2">
             <label className="text-[9px] uppercase tracking-wider text-white/45">Custom</label>
-            <input
-              type="color"
+            <PaintInput
+              allowGradients={allowGradients}
               value={currentColor}
               onChange={(e) => onPatch({ color: e.target.value })}
               onPointerDown={(e) => e.stopPropagation()}
@@ -576,7 +715,7 @@ export function InlineElementToolbar({
             />
             <input
               type="text"
-              value={currentColor}
+              value={solidPaint(currentColor)}
               onChange={(e) => {
                 const v = e.target.value.trim();
                 if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ color: v });
@@ -646,18 +785,26 @@ export function InlineElementToolbar({
                   <input
                     type="range"
                     min={0}
-                    max={8}
-                    step={0.5}
+                    max={4}
+                    step={0.05}
                     value={outline}
-                    onChange={(e) => onPatch({ borderWidth: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const width = Number(e.target.value);
+                      onPatch({
+                        borderWidth: width,
+                        textFillMode: width > 0
+                          ? element.textFillMode === 'outline' ? 'outline' : 'fill-outline'
+                          : 'filled',
+                      });
+                    }}
                     onPointerDown={(e) => e.stopPropagation()}
                     className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
                   />
                   {outline > 0 ? (
                     <div className="mt-1.5 flex items-center gap-2">
                       <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
-                      <input
-                        type="color"
+                      <PaintInput
+                        allowGradients={allowGradients}
                         value={outlineColor}
                         onChange={(e) => onPatch({ borderColor: e.target.value })}
                         onPointerDown={(e) => e.stopPropagation()}
@@ -701,8 +848,8 @@ export function InlineElementToolbar({
                       onPointerDown={(e) => e.stopPropagation()}
                       className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
                     />
-                    <input
-                      type="color"
+                    <PaintInput
+                      allowGradients={allowGradients}
                       value={element.shadowColor ?? '#000000'}
                       onChange={(e) => onPatch({ shadowColor: e.target.value })}
                       onPointerDown={(e) => e.stopPropagation()}
@@ -710,6 +857,7 @@ export function InlineElementToolbar({
                     />
                   </div>
                 </div>
+                <TextEffectControls element={element} onPatch={onPatch} />
               </>
             ) : (
               <div>
@@ -727,8 +875,8 @@ export function InlineElementToolbar({
                     onPointerDown={(e) => e.stopPropagation()}
                     className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
                   />
-                  <input
-                    type="color"
+                  <PaintInput
+                    allowGradients={allowGradients}
                     value={element.shadowColor ?? '#000000'}
                     onChange={(e) => onPatch({ shadowColor: e.target.value })}
                     onPointerDown={(e) => e.stopPropagation()}
@@ -764,8 +912,8 @@ export function InlineElementToolbar({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
-              <input
-                type="color"
+              <PaintInput
+                allowGradients={allowGradients}
                 value={outlineColor}
                 onChange={(e) => onPatch({ borderColor: e.target.value })}
                 onPointerDown={(e) => e.stopPropagation()}
@@ -773,7 +921,7 @@ export function InlineElementToolbar({
               />
               <input
                 type="text"
-                value={outlineColor}
+                value={solidPaint(outlineColor)}
                 onChange={(e) => {
                   const v = e.target.value.trim();
                   if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ borderColor: v });
@@ -896,7 +1044,7 @@ export function InlineElementToolbar({
         </Popover>
       ) : null}
 
-      {!compact && openPanel === 'crop' && isImage ? (
+      {!compact && openPanel === 'crop' ? (
         <Popover side={popSide} className="w-[260px]">
           <div className="space-y-2.5 p-2">
             <div className="flex items-center justify-between">
@@ -945,8 +1093,7 @@ export function InlineElementToolbar({
 
       {compact &&
       openPanel &&
-      (openPanel !== 'border' || isImage) &&
-      (openPanel !== 'crop' || isImage) ? (
+      (openPanel !== 'border' || isImage) ? (
         <Sheet
           open
           onOpenChange={(o) => {
@@ -1041,8 +1188,8 @@ export function InlineElementToolbar({
                   />
                   <div className="flex items-center gap-2 border-t border-[#252528] px-4 py-3">
                     <span className="text-[9px] uppercase tracking-wider text-white/45">Custom</span>
-                    <input
-                      type="color"
+                    <PaintInput
+                      allowGradients={allowGradients}
                       value={currentColor}
                       onChange={(e) => onPatch({ color: e.target.value })}
                       onPointerDown={(e) => e.stopPropagation()}
@@ -1050,7 +1197,7 @@ export function InlineElementToolbar({
                     />
                     <input
                       type="text"
-                      value={currentColor}
+                      value={solidPaint(currentColor)}
                       onChange={(e) => {
                         const v = e.target.value.trim();
                         if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ color: v });
@@ -1117,18 +1264,26 @@ export function InlineElementToolbar({
                         <input
                           type="range"
                           min={0}
-                          max={8}
-                          step={0.5}
+                          max={4}
+                          step={0.05}
                           value={outline}
-                          onChange={(e) => onPatch({ borderWidth: Number(e.target.value) })}
+                          onChange={(e) => {
+                            const width = Number(e.target.value);
+                            onPatch({
+                              borderWidth: width,
+                              textFillMode: width > 0
+                                ? element.textFillMode === 'outline' ? 'outline' : 'fill-outline'
+                                : 'filled',
+                            });
+                          }}
                           onPointerDown={(e) => e.stopPropagation()}
                           className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
                         />
                         {outline > 0 ? (
                           <div className="mt-1.5 flex items-center gap-2">
                             <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
-                            <input
-                              type="color"
+                            <PaintInput
+                              allowGradients={allowGradients}
                               value={outlineColor}
                               onChange={(e) => onPatch({ borderColor: e.target.value })}
                               onPointerDown={(e) => e.stopPropagation()}
@@ -1172,8 +1327,8 @@ export function InlineElementToolbar({
                             onPointerDown={(e) => e.stopPropagation()}
                             className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
                           />
-                          <input
-                            type="color"
+                          <PaintInput
+                            allowGradients={allowGradients}
                             value={element.shadowColor ?? '#000000'}
                             onChange={(e) => onPatch({ shadowColor: e.target.value })}
                             onPointerDown={(e) => e.stopPropagation()}
@@ -1181,6 +1336,7 @@ export function InlineElementToolbar({
                           />
                         </div>
                       </div>
+                      <TextEffectControls element={element} onPatch={onPatch} />
                     </>
                   ) : (
                     <div>
@@ -1198,8 +1354,8 @@ export function InlineElementToolbar({
                           onPointerDown={(e) => e.stopPropagation()}
                           className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-[#CC2D24]"
                         />
-                        <input
-                          type="color"
+                        <PaintInput
+                          allowGradients={allowGradients}
                           value={element.shadowColor ?? '#000000'}
                           onChange={(e) => onPatch({ shadowColor: e.target.value })}
                           onPointerDown={(e) => e.stopPropagation()}
@@ -1314,8 +1470,8 @@ export function InlineElementToolbar({
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
-                    <input
-                      type="color"
+                    <PaintInput
+                      allowGradients={allowGradients}
                       value={outlineColor}
                       onChange={(e) => onPatch({ borderColor: e.target.value })}
                       onPointerDown={(e) => e.stopPropagation()}
@@ -1323,7 +1479,7 @@ export function InlineElementToolbar({
                     />
                     <input
                       type="text"
-                      value={outlineColor}
+                      value={solidPaint(outlineColor)}
                       onChange={(e) => {
                         const v = e.target.value.trim();
                         if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ borderColor: v });
@@ -1355,7 +1511,7 @@ export function InlineElementToolbar({
                   </div>
                 </div>
               ) : null}
-              {openPanel === 'crop' && isImage ? (
+              {openPanel === 'crop' ? (
                 <div className="space-y-2.5 px-3 pb-4 pt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">

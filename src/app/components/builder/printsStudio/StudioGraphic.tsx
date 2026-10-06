@@ -1,23 +1,73 @@
 import type { DesignElement } from '../PrintsDesignStep';
+import { useId } from 'react';
+import { svgPaint } from '../../../lib/studioPaint';
+import { PatternGraphic } from './PatternGraphic';
+import { artworkFlipStyle } from '../../../lib/artworkFlip';
+import { canFillShape } from './studioAssets';
+import { shapeToEditablePath, shapePathData, type ShapePath } from '../../../lib/shapeGeometry';
+import { ShapeEffectsArtwork } from './ShapeEffectsArtwork';
 
 function strokeOf(el: DesignElement) {
-  return el.color ?? '#FFFFFF';
+  return el.shapeStrokeColor ?? el.color ?? '#FFFFFF';
+}
+
+function scaledPath(path: ShapePath, width: number, height: number): ShapePath {
+  const point = (p: { x: number; y: number }) => ({ x: p.x * width / 100, y: p.y * height / 100 });
+  return { closed: path.closed, nodes: path.nodes.map(n => ({ ...point(n), ...(n.in ? { in: point(n.in) } : {}), ...(n.out ? { out: point(n.out) } : {}) })), subpaths: path.subpaths?.map(part => scaledPath(part, width, height)) };
 }
 
 function weightOf(el: DesignElement) {
-  return Math.max(1.5, el.borderWidth ?? 4);
-}
-
-function flipStyle(element: DesignElement): { transform: string; transformOrigin: string } | undefined {
-  if (!element.flipHorizontal) return undefined;
-  return { transform: 'scaleX(-1)', transformOrigin: 'center' };
+  return Math.max(0, el.borderWidth ?? 4);
 }
 
 export function StudioGraphic({ element }: { element: DesignElement }) {
-  const stroke = strokeOf(element);
+  const artwork = <StudioGraphicBase element={element} />;
+  return element.type === 'shape' && element.shapeEffects?.some(effect => effect.enabled !== false)
+    ? <ShapeEffectsArtwork element={element}>{artwork}</ShapeEffectsArtwork>
+    : artwork;
+}
+
+function StudioGraphicBase({ element }: { element: DesignElement }) {
+  const id = useId().replace(/:/g, '');
+  if (element.type === 'pattern') return <PatternGraphic element={element} />;
+  const paintWidth = element.shapeGeometry === 'bounds' ? element.width : 100;
+  const paintHeight = element.shapeGeometry === 'bounds' ? element.height : paintWidth;
+  const paint = svgPaint(strokeOf(element), `paint-${id}`, paintWidth, paintHeight);
+  const fillPaint = svgPaint(element.shapeFillColor ?? element.color ?? '#FFFFFF', `fill-${id}`, paintWidth, paintHeight);
+  const stroke = paint.color;
+  const fill = element.shapeFilled && canFillShape(element) ? fillPaint.color : 'none';
+  const definitions = <defs dangerouslySetInnerHTML={{ __html: paint.defs + fillPaint.defs }} />;
   const sw = weightOf(element);
-  const fill = element.type === 'shape' ? 'none' : stroke;
-  const flip = flipStyle(element);
+  const flip = artworkFlipStyle(element);
+  const legacy = ['ellipse', 'rect', 'line', 'zigzag', 'squiggly', 'triangle', 'star', 'arrow'];
+  const boundsLegacy = ['ellipse', 'circle', 'rect', 'semicircle-open', 'semicircle-closed', 'line'];
+  const parametric = !!element.shapePath || !!Object.keys(element.shapeParameters ?? {}).length
+    || !(element.shapeGeometry === 'bounds' ? boundsLegacy : legacy).includes(element.content);
+
+  if (element.type === 'shape' && parametric) {
+    const width = element.shapeGeometry === 'bounds' ? Math.max(sw, element.width) : 100;
+    const height = element.shapeGeometry === 'bounds' ? Math.max(sw, element.height) : 100;
+    const path = scaledPath(shapeToEditablePath(element), width, height);
+    return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={flip} aria-hidden>
+      {definitions}
+      <path d={shapePathData(path)} fill={fill} fillRule="evenodd" stroke={stroke} strokeWidth={sw}
+        strokeLinecap={element.content === 'zigzag' ? 'butt' : 'round'} strokeLinejoin={element.content === 'zigzag' ? 'miter' : 'round'} strokeMiterlimit={8} />
+    </svg>;
+  }
+
+  if (element.type === 'shape' && element.shapeGeometry === 'bounds') {
+    const width = Math.max(sw, element.width);
+    const height = Math.max(sw, element.height);
+    return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={flip} aria-hidden>
+      {definitions}
+      {element.content === 'ellipse' || element.content === 'circle' ? <ellipse cx={width / 2} cy={height / 2} rx={(width - sw) / 2} ry={(height - sw) / 2} fill={fill} stroke={stroke} strokeWidth={sw} />
+        : element.content === 'semicircle-open' || element.content === 'semicircle-closed' ? <path
+            d={`M ${sw / 2} ${height - sw / 2} A ${(width - sw) / 2} ${height - sw} 0 0 1 ${width - sw / 2} ${height - sw / 2}${element.content === 'semicircle-closed' ? ' Z' : ''}`}
+            fill={fill} stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+        : element.content === 'rect' ? <rect x={sw / 2} y={sw / 2} width={width - sw} height={height - sw} fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+        : <line x1={sw / 2} y1={height / 2} x2={width - sw / 2} y2={height / 2} stroke={stroke} strokeWidth={sw} strokeLinecap="round" />}
+    </svg>;
+  }
 
   if (element.type === 'shape') {
     return (
@@ -28,10 +78,11 @@ export function StudioGraphic({ element }: { element: DesignElement }) {
         style={flip}
         aria-hidden
       >
+        {definitions}
         {element.content === 'ellipse' ? (
-          <ellipse cx="50" cy="50" rx="42" ry="32" fill="none" stroke={stroke} strokeWidth={sw} />
+          <ellipse cx="50" cy="50" rx="42" ry="32" fill={fill} stroke={stroke} strokeWidth={sw} />
         ) : element.content === 'rect' ? (
-          <rect x="12" y="18" width="76" height="64" fill="none" stroke={stroke} strokeWidth={sw} rx="4" />
+          <rect x="12" y="18" width="76" height="64" fill={fill} stroke={stroke} strokeWidth={sw} rx="4" />
         ) : element.content === 'line' ? (
           <line x1="8" y1="50" x2="92" y2="50" stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
         ) : element.content === 'zigzag' ? (
@@ -54,82 +105,17 @@ export function StudioGraphic({ element }: { element: DesignElement }) {
             strokeLinejoin="round"
           />
         ) : element.content === 'triangle' ? (
-          <polygon points="50,12 90,86 10,86" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
+          <polygon points="50,12 90,86 10,86" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
         ) : element.content === 'star' ? (
           <polygon
             points="50,8 61,38 94,38 67,58 78,90 50,70 22,90 33,58 6,38 39,38"
-            fill="none"
+            fill={fill}
             stroke={stroke}
             strokeWidth={sw}
             strokeLinejoin="round"
           />
         ) : (
-          <polygon points="8,30 62,30 62,18 92,50 62,82 62,70 8,70" fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
-        )}
-      </svg>
-    );
-  }
-
-  if (element.type === 'pattern') {
-    const n = Math.max(2, Math.min(8, element.patternCount ?? (element.content === 'checks' || element.content === 'dots' ? 4 : 5)));
-    return (
-      <svg viewBox="0 0 80 80" className="h-full w-full" preserveAspectRatio="none" style={flip} aria-hidden>
-        {element.content === 'stripes' ? (
-          <>
-            {Array.from({ length: n }, (_, i) => {
-              const step = 80 / n;
-              return <rect key={i} x={i * step} y="0" width={step * 0.45} height="80" fill={fill} />;
-            })}
-          </>
-        ) : element.content === 'stripes-h' ? (
-          <>
-            {Array.from({ length: n }, (_, i) => {
-              const step = 80 / n;
-              return <rect key={i} x="0" y={i * step} width="80" height={step * 0.45} fill={fill} />;
-            })}
-          </>
-        ) : element.content === 'checks' ? (
-          <>
-            <rect width="80" height="80" fill="transparent" />
-            {Array.from({ length: n }, (_, yi) =>
-              Array.from({ length: n }, (_, xi) =>
-                (xi + yi) % 2 === 0 ? (
-                  <rect
-                    key={`${xi}-${yi}`}
-                    x={(xi * 80) / n}
-                    y={(yi * 80) / n}
-                    width={80 / n}
-                    height={80 / n}
-                    fill={fill}
-                  />
-                ) : null,
-              ),
-            )}
-          </>
-        ) : element.content === 'dots' ? (
-          <>
-            {Array.from({ length: n }, (_, yi) =>
-              Array.from({ length: n }, (_, xi) => {
-                const cell = 80 / n;
-                return (
-                  <circle
-                    key={`${xi}-${yi}`}
-                    cx={cell * (xi + 0.5)}
-                    cy={cell * (yi + 0.5)}
-                    r={cell * 0.22}
-                    fill={fill}
-                  />
-                );
-              }),
-            )}
-          </>
-        ) : (
-          <g stroke={fill} strokeWidth="7">
-            {Array.from({ length: n }, (_, i) => {
-              const x = -10 + (i * 90) / Math.max(1, n - 1);
-              return <line key={i} x1={x} y1="10" x2={x + 80} y2="90" />;
-            })}
-          </g>
+          <polygon points="8,30 62,30 62,18 92,50 62,82 62,70 8,70" fill={fill} stroke={stroke} strokeWidth={sw} strokeLinejoin="round" />
         )}
       </svg>
     );

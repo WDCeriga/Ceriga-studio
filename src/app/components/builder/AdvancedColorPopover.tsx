@@ -1,9 +1,21 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type PointerEventHandler } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { normalizeHex6 } from '../../lib/colorUtils';
+import { Pipette, Plus, Trash2, ArrowLeftRight } from 'lucide-react';
+import { parsePaint, paintCss, serializePaint, solidPaint, type GradientPaint } from '../../lib/studioPaint';
+import { sampleCanvasColor } from '../../lib/canvasEyedropper';
+import { toast } from 'sonner';
 
 function clamp255(n: number) {
   return Math.max(0, Math.min(255, Math.round(n)));
+}
+
+export function PaintInput({ value, onChange, className, onPointerDown, allowGradients = false }: {
+  value: string; onChange: (event: { target: { value: string } }) => void; className?: string; onPointerDown?: PointerEventHandler<HTMLButtonElement>; allowGradients?: boolean;
+}) {
+  return <AdvancedColorPopover value={value} allowGradients={allowGradients} onChange={color => onChange({ target: { value: color } })}>
+    <button type="button" aria-label="Open colour picker" title="Colour" className={className} onPointerDown={onPointerDown} style={{ background: allowGradients ? paintCss(value) : solidPaint(value) }} />
+  </AdvancedColorPopover>;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -81,14 +93,38 @@ export function AdvancedColorPopover({
   onChange,
   children,
   contentClassName,
+  allowGradients = false,
 }: {
   value: string;
   onChange: (hex: string) => void;
   children: ReactNode;
+  allowGradients?: boolean;
   /** Optional class for the popover panel (e.g. width). */
   contentClassName?: string;
 }) {
-  const hex = normalizeHex6(value);
+  const [stopIndex, setStopIndex] = useState(0);
+  const paint = allowGradients ? parsePaint(value) : null;
+  const activeIndex = Math.min(stopIndex, (paint?.stops.length ?? 1) - 1);
+  const hex = normalizeHex6(paint?.stops[activeIndex].color ?? solidPaint(value));
+  const picker = useRef<AbortController | null>(null);
+  useEffect(() => () => picker.current?.abort(), []);
+  const commitColor = (color: string) => {
+    onChange(paint ? serializePaint({ ...paint, stops: paint.stops.map((stop, index) => index === activeIndex ? { ...stop, color } : stop) }) : color);
+  };
+  const patchPaint = (patch: Partial<GradientPaint>) => { if (paint) onChange(serializePaint({ ...paint, ...patch })); };
+  const pickColor = async () => {
+    picker.current?.abort();
+    const controller = new AbortController(); picker.current = controller;
+    const result = sampleCanvasColor(controller.signal);
+    setOpen(false);
+    try {
+      const color = await result;
+      commitColor(color);
+      window.dispatchEvent(new CustomEvent('studio-color-sampled', { detail: color }));
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) toast.error(error instanceof Error ? error.message : 'Could not sample this canvas.');
+    }
+  };
   const [open, setOpen] = useState(false);
   const [hsv, setHsv] = useState(() => {
     const { r, g, b } = hexToRgb(hex);
@@ -99,15 +135,15 @@ export function AdvancedColorPopover({
 
   useEffect(() => {
     if (!open) return;
-    const { r, g, b } = hexToRgb(normalizeHex6(value));
+    const { r, g, b } = hexToRgb(hex);
     setHsv(rgbToHsv(r, g, b));
-  }, [open, value]);
+  }, [open, hex]);
 
   const commitHsv = (next: { h?: number; s?: number; v?: number }) => {
     const n = { ...hsv, ...next };
     setHsv(n);
     const rgb = hsvToRgb(n.h, n.s, n.v);
-    onChange(rgbToHex(rgb.r, rgb.g, rgb.b));
+    commitColor(rgbToHex(rgb.r, rgb.g, rgb.b));
   };
 
   const pickSv = (clientX: number, clientY: number) => {
@@ -124,7 +160,7 @@ export function AdvancedColorPopover({
   const rgb = hexToRgb(hex);
 
   const commitRgb = (r: number, g: number, b: number) => {
-    onChange(rgbToHex(r, g, b));
+    commitColor(rgbToHex(r, g, b));
   };
 
   return (
@@ -138,6 +174,33 @@ export function AdvancedColorPopover({
           'w-[min(calc(100vw-2rem),260px)] border border-white/12 bg-[#121212] p-3 text-white shadow-xl'
         }
       >
+        <div className="mb-3 flex items-center gap-2">
+          {allowGradients && <select aria-label="Paint type" value={paint?.kind ?? 'solid'} className="h-8 min-w-0 flex-1 rounded border border-white/20 bg-zinc-900 px-2 text-xs" onChange={event => {
+            const kind = event.target.value;
+            if (kind === 'solid') onChange(hex);
+            else onChange(serializePaint(paint ? { ...paint, kind: kind as GradientPaint['kind'] } : { kind: kind as GradientPaint['kind'], angle: 90, x: .5, y: .5, stops: [{ color: hex, offset: 0 }, { color: hex === '#FFFFFF' ? '#CC2D24' : '#FFFFFF', offset: 1 }] }));
+            setStopIndex(0);
+          }}><option value="solid">Solid</option><option value="linear">Linear</option><option value="radial">Radial</option><option value="conic">Conic</option></select>}
+          <button type="button" title="Sample canvas colour" aria-label="Sample canvas colour" onClick={pickColor} className="flex h-8 w-8 items-center justify-center rounded border border-white/20"><Pipette size={16} /></button>
+        </div>
+        {paint && <div className="mb-3 space-y-3">
+          <div className="relative h-8 touch-none border border-white/30" style={{ background: paintCss(value) }}>
+            {paint.stops.map((stop, index) => <button key={index} type="button" aria-label={`Gradient stop ${index + 1}`} aria-pressed={index === activeIndex} title={`Gradient stop ${index + 1}`} className={`absolute top-6 h-4 w-3 -translate-x-1/2 touch-none border-2 ${index === activeIndex ? 'border-red-500' : 'border-white'}`} style={{ left: `${stop.offset * 100}%`, background: stop.color }}
+              onClick={() => setStopIndex(index)} onPointerDown={event => { setStopIndex(index); event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={event => {
+                if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                const rect = event.currentTarget.parentElement!.getBoundingClientRect();
+                patchPaint({ stops: paint.stops.map((entry, entryIndex) => entryIndex === index ? { ...entry, offset: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) } : entry) });
+              }} onPointerUp={event => event.currentTarget.releasePointerCapture(event.pointerId)} />)}
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <input aria-label="Stop position" type="number" min={0} max={100} value={Math.round(paint.stops[activeIndex].offset * 100)} className="h-7 w-16 rounded border border-white/20 bg-black px-2 text-xs" onChange={event => patchPaint({ stops: paint.stops.map((stop, index) => index === activeIndex ? { ...stop, offset: Math.max(0, Math.min(100, Number(event.target.value))) / 100 } : stop) })} />
+            <button type="button" title="Add gradient stop" aria-label="Add gradient stop" disabled={paint.stops.length >= 16} onClick={() => { patchPaint({ stops: [...paint.stops, { color: hex, offset: .5 }] }); setStopIndex(paint.stops.length); }}><Plus size={16} /></button>
+            <button type="button" title="Remove gradient stop" aria-label="Remove gradient stop" disabled={paint.stops.length <= 2} onClick={() => { patchPaint({ stops: paint.stops.filter((_, index) => index !== activeIndex) }); setStopIndex(0); }}><Trash2 size={16} /></button>
+            <button type="button" title="Reverse gradient" aria-label="Reverse gradient" onClick={() => patchPaint({ stops: paint.stops.map(stop => ({ ...stop, offset: 1 - stop.offset })) })}><ArrowLeftRight size={16} /></button>
+          </div>
+          {paint.kind !== 'radial' && <label className="flex items-center gap-2 text-xs">Angle<input aria-label="Gradient angle" type="range" min={0} max={360} value={paint.angle} className="min-w-0 flex-1" onChange={event => patchPaint({ angle: Number(event.target.value) })} /></label>}
+          {paint.kind !== 'linear' && <>{(['x', 'y'] as const).map(axis => <label key={axis} className="flex items-center gap-2 text-xs">{axis.toUpperCase()}<input aria-label={`Gradient centre ${axis}`} type="range" min={0} max={100} value={paint[axis] * 100} className="min-w-0 flex-1" onChange={event => patchPaint({ [axis]: Number(event.target.value) / 100 })} /></label>)}</>}
+        </div>}
         <div className="relative touch-none">
           <div
             ref={svRef}
@@ -223,9 +286,6 @@ export function AdvancedColorPopover({
             ))}
           </div>
         </div>
-        <p className="mt-2 text-[10px] leading-snug text-white/40">
-          Drag the square for saturation and brightness, use the strip for hue, or type RGB values.
-        </p>
       </PopoverContent>
     </Popover>
   );

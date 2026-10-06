@@ -6,7 +6,19 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { cn } from '../components/ui/utils';
 import type { OrderQuantityPlan } from '../data/orderQuantities';
-import { createOrderFromSubmit } from '../data/userOrders';
+import { canEditOrder, createOrderFromSubmit, getUserOrderById, updateUserOrder } from '../data/userOrders';
+import { ProjectGarmentViews, type ProjectPreviewState } from '../components/studio/ProjectGarmentPreview';
+import { toast } from 'sonner';
+
+type DeliveryState = {
+  productId?: string;
+  productName?: string;
+  garmentType?: string;
+  from?: string;
+  orderQuantities?: OrderQuantityPlan;
+  designState?: ProjectPreviewState;
+  returnToOrderId?: string;
+};
 
 const fieldClass =
   'h-10 border-[#252528] bg-white/[0.04] text-sm text-white placeholder:text-white/30 focus-visible:border-[#CC2D24] focus-visible:ring-[#CC2D24]/25';
@@ -31,9 +43,9 @@ function Section({
 export default function Delivery() {
   const navigate = useNavigate();
   const location = useLocation();
+  const st = location.state as DeliveryState | undefined;
 
   const handleBack = () => {
-    const st = location.state as { productId?: string; from?: string } | undefined;
     const productId = st?.productId;
     if (st?.from === 'manufacturer') {
       navigate(
@@ -48,29 +60,39 @@ export default function Delivery() {
       return;
     }
     if (productId) {
-      navigate(`/builder/${productId}`, { state: { currentStep: 13 } });
+      navigate(`/builder/${productId}`, { state: { ...st, currentStep: 13 } });
       return;
     }
     window.history.back();
   };
 
   const handleSubmitOrder = () => {
-    const st = location.state as {
-      productId?: string;
-      productName?: string;
-      garmentType?: string;
-      orderQuantities?: OrderQuantityPlan;
-    } | undefined;
-
-    const isTechPack = st?.orderQuantities?.mode === 'techpack';
-    const order = createOrderFromSubmit({
-      productId: st?.productId,
-      productName: st?.productName,
-      garmentType: st?.garmentType,
-      kind: isTechPack ? 'tech-pack' : 'production',
-      orderQuantities: st?.orderQuantities,
-    });
-    navigate(`/orders/${order.id}`);
+    try {
+      if (st?.returnToOrderId) {
+        const existing = getUserOrderById(st.returnToOrderId);
+        if (!existing || !canEditOrder(existing)) {
+          toast.error('This order can no longer be edited.');
+          return;
+        }
+        const order = updateUserOrder(existing.id, {
+          designState: st.designState,
+          orderQuantities: st.orderQuantities,
+        });
+        if (order) navigate(`/orders/${order.id}`);
+        return;
+      }
+      const order = createOrderFromSubmit({
+        productId: st?.productId,
+        productName: st?.productName,
+        garmentType: st?.garmentType,
+        kind: st?.orderQuantities?.mode === 'techpack' ? 'tech-pack' : 'production',
+        orderQuantities: st?.orderQuantities,
+        designState: st?.designState,
+      });
+      navigate(`/orders/${order.id}`);
+    } catch {
+      toast.error('Could not save your order artwork. Free up browser storage and try again.');
+    }
   };
 
   return (
@@ -96,6 +118,12 @@ export default function Delivery() {
             Enter where we should send your order and how to reach you.
           </p>
         </header>
+
+        {st?.designState ? (
+          <div className="mb-6">
+            <ProjectGarmentViews garmentType={st.garmentType ?? 'tshirt'} state={st.designState} />
+          </div>
+        ) : null}
 
         <div className="space-y-6 rounded-xl border border-[#252528] bg-white/[0.03] p-4 sm:p-6">
           <Section title="Contact information">

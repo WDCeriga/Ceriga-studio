@@ -140,7 +140,7 @@ export function measureHalfExtentsInZone(zone: HTMLElement, element: HTMLElement
   halfH: number;
 } {
   const zr = zone.getBoundingClientRect();
-  const er = element.getBoundingClientRect();
+  const er = (element.querySelector('[data-visible-bounds]') ?? element).getBoundingClientRect();
   const zw = zone.offsetWidth;
   const zh = zone.offsetHeight;
   if (zr.width < 1 || zr.height < 1 || zw < 1 || zh < 1) {

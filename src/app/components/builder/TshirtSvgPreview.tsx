@@ -15,6 +15,8 @@ import {
   type TshirtLayerTransform,
 } from '../../data/tshirtLayerAssets';
 import {
+  areGarmentLayerSvgsLoaded,
+  loadGarmentLayerSvgs,
   applyGarmentFitAndLinks,
   getGarmentSvgConfig,
   garmentSourceLayerId,
@@ -690,7 +692,45 @@ function buildLayerLayouts(
   );
 }
 
-export function TshirtSvgPreview({
+export function TshirtSvgPreview(props: TshirtSvgPreviewProps) {
+  const { garmentType, selection, fit, hoodieAssemblyVersion, layerTransforms } = props;
+  const assembled = usesHoodieAssembly(garmentType, hoodieAssemblyVersion, layerTransforms);
+  const assetInput = useMemo(() => ({
+    garmentType,
+    selection: assembled ? applyGarmentFitAndLinks(garmentType, selection, fit) : selection,
+    fit,
+  }), [garmentType, selection, fit, assembled]);
+  const [, setLoadedVersion] = useState(0);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const ready = areGarmentLayerSvgsLoaded(assetInput);
+
+  useEffect(() => {
+    if (ready) return;
+    let active = true;
+    setLoadError(false);
+    void loadGarmentLayerSvgs(assetInput).then(() => {
+      if (active) setLoadedVersion((version) => version + 1);
+    }).catch(() => {
+      if (active) setLoadError(true);
+    });
+    return () => { active = false; };
+  }, [assetInput, ready, retry]);
+
+  if (!ready) {
+    return (
+      <div className={cn('relative flex h-full w-full items-center justify-center', props.className)} role="status" aria-live="polite">
+        {loadError ? (
+          <button type="button" className="text-xs text-white/70" onClick={() => setRetry((value) => value + 1)}>Retry preview</button>
+        ) : <span className="text-xs text-white/50">Loading garment...</span>}
+      </div>
+    );
+  }
+
+  return <LoadedTshirtSvgPreview {...props} />;
+}
+
+function LoadedTshirtSvgPreview({
   garmentType,
   color,
   selection,

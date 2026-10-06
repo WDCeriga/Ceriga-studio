@@ -25,6 +25,7 @@ import {
   type UserOrder,
 } from '../../data/userOrders';
 import { ProductionQcGallery } from './ProductionQcGallery';
+import { ProjectGarmentViews } from '../studio/ProjectGarmentPreview';
 import { cn } from '../ui/utils';
 
 export function OrderDetailShell({
@@ -67,7 +68,14 @@ export function OrderDetailShell({
           </Badge>
         </div>
       </div>
-      <div className="px-4 py-5 sm:px-5 md:px-7 md:py-6">{children}</div>
+      <div className="px-4 py-5 sm:px-5 md:px-7 md:py-6">
+        {order.designState ? (
+          <div className="mx-auto mb-5 max-w-3xl">
+            <ProjectGarmentViews garmentType={order.garmentType} state={order.designState} />
+          </div>
+        ) : null}
+        {children}
+      </div>
     </div>
   );
 }

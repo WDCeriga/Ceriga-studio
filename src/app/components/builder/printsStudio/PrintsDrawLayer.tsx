@@ -3,9 +3,20 @@ import { cn } from '../../ui/utils';
 import type { DesignElement } from '../PrintsDesignStep';
 import { DEFAULT_PRINT_METHOD } from '../PrintsDesignStep';
 import { usePrintsStudio, type PrintsStudioTool } from './PrintsStudioContext';
+import { recognizeShape, type QuickShape } from '../../../lib/quickShape';
+import { zoneToAsset } from '../../../lib/designGeometry';
+import { canvasPaint } from '../../../lib/studioPaint';
+import { createBrushStabilizer, renderBrushStroke, smoothBrushPoints } from '../../../lib/drawingBrush';
+import type { GarmentDrawingMask } from './useGarmentDrawingMask';
+import { createDistressStamp, type DistressMark, type DistressMarkKind } from '../../../lib/distressScatter';
+import { renderDistressMarks } from '../../../lib/distressRendering';
+import { removeBrushMask } from '../../../lib/brushRemoval';
+
+const supportsQuickShape = (preset: string) => ['pen', 'pencil', 'fine-liner', 'technical-pen'].includes(preset);
 
 interface PrintsDrawLayerProps {
   zone: HTMLDivElement | null;
+  garmentMask: GarmentDrawingMask | null;
   elements: DesignElement[];
   onChange?: (elements: DesignElement[]) => void;
   editable: boolean;
@@ -18,6 +29,7 @@ interface Pt {
   y: number;
   p: number;
   tilt: number;
+  pen?: boolean;
 }
 
 function hexToRgb(hex: string): string {
@@ -25,26 +37,6 @@ function hexToRgb(hex: string): string {
   const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h.slice(0, 6), 16);
   if (Number.isNaN(n)) return '255,255,255';
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
-}
-
-function makeGrain(intensity: number) {
-  const size = 64;
-  const c = document.createElement('canvas');
-  c.width = size;
-  c.height = size;
-  const ctx = c.getContext('2d');
-  if (!ctx) return null;
-  const img = ctx.createImageData(size, size);
-  const amp = Math.max(0, Math.min(1, intensity / 100));
-  for (let i = 0; i < img.data.length; i += 4) {
-    const n = 255 - Math.round(Math.random() * 160 * amp);
-    img.data[i] = n;
-    img.data[i + 1] = n;
-    img.data[i + 2] = n;
-    img.data[i + 3] = Math.round(90 * amp);
-  }
-  ctx.putImageData(img, 0, 0);
-  return ctx.createPattern(c, 'repeat');
 }
 
 function alphaBounds(canvas: HTMLCanvasElement) {
@@ -95,8 +87,9 @@ function isEraseTool(tool: PrintsStudioTool) {
 }
 
 function isErasable(el: DesignElement, tool: PrintsStudioTool) {
+  if (el.locked || el.hidden) return false;
   if (tool === 'distressEraser') return el.type === 'distress';
-  return isPaintElement(el);
+  return isPaintElement(el) || (el.type === 'shape' && el.shapeGeometry === 'bounds');
 }
 
 function canvasFromImage(img: HTMLImageElement) {
@@ -166,34 +159,9 @@ function canvasHasInk(canvas: HTMLCanvasElement) {
   return false;
 }
 
-/** Streamer + catch-up: kills shake inside a lag radius, then follows the intended path. */
-function stabilizeInput(raw: Pt, tip: Pt, amount: number, pxScale: number): Pt {
-  const a = Math.max(0, Math.min(1, amount));
-  if (a < 0.005) return raw;
-  const lag = a * a * 80 * pxScale;
-  const follow = Math.pow(1 - a, 1.75);
-  const dx = raw.x - tip.x;
-  const dy = raw.y - tip.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 0.05) {
-    return {
-      x: tip.x,
-      y: tip.y,
-      p: tip.p + (raw.p - tip.p) * Math.max(0.2, follow),
-      tilt: raw.tilt,
-    };
-  }
-  const move = dist > lag ? (dist - lag) / dist : follow;
-  return {
-    x: tip.x + dx * move,
-    y: tip.y + dy * move,
-    p: tip.p + (raw.p - tip.p) * Math.max(0.22, move),
-    tilt: raw.tilt,
-  };
-}
-
 export function PrintsDrawLayer({
   zone,
+  garmentMask,
   elements,
   onChange,
   editable,
@@ -203,10 +171,14 @@ export function PrintsDrawLayer({
   const studio = usePrintsStudio();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokeRef = useRef<Pt[]>([]);
+  const shapeStrokeRef = useRef<Pt[]>([]);
   const drawingRef = useRef(false);
   const strokeLayerRef = useRef<HTMLCanvasElement | null>(null);
   const lastPenTapRef = useRef(0);
   const holdTimerRef = useRef<number | null>(null);
+  const shapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shapeRef = useRef<QuickShape | null>(null);
+  const holdPointRef = useRef<Pt | null>(null);
   const studioRef = useRef(studio);
   const elementsRef = useRef(elements);
   const onChangeRef = useRef(onChange);
@@ -215,9 +187,20 @@ export function PrintsDrawLayer({
   const lastErasePtRef = useRef<Pt | null>(null);
   const eraseFlushRef = useRef<number | null>(null);
   const smoothTipRef = useRef<Pt | null>(null);
+  const stabilizerRef = useRef<ReturnType<typeof createBrushStabilizer> | null>(null);
   const lastDistressStampRef = useRef<(Pt & { t: number }) | null>(null);
+  const distressStampsRef = useRef<DistressMark[]>([]);
+  const distressCursorRef = useRef<Pt | null>(null);
   const eraseQueueRef = useRef<Pt[]>([]);
   const eraseWarmRef = useRef(false);
+  const sessionRef = useRef<{ element: DesignElement; canvas: HTMLCanvasElement } | null>(null);
+  const distressSessionsRef = useRef(new Map<string, { element: DesignElement; canvas: HTMLCanvasElement }>());
+  const mirrorLayerRef = useRef<HTMLCanvasElement | null>(null);
+  const strokeSeedRef = useRef(1);
+  const pointerIdRef = useRef<number | null>(null);
+
+  useEffect(() => { sessionRef.current = null; }, [studio.drawingSession, garmentSide]);
+  useEffect(() => { distressSessionsRef.current.delete(sideRef.current); }, [studio.distressSession]);
 
   useEffect(() => {
     studioRef.current = studio;
@@ -256,13 +239,36 @@ export function PrintsDrawLayer({
     return () => ro.disconnect();
   }, [zone, syncSize]);
 
+  const clipToGarment = (context: CanvasRenderingContext2D) => {
+    context.save();
+    context.globalCompositeOperation = 'destination-in';
+    if (garmentMask) context.drawImage(garmentMask.canvas, 0, 0, context.canvas.width, context.canvas.height);
+    else context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+    context.restore();
+  };
+
+  const mirrorStroke = (context: CanvasRenderingContext2D) => {
+    if (!studioRef.current.symmetry) return;
+    const copy = mirrorLayerRef.current ?? document.createElement('canvas');
+    mirrorLayerRef.current = copy;
+    copy.width = context.canvas.width;
+    copy.height = context.canvas.height;
+    copy.getContext('2d')?.drawImage(context.canvas, 0, 0);
+    context.save();
+    context.translate((garmentMask ? garmentMask.axis / garmentMask.width * context.canvas.width : context.canvas.width / 2) * 2, 0);
+    context.scale(-1, 1);
+    context.drawImage(copy, 0, 0);
+    context.restore();
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (canvas && ctx && !drawingRef.current) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (studio.tool !== 'distress') distressCursorRef.current = null;
   }, [studio.drawing, studio.tool]);
 
-  const eventPoint = (e: React.PointerEvent, canvas: HTMLCanvasElement): Pt => {
+  const eventPoint = (e: React.PointerEvent | PointerEvent, canvas: HTMLCanvasElement): Pt => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -272,6 +278,7 @@ export function PrintsDrawLayer({
       y: (e.clientY - rect.top) * scaleY,
       p: e.pointerType === 'mouse' ? 0.85 : Math.max(0.08, e.pressure || 0.45),
       tilt,
+      pen: e.pointerType === 'pen',
     };
   };
 
@@ -279,7 +286,8 @@ export function PrintsDrawLayer({
 
   const distressMinDist = (canvas: HTMLCanvasElement) => {
     const scale = canvas.width / Math.max(1, canvas.clientWidth);
-    return Math.max(16, studioRef.current.eraserSize * 1.2) * scale;
+    const count = Math.max(1, studioRef.current.distressScatter.count);
+    return Math.max(5, studioRef.current.eraserSize * 0.46 * Math.sqrt(14 / count)) * scale;
   };
 
   const tryStampDistress = (pt: Pt, source: 'down' | 'move' | 'hold') => {
@@ -293,9 +301,17 @@ export function PrintsDrawLayer({
       if (source === 'move' && dist < minDist) return;
       if (source === 'hold' && now - last.t < DISTRESS_HOLD_MS - 30) return;
     }
-    if (source === 'down') strokeRef.current = [pt];
-    else strokeRef.current.push(pt);
+    if (source === 'down') {
+      strokeRef.current = [pt];
+      distressStampsRef.current = [];
+    } else strokeRef.current.push(pt);
     lastDistressStampRef.current = { ...pt, t: now };
+    const studio = studioRef.current;
+    const canvasScale = canvas.width / Math.max(1, canvas.clientWidth);
+    const pressureScale = studio.pressure && pt.pen ? 0.35 + pt.p * 0.65 : 1;
+    const scatterSettings = { ...studio.distressScatter, size: studio.distressScatter.size * canvasScale * pressureScale };
+    const kind = studio.distressType as DistressMarkKind;
+    distressStampsRef.current.push(...createDistressStamp(pt, (studio.eraserSize / 2) * canvasScale, scatterSettings, kind, canvasScale));
     paintStroke(strokeRef.current, 'distress');
   };
 
@@ -314,7 +330,8 @@ export function PrintsDrawLayer({
       strokeLayer.width = canvas.width;
       strokeLayer.height = canvas.height;
     }
-    const sctx = strokeLayer.getContext('2d');
+    // Alpha-bound reads must not switch raster backends between preview and placement.
+    const sctx = strokeLayer.getContext('2d', { willReadFrequently: true });
     if (!sctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -356,58 +373,13 @@ export function PrintsDrawLayer({
       return;
     }
 
-    sctx.strokeStyle = `rgba(${hexToRgb(s.color)},1)`;
+    sctx.strokeStyle = canvasPaint(sctx, s.color, strokeLayer.width, strokeLayer.height);
     sctx.fillStyle = sctx.strokeStyle;
 
     if (tool === 'distress') {
-      const kind = s.distressType;
       sctx.globalCompositeOperation = 'source-over';
-      for (const pt of points) {
-        const r = sizeFor(pt);
-        if (kind === 'rips') {
-          sctx.strokeStyle = 'rgba(12,12,12,0.92)';
-          sctx.fillStyle = 'rgba(18,18,18,0.88)';
-          sctx.lineWidth = Math.max(1.6, r * 0.22);
-          sctx.beginPath();
-          sctx.moveTo(pt.x - r, pt.y - r * 0.15);
-          sctx.lineTo(pt.x - r * 0.2, pt.y + r * 0.35);
-          sctx.lineTo(pt.x + r * 0.15, pt.y - r * 0.4);
-          sctx.lineTo(pt.x + r, pt.y + r * 0.2);
-          sctx.stroke();
-          sctx.beginPath();
-          sctx.ellipse(pt.x, pt.y, r * 0.22, r * 0.55, -0.4, 0, Math.PI * 2);
-          sctx.fill();
-        } else if (kind === 'abrasion') {
-          sctx.fillStyle = 'rgba(255,255,255,0.72)';
-          const dots = 7 + Math.round(r / 5);
-          for (let i = 0; i < dots; i++) {
-            const dr = r * (0.06 + Math.random() * 0.18);
-            sctx.beginPath();
-            sctx.arc(
-              pt.x + (Math.random() - 0.5) * r * 1.8,
-              pt.y + (Math.random() - 0.5) * r * 1.8,
-              dr,
-              0,
-              Math.PI * 2,
-            );
-            sctx.fill();
-          }
-        } else {
-          sctx.fillStyle = 'rgba(10,10,10,0.92)';
-          const hr = r * (0.4 + Math.random() * 0.45);
-          sctx.beginPath();
-          sctx.ellipse(
-            pt.x + (Math.random() - 0.5) * r * 0.25,
-            pt.y + (Math.random() - 0.5) * r * 0.25,
-            hr,
-            hr * 0.7,
-            Math.random() * 0.6,
-            0,
-            Math.PI * 2,
-          );
-          sctx.fill();
-        }
-      }
+      renderDistressMarks(sctx, distressStampsRef.current, s.distressType, cssToCanvas);
+      clipToGarment(sctx);
       sctx.restore();
       ctx.save();
       ctx.globalAlpha = strokeAlpha;
@@ -416,57 +388,116 @@ export function PrintsDrawLayer({
       return;
     }
 
-    if (points.length === 1) {
-      const pt = points[0];
-      sctx.beginPath();
-      sctx.arc(pt.x, pt.y, sizeFor(pt) / 2, 0, Math.PI * 2);
-      sctx.fill();
-    } else {
-      for (let i = 1; i < points.length; i++) {
-        const prev = points[i - 1];
-        const pt = points[i];
-        sctx.beginPath();
-        sctx.lineWidth = sizeFor(pt);
-        sctx.moveTo(prev.x, prev.y);
-        sctx.lineTo(pt.x, pt.y);
-        sctx.stroke();
-      }
-    }
-
-    if (!erase && s.grain > 4) {
-      const pattern = makeGrain(s.grain);
-      if (pattern) {
-        sctx.globalCompositeOperation = 'source-atop';
-        sctx.globalAlpha = Math.min(0.42, s.grain / 240);
-        sctx.fillStyle = pattern;
-        sctx.fillRect(0, 0, strokeLayer.width, strokeLayer.height);
-      }
-    }
+    renderBrushStroke(sctx, points, s, cssToCanvas, strokeSeedRef.current);
     sctx.restore();
 
+    mirrorStroke(sctx);
+    clipToGarment(sctx);
     ctx.save();
     ctx.globalAlpha = strokeAlpha;
     ctx.drawImage(strokeLayer, 0, 0);
     ctx.restore();
   };
 
+  useEffect(() => {
+    if (!drawingRef.current || studioRef.current.tool !== 'brush') return;
+    if (!supportsQuickShape(studioRef.current.brushPreset) || studioRef.current.texture !== 'smooth' || studioRef.current.scatterEnabled || studioRef.current.brushSpacing > 12) {
+      if (shapeTimerRef.current) clearTimeout(shapeTimerRef.current);
+      shapeTimerRef.current = null;
+    }
+    paintStroke(strokeRef.current, 'brush');
+  }, [studio]);
+
+  const previewDistressAt = (pt: Pt, canvas: HTMLCanvasElement) => {
+    const studio = studioRef.current;
+    const canvasScale = canvas.width / Math.max(1, canvas.clientWidth);
+    const pressureScale = studio.pressure && pt.pen ? 0.35 + pt.p * 0.65 : 1;
+    distressStampsRef.current = createDistressStamp(
+      pt,
+      studio.eraserSize / 2 * canvasScale,
+      { ...studio.distressScatter, size: studio.distressScatter.size * canvasScale * pressureScale },
+      studio.distressType,
+      canvasScale,
+    );
+    paintStroke([pt], 'distress');
+    distressStampsRef.current = [];
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const point = distressCursorRef.current;
+    if (!canvas || drawingRef.current || studio.tool !== 'distress' || !point || !garmentMask) return;
+    previewDistressAt(point, canvas);
+  }, [studio.tool, studio.distressScatter, studio.distressType, studio.eraserSize, studio.opacity, garmentMask]);
+
   const commitStroke = useCallback(() => {
     const canvas = canvasRef.current;
     const strokeLayer = strokeLayerRef.current;
     const host = zone;
     const fn = onChangeRef.current;
-    if (!canvas || !strokeLayer || !host || !fn) return;
-    const box = alphaBounds(strokeLayer);
+    if (!canvas || !strokeLayer || !host || !fn || !alphaBounds(strokeLayer)) return;
+    const inkBounds = alphaBounds(strokeLayer)!;
+    const tool = studioRef.current.tool;
+    if (tool === 'brush' && studioRef.current.brushPreset === 'distress-brush' && studioRef.current.distressMode !== 'paint') {
+      const mask = strokeLayer.getContext('2d')!.getImageData(0, 0, strokeLayer.width, strokeLayer.height);
+      let changed = false;
+      const updated = elementsRef.current.flatMap(element => {
+        if (element.type !== 'drawing' || element.locked || element.hidden || (element.side ?? 'front') !== sideRef.current) return [element];
+        const image = host.querySelector<HTMLImageElement>(`[data-print-id="${element.id}"] img`);
+        if (!image?.complete || !image.naturalWidth || image.getAttribute('src') !== element.content) return [element];
+        const source = canvasFromImage(image);
+        if (!removeBrushMask(source, mask, element, canvas.width / Math.max(1, host.clientWidth), canvas.height / Math.max(1, host.clientHeight), studioRef.current.opacity / 100)) return [element];
+        changed = true;
+        eraseBuffersRef.current.delete(element.id);
+        return canvasHasInk(source) ? [{ ...element, content: source.toDataURL('image/png') }] : [];
+      });
+      if (changed) {
+        sessionRef.current = null;
+        elementsRef.current = updated;
+        fn(updated);
+      }
+      return;
+    }
+    const previous = tool === 'distress' ? distressSessionsRef.current.get(sideRef.current) : sessionRef.current;
+    const existing = previous && elementsRef.current.find(element => element.id === previous.element.id);
+    // Re-read erased/undone pixels, but never overwrite a layer's edited style or locked state.
+    const compatibleDistress = tool === 'distress' && existing && previous && !existing.locked && !existing.hidden &&
+      (Object.keys({ ...previous.element, ...existing }) as (keyof DesignElement)[]).every(key =>
+        ['content', 'x', 'y', 'width', 'height'].includes(key) || existing[key] === previous.element[key]);
+    const canAppend = previous && existing && (existing.side ?? 'front') === sideRef.current &&
+      (compatibleDistress || (tool === 'brush' && existing === previous.element &&
+        previous.canvas.width === canvas.width && previous.canvas.height === canvas.height));
+    const merged = document.createElement('canvas');
+    merged.width = canvas.width;
+    merged.height = canvas.height;
+    const mergedContext = merged.getContext('2d');
+    if (!mergedContext) return;
+    if (canAppend) {
+      if (existing === previous.element && previous.canvas.width === canvas.width && previous.canvas.height === canvas.height) {
+        mergedContext.drawImage(previous.canvas, 0, 0);
+      } else {
+        const image = host.querySelector<HTMLImageElement>(`[data-print-id="${existing.id}"] img`);
+        if (!image?.complete || !image.naturalWidth || image.getAttribute('src') !== existing.content) return;
+        const sx = canvas.width / Math.max(1, host.clientWidth);
+        const sy = canvas.height / Math.max(1, host.clientHeight);
+        mergedContext.drawImage(image, (existing.x - existing.width / 2) * sx, (existing.y - existing.height / 2) * sy,
+          existing.width * sx, existing.height * sy);
+      }
+    }
+    mergedContext.globalAlpha = tool === 'distress'
+      ? Math.max(0.04, Math.min(1, studioRef.current.opacity / 100))
+      : studioRef.current.opacity / 100;
+    mergedContext.drawImage(strokeLayer, 0, 0);
+    const box = alphaBounds(merged);
     if (!box || box.w < 2 || box.h < 2) return;
-    const cropped = cropCanvas(strokeLayer, box);
+    const cropped = cropCanvas(merged, box);
     const dataUrl = cropped.toDataURL('image/png');
     const cssW = Math.max(1, host.clientWidth);
     const cssH = Math.max(1, host.clientHeight);
     const scaleX = canvas.width / cssW;
     const scaleY = canvas.height / cssH;
-    const tool = studioRef.current.tool;
     const next: DesignElement = {
-      id: `${Date.now()}-${Math.round(Math.random() * 1e4)}`,
+      id: canAppend ? previous.element.id : crypto.randomUUID(),
       type: tool === 'distress' ? 'distress' : 'drawing',
       content: dataUrl,
       x: (box.x + box.w / 2) / scaleX,
@@ -474,13 +505,19 @@ export function PrintsDrawLayer({
       width: box.w / scaleX,
       height: box.h / scaleY,
       rotation: 0,
-      opacity: studioRef.current.opacity,
+      opacity: 100,
       locked: false,
       printMethod: tool === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
       side: sideRef.current,
       aspectLocked: false,
     };
-    fn([...elementsRef.current, next]);
+    const updated = canAppend
+      ? elementsRef.current.map(element => element.id === next.id ? next : element)
+      : [...elementsRef.current, next];
+    if (tool === 'brush') sessionRef.current = { element: next, canvas: merged };
+    if (tool === 'distress') distressSessionsRef.current.set(sideRef.current, { element: next, canvas: merged });
+    elementsRef.current = updated;
+    fn(updated);
   }, [zone]);
 
   const ensureEraseBuffer = useCallback(
@@ -508,7 +545,7 @@ export function PrintsDrawLayer({
       const fromImg = ensureEraseBuffer(el);
       if (fromImg) return fromImg;
       const root = zone?.querySelector(`[data-print-id="${el.id}"]`) as HTMLElement | null;
-      const svg = root?.querySelector('svg');
+      const svg = root?.querySelector<SVGSVGElement>('[data-asset-content] svg[viewBox]');
       if (!svg || !root) return null;
       const w = Math.max(2, Math.round(root.clientWidth * 2) || Math.round(el.width * 2));
       const h = Math.max(2, Math.round(root.clientHeight * 2) || Math.round(el.height * 2));
@@ -555,16 +592,9 @@ export function PrintsDrawLayer({
       let changed = false;
       const next = elementsRef.current.map((el) => {
         if (!isErasable(el, tool) || (el.side ?? 'front') !== side) return el;
-        const pad = radiusCss + 2;
         const hit = points.some((pt) => {
-          const zx = pt.x / dprX;
-          const zy = pt.y / dprY;
-          return (
-            zx >= el.x - el.width / 2 - pad &&
-            zx <= el.x + el.width / 2 + pad &&
-            zy >= el.y - el.height / 2 - pad &&
-            zy <= el.y + el.height / 2 + pad
-          );
+          const local = zoneToAsset({ x: pt.x / dprX, y: pt.y / dprY }, el);
+          return local.x >= -radiusCss / el.width && local.x <= 1 + radiusCss / el.width && local.y >= -radiusCss / el.height && local.y <= 1 + radiusCss / el.height;
         });
         if (!hit) return el;
         const buf = eraseBuffersRef.current.get(el.id) ?? ensureEraseBuffer(el);
@@ -573,16 +603,17 @@ export function PrintsDrawLayer({
         if (!octx) return el;
         octx.save();
         octx.globalCompositeOperation = 'destination-out';
-        const left = el.x - el.width / 2;
-        const top = el.y - el.height / 2;
         for (const pt of points) {
           const zx = pt.x / dprX;
           const zy = pt.y / dprY;
-          const lx = ((zx - left) / Math.max(1, el.width)) * buf.width;
-          const ly = ((zy - top) / Math.max(1, el.height)) * buf.height;
-          const r = (radiusCss / Math.max(1, el.width)) * buf.width;
           octx.beginPath();
-          octx.arc(lx, ly, Math.max(1.2, r), 0, Math.PI * 2);
+          for (let segment = 0; segment <= 32; segment++) {
+            const angle = segment * Math.PI / 16;
+            const local = zoneToAsset({ x: zx + Math.cos(angle) * radiusCss, y: zy + Math.sin(angle) * radiusCss }, el);
+            if (!segment) octx.moveTo(local.x * buf.width, local.y * buf.height);
+            else octx.lineTo(local.x * buf.width, local.y * buf.height);
+          }
+          octx.closePath();
           octx.fill();
         }
         octx.restore();
@@ -590,7 +621,9 @@ export function PrintsDrawLayer({
         const img = host.querySelector(`[data-print-id="${el.id}"] img`) as HTMLImageElement | null;
         if (img) img.src = url;
         changed = true;
-        return { ...el, content: url };
+        return el.type === 'shape'
+          ? { ...el, type: 'drawing' as const, shapeGeometry: undefined, borderWidth: 0, color: undefined, content: url }
+          : { ...el, content: url };
       });
       if (!changed) return;
       elementsRef.current = next;
@@ -607,7 +640,7 @@ export function PrintsDrawLayer({
       const needsWarm = elementsRef.current.some(
           (el) =>
             isErasable(el, tool) &&
-            el.type === 'distress' &&
+            (el.type === 'distress' || el.type === 'shape') &&
             (el.side ?? 'front') === sideRef.current &&
             !eraseBuffersRef.current.has(el.id) &&
             !el.content.startsWith('data:'),
@@ -650,14 +683,82 @@ export function PrintsDrawLayer({
 
   const active = editable && studio.drawing;
 
+  useEffect(() => () => {
+    if (shapeTimerRef.current) clearTimeout(shapeTimerRef.current);
+    if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+    drawingRef.current = false;
+    shapeRef.current = null;
+    shapeStrokeRef.current = [];
+    const canvas = canvasRef.current;
+    if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+  }, [studio.tool, garmentSide, editable]);
+
+  const scheduleShape = (point: Pt) => {
+    if (shapeTimerRef.current) clearTimeout(shapeTimerRef.current);
+    shapeRef.current = null;
+    holdPointRef.current = point;
+    if (studioRef.current.tool !== 'brush' || !supportsQuickShape(studioRef.current.brushPreset) || studioRef.current.texture !== 'smooth' || studioRef.current.scatterEnabled || studioRef.current.brushSpacing > 12) return;
+    shapeTimerRef.current = setTimeout(() => {
+      const canvas = canvasRef.current;
+      const context = canvas?.getContext('2d');
+      if (!canvas || !context || !drawingRef.current) return;
+      const shape = recognizeShape(shapeStrokeRef.current);
+      if (!shape) return;
+      shapeRef.current = shape;
+      holdPointRef.current = shapeStrokeRef.current[shapeStrokeRef.current.length - 1];
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.save();
+      context.strokeStyle = canvasPaint(context, studioRef.current.color, canvas.width, canvas.height);
+      context.translate(shape.x, shape.y);
+      context.rotate(shape.rotation * Math.PI / 180);
+      context.globalAlpha = 1;
+      context.lineWidth = studioRef.current.brushSize * canvas.width / Math.max(1, canvas.clientWidth);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.beginPath();
+      if (shape.content === 'ellipse' || shape.content === 'circle') context.ellipse(0, 0, shape.width / 2, shape.height / 2, 0, 0, 2 * Math.PI);
+      else if (shape.content === 'semicircle-open' || shape.content === 'semicircle-closed') {
+        context.ellipse(0, shape.height / 2, shape.width / 2, shape.height, 0, Math.PI, 2 * Math.PI);
+        if (shape.content === 'semicircle-closed') context.closePath();
+      }
+      else if (shape.content === 'rect') context.rect(-shape.width / 2, -shape.height / 2, shape.width, shape.height);
+      else { context.moveTo(-shape.width / 2, 0); context.lineTo(shape.width / 2, 0); }
+      context.stroke();
+      context.restore();
+      mirrorStroke(context);
+      clipToGarment(context);
+      const layer = strokeLayerRef.current;
+      const layerContext = layer?.getContext('2d');
+      if (layer && layerContext) {
+        layerContext.clearRect(0, 0, layer.width, layer.height);
+        layerContext.drawImage(canvas, 0, 0);
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.save();
+        context.globalAlpha = studioRef.current.opacity / 100;
+        context.drawImage(layer, 0, 0);
+        context.restore();
+      }
+      drawingRef.current = false;
+      pointerIdRef.current = null;
+      shapeTimerRef.current = null;
+      shapeRef.current = null;
+      holdPointRef.current = null;
+      strokeRef.current = [];
+      shapeStrokeRef.current = [];
+      commitStroke();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+    }, 550);
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!active) return;
+    if (!active || drawingRef.current || e.button !== 0) return;
     const s = studioRef.current;
     if (s.pencil.pencilOnly && e.pointerType !== 'pen') return;
     e.preventDefault();
     e.stopPropagation();
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if ((s.tool === 'brush' || s.tool === 'distress') && !garmentMask) return;
 
     if (s.pencil.doubleTapTogglesEraser && e.pointerType === 'pen') {
       const now = performance.now();
@@ -670,9 +771,14 @@ export function PrintsDrawLayer({
     }
 
     drawingRef.current = true;
+    pointerIdRef.current = e.pointerId;
+    strokeSeedRef.current = (Math.random() * 0x7fffffff) | 0;
     const pt = eventPoint(e, canvas);
     strokeRef.current = [pt];
+    shapeStrokeRef.current = [pt];
     smoothTipRef.current = pt;
+    stabilizerRef.current = createBrushStabilizer(pt, e.timeStamp, canvas.width / Math.max(1, canvas.getBoundingClientRect().width));
+    scheduleShape(pt);
     const tool = studioRef.current.tool;
     if (tool === 'distress') {
       lastDistressStampRef.current = null;
@@ -697,19 +803,15 @@ export function PrintsDrawLayer({
     }
   };
 
-  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const tool = studioRef.current.tool;
-    const raw = eventPoint(e, canvas);
-    if (!drawingRef.current) {
-      if (isEraseTool(tool)) paintStroke([raw], tool);
-      return;
-    }
+  const appendPointerSample = (sample: PointerEvent, canvas: HTMLCanvasElement, tool: PrintsStudioTool) => {
+    const raw = eventPoint(sample, canvas);
+    const anchor = holdPointRef.current;
+    const holdTolerance = 4 * canvas.width / Math.max(1, canvas.clientWidth);
+    if (anchor && Math.hypot(raw.x - anchor.x, raw.y - anchor.y) < holdTolerance && shapeRef.current) return;
+    if (tool === 'brush') shapeStrokeRef.current.push(raw);
+    if (!anchor || Math.hypot(raw.x - anchor.x, raw.y - anchor.y) >= holdTolerance) scheduleShape(raw);
     const amount = studioRef.current.stabilization / 100;
-    const pxScale = canvas.width / Math.max(1, canvas.clientWidth);
-    const tip = smoothTipRef.current ?? raw;
-    const pt = isEraseTool(tool) ? raw : stabilizeInput(raw, tip, amount, pxScale);
+    const pt = isEraseTool(tool) ? raw : stabilizerRef.current?.(raw, amount, sample.timeStamp) ?? raw;
     smoothTipRef.current = pt;
     if (tool === 'distress') {
       tryStampDistress(pt, 'move');
@@ -717,7 +819,8 @@ export function PrintsDrawLayer({
     }
     const last = strokeRef.current[strokeRef.current.length - 1];
     const moved = last ? Math.hypot(pt.x - last.x, pt.y - last.y) : 999;
-    if (!isEraseTool(tool) && amount >= 0.005 && moved < 0.45) {
+    const scale = canvas.width / Math.max(1, canvas.getBoundingClientRect().width);
+    if (!isEraseTool(tool) && amount > 0 && moved < 0.2 * scale) {
       return;
     }
     if (last && moved > 2.2) {
@@ -725,7 +828,6 @@ export function PrintsDrawLayer({
     } else {
       strokeRef.current.push(pt);
     }
-    paintStroke(strokeRef.current, tool);
     if (isEraseTool(tool)) {
       const prev = lastErasePtRef.current;
       const spacing = (studioRef.current.eraserSize / 2) * (canvas.width / Math.max(1, canvas.clientWidth));
@@ -734,38 +836,87 @@ export function PrintsDrawLayer({
     }
   };
 
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (drawingRef.current && pointerIdRef.current !== e.pointerId) return;
+    const tool = studioRef.current.tool;
+    if (!drawingRef.current) {
+      if (isEraseTool(tool)) paintStroke([eventPoint(e, canvas)], tool);
+      else if (tool === 'distress' && garmentMask) {
+        const point = eventPoint(e, canvas);
+        distressCursorRef.current = point;
+        previewDistressAt(point, canvas);
+      }
+      return;
+    }
+    const samples = e.nativeEvent.getCoalescedEvents?.() ?? [];
+    for (const sample of samples.length ? samples : [e.nativeEvent]) {
+      appendPointerSample(sample, canvas, tool);
+    }
+    if (tool !== 'distress' && !shapeRef.current) paintStroke(strokeRef.current, tool);
+  };
+
   const onPointerLeave = () => {
     if (drawingRef.current) return;
+    distressCursorRef.current = null;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  const endStroke = () => {
-    if (!drawingRef.current) return;
+  const endStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current || pointerIdRef.current !== event.pointerId) return;
     drawingRef.current = false;
+    pointerIdRef.current = null;
+    if (shapeTimerRef.current) clearTimeout(shapeTimerRef.current);
+    const heldShape = shapeRef.current;
+    shapeRef.current = null;
+    holdPointRef.current = null;
     if (holdTimerRef.current) {
       window.clearInterval(holdTimerRef.current);
       holdTimerRef.current = null;
     }
     const tool = studioRef.current.tool;
+    const canvas = canvasRef.current;
+    if (canvas && tool === 'brush' && !heldShape && event.type !== 'pointercancel') {
+      const settings = studioRef.current;
+      const raw = eventPoint(event, canvas);
+      raw.p = strokeRef.current.at(-1)?.p ?? raw.p;
+      const endpoint = stabilizerRef.current?.(raw, settings.stabilization / 100, event.timeStamp) ?? raw;
+      const last = strokeRef.current.at(-1);
+      if (!last || endpoint.x !== last.x || endpoint.y !== last.y) {
+        strokeRef.current.push(endpoint);
+        paintStroke(strokeRef.current, tool);
+      }
+      if (settings.smoothing > 0) {
+        paintStroke(smoothBrushPoints(strokeRef.current, settings.smoothing, canvas.width / Math.max(1, canvas.clientWidth)), tool);
+      }
+    }
     strokeRef.current = [];
+    shapeStrokeRef.current = [];
     lastErasePtRef.current = null;
     smoothTipRef.current = null;
+    stabilizerRef.current = null;
     lastDistressStampRef.current = null;
-    const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (event.type === 'pointercancel') {
+      distressStampsRef.current = [];
+      return;
+    }
     if (isEraseTool(tool)) {
       finishEraser();
       return;
     }
     commitStroke();
+    distressStampsRef.current = [];
   };
 
   return (
     <canvas
       ref={canvasRef}
+      data-print-draw-layer
       className={cn(
         'absolute inset-0 z-[18] h-full w-full touch-none',
         active ? 'pointer-events-auto' : 'pointer-events-none',

@@ -7,7 +7,41 @@ Two jobs, same rules:
 
 Never ask an image model to “output an SVG”. Models only make rasters. Vectors come from tracing code.
 
-## Registered hoodie sleeve demonstration
+## Dolman sleeve replacement
+
+The fourth Boxy sleeve choice is now **Dolman Sleeve**, replacing the retired
+regenerated Set-in v1 option. It does not add a choice or change other fits.
+Selection links `Dolman Body`, `Dolman Left sleeve` and `Dolman Right sleeve`;
+hood, pocket, hem and both separately editable cuffs remain unchanged.
+The original Set-in, Raglan and Dropped Shoulder choices remain available.
+
+The original Canvas raster construction uses a continuous shoulder, no armhole
+seam, and a deep curved underarm tapering into the registered cuffs. The supplied
+illustration informs construction only; none of its pixels are copied or traced.
+Potrace generates both closed fabric and fixed-ink paths on the 2048-square canvas.
+The left sleeve retains the canonical sleeve's editing pivot. Saved selections
+of the retired v1 ID migrate to Dolman without clearing user transforms.
+
+```powershell
+node --max-old-space-size=4096 scripts/collar/pack_dolman.mjs
+node --max-old-space-size=4096 scripts/collar/pack_dolman.mjs --publish
+node scripts/collar/check_hoodie_assembly_browser.mjs --dolman
+```
+
+Generation stages white/colour proofs, masks, SVGs and validation results in
+`.tmp-dolman/`. Publish runs validation first, installs only the three linked
+SVGs and registration, records the raster under
+`src/assets/studio-hoodie/sleeves/dolman-v1/`, and removes the old v1 SVG/sidecar.
+Checks cover exclusive fabric ownership, six attachment joins, enclosed gaps,
+new-silhouette symmetry and unchanged canonical asset hashes. Browser coverage
+includes all eight parts, independent colours, editing and construction swaps.
+The option retains the old label's invisible, inaccessible sizing footprint so
+responsive wrapping cannot change its box dimensions or neighboring layout.
+
+## Historical registered hoodie sleeve demonstration
+
+The v1 asset below is retired. Do not reinstall it alongside Dolman; this section
+documents the earlier tracing and registration workflow only.
 
 Scope: **Boxy / Set-in / left sleeve**, against the existing Boxy body and cuff.
 Only this replacement is certified. The new sleeve is freshly raster-traced from

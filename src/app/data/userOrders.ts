@@ -5,6 +5,8 @@ import {
   type OrderQuantityPlan,
 } from './orderQuantities';
 
+import type { ProjectPreviewState } from '../components/studio/ProjectGarmentPreview';
+
 export type UserOrderKind = 'tech-pack' | 'production';
 
 export type UserOrderStatus =
@@ -32,6 +34,8 @@ export type UserOrder = {
   productName: string;
   garmentType: string;
   productId?: string;
+  /** Complete submitted builder state, including artwork on both garment faces. */
+  designState?: ProjectPreviewState;
   status: UserOrderStatus;
   statusLabel: string;
   orderDate: string;
@@ -411,6 +415,7 @@ export function createOrderFromSubmit(input: {
   garmentType?: string;
   kind: UserOrderKind;
   orderQuantities?: OrderQuantityPlan;
+  designState?: ProjectPreviewState;
 }): UserOrder {
   const id = `ord-${Date.now().toString(36)}`;
   const isTechPack = input.kind === 'tech-pack';
@@ -429,6 +434,7 @@ export function createOrderFromSubmit(input: {
     }),
     total: isTechPack ? 29 : null,
     orderQuantities: input.orderQuantities,
+    designState: input.designState ? JSON.parse(JSON.stringify(input.designState)) : undefined,
     exportFormat: isTechPack ? 'pdf' : undefined,
     pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
   };

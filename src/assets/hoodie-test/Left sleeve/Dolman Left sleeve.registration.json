@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "fit": "boxy",
+  "construction": "dolman",
+  "part": "sleeveLeft",
+  "assetId": "hoodie/Left sleeve/Dolman Left sleeve",
+  "label": "Dolman Sleeve",
+  "compatibilityFamily": "hoodie/boxy/dolman/v1",
+  "transformReferenceAssetId": "hoodie/Left sleeve/Left sleeve",
+  "source": {
+    "reference": "User image used for Dolman construction only; original symmetric raster geometry, no image pixels traced.",
+    "rasterFirst": true,
+    "canvas": [
+      2048,
+      2048
+    ]
+  },
+  "defaultTransform": {
+    "x": 0,
+    "y": 0,
+    "scale": 1,
+    "rotation": 0
+  },
+  "tracing": {
+    "supersampling": 3,
+    "threshold": 128,
+    "blackOnWhite": true,
+    "turdSize": 4,
+    "turnPolicy": "minority",
+    "alphaMax": 1,
+    "optTolerance": 0.2
+  },
+  "measurements": {
+    "shoulder": 599,
+    "wrist": {
+      "left": 434,
+      "right": 620
+    },
+    "underarm": {
+      "x": 680,
+      "y": 1160
+    },
+    "changedPixels": 138615,
+    "symmetricPixels": 524
+  },
+  "dependencies": {
+    "Body": "24a4b7d69e16d8b1318838fcfc024dc48500f46b357d56b1fe7b06ccd6b18dd9",
+    "Left sleeve": "198835a7603954efb94654b3ea9adc0bcdac05574a3a84e2e89556c7607a1ada",
+    "Right sleeve": "452a37181ced155a3c17ab49656a4a2ce99575b57a9add87f94ed6f2cdc377eb",
+    "Rib hem": "290c9fee004d43b9157c63514e32bf01c4b0415996f821c212b06590dbd906b5",
+    "Left cuff": "90f1d37a285aef029bc0e04d12c91bdd0a0b643a4ff6742ebd918202308033cc",
+    "Right cuff": "2e88ccb534e3111368e3c190127261f80ecf37f849cdd6dddc86ef9108f89a64",
+    "Hood": "9c615600ae9cb278d2aa3738bb640f30f32c2bfe52a32405050cf4aba1b53b38",
+    "Kangaroo pocket": "31edcc1d0d5b8f210c8194d6f20b129fe2b736edb9a1159a0a5b3455d6259c52"
+  },
+  "svgSha256": "7a2d51a329a749cfd0980bcf2c1323ec768fe004d211cda1b982c2ee89943bac"
+}

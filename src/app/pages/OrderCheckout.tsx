@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Clock, CreditCard, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { ProjectGarmentViews } from '../components/studio/ProjectGarmentPreview';
 import {
   checkoutPath,
   completeCheckout,
@@ -77,6 +78,11 @@ export function OrderCheckout() {
           {option.label}
         </h1>
         <p className="mt-1 text-sm text-white/45">{order.productName}</p>
+        {order.designState ? (
+          <div className="mt-5">
+            <ProjectGarmentViews garmentType={order.garmentType} state={order.designState} />
+          </div>
+        ) : null}
 
         <div className="mt-6 space-y-4 rounded-xl border border-[#252528] bg-white/[0.03] p-5">
           <div className="flex items-center justify-between text-sm">

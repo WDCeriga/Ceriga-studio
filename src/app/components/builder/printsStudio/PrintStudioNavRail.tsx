@@ -1,5 +1,6 @@
 import { Brush, Grid3x3, ImageIcon, Shapes, Sparkles, Type, X, type LucideIcon } from 'lucide-react';
 import { cn } from '../../ui/utils';
+import { useAssetWorkspaceContext } from './AssetWorkspace';
 import {
   usePrintsStudio,
   type PrintsStudioPanel,
@@ -13,7 +14,7 @@ export const PRINT_STUDIO_NAV: {
 }[] = [
   { id: 'brush', label: 'Drawing tools', hint: 'Brush, eraser, and Pencil', icon: Brush },
   { id: 'shapes', label: 'Shapes and lines', hint: 'Place graphics on the garment', icon: Shapes },
-  { id: 'upload', label: 'Images', hint: 'Upload and reuse artwork', icon: ImageIcon },
+  { id: 'upload', label: 'Assets', hint: 'Create, upload and reuse artwork', icon: ImageIcon },
   { id: 'text', label: 'Typography', hint: 'Add and style type', icon: Type },
   { id: 'patterns', label: 'Patterns', hint: 'Stripes and repeats', icon: Grid3x3 },
   { id: 'distress', label: 'Distressing', hint: 'Holes, abrasion, and rips', icon: Sparkles },
@@ -125,6 +126,7 @@ export function PrintStudioEditorHeading({
   onCollapse?: () => void;
 }) {
   const studio = usePrintsStudio();
+  const assetMode = Boolean(useAssetWorkspaceContext()?.project);
   const item = PRINT_STUDIO_NAV.find((n) => n.id === studio.panel) ?? PRINT_STUDIO_NAV[0]!;
 
   return (
@@ -159,7 +161,7 @@ export function PrintStudioEditorHeading({
         </div>
       )}
       <p className={cn('mb-4 text-[11px] leading-relaxed text-white/55 md:mb-5 md:text-[11px]', isPhone && 'mb-3')}>
-        {item.hint}. Artwork stays on the garment as you switch tools.
+        {assetMode ? 'Create on the transparent artboard. Your garment is safely set aside.' : `${item.hint}. Artwork stays on the garment as you switch tools.`}
       </p>
     </>
   );
@@ -173,6 +175,7 @@ export function PrintStudioNavRail({
   onActivate?: () => void;
 }) {
   const studio = usePrintsStudio();
+  const assetMode = Boolean(useAssetWorkspaceContext()?.project);
   const horizontal = orientation === 'horizontal';
 
   return (
@@ -185,7 +188,7 @@ export function PrintStudioNavRail({
       role="toolbar"
       aria-label="Design tools"
     >
-      {PRINT_STUDIO_NAV.map((item) => {
+      {PRINT_STUDIO_NAV.filter(item => !assetMode || item.id !== 'distress').map((item) => {
         const Icon = item.icon;
         const on = studio.panel === item.id;
         return (
