@@ -1,0 +1,393 @@
+{
+  "regions": [
+    {
+      "id": "hood-left",
+      "label": "Left outer hood",
+      "semanticType": "hood",
+      "builderCategory": "neck-hood",
+      "candidateIds": [
+        "front-cell-001",
+        "front-cell-035"
+      ],
+      "confidence": 0.95,
+      "evidence": "Hood fabric is bounded by the outer silhouette, face edge and stitched neckline join. Recovered cell 35 continues the same fabric beside the drawcord; its partition does not establish another sewn panel.",
+      "parentRegionId": null,
+      "mirroredPairId": "hood-right",
+      "colourGroupId": "hood-outer-colour",
+      "fabricGroupId": "hood-outer-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "hood-right",
+      "label": "Right outer hood",
+      "semanticType": "hood",
+      "builderCategory": "neck-hood",
+      "candidateIds": [
+        "front-cell-002"
+      ],
+      "confidence": 0.97,
+      "evidence": "The face edge, crown division and stitched neckline delimit the matching outer hood half.",
+      "parentRegionId": null,
+      "mirroredPairId": "hood-left",
+      "colourGroupId": "hood-outer-colour",
+      "fabricGroupId": "hood-outer-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "hood-inner-left",
+      "label": "Left inner hood panel",
+      "semanticType": "lining",
+      "builderCategory": "neck-hood",
+      "candidateIds": [
+        "front-cell-003"
+      ],
+      "confidence": 0.88,
+      "evidence": "Visible fabric inside the hood has a continuous center-back seam and curved side-panel join; it is not an empty neck opening.",
+      "parentRegionId": "hood-left",
+      "mirroredPairId": "hood-inner-right",
+      "colourGroupId": "hood-inner-colour",
+      "fabricGroupId": "hood-inner-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "hood-inner-right",
+      "label": "Right inner hood panel",
+      "semanticType": "lining",
+      "builderCategory": "neck-hood",
+      "candidateIds": [
+        "front-cell-004"
+      ],
+      "confidence": 0.88,
+      "evidence": "The center-back seam and curved side join delimit the matching visible interior hood fabric.",
+      "parentRegionId": "hood-right",
+      "mirroredPairId": "hood-inner-left",
+      "colourGroupId": "hood-inner-colour",
+      "fabricGroupId": "hood-inner-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "hood-inner-side-left",
+      "label": "Left inner hood side panel",
+      "semanticType": "lining",
+      "builderCategory": "neck-hood",
+      "candidateIds": [
+        "front-cell-005"
+      ],
+      "confidence": 0.83,
+      "evidence": "A narrow visible interior fabric panel lies between the hood face edge and a continuous curved join extending to the hood base.",
+      "parentRegionId": "hood-left",
+      "mirroredPairId": "hood-inner-side-right",
+      "colourGroupId": "hood-inner-side-colour",
+      "fabricGroupId": "hood-inner-side-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "hood-inner-side-right",
+      "label": "Right inner hood side panel",
+      "semanticType": "lining",
+      "builderCategory": "neck-hood",
+      "candidateIds": [
+        "front-cell-006"
+      ],
+      "confidence": 0.83,
+      "evidence": "The matching continuous curved interior join separates this narrow fabric surface from the central inner hood panel.",
+      "parentRegionId": "hood-right",
+      "mirroredPairId": "hood-inner-side-left",
+      "colourGroupId": "hood-inner-side-colour",
+      "fabricGroupId": "hood-inner-side-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "cord-left",
+      "label": "Left hood drawcord",
+      "semanticType": "drawstring",
+      "builderCategory": "trims-details",
+      "candidateIds": [
+        "front-cell-008",
+        "front-cell-016",
+        "front-cell-018"
+      ],
+      "confidence": 0.98,
+      "evidence": "Parallel cord outlines descend from the hood and terminate in a visibly enclosed knot and short end; these cells form one drawcord.",
+      "parentRegionId": "hood-left",
+      "mirroredPairId": "cord-right",
+      "colourGroupId": "drawcord-colour",
+      "fabricGroupId": "drawcord-material",
+      "editableIndependently": true
+    },
+    {
+      "id": "cord-right",
+      "label": "Right hood drawcord",
+      "semanticType": "drawstring",
+      "builderCategory": "trims-details",
+      "candidateIds": [
+        "front-cell-009",
+        "front-cell-017",
+        "front-cell-019"
+      ],
+      "confidence": 0.98,
+      "evidence": "The matching outlined cord, enclosed knot and projecting end are supported trim independent of hood fabric.",
+      "parentRegionId": "hood-right",
+      "mirroredPairId": "cord-left",
+      "colourGroupId": "drawcord-colour",
+      "fabricGroupId": "drawcord-material",
+      "editableIndependently": true
+    },
+    {
+      "id": "chest-left",
+      "label": "Left upper chest and shoulder",
+      "semanticType": "yoke",
+      "builderCategory": "fabric-colour",
+      "candidateIds": [
+        "front-cell-012"
+      ],
+      "confidence": 0.99,
+      "evidence": "A continuous curved chest join with parallel dashed topstitching separates this upper section from the lower body. It extends uninterrupted to the dropped sleeve attachment.",
+      "parentRegionId": null,
+      "mirroredPairId": "chest-right",
+      "colourGroupId": "upper-chest-colour",
+      "fabricGroupId": "upper-chest-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "chest-right",
+      "label": "Right upper chest and shoulder",
+      "semanticType": "yoke",
+      "builderCategory": "fabric-colour",
+      "candidateIds": [
+        "front-cell-013"
+      ],
+      "confidence": 0.99,
+      "evidence": "The matching curved seam and adjacent topstitching establish a separate upper construction section, ending at the center closure and sleeve join.",
+      "parentRegionId": null,
+      "mirroredPairId": "chest-left",
+      "colourGroupId": "upper-chest-colour",
+      "fabricGroupId": "upper-chest-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "body-left",
+      "label": "Left lower body",
+      "semanticType": "body",
+      "builderCategory": "fabric-colour",
+      "candidateIds": [
+        "front-cell-023"
+      ],
+      "confidence": 0.98,
+      "evidence": "Visible body fabric lies below the stitched curved chest join and above the hem-band seam. The recovered patch-pocket perimeter bounds a separate pocket, not a body fold.",
+      "parentRegionId": null,
+      "mirroredPairId": "body-right",
+      "colourGroupId": "lower-body-colour",
+      "fabricGroupId": "lower-body-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "body-right",
+      "label": "Right lower body",
+      "semanticType": "body",
+      "builderCategory": "fabric-colour",
+      "candidateIds": [
+        "front-cell-024"
+      ],
+      "confidence": 0.98,
+      "evidence": "The curved chest construction seam, side contour and hem join delimit this lower body surface, with the recovered visible pocket kept separate.",
+      "parentRegionId": null,
+      "mirroredPairId": "body-left",
+      "colourGroupId": "lower-body-colour",
+      "fabricGroupId": "lower-body-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "sleeve-left",
+      "label": "Left main sleeve",
+      "semanticType": "sleeve",
+      "builderCategory": "sleeves",
+      "candidateIds": [
+        "front-cell-020"
+      ],
+      "confidence": 0.99,
+      "evidence": "A stitched dropped-shoulder join starts the sleeve; its main surface is bounded by the outer contour and curved lower-sleeve insert seam.",
+      "parentRegionId": "chest-left",
+      "mirroredPairId": "sleeve-right",
+      "colourGroupId": "sleeve-colour",
+      "fabricGroupId": "sleeve-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "sleeve-right",
+      "label": "Right main sleeve",
+      "semanticType": "sleeve",
+      "builderCategory": "sleeves",
+      "candidateIds": [
+        "front-cell-022"
+      ],
+      "confidence": 0.99,
+      "evidence": "The matching dropped-shoulder seam and curved insert join visibly delimit the main sleeve fabric.",
+      "parentRegionId": "chest-right",
+      "mirroredPairId": "sleeve-left",
+      "colourGroupId": "sleeve-colour",
+      "fabricGroupId": "sleeve-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "sleeve-panel-left",
+      "label": "Left curved sleeve insert",
+      "semanticType": "panel",
+      "builderCategory": "sleeves",
+      "candidateIds": [
+        "front-cell-025"
+      ],
+      "confidence": 0.98,
+      "evidence": "A long curved solid join accompanied by dashed topstitching separates this lower-sleeve insert from the main sleeve; it terminates at the cuff attachment.",
+      "parentRegionId": "sleeve-left",
+      "mirroredPairId": "sleeve-panel-right",
+      "colourGroupId": "sleeve-insert-colour",
+      "fabricGroupId": "sleeve-insert-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "sleeve-panel-right",
+      "label": "Right curved sleeve insert",
+      "semanticType": "panel",
+      "builderCategory": "sleeves",
+      "candidateIds": [
+        "front-cell-026"
+      ],
+      "confidence": 0.98,
+      "evidence": "The matching curved seam has parallel topstitching and reaches the cuff, supporting an actual sewn sleeve insert rather than a wrinkle.",
+      "parentRegionId": "sleeve-right",
+      "mirroredPairId": "sleeve-panel-left",
+      "colourGroupId": "sleeve-insert-colour",
+      "fabricGroupId": "sleeve-insert-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "pocket-left",
+      "label": "Left front patch pocket",
+      "semanticType": "pocket",
+      "builderCategory": "pockets-zips",
+      "candidateIds": [
+        "front-cell-036"
+      ],
+      "confidence": 0.99,
+      "evidence": "The recovered surface has a stitched upper edge, curved hand-entry edge and stitched lower attachment. These are genuine patch-pocket construction boundaries.",
+      "parentRegionId": "body-left",
+      "mirroredPairId": "pocket-right",
+      "colourGroupId": "pocket-colour",
+      "fabricGroupId": "pocket-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "pocket-right",
+      "label": "Right front patch pocket",
+      "semanticType": "pocket",
+      "builderCategory": "pockets-zips",
+      "candidateIds": [
+        "front-cell-037"
+      ],
+      "confidence": 0.99,
+      "evidence": "The matching recovered pocket face is enclosed by its top attachment, curved entry edge, lower stitching and center closure. No backing surface is added.",
+      "parentRegionId": "body-right",
+      "mirroredPairId": "pocket-left",
+      "colourGroupId": "pocket-colour",
+      "fabricGroupId": "pocket-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "hem-left",
+      "label": "Left hem band",
+      "semanticType": "hem",
+      "builderCategory": "hem-cuffs",
+      "candidateIds": [
+        "front-cell-028"
+      ],
+      "confidence": 0.99,
+      "evidence": "A stitched transverse attachment separates the band from the body; its lower edge is the garment hem and its inner end meets the zipper.",
+      "parentRegionId": "body-left",
+      "mirroredPairId": "hem-right",
+      "colourGroupId": "hem-colour",
+      "fabricGroupId": "hem-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "hem-right",
+      "label": "Right hem band",
+      "semanticType": "hem",
+      "builderCategory": "hem-cuffs",
+      "candidateIds": [
+        "front-cell-029"
+      ],
+      "confidence": 0.99,
+      "evidence": "The matching lower band has its own stitched body attachment and free hem edge, divided from the opposite half by the front closure.",
+      "parentRegionId": "body-right",
+      "mirroredPairId": "hem-left",
+      "colourGroupId": "hem-colour",
+      "fabricGroupId": "hem-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "cuff-left",
+      "label": "Left cuff",
+      "semanticType": "cuff",
+      "builderCategory": "hem-cuffs",
+      "candidateIds": [
+        "front-cell-033"
+      ],
+      "confidence": 0.99,
+      "evidence": "A transverse stitched seam joins the narrow cuff to the gathered sleeve end; the cuff has a separate closed outer outline.",
+      "parentRegionId": "sleeve-left",
+      "mirroredPairId": "cuff-right",
+      "colourGroupId": "cuff-colour",
+      "fabricGroupId": "cuff-fabric",
+      "editableIndependently": true
+    },
+    {
+      "id": "cuff-right",
+      "label": "Right cuff",
+      "semanticType": "cuff",
+      "builderCategory": "hem-cuffs",
+      "candidateIds": [
+        "front-cell-034"
+      ],
+      "confidence": 0.99,
+      "evidence": "The matching cuff is separated from the gathered sleeve by a stitched attachment seam.",
+      "parentRegionId": "sleeve-right",
+      "mirroredPairId": "cuff-left",
+      "colourGroupId": "cuff-colour",
+      "fabricGroupId": "cuff-fabric",
+      "editableIndependently": true
+    }
+  ],
+  "excluded": [
+    {
+      "candidateIds": [
+        "front-cell-007",
+        "front-cell-010",
+        "front-cell-011",
+        "front-cell-031",
+        "front-cell-032"
+      ],
+      "reason": "Tiny zipper-related enclosures do not reliably distinguish solid hardware from pull openings or gaps; left unfilled rather than treated as fabric."
+    },
+    {
+      "candidateIds": [
+        "front-cell-014",
+        "front-cell-015",
+        "front-cell-021"
+      ],
+      "reason": "Minute enclosures at closure and seam intersections are stitch or ink fragments, not independently editable garment components."
+    },
+    {
+      "candidateIds": [
+        "front-cell-027",
+        "front-cell-030"
+      ],
+      "reason": "Tiny pocket-edge stitch/intersection fragments do not establish additional pocket surfaces or hardware."
+    }
+  ],
+  "warnings": [
+    "The center-front zipper is visible, but no reliable continuous enclosed zipper surface is supplied; its tiny ambiguous cells remain unfilled.",
+    "Upper chest cells include uninterrupted shoulder extensions to the dropped sleeve joins. No additional shoulder or upper-sleeve cuts have been invented.",
+    "Only the recovered visible patch-pocket faces are classified; no hidden backing or body fabric behind them is supplied."
+  ]
+}

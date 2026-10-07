@@ -1,0 +1,18 @@
+{
+  "inkLocalizations": [
+    {
+      "id": "centre-zip-teeth",
+      "label": "Centre zip teeth (source ink)",
+      "semanticType": "zip",
+      "sourceBounds": [
+        507,
+        278,
+        519,
+        839
+      ],
+      "evidence": "Source centre ink repeats as zipper teeth between the flanking rails. Pull above y278 and end junctions are deliberately not claimed.",
+      "scope": "teeth-only",
+      "confidence": 0.85
+    }
+  ]
+}

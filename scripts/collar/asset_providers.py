@@ -437,6 +437,70 @@ class AstraProvider:
         self.model = settings["CERIGA_AZURE_REASONING_DEPLOYMENT"].strip()
         self.raster = AzureImageRasterProvider(self.transport, settings)
 
+    def analyzeConstructionRegions(self, technical: Image.Image, overlay: Image.Image, candidates: list[dict], *, view: str) -> dict:
+        """Classify local trace cells; no generated geometry or image generation."""
+        prompt = (
+            "Perform POST-TRACE GARMENT CONSTRUCTION classification, NOT reconstruction. Image 1 is the original technical "
+            "raster; image 2 is the SAME aligned raster with locally enclosed cells coloured and numbered. The candidate "
+            "table maps numbers to immutable candidateIds. Decide WHAT components are present and group these exact cells. "
+            "Never return SVG, paths, points, contours, bounds, masks or invented cuts. A cell cannot be split by you. "
+            "Return JSON {regions:[{id,label,semanticType,builderCategory,candidateIds:[id],confidence,evidence, "
+            "parentRegionId:null,mirroredPairId:null,colourGroupId,fabricGroupId,editableIndependently:true}], "
+            "excluded:[{candidateIds:[id],reason}],warnings:[string]}. "
+            "Use unique short lowercase hyphenated IDs. semanticType is one of body,sleeve,cuff,hood,pocket,flap,panel,yoke, "
+            "neckband,collar,hem,waistband,placket,zip,button,rivet,belt-loop,lining,fly,skirt,drawstring. "
+            "Drawstrings/drawcords are supported colourable trim: classify their visible enclosed cord, knot and end "
+            "cells as drawstring under trims-details, independently of body/hood fabric. Do not exclude them as unsupported. "
+            "Candidates with boundaryRecovery were split LOCALLY across short source-ink gaps (including stitch gaps), "
+            "without altering any ink. Examine the original raster to identify genuine pocket/construction boundaries; "
+            "merge recovered cells back if they only divide a fold, wrinkle or decoration. Visible recovered pocket "
+            "surfaces must be independent pocket regions under pockets-zips, never merged into the body. "
+            "No hidden pocket backing or fabric behind the pocket is supplied or may be invented. "
+            "builderCategory is fabric-colour,neck-hood,sleeves,hem-cuffs,pockets-zips,trims-details,custom-details. "
+            "Normal parts belong in their normal categories: sleeve inserts/panels use sleeves with the actual sleeve "
+            "as parentRegionId. Only genuinely unusual components use custom-details. Body, sleeves, neck and hems "
+            "must have separate default colour AND fabric groups even if their photographed material looks identical. "
+            "Only true sewn boundaries justify separate fabric regions. Merge candidate cells belonging to the SAME "
+            "meaningful component when folds, wrinkles or decorative topstitch loops subdivide it. Do not make every "
+            "coloured blob an editable part. A simple tee needs few pieces, not dozens of stitch fragments. "
+            "CRITICAL: a curved chest seam with actual construction evidence divides upper chest and lower body into "
+            "INDEPENDENT regions and separate default colour AND fabric groups. Preserve such real joins for any garment. "
+            "Pockets, flaps, cuffs, bands, sleeves and hood panels need their own evidenced candidates, not inferred extents. "
+            "Exclude background, neck/arm openings, open hardware holes, print/label cells, uncertain specks and stitch "
+            "fragments. Never fill an opening or a guessed area behind a pocket. Small buttons/rivets/zips may be listed "
+            "as hardware semantic types but never fabric. Buckles and other unsupported hardware remain excluded with a warning. "
+            "Each candidate can belong to at most one group or exclusion. Omitted or confidence<.8 cells remain unfilled. "
+            "Evidence must explain visible construction, not just position. Prefer undersegmentation with honest warnings "
+            "when a seam is open or mixed fabric/opening cells cannot safely be separated. No generic garment template. "
+            "Pair genuinely matching left/right parts using reciprocal mirroredPairId region IDs and shared colourGroupId "
+            "and fabricGroupId; geometry remains separate. Colour and fabric group properties are independent. Do not "
+            "group distinct chest/body panels just because their source colour is the same. Parent IDs are attachment "
+            "relationships only; do not invent hidden geometry. At most 64 meaningful groups, no target count. "
+            f"Only the observed {view} view is supplied; do not invent the other view. Candidate table: " + json.dumps(candidates)
+        )
+        images = []
+        for source in (technical, overlay):
+            reference = source.convert("RGB")
+            reference.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
+            images.append({"type": "input_image", "image_url": "data:image/png;base64," +
+                           base64.b64encode(reference_png(reference)).decode("ascii")})
+        payload = self.transport.post("/openai/v1/responses", "Astra post-trace construction classification", json={
+            "model": self.model, "store": False, "stream": True,
+            "text": {"format": {"type": "json_object"}},
+            "input": [{"role": "user", "content": [{"type": "input_text", "text": prompt}, *images]}],
+        })
+        if payload.get("status") != "completed":
+            raise ValueError("Astra construction classification did not complete.")
+        content = [item for output in payload.get("output", []) if output.get("type") == "message"
+                   for item in output.get("content", [])]
+        if any(item.get("type") == "refusal" for item in content):
+            raise ValueError("Astra declined construction classification.")
+        text = "".join(item["text"] for item in content if item.get("type") == "output_text")
+        decoded = json.loads(text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip())
+        if not isinstance(decoded, dict):
+            raise ValueError("Astra construction classification is not a JSON object.")
+        return decoded
+
     def analyzeGarment(self, photo: Image.Image, *, source_manifest: dict | None = None, geometry_feedback: str | None = None) -> dict:
         from garment_manifest import validate_manifest
 

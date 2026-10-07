@@ -55,7 +55,7 @@ export function renderConstructionSvg(
   const root = parsed.documentElement;
   const namespace = 'http://www.w3.org/2000/svg';
   for (const element of parsed.querySelectorAll('[fill], [stroke]')) {
-    if (element.closest('defs')) continue;
+    if (element.closest('defs, [data-fixed-ink]')) continue;
     for (const attribute of ['fill', 'stroke']) {
       const value = element.getAttribute(attribute);
       if (value && /^(?:#[\da-f]{3}(?:[\da-f]{3})?|black|white)$/i.test(value)) element.setAttribute(attribute, 'currentColor');

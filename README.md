@@ -9,6 +9,62 @@
 
   Run `npm run dev` to start the development server.
 
+## Construction material model
+
+`garmentFabrics.ts` keeps legacy `assignments` (explicit part overrides) and
+`unlinkedGroups`, adding optional `garmentDefault`, `categoryDefaults`, and
+`interior: { matchExteriorFabric, matchExteriorColour, fabricId?, colour? }`.
+Call `initializeFabricDefaults(type, existing?)` explicitly when installing a
+material-aware garment. Builder hydration adds defaults while preserving saved
+explicit overrides and registered geometry. The tee default
+is 180 GSM cotton single jersey with a 240 GSM 1×1 rib neckband. Main fabric
+changes use `setGarmentFabric`; `setCategoryFabric` changes a category or clears it
+with `undefined`. Neither overwrites explicit part assignments. Calling
+`resetFabricDefaults(type)` returns only material state, never garment geometry.
+`resetPartFabric(state, parts, targetId)` clears the target's explicit overrides
+(including linked partners and descendant panels), preserving defaults, link flags,
+independent interiors, and unrelated overrides.
+
+`resolvePartFabric(state, part, parts?)` and `resolvePartMaterial` resolve source
+relationships and category/main fallback; pass the complete parts list for recursive
+inheritance. The material result includes `fabric`, `fabricId`, `surface`, and
+`interior` (the reverse-map flag). Parts may declare `materialCategory`,
+`surface: 'face' | 'reverse' | 'lining'`, and `exteriorPartId`. A genuine lining
+requires its own part/category assignment and renders its face, never the shell's
+reverse. `resolveInteriorColour(interior, exteriorColour, override?, surface?)`
+uses matching exterior colour without automatic lightening. Colour overrides and
+technical/no-texture display mode remain caller-owned; hiding texture must not
+clear saved materials. `assignFabric(..., 'part')` explicitly unlinks a targeted
+pair member; its existing default linked/bulk behavior remains compatible.
+
+Single-jersey and generic denim reverse maps are separately authored, neutral,
+tileable construction studies, **not scanned reverses**. Denim retains its verified
+CC0 face scan; its procedural reverse has separate review-required provenance.
+Missing reverse maps remain unavailable, never substituted with unrelated textures.
+Run `node scripts\collar\run_fabric_tests.mjs` for inheritance, provenance,
+asset-checksum, and compatibility regressions.
+
+Native and imported construction uses exact blue region selection. Accepted
+structural parts are selection-only; `creationEditing` explicitly enables custom
+geometry handles in the upload draft. Artwork and placement tools retain their
+separate interactions. Fabric cards and colour swatches can be dropped onto parts;
+a linked-pair choice offers both matching parts or just the targeted part.
+Colour defaults stay sparse in saved state (`colourDefaults` and `partColors`),
+so changing the garment default does not erase explicit overrides. Reverse colour
+matching uses its exterior part without fake lightening; lining keeps separate
+part/category colours. The visible native inside-back neck uses the body reverse,
+not the rib neckband. Imported material inheritance resolves both front and rear
+part metadata. Technical/no-texture mode changes the view only.
+
+Browser regressions in `scripts/collar/test_construction_material_editing.tsx`
+export `verifyUnifiedConstructionSelection()` for native hit regions, locked
+accepted collars, creation handles, material drops, defaults, and view-only texture
+switching, and `verifyImportedConstructionMaterials(garment)` for exact imported
+seam selection, independent drops, and source-geometry preservation without saving
+the supplied garment. `verifySchematicConstructionSelection()` checks schematic
+keyboard selection and material drops. `test_fabric_controls.tsx` exports `runFabricControlInteractions()`
+for category/part precedence, matching controls, and material reset interactions.
+
 ## AI garment imports: construction only
 
 Whole Garment Import has an **Input type** selector: Auto, **Photo / reference
@@ -31,7 +87,8 @@ SVG retains the source pixel-size viewBox; the builder uses only uniform framing
 Review **source raster → cleaned raster → keyed line art → traced SVG → overlay**
 before accepting, or download the source-sized SVG. Review metadata persists with
 each view. Blank/degenerate traces fail instead of substituting a garment template.
-Trace-only does not infer semantic garment pieces from the drawing.
+Tracing itself does not infer semantic garment pieces. Optional construction-region
+analysis runs afterward, without changing the traced drawing.
 
 Photo/reference uploads retain **Azure construction analysis → Azure clean technical
 raster redraw → the same white-key and Potrace trace**. The redraw prompt requests
@@ -46,9 +103,86 @@ they never fall back to tracing the photograph itself.
 Photo review shows the original photo and clean technical raster separately.
 Its overlay/pixel metrics compare the SVG with the **redraw**, not the photograph;
 these metrics cannot prove that AI preserved every construction detail. Both routes
-retain all traced construction ink together, without inferred colour fills or
-separately editable stitch paths. Fabric/wash effects cannot alter this ink. Existing
-saved semantic imports retain their part controls.
+retain all traced construction ink together. Fabric/wash effects cannot alter this
+ink. Existing saved semantic imports retain their part controls.
+
+### Post-trace construction regions
+
+Construction-region analysis is a separate, review-gated stage after either upload
+route. `/api/garment-construction-regions` accepts the completed trace and selected
+front/back view, not another image-generation request. Re-analysis replaces only
+that view's source evidence. Legacy source regions without a view use their source
+view metadata, matching part, or original source-manifest view; they are not appended
+again as duplicates. Genuine cross-view ID collisions still fail safely.
+Local geometry extracts candidate enclosed areas; Astra assigns semantic names, categories and groups to
+candidate IDs rather than generating SVG paths. Local short-gap probes may recover
+pocket partitions within an already-enclosed cell, preserving its exact coverage;
+these candidates still require semantic and visual review. Missing or ambiguous
+boundaries remain warnings, not invented cuts. Kangaroo pockets route to Openings
+& Closures, separately from the body; sleeve-child panels route to Sleeves. Saved
+imports receive these category corrections on load without resetting colours or
+fabrics. Linked region controls include **Edit separately** to give left/right
+pockets (or other grouped pieces) independent colour and fabric controls without
+changing their geometry, mirror relationship, current assignments or review state.
+The original construction ink stays above all editable fills. Recognised drawstrings
+and enclosed hardware surfaces have colour controls without fabric texture. Source
+zip isolation is reviewed separately in Openings & Closures: recolouring clips the
+original ink, while **Convert to editable zip** explicitly replaces that isolated
+portion with the existing pull/size/opening editor. **Restore original zip**, hiding
+or deleting the replacement restores the source. Stored construction ink is never
+rewritten. Stitching or details that cannot be reliably isolated remain immutable
+ink rather than receiving invented geometry.
+
+Review the source, trace and coloured region overlay before installing the result.
+Select individual panels using their actual SVG shapes, not rectangular bounds.
+Colour and fabric assignments are independent; explicit pair groups can share
+materials, while separate chest panels remain independently editable. Fabric targets
+exclude source ink and non-fabric hardware. Front/back metadata stays separate;
+a missing back requires a real uploaded reference rather than a silent estimate.
+The initial visual acceptance examples are a clean tee, curved-seam hoodie and
+utility jacket; semantic confidence is not a guarantee of construction accuracy.
+
+#### Manual correction of construction regions
+
+In construction-region review, choose the front or back and select a fabric region
+from the list. Use **Paint into region** and adjust **Brush size** to transfer a
+misassigned area to it—for example, select the hem and paint over pocket fill that
+crosses the hem. **Erase from region** removes only the selected fill. Construction
+ink, drawstrings and hardware remain protected; the other view is unchanged.
+
+For missed white fabric, select an existing region or choose **New colourable
+region** and name it. Paint directly, or choose **Select missed area** and click
+inside an enclosed, unassigned white area. Inspect the cyan preview, then **Apply
+selected area** or **Cancel area selection**. Open boundaries are rejected; use a
+small brush instead. Brush edits are manual boundaries, not newly detected seams.
+
+**Undo correction** restores up to 20 corrections while this review stays open
+and the garment has not been changed elsewhere. Cancelling a pointer stroke does
+not save it. Corrections require **Confirm construction region review**, followed
+by the normal garment acceptance/save flow. New regions then have independent
+colour and fabric controls in the builder. Re-analysis replaces the selected
+view's region geometry, including manual corrections.
+
+Focused regressions (from the repository root):
+
+```powershell
+@'
+import { createServer } from 'vite';
+const vite = await createServer({ configFile: false, esbuild: { jsx: 'automatic' }, server: { middlewareMode: true, watch: null, hmr: false }, optimizeDeps: { noDiscovery: true, include: [] } });
+try {
+  const tests = await vite.ssrLoadModule('/scripts/collar/test_construction_region_painting.tsx');
+  console.log('PASS manual correction', tests.verifyConstructionRegionPainting());
+  await vite.ssrLoadModule('/scripts/collar/test_construction_regions.tsx');
+} finally { await vite.close(); }
+'@ | node --input-type=module
+```
+
+With the development app open, browser regressions are available in its console:
+
+```javascript
+const tests = await import('/scripts/collar/test_construction_region_painting.tsx');
+await tests.verifyConstructionRegionPaintingBrowser();
+```
 
 ### Source-derived reconstruction engine (legacy/internal callers)
 
@@ -100,11 +234,45 @@ and real tracing; AI seam/hardware identification can still be uncertain and is 
 a pixel-perfect guarantee. Separately imported
 patch assets are unchanged.
 
-**Generate estimated back** carries over approved front proportions instead of
-inventing hidden construction. Scoop-tank estimates retain the crop, side seams,
-armholes, narrow straps and simplified shoulder clasp logic, with a shallower scoop.
-The estimate opens for review as **Estimated back — inferred from front geometry**
-and remains editable/replaceable with a real back image. Review also offers technical
+**Generate estimated back** uses front proportions to infer essential construction,
+not hidden decoration. Hoodies separate hood, body, sleeves, cuffs and waistband;
+other supported garment types use their corresponding basic rear anatomy. Each
+estimated region uses the same semantic selection/colour/fabric controls as the front,
+with front-component appearance defaults and independent rear overrides. No rear
+pockets, graphics or hidden fasteners are invented. Older silhouette estimates offer
+**Upgrade estimated back construction**. Scoop-tank estimates retain their existing
+conservative strap, armhole and shallow-scoop treatment.
+
+Structured estimates use the front technical exterior and semantic component bounds,
+not raw-photo texture or internal front ink. Dense exterior contours are simplified
+and rounded once, before shared anatomical cuts, so adjacent editable masks meet.
+Already-sparse technical outlines retain their corners. Source-labelled fabric cuff
+adjustment tabs are preserved after smoothing as separate colour/fabric regions,
+including their protruding ends. Their masks are cut out of the sleeve/cuff masks
+so they do not overlap; ordinary pocket and throat flaps remain excluded. Tabs
+must have valid outlines and connect at the cuff. Their rear orientation is still
+an estimate, and no buttons or fastening mechanisms are invented. Regenerate an
+existing estimated back to include these tabs.
+
+Generation checks component
+width/height changes against a 1.2% envelope-size tolerance, rejects overlapping
+regions and limits silhouette symmetric-difference area to 3.5%. A second, gentler
+simplification is tried if needed; failing both attempts returns an error, not an
+unreliable back. Unsupported structured families retain their existing estimator.
+
+**Compare front and estimated back** shows the front drawing, clean estimated back,
+colour-coded rear regions and generation-time proportion checks. The measurements
+compare the front-derived anatomical template with the cleaned back, not observed
+rear dimensions. Checks persist on save/reload but do not certify subsequent manual
+edits. **Regenerate estimated back** uses the current front and replaces manual rear
+geometry corrections; **Replace estimate with real back** removes inferred geometry
+and its report. Focused tests are `scripts/collar/test_structured_back.tsx`
+(`verifyStructuredBack` via the Vite SSR runner), plus the existing back and trace
+regression modules.
+
+The estimate opens for review as **ESTIMATED BACK — essential construction inferred
+from front geometry. Hidden rear details remain unknown.** It remains editable and
+replaceable with a real back image; estimates never claim observed rear evidence. Review also offers technical
 flat, outline and construction-overlay SVG downloads; none embed the source photo.
 
 ## AI garment seam colours

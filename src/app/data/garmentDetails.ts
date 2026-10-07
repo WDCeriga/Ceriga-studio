@@ -120,6 +120,7 @@ export interface GarmentDetail {
   customAsset?: CustomAssetDefinition;
   placementArea?: 'canvas';
   sourceLayerId?: string;
+  importedClosureId?: string;
   hidden?: boolean;
   arrangementId?: string;
   selected: boolean;

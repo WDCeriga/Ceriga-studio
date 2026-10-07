@@ -204,6 +204,12 @@ function virtualCustomAsset(
 }
 
 export interface ResolvedGarmentLayer {
+  fabricRegion?: {
+    role: string; group?: string; interior?: boolean; defaultFromId?: string; parentId?: string;
+    materialCategory?: import('./garmentFabrics').FabricCategory;
+    surface?: import('./garmentFabrics').FabricSurface;
+    exteriorPartId?: string;
+  };
   colourPanels?: { id: string; svgRaw: string; tint: string }[];
   constructionSvg?: string;
   stitchSvg?: string;
@@ -1225,7 +1231,7 @@ function trimForCategory(
 
 export function resolveGarmentLayers(input: ResolveGarmentLayersInput): ResolvedGarmentLayer[] {
   if (input.customAssetState?.importedGarment) {
-    return importedGarmentLayers(input.customAssetState.importedGarment, input.view ?? 'front', input.partColors)
+    return importedGarmentLayers(input.customAssetState.importedGarment, input.view ?? 'front', input.partColors, input.customAssetState.garmentDetails)
       .sort((first, second) => first.zIndex - second.zIndex);
   }
   const config = GARMENT_CONFIGS[input.garmentType];

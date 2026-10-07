@@ -186,12 +186,12 @@ export function openingNecklineReach(detail: GarmentDetail, bounds: DetailBounds
   const geometry = bounds.openingGeometry;
   if (!opening || !geometry) return 0;
   const neck = geometry.panels.filter(panel => panel.role === 'neck').flatMap(panel => panel.polygons);
-  if (!neck.length) return 0;
+  if (!neck.length && !['neckline', 'full-front'].includes(opening.attachment)) return 0;
   const length = distance(opening.start, opening.end);
   if (!length) return 0;
   const axis = { x: (opening.end.x - opening.start.x) / length, y: (opening.end.y - opening.start.y) / length };
   const local = new DOMMatrix([axis.y, -axis.x, axis.x, axis.y, 0, 0]).translate(-opening.start.x, -opening.start.y);
-  const localNeck = transformOpeningPolygons(neck, local);
+  const localNeck = transformOpeningPolygons(neck.length ? neck : geometry.fabric, local);
   const central = intersections(localNeck, 0, 'x');
   if (!central.some(y => Math.abs(y) <= opening.width)) return 0;
   const profile = openingGapProfile(detail, opening.width, length);

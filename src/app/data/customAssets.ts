@@ -92,6 +92,7 @@ export interface CustomAssetInstance {
 
 export interface CustomAssetState {
   importedGarment?: import('./importedGarment').ImportedGarment;
+  garmentDetails?: GarmentDetail[];
   customAssets?: CustomAssetDefinition[];
   customAssetInstances?: Record<string, CustomAssetInstance>;
   customSleevesLinked?: boolean;

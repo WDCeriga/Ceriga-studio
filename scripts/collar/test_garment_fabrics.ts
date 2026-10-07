@@ -28,6 +28,14 @@ export function verifyFabricModel() {
   check(JSON.stringify(assignFabric(mixed, parts, 'base', 'not-a-fabric')) === JSON.stringify(mixed), 'Unknown fabric changed state');
   check(JSON.stringify(assignFabric(mixed, parts, 'missing', 'mesh')) === JSON.stringify(mixed), 'Unknown target changed state');
   check(!resolvePartFabric(undefined, parts[0]), 'Legacy projects must remain untextured');
+  const rear = { ...parts[0], id: 'estimated-back-body', group: 'estimated-back-body', defaultFromId: 'front-body' };
+  const inherited: FabricAssignments = { assignments: { 'front-body': 'french-terry' }, unlinkedGroups: [] };
+  check(resolvePartFabric(inherited, rear)?.id === 'french-terry', 'Estimated back must inherit the front material');
+  const override = assignFabric(inherited, [rear], rear.id, 'denim-twill');
+  check(resolvePartFabric(override, rear)?.id === 'denim-twill' && override.assignments['front-body'] === 'french-terry', 'Back override must be independent');
+  const frontPart = { ...parts[0], id: 'front-body', group: 'front-body' };
+  const changedFront = assignFabric(override, [frontPart, rear], frontPart.id, 'mesh');
+  check(resolvePartFabric(changedFront, rear)?.id === 'denim-twill', 'Later front changes must preserve a back override');
   const preset = applyFabricPreset(mixed, parts, 'jersey-mesh');
   check(preset.assignments.base === 'single-jersey' && preset.assignments.sleeveLeft === 'mesh' && preset.assignments.neck === 'rib-1x1', 'Tee preset incorrect');
   check(preset.assignments.unrelated === 'denim-twill' && preset.unlinkedGroups.includes('sleeves'), 'Preset lost unrelated state');

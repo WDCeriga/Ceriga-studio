@@ -83,7 +83,8 @@ export function verifySchematicFabrics() {
     check(record.sourceStatus !== 'unresolved' ? markup.includes('data-fabric-scan=') && markup.includes('data:image/png;base64,') : markup.includes('data-fabric-unavailable='), `Missing material or silent fallback: ${fabric.id}`);
   }
   const hoodie = render({ ...base, garmentType: 'hoodie', fabricAssignments: { assignments: { hoodInterior: 'french-terry', hood: 'french-terry' }, unlinkedGroups: [] } });
-  check(hoodie.includes('data-fabric-surface="loops"') && hoodie.includes('data-fabric-surface="face"'), 'Visible hood interior/face distinction lost');
+  check(hoodie.includes('data-fabric-surface="reverse"') && hoodie.includes('data-fabric-surface="face"'), 'Visible hood interior/face distinction lost');
+  check(hoodie.includes('-reverse"'), 'Hood interior must use its separately authored reverse map');
   const withoutSleeves = schematicFabricParts({ garmentType: 'dress', sleeveType: 'sleeveless', cuffType: 'ribbed', hemType: 'raw' });
   check(withoutSleeves.length === 2 && !withoutSleeves.some(part => part.group || part.role === 'hem'), 'Absent sleeve/cuff or unfilled hem exposed');
   const dormant = render({ ...sweatshirt, sleeveType: 'sleeveless', hemType: 'raw', fabricAssignments: { assignments: { sleeveLeft: 'mesh', sleeveHemRight: 'rib-2x2', hem: 'rib-1x1', pocket: 'cotton-twill', zip: 'denim-twill' }, unlinkedGroups: [] } });

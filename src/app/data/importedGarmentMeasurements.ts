@@ -88,9 +88,46 @@ function section(parts: OutlinedPart[], position: number, axis: 0 | 1): LocatedP
   return found.sort((a, b) => a.point[axis === 1 ? 0 : 1] - b.point[axis === 1 ? 0 : 1]);
 }
 
-function bottomEdge(part: OutlinedPart): Point[] {
-  const box = bounds(part), threshold = box.bottom - (box.bottom - box.top) * .2;
-  const outline = part.outline;
+// Remove collinear samples and pixel-sized stair steps, retaining source vertices.
+function cornerOutline(part: OutlinedPart): Point[] {
+  const box = bounds(part);
+  const steps = part.outline.map((value, index) => distance(value, part.outline[(index + 1) % part.outline.length])).filter(value => value > 0).sort((a, b) => a - b);
+  const tolerance = Math.max(Math.max(box.right - box.left, box.bottom - box.top) * .008,
+    part.outline.length > 32 ? (steps[Math.floor(steps.length / 2)] ?? 0) * 1.5 : 0);
+  const simplify = (points: Point[]): Point[] => {
+    if (points.length <= 2) return points;
+    let furthest = 0, index = 0;
+    for (let i = 1; i < points.length - 1; i++) {
+      const projected = project(points[i], points[0], points.at(-1)!);
+      const separation = distance(points[i], projected);
+      if (separation > furthest) { furthest = separation; index = i; }
+    }
+    return furthest > tolerance ? [...simplify(points.slice(0, index + 1)).slice(0, -1), ...simplify(points.slice(index))] : [points[0], points.at(-1)!];
+  };
+  const start = part.outline.reduce((best, value, i) => value[1] < part.outline[best][1] || value[1] === part.outline[best][1] && value[0] < part.outline[best][0] ? i : best, 0);
+  const ordered = [...part.outline.slice(start), ...part.outline.slice(0, start)];
+  return simplify([...ordered, ordered[0]]).slice(0, -1);
+}
+
+function project(point: Point, a: Point, b: Point): Point {
+  const dx = b[0] - a[0], dy = b[1] - a[1], squared = dx * dx + dy * dy;
+  const t = squared ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / squared)) : 0;
+  return [a[0] + t * dx, a[1] + t * dy];
+}
+
+function nearestOutline(point: Point, parts: OutlinedPart[]): LocatedPoint | undefined {
+  let nearest: LocatedPoint | undefined, separation = Infinity;
+  for (const part of parts) for (let index = 0; index < part.outline.length; index++) {
+    const projected = project(point, part.outline[index], part.outline[(index + 1) % part.outline.length]);
+    const candidate = distance(point, projected);
+    if (candidate < separation) { separation = candidate; nearest = { part, point: projected }; }
+  }
+  return nearest;
+}
+
+function bottomEdge(part: OutlinedPart, fraction = matches(part, /\b(hem|cuff)\b/) ? .65 : .2): Point[] {
+  const box = bounds(part), threshold = box.bottom - (box.bottom - box.top) * fraction;
+  const outline = cornerOutline(part);
   const lower = outline.map((point, index) => {
     const next = outline[(index + 1) % outline.length];
     return point[1] >= threshold && next[1] >= threshold && Math.abs(next[0] - point[0]) >= Math.abs(next[1] - point[1]);
@@ -112,20 +149,27 @@ function bottomEdge(part: OutlinedPart): Point[] {
   return paths.sort((a, b) => pathLength(b) - pathLength(a))[0] ?? [];
 }
 
-function sharedAttachment(sleeve: OutlinedPart, bodies: OutlinedPart[]): Point[] {
-  return bodies.filter(body => !sleeve.attachmentTo || sleeve.attachmentTo === body.id).flatMap(body => {
-    const box = bounds(body), tolerance = Math.max(box.right - box.left, box.bottom - box.top) * .002;
-    const onBody = (point: Point) => body.outline.some((a, index) => {
-      const b = body.outline[(index + 1) % body.outline.length];
-      const dx = b[0] - a[0], dy = b[1] - a[1], squaredLength = dx * dx + dy * dy;
-      if (!squaredLength) return distance(point, a) <= tolerance;
-      const t = Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / squaredLength));
-      return distance(point, [a[0] + t * dx, a[1] + t * dy]) <= tolerance;
-    });
-    return sleeve.outline.flatMap((a, index) => {
-      const b = sleeve.outline[(index + 1) % sleeve.outline.length];
-      return onBody(a) && onBody(b) && onBody([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]) ? [a, b] : [];
-    });
+function distalOpening(part: OutlinedPart, direction: Point): Point[] {
+  const magnitude = Math.hypot(...direction);
+  if (!magnitude) return [];
+  const [dx, dy] = direction.map(value => value / magnitude);
+  const rotated: Point[] = part.outline.map(([x, y]) => [x * dy - y * dx, x * dx + y * dy]);
+  const original = new Map(rotated.map((value, index) => [value, part.outline[index]]));
+  return bottomEdge({ ...part, outline: rotated }).map(value => original.get(value)!);
+}
+
+function sharedAttachment(sleeve: OutlinedPart, bodies: OutlinedPart[], inkGap = 0): Point[] {
+  const box = bounds(sleeve);
+  const tolerance = Math.max(inkGap, Math.max(box.right - box.left, box.bottom - box.top) * .002);
+  const onBody = (value: Point) => {
+    const nearest = nearestOutline(value, bodies);
+    return nearest && distance(value, nearest.point) <= tolerance;
+  };
+  // A semantic seam can cross upper/lower torso partitions and the source stroke
+  // separates their fill contours. Attachment metadata names only one neighbour.
+  return sleeve.outline.flatMap((a, index) => {
+    const b = sleeve.outline[(index + 1) % sleeve.outline.length];
+    return onBody(a) && onBody(b) && onBody([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]) ? [a, b] : [];
   });
 }
 
@@ -135,7 +179,12 @@ export function deriveImportedMeasurementSchema(garment: ImportedGarment, reques
   const view = requestedView;
   if (!garment.parts.some(part => part.view === view)) return [];
   const parts = garment.parts.filter(part => part.view === view && (part.layerKind === 'structural' || !part.layerKind && part.structural) && usableOutline(part)) as OutlinedPart[];
-  const structural = parts.filter(part => polygonArea(part) > 1e-10).sort((a, b) => polygonArea(b) - polygonArea(a));
+  const sourceInk = parts.filter(part => part.structuralRole === 'source-ink');
+  const structural = parts.filter(part => part.structuralRole !== 'source-ink' && polygonArea(part) > 1e-10).sort((a, b) => polygonArea(b) - polygonArea(a));
+  const inkGap = sourceInk.length ? Math.max(...sourceInk.map(part => {
+    const box = bounds(part);
+    return Math.max(box.right - box.left, box.bottom - box.top) * .008;
+  })) : 0;
   const details = (garment.detailLayers ?? []).filter(detail => detail.view === view);
   const definitions: ImportedMeasurementDefinition[] = [];
   const point = (part: OutlinedPart, value: Point): LocatedPoint => ({ part, point: value });
@@ -179,12 +228,27 @@ export function deriveImportedMeasurementSchema(garment: ImportedGarment, reques
   if (!legs.length && family === 'bifurcated') legs = panels.slice(0, 2);
   legs = legs.slice(0, 2).sort((a, b) => bounds(a).left - bounds(b).left);
   const explicitBodies = structural.filter(part => matches(part, /\b(body|torso|bodice)\b/) && !matches(part, /\b(leg|sleeve|lining|overlay)\b/));
-  const bodies = explicitBodies.length ? explicitBodies : panels;
+  const upperBodies = structural.filter(part => matches(part, /\byoke\b/) && !part.attachmentTo);
+  const bodies = explicitBodies.length ? [...explicitBodies, ...upperBodies] : panels;
   const body = bodies[0];
   const bodyBoxes = bodies.map(bounds);
   const bodyBox = bodies.length ? { left: Math.min(...bodyBoxes.map(box => box.left)), right: Math.max(...bodyBoxes.map(box => box.right)),
     top: Math.min(...bodyBoxes.map(box => box.top)), bottom: Math.max(...bodyBoxes.map(box => box.bottom)) } : undefined;
   const skirt = structural.find(part => matches(part, /\bskirt\b/)) ?? body;
+  const hemBands = structural.filter(part => matches(part, /\bhem\b/) && (!part.attachmentTo || bodies.some(body => body.id === part.attachmentTo)));
+  const finishedBodies = [...bodies, ...hemBands];
+  const centreSection = (targets: OutlinedPart[]): LocatedPoint[] => {
+    if (!targets.length) return [];
+    const boxes = targets.map(bounds), left = Math.min(...boxes.map(box => box.left)), right = Math.max(...boxes.map(box => box.right));
+    const top = Math.min(...boxes.map(box => box.top)), bottom = Math.max(...boxes.map(box => box.bottom)), centre = (left + right) / 2;
+    for (let step = 0; step <= 20; step++) {
+      for (const sign of [-1, 1]) {
+        const found = section(targets, centre + sign * step * (right - left) * .01, 0);
+        if (found.length >= 2 && found.at(-1)!.point[1] - found[0].point[1] >= (bottom - top) * .65) return found;
+      }
+    }
+    return [];
+  };
   if (family === 'bifurcated') {
     const topParts = waistband ? [waistband] : legs;
     const upperPoints = topParts.flatMap(part => {
@@ -222,16 +286,22 @@ export function deriveImportedMeasurementSchema(garment: ImportedGarment, reques
   if (family === 'top' || family === 'dress') {
     const box = bodyBox;
     const sleeves = structural.filter(part => matches(part, /\bsleeve\b/));
-    const armholes = sleeves.map(sleeve => sharedAttachment(sleeve, bodies)).filter(points => points.length >= 2);
+    const attachments = new Map(sleeves.map(sleeve => [sleeve.id, sharedAttachment(sleeve, bodies, inkGap)]));
+    const armholes = [...attachments.values()].filter(points => points.length >= 2);
     const chestLevel = armholes.length ? Math.max(...armholes.flat().map(point => point[1])) : box ? box.top + (box.bottom - box.top) * .3 : 0;
     width('chest', 'Chest width', bodies, chestLevel, armholes.length
       ? 'Flat body width at the lower shared sleeve/body armhole junctions, excluding separate sleeves.'
       : 'Flat width across body-panel outline intersections at an estimated chest level, excluding separate sleeves.', armholes.length ? .85 : .7);
     add(family === 'dress' ? 'dress-length' : 'body-length', family === 'dress' ? 'Dress length' : 'Body length', 'length',
-      'Straight length between visible body-outline intersections at centre body.', box ? section(bodies, (box.left + box.right) / 2, 0) : []);
-    const shoulders = box ? bodies.flatMap(part => part.outline.filter(value => value[1] <= box.top + (box.bottom - box.top) * .15)
-      .map(value => point(part, value))).sort((a, b) => a.point[0] - b.point[0]) : [];
-    add('shoulder-width', 'Shoulder width', 'width', 'Between visible upper body-panel corners; verify shoulder placement on unsegmented silhouettes.', shoulders, undefined, .7);
+      'Straight neckline-to-finished-hem length at centre body or the nearest supported centre-front panel beside an opening.', centreSection(finishedBodies));
+    const attachmentShoulders = armholes.map(values => nearestOutline([...values].sort((a, b) => a[1] - b[1])[0], bodies))
+      .filter((value): value is LocatedPoint => Boolean(value)).sort((a, b) => a.point[0] - b.point[0]);
+    const shoulders = attachmentShoulders.length >= 2 ? [attachmentShoulders[0], attachmentShoulders.at(-1)!] : !sourceInk.length && box ?
+      bodies.flatMap(part => part.outline.filter(value => value[1] <= box.top + (box.bottom - box.top) * .15)
+        .map(value => point(part, value))).sort((a, b) => a.point[0] - b.point[0]) : [];
+    add('shoulder-width', 'Shoulder width', 'width', attachmentShoulders.length >= 2
+      ? 'Between the upper left and right sleeve-to-torso attachment endpoints, including upper chest panels.'
+      : 'Estimated upper body-panel corners; shoulder attachments are not resolved.', shoulders, undefined, attachmentShoulders.length >= 2 ? .85 : .55);
     const sleeve = structural.find(part => matches(part, /\bsleeve\b/));
     if (sleeve || family === 'top') {
       const sleeveBox = sleeve && bounds(sleeve);
@@ -239,43 +309,71 @@ export function deriveImportedMeasurementSchema(garment: ImportedGarment, reques
       const centre: Point | undefined = referenceBox ? [(referenceBox.left + referenceBox.right) / 2, (referenceBox.top + referenceBox.bottom) / 2] : undefined;
       const cuff = structural.find(part => matches(part, /\bcuff\b/) && (!sleeve || part.attachmentTo === sleeve.id));
       const cuffEdge = sleeve && edge('hem-edge', sleeve);
-      const distal = sleeve && centre ? sleeve.outline.map((value, index) => [value, sleeve.outline[(index + 1) % sleeve.outline.length]])
-        .sort((a, b) => Math.min(...b.map(value => distance(value, centre))) - Math.min(...a.map(value => distance(value, centre))))[0] : [];
+      const attachment = sleeve ? attachments.get(sleeve.id) ?? [] : [];
+      const attachmentCentre: Point | undefined = attachment.length ? [attachment.reduce((sum, value) => sum + value[0], 0) / attachment.length,
+        attachment.reduce((sum, value) => sum + value[1], 0) / attachment.length] : centre;
+      const direction: Point = sleeveBox && attachmentCentre ? [(sleeveBox.left + sleeveBox.right) / 2 - attachmentCentre[0],
+        (sleeveBox.top + sleeveBox.bottom) / 2 - attachmentCentre[1]] : [0, 1];
+      const distal = sleeve ? distalOpening(sleeve, direction) : [];
       const cuffPoints = cuffEdge ? cuffEdge.value.points : cuff ? bottomEdge(cuff) : distal;
       const cuffEnds = cuffEdge ? edgeEndpoints(cuffEdge) : cuffPoints.length && (cuff || sleeve) ?
         [point((cuff ?? sleeve)!, cuffPoints[0]), point((cuff ?? sleeve)!, cuffPoints.at(-1)!)] : [];
-      const sharedShoulder = sleeve && sharedAttachment(sleeve, bodies).sort((a, b) => a[1] - b[1])[0];
+      const sharedShoulder = [...attachment].sort((a, b) => a[1] - b[1])[0];
       const sleeveStart = sharedShoulder ?? (sleeve && sleeveBox && centre ? sleeve.outline.filter(value => value[1] <= sleeveBox.top + (sleeveBox.bottom - sleeveBox.top) * .1)
         .sort((a, b) => distance(a, centre) - distance(b, centre))[0] : undefined);
-      const sleeveEnd = sleeve && distal.length ? [...distal].sort((a, b) => a[1] - b[1])[0] : undefined;
-      add('sleeve-length', 'Sleeve length', 'contour', 'Visible upper sleeve contour from attachment to the distal opening.',
-        sleeve && sleeveStart && sleeveEnd ? [point(sleeve, sleeveStart), point(sleeve, sleeveEnd)] : [],
-        sleeve && sleeveStart && sleeveEnd ? contourPath(sleeve.outline, sleeveStart, [sleeveEnd]) : []);
+      const outerFirst = (a: Point, b: Point) => sleeveBox && centre && (sleeveBox.left + sleeveBox.right) / 2 < centre[0] ? a[0] - b[0] : b[0] - a[0];
+      let sleeveEnd = distal.length ? [...distal].sort(outerFirst)[0] : undefined;
+      let sleeveEndPart = sleeve;
+      let sleevePath = sleeve && sleeveStart && sleeveEnd ? contourPath(sleeve.outline, sleeveStart, [sleeveEnd]) : [];
+      if (sourceInk.length && sleeve && sleeveStart && cuff && cuffPoints.length) {
+        const cuffEnd = [...cuffPoints].sort(outerFirst)[0];
+        const cuffTop = cornerOutline(cuff).filter(value => value[1] < bounds(cuff).top + (bounds(cuff).bottom - bounds(cuff).top) * .4).sort(outerFirst)[0];
+        const join = cuffTop && nearestOutline(cuffTop, [sleeve]);
+        if (join && distance(join.point, cuffTop) <= inkGap * 2) {
+          sleeveEnd = cuffEnd;
+          sleeveEndPart = cuff;
+          sleevePath = [...contourPath(sleeve.outline, sleeveStart, [join.point]), ...contourPath(cuff.outline, cuffTop, [cuffEnd])];
+        }
+      }
+      add('sleeve-length', 'Sleeve length', 'contour', 'Visible outer sleeve contour from shoulder attachment to the finished opening, including an attached cuff when its join is visible.',
+        sleeve && sleeveStart && sleeveEnd && sleeveEndPart ? [point(sleeve, sleeveStart), point(sleeveEndPart, sleeveEnd)] : [], sleevePath);
       add('cuff-opening', 'Cuff opening', 'contour', 'One visible sleeve or cuff opening, measured flat.', cuffEnds, cuffPoints, .8);
     }
-    const neck = structural.find(part => matches(part, /\b(neckband|collar)\b/));
-    const neckBox = neck && bounds(neck);
-    const neckPoints = neck && neckBox ? section([neck], (neckBox.top + neckBox.bottom) / 2, 1) :
-      body && box ? body.outline.filter(value => value[1] <= box.top + (box.bottom - box.top) * .15 &&
+    const necks = structural.filter(part => matches(part, /\b(neckband|collar)\b/));
+    const neckPoints = necks.length ? necks.flatMap(neck => {
+      const neckBox = bounds(neck);
+      return neck.outline.filter(value => value[1] <= neckBox.top + (neckBox.bottom - neckBox.top) * .35).map(value => point(neck, value));
+    }).sort((a, b) => a.point[0] - b.point[0]) : !sourceInk.length && body && box ?
+      body.outline.filter(value => value[1] <= box.top + (box.bottom - box.top) * .15 &&
         value[0] > box.left + (box.right - box.left) * .2 && value[0] < box.right - (box.right - box.left) * .2)
         .sort((a, b) => a[0] - b[0]).map(value => point(body, value)) : [];
-    add('neck-opening', 'Neck opening', 'width', 'Visible neck opening or neckband width; not neck circumference.', neckPoints, undefined, .7);
-    const hood = structural.find(part => matches(part, /\bhood\b/));
-    if (hood || /hood/i.test(garment.manifest.garmentType)) vertical('hood-height', 'Hood height', hood);
+    add('neck-opening', 'Neck opening', 'width', 'Visible upper neckband or collar span across both sides; not neck circumference. Unavailable when the opening is concealed.', neckPoints, undefined, .7);
+    const hoods = structural.filter(part => matches(part, /\bhood\b/));
+    if (hoods.length || /hood/i.test(garment.manifest.garmentType)) add('hood-height', 'Hood height', 'length',
+      'Visible hood height across crown and side panels at the nearest supported centre section.', centreSection(hoods));
   }
   if (family === 'skirt' || family === 'dress') {
-    const panel = family === 'skirt' ? skirt : body, box = panel && bounds(panel);
-    const waist = waistband ?? panel, waistBox = waist && bounds(waist);
-    width('waist', 'Waist width', waist ? [waist] : [], waistBox ? waistBox.top + (waistBox.bottom - waistBox.top) * (waistband ? .1 : family === 'dress' ? .45 : .03) : 0,
+    const panel = family === 'skirt' ? skirt : body, box = family === 'dress' ? bodyBox : panel && bounds(panel);
+    const targets = family === 'dress' ? bodies : panel ? [panel] : [];
+    const waistBox = waistband ? bounds(waistband) : box;
+    width('waist', 'Waist width', waistband ? [waistband] : targets, waistBox ? waistBox.top + (waistBox.bottom - waistBox.top) * (waistband ? .1 : family === 'dress' ? .45 : .03) : 0,
       'Flat outline width at the waist; waist level estimated unless a separate waistband is present.', .7);
-    width('hip', 'Hip width', panel ? [panel] : [], box ? box.top + (box.bottom - box.top) * (family === 'dress' ? .6 : .3) : 0,
+    width('hip', 'Hip width', targets, box ? box.top + (box.bottom - box.top) * (family === 'dress' ? .6 : .3) : 0,
       'Flat outline width at an estimated hip level.', .65);
     if (family === 'skirt') vertical('skirt-length', 'Skirt length', skirt);
   }
   if (family === 'top' || family === 'skirt' || family === 'dress') {
     const panel = family === 'skirt' ? skirt : body;
-    if (family !== 'skirt' && bodies.length > 1) {
-      const hems = bodies.flatMap(part => {
+    if (family !== 'skirt' && finishedBodies.length > 1) {
+      const bottom = Math.max(...finishedBodies.map(part => bounds(part).bottom));
+      const height = bottom - Math.min(...finishedBodies.map(part => bounds(part).top));
+      const lowerPanels = finishedBodies.filter(part => bounds(part).bottom >= bottom - height * .15);
+      const completeBands = hemBands.filter(part => {
+        const attached = bodies.find(body => body.id === part.attachmentTo);
+        return attached && bounds(part).right - bounds(part).left >= (bounds(attached).right - bounds(attached).left) * .7;
+      });
+      const hemParts = completeBands.length ? completeBands : lowerPanels;
+      const hems = hemParts.flatMap(part => {
         const hem = edge('hem-edge', part), path = hem ? hem.value.points : bottomEdge(part);
         return hem ? edgeEndpoints(hem) : path.map(value => point(part, value));
       }).sort((a, b) => a.point[0] - b.point[0]);

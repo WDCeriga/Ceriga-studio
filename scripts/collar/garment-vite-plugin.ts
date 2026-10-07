@@ -7,7 +7,9 @@ import { loadEnv, type Plugin } from 'vite'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SCRIPT = path.resolve(__dirname, 'garment_from_photo.py')
+const REGION_SCRIPT = path.resolve(__dirname, 'garment_construction_regions.py')
 const MAX_BODY = 18 * 1024 * 1024
+const MAX_REGION_BODY = 64 * 1024 * 1024
 
 function pythonCommand(): { bin: string; prefix: string[] } {
   if (process.env.PYTHON) return { bin: process.env.PYTHON, prefix: [] }
@@ -16,14 +18,14 @@ function pythonCommand(): { bin: string; prefix: string[] } {
     : { bin: 'python3', prefix: [] }
 }
 
-function readBody(req: NodeJS.ReadableStream): Promise<Buffer> {
+function readBody(req: NodeJS.ReadableStream, limit = MAX_BODY): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     let size = 0
     req.on('data', (chunk: Buffer) => {
       size += chunk.length
-      if (size > MAX_BODY) {
-        reject(new Error('Photo is too large (max 18 MB)'))
+      if (size > limit) {
+        reject(new Error(`Upload is too large (max ${limit / 1024 / 1024} MB)`))
         return
       }
       chunks.push(chunk)
@@ -59,6 +61,21 @@ function decodeUpload(raw: Buffer): Upload {
   return { bytes, inputType, view }
 }
 
+export function decodeRegionUpload(raw: Buffer): { bytes: Buffer; view: 'front' | 'back' } {
+  const payload = JSON.parse(raw.toString('utf8'))
+  const garment = payload?.garment
+  const view = payload?.requestedView ?? 'front'
+  if (view !== 'front' && view !== 'back') throw new Error('requestedView must be front or back')
+  if (garment?.source !== 'azure-garment-reconstruction-v1' || !Array.isArray(garment.parts) || !garment.parts.length || garment.parts.length > 128 || !garment.manifest) {
+    throw new Error('Expected a completed garment trace')
+  }
+  const metadata = garment.manifest[view === 'front' ? 'frontView' : 'backView']
+  if (metadata?.inference || !garment.parts.some((part: { view?: string }) => part.view === view)) throw new Error('Upload and trace a real reference for this view first')
+  const preview = metadata?.tracePreview ?? (garment.manifest.view === view ? garment.tracePreview : undefined)
+  if (typeof preview?.tracedSvg !== 'string' || typeof preview.cleanedRaster !== 'string') throw new Error('The selected view has no verified trace preview')
+  return { bytes: Buffer.from(JSON.stringify(garment)), view }
+}
+
 function decodePhoto(raw: Buffer): Buffer {
   // The legacy endpoint also accepts raw image bytes; JSON is never a fallback raster.
   if (raw.toString('utf8', 0, 32).trimStart().startsWith('{')) return decodeUpload(raw).bytes
@@ -74,8 +91,10 @@ export function garmentFromPhotoPlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const route = req.url?.split('?')[0]
         const reconstruction = route === '/api/garment-reconstruction'
+        const segmentation = route === '/api/garment-construction-regions'
+        const processing = reconstruction || segmentation
         const detection = route === '/api/garment-input-type'
-        if (!reconstruction && !detection && route !== '/api/garment-from-photo') return next()
+        if (!processing && !detection && route !== '/api/garment-from-photo') return next()
         if (req.headers.origin && !['http:', 'https:'].some(protocol => req.headers.origin === `${protocol}//${req.headers.host}`)) {
           res.statusCode = 403
           res.end('Origin not allowed')
@@ -83,7 +102,7 @@ export function garmentFromPhotoPlugin(): Plugin {
         }
         if (req.method === 'GET' && !detection) {
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ ok: true, provider: reconstruction ? 'garment-input-router-v1' : 'local-seam-trace' }))
+          res.end(JSON.stringify({ ok: true, provider: segmentation ? 'post-trace-construction-regions-v1' : reconstruction ? 'garment-input-router-v1' : 'local-seam-trace' }))
           return
         }
         if (req.method !== 'POST') {
@@ -94,12 +113,12 @@ export function garmentFromPhotoPlugin(): Plugin {
 
         res.setHeader('Content-Type', detection ? 'application/json; charset=utf-8' : 'application/x-ndjson; charset=utf-8')
         res.setHeader('Cache-Control', 'no-store')
-        if (reconstruction && reconstructing) {
+        if (processing && reconstructing) {
           res.statusCode = 409
           res.end(`${JSON.stringify({ type: 'error', error: 'Another garment is processing. Try again when it finishes.' })}\n`)
           return
         }
-        if (reconstruction) reconstructing = true
+        if (processing) reconstructing = true
         let tmpDir = ''
         const fail = (error: string, status = 500) => {
           if (res.writableEnded || res.destroyed) return
@@ -107,19 +126,20 @@ export function garmentFromPhotoPlugin(): Plugin {
           res.end(`${JSON.stringify({ type: 'error', ok: false, error })}\n`)
         }
         try {
-          const raw = await readBody(req)
+          const raw = await readBody(req, segmentation ? MAX_REGION_BODY : MAX_BODY)
+          const regions = segmentation ? decodeRegionUpload(raw) : null
           const upload = reconstruction || detection ? decodeUpload(raw) : null
-          const bytes = upload ? upload.bytes : decodePhoto(raw)
+          const bytes = regions ? regions.bytes : upload ? upload.bytes : decodePhoto(raw)
           tmpDir = await mkdtemp(path.join(server.config.root, '.garment-upload-'))
-          const photoPath = path.join(tmpDir, 'photo.png')
+          const photoPath = path.join(tmpDir, segmentation ? 'trace-result.json' : 'photo.png')
           await writeFile(photoPath, bytes)
           const env = { ...process.env, ...loadEnv(server.config.mode, server.config.root, '') }
           const localPython = path.join(server.config.root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python')
           const localPotrace = path.join(server.config.root, '.venv/tools/potrace-1.16.win64/potrace.exe')
           if (!env.POTRACE && !env.POTRACE_EXE && existsSync(localPotrace)) env.POTRACE = localPotrace
           const { bin, prefix } = pythonCommand()
-          const args = detection ? ['--detect-input'] : upload ? ['--input-type', upload.inputType, '--view', upload.view] : ['--local-only']
-          const child = spawn(env.PYTHON || (existsSync(localPython) ? localPython : bin), [...prefix, '-u', SCRIPT, photoPath, ...args], {
+          const args = regions ? ['--view', regions.view] : detection ? ['--detect-input'] : upload ? ['--input-type', upload.inputType, '--view', upload.view] : ['--local-only']
+          const child = spawn(env.PYTHON || (existsSync(localPython) ? localPython : bin), [...prefix, '-u', segmentation ? REGION_SCRIPT : SCRIPT, photoPath, ...args], {
             cwd: __dirname,
             env: { ...env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONDONTWRITEBYTECODE: '1', TMP: tmpDir, TEMP: tmpDir, TMPDIR: tmpDir },
             stdio: ['ignore', 'pipe', 'pipe'],
@@ -154,7 +174,7 @@ export function garmentFromPhotoPlugin(): Plugin {
           child.on('close', async (code) => {
             clearTimeout(timer)
             res.off('close', cancel)
-            if (reconstruction) reconstructing = false
+            if (processing) reconstructing = false
             if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
             if (res.writableEnded || res.destroyed) return
             if (detection) {
@@ -177,14 +197,14 @@ export function garmentFromPhotoPlugin(): Plugin {
               res.write(`${JSON.stringify({
                 type: 'error',
                 ok: false,
-                error: (reconstruction ? '' : stderr.trim().split('\n').slice(-6).join(' ').slice(0, 500))
+                error: (processing ? '' : stderr.trim().split('\n').slice(-6).join(' ').slice(0, 500))
                   || `Garment trace exited ${code}`,
               })}\n`)
             }
             res.end()
           })
         } catch (error) {
-          if (reconstruction) reconstructing = false
+          if (processing) reconstructing = false
           if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
           const message = error instanceof Error ? error.message : 'Garment upload failed'
           fail(message, 400)

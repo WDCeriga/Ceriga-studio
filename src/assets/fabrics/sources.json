@@ -74,6 +74,11 @@
         "normalizedFile": "procedural/single-jersey.png",
         "sourceSha256": "7596056deda8f1a8d5a65278a9918131e6fa28d2268685c289a12897503baadc",
         "normalizedSha256": "f4951292501acb1cbc41b9507c36134370b528907ae49736ceabd71ddd28e56a"
+      },
+      "reverse": {
+        "normalizedFile": "procedural/single-jersey-reverse.png",
+        "normalizedSha256": "31e6113835df0fcaf3587c3e21d18eadd604176a982dae6caece018dbd95f078",
+        "description": "Authored single-jersey purl reverse: transverse sinker-loop arcs at the face wale/course gauge; neutral relief, not a lining or photograph."
       }
     },
     {
@@ -477,7 +482,21 @@
         "normalizedSha256": "d0f6fdfba3284c1421c7ea3a3eceed3ac2a032f12b5a5e88cb8d55a38065aaa7"
       },
       "sourceType": "scan-cc0",
-      "sourceStatus": "verified"
+      "sourceStatus": "verified",
+      "reverse": {
+        "normalizedFile": "procedural/denim-twill-reverse.png",
+        "normalizedSha256": "fe6b46b61337f3eb89de3f3166b90859be33fb058227ba591dfc17183e58c793",
+        "description": "Authored generic 3/1 denim twill reverse study: weft-dominant floats with one warp binding per four intersections. Neutral relief without simulated dye; not a photograph or a measured reverse of the bundled scan.",
+        "sourceType": "procedural",
+        "sourceStatus": "review-required",
+        "license": "LicenseRef-Ceriga-Authored",
+        "procedural": {
+          "generator": "scripts/collar/generate_fabric_materials.mjs",
+          "version": 1,
+          "recipe": "Authored generic 3/1 denim twill reverse study: weft-dominant floats with one warp binding per four intersections. Neutral relief without simulated dye; not a photograph or a measured reverse of the bundled scan.",
+          "seed": 1601
+        }
+      }
     }
   ],
   "attributionPolicy": "CC-BY sources must store creator, assetName, sourceUrl, license and attribution text in source.attribution. No CC-BY assets are currently bundled. Ceriga-authored output is not labelled CC0 or photographic; external source rights are not claimed."

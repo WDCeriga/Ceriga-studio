@@ -10,10 +10,13 @@ import React, {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
-import { fabricPartsFromLayers, resolvePartFabric, type FabricAssignments, type GarmentFabric } from '../../data/garmentFabrics';
+import { fabricPartsFromLayers, resolvePartMaterial, type FabricPart, type FabricAssignments, type GarmentFabric } from '../../data/garmentFabrics';
+import { importedGarmentLayers } from '../../data/importedGarment';
 import { renderTexturedFabricSvg } from '../../lib/fabricRendering';
 import { washSvg, type GarmentWash, type WashBounds, type WashTool } from '../../data/garmentWash';
 import { WashEditor } from './WashFinish';
+import { ConstructionRegionHitTargets } from './ConstructionRegionHitTargets';
+import { useMaterialDrop, type MaterialDropHandler } from './materialDrop';
 import { availableStitchRegions, stitchFocus, type TshirtStitching } from '../../data/tshirtStitching';
 import { StitchRegionOverlay, TshirtStitchingLayer, useStitchGeometry, type StitchEditor } from './TshirtStitching';
 import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from './measurementPreviewSizing';
@@ -232,6 +235,9 @@ import { collarEditGeometry, type CollarManualEdits } from '../../data/customCol
 import type { AssetUserTransform } from '../../data/customAssetEditing';
 
 export interface TshirtSvgPreviewProps {
+  creationEditing?: boolean;
+  technicalView?: boolean;
+  onMaterialDrop?: MaterialDropHandler;
   fabricAssignments?: FabricAssignments;
   canvasOverlay?: React.ReactNode;
   customAssetState?: import('../../data/customAssets').CustomAssetState;
@@ -280,6 +286,7 @@ export interface TshirtSvgPreviewProps {
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
   selectedLayerId?: string | null;
+  selectionContext?: string;
   onSelectedLayerChange?: (id: string | null) => void;
   liveCanvasScale?: number;
   className?: string;
@@ -389,7 +396,7 @@ function resolveLayerFill(
   fabricColor: string,
   bodyColor: string,
 ): string {
-  if (layer.id === 'innerBackNeck') return lightenHex(layer.category === 'imported-neck-backing' ? layer.tint ?? bodyColor : bodyColor, .12);
+  if (layer.id === 'innerBackNeck') return layer.tint ?? bodyColor;
   if (layer.colorBinding === 'body') return bodyColor;
   if (layer.id === 'outline') return constructionColor(bodyColor);
   if (layer.kind === 'detail') return constructionColor(bodyColor, layer.tint ?? TSHIRT_DETAIL_COLOR);
@@ -615,7 +622,15 @@ function PreviewLayer({
   fabric,
   fabricAssignments,
   interior,
+  technicalView,
+  appearanceColor,
+  partColors,
+  materialParts,
 }: {
+  partColors?: Partial<Record<string, string>>;
+  materialParts: FabricPart[];
+  technicalView?: boolean;
+  appearanceColor?: string;
   fabricAssignments?: FabricAssignments;
   fabric?: GarmentFabric;
   interior?: boolean;
@@ -635,9 +650,9 @@ function PreviewLayer({
   canvasSize: number;
   openingCut?: ReturnType<typeof constructOpenings>['removed'];
 }) {
-  const fill = resolveLayerFill(layer, fabricColor, bodyColor);
+  const fill = appearanceColor ?? resolveLayerFill(layer, fabricColor, bodyColor);
   const regions = useMemo(() => layers.filter(part => part.kind === 'solid' && !['base', 'outline', 'innerBackNeck'].includes(part.id))
-    .flatMap(part => [{ raw: part.svgRaw, color: resolveLayerFill(part, fabricColor, bodyColor) }, ...(part.colourPanels ?? []).map(panel => ({ raw: panel.svgRaw, color: panel.tint ?? resolveLayerFill(part, fabricColor, bodyColor) }))]), [layers, fabricColor, bodyColor]);
+    .flatMap(part => [{ raw: part.svgRaw, color: partColors?.[part.id] ?? resolveLayerFill(part, fabricColor, bodyColor) }, ...(part.colourPanels ?? []).map(panel => ({ raw: panel.svgRaw, color: partColors?.[panel.id] ?? panel.tint ?? partColors?.[part.id] ?? resolveLayerFill(part, fabricColor, bodyColor) }))]), [layers, fabricColor, bodyColor, partColors]);
   const washId = useId();
   const origin = bbox ? (scaleFixedAnchor ? anchorOriginPoint(bbox, scaleFixedAnchor) : { x: bbox.centerX, y: bbox.centerY }) : { x: 1024, y: 1024 };
   const scale = resolveLayerScale(transform);
@@ -678,8 +693,10 @@ function PreviewLayer({
           regions={regions}
         />
         {layer.colourPanels?.map(panel => {
-          const panelFabric = resolvePartFabric(fabricAssignments, { id: panel.id, label: '', role: 'panel' }) ?? fabric;
-          return <div key={panel.id} data-colour-panel={panel.id} data-fabric-id={panelFabric?.id} className="pointer-events-none absolute inset-0"><InlineSvg raw={panel.svgRaw} fill={panel.tint ?? fill} fabricColor={bodyColor} fabric={panelFabric} interior={interior} /></div>;
+          const panelPart = materialParts.find(part => part.id === panel.id);
+          const material = panelPart ? resolvePartMaterial(fabricAssignments, panelPart, materialParts) : undefined;
+          const panelFabric = technicalView ? undefined : material?.fabric ?? fabric;
+          return <div key={panel.id} data-colour-panel={panel.id} data-fabric-id={panelFabric?.id} className="pointer-events-none absolute inset-0"><InlineSvg raw={panel.svgRaw} fill={partColors?.[panel.id] ?? panel.tint ?? fill} fabricColor={bodyColor} fabric={panelFabric} interior={material?.interior ?? interior} /></div>;
         })}
         {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
         {layer.constructionSvg && <div className="absolute inset-0"><InlineSvg raw={layer.constructionSvg} fill="#141414" fabricColor={fill} linework regions={regions} /></div>}
@@ -690,54 +707,36 @@ function PreviewLayer({
   );
 }
 
-function LayerHitTarget({
-  layerId,
-  displayName,
-  zIndexBase,
-  bbox,
-  transform,
-  alignOffset,
-  selected,
-  onPointerDown,
-}: {
+function LayerHitTarget({ layerId, displayName, raw, side, zIndexBase, bbox, transform, alignOffset, selected, hovered, onHover, onPointerDown, onMaterialDrop }: {
   layerId: string;
   displayName: string;
+  raw: string;
+  onMaterialDrop?: MaterialDropHandler;
+  side?: SleeveSide;
   zIndexBase: number;
   bbox: PotraceSvgBBox;
   transform: TshirtLayerTransform;
   alignOffset?: { x: number; y: number };
   selected: boolean;
+  hovered: boolean;
+  onHover: (id: string | null) => void;
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
-  const rect = bboxToPercentRect(bbox);
-  const zIndex = selected ? SELECTED_LAYER_Z + 10 : 100 + zIndexBase;
-
-  return (
-    <div
-      className="absolute inset-0 touch-none"
-      style={{
-        ...layerTransformStyle(transform, bbox, alignOffset),
-        zIndex,
-        pointerEvents: 'none',
-      }}
-    >
-      <div
-        data-tshirt-hit-target=""
-        role="button"
-        tabIndex={0}
-        aria-label={`Select ${displayName}`}
-        className={cn(
-          'absolute cursor-pointer rounded-sm touch-none',
-          selected ? '' : 'hover:bg-white/[0.04]',
-        )}
-        style={{ ...rect, pointerEvents: 'auto' }}
-        onPointerDown={onPointerDown}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onPointerDown(e as unknown as ReactPointerEvent<HTMLDivElement>);
-        }}
-      />
-    </div>
-  );
+  const { dragHovered, handlers } = useMaterialDrop(layerId, onMaterialDrop);
+  const uid = useId().replace(/:/g, '');
+  const markup = useMemo(() => renderTexturedFabricSvg(raw, selected || hovered || dragHovered ? '#38bdf84d' : 'transparent', undefined, 'selection-' + uid), [raw, selected, hovered, dragHovered, uid]);
+  return <div className="pointer-events-none absolute inset-0" style={{ ...layerTransformStyle(transform, bbox, alignOffset), zIndex: 100 + zIndexBase * 2 }}>
+    <div data-tshirt-hit-target={layerId} data-construction-region-hit={layerId} role="button" tabIndex={0}
+      aria-label={`Select ${displayName}`} aria-pressed={selected}
+      className="pointer-events-none absolute inset-0 cursor-pointer [&>svg]:h-full [&>svg]:w-full [&_path]:[pointer-events:fill] [&_polygon]:[pointer-events:fill] [&_rect]:[pointer-events:fill]"
+      style={side ? sleeveSideClipStyle(side) : undefined}
+      {...handlers}
+      data-selection-highlight={selected ? 'selected' : hovered || dragHovered ? 'hover' : undefined}
+      onPointerMove={event => { if (event.pointerType !== 'touch') onHover(layerId); }}
+      onPointerLeave={() => onHover(null)} onPointerCancel={() => onHover(null)} onPointerDown={onPointerDown}
+      onKeyDown={event => { if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onPointerDown(event as unknown as ReactPointerEvent<HTMLDivElement>); } }}
+      dangerouslySetInnerHTML={{ __html: markup }} />
+  </div>;
 }
 
 function expandPreviewLayers(
@@ -871,6 +870,7 @@ export function TshirtSvgPreview({
   layerTransforms: builtinLayerTransforms,
   onLayerTransformChange,
   selectedLayerId = null,
+  selectionContext,
   onSelectedLayerChange,
   liveCanvasScale = 1,
   className,
@@ -878,6 +878,9 @@ export function TshirtSvgPreview({
   customCollar,
   customCollars,
   customAssetState,
+  creationEditing = false,
+  technicalView = false,
+  onMaterialDrop,
   onCustomAssetTransformChange,
   onCustomCollarEditsChange,
   onCustomAssetCanvasSizeChange,
@@ -910,12 +913,28 @@ export function TshirtSvgPreview({
   const layerTransforms = useMemo(() => customAssetTransforms(customAssetState ?? {}, garmentType, fit ?? 'slim', detailView ?? 'front', builtinLayerTransforms, canvasSize),
     [customAssetState, garmentType, fit, detailView, builtinLayerTransforms, canvasSize]);
   useEffect(() => { onCustomAssetCanvasSizeChange?.(canvasSize); }, [canvasSize, onCustomAssetCanvasSizeChange]);
-  const customEditableIds = onCustomAssetTransformChange ? activeCustomAssets(customAssetState ?? {}, garmentType, fit ?? 'slim', detailView)
+  const customEditableIds = creationEditing && onCustomAssetTransformChange ? activeCustomAssets(customAssetState ?? {}, garmentType, fit ?? 'slim', detailView)
     .filter(item => item.definition.category !== 'pocket').map(item => item.definition.registration.layerId) : [];
 
   const fabricColor = color || '#5C7FB6';
   const bodyColor = partColors?.base ?? fabricColor;
-  const editable = Boolean(onLayerTransformChange) && !washEditable && !labelEditor && !stitchEditor;
+  const editable = Boolean(onSelectedLayerChange) && !washEditable && !labelEditor && !stitchEditor;
+  const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
+  useEffect(() => setHoveredLayerId(null), [selectedLayerId, selectionContext, detailView, editable]);
+  useEffect(() => {
+    const clearHover = () => setHoveredLayerId(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      clearHover();
+      onSelectedLayerChange?.(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('blur', clearHover);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('blur', clearHover);
+    };
+  }, [onSelectedLayerChange]);
 
   const layers = useMemo(
     () =>
@@ -939,7 +958,14 @@ export function TshirtSvgPreview({
     [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars, customAssetState],
   );
 
-  const fabricParts = useMemo(() => new Map(fabricPartsFromLayers(layers, garmentType).map(part => [part.id, part])), [layers, garmentType]);
+  const imported = customAssetState?.importedGarment;
+  const constructionRegions = imported?.manifest[detailView === 'back' ? 'backView' : 'frontView']?.constructionRegions
+    ?? (imported?.manifest.view === detailView ? imported.constructionRegions : undefined);
+  const semanticRegionIds = new Set(constructionRegions?.regions.map(region => region.id));
+  const semanticInkIds = new Set(imported?.parts.filter(part => part.structuralRole === 'source-ink').map(part => part.id));
+  const fabricParts = useMemo(() => new Map(fabricPartsFromLayers(imported
+    ? [...importedGarmentLayers(imported, 'front'), ...importedGarmentLayers(imported, 'back')]
+    : layers, garmentType).map(part => [part.id, part])), [layers, garmentType, imported]);
   const garmentConfig = getGarmentSvgConfig(garmentType);
   const washBounds = useMemo(() => garmentPreviewBounds(
     layers.filter(layer => layer.kind === 'solid' && !['outline', 'innerBackNeck'].includes(layer.id))
@@ -1015,7 +1041,7 @@ export function TshirtSvgPreview({
     () =>
       [...layerLayouts]
         .filter((entry) => {
-          if (['innerBackNeck', 'outline', 'stitching'].includes(entry.sourceLayer.id)) {
+          if (['outline', 'stitching'].includes(entry.sourceLayer.id)) {
             return false;
           }
           return entry.bbox && isValidBBox(entry.bbox);
@@ -1183,7 +1209,7 @@ export function TshirtSvgPreview({
       mode: GestureMode,
       scaleAnchor?: ScaleAnchor,
     ) => {
-      if (!onLayerTransformChange) return;
+      if (!creationEditing || !onLayerTransformChange) return;
       const layout = layerLayouts.find((entry) => entry.id === layerId);
       if (!layout?.bbox) return;
 
@@ -1220,15 +1246,16 @@ export function TshirtSvgPreview({
       };
       e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [layerLayouts, onLayerTransformChange],
+    [creationEditing, layerLayouts, onLayerTransformChange],
   );
 
   const handleLayerPointerDown = useCallback(
     (layerId: string, e: ReactPointerEvent<HTMLDivElement>) => {
       e.stopPropagation();
+      if (hemEditor?.regions.some(region => region.id === layerId)) hemEditor.onSelect(layerId);
       onSelectedLayerChange?.(layerId);
     },
-    [onSelectedLayerChange],
+    [onSelectedLayerChange, hemEditor],
   );
 
   const handleBackgroundPointerDown = useCallback(
@@ -1236,6 +1263,7 @@ export function TshirtSvgPreview({
       const target = e.target as HTMLElement;
       if (target.closest('[data-tshirt-hit-target]')) return;
       if (target.closest('[data-tshirt-selection]')) return;
+      setHoveredLayerId(null);
       onSelectedLayerChange?.(null);
     },
     [onSelectedLayerChange],
@@ -1294,7 +1322,7 @@ export function TshirtSvgPreview({
   const backNeckLayer = layers.find(layer => layer.id === 'innerBackNeck');
   const openingInteriorColor = backNeckLayer
     ? resolveLayerFill(backNeckLayer, fabricColor, bodyColor)
-    : lightenHex(bodyColor, .12);
+    : bodyColor;
 
   useEffect(() => {
     if (!onBuiltinDetailsChange || !detailBounds) return;
@@ -1344,7 +1372,7 @@ export function TshirtSvgPreview({
     x: (hemBounds.minX + hemBounds.maxX) / 2, y: (hemBounds.minY + hemBounds.maxY) / 2,
     scale: Math.min(5, Math.max(1.2, 1500 / Math.max(hemBounds.maxX - hemBounds.minX, hemBounds.maxY - hemBounds.minY))),
   } : undefined;
-  const selectedCollar = editable && !hemEditor && onCustomCollarEditsChange && activeCustomAssets(customAssetState ?? {}, garmentType, fit ?? 'slim', detailView)
+  const selectedCollar = creationEditing && editable && !hemEditor && onCustomCollarEditsChange && activeCustomAssets(customAssetState ?? {}, garmentType, fit ?? 'slim', detailView)
     .find(item => item.definition.category === 'collar' && item.definition.registration.layerId === selectedLayerId);
   const collarGeometry = selectedCollar ? collarEditGeometry(selectedCollar.definition.svg) : undefined;
   const collarCamera = collarGeometry ? { x: collarGeometry.left + collarGeometry.width / 2,
@@ -1354,8 +1382,8 @@ export function TshirtSvgPreview({
   const toolHint = useMemo(() => {
     if (!editable || !selectedLayerId || hemEditor || collarGeometry) return null;
     if (gestureLayerId) return `Adjusting ${selectedDisplayName}…`;
-    return 'Drag to move · corner/edge handles to stretch · ↻ to rotate';
-  }, [editable, gestureLayerId, selectedDisplayName, selectedLayerId, hemEditor, collarGeometry]);
+    return creationEditing ? 'Drag to move or use geometry handles' : `${selectedDisplayName} - select and configure`;
+  }, [creationEditing, editable, gestureLayerId, selectedDisplayName, selectedLayerId, hemEditor, collarGeometry]);
 
   return (
     <div
@@ -1363,7 +1391,10 @@ export function TshirtSvgPreview({
         GARMENT_PREVIEW_CONTAINER_CLASS,
         className,
       )}
-      onPointerDown={editable && !hemEditor ? handleBackgroundPointerDown : undefined}
+      data-tshirt-preview=""
+      onPointerDown={editable ? handleBackgroundPointerDown : undefined}
+      onPointerLeave={() => setHoveredLayerId(null)}
+      onPointerCancel={() => setHoveredLayerId(null)}
       style={stitchEditor || detailCamera || hemEditor || collarCamera ? { overflow: 'hidden' } : undefined}
     >
       <div
@@ -1397,14 +1428,19 @@ export function TshirtSvgPreview({
               : null;
           const displayTransform = resolveLayerDisplayTransform(id, transform, bbox);
           const fabricPart = fabricParts.get(id);
+          const material = fabricPart ? resolvePartMaterial(fabricAssignments, fabricPart, [...fabricParts.values()]) : undefined;
 
           return (
             <PreviewLayer
               key={`${sourceLayer.category}-${id}`}
               layerId={id}
-              fabric={fabricPart ? resolvePartFabric(fabricAssignments, fabricPart) : undefined}
+              fabric={technicalView ? undefined : material?.fabric}
+              materialParts={[...fabricParts.values()]}
+              partColors={partColors}
+              technicalView={technicalView}
+              appearanceColor={sourceLayer.kind === 'solid' && id !== 'outline' ? partColors?.[id] : undefined}
               fabricAssignments={fabricAssignments}
-              interior={fabricPart?.interior}
+              interior={material?.interior}
               openingCut={id === 'outline' ? openings?.inkCut : openingGeometry.panels.some(panel => panel.id === id) ? openings?.removed : undefined}
               layer={sourceLayer}
               layers={layers}
@@ -1424,47 +1460,49 @@ export function TshirtSvgPreview({
         })}
 
         {canvasOverlay}
-        {editable && !hemEditor
+        {editable
           ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>
-              bbox && !overriddenTrimIds.has(id) && !customEditableIds.includes(id) ? (
+              bbox && !semanticRegionIds.has(id) && !semanticInkIds.has(id) && !overriddenTrimIds.has(id) && !customEditableIds.includes(id) ? (
+                <React.Fragment key={`hit-${id}`}>
                 <LayerHitTarget
-                  key={`hit-${id}`}
                   layerId={id}
                   displayName={
                     side
                       ? `${side === 'left' ? 'Left' : 'Right'} ${sourceLayer.displayName}`
                       : sourceLayer.displayName
                   }
+                  onMaterialDrop={onMaterialDrop}
+                  raw={sourceLayer.svgRaw}
+                  side={side}
                   zIndexBase={sourceLayer.zIndex}
                   bbox={bbox}
                   transform={transform}
                   alignOffset={alignOffset}
                   selected={selectedLayerId === id}
+                  hovered={!selectedLayerId && hoveredLayerId === id}
+                  onHover={setHoveredLayerId}
                   onPointerDown={(e) => handleLayerPointerDown(id, e)}
                 />
+                {sourceLayer.colourPanels?.map((panel, index) => <LayerHitTarget key={panel.id}
+                  layerId={panel.id} displayName={`${sourceLayer.displayName} panel ${index + 1}`}
+                  raw={panel.svgRaw} side={side} zIndexBase={sourceLayer.zIndex + 0.5}
+                  bbox={bbox} transform={transform} alignOffset={alignOffset}
+                  selected={selectedLayerId === panel.id} onMaterialDrop={onMaterialDrop}
+                  hovered={!selectedLayerId && hoveredLayerId === panel.id} onHover={setHoveredLayerId}
+                  onPointerDown={event => handleLayerPointerDown(panel.id, event)} />)}
+                </React.Fragment>
               ) : null,
             )
           : null}
 
+        {editable && constructionRegions && <ConstructionRegionHitTargets
+          regions={constructionRegions.regions.filter(region => region.view === detailView)}
+          selectedId={selectedLayerId} onSelect={onSelectedLayerChange} onMaterialDrop={onMaterialDrop} />}
+
         {stitchEditor && stitchGeometry && focusedStitchRegion && <StitchRegionOverlay geometry={stitchGeometry}
           hems={tshirtHemStyles} editor={{ ...stitchEditor, region: focusedStitchRegion }} />}
 
-        {hemEditor && <svg viewBox="0 0 2048 2048" aria-label="Hem selection" className="pointer-events-none absolute inset-0 z-[250] h-full w-full">
-          {hemEditor.regions.map(region => {
-            const bounds = displayBounds(region.id);
-            if (!bounds) return null;
-            const active = region.id === hemEditor.region;
-            return <g key={region.id}>
-              <rect data-hem-hit={region.id} x={bounds.minX - 5} y={bounds.minY - 5} width={bounds.maxX - bounds.minX + 10} height={bounds.maxY - bounds.minY + 10}
-                fill="transparent" stroke="none"
-                pointerEvents="all" role="button" tabIndex={0} aria-label={`Select ${region.name}`} aria-pressed={active} className="cursor-pointer"
-                onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); hemEditor.onSelect(region.id); }}
-                onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); hemEditor.onSelect(region.id); } }} />
-            </g>;
-          })}
-        </svg>}
-
-        {!washEditable && !labelEditor && !stitchEditor && !hemEditor && selectedLayout?.bbox && selectedLayerId && !customEditableIds.includes(selectedLayerId) && selectedDisplayTransform ? (
+        {creationEditing && !washEditable && !labelEditor && !stitchEditor && !hemEditor && selectedLayout?.bbox && selectedLayerId && !semanticRegionIds.has(selectedLayerId) && !semanticInkIds.has(selectedLayerId) && !customEditableIds.includes(selectedLayerId) && selectedDisplayTransform ? (
           <SelectionOutline
             bbox={selectedLayout.bbox}
             transform={selectedDisplayTransform}
@@ -1476,7 +1514,7 @@ export function TshirtSvgPreview({
             onRotate={editable ? (e) => startGesture(selectedLayerId, e, 'rotate') : undefined}
           />
         ) : null}
-        {editable && !hemEditor && onCustomAssetTransformChange && <CustomAssetEditorOverlay state={customAssetState ?? {}} garmentType={garmentType}
+        {creationEditing && editable && !hemEditor && onCustomAssetTransformChange && <CustomAssetEditorOverlay state={customAssetState ?? {}} garmentType={garmentType}
           fit={fit ?? 'slim'} view={detailView} selectedId={selectedLayerId} canvasSize={canvasSize}
           onSelect={id => onSelectedLayerChange?.(id)} onChange={onCustomAssetTransformChange}
           onCollarChange={onCustomCollarEditsChange} cameraScale={previewCamera.scale} />}

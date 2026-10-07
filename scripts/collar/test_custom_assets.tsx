@@ -893,7 +893,7 @@ export function mountCollarUploadFixture() {
       return createElement(TshirtSvgPreview, {
       garmentType: 'tshirt', fit: 'slim', color: '#7da8dd', detailView: 'front',
       selection: getDefaultGarmentSelection('tshirt', 'slim'),
-      customAssetState: preview,
+      customAssetState: preview, creationEditing: !!editor,
       selectedLayerId: editor ? 'neck' : undefined, onSelectedLayerChange: editor ? () => {} : undefined,
       onLayerTransformChange: editor ? () => {} : undefined, onCustomAssetTransformChange: editor ? () => {} : undefined,
       onCustomCollarEditsChange: editor ? (_id, edits) => editor.onChange(edits) : undefined,

@@ -93,7 +93,7 @@ export function renderTexturedFabricSvg(
       const surface = fabricScanSurface(fabric, interior);
       pattern.setAttribute('data-fabric-status', surface?.sourceStatus ?? 'unresolved');
       if (surface) pattern.setAttribute('data-fabric-source-type', surface.sourceType);
-      pattern.setAttribute('data-fabric-surface', interior && fabric.interiorTexture ? fabric.interiorTexture : 'face');
+      pattern.setAttribute('data-fabric-surface', interior ? fabric.interiorTexture ?? 'reverse' : 'face');
       const base = parsed.createElementNS(NS, 'rect');
       base.setAttribute('width', '10'); base.setAttribute('height', '10'); base.setAttribute('fill', baseColor);
       pattern.append(base);

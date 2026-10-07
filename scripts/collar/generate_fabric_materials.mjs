@@ -97,7 +97,12 @@ function taslan(u, v, seed) {
   return .15 * filament + .10 * microCrinkle + .22 * yarnNoise(u, v, 128, 88, seed) + .09 * fuzz(u, v, seed, true);
 }
 const recipes = [
-  { id: 'single-jersey', seed: 101, repeat: 660, recipe: 'Fine single-bed V-loop wales; smooth matte face with minimal yarn relief.', field: (u,v,s) => knit(u,v,32,40,s) + .05*fuzz(u,v,s) },
+  { id: 'single-jersey', seed: 101, repeat: 660, recipe: 'Fine single-bed V-loop wales; smooth matte face with minimal yarn relief.', field: (u,v,s) => knit(u,v,32,40,s) + .05*fuzz(u,v,s), reverse: (u,v,s) => purl(u,v,32,40) + .05*fuzz(u,v,s), reverseDescription: 'Authored single-jersey purl reverse: transverse sinker-loop arcs at the face wale/course gauge; neutral relief, not a lining or photograph.' },
+  { id: 'denim-twill', seed: 1601, reverseOnly: true, reverse: (u,v,s) => {
+    const count = 64, x = fract(u)*count, y = fract(v)*count;
+    const warpOver = ((Math.floor(x)-Math.floor(y)+count)%4) === 0;
+    return (warpOver ? .58*ridge(wrap(x),.24)+.10*ridge(wrap(y),.23) : .58*ridge(wrap(y),.23)+.10*ridge(wrap(x),.24)) + .04*fuzz(u,v,s);
+  }, reverseDescription: 'Authored generic 3/1 denim twill reverse study: weft-dominant floats with one warp binding per four intersections. Neutral relief without simulated dye; not a photograph or a measured reverse of the bundled scan.' },
   { id: 'interlock-jersey', seed: 211, repeat: 720, recipe: 'Compact double-knit face: offset intermeshing loop beds, subdued valleys and denser gauge than single jersey.', field: (u,v,s) => .64*knit(u,v,40,48,s) + .36*knit(u+.5/40,v+.5/48,40,48,s+1) + .035*fuzz(u,v,s) },
   { id: 'french-terry', seed: 307, repeat: 540, recipe: 'Smooth sweatshirt face wales; separate short, irregular sinker-loop reverse. Loops are never applied to the outside.', field: (u,v,s) => .85*knit(u,v,32,36,s)+.10*fuzz(u,v,s), reverse: (u,v,s) => loops(u,v,s,24,28,.34), reverseDescription: 'Short terry sinker-loop reverse; dedicated to French terry.' },
   { id: 'loopback-jersey', seed: 409, repeat: 495, recipe: 'Fine stable knit face with separate elongated laid-in loop reverse; no loop pattern on the face.', field: (u,v,s) => .72*knit(u,v,36,44,s)+.18*knit(u+.4/36,v,36,44,s+1)+.045*fuzz(u,v,s), reverse: (u,v,s) => loops(u,v,s,28,20,.44), reverseDescription: 'Elongated laid-in loopback reverse, not a terry face substitute.' },
@@ -157,9 +162,24 @@ const sha = data => createHash('sha256').update(data).digest('hex');
 const manifest = JSON.parse((await readFile(new URL('sources.json',root),'utf8')).replace(/^\uFEFF/,''));
 const checksums = JSON.parse((await readFile(new URL('checksums.json',root),'utf8')).replace(/^\uFEFF/,''));
 await mkdir(new URL('procedural/',root),{recursive:true});
+const only = process.argv.find(argument => argument.startsWith('--only='))?.slice(7).split(',');
 for(const recipe of recipes) {
+  if (only && !only.includes(recipe.id)) continue;
   const record=manifest.presets.find(item=>item.fabricPresetId===recipe.id);
   if(!record) throw new Error(`Unknown preset ${recipe.id}`);
+  if (recipe.reverseOnly) {
+    if (record.reverse && record.reverse.sourceType !== 'procedural') continue;
+    const reverse=maps(recipe.reverse,recipe.seed), reverseFile=`procedural/${recipe.id}-reverse.png`;
+    await writeFile(new URL(reverseFile,root),reverse.normalized);
+    record.reverse={normalizedFile:reverseFile,normalizedSha256:sha(reverse.normalized),description:recipe.reverseDescription,
+      sourceType:'procedural',sourceStatus:'review-required',license:'LicenseRef-Ceriga-Authored',
+      procedural:{generator:'scripts/collar/generate_fabric_materials.mjs',version:VERSION,recipe:recipe.reverseDescription,seed:recipe.seed}};
+    const checksum=checksums.find(item=>item.fabricPresetId===recipe.id);
+    if (!checksum) throw new Error(`Missing face checksum ${recipe.id}`);
+    Object.assign(checksum,{reverseFile,reverseSha256:record.reverse.normalizedSha256});
+    console.log(`${recipe.id}: authored reverse only; face scan preserved; periodic boundary error ${reverse.periodicError.toExponential(2)}`);
+    continue;
+  }
   // A higher-priority source added later is never overwritten by the procedural generator.
   if(record.source && record.sourceType && record.sourceType!=='procedural') continue;
   const map=maps(recipe.field,recipe.seed), originalFile=`procedural/${recipe.id}-source.png`, normalizedFile=`procedural/${recipe.id}.png`;

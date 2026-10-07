@@ -1,6 +1,7 @@
 import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
 import { rearCollarProfile } from './tshirtBackView';
 import { getPotraceSvgBBox } from '../lib/tshirtSvgUtils';
+import { withTshirtFrontNeckline } from './tshirtFrontNeckline';
 
 export type NeckFinish = 'ribbed' | 'clean' | 'raw';
 export const NECK_FINISH_OPTIONS = [
@@ -18,7 +19,9 @@ function clearNeckArea(source: string, path: string, transform: string, id: stri
 }
 
 export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: NeckFinish): ResolvedGarmentLayer[] {
-  if (!finish || finish === 'ribbed' || typeof document === 'undefined') return layers;
+  const front = withTshirtFrontNeckline(layers, finish ?? 'ribbed');
+  if (front !== layers) return front;
+  if (!layers.some(layer => layer.id === 'neck' && layer.assetId.endsWith(':back')) || !finish || finish === 'ribbed' || typeof document === 'undefined') return layers;
   const neck = layers.find(layer => layer.id === 'neck');
   const outline = layers.find(layer => layer.id === 'outline');
   const stitching = layers.find(layer => layer.id === 'stitching');

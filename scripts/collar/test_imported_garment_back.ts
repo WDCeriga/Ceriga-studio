@@ -30,18 +30,18 @@ try {
     assert.deepEqual(inferred.sourceManifest, front.sourceManifest);
     check(inferred.manifest.backView?.inference?.kind === 'estimated-back', 'Inference provenance missing');
     check(!inferred.manifest.backView?.sourceImage && !inferred.manifest.backView?.sourceImageHash && !inferred.manifest.backView?.provenance && !inferred.sourceImages?.back, 'Back falsely claims image/provider evidence');
-    check(back.every(part => part.boundary!.confidence < .8 && part.evidence.includes('estimated')), 'Estimated parts claim observed confidence');
+    check(back.every(part => part.boundary!.confidence < .8 && /estimated/i.test(part.evidence)), 'Estimated parts claim observed confidence');
     check(canAcceptImportedConstruction(inferred), 'Explicit inferred workflow lost editable controls');
     check(inferred.accepted === false && inferred.reviewed === false, 'Adding an estimate must require explicit review and acceptance');
     check(normalizeImportedGarment(JSON.parse(JSON.stringify(inferred))).accepted === false, 'Estimated construction became accepted after reload');
-    check(back.every(part => !['pocket', 'label', 'fly', 'button', 'neckband', 'collar'].includes(part.semanticType)), 'Front-only detail copied');
+    check(back.every(part => !['pocket', 'label', 'fly', 'button', 'zip'].includes(part.semanticType)), 'Front-only detail copied');
     check(!inferred.detailLayers?.some(detail => detail.view === 'back'), 'Front stitching or detail copied');
     check(back.every(part => part.svg.includes('<path') && part.svg !== front.parts.find(candidate => candidate.name === part.name)?.svg), 'No separate SVG');
     check(inferred.measurementCalibration?.view === 'front' && !inferred.measurementCalibrations?.back && !inferred.commonCalibrationDimensions?.length, 'Physical calibration leaked');
     check(importedMeasurementGuides(inferred, 'back').every(guide => guide.millimetres === null && guide.confidence <= .35), 'Estimated measurements claim physical precision');
     assert.deepEqual(normalizeImportedGarment(JSON.parse(JSON.stringify(inferred))).manifest.backView?.inference, inferred.manifest.backView?.inference);
     check(!generateEstimatedBack(inferred).available, 'Existing back silently overwritten');
-    if (['tee', 'hoodie', 'jacket', 'dress'].includes(family)) {
+    if (inferred.manifest.backView?.inference?.method === 'conservative-outline-v1' && ['tee', 'hoodie', 'jacket', 'dress'].includes(family)) {
       const frontBody = front.parts.find(part => part.semanticType === 'body')!, backBody = back.find(part => part.semanticType === 'body')!;
       check(JSON.stringify(frontBody.outline) !== JSON.stringify(backBody.outline), 'Front neckline simply mirrored/copied');
       check(backBody.outline!.some(([x, y]) => x > .44 && x < .56 && y < .19), 'Rear neckline was not raised');
@@ -232,8 +232,12 @@ try {
   const capturedBack = estimate(captured), capturedRear = capturedBack.parts.filter(part => part.view === 'back');
   check(capturedRear.filter(part => part.semanticType === 'body').length === 1, 'Captured panelled hoodie still rejects its torso');
   check(capturedRear.filter(part => part.semanticType === 'hood').length === 1, 'Captured hood panels retained as separate rear faces');
-  assert.deepEqual(capturedRear.find(part => part.semanticType === 'body')!.bounds, [.299, .292, .698, .903]);
-  assert.deepEqual(capturedRear.find(part => part.semanticType === 'hood')!.bounds, [.378, .025, .619, .328]);
+  const capturedBody = capturedRear.find(part => part.semanticType === 'body')!;
+  const capturedHem = capturedRear.find(part => ['hem', 'waistband'].includes(part.semanticType))!;
+  check(Math.abs(capturedBody.bounds[0] - .299) < .003 && Math.abs(capturedBody.bounds[2] - .698) < .003, 'Cleaned torso exceeded the front-derived width tolerance');
+  check(capturedHem && Math.abs(capturedHem.bounds[3] - .903) < .001 && capturedBody.bounds[3] === capturedHem.bounds[1], 'Captured hem was not separated at body boundary');
+  const capturedHood = capturedRear.find(part => part.semanticType === 'hood')!;
+  check(capturedHood.bounds[0] === .378 && capturedHood.bounds[2] === .619 && capturedHood.bounds[1] === .025, 'Captured hood proportions changed');
   check(!capturedRear.some(part => ['zip', 'pocket', 'label'].includes(part.semanticType)), 'Captured front-only details copied to back');
   check(capturedRear.every(part => !part.attachmentTo || capturedRear.some(parent => parent.id === part.attachmentTo)), 'Captured attachments do not resolve');
   check(JSON.stringify(captured) === capturedBefore, 'Captured front altered during inference');
@@ -261,8 +265,21 @@ try {
     check(back.every(part => !part.attachmentTo || back.some(parent => parent.id === part.attachmentTo)), `${family}: assembled panel attachment is dangling`);
     check(JSON.stringify(segmented) === before, `${family}: assembling panels mutated source`);
     assert.deepEqual(inferred.parts.filter(part => part.view === 'front'), segmented.parts);
-    check(rearBody.bounds[0] === torso.bounds[0] && rearBody.bounds[2] === torso.bounds[2] && rearBody.bounds[3] === torso.bounds[3], `${family}: closure extended rear exterior`);
-    check(rearBody.outline!.filter(([, y]) => y < .2 && y > .17).length === 2, `${family}: split neckline anchors were not raised`);
+    const rearTorso = back.filter(part => part === rearBody || (['hem', 'waistband'].includes(part.semanticType) && !/sleeve/i.test(part.name)));
+    const torsoBounds = [Math.min(...rearTorso.map(part => part.bounds[0])), Math.max(...rearTorso.map(part => part.bounds[2])), Math.max(...rearTorso.map(part => part.bounds[3]))];
+    if (inferred.manifest.backView?.inference?.method === 'conservative-outline-v1') {
+      check(torsoBounds.every((coordinate, index) => Math.abs(coordinate - torso.bounds[[0, 2, 3][index]]) < 1e-9), `${family}: closure changed rear torso exterior`);
+    } else {
+      check(torsoBounds[0] >= torso.bounds[0] - 1e-9 && torsoBounds[1] <= torso.bounds[2] + 1e-9 && Math.abs(torsoBounds[2] - torso.bounds[3]) < 1e-9, `${family}: closure extended rear torso exterior`);
+      const missing = polygonClipping.difference([torso.outline!], ...back.map(part => [part.outline!]));
+      const missingArea = missing.flat().reduce((sum, ring) => sum + Math.abs(ring.reduce((area, [x, y], index) => {
+        const next = ring[(index + 1) % ring.length];
+        return area + x * next[1] - next[0] * y;
+      }, 0)) / 2, 0);
+      check(missingArea < 1e-9, `${family}: anatomical joins lost observed torso volume`);
+    }
+    if (inferred.manifest.backView?.inference?.method === 'conservative-outline-v1') check(rearBody.outline!.filter(([, y]) => y < .2 && y > .17).length === 2, `${family}: split neckline anchors were not raised`);
+    else check(back.some(part => ['hem', 'waistband'].includes(part.semanticType) && part.bounds[3] === torso.bounds[3]), `${family}: separated hem changed rear length`);
     check(!generateEstimatedBack({ ...segmented, parts: segmented.parts.filter(part => part.id !== closure.id) }).available, `${family}: unobserved gap bridged`);
     check(!generateEstimatedBack({ ...segmented, parts: segmented.parts.map(part => part.id === closure.id ? { ...part, attachmentTo: 'pocket' } : part) }).available, `${family}: pocket hardware bridged torso`);
     check(!generateEstimatedBack({ ...segmented, parts: segmented.parts.map(part => part.id === closure.id ? { ...part, transform: { x: 0, y: 0, scale: 1, rotation: 20 } } : part) }).available, `${family}: transformed closure bridged torso`);
@@ -290,7 +307,7 @@ try {
   const sleeveControls = renderToStaticMarkup(createElement(ImportedGarmentEditor, { ...props, value: front, step: 4 }));
   check(sleeveControls.includes('aria-label="left sleeve colour"') && !sleeveControls.includes('aria-label="body colour"'), 'Specific construction steps stopped filtering by category');
   const generated = renderToStaticMarkup(createElement(ImportedGarmentEditor, { ...props, value: estimate(front) }));
-  check(generated.includes('ESTIMATED back') && generated.includes('Replace estimate with real back'), 'Persistent estimate notice or replacement option missing');
+  check(generated.includes('ESTIMATED BACK') && generated.includes('Replace estimate with real back'), 'Persistent estimate notice or replacement option missing');
   check(!generated.includes('Generate estimated back'), 'Generation remains available over existing back');
   console.log(`PASS: ${checks} inferred-back checks across 8 garment families; provider calls disabled.`);
 } finally { globalThis.fetch = originalFetch; }

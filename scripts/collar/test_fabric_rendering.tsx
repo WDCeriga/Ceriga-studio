@@ -87,7 +87,7 @@ const materialReviews: { name: string; assignments: Record<string, string>; unli
   { name: 'Mixed body / neck / independent sleeves', assignments: { base: 'single-jersey', neck: 'rib-1x1', sleeveLeft: 'mesh', sleeveRight: 'waffle' }, unlinkedGroups: ['sleeves'] },
 ];
 
-export async function verifyFabricRendering() {
+export async function verifyFabricSurfaces() {
   const model = verifyFabricModel(), sources = verifyFabricSources();
   check(FABRIC_LIBRARY.length === 14 && sources.verified.length === 1 && sources.verified[0] === 'denim-twill' && sources.procedural.length === 13 && sources.reviewRequired.length === 13 && sources.unresolved.length === 0, 'Expected all 14 surfaces: one verified denim source and 13 review-required procedural constructions');
   const baseline = renderFabricSvg(ring, '#76988d');
@@ -134,7 +134,7 @@ export async function verifyFabricRendering() {
       if (reverse) {
         check(reverse.image !== surface?.image && record.reverse?.normalizedFile !== record.source?.normalizedFile, `Reverse reuses exterior face: ${fabric.id}`);
         check(reverseImage?.getAttribute('href') === reverse.image, `Dedicated reverse map not rendered: ${fabric.id}`);
-        check(insideDoc.querySelector('pattern')?.getAttribute('data-fabric-status') === record.status, `Reverse source status mismatch: ${fabric.id}`);
+        check(insideDoc.querySelector('pattern')?.getAttribute('data-fabric-status') === reverse.sourceStatus, `Reverse source status mismatch: ${fabric.id}`);
         for (const size of [296, 1184]) {
           const metrics = comparePixels(await pixels(baseline, size), await pixels(inside, size));
           raster[`${fabric.id}:reverse:${size}`] = metrics;
@@ -148,6 +148,11 @@ export async function verifyFabricRendering() {
   // Identical dark fabric and ink colours must not turn the separate ink group into fabric.
   const dark = renderTexturedFabricSvg(ring.replace('fill="none" stroke="#141414"', 'fill="#141414" stroke="#141414"'), '#141414', FABRIC_LIBRARY.find(fabric => fabric.id === 'denim-twill')!, 'dark');
   check(!new DOMParser().parseFromString(dark, 'image/svg+xml').querySelector('[data-ink] [data-fabric-base]'), 'Dark inline ink was textured');
+  return { model, sources, raster };
+}
+
+export async function verifyFabricRendering() {
+  const { model, sources, raster } = await verifyFabricSurfaces();
   const host = document.createElement('div'); host.style.cssText = 'position:absolute;left:-10000px;width:512px;height:512px'; document.body.append(host);
   const root = createRoot(host);
   const previews: string[] = [];
@@ -155,7 +160,9 @@ export async function verifyFabricRendering() {
     for (const item of materialReviews) {
       flushSync(() => root.render(<TshirtSvgPreview {...reviewTee} fabricAssignments={{ assignments: item.assignments, unlinkedGroups: item.unlinkedGroups ?? [] }} />));
       const actual = Object.fromEntries(Array.from(host.querySelectorAll('[data-layer-id][data-fabric-id]')).map(element => [element.getAttribute('data-layer-id'), element.getAttribute('data-fabric-id')]));
-      check(JSON.stringify(Object.entries(actual).sort()) === JSON.stringify(Object.entries(item.assignments).sort()), `Material escaped its requested region: ${item.name}`);
+      const expected = { ...item.assignments };
+      if (expected.base && !expected.innerBackNeck) expected.innerBackNeck = expected.base;
+      check(JSON.stringify(Object.entries(actual).sort()) === JSON.stringify(Object.entries(expected).sort()), `Material escaped its requested region or matching body reverse: ${item.name}`);
       for (const [partId, fabricId] of Object.entries(item.assignments)) {
         const element = host.querySelector(`[data-layer-id="${partId}"]`);
         const record = fabricSourceRecord(FABRIC_LIBRARY.find(fabric => fabric.id === fabricId)!);
@@ -267,7 +274,7 @@ function FabricSourceReview({ closeup }: { closeup: boolean }) {
           <p>Recommended parts (not restrictions): {material.recommendedUses.join(', ')}. Composition/weight: {fabric.composition}, {fabric.gsm} GSM — preset specifications, not measured source properties.</p>
           {record.procedural && <><p>Generator: <code>{record.procedural.generator}</code> · version: {record.procedural.version} · seed: <code>{record.procedural.seed}</code></p><p>Recipe: <code>{typeof record.procedural.recipe === 'string' ? record.procedural.recipe : JSON.stringify(record.procedural.recipe)}</code></p></>}
           {record.source && <><p>{record.source.constructionEvidence} {record.source.evidenceUrl && <a href={record.source.evidenceUrl}>{procedural ? 'Construction reference (not source capture)' : 'Identity / source evidence'}</a>}</p><p>Raw source: <code>{record.source.originalFile}</code><br />Normalized map: <code>{record.source.normalizedFile}</code></p><p>Source SHA256: <code>{record.source.sourceSha256}</code><br />Normalized SHA256: <code>{record.source.normalizedSha256}</code></p></>}
-          {fabric.interiorTexture && <figure className="reverse-review"><figcaption>Dedicated reverse · {fabric.interiorTexture} · {reverse ? record.status : 'unresolved'}</figcaption>{reverse ? <><img className="source-map normalized-map" src={reverse.image} alt={`${fabric.name}: separate ${fabric.interiorTexture} reverse map`} loading="lazy" /><p>{record.reverse?.description} Exterior previews above use the face map, never this reverse.</p><p><code>{record.reverse?.normalizedFile}</code><br />SHA256: <code>{record.reverse?.normalizedSha256}</code></p></> : <div className="unresolved-map">UNRESOLVED — no dedicated reverse map available.</div>}</figure>}
+          {fabric.interiorTexture && <figure className="reverse-review"><figcaption>Dedicated reverse · {fabric.interiorTexture} · {reverse ? `${reverse.sourceType} · ${reverse.sourceStatus}` : 'unresolved'}</figcaption>{reverse ? <><img className="source-map normalized-map" src={reverse.image} alt={`${fabric.name}: separate ${fabric.interiorTexture} reverse map`} loading="lazy" /><p>{record.reverse?.description} Exterior previews above use the face map, never this reverse.</p><p><code>{record.reverse?.normalizedFile}</code><br />SHA256: <code>{record.reverse?.normalizedSha256}</code></p></> : <div className="unresolved-map">UNRESOLVED — no dedicated reverse map available.</div>}</figure>}
         </details>
       </section>;
     })}</div>

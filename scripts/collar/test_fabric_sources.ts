@@ -54,10 +54,10 @@ export function verifyFabricSources() {
     { id: 'sleeve', label: 'Sleeve', role: 'sleeve' },
     { id: 'inside', label: 'Inside', role: 'interior', interior: true },
   ];
-  const assignments = { assignments: { body: target.fabricPresetId, neck: verified.fabricPresetId, sleeve: 'unknown-saved-fabric', inside: verified.fabricPresetId }, unlinkedGroups: [] };
+  const assignments = { assignments: { body: target.fabricPresetId, neck: verified.fabricPresetId, sleeve: 'unknown-saved-fabric', inside: 'interlock-jersey' }, unlinkedGroups: [] };
   const saved = JSON.stringify(assignments);
   const issues = fabricAssignmentIssues(parts, assignments);
-  check(issues.length === 2, 'Only unknown ID and missing denim reverse must be reported');
+  check(issues.length === 2, 'Only unknown ID and missing interlock reverse must be reported');
   check(!issues.some(issue => issue.partId === 'panel' || issue.partId === 'body'), 'Reviewable procedural source incorrectly treated as unresolved');
   check(issues.some(issue => issue.partId === 'sleeve' && issue.reason.includes('Unknown')), 'Unknown saved ID silently ignored');
   check(issues.some(issue => issue.partId === 'inside' && issue.reason.includes('reverse')), 'Missing reverse source silently ignored');

@@ -1,0 +1,175 @@
+{
+  "sourceTraceUnchanged": true,
+  "constructionInkUnchanged": true,
+  "partsUnchanged": true,
+  "allTwentyRegionsUnchanged": true,
+  "sourceBounds": [
+    507,
+    278,
+    519,
+    839
+  ],
+  "retainedPixelBounds": [
+    507,
+    284,
+    518,
+    832
+  ],
+  "excludedRowRangesHalfOpen": [
+    [
+      278,
+      284
+    ],
+    [
+      301,
+      318
+    ],
+    [
+      415,
+      428
+    ],
+    [
+      778,
+      797
+    ],
+    [
+      832,
+      839
+    ]
+  ],
+  "reviewStatus": "needs-review",
+  "coverage": "partial-review-proposal",
+  "provenance": {
+    "method": "bounded-original-vector-ink-clip-v1",
+    "traceSha256": "ed12693f2353035038fe1b77da388181a0d81075932a4bb8cbc54a5639e3c4a1",
+    "constructionInkSha256": "2c6f0462401d1ca763db4acb9a9573c04685863c9361a28e80832622575fb09f",
+    "ownershipSha256": "62fc33c0f64711eba52f1d199538e9443c477ac2bee014b0ddc4cff48faf2a10",
+    "sourceWidth": 1024,
+    "sourceHeight": 1024,
+    "sourcePartIds": [
+      "front-3523b0e0dfa8-source-ink"
+    ],
+    "localizedPixelCount": 5011,
+    "ownedPixelCount": 4395,
+    "withheldPixelCount": 616,
+    "junctionGuardPixels": 2,
+    "excludedJunctionRows": [
+      278,
+      279,
+      280,
+      281,
+      282,
+      283,
+      301,
+      302,
+      303,
+      304,
+      305,
+      306,
+      307,
+      308,
+      309,
+      310,
+      311,
+      312,
+      313,
+      314,
+      315,
+      316,
+      317,
+      415,
+      416,
+      417,
+      418,
+      419,
+      420,
+      421,
+      422,
+      423,
+      424,
+      425,
+      426,
+      427,
+      778,
+      779,
+      780,
+      781,
+      782,
+      783,
+      784,
+      785,
+      786,
+      787,
+      788,
+      789,
+      790,
+      791,
+      792,
+      793,
+      794,
+      795,
+      796,
+      832,
+      833,
+      834,
+      835,
+      836,
+      837,
+      838
+    ],
+    "externalGeometryUsed": false,
+    "originalVectorsReused": true,
+    "automaticOwnershipProven": false
+  },
+  "rasterChecks": [
+    {
+      "size": 1024,
+      "binaryOwnership": true,
+      "alphaMatchesOriginal": true,
+      "whiteMaskMatchesInk": true,
+      "recomposedAlphaIdentical": true
+    },
+    {
+      "size": 2048,
+      "binaryOwnership": true,
+      "alphaMatchesOriginal": true,
+      "whiteMaskMatchesInk": true,
+      "recomposedAlphaIdentical": true
+    }
+  ],
+  "sourcePlacement": {
+    "method": "owned-ink-endpoint-row-centroids-v1",
+    "extent": "owned-ink-only",
+    "coordinateFrame": "normalized-canvas",
+    "canvasSize": 2048,
+    "start": [
+      0.5009765625,
+      0.27783203125
+    ],
+    "end": [
+      0.5,
+      0.81201171875
+    ],
+    "width": 0.0107421875,
+    "sourcePixels": {
+      "start": [
+        513.0,
+        284.5
+      ],
+      "end": [
+        512.0,
+        831.5
+      ],
+      "width": 11
+    },
+    "fullClosureExtentVerified": false
+  },
+  "conversion": {
+    "defaultMode": "preserve-original",
+    "requiresExplicitOptIn": true,
+    "status": "requires-complete-source-review",
+    "canHideWholeOriginal": false,
+    "sourceRemovalSvgField": "ownershipSvg",
+    "reason": "This proposal owns partial visible ink, not a verified full zipper. Confirm complete pull, stopper and junction ownership and full endpoints before full-editor conversion."
+  }
+}

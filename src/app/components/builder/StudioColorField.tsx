@@ -1,18 +1,30 @@
 import { Palette } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState, type DragEvent } from 'react';
 import { cn } from '../ui/utils';
 import { Input } from '../ui/input';
 import { AdvancedColorPopover } from './AdvancedColorPopover';
 import { normalizeHex6 } from '../../lib/colorUtils';
 
+function dragColour(event: DragEvent<HTMLButtonElement>, colour: string) {
+  const hex = normalizeHex6(colour, '');
+  if (!hex) {
+    event.preventDefault();
+    return;
+  }
+  event.dataTransfer.setData('application/x-ceriga-material', JSON.stringify({ kind: 'colour', colour: hex }));
+  event.dataTransfer.effectAllowed = 'copy';
+}
+
 function PresetGrid({
   colors,
   selected,
   onSelect,
+  instructionId,
 }: {
   colors: readonly string[];
   selected: string;
   onSelect: (hex: string) => void;
+  instructionId: string;
 }) {
   return (
     <div
@@ -22,13 +34,18 @@ function PresetGrid({
       )}
     >
       {colors.map((color) => {
-        const norm = normalizeHex6(color);
+        const norm = normalizeHex6(color, '');
+        if (!norm) return null;
         const active = normalizeHex6(selected) === norm;
         return (
           <button
             key={color}
             type="button"
             onClick={() => onSelect(norm)}
+            draggable
+            onDragStart={(event) => dragColour(event, norm)}
+            aria-describedby={instructionId}
+            title={`Drag colour ${norm} onto a garment part`}
             onPointerDown={(e) => e.stopPropagation()}
             className={cn(
               'aspect-square w-full min-w-0 rounded-lg border transition-all active:scale-[0.97]',
@@ -68,6 +85,7 @@ export function StudioColorField({
   clearLabel?: string;
   clearVisible?: boolean;
 }) {
+  const instructionId = useId();
   const hex = normalizeHex6(value);
   const [hexDraft, setHexDraft] = useState(hex);
 
@@ -87,6 +105,10 @@ export function StudioColorField({
             type="button"
             className="group relative aspect-square w-[3.25rem] shrink-0 overflow-hidden rounded-xl border border-white/18 bg-black/30 shadow-inner transition hover:border-white/32 sm:aspect-[5/3] sm:w-[5.5rem]"
             aria-label="Open colour picker"
+            draggable={!!normalizeHex6(value, '')}
+            onDragStart={(event) => dragColour(event, value)}
+            aria-describedby={instructionId}
+            title={`Drag colour ${hex} onto a garment part, or click to open the picker`}
           >
             <span className="absolute inset-0" style={{ backgroundColor: hex }} aria-hidden />
             <span
@@ -117,13 +139,15 @@ export function StudioColorField({
 
       <div>
         <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{mainLabel}</div>
-        <PresetGrid colors={mainColors} selected={hex} onSelect={onChange} />
+        <PresetGrid colors={mainColors} selected={hex} onSelect={onChange} instructionId={instructionId} />
       </div>
 
       <div>
         <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{popularLabel}</div>
-        <PresetGrid colors={popularColors} selected={hex} onSelect={onChange} />
+        <PresetGrid colors={popularColors} selected={hex} onSelect={onChange} instructionId={instructionId} />
       </div>
+
+      <p id={instructionId} className="text-[9px] leading-relaxed text-white/40">Click a swatch to apply, or drag and drop it onto a garment part.</p>
 
       {onClear && clearVisible ? (
         <button

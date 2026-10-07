@@ -1,11 +1,15 @@
 import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
+import { importedZipClosures, isolatedZipSvg, maskImportedZipInk } from './importedClosures';
+import type { GarmentDetail } from './garmentDetails';
+import { constructionRegionSvg, constructionRegionsForView, isConstructionInk, normalizeConstructionRegions, type ConstructionRegions } from './importedConstructionRegions';
+export type { ConstructionCandidate, ConstructionRegion, ConstructionRegions, ConstructionSeam } from './importedConstructionRegions';
 import { deriveImportedMeasurementSchema } from './importedGarmentMeasurements';
 import { importedNeckBackingLayer } from './importedGarmentNeckBacking';
 import { importedColourPanels, importedColourParts } from './importedGarmentColourPanels';
 
 export type ImportedGarmentView = 'front' | 'back';
 export type ImportedPoint = [number, number];
-export const importedRegionTypes = ['panel', 'waistband', 'pocket', 'flap', 'fly', 'belt-loop', 'hem', 'button', 'rivet', 'zip', 'label', 'decoration', 'body', 'sleeve', 'cuff', 'collar', 'neckband', 'hood', 'yoke', 'placket', 'skirt', 'lining'] as const;
+export const importedRegionTypes = ['panel', 'waistband', 'pocket', 'flap', 'fly', 'belt-loop', 'hem', 'button', 'rivet', 'zip', 'label', 'decoration', 'body', 'sleeve', 'cuff', 'collar', 'neckband', 'hood', 'yoke', 'placket', 'skirt', 'lining', 'drawstring'] as const;
 export type ImportedRegionType = typeof importedRegionTypes[number];
 export const importedBuilderCategories = {
   'fabric-colour': { title: 'Fabric & Colour', step: 2 },
@@ -40,8 +44,12 @@ export interface ImportedRegion {
   builderCategory?: keyof typeof importedBuilderCategories;
   userFacingName?: string;
   colourGroup?: string;
+  fabricGroup?: string;
   measurementRole?: string;
   editableIndependently?: boolean;
+  /** Default appearance source only; estimated rear geometry remains independently editable. */
+  estimatedFromPartId?: string;
+  inferenceLevel?: 'essential' | 'likely';
   view?: ImportedGarmentView;
 }
 export type ImportedInputType = 'auto' | 'photo' | 'trace-only';
@@ -61,6 +69,7 @@ export interface ImportedTracePreview {
   metrics: Record<string, unknown>;
 }
 export interface ImportedViewMetadata {
+  constructionRegions?: ConstructionRegions;
   processingMode?: 'photo' | 'trace-only';
   inputDetection?: ImportedInputDetection;
   tracePreview?: ImportedTracePreview;
@@ -75,7 +84,8 @@ export interface ImportedViewMetadata {
   /** Explicit user-requested geometry estimate, never an observed/source-backed view. */
   inference?: {
     kind: 'estimated-back';
-    method: 'conservative-outline-v1';
+    method: 'conservative-outline-v1' | 'essential-construction-v2' | 'structured-front-v3';
+    structure?: import('./importedGarmentBackStructure').BackStructureReport;
     basedOnView: 'front';
     notice: string;
     limitations: string[];
@@ -177,6 +187,7 @@ export type ImportedGarmentSize = typeof importedGarmentSizes[number];
 export type ImportedSizeMeasurements = Partial<Record<ImportedGarmentView, Record<string, Partial<Record<ImportedGarmentSize, number>>>>>;
 
 export interface ImportedGarment {
+  constructionRegions?: ConstructionRegions;
   source: 'azure-garment-reconstruction-v1';
   processingMode?: 'photo' | 'trace-only';
   inputDetection?: ImportedInputDetection;
@@ -215,19 +226,45 @@ export function isImportedHardware(part: ImportedRegion): boolean {
     part.semanticType === 'panel' && /\b(hardware|metalware|metal ware|buckles?|clasps?|sliders?|adjusters?|rings?|eyelets?|grommets?|hooks?|snaps?|fasteners?|fastenings?|zippers?)\b/.test(`${part.structuralRole ?? ''} ${part.measurementRole ?? ''}`.toLowerCase().replace(/[_-]/g, ' '));
 }
 
-export function importedGarmentLayers(garment: ImportedGarment, view: 'front' | 'back', colors?: Partial<Record<string, string>>): ResolvedGarmentLayer[] {
+export function importedPartColor(part: ImportedPart, colors?: Partial<Record<string, string>>): string {
+  return colors?.[part.id] ?? (part.estimatedFromPartId ? colors?.[part.estimatedFromPartId] : undefined) ?? part.color;
+}
+
+export function importedGarmentLayers(garment: ImportedGarment, view: 'front' | 'back', colors?: Partial<Record<string, string>>, details: GarmentDetail[] = []): ResolvedGarmentLayer[] {
+  const zips = importedZipClosures(garment, view).filter(zip => zip.status === 'reviewed');
+  const converted = new Set(details.filter(detail => (detail.view ?? 'front') === view && !detail.hidden && detail.type === 'zip').map(detail => detail.importedClosureId));
   const panels = importedColourPanels(garment);
+  const regions = constructionRegionsForView(garment, view)?.regions.filter(region => region.view === view) ?? [];
+  const fabricRegions = new Map(regions.filter(region => {
+    const part = garment.parts.find(part => part.view === view && part.id === region.id);
+    return part?.colorable && !isConstructionInk(part) && !isImportedHardware(part) && !region.decorative &&
+      !['button', 'rivet', 'zip', 'label', 'decoration', 'drawstring'].includes(region.semanticType) && !['label', 'decoration', 'drawstring'].includes(part.semanticType);
+  }).map(region => [region.id, region]));
   const layers: ResolvedGarmentLayer[] = garment.parts.filter(part => part.view === view).map(part => {
     const stitches = { visible: true, color: '#b09c72', weight: 1, ...garment.stitches, ...garment.stitchOverrides?.[part.id] };
+    const region = fabricRegions.get(part.id);
+    const editableRegion = !isConstructionInk(part) && part.colorable && regions.find(region => region.id === part.id);
+    const linkedFabricGroup = region?.fabricGroupId && [...fabricRegions.values()].some(other => other.id !== region.id && other.fabricGroupId === region.fabricGroupId);
     return {
       id: part.id, assetId: `${garment.provenance.garmentVersion}:${part.id}`, category: part.semanticType,
-      displayName: part.name, svgRaw: part.svg, kind: 'solid', zIndex: part.layerOrder,
-      tint: part.colorable ? colors?.[part.id] ?? part.color : part.color,
-      colourPanels: panels.filter(panel => panel.partId === part.id).map(panel => ({ id: panel.id, svgRaw: panel.svg, tint: colors?.[panel.id] ?? colors?.[part.id] ?? part.color })),
-      constructionSvg: part.constructionSvg, stitchSvg: stitches.visible ? part.stitchSvg : undefined,
+      displayName: part.name, svgRaw: isConstructionInk(part) ? maskImportedZipInk(part.svg, zips) : editableRegion ? constructionRegionSvg(editableRegion.path) : part.svg, kind: 'solid', zIndex: part.layerOrder,
+      tint: isConstructionInk(part) ? undefined : part.colorable ? importedPartColor(part, colors) : part.color,
+      ...(region ? { fabricRegion: { role: region.semanticType,
+        ...(part.estimatedFromPartId ? { defaultFromId: part.estimatedFromPartId } : {}),
+        ...(linkedFabricGroup ? { group: region.fabricGroupId } : {}),
+        ...(['lining', 'inner'].includes(region.semanticType) || /\binner\b/.test((part.structuralRole ?? '').replace(/[_-]/g, ' ')) ? { interior: true } : {}),
+      } } : {}),
+      colourPanels: isConstructionInk(part) ? [] : panels.filter(panel => panel.partId === part.id).map(panel => ({ id: panel.id, svgRaw: panel.svg, tint: colors?.[panel.id] ?? importedPartColor(part, colors) })),
+      constructionSvg: isConstructionInk(part) && part.constructionSvg ? maskImportedZipInk(part.constructionSvg, zips) : part.constructionSvg, stitchSvg: stitches.visible ? part.stitchSvg : undefined,
       stitchColor: stitches.color, stitchWeight: stitches.weight,
-      washable: part.structuralRole !== 'source-ink' && (garment.manifest[part.view === 'front' ? 'frontView' : 'backView']?.processingMode ?? garment.processingMode) !== 'trace-only' && !isImportedHardware(part) && !['label', 'decoration'].includes(part.semanticType),
+      washable: part.structuralRole !== 'source-ink' && ((garment.manifest[part.view === 'front' ? 'frontView' : 'backView']?.processingMode ?? garment.processingMode) !== 'trace-only' || Boolean(constructionRegionsForView(garment, part.view)?.regions.some(region => region.id === part.id && region.editableIndependently && !region.decorative))) && !isImportedHardware(part) && !['label', 'decoration', 'drawstring'].includes(part.semanticType),
     };
+  });
+  const zipInk = constructionRegionsForView(garment, view)?.constructionInk;
+  if (zipInk) for (const zip of zips.filter(zip => !converted.has(zip.id))) layers.push({
+    id: zip.id, assetId: `${garment.provenance.garmentVersion}:${zip.id}`, category: 'zip', displayName: zip.label,
+    svgRaw: isolatedZipSvg(zipInk, zip), kind: 'detail', zIndex: Math.max(0, ...garment.parts.map(part => part.layerOrder)) + 1,
+    tint: colors?.[zip.id] ?? '#141414', washable: false,
   });
   const backing = importedNeckBackingLayer(garment, view, colors);
   if (backing) layers.unshift(backing);
@@ -242,12 +279,19 @@ export function importedGarmentLayers(garment: ImportedGarment, view: 'front' | 
 }
 
 export function recolorImportedParts(garment: ImportedGarment, id: string, color: string, scope: 'part' | 'symmetry' | 'material' | 'group', previous: Partial<Record<string, string>> = {}) {
+  if ((['front', 'back'] as const).some(view => importedZipClosures(garment, view).some(zip => zip.id === id && zip.status === 'reviewed'))) return { ...previous, [id]: color };
   const parts = [...garment.parts, ...importedColourParts(garment).filter(part => !garment.parts.some(original => original.id === part.id))];
   const selected = parts.find(part => part.id === id);
-  if (!selected?.colorable) return previous;
-  const targets = parts.filter(part => part.colorable &&
-    (part.id === id || scope === 'group' && !selected.editableIndependently && !part.editableIndependently &&
-      Boolean(selected.colourGroup) && selected.colourGroup === part.colourGroup && constructionRole(selected) === constructionRole(part) ||
+  if (!selected?.colorable || isConstructionInk(selected)) return previous;
+  const regions = constructionRegionsForView(garment, selected.view)?.regions.filter(region => region.view === selected.view) ?? [];
+  const semantic = regions.find(region => region.id === id);
+  const sharesColourGroup = (part: ImportedPart) => {
+    if (semantic) return Boolean(semantic.colourGroupId) && regions.some(region => region.id === part.id && region.colourGroupId === semantic.colourGroupId);
+    return !selected.editableIndependently && !part.editableIndependently && Boolean(selected.colourGroup) &&
+      selected.colourGroup === part.colourGroup && constructionRole(selected) === constructionRole(part);
+  };
+  const targets = parts.filter(part => part.colorable && !isConstructionInk(part) && (!semantic || part.view === selected.view) &&
+    (part.id === id || scope === 'group' && sharesColourGroup(part) ||
       scope === 'symmetry' && selected.symmetryPartner === part.id || scope === 'material' && selected.material === part.material));
   const children = importedColourPanels(garment).filter(panel => targets.some(part => part.id === panel.partId));
   return { ...previous, ...Object.fromEntries([...targets, ...children].map(part => [part.id, color])) };
@@ -266,9 +310,13 @@ export function importedControlGroups(garment: ImportedGarment, colourControls =
   const groups = new Map<string, { id: string; name: string; category: keyof typeof importedBuilderCategories; parts: ImportedPart[]; details: ImportedConstructionDetail[] }>();
   if (garment.constructionVersion !== 2) return [];
   for (const part of colourControls ? importedColourParts(garment, colors) : garment.parts) {
+    if (isConstructionInk(part)) continue;
     const category = part.builderCategory ?? 'custom-details';
-    const name = part.editableIndependently ? part.name : part.userFacingName ?? part.name;
-    const id = `${category}:${name}`;
+    const region = colourControls ? constructionRegionsForView(garment, part.view)?.regions.find(region => region.id === part.id) : undefined;
+    const name = region?.semanticType === 'lining' && category === 'neck-hood' ? 'Inner hood'
+      : region?.semanticType === 'hem' && !part.estimatedFromPartId ? 'Bottom hem'
+      : part.editableIndependently ? part.name : part.userFacingName ?? part.name;
+    const id = region?.colourGroupId ? `${part.view}:${category}:${region.colourGroupId}` : `${category}:${name}`;
     const group = groups.get(id) ?? { id, name, category, parts: [], details: [] };
     group.parts.push(part);
     groups.set(id, group);
@@ -286,10 +334,17 @@ export function importedControlGroups(garment: ImportedGarment, colourControls =
 
 export function canAcceptImportedConstruction(garment: ImportedGarment) {
   return garment.constructionVersion === 2 && garment.parts.some(part => part.layerKind === 'structural') &&
-    garment.parts.every(part => part.boundary && Number.isFinite(part.boundary.confidence) &&
-          (part.boundary.confidence >= .8 || part.view === 'back' && garment.manifest.backView?.inference?.kind === 'estimated-back' && part.boundary.confidence > 0) &&
-          part.boundary.evidence.trim() && part.layerKind && part.builderCategory && part.outline?.length &&
-      (!['button', 'rivet', 'zip'].includes(part.semanticType) || part.layerKind === 'detail'));
+    garment.parts.every(part => {
+      const construction = constructionRegionsForView(garment, part.view);
+      const region = construction?.version === 1 && construction.constructionInk?.trim() &&
+        construction.regions.find(region => region.id === part.id && region.view === part.view && region.path?.trim() &&
+          Number.isFinite(region.confidence) && region.confidence > 0 && region.confidence <= 1);
+      return part.boundary && Number.isFinite(part.boundary.confidence) &&
+        (part.boundary.confidence >= .8 || Boolean(region) && part.boundary.confidence > 0 ||
+          part.view === 'back' && garment.manifest.backView?.inference?.kind === 'estimated-back' && part.boundary.confidence > 0) &&
+        part.boundary.evidence.trim() && part.layerKind && part.builderCategory && part.outline?.length &&
+        (!['button', 'rivet', 'zip'].includes(part.semanticType) || part.layerKind === 'detail');
+    });
 }
 
 /** A declared view without reconstructed parts is not an available view. */
@@ -320,12 +375,26 @@ function categoryForPart(part: ImportedPart): keyof typeof importedBuilderCatego
 
 /** Derive editable metadata from reconstructed geometry without changing source evidence or copying views. */
 export function normalizeImportedGarment(garment: ImportedGarment): ImportedGarment {
-  const parts = garment.parts.map(part => ({ ...part,
-    layerKind: part.layerKind ?? (part.structural ? 'structural' : 'detail'),
-    builderCategory: part.builderCategory ?? categoryForPart(part),
-    colourGroup: part.colourGroup ?? (part.editableIndependently ? part.id : `${constructionRole(part)}:${part.material}`),
-  } satisfies ImportedPart));
-  const normalized: ImportedGarment = { ...garment, parts, partCount: parts.length };
+  const constructionByView = Object.fromEntries((['front', 'back'] as const).map(view => {
+    const data = constructionRegionsForView(garment, view);
+    return [view, data ? normalizeConstructionRegions(data) : undefined];
+  })) as Partial<Record<ImportedGarmentView, ConstructionRegions>>;
+  const parts = garment.parts.map(part => {
+    if (isConstructionInk(part)) return part;
+    const region = constructionByView[part.view]?.regions.find(region => region.id === part.id && region.view === part.view);
+    return { ...part,
+      layerKind: part.layerKind ?? (part.structural ? 'structural' : 'detail'),
+      builderCategory: region?.builderCategory ?? part.builderCategory ?? categoryForPart(part),
+      colourGroup: region?.colourGroupId ?? part.colourGroup ?? (part.editableIndependently ? part.id : `${constructionRole(part)}:${part.material}`),
+      ...(region ? { name: region.label, userFacingName: region.label, semanticType: region.semanticType,
+        svg: region.editableIndependently && !region.decorative ? constructionRegionSvg(region.path) : part.svg,
+        fabricGroup: region.fabricGroupId, symmetryPartner: region.mirroredPairId, attachmentTo: region.parentRegionId,
+        editableIndependently: region.editableIndependently, layerOrder: region.zIndex,
+        colorable: region.editableIndependently && !region.decorative && !['decoration', 'label'].includes(region.semanticType),
+        ...(isImportedHardware({ ...part, semanticType: region.semanticType }) ? { layerKind: 'detail' as const, structural: false } : {}) } : {}),
+    } satisfies ImportedPart;
+  });
+  const normalized: ImportedGarment = { ...garment, parts, partCount: parts.length, constructionRegions: constructionByView[garment.manifest.view] };
   const views = (['front', 'back'] as const).filter(view => hasImportedGarmentView(normalized, view));
   normalized.sourceImages = Object.fromEntries(views.filter(view => !garment.manifest[view === 'front' ? 'frontView' : 'backView']?.inference).map(view => [view, garment.sourceImages?.[view] ||
     garment.manifest[view === 'front' ? 'frontView' : 'backView']?.sourceImage || (view === garment.manifest.view ? garment.sourceImage : '')]));
@@ -339,7 +408,7 @@ export function normalizeImportedGarment(garment: ImportedGarment): ImportedGarm
       processingMode: garment.processingMode ?? garment.manifest[view === 'front' ? 'frontView' : 'backView']?.processingMode,
       inputDetection: garment.inputDetection ?? garment.manifest[view === 'front' ? 'frontView' : 'backView']?.inputDetection,
       tracePreview: garment.tracePreview ?? garment.manifest[view === 'front' ? 'frontView' : 'backView']?.tracePreview,
-    } : {}), view, sourceImage: normalized.sourceImages?.[view],
+    } : {}), view, sourceImage: normalized.sourceImages?.[view], constructionRegions: constructionByView[view],
     partIds: parts.filter(part => part.view === view).map(part => part.id),
     detailLayerIds: (garment.detailLayers ?? []).filter(detail => detail.view === view).map(detail => detail.id),
   } : undefined;
@@ -347,7 +416,7 @@ export function normalizeImportedGarment(garment: ImportedGarment): ImportedGarm
   const symmetryGroups = new Map<string, ImportedPartGroup>();
   for (const part of parts) {
     if (part.colorable) {
-      const id = `${part.editableIndependently ? part.id : constructionRole(part)}:${part.colourGroup}:${part.material}`;
+      const id = constructionByView[part.view]?.regions.some(region => region.id === part.id) ? part.colourGroup! : `${part.editableIndependently ? part.id : constructionRole(part)}:${part.colourGroup}:${part.material}`;
       const group = colourGroups.get(id) ?? { id, partIds: [], role: constructionRole(part), material: part.material };
       group.partIds.push(part.id);
       colourGroups.set(id, group);
@@ -362,7 +431,7 @@ export function normalizeImportedGarment(garment: ImportedGarment): ImportedGarm
   normalized.manifest = { ...garment.manifest, views, frontView: viewMetadata('front'), backView: viewMetadata('back'),
     regions: parts, structuralParts: parts.filter(part => part.layerKind === 'structural').map(part => part.id),
     detailLayers: (garment.detailLayers ?? []).map(detail => detail.id),
-    builderCategories: [...new Set([...parts.map(part => part.builderCategory), ...(garment.detailLayers ?? []).map(detail => detail.builderCategory)])],
+    builderCategories: [...new Set([...parts.filter(part => !isConstructionInk(part)).map(part => part.builderCategory), ...(garment.detailLayers ?? []).map(detail => detail.builderCategory)])],
     colourGroups: [...colourGroups.values()], symmetryGroups: [...symmetryGroups.values()],
     measurementSchema: deriveImportedMeasurementSchema(normalized),
   };
@@ -401,10 +470,16 @@ export function mergeImportedGarmentView(existing: ImportedGarment, incoming: Im
     ...(existing.sourceManifest[view === 'front' ? 'frontView' : 'backView']?.partIds ?? []),
   ]);
   const regionView = (region: ImportedRegion) => region.view;
-  const incomingRegions = incoming.sourceManifest.regions.filter(region => regionView(region) === view || incomingIds.has(region.id) ||
-    !regionView(region) && incoming.manifest.view === view && !incoming.parts.some(part => part.id === region.id && part.view !== view))
+  // Legacy source IDs predate segmentation and may not match any editable part ID.
+  const sourceRegionView = (garment: ImportedGarment, region: ImportedRegion): ImportedGarmentView => region.view ??
+    (['front', 'back'] as const).find(candidate => garment.sourceManifest[candidate === 'front' ? 'frontView' : 'backView']?.partIds?.includes(region.id)) ??
+    garment.parts.find(part => part.id === region.id)?.view ??
+    garment.detailLayers?.find(detail => detail.id === region.id)?.view ?? garment.sourceManifest.view;
+  const incomingRegions = incoming.sourceManifest.regions.filter(region => sourceRegionView(incoming, region) === view)
     .map(region => ({ ...region, view }));
-  const sourceRegions = [...existing.sourceManifest.regions.filter(region => regionView(region) !== view && !replacedIds.has(region.id)), ...incomingRegions];
+  const sourceRegions = [...existing.sourceManifest.regions
+    .map(region => ({ ...region, view: sourceRegionView(existing, region) }))
+    .filter(region => region.view !== view && !replacedIds.has(region.id)), ...incomingRegions];
   if (new Set(sourceRegions.map(region => region.id)).size !== sourceRegions.length)
     throw new Error('Cannot merge colliding source-region IDs; imports must use unique view-namespaced IDs.');
   const metadata = (garment: ImportedGarment, selectedView: ImportedGarmentView): ImportedViewMetadata => {
@@ -438,7 +513,7 @@ export function mergeImportedGarmentView(existing: ImportedGarment, incoming: Im
       ...(hasImportedGarmentView(existing, otherView) ? { [otherKey]: metadata(existing, otherView) } : {}),
       uncertainties: [...new Set([...existing.manifest.uncertainties.filter(note => note !== replacedInferenceNotice), ...incoming.manifest.uncertainties])] },
     sourceManifest: { ...existing.sourceManifest, regions: sourceRegions, [viewKey]: metadata(incoming, view) },
-    ...(primaryReplaced ? { processingMode: incomingViewMetadata.processingMode, inputDetection: incomingViewMetadata.inputDetection,
+    ...(primaryReplaced ? { constructionRegions: incomingViewMetadata.constructionRegions, processingMode: incomingViewMetadata.processingMode, inputDetection: incomingViewMetadata.inputDetection,
       tracePreview: incomingViewMetadata.tracePreview, sourceImage: incomingViewMetadata.sourceImage ?? '', cleanDrawing: incomingViewMetadata.cleanDrawing ?? '',
       lineArtSvg: incomingViewMetadata.lineArtSvg ?? '', stitchSvg: incomingViewMetadata.stitchSvg ?? '',
       provenance: incomingViewMetadata.provenance ?? { ...incoming.provenance, sourceImageHash: incomingViewMetadata.sourceImageHash ?? '' } } : {}),

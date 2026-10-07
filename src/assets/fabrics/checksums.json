@@ -2,7 +2,9 @@
   {
     "fabricPresetId": "single-jersey",
     "sourceSha256": "7596056deda8f1a8d5a65278a9918131e6fa28d2268685c289a12897503baadc",
-    "outputSha256": "f4951292501acb1cbc41b9507c36134370b528907ae49736ceabd71ddd28e56a"
+    "outputSha256": "f4951292501acb1cbc41b9507c36134370b528907ae49736ceabd71ddd28e56a",
+    "reverseFile": "procedural/single-jersey-reverse.png",
+    "reverseSha256": "31e6113835df0fcaf3587c3e21d18eadd604176a982dae6caece018dbd95f078"
   },
   {
     "fabricPresetId": "interlock-jersey",
@@ -75,6 +77,8 @@
   {
     "fabricPresetId": "denim-twill",
     "sourceSha256": "4a1d34077a5c999f590a31a056be5f70edac19f254b6d970e41942b335788575",
-    "outputSha256": "d0f6fdfba3284c1421c7ea3a3eceed3ac2a032f12b5a5e88cb8d55a38065aaa7"
+    "outputSha256": "d0f6fdfba3284c1421c7ea3a3eceed3ac2a032f12b5a5e88cb8d55a38065aaa7",
+    "reverseFile": "procedural/denim-twill-reverse.png",
+    "reverseSha256": "fe6b46b61337f3eb89de3f3166b90859be33fb058227ba591dfc17183e58c793"
   }
 ]

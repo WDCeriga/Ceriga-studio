@@ -1,5 +1,5 @@
 import manifest from '../../assets/fabrics/sources.json';
-import { FABRIC_LIBRARY, type FabricAssignments, type FabricPart, type FabricTextureType, type GarmentFabric } from '../data/garmentFabrics';
+import { FABRIC_LIBRARY, resolvePartMaterial, type FabricAssignments, type FabricPart, type FabricTextureType, type GarmentFabric } from '../data/garmentFabrics';
 
 export type FabricSourceType = 'scan-cc0' | 'scan-ccby' | 'ceriga-owned' | 'procedural';
 export type FabricSourceStatus = 'verified' | 'review-required' | 'unresolved';
@@ -20,7 +20,13 @@ export interface FabricSourceRecord {
     ownership?: { owner: string; redistributionPermission: string };
   };
   procedural?: { generator: string; version: number; recipe: string; seed: number };
-  reverse?: { normalizedFile: string; normalizedSha256: string; description: string };
+  reverse?: {
+    normalizedFile: string; normalizedSha256: string; description: string;
+    sourceType?: FabricSourceType;
+    sourceStatus?: FabricSourceStatus;
+    license?: string;
+    procedural?: { generator: string; version: number; recipe: string; seed: number };
+  };
 }
 interface MaterialRule {
   family: string;
@@ -91,6 +97,15 @@ export function validateFabricSources(records: readonly FabricSourceRecord[], id
     const keys = [`asset:${source.provider}:${source.assetId}`, `path:${source.originalFile}`, `path:${source.normalizedFile}`, `hash:${source.sourceSha256}`, `hash:${source.normalizedSha256}`];
     if (record.reverse) {
       if (!record.reverse.description.trim() || !record.reverse.normalizedFile.trim() || !/^[a-f0-9]{64}$/.test(record.reverse.normalizedSha256)) throw new Error('Incomplete reverse material provenance');
+      const reverse = record.reverse;
+      if (reverse.sourceType !== undefined || reverse.sourceStatus !== undefined || reverse.procedural !== undefined || reverse.license !== undefined) {
+        const recipe = reverse.procedural;
+        if (reverse.sourceType !== 'procedural' || !['review-required', 'verified'].includes(reverse.sourceStatus ?? '')
+          || reverse.license !== 'LicenseRef-Ceriga-Authored' || !recipe?.generator.trim() || !recipe.recipe.trim()
+          || !Number.isInteger(recipe.version) || recipe.version < 1 || !Number.isInteger(recipe.seed)) {
+          throw new Error('Incomplete independently authored reverse provenance');
+        }
+      }
       keys.push(`path:${record.reverse.normalizedFile}`, `hash:${record.reverse.normalizedSha256}`);
     }
     for (const key of keys) {
@@ -108,15 +123,13 @@ export function fabricSourceRecord(fabric: GarmentFabric): FabricSourceRecord {
 
 export function fabricAssignmentIssues(parts: readonly FabricPart[], value?: FabricAssignments) {
   return parts.flatMap(part => {
-    const ownId = value?.assignments[part.id];
-    const id = ownId ?? (part.parentId ? value?.assignments[part.parentId] : undefined);
+    const { fabric, fabricId: id, interior } = resolvePartMaterial(value, part, parts);
     if (!id) return [];
-    const fabric = FABRIC_LIBRARY.find(candidate => candidate.id === id);
     const record = fabric && fabricSourceRecord(fabric);
     const reason = !fabric ? 'Unknown saved fabric ID.'
       : record?.sourceStatus === 'unresolved' ? record.reason
-      : part.interior && !record?.reverse ? 'No dedicated reverse-side texture source.'
-      : !fabricScanSurface(fabric, part.interior) ? 'Registered texture map unavailable.' : undefined;
+      : interior && !record?.reverse ? 'No dedicated reverse-side texture source.'
+      : !fabricScanSurface(fabric, interior) ? 'Registered texture map unavailable.' : undefined;
     if (!reason) return [];
     return [{ partId: part.id, partLabel: part.label, fabricId: id, fabricName: fabric?.name ?? id, reason }];
   });
@@ -136,7 +149,8 @@ export function fabricScanSurface(fabric: GarmentFabric, interior = false) {
   const image = images[`../../assets/fabrics/${filename}`];
   if (!image) throw new Error(`Registered source has no bundled map: ${fabric.id} ${filename}`);
   const material = fabricMaterial(fabric);
-  return { image, source: `${record.source.assetId}${interior ? '-reverse' : ''}`, sourceType: record.sourceType,
-    sourceStatus: record.sourceStatus, repeat: material.textureScale / material.tilingDensity,
+  const reverse = interior ? record.reverse : undefined;
+  return { image, source: reverse?.sourceType ? `ceriga-${fabric.id}-reverse-v${reverse.procedural?.version}` : `${record.source.assetId}${interior ? '-reverse' : ''}`, sourceType: reverse?.sourceType ?? record.sourceType,
+    sourceStatus: reverse?.sourceStatus ?? record.sourceStatus, repeat: material.textureScale / material.tilingDensity,
     opacity: material.textureOpacity * material.contrast, brightnessCorrection: material.brightnessCorrection, rotation: material.rotation };
 }

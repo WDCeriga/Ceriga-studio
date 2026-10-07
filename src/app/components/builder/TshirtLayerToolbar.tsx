@@ -12,6 +12,7 @@ export function TshirtLayerToolbar({
   selectedAssetName,
   garmentType,
   onResetTransform,
+  locked = true,
   onClearSelection,
   className,
 }: {
@@ -19,6 +20,7 @@ export function TshirtLayerToolbar({
   selectedAssetName?: string;
   garmentType?: GarmentSvgGarmentType;
   onResetTransform: () => void;
+  locked?: boolean;
   onClearSelection: () => void;
   className?: string;
 }) {
@@ -51,7 +53,7 @@ export function TshirtLayerToolbar({
         <>
           <div className="h-3.5 w-px shrink-0 bg-white/15" />
 
-          <button
+          {!locked && <button
             type="button"
             title="Reset position & scale"
             onClick={onResetTransform}
@@ -59,7 +61,7 @@ export function TshirtLayerToolbar({
           >
             <RotateCcw className="h-3 w-3" strokeWidth={2} />
             <span>Reset</span>
-          </button>
+          </button>}
 
           <button
             type="button"

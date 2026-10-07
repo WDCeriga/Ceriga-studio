@@ -1,10 +1,12 @@
 import polygonClipping from 'polygon-clipping';
 import { canAcceptImportedConstruction, hasImportedGarmentView, isImportedHardware, normalizeImportedGarment, type ImportedGarment, type ImportedPart, type ImportedPoint, type ImportedViewMetadata } from './importedGarment';
 import { importedGarmentFamily } from './importedGarmentMeasurements';
+import { constructionRegionCategory, type ConstructionRegions } from './importedConstructionRegions';
+import { structuredBackParts, type BackStructureReport } from './importedGarmentBackStructure';
 
 type Point = ImportedPoint;
 export type EstimatedBackResult = { available: true; garment: ImportedGarment } | { available: false; reason: string };
-export const estimatedBackNotice = 'ESTIMATED back — inferred from front geometry, not observed. Rear construction and fit are unknown; edit or replace with a real back reference.';
+export const estimatedBackNotice = 'ESTIMATED BACK — essential construction inferred from front geometry. Hidden rear details remain unknown. Edit or replace with a real back reference.';
 const emptySvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"></svg>';
 const evidence = 'User-requested estimated rear outline derived from front silhouette; not back-image evidence.';
 const role = (part: ImportedPart) => (part.semanticType === 'panel' ? part.structuralRole || part.measurementRole || 'panel' : part.semanticType).toLowerCase().replace(/[_-]/g, ' ');
@@ -155,14 +157,72 @@ function assembleBody(panels: ImportedPart[], source: ImportedPart[]): Point[] |
   }
 }
 
+const tracedSilhouetteRole = 'estimated source silhouette';
+const resolvedTransform = (part: ImportedPart) => !part.transform || part.transform.x === 0 && part.transform.y === 0 && part.transform.scale === 1 && part.transform.rotation === 0;
+
+/** Semantic fills are inset trace cells, not a partition of the exterior. Use the
+ * original outer contour instead of joining cells or carrying front seams over. */
+function tracedBackGeometry(part: ImportedPart, points: Point[], source: ImportedPart[]): ImportedPart {
+  const result = geometry(part, points);
+  const hood = source.filter(item => item.semanticType === 'hood' && resolvedTransform(item) && item.outline && validOutline(cleanOutline(item.outline)));
+  const neck = hood.length ? hood : source.filter(item => ['neckband', 'collar'].includes(item.semanticType) && resolvedTransform(item) && item.outline && validOutline(cleanOutline(item.outline)));
+  if (!neck.length) return result;
+  const [left, top, right, bottom] = box(neck.flatMap(item => item.outline!));
+  const width = right - left, height = bottom - top;
+  const start: Point = [left + width * .08, hood.length ? bottom - height * .16 : top + height * .15];
+  const end: Point = [right - width * .08, start[1]];
+  const control: Point = [(left + right) / 2, hood.length ? bottom + height * .08 : top + height * .45];
+  const coordinate = (point: Point) => point.map(n => +(n * 2048).toFixed(4)).join(',');
+  // The clipped, open curve is an explicitly estimated neck/hood cue, not a
+  // copied opening, centre seam, lining, drawstring or extra rear panel.
+  const clipId = `rear-neck-${part.id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  result.constructionSvg = result.constructionSvg.replace('</svg>', `<defs><clipPath id="${clipId}"><path d="${path(points)}"/></clipPath></defs><path data-estimated-neck="${hood.length ? 'hood' : 'neck'}" d="M${coordinate(start)}Q${coordinate(control)} ${coordinate(end)}" fill="none" stroke="#172033" stroke-width="2" clip-path="url(#${clipId})"/></svg>`);
+  return result;
+}
+
+function estimateTracedSilhouette(value: ImportedGarment, ink: ImportedPart[], source: ImportedPart[]): EstimatedBackResult {
+  const unavailable = (reason: string): EstimatedBackResult => ({ available: false, reason: `Estimated back unavailable: ${reason}` });
+  if (ink.length !== 1 || !ink[0].outline) return unavailable('a single source exterior outline is required.');
+  const points = cleanOutline(ink[0].outline);
+  if (!validOutline(points)) return unavailable('the source exterior outline is missing, degenerate or intersecting.');
+  if (!resolvedTransform(ink[0])) return unavailable('transformed front ink needs a resolved outline first.');
+  const id = 'estimated-back-1';
+  if (value.parts.some(part => part.id === id)) return unavailable('estimated part IDs conflict with an existing part.');
+  const fabric = source.find(part => part.semanticType === 'body') ?? ink[0];
+  const part = tracedBackGeometry({ ...ink[0], id, view: 'back', name: 'Estimated back silhouette', userFacingName: 'Estimated back silhouette',
+    semanticType: 'body', structuralRole: tracedSilhouetteRole, measurementRole: 'estimated silhouette', material: fabric.material, color: fabric.color,
+    structural: true, layerKind: 'structural', builderCategory: 'fabric-colour', colorable: true, editableIndependently: true,
+    evidence, boundary: { boundaryType: 'silhouette', confidence: .35, evidence }, attachmentTo: null, symmetryPartner: null,
+    colourGroup: id, fabricGroup: id, layerOrder: value.parts.length, transform: { x: 0, y: 0, scale: 1, rotation: 0 },
+  }, points, source);
+  return finishEstimate(value, [part], [
+    'The complete front outer contour is retained as an approximate rear silhouette, including its hood, sleeves, cuffs and hem; semantic fill cells do not define new rear panels.',
+    'A neck or hood curve, where front semantic regions identify one, is an estimated rear cue only. The actual rear neckline, hood drape, seams and fit are unknown.',
+    'All front ink and internal details are omitted. No pockets, hardware, stitching or hidden construction are invented.',
+  ]);
+}
+
 /** Local, opt-in estimation only. It never contacts a provider or mutates the front/source record. */
 export function generateEstimatedBack(value: ImportedGarment): EstimatedBackResult {
   const unavailable = (reason: string): EstimatedBackResult => ({ available: false, reason: `Estimated back unavailable: ${reason}` });
   if (hasImportedGarmentView(value, 'back')) return unavailable('a back view already exists. Upload a real back reference to replace it.');
   if (!canAcceptImportedConstruction(value) || !hasImportedGarmentView(value, 'front')) return unavailable('reviewed structural front outlines are required.');
+  try {
+    const structured = structuredBackParts(value);
+    if (structured) return finishEstimate(value, structured.parts, [
+      'Essential back anatomy is inferred from front component proportions; these are not observed rear seams.',
+      'The technical exterior is simplified and smoothed before shared anatomical cuts. Raw photo texture and front ink are never copied.',
+      'Source-confirmed fabric cuff tabs retain their outlines as separate regions; their rear orientation and fastening mechanism are unobserved.',
+      'Rear pockets, graphics, hidden zips and unsupported decorative panels remain unknown and are omitted.',
+    ], true, structured.report);
+  } catch (error) {
+    return unavailable(error instanceof Error ? error.message : 'essential rear construction could not be generated.');
+  }
+  const source = value.parts.filter(part => part.view === 'front');
+  const ink = source.filter(part => part.structuralRole === 'source-ink');
+  if (ink.length) return estimateTracedSilhouette(value, ink, source);
   const family = importedGarmentFamily(value.manifest.garmentType === 'other' ? value.manifest.subtype : value.manifest.garmentType);
   if (family === 'unknown') return unavailable('this garment family has no conservative rear-outline rule.');
-  const source = value.parts.filter(part => part.view === 'front');
   const excluded = /\b(pocket|flap|fly|placket|button|rivet|zip|label|decoration|belt loop|collar|neckband|yoke|lining|drawstring)\b/;
   const attachedToLining = (part: ImportedPart): boolean => {
     const visited = new Set<string>();
@@ -237,21 +297,60 @@ export function generateEstimatedBack(value: ImportedGarment): EstimatedBackResu
       layerOrder: value.parts.length + parts.length, editableIndependently: true, colourGroup: id,
       transform: { x: 0, y: 0, scale: 1, rotation: 0 } }, points));
   }
-  const inference: NonNullable<ImportedViewMetadata['inference']> = { kind: 'estimated-back', method: 'conservative-outline-v1', basedOnView: 'front', notice: estimatedBackNotice,
-    limitations: ['Silhouette proportions are inherited assumptions, not back observations or production dimensions.',
+  return finishEstimate(value, parts, [
       'Rear neckline/skirt waistline is a conservative technical approximation; hood uses only its exterior envelope. Separate waistband perimeters are inherited from the front, not observed at the back.',
       ...(sleeveless ? ['Sleeveless strap caps, outer armholes, side seams and crop hem retain the approved front silhouette. A shallower smooth rear scoop is estimated, not observed.',
         'Only shoulder clasps with validated front-body contact are carried over as simplified estimated loops attached to the rear body. Their mechanism, rear strap folds, bindings and racerback shape require a real back reference.'] : []),
       'Front-only details, branding, pockets, labels, buttons and stitching are omitted. Other than qualified shoulder attachment loops, fasteners and unknown rear details are not generated.',
+  ]);
+}
+
+function estimatedConstruction(parts: ImportedPart[]): ConstructionRegions {
+  const content = (raw: string) => raw.replace(/^[\s\S]*?<svg\b[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  return {
+    version: 1, status: 'needs-review',
+    regions: parts.map(part => ({
+      id: part.id, label: part.userFacingName ?? part.name, semanticType: part.semanticType,
+      builderCategory: part.builderCategory ?? constructionRegionCategory(part.semanticType), view: 'back',
+      path: [...part.svg.matchAll(/<path\b[^>]*\bd="([^"]+)"/g)].map(match => match[1]).join(' ') || path(part.outline!),
+      confidence: .35, parentRegionId: part.attachmentTo, mirroredPairId: part.symmetryPartner,
+      colourGroupId: `colour:${part.id}`, fabricGroupId: `fabric:${part.id}`,
+      editableIndependently: true, zIndex: part.layerOrder,
+    })),
+    constructionInk: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048">${parts.map(part => content(part.constructionSvg)).join('')}</svg>`,
+    stitchingPaths: [], hardware: [], closures: [], seams: [],
+    warnings: [estimatedBackNotice, 'Essential region boundaries are estimates, not observed rear seams. No hidden pockets, graphics or fasteners are inferred.'],
+  };
+}
+
+function finishEstimate(value: ImportedGarment, parts: ImportedPart[], limitations: string[], essential = false, structure?: BackStructureReport): EstimatedBackResult {
+  const ids = new Set(value.parts.map(part => part.id));
+  for (const part of parts) {
+    if (ids.has(part.id)) return { available: false, reason: 'Estimated back unavailable: estimated part IDs conflict with an existing part.' };
+    ids.add(part.id);
+  }
+  const inference: NonNullable<ImportedViewMetadata['inference']> = { kind: 'estimated-back', method: structure ? 'structured-front-v3' : essential ? 'essential-construction-v2' : 'conservative-outline-v1', ...(structure ? { structure } : {}), basedOnView: 'front', notice: estimatedBackNotice,
+    limitations: ['Silhouette proportions are inherited assumptions, not back observations or production dimensions.', ...limitations,
       'No back photograph or physical calibration is supplied. A real back upload replaces this estimate.'] };
   const measurementCalibrations = { ...value.measurementCalibrations }; delete measurementCalibrations.back;
   return { available: true, garment: normalizeImportedGarment({ ...value, parts: [...value.parts, ...parts],
-    manifest: { ...value.manifest, backView: { view: 'back', partIds: parts.map(part => part.id), detailLayerIds: [], inference }, uncertainties: [...value.manifest.uncertainties, estimatedBackNotice] },
+    manifest: { ...value.manifest, backView: { view: 'back', partIds: parts.map(part => part.id), detailLayerIds: [], inference, ...(essential ? { constructionRegions: estimatedConstruction(parts) } : {}) }, uncertainties: [...value.manifest.uncertainties, estimatedBackNotice] },
     measurementCalibration: value.measurementCalibration && (value.measurementCalibration.view ?? value.manifest.view) === 'back' ? undefined : value.measurementCalibration,
     measurementCalibrations, commonCalibrationDimensions: value.commonCalibrationDimensions?.filter(item => !item.views.includes('back')),
     calibration: value.calibration && value.parts.some(part => part.id === value.calibration!.partId && part.view === 'front') ? value.calibration : undefined,
     reviewNotes: [...value.reviewNotes, estimatedBackNotice], revision: (value.revision ?? 0) + 1, reviewed: false, accepted: false,
   }) };
+}
+
+/** Never replaces an observed back; refreshing an estimate leaves the front untouched. */
+export function regenerateEstimatedBack(value: ImportedGarment): EstimatedBackResult {
+  if (value.manifest.backView?.inference?.kind !== 'estimated-back') return { available: false, reason: 'Only an estimated back can be regenerated.' };
+  const oldNotice = value.manifest.backView.inference.notice;
+  return generateEstimatedBack({ ...value, parts: value.parts.filter(part => part.view !== 'back'),
+    detailLayers: value.detailLayers?.filter(detail => detail.view !== 'back'),
+    reviewNotes: value.reviewNotes.filter(note => note !== oldNotice),
+    manifest: { ...value.manifest, backView: undefined, views: ['front'], uncertainties: value.manifest.uncertainties.filter(note => note !== oldNotice) },
+  });
 }
 
 /** Explicit edits remain inferred and invalidate only this view's calibration. */
@@ -260,7 +359,18 @@ export function editEstimatedBackOutline(value: ImportedGarment, id: string, out
   const points = cleanOutline(outline);
   if (!validOutline(points)) throw new Error('Outline must be a non-intersecting polygon inside the canvas.');
   const measurementCalibrations = { ...value.measurementCalibrations }; delete measurementCalibrations.back;
-  return normalizeImportedGarment({ ...value, parts: value.parts.map(part => part.id === id ? geometry(part, points) : part), measurementCalibrations,
+  const parts = value.parts.map(part => part.id === id
+    ? part.structuralRole === tracedSilhouetteRole ? tracedBackGeometry(part, points, value.parts.filter(item => item.view === 'front')) : geometry(part, points)
+    : part);
+  const previous = value.manifest.backView.constructionRegions;
+  const construction = previous ? estimatedConstruction(parts.filter(part => part.view === 'back')) : undefined;
+  if (construction) construction.regions = construction.regions.map(region => ({
+    ...previous?.regions.find(old => old.id === region.id), ...region,
+    colourGroupId: previous?.regions.find(old => old.id === region.id)?.colourGroupId ?? region.colourGroupId,
+    fabricGroupId: previous?.regions.find(old => old.id === region.id)?.fabricGroupId ?? region.fabricGroupId,
+  }));
+  return normalizeImportedGarment({ ...value, parts,
+    manifest: { ...value.manifest, backView: { ...value.manifest.backView, ...(construction ? { constructionRegions: construction } : {}) } }, measurementCalibrations,
     measurementCalibration: value.measurementCalibration && (value.measurementCalibration.view ?? value.manifest.view) === 'back' ? undefined : value.measurementCalibration,
     calibration: value.calibration?.partId === id ? undefined : value.calibration,
     commonCalibrationDimensions: value.commonCalibrationDimensions?.filter(item => !item.views.includes('back')),

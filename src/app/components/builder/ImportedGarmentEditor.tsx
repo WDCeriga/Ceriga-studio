@@ -1,15 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, ImagePlus, Merge, Scissors, Shapes, RotateCcw, X, Unlink, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
-import { canAcceptImportedConstruction, importedBuilderCategories, importedControlGroups, importedRegionTypes, mergeImportedGarmentView, normalizeImportedGarment, type ImportedGarment, type ImportedMeasurementId, type ImportedPart, type ImportedStitchSettings } from '../../data/importedGarment';
+import { canAcceptImportedConstruction, importedBuilderCategories, importedControlGroups, importedPartColor, importedRegionTypes, mergeImportedGarmentView, normalizeImportedGarment, type ImportedGarment, type ImportedMeasurementId, type ImportedPart, type ImportedStitchSettings } from '../../data/importedGarment';
 import { importedMeasurementGuides } from '../../data/importedGarmentMeasurements';
 import { importedColourPanels } from '../../data/importedGarmentColourPanels';
 import { mergeImportedParts, reviseImportedGarment, splitImportedPart } from '../../data/importedGarmentEditing';
 import { tintPotraceSvg } from '../../lib/tshirtSvgUtils';
 import { ImportedSizeTable } from './ImportedSizeTable';
-import { editEstimatedBackOutline, generateEstimatedBack } from '../../data/importedGarmentBack';
+import { editEstimatedBackOutline, generateEstimatedBack, regenerateEstimatedBack } from '../../data/importedGarmentBack';
 import { importedGarmentSvg, type ImportedDrawingStyle } from '../../data/importedGarmentExport';
 import { GarmentInputTypeControl, ImportedGarmentTraceReview, readGarmentImage, useGarmentInputType } from './ImportedGarmentTraceReview';
+import { constructionNeedsReview, constructionRegionsForView, isConstructionInk, separateConstructionControls, type ConstructionRegion } from '../../data/importedConstructionRegions';
+import { ImportedConstructionRegionReview } from './ImportedConstructionRegionReview';
+import { EstimatedBackComparison } from './EstimatedBackComparison';
 
 const inputClass = 'w-full min-w-0 rounded border border-white/20 bg-[#202024] px-2 py-1.5 text-xs text-white';
 const buttonClass = 'inline-flex min-h-8 items-center justify-center gap-2 rounded border border-white/20 px-2 py-1 text-xs disabled:opacity-40';
@@ -23,7 +26,16 @@ function validateResult(value: ImportedGarment) {
     if (ids.has(part.id) || !/^[a-z][a-z0-9-]{0,63}$/.test(part.id)) throw new Error('Invalid region identity.');
     ids.add(part.id);
   }
-  for (const raw of [...value.parts.flatMap(part => [part.svg, part.constructionSvg, part.stitchSvg]),
+  const constructions = (['front', 'back'] as const).flatMap(view => {
+    const data = constructionRegionsForView(value, view);
+    if (!data) return [];
+    if (data.version !== 1 || !['needs-review', 'reviewed'].includes(data.status) || !Array.isArray(data.regions) ||
+      data.regions.some(region => region.view !== view || !ids.has(region.id) || !importedRegionTypes.includes(region.semanticType) ||
+        !Object.hasOwn(importedBuilderCategories, region.builderCategory) || !region.path?.trim() || /[^a-zA-Z0-9+.,\s-]/.test(region.path) ||
+        !Number.isFinite(region.confidence) || region.confidence <= 0 || region.confidence > 1)) throw new Error('Invalid construction region response.');
+    return [data];
+  });
+  for (const raw of [...constructions.map(data => data.constructionInk), ...value.parts.flatMap(part => [part.svg, part.constructionSvg, part.stitchSvg]),
     ...(value.detailLayers ?? []).flatMap(detail => [detail.constructionSvg, detail.stitchSvg]),
     ...(value.tracePreview ? [value.tracePreview.tracedSvg] : [])]) {
       const root = new DOMParser().parseFromString(raw, 'image/svg+xml');
@@ -36,7 +48,7 @@ function validateResult(value: ImportedGarment) {
   return normalizeImportedGarment(value);
 }
 
-export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, onSelect, colors, onColor, onResetColors, step, view = 'front', highlightedMeasurementId, onHighlightMeasurement }: {
+export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, onSelect, colors, onColor, onResetColors, step, view = 'front', highlightedMeasurementId, onHighlightMeasurement, onConstructionRegionSelect }: {
   value?: ImportedGarment;
   onChange: (value: ImportedGarment) => void;
   onReplace: () => void;
@@ -49,6 +61,7 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
   view?: 'front' | 'back';
   highlightedMeasurementId?: string | null;
   onHighlightMeasurement?: (id: string | null) => void;
+  onConstructionRegionSelect?: (region: ConstructionRegion | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
@@ -62,6 +75,53 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
   const [backFile, setBackFile] = useState<File | null>(null);
   const [appendView, setAppendView] = useState<'front' | 'back' | undefined>();
   const [traceReview, setTraceReview] = useState(false);
+  const [backComparison, setBackComparison] = useState(false);
+  const [constructionReview, setConstructionReview] = useState<'front' | 'back' | null>(null);
+  const currentValue = useRef(value); currentValue.current = value;
+  const construction = value && constructionRegionsForView(value, view);
+  const selectRegion = (id: string | null) => { onSelect(id); onConstructionRegionSelect?.((value ? constructionRegionsForView(value, constructionReview ?? view) : undefined)?.regions.find(region => region.id === id) ?? null); };
+  const segmentConstruction = async () => {
+    if (!value || !value.parts.some(part => part.view === view) || value.manifest[view === 'front' ? 'frontView' : 'backView']?.inference) return;
+    const before = value;
+    request.current?.abort();
+    const controller = new AbortController(); request.current = controller;
+    setBusy(true); setError(''); setProgress('Analysing construction regions from the existing trace');
+    try {
+      const response = await fetch('/api/garment-construction-regions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ garment: before, requestedView: view }), signal: controller.signal });
+      if (!response.ok || !response.body) throw new Error(`Construction region service unavailable (${response.status}).`);
+      const reader = response.body.getReader(), decoder = new TextDecoder();
+      let pending = '', result: ImportedGarment | undefined;
+      const consume = (line: string) => {
+        if (!line.trim()) return;
+        const event = JSON.parse(line);
+        if (event.type === 'error') throw new Error(event.error || 'Construction analysis failed.');
+        if (event.type === 'progress') setProgress(event.label);
+        if (event.type === 'result') result = validateResult(event.garment ?? event);
+      };
+      while (true) {
+        const next = await reader.read(); pending += decoder.decode(next.value, { stream: !next.done });
+        const lines = pending.split('\n'); pending = lines.pop()!; lines.forEach(consume);
+        if (next.done) break;
+      }
+      consume(pending);
+      if (!result || !constructionRegionsForView(result, view)?.regions.length) throw new Error('No complete construction regions returned.');
+      if (controller.signal.aborted) return;
+      if (currentValue.current !== before) throw new Error('The garment changed during analysis. Retry on the current trace.');
+      const originalInk = before.parts.filter(part => part.view === view && isConstructionInk(part));
+      if (originalInk.some(part => !result!.parts.some(candidate => candidate.view === view && isConstructionInk(candidate) && candidate.svg === part.svg)))
+        throw new Error('Construction analysis changed the source ink.');
+      const key = view === 'front' ? 'frontView' : 'backView';
+      const data = { ...constructionRegionsForView(result, view)!, status: 'needs-review' as const };
+      result = { ...result, ...(result.manifest.view === view ? { constructionRegions: data } : {}),
+        manifest: { ...result.manifest, [key]: { ...result.manifest[key], constructionRegions: data } } };
+      const next = mergeImportedGarmentView(before, result, view);
+      onChange({ ...next, accepted: false, reviewed: false }); onSelect(null); setConstructionReview(view);
+    } catch (failure) {
+      if (!controller.signal.aborted) setError(`${failure instanceof Error ? failure.message : 'Construction analysis failed.'} The original trace remains usable.`);
+      controller.abort();
+    } finally { if (request.current === controller) setBusy(false); }
+  };
   const frontInput = useGarmentInputType(frontFile);
   const backInput = useGarmentInputType(backFile);
   const viewMetadata = value?.manifest[view === 'front' ? 'frontView' : 'backView'];
@@ -143,23 +203,43 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
     {busy && <div role="status" className="flex items-center justify-between gap-2"><span>{progress}</span><button className={buttonClass} title="Cancel reconstruction" onClick={() => { request.current?.abort(); setBusy(false); }}><X size={14}/></button></div>}
     {error && <p role="alert" className="text-red-300">{error}</p>}
     {value && <>
-      <div className="flex flex-wrap items-center justify-between gap-2"><span className="capitalize">{traceOnly ? 'Clean mockup · direct source trace' : `${value.manifest.garmentType} · ${value.manifest.subtype} · ${Math.round(value.manifest.confidence * 100)}% confidence`}</span><button className={buttonClass} onClick={() => setReview(view)}><Shapes size={14}/>Review construction (optional)</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><span className="capitalize">{traceOnly ? 'Clean mockup · direct source trace' : `${value.manifest.garmentType} · ${value.manifest.subtype} · ${Math.round(value.manifest.confidence * 100)}% confidence`}</span>{!construction && !value.parts.some(part => part.view === view && isConstructionInk(part)) && <button className={buttonClass} onClick={() => setReview(view)}><Shapes size={14}/>Review construction (optional)</button>}</div>
       {tracePreview && <><button className={buttonClass} onClick={() => setTraceReview(true)}>Review source → raster → key → SVG → overlay</button>
         <ImportedGarmentTraceReview preview={tracePreview} open={traceReview} onOpenChange={setTraceReview} traceOnly={traceOnly}/></>}
-      {traceOnly && <p className="text-white/60">Original silhouette and construction ink preserved. No semantic garment reconstruction or hidden geometry is added.{!value.parts.some(part => part.view === view && part.colorable) && ' This faithful trace has no inferred colour fills; its ink and stitches stay together.'}</p>}
+      {value.parts.some(part => part.view === view) && (!viewMetadata?.inference || construction) && <div className="space-y-2">
+        <button className={buttonClass} disabled={busy} onClick={() => construction ? setConstructionReview(view) : void segmentConstruction()}>Construction regions</button>
+        {construction && <><span className="ml-2">{construction.regions.length} {viewMetadata?.inference ? 'estimated essential' : 'source-derived'} regions · {construction.status}</span>
+                  {!viewMetadata?.inference && <button className={buttonClass} disabled={busy} onClick={() => void segmentConstruction()}>Re-analyse construction regions</button>}</>}
+        {constructionNeedsReview(value) && <p role="status" className="text-amber-200">Review construction regions in each segmented view before accepting this garment.</p>}
+      </div>}
+      {constructionReview && <Dialog open onOpenChange={open => { if (!open) setConstructionReview(null); }}><DialogContent className="max-h-[92dvh] overflow-auto border-white/20 bg-[#161618] text-white sm:max-w-6xl"><DialogTitle>Construction regions · {constructionReview}</DialogTitle>
+        <ImportedConstructionRegionReview value={value} view={constructionReview} selectedId={selectedId} onSelect={selectRegion} onChange={onChange} onReviewed={() => setConstructionReview(null)}/>
+      </DialogContent></Dialog>}
+      {traceOnly && !construction && <p className="text-white/60">Original silhouette and construction ink preserved. No semantic garment reconstruction or hidden geometry is added.{!value.parts.some(part => part.view === view && part.colorable) && ' This faithful trace has no inferred colour fills; its ink and stitches stay together.'}</p>}
       {(['front', 'back'] as const).filter(side => !value.parts.some(part => part.view === side)).map(side => <div key={side} className="space-y-2 rounded border border-amber-400/30 p-2">
         <p className="text-amber-200">{side === 'back' ? 'Back reference missing' : 'Front reference required'}. Hidden details have not been generated.</p>
         <label className={buttonClass}><ImagePlus size={14}/>Upload {side} reference<input aria-label={`Upload ${side} reference`} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) stageView(file, side); }}/></label>
-        {side === 'back' && value.processingMode !== 'trace-only' && <><p className="text-white/60">Or explicitly create an editable estimate from the front silhouette, with an approximate rear neckline / hood / waistline. No rear pockets or hidden trims are assumed. No provider call is made.</p><button className={buttonClass} disabled={busy} onClick={() => {
+        {side === 'back' && <><p className="text-white/60">Or create a structured estimated back with separate essential garment components and inherited front colours/fabrics. Hidden rear details remain unknown. No provider call is made.</p><button className={buttonClass} disabled={busy} onClick={() => {
           const result = generateEstimatedBack(value);
           if (!result.available) { setError(result.reason); return; }
-          setError(''); onChange(result.garment); onSelect(null); setReview('back');
+          setError(''); onChange(result.garment); onSelect(null);
+          if (result.garment.manifest.backView?.constructionRegions) setConstructionReview('back'); else setReview('back');
         }}>Generate estimated back</button></>}
       </div>)}
-      {value.manifest.backView?.inference && <div role="status" className="space-y-2 rounded border border-amber-400/40 p-2 text-amber-200"><p>Estimated back — inferred from front geometry</p><p>{value.manifest.backView.inference.notice}</p>
+      {value.manifest.backView?.inference && <div role="status" className="space-y-2 rounded border border-amber-400/40 p-2 text-amber-200"><p>ESTIMATED BACK — inferred from front geometry</p><p>{value.manifest.backView.inference.notice}</p>
+        <button className={buttonClass} disabled={busy} onClick={() => {
+          const result = regenerateEstimatedBack(value);
+          if (!result.available) { setError(result.reason); return; }
+          setError(''); onChange(result.garment); onSelect(null);
+          if (result.garment.manifest.backView?.constructionRegions) setConstructionReview('back'); else setReview('back');
+        }}>{value.manifest.backView.inference.method === 'structured-front-v3' ? 'Regenerate estimated back' : 'Upgrade estimated back construction'}</button>
+        <p className="text-xs">Regeneration replaces estimated rear geometry and manual rear corrections using the current front.</p>
+        {value.manifest.backView.constructionRegions && <button className={buttonClass} onClick={() => setConstructionReview('back')}>Review estimated back regions</button>}
+        <button className={buttonClass} onClick={() => setBackComparison(true)}>Compare front and estimated back</button>
+        {backComparison && <Dialog open onOpenChange={setBackComparison}><DialogContent className="max-h-[92dvh] overflow-auto border-white/20 bg-[#161618] text-white sm:max-w-6xl"><DialogTitle>Front-derived estimated back</DialogTitle><EstimatedBackComparison value={value}/></DialogContent></Dialog>}
         <label className={buttonClass}><ImagePlus size={14}/>Replace estimate with real back<input aria-label="Replace estimated back with real back reference" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) stageView(file, 'back'); }}/></label>
       </div>}
-      {!value.accepted && canAcceptImportedConstruction(value) && <button className={`${buttonClass} bg-white/10`} onClick={() => onChange({ ...value, accepted: true, reviewed: true })}><Check size={14}/>{value.manifest.backView?.inference ? 'Use garment with estimated back' : traceOnly ? 'Use traced mockup' : 'Use detected garment'}</button>}
+      {!value.accepted && canAcceptImportedConstruction(value) && <button className={`${buttonClass} bg-white/10`} disabled={constructionNeedsReview(value)} onClick={() => { if (!constructionNeedsReview(value)) onChange({ ...value, accepted: true, reviewed: true }); }}><Check size={14}/>{construction ? 'Use reviewed construction regions' : value.manifest.backView?.inference ? 'Use garment with estimated back' : traceOnly ? 'Use traced mockup' : 'Use detected garment'}</button>}
       {!canAcceptImportedConstruction(value) && <p role="status" className="text-amber-300">Legacy partition result. Source construction must be re-analyzed.</p>}
       {(step === 2 || step === 4) && <p className="text-white/60">Visible seams automatically divide fabric into separately colourable panels, including on saved imports. Panel colours do not change the garment shape or construction. Unfinished lines and stitching do not create arbitrary cuts.</p>}
       {canAcceptImportedConstruction(value) && <ImportedGroupedControls value={value} garmentView={view} onChange={onChange} selectedId={selectedId} onSelect={onSelect} colors={colors} onColor={onColor} step={step}/>}
@@ -261,9 +341,10 @@ function ImportedGroupedControls({ value, onChange, selectedId, onSelect, colors
     .filter(group => (group.parts.length || group.details.length) && (step === undefined || (step === 2 ? group.parts.some(part => part.colorable) : importedBuilderCategories[group.category].step === step)));
   return <div aria-label="Grouped construction controls" className="space-y-4 text-xs">{Object.entries(importedBuilderCategories).map(([category, definition]) => {
     const entries = groups.filter(group => group.category === category);
-    return entries.length > 0 && <section key={category}><h4 className="mb-2 font-semibold">{definition.title}</h4>{entries.map(group => <div key={group.id} className={`flex min-h-10 items-center justify-between gap-2 border-b border-white/10 ${group.parts.some(part => parentId(part.id) === selectedId) ? 'bg-white/10' : ''}`}>
+    return entries.length > 0 && <section key={category}><h4 className="mb-2 font-semibold">{definition.title}</h4>{entries.map(group => <div key={group.id} className={`flex min-h-10 flex-wrap items-center justify-between gap-2 border-b border-white/10 ${group.parts.some(part => parentId(part.id) === selectedId) ? 'bg-white/10' : ''}`}>
       <button className="min-w-0 flex-1 break-words py-2 text-left" aria-pressed={[...group.parts, ...group.details].some(part => parentId(part.id) === selectedId)} onClick={() => onSelect(parentId(group.parts[0]?.id ?? group.details[0].id))}>{group.name}</button>
-      {group.parts.find(part => part.colorable) && <input className="h-7 w-8 shrink-0 bg-transparent" type="color" aria-label={`${group.name} colour`} title={`${group.name} colour`} value={colors?.[group.parts.find(part => part.colorable)!.id] ?? group.parts.find(part => part.colorable)!.color} onChange={event => onColor(group.parts.find(part => part.colorable)!.id, event.target.value, 'group')}/>}
+      {group.parts.find(part => part.colorable) && <input className="h-7 w-8 shrink-0 bg-transparent" type="color" aria-label={`${group.name} colour`} title={`${group.name} colour`} value={importedPartColor(group.parts.find(part => part.colorable)!, colors)} onChange={event => onColor(group.parts.find(part => part.colorable)!.id, event.target.value, 'group')}/>}
+      {group.parts.length > 1 && group.parts.every(part => constructionRegionsForView(value, part.view)?.regions.some(region => region.id === part.id)) && <button type="button" className="mb-2 flex basis-full items-center justify-center gap-2 rounded border border-white/20 px-2 py-1" aria-label={`Edit ${group.name} separately`} title="Separate colour and fabric controls without changing the drawing" onClick={() => onChange(separateConstructionControls(value, group.parts[0].view, group.parts[0].id))}><Unlink size={14}/>Edit separately</button>}
       {!group.parts.length && <input type="checkbox" aria-label={`${group.name} visible`} checked={!value.hiddenDetailGroups?.includes(group.id)} onChange={event => onChange({ ...value, hiddenDetailGroups: event.target.checked ? value.hiddenDetailGroups?.filter(id => id !== group.id) : [...(value.hiddenDetailGroups ?? []), group.id] })}/>}
     </div>)}</section>;
   })}</div>;
@@ -285,7 +366,7 @@ function ImportedRegionReview({ value, open, initialView, onOpenChange, onChange
   const [seamEvidence, setSeamEvidence] = useState('');
   const valid = canAcceptImportedConstruction(value);
   const source = useRef(value); source.current = value;
-  const selected = value.parts.find(part => part.id === selectedId);
+  const selected = value.parts.find(part => part.id === selectedId && !isConstructionInk(part) && !constructionRegionsForView(value, part.view));
   const inferred = garmentView === 'back' && value.manifest.backView?.inference;
   const viewMetadata = garmentView === 'back' ? value.manifest.backView : value.manifest.frontView;
   const cleanDrawing = viewMetadata?.cleanDrawing ?? (garmentView === value.manifest.view ? value.cleanDrawing : undefined);
@@ -342,7 +423,7 @@ function ImportedRegionReview({ value, open, initialView, onOpenChange, onChange
           {inferred && view === 'source' ? <p className="p-5 text-sm text-amber-900">{inferred.notice} No back source image exists. Choose Regions to edit the estimated outline.</p> : view === 'source' || !valid ? <img src={value.sourceImages?.[garmentView] ?? (garmentView === value.manifest.view ? value.sourceImage : '')} alt={`Source ${value.manifest.garmentType} ${garmentView}`} className="absolute inset-0 h-full w-full object-contain"/> :
             <svg viewBox="0 0 2048 2048" className="absolute inset-0 h-full w-full touch-none" aria-label="Construction region review" onPointerDown={event => { if (mode !== 'select') setPoints(previous => [...previous, coordinate(event)]); else onSelect(null); }}>
               {value.parts.filter(part => part.view === garmentView && (view !== 'boundaries' || part.layerKind === 'structural')).map(part => <g key={part.id} data-review-part={part.id} onPointerEnter={() => setHovered(part.id)} onPointerLeave={() => setHovered(null)} onPointerDown={event => { if (mode === 'select') { event.stopPropagation(); onSelect(part.id); } }} style={{ cursor: mode === 'select' ? 'pointer' : 'crosshair' }}>
-                <g dangerouslySetInnerHTML={{ __html: tintPotraceSvg(part.svg, part.id === selectedId || part.id === hovered ? '#f1c985' : view === 'boundaries' ? '#ffffff' : colors?.[part.id] ?? part.color) }}/>
+                <g dangerouslySetInnerHTML={{ __html: tintPotraceSvg(part.svg, part.id === selectedId || part.id === hovered ? '#f1c985' : view === 'boundaries' ? '#ffffff' : importedPartColor(part, colors)) }}/>
                 <g pointerEvents="none" dangerouslySetInnerHTML={{ __html: part.constructionSvg }}/>
                 {view !== 'boundaries' && <g pointerEvents="none" dangerouslySetInnerHTML={{ __html: tintPotraceSvg(part.stitchSvg, '#8b7856') }}/>}
                 {(showAll || view === 'boundaries') && part.layerKind === 'structural' && part.outline && <polygon points={part.outline.map(point => point.map(number => number * 2048).join(',')).join(' ')} fill="none" stroke="#177b70" strokeWidth="3" pointerEvents="none"/>}

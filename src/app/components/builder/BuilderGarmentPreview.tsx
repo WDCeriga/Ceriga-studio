@@ -1,9 +1,10 @@
-import { createContext, createElement, useContext, useId, type SVGProps } from 'react';
+import { createContext, createElement, useContext, useId, useState, type SVGProps } from 'react';
 import type { GarmentType } from '../../data/builderSteps';
-import { resolvePartFabric, type FabricAssignments, type FabricPart } from '../../data/garmentFabrics';
+import { resolvePartMaterial, type FabricAssignments, type FabricPart } from '../../data/garmentFabrics';
 import { schematicFabricParts } from '../../data/schematicFabricParts';
 import { fabricPatternScale, fabricTextureMotif } from '../../lib/fabricRendering';
 import { fabricScanSurface } from '../../lib/fabricTextureScans';
+import { useMaterialDrop, type MaterialDropHandler } from './materialDrop';
 import { cn } from '../ui/utils';
 import { constructionColor } from '../../lib/tshirtSvgUtils';
 
@@ -24,44 +25,53 @@ export interface BuilderGarmentPreviewProps {
   sleeveTrimColor?: string;
   pocketTrimColor?: string;
   fabricAssignments?: FabricAssignments;
+  partColors?: Partial<Record<string, string>>;
+  technicalView?: boolean;
+  selectedPartId?: string | null;
+  onSelectPart?: (id: string) => void;
+  onMaterialDrop?: MaterialDropHandler;
   className?: string;
 }
 
 const VB_W = 520;
 const VB_H = 560;
 
-const FabricContext = createContext<{ assignments?: FabricAssignments; parts: FabricPart[] }>({ parts: [] });
+const FabricContext = createContext<{ assignments?: FabricAssignments; parts: FabricPart[]; colors?: Partial<Record<string,string>>; technicalView?: boolean; selectedPartId?: string | null; onSelectPart?: (id: string) => void; onMaterialDrop?: MaterialDropHandler }>({ parts: [] });
 
 function FabricShape({ as, partId, ...props }: SVGProps<SVGElement> & {
   as: 'path' | 'rect' | 'ellipse';
   partId: string;
 }) {
   const uid = useId().replace(/:/g, '');
-  const { assignments, parts } = useContext(FabricContext);
+  const { assignments, parts, colors, technicalView, selectedPartId, onSelectPart, onMaterialDrop } = useContext(FabricContext);
   const part = parts.find(candidate => candidate.id === partId);
-  const fabric = part && resolvePartFabric(assignments, part);
-  if (!part || !fabric) return createElement(as, props);
+  const material = part ? resolvePartMaterial(assignments, part, parts) : undefined;
+  const fabric = technicalView ? undefined : material?.fabric;
+  const interior = material?.interior ?? false;
+  const fill = colors?.[partId] ?? props.fill;
+  const [hovered, setHovered] = useState(false);
+  const { dragHovered, handlers } = useMaterialDrop(partId, onMaterialDrop);
   const patternId = `schematic-fabric-${uid}`;
-  return (
-    <>
-      <defs>
-        <pattern
-          id={patternId}
-          width={10}
-          height={10}
-          patternUnits="userSpaceOnUse"
-          patternTransform={`scale(${fabricPatternScale(fabric, VB_W, !!part.interior)})`}
-          data-fabric-texture={fabric.id}
-          data-fabric-status={fabricScanSurface(fabric, !!part.interior)?.sourceStatus ?? 'unresolved'}
-          data-fabric-surface={part.interior && fabric.interiorTexture ? fabric.interiorTexture : 'face'}
-        >
-          <rect width={10} height={10} fill={props.fill} />
-          <g dangerouslySetInnerHTML={{ __html: fabricTextureMotif(fabric, !!part.interior) }} />
-        </pattern>
-      </defs>
-      {createElement(as, { ...props, fill: `url(#${patternId})`, 'data-fabric-part': partId, 'data-fabric-base': props.fill })}
-    </>
-  );
+  return <>
+    {fabric && <defs><pattern id={patternId} width={10} height={10} patternUnits="userSpaceOnUse"
+      patternTransform={`scale(${fabricPatternScale(fabric, VB_W, interior)})`}
+      data-fabric-texture={fabric.id} data-fabric-status={fabricScanSurface(fabric, interior)?.sourceStatus ?? 'unresolved'}
+      data-fabric-surface={interior ? 'reverse' : 'face'}>
+      <rect width={10} height={10} fill={fill} /><g dangerouslySetInnerHTML={{ __html: fabricTextureMotif(fabric, interior) }} />
+    </pattern></defs>}
+    {createElement(as, { ...props, fill: fabric ? `url(#${patternId})` : fill,
+      ...((fabric || onSelectPart) ? { 'data-fabric-part': partId, 'data-fabric-base': fill } : {}),
+    })}
+    {onSelectPart && part && createElement(as, { ...props, ...handlers,
+      fill: selectedPartId === partId || hovered || dragHovered ? '#38bdf84d' : 'transparent', stroke: 'none', pointerEvents: 'fill',
+      role: 'button', tabIndex: 0, 'aria-label': 'Select ' + part.label, 'aria-pressed': selectedPartId === partId,
+      'data-construction-region-hit': partId,
+      onPointerEnter: () => setHovered(true), onPointerLeave: () => setHovered(false),
+      onPointerDown: (event: React.PointerEvent) => event.stopPropagation(),
+      onClick: (event: React.MouseEvent) => { event.stopPropagation(); onSelectPart(partId); },
+      onKeyDown: (event: React.KeyboardEvent) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectPart(partId); } },
+    })}
+  </>;
 }
 
 const TOP_TORSO =
@@ -686,6 +696,7 @@ export function BuilderGarmentPreview({
   sleeveTrimColor,
   pocketTrimColor,
   fabricAssignments,
+  partColors, technicalView, selectedPartId, onSelectPart, onMaterialDrop,
   className,
 }: BuilderGarmentPreviewProps) {
   const uid = useId().replace(/:/g, '');
@@ -709,7 +720,7 @@ export function BuilderGarmentPreview({
         </linearGradient>
       </defs>
 
-      <FabricContext.Provider value={{ assignments: fabricAssignments, parts }}>
+      <FabricContext.Provider value={{ assignments: fabricAssignments, parts, colors: partColors, technicalView, selectedPartId, onSelectPart, onMaterialDrop }}>
         {isTopGarment(garmentType)
           ? renderTop(
               {
