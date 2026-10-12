@@ -109,6 +109,7 @@ export function sourceSignature(element: DesignElement) {
     element.patternSpacingX, element.patternSpacingY, JSON.stringify(element.patternColors), element.patternRoughness, element.patternVariation,
     element.patternSource, element.patternSourceWidth, element.patternSourceHeight, element.patternRepeat,
     element.patternRandomPosition, element.patternRandomRotation, element.patternMinScale, element.patternMaxScale,
+    JSON.stringify(element.patternOptions), element.patternOffsetX, element.patternOffsetY, element.patternAlignment, element.patternAlignment === 'continuous' ? element.x : 0, element.patternAlignment === 'continuous' ? element.y : 0,
     element.cornerRadius, element.cropTop, element.cropRight,
     element.cropBottom, element.cropLeft, element.flipHorizontal, element.flipVertical, element.filterBlur, element.filterBrightness,
     element.filterContrast, element.filterSaturate, element.filterExposure, element.filterTemperature,

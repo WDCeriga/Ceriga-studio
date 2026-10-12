@@ -1,5 +1,6 @@
 import { patternKind, type PatternSettings } from './patternGeometry';
 import { patternDefaultColors, patternDefinition } from './patternCatalog';
+import { fashionPatternTile } from './fashionPatterns';
 
 export type PatternPrimitive =
   | { tag: 'path'; d: string; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number }
@@ -98,6 +99,12 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
   const definition = patternDefinition(kind);
   const width = bound(settings.width, 80, 1, 100000);
   const height = bound(settings.height, 80, 1, 100000);
+  if (definition?.fashion) {
+    const tile = fashionPatternTile(settings, kind, settings.type === 'customArea' ? 120 : Math.min(width, height));
+    return { kind, width, height, tileWidth: tile.tileWidth, tileHeight: tile.tileHeight,
+      angle: bound(settings.patternRotation, 0, -360, 360), colors: tile.colors, background: tile.background,
+      motifs: tile.motifs, replicas: tile.replicas };
+  }
   const count = Math.round(bound(settings.patternCount, 5, 1, 32));
   const scale = bound(settings.patternScale, 100, 10, 400) / 100;
   const cell = Math.max(.1, (settings.type === 'customArea' ? 120 / count : Math.min(width, height) / count) * scale);

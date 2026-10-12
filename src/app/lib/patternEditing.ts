@@ -11,7 +11,7 @@ const numericBounds: Record<string, [number, number]> = {
   patternThickness: [.1, 1000], patternSeed: [0, 0xffffffff], patternRoughness: [0, 100],
   patternVariation: [0, 100], patternSourceWidth: [1, 100000], patternSourceHeight: [1, 100000],
   patternRandomPosition: [0, 100], patternRandomRotation: [0, 180],
-  patternMinScale: [10, 300], patternMaxScale: [10, 300], opacity: [0, 100],
+  patternMinScale: [10, 300], patternMaxScale: [10, 300],   opacity: [0, 100],
 };
 export function safePatternSource(source: unknown): source is string {
   return typeof source === 'string' && /^(data:image\/[a-z0-9.+-]+[;,]|https?:\/\/)/i.test(source);
@@ -31,19 +31,29 @@ export function patternAppearance(value: unknown): PatternPatch {
     if (typeof input[key] === 'boolean') output[key] = input[key];
   }
   if (safePatternSource(input.patternSource)) output.patternSource = input.patternSource;
+  if (input.patternOptions && typeof input.patternOptions === 'object') {
+    const options: Record<string, number | string> = {};
+    for (const [key, item] of Object.entries(input.patternOptions as Record<string, unknown>).slice(0, 40)) {
+      if (/^\w{1,24}$/.test(key) && (typeof item === 'string' || (typeof item === 'number' && Number.isFinite(item)))) options[key] = typeof item === 'string' ? item.slice(0, 24) : item;
+    }
+    output.patternOptions = options;
+  }
+  if (input.patternAlignment === 'independent' || input.patternAlignment === 'continuous') output.patternAlignment = input.patternAlignment;
   if (typeof input.patternSourceName === 'string') output.patternSourceName = input.patternSourceName.slice(0, 120);
   if (['grid', 'brick', 'half-drop', 'mirror', 'random'].includes(String(input.patternRepeat))) output.patternRepeat = input.patternRepeat;
   return output as PatternPatch;
 }
 
 export function initialPatternSettings(id: string, color?: string): PatternPatch {
-  const palette = patternDefaultColors(id);
-  const multicolor = (patternDefinition(id)?.colors?.length ?? 0) > 1;
+  const definition = patternDefinition(id);
+  const palette = patternDefaultColors(id).slice(0, definition?.fashion ? definition.colors?.length : undefined);
+  const multicolor = (definition?.colors?.length ?? 0) > 1;
   return {
     color: multicolor ? palette[0] : color ?? palette[0] ?? '#FFFFFF',
     patternColors: multicolor ? palette : undefined,
     patternSeed: newPatternSeed(),
-    patternCount: id === 'checks' || id === 'dots' ? 4 : 5,
+    patternCount: definition?.defaultCount ?? (id === 'checks' || id === 'dots' ? 4 : 5),
+    patternOptions: undefined, patternOffsetX: 0, patternOffsetY: 0, patternAlignment: 'independent',
     opacity: 100, patternScale: 100, patternSpacing: 0, patternSpacingX: 0, patternSpacingY: 0,
     patternRotation: 0, patternThickness: undefined, patternRandomise: false, flipHorizontal: false, flipVertical: false,
     patternRoughness: 50, patternVariation: 50, patternSource: undefined, patternSourceName: undefined,
@@ -57,7 +67,8 @@ export function changePatternType(element: DesignElement, id: string): PatternPa
   return {
     ...(element.type === 'customArea' ? { customAreaPattern: id, customAreaImage: undefined, customAreaTexture: undefined } : { content: id }),
     color: initial.color, patternColors: initial.patternColors, patternThickness: undefined,
-    patternSeed: element.patternSeed ?? initial.patternSeed,
+    patternSeed: element.patternSeed ?? initial.patternSeed, patternOptions: undefined,
+    ...(patternDefinition(id)?.fashion || patternDefinition(patternKind(element))?.fashion ? { patternCount: initial.patternCount } : {}),
   };
 }
 

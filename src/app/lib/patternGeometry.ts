@@ -26,6 +26,12 @@ export interface PatternSettings {
   patternThickness?: number;
   patternRandomise?: boolean;
   patternSeed?: number;
+  patternOptions?: Record<string, number | string>;
+  patternOffsetX?: number;
+  patternOffsetY?: number;
+  patternAlignment?: 'independent' | 'continuous';
+  x?: number;
+  y?: number;
 }
 
 export interface PatternDot { x: number; y: number; radius: number }

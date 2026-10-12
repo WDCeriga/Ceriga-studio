@@ -47,6 +47,13 @@ function GeneratedPaint({ value, id }: { value: string; id: string }) {
   </pattern>;
 }
 
+function patternPlacement(element: PatternGraphicProps['element'], angle: number) {
+  // Continuous sections share the garment coordinate origin, so neighbouring parts line up.
+  const shiftX = (element.patternOffsetX ?? 0) - (element.patternAlignment === 'continuous' ? element.x ?? 0 : 0);
+  const shiftY = (element.patternOffsetY ?? 0) - (element.patternAlignment === 'continuous' ? element.y ?? 0 : 0);
+  return `translate(${shiftX} ${shiftY}) rotate(${angle})`;
+}
+
 function GeneratedPatternGraphic({ element, bounds }: PatternGraphicProps) {
   const id = useId().replace(/:/g, '');
   const geometry = generatedPatternGeometry(element);
@@ -62,7 +69,7 @@ function GeneratedPatternGraphic({ element, bounds }: PatternGraphicProps) {
         {motif.primitives.map((primitive, index) => <GeneratedPrimitive key={index} primitive={primitive} colors={colors} />)}
       </g>)}
       <pattern id={`generated-repeat-${id}`} width={tileWidth} height={tileHeight}
-        patternUnits="userSpaceOnUse" patternTransform={`rotate(${geometry.angle})`}>
+        patternUnits="userSpaceOnUse" patternTransform={patternPlacement(element, geometry.angle)}>
         {geometry.background !== undefined && <rect width={tileWidth} height={tileHeight} fill={colors[geometry.background]} />}
         {geometry.replicas.map((replica, index) => {
           const motif = geometry.motifs[replica.motif];
@@ -86,7 +93,7 @@ function LegacyPatternGraphic({ element, bounds }: PatternGraphicProps) {
     <defs dangerouslySetInnerHTML={{ __html: paint.defs }} />
     <defs>
       <pattern id={`repeat-${id}`} width={tileSize} height={tileSize} patternUnits="userSpaceOnUse"
-        patternTransform={`rotate(${angle})`}>
+        patternTransform={patternPlacement(element, angle)}>
         {geometry.rectangles.map((rect, index) => <rect key={index} {...rect} fill="white" />)}
         {geometry.dots.map((dot, index) => <circle key={index} cx={dot.x} cy={dot.y} r={dot.radius} fill="white" />)}
       </pattern>

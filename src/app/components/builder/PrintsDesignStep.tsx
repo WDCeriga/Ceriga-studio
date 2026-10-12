@@ -231,7 +231,10 @@ export interface DesignElement extends ImageAdjustmentValues {
   patternThickness?: number;
   patternRandomise?: boolean;
   patternSeed?: number;
-  patternSpacingX?: number;
+  patternOptions?: Record<string, number | string>;
+  patternOffsetX?: number;
+  patternOffsetY?: number;
+  patternAlignment?: 'independent' | 'continuous';
   patternSpacingY?: number;
   patternColors?: string[];
   patternRoughness?: number;
