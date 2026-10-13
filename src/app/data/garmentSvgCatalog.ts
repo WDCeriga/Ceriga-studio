@@ -210,7 +210,9 @@ export interface ResolvedGarmentLayer {
     surface?: import('./garmentFabrics').FabricSurface;
     exteriorPartId?: string;
   };
-  colourPanels?: { id: string; svgRaw: string; tint: string }[];
+  colourPanels?: { id: string; svgRaw: string; tint: string; parentPartId?: string; name?: string; materialCategory?: 'panels' }[];
+  /** Original part surface used for clipping semantic cut panels. */
+  panellingClipSvgRaw?: string;
   constructionSvg?: string;
   stitchSvg?: string;
   stitchColor?: string;

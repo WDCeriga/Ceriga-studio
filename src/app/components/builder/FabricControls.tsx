@@ -9,6 +9,11 @@ import {
   resolvePartFabric, setFabricGroupLinked, type FabricAssignments, type FabricCategory, type FabricPart,
 } from '../../data/garmentFabrics';
 import { fabricAssignmentIssues, fabricSourceRecord } from '../../lib/fabricTextureScans';
+import {
+  DEFAULT_FABRIC_TEXTURE_INTENSITY, garmentTextureIntensity, partTextureIntensity,
+  resetFabricTextureIntensity, setGarmentTextureIntensity, setPartTextureIntensity,
+  type FabricTextureIntensity,
+} from '../../data/fabricTextureIntensity';
 
 const GARMENT_DEFAULT = '__garment-default__';
 const CATEGORY_LABELS: Record<FabricCategory, string> = {
@@ -16,10 +21,12 @@ const CATEGORY_LABELS: Record<FabricCategory, string> = {
   waistband: 'Waistband', hem: 'Hem', pockets: 'Pocket', panels: 'Panel', lining: 'Lining',
 };
 
-export function FabricControls({ parts, value, onChange, legacyFabric, selectedPartId, onSelectPart, garmentType = 'tshirt', technicalView = false, onTechnicalViewChange }: {
+export function FabricControls({ parts, value, onChange, textureIntensity, onTextureIntensityChange, legacyFabric, selectedPartId, onSelectPart, garmentType = 'tshirt', technicalView = false, onTechnicalViewChange }: {
   parts: FabricPart[];
   value?: FabricAssignments;
   onChange: (value: FabricAssignments | undefined) => void;
+  textureIntensity?: FabricTextureIntensity;
+  onTextureIntensityChange?: (value: FabricTextureIntensity) => void;
   legacyFabric?: string;
   selectedPartId?: string | null;
   onSelectPart?: (id: string | null) => void;
@@ -49,6 +56,10 @@ export function FabricControls({ parts, value, onChange, legacyFabric, selectedP
   const defaultFabricId = category ? state.categoryDefaults?.[category] ?? (category === 'lining' ? undefined : state.garmentDefault) : state.garmentDefault;
   const fabric = target ? mixed ? undefined : materials[0] : FABRIC_LIBRARY.find(item => item.id === defaultFabricId);
   const linked = !!target?.group && !state.unlinkedGroups.includes(target.group);
+  const intensity = garmentTextureIntensity(textureIntensity);
+  const selectedTexturePart = selectedPartId && parts.some(part => part.id === selectedPartId) ? selectedPartId : undefined;
+  const selectedIntensity = selectedTexturePart ? partTextureIntensity(textureIntensity, selectedTexturePart) : intensity;
+  const hasPartOverride = !!selectedTexturePart && textureIntensity?.parts?.[selectedTexturePart] !== undefined;
   const interior = { matchExteriorFabric: true, matchExteriorColour: true, ...state.interior };
   const updateInterior = (change: Partial<NonNullable<FabricAssignments['interior']>>) => onChange({ ...state, interior: { ...interior, ...change } });
   const applyFabric = (id: string) => onChange(category ? setCategoryFabric(state, category, id)
@@ -95,6 +106,40 @@ export function FabricControls({ parts, value, onChange, legacyFabric, selectedP
       </p> : null}
       {legacyFabric && !value && <p className="mt-2 text-[10px] text-white/45">Previous specification: {legacyFabric.replaceAll('-', ' ')}.</p>}
     </div>
+    {onTextureIntensityChange && <fieldset className="space-y-2 border-t border-white/10 pt-3" data-fabric-texture-intensity>
+      <div className="flex items-center justify-between">
+        <Label htmlFor="fabric-texture-intensity" className="text-[10px] uppercase tracking-wider text-white/60">Fabric texture</Label>
+        <output htmlFor="fabric-texture-intensity" className="text-[11px] tabular-nums text-white/75">{intensity}%</output>
+      </div>
+      <input id="fabric-texture-intensity" type="range" min={0} max={100} step={1} value={intensity}
+        aria-label="Garment fabric texture intensity"
+        onChange={event => onTextureIntensityChange(setGarmentTextureIntensity(textureIntensity, Number(event.target.value)))}
+        className="h-4 w-full cursor-pointer accent-[#FF3B30]" />
+      <div className="flex justify-between text-[10px] text-white/45"><span>Subtle</span><span>Strong</span></div>
+      {selectedTexturePart && <div className="space-y-2 border-t border-white/10 pt-2">
+        <p className="text-[10px] uppercase tracking-wider text-white/55">Selected part texture</p>
+        <label className="flex items-center gap-2 text-[11px] text-white/65">
+          <input type="checkbox" checked={!hasPartOverride}
+            onChange={event => onTextureIntensityChange(setPartTextureIntensity(textureIntensity, selectedTexturePart, event.target.checked ? undefined : intensity))} />
+          Inherit garment {intensity}%
+        </label>
+        {hasPartOverride && <>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="part-fabric-texture-intensity" className="text-[10px] text-white/55">Override</Label>
+            <output htmlFor="part-fabric-texture-intensity" className="text-[11px] tabular-nums text-white/75">{selectedIntensity}%</output>
+          </div>
+          <input id="part-fabric-texture-intensity" type="range" min={0} max={100} step={1} value={selectedIntensity}
+            aria-label={`Texture intensity for ${selectionLabel}`}
+            onChange={event => onTextureIntensityChange(setPartTextureIntensity(textureIntensity, selectedTexturePart, Number(event.target.value)))}
+            className="h-4 w-full cursor-pointer accent-[#FF3B30]" />
+          <div className="flex justify-between text-[10px] text-white/45"><span>Subtle</span><span>Strong</span></div>
+        </>}
+      </div>}
+      <button type="button" className="text-[10px] text-white/50 underline hover:text-white"
+        onClick={() => onTextureIntensityChange(resetFabricTextureIntensity())}>
+        Reset texture intensity to {DEFAULT_FABRIC_TEXTURE_INTENSITY}%
+      </button>
+    </fieldset>}
     <div>
       <p id={instructionId} className="mb-1.5 text-[10px] text-white/45">Click a fabric card to apply, or drag and drop it onto a garment part.</p>
       <div className="flex min-w-0 gap-2 overflow-x-auto pb-1" role="group" aria-label="Fabric cards">

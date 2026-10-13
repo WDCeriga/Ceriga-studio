@@ -13,6 +13,7 @@ import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import { fabricPartsFromLayers, resolvePartMaterial, type FabricPart, type FabricAssignments, type GarmentFabric } from '../../data/garmentFabrics';
 import { importedGarmentLayers } from '../../data/importedGarment';
 import { renderTexturedFabricSvg } from '../../lib/fabricRendering';
+import { partTextureIntensity, type FabricTextureIntensity } from '../../data/fabricTextureIntensity';
 import { washSvg, type GarmentWash, type WashBounds, type WashTool } from '../../data/garmentWash';
 import { WashEditor } from './WashFinish';
 import { ConstructionRegionHitTargets } from './ConstructionRegionHitTargets';
@@ -61,6 +62,7 @@ import {
 import { cn } from '../ui/utils';
 import type { NeckFinish } from '../../data/tshirtNeckFinish';
 import type { MeasurementSource } from './measurementGeometry';
+import { applyGarmentPanels, GarmentPanelOverlay, type GarmentPanel, type GarmentPanellingEditor } from '../../data/garmentPanelling';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -235,10 +237,13 @@ import { collarEditGeometry, type CollarManualEdits } from '../../data/customCol
 import type { AssetUserTransform } from '../../data/customAssetEditing';
 
 export interface TshirtSvgPreviewProps {
+  constructionPanels?: GarmentPanel[];
+  panellingEditor?: GarmentPanellingEditor;
   creationEditing?: boolean;
   technicalView?: boolean;
   onMaterialDrop?: MaterialDropHandler;
   fabricAssignments?: FabricAssignments;
+  fabricTextureIntensity?: FabricTextureIntensity;
   canvasOverlay?: React.ReactNode;
   customAssetState?: import('../../data/customAssets').CustomAssetState;
   onCustomAssetTransformChange?: (id: string, transform?: AssetUserTransform) => void;
@@ -412,9 +417,11 @@ function InlineSvg({
   edgeSealWidth = 0,
   fabric,
   interior = false,
+  textureIntensity = 40,
 }: {
   fabric?: GarmentFabric;
   interior?: boolean;
+  textureIntensity?: number;
   raw: string;
   fill: string;
   fabricColor?: string;
@@ -426,8 +433,8 @@ function InlineSvg({
   const id = useId().replace(/:/g, '');
   const markup = useMemo(
     () => linework ? renderConstructionSvg(raw, fabricColor ?? fill, fill, id, regions)
-      : renderTexturedFabricSvg(raw, fill, fabric, id, interior, edgeSealWidth),
-    [raw, fill, fabricColor, linework, regions, id, edgeSealWidth, fabric, interior],
+      : renderTexturedFabricSvg(raw, fill, fabric, id, interior, edgeSealWidth, textureIntensity),
+    [raw, fill, fabricColor, linework, regions, id, edgeSealWidth, fabric, interior, textureIntensity],
   );
 
   return (
@@ -621,17 +628,25 @@ function PreviewLayer({
   openingCut,
   fabric,
   fabricAssignments,
+  fabricTextureIntensity,
   interior,
+  textureIntensity,
   technicalView,
   appearanceColor,
   partColors,
   materialParts,
+  constructionPanels,
+  panellingEditor,
 }: {
+  constructionPanels?: GarmentPanel[];
+  panellingEditor?: GarmentPanellingEditor;
   partColors?: Partial<Record<string, string>>;
   materialParts: FabricPart[];
   technicalView?: boolean;
   appearanceColor?: string;
   fabricAssignments?: FabricAssignments;
+  fabricTextureIntensity?: FabricTextureIntensity;
+  textureIntensity?: number;
   fabric?: GarmentFabric;
   interior?: boolean;
   layer: ResolvedGarmentLayer;
@@ -666,8 +681,18 @@ function PreviewLayer({
   const zIndex = layer.zIndex;
   const openingClipId = `${washId.replace(/:/g, '')}-opening`;
   const openingClip = useMemo(() => openingCut?.length ? openingLayerClip(openingCut, new DOMMatrix(placementTransform)) : '', [openingCut, placementTransform]);
+  const layerPanellingEditor = panellingEditor && {
+    ...panellingEditor,
+    onCreateZip: (panelId: string, start: [number, number], end: [number, number]) => {
+      const sourceToGarment = new DOMMatrix(placementTransform).inverse();
+      const mappedStart = sourceToGarment.transformPoint(new DOMPoint(start[0], start[1]));
+      const mappedEnd = sourceToGarment.transformPoint(new DOMPoint(end[0], end[1]));
+      panellingEditor.onCreateZip(panelId, [mappedStart.x, mappedStart.y], [mappedEnd.x, mappedEnd.y]);
+    },
+  };
 
   return (
+    <>
     <div
       className="pointer-events-none absolute inset-0 touch-none"
       style={{
@@ -687,6 +712,7 @@ function PreviewLayer({
           raw={layer.svgRaw}
           fabric={fabric}
           interior={interior}
+          textureIntensity={textureIntensity}
           fill={layer.id === 'outline' ? '#141414' : fill}
           fabricColor={bodyColor}
           linework={layer.id === 'outline' || layer.kind === 'detail'}
@@ -696,7 +722,7 @@ function PreviewLayer({
           const panelPart = materialParts.find(part => part.id === panel.id);
           const material = panelPart ? resolvePartMaterial(fabricAssignments, panelPart, materialParts) : undefined;
           const panelFabric = technicalView ? undefined : material?.fabric ?? fabric;
-          return <div key={panel.id} data-colour-panel={panel.id} data-fabric-id={panelFabric?.id} className="pointer-events-none absolute inset-0"><InlineSvg raw={panel.svgRaw} fill={partColors?.[panel.id] ?? panel.tint ?? fill} fabricColor={bodyColor} fabric={panelFabric} interior={material?.interior ?? interior} /></div>;
+          return <div key={panel.id} data-colour-panel={panel.id} data-fabric-id={panelFabric?.id} className="pointer-events-none absolute inset-0"><InlineSvg raw={panel.svgRaw} fill={partColors?.[panel.id] ?? (panel.tint || fill)} fabricColor={bodyColor} fabric={panelFabric} interior={material?.interior ?? interior} textureIntensity={partTextureIntensity(fabricTextureIntensity, panel.id)} /></div>;
         })}
         {finish && <div className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: finish }} />}
         {layer.constructionSvg && <div className="absolute inset-0"><InlineSvg raw={layer.constructionSvg} fill="#141414" fabricColor={fill} linework regions={regions} /></div>}
@@ -704,6 +730,22 @@ function PreviewLayer({
       </div>
       </div>
     </div>
+    {(constructionPanels?.length || panellingEditor?.enabled) && layer.panellingClipSvgRaw && (
+      <div
+        className="pointer-events-none absolute inset-0 touch-none"
+        data-panelling-overlay-layer={layerId}
+        style={{
+          ...layerTransformStyle(transform, bbox, alignOffset, scaleFixedAnchor),
+          zIndex: 1000,
+          ...(clipSide ? sleeveSideClipStyle(clipSide) : {}),
+          ...(openingClip ? { clipPath: `url(#${openingClipId})` } : {}),
+        }}
+      >
+        <GarmentPanelOverlay panels={constructionPanels ?? []} view={detailView} parentPartId={layerId}
+          sourceSvgRaw={layer.panellingClipSvgRaw} editor={layerPanellingEditor} />
+      </div>
+    )}
+    </>
   );
 }
 
@@ -834,7 +876,10 @@ function buildLayerLayouts(
 }
 
 export function TshirtSvgPreview({
+  constructionPanels,
+  panellingEditor,
   fabricAssignments,
+  fabricTextureIntensity,
   canvasOverlay,
   garmentWash,
   showWash = true,
@@ -936,9 +981,8 @@ export function TshirtSvgPreview({
     };
   }, [onSelectedLayerChange]);
 
-  const layers = useMemo(
-    () =>
-      resolveGarmentLayers({
+  const layers = useMemo(() => {
+      const resolved = resolveGarmentLayers({
         garmentType,
         view: detailView,
         selection,
@@ -954,8 +998,10 @@ export function TshirtSvgPreview({
         customCollar,
         customCollars,
         customAssetState,
-      }),
-    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars, customAssetState],
+      });
+      return constructionPanels?.length || panellingEditor?.enabled ? applyGarmentPanels(resolved, constructionPanels ?? [], detailView) : resolved;
+    },
+    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars, customAssetState, constructionPanels, panellingEditor?.enabled],
   );
 
   const imported = customAssetState?.importedGarment;
@@ -1288,13 +1334,13 @@ export function TshirtSvgPreview({
     for (const layout of layerLayouts) {
       const { sourceLayer, bbox } = layout;
       if (!bbox || sourceLayer.kind !== 'solid') continue;
-      const role = layout.id === 'base' ? 'body' : layout.id === 'neck' ? 'neck' : layout.id === 'bodyHem' ? 'hem' : undefined;
+      const role = layout.id === 'base' || layout.id === 'sleeves' ? 'body' : layout.id === 'neck' ? 'neck' : layout.id === 'bodyHem' ? 'hem' : undefined;
       if (!role) continue;
       const transform = resolveLayerDisplayTransform(layout.id, layout.transform, bbox);
       const scale = resolveLayerScale(transform);
       const matrix = new DOMMatrix().translate(bbox.centerX + transform.x * 2048 / canvasSize, bbox.centerY + transform.y * 2048 / canvasSize)
         .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
-      sources.push({ id: layout.id, raw: sourceLayer.svgRaw, role, matrix });
+      sources.push({ id: layout.id, raw: sourceLayer.panellingClipSvgRaw ?? sourceLayer.svgRaw, role, matrix });
     }
     return compileOpeningGeometry(sources);
   }, [layerLayouts, resolveLayerDisplayTransform, canvasSize]);
@@ -1435,11 +1481,15 @@ export function TshirtSvgPreview({
               key={`${sourceLayer.category}-${id}`}
               layerId={id}
               fabric={technicalView ? undefined : material?.fabric}
+              textureIntensity={partTextureIntensity(fabricTextureIntensity, id)}
               materialParts={[...fabricParts.values()]}
               partColors={partColors}
+              constructionPanels={constructionPanels}
+              panellingEditor={panellingEditor}
               technicalView={technicalView}
               appearanceColor={sourceLayer.kind === 'solid' && id !== 'outline' ? partColors?.[id] : undefined}
               fabricAssignments={fabricAssignments}
+              fabricTextureIntensity={fabricTextureIntensity}
               interior={material?.interior}
               openingCut={id === 'outline' ? openings?.inkCut : openingGeometry.panels.some(panel => panel.id === id) ? openings?.removed : undefined}
               layer={sourceLayer}
@@ -1460,7 +1510,7 @@ export function TshirtSvgPreview({
         })}
 
         {canvasOverlay}
-        {editable
+        {editable && !panellingEditor?.enabled
           ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>
               bbox && !semanticRegionIds.has(id) && !semanticInkIds.has(id) && !overriddenTrimIds.has(id) && !customEditableIds.includes(id) ? (
                 <React.Fragment key={`hit-${id}`}>

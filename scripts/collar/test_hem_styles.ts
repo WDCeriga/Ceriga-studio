@@ -7,7 +7,7 @@ import { withTshirtNeckFinish, type NeckFinish } from '../../src/app/data/tshirt
 import { getPotraceSvgBBox } from '../../src/app/lib/tshirtSvgUtils';
 import { decorationsForView, replaceViewDecorations } from '../../src/app/data/garmentView';
 import type { TshirtHemStyles } from '../../src/app/data/tshirtHemStyles';
-import { availableHemRegions, resolveHemSettings, updateHemSettings, copyHemSettings } from '../../src/app/data/tshirtHemStyles';
+import { applyHemRegionColours, availableHemRegions, resolveHemSettings, updateHemSettings, copyHemSettings } from '../../src/app/data/tshirtHemStyles';
 import hemGeometry from '../../src/assets/studio-tshirt/hem-styles.json';
 import {
   measureStitchGeometry, renderStitchStyles, stitchPatternPath, TSHIRT_STITCH_OPTIONS, TSHIRT_STITCH_REGIONS,
@@ -35,6 +35,14 @@ export function verifyHemEditingState() {
   check(JSON.stringify(toggled.editing.regions) === JSON.stringify(individual.editing?.regions), 'Toggle destroyed overrides');
   const copied = copyHemSettings(toggled, ids, resolveHemSettings(toggled, ids[0]));
   check(ids.every(id => resolveHemSettings(copied, id).color === '#226688'), 'Explicit apply failed');
+  const appliedColours = applyHemRegionColours({
+    base: '#334455', sleeveLeft: '#667788', sleeveRight: '#998877',
+    bodyHem: '#FFFFFF', sleeveHemLeft: '#FFFFFF', sleeveHemRight: '#FFFFFF',
+  }, individual);
+  check(appliedColours.sleeveHemLeft === '#226688', 'Explicit hem colour did not override the inherited render colour');
+  check(appliedColours.bodyHem === '#C04030', 'Global hem colour did not override the inherited render colour');
+  const cleared = updateHemSettings({ ...individual, editing: { ...individual.editing, applyAll: false } }, ids, ids[0], { color: '' });
+  check(applyHemRegionColours(appliedColours, cleared).sleeveHemLeft === '#667788', 'Cleared hem colour did not inherit its parent colour');
   check(JSON.stringify(JSON.parse(JSON.stringify(individual))) === JSON.stringify(individual), 'Save/reload lost hem state');
   check(JSON.stringify(legacy) === snapshot, 'Legacy input mutated');
   return { global: true, isolation: true, togglePreservesOverrides: true, explicitApply: true, serialization: true };

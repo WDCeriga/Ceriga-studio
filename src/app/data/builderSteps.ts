@@ -74,6 +74,13 @@ export const builderSteps: BuilderStep[] = [
     description: 'Specify stitch type, thread weight and seam construction'
   },
   {
+    id: 14,
+    name: 'panelling',
+    title: 'Panelling',
+    description: 'Create semantic cut-and-sew panels on the garment canvas',
+    skipForGarmentTypes: ['hoodie', 'sweatshirt', 'trousers', 'shorts', 'jacket', 'dress', 'skirt']
+  },
+  {
     id: 9,
     name: 'prints',
     title: 'Prints & Design',

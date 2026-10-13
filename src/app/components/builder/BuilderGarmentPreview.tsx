@@ -3,6 +3,7 @@ import type { GarmentType } from '../../data/builderSteps';
 import { resolvePartMaterial, type FabricAssignments, type FabricPart } from '../../data/garmentFabrics';
 import { schematicFabricParts } from '../../data/schematicFabricParts';
 import { fabricPatternScale, fabricTextureMotif } from '../../lib/fabricRendering';
+import { partTextureIntensity, type FabricTextureIntensity } from '../../data/fabricTextureIntensity';
 import { fabricScanSurface } from '../../lib/fabricTextureScans';
 import { useMaterialDrop, type MaterialDropHandler } from './materialDrop';
 import { cn } from '../ui/utils';
@@ -25,6 +26,7 @@ export interface BuilderGarmentPreviewProps {
   sleeveTrimColor?: string;
   pocketTrimColor?: string;
   fabricAssignments?: FabricAssignments;
+  fabricTextureIntensity?: FabricTextureIntensity;
   partColors?: Partial<Record<string, string>>;
   technicalView?: boolean;
   selectedPartId?: string | null;
@@ -36,14 +38,14 @@ export interface BuilderGarmentPreviewProps {
 const VB_W = 520;
 const VB_H = 560;
 
-const FabricContext = createContext<{ assignments?: FabricAssignments; parts: FabricPart[]; colors?: Partial<Record<string,string>>; technicalView?: boolean; selectedPartId?: string | null; onSelectPart?: (id: string) => void; onMaterialDrop?: MaterialDropHandler }>({ parts: [] });
+const FabricContext = createContext<{ assignments?: FabricAssignments; parts: FabricPart[]; colors?: Partial<Record<string,string>>; textureIntensity?: FabricTextureIntensity; technicalView?: boolean; selectedPartId?: string | null; onSelectPart?: (id: string) => void; onMaterialDrop?: MaterialDropHandler }>({ parts: [] });
 
 function FabricShape({ as, partId, ...props }: SVGProps<SVGElement> & {
   as: 'path' | 'rect' | 'ellipse';
   partId: string;
 }) {
   const uid = useId().replace(/:/g, '');
-  const { assignments, parts, colors, technicalView, selectedPartId, onSelectPart, onMaterialDrop } = useContext(FabricContext);
+  const { assignments, parts, colors, textureIntensity, technicalView, selectedPartId, onSelectPart, onMaterialDrop } = useContext(FabricContext);
   const part = parts.find(candidate => candidate.id === partId);
   const material = part ? resolvePartMaterial(assignments, part, parts) : undefined;
   const fabric = technicalView ? undefined : material?.fabric;
@@ -56,8 +58,8 @@ function FabricShape({ as, partId, ...props }: SVGProps<SVGElement> & {
     {fabric && <defs><pattern id={patternId} width={10} height={10} patternUnits="userSpaceOnUse"
       patternTransform={`scale(${fabricPatternScale(fabric, VB_W, interior)})`}
       data-fabric-texture={fabric.id} data-fabric-status={fabricScanSurface(fabric, interior)?.sourceStatus ?? 'unresolved'}
-      data-fabric-surface={interior ? 'reverse' : 'face'}>
-      <rect width={10} height={10} fill={fill} /><g dangerouslySetInnerHTML={{ __html: fabricTextureMotif(fabric, interior) }} />
+      data-fabric-surface={interior ? 'reverse' : 'face'} data-fabric-intensity={partTextureIntensity(textureIntensity, partId)}>
+      <rect width={10} height={10} fill={fill} /><g dangerouslySetInnerHTML={{ __html: fabricTextureMotif(fabric, interior, partTextureIntensity(textureIntensity, partId), fill) }} />
     </pattern></defs>}
     {createElement(as, { ...props, fill: fabric ? `url(#${patternId})` : fill,
       ...((fabric || onSelectPart) ? { 'data-fabric-part': partId, 'data-fabric-base': fill } : {}),
@@ -696,6 +698,7 @@ export function BuilderGarmentPreview({
   sleeveTrimColor,
   pocketTrimColor,
   fabricAssignments,
+  fabricTextureIntensity,
   partColors, technicalView, selectedPartId, onSelectPart, onMaterialDrop,
   className,
 }: BuilderGarmentPreviewProps) {
@@ -720,7 +723,7 @@ export function BuilderGarmentPreview({
         </linearGradient>
       </defs>
 
-      <FabricContext.Provider value={{ assignments: fabricAssignments, parts, colors: partColors, technicalView, selectedPartId, onSelectPart, onMaterialDrop }}>
+      <FabricContext.Provider value={{ assignments: fabricAssignments, parts, colors: partColors, textureIntensity: fabricTextureIntensity, technicalView, selectedPartId, onSelectPart, onMaterialDrop }}>
         {isTopGarment(garmentType)
           ? renderTop(
               {

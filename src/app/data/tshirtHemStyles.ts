@@ -7,9 +7,27 @@ export type HemSettings = { finish?: TshirtHemStyle; color?: string; stitchColor
 export type HemEditing = { applyAll?: boolean; global?: HemSettings; regions?: Record<string, HemSettings> };
 export type TshirtHemStyles = Partial<Record<'sleeve' | 'bottom' | 'undersleeve', TshirtHemStyle>> & { editing?: HemEditing };
 
+function hemParentId(id: string): string {
+  if (id === 'bodyHem' || id === 'trouserHem') return 'base';
+  if (id.startsWith('underlayerHem')) return id.replace('underlayerHem', 'underSleeve');
+  if (id.startsWith('sleeveHem')) return id.replace('sleeveHem', 'sleeve');
+  return 'base';
+}
+
 export function resolveHemSettings(styles: TshirtHemStyles | undefined, id: string): HemSettings {
   const group = id === 'bodyHem' ? 'bottom' : id.startsWith('underlayer') ? 'undersleeve' : 'sleeve';
   return { finish: styles?.[group] ?? 'normal', ...styles?.editing?.regions?.[id] };
+}
+
+export function applyHemRegionColours(
+  colours: Record<string, string>, styles: TshirtHemStyles | undefined,
+): Record<string, string> {
+  const result = { ...colours };
+  for (const [id, settings] of Object.entries(styles?.editing?.regions ?? {})) {
+    if (settings.color === undefined) continue;
+    result[id] = settings.color || colours[hemParentId(id)] || colours.base || colours[id];
+  }
+  return result;
 }
 
 export function updateHemSettings(styles: TshirtHemStyles | undefined, ids: string[], selected: string, patch: HemSettings): TshirtHemStyles {
@@ -89,7 +107,7 @@ export function withTshirtHemStyles(
     const customDepth = depth !== 1 && style !== 'none';
     const ribWeight = Number.isFinite(settings.ribWeight) ? Math.max(.15, Math.min(.75, settings.ribWeight!)) : .4;
     const band = (path: string, attributes: string) => `<g transform="scale(1.3333333333)"><g transform="${transform}"><path d="${path}" ${attributes}/></g></g>`;
-    const parentId = id === 'bodyHem' ? 'base' : id.startsWith('underlayer') ? id.replace('underlayerHem', 'underSleeve') : id.replace('sleeveHem', 'sleeve');
+    const parentId = hemParentId(id);
     const parent = layers.find(layer => layer.id === parentId);
     resolved = resolved.map(layer => {
       if (layer.id === id) layer = { ...layer, tint: settings.color === '' ? parent?.tint : settings.color ?? layer.tint ?? parent?.tint };

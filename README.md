@@ -37,6 +37,12 @@ technical/no-texture display mode remain caller-owned; hiding texture must not
 clear saved materials. `assignFabric(..., 'part')` explicitly unlinks a targeted
 pair member; its existing default linked/bulk behavior remains compatible.
 
+Fabric rendering keeps the selected swatch as the base colour and applies the
+fabric map as surface relief. Swatches with relative luminance at or above 0.55
+use a restrained multiply-only micro-shadow pass, with no soft-light lift or
+broad brightness correction. Darker colours retain the existing soft-light
+detail treatment.
+
 Single-jersey and generic denim reverse maps are separately authored, neutral,
 tileable construction studies, **not scanned reverses**. Denim retains its verified
 CC0 face scan; its procedural reverse has separate review-required provenance.
@@ -329,6 +335,11 @@ Cotton is a composition, not one universal surface texture.
   physical lighting. Rib 2×2 has paired stitches, not an enlarged Rib 1×1 map; terry and
   loopback use smooth faces and dedicated loop reverses. Fleece reverses are separately
   authored rather than borrowed from terry.
+- **Fabric texture** intensity defaults to 40% and scales each assigned material's own
+  tuned relief map without changing garment colour, geometry or construction ink.
+  Optional selected-part overrides inherit the garment value until explicitly set.
+  The setting is saved with the project and participates in undo/redo; Technical view
+  hides textures temporarily without changing it.
 - [sources.json](src/assets/fabrics/sources.json) stores `sourceType` (`scan-cc0`,
   `scan-ccby`, `ceriga-owned`, `procedural`), `sourceStatus` (`verified`,
   `review-required`, `unresolved`), provenance, recipes, filenames and SHA256 hashes.

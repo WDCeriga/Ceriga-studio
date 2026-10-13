@@ -4,13 +4,33 @@ import { fabricMaterial, fabricScanSurface } from './fabricTextureScans';
 
 const NS = 'http://www.w3.org/2000/svg';
 
-export function fabricTextureMotif(fabric: GarmentFabric, interior: boolean): string {
+function swatchLuminance(color: string): number | undefined {
+  const expanded = color.replace(/^#([\da-f])([\da-f])([\da-f])$/i, '#$1$1$2$2$3$3');
+  if (!/^#[\da-f]{6}$/i.test(expanded)) return undefined;
+  const linear = [1, 3, 5].map(offset => {
+    const channel = parseInt(expanded.slice(offset, offset + 2), 16) / 255;
+    return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+  });
+  return linear[0] * .2126 + linear[1] * .7152 + linear[2] * .0722;
+}
+
+export function fabricTextureMotif(fabric: GarmentFabric, interior: boolean, intensity = 40, fill = '#000000'): string {
   const surface = fabricScanSurface(fabric, interior);
   if (!surface) return '<text x=".2" y="5" font-size=".7" fill="#805c28" data-fabric-unavailable="true">Texture unavailable</text>';
-  const brightness = surface.brightnessCorrection;
-  const correction = brightness ? `<rect width="10" height="10" fill="${brightness < 0 ? '#000' : '#fff'}" opacity="${Math.abs(brightness)}" data-fabric-brightness="${brightness}"/>` : '';
+  const normalizedIntensity = Math.max(0, Math.min(100, intensity));
+  const multiplier = normalizedIntensity / 40;
+  const brightness = surface.brightnessCorrection * multiplier;
+  const correction = brightness ? `<rect width="10" height="10" fill="${brightness < 0 ? '#000' : '#fff'}" opacity="${Math.min(.25, Math.abs(brightness))}" data-fabric-brightness="${brightness}"/>` : '';
+  const opacity = Math.min(.82, surface.opacity * multiplier);
+  const lightSwatch = (swatchLuminance(fill) ?? 0) >= .55;
   // Embedded neutral-alpha maps survive SVG rasterization/export without network requests.
-  return `${correction}<image href="${surface.image}" x="0" y="0" width="10" height="10" preserveAspectRatio="none" opacity="${surface.opacity}" transform="rotate(${surface.rotation} 5 5)" data-fabric-scan="${surface.source}" data-fabric-source-type="${surface.sourceType}"/>`;
+  const image = `href="${surface.image}" x="0" y="0" width="10" height="10" preserveAspectRatio="none" transform="rotate(${surface.rotation} 5 5)"`;
+  if (lightSwatch) {
+    const shadowOpacity = Math.min(.82, opacity * 1.2);
+    return `<image ${image} opacity="${shadowOpacity}" style="mix-blend-mode:multiply" data-fabric-scan="${surface.source}" data-fabric-source-type="${surface.sourceType}" data-fabric-intensity="${normalizedIntensity}" data-fabric-luminance-response="light-micro-shadow"/>`;
+  }
+  const reliefOpacity = Math.min(.08, opacity * .25);
+  return `${correction}<image ${image} opacity="${opacity}" data-fabric-scan="${surface.source}" data-fabric-source-type="${surface.sourceType}" data-fabric-intensity="${normalizedIntensity}"/><image ${image} opacity="${reliefOpacity}" style="mix-blend-mode:soft-light" data-fabric-luminance-pass="soft-light"/>`;
 }
 
 export function fabricPatternScale(fabric: GarmentFabric, viewBoxWidth = 2048, interior = false): number {
@@ -55,7 +75,7 @@ function inheritedFill(shape: Element, root: Element): string {
  * rectangle can leak past the fabric. Strokes and later construction ink stay on top.
  */
 export function renderTexturedFabricSvg(
-  raw: string, fill: string, fabric: GarmentFabric | undefined, id: string, interior = false, edgeSealWidth = 0,
+  raw: string, fill: string, fabric: GarmentFabric | undefined, id: string, interior = false, edgeSealWidth = 0, intensity = 40,
 ): string {
   const markup = edgeSealWidth ? tintPotraceSvg(raw, fill, 'solid', false, edgeSealWidth) : renderFabricSvg(raw, fill);
   if (!fabric || typeof DOMParser === 'undefined' || typeof DOMMatrix === 'undefined') return markup;
@@ -72,7 +92,6 @@ export function renderTexturedFabricSvg(
   if (!shapes.length) return markup;
   const defs = parsed.createElementNS(NS, 'defs');
   const prefix = `fabric-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const motif = new DOMParser().parseFromString(`<svg xmlns="${NS}">${fabricTextureMotif(fabric, interior)}</svg>`, 'image/svg+xml');
   const patterns = new Map<string, string>();
   for (const shape of shapes) {
     const inverse = shapeMatrix(shape, root).inverse();
@@ -90,6 +109,7 @@ export function renderTexturedFabricSvg(
       pattern.setAttribute('width', '10'); pattern.setAttribute('height', '10');
       pattern.setAttribute('patternTransform', transform);
       pattern.setAttribute('data-fabric-texture', fabric.id);
+      pattern.setAttribute('data-fabric-intensity', String(Math.max(0, Math.min(100, intensity))));
       const surface = fabricScanSurface(fabric, interior);
       pattern.setAttribute('data-fabric-status', surface?.sourceStatus ?? 'unresolved');
       if (surface) pattern.setAttribute('data-fabric-source-type', surface.sourceType);
@@ -97,6 +117,7 @@ export function renderTexturedFabricSvg(
       const base = parsed.createElementNS(NS, 'rect');
       base.setAttribute('width', '10'); base.setAttribute('height', '10'); base.setAttribute('fill', baseColor);
       pattern.append(base);
+      const motif = new DOMParser().parseFromString(`<svg xmlns="${NS}">${fabricTextureMotif(fabric, interior, intensity, baseColor)}</svg>`, 'image/svg+xml');
       for (const child of Array.from(motif.documentElement.children)) pattern.append(parsed.importNode(child, true));
       defs.append(pattern);
     }

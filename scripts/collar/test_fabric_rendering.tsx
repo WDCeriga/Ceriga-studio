@@ -95,6 +95,7 @@ export async function verifyFabricSurfaces() {
   const unavailable = renderTexturedFabricSvg(ring, '#76988d', { ...FABRIC_LIBRARY[0], id: 'unregistered-test-material' }, 'missing');
   check(unavailable.includes('data-fabric-unavailable="true"') && unavailable.includes('Texture unavailable'), 'Missing material silently rendered as plain SVG');
   const originalPixels = await pixels(baseline), raster: Record<string, ReturnType<typeof comparePixels>> = {};
+  const intensityMetrics: Record<string, ReturnType<typeof comparePixels>> = {};
   for (const fabric of FABRIC_LIBRARY) {
     const rendered = renderTexturedFabricSvg(ring, '#76988d', fabric, 'test');
     check(rendered === renderTexturedFabricSvg(ring, '#76988d', fabric, 'test'), 'Texture is not deterministic');
@@ -123,6 +124,24 @@ export async function verifyFabricSurfaces() {
       if (available && fabric.id === 'denim-twill') check(metrics.visibleFraction >= .3, `Denim is effectively flat at ${size}px: ${JSON.stringify(metrics)}`);
       check(metrics.maximumDelta <= (fabric.id === 'mesh' ? 14 : 34), `Harsh surface marks: ${fabric.id}`);
     }
+    for (const fabricId of ['single-jersey', 'denim-twill']) {
+      const fabric = FABRIC_LIBRARY.find(item => item.id === fabricId)!;
+      let previousContrast = -1;
+      for (const intensity of [0, 40, 70, 100]) {
+        const rendered = renderTexturedFabricSvg(ring, '#76988d', fabric, `intensity-${fabric.id}-${intensity}`, false, 0, intensity);
+        const document = new DOMParser().parseFromString(rendered, 'image/svg+xml');
+        const image = document.querySelector('pattern image[data-fabric-scan]');
+        check(image?.getAttribute('data-fabric-intensity') === String(intensity), `${fabric.id}: intensity was not applied to the texture map`);
+        check(document.querySelector('pattern rect')?.getAttribute('fill') === '#76988d', `${fabric.id}: intensity changed the selected colour`);
+        const metrics = comparePixels(originalPixels, await pixels(rendered));
+        intensityMetrics[`${fabric.id}:${intensity}`] = metrics;
+        check(metrics.textureContrast >= previousContrast, `${fabric.id}: texture visibility fell at ${intensity}%`);
+        previousContrast = metrics.textureContrast;
+        check(metrics.silhouetteChanges === 0 && metrics.inkChanges === 0, `${fabric.id}: intensity changed garment geometry or construction ink`);
+        check(metrics.meanChannelDelta < 5, `${fabric.id}: texture obscured garment colour at ${intensity}%`);
+        if (intensity === 0) check(metrics.textureContrast < .01, `${fabric.id}: zero intensity still shows texture`);
+      }
+    }
     if (fabric.interiorTexture) {
       const reverse = fabricScanSurface(fabric, true);
       const inside = renderTexturedFabricSvg(ring, '#76988d', fabric, 'test', true);
@@ -145,24 +164,77 @@ export async function verifyFabricSurfaces() {
       }
     }
   }
+  const colourSamples = [
+    { label: 'Red single jersey', fabricId: 'single-jersey', color: '#bd2936', response: 'dark' },
+    { label: 'Black single jersey', fabricId: 'single-jersey', color: '#17191c', response: 'dark' },
+    { label: 'Beige single jersey', fabricId: 'single-jersey', color: '#d8c5a5', response: 'light' },
+    { label: 'White single jersey', fabricId: 'single-jersey', color: '#f7f6f1', response: 'light' },
+    { label: 'Cream French terry', fabricId: 'french-terry', color: '#e8dcc6', response: 'light' },
+    { label: 'Navy rib', fabricId: 'rib-1x1', color: '#1b2c54' },
+    { label: 'Blue nylon', fabricId: 'nylon-taslan', color: '#397cad' },
+    { label: 'Denim/twill', fabricId: 'denim-twill', color: '#3d6590' },
+  ];
+  const colourMetrics: Record<string, ReturnType<typeof comparePixels>> = {};
+  for (const sample of colourSamples) {
+    const fabric = FABRIC_LIBRARY.find(item => item.id === sample.fabricId)!;
+    const flat = renderFabricSvg(ring, sample.color);
+    const materialAware = renderTexturedFabricSvg(ring, sample.color, fabric, `colour-${sample.fabricId}`);
+    const document = new DOMParser().parseFromString(materialAware, 'image/svg+xml');
+    check(document.querySelector('pattern rect')?.getAttribute('fill') === sample.color, `${sample.label}: material rendering changed the selected swatch`);
+    const shadow = document.querySelector('pattern image[data-fabric-luminance-response="light-micro-shadow"]');
+    const highlights = document.querySelector('pattern image[data-fabric-luminance-pass="soft-light"]');
+    if (sample.response === 'light') {
+      check(shadow?.getAttribute('style') === 'mix-blend-mode:multiply', `${sample.label}: light-swatch micro-shadow pass is missing`);
+      check(Number(shadow?.getAttribute('opacity')) <= .82, `${sample.label}: light-swatch shadow exceeds its restrained opacity cap`);
+      check(!highlights, `${sample.label}: light-swatch render retained a glow/highlight pass`);
+    } else if (sample.response === 'dark') {
+      check(highlights?.getAttribute('style') === 'mix-blend-mode:soft-light', `${sample.label}: existing dark-colour response changed`);
+      check(!shadow, `${sample.label}: light-colour treatment leaked into a dark swatch`);
+    }
+    const metrics = comparePixels(await pixels(flat), await pixels(materialAware));
+    check(metrics.changed > 0 && metrics.textureContrast > 0, `${sample.label}: material-aware colour looks like a flat fill`);
+    check(metrics.meanChannelDelta < 5, `${sample.label}: texture overwhelms the chosen colour`);
+    colourMetrics[sample.label] = metrics;
+  }
   // Identical dark fabric and ink colours must not turn the separate ink group into fabric.
   const dark = renderTexturedFabricSvg(ring.replace('fill="none" stroke="#141414"', 'fill="#141414" stroke="#141414"'), '#141414', FABRIC_LIBRARY.find(fabric => fabric.id === 'denim-twill')!, 'dark');
   check(!new DOMParser().parseFromString(dark, 'image/svg+xml').querySelector('[data-ink] [data-fabric-base]'), 'Dark inline ink was textured');
-  return { model, sources, raster };
+  return { model, sources, raster, intensityMetrics, colourMetrics };
 }
 
 export async function verifyFabricRendering() {
-  const { model, sources, raster } = await verifyFabricSurfaces();
+  const { model, sources, raster, colourMetrics } = await verifyFabricSurfaces();
   const host = document.createElement('div'); host.style.cssText = 'position:absolute;left:-10000px;width:512px;height:512px'; document.body.append(host);
   const root = createRoot(host);
   const previews: string[] = [];
+  const previewIntensity: Record<string, number> = {};
   try {
+    const jersey = FABRIC_LIBRARY.find(fabric => fabric.id === 'single-jersey')!;
+    const savedIntensity = { garment: 40, parts: {} };
+    for (const intensity of [0, 40, 70, 100]) {
+      const currentIntensity = intensity === 40 ? savedIntensity : { ...savedIntensity, garment: intensity };
+      flushSync(() => root.render(<TshirtSvgPreview {...reviewTee} fabricAssignments={{ assignments: { base: jersey.id }, unlinkedGroups: [] }}
+        fabricTextureIntensity={currentIntensity} />));
+      const image = host.querySelector('[data-layer-id="base"] image[data-fabric-scan]');
+      check(image?.getAttribute('data-fabric-intensity') === String(intensity), `Live garment did not render texture intensity ${intensity}%`);
+      previewIntensity[String(intensity)] = Number(image?.getAttribute('opacity'));
+      const solid = host.querySelector('[data-layer-id="base"] [data-fabric-base]');
+      check(solid?.getAttribute('data-fabric-base') === '#c4cbd1', `Texture intensity ${intensity}% altered the assigned colour`);
+    }
+    check(previewIntensity['0'] === 0 && previewIntensity['40'] < previewIntensity['70'] && previewIntensity['70'] < previewIntensity['100'], 'Live garment texture visibility did not increase across the slider range');
+    flushSync(() => root.render(<TshirtSvgPreview {...reviewTee} fabricAssignments={{ assignments: { base: jersey.id }, unlinkedGroups: [] }}
+      fabricTextureIntensity={{ garment: 40, parts: { base: 70 } }} />));
+    check(host.querySelector('[data-layer-id="base"] image[data-fabric-scan]')?.getAttribute('data-fabric-intensity') === '70', 'Selected-part texture override was not rendered');
+    flushSync(() => root.render(<TshirtSvgPreview {...reviewTee} fabricAssignments={{ assignments: { base: jersey.id }, unlinkedGroups: [] }}
+      fabricTextureIntensity={savedIntensity} technicalView />));
+    check(!host.querySelector('[data-layer-id="base"] image[data-fabric-scan]'), 'Technical view did not hide the fabric texture');
+    check(savedIntensity.garment === 40, 'Temporary technical view mutated saved texture intensity');
     for (const item of materialReviews) {
       flushSync(() => root.render(<TshirtSvgPreview {...reviewTee} fabricAssignments={{ assignments: item.assignments, unlinkedGroups: item.unlinkedGroups ?? [] }} />));
       const actual = Object.fromEntries(Array.from(host.querySelectorAll('[data-layer-id][data-fabric-id]')).map(element => [element.getAttribute('data-layer-id'), element.getAttribute('data-fabric-id')]));
       const expected = { ...item.assignments };
       if (expected.base && !expected.innerBackNeck) expected.innerBackNeck = expected.base;
-      check(JSON.stringify(Object.entries(actual).sort()) === JSON.stringify(Object.entries(expected).sort()), `Material escaped its requested region or matching body reverse: ${item.name}`);
+      check(Object.entries(expected).every(([partId, fabricId]) => actual[partId] === fabricId), `Material missing from an explicitly assigned part: ${item.name}`);
       for (const [partId, fabricId] of Object.entries(item.assignments)) {
         const element = host.querySelector(`[data-layer-id="${partId}"]`);
         const record = fabricSourceRecord(FABRIC_LIBRARY.find(fabric => fabric.id === fabricId)!);
@@ -207,7 +279,7 @@ export async function verifyFabricRendering() {
       previews.push(`${item.label}${item.verifiedPass ? ' · verified denim' : ''}`);
     }
   } finally { flushSync(() => root.unmount()); host.remove(); }
-  return { model, sources, appearance: { status: sources.unresolved.length ? 'incomplete' : sources.reviewRequired.length ? 'review-required' : 'ready', missing: sources.unresolved, reviewRequired: sources.reviewRequired, note: 'Available maps pass raster visibility checks; procedural construction fidelity still requires visual review. An unresolved plain fill is not a successful fabric render.' }, raster, previews, clipping: 'exact solid fill and transparent opening conserved; transformed/split source geometry unchanged', ink: 'inline strokes and separate construction/stitches stay above fabric paint' };
+  return { model, sources, appearance: { status: sources.unresolved.length ? 'incomplete' : sources.reviewRequired.length ? 'review-required' : 'ready', missing: sources.unresolved, reviewRequired: sources.reviewRequired, note: 'Available maps pass raster visibility checks; procedural construction fidelity still requires visual review. An unresolved plain fill is not a successful fabric render.' }, raster, colourMetrics, previews, previewIntensity, clipping: 'exact solid fill and transparent opening conserved; transformed/split source geometry unchanged', ink: 'inline strokes and separate construction/stitches stay above fabric paint' };
 }
 
 const sourceImages = import.meta.glob(['../../src/assets/fabrics/originals/*.jpg', '../../src/assets/fabrics/procedural/*-source.png'], { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -234,6 +306,21 @@ function FabricSourceReview({ closeup }: { closeup: boolean }) {
     </div>
     <h2>{closeup ? '4× close-up comparison' : 'Normal builder zoom · 296px comparison'}</h2>
     <label>Review garment colour <select value={colour} onChange={event => setColour(event.target.value)}><option value="#c4cbd1">Neutral grey</option><option value="#e7dfcd">Light cream</option><option value="#171717">Dark charcoal</option><option value="#617c91">Slate blue</option></select></label>
+    <h2 id="texture-intensity-heading">Fabric texture intensity · same garment colour</h2>
+    <p>Each fabric keeps its own texture profile; only the surface-map visibility changes. The selected colour and construction ink remain unchanged.</p>
+    <div className="fabric-review-grid" data-texture-intensity-comparison aria-labelledby="texture-intensity-heading">
+      {(['single-jersey', 'waffle'] as const).map(fabricId => {
+        const fabric = FABRIC_LIBRARY.find(item => item.id === fabricId)!;
+        return <section key={fabricId} data-texture-fabric={fabricId}>
+          <h3>{fabric.name}</h3>
+          <div className="source-comparison">{[0, 40, 70, 100].map(intensity => <figure key={intensity} data-texture-intensity-example={intensity}>
+            <figcaption>{intensity}%</figcaption>
+            <div className="garment-closeup"><div><TshirtSvgPreview {...reviewTee} color={colour} fabricAssignments={{ assignments: { base: fabricId }, unlinkedGroups: [] }}
+              fabricTextureIntensity={{ garment: intensity, parts: {} }} /></div></div>
+          </figure>)}</div>
+        </section>;
+      })}
+    </div>
     <div className="fabric-review-grid" id="fabric-comparison">
       <section><h3>No fabric · colour-only baseline</h3><div className={closeup ? 'garment-closeup' : 'garment-normal'}>{closeup ? <div><TshirtSvgPreview {...reviewTee} color={colour} neckTrimColor={colour} /></div> : <TshirtSvgPreview {...reviewTee} color={colour} neckTrimColor={colour} />}</div><p>Reference only — not a fabric preset.</p></section>
       {comparisonFabrics.map(fabric => {
@@ -287,6 +374,54 @@ function FabricSourceReview({ closeup }: { closeup: boolean }) {
       return [{ name: 'Original colour / no fabric', state: undefined }, { name: 'Saved assignments · procedural review pending', state: assignment }, { name: 'Unlinked sleeve → verified denim', state: mixed }].map(({ name, state }) => <section key={`${index}-${name}`}><h2>{item.label}</h2><p>{name}</p><div style={{ height: 370, position: 'relative' }}><TshirtSvgPreview {...item.props} fabricAssignments={state} /></div></section>);
     })}</div></details>
   </>;
+}
+
+const materialColourExamples = [
+  { label: 'Black · Single Jersey', fabricId: 'single-jersey', color: '#17191c' },
+  { label: 'Beige · Single Jersey', fabricId: 'single-jersey', color: '#d8c5a5' },
+  { label: 'White · Single Jersey', fabricId: 'single-jersey', color: '#f7f6f1' },
+  { label: 'Cream · French Terry', fabricId: 'french-terry', color: '#e8dcc6' },
+];
+
+function FabricColourRenderingReview() {
+  const parts = fabricPartsFromLayers(resolveGarmentLayers(reviewTee), 'tshirt');
+  return <main className="colour-render-review">
+    <h1>Material-aware garment colour</h1>
+    <p>Same swatch on both sides. Pale swatches use restrained multiply-only micro-shadows; the black jersey retains its existing tonal response. Construction linework stays separate and crisp.</p>
+    <div className="colour-render-grid">
+      {materialColourExamples.map(example => {
+        const fabric = FABRIC_LIBRARY.find(item => item.id === example.fabricId)!;
+        const assignments = { assignments: Object.fromEntries(parts.filter(part => part.id === 'base' || part.group === 'sleeves').map(part => [part.id, fabric.id])), unlinkedGroups: [] };
+        const previewProps = { ...reviewTee, color: example.color, neckTrimColor: example.color };
+        return <section key={example.label} data-material-colour-example={example.fabricId}>
+          <h2><span className="swatch" style={{ backgroundColor: example.color }} />{example.label}</h2>
+          <div className="colour-render-pair">
+            <figure><figcaption>Old · flat fill</figcaption><div className="garment-normal"><TshirtSvgPreview {...previewProps} /></div></figure>
+            <figure><figcaption>Updated · material-aware</figcaption><div className="garment-normal"><TshirtSvgPreview {...previewProps} fabricAssignments={assignments} /></div></figure>
+          </div>
+        </section>;
+      })}
+    </div>
+    <h2>Fabric relief detail · 4× close-up</h2>
+    <div className="colour-render-grid colour-render-detail">
+      {materialColourExamples.map(example => {
+        const fabric = FABRIC_LIBRARY.find(item => item.id === example.fabricId)!;
+        const assignments = { assignments: Object.fromEntries(parts.filter(part => part.id === 'base' || part.group === 'sleeves').map(part => [part.id, fabric.id])), unlinkedGroups: [] };
+        const previewProps = { ...reviewTee, color: example.color, neckTrimColor: example.color };
+        return <section key={example.label}>
+          <h2>{example.label}</h2>
+          <div className="colour-render-pair">
+            <figure><figcaption>Old · flat fill</figcaption><div className="garment-closeup"><div><TshirtSvgPreview {...previewProps} /></div></div></figure>
+            <figure><figcaption>Updated · material-aware</figcaption><div className="garment-closeup"><div><TshirtSvgPreview {...previewProps} fabricAssignments={assignments} /></div></div></figure>
+          </div>
+        </section>;
+      })}
+    </div>
+  </main>;
+}
+
+export function mountFabricColourRenderingReview(host: HTMLElement) {
+  createRoot(host).render(<FabricColourRenderingReview />);
 }
 
 export function mountFabricReview(host: HTMLElement, closeup = false) {

@@ -42,6 +42,14 @@ export function runFabricControlTests() {
     { id: 'sleeveRight', label: 'Right sleeve', role: 'sleeve', group: 'sleeves' },
   ];
   const unlinked: FabricAssignments = { assignments: { sleeveLeft: material.id, sleeveRight: FABRIC_LIBRARY[1].id }, unlinkedGroups: ['sleeves'] };
+  const textureMarkup = renderToStaticMarkup(<FabricControls parts={pairedParts} selectedPartId="sleeveLeft"
+    textureIntensity={{ garment: 40, parts: { sleeveLeft: 55 } }} onTextureIntensityChange={() => changes++}
+    value={unlinked} onChange={() => changes++} />);
+  check(textureMarkup.includes('Fabric texture') && textureMarkup.includes('value="40"') && textureMarkup.includes('value="55"'), 'Garment and selected-part texture intensities must be visible');
+  check(textureMarkup.includes('Inherit garment 40%') && textureMarkup.includes('aria-label="Texture intensity for Left sleeve"'), 'Selected part must explain inheritance and expose its own override');
+  const inheritedTextureMarkup = renderToStaticMarkup(<FabricControls parts={pairedParts} selectedPartId="sleeveLeft"
+    textureIntensity={{ garment: 70, parts: {} }} onTextureIntensityChange={() => changes++} value={unlinked} onChange={() => changes++} />);
+  check(inheritedTextureMarkup.includes('Inherit garment 70%') && !inheritedTextureMarkup.includes('Texture intensity for Left sleeve'), 'Unmodified selected part must inherit garment intensity');
   const mixedMarkup = renderToStaticMarkup(<FabricControls parts={pairedParts} value={unlinked} selectedPartId="group:sleeves" onChange={() => changes++} />);
   check(mixedMarkup.includes('Mixed fabrics'), 'A group with different side assignments must not show a misleading shared fabric');
   check(mixedMarkup.includes('Link matching parts'), 'Paired fabrics must expose independent linking');

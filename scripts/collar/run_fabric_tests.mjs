@@ -16,8 +16,12 @@ try {
     console.log('PASS fabric model', tests.verifyFabricModel());
     const inheritance = await vite.ssrLoadModule('/scripts/collar/test_fabric_inheritance.ts');
     console.log('PASS material inheritance and interiors', inheritance.verifyFabricInheritance());
+    const intensity = await vite.ssrLoadModule('/scripts/collar/test_fabric_texture_intensity.ts');
+    console.log('PASS fabric texture intensity persistence model', intensity.verifyFabricTextureIntensity());
     const construction = await vite.ssrLoadModule('/scripts/collar/test_construction_material_editing.tsx');
     console.log('PASS sparse colour inheritance and drag payloads', construction.verifyMaterialColourModel());
+    const hemStyles = await vite.ssrLoadModule('/scripts/collar/test_hem_styles.ts');
+    console.log('PASS hem editing and hem colour precedence', hemStyles.verifyHemEditingState());
     const sources = await vite.ssrLoadModule('/scripts/collar/test_fabric_sources.ts');
     console.log('PASS dedicated source policy', sources.verifyFabricSources());
     const controls = await vite.ssrLoadModule('/scripts/collar/test_fabric_controls.tsx');

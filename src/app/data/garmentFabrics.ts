@@ -110,7 +110,10 @@ export function fabricPartsFromLayers(layers: ResolvedGarmentLayer[], garmentTyp
         ...(id === 'innerBackNeck' ? { exteriorPartId: 'base', materialCategory: 'body' as const } : {}),
       });
       for (const [index, panel] of (layer.colourPanels ?? []).entries()) {
-        if (!result.some(part => part.id === panel.id)) result.push({ id: panel.id, label: `${label} panel ${index + 1}`, role, parentId: id, interior: role === 'interior', materialCategory });
+        if (panel.parentPartId && panel.parentPartId !== id) continue;
+        if (!result.some(part => part.id === panel.id)) result.push({ id: panel.id, label: panel.name ?? `${label} panel ${index + 1}`,
+          role: panel.materialCategory ? 'panel' : role, parentId: panel.parentPartId ?? id, interior: role === 'interior',
+          materialCategory: panel.materialCategory ?? materialCategory });
       }
     }
   }
