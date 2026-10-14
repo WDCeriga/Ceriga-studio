@@ -2,7 +2,7 @@ import pocketSvg from '../../assets/garment-details/patch-pocket.svg?raw';
 import zipSvg from '../../assets/garment-details/short-front-zip.svg?raw';
 import buttonSvg from '../../assets/garment-details/four-hole-button.svg?raw';
 import type { GarmentView } from './garmentView';
-import { getGarmentAsset } from './garmentSvgCatalog';
+import { getGarmentAsset, getGarmentAssetSvgRaw } from './garmentSvgCatalog';
 import { tintPotraceSvg } from '../lib/tshirtSvgUtils';
 import { DEFAULT_PATCH, patchSvg, type PatchSettings } from './garmentPatches';
 import type { CustomAssetDefinition } from './customAssets';
@@ -80,7 +80,7 @@ export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'ca
   if (detail.catalogueAsset) {
     const descriptor = detail.catalogueAsset;
     const source = getGarmentAsset(descriptor.id);
-    if (source) return { ...GARMENT_DETAIL_ASSETS.pocket, label: source.displayName, svg: source.svgRaw, width: descriptor.width, ratio: descriptor.ratio };
+    if (source) return { ...GARMENT_DETAIL_ASSETS.pocket, label: source.displayName, svg: getGarmentAssetSvgRaw(source.id) ?? GARMENT_DETAIL_ASSETS.pocket.svg, width: descriptor.width, ratio: descriptor.ratio };
   }
   const base = GARMENT_DETAIL_ASSETS[detail.type];
   if (detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) return { ...base, ratio: 1 };

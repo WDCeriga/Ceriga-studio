@@ -269,76 +269,13 @@ function bboxArea(box: PotraceSvgBBox): number {
   return (box.maxX - box.minX) * (box.maxY - box.minY);
 }
 
-function intersectBBoxes(a: PotraceSvgBBox, b: PotraceSvgBBox): PotraceSvgBBox | null {
-  return bboxFromExtents(
-    Math.max(a.minX, b.minX),
-    Math.max(a.minY, b.minY),
-    Math.min(a.maxX, b.maxX),
-    Math.min(a.maxY, b.maxY),
-  );
-}
-
-function pickTighterVerticalBBox(primary: PotraceSvgBBox, candidate: PotraceSvgBBox | null): PotraceSvgBBox {
-  if (!candidate) return primary;
-  const primaryHeight = primary.maxY - primary.minY;
-  const candidateHeight = candidate.maxY - candidate.minY;
-  if (candidateHeight <= primaryHeight) return candidate;
-  return primary;
-}
-
 interface SubpathEntry {
-  d: string;
   viewBox: PotraceSvgBBox;
   start: { x: number; y: number };
   area: number;
 }
 
 const MIN_SIDE_SUBPATH_AREA = 2000;
-const MAX_SIDE_SAMPLE_STEPS = 256;
-
-function measureSampledSideBBox(
-  group: SVGGElement,
-  d: string,
-  metrics: PotraceSvgMetrics,
-  side: SleeveSide,
-  mid: number,
-): PotraceSvgBBox | null {
-  const temp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  temp.setAttribute('d', d);
-  group.appendChild(temp);
-
-  try {
-    const total = temp.getTotalLength();
-    if (!Number.isFinite(total) || total <= 0) return null;
-
-    const steps = Math.min(MAX_SIDE_SAMPLE_STEPS, Math.max(32, Math.ceil(total / 16)));
-    const isLeft = side === 'left';
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    let count = 0;
-
-    for (let i = 0; i <= steps; i += 1) {
-      const pt = temp.getPointAtLength((i / steps) * total);
-      const { x, y } = potracePointToViewBox(pt.x, pt.y, metrics);
-      const onSide = isLeft ? x < mid : x >= mid;
-      if (!onSide) continue;
-      count += 1;
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-
-    if (count < 4) return null;
-    return bboxFromExtents(minX, minY, maxX, maxY);
-  } catch {
-    return null;
-  } finally {
-    temp.remove();
-  }
-}
 
 function pickPrimarySubpath(
   entries: SubpathEntry[],
@@ -381,8 +318,6 @@ function sideSliceFromViewBox(
 }
 
 function measurePrimarySideBBox(
-  group: SVGGElement,
-  metrics: PotraceSvgMetrics,
   entries: SubpathEntry[],
   side: SleeveSide,
   mid: number,
@@ -394,9 +329,8 @@ function measurePrimarySideBBox(
   const sliced = sideSliceFromViewBox(primary.viewBox, side, mid);
   if (!sliced) return null;
 
-  const sampled = measureSampledSideBBox(group, primary.d, metrics, side, mid);
-  const tighter = pickTighterVerticalBBox(sliced, sampled);
-  return intersectBBoxes(sliced, tighter) ?? tighter;
+  // The exact subpath bounds avoid thousands of synchronous path-length samples during preview layout.
+  return sliced;
 }
 
 function unionIntoExtents(
@@ -417,6 +351,7 @@ function unionIntoExtents(
 function measureAllPotraceBBoxes(
   svgRaw: string,
   canvas = 2048,
+  sampleSides = true,
 ): {
   full: PotraceSvgBBox | null;
   left: PotraceSvgBBox | null;
@@ -455,6 +390,17 @@ function measureAllPotraceBBoxes(
       vbH: vbParts?.[3] ?? 2048,
     };
     const mid = canvas / 2;
+    if (!sampleSides) {
+      try {
+        const full = potraceLocalBBoxToViewBox(group.getBBox(), metrics);
+        if (full) {
+          const split = splitBBoxAtCenter(full, canvas);
+          return { full, left: split.left, right: split.right };
+        }
+      } catch {
+        // Fall through to the per-path bounds pass.
+      }
+    }
 
     let fullMinX = Infinity;
     let fullMaxX = -Infinity;
@@ -494,25 +440,26 @@ function measureAllPotraceBBoxes(
         }
       } catch { /* ignore */ }
 
-      splitPathSubpaths(path.getAttribute('d') ?? '').forEach((subpath) => {
-        const viewBox = measureTempPath(subpath);
-        if (!viewBox) return;
+      if (sampleSides) {
+        splitPathSubpaths(path.getAttribute('d') ?? '').forEach((subpath) => {
+          const viewBox = measureTempPath(subpath);
+          if (!viewBox) return;
 
-        const moveto = parseSubpathMoveto(subpath);
-        if (!moveto) return;
+          const moveto = parseSubpathMoveto(subpath);
+          if (!moveto) return;
 
-        subpathEntries.push({
-          d: subpath,
-          viewBox,
-          start: potracePointToViewBox(moveto.px, moveto.py, metrics),
-          area: bboxArea(viewBox),
+          subpathEntries.push({
+            viewBox,
+            start: potracePointToViewBox(moveto.px, moveto.py, metrics),
+            area: bboxArea(viewBox),
+          });
         });
-      });
+      }
     });
 
     const full = bboxFromExtents(fullMinX, fullMinY, fullMaxX, fullMaxY);
-    let left = measurePrimarySideBBox(group, metrics, subpathEntries, 'left', mid, canvas);
-    let right = measurePrimarySideBBox(group, metrics, subpathEntries, 'right', mid, canvas);
+    let left = measurePrimarySideBBox(subpathEntries, 'left', mid, canvas);
+    let right = measurePrimarySideBBox(subpathEntries, 'right', mid, canvas);
 
     if (full) {
       const split = splitBBoxAtCenter(full, canvas);
@@ -556,6 +503,14 @@ function getPotraceGeometry(svgRaw: string, canvas = 2048) {
  */
 export function getPotraceSvgBBox(svgRaw: string): PotraceSvgBBox | null {
   return getPotraceGeometry(svgRaw).full;
+}
+
+export function getPotraceSvgBBoxFast(svgRaw: string, canvas = 2048): PotraceSvgBBox | null {
+  if (bboxCache.has(svgRaw)) return bboxCache.get(svgRaw)!;
+  const measured = measureAllPotraceBBoxes(svgRaw, canvas, false);
+  bboxCache.set(svgRaw, measured.full);
+  splitBBoxCache.set(svgRaw, { left: measured.left, right: measured.right });
+  return measured.full;
 }
 
 export function splitBBoxAtCenter(bbox: PotraceSvgBBox, canvas = 2048): {

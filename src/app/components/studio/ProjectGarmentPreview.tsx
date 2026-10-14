@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
 import type { NeckFinish } from '../../data/tshirtNeckFinish';
@@ -10,12 +10,17 @@ import type { GarmentView } from '../../data/garmentView';
 import type { GarmentType } from '../../data/builderSteps';
 import {
   applyGarmentFitAndLinks,
+  getGarmentAsset,
+  getGarmentAssetRevision,
   getDefaultGarmentSelection,
+  notifyGarmentSvgAssetsLoaded,
+  preloadGarmentSvgAssets,
   resolveProductSvgType,
   type CustomCollarSvgs,
   type GarmentAssetSelection,
   type GarmentSvgGarmentType,
 } from '../../data/garmentSvgCatalog';
+import { getTshirtSleeveAssetRevision, preloadTshirtSleeveAssets } from '../../data/tshirtLongSleeves';
 import type { TshirtLayerTransform } from '../../data/tshirtLayerAssets';
 import { BuilderGarmentPreview } from '../builder/BuilderGarmentPreview';
 import { TshirtSvgPreview } from '../builder/TshirtSvgPreview';
@@ -99,6 +104,38 @@ export function ProjectGarmentPreview({
       preview.fit,
     );
   }, [svgType, preview.tshirtAssetSelection, preview.fit]);
+  const catalogueDetailAssetKey = (preview.garmentDetails ?? [])
+    .map(detail => detail.catalogueAsset?.id)
+    .filter((id): id is string => !!id)
+    .join('|');
+  const [, setAssetRevision] = useState(0);
+  useEffect(() => {
+    if (!svgType || !selection) return;
+    let active = true;
+    const initialCatalogRevision = getGarmentAssetRevision();
+    const initialSleeveRevision = getTshirtSleeveAssetRevision();
+    const sleeveName = getGarmentAsset(selection['Sleeve length'] ?? '')?.displayName ?? '';
+    const sleeveVariant = sleeveName.startsWith('Layered Long Sleeve') ? 'layered-long'
+      : sleeveName.startsWith('Cap Sleeve') ? 'cap'
+      : sleeveName.startsWith('Longer short sleeve') ? 'longer-short'
+      : sleeveName.startsWith('Long sleeve') ? 'long'
+      : undefined;
+    const catalogueDetailIds = catalogueDetailAssetKey ? catalogueDetailAssetKey.split('|') : [];
+    void Promise.all([
+      preloadGarmentSvgAssets([...Object.values(selection), ...catalogueDetailIds]),
+      svgType === 'tshirt' ? preloadTshirtSleeveAssets(preview.fit ?? 'slim', sleeveVariant) : Promise.resolve(),
+    ]).then(() => {
+      const sleeveAssetsChanged = getTshirtSleeveAssetRevision() !== initialSleeveRevision;
+      if (active && (getGarmentAssetRevision() !== initialCatalogRevision || sleeveAssetsChanged)) {
+        if (sleeveAssetsChanged) notifyGarmentSvgAssetsLoaded();
+        setAssetRevision(revision => revision + 1);
+      }
+    }).catch(error => {
+      if (!active) return;
+      console.error('Could not load project preview garment SVG assets.', error);
+    });
+    return () => { active = false; };
+  }, [svgType, selection, preview.fit, catalogueDetailAssetKey]);
 
   if (svgType && selection) {
     return (

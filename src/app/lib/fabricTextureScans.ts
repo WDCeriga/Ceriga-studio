@@ -129,7 +129,7 @@ export function fabricAssignmentIssues(parts: readonly FabricPart[], value?: Fab
     const reason = !fabric ? 'Unknown saved fabric ID.'
       : record?.sourceStatus === 'unresolved' ? record.reason
       : interior && !record?.reverse ? 'No dedicated reverse-side texture source.'
-      : !fabricScanSurface(fabric, interior) ? 'Registered texture map unavailable.' : undefined;
+      : !hasFabricScanSurface(fabric, interior) ? 'Registered texture map unavailable.' : undefined;
     if (!reason) return [];
     return [{ partId: part.id, partLabel: part.label, fabricId: id, fabricName: fabric?.name ?? id, reason }];
   });
@@ -140,14 +140,65 @@ export function fabricMaterial(fabric: GarmentFabric) {
     structure: fabric.structure, thickness: fabric.thickness, calibrated: fabricSourceRecord(fabric).status === 'verified' };
 }
 
-const images = import.meta.glob<string>(['../../assets/fabrics/*.png', '../../assets/fabrics/procedural/*.png', '!../../assets/fabrics/procedural/*-source.png'], { eager: true, query: '?inline', import: 'default' });
-export function fabricScanSurface(fabric: GarmentFabric, interior = false) {
+const imageLoaders = import.meta.glob<string>(['../../assets/fabrics/*.png', '../../assets/fabrics/procedural/*.png', '!../../assets/fabrics/procedural/*-source.png'], { query: '?inline', import: 'default' });
+const images = new Map<string, string>();
+const imageLoads = new Map<string, Promise<string>>();
+let revision = 0;
+
+function fabricScanPath(fabric: GarmentFabric, interior: boolean): string | undefined {
   const record = fabricSourceRecord(fabric);
   if (record.sourceStatus === 'unresolved' || !record.source) return undefined;
   const filename = interior ? record.reverse?.normalizedFile : record.source.normalizedFile;
-  if (!filename) return undefined;
-  const image = images[`../../assets/fabrics/${filename}`];
-  if (!image) throw new Error(`Registered source has no bundled map: ${fabric.id} ${filename}`);
+  return filename ? `../../assets/fabrics/${filename}` : undefined;
+}
+
+export function hasFabricScanSurface(fabric: GarmentFabric, interior = false): boolean {
+  const path = fabricScanPath(fabric, interior);
+  return path !== undefined && Object.hasOwn(imageLoaders, path);
+}
+
+export function getFabricScanAssetRevision(): number {
+  return revision;
+}
+
+export async function preloadFabricScanSurfaces(
+  surfaces: readonly { fabric: GarmentFabric; interior?: boolean }[],
+): Promise<void> {
+  const paths = new Set<string>();
+  for (const { fabric, interior = false } of surfaces) {
+    const path = fabricScanPath(fabric, interior);
+    if (!path) continue;
+    if (!Object.hasOwn(imageLoaders, path)) {
+      throw new Error(`Registered source has no bundled map: ${fabric.id} ${path}`);
+    }
+    paths.add(path);
+  }
+  await Promise.all([...paths].map(path => {
+    if (images.has(path)) return Promise.resolve();
+    const pending = imageLoads.get(path);
+    if (pending) return pending.then(() => undefined);
+    const load = imageLoaders[path]();
+    const promise = load.then(image => {
+      images.set(path, image);
+      imageLoads.delete(path);
+      revision += 1;
+    }).catch(error => {
+      imageLoads.delete(path);
+      throw error;
+    });
+    imageLoads.set(path, promise);
+    return promise;
+  }));
+}
+
+export function fabricScanSurface(fabric: GarmentFabric, interior = false) {
+  const record = fabricSourceRecord(fabric);
+  if (record.sourceStatus === 'unresolved' || !record.source) return undefined;
+  const path = fabricScanPath(fabric, interior);
+  if (!path) return undefined;
+  if (!Object.hasOwn(imageLoaders, path)) throw new Error(`Registered source has no bundled map: ${fabric.id} ${path}`);
+  const image = images.get(path);
+  if (!image) return undefined;
   const material = fabricMaterial(fabric);
   const reverse = interior ? record.reverse : undefined;
   return { image, source: reverse?.sourceType ? `ceriga-${fabric.id}-reverse-v${reverse.procedural?.version}` : `${record.source.assetId}${interior ? '-reverse' : ''}`, sourceType: reverse?.sourceType ?? record.sourceType,

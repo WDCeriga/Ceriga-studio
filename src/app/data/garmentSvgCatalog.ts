@@ -2,6 +2,7 @@ import type { GarmentType } from './builderSteps';
 import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
 import { withTshirtHemStyles, type TshirtHemStyles } from './tshirtHemStyles';
 import { withTshirtBackView } from './tshirtBackView';
+import { withTshirtNeckPack } from './tshirtNeckPack';
 import { withTshirtCollarContours } from './tshirtCollarContours';
 import { withTshirtNeckFinish, type NeckFinish } from './tshirtNeckFinish';
 import type { GarmentView } from './garmentView';
@@ -81,7 +82,7 @@ export interface GarmentAsset {
   category: string;
   fileName: string;
   displayName: string;
-  svgRaw: string;
+  svgRaw?: string;
   garmentType: GarmentSvgGarmentType;
 }
 
@@ -780,29 +781,66 @@ const svgModules = {
   ...import.meta.glob('../../assets/tshirts/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
+    eager: false,
   }),
-  ...import.meta.glob('../../assets/studio-tshirt/**/*.svg', {
+  ...import.meta.glob([
+    '../../assets/studio-tshirt/**/*.svg',
+    '!../../assets/studio-tshirt/oversized-sleeve-colour-mask.svg',
+  ], {
     query: '?raw',
     import: 'default',
-    eager: true,
+    eager: false,
   }),
   ...import.meta.glob('../../assets/hoodie/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
+    eager: false,
   }),
   ...import.meta.glob('../../assets/trousers/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
+    eager: false,
   }),
   ...import.meta.glob('../../assets/tshirt-test/**/*.svg', {
     query: '?raw',
     import: 'default',
-    eager: true,
+    eager: false,
   }),
-} as Record<string, string>;
+} as Record<string, () => Promise<string>>;
+
+const svgLoadersByAssetId = new Map<string, () => Promise<string>>();
+const loadedSvgByAssetId = new Map<string, string>();
+const pendingSvgByAssetId = new Map<string, Promise<string>>();
+let garmentAssetRevision = 0;
+
+export function getGarmentAssetRevision(): number {
+  return garmentAssetRevision;
+}
+
+export function notifyGarmentSvgAssetsLoaded(): void {
+  garmentAssetRevision += 1;
+}
+
+export function getGarmentAssetSvgRaw(assetId: string): string | undefined {
+  return loadedSvgByAssetId.get(assetId) ?? getGarmentAsset(assetId)?.svgRaw;
+}
+
+export async function preloadGarmentSvgAssets(assetIds: readonly string[]): Promise<void> {
+  await Promise.all([...new Set(assetIds)].map(async assetId => {
+    const loader = svgLoadersByAssetId.get(assetId);
+    if (!loader || loadedSvgByAssetId.has(assetId)) return;
+    let pending = pendingSvgByAssetId.get(assetId);
+    if (!pending) {
+      pending = loader().then(svgRaw => {
+        loadedSvgByAssetId.set(assetId, svgRaw);
+        garmentAssetRevision += 1;
+        return svgRaw;
+      }).finally(() => pendingSvgByAssetId.delete(assetId));
+      pendingSvgByAssetId.set(assetId, pending);
+    }
+    await pending;
+  }));
+}
 
 function fileNameToDisplayName(fileName: string): string {
   return fileName.replace(/\.svg$/i, '');
@@ -824,20 +862,21 @@ function parseGlobPath(
 const ALL_ASSETS: GarmentAsset[] = (Object.keys(GARMENT_CONFIGS) as GarmentSvgGarmentType[]).flatMap(
   (garmentType) => {
     const config = GARMENT_CONFIGS[garmentType];
-    return Object.entries(svgModules)
-      .map(([path, svgRaw]) => {
+    return Object.keys(svgModules)
+      .map((path) => {
         const parsed = parseGlobPath(path, garmentType);
         if (!parsed) return null;
         const { category, fileName } = parsed;
         if (!config.categoryOrder.includes(category)) return null;
-        return {
+        const asset = {
           id: `${garmentType}/${category}/${fileNameToDisplayName(fileName)}`,
           category,
           fileName,
           displayName: fileNameToDisplayName(fileName),
-          svgRaw,
           garmentType,
         };
+        svgLoadersByAssetId.set(asset.id, svgModules[path]);
+        return asset;
       })
       .filter((asset): asset is GarmentAsset => asset !== null);
   },
@@ -1252,6 +1291,8 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       getGarmentAsset(assetId) ??
       virtualCustomAsset(assetId, listCustomCollars(input.customCollar, input.customCollars));
     if (!asset) continue;
+    const svgRaw = asset.svgRaw ?? getGarmentAssetSvgRaw(asset.id);
+    if (!svgRaw) continue;
 
     const layerId = config.categoryLayerId[category];
     if (!layerId) continue;
@@ -1261,7 +1302,7 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       category,
       assetId: asset.id,
       displayName: asset.displayName,
-      svgRaw: asset.svgRaw,
+      svgRaw,
       kind: config.detailCategories.includes(category) ? 'detail' : 'solid',
       tint:
         input.partColors?.[layerId] ??
@@ -1277,18 +1318,24 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   const sleeveVariant = sleeveChoice?.displayName.startsWith('Cap Sleeve')
     ? 'cap' : sleeveChoice?.displayName.startsWith('Longer short sleeve')
     ? 'longer-short' : sleeveChoice?.displayName.startsWith('Long sleeve') ? 'long' : undefined;
+  const view = input.view ?? 'front';
+  // Neck assets are swapped in before the sleeve variants so long/cap sleeve masks apply to them.
+  const packed = input.garmentType === 'tshirt' ? withTshirtNeckPack(layers, fit, view, input.neckFinish) : undefined;
+  const sourceLayers = packed ?? layers;
   let resolved = input.garmentType === 'tshirt' && layered
-    ? withLayeredLongSleeves(layers, fit, input.partColors)
+    ? withLayeredLongSleeves(sourceLayers, fit, input.partColors)
     : input.garmentType === 'tshirt' && sleeveVariant
-    ? withLongSleeves(layers, fit, sleeveVariant)
-    : layers;
+    ? withLongSleeves(sourceLayers, fit, sleeveVariant)
+    : sourceLayers;
   if (input.garmentType === 'tshirt') {
     resolved = withTshirtCollarContours(resolved);
     resolved = withTshirtHemStyles(resolved, fit, layered ? 'layered-long' : sleeveVariant ?? 'short', input.tshirtHemStyles);
-    if (input.view === 'back') {
-      resolved = withTshirtBackView(resolved, fit);
+    if (!packed) {
+      if (input.view === 'back') {
+        resolved = withTshirtBackView(resolved, fit);
+      }
+      resolved = withTshirtNeckFinish(resolved, input.neckFinish);
     }
-    resolved = withTshirtNeckFinish(resolved, input.neckFinish);
   } else {
     resolved = resolved.map(layer => {
       const color = input.tshirtHemStyles?.editing?.regions?.[layer.id]?.color;

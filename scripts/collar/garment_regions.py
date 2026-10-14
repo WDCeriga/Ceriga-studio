@@ -80,7 +80,7 @@ class Regions:
         as a label position and as a seed point in a parts map.
         """
         mask = self.labels == region_id
-        box = ndimage.find_objects(mask)[0]
+        box = ndimage.find_objects(mask.astype(np.uint8))[0]
         depth = ndimage.distance_transform_edt(np.pad(mask[box], 1))
         y, x = np.unravel_index(depth.argmax(), depth.shape)
         return int(x - 1 + box[1].start), int(y - 1 + box[0].start)
@@ -200,7 +200,7 @@ def claim_ink(labels: np.ndarray, interior: np.ndarray) -> np.ndarray:
 def _thickness(mask: np.ndarray) -> float:
     if not mask.any():
         return 0.0
-    box = ndimage.find_objects(mask)[0]
+    box = ndimage.find_objects(mask.astype(np.uint8))[0]
     return float(ndimage.distance_transform_edt(np.pad(mask[box], 1)).max() * 2.0)
 
 

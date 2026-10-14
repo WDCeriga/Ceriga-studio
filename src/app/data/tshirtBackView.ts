@@ -21,15 +21,46 @@ function clearNeck(raw: string, path: string, id: string, inside = false): strin
 const rearCollarCache = new Map<string, { upper: number[]; lower: number[];
   side: { inset: number; vertical: number }[]; ribPitch: number; ribWidth: number;
   collarWeight: number; shoulderWeight: number }>();
+type RearCollarProfile = NonNullable<ReturnType<typeof rearCollarCache.get>>;
+const rearCollarPending = new Map<string, Promise<RearCollarProfile>>();
 
 export function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: number, outline: ResolvedGarmentLayer) {
   const key = neck.svgRaw + outline.svgRaw;
+  return rearCollarCache.get(key);
+}
+
+export function prepareRearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: number, outline: ResolvedGarmentLayer) {
+  const key = neck.svgRaw + outline.svgRaw;
   const cached = rearCollarCache.get(key);
-  if (cached) return cached;
+  if (cached) return Promise.resolve(cached);
+  const existing = rearCollarPending.get(key);
+  if (existing) return existing;
+  const task = computeRearCollarProfile(neck, left, right, outline).then(profile => {
+    rearCollarCache.set(key, profile);
+    if (rearCollarCache.size > 24) rearCollarCache.delete(rearCollarCache.keys().next().value!);
+    return profile;
+  }).finally(() => rearCollarPending.delete(key));
+  rearCollarPending.set(key, task);
+  return task;
+}
+
+function createProfileYield() {
+  let nextYieldAt = performance.now() + 8;
+  return async () => {
+    if (performance.now() < nextYieldAt) return;
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    nextYieldAt = performance.now() + 8;
+  };
+}
+
+async function computeRearCollarProfile(neck: ResolvedGarmentLayer, left: number, right: number,
+  outline: ResolvedGarmentLayer): Promise<RearCollarProfile> {
+  const yieldForPaint = createProfileYield();
   const documentSvg = new DOMParser().parseFromString(neck.svgRaw, 'image/svg+xml');
   const mounted = document.importNode(documentSvg.documentElement, true);
   mounted.setAttribute('style', 'position:fixed;left:-10000px;top:0;visibility:hidden');
   document.body.appendChild(mounted);
+  try {
   const paths = Array.from(mounted.querySelectorAll<SVGPathElement>('path:not([data-collar-backing])'));
   const sharedGeometry = !!mounted.querySelector('[data-collar-centerline]');
   const bounds = getPotraceSvgBBox(neck.svgRaw)!;
@@ -40,11 +71,18 @@ export function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, righ
       Math.min(bounds.maxX - (bounds.maxX - bounds.minX) * .12, left + (right - left) * index / 64));
     let start = bounds.minY;
     const contains = (vertical: number) => paths.some(path => path.isPointInFill(new DOMPoint(horizontal * 10, (2048 - vertical) * 10)));
-    while (start < bounds.maxY && !contains(start)) start += 1;
+    while (start < bounds.maxY && !contains(start)) {
+      start += 1;
+      await yieldForPaint();
+    }
     let finish = start + 1;
-    while (finish < bounds.maxY && (contains(finish) || contains(finish + 1))) finish += 1;
+    while (finish < bounds.maxY && (contains(finish) || contains(finish + 1))) {
+      finish += 1;
+      await yieldForPaint();
+    }
     upper.push(start);
     lower.push(finish);
+    await yieldForPaint();
   }
   const smooth = (values: number[]) => values.map((_, index) => {
     const neighbors = values.slice(Math.max(0, index - 3), Math.min(values.length, index + 4));
@@ -66,22 +104,36 @@ export function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, righ
     const horizontal = bounds.centerX;
     let vertical = bounds.maxY - 2;
     const contains = (position: number) => paths.some(path => path.isPointInFill(new DOMPoint(horizontal * 10, (2048 - position) * 10)));
-    while (vertical > bounds.minY && !contains(vertical)) vertical--;
+    while (vertical > bounds.minY && !contains(vertical)) {
+      vertical--;
+      await yieldForPaint();
+    }
     const bottom = vertical;
-    while (vertical > bounds.minY && contains(vertical)) vertical--;
+    while (vertical > bounds.minY && contains(vertical)) {
+      vertical--;
+      await yieldForPaint();
+    }
     thickness = Math.min(thickness, Math.max(10, bottom - vertical));
   }
   const sourceThickness = smooth(lower)[32] - smooth(upper)[32];
-  const side = Array.from({ length: 9 }, (_, index) => {
+  const side: RearCollarProfile['side'] = [];
+  for (let index = 0; index < 9; index++) {
     const vertical = rearUpper[0] + thickness * index / 8;
     const sampleY = Math.max(bounds.minY + 2, vertical);
     const contains = (horizontal: number) => paths.some(path => path.isPointInFill(new DOMPoint(horizontal * 10, (2048 - sampleY) * 10)));
     let sourceLeft = bounds.minX;
     let sourceRight = bounds.maxX;
-    while (sourceLeft < bounds.centerX && !contains(sourceLeft)) sourceLeft += .5;
-    while (sourceRight > bounds.centerX && !contains(sourceRight)) sourceRight -= .5;
-    return { inset: ((sourceLeft - bounds.minX) + (bounds.maxX - sourceRight)) / 2, vertical };
-  });
+    while (sourceLeft < bounds.centerX && !contains(sourceLeft)) {
+      sourceLeft += .5;
+      await yieldForPaint();
+    }
+    while (sourceRight > bounds.centerX && !contains(sourceRight)) {
+      sourceRight -= .5;
+      await yieldForPaint();
+    }
+    side.push({ inset: ((sourceLeft - bounds.minX) + (bounds.maxX - sourceRight)) / 2, vertical });
+    await yieldForPaint();
+  }
   mounted.innerHTML = new DOMParser().parseFromString(outline.svgRaw, 'image/svg+xml').documentElement.innerHTML;
   const inkPaths = Array.from(mounted.querySelectorAll('path'))
     .filter(path => !path.closest('defs, [data-collar-ribbing], [data-collar-border]'));
@@ -107,35 +159,51 @@ export function rearCollarProfile(neck: ResolvedGarmentLayer, left: number, righ
       runs.push({ start, width: horizontal - start });
       start = undefined;
     }
+    await yieldForPaint();
   }
   const median = (values: number[], fallback: number) => values.length
     ? values.sort((first, second) => first - second)[Math.floor(values.length / 2)] : fallback;
   const ribPitch = sharedGeometry ? 16 : Math.max(5, Math.min(12, median(runs.slice(1).map((run, index) => run.start - runs[index].start), 7)));
   const ribWidth = sharedGeometry ? 1 : Math.max(1.2, Math.min(2.8, median(runs.map(run => run.width), 1.8)));
-  const edgeAt = (horizontal: number) => {
+  const edgeAt = async (horizontal: number) => {
     const contains = (vertical: number) => containsInk(horizontal, vertical);
     let vertical = bounds.minY - 30;
-    while (vertical < bounds.maxY && !contains(vertical)) vertical += .25;
+    while (vertical < bounds.maxY && !contains(vertical)) {
+      vertical += .25;
+      await yieldForPaint();
+    }
     const start = vertical;
-    while (vertical < bounds.maxY && contains(vertical)) vertical += .25;
+    while (vertical < bounds.maxY && contains(vertical)) {
+      vertical += .25;
+      await yieldForPaint();
+    }
     return { start, width: vertical - start };
   };
-  const edgeWeight = (horizontal: number) => {
-    const edge = edgeAt(horizontal);
+  const edgeWeight = async (horizontal: number) => {
+    const edge = await edgeAt(horizontal);
     const step = collarBorder ? 4 : 2;
-    const slope = (edgeAt(horizontal + step).start - edgeAt(horizontal - step).start) / (step * 2);
+    const slope = ((await edgeAt(horizontal + step)).start - (await edgeAt(horizontal - step)).start) / (step * 2);
     return edge.width / Math.sqrt(1 + slope * slope);
   };
-  const collarWeight = median(Array.from({ length: 41 }, (_, index) =>
-    edgeWeight(bounds.centerX - 50 + index * 2.5)), 8);
-  const shoulderWeight = median(Array.from({ length: 17 }, (_, index) =>
-    [edgeWeight(bounds.minX - 16 - index * 2), edgeWeight(bounds.maxX + 16 + index * 2)]).flat(), collarWeight);
+  const collarWeights: number[] = [];
+  for (let index = 0; index < 41; index++) {
+    collarWeights.push(await edgeWeight(bounds.centerX - 50 + index * 2.5));
+    await yieldForPaint();
+  }
+  const collarWeight = median(collarWeights, 8);
+  const shoulderWeights: number[] = [];
+  for (let index = 0; index < 17; index++) {
+    shoulderWeights.push(await edgeWeight(bounds.minX - 16 - index * 2));
+    shoulderWeights.push(await edgeWeight(bounds.maxX + 16 + index * 2));
+    await yieldForPaint();
+  }
+  const shoulderWeight = median(shoulderWeights, collarWeight);
   const profile = { upper: rearUpper, lower: rearUpper.map(vertical => vertical + thickness), side, ribPitch, ribWidth,
     collarWeight, shoulderWeight };
-  mounted.remove();
-  rearCollarCache.set(key, profile);
-  if (rearCollarCache.size > 24) rearCollarCache.delete(rearCollarCache.keys().next().value!);
   return profile;
+  } finally {
+    mounted.remove();
+  }
 }
 
 const shoulderCache = new Map<string, { left: number; right: number; leftSlope: number; rightSlope: number }>();
@@ -171,6 +239,10 @@ export function withTshirtBackView(
 ): ResolvedGarmentLayer[] {
   const selectedNeck = selectedLayers.find(layer => layer.id === 'neck');
   if (!selectedNeck) return selectedLayers;
+  const selectedOutline = selectedLayers.find(layer => layer.id === 'outline');
+  if (!selectedOutline) return selectedLayers;
+  const profile = rearCollarProfile(selectedNeck, 0, 0, selectedOutline);
+  if (!profile) return selectedLayers;
   const frontBounds = getPotraceSvgBBox(selectedNeck.svgRaw)!;
   const halfWidth = (frontBounds.maxX - frontBounds.minX) / 2;
   const left = 1024 - halfWidth;
@@ -181,8 +253,6 @@ export function withTshirtBackView(
   const prefix = `rear-${selectedNeck.assetId.replace(/[^a-z0-9]/gi, '-')}`;
   const point = (horizontal: number, vertical: number, local = false) => local
     ? `${horizontal * 10},${(2048 - vertical) * 10}` : `${horizontal},${vertical}`;
-  const selectedOutline = selectedLayers.find(layer => layer.id === 'outline')!;
-  const profile = rearCollarProfile(selectedNeck, left, right, selectedOutline);
   const lowerInset = profile.side[8].inset;
   const upperInset = profile.side[0].inset;
   const profileCurve = (values: number[], local = false) => values.map((vertical, index) =>

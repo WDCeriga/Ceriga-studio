@@ -13,6 +13,7 @@ import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import { fabricPartsFromLayers, resolvePartMaterial, type FabricPart, type FabricAssignments, type GarmentFabric } from '../../data/garmentFabrics';
 import { importedGarmentLayers } from '../../data/importedGarment';
 import { renderTexturedFabricSvg } from '../../lib/fabricRendering';
+import { getFabricScanAssetRevision, preloadFabricScanSurfaces } from '../../lib/fabricTextureScans';
 import { partTextureIntensity, type FabricTextureIntensity } from '../../data/fabricTextureIntensity';
 import { washSvg, type GarmentWash, type WashBounds, type WashTool } from '../../data/garmentWash';
 import { WashEditor } from './WashFinish';
@@ -37,9 +38,11 @@ import {
 } from '../../data/tshirtLayerAssets';
 import {
   getGarmentSvgConfig,
+  getGarmentAssetRevision,
   garmentSourceLayerId,
   garmentTransformStorageId,
   resolveGarmentLayers,
+  resolveGarmentPackFit,
   type GarmentAssetSelection,
   type GarmentSvgGarmentType,
   type ResolvedGarmentLayer,
@@ -54,6 +57,7 @@ import {
   constructionColor,
   renderConstructionSvg,
   computeSleeveHemAlignOffsetForSide,
+  getPotraceSvgBBoxFast,
   isValidBBox,
   splitPotraceSvgBBoxAtCenter,
   type PotraceSvgBBox,
@@ -61,8 +65,13 @@ import {
 } from '../../lib/tshirtSvgUtils';
 import { cn } from '../ui/utils';
 import type { NeckFinish } from '../../data/tshirtNeckFinish';
+import { toast } from 'sonner';
 import type { MeasurementSource } from './measurementGeometry';
 import { applyGarmentPanels, GarmentPanelOverlay, type GarmentPanel, type GarmentPanellingEditor } from '../../data/garmentPanelling';
+import { prepareTshirtCollarContours } from '../../data/tshirtCollarContours';
+import { prepareRearCollarProfile } from '../../data/tshirtBackView';
+import { prepareTshirtNeckFinish } from '../../data/tshirtNeckFinish';
+import { preloadTshirtNeckPack, tshirtNeckPackKind } from '../../data/tshirtNeckPack';
 
 type GestureMode = 'move' | 'rotate' | 'scale';
 
@@ -431,10 +440,11 @@ function InlineSvg({
   edgeSealWidth?: number;
 }) {
   const id = useId().replace(/:/g, '');
+  const fabricScanRevision = getFabricScanAssetRevision();
   const markup = useMemo(
     () => linework ? renderConstructionSvg(raw, fabricColor ?? fill, fill, id, regions)
       : renderTexturedFabricSvg(raw, fill, fabric, id, interior, edgeSealWidth, textureIntensity),
-    [raw, fill, fabricColor, linework, regions, id, edgeSealWidth, fabric, interior, textureIntensity],
+    [raw, fill, fabricColor, linework, regions, id, edgeSealWidth, fabric, interior, textureIntensity, fabricScanRevision],
   );
 
   return (
@@ -930,8 +940,11 @@ export function TshirtSvgPreview({
   onCustomCollarEditsChange,
   onCustomAssetCanvasSizeChange,
 }: TshirtSvgPreviewProps) {
+  const [, setFabricScanRevision] = useState(0);
   const [washDraft, setWashDraft] = useState<GarmentWash | null>(null);
   const [openingDraft, setOpeningDraft] = useState<GarmentDetail | null>(null);
+  const [collarContourRevision, setCollarContourRevision] = useState(0);
+  const [collarContourError, setCollarContourError] = useState(false);
   const openingClipPrefix = useId().replace(/:/g, '');
   useEffect(() => setWashDraft(null), [garmentWash, detailView, Boolean(washTool)]);
   const washEditable = Boolean(washTool && onWashChange && garmentWash?.type !== 'none');
@@ -964,6 +977,7 @@ export function TshirtSvgPreview({
   const fabricColor = color || '#5C7FB6';
   const bodyColor = partColors?.base ?? fabricColor;
   const editable = Boolean(onSelectedLayerChange) && !washEditable && !labelEditor && !stitchEditor;
+  const garmentAssetRevision = getGarmentAssetRevision();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
   useEffect(() => setHoveredLayerId(null), [selectedLayerId, selectionContext, detailView, editable]);
   useEffect(() => {
@@ -981,8 +995,7 @@ export function TshirtSvgPreview({
     };
   }, [onSelectedLayerChange]);
 
-  const layers = useMemo(() => {
-      const resolved = resolveGarmentLayers({
+  const resolvedLayers = useMemo(() => resolveGarmentLayers({
         garmentType,
         view: detailView,
         selection,
@@ -998,10 +1011,51 @@ export function TshirtSvgPreview({
         customCollar,
         customCollars,
         customAssetState,
-      });
-      return constructionPanels?.length || panellingEditor?.enabled ? applyGarmentPanels(resolved, constructionPanels ?? [], detailView) : resolved;
-    },
-    [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor, pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar, customCollars, customAssetState, constructionPanels, panellingEditor?.enabled],
+      }), [garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor,
+    pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar,
+    customCollars, customAssetState, collarContourRevision, garmentAssetRevision]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const packNeck = resolvedLayers.find(layer => layer.id === 'neck');
+      if (garmentType === 'tshirt' && packNeck && tshirtNeckPackKind(packNeck.displayName)) {
+        return preloadTshirtNeckPack(resolveGarmentPackFit(garmentType, fit) ?? 'slim', packNeck.displayName,
+          detailView === 'back' ? 'back' : 'front', neckFinish ?? 'ribbed');
+      }
+      let prepared = await prepareTshirtCollarContours(resolvedLayers);
+      if (garmentType === 'tshirt' && (detailView === 'back' || neckFinish === 'clean' || neckFinish === 'raw')) {
+        const neck = resolvedLayers.find(layer => layer.id === 'neck');
+        const outline = resolvedLayers.find(layer => layer.id === 'outline');
+        if (neck && outline) {
+          const bounds = getPotraceSvgBBoxFast(neck.svgRaw);
+          if (bounds) {
+            const halfWidth = (bounds.maxX - bounds.minX) / 2;
+            await prepareRearCollarProfile(neck, 1024 - halfWidth, 1024 + halfWidth, outline);
+            prepared = true;
+          }
+        }
+      }
+      if (garmentType === 'tshirt' && neckFinish && neckFinish !== 'ribbed') {
+        prepared = await prepareTshirtNeckFinish(resolvedLayers, neckFinish) || prepared;
+      }
+      return prepared;
+    })().then(prepared => {
+      if (active && prepared) {
+        setCollarContourError(false);
+        setCollarContourRevision(revision => revision + 1);
+      }
+    }).catch(error => {
+      if (!active) return;
+      console.error('T-shirt collar contour preparation failed.', error);
+      setCollarContourError(true);
+    });
+    return () => { active = false; };
+  }, [resolvedLayers, garmentType, detailView, neckFinish, fit]);
+  const layers = useMemo(
+    () => constructionPanels?.length || panellingEditor?.enabled
+      ? applyGarmentPanels(resolvedLayers, constructionPanels ?? [], detailView)
+      : resolvedLayers,
+    [resolvedLayers, constructionPanels, detailView, panellingEditor?.enabled],
   );
 
   const imported = customAssetState?.importedGarment;
@@ -1012,6 +1066,27 @@ export function TshirtSvgPreview({
   const fabricParts = useMemo(() => new Map(fabricPartsFromLayers(imported
     ? [...importedGarmentLayers(imported, 'front'), ...importedGarmentLayers(imported, 'back')]
     : layers, garmentType).map(part => [part.id, part])), [layers, garmentType, imported]);
+  const fabricScanSurfaces = useMemo(() => {
+    const parts = [...fabricParts.values()];
+    const surfaces = new Map<string, { fabric: GarmentFabric; interior: boolean }>();
+    for (const part of parts) {
+      const { fabric, interior } = resolvePartMaterial(fabricAssignments, part, parts);
+      if (fabric) surfaces.set(`${fabric.id}:${interior ? 'reverse' : 'face'}`, { fabric, interior });
+    }
+    return [...surfaces.values()];
+  }, [fabricAssignments, fabricParts]);
+  useEffect(() => {
+    if (!fabricScanSurfaces.length) return;
+    let active = true;
+    void preloadFabricScanSurfaces(fabricScanSurfaces).then(() => {
+      if (active) setFabricScanRevision(revision => revision + 1);
+    }).catch(error => {
+      if (!active) return;
+      console.error('Could not load assigned fabric texture maps.', error);
+      toast.error('Could not load one or more fabric texture maps.');
+    });
+    return () => { active = false; };
+  }, [fabricScanSurfaces]);
   const garmentConfig = getGarmentSvgConfig(garmentType);
   const washBounds = useMemo(() => garmentPreviewBounds(
     layers.filter(layer => layer.kind === 'solid' && !['outline', 'innerBackNeck'].includes(layer.id))
@@ -1612,6 +1687,9 @@ export function TshirtSvgPreview({
           onToolChange={onWashToolChange} onDraft={setWashDraft} onCommit={onWashChange} />}
       </div>
 
+      {collarContourError && <p role="alert" className="absolute left-2 top-2 z-[260] bg-amber-950/90 px-2 py-1 text-xs text-amber-100">
+        Garment geometry preparation failed. The original preview is still shown.
+      </p>}
       {hemEditor && <div className="pointer-events-none absolute left-2 top-2 z-[260] bg-white/90 px-2 py-1 text-xs text-[#292929]">
         {hemEditor.regions.find(region => region.id === hemEditor.region)?.name}
       </div>}

@@ -11,6 +11,30 @@ export const NECK_FINISH_OPTIONS = [
 
 const namespace = 'http://www.w3.org/2000/svg';
 const cache = new Map<string, { outline: string; neck: string; stitching?: string; cutout?: { path: string; transform: string; id: string } }>();
+const pending = new Map<string, Promise<boolean>>();
+
+function neckFinishContext(layers: ResolvedGarmentLayer[], finish?: NeckFinish) {
+  if (!finish || finish === 'ribbed' || typeof document === 'undefined') return undefined;
+  const neck = layers.find(layer => layer.id === 'neck');
+  const outline = layers.find(layer => layer.id === 'outline');
+  const stitching = layers.find(layer => layer.id === 'stitching');
+  const base = layers.find(layer => layer.id === 'base');
+  if (!neck || !outline || !base) return undefined;
+  const key = `${finish}:${neck.svgRaw}:${outline.svgRaw}:${base.svgRaw}:${stitching?.svgRaw}`;
+  const raw = finish === 'raw';
+  if (cache.has(key)) return { neck, outline, stitching, base, rearEdge: undefined, raw, key };
+  const original = new DOMParser().parseFromString(outline.svgRaw, 'image/svg+xml');
+  const rearEdge = original.querySelector('[data-rear-collar-outline]');
+  if (!rearEdge && !rearCollarProfile(neck, 0, 0, outline)) return undefined;
+  return { neck, outline, stitching, base, rearEdge, raw, key };
+}
+
+function applyNeckFinish(layers: ResolvedGarmentLayer[], result: NonNullable<ReturnType<typeof cache.get>>, raw: boolean) {
+  return layers.filter(layer => !raw || !['neck', 'innerBackNeck'].includes(layer.id)).map(layer => layer.id === 'neck' ? { ...layer, svgRaw: result.neck }
+    : layer.id === 'outline' ? { ...layer, svgRaw: result.outline }
+    : layer.id === 'stitching' && result.stitching ? { ...layer, svgRaw: result.stitching }
+    : result.cutout ? { ...layer, svgRaw: clearNeckArea(layer.svgRaw, result.cutout.path, result.cutout.transform, `${result.cutout.id}-${layer.id}`, 0) } : layer);
+}
 
 function clearNeckArea(source: string, path: string, transform: string, id: string, padding = 110) {
   const mask = `<defs><mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:luminance"><rect width="2048" height="2048" fill="white"/><path transform="${transform}" d="${path}" fill="black" fill-rule="evenodd" stroke="black" stroke-width="${padding}" stroke-linejoin="round"/></mask></defs>`;
@@ -18,27 +42,46 @@ function clearNeckArea(source: string, path: string, transform: string, id: stri
 }
 
 export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: NeckFinish): ResolvedGarmentLayer[] {
-  if (!finish || finish === 'ribbed' || typeof document === 'undefined') return layers;
-  const neck = layers.find(layer => layer.id === 'neck');
-  const outline = layers.find(layer => layer.id === 'outline');
-  const stitching = layers.find(layer => layer.id === 'stitching');
-  const base = layers.find(layer => layer.id === 'base');
-  if (!neck || !outline || !base) return layers;
-  const raw = finish === 'raw';
-  const key = `${finish}:${neck.svgRaw}:${outline.svgRaw}:${base.svgRaw}:${stitching?.svgRaw}`;
-  let result = cache.get(key);
-  if (!result) {
+  const context = neckFinishContext(layers, finish);
+  if (!context) return layers;
+  const result = cache.get(context.key);
+  return result ? applyNeckFinish(layers, result, context.raw) : layers;
+}
+
+export async function prepareTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: NeckFinish): Promise<boolean> {
+  const context = neckFinishContext(layers, finish);
+  if (!context || cache.has(context.key)) return false;
+  const existing = pending.get(context.key);
+  if (existing) return existing;
+  const task = prepareNeckFinish(context, finish!).finally(() => pending.delete(context.key));
+  pending.set(context.key, task);
+  return task;
+}
+
+async function prepareNeckFinish(
+  context: NonNullable<ReturnType<typeof neckFinishContext>>,
+  finish: NeckFinish,
+): Promise<boolean> {
+  const { neck, outline, stitching, base, rearEdge, raw, key } = context;
+  let nextYieldAt = performance.now() + 8;
+  const yieldForPaint = async () => {
+    if (performance.now() < nextYieldAt) return;
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    nextYieldAt = performance.now() + 8;
+  };
+  const existing = cache.get(key);
+  if (existing) return false;
+  {
     const parsed = new DOMParser().parseFromString(neck.svgRaw, 'image/svg+xml');
     const group = parsed.querySelector('g[transform]');
-    if (!group) return layers;
+    if (!group) return false;
     const transform = group.getAttribute('transform')!;
     const paths = Array.from(group.querySelectorAll('path')).filter(path => !path.closest('defs'));
     const band = paths.map(path => path.getAttribute('d') ?? '').join(' ');
     const bounds = getPotraceSvgBBox(neck.svgRaw);
-    if (!bounds) return layers;
-    const original = new DOMParser().parseFromString(outline.svgRaw, 'image/svg+xml');
-    const rearEdge = original.querySelector('[data-rear-collar-outline]');
+    if (!bounds) return false;
     const profile = rearEdge ? undefined : rearCollarProfile(neck, bounds.minX, bounds.maxX, outline);
+    if (!rearEdge && !profile) return false;
     const edgeWidth = rearEdge ? Number(rearEdge.getAttribute('stroke-width')) * 10 : profile!.collarWeight * 10;
     const mounted = document.createElementNS(namespace, 'svg');
     mounted.style.cssText = 'position:fixed;left:-10000px;visibility:hidden';
@@ -61,8 +104,13 @@ export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: Ne
       if (raw) border = contours[0]?.data ?? band;
       if (raw && contours.length) {
         const probe = contours[0].probe;
-        const count = Math.ceil(probe.getTotalLength() / 8);
-        const points = Array.from({ length: count }, (_, index) => probe.getPointAtLength(index * probe.getTotalLength() / count));
+        const length = probe.getTotalLength();
+        const count = Math.ceil(length / 8);
+        const points: DOMPoint[] = [];
+        for (let index = 0; index < count; index++) {
+          points.push(probe.getPointAtLength(index * length / count));
+          await yieldForPaint();
+        }
         const center = (bounds.minX + bounds.maxX) * 5;
         const corner = (left: boolean) => points.reduce((best, point, index) =>
           (left ? point.x < center : point.x >= center) && (best < 0 || point.y > points[best].y) ? index : best, -1);
@@ -76,12 +124,17 @@ export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: Ne
       }
       if (!raw && contours.length === 2 && !rearEdge) {
         const center = (bounds.minX + bounds.maxX) * 5;
-        const corners = contours.map(contour => {
+        const corners: DOMPoint[][] = [];
+        for (const contour of contours) {
           const length = contour.probe.getTotalLength();
-          const points = Array.from({ length: Math.ceil(length / 8) }, (_, index) => contour.probe.getPointAtLength(index * 8));
-          return [points.filter(point => point.x < center), points.filter(point => point.x >= center)]
-            .map(side => side.reduce((highest, point) => point.y > highest.y ? point : highest));
-        });
+          const points: DOMPoint[] = [];
+          for (let index = 0; index < Math.ceil(length / 8); index++) {
+            points.push(contour.probe.getPointAtLength(index * 8));
+            await yieldForPaint();
+          }
+          corners.push([points.filter(point => point.x < center), points.filter(point => point.x >= center)]
+            .map(side => side.reduce((highest, point) => point.y > highest.y ? point : highest)));
+        }
         joins = corners[0].map((point, index) => `M${point.x},${point.y}L${corners[1][index].x},${corners[1][index].y}`).join('');
       }
     } finally { mounted.remove(); }
@@ -98,7 +151,7 @@ export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: Ne
     const bodyMask = raw ? `<mask id="${id}-body-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:luminance"><path d="M0,0H2048V2048H0Z ${neckRegion}" fill="white" fill-rule="evenodd"/><path transform="${transform}" d="${bodyPath}" fill="white" stroke="white" stroke-width="${edgeWidth * 2}"/></mask>` : '';
     const inkMask = `<defs><mask id="${id}-source-ink" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048" style="mask-type:luminance">${retainedInk}</mask>${bodyMask}</defs>`;
     const bodyClip = raw ? ` mask="url(#${id}-body-ink)"` : '';
-    result = {
+    const result = {
       outline: outline.svgRaw.replace(/(<svg[^>]*>)/, `$1${inkMask}<g${bodyClip}><g data-neck-finish="${finish}" mask="url(#${id}-source-ink)">`).replace(/<\/svg>\s*$/, '</g></g></svg>'),
       neck: neck.svgRaw.replace('<svg ', `<svg data-neck-finish="${raw ? 'raw' : finish}" `),
       stitching: raw && stitching ? clear(stitching.svgRaw, 'stitching') : stitching?.svgRaw,
@@ -107,8 +160,5 @@ export function withTshirtNeckFinish(layers: ResolvedGarmentLayer[], finish?: Ne
     if (cache.size >= 48) cache.clear();
     cache.set(key, result);
   }
-  return layers.filter(layer => !raw || !['neck', 'innerBackNeck'].includes(layer.id)).map(layer => layer.id === 'neck' ? { ...layer, svgRaw: result!.neck }
-    : layer.id === 'outline' ? { ...layer, svgRaw: result!.outline }
-    : layer.id === 'stitching' && result!.stitching ? { ...layer, svgRaw: result!.stitching }
-    : result!.cutout ? { ...layer, svgRaw: clearNeckArea(layer.svgRaw, result!.cutout.path, result!.cutout.transform, `${result!.cutout.id}-${layer.id}`, 0) } : layer);
+  return true;
 }

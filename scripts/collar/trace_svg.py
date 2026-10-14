@@ -73,11 +73,7 @@ def to_transparent(img: Image.Image) -> Image.Image:
 def _place(shape: tuple[int, int]) -> tuple[float, float, float]:
     height, width = shape
     scale = CANVAS / max(width, height)
-    if width == height:
-        return scale, 0.0, 0.0
-    if width > height:
-        return scale, 0.0, CANVAS / 2
-    return scale, CANVAS / 2, 0.0
+    return scale, (CANVAS - width * scale) / 2, (CANVAS - height * scale) / 2
 
 
 def _transform_svg_path_d(path_d: str, shape: tuple[int, int], *, potrace_units: bool = False) -> str:
@@ -183,6 +179,34 @@ def _fallback_potrace(mask) -> str:
     return " ".join(paths)
 
 
+def _potracer_trace(mask) -> str:
+    """Pure-Python Potrace (potracer) with the pipeline's settings; used when no potrace.exe exists."""
+    import numpy as np
+    import potrace
+
+    if not mask.any():
+        return ""
+    # potrace.Bitmap inverts on construction, so hand it the page rather than the ink.
+    bitmap = potrace.Bitmap(~mask)
+    plist = bitmap.trace(turdsize=4, turnpolicy=potrace.POTRACE_TURNPOLICY_MINORITY,
+                         alphamax=1.0, opticurve=True, opttolerance=0.2)
+    height = mask.shape[0]
+
+    def pt(point):
+        return f"{point.x * 10:.0f} {(height - point.y) * 10:.0f}"
+
+    parts = []
+    for curve in plist:
+        parts.append("M" + pt(curve.start_point))
+        for segment in curve.segments:
+            if segment.is_corner:
+                parts.append("L" + pt(segment.c) + " L" + pt(segment.end_point))
+            else:
+                parts.append("C" + pt(segment.c1) + " " + pt(segment.c2) + " " + pt(segment.end_point))
+        parts.append("Z")
+    return " ".join(parts)
+
+
 def _run_potrace(mask) -> str:
     """Trace an already upsampled boolean mask in native Potrace coordinates."""
     import numpy as np
@@ -193,7 +217,10 @@ def _run_potrace(mask) -> str:
     try:
         exe = find_potrace_executable()
     except RuntimeError:
-        return _fallback_potrace(mask)
+        try:
+            return _potracer_trace(mask)
+        except ImportError:
+            return _fallback_potrace(mask)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         src = Path(tmpdir) / "trace.pbm"

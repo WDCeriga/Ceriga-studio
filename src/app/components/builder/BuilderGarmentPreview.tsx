@@ -1,10 +1,10 @@
-import { createContext, createElement, useContext, useId, useState, type SVGProps } from 'react';
+import { createContext, createElement, useContext, useEffect, useId, useState, type SVGProps } from 'react';
 import type { GarmentType } from '../../data/builderSteps';
 import { resolvePartMaterial, type FabricAssignments, type FabricPart } from '../../data/garmentFabrics';
 import { schematicFabricParts } from '../../data/schematicFabricParts';
 import { fabricPatternScale, fabricTextureMotif } from '../../lib/fabricRendering';
 import { partTextureIntensity, type FabricTextureIntensity } from '../../data/fabricTextureIntensity';
-import { fabricScanSurface } from '../../lib/fabricTextureScans';
+import { fabricScanSurface, getFabricScanAssetRevision, preloadFabricScanSurfaces } from '../../lib/fabricTextureScans';
 import { useMaterialDrop, type MaterialDropHandler } from './materialDrop';
 import { cn } from '../ui/utils';
 import { constructionColor } from '../../lib/tshirtSvgUtils';
@@ -707,6 +707,25 @@ export function BuilderGarmentPreview({
   const stroke = constructionColor(fill, shade(fill, -0.35));
   const gradientId = `garment-light-${uid}`;
   const parts = schematicFabricParts({ garmentType, neckType, sleeveType, sleeveLength, hemType, cuffType, pocketType, zipType });
+  const [, setFabricScanRevision] = useState(0);
+  const surfaceKey = technicalView ? '' : parts.map(part => {
+    const material = resolvePartMaterial(fabricAssignments, part, parts);
+    return material.fabric ? `${material.fabric.id}:${material.interior ? 1 : 0}` : '';
+  }).filter(Boolean).sort().join('|');
+  useEffect(() => {
+    if (!surfaceKey) return;
+    let active = true;
+    const surfaces = surfaceKey.split('|').map(entry => {
+      const [id, interior] = entry.split(':');
+      const fabric = parts.map(part => resolvePartMaterial(fabricAssignments, part, parts)).find(item => item.fabric?.id === id)?.fabric;
+      return fabric ? { fabric, interior: interior === '1' } : undefined;
+    }).filter((item): item is NonNullable<typeof item> => !!item);
+    void preloadFabricScanSurfaces(surfaces).then(() => {
+      if (active) setFabricScanRevision(getFabricScanAssetRevision());
+    }).catch(error => console.error('Could not load fabric textures.', error));
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surfaceKey]);
 
   return (
     <svg

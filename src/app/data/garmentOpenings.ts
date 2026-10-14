@@ -98,6 +98,8 @@ export function openingSourcePolygons(raw: string): MultiPolygon {
       const reference = ancestor.getAttribute('mask')?.match(/^url\(#(.+)\)$/)?.[1];
       if (!reference) continue;
       const mask = parsed.getElementById(reference);
+      // Raster alpha masks only trim sleeve areas away from the centre line, so the traced path is the fabric.
+      if (mask?.querySelector('image') && !mask.querySelector('path')) continue;
       const background = mask?.querySelector('rect[fill="white"]');
       const cutouts = Array.from(mask?.querySelectorAll('path') ?? []);
       if (!mask || mask.getAttribute('maskUnits') !== 'userSpaceOnUse' || !background || cutouts.some(cutout => cutout.getAttribute('fill') !== 'black' || Number(cutout.getAttribute('stroke-width') ?? 0) !== 0)

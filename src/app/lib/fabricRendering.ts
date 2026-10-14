@@ -1,6 +1,6 @@
 import type { GarmentFabric } from '../data/garmentFabrics';
 import { renderFabricSvg, tintPotraceSvg } from './tshirtSvgUtils';
-import { fabricMaterial, fabricScanSurface } from './fabricTextureScans';
+import { fabricMaterial, fabricScanSurface, hasFabricScanSurface } from './fabricTextureScans';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -16,7 +16,9 @@ function swatchLuminance(color: string): number | undefined {
 
 export function fabricTextureMotif(fabric: GarmentFabric, interior: boolean, intensity = 40, fill = '#000000'): string {
   const surface = fabricScanSurface(fabric, interior);
-  if (!surface) return '<text x=".2" y="5" font-size=".7" fill="#805c28" data-fabric-unavailable="true">Texture unavailable</text>';
+  if (!surface) return hasFabricScanSurface(fabric, interior)
+    ? '<g data-fabric-scan-loading="true"/>'
+    : '<text x=".2" y="5" font-size=".7" fill="#805c28" data-fabric-unavailable="true">Texture unavailable</text>';
   const normalizedIntensity = Math.max(0, Math.min(100, intensity));
   const multiplier = normalizedIntensity / 40;
   const brightness = surface.brightnessCorrection * multiplier;

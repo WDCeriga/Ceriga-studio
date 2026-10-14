@@ -1,52 +1,97 @@
 import type { MeasurementGuideDef } from './measurementGuides';
 import type { LabelAttachmentLayer } from './GarmentLabelOverlay';
+import { flattenAbsolutePath } from '../../features/panelling/panellingGeometry';
 
 export interface MeasurementPoint { x: number; y: number }
 export interface MeasurementShape { id: string; contours: MeasurementPoint[][] }
 export type MeasurementSource = LabelAttachmentLayer & { assetName?: string };
 
 const contourCache = new Map<string, MeasurementPoint[][]>();
+const pendingContours = new Map<string, Promise<MeasurementPoint[][]>>();
 
-export function sampleMeasurementShapes(sources: MeasurementSource[]): MeasurementShape[] {
+function createWorkYield() {
+  let nextYieldAt = performance.now() + 8;
+  return async () => {
+    if (performance.now() < nextYieldAt) return;
+    // rAF never fires in hidden tabs, so a timeout keeps the work moving there.
+    await new Promise<void>(resolve => { requestAnimationFrame(() => resolve()); window.setTimeout(resolve, 50); });
+    nextYieldAt = performance.now() + 8;
+  };
+}
+
+async function sampleSourceContours(source: MeasurementSource, yieldForPaint: () => Promise<void>) {
+  const cacheKey = `${source.id === 'neckCutout' ? 'cutout:' : ''}${source.svgRaw}`;
+  const cached = contourCache.get(cacheKey);
+  if (cached) return cached;
+  const pending = pendingContours.get(cacheKey);
+  if (pending) return pending;
+
+  const task = (async () => {
+    const parsed = new DOMParser().parseFromString(source.svgRaw, 'image/svg+xml');
+    const holder = document.importNode(parsed.documentElement, true) as unknown as SVGSVGElement;
+    holder.style.cssText = 'position:fixed;left:-10000px;visibility:hidden';
+    holder.setAttribute('width', '2048');
+    holder.setAttribute('height', '2048');
+    document.body.append(holder);
+    try {
+      const paths = source.id === 'neckCutout' ? holder.querySelectorAll<SVGPathElement>('mask[id*="neck-finish-"] path[fill="black"]') : holder.querySelectorAll<SVGPathElement>('path');
+      const contours: { contour: string; matrix: DOMMatrix }[] = [];
+      const inverseHolderMatrix = holder.getCTM()!.inverse();
+      for (const path of Array.from(paths)) {
+        if (source.id !== 'neckCutout' && path.closest('defs')) continue;
+        const data = path.getAttribute('d') ?? '';
+        const matrix = inverseHolderMatrix.multiply(path.getCTM()!);
+        for (const contour of /m/.test(data) ? [data] : data.match(/M[^M]*/g) ?? []) contours.push({ contour, matrix });
+        await yieldForPaint();
+      }
+      const sampled: MeasurementPoint[][] = [];
+      for (const { contour, matrix } of contours) {
+        const flat = flattenAbsolutePath(contour, 4 / Math.max(1e-6, Math.hypot(matrix.a, matrix.b)));
+        if (flat && flat.length) {
+          sampled.push(flat.map(point => {           const mapped = new DOMPoint(point.x, point.y).matrixTransform(matrix); return { x: mapped.x, y: mapped.y }; }));
+          await yieldForPaint();
+          continue;
+        }
+        const probe = document.createElementNS(holder.namespaceURI, 'path') as SVGPathElement;
+        probe.setAttribute('d', contour);
+        holder.append(probe);
+        const length = probe.getTotalLength();
+        const count = Math.min(3000, Math.max(32, Math.ceil(length * Math.hypot(matrix.a, matrix.b) / 4)));
+        const points: MeasurementPoint[] = [];
+        for (let index = 0; index < count; index++) {
+          const point = probe.getPointAtLength(length * index / count).matrixTransform(matrix);
+          points.push({ x: point.x, y: point.y });
+          await yieldForPaint();
+        }
+        sampled.push(points);
+      }
+      if (contourCache.size > 80) contourCache.clear();
+      contourCache.set(cacheKey, sampled);
+      return sampled;
+    } finally {
+      holder.remove();
+    }
+  })();
+  pendingContours.set(cacheKey, task);
+  void task.then(() => pendingContours.delete(cacheKey), () => pendingContours.delete(cacheKey));
+  return task;
+}
+
+export async function sampleMeasurementShapes(sources: MeasurementSource[]): Promise<MeasurementShape[]> {
   const base = sources.find(source => source.id === 'base');
   const cutout = !sources.some(source => source.id === 'neck') && base?.svgRaw.includes('neck-finish-') ? [{ ...base, id: 'neckCutout' }] : [];
-  return [...sources, ...cutout].filter(source => !['outline', 'stitching'].includes(source.id)).map(source => {
-    const cacheKey = `${source.id === 'neckCutout' ? 'cutout:' : ''}${source.svgRaw}`;
-    let contours = contourCache.get(cacheKey);
-    if (!contours) {
-      const parsed = new DOMParser().parseFromString(source.svgRaw, 'image/svg+xml');
-      const holder = document.importNode(parsed.documentElement, true) as unknown as SVGSVGElement;
-      holder.style.cssText = 'position:fixed;left:-10000px;visibility:hidden';
-      holder.setAttribute('width', '2048');
-      holder.setAttribute('height', '2048');
-      document.body.append(holder);
-      try {
-        const paths = source.id === 'neckCutout' ? holder.querySelectorAll<SVGPathElement>('mask[id*="neck-finish-"] path[fill="black"]') : holder.querySelectorAll<SVGPathElement>('path');
-        contours = Array.from(paths).filter(path => source.id === 'neckCutout' || !path.closest('defs')).flatMap(path => {
-          const data = path.getAttribute('d') ?? '';
-          const matrix = holder.getCTM()!.inverse().multiply(path.getCTM()!);
-          return (/m/.test(data) ? [data] : data.match(/M[^M]*/g) ?? []).map(contour => {
-            const probe = document.createElementNS(holder.namespaceURI, 'path') as SVGPathElement;
-            probe.setAttribute('d', contour);
-            holder.append(probe);
-            const length = probe.getTotalLength();
-            const count = Math.min(6000, Math.max(32, Math.ceil(length * Math.hypot(matrix.a, matrix.b) / 2)));
-            return Array.from({ length: count }, (_, index) => {
-              const point = probe.getPointAtLength(length * index / count).matrixTransform(matrix);
-              return { x: point.x, y: point.y };
-            });
-          });
-        });
-      } finally { holder.remove(); }
-      if (contourCache.size > 80) contourCache.clear();
-      contourCache.set(cacheKey, contours);
-    }
+  const yieldForPaint = createWorkYield();
+  const shapes: MeasurementShape[] = [];
+  for (const source of [...sources, ...cutout].filter(source => !['outline', 'stitching'].includes(source.id))) {
+    const contours = await sampleSourceContours(source, yieldForPaint);
     const matrix = new DOMMatrix(source.matrix);
-    return { id: source.id, contours: contours.map(contour => contour.map(point => {
+    shapes.push({ id: source.id, contours: contours.map(contour => contour.map(point => {
       const mapped = matrix.transformPoint(point);
       return { x: mapped.x * 1000 / 2048, y: mapped.y * 1000 / 2048 };
-    })) };
-  });
+    })) });
+    await yieldForPaint();
+  }
+  return shapes;
 }
 
 export function measurementExtent(points: MeasurementPoint[]) {

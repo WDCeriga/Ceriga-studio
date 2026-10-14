@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Crosshair } from 'lucide-react';
 import { arrangeGarmentDetails, detailPlacement, detailRotation, setDetailTransform, type DetailBounds, type GarmentDetail } from '../../data/garmentDetails';
@@ -151,19 +151,44 @@ export function printMeasurements(elements: DesignElement[], root: HTMLElement, 
   });
 }
 
-export function CustomAssetMeasurementLayer({ sources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
+export function CustomAssetMeasurementLayer({ sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
   sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
   referenceWidthCm?: number; unit?: MeasurementUnit; view: 'front' | 'back'; selectedId?: string | null; highlightedId?: string | null;
   onSelect?: (id: string | null) => void; onMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
 }) {
+  // The preview rebuilds this array each render; keep the previous one while its contents are unchanged.
+  const stableSources = useRef(incomingSources);
+  const previousSources = stableSources.current;
+  if (previousSources !== incomingSources && !(previousSources.length === incomingSources.length
+    && incomingSources.every((source, index) => source.id === previousSources[index].id
+      && source.matrix === previousSources[index].matrix && source.svgRaw === previousSources[index].svgRaw))) {
+    stableSources.current = incomingSources;
+  }
+  const sources = stableSources.current;
   const svgRef = useRef<SVGSVGElement>(null);
   const [overlayTarget, setOverlayTarget] = useState<HTMLElement | null>(null);
   useEffect(() => { setOverlayTarget(svgRef.current?.closest<HTMLElement>('[data-print-garment-backdrop]')?.parentElement ?? null); }, []);
   const [snapshot, setSnapshot] = useState<AssetMeasurementSnapshot>({ view, assets: [] });
   const assets = snapshot.view === view ? snapshot.assets : [];
-  const shapes = sampleMeasurementShapes(sources);
-  const guides = buildGeometryGuides(shapes);
-  const inputKey = JSON.stringify({ sources, bounds, details, labels, prints, referenceWidthCm, view });
+  const [sampledShapes, setSampledShapes] = useState<{ sources: MeasurementSource[]; shapes: MeasurementShape[] }>();
+  const [shapeError, setShapeError] = useState(false);
+  const hasCurrentShapes = sampledShapes?.sources === sources;
+  const shapes = hasCurrentShapes ? sampledShapes.shapes : [];
+  const guides = useMemo(() => buildGeometryGuides(shapes), [shapes]);
+  useEffect(() => {
+    let active = true;
+    void sampleMeasurementShapes(sources).then(next => {
+      if (active) {
+        setSampledShapes({ sources, shapes: next });
+        setShapeError(false);
+      }
+    }).catch(error => {
+      if (!active) return;
+      console.error('Could not prepare measurement geometry.', error);
+      setShapeError(true);
+    });
+    return () => { active = false; };
+  }, [sources]);
   useEffect(() => {
     const root = svgRef.current?.closest<HTMLElement>('[data-measurement-preview]');
     if (!bounds || !root) { setSnapshot({ view, assets: [] }); return; }
@@ -202,7 +227,7 @@ export function CustomAssetMeasurementLayer({ sources, bounds, details = [], lab
     root.querySelectorAll<HTMLElement>('[data-print-id], [data-print-design-zone]').forEach(node => observer.observe(node));
     void document.fonts.ready.then(update);
     return () => { active = false; observer.disconnect(); };
-  }, [inputKey]);
+  }, [bounds, details, labels, prints, referenceWidthCm, view, shapes, sources]);
   const snapshotKey = JSON.stringify({ view, assets });
   useEffect(() => { onMeasurementsChange?.({ view, assets }); }, [snapshotKey, onMeasurementsChange]);
   const selected = assets.find(asset => asset.id === selectedId);
@@ -214,6 +239,12 @@ export function CustomAssetMeasurementLayer({ sources, bounds, details = [], lab
   ].map(guide => ({ ...guide, x1: guide.x1 * 1000 / 2048, y1: guide.y1 * 1000 / 2048, x2: guide.x2 * 1000 / 2048, y2: guide.y2 * 1000 / 2048,
     labelX: Math.max(95, Math.min(905, guide.labelX * 1000 / 2048)), labelY: Math.max(20, Math.min(980, guide.labelY * 1000 / 2048)) })) as MeasurementGuideDef[] : [];
   const overlay = <>
+    {!hasCurrentShapes && !shapeError && <p role="status" className="absolute left-2 top-2 z-[270] rounded bg-black/70 px-2 py-1 text-xs text-white/80">
+      Preparing measurement guides…
+    </p>}
+    {shapeError && <p role="alert" className="absolute left-2 top-2 z-[270] rounded bg-red-950/90 px-2 py-1 text-xs text-red-100">
+      Could not prepare measurement guides.
+    </p>}
     <MeasurementGuideOverlay guides={guides} view={view} highlightedId={highlightedId || (selected ? selected.id : null)} />
     <svg ref={svgRef} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 260 }} aria-label="Custom asset measurement guides">
       {assets.filter(asset => !asset.interior || selected?.interior).map(asset => <polygon key={asset.id} data-asset-measurement={asset.id} points={asset.corners.map(point => `${point.x},${point.y}`).join(' ')}
