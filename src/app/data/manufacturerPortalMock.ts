@@ -1090,27 +1090,151 @@ function sanitizeFactoryMessageThreads(
   return [...allowed, ...workers.filter((w) => !allowed.some((a) => a.id === w.id))];
 }
 
-function loadWorkspace(): FactoryWorkspace {
+function getActiveUser(): { name?: string; email?: string; id?: string } | null {
+  if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.email) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function getWorkspaceStorageKey(): string {
+  const user = getActiveUser();
+  if (user?.email) {
+    const safeEmail = user.email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    return `ceriga_factory_workspace_${safeEmail}`;
+  }
+  return 'ceriga_factory_workspace_v7';
+}
+
+export function createFreshFactoryWorkspace(
+  user?: { name?: string; email?: string; id?: string } | null,
+): FactoryWorkspace {
+  const activeUser = user ?? getActiveUser();
+  const email = activeUser?.email?.toLowerCase().trim() || 'partner@ceriga.com';
+  const namePart = email.split('@')[0];
+  const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+  const contactName = activeUser?.name || capitalized;
+  const factoryName = activeUser?.name ? `${activeUser.name} Manufacturing` : `${capitalized} Factory`;
+
+  return {
+    factoryId: `mfg_${email.replace(/[^a-z0-9]/g, '_')}`,
+    factoryName,
+    contactName,
+    contactEmail: email,
+    contactPhone: '',
+    website: '',
+    addressLine: '',
+    typicalLeadDays: 14,
+    onboardingComplete: false,
+    garments: ['Hoodies', 'T-shirts'],
+    capabilities: ['Cut & sew'],
+    shippingRegions: ['UK', 'EU'],
+    moq: 50,
+    monthlyCapacity: 1000,
+    internalNotes: '',
+    materials: [],
+    shipping: {
+      preferredCarriers: [],
+      defaultPackaging: 'box',
+      customPackagingNote: '',
+      carriers: [
+        {
+          carrierId: 'dpd',
+          enabled: true,
+          enabledModes: ['express', 'standard'],
+          enabledIncoterms: ['DDP'],
+        },
+        {
+          carrierId: 'dhl',
+          enabled: false,
+          enabledModes: ['express'],
+          enabledIncoterms: ['DDP'],
+        },
+      ],
+      labelsGeneratedThisMonth: 0,
+      estimatedShippingSpendMonthCents: 0,
+    },
+    shipments: [],
+    capacityBlocks: [],
+    holidays: seedFixedHolidays(),
+    team: [
+      {
+        id: `tm-${email.replace(/[^a-z0-9]/g, '_')}`,
+        name: contactName,
+        email,
+        role: 'admin',
+        lastActive: new Date().toISOString().slice(0, 10),
+        status: 'active',
+      },
+    ],
+    orders: [],
+    cerigaMessages: [
+      {
+        id: 'msg-welcome',
+        from: 'ceriga',
+        text: `Welcome to Ceriga Manufacturing. Your factory workspace is ready. Production orders and quote requests will appear in your inbox once assigned.`,
+        at: new Date().toISOString(),
+      },
+    ],
+    messageThreads: [
+      {
+        id: 'fmt-ceriga',
+        type: 'ceriga',
+        name: 'Ceriga operations',
+        subtitle: 'Assignments · SLAs · capacity',
+        lastMessage: 'Welcome to Ceriga Manufacturing. Your factory workspace is ready.',
+        lastAt: 'Just now',
+        unread: 1,
+        messages: [
+          {
+            id: 'msg-welcome',
+            from: 'contact',
+            text: `Welcome to Ceriga Manufacturing. Your factory workspace is ready. Production orders and quote requests will appear in your inbox once assigned.`,
+            at: 'Just now',
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function loadWorkspace(targetKey?: string): FactoryWorkspace {
+  const key = targetKey ?? getWorkspaceStorageKey();
+  const isDemo = key === 'ceriga_factory_workspace_v7';
+
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
     if (raw) {
       const parsed = JSON.parse(raw) as FactoryWorkspace;
-      if (!parsed.materials?.length) {
-        parsed.materials = seedMaterials();
+      if (!parsed.materials) {
+        parsed.materials = isDemo ? seedMaterials() : [];
       }
       if (!parsed.shipping?.carriers?.length) {
-        parsed.shipping = seedFactoryShippingPrefs();
+        parsed.shipping = isDemo ? seedFactoryShippingPrefs() : {
+          preferredCarriers: [],
+          defaultPackaging: 'box',
+          customPackagingNote: '',
+          carriers: [],
+          labelsGeneratedThisMonth: 0,
+          estimatedShippingSpendMonthCents: 0,
+        };
       }
       if (!parsed.shipments) {
-        parsed.shipments = seedFactoryShipments();
+        parsed.shipments = isDemo ? seedFactoryShipments() : [];
       }
       if (!parsed.capacityBlocks) {
-        parsed.capacityBlocks = seedCapacityBlocks();
+        parsed.capacityBlocks = isDemo ? seedCapacityBlocks() : [];
       }
       if (!parsed.holidays?.length) {
-        parsed.holidays = seedHolidays();
+        parsed.holidays = isDemo ? seedHolidays() : seedFixedHolidays();
       } else {
-        // Ensure fixed holidays stay present even if an older session wiped them
         const fixed = seedFixedHolidays();
         const custom = parsed.holidays
           .filter((h) => h.source === 'custom')
@@ -1143,25 +1267,51 @@ function loadWorkspace(): FactoryWorkspace {
   } catch {
     /* ignore */
   }
+
+  // Not yet saved: if logged-in user, create a clean workspace; otherwise use demo
+  if (!isDemo) {
+    const fresh = createFreshFactoryWorkspace();
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(fresh));
+      }
+    } catch {
+      /* ignore */
+    }
+    return fresh;
+  }
+
   return seedWorkspace();
 }
 
-let workspace: FactoryWorkspace = typeof window !== 'undefined' ? loadWorkspace() : seedWorkspace();
+let activeStorageKey = typeof window !== 'undefined' ? getWorkspaceStorageKey() : 'ceriga_factory_workspace_v7';
+let workspace: FactoryWorkspace = typeof window !== 'undefined' ? loadWorkspace(activeStorageKey) : seedWorkspace();
 
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+    const key = getWorkspaceStorageKey();
+    localStorage.setItem(key, JSON.stringify(workspace));
   } catch {
     /* ignore */
   }
 }
 
 export function getFactoryWorkspace(): FactoryWorkspace {
+  const currentKey = getWorkspaceStorageKey();
+  if (currentKey !== activeStorageKey) {
+    activeStorageKey = currentKey;
+    workspace = loadWorkspace(currentKey);
+  }
   return workspace;
 }
 
 export function resetFactoryWorkspace(): FactoryWorkspace {
-  workspace = seedWorkspace();
+  const currentKey = getWorkspaceStorageKey();
+  if (currentKey === 'ceriga_factory_workspace_v7') {
+    workspace = seedWorkspace();
+  } else {
+    workspace = createFreshFactoryWorkspace();
+  }
   persist();
   return workspace;
 }
@@ -1174,18 +1324,21 @@ export function updateFactoryWorkspace(
     >
   >,
 ): FactoryWorkspace {
+  getFactoryWorkspace(); // ensure sync with active user
   workspace = { ...workspace, ...patch };
   persist();
   return workspace;
 }
 
 export function completeFactoryOnboarding(input: {
+  factoryName?: string;
   garments: FactoryGarment[];
   capabilities: FactoryCapability[];
   shippingRegions: string[];
   moq: number;
   monthlyCapacity: number;
 }): FactoryWorkspace {
+  getFactoryWorkspace(); // ensure sync with active user
   workspace = {
     ...workspace,
     ...input,
@@ -1196,7 +1349,8 @@ export function completeFactoryOnboarding(input: {
 }
 
 export function listFactoryOrders(status?: FactoryOrderStatus | 'all'): FactoryOrder[] {
-  const orders = [...workspace.orders]
+  const currentWs = getFactoryWorkspace();
+  const orders = [...(currentWs.orders ?? [])]
     .map(ensureFactoryOrderExtras)
     .sort((a, b) => b.assignedAt.localeCompare(a.assignedAt));
   if (!status || status === 'all') return orders;
@@ -1204,7 +1358,8 @@ export function listFactoryOrders(status?: FactoryOrderStatus | 'all'): FactoryO
 }
 
 export function getFactoryOrder(id: string): FactoryOrder | undefined {
-  const order = workspace.orders.find((o) => o.id === id);
+  const currentWs = getFactoryWorkspace();
+  const order = (currentWs.orders ?? []).find((o) => o.id === id);
   return order ? ensureFactoryOrderExtras(order) : undefined;
 }
 
@@ -1213,7 +1368,8 @@ export function isMaterialLowStock(m: FactoryMaterial): boolean {
 }
 
 export function listFactoryMaterials(kind?: FactoryMaterialKind | 'all'): FactoryMaterial[] {
-  const materials = [...(workspace.materials ?? [])].sort((a, b) =>
+  const currentWs = getFactoryWorkspace();
+  const materials = [...(currentWs.materials ?? [])].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
   if (!kind || kind === 'all') return materials;
@@ -1294,7 +1450,8 @@ export function shippingModeToDeliveryOption(mode: ShippingMode): DeliveryOption
 }
 
 export function getFactoryShippingPrefs(): FactoryShippingPrefs {
-  return workspace.shipping ?? seedFactoryShippingPrefs();
+  const currentWs = getFactoryWorkspace();
+  return currentWs.shipping ?? seedFactoryShippingPrefs();
 }
 
 export function listEnabledShippingCarriers(): OnboardedShippingCarrier[] {
@@ -1310,7 +1467,8 @@ export function getFactoryCarrierSetup(carrierId: string): FactoryCarrierSetup |
 }
 
 export function listFactoryShipments(): FactoryShipment[] {
-  return [...(workspace.shipments ?? [])].sort((a, b) =>
+  const currentWs = getFactoryWorkspace();
+  return [...(currentWs.shipments ?? [])].sort((a, b) =>
     b.updatedAt.localeCompare(a.updatedAt),
   );
 }
@@ -1558,11 +1716,12 @@ export function memberHasPermission(
 
 /** Demo “signed-in” factory user — prefer first active admin. */
 export function getActingFactoryMember(): FactoryTeamMember {
-  const active = workspace.team.filter((m) => m.status === 'active');
+  const currentWs = getFactoryWorkspace();
+  const active = (currentWs.team ?? []).filter((m) => m.status === 'active');
   return (
     active.find((m) => m.role === 'admin') ??
     active[0] ??
-    workspace.team[0]
+    (currentWs.team ?? [])[0]
   );
 }
 
@@ -1658,13 +1817,15 @@ export function downloadTextFile(filename: string, contents: string, mime = 'tex
 }
 
 export function listCapacityBlocks(): CapacityWeekBlock[] {
-  return [...(workspace.capacityBlocks ?? [])].sort((a, b) =>
+  const currentWs = getFactoryWorkspace();
+  return [...(currentWs.capacityBlocks ?? [])].sort((a, b) =>
     a.weekStart.localeCompare(b.weekStart),
   );
 }
 
 export function isCapacityWeekFull(weekStart: string): boolean {
-  return (workspace.capacityBlocks ?? []).some((b) => b.weekStart === weekStart && b.full);
+  const currentWs = getFactoryWorkspace();
+  return (currentWs.capacityBlocks ?? []).some((b) => b.weekStart === weekStart && b.full);
 }
 
 export function setCapacityWeekBlock(
@@ -1698,7 +1859,8 @@ export function updateCapacityWeekNote(weekStart: string, note: string): Factory
 }
 
 export function listFactoryHolidays(): FactoryHoliday[] {
-  return [...(workspace.holidays ?? [])]
+  const currentWs = getFactoryWorkspace();
+  return [...(currentWs.holidays ?? [])]
     .map((h) => ({
       ...h,
       status: h.status ?? (h.source === 'fixed' ? 'approved' : 'approved'),
@@ -1889,6 +2051,7 @@ export function sendCerigaMessage(text: string): FactoryWorkspace {
 }
 
 export function listFactoryMessageThreads(): FactoryChatThread[] {
+  getFactoryWorkspace();
   const sanitized = sanitizeFactoryMessageThreads(
     workspace.messageThreads,
     workspace.cerigaMessages ?? [],
@@ -1969,7 +2132,8 @@ export function markFactoryThreadRead(threadId: string): FactoryWorkspace {
 }
 
 export function factoryInboxStats() {
-  const orders = workspace.orders;
+  const currentWs = getFactoryWorkspace();
+  const orders = currentWs.orders ?? [];
   return {
     newCount: orders.filter((o) => o.status === 'new').length,
     clarifying: orders.filter((o) => o.status === 'clarifying').length,
@@ -1983,7 +2147,7 @@ export function factoryInboxStats() {
     capacityUsed: orders
       .filter((o) => ['quoted', 'in_production'].includes(o.status))
       .reduce((s, o) => s + o.capacityUnitsEstimate, 0),
-    capacityTotal: workspace.monthlyCapacity,
+    capacityTotal: currentWs.monthlyCapacity,
   };
 }
 
@@ -1993,58 +2157,89 @@ export function factoryStatsSeries() {
 
 /** Rich analytics payload for the manufacturer Statistics page. */
 export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
+  const currentWs = getFactoryWorkspace();
   const inbox = factoryInboxStats();
-  const materials = workspace.materials ?? [];
+  const materials = currentWs.materials ?? [];
   const lowStock = materials.filter((m) => m.quantity <= m.reorderAt).length;
   const periodLabel = periodDays === 30 ? 'Last 30 days' : 'Last 90 days';
   const monthTake = periodDays === 30 ? 2 : 4;
   const weekTake = periodDays === 30 ? 4 : 8;
   const scale = periodDays === 30 ? 0.38 : 1;
+  const hasOrders = (currentWs.orders ?? []).length > 0;
 
-  const monthlyQuotesAll = [
-    { m: 'Nov', quotes: 4, wins: 2, declines: 1, valueK: 18 },
-    { m: 'Dec', quotes: 6, wins: 3, declines: 1, valueK: 27 },
-    { m: 'Jan', quotes: 5, wins: 4, declines: 0, valueK: 31 },
-    { m: 'Feb', quotes: 8, wins: 5, declines: 2, valueK: 44 },
-    { m: 'Mar', quotes: 7, wins: 4, declines: 1, valueK: 38 },
-    { m: 'Apr', quotes: 9, wins: 6, declines: 1, valueK: 52 },
-  ];
+  const monthlyQuotesAll = hasOrders
+    ? [
+        { m: 'Nov', quotes: 4, wins: 2, declines: 1, valueK: 18 },
+        { m: 'Dec', quotes: 6, wins: 3, declines: 1, valueK: 27 },
+        { m: 'Jan', quotes: 5, wins: 4, declines: 0, valueK: 31 },
+        { m: 'Feb', quotes: 8, wins: 5, declines: 2, valueK: 44 },
+        { m: 'Mar', quotes: 7, wins: 4, declines: 1, valueK: 38 },
+        { m: 'Apr', quotes: 9, wins: 6, declines: 1, valueK: 52 },
+      ]
+    : [
+        { m: 'Nov', quotes: 0, wins: 0, declines: 0, valueK: 0 },
+        { m: 'Dec', quotes: 0, wins: 0, declines: 0, valueK: 0 },
+        { m: 'Jan', quotes: 0, wins: 0, declines: 0, valueK: 0 },
+        { m: 'Feb', quotes: 0, wins: 0, declines: 0, valueK: 0 },
+        { m: 'Mar', quotes: 0, wins: 0, declines: 0, valueK: 0 },
+        { m: 'Apr', quotes: 0, wins: 0, declines: 0, valueK: 0 },
+      ];
   const monthlyQuotes = monthlyQuotesAll.slice(-monthTake);
 
-  const quoteHoursAll = [
-    { m: 'Nov', hours: 54 },
-    { m: 'Dec', hours: 48 },
-    { m: 'Jan', hours: 42 },
-    { m: 'Feb', hours: 39 },
-    { m: 'Mar', hours: 36 },
-    { m: 'Apr', hours: 33 },
-  ];
+  const quoteHoursAll = hasOrders
+    ? [
+        { m: 'Nov', hours: 54 },
+        { m: 'Dec', hours: 48 },
+        { m: 'Jan', hours: 42 },
+        { m: 'Feb', hours: 39 },
+        { m: 'Mar', hours: 36 },
+        { m: 'Apr', hours: 33 },
+      ]
+    : [
+        { m: 'Nov', hours: 0 },
+        { m: 'Dec', hours: 0 },
+        { m: 'Jan', hours: 0 },
+        { m: 'Feb', hours: 0 },
+        { m: 'Mar', hours: 0 },
+        { m: 'Apr', hours: 0 },
+      ];
   const quoteHours = quoteHoursAll.slice(-monthTake);
 
-  const garmentMix = workspace.garments.map((g, i) => ({
+  const garmentMix = currentWs.garments.map((g, i) => ({
     name: g,
-    value: 18 + i * 7,
-    units: 120 + i * 85,
+    value: hasOrders ? 18 + i * 7 : 0,
+    units: hasOrders ? 120 + i * 85 : 0,
   }));
 
   const totalQuotes = monthlyQuotes.reduce((s, r) => s + r.quotes, 0);
   const totalWins = monthlyQuotes.reduce((s, r) => s + r.wins, 0);
   const totalDeclines = monthlyQuotes.reduce((s, r) => s + r.declines, 0);
-  const winRate = Math.round((totalWins / Math.max(totalQuotes, 1)) * 100);
-  const avgQuoteHours = Math.round(
-    quoteHours.reduce((s, r) => s + r.hours, 0) / Math.max(quoteHours.length, 1),
-  );
+  const winRate = hasOrders && totalQuotes > 0 ? Math.round((totalWins / Math.max(totalQuotes, 1)) * 100) : 0;
+  const avgQuoteHours = hasOrders && quoteHours.length > 0
+    ? Math.round(quoteHours.reduce((s, r) => s + r.hours, 0) / Math.max(quoteHours.length, 1))
+    : 0;
 
-  const weeklyThroughputAll = [
-    { w: 'W1', units: 180, quotes: 2 },
-    { w: 'W2', units: 240, quotes: 3 },
-    { w: 'W3', units: 210, quotes: 1 },
-    { w: 'W4', units: 320, quotes: 4 },
-    { w: 'W5', units: 280, quotes: 2 },
-    { w: 'W6', units: 360, quotes: 3 },
-    { w: 'W7', units: 310, quotes: 2 },
-    { w: 'W8', units: 390, quotes: 4 },
-  ];
+  const weeklyThroughputAll = hasOrders
+    ? [
+        { w: 'W1', units: 180, quotes: 2 },
+        { w: 'W2', units: 240, quotes: 3 },
+        { w: 'W3', units: 210, quotes: 1 },
+        { w: 'W4', units: 320, quotes: 4 },
+        { w: 'W5', units: 280, quotes: 2 },
+        { w: 'W6', units: 360, quotes: 3 },
+        { w: 'W7', units: 310, quotes: 2 },
+        { w: 'W8', units: 390, quotes: 4 },
+      ]
+    : [
+        { w: 'W1', units: 0, quotes: 0 },
+        { w: 'W2', units: 0, quotes: 0 },
+        { w: 'W3', units: 0, quotes: 0 },
+        { w: 'W4', units: 0, quotes: 0 },
+        { w: 'W5', units: 0, quotes: 0 },
+        { w: 'W6', units: 0, quotes: 0 },
+        { w: 'W7', units: 0, quotes: 0 },
+        { w: 'W8', units: 0, quotes: 0 },
+      ];
 
   return {
     periodDays,
@@ -2062,18 +2257,19 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
       ),
       capacityUsed: inbox.capacityUsed,
       capacityTotal: inbox.capacityTotal,
-      bookedValueCents: Math.round(4120000 * scale),
-      bookedValueDelta:
-        periodDays === 30 ? '+6% vs prior 30d' : '+14% vs prior 90d',
-      onTimePct: 94,
-      otifPct: 91,
-      activeBrands: periodDays === 30 ? 4 : 7,
-      repeatBrandPct: 62,
-      avgLeadDays: 22,
-      quotedLeadDays: 24,
+      bookedValueCents: hasOrders ? Math.round(4120000 * scale) : 0,
+      bookedValueDelta: hasOrders
+        ? periodDays === 30 ? '+6% vs prior 30d' : '+14% vs prior 90d'
+        : 'Fresh workspace',
+      onTimePct: 100,
+      otifPct: 100,
+      activeBrands: hasOrders ? (periodDays === 30 ? 4 : 7) : 0,
+      repeatBrandPct: 0,
+      avgLeadDays: currentWs.typicalLeadDays ?? 14,
+      quotedLeadDays: currentWs.typicalLeadDays ?? 14,
       lowStock,
-      defectRatePct: 1.4,
-      teamActive: workspace.team.filter((t) => t.status === 'active').length,
+      defectRatePct: 0,
+      teamActive: currentWs.team.filter((t) => t.status === 'active').length,
     },
     monthlyQuotes,
     quoteHours,
@@ -2089,7 +2285,7 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
     ].filter((p) => p.count > 0),
     ordersByStatus: [
       { name: 'New', count: inbox.newCount },
-      { name: 'Reviewing', count: workspace.orders.filter((o) => o.status === 'reviewing').length },
+      { name: 'Reviewing', count: (currentWs.orders ?? []).filter((o) => o.status === 'reviewing').length },
       { name: 'Clarifying', count: inbox.clarifying },
       { name: 'Quoted', count: inbox.quoted },
       { name: 'In production', count: inbox.inProduction },
@@ -2097,14 +2293,14 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
       { name: 'Declined', count: inbox.rejected },
     ],
     capacityWeekly: [
-      { w: 'W1', used: 48, limit: 100 },
-      { w: 'W2', used: 62, limit: 100 },
-      { w: 'W3', used: 55, limit: 100 },
-      { w: 'W4', used: 71, limit: 100 },
-      { w: 'W5', used: 68, limit: 100 },
-      { w: 'W6', used: 82, limit: 100 },
-      { w: 'W7', used: 74, limit: 100 },
-      { w: 'W8', used: Math.min(95, Math.round((inbox.capacityUsed / Math.max(inbox.capacityTotal, 1)) * 100) || 78), limit: 100 },
+      { w: 'W1', used: hasOrders ? 48 : 0, limit: 100 },
+      { w: 'W2', used: hasOrders ? 62 : 0, limit: 100 },
+      { w: 'W3', used: hasOrders ? 55 : 0, limit: 100 },
+      { w: 'W4', used: hasOrders ? 71 : 0, limit: 100 },
+      { w: 'W5', used: hasOrders ? 68 : 0, limit: 100 },
+      { w: 'W6', used: hasOrders ? 82 : 0, limit: 100 },
+      { w: 'W7', used: hasOrders ? 74 : 0, limit: 100 },
+      { w: 'W8', used: hasOrders ? Math.min(95, Math.round((inbox.capacityUsed / Math.max(inbox.capacityTotal, 1)) * 100) || 78) : 0, limit: 100 },
     ],
     leadTime: [
       { m: 'Nov', quoted: 28, actual: 30 },
@@ -2175,7 +2371,7 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
         unit: m.unit,
         reorderAt: m.reorderAt,
       })),
-    teamActivity: workspace.team.map((t, i) => ({
+    teamActivity: (currentWs.team ?? []).map((t, i) => ({
       name: t.name.split(' ')[0] ?? t.name,
       quotes: t.role === 'quoter' || t.role === 'admin' ? 12 - i * 2 : 0,
       production: t.role === 'production' || t.role === 'admin' ? 8 + i : 1,
@@ -2190,12 +2386,12 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
     ],
     totals: { totalQuotes, totalWins, totalDeclines },
     profile: {
-      moq: workspace.moq,
-      monthlyCapacity: workspace.monthlyCapacity,
-      regions: workspace.shippingRegions,
-      garments: workspace.garments,
-      capabilities: workspace.capabilities,
-      factoryName: workspace.factoryName,
+      moq: currentWs.moq,
+      monthlyCapacity: currentWs.monthlyCapacity,
+      regions: currentWs.shippingRegions,
+      garments: currentWs.garments,
+      capabilities: currentWs.capabilities,
+      factoryName: currentWs.factoryName,
     },
   };
 }

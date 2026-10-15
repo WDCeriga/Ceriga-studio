@@ -26,6 +26,8 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { cn } from '../../components/ui/utils';
+import { Link } from 'react-router';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 type ProfileDraft = {
   factoryName: string;
@@ -241,6 +243,12 @@ export function ManufacturerSettings() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="border-white/15 text-white hover:bg-white/5">
+            <Link to="/manufacturer/onboarding">
+              <Sparkles className="mr-1.5 h-4 w-4 text-[#CC2D24]" />
+              Relaunch 6-Step Onboarding
+            </Link>
+          </Button>
           <Button
             variant="outline"
             className="border-white/15 text-white hover:bg-white/5"

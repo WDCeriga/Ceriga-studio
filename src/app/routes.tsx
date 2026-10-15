@@ -44,6 +44,14 @@ export const router = createBrowserRouter([
     Component: Signup,
   },
   {
+    path: "/manufacturer/login",
+    Component: Login,
+  },
+  {
+    path: "/manufacturer/signup",
+    Component: Signup,
+  },
+  {
     path: "/reset-password",
     lazy: async () => {
       const { ResetPassword } = await import("./pages/ResetPassword");
@@ -796,6 +804,38 @@ export const router = createBrowserRouter([
         element: (
           <ManufacturerLayout>
             <ManufacturerCapacity />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/portfolio",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerPortfolio }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerPortfolio"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerPortfolio />
+          </ManufacturerLayout>
+        ),
+      };
+    },
+  },
+  {
+    path: "/manufacturer/verification",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerVerification }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerVerification"),
+      ]);
+      return {
+        element: (
+          <ManufacturerLayout>
+            <ManufacturerVerification />
           </ManufacturerLayout>
         ),
       };

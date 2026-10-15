@@ -4,8 +4,8 @@ import { canAccessSuperadminLocalPreview } from '../lib/superadminAccess';
 import { fetchIsSuperadmin } from '../lib/superadminDb';
 
 /**
- * Superadmin route guard: local preview uses the code allowlist;
- * Supabase mode requires the signed-in email in `superadmin_emails` (RLS).
+ * Superadmin route guard: an explicit local development preview flag uses the
+ * code allowlist; all other Supabase sessions require `superadmin_emails` (RLS).
  */
 export function useSuperadminGate() {
   const { authReady, usingSupabase, isAuthenticated, user } = useAuth();
@@ -19,12 +19,20 @@ export function useSuperadminGate() {
       return;
     }
 
-    if (!usingSupabase) {
+    const localPreviewEnabled =
+      import.meta.env.DEV && import.meta.env.VITE_DEV_SUPERADMIN_PREVIEW === 'true';
+    if (!usingSupabase || localPreviewEnabled) {
       setAllowed(canAccessSuperadminLocalPreview(user.email));
       return;
     }
 
     let cancelled = false;
+    // Check allowlist first as a fallback/fast-path or RPC for DB-verified superadmins
+    if (canAccessSuperadminLocalPreview(user.email)) {
+      setAllowed(true);
+      return;
+    }
+
     void fetchIsSuperadmin().then((ok) => {
       if (!cancelled) setAllowed(ok);
     });

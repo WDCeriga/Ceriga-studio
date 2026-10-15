@@ -33,6 +33,7 @@ import {
 } from '../../data/manufacturerPortalMock';
 import { Button } from '../../components/ui/button';
 import { cn } from '../../components/ui/utils';
+import { ManufacturerProfileCompletenessCard } from '../../components/manufacturer/ManufacturerProfileCompletenessCard';
 
 const RED = '#CC2D24';
 
@@ -211,6 +212,9 @@ export function ManufacturerDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Profile Completeness Strength Widget */}
+      <ManufacturerProfileCompletenessCard />
 
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -440,12 +444,22 @@ export function ManufacturerDashboard() {
             <span />
           </div>
           <div>
-            {[...orders]
-              .sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))
-              .slice(0, 5)
-              .map((o) => (
-                <OrderRow key={o.id} order={o} />
-              ))}
+            {orders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 px-5 py-12 text-center">
+                <Package className="h-8 w-8 text-white/20" />
+                <p className="text-sm font-medium text-white/70">No orders assigned yet</p>
+                <p className="max-w-md text-xs text-white/40">
+                  When brands submit production quotes and tech packs matching your capabilities, they will appear directly in your inbox.
+                </p>
+              </div>
+            ) : (
+              [...orders]
+                .sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))
+                .slice(0, 5)
+                .map((o) => (
+                  <OrderRow key={o.id} order={o} />
+                ))
+            )}
           </div>
         </div>
 

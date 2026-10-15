@@ -1,3 +1,5 @@
+import { getFactoryWorkspace } from './manufacturerPortalMock';
+
 /** Shared production floor + QC photos — factory, brand, and superadmin all read this. */
 
 export type ProductionStage = 'cut' | 'sew' | 'finish' | 'pack' | 'ship' | 'done';
@@ -52,16 +54,31 @@ export const PRODUCTION_STAGE_LABEL: Record<ProductionStage, string> = {
   done: 'Done',
 };
 
-const STORAGE_KEY = 'ceriga_production_floor_v1';
+export function getProductionStorageKey(): string {
+  if (typeof window === 'undefined') return 'ceriga_production_floor_v7';
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.email) {
+        const safeEmail = parsed.email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+        return `ceriga_production_floor_${safeEmail}`;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'ceriga_production_floor_v7';
+}
 
-const SAMPLE_PHOTOS = [
+export const SAMPLE_PHOTOS = [
   'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=600&fit=crop',
   'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=800&h=600&fit=crop',
   'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&h=600&fit=crop',
   'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop',
 ];
 
-function seedJobs(): ProductionJob[] {
+export function seedJobs(): ProductionJob[] {
   return [
     {
       id: 'job-210',
@@ -169,22 +186,73 @@ function seedJobs(): ProductionJob[] {
   ];
 }
 
-let jobs: ProductionJob[] =
-  typeof window !== 'undefined' ? loadJobs() : seedJobs();
+function loadJobs(targetKey?: string): ProductionJob[] {
+  const key = targetKey ?? getProductionStorageKey();
+  const isDemo = key === 'ceriga_production_floor_v7';
 
-function loadJobs(): ProductionJob[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as ProductionJob[];
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw) as ProductionJob[];
+      if (Array.isArray(parsed)) return parsed;
+    }
   } catch {
     /* ignore */
   }
-  return seedJobs();
+
+  if (isDemo) {
+    return seedJobs();
+  }
+
+  // Check if active factory workspace has any production orders
+  try {
+    const ws = getFactoryWorkspace();
+    const productionOrders = (ws.orders ?? []).filter(
+      (o) => o.status === 'in_production' || o.status === 'completed',
+    );
+    if (productionOrders.length > 0) {
+      const initialJobs: ProductionJob[] = productionOrders.map((o) => ({
+        id: `job-${o.id}`,
+        factoryOrderId: o.id,
+        brandName: o.brandName,
+        productName: o.productName,
+        garmentType: o.garmentType,
+        stage: o.status === 'completed' ? 'done' : 'sew',
+        dueAt: o.dueQuoteBy || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+        units: o.capacityUnitsEstimate || 100,
+        assigneeId: ws.team?.[0]?.id,
+        assigneeName: ws.team?.[0]?.name,
+        notes: o.fabricNotes || '',
+        photos: [],
+        updatedAt: new Date().toISOString().slice(0, 10),
+      }));
+      return initialJobs;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return [];
+}
+
+let activeStorageKey =
+  typeof window !== 'undefined' ? getProductionStorageKey() : 'ceriga_production_floor_v7';
+let jobs: ProductionJob[] =
+  typeof window !== 'undefined' ? loadJobs(activeStorageKey) : seedJobs();
+
+function syncJobs(): ProductionJob[] {
+  const currentKey = getProductionStorageKey();
+  if (currentKey !== activeStorageKey) {
+    activeStorageKey = currentKey;
+    jobs = loadJobs(currentKey);
+  }
+  return jobs;
 }
 
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(jobs));
+    const key = getProductionStorageKey();
+    localStorage.setItem(key, JSON.stringify(jobs));
   } catch {
     /* ignore — data URLs can be large */
   }
@@ -197,16 +265,54 @@ function notify() {
 }
 
 export function listProductionJobs(): ProductionJob[] {
+  syncJobs();
   return [...jobs].sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 }
 
 export function getProductionJob(id: string): ProductionJob | undefined {
+  syncJobs();
   return jobs.find((j) => j.id === id);
 }
 
 /** Resolve job by factory, brand, or superadmin order id. */
 export function getProductionJobForOrder(orderId: string): ProductionJob | undefined {
-  return jobs.find(
+  syncJobs();
+  const direct = jobs.find(
+    (j) =>
+      j.factoryOrderId === orderId ||
+      j.brandOrderId === orderId ||
+      j.superadminOrderId === orderId,
+  );
+  if (direct) return direct;
+
+  // Search across other stored production floor keys (e.g. when brand or superadmin is viewing)
+  if (typeof window !== 'undefined') {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('ceriga_production_floor_') && key !== activeStorageKey) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw) as ProductionJob[];
+            if (Array.isArray(list)) {
+              const match = list.find(
+                (j) =>
+                  j.factoryOrderId === orderId ||
+                  j.brandOrderId === orderId ||
+                  j.superadminOrderId === orderId,
+              );
+              if (match) return match;
+            }
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Also check demo seed jobs
+  return seedJobs().find(
     (j) =>
       j.factoryOrderId === orderId ||
       j.brandOrderId === orderId ||
@@ -222,10 +328,66 @@ export function listPublishedPhotosForOrder(orderId: string): ProductionPhoto[] 
     .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
 }
 
+export function createProductionJob(input: {
+  productName: string;
+  brandName: string;
+  garmentType: string;
+  units: number;
+  stage?: ProductionStage;
+  dueAt?: string;
+  assigneeId?: string;
+  assigneeName?: string;
+  notes?: string;
+  factoryOrderId?: string;
+}): ProductionJob {
+  syncJobs();
+  const id = `job-${Date.now()}`;
+  const now = new Date().toISOString().slice(0, 10);
+  const newJob: ProductionJob = {
+    id,
+    factoryOrderId: input.factoryOrderId || `ord-custom-${Date.now().toString().slice(-4)}`,
+    productName: input.productName.trim(),
+    brandName: input.brandName.trim(),
+    garmentType: input.garmentType.trim() || 'Hoodies',
+    units: Number(input.units) || 50,
+    stage: input.stage || 'cut',
+    dueAt: input.dueAt || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+    assigneeId: input.assigneeId,
+    assigneeName: input.assigneeName,
+    notes: input.notes?.trim() || '',
+    photos: [],
+    updatedAt: now,
+  };
+  jobs = [newJob, ...jobs];
+  persist();
+  notify();
+  return newJob;
+}
+
+export function deleteProductionJob(id: string): boolean {
+  syncJobs();
+  const before = jobs.length;
+  jobs = jobs.filter((j) => j.id !== id);
+  if (jobs.length !== before) {
+    persist();
+    notify();
+    return true;
+  }
+  return false;
+}
+
+export function resetProductionJobsToDemo(): ProductionJob[] {
+  jobs = seedJobs();
+  persist();
+  notify();
+  return jobs;
+}
+
 export function updateProductionJob(
   id: string,
   patch: Partial<Omit<ProductionJob, 'id' | 'photos'>>,
 ): ProductionJob | undefined {
+  syncJobs();
   const idx = jobs.findIndex((j) => j.id === id);
   if (idx < 0) return undefined;
   const next = {
@@ -336,5 +498,3 @@ export function prevProductionStage(stage: ProductionStage): ProductionStage | n
   if (i <= 0) return null;
   return PRODUCTION_STAGES[i - 1];
 }
-
-export { SAMPLE_PHOTOS };

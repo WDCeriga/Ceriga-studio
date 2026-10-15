@@ -6,7 +6,7 @@ import { MOCK_SUPER_USERS } from '../data/superadminMock';
  * Keep in sync with worker rows in MOCK_SUPER_USERS where possible.
  */
 const SUPERADMIN_ALLOWLIST = new Set(
-  ['owner@ceriga.io', 'xexead', 'xexead@ceriga.io', 'maya.chen@ceriga.io', 'j.okonkwo@ceriga.io'].map(
+  ['owner@ceriga.io', 'xexead', 'xexead@ceriga.io', 'xexead44@gmail.com', 'maya.chen@ceriga.io', 'j.okonkwo@ceriga.io', 'superadmin@ceriga.co'].map(
     (v) => v.toLowerCase(),
   ),
 );

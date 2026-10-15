@@ -9,10 +9,29 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ChevronRight, Factory, Search } from 'lucide-react';
+import {
+  Check,
+  ChevronRight,
+  Clock,
+  Copy,
+  Factory,
+  Search,
+  Send,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { cn } from '../../components/ui/utils';
+import {
+  createManufacturerInvite,
+  getStoredInvites,
+  deleteStoredInvite,
+  confirmAndActivateManufacturer,
+  type StoredInvite,
+} from '../../data/manufacturerInvites';
 
 const RED = '#CC2D24';
 const AMBER = '#F59E0B';
@@ -46,9 +65,84 @@ function GarmentChip({ label }: { label: string }) {
 }
 
 export function SuperAdminManufacturers() {
-  const { manufacturerList, loading } = useSuperadminData();
+  const { manufacturerList, users, loading, refresh, patchProfile } = useSuperadminData();
   const [search, setSearch] = useState('');
   const [garmentFilter, setGarmentFilter] = useState<string | 'all'>('all');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [issuingInvite, setIssuingInvite] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+  const [invites, setInvites] = useState<StoredInvite[]>(() => getStoredInvites());
+  const [confirmingEmail, setConfirmingEmail] = useState<string | null>(null);
+
+  const issueInvite = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIssuingInvite(true);
+    setInviteLink('');
+    setCopiedInvite(false);
+    try {
+      const token = await createManufacturerInvite(inviteEmail);
+      const url = new URL('/manufacturer/signup', window.location.origin);
+      url.searchParams.set('invite', token);
+      setInviteLink(url.toString());
+      setInvites(getStoredInvites());
+      toast.success('Invitation link created. It expires in 7 days.');
+    } catch (cause: unknown) {
+      const err = cause as { message?: string } | undefined;
+      const message =
+        err?.message ||
+        (typeof cause === 'string' ? cause : 'Could not create manufacturer invitation.');
+      toast.error(message);
+    } finally {
+      setIssuingInvite(false);
+    }
+  };
+
+  const copyInvite = async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopiedInvite(true);
+      toast.success('Invitation link copied.');
+    } catch {
+      toast.error('Could not copy the link. Select and copy it manually.');
+    }
+  };
+
+  const handleCopyInviteToken = async (token: string) => {
+    try {
+      const url = new URL('/manufacturer/signup', window.location.origin);
+      url.searchParams.set('invite', token);
+      await navigator.clipboard.writeText(url.toString());
+      toast.success('Invitation link copied.');
+    } catch {
+      toast.error('Could not copy link.');
+    }
+  };
+
+  const handleRevokeInvite = (token: string) => {
+    deleteStoredInvite(token);
+    setInvites(getStoredInvites());
+    toast.message('Invitation removed.');
+  };
+
+  const handleConfirmPartner = async (email: string) => {
+    setConfirmingEmail(email);
+    try {
+      confirmAndActivateManufacturer(email);
+      const matchingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      if (matchingUser) {
+        await patchProfile(matchingUser.id, { role: 'manufacturer' });
+      }
+      await refresh();
+      setInvites(getStoredInvites());
+      toast.success(`Partner ${email} confirmed and granted manufacturer portal access.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not confirm partner.');
+    } finally {
+      setConfirmingEmail(null);
+    }
+  };
 
   const overview = useMemo(() => {
     const activePartners = manufacturerList.filter((p) => p.status === 'active').length;
@@ -113,6 +207,141 @@ export function SuperAdminManufacturers() {
           Control factory partners — performance, plans, portal access, and assigned work.
         </p>
       </div>
+
+      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+        <div className="flex items-center gap-2">
+          <Send className="h-4 w-4 text-[#CC2D24]" />
+          <h2 className="text-sm font-semibold text-white">Invite a manufacturer</h2>
+        </div>
+        <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-white/45">
+          Invitations are tied to one email, expire after 7 days, and can only be used once.
+        </p>
+        <form onSubmit={issueInvite} className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="email"
+            required
+            value={inviteEmail}
+            onChange={event => setInviteEmail(event.target.value)}
+            placeholder="manufacturer@example.com"
+            aria-label="Manufacturer email address"
+            className="h-10 min-w-0 flex-1 rounded-lg border border-white/15 bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={issuingInvite}
+            className="h-10 rounded-lg bg-[#CC2D24] px-4 text-xs font-semibold text-white hover:bg-[#CC2D24]/90 disabled:opacity-50"
+          >
+            {issuingInvite ? 'Creating…' : 'Create invitation'}
+          </button>
+        </form>
+        {inviteLink ? <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            readOnly
+            value={inviteLink}
+            aria-label="Manufacturer invitation link"
+            onFocus={event => event.currentTarget.select()}
+            className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-3 text-xs text-white/70"
+          />
+          <button
+            type="button"
+            onClick={() => void copyInvite()}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-4 text-xs font-semibold text-white/80 hover:bg-white/10"
+          >
+            {copiedInvite ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+            {copiedInvite ? 'Copied' : 'Copy link'}
+          </button>
+        </div> : null}
+
+        {invites.length > 0 ? (
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-white/60">
+              Invitations & Partner Confirmations ({invites.length})
+            </h3>
+            <div className="mt-3 divide-y divide-white/5 rounded-xl border border-white/10 bg-black/20">
+              {invites.map((inv) => {
+                const matchingUser = users.find(
+                  (u) => u.email.toLowerCase() === inv.email.toLowerCase(),
+                );
+                const isManufacturerRole =
+                  matchingUser?.role === 'manufacturer' || Boolean(inv.redeemedAt);
+                const isExpired = Date.now() > inv.expiresAt;
+
+                return (
+                  <div
+                    key={inv.token}
+                    className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-white">{inv.email}</span>
+                        {isManufacturerRole ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-200">
+                            <ShieldCheck className="h-3 w-3" />
+                            Confirmed Partner
+                          </span>
+                        ) : matchingUser ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                            <Clock className="h-3 w-3" />
+                            Registered (Awaiting Confirmation)
+                          </span>
+                        ) : isExpired ? (
+                          <span className="inline-flex rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/40">
+                            Expired
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-200">
+                            Invitation Sent
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-[11px] text-white/40">
+                        Created {new Date(inv.createdAt).toLocaleDateString()} ·{' '}
+                        {isExpired
+                          ? 'Expired'
+                          : `Expires ${new Date(inv.expiresAt).toLocaleDateString()}`}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={confirmingEmail === inv.email}
+                        onClick={() => void handleConfirmPartner(inv.email)}
+                        className={cn(
+                          'inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition',
+                          isManufacturerRole
+                            ? 'border border-white/15 bg-white/[0.04] text-white/70 hover:bg-white/10 hover:text-white'
+                            : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-500',
+                        )}
+                      >
+                        <UserCheck className="h-3.5 w-3.5" />
+                        {isManufacturerRole ? 'Re-confirm Access' : 'Confirm & Activate'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopyInviteToken(inv.token)}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/15 px-2.5 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+                        title="Copy invitation link"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        Link
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRevokeInvite(inv.token)}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-white/10 px-2.5 text-xs text-white/40 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+                        title="Revoke invitation"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[

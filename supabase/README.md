@@ -36,6 +36,8 @@ That script creates / updates:
 
 If you already ran an older `schema.sql`, re-run the full file (it uses `if not exists` / `drop policy if exists`) so the new tables, RLS policies, and storage bucket are applied.
 
+Manufacturer access is invitation-only. Apply [`migrations/20261012_manufacturer_invites.sql`](./migrations/20261012_manufacturer_invites.sql) to an existing project (or run the updated schema above). A signed-in superadmin can then create a single-use, seven-day invitation for a specific email under **Superadmin → Manufacturers**. The recipient creates their login at `/manufacturer/signup`; the role is granted only when the signed-in email matches and the invitation is redeemed. Sign in at `/manufacturer/login`.
+
 **Storage note:** If the bucket insert fails in the SQL editor, create a private bucket named `order-uploads` in **Storage** and re-run the storage policies section.
 
 To grant **full superadmin console** access (list all users/orders, assignment, etc.), add the **exact sign-in email** (Google or email/password):

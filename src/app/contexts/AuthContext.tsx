@@ -24,7 +24,7 @@ interface AuthContextType {
   /** True when VITE_SUPABASE_* env is set — real auth + DB. */
   usingSupabase: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, role?: AuthUser['role']) => Promise<void>;
   loginWithGoogleProfile: (profile: GoogleProfile) => Promise<void>;
   signupWithGoogleProfile: (profile: GoogleProfile) => Promise<void>;
   /** Sends a password reset email (Supabase mode only). */
@@ -39,6 +39,22 @@ const LOCAL_USER_KEY = 'user';
 
 function nameFromEmail(email: string): string {
   return email.split('@')[0] || 'User';
+}
+
+function getLocalRole(userId: string | null | undefined, email: string | null | undefined): AuthUser['role'] | undefined {
+  try {
+    if (userId) {
+      const r = localStorage.getItem(`ceriga_role_${userId}`);
+      if (r === 'manufacturer' || r === 'worker' || r === 'brand') return r;
+    }
+    if (email) {
+      const r = localStorage.getItem(`ceriga_role_${email.toLowerCase()}`);
+      if (r === 'manufacturer' || r === 'worker' || r === 'brand') return r;
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
 }
 
 /** Read role from public.profiles (RLS: users see their own row). */
@@ -64,12 +80,14 @@ function userFromLocalStorage(): AuthUser | null {
   try {
     const raw = localStorage.getItem(LOCAL_USER_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { email?: string; name?: string; id?: string };
+    const parsed = JSON.parse(raw) as { email?: string; name?: string; id?: string; role?: AuthUser['role'] };
     if (!parsed.email) return null;
+    const role = parsed.role || getLocalRole(parsed.id, parsed.email);
     return {
       id: parsed.id ?? null,
       email: parsed.email,
       name: parsed.name || nameFromEmail(parsed.email),
+      role,
     };
   } catch {
     return null;
@@ -79,8 +97,12 @@ function userFromLocalStorage(): AuthUser | null {
 function persistLocalUser(user: AuthUser): void {
   localStorage.setItem(
     LOCAL_USER_KEY,
-    JSON.stringify({ id: user.id, email: user.email, name: user.name }),
+    JSON.stringify({ id: user.id, email: user.email, name: user.name, role: user.role }),
   );
+  if (user.role) {
+    if (user.id) localStorage.setItem(`ceriga_role_${user.id}`, user.role);
+    if (user.email) localStorage.setItem(`ceriga_role_${user.email.toLowerCase()}`, user.role);
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -106,11 +128,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const session = data.session;
       if (session?.user) {
         const email = session.user.email ?? '';
-        const meta = session.user.user_metadata as { full_name?: string; name?: string };
+        const meta = session.user.user_metadata as { full_name?: string; name?: string; role?: string };
+        const initialRole =
+          meta.role === 'manufacturer' || meta.role === 'worker' || meta.role === 'brand'
+            ? meta.role
+            : getLocalRole(session.user.id, email);
         const next: AuthUser = {
           id: session.user.id,
           email,
           name: meta.full_name || meta.name || nameFromEmail(email),
+          role: initialRole,
         };
         setUser(next);
         setIsAuthenticated(true);
@@ -138,11 +165,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const email = session.user.email ?? '';
-        const meta = session.user.user_metadata as { full_name?: string; name?: string };
+        const meta = session.user.user_metadata as { full_name?: string; name?: string; role?: string };
+        const initialRole =
+          meta.role === 'manufacturer' || meta.role === 'worker' || meta.role === 'brand'
+            ? meta.role
+            : getLocalRole(session.user.id, email);
         const next: AuthUser = {
           id: session.user.id,
           email,
           name: meta.full_name || meta.name || nameFromEmail(email),
+          role: initialRole,
         };
         setUser(next);
         setIsAuthenticated(true);
@@ -169,7 +201,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     if (!isSupabaseConfigured) {
-      const mockUser: AuthUser = { id: null, email, name: nameFromEmail(email) };
+      const storedRole = getLocalRole(null, email);
+      const mockUser: AuthUser = { id: null, email, name: nameFromEmail(email), role: storedRole };
       setUser(mockUser);
       setIsAuthenticated(true);
       persistLocalUser(mockUser);
@@ -181,7 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
-  const signup = useCallback(async (email: string, password: string, name: string) => {
+  const signup = useCallback(async (email: string, password: string, name: string, role?: AuthUser['role']) => {
     try {
       localStorage.removeItem('ceriga_onboarding_done');
       localStorage.removeItem('ceriga_persona');
@@ -189,8 +222,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
 
+    const assignedRole = role ?? 'brand';
+    try {
+      localStorage.setItem(`ceriga_role_${email.toLowerCase()}`, assignedRole);
+    } catch {
+      /* ignore */
+    }
+
     if (!isSupabaseConfigured) {
-      const mockUser: AuthUser = { id: null, email, name };
+      const mockUser: AuthUser = { id: null, email, name, role: assignedRole };
       setUser(mockUser);
       setIsAuthenticated(true);
       persistLocalUser(mockUser);
@@ -201,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name, name } },
+      options: { data: { full_name: name, name, role: assignedRole } },
     });
     if (error) throw error;
   }, []);

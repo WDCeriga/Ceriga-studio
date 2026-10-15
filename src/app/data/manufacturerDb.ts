@@ -3,7 +3,14 @@ import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { rowToUserOrder, type OrderRow } from '../lib/ordersDb';
 import type { UserOrder } from './userOrders';
 import type { OrderDeliveryInfo } from './orderDelivery';
-import type { FactoryMaterial, FactoryMaterialKind, FactoryMaterialUnit } from './manufacturerPortalMock';
+import {
+  getFactoryWorkspace,
+  updateFactoryWorkspace,
+  type FactoryMaterial,
+  type FactoryMaterialKind,
+  type FactoryMaterialUnit,
+} from './manufacturerPortalMock';
+import { getStoredInvites } from './manufacturerInvites';
 
 function requireConfigured(): void {
   if (!isSupabaseConfigured) {
@@ -72,32 +79,162 @@ function rowToProfile(row: ProfileRow): ManufacturerProfile {
 }
 
 export async function fetchMyManufacturerProfile(): Promise<ManufacturerProfile | null> {
-  requireConfigured();
+  const userWs = getFactoryWorkspace();
+  const fallbackProfile: ManufacturerProfile = {
+    userId: 'local-workspace',
+    factoryName: userWs.factoryName,
+    contactName: userWs.contactName || 'Partner',
+    contactEmail: userWs.contactEmail || 'partner@ceriga.com',
+    contactPhone: userWs.contactPhone || null,
+    website: userWs.website || null,
+    addressLine: userWs.addressLine || null,
+    typicalLeadDays: userWs.typicalLeadDays ?? 14,
+    onboardingComplete: userWs.onboardingComplete,
+    garments: userWs.garments,
+    capabilities: userWs.capabilities,
+    shippingRegions: userWs.shippingRegions,
+    moq: userWs.moq,
+    monthlyCapacity: userWs.monthlyCapacity,
+    internalNotes: userWs.internalNotes || null,
+  };
+
+  if (!isSupabaseConfigured) {
+    return fallbackProfile;
+  }
+
   const supabase = getSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data, error } = await supabase
-    .from('manufacturer_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  return rowToProfile(data as ProfileRow);
+
+  try {
+    const { data, error } = await supabase
+      .from('manufacturer_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (error) {
+      console.warn('[manufacturerDb] manufacturer_profiles table not available, using local profile:', error.message);
+      return {
+        ...fallbackProfile,
+        userId: user.id,
+        contactEmail: user.email ?? fallbackProfile.contactEmail,
+        onboardingComplete:
+          localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true' ||
+          Boolean(
+            user.email &&
+              localStorage.getItem(
+                `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
+              ) === 'true',
+          ) ||
+          Boolean(userWs.onboardingComplete),
+      };
+    }
+    if (!data) {
+      try {
+        const localProfRaw =
+          localStorage.getItem(`ceriga_manufacturer_profile_${user.id}`) ||
+          (user.email ? localStorage.getItem(`ceriga_manufacturer_profile_${user.email.toLowerCase()}`) : null);
+        if (localProfRaw) {
+          return JSON.parse(localProfRaw);
+        }
+        const isOnboarded =
+          localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true' ||
+          Boolean(
+            user.email &&
+              localStorage.getItem(
+                `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
+              ) === 'true',
+          ) ||
+          Boolean(userWs.onboardingComplete);
+        return {
+          ...fallbackProfile,
+          userId: user.id,
+          factoryName: userWs.factoryName,
+          contactName: userWs.contactName || (user.email ? user.email.split('@')[0] : 'Partner'),
+          contactEmail: user.email ?? userWs.contactEmail,
+          onboardingComplete: isOnboarded,
+        };
+      } catch {
+        /* ignore */
+      }
+      return null;
+    }
+    return rowToProfile(data as ProfileRow);
+  } catch {
+    return fallbackProfile;
+  }
+}
+
+export async function fetchMyProfileRole(): Promise<string | null> {
+  if (!isSupabaseConfigured) {
+    return 'manufacturer';
+  }
+
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // 1. Check user_metadata.role
+  const meta = user.user_metadata as { role?: string } | undefined;
+  if (meta?.role === 'manufacturer' || meta?.role === 'worker') {
+    return meta.role;
+  }
+
+  // 2. Check localStorage cached role
+  try {
+    const localRoleById = localStorage.getItem(`ceriga_role_${user.id}`);
+    if (localRoleById === 'manufacturer' || localRoleById === 'worker') {
+      return localRoleById;
+    }
+    if (user.email) {
+      const localRoleByEmail = localStorage.getItem(`ceriga_role_${user.email.toLowerCase()}`);
+      if (localRoleByEmail === 'manufacturer' || localRoleByEmail === 'worker') {
+        return localRoleByEmail;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // 3. Check if user email matches any manufacturer invite
+  if (user.email) {
+    const normalized = user.email.toLowerCase();
+    const invites = getStoredInvites();
+    if (invites.some((i) => i.email.toLowerCase() === normalized)) {
+      try {
+        localStorage.setItem(`ceriga_role_${normalized}`, 'manufacturer');
+        localStorage.setItem(`ceriga_role_${user.id}`, 'manufacturer');
+      } catch {
+        /* ignore */
+      }
+      return 'manufacturer';
+    }
+  }
+
+  // 4. Query public.profiles if table is available
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!error && typeof data?.role === 'string') {
+      return data.role;
+    }
+  } catch {
+    /* ignore if profiles table is not created */
+  }
+
+  return meta?.role ?? null;
 }
 
 export async function saveMyManufacturerProfile(
   patch: Partial<Omit<ManufacturerProfile, 'userId'>>,
 ): Promise<ManufacturerProfile> {
-  requireConfigured();
-  const supabase = getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('You must be signed in');
-
   const payload: Record<string, unknown> = {};
   if (patch.factoryName !== undefined) payload.factory_name = patch.factoryName;
   if (patch.contactName !== undefined) payload.contact_name = patch.contactName;
@@ -116,13 +253,90 @@ export async function saveMyManufacturerProfile(
   if (patch.monthlyCapacity !== undefined) payload.monthly_capacity = patch.monthlyCapacity;
   if (patch.internalNotes !== undefined) payload.internal_notes = patch.internalNotes;
 
-  const { data, error } = await supabase
-    .from('manufacturer_profiles')
-    .upsert({ user_id: user.id, ...payload })
-    .select('*')
-    .single();
-  if (error) throw error;
-  return rowToProfile(data as ProfileRow);
+  updateFactoryWorkspace({
+    factoryName: patch.factoryName,
+    moq: patch.moq,
+    monthlyCapacity: patch.monthlyCapacity,
+    onboardingComplete: patch.onboardingComplete,
+    garments: patch.garments as any,
+    capabilities: patch.capabilities as any,
+    internalNotes: patch.internalNotes,
+  });
+
+  if (!isSupabaseConfigured) {
+    return (await fetchMyManufacturerProfile())!;
+  }
+
+  const supabase = getSupabase();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('You must be signed in');
+
+  try {
+    if (patch.onboardingComplete) {
+      localStorage.setItem(`ceriga_manufacturer_onboarded_${user.id}`, 'true');
+      if (user.email) {
+        localStorage.setItem(`ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`, 'true');
+        localStorage.setItem(`ceriga_role_${user.email.toLowerCase()}`, 'manufacturer');
+      }
+      localStorage.setItem(`ceriga_role_${user.id}`, 'manufacturer');
+    }
+    const localProfileObj: ManufacturerProfile = {
+      userId: user.id,
+      factoryName: patch.factoryName ?? 'My factory',
+      contactName: patch.contactName ?? null,
+      contactEmail: patch.contactEmail ?? user.email ?? null,
+      contactPhone: patch.contactPhone ?? null,
+      website: patch.website ?? null,
+      addressLine: patch.addressLine ?? null,
+      typicalLeadDays: patch.typicalLeadDays ?? null,
+      onboardingComplete: patch.onboardingComplete ?? true,
+      garments: patch.garments ?? [],
+      capabilities: patch.capabilities ?? [],
+      shippingRegions: patch.shippingRegions ?? [],
+      moq: patch.moq ?? 50,
+      monthlyCapacity: patch.monthlyCapacity ?? 0,
+      internalNotes: patch.internalNotes ?? null,
+    };
+    localStorage.setItem(`ceriga_manufacturer_profile_${user.id}`, JSON.stringify(localProfileObj));
+    if (user.email) {
+      localStorage.setItem(`ceriga_manufacturer_profile_${user.email.toLowerCase()}`, JSON.stringify(localProfileObj));
+    }
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('manufacturer_profiles')
+      .upsert({ user_id: user.id, ...payload })
+      .select('*')
+      .single();
+    if (!error && data) {
+      return rowToProfile(data as ProfileRow);
+    }
+  } catch (err) {
+    console.warn('[manufacturerDb] Could not save to manufacturer_profiles in DB:', err);
+  }
+
+  return {
+    userId: user.id,
+    factoryName: patch.factoryName ?? 'My factory',
+    contactName: patch.contactName ?? null,
+    contactEmail: patch.contactEmail ?? user.email ?? null,
+    contactPhone: patch.contactPhone ?? null,
+    website: patch.website ?? null,
+    addressLine: patch.addressLine ?? null,
+    typicalLeadDays: patch.typicalLeadDays ?? null,
+    onboardingComplete: patch.onboardingComplete ?? true,
+    garments: patch.garments ?? [],
+    capabilities: patch.capabilities ?? [],
+    shippingRegions: patch.shippingRegions ?? [],
+    moq: patch.moq ?? 50,
+    monthlyCapacity: patch.monthlyCapacity ?? 0,
+    internalNotes: patch.internalNotes ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------

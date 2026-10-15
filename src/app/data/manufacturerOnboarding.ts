@@ -19,6 +19,7 @@ export async function completeOnboardingInDb(input: {
 }): Promise<ManufacturerProfile | null> {
   // Keep the local workspace in sync either way (layout uses it as fallback).
   completeFactoryOnboarding({
+    factoryName: input.factoryName,
     garments: input.garments as never[],
     capabilities: input.capabilities as never[],
     shippingRegions: input.shippingRegions,

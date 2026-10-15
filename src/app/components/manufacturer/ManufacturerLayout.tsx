@@ -1,7 +1,8 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { fetchMyManufacturerProfile } from '../../data/manufacturerDb';
+import { fetchMyManufacturerProfile, fetchMyProfileRole } from '../../data/manufacturerDb';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import {
   BarChart3,
   Bell,
@@ -18,6 +19,8 @@ import {
   ClipboardList,
   Ship,
   CalendarDays,
+  ImagePlus,
+  ShieldCheck,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { getFactoryWorkspace } from '../../data/manufacturerPortalMock';
@@ -33,6 +36,8 @@ const navItems = [
   { path: '/manufacturer/shipping', label: 'Shipping', icon: Ship },
   { path: '/manufacturer/materials', label: 'Materials', icon: Boxes },
   { path: '/manufacturer/capacity', label: 'Capacity', icon: CalendarDays },
+  { path: '/manufacturer/portfolio', label: 'Portfolio', icon: ImagePlus },
+  { path: '/manufacturer/verification', label: 'Verification', icon: ShieldCheck },
   { path: '/manufacturer/statistics', label: 'Statistics', icon: BarChart3 },
   { path: '/manufacturer/team', label: 'Team & roles', icon: Users },
   { path: '/manufacturer/messages', label: 'Messages', icon: MessageCircle },
@@ -50,6 +55,10 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
   const demoWorkspace = getFactoryWorkspace();
   const [dbFactoryName, setDbFactoryName] = useState<string | null>(null);
   const [dbOnboarded, setDbOnboarded] = useState<boolean | null>(null);
+  const [dbRole, setDbRole] = useState<string | null>(null);
+  const [dbRoleResolved, setDbRoleResolved] = useState(!isSupabaseConfigured);
+  const locationState = location.state as { manufacturerOnboardingComplete?: boolean } | null;
+  const onboardingJustCompleted = locationState?.manufacturerOnboardingComplete === true;
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
@@ -60,33 +69,114 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!authReady || !user) return;
+    if (!authReady || !isSupabaseConfigured) return;
+    if (!user) {
+      setDbRoleResolved(true);
+      return;
+    }
+    setDbRoleResolved(false);
+    if (onboardingJustCompleted) {
+      setDbOnboarded(true);
+    }
     let cancelled = false;
-    void fetchMyManufacturerProfile()
-      .then((profile) => {
+    void Promise.all([fetchMyManufacturerProfile(), fetchMyProfileRole()])
+      .then(([profile, role]) => {
         if (cancelled) return;
+        setDbRole(role);
+        setDbRoleResolved(true);
         if (profile) {
-          setDbFactoryName(profile.factoryName);
+                setDbFactoryName(profile.factoryName);
           setDbOnboarded(profile.onboardingComplete);
         } else {
-          setDbOnboarded(false);
+          const localOnboarded =
+            Boolean(
+              user?.id &&
+                localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true',
+            ) ||
+            Boolean(
+              user?.email &&
+                localStorage.getItem(
+                  `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
+                ) === 'true',
+            ) ||
+                  (!user && demoWorkspace.onboardingComplete);
+          setDbOnboarded(localOnboarded);
         }
       })
       .catch(() => {
-        if (!cancelled) setDbOnboarded(false);
+        if (!cancelled) {
+          const localOnboarded =
+            Boolean(
+              user?.id &&
+                localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true',
+            ) ||
+            Boolean(
+              user?.email &&
+                localStorage.getItem(
+                  `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
+                ) === 'true',
+            ) ||
+                  (!user && demoWorkspace.onboardingComplete);
+          setDbOnboarded(localOnboarded);
+          setDbRole('manufacturer');
+          setDbRoleResolved(true);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [authReady, user]);
+  }, [authReady, user, onboardingJustCompleted, demoWorkspace.onboardingComplete]);
 
   const onOnboarding = location.pathname.startsWith('/manufacturer/onboarding');
 
-  // DB-backed onboarding state when configured; fall back to demo workspace for preview.
-  const onboardingComplete = dbOnboarded ?? demoWorkspace.onboardingComplete;
+  const isLocallyOnboarded =
+    Boolean(
+      user?.id &&
+        typeof window !== 'undefined' &&
+        localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true',
+    ) ||
+    Boolean(
+      user?.email &&
+        typeof window !== 'undefined' &&
+        localStorage.getItem(`ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`) ===
+          'true',
+    ) ||
+          (!user && demoWorkspace.onboardingComplete);
+
+  // In demo mode, use the locally persisted workspace. With Supabase, wait for
+  // the profile lookup instead of redirecting while its status is still unknown.
+  const onboardingComplete = isSupabaseConfigured
+    ? dbOnboarded === true || isLocallyOnboarded
+          : (user ? isLocallyOnboarded : demoWorkspace.onboardingComplete);
   const factoryName = dbFactoryName ?? demoWorkspace.factoryName;
 
-  if (authReady && !onboardingComplete && !onOnboarding) {
+  const onboardingStatusResolved = !isSupabaseConfigured || dbOnboarded !== null || isLocallyOnboarded;
+  if (
+    isSupabaseConfigured &&
+    authReady &&
+    !user
+  ) {
+    return <Navigate to="/manufacturer/login" replace />;
+  }
+
+  if (
+    isSupabaseConfigured &&
+    authReady &&
+    user &&
+    dbRoleResolved &&
+    dbRole !== 'manufacturer' &&
+    dbRole !== 'worker'
+  ) {
+    return <Navigate to="/manufacturer/login" replace />;
+  }
+
+  if (
+    authReady &&
+    onboardingStatusResolved &&
+    !onboardingComplete &&
+    !onOnboarding &&
+    !onboardingJustCompleted
+  ) {
     return <Navigate to="/manufacturer/onboarding" replace />;
   }
 

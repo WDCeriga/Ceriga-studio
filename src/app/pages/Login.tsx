@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
 import { ArrowLeft } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { redeemManufacturerInvite } from '../data/manufacturerInvites';
+import { fetchMyProfileRole } from '../data/manufacturerDb';
+import { canAccessSuperadminLocalPreview } from '../lib/superadminAccess';
+import { fetchIsSuperadmin } from '../lib/superadminDb';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -13,9 +17,11 @@ export function Login() {
   const [notice, setNotice] = useState('');
   const [resetting, setResetting] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, requestPasswordReset } = useAuth();
   const redirectTo = searchParams.get('redirectTo');
+  const manufacturerLogin = location.pathname === '/manufacturer/login';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +30,47 @@ export function Login() {
     if (!email || !password) return setError('Please fill in all fields');
     try {
       await login(email, password);
+      const pendingInvite = localStorage.getItem('ceriga_manufacturer_invite');
+      if (pendingInvite) {
+        try {
+          await redeemManufacturerInvite(pendingInvite);
+          localStorage.removeItem('ceriga_manufacturer_invite');
+        } catch (inviteErr) {
+          console.warn('[Login] Error redeeming pending invite:', inviteErr);
+        }
+      }
+
+      // Check for superadmin access when logging in from the standard login flow
+      if (!manufacturerLogin) {
+        let isSuper = false;
+        try {
+          if (canAccessSuperadminLocalPreview(email)) {
+            isSuper = true;
+          } else if (isSupabaseConfigured) {
+            isSuper = await fetchIsSuperadmin();
+          }
+        } catch {
+          /* ignore */
+        }
+        if (isSuper) {
+          navigate(redirectTo || '/superadmin');
+          return;
+        }
+      }
+
+      const role = await fetchMyProfileRole();
+      if (role === 'manufacturer') {
+        navigate('/manufacturer');
+        return;
+      }
+
+      if (manufacturerLogin) {
+        if (role !== 'manufacturer' && role !== 'worker') {
+          throw new Error('This account does not have manufacturer access. Use an invitation link from a Ceriga administrator.');
+        }
+        navigate('/manufacturer');
+        return;
+      }
       if (redirectTo) {
         navigate(redirectTo);
         return;
@@ -73,7 +120,9 @@ export function Login() {
         <div className="rounded-2xl border border-[#252528] bg-white/5 p-6">
           <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">Welcome Back</div>
           <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold text-white">Log in</h1>
-          <p className="mb-6 mt-1 text-sm text-white/55">Access your Ceriga Studio workspace.</p>
+          <p className="mb-6 mt-1 text-sm text-white/55">
+            {manufacturerLogin ? 'Sign in to your manufacturer workspace.' : 'Access your Ceriga Studio workspace.'}
+          </p>
 
           {error && <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
           {notice && <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
@@ -120,7 +169,7 @@ export function Login() {
 
           <p className="mt-5 text-center text-sm text-white/55">
             Don&apos;t have an account?{' '}
-            <Link to="/signup" className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/80">Sign up</Link>
+            <Link to={manufacturerLogin ? '/manufacturer/signup' : '/signup'} className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/80">Sign up</Link>
           </p>
         </div>
       </div>

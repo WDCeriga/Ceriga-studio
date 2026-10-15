@@ -64,8 +64,29 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
     return <PageLoadingFallback />;
   }
 
+  if (!user) {
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
+    return <Navigate to={`/login?redirectTo=${encodeURIComponent(returnTo)}`} replace />;
+  }
+
   if (!superadminAllowed) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-5 text-[#F0EEEE]">
+        <div className="w-full max-w-md rounded-2xl border border-[#252528] bg-[#111113] p-6">
+          <h1 className="text-xl font-semibold">Superadmin access required</h1>
+          <p className="mt-2 text-sm leading-relaxed text-white/55">
+            {user.email} is not authorised to access the superadmin dashboard. Sign in with an
+            approved superadmin account, or ask an existing superadmin to grant access.
+          </p>
+          <Link
+            to="/dashboard"
+            className="mt-5 inline-flex h-10 items-center rounded-lg border border-white/15 px-4 text-sm font-medium text-white/80 hover:bg-white/10"
+          >
+            Return to user dashboard
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const isActive = (path: string, end?: boolean) => {
