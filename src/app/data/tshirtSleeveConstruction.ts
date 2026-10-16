@@ -27,7 +27,7 @@ function replaceBodyArc(raw:string,a:P,b:P,curve:string,straightSide=false){
  const rings=parts.map(d=>flattenPathContours(svgpath(d).matrix([m.a,m.b,m.c,m.d,m.e,m.f]).toString(),2)[0]??[]),index=rings.reduce((n,r,i)=>Math.abs(signedArea(r))>Math.abs(signedArea(rings[n]))?i:n,0),r=rings[index];if(!r.length)return raw;
  const i=near(r,a),j=near(r,b),first=walk(r,i,j),second=walk(r,j,i),len=(ps:P[])=>ps.slice(1).reduce((n,q,k)=>n+distance(q,ps[k]),0),rest=len(first)<len(second)?second:first.reverse();
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
- parts[index]=svgpath('M'+pt(a)+curve+(rest.length>2?'L'+rest.slice(1,-1).map(q=>straightSide&&q.y>b.y&&(b.x<1024?q.x<700:q.x>1348)?{x:b.x,y:q.y}:q).map(pt).join('L'):'')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.join(''));return new XMLSerializer().serializeToString(doc.documentElement);
+ parts[index]=svgpath('M'+pt(a)+curve+(rest.length>2?'L'+rest.slice(1,-1).map(q=>straightSide&&q.y>b.y&&(b.x<1024?q.x<700:q.x>1348)?{x:b.x,y:q.y}:q).map(pt).join('L'):'')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.filter((_,k)=>k===index||rings[k].every(q=>q.x>700&&q.x<1348&&q.y<900)).join(''));return new XMLSerializer().serializeToString(doc.documentElement);
 }
 /** One shared attachment curve owns body and sleeve geometry; cuff edges are straight. */
 export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string):ResolvedGarmentLayer[]{
@@ -60,6 +60,6 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const bodyHem=layers.find(l=>l.id==='bodyHem'),bodyHemRing=bodyHem?ring(bodyHem.svgRaw):[],bodyHemYs=bodyHemRing.map(p=>p.y);
  const alignedBodyHem=fit!=='slim'&&bodyHemRing.length?wrap('M'+u.x+','+Math.min(...bodyHemYs)+'H'+(2048-u.x)+'V'+Math.max(...bodyHemYs)+'H'+u.x+'Z'):undefined;
  const under:Record<string,string>={};
- if(layered)for(const id of ['underSleeveLeft','underSleeveRight']){const layer=layers.find(l=>l.id===id);if(!layer)continue;const points=ring(layer.svgRaw),xs=points.map(p=>p.x),ys=points.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(Math.min(...ys),corner(lo,low).y-12,hemInner.y-12),y1=Math.max(...ys);under[id]=wrap('M'+x0+','+y0+'H'+x1+'V'+y1+'H'+x0+'Z');}
+ if(layered)for(const id of ['underSleeveLeft','underSleeveRight']){const layer=layers.find(l=>l.id===id);if(!layer)continue;const points=ring(layer.svgRaw),xs=points.map(p=>p.x),ys=points.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y1=Math.max(...ys),edge=corner(lo,low),openingY=(x:number)=>{const leftX=id==='underSleeveRight'?2048-x:x;return edge.y+(leftX-edge.x)*(hemInner.y-edge.y)/(hemInner.x-edge.x)-4;};under[id]=wrap('M'+x0+','+openingY(x0)+'L'+x1+','+openingY(x1)+'V'+y1+'H'+x0+'Z');}
  const raw:Record<string,string>={...under,...(alignedBodyHem?{bodyHem:alignedBodyHem}:{}),sleeveLeft:leftSvg,sleeveRight:right,sleeveHemLeft:hemSvg(false),sleeveHemRight:hemSvg(true),...(body?{base:body}:{})};if(familyCache.size>24)familyCache.delete(familyCache.keys().next().value!);familyCache.set(key,raw);return apply(layers,raw);
 }

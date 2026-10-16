@@ -18,6 +18,7 @@ export function SleeveFamilyChecks(){const [result,setResult]=useState(''),[runn
     for(const id of ['sleeveLeft','sleeveRight','sleeveHemLeft','sleeveHemRight']){const part=after.find(l=>l.id===id);if(!part||new DOMParser().parseFromString(part.svgRaw,'image/svg+xml').querySelector('parsererror'))throw Error(label+': invalid '+id);const rings=fabricRings(part.svgRaw);if(!rings.length||!rings.some(r=>Math.abs(signedArea(r))>100))throw Error(label+': empty '+id);if(!rings.every(r=>r.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))))throw Error(label+': invalid coordinates');}
     if(fit==='slim'&&!variant&&after!==before)throw Error('Approved Slim short geometry was changed');
     if(!(fit==='slim'&&!variant)){const a=fabricRings(after.find(l=>l.id==='sleeveLeft')!.svgRaw)[0],b=fabricRings(after.find(l=>l.id==='sleeveRight')!.svgRaw)[0];if(Math.abs(Math.abs(signedArea(a))-Math.abs(signedArea(b)))>1)throw Error(label+': asymmetric sleeve area');if(!after.find(l=>l.id==='sleeveLeft')!.svgRaw.includes('data-sleeve-join'))throw Error(label+': missing continuous attachment');}
+    if(!(fit==='slim'&&!variant)){const baseRings=fabricRings(after.find(l=>l.id==='base')!.svgRaw).sort((a,b)=>Math.abs(signedArea(b))-Math.abs(signedArea(a)));if(baseRings.slice(1).some(r=>r.some(p=>p.x<=700||p.x>=1348||p.y>=900)))throw Error(label+': detached torso tracing island');}
     passed++;setResult(passed+'/40 sleeve families valid · source collars unchanged');
    }
    await new Promise<void>(requestAnimationFrame);

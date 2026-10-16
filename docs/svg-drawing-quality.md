@@ -44,3 +44,7 @@ This supersedes the earlier sleeve-completion assessment above. User review foun
 - `TechnicalLinework.tsx` renders consistent outer/construction strokes; sleeve bands do not introduce an extra internal black fold line. `TshirtSvgPreview.tsx` uses the visible torso surface for body selection highlighting. No page layout CSS was changed by this sleeve correction.
 - The browser sleeve-family check passed all 40 fit/style/view combinations, including source collar identity and the approved Slim short geometry. Subsequent focused visual checks confirmed straight Oversized cap-sleeve body sides and clean Boxy layered openings. Panelling: 21 regression checks passed. The final production build is recorded separately in the execution log.
 - These checks establish structural validity and the inspected visual cases; they do not replace user approval of every garment combination.
+
+
+### Boxy short and Oversized layered follow-up
+Detached non-collar subpaths in the torso source were still protruding beneath the Boxy short sleeve. The torso reconstruction now discards those stray islands while retaining the original neck-region subpaths. Layered undersleeve top edges follow the diagonal opening with a small hidden overlap, removing the visible horizontal hooks at the Oversized inner joins. The two reported front views were visually verified after rendering; the production build passed. The sleeve-family regression now also rejects detached non-collar torso subpaths.
