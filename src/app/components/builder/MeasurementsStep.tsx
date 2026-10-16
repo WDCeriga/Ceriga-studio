@@ -1,3 +1,6 @@
+import {type MeasurementGrading} from '../../lib/measurementGrading';
+import {type SizingActions} from './shell/AdvancedSizingEditor';
+import {FitMeasurementsInspector} from './shell/FitMeasurementsInspector';
 import { useMemo, useState, type ReactNode, type ComponentProps } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
@@ -32,6 +35,12 @@ import {
 } from './measurementGuides';
 
 interface MeasurementsStepProps {
+  grading?:MeasurementGrading;sizingActions?:SizingActions;
+  notes?:string;onNotesChange?:(value:string)=>void;
+  measurementTolerances?:Record<string,Record<string,string>>;
+  onToleranceChange?:(id:string,size:string,value:string)=>void;
+  appearance?: 'shell';
+  tool?: string;
   garmentType: string;
   fit: string;
   onFitChange: (fit: string) => void;
@@ -87,7 +96,7 @@ function MeasurementUnitToggle({
 }
 
 // Preset measurement data for different fits
-const fitMeasurements: Record<string, Record<string, Record<string, string>>> = {
+export const fitMeasurements: Record<string, Record<string, Record<string, string>>> = {
   custom: {
     halfLength: { xs: '0', s: '0', m: '0', l: '0', xl: '0', xxl: '0' },
     chestWidth: { xs: '0', s: '0', m: '0', l: '0', xl: '0', xxl: '0' },
@@ -157,6 +166,7 @@ const fitMeasurements: Record<string, Record<string, Record<string, string>>> = 
 };
 
 export function MeasurementsStep({
+  appearance,tool,measurementTolerances,onToleranceChange,notes,onNotesChange,grading,sizingActions,
   garmentType,
   fit,
   onFitChange,
@@ -177,6 +187,7 @@ export function MeasurementsStep({
   const setHighlightedMeasurementId =
     onHighlightedMeasurementIdChange ?? setLocalHighlightedMeasurementId;
 
+  if(appearance==='shell') return <FitMeasurementsInspector grading={grading} sizingActions={sizingActions} notes={notes} onNotesChange={onNotesChange} measurementTolerances={measurementTolerances} onToleranceChange={onToleranceChange} advanced={tool==='Advanced sizing'} fit={fit} fitChoices={fitChoices} presets={currentMeasurements} measurements={measurements} onFitChange={onFitChange} onMeasurementChange={onMeasurementChange} measurementUnit={measurementUnit} onMeasurementUnitChange={onMeasurementUnitChange} highlightedMeasurementId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId}/>;
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Fit Selector */}
@@ -360,7 +371,11 @@ export function MeasurementPreview({
   onAssetSelect,
   onAssetMeasurementsChange,
   measurementUnit = 'cm',
+  presentation, onGuideSelect, onDrawingBounds,
 }: {
+  presentation?: 'redesign';
+  onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void;
+  onGuideSelect?: (id:string)=>void;
   garmentType?: string;
   color?: string;
   highlightedMeasurementId?: string | null;
@@ -400,7 +415,7 @@ export function MeasurementPreview({
   }, [svgPack, selection, fit]);
 
   return (
-    <div data-measurement-preview className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
+    <div data-measurement-preview data-view={detailView??'front'} className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
       {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
         <PrintsDesignPreview elements={prints.filter(print => (print.view ?? 'front') === (detailView ?? 'front'))} editable={false}
           className="h-full w-full" garmentBackdrop={<>
@@ -418,7 +433,7 @@ export function MeasurementPreview({
             garmentDetails={garmentDetails}
             detailView={detailView}
             labelEditor={{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
-            renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer sources={sources} bounds={bounds}
+            renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
               details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
               referenceWidthCm={sharedGarmentProps?.labelReferenceWidthMm ? sharedGarmentProps.labelReferenceWidthMm / 10 : 50}
               unit={measurementUnit} selectedId={selectedAssetId} highlightedId={highlightedMeasurementId} onSelect={onAssetSelect} onMeasurementsChange={onAssetMeasurementsChange} />}

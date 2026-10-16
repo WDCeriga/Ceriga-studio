@@ -32,7 +32,7 @@ export function BuilderPanellingSidebar({
     <div className="space-y-4" aria-label="Production panelling controls">
       <div>
         <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/55">Parent surface</div>
-        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white">Body</div>
+        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white">Automatic · follows seam</div>
       </div>
       <div>
         <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/55">Seam tool</div>
@@ -52,9 +52,9 @@ export function BuilderPanellingSidebar({
       <button type="button" onClick={onUndo} className="w-full rounded-lg border border-white/10 px-2 py-2 text-xs text-white/65">Undo last point / path</button>
       <div>
         <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-white/55"><span>Generated panels</span><span>{panels.length}</span></div>
-        {panels.length ? <div className="space-y-1">{panels.map((panel, index) => <button key={panel.id} type="button" aria-pressed={selectedPanelId === panel.id} onClick={() => onSelectPanel(panel.id)} className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-left text-xs ${selectedPanelId === panel.id ? 'border-white/45 bg-white/10 text-white' : 'border-white/10 text-white/70'}`}><span className="flex items-center gap-2"><i className="size-2.5 rounded-full" style={{ background: panelColours[panel.id] ?? '#5c84b2' }} />Body panel {index + 1}</span><span className="text-[10px] text-white/40">{Math.round(panel.area).toLocaleString()}</span></button>)}</div> : <p className="text-xs leading-relaxed text-white/45">Draw a neckline-to-hem seam on Body to generate two panels.</p>}
+        {panels.length ? <div className="space-y-1">{panels.map((panel, index) => <button key={panel.id} type="button" aria-pressed={selectedPanelId === panel.id} onClick={() => onSelectPanel(panel.id)} className={`flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-left text-xs ${selectedPanelId === panel.id ? 'border-white/45 bg-white/10 text-white' : 'border-white/10 text-white/70'}`}><span className="flex items-center gap-2"><i className="size-2.5 rounded-full" style={{ background: panelColours[panel.id] ?? '#5c84b2' }} />{panel.label}</span><span className="text-[10px] text-white/40">{Math.round(panel.area).toLocaleString()}</span></button>)}</div> : <p className="text-xs leading-relaxed text-white/45">Draw a construction seam across a garment piece to divide it.</p>}
       </div>
-      {selectedPanelId && <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/75">Panel colour<input aria-label="Selected panel colour" type="color" value={selectedColour} onChange={event => onPanelColour(selectedPanelId, event.target.value)} /></label>}
+      {selectedPanelId && <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/75">Panel colour<input aria-label="Selected panel colour" type="color" value={selectedColour} onInput={event => onPanelColour(selectedPanelId, event.currentTarget.value)} onChange={event => onPanelColour(selectedPanelId, event.target.value)} /></label>}
     </div>
   );
 }

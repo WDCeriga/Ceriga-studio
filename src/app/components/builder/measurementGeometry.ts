@@ -216,3 +216,13 @@ export function measurementSideClearance(shapes: MeasurementShape[], corners: Me
   }
   return Number.isFinite(clearance) ? clearance : undefined;
 }
+/** Same sampled garment geometry; use the actual left sleeve for the new drawing's dimensions. */
+export function buildBuilderGeometryGuides(shapes:MeasurementShape[]):MeasurementGuideDef[]{
+ const guides=buildGeometryGuides(shapes);
+ const contours=(id:string)=>shapes.filter(shape=>shape.id===id||shape.id.startsWith(id+'-')).flatMap(shape=>shape.contours);
+ const sleeve=largest(contours('sleeveLeft'))[0];if(!sleeve?.length)return guides;
+ const shoulder=sleeve.reduce((best,p)=>p.y<best.y?p:best);
+ const cuff=largest(contours('underlayerHemLeft'))[0]??largest(contours('sleeveHemLeft'))[0]??sleeve;
+ const opening=openingEdge(cuff,shoulder).sort((a,b)=>a.x-b.x);
+ return guides.map(guide=>guide.id==='sleeveLength'?{...guide,x1:shoulder.x,y1:shoulder.y,x2:opening[0].x,y2:opening[0].y}:guide.id==='sleeveOpening'?{...guide,x1:opening[0].x,y1:opening[0].y,x2:opening[1].x,y2:opening[1].y}:guide);
+}

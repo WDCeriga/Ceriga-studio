@@ -9,7 +9,7 @@ interface Segment {
   sourceId: string;
   cuts: { t: number; point: PanellingPoint }[];
 }
-interface HalfEdge { from: string; to: string; twin: string; edgeId: string; seamId?: string }
+interface HalfEdge { id: string; from: string; to: string; twin: string; edgeId: string; seamId?: string }
 interface Cycle { points: PanellingPoint[]; seamIds: Set<string>; area: number; sample: PanellingPoint }
 
 const cross = (a: PanellingPoint, b: PanellingPoint) => a.x * b.y - a.y * b.x;
@@ -27,9 +27,17 @@ function segmentIntersection(first: Segment, second: Segment) {
 }
 
 function interiorSample(points: PanellingPoint[], area: number): PanellingPoint {
-  const a = points[0], b = points[1], dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy) || 1;
+  const edges = points.map((a, i) => ({a, b:points[(i+1)%points.length]})).sort((a,b)=>Math.hypot(b.b.x-b.a.x,b.b.y-b.a.y)-Math.hypot(a.b.x-a.a.x,a.b.y-a.a.y));
   const side = area > 0 ? 1 : -1;
-  return { x: (a.x + b.x) / 2 - side * dy / length * .5, y: (a.y + b.y) / 2 + side * dx / length * .5 };
+  for (const {a,b} of edges) {
+    const dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
+    if (!length) continue;
+    for (const offset of [.05,.005,.0005,.00005]) {
+      const sample={x:(a.x+b.x)/2-side*dy/length*offset,y:(a.y+b.y)/2+side*dx/length*offset};
+      if (pointInLoop(sample,points)) return sample;
+    }
+  }
+  return points[0];
 }
 
 function geometryInsideFace(face: Cycle, other: Cycle) {
@@ -68,7 +76,18 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
       const right = sorted[j];
       if (right.minY > left.maxY || right.maxY < left.minY) continue;
       const hit = segmentIntersection(left.segment, right.segment);
-      if (!hit) continue;
+      if (!hit) {
+        const a = left.segment, b = right.segment;
+        const r = vector(a.a, a.b), length = r.x*r.x + r.y*r.y;
+        if (length && Math.abs(cross(r, vector(a.a, b.a))) < 1e-6 && Math.abs(cross(r, vector(a.a, b.b))) < 1e-6) {
+          for (const [segment, point] of [[a, b.a], [a, b.b], [b, a.a], [b, a.b]] as [Segment, PanellingPoint][]) {
+            const d = vector(segment.a, segment.b), l = d.x*d.x + d.y*d.y;
+            const t = l ? ((point.x-segment.a.x)*d.x + (point.y-segment.a.y)*d.y) / l : -1;
+            if (t >= 0 && t <= 1) segment.cuts.push({ t, point });
+          }
+        }
+        continue;
+      }
       left.segment.cuts.push({ t: hit.t, point: hit.point });
       right.segment.cuts.push({ t: hit.u, point: hit.point });
     }
@@ -77,7 +96,7 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
   const graphNodes = new Map<string, GraphNode>();
   const graphNodeById = new Map<string, GraphNode>();
   const getNode = (point: PanellingPoint, kind: GraphNode['kind'], seamId?: string) => {
-    const key = `${Math.round(point.x * 2) / 2},${Math.round(point.y * 2) / 2}`;
+    const key = `${Math.round(point.x * 1e6) / 1e6},${Math.round(point.y * 1e6) / 1e6}`;
     let node = graphNodes.get(key);
     if (!node) {
       node = { id: `node-${graphNodes.size + 1}`, ...point, kind, seamIds: [] };
@@ -85,7 +104,7 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
       graphNodeById.set(node.id, node);
     }
     if (kind === 'intersection' || node.kind === 'intersection') node.kind = 'intersection';
-    else if (kind === 'anchor' && node.kind === 'boundary') node.kind = 'anchor';
+    else if ((kind === 'anchor' && node.kind === 'boundary') || (kind === 'boundary' && node.kind === 'anchor')) node.kind = 'intersection';
     if (seamId && !node.seamIds.includes(seamId)) node.seamIds.push(seamId);
     return node;
   };
@@ -93,13 +112,17 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
   const adjacency = new Map<string, HalfEdge[]>();
   const halfEdges = new Map<string, HalfEdge>();
   const edgeById = new Map<string, PanellingTopology['edges'][number]>();
+  const edgeKeys = new Set<string>();
   const addEdge = (from: GraphNode, to: GraphNode, segment: Segment, index: number) => {
     if (from.id === to.id) return;
+    const key = [from.id, to.id].sort().join(':');
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
     const id = `edge-${graphEdges.length + 1}`;
     const edge = { id, from: from.id, to: to.id, kind: segment.kind, ...(segment.kind === 'seam' ? { seamId: segment.sourceId } : {}) };
     graphEdges.push(edge); edgeById.set(id, edge);
-    const forward: HalfEdge = { from: from.id, to: to.id, twin: `${id}:r`, edgeId: id, seamId: edge.seamId };
-    const reverse: HalfEdge = { from: to.id, to: from.id, twin: id, edgeId: id, seamId: edge.seamId };
+    const forward: HalfEdge = { id, from: from.id, to: to.id, twin: `${id}:r`, edgeId: id, seamId: edge.seamId };
+    const reverse: HalfEdge = { id: `${id}:r`, from: to.id, to: from.id, twin: id, edgeId: id, seamId: edge.seamId };
     halfEdges.set(id, forward); halfEdges.set(`${id}:r`, reverse);
     adjacency.set(from.id, [...(adjacency.get(from.id) ?? []), forward]);
     adjacency.set(to.id, [...(adjacency.get(to.id) ?? []), reverse]);
@@ -112,6 +135,8 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
       .sort((a, b) => a.t - b.t).filter((cut, index, all) => !index || Math.abs(cut.t - all[index - 1].t) > 1e-7);
     for (let index = 0; index < cuts.length - 1; index++) {
       const first = cuts[index], second = cuts[index + 1];
+      // Split only the part physically inside this semantic surface; never extend a seam.
+      if (segment.kind === 'seam' && !pointInSurface({ x: (first.point.x + second.point.x) / 2, y: (first.point.y + second.point.y) / 2 }, boundaries)) continue;
       const atSeamEnd = segment.kind === 'seam' && (first.t < 1e-7 || second.t > 1 - 1e-7);
       const kind: GraphNode['kind'] = atSeamEnd ? 'anchor' : segment.kind === 'boundary' ? 'boundary' : 'anchor';
       const from = getNode(first.point, kind, segment.kind === 'seam' ? segment.sourceId : undefined);
@@ -127,22 +152,23 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
 
   const visited = new Set<string>(), cycles: Cycle[] = [];
   for (const initial of halfEdges.values()) {
-    if (visited.has(initial.twin)) continue;
+    if (visited.has(initial.id)) continue;
     let edge: HalfEdge | undefined = initial;
     const points: PanellingPoint[] = [], seamIds = new Set<string>();
+    let closed = false;
     let guard = halfEdges.size + 1;
-    while (edge && !visited.has(edge.twin) && guard-- > 0) {
-      visited.add(edge.twin);
+    while (edge && !visited.has(edge.id) && guard-- > 0) {
+      visited.add(edge.id);
       const node = graphNodeById.get(edge.from)!;
       points.push({ x: node.x, y: node.y });
       if (edge.seamId) seamIds.add(edge.seamId);
       const nextOptions = adjacency.get(edge.to) ?? [];
-      const reverseIndex = nextOptions.findIndex(candidate => candidate.twin === edge!.edgeId);
+      const reverseIndex = nextOptions.findIndex(candidate => candidate.id === edge!.twin);
       if (reverseIndex < 0) break;
       edge = nextOptions[(reverseIndex - 1 + nextOptions.length) % nextOptions.length];
-      if (edge.twin === initial.twin) { edge = undefined; break; }
+      if (edge.id === initial.id) { closed = true; break; }
     }
-    if (points.length < 3) continue;
+    if (!closed || points.length < 3) continue;
     const area = signedArea(points);
     if (area <= 2) continue;
     const sample = interiorSample(points, area);
@@ -176,4 +202,40 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
   }
   for (const [nodeId, node] of graphNodeById) if (node.seamIds.length > 1 || (seamDegree.get(nodeId) ?? 0) > 2) node.kind = 'intersection';
   return { nodes: [...graphNodes.values()], edges: graphEdges, panels };
+}
+/** Each construction piece owns its faces; one seam ID may contribute edges to many surfaces. */
+export function recomputeGarmentPanellingTopology(boundaries: BoundaryLoop[], seams: PanellingSeam[]): PanellingTopology {
+  const ids = [...new Set(boundaries.map(boundary => boundary.surfaceId ?? 'base'))];
+  const result: PanellingTopology = { nodes: [], edges: [], panels: [] };
+  const names: Record<string, string> = { base: 'Body', sleeveLeft: 'Left Sleeve', sleeveRight: 'Right Sleeve', neck: 'Neck', bodyHem: 'Body Hem', sleeveHemLeft: 'Left Cuff', sleeveHemRight: 'Right Cuff' };
+  const junctions = new Map<string, GraphNode>();
+  for (const id of ids) {
+    const topology = recomputePanellingTopology(boundaries.filter(boundary => (boundary.surfaceId ?? 'base') === id), seams, id);
+    const prefix = (key: string) => `${id}:${key}`;
+    const nodeIds = new Map<string, string>();
+    for (const node of topology.nodes) {
+      const key = Math.round(node.x*1e6)+','+Math.round(node.y*1e6);
+      const shared = node.seamIds.length ? junctions.get(key) : undefined;
+      if (shared) {
+        shared.kind='intersection';
+        shared.surfaceIds = [...new Set([...(shared.surfaceIds ?? []),id])];
+        shared.seamIds = [...new Set([...shared.seamIds,...node.seamIds])];
+        nodeIds.set(node.id,shared.id);
+      } else {
+        const next = {...node,id:prefix(node.id),surfaceIds:[id]};
+        result.nodes.push(next);
+        nodeIds.set(node.id,next.id);
+        if(node.seamIds.length) junctions.set(key,next);
+      }
+    }
+    result.edges.push(...topology.edges.map(edge => ({ ...edge, id: prefix(edge.id), from: nodeIds.get(edge.from)!, to: nodeIds.get(edge.to)! })));
+    // Multiple disconnected SVG contours still belong to one untouched semantic piece.
+    // Keep each exact subpath; do not invent a connecting edge between components.
+    const untouched = topology.panels.filter(panel=>panel.seamIds.length===0);
+    const divided = topology.panels.filter(panel=>panel.seamIds.length>0);
+    const path = untouched.map(panel=>panel.path).join('');
+    const semantic = untouched.length>1 ? [{...untouched[0],id:stableId(id+':'+path),path,area:untouched.reduce((sum,p)=>sum+p.area,0)},...divided] : topology.panels;
+    result.panels.push(...semantic.map((panel, index) => ({ ...panel, label: `${names[id] ?? id} Panel ${index + 1}` })));
+  }
+  return result;
 }

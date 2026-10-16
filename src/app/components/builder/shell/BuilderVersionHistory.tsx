@@ -1,0 +1,20 @@
+import {BuilderSheet,useBuilderWidth} from './responsiveBuilder';
+import {useEffect,useRef,type ReactNode} from 'react';
+import {X,Save,RotateCcw,Trash2,History} from 'lucide-react';
+type VersionRow={id:string;createdAt:number;summary:string;manual:boolean};
+export function BuilderVersionHistory<T extends VersionRow>({versions,onClose,onSave,onRestore,onRemove,renderThumbnail,formatDate}:{versions:T[];onClose:()=>void;onSave:()=>void;onRestore:(id:string)=>void;onRemove:(id:string)=>void;renderThumbnail:(version:T|null)=>ReactNode;formatDate:(date:number)=>string}){
+ const phone=useBuilderWidth()<768;
+ const dialog=useRef<HTMLElement>(null);const close=useRef(onClose);close.current=onClose;
+ useEffect(()=>{if(phone)return;const previous=document.activeElement as HTMLElement|null;dialog.current?.querySelector<HTMLButtonElement>('[aria-label="Close version history"]')?.focus();const escape=(event:KeyboardEvent)=>{if(event.key==='Escape')close.current()};document.addEventListener('keydown',escape);return()=>{document.removeEventListener('keydown',escape);previous?.focus()}},[phone]);
+ const content=<>
+ <header className="version-history-header"><div><span className="version-history-eyebrow">Timeline</span><h2 id="version-history-title">Version history</h2><p>{versions.length?`${versions.length} saved ${versions.length===1?'version':'versions'}`:'Save a version to start your timeline.'}</p></div><button className="version-history-icon" aria-label="Close version history" onClick={onClose}><X size={18}/></button></header>
+ <div className="version-history-toolbar"><span>Auto-saves as you edit</span><button className="version-history-save" onClick={onSave}><Save size={14}/>Save version</button></div>
+ <div className="version-history-list"><ol><li className="version-history-entry is-current"><div className="version-history-thumbnail">{renderThumbnail(null)}</div><div className="version-history-entry-content"><span className="version-history-badge current">Current</span><time>{formatDate(Date.now())}</time><p>Live — your current design</p></div></li>
+ {versions.map((version,index)=><li className="version-history-entry" key={version.id}><div className="version-history-thumbnail">{renderThumbnail(version)}</div><div className="version-history-entry-content"><div className="version-history-badges">{index===0&&<span className="version-history-badge">Latest</span>}<span className="version-history-badge">{version.manual?'Saved':'Auto'}</span></div><time>{formatDate(version.createdAt)}</time><p>{version.summary}</p><div className="version-history-entry-actions"><button className="version-history-restore" title="Restore this version" onClick={()=>onRestore(version.id)}><RotateCcw size={12}/>Restore</button><button className="version-history-icon delete" aria-label="Delete version" onClick={()=>onRemove(version.id)}><Trash2 size={14}/></button></div></div></li>)}
+ </ol>{!versions.length&&<div className="version-history-empty"><History size={24}/><h3>Your versions will appear here</h3><p>Save a milestone, or keep designing and let automatic snapshots capture your progress.</p></div>}</div>
+ <footer className="version-history-footer">Restore an earlier version to continue from that design.</footer>
+ </>;
+ if(phone)return <div className="ceriga-version-history"><BuilderSheet title="Version history" compactHeader initialSnap="full" onClose={onClose}>{content}</BuilderSheet></div>;
+ return <div className="ceriga-version-history"><button className="version-history-backdrop" aria-label="Dismiss version history" onClick={onClose}/><aside ref={dialog} className="version-history-panel" role="dialog" aria-modal="true" aria-labelledby="version-history-title" onKeyDown={e=>{if(e.key!=='Tab')return;const buttons=Array.from(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')??[]);const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}}>
+{content}</aside></div>;
+}

@@ -1,3 +1,14 @@
+import {SizeComparisonContext} from '../components/builder/shell/SizeComparisonOverlay';
+import {type MeasurementGrading,GARMENT_SIZES,baseSize,editGradedMeasurement,applyGrade,changeBaseSize,resetSizeToGrade,resetGradingRow,regradeForFit} from '../lib/measurementGrading';
+import {BuilderReview,ReviewFacts,ReviewMeasurements,type ReviewGroup} from '../components/builder/shell/BuilderReview';
+import {NEW_MEASUREMENT_LABELS} from '../components/builder/shell/NewMeasurementOverlay';
+import {formatMeasurementDisplay} from '../lib/measurements';
+import {getMeasurementTolerance,formatToleranceMagnitude} from '../lib/measurementTolerances';
+import {BuilderSheet} from '../components/builder/shell/responsiveBuilder';
+import {BuilderVersionHistory} from '../components/builder/shell/BuilderVersionHistory';
+import {MeasurementMotionContext,MeasurementValueContext} from '../components/builder/shell/NewMeasurementOverlay';
+import {NewAssetMeasurements,NewReferencePanel,ImportMeasurementsPanel} from '../components/builder/shell/MeasurementSupportingPanels';
+import {BuilderShell,BuilderTopBar,BuilderPlaceholder,type BuilderSection,type MeasurementTool} from '../components/builder/shell/BuilderShell';
 import {
   useCallback,
   useEffect,
@@ -88,13 +99,14 @@ import {
   type ImperativePanelHandle,
 } from 'react-resizable-panels';
 
-import { MeasurementsStep, MeasurementPreview } from '../components/builder/MeasurementsStep';
+import { MeasurementsStep, MeasurementPreview, fitMeasurements } from '../components/builder/MeasurementsStep';
 import { CustomAssetMeasurements, editAssetDimension, type AssetMeasurementSnapshot } from '../components/builder/CustomAssetMeasurements';
 import { getLocalProject, saveLocalProject } from '../lib/localProjects';
 import {
   PREVIEW_STAGE_CLASS,
 } from '../components/builder/measurementPreviewSizing';
 import { BuilderGarmentPreview } from '../components/builder/BuilderGarmentPreview';
+import { constructionColor } from '../lib/tshirtSvgUtils';
 import { TshirtSvgPreview } from '../components/builder/TshirtSvgPreview';
 import { FabricControls } from '../components/builder/FabricControls';
 import { FABRIC_LIBRARY, assignFabric, fabricCategoryForPart, fabricTargets, setFabricGroupLinked, initializeFabricDefaults, fabricPartsFromLayers, resolvePartFabric, resolvePartMaterial, resolveInteriorColour, type FabricAssignments } from '../data/garmentFabrics';
@@ -113,7 +125,6 @@ import { GarmentAssetChoiceGrid } from '../components/builder/TshirtAssetChoiceG
 import { CustomAssetUpload } from '../components/builder/CustomAssetUpload';
 import { setAssetUserTransform, type AssetUserTransform } from '../data/customAssetEditing';
 import type { PanellingCanvasHandle } from '../features/panelling/PanellingCanvas';
-import { PANELLING_GARMENT_MARKUP } from '../features/panelling/panellingGarment';
 import type { BoundaryLoop, PanellingSeam, PanelRegion } from '../features/panelling/panellingTypes';
 import '../features/panelling/builder-panelling.css';
 import { activeCustomAssets, installCustomAsset, setCustomCollarEdits, updateCustomAssetTransform, type CustomAssetCategory, type CustomAssetState } from '../data/customAssets';
@@ -261,6 +272,9 @@ interface BuilderState extends CustomAssetState {
   /** Display/export preference; stored values in `measurements` are always cm. */
   measurementUnit: MeasurementUnit;
   measurements: Record<string, Record<string, string>>;
+  /** Canonical cm tolerance per POM (`default`), with preserved explicit size overrides. */
+  measurementTolerances?: Record<string, Record<string, string>>;
+  measurementGrading?:MeasurementGrading;
   fabricType?: string;
   fabricAssignments?: FabricAssignments;
   fabricTextureIntensity?: FabricTextureIntensity;
@@ -593,6 +607,11 @@ export function Builder() {
   const [projectHydrating, setProjectHydrating] = useState(Boolean(urlProjectId && (urlProjectId.startsWith('local-') || isSupabaseConfigured)));
   const projectHydratedRef = useRef<string | null>(null);
 
+  const redesignEnabled=searchParams.get('builder')==='redesign'&&!techpackSpecFlow;
+  const [redesignDrawingBounds,setRedesignDrawingBounds]=useState({left:0,right:1000,top:0,bottom:1000});
+  const [redesignSection,setRedesignSection]=useState<BuilderSection>('Fit & Measurements');
+  const [measurementTool,setMeasurementTool]=useState<MeasurementTool>('Core measurements');
+  const [constructionTool,setConstructionTool]=useState('Neck & Collar');
   const [currentStep, setCurrentStep] = useState(() => (isTechpackSpecUrl() ? 9 : 1));
   const [visitedSteps, setVisitedSteps] = useState<number[]>(() =>
     isTechpackSpecUrl() ? [9] : [1],
@@ -607,11 +626,14 @@ export function Builder() {
   const [projectName, setProjectName] = useState(product?.name || 'Untitled Project');
   const [isEditingName, setIsEditingName] = useState(false);
   const [showExtraDetails, setShowExtraDetails] = useState(false);
-  const [previewBackground, setPreviewBackground] = useState<'black' | 'white' | 'transparent'>('black');
-  const [previewZoom, setPreviewZoom] = useState(PREVIEW_ZOOM_DEFAULT);
+  const [previewBackground, setPreviewBackground] = useState<'black' | 'white' | 'beige' | 'transparent'>(redesignEnabled?'white':'black');
+  const previewZoomDefault=PREVIEW_ZOOM_DEFAULT;
+  const [previewZoom, setPreviewZoom] = useState(previewZoomDefault);
+  useEffect(()=>{if(redesignEnabled&&currentStep!==1)setCurrentStep(1);},[redesignEnabled,currentStep]);
+
   const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
   const [isPanningCanvas, setIsPanningCanvas] = useState(false);
-  const [highlightedMeasurementId, setHighlightedMeasurementId] = useState<string | null>(null);
+  const [highlightedMeasurementId, setHighlightedMeasurementId] = useState<string | null>(redesignEnabled?'chestWidth':null);
   const [selectedMeasurementAssetId, setSelectedMeasurementAssetId] = useState<string | null>(null);
   const [assetMeasurementSnapshot, setAssetMeasurementSnapshot] = useState<AssetMeasurementSnapshot>({ view: 'front', assets: [] });
   const [tshirtLayerSelectedId, setTshirtLayerSelectedId] = useState<GarmentLayerId | null>(null);
@@ -639,8 +661,8 @@ export function Builder() {
   /** Same box as detail callout `position:absolute` (inside the scaled stage); drag math reads this and divides by current scale. */
   const detailPositionRootRef = useRef<HTMLDivElement>(null);
   /** Latest scale factor (previewZoom / 100); read inside pointer handlers without retriggering listeners. */
-  const previewScaleRef = useRef(PREVIEW_ZOOM_DEFAULT / 100);
-  const previewZoomRef = useRef(PREVIEW_ZOOM_DEFAULT);
+  const previewScaleRef = useRef(previewZoomDefault / 100);
+  const previewZoomRef = useRef(previewZoomDefault);
   const previewPanRef = useRef({ x: 0, y: 0 });
   const canvasPanGestureRef = useRef<{
     pointerId: number;
@@ -774,13 +796,13 @@ export function Builder() {
   const zipPanelRequestSequence = useRef(0);
   const panellingCanvasRef = useRef<PanellingCanvasHandle>(null);
   const panellingBoundaries = state.panellingBoundaries ?? EMPTY_PANELLING_BOUNDARIES;
-  const panellingSeams = state.panellingSeams ?? EMPTY_PANELLING_SEAMS;
+  const panellingSeams = useMemo(() => (state.panellingSeams ?? EMPTY_PANELLING_SEAMS).filter(seam => (seam.view ?? 'front') === garmentView), [state.panellingSeams, garmentView]);
   const panellingMirror = state.panellingMirror ?? false;
   const panellingPanelColours = state.panellingPanelColours ?? EMPTY_PANELLING_COLOURS;
   const [panellingRegions, setPanellingRegions] = useState<PanelRegion[]>([]);
-  const panellingPanels = useMemo(() => panellingRegions.map(panel => ({ ...panel, fillOverride: panellingPanelColours[panel.id] })),
-    [panellingPanelColours, panellingRegions]);
-  const updatePanellingSeams = useCallback((seams: PanellingSeam[]) => setState(previous => ({ ...previous, panellingSeams: seams })), [setState]);
+  const panellingPanels = useMemo(() => panellingRegions.filter(panel => (panel.view ?? 'front') === garmentView).map(panel => ({ ...panel, fillOverride: panellingPanelColours[panel.id] })),
+    [panellingPanelColours, panellingRegions, garmentView]);
+  const updatePanellingSeams = useCallback((seams: PanellingSeam[]) => setState(previous => ({ ...previous, panellingSeams: [...(previous.panellingSeams ?? []).filter(seam => (seam.view ?? 'front') !== garmentView), ...seams.map(seam => ({ ...seam, view: garmentView }))] })), [setState, garmentView]);
   const updatePanellingBoundaries = useCallback((boundaries: BoundaryLoop[]) => setState(previous => ({ ...previous, panellingBoundaries: boundaries })), [setState]);
   useEffect(() => {
     if (currentStep !== 14) return;
@@ -1461,14 +1483,14 @@ export function Builder() {
     ]).then(([topology, mirroring]) => {
       if (!active) return;
       const seams = mirroring.linkedMirrorSeams(panellingSeams, 1024, panellingMirror);
-      setPanellingRegions(topology.recomputePanellingTopology(panellingBoundaries, seams, 'body').panels);
+      setPanellingRegions(topology.recomputeGarmentPanellingTopology(panellingBoundaries, seams).panels.map(panel => ({ ...panel, view: garmentView, id: garmentView + ':' + panel.id })));
     }).catch(error => {
       if (!active) return;
       console.error('Could not compute Builder panelling topology.', error);
       toast.error('Could not update panelling. Existing seams were preserved.');
     });
     return () => { active = false; };
-  }, [currentStep, garmentSvgType, state.importedGarment, panellingBoundaries, panellingSeams, panellingMirror]);
+  }, [currentStep, garmentSvgType, state.importedGarment, panellingBoundaries, panellingSeams, panellingMirror, garmentView]);
   const isGarmentSvgFlow = Boolean(state.importedGarment) || garmentSvgType != null && supportsGarmentSvgPreview(state.garmentType);
   const activeFit = garmentSvgType
     ? resolveGarmentPackFit(garmentSvgType, state.fit) ?? state.fit
@@ -1559,7 +1581,8 @@ export function Builder() {
     state.neckFinish, state.customCollar, state.customCollars, state.customAssets, state.customAssetInstances, state.partColors,
     state.garmentPanels, state.garmentType, state.neckType, state.sleeveType, state.sleeveLength, state.cuffType, state.hemType, state.pocketType,
     garmentAssetRevision]);
-  const renderPartColors = resolveGarmentColours(fabricParts, primaryColor, {
+  const renderPartColors = useMemo(()=>{
+    const result = resolveGarmentColours(fabricParts, primaryColor, {
     ...(state.neckTrimColor ? { neck: state.neckTrimColor } : {}),
     ...(state.sleeveTrimColor ? { sleeve: state.sleeveTrimColor, sleeves: state.sleeveTrimColor, sleeveLeft: state.sleeveTrimColor, sleeveRight: state.sleeveTrimColor } : {}),
     ...(state.cuffTrimColor ? { sleeveHem: state.cuffTrimColor, sleeveHemLeft: state.cuffTrimColor, sleeveHemRight: state.cuffTrimColor } : {}),
@@ -1569,10 +1592,12 @@ export function Builder() {
   }, state.colourDefaults);
   for (const part of fabricParts) {
     const material = resolvePartMaterial(state.fabricAssignments, part, fabricParts);
-    if (material.surface === 'reverse') renderPartColors[part.id] = resolveInteriorColour(state.fabricAssignments?.interior,
-      renderPartColors[part.exteriorPartId ?? part.parentId ?? 'base'] ?? primaryColor, state.partColors?.[part.id], material.surface);
+    if (material.surface === 'reverse') result[part.id] = resolveInteriorColour(state.fabricAssignments?.interior,
+      result[part.exteriorPartId ?? part.parentId ?? 'base'] ?? primaryColor, state.partColors?.[part.id], material.surface);
   }
-  Object.assign(renderPartColors, applyHemRegionColours(renderPartColors, state.tshirtHemStyles));
+  Object.assign(result, applyHemRegionColours(result, state.tshirtHemStyles));
+    return result;
+  },[fabricParts,primaryColor,state.neckTrimColor,state.sleeveTrimColor,state.cuffTrimColor,state.pocketTrimColor,state.garmentPanels,state.partColors,state.colourDefaults,state.fabricAssignments,state.tshirtHemStyles]);
   const materialGroupFor = (id: string) => fabricTargets(fabricParts).find(target => target.group && target.partIds.includes(id) && target.partIds.length > 1);
   const applyMaterialDrop = (partId: string, material: MaterialDrop, both: boolean) => {
     const group = materialGroupFor(partId);
@@ -2651,6 +2676,21 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <MeasurementsStep
+              grading={state.measurementGrading}
+              sizingActions={{
+                setBase:size=>setState(prev=>changeBaseSize(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,size)),
+                setRule:(id,patch)=>setState(prev=>applyGrade(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,id,patch)),
+                resetCell:(id,size)=>setState(prev=>resetSizeToGrade(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,id,size)),
+                resetRow:id=>setState(prev=>resetGradingRow(prev,id)),
+                setSharedTolerance:(id,shared,sourceSize)=>setState(prev=>{const existing=prev.measurementTolerances??{},anchor=sourceSize??baseSize(prev.measurementGrading),value=getMeasurementTolerance(existing,id,anchor).valueCm;const row=shared?{default:value}:{...existing[id],...Object.fromEntries(GARMENT_SIZES.map(size=>[size,getMeasurementTolerance(existing,id,size).valueCm]))};return {...prev,measurementTolerances:{...existing,[id]:row}}}),
+                setCompare:compare=>setState(prev=>({...prev,measurementGrading:{...prev.measurementGrading,baseSize:baseSize(prev.measurementGrading),rows:prev.measurementGrading?.rows??{},compare}}))
+              }}
+              measurementTolerances={state.measurementTolerances}
+              onToleranceChange={(id,size,value)=>setState(prev=>({...prev,measurementTolerances:{...prev.measurementTolerances,[id]:{...prev.measurementTolerances?.[id],[size]:value}}}))}
+              notes={state.extraDetails.measurements??''}
+              onNotesChange={notes=>setState(prev=>({...prev,extraDetails:{...prev.extraDetails,measurements:notes}}))}
+              appearance={redesignEnabled?'shell':undefined}
+              tool={measurementTool}
               garmentType={state.garmentType}
               fit={activeFit || 'regular'}
               fits={garmentConfig?.fits}
@@ -2658,7 +2698,7 @@ export function Builder() {
                 setState((prev) => ({
                   ...prev,
                   fit,
-                  measurements: prev.measurements,
+                  measurements: regradeForFit(prev,fitMeasurements[fit]??fitMeasurements.regular).measurements,
                   tshirtAssetSelection: garmentSvgType
                     ? applyGarmentFitAndLinks(
                         garmentSvgType,
@@ -2680,18 +2720,7 @@ export function Builder() {
               }
               highlightedMeasurementId={highlightedMeasurementId}
               onHighlightedMeasurementIdChange={setHighlightedMeasurementId}
-              onMeasurementChange={(measurementId, size, value) =>
-                setState((prev) => ({
-                  ...prev,
-                  measurements: {
-                    ...prev.measurements,
-                    [measurementId]: {
-                      ...prev.measurements[measurementId],
-                      [size]: value,
-                    },
-                  },
-                }))
-              }
+              onMeasurementChange={(measurementId,size,value)=>setState(prev=>editGradedMeasurement(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,measurementId,size,value))}
             />
             <CustomAssetMeasurements
               assets={assetMeasurementSnapshot.view === garmentView ? assetMeasurementSnapshot.assets : []}
@@ -3752,16 +3781,29 @@ export function Builder() {
     </div>
   );
 
+  const reviewPresets=fitMeasurements[activeFit||'regular']??fitMeasurements.regular;
+  const reviewMeasurementContent=<ReviewMeasurements measurements={state.measurements} presets={reviewPresets} tolerances={state.measurementTolerances} unit={state.measurementUnit} notes={state.extraDetails.measurements}/>;
+  const reviewConstructionRows=[...(isGarmentSvgFlow&&garmentSvgType?getGarmentSpecRows(garmentSvgType,garmentSelection):[{label:'Neck',value:state.neckType},{label:'Sleeves',value:state.sleeveType},{label:'Hem',value:state.hemType},{label:'Cuffs',value:state.cuffType}]),...(state.neckFinish?[{label:'Neck finish',value:NECK_FINISH_OPTIONS.find(option=>option.value===state.neckFinish)?.label??state.neckFinish}]:[]),...hemRegions.map(region=>{const hem=resolveHemSettings(state.tshirtHemStyles,region.id);return {label:region.name,value:[region.adjustable?TSHIRT_HEM_OPTIONS.find(option=>option.value===hem.finish)?.label:'Native construction',hem.color?`Fabric ${hem.color}`:'',hem.stitchColor?`Stitch ${hem.stitchColor}`:''].filter(Boolean).join(' · ')}}),...(state.stitchingType?[{label:'Stitching',value:state.stitchingType.replaceAll('-',' ')}]:[]),...(state.garmentWash?[{label:'Wash & finish',value:`${WASH_TYPES[state.garmentWash.type]} · ${state.garmentWash.intensity}% · ${state.garmentWash.mode}`}]:[]),...(state.garmentDetails??[]).map(detail=>({label:detail.name,value:`${detail.fill} · ${Math.round(detail.x*100)}%, ${Math.round(detail.y*100)}%`}))];
+  const reviewGroups:ReviewGroup[]=[
+   {id:'overview',title:'Garment & materials',description:'Product details, fit, fabric and colours',Icon:Layers,content:<ReviewFacts rows={[{label:'Product',value:projectName},{label:'Garment',value:state.garmentType},{label:'Fit',value:activeFit||state.fit},{label:'Fabric',value: [...new Set((fabricSummary||'').split(';').map(part=>part.includes(':')?part.slice(part.indexOf(':')+1).trim():part.trim()).filter(Boolean))].join(', ')},{label:'Fabric weight',value:state.gsm?state.gsm+' GSM':null},{label:'Colours',value:state.colors.length?<div className="review-list">{state.colors.map((color,index)=><span className="review-swatch" key={index}><i style={{background:color.hex}}/>{color.hex}{color.pantone?' · '+color.pantone:''}</span>)}</div>:null}]} />},
+   {id:'measurements',title:'Fit & Measurements',description:'Current values, changes and manufacturing tolerances',Icon:Ruler,content:reviewMeasurementContent},
+   {id:'construction',title:'Construction',description:'Neckline, sleeves, hems and finishing',Icon:Scissors,content:<ReviewFacts rows={reviewConstructionRows}/>},
+   {id:'artwork',title:'Artwork & Graphics',description:'Applied artwork and print methods',Icon:ImageIcon,content:state.prints.length?<div className="review-list">{state.prints.map((print,index)=><div className="review-item" key={print.id}><h3>Artwork {index+1}</h3><p>{describePrintMethodLabel(print.printMethod)}</p><p>{print.type==='image'?'Uploaded artwork':print.content}</p></div>)}</div>:<p className="review-empty">No artwork added.</p>},
+   {id:'labels',title:'Labels & Branding',description:'Label placement, dimensions and artwork',Icon:Tag,content:<><ReviewFacts rows={[{label:'Neck label plan',value:formatPlanSummary('label',state.labelType)}]}/><div className="review-list">{(state.garmentLabels??[]).map(label=><div className="review-item" key={label.id}><h3>{label.brand||LABEL_CATEGORIES[label.category]}</h3><p>{LABEL_METHODS[label.method]} · {label.widthMm} × {label.heightMm} mm</p><p>{LABEL_POSITIONS[label.position]}</p>{labelWarnings(label).map(warning=><p key={warning}>{warning}</p>)}<button onClick={()=>void downloadLabelArtwork(label)}>Download label artwork</button></div>)}</div>{Boolean(state.garmentLabels?.length)&&<button onClick={()=>downloadLabelSpecs(state.garmentLabels!)}>Download label specifications</button>}</>},
+   {id:'packaging',title:'Packaging & quantities',description:'Packaging specification and order plan',Icon:Package,content:<><PackagingReview design={state.packagingDesign||state.packagingType||state.packaging.length?packagingDesign:undefined}/><OrderQuantitiesSummary plan={state.orderQuantities}/></>},
+   {id:'references',title:'References & notes',description:'Reference file names and design instructions',Icon:FileCheck,content:<><ReviewFacts rows={[{label:'Reference files',value:state.referenceUploadFileNames||'No reference files selected'}]}/>{state.extraDetails.referenceUploadNotes&&<p className="review-note">{state.extraDetails.referenceUploadNotes}</p>}{summaryStepNotes?<p className="review-note">{summaryStepNotes}</p>:<p className="review-empty">No additional design notes.</p>}</>}
+  ];
+
   const isLabelEditor = currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing;
   const previewSurfaceStyle: CSSProperties = {
     backgroundColor:
-      previewBackground === 'transparent'
+      redesignEnabled?'#FFFFFF':previewBackground === 'transparent'
         ? 'transparent'
         : previewBackground === 'white'
           ? '#FFFFFF'
-          : '#000000',
+          : previewBackground==='beige' ? '#f2e8d8' : '#000000',
     backgroundImage:
-      previewBackground === 'transparent'
+      redesignEnabled?'none':previewBackground === 'transparent'
         ? 'linear-gradient(45deg, #2a2a2a 25%, transparent 25%, transparent 75%, #2a2a2a 75%, #2a2a2a), linear-gradient(45deg, #2a2a2a 25%, transparent 25%, transparent 75%, #2a2a2a 75%, #2a2a2a)'
         : 'none',
     backgroundSize: previewBackground === 'transparent' ? '20px 20px' : 'auto',
@@ -4014,7 +4056,7 @@ export function Builder() {
             isPhone ? 'right-3 top-1.5' : 'right-2 top-2 sm:right-3 sm:top-3',
           )}
         >
-          <div
+          <div data-builder-view-switch
             className={cn(
               'pointer-events-auto flex flex-col gap-1 rounded-xl border border-[#252528] bg-black/45 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md',
               isPhone ? 'p-1.5' : 'p-1',
@@ -4022,6 +4064,7 @@ export function Builder() {
           >
             <button
               type="button"
+              aria-pressed={showFront}
               onClick={() => { setShowFront(true); setTshirtLayerSelectedId(null); setHighlightedMeasurementId(null); }}
               disabled={Boolean(state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'front'))}
               title={state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'front') ? 'Upload front reference' : 'Front'}
@@ -4039,6 +4082,7 @@ export function Builder() {
             </button>
             <button
               type="button"
+              aria-pressed={!showFront}
               onClick={() => { setShowFront(false); setTshirtLayerSelectedId(null); setHighlightedMeasurementId(null); }}
               disabled={Boolean(state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'back'))}
               title={state.importedGarment && !state.importedGarment.parts.some(part => part.view === 'back') ? 'Upload back reference' : 'Back'}
@@ -4313,34 +4357,21 @@ export function Builder() {
               )}
             >
               <div className="pointer-events-none absolute inset-0 bg-gradient-radial from-white/5 to-transparent blur-3xl" />
-              {currentStep === 14 && (garmentSvgType === 'tshirt' || garmentSvgType === 'tshirtTest') && !state.importedGarment ? (
-                <div className="relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden">
-                  <Suspense fallback={<p className="text-xs text-white/50">Loading panelling canvas…</p>}>
-                    <LazyPanellingCanvas
-                      className="builder-panelling-canvas"
-                      ref={panellingCanvasRef}
-                      garmentMarkup={PANELLING_GARMENT_MARKUP.replace(/#5c84b2/g, renderPartColors.base ?? primaryColor)}
-                      parentSurfaceId="base"
-                      parentLabel="Body"
-                      parentFill={renderPartColors.base ?? primaryColor}
-                      boundaries={panellingBoundaries}
-                      symmetryAxis={1024}
-                      seams={panellingSeams}
-                      panels={panellingPanels}
-                      mirror={panellingMirror}
-                      tool={panellingTool === 'pen' ? 'pen' : 'select'}
-                      selectedPanelId={selectedPanelId}
-                      onSeamsChange={updatePanellingSeams}
-                      onPanelSelect={setSelectedPanelId}
-                      onBoundariesChange={updatePanellingBoundaries}
-                      onDrawingStateChange={active => setPanellingDraftPointCount(active ? 1 : 0)}
-                      onSelectionChange={() => {}}
-                    />
-                  </Suspense>
-                </div>
-              ) : isGarmentSvgFlow && garmentSvgType ? (
+              {isGarmentSvgFlow && garmentSvgType ? (
                 <TshirtSvgPreview
                   constructionPanels={state.garmentPanels}
+                  semanticPanels={panellingPanels}
+                  renderPanellingOverlay={currentStep === 14 && garmentSvgType === 'tshirt' && !state.importedGarment ? geometryMarkup => (
+                    <Suspense fallback={null}>
+                      <LazyPanellingCanvas key={garmentView} className="builder-panelling-canvas absolute inset-0 h-full w-full z-[180]"
+                        ref={panellingCanvasRef} surfaceAware overlayOnly garmentMarkup={geometryMarkup} seamColour={constructionColor(renderPartColors.base ?? primaryColor)}
+                        parentSurfaceId="base" parentLabel="Garment" parentFill={renderPartColors.base ?? primaryColor}
+                        boundaries={panellingBoundaries} symmetryAxis={1024} seams={panellingSeams} panels={panellingPanels}
+                        mirror={panellingMirror} tool={panellingTool === 'pen' ? 'pen' : 'select'} selectedPanelId={selectedPanelId}
+                        onSeamsChange={updatePanellingSeams} onPanelSelect={setSelectedPanelId} onBoundariesChange={updatePanellingBoundaries}
+                        onDrawingStateChange={active => setPanellingDraftPointCount(active ? 1 : 0)} onSelectionChange={() => {}} />
+                    </Suspense>
+                  ) : undefined}
                   panellingEditor={currentStep === 14 ? undefined : panellingEditor}
                   fabricAssignments={state.fabricAssignments}
                   fabricTextureIntensity={state.fabricTextureIntensity}
@@ -4481,7 +4512,7 @@ export function Builder() {
                 Drag empty · Ctrl+scroll
               </span>
             </div>
-            <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#252528] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
+            <div data-builder-completion className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#252528] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
               <CircularProgress value={progress} compact />
               <div>
                 <div className="text-[11px] font-bold tabular-nums text-white sm:text-xs">
@@ -4538,6 +4569,313 @@ export function Builder() {
       </div>
     </div>
   );
+
+  const builderDialogs=<>
+      {showDownloadModal && (
+        <DownloadTechPackModal
+          appearance={redesignEnabled?'light':undefined}
+          onClose={() => setShowDownloadModal(false)}
+          availableColors={state.colors}
+          measurementUnit={state.measurementUnit}
+        />
+      )}
+
+      {showReviewDrawer ? (redesignEnabled?<BuilderReview name={projectName} fit={activeFit||state.fit||'Regular'} progress={progress} preview={<ProjectGarmentPreview garmentType={state.garmentType} state={state} view={showFront?'front':'back'} fill={false} className="h-full w-full"/>} groups={reviewGroups} onClose={()=>setShowReviewDrawer(false)} onExport={()=>{setShowReviewDrawer(false);setShowDownloadModal(true)}}/>:
+        <div className={cn('fixed inset-0 flex justify-end', isPhone ? 'z-[300]' : 'z-[70]')}>
+          <button
+            type="button"
+            aria-label="Close review"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            onClick={() => setShowReviewDrawer(false)}
+          />
+          <aside
+            role="dialog"
+            aria-label="Tech pack review"
+            className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
+          >
+            {isPhone ? (
+              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 min-h-11 shrink-0 gap-1.5 rounded-xl px-3 !text-white hover:bg-white/10"
+                  onClick={() => setShowReviewDrawer(false)}
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
+                  <span className="text-[13px] font-semibold">Back</span>
+                </Button>
+              </div>
+            ) : null}
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
+              <div className="min-w-0">
+                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">
+                  Specification
+                </div>
+                <h3 className="text-balance text-[16px] font-bold leading-snug text-white">
+                  Review tech pack
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReviewDrawer(false)}
+                aria-label="Close"
+                className="builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/[0.06] hover:text-white md:h-9 md:w-9"
+              >
+                <X className="h-4 w-4 md:h-[18px] md:w-[18px]" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+              {renderSummaryBody()}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {showVersionHistory ? (redesignEnabled ? <BuilderVersionHistory versions={versions} onClose={()=>setShowVersionHistory(false)} onSave={saveManualVersion} onRestore={restoreVersion} onRemove={removeVersion} formatDate={formatVersionDate} renderThumbnail={version=><VersionThumbnail state={version?.state??state} currentStep={version?.currentStep??currentStep} showFront={version?.showFront??showFront} light/>}/> : (
+        <div
+          className={cn(
+            'fixed inset-0 flex justify-end',
+            isPhone ? 'z-[320]' : 'z-[70]',
+          )}
+        >
+          <button
+            type="button"
+            aria-label="Close version history"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            onClick={() => setShowVersionHistory(false)}
+          />
+          <aside
+            role="dialog"
+            aria-label="Version history"
+            className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
+          >
+            {isPhone ? (
+              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 min-h-11 shrink-0 gap-1.5 rounded-xl px-3 !text-white hover:bg-white/10"
+                  onClick={() => setShowVersionHistory(false)}
+                >
+                  <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
+                  <span className="text-[13px] font-semibold">Back</span>
+                </Button>
+              </div>
+            ) : null}
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
+              <div className="min-w-0">
+                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">
+                  Timeline
+                </div>
+                <h3 className="text-balance text-[17px] font-bold leading-snug text-white">
+                  Version history
+                </h3>
+                <div className="mt-0.5 text-[11px] text-white/50">
+                  {versions.length === 0
+                    ? 'No versions yet — save one to start the timeline.'
+                    : `${versions.length + 1} version${versions.length + 1 === 1 ? '' : 's'}`}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVersionHistory(false)}
+                aria-label="Close"
+                className="builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/[0.06] hover:text-white md:h-9 md:w-9"
+              >
+                <X className="h-4 w-4 md:h-[18px] md:w-[18px]" />
+              </button>
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.05] bg-black/30 px-4 py-2.5 sm:px-5">
+              <div className="text-[10px] leading-snug text-white/45">
+                Auto-saves every few minutes
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 min-h-10 shrink-0 border-[#3A3A40] bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
+                onClick={saveManualVersion}
+              >
+                <Save className="mr-2 h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
+                Save version
+              </Button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+              <ol className="flex flex-col gap-2.5">
+                {/* Current (live) version — always pinned at top */}
+                <li className="relative overflow-hidden rounded-xl border border-[#FF3B30]/55 bg-[#FF3B30]/[0.06] p-2.5 ring-1 ring-[#FF3B30]/25">
+                  <div className="flex items-stretch gap-3">
+                    <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#3A3A40] bg-[#09090B]">
+                      <VersionThumbnail
+                        state={state}
+                        currentStep={currentStep}
+                        showFront={showFront}
+                      />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col justify-center">
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded-full bg-[#FF3B30]/25 px-2 py-[2px] text-[9px] font-bold uppercase tracking-wider text-[#FF8C85]">
+                          Current
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[12px] font-semibold text-white">
+                        {formatVersionDate(Date.now())}
+                      </div>
+                      <div className="mt-0.5 text-[10.5px] text-white/55">
+                        Live — all unsaved changes
+                      </div>
+                    </div>
+                  </div>
+                </li>
+
+                {versions.length === 0 ? (
+                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-[#252528] px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">
+                    Your saves land here. We also snapshot automatically as you edit.
+                  </li>
+                ) : (
+                  versions.map((v, idx) => (
+                    <li
+                      key={v.id}
+                      className="group relative overflow-hidden rounded-xl border border-[#252528] bg-black/30 p-2.5 transition hover:border-white/22 hover:bg-white/[0.04]"
+                    >
+                      <div className="flex items-stretch gap-3">
+                        <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#252528] bg-[#09090B]">
+                          <VersionThumbnail
+                            state={v.state}
+                            currentStep={v.currentStep}
+                            showFront={v.showFront}
+                          />
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <div className="flex items-center gap-1.5">
+                            {idx === 0 ? (
+                              <span className="rounded-full bg-white/10 px-1.5 py-[1px] text-[8.5px] font-bold uppercase tracking-wider text-white/75">
+                                Latest
+                              </span>
+                            ) : null}
+                            <span className="rounded-full bg-white/[0.04] px-1.5 py-[1px] text-[8.5px] font-bold uppercase tracking-wider text-white/55">
+                              {v.manual ? 'Saved' : 'Auto'}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-[12px] font-semibold text-white">
+                            {formatVersionDate(v.createdAt)}
+                          </div>
+                          <div className="mt-0.5 truncate text-[10.5px] text-white/55">
+                            {v.summary}
+                          </div>
+                          <div className="mt-auto flex items-center gap-2 pt-1.5 opacity-90 transition group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={() => restoreVersion(v.id)}
+                              className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-[#3A3A40] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
+                              title="Restore this version"
+                            >
+                              <RotateCcw className="h-4 w-4 sm:h-3 sm:w-3" strokeWidth={2.25} />
+                              Restore
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeVersion(v.id)}
+                              aria-label="Delete version"
+                              title="Delete"
+                              className="builder-focus flex min-h-10 min-w-10 items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.06] hover:text-[#FF3B30] sm:h-8 sm:min-h-0 sm:min-w-0 sm:w-8 sm:rounded-md"
+                            >
+                              <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ol>
+            </div>
+          </aside>
+        </div>
+      )) : null}
+  </>;
+  if(redesignEnabled){
+    const legacySearch=new URLSearchParams(searchParams);legacySearch.delete('builder');
+    const legacyUrl=location.pathname+(legacySearch.toString()?'?'+legacySearch.toString():'');
+    const title=measurementTool==='Core measurements'?'Fit & Measurements':measurementTool;
+    const inspector=redesignSection!=='Fit & Measurements'?<BuilderPlaceholder section={redesignSection} detail={redesignSection==='Construction'?constructionTool:undefined}/>:<>
+      <h2>{title}</h2>
+      {(!networkOnline||saveError)&&<div role="alert" className="builder-tool-notice"><p>{!networkOnline?'Offline. Reconnect to sync your draft.':'Your last save needs attention.'}</p><button className="builder-link" onClick={()=>handleSave(false)}>Retry save</button></div>}
+      {measurementTool==='Core measurements'||measurementTool==='Advanced sizing'?<>            <MeasurementsStep
+              grading={state.measurementGrading}
+              sizingActions={{
+                setBase:size=>setState(prev=>changeBaseSize(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,size)),
+                setRule:(id,patch)=>setState(prev=>applyGrade(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,id,patch)),
+                resetCell:(id,size)=>setState(prev=>resetSizeToGrade(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,id,size)),
+                resetRow:id=>setState(prev=>resetGradingRow(prev,id)),
+                setSharedTolerance:(id,shared,sourceSize)=>setState(prev=>{const existing=prev.measurementTolerances??{},anchor=sourceSize??baseSize(prev.measurementGrading),value=getMeasurementTolerance(existing,id,anchor).valueCm;const row=shared?{default:value}:{...existing[id],...Object.fromEntries(GARMENT_SIZES.map(size=>[size,getMeasurementTolerance(existing,id,size).valueCm]))};return {...prev,measurementTolerances:{...existing,[id]:row}}}),
+                setCompare:compare=>setState(prev=>({...prev,measurementGrading:{...prev.measurementGrading,baseSize:baseSize(prev.measurementGrading),rows:prev.measurementGrading?.rows??{},compare}}))
+              }}
+              measurementTolerances={state.measurementTolerances}
+              onToleranceChange={(id,size,value)=>setState(prev=>({...prev,measurementTolerances:{...prev.measurementTolerances,[id]:{...prev.measurementTolerances?.[id],[size]:value}}}))}
+              notes={state.extraDetails.measurements??''}
+              onNotesChange={notes=>setState(prev=>({...prev,extraDetails:{...prev.extraDetails,measurements:notes}}))}
+              appearance={redesignEnabled?'shell':undefined}
+              tool={measurementTool}
+              garmentType={state.garmentType}
+              fit={activeFit || 'regular'}
+              fits={garmentConfig?.fits}
+              onFitChange={(fit) =>
+                setState((prev) => ({
+                  ...prev,
+                  fit,
+                  measurements: regradeForFit(prev,fitMeasurements[fit]??fitMeasurements.regular).measurements,
+                  tshirtAssetSelection: garmentSvgType
+                    ? applyGarmentFitAndLinks(
+                        garmentSvgType,
+                        {
+                          ...getDefaultGarmentSelection(garmentSvgType, fit),
+                          ...prev.tshirtAssetSelection,
+                        },
+                        fit,
+                      )
+                    : prev.tshirtAssetSelection,
+                }))
+              }
+              measurements={state.measurements}
+              measurementUnit={state.measurementUnit}
+              onMeasurementUnitChange={(unit) =>
+                setState((prev) =>
+                  prev.measurementUnit === unit ? prev : { ...prev, measurementUnit: unit },
+                )
+              }
+              highlightedMeasurementId={highlightedMeasurementId}
+              onHighlightedMeasurementIdChange={setHighlightedMeasurementId}
+              onMeasurementChange={(measurementId,size,value)=>setState(prev=>editGradedMeasurement(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,measurementId,size,value))}
+            /><NewAssetMeasurements assets={assetMeasurementSnapshot.view===garmentView?assetMeasurementSnapshot.assets:[]} unit={state.measurementUnit} selectedId={selectedMeasurementAssetId} onSelect={setSelectedMeasurementAssetId} onEdit={(asset,field,value)=>{const result=editAssetDimension(state,asset,field,value);if(result.changes)setState(prev=>({...prev,...result.changes}));return result.error}}/><details className="new-notes"><summary>Measurement notes</summary><textarea aria-label="Measurement notes" value={state.extraDetails.measurements||''} onChange={e=>setState(prev=>({...prev,extraDetails:{...prev.extraDetails,measurements:e.target.value}}))}/></details></>:measurementTool==='Import measurements'?<ImportMeasurementsPanel/>:measurementTool==='Upload reference'?<><p>Attach reference file names and notes. These files are references only; this does not import measurement values.</p><NewReferencePanel fileNamesText={state.referenceUploadFileNames??''} notes={state.extraDetails.referenceUploadNotes??''} onFileNamesChange={names=>setState(prev=>({...prev,referenceUploadFileNames:names||undefined}))} onNotesChange={notes=>setState(prev=>({...prev,extraDetails:{...prev.extraDetails,referenceUploadNotes:notes}}))}/></>:<><div className="builder-tool-notice"><p>{measurementTool==='Import measurements'?'Measurement file parsing and a review-before-apply flow are coming later.':'New custom measurement rows are coming later. Existing uploaded asset dimensions remain available in Core measurements.'}</p><button disabled className="builder-link">{measurementTool==='Import measurements'?'Import size chart — coming later':'Add measurement — coming later'}</button></div><button className="builder-link" onClick={()=>setMeasurementTool('Core measurements')}>Back to core measurements</button></>}
+    </>;
+    return <SizeComparisonContext.Provider value={{measurements:state.measurements,presets:reviewPresets,grading:state.measurementGrading,enabled:redesignSection==='Fit & Measurements'&&measurementTool==='Advanced sizing'&&Boolean(state.measurementGrading?.compare?.enabled)}}><MeasurementValueContext.Provider value={{measurements:Object.fromEntries(Object.entries(fitMeasurements[activeFit||'regular']??fitMeasurements.regular).map(([id,defaults])=>[id,{...defaults,...state.measurements[id]}])),unit:state.measurementUnit}}><BuilderShell sizeComparison={measurementTool==='Advanced sizing'&&redesignSection==='Fit & Measurements'?state.measurementGrading?.compare:undefined} reviewOpen={showReviewDrawer} onReview={()=>setShowReviewDrawer(v=>!v)} onWorkspaceFit={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}} section={redesignSection} onSection={section=>{setRedesignSection(section);if(section==='Fit & Measurements')setMeasurementTool('Core measurements')}} tool={measurementTool} onTool={tool=>{setRedesignSection('Fit & Measurements');setMeasurementTool(tool)}} constructionTool={constructionTool} onConstructionTool={setConstructionTool} inspector={inspector} topbar={<BuilderTopBar onSaveVersion={saveManualVersion} name={projectName} onName={setProjectName} background={previewBackground} onBackground={setPreviewBackground} onUndo={undo} onRedo={redo} canUndo={undoAvailable} canRedo={redoAvailable} onHistory={()=>setShowVersionHistory(true)} onReview={()=>setShowReviewDrawer(true)} onSave={()=>handleSave(false)} status={saving?'Saving…':!networkOnline?'Offline':saveError?'Not synced':'Saved'} legacyUrl={legacyUrl}/>}> <div ref={previewShellRef} className="new-builder-canvas" style={previewSurfaceStyle}><div className="new-view-switch" role="group" aria-label="Garment view"><button aria-pressed={showFront} onClick={()=>{setShowFront(true);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Front</button><button aria-pressed={!showFront} onClick={()=>{setShowFront(false);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Back</button></div><div className="new-canvas-area" onPointerDown={e=>{if(!(e.target as Element).closest('[data-measurement-guide],[data-asset-measurement]'))beginCanvasPanFromPointer(e)}}><div ref={previewStageRef} className="new-canvas-stage" style={{transform:`translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom/100*.9})`,transition:isPanningCanvas?'none':'transform 140ms ease-out'}}><div className="new-drawing-frame" style={{width:`min(calc(100cqw / ${(redesignDrawingBounds.right-redesignDrawingBounds.left+(layoutTier==='phone'?100:160))/1000}),calc(100cqh / ${(redesignDrawingBounds.bottom-redesignDrawingBounds.top+100)/1000}))`,transform:`translate(${-100*(redesignDrawingBounds.left+redesignDrawingBounds.right)/2000}%,${-100*(redesignDrawingBounds.top+redesignDrawingBounds.bottom)/2000}%)`}}> <MeasurementMotionContext.Provider value={JSON.stringify(state.measurements)}><MeasurementPreview onDrawingBounds={setRedesignDrawingBounds} presentation="redesign" onGuideSelect={setHighlightedMeasurementId}
+                garmentType={garmentSvgType ?? state.garmentType}
+                color={primaryColor}
+                selection={garmentSelection}
+                fit={activeFit}
+                partColors={renderPartColors}
+                tshirtHemStyles={state.tshirtHemStyles}
+                neckFinish={state.neckFinish}
+                tshirtStitching={state.tshirtStitching}
+                stitchingColor={state.stitchingColor}
+                garmentDetails={state.garmentDetails}
+                detailView={showFront ? 'front' : 'back'}
+                highlightedMeasurementId={highlightedMeasurementId}
+                prints={state.prints}
+                measurementUnit={state.measurementUnit}
+                selectedAssetId={selectedMeasurementAssetId}
+                onAssetSelect={setSelectedMeasurementAssetId}
+                onAssetMeasurementsChange={setAssetMeasurementSnapshot}
+                sharedGarmentProps={{ customAssetState: state, garmentWash: state.garmentWash, showWash, layerTransforms: state.tshirtLayerTransforms,
+                  garmentLabels: state.garmentLabels, labelReferenceWidthMm: Number(state.measurements.chestWidth?.m) * 10 || undefined,
+                  customCollar: state.customCollar, customCollars: state.customCollars,
+                  neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor,
+                  cuffTrimColor: state.cuffTrimColor, pocketTrimColor: state.pocketTrimColor }}
+              /></MeasurementMotionContext.Provider></div></div></div>{measurementTool==='Advanced sizing'&&state.measurementGrading?.compare?.enabled&&<div className="size-comparison-legend"><span><i/>{state.measurementGrading.compare.first.toUpperCase()}</span><span><i/>{state.measurementGrading.compare.second.toUpperCase()}</span></div>}<div className="new-zoom-control" aria-label="Canvas zoom"><button aria-label="Zoom out" onClick={()=>setPreviewZoom(z=>Math.max(PREVIEW_ZOOM_MIN,z-10))}>−</button><button aria-label="Reset zoom" onClick={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}}>{previewZoom}%</button><button aria-label="Zoom in" onClick={()=>setPreviewZoom(z=>Math.min(previewZoomMax,z+10))}>+</button><button className="new-fit-control" aria-label="Fit garment to canvas" onClick={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}}>Fit</button></div></div></BuilderShell><div className="builder-shell-dialogs">{builderDialogs}</div></MeasurementValueContext.Provider></SizeComparisonContext.Provider>;
+  }
 
   return (
     <div
@@ -5074,229 +5412,7 @@ export function Builder() {
         </div>
       ) : null}
 
-      {showDownloadModal && (
-        <DownloadTechPackModal
-          onClose={() => setShowDownloadModal(false)}
-          availableColors={state.colors}
-          measurementUnit={state.measurementUnit}
-        />
-      )}
-
-      {showReviewDrawer ? (
-        <div className={cn('fixed inset-0 flex justify-end', isPhone ? 'z-[300]' : 'z-[70]')}>
-          <button
-            type="button"
-            aria-label="Close review"
-            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
-            onClick={() => setShowReviewDrawer(false)}
-          />
-          <aside
-            role="dialog"
-            aria-label="Tech pack review"
-            className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
-          >
-            {isPhone ? (
-              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-11 min-h-11 shrink-0 gap-1.5 rounded-xl px-3 !text-white hover:bg-white/10"
-                  onClick={() => setShowReviewDrawer(false)}
-                >
-                  <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
-                  <span className="text-[13px] font-semibold">Back</span>
-                </Button>
-              </div>
-            ) : null}
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
-              <div className="min-w-0">
-                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">
-                  Specification
-                </div>
-                <h3 className="text-balance text-[16px] font-bold leading-snug text-white">
-                  Review tech pack
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowReviewDrawer(false)}
-                aria-label="Close"
-                className="builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/[0.06] hover:text-white md:h-9 md:w-9"
-              >
-                <X className="h-4 w-4 md:h-[18px] md:w-[18px]" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
-              {renderSummaryBody()}
-            </div>
-          </aside>
-        </div>
-      ) : null}
-
-      {showVersionHistory ? (
-        <div
-          className={cn(
-            'fixed inset-0 flex justify-end',
-            isPhone ? 'z-[320]' : 'z-[70]',
-          )}
-        >
-          <button
-            type="button"
-            aria-label="Close version history"
-            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
-            onClick={() => setShowVersionHistory(false)}
-          />
-          <aside
-            role="dialog"
-            aria-label="Version history"
-            className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
-          >
-            {isPhone ? (
-              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-11 min-h-11 shrink-0 gap-1.5 rounded-xl px-3 !text-white hover:bg-white/10"
-                  onClick={() => setShowVersionHistory(false)}
-                >
-                  <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
-                  <span className="text-[13px] font-semibold">Back</span>
-                </Button>
-              </div>
-            ) : null}
-            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
-              <div className="min-w-0">
-                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">
-                  Timeline
-                </div>
-                <h3 className="text-balance text-[17px] font-bold leading-snug text-white">
-                  Version history
-                </h3>
-                <div className="mt-0.5 text-[11px] text-white/50">
-                  {versions.length === 0
-                    ? 'No versions yet — save one to start the timeline.'
-                    : `${versions.length + 1} version${versions.length + 1 === 1 ? '' : 's'}`}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowVersionHistory(false)}
-                aria-label="Close"
-                className="builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/[0.06] hover:text-white md:h-9 md:w-9"
-              >
-                <X className="h-4 w-4 md:h-[18px] md:w-[18px]" />
-              </button>
-            </div>
-
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.05] bg-black/30 px-4 py-2.5 sm:px-5">
-              <div className="text-[10px] leading-snug text-white/45">
-                Auto-saves every few minutes
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 min-h-10 shrink-0 border-[#3A3A40] bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
-                onClick={saveManualVersion}
-              >
-                <Save className="mr-2 h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
-                Save version
-              </Button>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
-              <ol className="flex flex-col gap-2.5">
-                {/* Current (live) version — always pinned at top */}
-                <li className="relative overflow-hidden rounded-xl border border-[#FF3B30]/55 bg-[#FF3B30]/[0.06] p-2.5 ring-1 ring-[#FF3B30]/25">
-                  <div className="flex items-stretch gap-3">
-                    <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#3A3A40] bg-[#09090B]">
-                      <VersionThumbnail
-                        state={state}
-                        currentStep={currentStep}
-                        showFront={showFront}
-                      />
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col justify-center">
-                      <div className="flex items-center gap-1.5">
-                        <span className="rounded-full bg-[#FF3B30]/25 px-2 py-[2px] text-[9px] font-bold uppercase tracking-wider text-[#FF8C85]">
-                          Current
-                        </span>
-                      </div>
-                      <div className="mt-1 text-[12px] font-semibold text-white">
-                        {formatVersionDate(Date.now())}
-                      </div>
-                      <div className="mt-0.5 text-[10.5px] text-white/55">
-                        Live — all unsaved changes
-                      </div>
-                    </div>
-                  </div>
-                </li>
-
-                {versions.length === 0 ? (
-                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-[#252528] px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">
-                    Your saves land here. We also snapshot automatically as you edit.
-                  </li>
-                ) : (
-                  versions.map((v, idx) => (
-                    <li
-                      key={v.id}
-                      className="group relative overflow-hidden rounded-xl border border-[#252528] bg-black/30 p-2.5 transition hover:border-white/22 hover:bg-white/[0.04]"
-                    >
-                      <div className="flex items-stretch gap-3">
-                        <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#252528] bg-[#09090B]">
-                          <VersionThumbnail
-                            state={v.state}
-                            currentStep={v.currentStep}
-                            showFront={v.showFront}
-                          />
-                        </div>
-                        <div className="flex min-w-0 flex-1 flex-col">
-                          <div className="flex items-center gap-1.5">
-                            {idx === 0 ? (
-                              <span className="rounded-full bg-white/10 px-1.5 py-[1px] text-[8.5px] font-bold uppercase tracking-wider text-white/75">
-                                Latest
-                              </span>
-                            ) : null}
-                            <span className="rounded-full bg-white/[0.04] px-1.5 py-[1px] text-[8.5px] font-bold uppercase tracking-wider text-white/55">
-                              {v.manual ? 'Saved' : 'Auto'}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-[12px] font-semibold text-white">
-                            {formatVersionDate(v.createdAt)}
-                          </div>
-                          <div className="mt-0.5 truncate text-[10.5px] text-white/55">
-                            {v.summary}
-                          </div>
-                          <div className="mt-auto flex items-center gap-2 pt-1.5 opacity-90 transition group-hover:opacity-100">
-                            <button
-                              type="button"
-                              onClick={() => restoreVersion(v.id)}
-                              className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-[#3A3A40] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
-                              title="Restore this version"
-                            >
-                              <RotateCcw className="h-4 w-4 sm:h-3 sm:w-3" strokeWidth={2.25} />
-                              Restore
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeVersion(v.id)}
-                              aria-label="Delete version"
-                              title="Delete"
-                              className="builder-focus flex min-h-10 min-w-10 items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.06] hover:text-[#FF3B30] sm:h-8 sm:min-h-0 sm:min-w-0 sm:w-8 sm:rounded-md"
-                            >
-                              <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))
-                )}
-              </ol>
-            </div>
-          </aside>
-        </div>
-      ) : null}
+      {builderDialogs}
     </div>
   );
 }
@@ -5331,6 +5447,7 @@ function pickLayerLabel(step: number): string {
 }
 
 interface VersionThumbnailProps {
+  light?: boolean;
   state: BuilderState;
   currentStep: number;
   showFront: boolean;
@@ -5341,7 +5458,7 @@ interface VersionThumbnailProps {
  * design elements in their saved positions, and text content so users can recognise
  * a version at a glance (like Canva / Figma version history cards).
  */
-function VersionThumbnail({ state, currentStep, showFront }: VersionThumbnailProps) {
+function VersionThumbnail({ state, currentStep, showFront, light=false }: VersionThumbnailProps) {
   const elements = pickThumbnailElements(state, currentStep, showFront);
   const layerLabel = pickLayerLabel(currentStep);
 
@@ -5353,10 +5470,10 @@ function VersionThumbnail({ state, currentStep, showFront }: VersionThumbnailPro
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       preserveAspectRatio="xMidYMid meet"
       className="h-full w-full"
-      style={{ background: '#161618' }}
+      style={{ background: light?'#f8fafc':'#161618' }}
       aria-hidden
     >
-      <rect x={0} y={0} width={VB_W} height={VB_H} fill="#161618" />
+      <rect x={0} y={0} width={VB_W} height={VB_H} fill={light?'#f8fafc':'#161618'} />
       <foreignObject x={0} y={0} width={VB_W} height={VB_W}>
         <ProjectGarmentPreview garmentType={state.garmentType} state={state}
           view={showFront ? 'front' : 'back'} fill={false} className="h-full w-full" />
@@ -5440,7 +5557,7 @@ function VersionThumbnail({ state, currentStep, showFront }: VersionThumbnailPro
           ry={8}
           width={106}
           height={24}
-          fill="rgba(0,0,0,0.55)"
+          fill={light?'#e8edf4':'rgba(0,0,0,0.55)'}
         />
         <text
           x={20}
@@ -5448,7 +5565,7 @@ function VersionThumbnail({ state, currentStep, showFront }: VersionThumbnailPro
           fontFamily="Inter, system-ui, sans-serif"
           fontSize={14}
           fontWeight={700}
-          fill="rgba(255,255,255,0.85)"
+          fill={light?'#536780':'rgba(255,255,255,0.85)'}
           letterSpacing={1}
         >
           {layerLabel.toUpperCase()}

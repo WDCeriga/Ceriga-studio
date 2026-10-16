@@ -1,5 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ForwardedRef, type PointerEvent as ReactPointerEvent } from 'react';
-import { closestBoundaryPoint, distance, flattenSeam, pointInSurface, sampleSvgBoundaries, seamPath } from './panellingGeometry';
+import {useTechnicalDrawing,TECH_OUTLINE_WIDTH,TECH_TRACE_INK_BOLDNESS} from '../../lib/technicalDrawing';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useId, useRef, useState, type ForwardedRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { closestBoundaryPoint, distance, flattenSeam, pointInSurface, sampleSvgBoundaries, sampleGarmentSurfaces, seamPath } from './panellingGeometry';
+import { constructionInk, measureGarmentOutline } from './panellingPresentation';
 import { linkedMirrorSeams } from './panellingMirroring';
 import { convertSeamToCurve, insertSeamAnchor, moveSeamAnchor, setAnchorMode, snapAnchor } from './panellingSeams';
 import type { BoundaryLoop, PanellingPoint, PanellingSeam, PanelRegion, SeamAnchor } from './panellingTypes';
@@ -30,6 +32,9 @@ export interface PanellingCanvasHandle {
 }
 interface PanellingCanvasProps {
   className?: string;
+  surfaceAware?: boolean;
+  overlayOnly?: boolean;
+  seamColour?: string;
   garmentMarkup: string;
   parentSurfaceId: string;
   parentLabel: string;
@@ -87,7 +92,9 @@ function nearestSeam(seams: PanellingSeam[], point: PanellingPoint, radius: numb
 
 const boundaryCache = new Map<string, ReturnType<typeof sampleSvgBoundaries>>();
 
-function PanellingCanvasInner({ className, garmentMarkup, parentSurfaceId, parentLabel, parentFill, boundaries, symmetryAxis, seams, panels, mirror, tool, selectedPanelId, onSeamsChange, onPanelSelect, onBoundariesChange, onDrawingStateChange, onSelectionChange }: PanellingCanvasProps, ref: ForwardedRef<PanellingCanvasHandle>) {
+function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = false, seamColour = '#1d2424', garmentMarkup, parentSurfaceId, parentLabel, parentFill, boundaries, symmetryAxis, seams, panels, mirror, tool, selectedPanelId, onSeamsChange, onPanelSelect, onBoundariesChange, onDrawingStateChange, onSelectionChange }: PanellingCanvasProps, ref: ForwardedRef<PanellingCanvasHandle>) {
+  const technical=useTechnicalDrawing();
+  const clipId = `panelling-${useId().replaceAll(':', '')}`;
   const frameRef = useRef<HTMLDivElement>(null);
   const garmentRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef<{ start: PanellingPoint; pointerId: number; dragged: boolean } | null>(null);
@@ -102,6 +109,8 @@ function PanellingCanvasInner({ className, garmentMarkup, parentSurfaceId, paren
   const [boundaryError, setBoundaryError] = useState(false);
   const [dragPreviewSeams, setDragPreviewSeams] = useState<PanellingSeam[] | null>(null);
   const dragPreviewRef = useRef<PanellingSeam[] | null>(null);
+  const [constructionWidth, setConstructionWidth] = useState(TECH_OUTLINE_WIDTH);
+  const ink = useMemo(() => constructionInk(garmentMarkup), [garmentMarkup]);
   const hitRadius = 14 * VIEW_SIZE / canvasWidth;
   const visibleSeams = linkedMirrorSeams(dragPreviewSeams ?? seams, symmetryAxis, mirror);
 
@@ -119,19 +128,23 @@ function PanellingCanvasInner({ className, garmentMarkup, parentSurfaceId, paren
     const svg = garmentRef.current?.querySelector('svg');
     if (!svg) return;
     try {
-      const cacheKey = `${parentSurfaceId}|${garmentMarkup.length}|${garmentMarkup.replace(/#[0-9a-fA-F]{6}/g, '')}`;
+      const cacheKey = `${surfaceAware}|live-masked-v4|${parentSurfaceId}|${garmentMarkup.length}|${garmentMarkup.replace(/#[0-9a-fA-F]{6}/g, '')}`;
       let sampled = boundaryCache.get(cacheKey);
       if (!sampled) {
-        sampled = sampleSvgBoundaries(svg, parentSurfaceId);
+        sampled = surfaceAware
+          ? sampleGarmentSurfaces(svg)
+          : sampleSvgBoundaries(svg, parentSurfaceId);
         boundaryCache.set(cacheKey, sampled);
       }
       onBoundariesChange(sampled);
+      const width = measureGarmentOutline(svg, sampled);
+      setConstructionWidth(width===undefined?TECH_OUTLINE_WIDTH:technical?TECH_OUTLINE_WIDTH:width);
       setBoundaryError(false);
     } catch (error) {
       console.error(`Could not sample panelling boundaries for ${parentSurfaceId}.`, error);
       setBoundaryError(true);
     }
-  }, [garmentMarkup, parentSurfaceId, onBoundariesChange]);
+  }, [garmentMarkup, parentSurfaceId, surfaceAware, onBoundariesChange, technical]);
 
   const updateSelection = (selection: SelectedAnchor | null, sourceSeams = seams) => {
     setSelected(selection);
@@ -151,7 +164,8 @@ function PanellingCanvasInner({ className, garmentMarkup, parentSurfaceId, paren
       onSeamsChange(seams.map(seam => seam.id === continuation.id ? { ...seam, anchors } : seam));
     } else {
       const id = crypto.randomUUID();
-      onSeamsChange([...seams, { id, label: `${parentLabel} seam ${seams.length + 1}`, parentSurfaceId, anchors: active, construction: 'standard', ...(mirror ? { mirrorGroupId: id, mirrorLinked: true } : {}) }]);
+      const startSurface = boundaries.find(loop => loop.role === 'outer' && pointInSurface(active[0], boundaries.filter(other => other.surfaceId === loop.surfaceId)))?.surfaceId ?? parentSurfaceId;
+      onSeamsChange([...seams, { id, label: `${parentLabel} seam ${seams.length + 1}`, parentSurfaceId: startSurface, anchors: active, construction: 'standard', ...(mirror ? { mirrorGroupId: id, mirrorLinked: true } : {}) }]);
     }
     continuationRef.current = null;
     setActive([]);
@@ -354,19 +368,20 @@ function PanellingCanvasInner({ className, garmentMarkup, parentSurfaceId, paren
     {boundaryError && <p role="alert" className="absolute left-2 top-2 z-10 rounded bg-red-950/90 px-2 py-1 text-xs text-red-100">
       Could not calculate garment boundaries. Existing panelling data was preserved.
     </p>}
-    <div className="panelling-body" ref={garmentRef} dangerouslySetInnerHTML={{ __html: garmentMarkup }} />
+    <div className="panelling-body" style={overlayOnly ? { visibility: 'hidden' } : undefined} aria-hidden={overlayOnly || undefined} ref={garmentRef} dangerouslySetInnerHTML={{ __html: garmentMarkup }} />
     <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className={`panelling-overlay ${tool === 'pen' ? 'pen-mode' : 'select-mode'}`} role="application" aria-label={`T-shirt ${parentLabel} seam drawing canvas`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
-      <defs><clipPath id="panelling-parent-clip"><path d={boundariesPath(boundaries)} fillRule="evenodd" clipRule="evenodd" /></clipPath></defs>
-      <g clipPath="url(#panelling-parent-clip)">
-        {panels.map(panel => <path key={panel.id} data-panel-id={panel.id} d={panel.path} fill={panel.fillOverride ?? parentFill} fillOpacity={1} stroke="none" onClick={event => { event.stopPropagation(); onPanelSelect(panel.id); }} />)}
+      <defs><clipPath id={clipId}><path d={boundariesPath(boundaries)} fillRule="nonzero" clipRule="nonzero" /></clipPath></defs>
+      <g clipPath={`url(#${clipId})`}>
+        {panels.map(panel => <path key={panel.id} data-panel-id={panel.id} data-surface-id={panel.parentId} d={panel.path} fill={overlayOnly ? 'transparent' : panel.fillOverride ?? 'transparent'} fillRule="evenodd" fillOpacity={1} stroke="none" onClick={event => { event.stopPropagation(); onPanelSelect(panel.id); }} />)}
         {visibleSeams.map(seam => <g key={seam.id}>
           <path d={seamPath(seam.anchors)} fill="none" stroke="transparent" strokeWidth={hitRadius * 2} vectorEffect="non-scaling-stroke" pointerEvents={tool === 'select' ? 'stroke' : 'none'} data-seam-id={seam.id} />
-          <path d={seamPath(seam.anchors)} fill="none" stroke="#242924" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <path d={seamPath(seam.anchors)} fill="none" data-construction-seam="" data-tech-role={technical?'outline':undefined} stroke={seamColour} strokeWidth={constructionWidth} strokeLinecap="round" strokeLinejoin="round" />
         </g>)}
-        {active.length > 1 && <path d={seamPath(active)} fill="none" stroke="#263126" strokeWidth="2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+        {active.length > 1 && <path d={seamPath(active)} fill="none" stroke="#1d2424" strokeWidth={constructionWidth} strokeLinecap="round" />}
         {pendingPath.length > 0 && <path d={seamPath(pendingPath)} fill="none" stroke="#d6ed80" strokeWidth="2" strokeDasharray="7 8" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
         {activePreview.length > 0 && <path d={seamPath(activePreview)} fill="none" stroke="#d6ed80" strokeWidth="2" strokeDasharray="7 8" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
         {mirroredPreview.length > 0 && <path d={seamPath(mirroredPreview)} fill="none" stroke="#d6ed80" strokeWidth="2" strokeDasharray="7 8" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+        {!overlayOnly && <g data-original-construction="" pointerEvents="none" dangerouslySetInnerHTML={{ __html: ink }} />}
         {visibleSeams.filter(seam => selected?.seamId === seam.id || tool === 'select').map(seam => seam.anchors.map(anchor => <g key={anchor.id}>
           {anchor.incoming && <><line x1={anchor.x} y1={anchor.y} x2={anchor.incoming.x} y2={anchor.incoming.y} stroke="#99b84d" strokeWidth="1" vectorEffect="non-scaling-stroke" /><circle cx={anchor.incoming.x} cy={anchor.incoming.y} r={3 * VIEW_SIZE / canvasWidth} fill="#fff" stroke="#748e38" strokeWidth="1" vectorEffect="non-scaling-stroke" /></>}
           {anchor.outgoing && <><line x1={anchor.x} y1={anchor.y} x2={anchor.outgoing.x} y2={anchor.outgoing.y} stroke="#99b84d" strokeWidth="1" vectorEffect="non-scaling-stroke" /><circle cx={anchor.outgoing.x} cy={anchor.outgoing.y} r={3 * VIEW_SIZE / canvasWidth} fill="#fff" stroke="#748e38" strokeWidth="1" vectorEffect="non-scaling-stroke" /></>}
@@ -385,7 +400,7 @@ function PanellingCanvasInner({ className, garmentMarkup, parentSurfaceId, paren
         {snapFeedback && <circle cx={snapFeedback.x} cy={snapFeedback.y} r={9 * VIEW_SIZE / canvasWidth} fill="none" stroke="#d6ed80" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />}
       </g>
     </svg>
-    <div className="canvas-scale">{parentLabel.toUpperCase()} / FRONT <span>STANDARD SEAM</span></div>
+
   </div>;
 }
 

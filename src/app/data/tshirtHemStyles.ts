@@ -98,7 +98,16 @@ export function withTshirtHemStyles(
 ): ResolvedGarmentLayer[] {
   const regions = geometry[`${fit}:${variant}`];
   if (!regions) return layers;
-  let resolved = layers;
+  // Repair disconnected Boxy cuff islands using the existing complete band.
+  if (fit === 'boxy' && ['short','layered-long'].includes(variant)) layers = layers.map(layer => layer.id === 'sleeveHemRight'
+    ? { ...layer, svgRaw: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><g transform="scale(1.3333333333)" fill="#000000"><path fill-rule="evenodd" d="'+geometry['boxy:short'].sleeveHemRight.fill+'"/></g></svg>' }
+    : layer);
+  // Ink-only repair windows, expressed in the hem pack's 1536-unit space.
+  const shoulderCut = ['regular','oversized'].includes(fit)
+    ? 'M350,340H510V610H350Z M1026,340H1186V610H1026Z' : '';
+  let resolved = layers.map(layer => layer.id === 'outline' && shoulderCut
+    ? { ...layer, svgRaw: removeInk(layer.svgRaw, shoulderCut, 'regular-shoulder-clean').replace('</svg>', '<path data-ink-repair="true" fill="none" transform="scale(1.3333333333)" d="'+shoulderCut+'"/></svg>') }
+    : layer);
   for (const [id, region] of Object.entries(regions)) {
     const settings = resolveHemSettings(styles, id);
     const style = settings.finish ?? 'normal';
@@ -128,9 +137,11 @@ export function withTshirtHemStyles(
       }
       if (!['outline', 'stitching'].includes(layer.id)) return layer;
       const stitching = layer.id === 'stitching';
+      const stitchOnlySleeve = ['regular','boxy'].includes(fit) && id.startsWith('sleeveHem') && style === 'normal';
       const cut = stitching ? (style === 'none' || customDepth ? region.stitchCut : '')
-        : style === 'none' || customDepth ? region.noneCut : region.normalCut;
+        : style === 'none' || customDepth || stitchOnlySleeve ? region.noneCut : region.normalCut;
       let svgRaw = removeInk(layer.svgRaw, cut, `hem-${fit}-${variant}-${id}-${layer.id}-${style}`);
+      if (!stitching && stitchOnlySleeve) svgRaw = svgRaw.replace('</svg>', '<path data-ink-repair="true" fill="none" transform="scale(1.3333333333)" d="'+region.noneCut+'"/></svg>');
       let addition = '';
       if (style !== 'none') {
         if (stitching && customDepth) {
@@ -139,7 +150,7 @@ export function withTshirtHemStyles(
           addition = `<g transform="scale(1.3333333333)"><g transform="${transform}"><g transform="scale(.75)"><defs><clipPath id="${clipId}"><path transform="scale(1.3333333333)" d="${region.stitchCut}"/></clipPath></defs><g clip-path="url(#${clipId})">${source}</g></g></g></g>${band(region.extraStitch, `fill="${layer.tint ?? '#B0B0B0'}"`)}`;
         } else if (stitching) addition = svgPath(region.extraStitch, layer.tint ?? '#B0B0B0');
         else {
-          const seam = customDepth ? band(region.fill, 'fill="none" stroke="#34383e" stroke-width="1.4" stroke-linejoin="round"') : svgPath(region.extraSeam, '#34383e');
+          const seam = stitchOnlySleeve ? '' : customDepth ? band(region.fill, 'fill="none" stroke="#34383e" stroke-width="1.4" stroke-linejoin="round"') : svgPath(region.extraSeam, '#34383e');
           const ribs = style === 'ribbed' ? band(region.ribbing, `fill="#34383e" stroke="#34383e" stroke-width="${ribWeight}" stroke-linejoin="round"`) : '';
           const clipId = `hem-ink-${fit}-${variant}-${id}`;
           const ribClipId = `${clipId}-band`;

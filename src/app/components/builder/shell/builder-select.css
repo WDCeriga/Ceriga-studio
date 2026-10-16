@@ -1,0 +1,12 @@
+.builder-select-trigger{min-width:80px;min-height:36px;height:36px;border:1px solid #dfe5ed;border-radius:4px;background:#fff!important;color:#3d4b5d!important;padding:6px 10px;font-size:12px!important;font-weight:400;box-shadow:none;outline:none}
+.builder-select-trigger:hover{border-color:#bcc7d7}
+.builder-select-trigger:focus-visible,.builder-select-trigger[data-state=open]{border-color:#8b9bb3;box-shadow:0 0 0 2px #e9edf3}
+.builder-select-trigger svg{width:14px;height:14px;color:#738096!important;opacity:1}
+.builder-select-menu{z-index:1200;min-width:var(--radix-select-trigger-width);max-height:min(300px,var(--radix-select-content-available-height));border:1px solid #dfe5ed;border-radius:5px;background:#fff!important;color:#3d4b5d!important;box-shadow:0 8px 24px #18243b16;font-family:inherit;scrollbar-width:none}
+.builder-select-menu::-webkit-scrollbar{display:none}
+.builder-select-menu .builder-select-option{min-height:32px;padding:7px 30px 7px 10px;border-radius:3px;font-size:12px!important;line-height:18px;color:#3d4b5d!important;background:transparent;outline:none;cursor:pointer}
+.builder-select-menu .builder-select-option[data-highlighted]{background:#f0f3f7!important;color:#243247!important}
+.builder-select-menu .builder-select-option[data-state=checked]{background:#eef1f5;color:#243247!important;font-weight:600}
+.builder-select-menu .builder-select-option svg{width:13px;height:13px;color:#4a576b}
+.tablet-measurement-picker .builder-select-trigger{width:100%}
+@media(max-width:767px){.builder-select-trigger{min-height:40px;height:40px}.builder-select-menu .builder-select-option{min-height:40px;padding-top:11px;padding-bottom:11px}}

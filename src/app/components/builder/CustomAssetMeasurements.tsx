@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {SizeComparisonContext,SizeComparisonOverlay,sizeDrawingTransform} from './shell/SizeComparisonOverlay';
+import {comparisonRatios} from '../../lib/measurementGrading';
+import {NewMeasurementOverlay} from './shell/NewMeasurementOverlay';
+import { useEffect, useMemo, useRef, useState, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { Crosshair } from 'lucide-react';
 import { arrangeGarmentDetails, detailPlacement, detailRotation, setDetailTransform, type DetailBounds, type GarmentDetail } from '../../data/garmentDetails';
@@ -9,7 +12,7 @@ import { cn } from '../ui/utils';
 import type { DesignElement } from './PrintsDesignStep';
 import { constrainNeckLabel, labelAttachmentMask, labelPlacement } from './GarmentLabelOverlay';
 import { MeasurementGuideOverlay, type MeasurementGuideDef } from './measurementGuides';
-import { buildGeometryGuides, measurementExtent, measurementHemAt, measurementSideClearance, sampleMeasurementShapes, type MeasurementPoint, type MeasurementShape, type MeasurementSource } from './measurementGeometry';
+import { buildBuilderGeometryGuides, buildGeometryGuides, measurementExtent, measurementHemAt, measurementSideClearance, sampleMeasurementShapes, type MeasurementPoint, type MeasurementShape, type MeasurementSource } from './measurementGeometry';
 
 export interface AssetMeasurement {
   id: string;
@@ -151,8 +154,8 @@ export function printMeasurements(elements: DesignElement[], root: HTMLElement, 
   });
 }
 
-export function CustomAssetMeasurementLayer({ sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
-  sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
+export function CustomAssetMeasurementLayer({ presentation, onDrawingBounds, onGuideSelect, sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
+  presentation?: 'redesign'; onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void; onGuideSelect?: (id:string)=>void; sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
   referenceWidthCm?: number; unit?: MeasurementUnit; view: 'front' | 'back'; selectedId?: string | null; highlightedId?: string | null;
   onSelect?: (id: string | null) => void; onMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
 }) {
@@ -174,7 +177,12 @@ export function CustomAssetMeasurementLayer({ sources: incomingSources, bounds, 
   const [shapeError, setShapeError] = useState(false);
   const hasCurrentShapes = sampledShapes?.sources === sources;
   const shapes = hasCurrentShapes ? sampledShapes.shapes : [];
-  const guides = useMemo(() => buildGeometryGuides(shapes), [shapes]);
+  const comparison=useContext(SizeComparisonContext);const compare=comparison.grading?.compare;
+  const firstRatio=comparisonRatios({measurements:comparison.measurements,measurementGrading:comparison.grading},comparison.presets,compare?.first??'m');
+  const secondRatio=comparisonRatios({measurements:comparison.measurements,measurementGrading:comparison.grading},comparison.presets,compare?.second??'xl');
+  const comparisonTransform=comparison.enabled&&shapes.length?sizeDrawingTransform(shapes,firstRatio):undefined;
+  const guides = useMemo(() => presentation==='redesign'?buildBuilderGeometryGuides(shapes):buildGeometryGuides(shapes), [shapes,presentation]);
+  useEffect(()=>{if(!shapes.length)return;const b=measurementExtent(shapes.flatMap(shape=>shape.contours.flat()));if(!comparison.enabled){onDrawingBounds?.(b);return}const w=Math.max(firstRatio.width,secondRatio.width),h=Math.max(firstRatio.height,secondRatio.height),cx=(b.left+b.right)/2;onDrawingBounds?.({left:cx-(b.right-b.left)*w/2,right:cx+(b.right-b.left)*w/2,top:b.top,bottom:b.top+(b.bottom-b.top)*h});},[shapes,onDrawingBounds,comparison.enabled,firstRatio.width,firstRatio.height,secondRatio.width,secondRatio.height]);
   useEffect(() => {
     let active = true;
     void sampleMeasurementShapes(sources).then(next => {
@@ -191,7 +199,7 @@ export function CustomAssetMeasurementLayer({ sources: incomingSources, bounds, 
   }, [sources]);
   useEffect(() => {
     const root = svgRef.current?.closest<HTMLElement>('[data-measurement-preview]');
-    if (!bounds || !root) { setSnapshot({ view, assets: [] }); return; }
+    if (!bounds || !root) { setSnapshot(previous => previous.view === view && previous.assets.length === 0 ? previous : { view, assets: [] }); return; }
     let active = true;
     let masks: Record<string, Awaited<ReturnType<typeof labelAttachmentMask>>> = {};
     const update = () => {
@@ -245,7 +253,8 @@ export function CustomAssetMeasurementLayer({ sources: incomingSources, bounds, 
     {shapeError && <p role="alert" className="absolute left-2 top-2 z-[270] rounded bg-red-950/90 px-2 py-1 text-xs text-red-100">
       Could not prepare measurement guides.
     </p>}
-    <MeasurementGuideOverlay guides={guides} view={view} highlightedId={highlightedId || (selected ? selected.id : null)} />
+    {presentation==='redesign'&&comparison.enabled&&<SizeComparisonOverlay shapes={shapes}/>}
+    {presentation==='redesign'?<NewMeasurementOverlay drawingTransform={comparisonTransform} guides={guides} highlightedId={highlightedId} onSelect={onGuideSelect}/>:<MeasurementGuideOverlay guides={guides} view={view} highlightedId={highlightedId || (selected ? selected.id : null)} />}
     <svg ref={svgRef} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 260 }} aria-label="Custom asset measurement guides">
       {assets.filter(asset => !asset.interior || selected?.interior).map(asset => <polygon key={asset.id} data-asset-measurement={asset.id} points={asset.corners.map(point => `${point.x},${point.y}`).join(' ')}
         fill={selectedId === asset.id ? '#FF3B3015' : 'transparent'} stroke={selectedId === asset.id ? '#FF3B30' : 'none'} strokeWidth={3}

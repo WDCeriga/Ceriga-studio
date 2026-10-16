@@ -1,0 +1,29 @@
+import {createContext,useContext,useEffect,useRef,useState,type ReactNode,type PointerEvent as ReactPointerEvent} from 'react';
+import {X,ChevronUp} from 'lucide-react';
+export type SheetSnap='peek'|'half'|'full';
+export type BuilderPanel='sections'|'tools'|'add'|'menu'|'appearance'|'fit'|'picker'|'how'|'settings'|null;
+export function useBuilderWidth(){const [width,setWidth]=useState(()=>window.innerWidth);useEffect(()=>{const update=()=>setWidth(window.innerWidth);window.addEventListener('resize',update);return()=>window.removeEventListener('resize',update)},[]);return width}
+export const ResponsiveBuilderContext=createContext({size:'m',setSize:(_s:string)=>{},panel:null as BuilderPanel,setPanel:(_s:BuilderPanel)=>{},inspectorSnap:'peek' as SheetSnap,setInspectorSnap:(_s:SheetSnap)=>{},openSections:()=>{}});
+export const useResponsiveBuilder=()=>useContext(ResponsiveBuilderContext);
+/** Shared snap geometry; drag moves only the panel DOM until release. */
+export function sheetSnapHeight(snap:SheetSnap,height:number){const usable=Math.max(260,height-114);return snap==='peek'?104:Math.round(usable*(snap==='half'?.46:.86))}
+export function nearestSheetSnap(height:number,viewportHeight:number,persistent:boolean):SheetSnap{
+ const snaps:SheetSnap[]=persistent?['peek','half','full']:['half','full'];return snaps.reduce((best,next)=>Math.abs(sheetSnapHeight(next,viewportHeight)-height)<Math.abs(sheetSnapHeight(best,viewportHeight)-height)?next:best)
+}
+export function BuilderSheet({title,onClose,children,persistent=false,snap:controlledSnap,onSnap,initialSnap='full',compactHeader=false}:{title:string;onClose:()=>void;children:ReactNode;persistent?:boolean;snap?:SheetSnap;onSnap?:(snap:SheetSnap)=>void;initialSnap?:SheetSnap;compactHeader?:boolean}){
+ const suppressClick=useRef(false);const ref=useRef<HTMLElement>(null);const close=useRef(onClose);close.current=onClose;const [localSnap,setLocalSnap]=useState<SheetSnap>(initialSnap);const snap=controlledSnap??localSnap;
+ const setSnap=(next:SheetSnap)=>{setLocalSnap(next);onSnap?.(next)};
+ useEffect(()=>{if(persistent)return;const previous=document.activeElement as HTMLElement|null;ref.current?.focus();const key=(e:KeyboardEvent)=>{if(e.defaultPrevented||document.querySelector('[data-slot="select-content"]'))return;if(e.key==='Escape'){e.stopPropagation();close.current()}if(e.key==='Tab'){const nodes=Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input,select,textarea,[tabindex="0"]')??[]).filter(n=>n.getClientRects().length);const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&(document.activeElement===first||document.activeElement===ref.current)){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}};document.addEventListener('keydown',key);return()=>{document.removeEventListener('keydown',key);previous?.focus()}},[persistent]);
+ const drag=(event:ReactPointerEvent<HTMLButtonElement>)=>{
+  if(event.button!==0)return;const target=event.currentTarget,panel=ref.current;if(!panel)return;const startY=event.clientY,startHeight=panel.getBoundingClientRect().height;let lastY=startY,lastTime=performance.now(),velocity=0,distance=0;
+  target.setPointerCapture(event.pointerId);panel.dataset.dragging='true';
+  const move=(e:PointerEvent)=>{const now=performance.now();velocity=(lastY-e.clientY)/Math.max(1,now-lastTime);lastY=e.clientY;lastTime=now;distance=startY-e.clientY;panel.style.setProperty('--sheet-live-height',`${Math.max(persistent?104:64,Math.min(window.innerHeight-70,startHeight+distance))}px`)};
+  const stop=()=>{panel.dataset.dragging='false';panel.style.removeProperty('--sheet-live-height');target.removeEventListener('pointermove',move);target.removeEventListener('pointerup',stop);target.removeEventListener('pointercancel',cancel);target.removeEventListener('lostpointercapture',cancel);if(Math.abs(distance)<8)return;suppressClick.current=true;if(!persistent&&startHeight+distance<120){close.current();return}setSnap(nearestSheetSnap(startHeight+distance+velocity*100,window.innerHeight,persistent))};
+  const cancel=()=>{panel.dataset.dragging='false';panel.style.removeProperty('--sheet-live-height');target.removeEventListener('pointermove',move);target.removeEventListener('pointerup',stop);target.removeEventListener('pointercancel',cancel);target.removeEventListener('lostpointercapture',cancel)};
+  target.addEventListener('pointermove',move);target.addEventListener('pointerup',stop);target.addEventListener('pointercancel',cancel);target.addEventListener('lostpointercapture',cancel);
+ };
+ const cycle=()=>{if(suppressClick.current){suppressClick.current=false;return}setSnap(snap==='peek'?'half':snap==='half'?'full':persistent?'peek':'half')};
+ return <div className={persistent?'responsive-context-layer':'responsive-sheet-layer'}>{!persistent&&<button className="responsive-sheet-backdrop" aria-label="Close sheet" onClick={onClose}/>}<section ref={ref} tabIndex={persistent?undefined:-1} className={'responsive-sheet'+(persistent?' contextual-measurement-sheet':'')+(title==='Sections'?' responsive-section-sheet':'')} data-snap={snap} role={persistent?'region':'dialog'} aria-modal={persistent?undefined:true} aria-label={title}>
+ <button className="mobile-sheet-handle" aria-label={`Resize ${title}: ${snap}`} onPointerDown={drag} onClick={cycle} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();setSnap(e.key==='ArrowUp'?(snap==='peek'?'half':'full'):(snap==='full'?'half':'peek'))}}}><span/></button>
+ {!compactHeader&&<header><h2>{title}</h2>{persistent?<button aria-label="Collapse measurement details" onClick={()=>setSnap('peek')}><ChevronUp size={20} style={{transform:'rotate(180deg)'}}/></button>:<button aria-label="Close" onClick={onClose}><X size={20}/></button>}</header>}<div className="responsive-sheet-content">{children}</div></section></div>
+}

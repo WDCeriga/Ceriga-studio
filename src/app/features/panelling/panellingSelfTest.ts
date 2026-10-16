@@ -1,6 +1,6 @@
-import { distance, flattenSeam, mirrorSeam, pointInSurface } from './panellingGeometry';
+import { distance, flattenPathContours, flattenSeam, mirrorSeam, pointInSurface } from './panellingGeometry';
 import { convertSeamToCurve, insertSeamAnchor, moveSeamAnchor, setAnchorMode, snapAnchor } from './panellingSeams';
-import { recomputePanellingTopology } from './panellingTopology';
+import { recomputeGarmentPanellingTopology, recomputePanellingTopology } from './panellingTopology';
 import type { BoundaryLoop, PanellingSeam } from './panellingTypes';
 
 const rectangle: BoundaryLoop[] = [{ id: 'body', role: 'outer', points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }] }];
@@ -83,5 +83,55 @@ export function runPanellingSelfTests() {
     assert(pointInSurface({ x: 20, y: 20 }, boundaries), 'Body material was incorrectly classified as a hole.');
   });
 
+  test('one multi-anchor concave seam creates exactly two panels and conserves area', () => {
+    const panels = recomputePanellingTopology(rectangle, [seam('bent', [[0,45],[25,75],[65,25],[100,55]])]).panels;
+    assert(panels.length === 2, 'Polyline anchors created phantom panels.');
+    assert(Math.abs(panels.reduce((sum,p) => sum+p.area,0)-10000) < .01, 'Polyline split lost or duplicated area.');
+    assert(panels.every(p => p.seamIds.length === 1), 'A complete seam lost its identity.');
+  });
+  test('open seams have no invisible closing chord', () => {
+    const panels = recomputePanellingTopology(rectangle, [seam('open', [[0,40],[25,70],[60,30]])]).panels;
+    assert(panels.length === 1 && Math.abs(panels[0].area-10000) < .01, 'Dangling path created a phantom face.');
+  });
+  test('SVG subpaths never join across moveto or distance gaps', () => {
+    const contours = flattenPathContours('M0 0 L100 0 L100 100 L0 100 Z M20 20 L20 30 L30 30 L30 20 Z', 18);
+    assert(contours.length === 2 && contours[0].length > 4, 'Closed subpaths were lost or fragmented.');
+    assert(flattenPathContours('M0 0 L100 0 L100 100').length === 0, 'Open SVG path acquired a closing chord.');
+  });
+  const pieces: BoundaryLoop[] = [-1,0,1].map((index) => ({ id: String(index), surfaceId: index === -1 ? 'sleeveLeft' : index === 1 ? 'sleeveRight' : 'base', role: 'outer',
+    points: [{x:index*100,y:0},{x:(index+1)*100,y:0},{x:(index+1)*100,y:100},{x:index*100,y:100}] }));
+  test('sleeve-only seam leaves both other semantic surfaces unchanged', () => {
+    const panels = recomputeGarmentPanellingTopology(pieces, [seam('sleeve', [[-100,50],[-50,65],[0,50]])]).panels;
+    assert(panels.filter(p=>p.parentId==='sleeveLeft').length === 2, 'Sleeve did not split into two.');
+    assert(panels.filter(p=>p.parentId==='base').length === 1 && panels.filter(p=>p.parentId==='sleeveRight').length === 1, 'Uncrossed surface was partitioned.');
+  });
+  test('one cross-surface seam partitions only the three crossed surfaces', () => {
+    const graph = recomputeGarmentPanellingTopology(pieces, [seam('continuous', [[-100,50],[-50,55],[50,45],[200,50]])]);
+    for (const id of ['base','sleeveLeft','sleeveRight']) {
+      const panels = graph.panels.filter(p=>p.parentId===id);
+      assert(panels.length===2, id+' should contain exactly two faces.');
+      assert(Math.abs(panels.reduce((sum,p)=>sum+p.area,0)-10000)<.01, id+' lost area.');
+      assert(panels.every(p=>p.seamIds.includes('continuous') && !p.fillOverride), 'Cross-surface identity or inheritance lost.');
+    }
+  });
+  test('duplicate and overlapping seams do not add faces', () => {
+    const panels = recomputePanellingTopology(rectangle, [seam('one',[[0,50],[100,50]]), seam('two',[[100,50],[50,50],[0,50]])]).panels;
+    assert(panels.length===2, 'Overlapping seams generated phantom faces.');
+  });
+  test('tiny clipping vertices do not invalidate a complete surface', () => {
+    const clipped: BoundaryLoop[]=[{id:'clipped',role:'outer',points:[{x:0,y:0},{x:.000001,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]}];
+    const panels=recomputePanellingTopology(clipped,[]).panels;
+    assert(panels.length===1 && Math.abs(panels[0].area-10000)<.01,'Small first edge discarded a real surface.');
+  });
+  test('cross-surface construction boundaries expose shared junctions', () => {
+    const graph=recomputeGarmentPanellingTopology(pieces,[seam('all',[[-100,50],[200,50]])]);
+    assert(graph.nodes.filter(node=>node.kind==='intersection' && (node.surfaceIds?.length??0)>1).length===2,'Armhole crossings must be shared topology junctions.');
+  });
+  test('disconnected source contours retain one untouched semantic parent without closing chords', () => {
+    const other: BoundaryLoop={id:'island',surfaceId:'base',role:'outer',points:[{x:200,y:0},{x:210,y:0},{x:210,y:10},{x:200,y:10}]};
+    const panels=recomputeGarmentPanellingTopology([...rectangle.map(loop=>({...loop,surfaceId:'base'})),other],[]).panels;
+    assert(panels.length===1 && Math.abs(panels[0].area-10100)<.01,'Source subpaths must not create user seam subdivisions.');
+    assert((panels[0].path.match(/M/g)??[]).length===2,'Disconnected contours must remain separate paths.');
+  });
   return results;
 }

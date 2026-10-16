@@ -160,6 +160,15 @@ function ProductCard({
           {packagingOnly ? 'Open workspace' : 'Configure'}
           <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-px group-hover:-translate-y-px" />
         </Link>
+        {!packagingOnly && <Link
+          to={`/builder/${product.id}?builder=redesign${techpackSpecFlow?'&flow=techpack-spec':''}`}
+          state={linkState}
+          aria-label={`Open new Builder for ${product.name}`}
+          className="ceriga-btn-ghost mt-2 border-[#5A4530] text-[#E5534A] hover:border-[#CC2D24] hover:text-white"
+        >
+          Open new Builder
+          <ArrowUpRight className="h-3 w-3" />
+        </Link>}
       </div>
     </div>
   );

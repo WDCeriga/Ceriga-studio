@@ -1,0 +1,205 @@
+/* Shared responsive presentation; canonical measurements and actions stay in Builder. */
+.mobile-builder-dock,.phone-overflow,.phone-guide-value,.phone-fit-trigger,.mobile-sheet-handle{display:none}
+.responsive-sheet-layer{position:fixed;inset:0;z-index:250;display:flex;align-items:flex-end;justify-content:center;color:var(--builder-text,#20242c)}
+.responsive-sheet-backdrop{position:absolute;inset:0;border:0;background:#18233840!important}
+.responsive-sheet{position:relative;width:min(560px,100%);max-height:85dvh;display:flex;flex-direction:column;background:white;border-radius:14px 14px 0 0;border:1px solid #e5e5ea;outline:none;animation:responsive-sheet-enter 180ms ease-out}
+.responsive-sheet>header{display:flex;align-items:center;justify-content:space-between;padding:8px 20px;border-bottom:1px solid #e5e5ea;flex-shrink:0}
+.responsive-sheet>header h2{font-size:16px;margin:0;font-weight:600}
+.responsive-sheet>header button{width:44px;height:44px;display:grid;place-items:center}
+.responsive-sheet-content{overflow:auto;padding:16px 20px 24px;min-height:0;overscroll-behavior:contain}
+.responsive-sheet-content p{line-height:1.5;color:#65758c;font-size:12px}
+.responsive-menu{display:grid;gap:4px}
+.responsive-menu>button{display:flex;align-items:center;justify-content:space-between;text-align:left;min-height:46px;padding:10px 12px;border-radius:5px}
+.responsive-menu>button[aria-pressed=true],.responsive-menu>button[aria-current=page]{background:#f0f1f3;color:#30343c}
+.responsive-menu h3{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#7b8792;margin:18px 12px 8px}
+.mobile-nav-label{display:flex;gap:12px;align-items:center}
+.tablet-fit-select,.tablet-measurement-picker select{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;border:1px solid #e5e5ea;border-radius:5px;background:white;padding:8px 12px}
+.tablet-measurement-picker{display:grid;gap:8px;margin:20px 0 12px;color:#65758c;font-size:12px}
+.tablet-size-disclosure{margin:14px 0;color:#65758c;font-size:11px}
+.tablet-size-disclosure summary{cursor:pointer;min-height:36px;display:flex;align-items:center}
+.tablet-size-settings{padding:12px 0;display:grid;gap:12px}
+.responsive-size-row{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:56px;border-bottom:1px solid #e5e5ea}
+.responsive-size-row>button{text-align:left}
+.responsive-size-editor .new-size-heading{display:flex;justify-content:space-between;align-items:center}
+.responsive-size-editor .builder-size-range{display:flex;margin:16px 0;gap:4px}
+.responsive-size-editor .builder-size-range button{flex:1;min-height:44px}
+.responsive-size-editor .new-measure-value{min-height:44px}
+@keyframes responsive-sheet-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:768px) and (max-width:1199px){
+ .ceriga-builder-shell[data-section]{--builder-nav-width:190px}
+ .ceriga-builder-shell[data-nav-collapsed=true]{--builder-nav-width:64px}
+ .ceriga-builder-shell .builder-shell-grid{grid-template-columns:var(--builder-nav-width) minmax(0,1fr) var(--builder-inspector-width)}
+ .ceriga-builder-shell .builder-inspector{padding:20px 16px}
+ .ceriga-builder-shell .builder-sidebar nav button,.ceriga-builder-shell .builder-context>button{min-height:44px}
+ .ceriga-builder-shell .builder-name{max-width:190px}
+ .ceriga-builder-shell .builder-project-actions{gap:5px}
+ .ceriga-builder-shell .builder-project-actions>button{min-height:40px}
+ .ceriga-builder-shell .builder-fit-measurements>.builder-eyebrow,.ceriga-builder-shell .builder-fit-measurements>.restored-core-settings,.ceriga-builder-shell .builder-measure-heading,.ceriga-builder-shell .core-measurements-collapse>summary{display:none}
+ .ceriga-builder-shell .tablet-fit-label{font-size:12px;margin:20px 0 8px}
+ .ceriga-builder-shell .core-measurements-collapse{margin:0;border:0}
+ .ceriga-builder-shell .new-measure-value{min-height:44px}
+ .ceriga-builder-shell .builder-size-range button,.ceriga-builder-shell .new-size-table .new-measure-value{min-height:40px}
+ .ceriga-builder-shell .new-measure-comparison{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+ .ceriga-builder-shell .new-measure-comparison>.measurement-meta-cell:first-child{display:none}
+ .ceriga-builder-shell .new-measure-help>p:last-child{font-size:11px!important}
+ .ceriga-builder-shell .builder-inspector-resize{width:12px;left:-6px}
+ .ceriga-builder-shell .builder-inspector-collapse{width:32px;height:40px;left:-16px}
+ .ceriga-builder-shell .new-view-switch{top:24px}
+ .responsive-sheet-layer:has(.responsive-section-sheet){justify-content:flex-start;align-items:stretch}
+ .responsive-section-sheet{width:310px;max-height:100dvh;border-radius:0}
+ .responsive-sheet-layer:has([aria-label="Choose fit"]){align-items:flex-start;justify-content:flex-end;padding:140px 16px 16px}
+ .responsive-sheet[aria-label="Choose fit"]{width:320px;border-radius:8px;height:auto}
+ .responsive-sheet-layer:has([aria-label="Choose fit"]) .responsive-sheet-backdrop{background:transparent!important}
+ .responsive-sheet .builder-fit-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .responsive-sheet .builder-fit-grid button{min-height:96px}
+ .responsive-sheet .new-fit-art{height:60px}
+}
+@media(max-width:767px){
+ .ceriga-builder-shell[data-section]{--builder-topbar-height:58px;--mobile-command-height:56px;--phone-inspector-height:104px;height:100dvh;padding-top:env(safe-area-inset-top);background:#f5f5f7;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+ .ceriga-builder-shell .builder-topbar{padding:0 10px;gap:8px}
+ .ceriga-builder-shell .builder-breadcrumb{gap:7px}
+ .ceriga-builder-shell .builder-breadcrumb a{min-width:32px;min-height:44px;align-items:center}
+ .ceriga-builder-shell .builder-name{max-width:calc(100vw - 146px);font-size:12px!important}
+ .ceriga-builder-shell .builder-draft{font-size:9px;padding:4px 5px}
+ .ceriga-builder-shell .desktop-breadcrumb-prefix,.ceriga-builder-shell .builder-project-actions{display:none}
+ .ceriga-builder-shell .phone-overflow{display:grid;place-items:center;min-width:44px;min-height:44px}
+ .ceriga-builder-shell .builder-shell-grid{display:block;position:relative;flex:1;min-height:0;padding-bottom:calc(var(--phone-inspector-height) + var(--mobile-command-height) + env(safe-area-inset-bottom));transition:padding-bottom 200ms ease-out}
+ .ceriga-builder-shell:not([data-tool="Core measurements"]) .builder-shell-grid{padding-bottom:calc(104px + var(--mobile-command-height) + env(safe-area-inset-bottom))}
+ .ceriga-builder-shell .builder-sidebar{display:none}
+ .ceriga-builder-shell .builder-workspace{height:100%;min-width:0;width:100%;background:white}
+ .ceriga-builder-shell .builder-preview-persistent,.ceriga-builder-shell .new-builder-canvas{height:100%;min-height:0}
+ .ceriga-builder-shell .new-canvas-area{inset:52px 18px 12px;touch-action:none}
+ .ceriga-builder-shell .new-view-switch{top:10px;left:14px;right:auto;z-index:12}
+ .ceriga-builder-shell .new-view-switch button{min-width:50px;min-height:34px;padding:7px 9px;font-size:11px}
+ .ceriga-builder-shell .new-zoom-control{left:auto;right:12px;bottom:8px;padding:0;border-radius:6px}
+ .ceriga-builder-shell .new-zoom-control>button{display:none}
+ .ceriga-builder-shell .new-zoom-control>.new-fit-control{display:block;min-width:44px;min-height:36px;border:0;font-size:10px!important}
+ .ceriga-builder-shell .builder-inspector-rail{position:static;border:0;background:none}
+ .ceriga-builder-shell .builder-inspector-collapse,.ceriga-builder-shell .builder-inspector-resize{display:none}
+ .ceriga-builder-shell .builder-inspector{position:static!important;visibility:visible!important;overflow:visible!important;padding:0!important;width:auto!important;height:auto!important;background:none;pointer-events:auto!important}
+ .ceriga-builder-shell .builder-inspector-content{animation:none!important;transform:none!important}
+ .ceriga-builder-shell .builder-inspector-content>h2,.ceriga-builder-shell .builder-inspector-content>p,.ceriga-builder-shell .builder-inspector-content>.new-notes,.ceriga-builder-shell .new-asset-measurements{display:none}
+ .ceriga-builder-shell .phone-fit-trigger{display:flex;align-items:center;gap:6px;position:absolute;top:10px;right:14px;z-index:15;min-height:34px;padding:6px 10px;border:1px solid #e5e5ea;background:white;border-radius:5px;font-size:11px}
+ .mobile-builder-dock{display:grid;grid-template-columns:repeat(5,1fr);position:absolute;bottom:0;left:0;right:0;z-index:270;height:calc(56px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom);border-top:1px solid #e5e5ea;background:#fff}
+ .mobile-builder-dock>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;min-width:44px;color:#606671;font-size:10px;border-radius:5px}
+ .mobile-builder-dock>button[aria-pressed=true]{color:#272b31;background:#f0f1f3}
+ .mobile-builder-dock>button[data-primary=true]>svg{background:#343942;color:white;border-radius:6px;padding:3px;width:28px;height:26px}
+ .responsive-context-layer{position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom));z-index:40;color:#252a32;pointer-events:none}
+ .responsive-context-layer>.responsive-sheet{pointer-events:auto}
+ .responsive-sheet-layer{bottom:calc(56px + env(safe-area-inset-bottom));z-index:250}
+ .responsive-sheet{--sheet-height:calc((100dvh - 114px) * .86);height:var(--sheet-live-height,var(--sheet-height));width:100%;max-height:calc(100dvh - 114px);border-radius:14px 14px 0 0;transition:height 200ms ease-out;animation:responsive-sheet-enter 180ms ease-out}
+ .responsive-sheet[data-snap=peek]{--sheet-height:104px}
+ .responsive-sheet[data-snap=half]{--sheet-height:calc((100dvh - 114px) * .46)}
+ .responsive-sheet[data-dragging=true]{transition:none;user-select:none}
+ .mobile-sheet-handle{display:grid;place-items:center;width:72px;min-height:18px;flex-shrink:0;margin:0 auto;touch-action:none;cursor:ns-resize;position:relative}
+ .mobile-sheet-handle::before{content:'';position:absolute;inset:-8px 0}
+ .mobile-sheet-handle>span{width:30px;height:3px;background:#c8cbd1;border-radius:3px;pointer-events:none}
+ .responsive-sheet>header{padding:0 16px 6px}
+ .responsive-sheet>header h2{font-size:15px}
+ .responsive-sheet-content{padding:10px 16px 16px}
+ .contextual-measurement-sheet>.responsive-sheet-content{padding:0 16px 8px}
+ .phone-dock-heading{display:flex;justify-content:space-between;align-items:center;min-height:30px}
+ .phone-dock-heading>button{display:flex;align-items:center;gap:8px;min-height:30px;text-align:left;font-size:12px}
+ .phone-dock-heading>button:last-child{min-width:40px;justify-content:center}
+ .phone-dock-heading .builder-measure-letter{width:22px;height:22px;font-size:11px;background:#424955}
+ .phone-dock-editor{display:flex;align-items:center;justify-content:center;gap:10px;min-height:44px;animation:builder-enter 180ms ease-out}
+ .phone-dock-editor>button{width:44px;height:44px;display:grid;place-items:center;border:1px solid #e5e5ea;border-radius:5px}
+ .phone-dock-editor .measurement-value-editor{width:120px}
+ .phone-dock-editor .new-measure-value{height:44px;min-height:44px}
+ .phone-dock-editor .new-measure-value input{font-size:17px;text-align:center}
+ .phone-dock-editor>.phone-more{margin-left:auto;width:auto;padding:0 7px;font-size:11px;border:0;color:#647080}
+ .phone-expanded-details{padding-top:10px}
+ .phone-detail-content .compact-fit-helper,.phone-detail-content .builder-eyebrow,.phone-detail-content .builder-fit-grid,.phone-detail-content .builder-measure-heading,.phone-detail-content .core-measurements-collapse>summary,.phone-detail-content .new-measure-main{display:none}
+ .phone-detail-content .core-measurements-collapse{border:0;margin:0}
+ .phone-detail-content .restored-core-settings{display:none}
+ [data-snap=full] .phone-detail-content .restored-core-settings{display:grid;margin:4px 0 14px}
+ .phone-detail-content .new-measure-row{border:0;padding:0}
+ .phone-detail-content .new-measure-source{margin:0 0 8px;min-height:20px;font-size:11px}
+ .phone-detail-content .new-measure-source>button{display:none}
+ .phone-detail-content .new-measure-comparison{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+ .phone-detail-content .new-measure-comparison>.measurement-meta-cell:first-child{display:none}
+ .phone-detail-content .new-measure-comparison>.measurement-meta-cell{font-size:11px}
+ .phone-detail-content .new-measure-comparison output{font-size:11px;min-height:36px;display:flex;align-items:center;justify-content:center}
+ .phone-detail-content .new-measure-comparison .new-measure-value{min-height:36px;height:36px}
+ .phone-detail-content .new-measure-comparison .new-measure-value input{font-size:16px}
+ .phone-detail-content .tolerance-status{font-size:10px}
+ .phone-detail-content .new-measure-help>p:last-child{display:none}
+ .phone-detail-content .new-measure-help{padding:0}
+ .phone-detail-content .measurement-reset-actions .builder-link{min-height:32px;font-size:11px}
+ .phone-detail-content .tolerance-production-range{font-size:11px!important;margin:2px 0!important}
+ .phone-detail-actions{display:flex;justify-content:space-between;gap:12px}
+ .phone-detail-actions button{min-height:36px;font-size:11px}
+ .phone-measurement-previous-next{display:flex;justify-content:space-between;border-top:1px solid #e5e5ea;margin-top:6px}
+ .phone-measurement-previous-next button{display:flex;align-items:center;gap:5px;min-height:40px;color:#627080;font-size:11px}
+ .phone-measurement-notes{display:grid;gap:8px;font-size:12px;margin-top:18px}
+ .phone-measurement-notes textarea{width:100%;min-height:100px;padding:12px;border:1px solid #e5e5ea;border-radius:5px;resize:vertical;background:white}
+ .ceriga-builder-shell .phone-guide-value{display:block}
+ .ceriga-builder-shell .measurement-focus-group[data-dimmed=true]{opacity:.3}
+ .ceriga-builder-shell .measurement-badge circle{r:24px;stroke-width:3px}
+ .ceriga-builder-shell .measurement-badge text{font-size:24px}
+ .mobile-tool-content>.builder-placeholder,.mobile-tool-content .responsive-size-editor,.mobile-tool-content .measurement-import-panel,.mobile-tool-content .builder-tool-notice{position:static;padding:0;border:0;background:white}
+ .mobile-tool-content>h2{display:none}
+ .mobile-tool-content .new-notes{display:block}
+ .ceriga-builder-shell .responsive-sheet .builder-fit-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+ .ceriga-builder-shell .responsive-sheet .builder-fit-grid button{min-height:86px}
+ .ceriga-builder-shell .responsive-sheet .builder-fit-grid .new-fit-art{height:56px}
+ .ceriga-builder-shell input,.ceriga-builder-shell textarea{font-size:16px}
+ .fit-change-helper{font-size:11px!important;margin:16px 0 0!important;line-height:1.5}
+ .ceriga-version-history{align-items:flex-end}
+ .ceriga-version-history .version-history-panel{width:100%;height:88dvh;border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom);border:1px solid #e5e5ea}
+ .ceriga-version-history .version-history-icon,.ceriga-version-history .version-history-restore{min-height:44px;min-width:44px}
+ .ceriga-version-history .version-history-header{padding:16px}
+ .ceriga-version-history .version-history-entry{padding:10px}
+}
+@media(prefers-reduced-motion:reduce){.responsive-sheet,.phone-dock-editor{animation:none!important;transition:none!important}.ceriga-builder-shell .builder-shell-grid,.ceriga-builder-shell .new-drawing-frame,.measurement-focus-group,.measurement-badge{transition:none!important}}
+
+@media(max-width:767px){
+ .contextual-measurement-sheet[data-snap=half] .tolerance-production-range{display:none}
+ .contextual-measurement-sheet[data-snap=half] .phone-expanded-details{padding-top:6px}
+ .contextual-measurement-sheet[data-snap=half] .phone-measurement-previous-next{margin-top:0}
+}
+@media(min-width:768px) and (max-width:1199px){.ceriga-builder-shell .new-measure-source>span::before{content:'Source: ';color:#7b8792}}
+
+@media(max-width:767px){
+ .ceriga-version-history .responsive-sheet-layer{bottom:0}
+ .ceriga-version-history .responsive-sheet{max-height:94dvh;--sheet-height:88dvh;padding-bottom:env(safe-area-inset-bottom)}
+ .ceriga-version-history .responsive-sheet[data-snap=half]{--sheet-height:52dvh}
+ .ceriga-version-history .responsive-sheet-content{display:flex;flex-direction:column;padding:0;flex:1}
+ .ceriga-version-history .responsive-sheet .version-history-list{flex:1}
+}
+
+@media(min-width:768px) and (max-width:1199px){
+ .ceriga-builder-shell .builder-inspector-content{animation:none!important;transform:none!important}
+ .responsive-sheet-layer:has([aria-label="Choose fit"]){padding-top:210px}
+ .responsive-sheet[aria-label="Choose fit"]{max-height:calc(100dvh - 230px)}
+}
+
+/* Match tolerance text and placeholders to adjacent measurement metadata. */
+@media(max-width:767px){
+ .phone-detail-content .new-measure-comparison output,.phone-detail-content .new-measure-comparison .new-measure-value input,.phone-detail-content .new-measure-comparison .new-measure-value input::placeholder{font-size:11px!important}
+ .phone-detail-content .new-measure-comparison .new-measure-value input::placeholder{opacity:1;color:#7b8792}
+ .phone-detail-content .new-measure-comparison .new-measure-value input{font-size:11px!important}
+ .phone-detail-content .new-measure-comparison .new-measure-value input:focus{font-size:16px!important}
+ .phone-detail-content .new-measure-comparison .new-measure-value>span{font-size:10px}
+}
+@media(min-width:768px) and (max-width:1199px){
+ .ceriga-builder-shell .new-measure-comparison output,.ceriga-builder-shell .new-measure-comparison .new-measure-value input,.ceriga-builder-shell .new-measure-comparison .new-measure-value input::placeholder{font-size:11px}
+}
+
+@media(max-width:767px){
+ .mobile-review-content [class*="text-white"]{color:#404753}
+ .mobile-review-content [class*="border-"]{border-color:#e5e5ea}
+ .mobile-review-content [class*="bg-"]{background-color:#f5f5f7}
+}
+
+.phone-history-actions{display:none}
+@media(max-width:767px){
+ .ceriga-builder-shell .phone-history-actions{display:flex;align-items:center;gap:0;margin-left:auto;flex-shrink:0}
+ .phone-history-actions button{display:grid;place-items:center;width:32px;min-height:44px;position:relative;color:#647080}
+ .phone-history-actions button::before{content:'';position:absolute;inset:0 -5px}
+ .ceriga-builder-shell .builder-topbar{gap:2px;padding:0 8px}
+ .ceriga-builder-shell .builder-name{max-width:calc(100vw - 206px)}
+ .ceriga-builder-shell .phone-overflow{min-width:34px}
+}
+
+@media(max-width:767px){.ceriga-builder-shell .phone-measurement-notes textarea{font-size:12px!important;line-height:1.6}}

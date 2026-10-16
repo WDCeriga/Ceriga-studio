@@ -1,9 +1,4 @@
-.builder-panelling-canvas {
-  position: relative;
-  width: min(100%, 48dvh);
-  height: min(100%, 48dvh);
-  aspect-ratio: 1;
-}
+/* Frame sizing comes from the shared Builder garment preview classes. */
 
 .builder-panelling-canvas .panelling-body,
 .builder-panelling-canvas .panelling-overlay {

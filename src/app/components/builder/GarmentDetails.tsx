@@ -1,3 +1,4 @@
+import {useTechnicalDrawing,normalizeTechnicalSvg} from '../../lib/technicalDrawing';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Copy, CopyPlus, Plus, Upload, Trash2, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw, ArrowDownToLine, Maximize, ZoomIn, AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, AlignStartVertical, AlignEndVertical } from 'lucide-react';
 import type { GarmentView } from '../../data/garmentView';
@@ -114,11 +115,14 @@ function ZipPullMeasurements({ detail, bounds, onChange, referenceWidthCm, unit 
   </details>;
 }
 
-function DetailArtwork({ detail, ratio, joinedNeckline }: { detail: GarmentDetail; ratio: number; joinedNeckline: boolean }) {
+function DetailArtwork({ detail, ratio, joinedNeckline,garmentWidth }: { detail: GarmentDetail; ratio: number; joinedNeckline: boolean;garmentWidth:number }) {
+  const technical=useTechnicalDrawing();
+  const sourceWidth=Number(new DOMParser().parseFromString(detailAsset(detail).svg,'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2])||48;
+  const normalize=(raw:string)=>technical?normalizeTechnicalSvg(raw,garmentWidth/sourceWidth):raw;
   const body = useMemo(() => detailSvg(detail, ratio, 'body', joinedNeckline), [ratio, joinedNeckline, detail.type, detail.variant, detail.scaleX, detail.scaleY,
     detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.opening, detail.id]);
-  return <><span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: body }} />
-    {detail.type === 'zip' && !detail.customAsset && <span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: detailSvg(detail, ratio, 'pull') }} />}</>;
+  return <><span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(body) }} />
+    {detail.type === 'zip' && !detail.customAsset && <span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(detailSvg(detail, ratio, 'pull')) }} />}</>;
 }
 
 function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: (patch: Partial<GarmentDetail>) => void }) {
@@ -471,7 +475,7 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
           onChange?.(details.map(item => item.id === detail.id ? next : item));
         }}>
         {editable && detail.type === 'zip' && <span aria-hidden="true" className="absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: 'max(100%, 24px)' }} />}
-        <DetailArtwork detail={current} ratio={placement.width / placement.height} joinedNeckline={openingNecklineReach(current, bounds) > 0} />
+        <DetailArtwork garmentWidth={placement.width} detail={current} ratio={placement.width / placement.height} joinedNeckline={openingNecklineReach(current, bounds) > 0} />
         </button>
         {editable && detail.type === 'zip' && !detail.customAsset && editor && <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${sourceWidth} ${sourceHeight}`}>
           <g transform={`translate(${current.flipX ? sourceWidth : 0} ${current.flipY ? sourceHeight : 0}) scale(${current.flipX ? -1 : 1} ${current.flipY ? -1 : 1})`}>

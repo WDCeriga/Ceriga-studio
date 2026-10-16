@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type PointerEvent as ReactPointerEvent } from 'react';
+import { useSyncExternalStore,useId,type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { cn } from '../ui/utils';
 import type { GarmentView } from '../../data/garmentView';
 
@@ -166,6 +166,7 @@ export function MeasurementGuideOverlay({
   onGuidePointerDown?: (guideId: MeasurementGuideId, event: ReactPointerEvent<SVGGElement>) => void;
   onSelect?: (guideId: MeasurementGuideId) => void;
 }) {
+  const arrowId=useId().replace(/:/g,'');
   const storeGuides = useMeasurementGuides();
   const activeGuides = (guides ?? storeGuides).filter(guide => guides || view !== 'back' || guide.id !== 'neckDrop');
 
@@ -177,8 +178,10 @@ export function MeasurementGuideOverlay({
       )}
       viewBox="0 0 1000 1000"
       preserveAspectRatio="none"
+      style={{'--guide-arrow':`url(#${arrowId}-arrow)`} as CSSProperties}
       aria-label="Garment measurement guides"
     >
+      <defs><marker id={arrowId+'-arrow'} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0L7,3.5L0,7Z" fill="#7c879d"/></marker></defs>
       {activeGuides.map((guide) => {
         const active = highlightedId === null || highlightedId === guide.id;
         const opacity = highlightedId && !active ? 0.22 : 0.92;
@@ -248,7 +251,7 @@ export function MeasurementGuideOverlay({
                 )}
                 style={{ opacity: labelOpacity }}
               >
-                <span>{guide.label}</span>
+                <span className="measurement-guide-letter" aria-hidden="true">{MEASUREMENT_GUIDE_LABELS.find(item=>item.id===guide.id)?.label.split('.')[0]}</span><span className="measurement-guide-name">{guide.label}</span>
               </div>
             </foreignObject>
           </g>
