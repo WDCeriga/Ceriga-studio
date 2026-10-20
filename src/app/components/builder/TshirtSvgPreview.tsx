@@ -310,6 +310,7 @@ export interface TshirtSvgPreviewProps {
   detailEditor?: DetailEditorState;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
+  materialHighlightIds?:string[];
   selectedLayerId?: string | null;
   selectionContext?: string;
   onSelectedLayerChange?: (id: string | null) => void;
@@ -799,7 +800,7 @@ function LayerHitTarget({ layerId, displayName, raw, side, zIndexBase, bbox, tra
 }) {
   const { dragHovered, handlers } = useMaterialDrop(layerId, onMaterialDrop);
   const uid = useId().replace(/:/g, '');
-  const markup = useMemo(() => renderTexturedFabricSvg(raw, selected || hovered || dragHovered ? '#38bdf84d' : 'transparent', undefined, 'selection-' + uid), [raw, selected, hovered, dragHovered, uid]);
+  const markup = useMemo(() => renderTexturedFabricSvg(raw, selected || hovered || dragHovered ? '#829bb54d' : 'transparent', undefined, 'selection-' + uid), [raw, selected, hovered, dragHovered, uid]);
   return <div className="pointer-events-none absolute inset-0" style={{ ...layerTransformStyle(transform, bbox, alignOffset), zIndex: 100 + zIndexBase * 2 }}>
     <div data-tshirt-hit-target={layerId} data-construction-region-hit={layerId} role="button" tabIndex={0}
       aria-label={`Select ${displayName}`} aria-pressed={selected}
@@ -949,6 +950,7 @@ export function TshirtSvgPreview({
   detailEditor,
   layerTransforms: builtinLayerTransforms,
   onLayerTransformChange,
+  materialHighlightIds=[],
   selectedLayerId = null,
   selectionContext,
   onSelectedLayerChange,
@@ -1668,7 +1670,7 @@ export function TshirtSvgPreview({
                   bbox={bbox}
                   transform={technical&&id==='base'&&bodyHitSvg?{x:0,y:0,scale:1,rotation:0}:transform}
                   alignOffset={technical&&id==='base'&&bodyHitSvg?undefined:alignOffset}
-                  selected={selectedLayerId === id}
+                  selected={selectedLayerId === id||materialHighlightIds.includes(id)}
                   hovered={!selectedLayerId && hoveredLayerId === id}
                   onHover={setHoveredLayerId}
                   onPointerDown={(e) => handleLayerPointerDown(id, e)}

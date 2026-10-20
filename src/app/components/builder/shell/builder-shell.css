@@ -1096,3 +1096,10 @@
 .ceriga-builder-shell .new-zoom-value:focus-within{background:#f1f5fa;border-color:#9aaac0;outline:none;box-shadow:0 0 0 2px #52688912}
 .ceriga-builder-shell .new-zoom-value input:focus,.ceriga-builder-shell .new-zoom-value input:focus-visible{outline:none!important;box-shadow:none;border:0;border-radius:0}
 @media(max-width:767px){.ceriga-builder-shell .builder-name-input{font-size:16px;max-width:calc(100vw - 166px)}}
+
+@media(max-width:767px){
+ .new-builder-canvas>.measurement-guides-toggle{display:flex;left:12px;right:auto;bottom:8px;min-height:36px;padding:6px 8px;font-size:10px;gap:6px}
+ .new-builder-canvas>.measurement-guides-toggle .guides-label-desktop{display:none}
+ .new-builder-canvas>.measurement-guides-toggle .guides-label-phone{display:inline}
+ .measurement-guides-toggle-phone{display:none!important}
+}

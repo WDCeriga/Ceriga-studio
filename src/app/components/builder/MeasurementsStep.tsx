@@ -398,7 +398,7 @@ export function MeasurementPreview({
   onAssetSelect?: (id: string | null) => void;
   onAssetMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
   measurementUnit?: MeasurementUnit;
-  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'customAssetState' | 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor' | 'garmentLabels' | 'labelReferenceWidthMm'>;
+  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'materialHighlightIds' | 'onMaterialDrop' | 'onSelectedLayerChange' | 'selectedLayerId' | 'fabricAssignments' | 'fabricTextureIntensity' | 'technicalView' | 'customAssetState' | 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor' | 'garmentLabels' | 'labelReferenceWidthMm'>;
 }) {
   const svgPack: GarmentSvgGarmentType | null =
     garmentType === 'tshirt' ||
@@ -435,7 +435,7 @@ export function MeasurementPreview({
             stitchingColor={stitchingColor}
             garmentDetails={garmentDetails}
             detailView={detailView}
-            labelEditor={{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
+            labelEditor={sharedGarmentProps?.onSelectedLayerChange?undefined:{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
             renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer showGuides={showGuides} onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
               details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
               referenceWidthCm={sharedGarmentProps?.labelReferenceWidthMm ? sharedGarmentProps.labelReferenceWidthMm / 10 : 50}

@@ -234,3 +234,16 @@
 .tablet-measurement-navigation{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 10px;color:#6c7b90;font-size:11px}
 .tablet-measurement-navigation>button{display:flex;align-items:center;gap:3px;min-height:44px}
 .grading-matrix{touch-action:auto}
+
+@media(max-width:767px){
+ .ceriga-builder-shell[data-section]{position:fixed;top:var(--builder-viewport-top,0px);left:0;right:0;bottom:auto;overflow:hidden;overscroll-behavior:none}
+ .ceriga-builder-shell .builder-shell-grid{min-height:0;overflow:hidden}
+ .ceriga-builder-shell .responsive-context-layer{position:fixed;bottom:calc(56px + env(safe-area-inset-bottom));top:auto}
+}
+
+@media(max-width:767px){
+ .ceriga-builder-shell .builder-inspector-content,.ceriga-builder-shell .builder-inspector-rail{position:static}
+ .ceriga-builder-shell .responsive-context-layer,.ceriga-builder-shell .responsive-sheet-layer{position:absolute}
+}
+
+@media(max-width:767px){.ceriga-builder-shell[data-section="Materials & Colour"] .builder-shell-grid{padding-bottom:calc(var(--phone-inspector-height) + var(--mobile-command-height) + env(safe-area-inset-bottom))}.ceriga-builder-shell[data-section="Materials & Colour"] .responsive-sheet>header h2{font-size:14px}.ceriga-builder-shell[data-section="Materials & Colour"] .responsive-sheet-content{padding-top:4px}}

@@ -66,7 +66,6 @@ export function NewMeasurementOverlay({guides=[],highlightedId,onSelect,drawingT
    <path d={`M${g.x1} ${g.y1}L${start.x} ${start.y}M${g.x2} ${g.y2}L${end.x} ${end.y}`} fill="none" stroke="currentColor" strokeWidth=".7" opacity=".5"/>
    <path d={layout.ticks} fill="none" stroke="currentColor" strokeWidth=".9" opacity=".75"/>
    <path d={layout.dimensionPath} fill="none" stroke="transparent" strokeWidth="16"/>
-   <path d={layout.dimensionPath} fill="none" stroke="white" strokeWidth="2.2" opacity=".7" pointerEvents="none"/>
    <path className="measurement-dimension-line" key={selected?revision:'normal'} d={layout.dimensionPath} fill="none" stroke="currentColor" strokeWidth={selected?1.6:1.15} markerStart={`url(#${prefix}-${selected?'selected':'normal'})`} markerEnd={`url(#${prefix}-${selected?'selected':'normal'})`}/>
    <circle className="measurement-touch-target" cx={label.x} cy={label.y} r="14" fill="transparent" stroke="transparent" strokeWidth="32" vectorEffect="non-scaling-stroke" pointerEvents="all"/>
    <g className="measurement-badge" style={{transformOrigin:`${label.x}px ${label.y}px`}}><circle key={selected?revision:'normal'} className={selected?'measurement-badge-pulse':undefined} cx={label.x} cy={label.y} r="14" fill={color} stroke="white" strokeWidth="2"/><text x={label.x} y={label.y} dy=".35em" textAnchor="middle" fill="white" fontSize="15" fontFamily="Arial" fontWeight="600">{letter}</text></g>

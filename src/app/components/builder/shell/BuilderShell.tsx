@@ -1,3 +1,4 @@
+import {MATERIAL_TOOLS,type MaterialTool} from './MaterialsInspector';
 import {BuilderSheet,ResponsiveBuilderContext,useResponsiveBuilder,useBuilderWidth,type BuilderPanel,type SheetSnap} from './responsiveBuilder';
 import {MoreHorizontal,Plus,SlidersHorizontal} from 'lucide-react';
 import { useRef, useState, useEffect, useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
@@ -54,6 +55,7 @@ export function BuilderTopBar({
   return <header className="builder-topbar"><div className="builder-breadcrumb"><a href="/catalog" aria-label="Back to products"><ArrowLeft size={16} /></a><span className="desktop-breadcrumb-prefix">Products /</span>{rename ? <input className="builder-name-input" size={Math.max(8,Math.min(name.length,34))} aria-label="Product name" value={name} onChange={e => onName(e.target.value)} onBlur={() => setRename(false)} onKeyDown={e => e.key === 'Enter' && setRename(false)} autoFocus /> : <button className="builder-name" onClick={() => setRename(true)} title="Rename project">{name}</button>}<span className="builder-draft">Draft</span></div><div className="phone-history-actions"><button aria-label="Undo" disabled={!canUndo} onClick={onUndo}><Undo2 size={16}/></button><button aria-label="Redo" disabled={!canRedo} onClick={onRedo}><Redo2 size={16}/></button></div><button className="phone-overflow" aria-label="Builder menu" onClick={()=>responsive.setPanel('menu')}><MoreHorizontal size={22}/></button>{menu&&<BuilderSheet title="Builder menu" initialSnap="half" onClose={()=>responsive.setPanel(null)}><div className="responsive-menu"><button onClick={()=>{responsive.setPanel(null);onHistory()}}>Version history</button><button onClick={()=>{responsive.setPanel(null);onSaveVersion()}}>Save version</button><button onClick={()=>{onSave();responsive.setPanel(null)}}>Save · {status}</button></div></BuilderSheet>}<div className="builder-project-actions"><button aria-label="Undo" disabled={!canUndo} onClick={onUndo}><Undo2 size={16} /></button><button aria-label="Redo" disabled={!canRedo} onClick={onRedo}><Redo2 size={16} /></button><button className="builder-save" onClick={onSave} title="Save project">{status}</button><button aria-label="Version history" onClick={onHistory}><History size={16} /></button><button className="builder-primary" onClick={onReview}>Review & Export</button></div></header>;
 }
 export function BuilderSidebar({
+  materialTool,onMaterialTool,
   section,
   onSection,
   tool,
@@ -63,6 +65,7 @@ export function BuilderSidebar({
   constructionTool,
   onConstructionTool
 }: {
+  materialTool?:MaterialTool;onMaterialTool?:(tool:MaterialTool)=>void;
   section: BuilderSection;
   onSection: (s: BuilderSection) => void;
   tool: MeasurementTool;
@@ -75,16 +78,17 @@ export function BuilderSidebar({
   return <aside className="builder-sidebar" data-collapsed={collapsed}><button className="builder-collapse" aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!collapsed} onClick={onCollapse}>{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button><nav aria-label="Builder sections">{BUILDER_SECTIONS.map((s, i) => {
         const Icon = icons[i];
         return <button key={s} className={section === s ? 'is-selected' : ''} onClick={() => onSection(s)} aria-current={section === s ? 'page' : undefined} title={s}><Icon size={21} /><span>{s}</span>{section === s && <i className="builder-status-dot" />}</button>;
-      })}</nav><div className="builder-context"><h2>{section === 'Construction' ? 'Construction tools' : section === 'Fit & Measurements' ? 'Measurement tools' : 'Section tools'}</h2>{section === 'Fit & Measurements' ? MEASUREMENT_TOOLS.map((s, i) => {
+      })}</nav><div className="builder-context"><h2>{section === 'Materials & Colour'?'Material tools':section === 'Construction' ? 'Construction tools' : section === 'Fit & Measurements' ? 'Measurement tools' : 'Section tools'}</h2>{section === 'Fit & Measurements' ? MEASUREMENT_TOOLS.map((s, i) => {
         const Icon = [Ruler, TableProperties, CirclePlus, FileUp][i];
         return <button key={s} className={tool === s ? 'is-selected' : ''} onClick={() => onTool(s)} title={s}><Icon size={20} /><span>{s}</span></button>;
-      }) : section === 'Construction' ? construction.map((s,index) => {return <button key={s} className={constructionTool === s ? 'is-selected' : ''} onClick={() => onConstructionTool(s)} title={s}><ConstructionToolIcon index={index}/><span>{s}</span></button>}) : <p>More tools will appear here.</p>}</div><div className="builder-sidebar-footer"><button onClick={() => onTool('Upload reference')} title="Upload reference"><Upload size={19} /><span>Upload reference</span></button><small>Reference / inspiration only</small></div></aside>;
+      }) : section==='Materials & Colour'?MATERIAL_TOOLS.map((s,i)=><button key={s} className={materialTool===s?'is-selected':''} onClick={()=>onMaterialTool?.(s)} title={s}><Layers size={20}/><span>{s}</span></button>):section === 'Construction' ? construction.map((s,index) => {return <button key={s} className={constructionTool === s ? 'is-selected' : ''} onClick={() => onConstructionTool(s)} title={s}><ConstructionToolIcon index={index}/><span>{s}</span></button>}) : <p>More tools will appear here.</p>}</div><div className="builder-sidebar-footer"><button onClick={() => onTool('Upload reference')} title="Upload reference"><Upload size={19} /><span>Upload reference</span></button><small>Reference / inspiration only</small></div></aside>;
 }
 export function BuilderWorkspace({
   children,
   section
 }: {
   children: ReactNode;
+  materialTool?:MaterialTool;onMaterialTool?:(tool:MaterialTool)=>void;
   section: BuilderSection;
 }) {
   return <main className="builder-workspace" aria-label="Garment workspace"><div className="builder-preview-persistent" data-persistent-workspace>{children}</div></main>;
@@ -116,6 +120,7 @@ export function BuilderPlaceholder({
   return <div className="builder-placeholder"><span className="builder-eyebrow">Coming next</span><h2>{detail || section}</h2><p>{detail || section} redesign coming next.</p><p>Your design is preserved. This section’s existing tools remain available in the standard Builder.</p></div>;
 }
 export function BuilderShell({
+  materialTool,onMaterialTool,
   onWorkspaceFit,onReview,reviewOpen,sizeComparison,
   topbar,
   children,
@@ -131,6 +136,7 @@ export function BuilderShell({
   topbar: ReactNode;
   children: ReactNode;
   inspector: ReactNode;
+  materialTool?:MaterialTool;onMaterialTool?:(tool:MaterialTool)=>void;
   section: BuilderSection;
   onSection: (s: BuilderSection) => void;
   tool: MeasurementTool;
@@ -138,11 +144,12 @@ export function BuilderShell({
   constructionTool: string;
   onConstructionTool: (s: string) => void;
 }) {
-  const [viewportHeight,setViewportHeight]=useState(()=>window.visualViewport?.height??window.innerHeight);
- useEffect(()=>{const update=()=>setViewportHeight(window.visualViewport?.height??window.innerHeight);window.addEventListener('resize',update);window.visualViewport?.addEventListener('resize',update);return()=>{window.removeEventListener('resize',update);window.visualViewport?.removeEventListener('resize',update)}},[]);
+  const [viewportHeight,setViewportHeight]=useState(()=>window.visualViewport?.height??window.innerHeight);const [viewportTop,setViewportTop]=useState(0);
+ useEffect(()=>{const update=()=>{setViewportHeight(window.visualViewport?.height??window.innerHeight);setViewportTop(window.visualViewport?.offsetTop??0)};window.addEventListener('resize',update);window.visualViewport?.addEventListener('resize',update);window.visualViewport?.addEventListener('scroll',update);return()=>{window.removeEventListener('resize',update);window.visualViewport?.removeEventListener('resize',update);window.visualViewport?.removeEventListener('scroll',update)}},[]);
  const width=useBuilderWidth();const phone=width<768;const tablet=width>=768&&width<1200;
+ useEffect(()=>{if(!phone)return;const oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=oldOverflow}},[phone]);
  const [panel,setPanel]=useState<BuilderPanel>(null);const [inspectorSnap,setInspectorSnap]=useState<SheetSnap>('peek');const [size,setSize]=useState('m');
- useEffect(()=>{if(tool==='Advanced sizing')setInspectorSnap('half')},[tool]);
+ useEffect(()=>{if(tool==='Advanced sizing'||section==='Materials & Colour')setInspectorSnap('half')},[tool,section]);
  const [tabletExpanded,setTabletExpanded]=useState(false);
  const [collapsed, setCollapsed] = useState(false);
  // Canvas bounds respond through CSS containers; do not reset shared zoom on breakpoint changes.
@@ -163,16 +170,16 @@ export function BuilderShell({
 
   const effectiveWidth=tablet?Math.max(280,Math.min(430,inspectorWidth, width-(collapsed||!tabletExpanded||width<1000?64:190)-300)):Math.max(300,inspectorWidth);
  const responsiveValue=useMemo(()=>({size,setSize,panel,setPanel,inspectorSnap,setInspectorSnap,openSections:()=>setPanel('sections')}),[size,panel,inspectorSnap]);
- return <ResponsiveBuilderContext.Provider value={responsiveValue}><div className="ceriga-builder-shell" style={{'--builder-viewport-height':`${viewportHeight}px`,'--builder-inspector-width':`${inspectorCollapsed?40:effectiveWidth}px`,'--phone-inspector-height':inspectorSnap==='peek'?'104px':inspectorSnap==='half'?'calc((var(--builder-viewport-height,100dvh) - 114px) * .46)':'calc((var(--builder-viewport-height,100dvh) - 114px) * .46)'} as CSSProperties} data-inspector-collapsed={inspectorCollapsed} data-resizing={resizing} data-section={section} data-size-compare={Boolean(sizeComparison?.enabled)} data-tool={tool} data-phone-snap={inspectorSnap} data-nav-collapsed={collapsed||tablet&&(!tabletExpanded||width<1000)}>{topbar}<div className="builder-shell-grid"><BuilderSidebar {...{
-        section,
+ return <ResponsiveBuilderContext.Provider value={responsiveValue}><div className="ceriga-builder-shell" style={{'--builder-viewport-top':`${viewportTop}px`,'--builder-viewport-height':`${viewportHeight}px`,'--builder-inspector-width':`${inspectorCollapsed?40:effectiveWidth}px`,'--phone-inspector-height':inspectorSnap==='peek'?'104px':inspectorSnap==='half'?'calc((var(--builder-viewport-height,100dvh) - 114px) * .46)':'calc((var(--builder-viewport-height,100dvh) - 114px) * .46)'} as CSSProperties} data-inspector-collapsed={inspectorCollapsed} data-resizing={resizing} data-section={section} data-size-compare={Boolean(sizeComparison?.enabled)} data-tool={tool} data-phone-snap={inspectorSnap} data-nav-collapsed={collapsed||tablet&&(!tabletExpanded||width<1000)}>{topbar}<div className="builder-shell-grid"><BuilderSidebar {...{
+        section,materialTool,onMaterialTool,
         onSection:(next:BuilderSection)=>{if(next==='Review & Export')onReview();else onSection(next)},
         tool,
         onTool,
         collapsed:collapsed||tablet&&(!tabletExpanded||width<1000),
         constructionTool,
         onConstructionTool
-      }} onCollapse={() => {if(tablet&&width<1000)setPanel('sections');else if(tablet)setTabletExpanded(v=>!v);else setCollapsed(v => !v)}} /><BuilderWorkspace section={section}>{children}</BuilderWorkspace><BuilderInspector collapsed={!phone&&inspectorCollapsed} onCollapse={()=>{setInspectorCollapsed(v=>!v)}} onResizeKey={direction=>{setInspectorWidth(w=>Math.max(tablet?280:300,Math.min(tablet?430:480,w+direction)))}} onResize={startResize} contentKey={section + tool + constructionTool}>{phone&&reviewOpen?null:phone&&!(section==='Fit & Measurements'&&(tool==='Core measurements'||tool==='Advanced sizing'))?(!panel&&<BuilderSheet title={section==='Fit & Measurements'?tool:section} onClose={()=>onTool('Core measurements')} initialSnap="full"><div className="mobile-tool-content">{inspector}</div></BuilderSheet>):inspector}</BuilderInspector></div>{phone&&<MobileBuilderDock section={section} reviewOpen={reviewOpen} referenceOpen={tool==='Upload reference'} panel={panel} onPanel={next=>{if(reviewOpen)onReview();setPanel(next)}} onReference={()=>{if(reviewOpen)onReview();setPanel(null);onTool(tool==='Upload reference'?'Core measurements':'Upload reference')}} onReview={()=>{setPanel(null);onReview()}}/>}
- {(panel==='sections'||panel==='tools'||panel==='add')&&<BuilderSheet title={panel==='sections'?'Sections':panel==='tools'?'Tools':'Add to product'} initialSnap={panel==='sections'?'full':'half'} onClose={()=>setPanel(null)}><div className="responsive-menu">{panel==='sections'?<>{BUILDER_SECTIONS.map((s,i)=>{const Icon=icons[i];return <button key={s} aria-current={s===section?'page':undefined} onClick={()=>{setPanel(null);if(s==='Review & Export')onReview();else onSection(s)}}><span className="mobile-nav-label"><Icon size={20}/>{s}</span>{s===section&&<span>✓</span>}</button>})}<h3>Measurement tools</h3>{MEASUREMENT_TOOLS.map(t=><button key={t} onClick={()=>{onTool(t);setPanel(null)}}>{t}</button>)}</>:panel==='tools'?<><h3>{section}</h3>{section==='Fit & Measurements'?MEASUREMENT_TOOLS.map(t=><button key={t} aria-current={t===tool?'page':undefined} onClick={()=>{onTool(t);setPanel(null)}}>{t}</button>):section==='Construction'?construction.map(t=><button key={t} onClick={()=>{onConstructionTool(t);setPanel(null)}}>{t}</button>):<p>This section’s tools are being adapted for the new Builder. Your garment is preserved.</p>}</>:section==='Fit & Measurements'?<><button onClick={()=>{onTool('Import measurements');setPanel(null)}}>Import measurements <small>Preview</small></button><p>Custom measurement creation is coming later. Existing garment and asset measurements remain editable.</p></>:<p>No additional creation tools are available in this section yet.</p>}</div></BuilderSheet>}</div></ResponsiveBuilderContext.Provider>;
+      }} onCollapse={() => {if(tablet&&width<1000)setPanel('sections');else if(tablet)setTabletExpanded(v=>!v);else setCollapsed(v => !v)}} /><BuilderWorkspace section={section}>{children}</BuilderWorkspace><BuilderInspector collapsed={!phone&&inspectorCollapsed} onCollapse={()=>{setInspectorCollapsed(v=>!v)}} onResizeKey={direction=>{setInspectorWidth(w=>Math.max(tablet?280:300,Math.min(tablet?430:480,w+direction)))}} onResize={startResize} contentKey={section + tool + constructionTool}>{phone&&reviewOpen?null:phone&&!(section==='Fit & Measurements'&&(tool==='Core measurements'||tool==='Advanced sizing'))?(!panel&&<BuilderSheet persistent={section==='Materials & Colour'} snap={section==='Materials & Colour'?inspectorSnap:undefined} onSnap={section==='Materials & Colour'?setInspectorSnap:undefined} title={section==='Fit & Measurements'?tool:section==='Materials & Colour'?materialTool??section:section} onClose={()=>{if(section==='Materials & Colour')setInspectorSnap('peek');else onTool('Core measurements')}} initialSnap={section==='Materials & Colour'?'half':'full'}><div className="mobile-tool-content">{section==='Materials & Colour'&&inspectorSnap==='peek'?null:inspector}</div></BuilderSheet>):inspector}</BuilderInspector></div>{phone&&<MobileBuilderDock section={section} reviewOpen={reviewOpen} referenceOpen={tool==='Upload reference'} panel={panel} onPanel={next=>{if(reviewOpen)onReview();setPanel(next)}} onReference={()=>{if(reviewOpen)onReview();setPanel(null);onTool(tool==='Upload reference'?'Core measurements':'Upload reference')}} onReview={()=>{setPanel(null);onReview()}}/>}
+ {(panel==='sections'||panel==='tools'||panel==='add')&&<BuilderSheet title={panel==='sections'?'Sections':panel==='tools'?'Tools':'Add to product'} initialSnap={panel==='sections'?'full':'half'} onClose={()=>setPanel(null)}><div className="responsive-menu">{panel==='sections'?<>{BUILDER_SECTIONS.map((s,i)=>{const Icon=icons[i];return <button key={s} aria-current={s===section?'page':undefined} onClick={()=>{setPanel(null);if(s==='Review & Export')onReview();else onSection(s)}}><span className="mobile-nav-label"><Icon size={20}/>{s}</span>{s===section&&<span>✓</span>}</button>})}<h3>Measurement tools</h3>{MEASUREMENT_TOOLS.map(t=><button key={t} onClick={()=>{onTool(t);setPanel(null)}}>{t}</button>)}</>:panel==='tools'?<><h3>{section}</h3>{section==='Fit & Measurements'?MEASUREMENT_TOOLS.map(t=><button key={t} aria-current={t===tool?'page':undefined} onClick={()=>{onTool(t);setPanel(null)}}>{t}</button>):section==='Materials & Colour'?MATERIAL_TOOLS.map(t=><button key={t} aria-current={materialTool===t?'page':undefined} onClick={()=>{onMaterialTool?.(t);setPanel(null)}}>{t}</button>):section==='Construction'?construction.map(t=><button key={t} onClick={()=>{onConstructionTool(t);setPanel(null)}}>{t}</button>):<p>This section’s tools are being adapted for the new Builder. Your garment is preserved.</p>}</>:section==='Fit & Measurements'?<><button onClick={()=>{onTool('Import measurements');setPanel(null)}}>Import measurements <small>Preview</small></button><p>Custom measurement creation is coming later. Existing garment and asset measurements remain editable.</p></>:<p>No additional creation tools are available in this section yet.</p>}</div></BuilderSheet>}</div></ResponsiveBuilderContext.Provider>;
 }
 function MobileBuilderDock({section,panel,onPanel,onReference,onReview,reviewOpen,referenceOpen}:{reviewOpen:boolean;referenceOpen:boolean;section:BuilderSection;panel:BuilderPanel;onPanel:(panel:BuilderPanel)=>void;onReference:()=>void;onReview:()=>void}){
  const toggle=(next:BuilderPanel)=>onPanel(panel===next?null:next);

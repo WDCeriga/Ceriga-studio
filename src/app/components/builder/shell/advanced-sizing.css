@@ -96,3 +96,7 @@
 /* Keep the active size reachable and expanded details within the inspector. */
 .grading-matrix{container-type:inline-size}
 .grading-matrix .grade-row-detail{width:calc(100cqw - 8px);position:sticky;left:0;box-sizing:border-box}
+
+.ceriga-builder-shell[data-size-compare=true] [data-print-garment-backdrop]{visibility:hidden}
+.ceriga-builder-shell[data-size-compare=true] .size-comparison-overlay{visibility:visible}
+.ceriga-builder-shell[data-size-compare=true] .new-measurement-overlay{visibility:visible}
