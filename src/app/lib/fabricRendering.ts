@@ -18,7 +18,7 @@ export function fabricTextureMotif(fabric: GarmentFabric, interior: boolean, int
   const surface = fabricScanSurface(fabric, interior);
   if (!surface) return hasFabricScanSurface(fabric, interior)
     ? '<g data-fabric-scan-loading="true"/>'
-    : '<text x=".2" y="5" font-size=".7" fill="#805c28" data-fabric-unavailable="true">Texture unavailable</text>';
+    : '<g data-fabric-unavailable="true"/>';
   const normalizedIntensity = Math.max(0, Math.min(100, intensity));
   const multiplier = normalizedIntensity / 40;
   const brightness = surface.brightnessCorrection * multiplier;

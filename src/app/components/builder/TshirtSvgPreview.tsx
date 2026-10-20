@@ -801,13 +801,14 @@ function LayerHitTarget({ layerId, displayName, raw, side, zIndexBase, bbox, tra
 }) {
   const { dragHovered, handlers } = useMaterialDrop(layerId, onMaterialDrop);
   const uid = useId().replace(/:/g, '');
-  const markup = useMemo(() => renderTexturedFabricSvg(raw, selected || hovered || dragHovered ? '#829bb54d' : 'transparent', undefined, 'selection-' + uid), [raw, selected, hovered, dragHovered, uid]);
+  const markup = useMemo(() => renderTexturedFabricSvg(raw, '#7c8b9b38', undefined, 'selection-' + uid), [raw, uid]);
   return <div className="pointer-events-none absolute inset-0" style={{ ...layerTransformStyle(transform, bbox, alignOffset), zIndex: 100 + zIndexBase * 2 }}>
     <div data-tshirt-hit-target={layerId} data-construction-region-hit={layerId} role="button" tabIndex={0}
       aria-label={`Select ${displayName}`} aria-pressed={selected}
       className="pointer-events-none absolute inset-0 cursor-pointer [&>svg]:h-full [&>svg]:w-full [&_path]:[pointer-events:fill] [&_polygon]:[pointer-events:fill] [&_rect]:[pointer-events:fill]"
       style={side ? sleeveSideClipStyle(side) : undefined}
       {...handlers}
+      data-material-highlight-active={selected || hovered || dragHovered ? true : undefined}
       data-selection-highlight={selected ? 'selected' : hovered || dragHovered ? 'hover' : undefined}
       onPointerMove={event => { if (event.pointerType !== 'touch') onHover(layerId); }}
       onPointerLeave={() => onHover(null)} onPointerCancel={() => onHover(null)} onPointerDown={onPointerDown}
