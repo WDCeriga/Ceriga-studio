@@ -1,3 +1,4 @@
+import {suggestedColourReference} from '../data/colourReferences';
 import {MaterialPartDiagram} from '../components/builder/shell/MaterialPartDiagram';
 import {ColourwayCanvasBar,MaterialsInspector,type MaterialTool,type MaterialsState,type SavedColourway} from '../components/builder/shell/MaterialsInspector';
 import {MeasurementGuidesToggle} from '../components/builder/shell/MeasurementGuidesToggle';
@@ -1600,7 +1601,8 @@ export function Builder() {
       const roles=fabricParts.filter(p=>ids.includes(p.id)).map(p=>p.role);
       const hems=previous.tshirtHemStyles?JSON.parse(JSON.stringify(previous.tshirtHemStyles)):undefined;
       if(hems){if(roles.includes('cuff')){if(hems.sleeve)delete hems.sleeve.color;if(hems.undersleeve)delete hems.undersleeve.color}if(roles.includes('hem')&&hems.bottom)delete hems.bottom.color}
-      return { ...previous,tshirtHemStyles:hems,...(roles.includes('neck')?{neckTrimColor:undefined}:{}),...(roles.includes('sleeve')?{sleeveTrimColor:undefined}:{}),...(roles.includes('cuff')?{cuffTrimColor:undefined}:{}),...(roles.includes('pocket')?{pocketTrimColor:undefined}:{}), partColors: setPartColours(previous.partColors, ids, material.colour),
+      const materialSpecs={...previous.materialSpecs};const reference=suggestedColourReference(material.colour);for(const id of ids)materialSpecs['colour:'+id]=reference;if(group?.group&&both)materialSpecs['colour:group:'+group.group]=reference;
+      return { ...previous,materialSpecs,tshirtHemStyles:hems,...(roles.includes('neck')?{neckTrimColor:undefined}:{}),...(roles.includes('sleeve')?{sleeveTrimColor:undefined}:{}),...(roles.includes('cuff')?{cuffTrimColor:undefined}:{}),...(roles.includes('pocket')?{pocketTrimColor:undefined}:{}), partColors: setPartColours(previous.partColors, ids, material.colour),
         colourDefaults: { ...previous.colourDefaults, unlinkedGroups: [...unlinked] } };
     });
     setPendingMaterialDrop(null);
