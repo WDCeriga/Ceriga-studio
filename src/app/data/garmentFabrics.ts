@@ -43,6 +43,8 @@ export type FabricCategory = 'body' | 'sleeves' | 'neck' | 'hood' | 'cuffs' | 'w
 export interface InteriorMaterialState {
   matchExteriorFabric: boolean;
   matchExteriorColour: boolean;
+  /** Set only by an explicit inside-colour edit, never by enabling a separate fabric. */
+  colourWasEdited?: boolean;
   fabricId?: string;
   colour?: string;
 }
@@ -353,5 +355,5 @@ export function resolvePartFabric(current: FabricAssignments | undefined, part: 
 /** Surface overrides win; a separately lined surface can opt out of shell matching. */
 export function resolveInteriorColour(interior: InteriorMaterialState | undefined, exteriorColour: string, override?: string, surface: FabricSurface = 'reverse'): string {
   const inherited=lighterInteriorColour(exteriorColour);
-  return override ?? (interior?.matchExteriorColour === false ? interior.colour ?? inherited : inherited);
+  return interior?.matchExteriorColour === false && interior.colourWasEdited === true ? interior.colour ?? override ?? inherited : inherited;
 }

@@ -1581,7 +1581,7 @@ export function Builder() {
   for (const part of fabricParts) {
     const material = resolvePartMaterial(state.fabricAssignments, part, fabricParts);
     if (material.surface === 'reverse') result[part.id] = resolveInteriorColour(state.fabricAssignments?.interior,
-      result[part.exteriorPartId ?? part.parentId ?? 'base'] ?? primaryColor, state.partColors?.[part.id], material.surface);
+      result[part.exteriorPartId ?? part.parentId ?? 'base'] ?? primaryColor, state.fabricAssignments?.interior?.colourWasEdited===true&&state.fabricAssignments.interior.matchExteriorColour===false?state.partColors?.[part.id]:undefined, material.surface);
   }
   Object.assign(result, applyHemRegionColours(result, state.tshirtHemStyles));
     return result;
@@ -1602,7 +1602,8 @@ export function Builder() {
       const hems=previous.tshirtHemStyles?JSON.parse(JSON.stringify(previous.tshirtHemStyles)):undefined;
       if(hems){if(roles.includes('cuff')){if(hems.sleeve)delete hems.sleeve.color;if(hems.undersleeve)delete hems.undersleeve.color}if(roles.includes('hem')&&hems.bottom)delete hems.bottom.color}
       const materialSpecs={...previous.materialSpecs};const reference=suggestedColourReference(material.colour);for(const id of ids)materialSpecs['colour:'+id]=reference;if(group?.group&&both)materialSpecs['colour:group:'+group.group]=reference;
-      return { ...previous,materialSpecs,tshirtHemStyles:hems,...(roles.includes('neck')?{neckTrimColor:undefined}:{}),...(roles.includes('sleeve')?{sleeveTrimColor:undefined}:{}),...(roles.includes('cuff')?{cuffTrimColor:undefined}:{}),...(roles.includes('pocket')?{pocketTrimColor:undefined}:{}), partColors: setPartColours(previous.partColors, ids, material.colour),
+      const paintedInterior=fabricParts.some(p=>ids.includes(p.id)&&p.interior);const fabricAssignments=paintedInterior?{...initializeFabricDefaults(previous.garmentType,previous.fabricAssignments),interior:{matchExteriorFabric:true,...previous.fabricAssignments?.interior,matchExteriorColour:false,colourWasEdited:true,colour:material.colour}}:previous.fabricAssignments;
+      return { ...previous,fabricAssignments,materialSpecs,tshirtHemStyles:hems,...(roles.includes('neck')?{neckTrimColor:undefined}:{}),...(roles.includes('sleeve')?{sleeveTrimColor:undefined}:{}),...(roles.includes('cuff')?{cuffTrimColor:undefined}:{}),...(roles.includes('pocket')?{pocketTrimColor:undefined}:{}), partColors: setPartColours(previous.partColors, ids, material.colour),
         colourDefaults: { ...previous.colourDefaults, unlinkedGroups: [...unlinked] } };
     });
     setPendingMaterialDrop(null);
