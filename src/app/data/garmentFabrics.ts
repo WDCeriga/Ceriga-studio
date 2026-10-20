@@ -1,3 +1,4 @@
+import {lighterInteriorColour} from './interiorColour';
 import { getGarmentSvgConfig, garmentLayerLabel, type GarmentSvgGarmentType, type ResolvedGarmentLayer } from './garmentSvgCatalog';
 
 export type FabricTextureType = 'jersey' | 'interlock' | 'terry' | 'loopback' | 'fleece' | 'brushed-fleece' | 'rib-1x1' | 'rib-2x2' | 'waffle' | 'pique' | 'twill' | 'denim' | 'taslan' | 'mesh';
@@ -351,5 +352,6 @@ export function resolvePartFabric(current: FabricAssignments | undefined, part: 
 
 /** Surface overrides win; a separately lined surface can opt out of shell matching. */
 export function resolveInteriorColour(interior: InteriorMaterialState | undefined, exteriorColour: string, override?: string, surface: FabricSurface = 'reverse'): string {
-  return override ?? (surface === 'lining' || interior?.matchExteriorColour === false ? interior?.colour ?? exteriorColour : exteriorColour);
+  const inherited=lighterInteriorColour(exteriorColour);
+  return override ?? (interior?.matchExteriorColour === false ? interior.colour ?? inherited : inherited);
 }
