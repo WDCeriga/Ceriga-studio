@@ -35,6 +35,7 @@ import {
 } from './measurementGuides';
 
 interface MeasurementsStepProps {
+  guidesVisible?:boolean; onGuidesVisibleChange?:(value:boolean)=>void;
   grading?:MeasurementGrading;sizingActions?:SizingActions;
   notes?:string;onNotesChange?:(value:string)=>void;
   measurementTolerances?:Record<string,Record<string,string>>;
@@ -166,6 +167,7 @@ export const fitMeasurements: Record<string, Record<string, Record<string, strin
 };
 
 export function MeasurementsStep({
+  guidesVisible=true,onGuidesVisibleChange,
   appearance,tool,measurementTolerances,onToleranceChange,notes,onNotesChange,grading,sizingActions,
   garmentType,
   fit,
@@ -187,7 +189,7 @@ export function MeasurementsStep({
   const setHighlightedMeasurementId =
     onHighlightedMeasurementIdChange ?? setLocalHighlightedMeasurementId;
 
-  if(appearance==='shell') return <FitMeasurementsInspector grading={grading} sizingActions={sizingActions} notes={notes} onNotesChange={onNotesChange} measurementTolerances={measurementTolerances} onToleranceChange={onToleranceChange} advanced={tool==='Advanced sizing'} fit={fit} fitChoices={fitChoices} presets={currentMeasurements} measurements={measurements} onFitChange={onFitChange} onMeasurementChange={onMeasurementChange} measurementUnit={measurementUnit} onMeasurementUnitChange={onMeasurementUnitChange} highlightedMeasurementId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId}/>;
+  if(appearance==='shell') return <FitMeasurementsInspector guidesVisible={guidesVisible} onGuidesVisibleChange={onGuidesVisibleChange} grading={grading} sizingActions={sizingActions} notes={notes} onNotesChange={onNotesChange} measurementTolerances={measurementTolerances} onToleranceChange={onToleranceChange} advanced={tool==='Advanced sizing'} fit={fit} fitChoices={fitChoices} presets={currentMeasurements} measurements={measurements} onFitChange={onFitChange} onMeasurementChange={onMeasurementChange} measurementUnit={measurementUnit} onMeasurementUnitChange={onMeasurementUnitChange} highlightedMeasurementId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId}/>;
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Fit Selector */}
@@ -371,9 +373,10 @@ export function MeasurementPreview({
   onAssetSelect,
   onAssetMeasurementsChange,
   measurementUnit = 'cm',
-  presentation, onGuideSelect, onDrawingBounds,
+  presentation, onGuideSelect, onDrawingBounds, showGuides=true,
 }: {
   presentation?: 'redesign';
+  showGuides?: boolean;
   onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void;
   onGuideSelect?: (id:string)=>void;
   garmentType?: string;
@@ -433,7 +436,7 @@ export function MeasurementPreview({
             garmentDetails={garmentDetails}
             detailView={detailView}
             labelEditor={{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
-            renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
+            renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer showGuides={showGuides} onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
               details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
               referenceWidthCm={sharedGarmentProps?.labelReferenceWidthMm ? sharedGarmentProps.labelReferenceWidthMm / 10 : 50}
               unit={measurementUnit} selectedId={selectedAssetId} highlightedId={highlightedMeasurementId} onSelect={onAssetSelect} onMeasurementsChange={onAssetMeasurementsChange} />}

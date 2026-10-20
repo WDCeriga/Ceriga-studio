@@ -203,3 +203,34 @@
 }
 
 @media(max-width:767px){.ceriga-builder-shell .phone-measurement-notes textarea{font-size:12px!important;line-height:1.6}}
+
+/* Keep sheets and canvas in the same viewport when Safari chrome or keyboard moves. */
+@media(max-width:767px){
+ .ceriga-builder-shell[data-section]{height:var(--builder-viewport-height,100dvh)}
+ .ceriga-builder-shell .builder-shell-grid{transition:none}
+ .ceriga-builder-shell[data-tool="Advanced sizing"] .builder-shell-grid{padding-bottom:calc(var(--phone-inspector-height) + var(--mobile-command-height) + env(safe-area-inset-bottom))}
+ .responsive-context-layer{position:absolute}
+ .ceriga-builder-shell .responsive-sheet{--sheet-height:calc((var(--builder-viewport-height,100dvh) - 114px) * .86);max-height:calc(var(--builder-viewport-height,100dvh) - 114px)}
+ .ceriga-builder-shell .responsive-sheet[data-snap=peek]{--sheet-height:104px}
+ .ceriga-builder-shell .responsive-sheet[data-snap=half]{--sheet-height:calc((var(--builder-viewport-height,100dvh) - 114px) * .46)}
+ .advanced-phone-heading{display:flex;gap:8px;align-items:center;justify-content:space-between;min-height:68px}
+ .advanced-phone-heading>button{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:44px;text-align:left;font-size:13px;font-weight:600}
+ .advanced-phone-heading>button>span{font-size:11px;color:#748095;font-weight:400}
+ .contextual-measurement-sheet .advanced-sizing-intro{display:none}
+ .contextual-measurement-sheet .grading-anchor-row{margin-top:10px}
+}
+.touch-measurement-navigation{touch-action:pan-y}
+
+@media(max-width:767px){
+ .advanced-phone-heading{min-height:44px}
+ .phone-grading-settings{border-bottom:1px solid #e5e8ed;margin:0 0 10px}
+ .phone-grading-settings>summary{min-height:38px;display:flex;align-items:center;justify-content:space-between;color:#67758a;font-size:11px;cursor:pointer;list-style:none}
+ .phone-grading-settings>summary::-webkit-details-marker{display:none}
+ .contextual-measurement-sheet .grading-size-range{margin:8px 0}
+ .contextual-measurement-sheet .grading-size-first>h3{margin:8px 0}
+ .grading-size-first section[data-active=true]{background:#f4f6f9;border-radius:5px}
+}
+
+.tablet-measurement-navigation{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 10px;color:#6c7b90;font-size:11px}
+.tablet-measurement-navigation>button{display:flex;align-items:center;gap:3px;min-height:44px}
+.grading-matrix{touch-action:auto}

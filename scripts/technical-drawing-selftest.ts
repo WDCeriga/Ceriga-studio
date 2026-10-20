@@ -1,3 +1,4 @@
+import {clipPoloStitching,necklineBoundary} from '../src/app/data/tshirtNecklineQuality';
 import {cleanSleeveFabric,withTshirtSurfaceQuality} from '../src/app/data/tshirtSurfaceQuality';
 import {fabricRings} from '../src/app/data/regularConstruction';
 import type {ResolvedGarmentLayer} from '../src/app/data/garmentSvgCatalog';
@@ -54,12 +55,24 @@ export function technicalDrawingChecks(){
  const neckLayer={...sleeve,id:'neck',svgRaw:collarRaw},backLayer={...sleeve,id:'innerBackNeck',svgRaw:collarRaw};
  const outlineLayer={...sleeve,id:'outline',svgRaw:svg('<g transform="scale(.1)" fill="black"><path d="M0 0H20000V20000H0Z"/></g><path data-ink-repair="true" fill="none" d="M0 0H5V5Z"/>')};
  const quality=withTshirtSurfaceQuality([sleeve,neckLayer,backLayer,outlineLayer]);
- check('neck and inner back artwork objects remain identical',quality[1]===neckLayer&&quality[2]===backLayer);
+ check('neck and inner back layers retain original identities and source data',quality[1].assetId===neckLayer.assetId&&quality[2].assetId===backLayer.assetId&&neckLayer.svgRaw===collarRaw);
  const qualityInk=parse(quality[3].svgRaw);
  check('old repair clips are retired for complete contour rendering',qualityInk.querySelectorAll('[data-ink-repair]').length===1&&qualityInk.querySelector('[data-ink-repair]')?.getAttribute('d')==='M0 0H2048V2048H0Z');
  check('original collar ink is protected by a dedicated mask',!!qualityInk.querySelector('[data-ink-preserve]')&&!!qualityInk.querySelector('mask'));
- check('source original ink path data is preserved',qualityInk.querySelector('g path')?.getAttribute('d')==='M0 0H20000V20000H0Z');
+ check('source original ink path data is preserved',[...qualityInk.querySelectorAll('g path')].some(p=>!p.closest('defs')&&p.getAttribute('d')==='M0 0H20000V20000H0Z'));
  const unsupported=withTshirtSurfaceQuality([sleeve,outlineLayer]);
  check('unsupported neck assets keep their original ink rather than disappearing',unsupported[1]===outlineLayer);
+ const poloSource=collarRaw.replace('<svg','<svg data-tech-ink-boldness="0"');
+ const poloPaint=parse(normalizeTechnicalSvg(poloSource,1,'outline',true));
+ check('Polo source ink is not thickened a second time',poloPaint.querySelector('path')?.getAttribute('stroke-width')==='0');
+ check('Polo paint correction retains its original fold geometry',poloPaint.querySelector('path')?.getAttribute('d')===collarPath);
+ const poloNeck={...neckLayer,displayName:'Polo collar'};
+ const stitchSource=svg('<path fill="none" stroke="white" d="M0 0L100 100"/>');
+ const stitchClear=parse(clipPoloStitching(stitchSource,[poloNeck],'polo-test'));
+ check('Polo generated stitching has collar clearance',!!stitchClear.querySelector('g[mask="url(#polo-test)"]')&&stitchClear.querySelector('mask path')?.getAttribute('stroke-width')==='24');
+ check('all collar styles receive stitch clearance',!!parse(clipPoloStitching(stitchSource,[neckLayer],'other')).querySelector('g[mask="url(#other)"]'));
+ const oneBoundary=necklineBoundary([neckLayer]);
+ check('hidden rear neck edges are not drawn over the front collar',oneBoundary===necklineBoundary([neckLayer,backLayer]));
+ check('source collar tracing marks are hidden behind clean borders',!!qualityInk.querySelector('g[opacity="0"]'));
  return passed;
 }

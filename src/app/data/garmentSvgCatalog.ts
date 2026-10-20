@@ -1319,8 +1319,9 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     ? 'cap' : sleeveChoice?.displayName.startsWith('Longer short sleeve')
     ? 'longer-short' : sleeveChoice?.displayName.startsWith('Long sleeve') ? 'long' : undefined;
   const view = input.view ?? 'front';
+  const neckFinish=input.neckFinish==='raw'&&/polo/i.test(layers.find(l=>l.id==='neck')?.displayName??'')?'clean':input.neckFinish;
   // Neck assets are swapped in before the sleeve variants so long/cap sleeve masks apply to them.
-  const packed = input.garmentType === 'tshirt' ? withTshirtNeckPack(layers, fit, view, input.neckFinish) : undefined;
+  const packed = input.garmentType === 'tshirt' ? withTshirtNeckPack(layers, fit, view, neckFinish) : undefined;
   const sourceLayers = packed ?? layers;
   let resolved = input.garmentType === 'tshirt' && layered
     ? withLayeredLongSleeves(sourceLayers, fit, input.partColors)
@@ -1334,7 +1335,7 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       if (input.view === 'back') {
         resolved = withTshirtBackView(resolved, fit);
       }
-      resolved = withTshirtNeckFinish(resolved, input.neckFinish);
+      resolved = withTshirtNeckFinish(resolved, neckFinish);
     }
   } else {
     resolved = resolved.map(layer => {

@@ -38,7 +38,7 @@ async function sampleSourceContours(source: MeasurementSource, yieldForPaint: ()
       const contours: { contour: string; matrix: DOMMatrix }[] = [];
       const inverseHolderMatrix = holder.getCTM()!.inverse();
       for (const path of Array.from(paths)) {
-        if (source.id !== 'neckCutout' && path.closest('defs')) continue;
+        if (source.id !== 'neckCutout' && path.closest('defs, [data-neck-support]')) continue;
         const data = path.getAttribute('d') ?? '';
         const matrix = inverseHolderMatrix.multiply(path.getCTM()!);
         for (const contour of /m/.test(data) ? [data] : data.match(/M[^M]*/g) ?? []) contours.push({ contour, matrix });

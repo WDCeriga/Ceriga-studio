@@ -175,6 +175,7 @@ async function prepareContours(
 }
 
 export function withTshirtCollarContours(layers: ResolvedGarmentLayer[]): ResolvedGarmentLayer[] {
+  if (layers.some(l=>l.svgRaw.includes('data-raster-neck="true"'))) return layers;
   const context = contourContext(layers);
   if (!context) return layers;
   const cached = cache.find(entry => sameContext(entry.context, context));
@@ -182,6 +183,7 @@ export function withTshirtCollarContours(layers: ResolvedGarmentLayer[]): Resolv
 }
 
 export async function prepareTshirtCollarContours(layers: ResolvedGarmentLayer[]): Promise<boolean> {
+  if (layers.some(l=>l.svgRaw.includes('data-raster-neck="true"'))) return false;
   const context = contourContext(layers);
   if (!context || cache.some(entry => sameContext(entry.context, context))) return false;
 

@@ -5,8 +5,8 @@ import { getPotraceSvgBBox } from '../lib/tshirtSvgUtils';
 export type NeckFinish = 'ribbed' | 'clean' | 'raw';
 export const NECK_FINISH_OPTIONS = [
   { value: 'ribbed', label: 'Ribbed' },
-  { value: 'clean', label: 'No rib / clean band' },
-  { value: 'raw', label: 'No neck / raw finish' },
+  { value: 'clean', label: 'No ribbing' },
+  { value: 'raw', label: 'No neck' },
 ] as const;
 
 const namespace = 'http://www.w3.org/2000/svg';
@@ -19,7 +19,7 @@ function neckFinishContext(layers: ResolvedGarmentLayer[], finish?: NeckFinish) 
   const outline = layers.find(layer => layer.id === 'outline');
   const stitching = layers.find(layer => layer.id === 'stitching');
   const base = layers.find(layer => layer.id === 'base');
-  if (!neck || !outline || !base) return undefined;
+  if (!neck || !outline || !base || (finish === 'raw' && /polo/i.test(neck.displayName))) return undefined;
   const key = `${finish}:${neck.svgRaw}:${outline.svgRaw}:${base.svgRaw}:${stitching?.svgRaw}`;
   const raw = finish === 'raw';
   if (cache.has(key)) return { neck, outline, stitching, base, rearEdge: undefined, raw, key };
@@ -30,9 +30,10 @@ function neckFinishContext(layers: ResolvedGarmentLayer[], finish?: NeckFinish) 
 }
 
 function applyNeckFinish(layers: ResolvedGarmentLayer[], result: NonNullable<ReturnType<typeof cache.get>>, raw: boolean) {
-  return layers.filter(layer => !raw || !['neck', 'innerBackNeck'].includes(layer.id)).map(layer => layer.id === 'neck' ? { ...layer, svgRaw: result.neck }
+  return layers.filter(layer => !raw || layer.id !== 'neck').map(layer => layer.id === 'neck' ? { ...layer, svgRaw: result.neck }
     : layer.id === 'outline' ? { ...layer, svgRaw: result.outline }
     : layer.id === 'stitching' && result.stitching ? { ...layer, svgRaw: result.stitching }
+    : layer.id === 'innerBackNeck' ? layer
     : result.cutout ? { ...layer, svgRaw: clearNeckArea(layer.svgRaw, result.cutout.path, result.cutout.transform, `${result.cutout.id}-${layer.id}`, 0) } : layer);
 }
 

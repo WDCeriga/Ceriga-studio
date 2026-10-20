@@ -1,4 +1,5 @@
-import {regularStitchRows} from '../../data/regularConstruction';
+import {clipPoloStitching} from '../../data/tshirtNecklineQuality';
+import {regularStitchRows,straightSleeveStitches} from '../../data/regularConstruction';
 import {useTechnicalDrawing,normalizeTechnicalSvg,useRegularConstruction} from '../../lib/technicalDrawing';
 import { useEffect, useId, useState, useMemo } from 'react';
 import { Shirt, ZoomIn } from 'lucide-react';
@@ -34,7 +35,7 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor 
   layers: ResolvedGarmentLayer[]; fit: string; settings: TshirtStitching; hems?: TshirtHemStyles; fabricColor?: string;
 }) {
   const technical=useTechnicalDrawing();
-  const regular=useRegularConstruction();
+  const regular=useRegularConstruction()||technical;
   const prefix = useId().replace(/:/g, '');
   const { geometry, failed } = useStitchGeometry(layers, fit, !regular);
   const regularRows=useMemo(()=>regular?regularStitchRows(layers):undefined,[regular,layers]);
@@ -43,10 +44,11 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor 
   const colors = fabricColor ? Object.fromEntries(layers.filter(layer => layer.kind === 'solid').map(layer => [layer.id, layer.tint ?? fabricColor])) : undefined;
   if (colors) colors.neckline = colors.neck ?? colors.base;
   const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips'],hemClips:Object.fromEntries(Object.keys(hemClips??{}).map(id=>[id,{stitchCut:id.endsWith('Left')?'M0,0H768V1536H0Z':id.endsWith('Right')?'M768,0H1536V1536H768Z':'M0,0H1536V1536H0Z'}]))}:geometry&&{...geometry,hemClips};
-  const markup = source && vectorGeometry ? renderStitchStyles(source, vectorGeometry, settings, hems, colors, prefix) : '';
+  const stitchGeometry=technical&&vectorGeometry?{...vectorGeometry,rows:straightSleeveStitches(layers,vectorGeometry.rows)}:vectorGeometry;
+  const markup = source && stitchGeometry ? renderStitchStyles(source, stitchGeometry, settings, hems, colors, prefix) : '';
   return <div data-layer-id="stitching" data-stitch-ready={Boolean(vectorGeometry)} data-stitch-error={!regular&&failed || undefined}
     className="pointer-events-none absolute inset-0 [&_*]:pointer-events-none [&>svg]:h-full [&>svg]:w-full" aria-hidden="true"
-    style={{ zIndex: source?.zIndex ?? 80 }} dangerouslySetInnerHTML={{ __html: technical&&markup?normalizeTechnicalSvg(markup,1,'stitch'):markup }} />;
+    style={{ zIndex: source?.zIndex ?? 80 }} dangerouslySetInnerHTML={{ __html: clipPoloStitching(technical&&markup?normalizeTechnicalSvg(markup,1,'stitch'):markup,layers,prefix+'-polo-clearance') }} />;
 }
 
 export function StitchRegionOverlay({ geometry, hems, editor }: {

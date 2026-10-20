@@ -1,0 +1,1240 @@
+{
+  "source": "imagegen raster masters",
+  "contrast": 1.35,
+  "white": 246,
+  "black": 120,
+  "upsample": 3,
+  "threshold": 128,
+  "turdsize": 4,
+  "turnpolicy": "minority",
+  "alphamax": 1.0,
+  "opticurve": true,
+  "variants": [
+    {
+      "fit": "slim",
+      "neck": "crew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 7040,
+      "bandPixels": 35927,
+      "innerPixels": 28258
+    },
+    {
+      "fit": "slim",
+      "neck": "crew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 7040,
+      "bandPixels": 35927,
+      "innerPixels": 28258
+    },
+    {
+      "fit": "slim",
+      "neck": "crew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3877,
+      "bandPixels": 35927,
+      "innerPixels": 64185
+    },
+    {
+      "fit": "regular",
+      "neck": "crew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 6098,
+      "bandPixels": 27815,
+      "innerPixels": 21661
+    },
+    {
+      "fit": "regular",
+      "neck": "crew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 6098,
+      "bandPixels": 27815,
+      "innerPixels": 21661
+    },
+    {
+      "fit": "regular",
+      "neck": "crew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3342,
+      "bandPixels": 27815,
+      "innerPixels": 49476
+    },
+    {
+      "fit": "boxy",
+      "neck": "crew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 6786,
+      "bandPixels": 33413,
+      "innerPixels": 26300
+    },
+    {
+      "fit": "boxy",
+      "neck": "crew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 6786,
+      "bandPixels": 33413,
+      "innerPixels": 26300
+    },
+    {
+      "fit": "boxy",
+      "neck": "crew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3729,
+      "bandPixels": 33413,
+      "innerPixels": 59713
+    },
+    {
+      "fit": "oversized",
+      "neck": "crew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 5751,
+      "bandPixels": 24552,
+      "innerPixels": 18969
+    },
+    {
+      "fit": "oversized",
+      "neck": "crew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 5751,
+      "bandPixels": 24552,
+      "innerPixels": 18969
+    },
+    {
+      "fit": "oversized",
+      "neck": "crew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3169,
+      "bandPixels": 24552,
+      "innerPixels": 43521
+    },
+    {
+      "fit": "slim",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 8658,
+      "bandPixels": 41943,
+      "innerPixels": 45566
+    },
+    {
+      "fit": "slim",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 8658,
+      "bandPixels": 41943,
+      "innerPixels": 45566
+    },
+    {
+      "fit": "slim",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4639,
+      "bandPixels": 41943,
+      "innerPixels": 87509
+    },
+    {
+      "fit": "regular",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 7319,
+      "bandPixels": 31889,
+      "innerPixels": 34407
+    },
+    {
+      "fit": "regular",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 7319,
+      "bandPixels": 31889,
+      "innerPixels": 34407
+    },
+    {
+      "fit": "regular",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3930,
+      "bandPixels": 31889,
+      "innerPixels": 66296
+    },
+    {
+      "fit": "boxy",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 8275,
+      "bandPixels": 39090,
+      "innerPixels": 42442
+    },
+    {
+      "fit": "boxy",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 8275,
+      "bandPixels": 39090,
+      "innerPixels": 42442
+    },
+    {
+      "fit": "boxy",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4445,
+      "bandPixels": 39090,
+      "innerPixels": 81532
+    },
+    {
+      "fit": "oversized",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 6926,
+      "bandPixels": 28282,
+      "innerPixels": 30242
+    },
+    {
+      "fit": "oversized",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 6926,
+      "bandPixels": 28282,
+      "innerPixels": 30242
+    },
+    {
+      "fit": "oversized",
+      "neck": "vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3710,
+      "bandPixels": 28282,
+      "innerPixels": 58524
+    },
+    {
+      "fit": "slim",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 9414,
+      "bandPixels": 41672,
+      "innerPixels": 65150
+    },
+    {
+      "fit": "slim",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 9414,
+      "bandPixels": 41672,
+      "innerPixels": 65150
+    },
+    {
+      "fit": "slim",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4952,
+      "bandPixels": 41672,
+      "innerPixels": 106822
+    },
+    {
+      "fit": "regular",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 8160,
+      "bandPixels": 31640,
+      "innerPixels": 48919
+    },
+    {
+      "fit": "regular",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 8160,
+      "bandPixels": 31640,
+      "innerPixels": 48919
+    },
+    {
+      "fit": "regular",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4288,
+      "bandPixels": 31640,
+      "innerPixels": 80559
+    },
+    {
+      "fit": "boxy",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 9125,
+      "bandPixels": 39389,
+      "innerPixels": 61382
+    },
+    {
+      "fit": "boxy",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 9125,
+      "bandPixels": 39389,
+      "innerPixels": 61382
+    },
+    {
+      "fit": "boxy",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4831,
+      "bandPixels": 39389,
+      "innerPixels": 100771
+    },
+    {
+      "fit": "oversized",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 7674,
+      "bandPixels": 28354,
+      "innerPixels": 43747
+    },
+    {
+      "fit": "oversized",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 7674,
+      "bandPixels": 28354,
+      "innerPixels": 43747
+    },
+    {
+      "fit": "oversized",
+      "neck": "deep-vneck",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4006,
+      "bandPixels": 28354,
+      "innerPixels": 72101
+    },
+    {
+      "fit": "slim",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 6154,
+      "bandPixels": 25516,
+      "innerPixels": 13223
+    },
+    {
+      "fit": "slim",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 6154,
+      "bandPixels": 25516,
+      "innerPixels": 13223
+    },
+    {
+      "fit": "slim",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3384,
+      "bandPixels": 25516,
+      "innerPixels": 38739
+    },
+    {
+      "fit": "regular",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 6034,
+      "bandPixels": 24799,
+      "innerPixels": 12808
+    },
+    {
+      "fit": "regular",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 6034,
+      "bandPixels": 24799,
+      "innerPixels": 12808
+    },
+    {
+      "fit": "regular",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3317,
+      "bandPixels": 24799,
+      "innerPixels": 37607
+    },
+    {
+      "fit": "boxy",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 6034,
+      "bandPixels": 24799,
+      "innerPixels": 12808
+    },
+    {
+      "fit": "boxy",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 6034,
+      "bandPixels": 24799,
+      "innerPixels": 12808
+    },
+    {
+      "fit": "boxy",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3317,
+      "bandPixels": 24799,
+      "innerPixels": 37607
+    },
+    {
+      "fit": "oversized",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 6034,
+      "bandPixels": 24799,
+      "innerPixels": 12808
+    },
+    {
+      "fit": "oversized",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 6034,
+      "bandPixels": 24799,
+      "innerPixels": 12808
+    },
+    {
+      "fit": "oversized",
+      "neck": "thincrew",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 3317,
+      "bandPixels": 24799,
+      "innerPixels": 37607
+    },
+    {
+      "fit": "slim",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 8541,
+      "bandPixels": 38815,
+      "innerPixels": 51227
+    },
+    {
+      "fit": "slim",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 8541,
+      "bandPixels": 38815,
+      "innerPixels": 51227
+    },
+    {
+      "fit": "slim",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4592,
+      "bandPixels": 38815,
+      "innerPixels": 90042
+    },
+    {
+      "fit": "regular",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 8775,
+      "bandPixels": 41187,
+      "innerPixels": 54481
+    },
+    {
+      "fit": "regular",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 8775,
+      "bandPixels": 41187,
+      "innerPixels": 54481
+    },
+    {
+      "fit": "regular",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4706,
+      "bandPixels": 41187,
+      "innerPixels": 95668
+    },
+    {
+      "fit": "boxy",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 8532,
+      "bandPixels": 38858,
+      "innerPixels": 51365
+    },
+    {
+      "fit": "boxy",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 8532,
+      "bandPixels": 38858,
+      "innerPixels": 51365
+    },
+    {
+      "fit": "boxy",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4580,
+      "bandPixels": 38858,
+      "innerPixels": 90223
+    },
+    {
+      "fit": "oversized",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 8740,
+      "bandPixels": 40729,
+      "innerPixels": 53918
+    },
+    {
+      "fit": "oversized",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 8740,
+      "bandPixels": 40729,
+      "innerPixels": 53918
+    },
+    {
+      "fit": "oversized",
+      "neck": "scoop",
+      "view": "front",
+      "finish": "raw",
+      "inkPixels": 4714,
+      "bandPixels": 40729,
+      "innerPixels": 94647
+    },
+    {
+      "fit": "slim",
+      "neck": "polo",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 10739,
+      "bandPixels": 84026,
+      "innerPixels": 35505
+    },
+    {
+      "fit": "slim",
+      "neck": "polo",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 10739,
+      "bandPixels": 84026,
+      "innerPixels": 35505
+    },
+    {
+      "fit": "regular",
+      "neck": "polo",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 10192,
+      "bandPixels": 76543,
+      "innerPixels": 32212
+    },
+    {
+      "fit": "regular",
+      "neck": "polo",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 10192,
+      "bandPixels": 76543,
+      "innerPixels": 32212
+    },
+    {
+      "fit": "boxy",
+      "neck": "polo",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 10192,
+      "bandPixels": 76543,
+      "innerPixels": 32212
+    },
+    {
+      "fit": "boxy",
+      "neck": "polo",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 10192,
+      "bandPixels": 76543,
+      "innerPixels": 32212
+    },
+    {
+      "fit": "oversized",
+      "neck": "polo",
+      "view": "front",
+      "finish": "ribbed",
+      "inkPixels": 10161,
+      "bandPixels": 76106,
+      "innerPixels": 32122
+    },
+    {
+      "fit": "oversized",
+      "neck": "polo",
+      "view": "front",
+      "finish": "clean",
+      "inkPixels": 10161,
+      "bandPixels": 76106,
+      "innerPixels": 32122
+    },
+    {
+      "fit": "slim",
+      "neck": "crew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3130,
+      "bandPixels": 14696,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "crew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3130,
+      "bandPixels": 14696,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "crew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3130,
+      "bandPixels": 14696,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "crew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2717,
+      "bandPixels": 11465,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "crew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2717,
+      "bandPixels": 11465,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "crew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2717,
+      "bandPixels": 11465,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "crew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3041,
+      "bandPixels": 13773,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "crew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3041,
+      "bandPixels": 13773,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "crew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3041,
+      "bandPixels": 13773,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "crew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2562,
+      "bandPixels": 10102,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "crew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2562,
+      "bandPixels": 10102,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "crew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2562,
+      "bandPixels": 10102,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3233,
+      "bandPixels": 15082,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3233,
+      "bandPixels": 15082,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3233,
+      "bandPixels": 15082,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2773,
+      "bandPixels": 11499,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2773,
+      "bandPixels": 11499,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2773,
+      "bandPixels": 11499,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3130,
+      "bandPixels": 14053,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3130,
+      "bandPixels": 14053,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3130,
+      "bandPixels": 14053,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2640,
+      "bandPixels": 10308,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2640,
+      "bandPixels": 10308,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2640,
+      "bandPixels": 10308,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3127,
+      "bandPixels": 13929,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3127,
+      "bandPixels": 13929,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3127,
+      "bandPixels": 13929,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2668,
+      "bandPixels": 10680,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2668,
+      "bandPixels": 10680,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2668,
+      "bandPixels": 10680,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2988,
+      "bandPixels": 13162,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2988,
+      "bandPixels": 13162,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2988,
+      "bandPixels": 13162,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2553,
+      "bandPixels": 9585,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2553,
+      "bandPixels": 9585,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "deep-vneck",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2553,
+      "bandPixels": 9585,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3003,
+      "bandPixels": 13539,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3003,
+      "bandPixels": 13539,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3003,
+      "bandPixels": 13539,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "thincrew",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 2950,
+      "bandPixels": 12988,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3412,
+      "bandPixels": 16133,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3412,
+      "bandPixels": 16133,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3412,
+      "bandPixels": 16133,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3513,
+      "bandPixels": 17145,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3513,
+      "bandPixels": 17145,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3513,
+      "bandPixels": 17145,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3379,
+      "bandPixels": 16169,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3379,
+      "bandPixels": 16169,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3379,
+      "bandPixels": 16169,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3543,
+      "bandPixels": 16875,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3543,
+      "bandPixels": 16875,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "scoop",
+      "view": "back",
+      "finish": "raw",
+      "inkPixels": 3543,
+      "bandPixels": 16875,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "polo",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3798,
+      "bandPixels": 39797,
+      "innerPixels": 0
+    },
+    {
+      "fit": "slim",
+      "neck": "polo",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3798,
+      "bandPixels": 39797,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "polo",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3609,
+      "bandPixels": 36245,
+      "innerPixels": 0
+    },
+    {
+      "fit": "regular",
+      "neck": "polo",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3609,
+      "bandPixels": 36245,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "polo",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3609,
+      "bandPixels": 36245,
+      "innerPixels": 0
+    },
+    {
+      "fit": "boxy",
+      "neck": "polo",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3609,
+      "bandPixels": 36245,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "polo",
+      "view": "back",
+      "finish": "ribbed",
+      "inkPixels": 3613,
+      "bandPixels": 36180,
+      "innerPixels": 0
+    },
+    {
+      "fit": "oversized",
+      "neck": "polo",
+      "view": "back",
+      "finish": "clean",
+      "inkPixels": 3613,
+      "bandPixels": 36180,
+      "innerPixels": 0
+    }
+  ],
+  "rasterSize": 2048,
+  "outline": "raster skeleton smoothing, continuous uniform ink, Potrace"
+}

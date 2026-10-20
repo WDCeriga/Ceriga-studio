@@ -1,4 +1,5 @@
 import svgpath from 'svgpath';
+import polygonClipping from 'polygon-clipping';
 import {fabricRings} from './regularConstruction';
 import {flattenPathContours,signedArea,distance} from '../features/panelling/panellingGeometry';
 import type {ResolvedGarmentLayer} from './garmentSvgCatalog';
@@ -29,14 +30,38 @@ function replaceBodyArc(raw:string,a:P,b:P,curve:string,straightSide=false){
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
  parts[index]=svgpath('M'+pt(a)+curve+(rest.length>2?'L'+rest.slice(1,-1).map(q=>straightSide&&q.y>b.y&&(b.x<1024?q.x<700:q.x>1348)?{x:b.x,y:q.y}:q).map(pt).join('L'):'')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.filter((_,k)=>k===index||rings[k].every(q=>q.x>700&&q.x<1348&&q.y<900)).join(''));return new XMLSerializer().serializeToString(doc.documentElement);
 }
+function alignTorsoHem(raw:string,top:number,low:number[],high:number[]){
+ const doc=new DOMParser().parseFromString(raw,'image/svg+xml'),g=[...doc.querySelectorAll('g[transform]')].find(e=>!e.closest('defs')) as SVGGraphicsElement|undefined,p=g?.querySelector('path'),m=g?.transform.baseVal.consolidate()?.matrix;if(!p||!m)return raw;
+ const parts=(p.getAttribute('d')??'').match(/M[^M]*/g);if(!parts)return raw;
+ const rings=parts.map(d=>flattenPathContours(svgpath(d).matrix([m.a,m.b,m.c,m.d,m.e,m.f]).toString(),1)[0]??[]),idx=rings.reduce((n,r,i)=>Math.abs(signedArea(r))>Math.abs(signedArea(rings[n]))?i:n,0),points=rings[idx].map(q=>{if(q.y<top-58)return q;const t=(q.y-(top-8))/50;if(q.x<low[0]+18)return {x:low[0]+(low[0]-high[0])*t,y:q.y};if(q.x>low[1]-18)return {x:low[1]+(low[1]-high[1])*t,y:q.y};return q;});
+ const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();parts[idx]=svgpath('M'+points.map(pt).join('L')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.join(''));return new XMLSerializer().serializeToString(doc.documentElement);
+}
+/** Copy the left construction outside the traced neck window to the right shoulder. */
+function symmetricOuterTorso(raw:string){
+ const doc=new DOMParser().parseFromString(raw,'image/svg+xml'),g=[...doc.querySelectorAll('g[transform]')].find(e=>!e.closest('defs')) as SVGGraphicsElement|undefined,p=g?.querySelector('path'),m=g?.transform.baseVal.consolidate()?.matrix;
+ if(!p||!m)return raw;
+ const parts=(p.getAttribute('d')??'').match(/M[^M]*/g);if(!parts)return raw;
+ const rings=parts.map(d=>flattenPathContours(svgpath(d).matrix([m.a,m.b,m.c,m.d,m.e,m.f]).toString(),2)[0]??[]),index=rings.reduce((n,r,i)=>Math.abs(signedArea(r))>Math.abs(signedArea(rings[n]))?i:n,0);
+ const original:[[number,number][][]]=[[rings[index].map(q=>[q.x,q.y])]],left=polygonClipping.intersection(original,[[[[0,0],[1024,0],[1024,2048],[0,2048]]]]);
+ const reflected=left.map(poly=>poly.map(loop=>loop.map(([x,y])=>[2048-x,y] as [number,number]).reverse()));
+ const neck:[[number,number][][]]=[[[[700,0],[1348,0],[1348,900],[700,900]]]];
+ const symmetric=polygonClipping.union(polygonClipping.difference(polygonClipping.union(left,reflected),neck),polygonClipping.intersection(original,neck));
+ const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
+ parts[index]=svgpath(symmetric.map(poly=>poly.map(loop=>'M'+loop.map(([x,y])=>pt({x,y})).join('L')+'Z').join('')).join('')).matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();
+ p.setAttribute('d',parts.join(''));return new XMLSerializer().serializeToString(doc.documentElement);
+}
 /** One shared attachment curve owns body and sleeve geometry; cuff edges are straight. */
 export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string):ResolvedGarmentLayer[]{
  const left=layers.find(l=>l.id==='sleeveLeft'),hem=layers.find(l=>l.id==='sleeveHemLeft');if(!left||!hem)return layers;
- const key=[fit,left.svgRaw,hem.svgRaw,layers.find(l=>l.id==='base')?.svgRaw].join('|'),cached=familyCache.get(key);if(cached)return apply(layers,cached);
+ const key=[fit,left.assetId,left.svgRaw,hem.svgRaw,layers.find(l=>l.id==='base')?.svgRaw,...layers.filter(l=>/^(underSleeve|underlayerHem)/.test(l.id)).map(l=>l.id+':'+l.svgRaw)].join('|'),cached=familyCache.get(key);if(cached)return apply(layers,cached);
  const r=ring(left.svgRaw),h=ring(hem.svgRaw);if(r.length<3||h.length<3)return layers;
  const long=/:long(?::|$)/.test(left.assetId),a=fit==='oversized'?{x:545.333,y:540}:r.reduce((p,q)=>q.y<p.y?q:p,r[0]);
  const cx=h.reduce((n,p)=>n+p.x,0)/h.length,cy=h.reduce((n,p)=>n+p.y,0)/h.length,xx=h.reduce((n,p)=>n+(p.x-cx)**2,0),yy=h.reduce((n,p)=>n+(p.y-cy)**2,0),xy=h.reduce((n,p)=>n+(p.x-cx)*(p.y-cy),0),angle=.5*Math.atan2(2*xy,xx-yy),ux=Math.cos(angle),uy=Math.sin(angle),nx=-uy,ny=ux;
  const ts=h.map(p=>p.x*ux+p.y*uy),top=Math.min(...h.map(p=>p.x*nx+p.y*ny)),low=Math.max(...h.map(p=>p.x*nx+p.y*ny)),lo=Math.min(...ts),hi=Math.max(...ts),corner=(t:number,n:number)=>({x:t*ux+n*nx,y:t*uy+n*ny}),outer=corner(lo,top),inner=corner(hi,top),hemInner=corner(hi,low);
+ if(fit==='oversized'&&/longer-short/.test(left.assetId)){
+  // Taper the extended short sleeve toward the body instead of flaring the cuff.
+  outer.x+=65;inner.x+=65;hemInner.x+=65;
+ }
  const maxX=Math.max(...r.map(p=>p.x)),candidates=r.filter(p=>p.x>maxX-4&&p.y>a.y&&p.y<a.y+650);
  const t={x:maxX,y:Math.min(...candidates.map(p=>p.y))},u={x:maxX,y:Math.max(...candidates.map(p=>p.y))};
  if(!Number.isFinite(t.y)||!Number.isFinite(u.y))return layers;
@@ -46,7 +71,7 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const outerCurve=long?cubic(sideArc(r,outer,a,false),outer,a):'L'+pt(a);
  const d='M'+pt(a)+curve+innerCurve+'L'+pt(outer)+outerCurve+'Z';
  let body=layers.find(l=>l.id==='base')?.svgRaw;
- if(body){body=replaceBodyArc(body,a,u,curve,fit!=='slim');const mirrored=svgpath('M'+pt(a)+curve).matrix([-1,0,0,1,2048,0]).toString();body=replaceBodyArc(body,{x:2048-a.x,y:a.y},{x:2048-u.x,y:u.y},mirrored.replace(/^M[^C]*C/,'C'),fit!=='slim');}
+ if(body){const end=short?hemInner:u,attachment=curve+(short?'L'+pt(hemInner):'');body=replaceBodyArc(body,a,end,attachment,fit!=='slim');const mirrored=svgpath('M'+pt(a)+attachment).matrix([-1,0,0,1,2048,0]).toString();body=replaceBodyArc(body,{x:2048-a.x,y:a.y},{x:2048-end.x,y:end.y},mirrored.replace(/^M[^C]*C/,'C'),fit!=='slim');}
  if(body&&(fit==='oversized'||fit==='boxy')){
   const doc=new DOMParser().parseFromString(body,'image/svg+xml');
   for(const mask of doc.querySelectorAll('mask[id*="sleeve-torso"]')){const rect=doc.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',String(u.x));rect.setAttribute('y',String(u.y));rect.setAttribute('width',String(2048-2*u.x));rect.setAttribute('height',String(2048-u.y));rect.setAttribute('fill','white');mask.appendChild(rect);}
@@ -55,11 +80,46 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const seam='M'+pt(a)+curve+(short?'L'+pt(hemInner):'');
  const rightSeam=svgpath(seam).matrix([-1,0,0,1,2048,0]).toString();
  const right=wrap(svgpath(d).matrix([-1,0,0,1,2048,0]).toString()).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+rightSeam+'"/></svg>'),leftSvg=wrap(d).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+seam+'"/></svg>');
- const band='M'+pt(corner(lo,top))+'L'+pt(inner)+'L'+pt(hemInner)+'L'+pt(corner(lo,low))+'Z',opening='M'+pt(corner(lo,low))+'L'+pt(hemInner),layered=layers.some(l=>l.id==='underSleeveLeft');
+ const outerBottom=corner(lo,low);if(fit==='oversized'&&/longer-short/.test(left.assetId))outerBottom.x+=65;
+ const band='M'+pt(outer)+'L'+pt(inner)+'L'+pt(hemInner)+'L'+pt(outerBottom)+'Z',opening='M'+pt(outerBottom)+'L'+pt(hemInner),layered=layers.some(l=>l.id==='underSleeveLeft');
  const hemSvg=(mirrored:boolean)=>{const matrix=mirrored?[-1,0,0,1,2048,0]:[1,0,0,1,0,0];return wrap(svgpath(band).matrix(matrix).toString()).replace('</svg>',layered?'<path data-sleeve-opening="true" fill="none" d="'+svgpath(opening).matrix(matrix).toString()+'"/></svg>':'</svg>');};
  const bodyHem=layers.find(l=>l.id==='bodyHem'),bodyHemRing=bodyHem?ring(bodyHem.svgRaw):[],bodyHemYs=bodyHemRing.map(p=>p.y);
- const alignedBodyHem=fit!=='slim'&&bodyHemRing.length?wrap('M'+u.x+','+Math.min(...bodyHemYs)+'H'+(2048-u.x)+'V'+Math.max(...bodyHemYs)+'H'+u.x+'Z'):undefined;
+ let slimHem:string|undefined;
+ if(fit==='slim'&&body){
+  const torso=ring(body),bottom=Math.max(...torso.map(p=>p.y)),cut=bottom-90;
+  const ext=(y:number)=>{const xs:number[]=[];for(let i=0;i<torso.length;i++){const a=torso[i],b=torso[(i+1)%torso.length];if((a.y>y)!==(b.y>y))xs.push(a.x+(y-a.y)*(b.x-a.x)/(b.y-a.y));}return [Math.min(...xs),Math.max(...xs)];};
+  const at=ext(cut),above=ext(cut-60),left={x:at[0],y:cut},right={x:at[1],y:cut};
+  const lo={x:at[0]+(at[0]-above[0])*(bottom-cut)/60,y:bottom},hi={x:at[1]+(at[1]-above[1])*(bottom-cut)/60,y:bottom};
+  if([left.x,right.x,lo.x,hi.x].every(Number.isFinite))body=replaceBodyArc(body,left,right,'L'+pt(lo)+'L'+pt(hi)+'L'+pt(right));
+ }
+
+
+ if(body&&fit==='regular')body=symmetricOuterTorso(body);
+
+ // The neck variants have different body lengths. Derive the hem from this torso,
+ // rather than reusing a default neck's bottom height.
+ let alignedBodyHem:string|undefined;
+ if(body&&bodyHemRing.length){
+  const torso=ring(body),bottom=Math.max(...torso.map(p=>p.y));
+  const hits=(points:P[],x:number)=>{const ys:number[]=[];for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length];if((a.x>x)!==(b.x>x))ys.push(a.y+(x-a.x)*(b.y-a.y)/(b.x-a.x));}return ys;};
+  const mid=hits(bodyHemRing,1024),depth=Math.max(12,Math.min(48,mid.length>1?Math.max(...mid)-Math.min(...mid):24));
+  // Clip the band to the actual torso. Sampled bounding boxes left a ledge at the slim corners.
+  const clipped=polygonClipping.intersection([[torso.map(p=>[p.x,p.y] as [number,number])]],[[[[0,bottom-depth],[2048,bottom-depth],[2048,bottom],[0,bottom]]]]);
+  if(clipped.length)alignedBodyHem=wrap(clipped.map(poly=>poly.map(loop=>'M'+loop.map(([x,y])=>pt({x,y})).join('L')+'Z').join('')).join(''));
+ }
+
  const under:Record<string,string>={};
- if(layered)for(const id of ['underSleeveLeft','underSleeveRight']){const layer=layers.find(l=>l.id===id);if(!layer)continue;const points=ring(layer.svgRaw),xs=points.map(p=>p.x),ys=points.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y1=Math.max(...ys),edge=corner(lo,low),openingY=(x:number)=>{const leftX=id==='underSleeveRight'?2048-x:x;return edge.y+(leftX-edge.x)*(hemInner.y-edge.y)/(hemInner.x-edge.x)-4;};under[id]=wrap('M'+x0+','+openingY(x0)+'L'+x1+','+openingY(x1)+'V'+y1+'H'+x0+'Z');}
+ if(layered)for(const id of ['underSleeveLeft','underSleeveRight']){
+  const layer=layers.find(l=>l.id===id);if(!layer)continue;
+  const points=ring(layer.svgRaw),xs=points.map(p=>p.x),ys=points.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y1=Math.max(...ys),right=id==='underSleeveRight';
+  const openingY=(x:number)=>{const leftX=right?2048-x:x;return outerBottom.y+(leftX-outerBottom.x)*(hemInner.y-outerBottom.y)/(hemInner.x-outerBottom.x)-12;};
+  // A straight under-sleeve ends behind the upper hem; it must never hook into the torso.
+  const torso=body?ring(body):[],lower=torso.filter(p=>p.y>Math.min(openingY(x0),openingY(x1))&&p.x<1024);
+  const bodyEdge=lower.length?Math.min(...lower.map(p=>p.x)):1024;
+  const leftInner=Math.min(right?2048-x0:x1,bodyEdge-28),innerX=right?2048-leftInner:leftInner,outerX=right?x1:x0;
+  under[id]=wrap('M'+outerX+','+openingY(outerX)+'L'+innerX+','+openingY(innerX)+'V'+y1+'H'+outerX+'Z');
+  const cuffId=id.replace('underSleeve','underlayerHem'),cuff=layers.find(l=>l.id===cuffId),cuffRing=cuff?ring(cuff.svgRaw):[];
+  if(cuffRing.length){const top=Math.min(...cuffRing.map(p=>p.y)),bottom=Math.max(...cuffRing.map(p=>p.y));under[cuffId]=wrap('M'+outerX+','+top+'H'+innerX+'V'+bottom+'H'+outerX+'Z');}
+ }
  const raw:Record<string,string>={...under,...(alignedBodyHem?{bodyHem:alignedBodyHem}:{}),sleeveLeft:leftSvg,sleeveRight:right,sleeveHemLeft:hemSvg(false),sleeveHemRight:hemSvg(true),...(body?{base:body}:{})};if(familyCache.size>24)familyCache.delete(familyCache.keys().next().value!);familyCache.set(key,raw);return apply(layers,raw);
 }

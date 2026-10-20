@@ -171,14 +171,13 @@ interface PotraceSvgMetrics {
 }
 
 function parsePotraceGroupTransform(tfm: string) {
-  const tMatch = tfm.match(/translate\s*\(\s*([^,)]+)\s*,\s*([^)]+)\)/);
-  const sMatch = tfm.match(/scale\s*\(\s*([^,)]+)\s*,\s*([^)]+)\)/);
-  return {
-    tx: tMatch ? parseFloat(tMatch[1]) : 0,
-    ty: tMatch ? parseFloat(tMatch[2]) : 2048,
-    sx: sMatch ? parseFloat(sMatch[1]) : 0.1,
-    sy: sMatch ? parseFloat(sMatch[2]) : -0.1,
-  };
+  const affine=tfm.match(/matrix\s*\(([^)]+)\)/);
+  if(affine){const v=affine[1].trim().split(/[\s,]+/).map(Number);if(v.length===6)return {tx:v[4],ty:v[5],sx:v[0],sy:v[3]};}
+  const number='[-+]?\\d*\\.?\\d+(?:[eE][-+]?\\d+)?';
+  const tMatch=tfm.match(new RegExp('translate\\s*\\(\\s*('+number+')(?:[\\s,]+('+number+'))?\\s*\\)'));
+  const sMatch=tfm.match(new RegExp('scale\\s*\\(\\s*('+number+')(?:[\\s,]+('+number+'))?\\s*\\)'));
+  return {tx:tMatch?Number(tMatch[1]):0,ty:tMatch?Number(tMatch[2]??0):0,
+    sx:sMatch?Number(sMatch[1]):1,sy:sMatch?Number(sMatch[2]??sMatch[1]):1};
 }
 
 function bboxFromExtents(
@@ -202,10 +201,10 @@ function potraceLocalBBoxToViewBox(
   b: DOMRect,
   metrics: PotraceSvgMetrics,
 ): PotraceSvgBBox | null {
-  const minX = Math.max(0, Math.min(metrics.vbW, metrics.tx + metrics.sx * b.x));
-  const maxX = Math.max(0, Math.min(metrics.vbW, metrics.tx + metrics.sx * (b.x + b.width)));
-  const minY = Math.max(0, Math.min(metrics.vbH, metrics.ty + metrics.sy * (b.y + b.height)));
-  const maxY = Math.max(0, Math.min(metrics.vbH, metrics.ty + metrics.sy * b.y));
+  const x0=metrics.tx+metrics.sx*b.x,x1=metrics.tx+metrics.sx*(b.x+b.width);
+  const y0=metrics.ty+metrics.sy*b.y,y1=metrics.ty+metrics.sy*(b.y+b.height);
+  const minX=Math.max(0,Math.min(metrics.vbW,Math.min(x0,x1))),maxX=Math.max(0,Math.min(metrics.vbW,Math.max(x0,x1)));
+  const minY=Math.max(0,Math.min(metrics.vbH,Math.min(y0,y1))),maxY=Math.max(0,Math.min(metrics.vbH,Math.max(y0,y1)));
   return bboxFromExtents(minX, minY, maxX, maxY);
 }
 

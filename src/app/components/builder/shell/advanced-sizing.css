@@ -84,7 +84,7 @@
 .grade-size-first-row .new-measure-value{min-height:40px;height:40px}
 .grading-size-first>h3{font-size:11px;color:#8b98ac;margin:16px 0 4px}
 .size-comparison-overlay{position:absolute;inset:0;width:100%;height:100%;z-index:255;pointer-events:none}
-.ceriga-builder-shell[data-size-compare=true] [data-print-garment-backdrop]{visibility:hidden}
+.ceriga-builder-shell[data-size-compare=true] .size-comparison-overlay{visibility:visible}
 .ceriga-builder-shell[data-size-compare=true] .new-measurement-overlay{opacity:.65}
 .size-comparison-legend{position:absolute;left:16px;bottom:60px;z-index:15;display:flex;align-items:center;gap:14px;font-size:10px;color:#738197;background:#ffffffdd;padding:6px 8px;border-radius:4px}
 .size-comparison-legend span{display:flex;align-items:center;gap:5px}

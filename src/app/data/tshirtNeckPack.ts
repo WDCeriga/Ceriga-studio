@@ -2,10 +2,10 @@ import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
 import type { NeckFinish } from './tshirtNeckFinish';
 
 /**
- * Neck assets traced from the reference flats (scripts/collar/rebuild_necks_from_reference.py).
+ * Neck assets traced from the reference flats (scripts/collar/trace_clean_neck_masters.py).
  * Files are keyed fit.neck.view.finish.part; the builder swaps whole assets rather than morphing a shape.
  */
-export type NeckPackKind = 'crew' | 'vneck' | 'deep-vneck';
+export type NeckPackKind = 'crew' | 'vneck' | 'deep-vneck' | 'thincrew' | 'scoop' | 'polo';
 type View = 'front' | 'back';
 type Finish = 'ribbed' | 'clean' | 'raw';
 type Part = 'body' | 'neck' | 'inner' | 'outline' | 'stitching';
@@ -27,7 +27,9 @@ export function tshirtNeckPackKind(displayName: string): NeckPackKind | undefine
   const name = displayName.toLowerCase();
   if (/\bdeep\s+v-?neck\b/.test(name)) return 'deep-vneck';
   if (/\bv-?neck\b/.test(name)) return 'vneck';
-  if (/\bthin\s+crew\b|\bscoop\b|\bpolo\b/.test(name)) return undefined;
+  if (/\bthin\s+crew\b/.test(name)) return 'thincrew';
+  if (/\bscoop\b/.test(name)) return 'scoop';
+  if (/\bpolo\b/.test(name)) return 'polo';
   return /\bcrew\b/.test(name) ? 'crew' : undefined;
 }
 
@@ -38,12 +40,7 @@ function candidates(fit: string, kind: NeckPackKind, view: View, finish: Finish,
 }
 
 function needed(view: View, finish: Finish): Part[] {
-  if (view === 'front') {
-    return finish === 'raw' ? ['outline', 'stitching'] : ['outline'];
-  }
-  return finish === 'ribbed' ? ['body', 'neck', 'outline', 'stitching']
-    : finish === 'clean' ? ['body', 'neck', 'outline', 'stitching']
-    : ['body', 'outline', 'stitching'];
+  return ['body', 'outline', 'stitching', ...(finish === 'raw' ? [] : ['neck' as Part]), ...(view === 'front' ? ['inner' as Part] : [])];
 }
 
 function find(fit: string, kind: NeckPackKind, view: View, finish: Finish, part: Part): string | undefined {
@@ -93,7 +90,7 @@ export function withTshirtNeckPack(
   };
   const result: ResolvedGarmentLayer[] = [];
   for (const layer of layers) {
-    if (layer.id === 'innerBackNeck' && (view === 'back' || finish === 'raw')) continue;
+    if (layer.id === 'innerBackNeck' && view === 'back') continue;
     if (layer.id === 'neck') {
       if (finish !== 'raw') result.push(swap(layer, 'neck'));
     } else if (layer.id === 'base') result.push(swap(layer, 'body'));

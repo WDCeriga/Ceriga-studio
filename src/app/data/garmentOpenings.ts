@@ -57,7 +57,7 @@ export function openingSourcePolygons(raw: string): MultiPolygon {
   const viewport = new DOMMatrix().scale(2048 / viewBox[2], 2048 / viewBox[3]).translate(-viewBox[0], -viewBox[1]);
   let result: MultiPolygon = [];
   for (const element of root.querySelectorAll('path[d]')) {
-    if (element.closest('defs, clipPath, mask') || element.getAttribute('fill') === 'none' || element.closest('[data-construction], [data-topology="attachmentInk"], [data-topology="innerBoundary"]')) continue;
+    if (element.closest('defs, clipPath, mask, [data-neck-support]') || element.getAttribute('fill') === 'none' || element.closest('[data-construction], [data-topology="attachmentInk"], [data-topology="innerBoundary"]')) continue;
     const ancestors: Element[] = [];
     for (let parent: Element | null = element; parent && parent !== root; parent = parent.parentElement) ancestors.unshift(parent);
     // Separate construction groups are not fabric; keep only the source's filled material.

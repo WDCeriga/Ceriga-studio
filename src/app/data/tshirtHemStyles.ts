@@ -96,6 +96,11 @@ function svgPath(path: string, color: string): string {
 export function withTshirtHemStyles(
   layers: ResolvedGarmentLayer[], fit: string, variant: string, styles?: TshirtHemStyles,
 ): ResolvedGarmentLayer[] {
+  if(layers.some(l=>l.svgRaw.includes('data-raster-neck="true"')))return layers.map(l=>{
+    if(!/^(bodyHem|sleeveHem|underlayerHem)/.test(l.id))return l;
+    const settings=resolveHemSettings(styles,l.id),parent=layers.find(p=>p.id===hemParentId(l.id));
+    return {...l,tint:settings.finish==='none'?parent?.tint:settings.color===''?parent?.tint:settings.color??l.tint??parent?.tint};
+  });
   const regions = geometry[`${fit}:${variant}`];
   if (!regions) return layers;
   // Repair disconnected Boxy cuff islands using the existing complete band.

@@ -154,8 +154,8 @@ export function printMeasurements(elements: DesignElement[], root: HTMLElement, 
   });
 }
 
-export function CustomAssetMeasurementLayer({ presentation, onDrawingBounds, onGuideSelect, sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
-  presentation?: 'redesign'; onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void; onGuideSelect?: (id:string)=>void; sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
+export function CustomAssetMeasurementLayer({ showGuides=true, presentation, onDrawingBounds, onGuideSelect, sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
+  showGuides?: boolean; presentation?: 'redesign'; onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void; onGuideSelect?: (id:string)=>void; sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
   referenceWidthCm?: number; unit?: MeasurementUnit; view: 'front' | 'back'; selectedId?: string | null; highlightedId?: string | null;
   onSelect?: (id: string | null) => void; onMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
 }) {
@@ -247,24 +247,24 @@ export function CustomAssetMeasurementLayer({ presentation, onDrawingBounds, onG
   ].map(guide => ({ ...guide, x1: guide.x1 * 1000 / 2048, y1: guide.y1 * 1000 / 2048, x2: guide.x2 * 1000 / 2048, y2: guide.y2 * 1000 / 2048,
     labelX: Math.max(95, Math.min(905, guide.labelX * 1000 / 2048)), labelY: Math.max(20, Math.min(980, guide.labelY * 1000 / 2048)) })) as MeasurementGuideDef[] : [];
   const overlay = <>
-    {!hasCurrentShapes && !shapeError && <p role="status" className="absolute left-2 top-2 z-[270] rounded bg-black/70 px-2 py-1 text-xs text-white/80">
+    {showGuides && !hasCurrentShapes && !shapeError && <p role="status" className="absolute left-2 top-2 z-[270] rounded bg-black/70 px-2 py-1 text-xs text-white/80">
       Preparing measurement guides…
     </p>}
-    {shapeError && <p role="alert" className="absolute left-2 top-2 z-[270] rounded bg-red-950/90 px-2 py-1 text-xs text-red-100">
+    {showGuides && shapeError && <p role="alert" className="absolute left-2 top-2 z-[270] rounded bg-red-950/90 px-2 py-1 text-xs text-red-100">
       Could not prepare measurement guides.
     </p>}
     {presentation==='redesign'&&comparison.enabled&&<SizeComparisonOverlay shapes={shapes}/>}
-    {presentation==='redesign'?<NewMeasurementOverlay drawingTransform={comparisonTransform} guides={guides} highlightedId={highlightedId} onSelect={onGuideSelect}/>:<MeasurementGuideOverlay guides={guides} view={view} highlightedId={highlightedId || (selected ? selected.id : null)} />}
-    <svg ref={svgRef} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 260 }} aria-label="Custom asset measurement guides">
-      {assets.filter(asset => !asset.interior || selected?.interior).map(asset => <polygon key={asset.id} data-asset-measurement={asset.id} points={asset.corners.map(point => `${point.x},${point.y}`).join(' ')}
+    {showGuides&&(presentation==='redesign'?<NewMeasurementOverlay drawingTransform={comparisonTransform} guides={guides} highlightedId={highlightedId} onSelect={onGuideSelect}/>:<MeasurementGuideOverlay guides={guides} view={view} highlightedId={highlightedId || (selected ? selected.id : null)} />)}
+    <svg ref={svgRef} data-measurement-source-ids={sources.map(s=>s.id).join(',')} data-measurement-shape-ids={shapes.map(s=>s.id).join(',')} data-measurement-guide-count={guides.length} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 260,visibility:showGuides?'visible':'hidden' }} aria-hidden={!showGuides} aria-label="Custom asset measurement guides">
+      {showGuides&&assets.filter(asset => !asset.interior || selected?.interior).map(asset => <polygon key={asset.id} data-asset-measurement={asset.id} points={asset.corners.map(point => `${point.x},${point.y}`).join(' ')}
         fill={selectedId === asset.id ? '#FF3B3015' : 'transparent'} stroke={selectedId === asset.id ? '#FF3B30' : 'none'} strokeWidth={3}
         style={{ pointerEvents: 'all', cursor: 'pointer' }} role="button" tabIndex={0} aria-label={`Measure ${asset.name}`} aria-pressed={selectedId === asset.id}
         onClick={event => { event.stopPropagation(); onSelect?.(selectedId === asset.id ? null : asset.id); }}
         onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect?.(asset.id); } }} />)}
-      {selected && bounds && <path d={`M${(bounds.minX + bounds.maxX) / 2},${selected.center.y}H${selected.center.x}V${bounds.minY}`}
+      {showGuides && selected && bounds && <path d={`M${(bounds.minX + bounds.maxX) / 2},${selected.center.y}H${selected.center.x}V${bounds.minY}`}
         fill="none" stroke="#FF3B30" strokeWidth={2} strokeDasharray="8 5" />}
     </svg>
-    {selected && <div className="pointer-events-none absolute inset-0" style={{ zIndex: 261, opacity: highlightedId ? .3 : 1 }}><MeasurementGuideOverlay guides={dimensionGuides} highlightedId={null} /></div>}
+    {showGuides && selected && <div className="pointer-events-none absolute inset-0" style={{ zIndex: 261, opacity: highlightedId ? .3 : 1 }}><MeasurementGuideOverlay guides={dimensionGuides} highlightedId={null} /></div>}
   </>;
   return overlayTarget ? createPortal(overlay, overlayTarget) : overlay;
 }

@@ -1,3 +1,4 @@
+import {getGarmentAsset} from '../../data/garmentSvgCatalog';
 import {withRegularConstruction} from '../../data/regularConstruction';
 import {withTshirtSurfaceQuality} from '../../data/tshirtSurfaceQuality';
 import React, {
@@ -736,7 +737,7 @@ function PreviewLayer({
       >
         <InlineSvg
           raw={layer.svgRaw}
-          edgeSealWidth={technicalDrawing&& !['neck','innerBackNeck','outline'].includes(layer.id)?36:0}
+          edgeSealWidth={technicalDrawing&& layer.id!=='outline'?36:0}
           fabric={fabric}
           interior={interior}
           textureIntensity={textureIntensity}
@@ -1029,7 +1030,7 @@ export function TshirtSvgPreview({
     };
   }, [onSelectedLayerChange]);
 
-  const resolvedLayers = useMemo(() => {const result=resolveGarmentLayers({
+  const sourceResolvedLayers = useMemo(() => {const result=resolveGarmentLayers({
         garmentType,
         view: detailView,
         selection,
@@ -1045,21 +1046,31 @@ export function TshirtSvgPreview({
         customCollar,
         customCollars,
         customAssetState,
-      });const joined=regularSleeveCleanup?withRegularConstruction(result):result;return technical&&garmentType==='tshirt'&&!customAssetState?.importedGarment?withTshirtSurfaceQuality(joined,fit):joined;}, [technical,regularSleeveCleanup,garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor,
+      });const joined=regularSleeveCleanup?withRegularConstruction(result):result;return joined;}, [technical,regularSleeveCleanup,garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor,
     pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar,
     customCollars, customAssetState, collarContourRevision, garmentAssetRevision]);
+  const lastReadyDrawing=useRef<ResolvedGarmentLayer[]>([]);
+  const resolvedLayers=useMemo(()=>{
+    const selectedNeck=getGarmentAsset(selection?.Neck??'');
+    const awaitsTrace=garmentType==='tshirt'&&!customAssetState?.importedGarment&&tshirtNeckPackKind(selectedNeck?.displayName??sourceResolvedLayers.find(l=>l.id==='neck')?.displayName??'')&&!sourceResolvedLayers.some(l=>l.svgRaw.includes('data-raster-neck="true"'));
+    // Keep the last complete traced drawing on screen until all new neck parts are ready.
+    // Never publish the legacy fallback between the selection change and the async asset load.
+    if(awaitsTrace)return lastReadyDrawing.current;
+    const ready=technical&&garmentType==='tshirt'&&!customAssetState?.importedGarment?withTshirtSurfaceQuality(sourceResolvedLayers,fit,neckFinish,detailView,tshirtHemStyles):sourceResolvedLayers;
+    lastReadyDrawing.current=ready;return ready;
+  },[technical,garmentType,customAssetState?.importedGarment,sourceResolvedLayers,fit,neckFinish,detailView,selection,tshirtHemStyles]);
   useEffect(() => {
     let active = true;
     void (async () => {
-      const packNeck = resolvedLayers.find(layer => layer.id === 'neck');
+      const packNeck = getGarmentAsset(selection?.Neck??'') ?? sourceResolvedLayers.find(layer => layer.id === 'neck');
       if (garmentType === 'tshirt' && packNeck && tshirtNeckPackKind(packNeck.displayName)) {
         return preloadTshirtNeckPack(resolveGarmentPackFit(garmentType, fit) ?? 'slim', packNeck.displayName,
-          detailView === 'back' ? 'back' : 'front', neckFinish ?? 'ribbed');
+          detailView === 'back' ? 'back' : 'front', neckFinish==='raw'&&/polo/i.test(packNeck.displayName)?'clean':neckFinish ?? 'ribbed');
       }
-      let prepared = await prepareTshirtCollarContours(resolvedLayers);
+      let prepared = await prepareTshirtCollarContours(sourceResolvedLayers);
       if (garmentType === 'tshirt' && (detailView === 'back' || neckFinish === 'clean' || neckFinish === 'raw')) {
-        const neck = resolvedLayers.find(layer => layer.id === 'neck');
-        const outline = resolvedLayers.find(layer => layer.id === 'outline');
+        const neck = sourceResolvedLayers.find(layer => layer.id === 'neck');
+        const outline = sourceResolvedLayers.find(layer => layer.id === 'outline');
         if (neck && outline) {
           const bounds = getPotraceSvgBBoxFast(neck.svgRaw);
           if (bounds) {
@@ -1070,7 +1081,7 @@ export function TshirtSvgPreview({
         }
       }
       if (garmentType === 'tshirt' && neckFinish && neckFinish !== 'ribbed') {
-        prepared = await prepareTshirtNeckFinish(resolvedLayers, neckFinish) || prepared;
+        prepared = await prepareTshirtNeckFinish(sourceResolvedLayers, neckFinish) || prepared;
       }
       return prepared;
     })().then(prepared => {
@@ -1084,7 +1095,7 @@ export function TshirtSvgPreview({
       setCollarContourError(true);
     });
     return () => { active = false; };
-  }, [resolvedLayers, garmentType, detailView, neckFinish, fit]);
+  }, [sourceResolvedLayers, garmentType, detailView, neckFinish, fit]);
   const layers = useMemo(
     () => constructionPanels?.length || panellingEditor?.enabled
       ? applyGarmentPanels(resolvedLayers, constructionPanels ?? [], detailView)
@@ -1574,8 +1585,10 @@ export function TshirtSvgPreview({
         data-detail-camera={detailCamera ? 'close-up' : 'garment'}
         data-hem-camera={hemEditor ? `${hemEditor.region}:${hemEditor.closeUp ? 'close-up' : 'garment'}` : undefined}
         style={stitchEditor || detailCamera || hemEditor || collarCamera ? {
-          transform: `translate(${(1024 - previewCamera.x) / 2048 * 100 * previewCamera.scale}%, ${(1024 - previewCamera.y) / 2048 * 100 * previewCamera.scale}%) scale(${previewCamera.scale})`,
-          transition: detailCamera || collarCamera ? undefined : 'transform 850ms cubic-bezier(.22,.68,0,1)',
+          width: `calc(min(100cqh, 100cqw) * ${previewCamera.scale})`,
+          height: `calc(min(100cqh, 100cqw) * ${previewCamera.scale})`,
+          transform: `translate(${(1024 - previewCamera.x) / 2048 * 100}%, ${(1024 - previewCamera.y) / 2048 * 100}%)`,
+          transition: detailCamera || collarCamera ? undefined : 'width 850ms cubic-bezier(.22,.68,0,1), height 850ms cubic-bezier(.22,.68,0,1), transform 850ms cubic-bezier(.22,.68,0,1)',
           transformOrigin: 'center',
         } : undefined}
       >
@@ -1634,7 +1647,7 @@ export function TshirtSvgPreview({
           );
         })}
 
-        {garmentType==='tshirt'&&(technical||['regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].filter(id=>resolveHemSettings(tshirtHemStyles,id).finish==='normal').join(',')}/>}
+        {garmentType==='tshirt'&&(technical||['regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
         {canvasOverlay}
         {renderPanellingOverlay?.(panellingGeometry)}
         {editable && !panellingEditor?.enabled

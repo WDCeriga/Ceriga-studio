@@ -56,7 +56,7 @@ export function normalizeTechnicalSvg(raw:string, garmentUnitsPerRootUnit=1, def
     const role:TechnicalRole=el.closest('[data-zip-teeth],[data-texture],[data-rear-ribs]')?'texture'
       :dash&&dash!=='none'?'stitch':hardware?'construction':defaultRole;
     const units=garmentUnitsPerRootUnit*localScale;
-    el.setAttribute('stroke-width',String(filled?TECH_TRACE_INK_BOLDNESS/units:technicalLocalWidth(role,units)));
+    el.setAttribute('stroke-width',String(filled?(root.getAttribute('data-tech-ink-boldness')==='0'?0:TECH_TRACE_INK_BOLDNESS)/units:technicalLocalWidth(role,units)));
     if(role==='stitch'&&dash&&dash!=='none')el.setAttribute('stroke-dasharray',`${TECH_STITCH_DASH/units} ${TECH_STITCH_GAP/units}`);
     else if(dash==='none')el.setAttribute('stroke-dasharray','none');
     for(const name of ['stroke-width','stroke-dasharray','stroke-opacity','stroke-linecap','stroke-linejoin','vector-effect'])(el as SVGElement).style?.removeProperty(name);

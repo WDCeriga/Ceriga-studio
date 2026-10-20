@@ -43,6 +43,11 @@ def crop_to_ink(alpha: np.ndarray, pad: int = 12) -> tuple[int, int, int, int]:
 
 
 def trace_alpha(alpha: np.ndarray) -> tuple[str, int]:
+    # Skip empty page margins before supersampling; coordinates remain in source pixels.
+    ys, xs = np.nonzero(alpha >= 128 / 255)
+    if not len(xs): return '', 0
+    ox, oy = max(0, int(xs.min()) - 2), max(0, int(ys.min()) - 2)
+    alpha = alpha[oy:min(alpha.shape[0], int(ys.max()) + 3), ox:min(alpha.shape[1], int(xs.max()) + 3)]
     big = Image.fromarray((alpha * 255).astype(np.uint8)).resize(
         (alpha.shape[1] * UPSAMPLE, alpha.shape[0] * UPSAMPLE), Image.LANCZOS)
     ink = np.asarray(big) >= 128
@@ -53,13 +58,13 @@ def trace_alpha(alpha: np.ndarray) -> tuple[str, int]:
     parts = []
     for curve in plist:
         start = curve.start_point
-        parts.append(f"M{start.x / UPSAMPLE:.2f},{start.y / UPSAMPLE:.2f}")
+        parts.append(f"M{start.x / UPSAMPLE + ox:.2f},{start.y / UPSAMPLE + oy:.2f}")
         for segment in curve.segments:
             if segment.is_corner:
-                parts.append(f"L{segment.c.x / UPSAMPLE:.2f},{segment.c.y / UPSAMPLE:.2f}"
-                    f"L{segment.end_point.x / UPSAMPLE:.2f},{segment.end_point.y / UPSAMPLE:.2f}")
+                parts.append(f"L{segment.c.x / UPSAMPLE + ox:.2f},{segment.c.y / UPSAMPLE + oy:.2f}"
+                    f"L{segment.end_point.x / UPSAMPLE + ox:.2f},{segment.end_point.y / UPSAMPLE + oy:.2f}")
             else:
-                parts.append("C" + " ".join(f"{p.x / UPSAMPLE:.2f},{p.y / UPSAMPLE:.2f}"
+                parts.append("C" + " ".join(f"{p.x / UPSAMPLE + ox:.2f},{p.y / UPSAMPLE + oy:.2f}"
                     for p in (segment.c1, segment.c2, segment.end_point)))
         parts.append("Z")
     return "".join(parts), len(plist)

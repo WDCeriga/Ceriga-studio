@@ -48,3 +48,22 @@ This supersedes the earlier sleeve-completion assessment above. User review foun
 
 ### Boxy short and Oversized layered follow-up
 Detached non-collar subpaths in the torso source were still protruding beneath the Boxy short sleeve. The torso reconstruction now discards those stray islands while retaining the original neck-region subpaths. Layered undersleeve top edges follow the diagonal opening with a small hidden overlap, removing the visible horizontal hooks at the Oversized inner joins. The two reported front views were visually verified after rendering; the production build passed. The sleeve-family regression now also rejects detached non-collar torso subpaths.
+
+
+## Slim and neckline cleanup (20 October)
+The user explicitly requested the same cleanup for Slim and the existing necks. This supersedes the earlier requirement to preserve every neck path byte-for-byte: original asset files remain unchanged, while derived preview contours are smoothed.
+
+- Removed the Slim short-sleeve exception; Slim now uses the shared attachment and outline system, closing its underarm wedges while retaining the fitted waist and hem shape.
+- `tshirtNecklineQuality.ts` fits tangent-continuous cubic segments to the existing collar fabric contours, preserving their openings, contour count and dimensions. Sharp polo construction remains unchanged. Small source contours are retained.
+- Old traced border ink is suppressed only along the new collar boundaries; existing rib detail remains visible. `TechnicalLinework.tsx` draws the new closed collar boundaries at the same 4.8-unit outer outline weight. Neck fabric edge sealing prevents hairline cracks between adjoining surfaces.
+- No original SVG asset files or page layout styles were changed. The neckline regression covers 48 combinations (six neck styles, four fits, front/back) and checks contour count and bounds within seven garment units on the 2048-unit canvas. The stroke normalizer itself remains paint-only.
+
+
+### Polo collar weight and stitch join
+Polo keeps its original collar/fold/placket paths. Its preserved source ink opts out of the extra filled-ink dilation, which had made the collar heavier than the clean body outline. Generated stitch markup is masked around the collar and placket with a 12-unit clearance on each side; this prevents the loose stitch marks at the shoulder join and stitches crossing collar points. No collar geometry or layout CSS changes were introduced by this correction.
+
+
+### Thin Crew and remaining collar marks
+Non-Polo collars now suppress the old traced collar ink completely and render only the clean front collar contours. Hidden rear-neck edges no longer produce doubled curves. Thin Crew's shallow opening curve is cleaned to remove the crossed tips from the trace. Stitch clearance applies to every neck style. Polo lateral edges have a bounded vector repair that removes shoulder ink overruns while retaining the rest of the original folds and placket. Slim lower side contours and hem bands share the same side tangents so the small hem ledges are removed without flattening the curved bottom.
+
+The Polo shoulder repair continues the existing shoulder direction to its intersection with the collar side, closing the pre-existing join gap. It applies only to the tall front collar construction; the shallow rear collar is retained. Slim hem construction fragments are excluded from the technical construction pass while its outer border and stitches remain visible.

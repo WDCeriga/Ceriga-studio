@@ -1,3 +1,4 @@
+import {MeasurementGuidesToggle} from '../components/builder/shell/MeasurementGuidesToggle';
 import {SizeComparisonContext} from '../components/builder/shell/SizeComparisonOverlay';
 import {type MeasurementGrading,GARMENT_SIZES,baseSize,editGradedMeasurement,applyGrade,changeBaseSize,resetSizeToGrade,resetGradingRow,regradeForFit} from '../lib/measurementGrading';
 import {BuilderReview,ReviewFacts,ReviewMeasurements,type ReviewGroup} from '../components/builder/shell/BuilderReview';
@@ -609,6 +610,8 @@ export function Builder() {
 
   const redesignEnabled=searchParams.get('builder')==='redesign'&&!techpackSpecFlow;
   const [redesignDrawingBounds,setRedesignDrawingBounds]=useState({left:0,right:1000,top:0,bottom:1000});
+  const updateRedesignDrawingBounds=useCallback((next:{left:number;right:number;top:number;bottom:number})=>setRedesignDrawingBounds(previous=>Math.abs(previous.left-next.left)+Math.abs(previous.right-next.right)+Math.abs(previous.top-next.top)+Math.abs(previous.bottom-next.bottom)<.05?previous:next),[]);
+  const [showMeasurementGuides,setShowMeasurementGuides]=useState(true);
   const [redesignSection,setRedesignSection]=useState<BuilderSection>('Fit & Measurements');
   const [measurementTool,setMeasurementTool]=useState<MeasurementTool>('Core measurements');
   const [constructionTool,setConstructionTool]=useState('Neck & Collar');
@@ -629,6 +632,7 @@ export function Builder() {
   const [previewBackground, setPreviewBackground] = useState<'black' | 'white' | 'beige' | 'transparent'>(redesignEnabled?'white':'black');
   const previewZoomDefault=PREVIEW_ZOOM_DEFAULT;
   const [previewZoom, setPreviewZoom] = useState(previewZoomDefault);
+  const [zoomDraft,setZoomDraft]=useState<string|null>(null);
   useEffect(()=>{if(redesignEnabled&&currentStep!==1)setCurrentStep(1);},[redesignEnabled,currentStep]);
 
   const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
@@ -1213,69 +1217,44 @@ export function Builder() {
   }, [layoutTier]);
 
   useEffect(() => {
-    const shell = previewShellRef.current;
-    if (!shell) return;
-    const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const cap = layoutTier === 'phone' ? PREVIEW_ZOOM_MAX_PHONE : PREVIEW_ZOOM_MAX;
-      setPreviewZoom((z) => {
-        const d = e.deltaY > 0 ? -6 : 6;
-        return Math.min(cap, Math.max(PREVIEW_ZOOM_MIN, z + d));
-      });
+    const shell=previewShellRef.current;if(!shell)return;
+    let frame:number|undefined;
+    const onWheel=(event:WheelEvent)=>{
+      if((event.target as Element).closest('input,textarea,select,button,[role="switch"]'))return;
+      event.preventDefault();
+      const unit=event.deltaMode===1?16:event.deltaMode===2?shell.clientHeight:1;
+      const delta=Math.max(-20,Math.min(20,-event.deltaY*unit*(event.ctrlKey||event.metaKey?1:.1)));
+      const before=previewZoomRef.current,cap=layoutTier==='phone'?PREVIEW_ZOOM_MAX_PHONE:PREVIEW_ZOOM_MAX;
+      const next=Math.min(cap,Math.max(PREVIEW_ZOOM_MIN,Math.round((before+delta)*10)/10));
+      if(next===before)return;
+      const area=shell.querySelector('.new-canvas-area')??shell,rect=area.getBoundingClientRect();
+      const anchor={x:event.clientX-rect.left-rect.width/2,y:event.clientY-rect.top-rect.height/2},ratio=next/before,pan=previewPanRef.current;
+      previewZoomRef.current=next;previewPanRef.current={x:anchor.x-(anchor.x-pan.x)*ratio,y:anchor.y-(anchor.y-pan.y)*ratio};
+      if(frame===undefined)frame=requestAnimationFrame(()=>{frame=undefined;setPreviewZoom(previewZoomRef.current);setPreviewPan(previewPanRef.current)});
     };
-    shell.addEventListener('wheel', onWheel, { passive: false });
-    return () => shell.removeEventListener('wheel', onWheel);
-  }, [currentStep, layoutTier]);
+    shell.addEventListener('wheel',onWheel,{passive:false});
+    return()=>{shell.removeEventListener('wheel',onWheel);if(frame!==undefined)cancelAnimationFrame(frame)};
+  },[currentStep,layoutTier,redesignEnabled,projectHydrating,product]);
 
-  /** Phone: two-finger pinch to zoom the preview. */
-  useEffect(() => {
-    if (layoutTier !== 'phone') return;
-    const el = previewShellRef.current;
-    if (!el) return;
-    const pinchRef = { d0: 0, z0: PREVIEW_ZOOM_DEFAULT, active: false };
-    const dist = (t: TouchList) => {
-      if (t.length < 2) return 0;
-      const a = t[0];
-      const b = t[1];
-      return Math.hypot(a!.clientX - b!.clientX, a!.clientY - b!.clientY);
+  // Pinch uses the same zoom state as the buttons on both phones and tablets.
+  useEffect(()=>{
+    if(layoutTier==='desktop')return;
+    const shell=previewShellRef.current;if(!shell)return;
+    let gesture:{distance:number;zoom:number;pan:{x:number;y:number};anchor:{x:number;y:number}}|undefined,frame:number|undefined;
+    const distance=(touches:TouchList)=>Math.hypot(touches[0].clientX-touches[1].clientX,touches[0].clientY-touches[1].clientY);
+    const center=(touches:TouchList)=>{const rect=(shell.querySelector('.new-canvas-area')??shell).getBoundingClientRect();return {x:(touches[0].clientX+touches[1].clientX)/2-rect.left-rect.width/2,y:(touches[0].clientY+touches[1].clientY)/2-rect.top-rect.height/2}};
+    const start=(event:TouchEvent)=>{if(event.touches.length!==2)return;canvasPanCleanupRef.current?.();gesture={distance:distance(event.touches),zoom:previewZoomRef.current,pan:previewPanRef.current,anchor:center(event.touches)}};
+    const move=(event:TouchEvent)=>{
+      if(!gesture||event.touches.length!==2||gesture.distance<8)return;event.preventDefault();
+      const cap=layoutTier==='phone'?PREVIEW_ZOOM_MAX_PHONE:PREVIEW_ZOOM_MAX;
+      const next=Math.max(PREVIEW_ZOOM_MIN,Math.min(cap,Math.round(gesture.zoom*distance(event.touches)/gesture.distance))),ratio=next/gesture.zoom,anchor=center(event.touches);
+      previewZoomRef.current=next;previewPanRef.current={x:anchor.x-(gesture.anchor.x-gesture.pan.x)*ratio,y:anchor.y-(gesture.anchor.y-gesture.pan.y)*ratio};
+      if(frame===undefined)frame=requestAnimationFrame(()=>{frame=undefined;setPreviewZoom(previewZoomRef.current);setPreviewPan(previewPanRef.current)});
     };
-    const onStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        const d = dist(e.touches);
-        if (d > 0) {
-          pinchRef.active = true;
-          pinchRef.d0 = d;
-          pinchRef.z0 = previewZoomRef.current;
-        }
-      }
-    };
-    const onMove = (e: TouchEvent) => {
-      if (!pinchRef.active || e.touches.length !== 2) return;
-      const d = dist(e.touches);
-      if (pinchRef.d0 < 8) return;
-      const next = Math.round(pinchRef.z0 * (d / pinchRef.d0));
-      const cap = PREVIEW_ZOOM_MAX_PHONE;
-      setPreviewZoom(() => Math.min(cap, Math.max(PREVIEW_ZOOM_MIN, next)));
-      e.preventDefault();
-    };
-    const onEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) {
-        pinchRef.active = false;
-        pinchRef.d0 = 0;
-      }
-    };
-    el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: false });
-    el.addEventListener('touchend', onEnd);
-    el.addEventListener('touchcancel', onEnd);
-    return () => {
-      el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchmove', onMove);
-      el.removeEventListener('touchend', onEnd);
-      el.removeEventListener('touchcancel', onEnd);
-    };
-  }, [layoutTier]);
+    const end=(event:TouchEvent)=>{if(event.touches.length<2)gesture=undefined};
+    shell.addEventListener('touchstart',start,{passive:true});shell.addEventListener('touchmove',move,{passive:false});shell.addEventListener('touchend',end);shell.addEventListener('touchcancel',end);
+    return()=>{shell.removeEventListener('touchstart',start);shell.removeEventListener('touchmove',move);shell.removeEventListener('touchend',end);shell.removeEventListener('touchcancel',end);if(frame!==undefined)cancelAnimationFrame(frame)};
+  },[layoutTier,currentStep,redesignEnabled,projectHydrating,product]);
 
   const prevPhoneEditorCollapsed = useRef(phoneEditorCollapsed);
   useEffect(() => {
@@ -2675,7 +2654,7 @@ export function Builder() {
         </div>;
         return (
           <div className="space-y-4">
-            <MeasurementsStep
+            <MeasurementsStep guidesVisible={showMeasurementGuides} onGuidesVisibleChange={setShowMeasurementGuides}
               grading={state.measurementGrading}
               sizingActions={{
                 setBase:size=>setState(prev=>changeBaseSize(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,size)),
@@ -2850,15 +2829,15 @@ export function Builder() {
               {garmentSvgType === 'tshirt' ? (
                 <div>
                   <Label htmlFor="neck-finish" className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">Neck finish</Label>
-                  <select id="neck-finish" value={state.neckFinish ?? 'ribbed'}
+                  <select id="neck-finish" value={state.neckFinish==='raw'&&/polo/i.test(getGarmentAsset(garmentSelection['Neck']??'')?.displayName??'')?'clean':state.neckFinish??'ribbed'}
                     onChange={event => setState(prev => ({ ...prev, neckFinish: event.target.value as NeckFinish }))}
                     style={{ colorScheme: 'dark' }}
                     className="w-full rounded-md border border-[#252528] bg-[#171719] px-3 py-2 text-xs text-white [&>option]:bg-[#171719] [&>option]:text-white">
-                    {NECK_FINISH_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    {NECK_FINISH_OPTIONS.filter(option=>option.value!=='raw'||!/polo/i.test(getGarmentAsset(garmentSelection['Neck']??'')?.displayName??'')).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                   <p className="mt-2 text-[11px] leading-relaxed text-white/50">
                     {state.neckFinish === 'raw'
-                      ? 'Raw finish has no separate neckband. The opening keeps a black outline and uses the body fabric and colour.'
+                      ? 'No neckband. The back of the shirt remains visible through the opening.'
                       : 'The finish creates the neckband. Choose its fabric and colour in Fabric & Colour; without a neck assignment it matches the body.'}
                   </p>
                 </div>
@@ -3795,6 +3774,7 @@ export function Builder() {
   ];
 
   const isLabelEditor = currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing;
+  const legacyPreviewScale=currentStep===11||(currentStep===10&&garmentSvgType==='tshirt'&&!legacyLabelEditing)?1:previewZoom/100;
   const previewSurfaceStyle: CSSProperties = {
     backgroundColor:
       redesignEnabled?'#FFFFFF':previewBackground === 'transparent'
@@ -4168,10 +4148,14 @@ export function Builder() {
             ref={previewStageRef}
             className="relative flex h-full w-full min-h-0 items-center justify-center"
             style={{
-              transform: currentStep === 11 || (currentStep === 10 && garmentSvgType === 'tshirt' && !legacyLabelEditing) ? 'none' : `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom / 100})`,
+              width: `${legacyPreviewScale*100}%`,
+              height: `${legacyPreviewScale*100}%`,
+              flexShrink:0,
+              zoom:legacyPreviewScale,
+              transform: legacyPreviewScale===1&&previewPan.x===0&&previewPan.y===0?'none':`translate(${Math.round(previewPan.x/legacyPreviewScale)}px, ${Math.round(previewPan.y/legacyPreviewScale)}px)`,
               transformOrigin: 'center center',
               transition:
-                draggingDetail || isPanningCanvas ? 'none' : 'transform 120ms ease-out',
+                'none',
             }}
           >
         <div className="relative flex h-full min-h-0 w-full max-w-full min-w-0 flex-col items-center justify-center">
@@ -4204,7 +4188,7 @@ export function Builder() {
                 isPhone && 'px-0',
               )}
             >
-              <MeasurementPreview
+              <MeasurementPreview showGuides={showMeasurementGuides}
                 garmentType={garmentSvgType ?? state.garmentType}
                 color={primaryColor}
                 selection={garmentSelection}
@@ -4803,7 +4787,7 @@ export function Builder() {
     const inspector=redesignSection!=='Fit & Measurements'?<BuilderPlaceholder section={redesignSection} detail={redesignSection==='Construction'?constructionTool:undefined}/>:<>
       <h2>{title}</h2>
       {(!networkOnline||saveError)&&<div role="alert" className="builder-tool-notice"><p>{!networkOnline?'Offline. Reconnect to sync your draft.':'Your last save needs attention.'}</p><button className="builder-link" onClick={()=>handleSave(false)}>Retry save</button></div>}
-      {measurementTool==='Core measurements'||measurementTool==='Advanced sizing'?<>            <MeasurementsStep
+      {measurementTool==='Core measurements'||measurementTool==='Advanced sizing'?<>            <MeasurementsStep guidesVisible={showMeasurementGuides} onGuidesVisibleChange={setShowMeasurementGuides}
               grading={state.measurementGrading}
               sizingActions={{
                 setBase:size=>setState(prev=>changeBaseSize(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,size)),
@@ -4851,7 +4835,7 @@ export function Builder() {
               onMeasurementChange={(measurementId,size,value)=>setState(prev=>editGradedMeasurement(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,measurementId,size,value))}
             /><NewAssetMeasurements assets={assetMeasurementSnapshot.view===garmentView?assetMeasurementSnapshot.assets:[]} unit={state.measurementUnit} selectedId={selectedMeasurementAssetId} onSelect={setSelectedMeasurementAssetId} onEdit={(asset,field,value)=>{const result=editAssetDimension(state,asset,field,value);if(result.changes)setState(prev=>({...prev,...result.changes}));return result.error}}/><details className="new-notes"><summary>Measurement notes</summary><textarea aria-label="Measurement notes" value={state.extraDetails.measurements||''} onChange={e=>setState(prev=>({...prev,extraDetails:{...prev.extraDetails,measurements:e.target.value}}))}/></details></>:measurementTool==='Import measurements'?<ImportMeasurementsPanel/>:measurementTool==='Upload reference'?<><p>Attach reference file names and notes. These files are references only; this does not import measurement values.</p><NewReferencePanel fileNamesText={state.referenceUploadFileNames??''} notes={state.extraDetails.referenceUploadNotes??''} onFileNamesChange={names=>setState(prev=>({...prev,referenceUploadFileNames:names||undefined}))} onNotesChange={notes=>setState(prev=>({...prev,extraDetails:{...prev.extraDetails,referenceUploadNotes:notes}}))}/></>:<><div className="builder-tool-notice"><p>{measurementTool==='Import measurements'?'Measurement file parsing and a review-before-apply flow are coming later.':'New custom measurement rows are coming later. Existing uploaded asset dimensions remain available in Core measurements.'}</p><button disabled className="builder-link">{measurementTool==='Import measurements'?'Import size chart — coming later':'Add measurement — coming later'}</button></div><button className="builder-link" onClick={()=>setMeasurementTool('Core measurements')}>Back to core measurements</button></>}
     </>;
-    return <SizeComparisonContext.Provider value={{measurements:state.measurements,presets:reviewPresets,grading:state.measurementGrading,enabled:redesignSection==='Fit & Measurements'&&measurementTool==='Advanced sizing'&&Boolean(state.measurementGrading?.compare?.enabled)}}><MeasurementValueContext.Provider value={{measurements:Object.fromEntries(Object.entries(fitMeasurements[activeFit||'regular']??fitMeasurements.regular).map(([id,defaults])=>[id,{...defaults,...state.measurements[id]}])),unit:state.measurementUnit}}><BuilderShell sizeComparison={measurementTool==='Advanced sizing'&&redesignSection==='Fit & Measurements'?state.measurementGrading?.compare:undefined} reviewOpen={showReviewDrawer} onReview={()=>setShowReviewDrawer(v=>!v)} onWorkspaceFit={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}} section={redesignSection} onSection={section=>{setRedesignSection(section);if(section==='Fit & Measurements')setMeasurementTool('Core measurements')}} tool={measurementTool} onTool={tool=>{setRedesignSection('Fit & Measurements');setMeasurementTool(tool)}} constructionTool={constructionTool} onConstructionTool={setConstructionTool} inspector={inspector} topbar={<BuilderTopBar onSaveVersion={saveManualVersion} name={projectName} onName={setProjectName} background={previewBackground} onBackground={setPreviewBackground} onUndo={undo} onRedo={redo} canUndo={undoAvailable} canRedo={redoAvailable} onHistory={()=>setShowVersionHistory(true)} onReview={()=>setShowReviewDrawer(true)} onSave={()=>handleSave(false)} status={saving?'Saving…':!networkOnline?'Offline':saveError?'Not synced':'Saved'} legacyUrl={legacyUrl}/>}> <div ref={previewShellRef} className="new-builder-canvas" style={previewSurfaceStyle}><div className="new-view-switch" role="group" aria-label="Garment view"><button aria-pressed={showFront} onClick={()=>{setShowFront(true);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Front</button><button aria-pressed={!showFront} onClick={()=>{setShowFront(false);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Back</button></div><div className="new-canvas-area" onPointerDown={e=>{if(!(e.target as Element).closest('[data-measurement-guide],[data-asset-measurement]'))beginCanvasPanFromPointer(e)}}><div ref={previewStageRef} className="new-canvas-stage" style={{transform:`translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom/100*.9})`,transition:isPanningCanvas?'none':'transform 140ms ease-out'}}><div className="new-drawing-frame" style={{width:`min(calc(100cqw / ${(redesignDrawingBounds.right-redesignDrawingBounds.left+(layoutTier==='phone'?100:160))/1000}),calc(100cqh / ${(redesignDrawingBounds.bottom-redesignDrawingBounds.top+100)/1000}))`,transform:`translate(${-100*(redesignDrawingBounds.left+redesignDrawingBounds.right)/2000}%,${-100*(redesignDrawingBounds.top+redesignDrawingBounds.bottom)/2000}%)`}}> <MeasurementMotionContext.Provider value={JSON.stringify(state.measurements)}><MeasurementPreview onDrawingBounds={setRedesignDrawingBounds} presentation="redesign" onGuideSelect={setHighlightedMeasurementId}
+    return <SizeComparisonContext.Provider value={{measurements:state.measurements,presets:reviewPresets,grading:state.measurementGrading,enabled:redesignSection==='Fit & Measurements'&&measurementTool==='Advanced sizing'&&Boolean(state.measurementGrading?.compare?.enabled)}}><MeasurementValueContext.Provider value={{measurements:Object.fromEntries(Object.entries(fitMeasurements[activeFit||'regular']??fitMeasurements.regular).map(([id,defaults])=>[id,{...defaults,...state.measurements[id]}])),unit:state.measurementUnit}}><BuilderShell sizeComparison={measurementTool==='Advanced sizing'&&redesignSection==='Fit & Measurements'?state.measurementGrading?.compare:undefined} reviewOpen={showReviewDrawer} onReview={()=>setShowReviewDrawer(v=>!v)} onWorkspaceFit={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}} section={redesignSection} onSection={section=>{setRedesignSection(section);if(section==='Fit & Measurements')setMeasurementTool('Core measurements')}} tool={measurementTool} onTool={tool=>{setRedesignSection('Fit & Measurements');setMeasurementTool(tool)}} constructionTool={constructionTool} onConstructionTool={setConstructionTool} inspector={inspector} topbar={<BuilderTopBar onSaveVersion={saveManualVersion} name={projectName} onName={setProjectName} background={previewBackground} onBackground={setPreviewBackground} onUndo={undo} onRedo={redo} canUndo={undoAvailable} canRedo={redoAvailable} onHistory={()=>setShowVersionHistory(true)} onReview={()=>setShowReviewDrawer(true)} onSave={()=>handleSave(false)} status={saving?'Saving…':!networkOnline?'Offline':saveError?'Not synced':'Saved'} legacyUrl={legacyUrl}/>}> <div ref={previewShellRef} className="new-builder-canvas" style={previewSurfaceStyle}>{redesignSection==='Fit & Measurements'&&<MeasurementGuidesToggle checked={showMeasurementGuides} onChange={setShowMeasurementGuides}/>}<div className="new-view-switch" role="group" aria-label="Garment view"><button aria-pressed={showFront} onClick={()=>{setShowFront(true);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Front</button><button aria-pressed={!showFront} onClick={()=>{setShowFront(false);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Back</button></div><div className="new-canvas-area" onPointerDown={e=>{if(!(e.target as Element).closest('[data-measurement-guide],[data-asset-measurement]'))beginCanvasPanFromPointer(e)}}><div ref={previewStageRef} className="new-canvas-stage" style={{transform:`translate(${Math.round(previewPan.x)}px, ${Math.round(previewPan.y)}px)`,transition:'none'}}><div className="new-drawing-frame" style={{zoom:previewZoom/100,width:`min(calc(100cqw / ${(redesignDrawingBounds.right-redesignDrawingBounds.left+(layoutTier==='phone'?100:160))/(1000*.9)}),calc(100cqh / ${(redesignDrawingBounds.bottom-redesignDrawingBounds.top+100)/(1000*.9)}))`,transform:`translate(${-100*(redesignDrawingBounds.left+redesignDrawingBounds.right)/2000}%,${-100*(redesignDrawingBounds.top+redesignDrawingBounds.bottom)/2000}%)`}}> <MeasurementMotionContext.Provider value={JSON.stringify(state.measurements)}><MeasurementPreview showGuides={showMeasurementGuides} onDrawingBounds={updateRedesignDrawingBounds} presentation="redesign" onGuideSelect={setHighlightedMeasurementId}
                 garmentType={garmentSvgType ?? state.garmentType}
                 color={primaryColor}
                 selection={garmentSelection}
@@ -4874,7 +4858,7 @@ export function Builder() {
                   customCollar: state.customCollar, customCollars: state.customCollars,
                   neckTrimColor: state.neckTrimColor, sleeveTrimColor: state.sleeveTrimColor,
                   cuffTrimColor: state.cuffTrimColor, pocketTrimColor: state.pocketTrimColor }}
-              /></MeasurementMotionContext.Provider></div></div></div>{measurementTool==='Advanced sizing'&&state.measurementGrading?.compare?.enabled&&<div className="size-comparison-legend"><span><i/>{state.measurementGrading.compare.first.toUpperCase()}</span><span><i/>{state.measurementGrading.compare.second.toUpperCase()}</span></div>}<div className="new-zoom-control" aria-label="Canvas zoom"><button aria-label="Zoom out" onClick={()=>setPreviewZoom(z=>Math.max(PREVIEW_ZOOM_MIN,z-10))}>−</button><button aria-label="Reset zoom" onClick={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}}>{previewZoom}%</button><button aria-label="Zoom in" onClick={()=>setPreviewZoom(z=>Math.min(previewZoomMax,z+10))}>+</button><button className="new-fit-control" aria-label="Fit garment to canvas" onClick={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}}>Fit</button></div></div></BuilderShell><div className="builder-shell-dialogs">{builderDialogs}</div></MeasurementValueContext.Provider></SizeComparisonContext.Provider>;
+              /></MeasurementMotionContext.Provider></div></div></div>{measurementTool==='Advanced sizing'&&state.measurementGrading?.compare?.enabled&&<div className="size-comparison-legend"><span><i/>{state.measurementGrading.compare.first.toUpperCase()}</span><span><i/>{state.measurementGrading.compare.second.toUpperCase()}</span></div>}<div className="new-zoom-control" aria-label="Canvas zoom"><button aria-label="Zoom out" onClick={()=>setPreviewZoom(z=>Math.max(PREVIEW_ZOOM_MIN,z-10))}>−</button><label className="new-zoom-value"><input aria-label="Zoom percentage" inputMode="decimal" value={zoomDraft??String(previewZoom)} onChange={e=>setZoomDraft(e.target.value)} onFocus={e=>e.currentTarget.select()} onBlur={()=>{if(zoomDraft!==null){const value=Number(zoomDraft.replace('%','').trim());if(Number.isFinite(value)&&value>0)setPreviewZoom(Math.max(PREVIEW_ZOOM_MIN,Math.min(previewZoomMax,value)));setZoomDraft(null)}}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){setZoomDraft(null)}}}/><span>%</span></label><button aria-label="Zoom in" onClick={()=>setPreviewZoom(z=>Math.min(previewZoomMax,z+10))}>+</button><button className="new-fit-control" aria-label="Fit garment to canvas" onClick={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}}>Fit</button></div></div></BuilderShell><div className="builder-shell-dialogs">{builderDialogs}</div></MeasurementValueContext.Provider></SizeComparisonContext.Provider>;
   }
 
   return (
