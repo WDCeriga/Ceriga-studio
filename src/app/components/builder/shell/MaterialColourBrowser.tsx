@@ -6,11 +6,11 @@ import {fabricColors} from '../../../data/builderSteps';
 
 import {beginMaterialDrag} from '../materialDrop';
 
-export function MaterialColourBrowser({value,onChange,onReference,pickRequest=0}:{pickRequest?:number;value:string;onChange:(hex:string)=>void;onReference:(reference:string,hex?:string)=>void}){
+export function MaterialColourBrowser({value,onChange,onReference,pickRequest=0,initialTab='Library'}:{initialTab?:'Library'|'Pantone'|'Pick';pickRequest?:number;value:string;onChange:(hex:string)=>void;onReference:(reference:string,hex?:string)=>void}){
 
  const rootRef=useRef<HTMLElement>(null);
  useEffect(()=>{if(!pickRequest)return;setTab('Pick');rootRef.current?.scrollIntoView({behavior:'smooth',block:'nearest'})},[pickRequest]);
- const [tab,setTab]=useState('Library'),[query,setQuery]=useState(''),[family,setFamily]=useState('All'),[hue,setHue]=useState(210),[saturation,setSaturation]=useState(.65),[lightness,setLightness]=useState(.55);
+ const [tab,setTab]=useState(initialTab),[query,setQuery]=useState(''),[family,setFamily]=useState('All'),[hue,setHue]=useState(210),[saturation,setSaturation]=useState(.65),[lightness,setLightness]=useState(.55);
 
  useEffect(()=>{if(!/^#[0-9a-f]{6}$/i.test(value))return;const [r,g,b]=[1,3,5].map(i=>parseInt(value.slice(i,i+2),16)/255),max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;const h=d===0?null:max===r?60*(((g-b)/d+6)%6):max===g?60*((b-r)/d+2):60*((r-g)/d+4);if(h!==null)setHue(h);setSaturation(max===0?0:d/max);setLightness(max)},[value]);
  const hueHex=(h:number,s:number,l:number)=>{const a=s*Math.min(l,1-l),f=(n:number)=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1))};return '#'+[f(0),f(8),f(4)].map(n=>Math.round(n*255).toString(16).padStart(2,'0')).join('')};
