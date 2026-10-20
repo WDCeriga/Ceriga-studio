@@ -1,6 +1,6 @@
 import {MATERIAL_TOOLS,type MaterialTool} from './MaterialsInspector';
 import {BuilderSheet,ResponsiveBuilderContext,useResponsiveBuilder,useBuilderWidth,type BuilderPanel,type SheetSnap} from './responsiveBuilder';
-import {MoreHorizontal,Plus,SlidersHorizontal} from 'lucide-react';
+import {MoreHorizontal,Plus,SlidersHorizontal,Palette,Grid2X2,BookOpen} from 'lucide-react';
 import { useRef, useState, useEffect, useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Ruler, FileText, Layers, Settings2, PenLine, Tag, Package, ClipboardCheck, Upload, Undo2, Redo2, History, CirclePlus, ScanLine, TableProperties, FileUp, Shirt, Scissors, FoldVertical, Unplug, Droplets, Rows3, ClipboardList, Settings } from 'lucide-react';
 import './builder-shell.css';
@@ -81,7 +81,7 @@ export function BuilderSidebar({
       })}</nav><div className="builder-context"><h2>{section === 'Materials & Colour'?'Material tools':section === 'Construction' ? 'Construction tools' : section === 'Fit & Measurements' ? 'Measurement tools' : 'Section tools'}</h2>{section === 'Fit & Measurements' ? MEASUREMENT_TOOLS.map((s, i) => {
         const Icon = [Ruler, TableProperties, CirclePlus, FileUp][i];
         return <button key={s} className={tool === s ? 'is-selected' : ''} onClick={() => onTool(s)} title={s}><Icon size={20} /><span>{s}</span></button>;
-      }) : section==='Materials & Colour'?MATERIAL_TOOLS.map((s,i)=><button key={s} className={materialTool===s?'is-selected':''} onClick={()=>onMaterialTool?.(s)} title={s}><Layers size={20}/><span>{s}</span></button>):section === 'Construction' ? construction.map((s,index) => {return <button key={s} className={constructionTool === s ? 'is-selected' : ''} onClick={() => onConstructionTool(s)} title={s}><ConstructionToolIcon index={index}/><span>{s}</span></button>}) : <p>More tools will appear here.</p>}</div><div className="builder-sidebar-footer"><button onClick={() => onTool('Upload reference')} title="Upload reference"><Upload size={19} /><span>Upload reference</span></button><small>Reference / inspiration only</small></div></aside>;
+      }) : section==='Materials & Colour'?MATERIAL_TOOLS.map((s,i)=><button key={s} className={materialTool===s?'is-selected':''} onClick={()=>onMaterialTool?.(s)} title={s}>{(()=>{const Icon=[Palette,Shirt,Grid2X2,BookOpen][i];return <Icon size={20}/>})()}<span>{s}</span></button>):section === 'Construction' ? construction.map((s,index) => {return <button key={s} className={constructionTool === s ? 'is-selected' : ''} onClick={() => onConstructionTool(s)} title={s}><ConstructionToolIcon index={index}/><span>{s}</span></button>}) : <p>More tools will appear here.</p>}</div><div className="builder-sidebar-footer"><button onClick={() => onTool('Upload reference')} title="Upload reference"><Upload size={19} /><span>Upload reference</span></button><small>Reference / inspiration only</small></div></aside>;
 }
 export function BuilderWorkspace({
   children,

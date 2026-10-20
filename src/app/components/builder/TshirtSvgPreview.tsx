@@ -310,6 +310,7 @@ export interface TshirtSvgPreviewProps {
   detailEditor?: DetailEditorState;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
+  showSelectionHint?:boolean;
   materialHighlightIds?:string[];
   selectedLayerId?: string | null;
   selectionContext?: string;
@@ -950,6 +951,7 @@ export function TshirtSvgPreview({
   detailEditor,
   layerTransforms: builtinLayerTransforms,
   onLayerTransformChange,
+  showSelectionHint=true,
   materialHighlightIds=[],
   selectedLayerId = null,
   selectionContext,
@@ -1754,13 +1756,13 @@ export function TshirtSvgPreview({
           onToolChange={onWashToolChange} onDraft={setWashDraft} onCommit={onWashChange} />}
       </div>
 
-      {collarContourError && <p role="alert" className="absolute left-2 top-2 z-[260] bg-amber-950/90 px-2 py-1 text-xs text-amber-100">
+      {collarContourError && <p role="alert" className="sr-only">
         Garment geometry preparation failed. The original preview is still shown.
       </p>}
       {hemEditor && <div className="pointer-events-none absolute left-2 top-2 z-[260] bg-white/90 px-2 py-1 text-xs text-[#292929]">
         {hemEditor.regions.find(region => region.id === hemEditor.region)?.name}
       </div>}
-      {toolHint ? (
+      {showSelectionHint&&toolHint ? (
         <p className="pointer-events-none absolute -bottom-6 left-1/2 z-10 w-max max-w-full -translate-x-1/2 text-center text-[9px] leading-snug text-white/35">
           {toolHint}
         </p>

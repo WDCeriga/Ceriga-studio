@@ -2508,7 +2508,7 @@ export function PrintsDesignPreview({
             data-print-design-zone
             className={cn(
               'absolute z-10 overflow-visible',
-              garmentBackdrop && 'pointer-events-auto',
+              garmentBackdrop && (editable?'pointer-events-auto':'pointer-events-none'),
               editable && 'touch-none',
             )}
             style={{
