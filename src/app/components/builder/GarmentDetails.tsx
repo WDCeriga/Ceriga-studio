@@ -1,3 +1,4 @@
+import * as TrimPopover from '@radix-ui/react-popover';
 import * as DetailMenu from '@radix-ui/react-dropdown-menu';
 import {MoreHorizontal} from 'lucide-react';
 import {useResponsiveBuilder,useBuilderWidth} from './shell/responsiveBuilder';
@@ -11,7 +12,8 @@ import { OpeningControls } from './OpeningControls';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
   type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
 import {MaterialColourBrowser} from './shell/MaterialColourBrowser';
-function TrimColorFamilyPicker({label,value,onChange,onClear}:{label:string;value?:string;onChange:(hex:string)=>void;onClear?:()=>void}){return <details className="detail-colour-section"><summary><i style={{background:value??'#FFFFFF'}}/>{label}<span>{value??'Inherited'}</span></summary><MaterialColourBrowser value={value??'#FFFFFF'} onChange={onChange} onReference={()=>{}}/>{onClear&&<button type="button" onClick={onClear}>Reset colour</button>}</details>}
+function TrimColorFamilyPicker({label,value,onChange,onClear}:{label:string;value?:string;onChange:(hex:string)=>void;onClear?:()=>void}){return <TrimPopover.Root><TrimPopover.Trigger asChild><button type="button" className="detail-colour-chip" aria-label={label}><i style={{background:value??'#FFFFFF'}}/><span>{label.replace(/ colour$/, '')}<small>{value??'Inherited'}</small></span></button></TrimPopover.Trigger><TrimPopover.Portal><TrimPopover.Content className="detail-colour-popover" side="left" align="center" sideOffset={8} collisionPadding={12}><div className="detail-colour-popover-heading"><strong>{label}</strong><TrimPopover.Close aria-label="Close colour picker">×</TrimPopover.Close></div><MaterialColourBrowser value={value??'#FFFFFF'} onChange={onChange} onReference={()=>{}}/>{onClear&&<button type="button" className="detail-colour-reset" onClick={onClear}>Reset colour</button>}</TrimPopover.Content></TrimPopover.Portal></TrimPopover.Root>}
+
 import { formatMeasurementDisplay, parseMeasurementInput, type MeasurementUnit } from '../../lib/measurements';
 import { patchSettings, PATCH_TYPES, PATCH_SHAPES, PATCH_FINISHES, PATCH_EDGES, PATCH_DEPTHS, PATCH_APPLICATIONS, PATCH_MATERIAL_APPLICATIONS, readPatchArtwork, type PatchSettings } from '../../data/garmentPatches';
 
@@ -188,9 +190,7 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
     </div>
     {settings.material === 'pvc' && settings.application === 'moulded' && <label className="block text-[11px] text-white/60">Artwork relief<MaterialSelect aria-label="PVC artwork relief" className={selectClass} value={settings.relief} onChange={event => update({ relief: event.target.value as PatchSettings['relief'] })}><option value="raised">Raised</option><option value="recessed">Recessed</option></MaterialSelect></label>}
     {(settings.finish === 'stitched' || settings.finish === 'sewOn') && <label className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={settings.stitchedEdge} onChange={event => update({ stitchedEdge: event.target.checked })} />Visible perimeter stitching</label>}
-    <TrimColorFamilyPicker label="Patch background colour" value={detail.fill} onChange={fill => onChange({ fill })} onClear={() => onChange({ fill: '#D4D4D4' })} />
-    <TrimColorFamilyPicker label="Patch border colour" value={detail.outline} onChange={outline => onChange({ outline })} onClear={() => onChange({ outline: '#141414' })} />
-    {settings.stitchedEdge && (settings.finish === 'stitched' || settings.finish === 'sewOn') && <TrimColorFamilyPicker label="Patch thread colour" value={detail.stitch} onChange={stitch => onChange({ stitch })} onClear={() => onChange({ stitch: '#707070' })} />}
+
   </section>;
 }
 
@@ -311,21 +311,31 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
               className={`flex h-9 w-9 items-center justify-center rounded border border-white/15 text-white ${editor.closeUp === closeUp ? 'bg-white/20' : ''}`}><Icon size={16} /><span>{label}</span></button>)}
         </div>
       </div>}
-      {selected.type==='patch'&&!selected.customAsset&&<details open className="detail-construction-fold"><summary>Patch construction</summary><PatchControls key={selected.id} detail={selected} onChange={update}/></details>}
+      <section className="detail-colours-first" aria-label="Colours"><h4>Colours</h4>
+      {selected.type==='patch'&&!selected.customAsset&&<div className="detail-colour-grid">    <TrimColorFamilyPicker label="Patch background colour" value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: '#D4D4D4' })} />
+    <TrimColorFamilyPicker label="Patch border colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />
+    {patchSettings(selected).stitchedEdge && (patchSettings(selected).finish === 'stitched' || patchSettings(selected).finish === 'sewOn') && <TrimColorFamilyPicker label="Patch thread colour" value={selected.stitch} onChange={stitch => update({ stitch })} onClear={() => update({ stitch: '#707070' })} />}</div>}
+      {(selected.type !== 'patch' || selected.customAsset) && <section aria-label={selected.type === 'zip' ? 'Zip colours' : 'Detail colours'} className="detail-colour-grid">
+
       {(selected.type !== 'zip' || editor?.part !== 'pull') && <>
-      {bounds && Number.isFinite(referenceWidthCm) && referenceWidthCm! > 0
-        ? <DetailPositionControls detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} view={view} />
-        : <p role="status" className="text-xs text-amber-300">Set a positive size M chest width in Measurements to use physical trim dimensions.</p>}
-      <label className="flex items-center gap-2 text-xs text-white/60">
-        <input type="checkbox" checked={selected.lockProportions ?? false} onChange={event => update({ lockProportions: event.target.checked })} />
-        Lock proportions
-      </label>
+      <TrimColorFamilyPicker label={selected.type === 'zip' ? 'Tape colour' : `${selected.name} colour`} value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: color })} />
+      <TrimColorFamilyPicker label="Outline colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />
+      {asset.stitch && <TrimColorFamilyPicker label="Stitch colour" value={selected.stitch} onChange={stitch => update({ stitch })} onClear={() => update({ stitch: '#707070' })} />}
+      {asset.hardware && <TrimColorFamilyPicker label={selected.type === 'zip' ? 'Rails & stops colour' : 'Hardware colour'} value={selected.hardware}
+        onChange={hardware => update(selected.type === 'zip' ? { hardware, zipPullColor: selected.zipPullColor ?? selected.hardware, zipSliderColor: selected.zipSliderColor ?? selected.hardware } : { hardware })}
+        onClear={() => update(selected.type === 'zip' ? { hardware: '#D4D4D4', zipPullColor: selected.zipPullColor ?? selected.hardware, zipSliderColor: selected.zipSliderColor ?? selected.hardware } : { hardware: '#D4D4D4' })} />}
+      {selected.type === 'zip' && !selected.customAsset && <TrimColorFamilyPicker label="Teeth colour" value={selected.zipTeethColor ?? selected.outline} onChange={zipTeethColor => update({ zipTeethColor })} onClear={() => update({ zipTeethColor: undefined })} />}
       </>}
+      {selected.type === 'zip' && !selected.customAsset && <>
+        <TrimColorFamilyPicker label="Slider colour" value={selected.zipSliderColor ?? selected.hardware} onChange={zipSliderColor => update({ zipSliderColor })} onClear={() => update({ zipSliderColor: undefined })} />
+        <TrimColorFamilyPicker label="Pull colour" value={selected.zipPullColor ?? selected.hardware} onChange={zipPullColor => update({ zipPullColor })} onClear={() => update({ zipPullColor: undefined })} />
+      </>}
+      </section>}</section>
+      {selected.type==='patch'&&!selected.customAsset&&<details open className="detail-construction-fold"><summary>Patch construction</summary><PatchControls key={selected.id} detail={selected} onChange={update}/></details>}
+
       {selected.type==='zip'&&!selected.customAsset&&<details className="detail-construction-fold"><summary>Opening construction</summary><OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor}/></details>}
       {selected.type === 'zip' && !selected.customAsset && <div className="space-y-3 border-y border-white/15 py-3">
-        {bounds && Number.isFinite(referenceWidthCm) && referenceWidthCm! > 0
-          ? <ZipPullMeasurements detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} />
-          : editor?.part === 'pull' && <p role="status" className="text-xs text-amber-300">Set a positive size M chest width in Measurements to use physical trim dimensions.</p>}
+
         {editor?.part !== 'pull' && <>
         <label className="flex items-center justify-between gap-2 text-xs text-white/60">Zip length
           <MaterialSelect aria-label="Zip length preset" value="" disabled={!bounds}
@@ -357,22 +367,21 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
             className="rounded border border-white/15 bg-[#202023] p-2 text-white"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></MaterialSelect>
         </label>
       </div>}
-      {(selected.type !== 'patch' || selected.customAsset) && <section aria-label={selected.type === 'zip' ? 'Zip colours' : 'Detail colours'} className="space-y-4">
-      {selected.type === 'zip' && <h4 className="text-xs font-semibold text-white">Zip colours</h4>}
-      {(selected.type !== 'zip' || editor?.part !== 'pull') && <>
-      <TrimColorFamilyPicker label={selected.type === 'zip' ? 'Tape colour' : `${selected.name} colour`} value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: color })} />
-      <TrimColorFamilyPicker label="Outline colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />
-      {asset.stitch && <TrimColorFamilyPicker label="Stitch colour" value={selected.stitch} onChange={stitch => update({ stitch })} onClear={() => update({ stitch: '#707070' })} />}
-      {asset.hardware && <TrimColorFamilyPicker label={selected.type === 'zip' ? 'Rails & stops colour' : 'Hardware colour'} value={selected.hardware}
-        onChange={hardware => update(selected.type === 'zip' ? { hardware, zipPullColor: selected.zipPullColor ?? selected.hardware, zipSliderColor: selected.zipSliderColor ?? selected.hardware } : { hardware })}
-        onClear={() => update(selected.type === 'zip' ? { hardware: '#D4D4D4', zipPullColor: selected.zipPullColor ?? selected.hardware, zipSliderColor: selected.zipSliderColor ?? selected.hardware } : { hardware: '#D4D4D4' })} />}
-      {selected.type === 'zip' && !selected.customAsset && <TrimColorFamilyPicker label="Teeth colour" value={selected.zipTeethColor ?? selected.outline} onChange={zipTeethColor => update({ zipTeethColor })} onClear={() => update({ zipTeethColor: undefined })} />}
-      </>}
+
       {selected.type === 'zip' && !selected.customAsset && <>
-        <TrimColorFamilyPicker label="Slider colour" value={selected.zipSliderColor ?? selected.hardware} onChange={zipSliderColor => update({ zipSliderColor })} onClear={() => update({ zipSliderColor: undefined })} />
-        <TrimColorFamilyPicker label="Pull colour" value={selected.zipPullColor ?? selected.hardware} onChange={zipPullColor => update({ zipPullColor })} onClear={() => update({ zipPullColor: undefined })} />
+        {bounds && Number.isFinite(referenceWidthCm) && referenceWidthCm! > 0
+          ? <ZipPullMeasurements detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} />
+          : editor?.part === 'pull' && <p role="status" className="text-xs text-amber-300">Set a positive size M chest width in Measurements to use physical trim dimensions.</p>}
       </>}
-      </section>}
+      {(selected.type !== 'zip' || editor?.part !== 'pull') && <>
+      {bounds && Number.isFinite(referenceWidthCm) && referenceWidthCm! > 0
+        ? <DetailPositionControls detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} view={view} />
+        : <p role="status" className="text-xs text-amber-300">Set a positive size M chest width in Measurements to use physical trim dimensions.</p>}
+      <label className="flex items-center gap-2 text-xs text-white/60">
+        <input type="checkbox" checked={selected.lockProportions ?? false} onChange={event => update({ lockProportions: event.target.checked })} />
+        Lock proportions
+      </label>
+      </>}
     </div>}
   </div>;
 }

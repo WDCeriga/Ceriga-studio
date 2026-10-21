@@ -1,13 +1,17 @@
 import { tintPotraceSvg } from '../lib/tshirtSvgUtils';
 import type { GarmentView } from './garmentView';
 
-export const WASH_TYPES = { none: 'Clean / None', vintage: 'Vintage Wash', mineral: 'Mineral Wash', acid: 'Acid Wash', stone: 'Stone / Distressed Wash' } as const;
-export const WASH_PLACEMENTS = { full: 'Full Garment', center: 'Center Fade', upper: 'Upper / Shoulder Fade', lower: 'Lower / Hem Fade', sleeves: 'Sleeve Fade', edges: 'Edge / Seam Fade', random: 'Random / All-over', custom: 'Custom' } as const;
+export const WASH_TYPES = { none: 'Clean / None', vintage: 'Vintage Wash', mineral: 'Mineral Wash', acid: 'Acid / Snow Wash', stone: 'Stone Wash', enzyme: 'Enzyme Wash', pigment: 'Pigment Wash', garmentDye: 'Garment Dye', overdye: 'Overdye' } as const;
+export const WASH_PLACEMENTS = { full: 'Full Garment', center: 'Center Fade', upper: 'Upper / Shoulder Fade', lower: 'Lower / Hem Fade', sleeves: 'Sleeve Fade', edges: 'Edge / Seam Fade', random: 'Random / All-over', panels: 'Selected panels', custom: 'Custom region' } as const;
 export type WashPoint = { x: number; y: number };
 export type WashStroke = { id: string; points: WashPoint[]; size: number; strength: number; softness: number; erase: boolean; mirror: boolean };
 export type WashShape = { id: string; kind: 'circle' | 'oval' | 'rectangle' | 'band'; x: number; y: number; width: number; height: number; rotation: number; intensity: number; softness: number; tint?: string; mirror: boolean };
 export type WashView = { strokes: WashStroke[]; shapes: WashShape[]; placement?: keyof typeof WASH_PLACEMENTS };
 export type GarmentWash = {
+  references?: {id:string;name:string;src:string}[];
+  specification?: {notes:string;confirmed:boolean};
+  selectedPanels?: string[];
+  preview?: Partial<Pick<GarmentWash,'blend'|'noiseScale'|'contrast'|'tone'|'seed'|'autoWear'|'wearStrength'>>;
   type: keyof typeof WASH_TYPES;
   placement: keyof typeof WASH_PLACEMENTS;
   mode: 'natural' | 'tinted' | 'bleach';
@@ -103,6 +107,7 @@ export function washStrokePath(points: WashPoint[], bounds: WashBounds, mirror =
 }
 
 export function washSvg(raw: string, base: string, bounds: WashBounds, region: string, wash: GarmentWash | undefined, view: GarmentView, identifier: string, placementTransform = ''): string {
+  if (wash) wash = washPreview(wash);
   if (!wash || wash.type === 'none' || wash.intensity <= 0 || wash.blend <= 0) return '';
   const prefix = identifier.replace(/[^a-z\d_-]/gi, '');
   const width = bounds.maxX - bounds.minX;
@@ -123,6 +128,7 @@ export function washSvg(raw: string, base: string, bounds: WashBounds, region: s
   const spread = .12 + wash.spread / 100 * .65;
   let preset = '';
   switch (placement) {
+    case 'panels': preset = wash.selectedPanels?.includes(region) ? '<rect width="2048" height="2048" fill="white"/>' : ''; break;
     case 'full': preset = `<rect width="2048" height="2048" fill="white" opacity="${wash.type === 'stone' ? .2 : .65}"/>`; break;
     case 'random': {
       let randomState = wash.seed >>> 0;
@@ -178,3 +184,11 @@ export function washSvg(raw: string, base: string, bounds: WashBounds, region: s
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="2048" height="2048" data-wash-layer="${region}"><defs>${defs.join('')}</defs><g mask="url(#${prefix}-clip)" opacity="${wash.intensity / 100 * wash.blend / 100}"><g mask="url(#${prefix}-placement)"><g filter="url(#${prefix}-texture)"><rect width="2048" height="2048" fill="${washTone(base, wash)}"/>${tintShapes}</g></g></g></svg>`;
 }
+export const WASH_DESCRIPTIONS:Record<GarmentWash['type'],string>={none:'The original fabric, without an added wash treatment.',enzyme:'A softer hand and gently cleaned surface.',vintage:'Soft, worn-in colour with irregular fading.',mineral:'Cloudy, tonal variation with a weathered character.',stone:'A broken-in surface with stronger wear at the edges.',acid:'High-contrast, mottled fading and pale highlights.',pigment:'A washed-down pigment look with tonal variation.',garmentDye:'Colour applied after construction for a unified, lived-in finish.',overdye:'A deeper colour layer over the original fabric.'};
+export function washSpecification(wash:GarmentWash):string{
+ const intensity=wash.intensity<35?'light':wash.intensity<70?'medium':'heavy';
+ const front=wash.views.front.placement??wash.placement,back=wash.views.back.placement??wash.placement;
+ return wash.type==='none'?'No additional wash treatment.':`${WASH_TYPES[wash.type]} · ${intensity} intensity. Front: ${WASH_PLACEMENTS[front]}. Back: ${WASH_PLACEMENTS[back]}.${wash.mode==='tinted'?` Target fade colour: ${wash.colour}.`:''} Strength: ${wash.intensity}%. Edge softness: ${wash.softness}%. Spread: ${wash.spread}%.${front==='panels'||back==='panels'?` Panels: ${(wash.selectedPanels??[]).join(', ')||'not selected'}.`:''}${front==='custom'||back==='custom'?` Custom marks: front ${wash.views.front.strokes.length+wash.views.front.shapes.length}, back ${wash.views.back.strokes.length+wash.views.back.shapes.length}.`:''}${wash.autoWear?` Add ${wash.wearStrength}% wear at seams and edges.`:''} Match the attached references and approve a wash sample before bulk production.`;
+}
+
+export function washPreview(wash:GarmentWash):GarmentWash{return wash.preview?{...wash,...wash.preview}:wash}

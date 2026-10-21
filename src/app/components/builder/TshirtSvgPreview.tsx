@@ -1531,15 +1531,27 @@ export function TshirtSvgPreview({
     const selected = decorationsForView(garmentDetails, detailView).find(detail => detail.id === selectedDetailId);
     if (!detailEditor?.closeUp || !selected || !detailBounds) return undefined;
     const placement = detailPlacement(selected, detailBounds);
-    if (selected.type !== 'zip') return { x: placement.left + placement.width / 2, y: placement.top + placement.height / 2, scale: Math.min(6, Math.max(2, 700 / Math.max(placement.width, placement.height))) };
-    const sourceWidth = Number(new DOMParser().parseFromString(detailAsset(selected).svg, 'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2]) || 48;
-    const sourceHeight = sourceWidth * placement.height / placement.width;
-    const hardware = zipHardwareGeometry(selected, sourceWidth, sourceHeight);
-    const pullY = (hardware.pullY + 22 * hardware.hardwareScale) / sourceHeight;
-    const offsetY = ((selected.flipY ? 1 - pullY : pullY) - .5) * placement.height;
     const radians = detailRotation(selected) * Math.PI / 180;
-    return { x: placement.left + placement.width / 2 - Math.sin(radians) * offsetY,
-      y: placement.top + placement.height / 2 + Math.cos(radians) * offsetY, scale: Math.min(8, Math.max(2, 280 / placement.width)) };
+    let left = placement.left, top = placement.top, width = placement.width, height = placement.height;
+    if (selected.type === 'zip') {
+      const sourceWidth = Number(new DOMParser().parseFromString(detailAsset(selected).svg, 'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2]) || 48;
+      const sourceHeight = sourceWidth * placement.height / placement.width;
+      const hardware = zipHardwareGeometry(selected, sourceWidth, sourceHeight);
+      const pullY = hardware.pullY + 22 * hardware.hardwareScale;
+      if (detailEditor.part === 'pull') {
+        const offsetY = ((selected.flipY ? 1 - pullY / sourceHeight : pullY / sourceHeight) - .5) * placement.height;
+        return {x:left+width/2-Math.sin(radians)*offsetY,y:top+height/2+Math.cos(radians)*offsetY,scale:Math.min(6, Math.max(1, 700 / Math.max(width, 70 * hardware.hardwareScale * width/sourceWidth)))};
+      }
+      // Include hardware extending beyond the tape before fitting the whole zip.
+      const extra = Math.max(0, hardware.pullY + 70 * hardware.hardwareScale - sourceHeight) * width / sourceWidth;
+      height += extra;
+      if (selected.flipY) top -= extra;
+    }
+    const offset = (top + height/2) - (placement.top + placement.height/2);
+    const rotatedWidth = Math.abs(Math.cos(radians))*width + Math.abs(Math.sin(radians))*height;
+    const rotatedHeight = Math.abs(Math.sin(radians))*width + Math.abs(Math.cos(radians))*height;
+    return {x:left+width/2-Math.sin(radians)*offset,y:placement.top+placement.height/2+Math.cos(radians)*offset,
+      scale:Math.min(6, 1350 / Math.max(rotatedWidth,rotatedHeight,1))};
   })();
   const hemBounds = hemEditor ? displayBounds(hemEditor.region) : undefined;
   const hemCamera = hemEditor?.closeUp && hemBounds ? {
