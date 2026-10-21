@@ -4,7 +4,7 @@ import { tintPotraceSvg } from '../lib/tshirtSvgUtils';
 
 export type TshirtHemStyle = 'normal' | 'ribbed' | 'none';
 export type HemConstruction = 'single-fold' | 'double-fold' | 'raw' | 'binding' | 'rib' | 'turn-up';
-export type HemSettings = { construction?: HemConstruction; depthCm?: number; firstFoldCm?: number; stitchStyle?: 'standard'|'double'|'triple'|'zigzag'|'overlock'|'coverstitch'|'none'; stitchThread?: 'fine'|'regular'|'heavy'; finish?: TshirtHemStyle; color?: string; stitchColor?: string; depth?: number; ribWeight?: number };
+export type HemSettings = { construction?: HemConstruction; depthCm?: number; firstFoldCm?: number; stitchStyle?: 'standard'|'double'|'triple'|'zigzag'|'overlock'|'coverstitch'|'flatlock'|'chain'|'none'; stitchThread?: 'fine'|'regular'|'heavy'; finish?: TshirtHemStyle; color?: string; stitchColor?: string; depth?: number; ribWeight?: number };
 export type HemEditing = { applyAll?: boolean; global?: HemSettings; regions?: Record<string, HemSettings> };
 export type TshirtHemStyles = Partial<Record<'sleeve' | 'bottom' | 'undersleeve', TshirtHemStyle>> & { editing?: HemEditing };
 

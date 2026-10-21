@@ -25,3 +25,53 @@
 .details-trims-editor .detail-colour-section summary{display:flex;align-items:center;gap:9px;cursor:pointer;list-style:none}
 .details-trims-editor .detail-colour-section summary i{width:23px;height:23px;border:1px solid #d7e0eb;border-radius:4px}
 .details-trims-editor .detail-colour-section summary span{margin-left:auto;color:#8190a5;font-size:10px}
+
+/* A quiet library and a focused editing workspace. */
+.details-trims-editor header{margin-bottom:14px;padding-bottom:16px}
+.details-trims-editor .neck-custom-toggle{background:#f7f6f3;border:1px dashed #c9d2dc;border-radius:7px;padding:13px;margin:0 0 17px;width:100%}
+.details-trims-editor .detail-library{border:1px solid #dce4eb;border-radius:8px;overflow:hidden;background:white}
+.details-trims-editor .detail-library>summary{display:flex;justify-content:space-between;align-items:center;list-style:none;padding:14px;cursor:pointer;background:#f8f9fa}
+.details-trims-editor .detail-library>summary>span{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#35495b}
+.details-trims-editor .detail-library>summary>small{font-size:10px;color:#8694a5}
+.details-trims-editor .detail-library-content{padding:12px}
+.details-trims-editor [aria-label="Detail category"]{background:#f0f3f6;padding:3px;border-radius:5px;gap:2px;margin-bottom:12px}
+.details-trims-editor [aria-label="Detail category"] button{border:0;font-size:10px;padding:8px 2px;background:transparent;border-radius:3px}
+.details-trims-editor [aria-label="Detail category"] button[aria-pressed=true]{background:white;box-shadow:0 1px 4px #25374a12;color:#30475b}
+.details-trims-editor [aria-label$=" options"] button{position:relative;border-color:#e0e6ed;padding:0;overflow:hidden;gap:0;min-height:130px;text-align:left}
+.details-trims-editor [aria-label$=" options"] button:hover{border-color:#8fa0b1;box-shadow:0 3px 12px #34475b0a;transform:translateY(-1px)}
+.details-trims-editor [aria-label$=" options"] img{height:95px;background:linear-gradient(135deg,#fbfaf8,#f3f4f4);padding:15px}
+.details-trims-editor .detail-option-label{display:flex;align-items:center;justify-content:space-between;flex-direction:row-reverse;width:100%;font-size:10px;padding:10px 9px;border-top:1px solid #e8edf2;background:white;gap:5px}
+.details-trims-editor .detail-option-label svg{color:#94a3b4}
+.details-trims-editor .detail-library-hint{font-size:10px;line-height:1.6;color:#8997a7;padding:12px 1px 0;margin:0}
+.details-trims-editor .detail-section-title{display:flex;align-items:center;justify-content:space-between;margin:4px 0 13px;font-weight:600;font-size:12px}
+.details-trims-editor .detail-section-title small{font-size:10px;color:#8997a7;font-weight:400;text-transform:capitalize}
+.details-trims-editor .detail-placed{border-top:0;padding-top:0}
+.details-trims-editor .detail-placed>section>h3{display:none}
+.details-trims-editor .detail-placed-row{display:flex;align-items:center;gap:1px;border:1px solid #e1e7ed;border-radius:6px;padding:4px;margin:7px 0;background:white}
+.details-trims-editor .detail-placed-row[data-selected=true]{border-color:#90a2b4;background:#f4f6f8}
+.details-trims-editor .detail-placed-row>button:first-child{padding:6px!important;background:none!important;border:0!important}
+.details-trims-editor .detail-row-thumbnail{float:left;width:35px;height:40px;object-fit:contain;padding:5px;background:white;border:1px solid #e4e9ee;border-radius:4px;margin-right:9px}
+.details-trims-editor .detail-placed-row button:not(:first-child){padding:7px;color:#7c8da0}
+.details-trims-editor .detail-selected-editor{border-top:1px solid #e1e7ee;padding-top:19px}
+.details-trims-editor .detail-selected-heading{display:flex;gap:13px;align-items:center;margin-bottom:20px}
+.details-trims-editor .detail-selected-heading>img{width:65px;height:72px;background:#f6f5f2;object-fit:contain;padding:12px;border:1px solid #e4e7ea;border-radius:7px}
+.details-trims-editor .detail-selected-heading small{font-size:9px;color:#8b99aa;letter-spacing:1.3px}
+.details-trims-editor .detail-selected-heading h3{font-size:16px;margin:5px 0;color:#354252}
+.details-trims-editor .detail-selected-heading p{font-size:10px;color:#8796a8;margin:0;text-transform:capitalize}
+.details-trims-editor .detail-selected-editor details:not(.detail-colour-section){border-top:1px solid #e1e7ed;padding-top:15px}
+.details-trims-editor .detail-selected-editor summary{cursor:pointer;font-weight:500;margin-bottom:12px}
+.details-trims-editor [aria-label="Detail preview"]{margin-left:auto;background:#eef2f5;border-radius:5px;padding:3px}
+.details-trims-editor [aria-label="Detail preview"] button{width:32px;height:29px;border:0}
+.details-trims-editor [aria-label="Detail preview"] button[aria-pressed=true]{background:white;box-shadow:0 1px 3px #25374a10}
+.details-trims-editor .detail-empty{text-align:center;padding:24px 17px;border:1px dashed #dbe3ec;border-radius:7px;background:#fafbfc;color:#91a0b2}
+.details-trims-editor .detail-empty>svg{margin:0 auto 9px}
+.details-trims-editor .detail-empty strong{display:block;font-size:12px;color:#62748a;font-weight:500}
+.details-trims-editor .detail-empty p{font-size:10px;line-height:1.7;margin:7px 0 0}
+
+.details-trims-editor .detail-workbench>label{display:flex!important;align-items:center;gap:8px;font-size:10px;padding:0 1px}
+.details-trims-editor input[type=checkbox]{width:13px!important;height:13px!important;flex:0 0 13px;padding:0!important;margin:0!important}
+.details-trims-editor .detail-selected-editor label{font-size:10px;text-transform:none}
+.details-trims-editor .detail-selected-editor label:has(>input[type=checkbox]){display:flex!important;align-items:center;gap:8px}
+.details-trims-editor .detail-selected-editor details p{font-size:10px;line-height:1.6;color:#8b9aad}
+
+.details-trims-editor .detail-library-content>section{border:0;padding:0;margin-top:13px}.details-trims-editor .detail-library-content .neck-custom-toggle{font-size:10px;margin-bottom:0;padding:10px}.details-trims-editor .detail-library-content .neck-custom-toggle>span:last-child{font-size:8px}

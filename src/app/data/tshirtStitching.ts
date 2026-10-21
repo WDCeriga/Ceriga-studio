@@ -11,6 +11,8 @@ export const TSHIRT_STITCH_OPTIONS = [
   { value: 'zigzag', label: 'Zigzag Stitch' },
   { value: 'overlock', label: 'Overlock Stitch' },
   { value: 'coverstitch', label: 'Coverstitch' },
+  { value: 'flatlock', label: 'Flatlock' },
+  { value: 'chain', label: 'Chain stitch' },
   { value: 'none', label: 'No Stitching' },
 ] as const;
 export const TSHIRT_STITCH_REGIONS = {
@@ -21,7 +23,7 @@ export const TSHIRT_STITCH_REGIONS = {
 export type StitchRegion = keyof typeof TSHIRT_STITCH_REGIONS;
 export type StitchStyle = typeof TSHIRT_STITCH_OPTIONS[number]['value'];
 export const STITCH_THREAD_OPTIONS = { fine: 'Fine', regular: 'Regular', heavy: 'Heavy' } as const;
-export type StitchSettings = { style?: StitchStyle; color?: string; thread?: keyof typeof STITCH_THREAD_OPTIONS };
+export type StitchSettings = { style?: StitchStyle; color?: string; thread?: keyof typeof STITCH_THREAD_OPTIONS; density?: number; spacingMm?: number; material?: 'core-poly'|'cotton'|'polyester'|'nylon'; notes?: string };
 export type TshirtStitching = Partial<Record<StitchRegion, StitchSettings>> & { global?: StitchSettings };
 export function updateStitchSettings(settings: TshirtStitching, patch: StitchSettings, region: StitchRegion, applyToAll: boolean): TshirtStitching {
   if (!applyToAll) return { ...settings, [region]: { ...resolveStitchSettings(settings, region), ...patch } };
@@ -231,7 +233,7 @@ function curvePath(points: Point[]): string {
   return path;
 }
 
-export function stitchPatternPath(points: Point[], style: StitchStyle): string {
+export function stitchPatternPath(points: Point[], style: StitchStyle, density = 10, spacingMm = 6): string {
   if (points.length < 2 || style === 'none') return '';
   const curve = document.createElementNS(namespace, 'path');
   curve.setAttribute('d', curvePath(points));
@@ -244,13 +246,16 @@ export function stitchPatternPath(points: Point[], style: StitchStyle): string {
     const magnitude = Math.hypot(after.x - before.x, after.y - before.y) || 1;
     return `${(position.x - (after.y - before.y) / magnitude * offset).toFixed(2)},${(position.y + (after.x - before.x) / magnitude * offset).toFixed(2)}`;
   };
+  const dash=9*10/Math.max(4,Math.min(14,density));
+  const rowGap=Math.max(3,Math.min(10,spacingMm))/6;
   const line = (offset: number, dashed: boolean) => {
+    offset*=rowGap;
     let path = '';
-    const count = dashed ? Math.max(1, Math.floor((length + 9) / 18)) : 1;
-    const dashLength = dashed ? Math.min(9, length) : length;
-    const margin = dashed ? (length - (count * dashLength + (count - 1) * 9)) / 2 : 0;
+    const count = dashed ? Math.max(1, Math.floor((length + dash) / (dash*2))) : 1;
+    const dashLength = dashed ? Math.min(dash, length) : length;
+    const margin = dashed ? (length - (count * dashLength + (count - 1) * dash)) / 2 : 0;
     for (let index = 0; index < count; index++) {
-      const along = margin + index * (dashLength + 9);
+      const along = margin + index * (dashLength + dash);
       const end = along + dashLength;
       path += `M${at(along, offset)}`;
       for (let step = along + 2; step < end; step += 2) path += `L${at(step, offset)}`;
@@ -261,7 +266,7 @@ export function stitchPatternPath(points: Point[], style: StitchStyle): string {
   if (style === 'standard') return line(0, true);
   if (style === 'double') return line(-2.8, true) + line(2.8, true);
   if (style === 'triple') return line(-4, true) + line(0, true) + line(4, true);
-  const count = Math.max(1, Math.floor(length / 20));
+  const count = Math.max(1, Math.floor(length / (20*10/Math.max(4,Math.min(14,density)))));
   const pitch = length / count;
   if (style === 'zigzag') {
     let path = `M${at(0, -3)}`;
@@ -269,6 +274,8 @@ export function stitchPatternPath(points: Point[], style: StitchStyle): string {
     return path;
   }
   if (style === 'coverstitch') return line(-3, false) + line(3, false);
+  if (style === 'chain') {let path='';for(let i=0;i<count;i++){const a=i*pitch,b=(i+1)*pitch,m=(a+b)/2;path+=`M${at(a,0)}Q${at(m,4)} ${at(b,0)}Q${at(m,-4)} ${at(a,0)}`;}return path;}
+  if (style === 'flatlock') {let path=line(-4*rowGap,true)+line(4*rowGap,true);for(let i=0;i<count;i++)path+=`M${at(i*pitch,-4*rowGap)}L${at((i+.5)*pitch,4*rowGap)}L${at((i+1)*pitch,-4*rowGap)}`;return path;}
   let path = line(-3, false);
   for (let index = 0; index < count; index++) {
     const along = index * pitch;
@@ -291,14 +298,14 @@ export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: Stitc
       if (part.hem?.finish === 'none') return '';
       const partStyle=part.hem?.stitchStyle??style;
       if(partStyle==='none')return '';
-      const partPath=geometry.rows[region].map(row=>stitchPatternPath(row,partStyle)).join('');
+      const partPath=geometry.rows[region].map(row=>stitchPatternPath(row,partStyle,resolved.density,resolved.spacingMm)).join('');
       const partWidth=part.hem?.stitchThread?{fine:2.1,regular:2.7,heavy:3.4}[part.hem.stitchThread]:width;
       const selectedColor = colorValue(part.hem?.stitchColor || resolved.color || source.tint);
       const fabric = fabricColors?.[part.id] ?? fabricColors?.[region] ?? fabricColors?.base;
       const color = fabric ? constructionColor(fabric, selectedColor) : selectedColor;
       const clipId = `${prefix}stitch-region-${part.id}`;
-      const content = `<path d="${partPath}" fill="none" stroke="${color}" stroke-width="${partWidth}" stroke-linecap="round" stroke-linejoin="round"/>`;
-      return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${part.clip}"/></clipPath></defs><g data-stitch-region="${region}" data-hem-stitch="${part.id}" data-stitch-style="${partStyle}" clip-path="url(#${clipId})">${content}</g>`;
+      const content = `<path data-stitch-weight="${partWidth/2.7}" d="${partPath}" fill="none" stroke="${color}" stroke-width="${partWidth}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${part.clip}"/></clipPath></defs><g data-stitch-region="${region}" data-hem-stitch="${part.id}" data-stitch-style="${partStyle}" data-stitch-density="${resolved.density??10}" data-stitch-spacing="${resolved.spacingMm??6}" clip-path="url(#${clipId})">${content}</g>`;
     }).join('');
   }).join('');
   const collarMask = source.svgRaw.includes('custom-collar-')

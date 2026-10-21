@@ -1,6 +1,6 @@
 import {MaterialSelect} from './shell/MaterialSelect';
 import {useTechnicalDrawing,normalizeTechnicalSvg} from '../../lib/technicalDrawing';
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { Copy, CopyPlus, Plus, Upload, Trash2, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw, ArrowDownToLine, Maximize, ZoomIn, AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, AlignStartVertical, AlignEndVertical } from 'lucide-react';
 import type { GarmentView } from '../../data/garmentView';
 import { createOpening, openingNecklineReach } from '../../data/garmentOpenings';
@@ -54,7 +54,7 @@ export function DetailPositionControls({ detail, bounds, onChange, referenceWidt
   const labels = { x: 'Centre from left', y: 'Centre from top', width: 'Width', height: detail.type === 'patch' ? 'Height' : 'Length', rotation: 'Rotation' };
   return <details open className="border-y border-white/15 py-3">
     <summary className="cursor-pointer text-xs font-semibold text-white">Position &amp; size</summary>
-    <p className="mt-2 text-[10px] leading-relaxed text-white/50">Size M reference: chest width {formatMeasurementDisplay(String(referenceWidthCm), unit)} {unit}. Placement is measured to the detail centre from the body's top-left. Dimensions are drawing-scaled; confirm in the production spec.</p>
+    <p className="mt-2 text-[10px] leading-relaxed text-white/50">Size M · {formatMeasurementDisplay(String(referenceWidthCm), unit)} {unit} chest. Position is measured to the detail centre.</p>
     <div className="mt-3 grid grid-cols-2 gap-3">
       {(['x', 'y', 'width', 'height', 'rotation'] as const).map(field => <label key={field} className="min-w-0 text-[11px] capitalize text-white/60">
         {labels[field]} ({field === 'rotation' ? 'deg' : unit})
@@ -190,8 +190,8 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
   </section>;
 }
 
-export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm' }: DetailEditorProps & {
-  color: string; view?: GarmentView; onDuplicateToOtherView?: (detail: GarmentDetail) => void; bounds?: DetailBounds; copiedIds?: string[];
+export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload }: DetailEditorProps & {
+  customUpload?: ReactNode; color: string; view?: GarmentView; onDuplicateToOtherView?: (detail: GarmentDetail) => void; bounds?: DetailBounds; copiedIds?: string[];
   onMoveToView?: (detail: GarmentDetail, view: GarmentView) => void;
   builtins?: GarmentDetail[];
   referenceWidthCm?: number;
@@ -199,6 +199,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
 }) {
   const [category, setCategory] = useState<GarmentDetailType>('pocket');
   const [builtinError, setBuiltinError] = useState('');
+  const [libraryOpen,setLibraryOpen]=useState(!selectedId);
   const selected = editor?.draft && editor.draft.id === selectedId ? editor.draft : details.find(detail => detail.id === selectedId);
   const asset = selected && detailAsset(selected);
   const update = (patch: Partial<GarmentDetail>) => onChange(details.map(detail => detail.id === selectedId ? { ...detail, ...patch } : detail));
@@ -207,9 +208,9 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
     const detail = type === 'zip' && bounds ? createOpening(overlay, bounds, 'neckline') : overlay;
     editor?.onOpeningStageChange?.('final');
     onChange([...details, detail]);
-    onSelect(detail.id);
+    onSelect(detail.id); setLibraryOpen(false);
   };
-  return <div className="space-y-5">
+  return <div className="detail-workbench space-y-5">
     {editor?.onSnapChange && <label title="Aligns nearby centres and edges while dragging. Hold Alt to move freely." className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" aria-label="Snap to alignment guides" checked={editor.snap ?? true}
       onChange={event => editor.onSnapChange?.(event.target.checked)} />Snap to alignment guides</label>}
     {builtins.length > 0 && <div className="space-y-2"><h3 className="text-xs font-semibold text-white">Built-in trims</h3>
@@ -230,7 +231,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         Edit {detail.name}</button>)}
       {builtinError && <p role="status" className="text-xs text-amber-300">{builtinError}</p>}
     </div>}
-    <div className="space-y-3">
+    <details className="detail-library" open={libraryOpen} onToggle={e=>setLibraryOpen(e.currentTarget.open)}><summary><span><Plus size={14}/>Add a detail</span><small>Browse the library</small></summary><div className="detail-library-content">
       <div role="group" aria-label="Detail category" className="grid grid-cols-4 border-b border-white/15">
         {(['pocket', 'zip', 'button', 'patch'] as const).map(type => <button key={type} type="button"
           aria-pressed={category === type} onClick={() => setCategory(type)}
@@ -244,25 +245,26 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
           title={option.label} disabled={category === 'zip' && !bounds} onClick={() => add(category, option.id)}
           className="flex min-w-0 flex-col items-center gap-2 rounded-md border border-white/15 bg-white/5 p-2 text-[10px] leading-tight text-white hover:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#CC2D24]">
           <img alt="" src={`data:image/svg+xml,${encodeURIComponent(detailAsset({ type: category, variant: option.id }).svg)}`} className="h-16 w-full bg-white object-contain p-1.5" />
-          <span className="flex min-h-7 items-center gap-1"><Plus size={12} className="shrink-0" /><span className="break-words">{option.label}</span></span>
+          <span className="detail-option-label"><Plus size={12} className="shrink-0" /><span className="break-words">{option.label}</span></span>
         </button>)}
       </div>
-    </div>
+      {customUpload}<p className="detail-library-hint">{category==='pocket'?'A considered detail. Choose a shape, then make it yours.':category==='zip'?'Choose an opening, then refine its construction and placement.':category==='button'?'Small details, finished your way.':'Add a patch and customise its shape, material and artwork.'}</p>
+    </div></details>
     {category === 'patch' && <section aria-label="Patches" className="space-y-2 border-t border-white/15 pt-3">
       <h3 className="text-xs font-semibold text-white">Patches</h3>
       <button type="button" onClick={() => add('patch')} className="flex items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-xs text-white"><Plus size={14} />Add patch</button>
     </section>}
-    <div className="space-y-1" role="group" aria-label="Added details">
-      {details.length === 0 && <p className="text-xs text-white/45">No details</p>}
+    <div className="detail-placed" role="group" aria-label="Added details"><div className="detail-section-title"><span>On your garment</span><small>{details.filter(d=>!d.hidden).length} {details.filter(d=>!d.hidden).length===1?'detail':'details'} · {view}</small></div>
+      {details.length === 0 && <div className="detail-empty"><Plus size={20}/><strong>Make room for the details</strong><p>Choose from the library or create a drawing from your photo.</p></div>}
       {(['pocket', 'zip', 'button', 'patch'] as const).map(type => {
         const items = details.filter(detail => !detail.hidden && detail.type === type);
         const heading = type === 'patch' ? 'Patches' : `${GARMENT_DETAIL_ASSETS[type].label}s`;
         return items.length > 0 && <section key={type} aria-label={`Added ${heading.toLowerCase()}`} className="space-y-1 pt-2">
           <h3 className="text-xs font-semibold text-white">{heading}</h3>
-          {items.map(detail => <div key={detail.id} className="flex min-w-0 items-center gap-1 border-b border-white/10 py-1">
-        <button type="button" aria-pressed={detail.id === selectedId} onClick={() => { if (type !== 'patch') setCategory(type); onSelect(detail.id); }}
+          {items.map(detail => <div key={detail.id} className="detail-placed-row" data-selected={detail.id===selectedId}>
+        <button type="button" aria-pressed={detail.id === selectedId} onClick={() => { if (type !== 'patch') setCategory(type); onSelect(detail.id); setLibraryOpen(false); }}
           className={`min-w-0 flex-1 rounded px-2 py-2 text-left text-xs ${detail.id === selectedId ? 'bg-white/10 text-white' : 'text-white/60'}`}>
-          {detail.name}{detail.variant && <span className="mt-0.5 block text-[10px] text-white/45">{detailAsset(detail).label}</span>}</button>
+          <img className="detail-row-thumbnail" alt="" src={`data:image/svg+xml,${encodeURIComponent(detailAsset(detail).svg)}`}/>{detail.name}{detail.variant && <span className="mt-0.5 block text-[10px] text-white/45">{detailAsset(detail).label}</span>}</button>
         <button type="button" title={`Duplicate ${detail.name}`} aria-label={`Duplicate ${detail.name}`} className="p-2 text-white/60 hover:text-white"
           onClick={() => { const identity = createGarmentDetail(detail.type, details, detail.fill);
             const copy = { ...detail, id: identity.id, name: identity.name, sourceLayerId: undefined, arrangementId: undefined, selected: true, scale: detailScale(detail.scale) };
@@ -277,8 +279,8 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         </section>;
       })}
     </div>
-    {selected && asset && <div className="space-y-4">
-      <h3 className="text-xs font-semibold text-white">{selected.name}</h3>
+    {selected && asset && <div className="detail-selected-editor space-y-4">
+      <div className="detail-selected-heading"><img alt="" src={`data:image/svg+xml,${encodeURIComponent(asset.svg)}`}/><div><small>EDITING DETAIL</small><h3>{selected.name}</h3><p>{asset.label} · {view}</p></div></div>
       {selected.type === 'patch' && onMoveToView && <div role="group" aria-label="Patch side" className="flex gap-1">
         {(['front', 'back'] as const).map(side => <button key={side} type="button" aria-pressed={view === side} onClick={() => onMoveToView(selected, side)} className={`flex-1 rounded border border-white/15 py-2 text-xs capitalize text-white ${view === side ? 'bg-white/20' : ''}`}>{side}</button>)}
       </div>}
@@ -289,7 +291,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
           {(['zip', 'pull'] as const).map(part => <button key={part} type="button" aria-pressed={editor.part === part} onClick={() => editor.onPartChange(part)}
             className={`border-b-2 px-3 py-2 text-xs ${editor.part === part ? 'border-[#CC2D24] text-white' : 'border-transparent text-white/50'}`}>{part === 'zip' ? 'Whole zip' : 'Pull'}</button>)}
         </div>}
-        <div role="group" aria-label="Zip preview" className="flex gap-1">
+        <div role="group" aria-label="Detail preview" className="flex gap-1">
           {[{ closeUp: false, label: 'Full garment', icon: Maximize }, { closeUp: true, label: 'Close-up', icon: ZoomIn }].map(({ closeUp, label, icon: Icon }) =>
             <button key={label} type="button" title={label} aria-label={label} aria-pressed={editor.closeUp === closeUp} onClick={() => editor.onCloseUpChange(closeUp)}
               className={`flex h-9 w-9 items-center justify-center rounded border border-white/15 text-white ${editor.closeUp === closeUp ? 'bg-white/20' : ''}`}><Icon size={16} /></button>)}

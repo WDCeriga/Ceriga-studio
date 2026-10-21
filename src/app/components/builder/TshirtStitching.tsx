@@ -1,5 +1,5 @@
 import {clipPoloStitching} from '../../data/tshirtNecklineQuality';
-import {regularStitchRows,straightSleeveStitches} from '../../data/regularConstruction';
+import {regularStitchRows,straightSleeveStitches,fabricRings} from '../../data/regularConstruction';
 import {useTechnicalDrawing,normalizeTechnicalSvg,useRegularConstruction} from '../../lib/technicalDrawing';
 import { useEffect, useId, useState, useMemo } from 'react';
 import { Shirt, ZoomIn } from 'lucide-react';
@@ -16,19 +16,21 @@ import { stitchVariant } from '../../data/tshirtStitching';
 
 export type StitchEditor = { region: StitchRegion; closeUp: boolean; onSelect: (region: StitchRegion) => void };
 
-export function useStitchGeometry(layers: ResolvedGarmentLayer[], fit: string, enabled = true) {
+export function useStitchGeometry(layers: ResolvedGarmentLayer[], fit: string, enabled = true, preferVector = false) {
+  const technical=useTechnicalDrawing(),regular=useRegularConstruction()||technical||preferVector;
+  const vector=useMemo(()=>regular&&enabled?{rows:straightSleeveStitches(layers,regularStitchRows(layers)),clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips']}:undefined,[regular,enabled,layers]);
   const [result, setResult] = useState<{ layers: ResolvedGarmentLayer[]; geometry: StitchGeometry }>();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || regular) return;
     let active = true;
     setFailed(false);
     measureStitchGeometry(layers, fit).then(geometry => {
       if (active) setResult({ layers, geometry });
     }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
-  }, [layers, fit, enabled]);
-  return { geometry: result?.layers === layers ? result.geometry : undefined, failed };
+  }, [layers, fit, enabled, regular]);
+  return { geometry: vector ?? (result?.layers === layers ? result.geometry : undefined), failed: regular?false:failed };
 }
 
 export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor }: {
@@ -43,7 +45,7 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor 
   const hemClips = (hemGeometry as Record<string, Record<string, { stitchCut: string }>>)[`${fit}:${stitchVariant(layers)}`];
   const colors = fabricColor ? Object.fromEntries(layers.filter(layer => layer.kind === 'solid').map(layer => [layer.id, layer.tint ?? fabricColor])) : undefined;
   if (colors) colors.neckline = colors.neck ?? colors.base;
-  const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips'],hemClips:Object.fromEntries(Object.keys(hemClips??{}).map(id=>[id,{stitchCut:id.endsWith('Left')?'M0,0H768V1536H0Z':id.endsWith('Right')?'M768,0H1536V1536H768Z':'M0,0H1536V1536H0Z'}]))}:geometry&&{...geometry,hemClips};
+  const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips'],hemClips:Object.fromEntries(Object.keys(hemClips??{}).map(id=>{const layer=layers.find(l=>l.id===id),rings=layer?fabricRings(layer.svgRaw):[];return [id,{stitchCut:rings.map(r=>'M'+r.map(p=>(p.x*.75).toFixed(3)+','+(p.y*.75).toFixed(3)).join('L')+'Z').join('')}]}))}:geometry&&{...geometry,hemClips};
   const stitchGeometry=technical&&vectorGeometry?{...vectorGeometry,rows:straightSleeveStitches(layers,vectorGeometry.rows)}:vectorGeometry;
   const markup = source && stitchGeometry ? renderStitchStyles(source, stitchGeometry, settings, hems, colors, prefix) : '';
   return <div data-layer-id="stitching" data-stitch-ready={Boolean(vectorGeometry)} data-stitch-error={!regular&&failed || undefined}

@@ -1521,7 +1521,7 @@ export function TshirtSvgPreview({
   }, [onBuiltinDetailsChange, layerLayouts, canvasSize, garmentType, detailView, fabricColor, bodyColor, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY]);
   const overriddenTrimIds = new Set(decorationsForView(garmentDetails, detailView).map(detail => detail.sourceLayerId).filter(Boolean));
 
-  const { geometry: stitchGeometry } = useStitchGeometry(layers, fit ?? 'slim', Boolean(stitchEditor));
+  const { geometry: stitchGeometry } = useStitchGeometry(layers, fit ?? 'slim', Boolean(stitchEditor),technical);
   const visibleStitchRegions = stitchGeometry ? availableStitchRegions(stitchGeometry, tshirtHemStyles) : [];
   const focusedStitchRegion = stitchEditor && visibleStitchRegions.includes(stitchEditor.region) ? stitchEditor.region : visibleStitchRegions[0];
   const stitchCamera = stitchEditor?.closeUp && stitchGeometry && focusedStitchRegion

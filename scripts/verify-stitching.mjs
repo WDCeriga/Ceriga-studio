@@ -1,0 +1,22 @@
+import {build} from 'esbuild';
+import {spawnSync} from 'node:child_process';
+const result=await build({stdin:{contents:`
+import assert from 'node:assert/strict';
+import {resolveStitchSettings,updateStitchSettings,TSHIRT_STITCH_REGIONS} from './src/app/data/tshirtStitching';
+let checks=0;const check=(ok:boolean,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label)};
+const legacy={global:{style:'double' as const,thread:'regular' as const},sleeve:{style:'coverstitch' as const,color:'#123456'}};
+const scoped=updateStitchSettings(legacy,{density:12,spacingMm:8,thread:'heavy'},'shoulder',false);
+check(resolveStitchSettings(scoped,'shoulder').style==='double','Specific edit retains inherited stitch construction');
+check(resolveStitchSettings(scoped,'sleeve').style==='coverstitch','Specific seam edit preserves independent sleeve construction');
+check(resolveStitchSettings(scoped,'sleeve').color==='#123456','Specific seam edit preserves another seam colour');
+check(legacy.global.thread==='regular','Editing does not mutate the saved source');
+const global=updateStitchSettings(scoped,{style:'chain',density:11,spacingMm:5,material:'cotton',notes:'Reinforce ends'},'shoulder',true);
+check(Object.keys(TSHIRT_STITCH_REGIONS).every(r=>resolveStitchSettings(global,r as keyof typeof TSHIRT_STITCH_REGIONS).style==='chain'),'Whole garment change updates every seam');
+const copied=updateStitchSettings(global,{...resolveStitchSettings(scoped,'shoulder')},'bottom',false);
+check(resolveStitchSettings(copied,'bottom').density===12&&resolveStitchSettings(copied,'bottom').spacingMm===8,'Copied setup includes density and spacing');
+check(resolveStitchSettings(global,'neckline').material==='cotton'&&resolveStitchSettings(global,'neckline').notes==='Reinforce ends','Production thread and notes survive scoped storage');
+console.log(checks+' stitching regression checks passed.');
+`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'});
+const {writeFile}=await import('node:fs/promises');
+const target='node_modules/.cache/stitching-checks.mjs';await writeFile(target,result.outputFiles[0].contents);
+const run=spawnSync(process.execPath,[target],{stdio:'inherit'});process.exitCode=run.status??1;
