@@ -1,3 +1,4 @@
+import {normaliseWashProcess,washCapabilities} from './washCapabilities';
 import { tintPotraceSvg } from '../lib/tshirtSvgUtils';
 import type { GarmentView } from './garmentView';
 
@@ -54,6 +55,8 @@ export function washTone(base: string, wash: GarmentWash, tint?: string): string
   const hex = /^#[\da-f]{6}$/i.test(base) ? base : '#808080';
   const custom = tint ?? wash.colour;
   const target = /^#[\da-f]{6}$/i.test(custom) ? custom : hex;
+  if (wash.type==='garmentDye') return target;
+  if (wash.type==='overdye') return '#'+[1,3,5].map(offset=>Math.round(parseInt(hex.slice(offset,offset+2),16)*parseInt(target.slice(offset,offset+2),16)/255).toString(16).padStart(2,'0')).join('');
   const channels = [1, 3, 5].map(offset => {
     const value = parseInt(hex.slice(offset, offset + 2), 16);
     if (tint || wash.mode === 'tinted') return Math.round(value * .3 + parseInt(target.slice(offset, offset + 2), 16) * .7);
@@ -107,8 +110,10 @@ export function washStrokePath(points: WashPoint[], bounds: WashBounds, mirror =
 }
 
 export function washSvg(raw: string, base: string, bounds: WashBounds, region: string, wash: GarmentWash | undefined, view: GarmentView, identifier: string, placementTransform = ''): string {
-  if (wash) wash = washPreview(wash);
-  if (!wash || wash.type === 'none' || wash.intensity <= 0 || wash.blend <= 0) return '';
+  if (wash) wash = normaliseWashProcess(washPreview(wash));
+  if (!wash || wash.type === 'none') return '';
+  const process=washCapabilities(wash.type);
+  if(!process.dye&&(wash.intensity<=0||wash.blend<=0))return '';
   const prefix = identifier.replace(/[^a-z\d_-]/gi, '');
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
@@ -182,13 +187,15 @@ export function washSvg(raw: string, base: string, bounds: WashBounds, region: s
     defs.push(`<mask id="${tintId}" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><g transform="${placementTransform}">${shapeMarkup(shape, index, 'white')}</g></mask>`);
     return `<rect width="2048" height="2048" fill="${washTone(base, wash, shape.tint)}" mask="url(#${tintId})"/>`;
   }).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="2048" height="2048" data-wash-layer="${region}"><defs>${defs.join('')}</defs><g mask="url(#${prefix}-clip)" opacity="${wash.intensity / 100 * wash.blend / 100}"><g mask="url(#${prefix}-placement)"><g filter="url(#${prefix}-texture)"><rect width="2048" height="2048" fill="${washTone(base, wash)}"/>${tintShapes}</g></g></g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" width="2048" height="2048" data-wash-layer="${region}"><defs>${defs.join('')}</defs><g mask="url(#${prefix}-clip)" opacity="${process.dye?1:wash.intensity / 100 * wash.blend / 100}"><g mask="url(#${prefix}-placement)">${process.dye?`<rect width="2048" height="2048" fill="${washTone(base,wash)}"/>`:`<g filter="url(#${prefix}-texture)"><rect width="2048" height="2048" fill="${washTone(base, wash)}"/>${tintShapes}</g>`}</g></g></svg>`;
 }
 export const WASH_DESCRIPTIONS:Record<GarmentWash['type'],string>={none:'The original fabric, without an added wash treatment.',enzyme:'A softer hand and gently cleaned surface.',vintage:'Soft, worn-in colour with irregular fading.',mineral:'Cloudy, tonal variation with a weathered character.',stone:'A broken-in surface with stronger wear at the edges.',acid:'High-contrast, mottled fading and pale highlights.',pigment:'A washed-down pigment look with tonal variation.',garmentDye:'Colour applied after construction for a unified, lived-in finish.',overdye:'A deeper colour layer over the original fabric.'};
-export function washSpecification(wash:GarmentWash):string{
+export function washSpecification(value:GarmentWash):string{
+ const wash=normaliseWashProcess(value),caps=washCapabilities(wash.type);
+ if(wash.type==='none')return 'No additional wash treatment.';
  const intensity=wash.intensity<35?'light':wash.intensity<70?'medium':'heavy';
  const front=wash.views.front.placement??wash.placement,back=wash.views.back.placement??wash.placement;
- return wash.type==='none'?'No additional wash treatment.':`${WASH_TYPES[wash.type]} · ${intensity} intensity. Front: ${WASH_PLACEMENTS[front]}. Back: ${WASH_PLACEMENTS[back]}.${wash.mode==='tinted'?` Target fade colour: ${wash.colour}.`:''} Strength: ${wash.intensity}%. Edge softness: ${wash.softness}%. Spread: ${wash.spread}%.${front==='panels'||back==='panels'?` Panels: ${(wash.selectedPanels??[]).join(', ')||'not selected'}.`:''}${front==='custom'||back==='custom'?` Custom marks: front ${wash.views.front.strokes.length+wash.views.front.shapes.length}, back ${wash.views.back.strokes.length+wash.views.back.shapes.length}.`:''}${wash.autoWear?` Add ${wash.wearStrength}% wear at seams and edges.`:''} Match the attached references and approve a wash sample before bulk production.`;
+ return `${WASH_TYPES[wash.type]}. ${caps.dye?'Overall colour target.':`${intensity} appearance target.`} Front: ${WASH_PLACEMENTS[front]}. Back: ${WASH_PLACEMENTS[back]}.${caps.mode==='tinted'?wash.type==='overdye'?` Overdye colour reference: ${wash.colour}; final shade depends on the existing colour. Adding dye alone must not be used to specify a lighter result.`:` Target colour: ${wash.colour}.`:''}${caps.local?` Visual strength ${wash.intensity}/100; edge softness ${wash.softness}/100; spread ${wash.spread}/100. These are visual references, not process dosages.`:''}${front==='panels'||back==='panels'?` Panels: ${(wash.selectedPanels??[]).join(', ')||'not selected'}.`:''}${front==='custom'||back==='custom'?` Custom marks: front ${wash.views.front.strokes.length+wash.views.front.shapes.length}, back ${wash.views.back.strokes.length+wash.views.back.shapes.length}. Factory to validate local application.`:''}${wash.autoWear?` Reference seam and edge wear: ${wash.wearStrength}/100.`:''} Factory to verify fibre, existing dye, trims, strength, shrinkage and colour fastness. Approve a wash sample before bulk production.`;
 }
 
 export function washPreview(wash:GarmentWash):GarmentWash{return wash.preview?{...wash,...wash.preview}:wash}

@@ -1,3 +1,4 @@
+import {washAvailability} from '../../data/washCapabilities';
 import {stitchRegionsWithInk,chooseStitchFocusRegion} from '../../data/tshirtStitching';
 import {getGarmentAsset} from '../../data/garmentSvgCatalog';
 import {withRegularConstruction} from '../../data/regularConstruction';
@@ -704,9 +705,9 @@ function PreviewLayer({
   const scale = resolveLayerScale(transform);
   const placementTransform = new DOMMatrix().translate(origin.x + transform.x * 2048 / canvasSize, origin.y + transform.y * 2048 / canvasSize)
     .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((alignOffset?.x ?? 0) - origin.x, (alignOffset?.y ?? 0) - origin.y).inverse().toString();
-  const finish = useMemo(() => washBounds && layer.kind === 'solid' && layer.washable !== false && !['outline', 'innerBackNeck'].includes(layer.id)
+  const finish = useMemo(() => (!garmentWash||washAvailability(garmentWash.type,fabric?.composition??'').available) && washBounds && layer.kind === 'solid' && layer.washable !== false && !['outline', 'innerBackNeck'].includes(layer.id)
     ? washSvg(layer.svgRaw, fill, washBounds, layer.id, garmentWash, detailView, washId, placementTransform) : '',
-    [layer.svgRaw, layer.kind, layer.id, layer.washable, fill, washBounds, garmentWash, detailView, washId, placementTransform]);
+    [layer.svgRaw, layer.kind, layer.id, layer.washable, fill, washBounds, garmentWash, detailView, washId, placementTransform,fabric?.composition]);
   // Selection raises handles and hit targets only. Raising the fabric itself
   // covers its construction outline and stitches with the selected colour.
   const zIndex = layer.zIndex;

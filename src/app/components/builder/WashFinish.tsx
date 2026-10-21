@@ -74,7 +74,6 @@ export function WashEditor({ wash, bounds, view, tool, onDraft, onCommit }: {
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const cursorRef = useRef<SVGCircleElement>(null);
-  const cursorStyle = useRef('');
   const nativeCursor = useRef(false);
   const gesture = useRef<{ initial: GarmentWash; stroke: WashStroke; index: number; pointerId: number } | null>(null);
   const frame = useRef<number | null>(null);
@@ -84,23 +83,10 @@ export function WashEditor({ wash, bounds, view, tool, onDraft, onCommit }: {
   }, []);
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  const updateCursor = (matrix: DOMMatrix) => {
-    const radius = tool.size / 100 * Math.min(width, height) / 2;
-    const screenRadius = radius * Math.hypot(matrix.a, matrix.b);
-    const size = Math.ceil(screenRadius * 2 + 4);
-    const key = `${screenRadius}:${tool.erase}`;
-    if (cursorStyle.current === key) return;
-    cursorStyle.current = key;
-    nativeCursor.current = size <= 128;
-    if (!nativeCursor.current) {
-      svgRef.current!.style.cursor = 'crosshair';
-      return;
-    }
-    const center = Math.floor(size / 2);
-    const colour = tool.erase ? '#ffadad' : '#ffffff';
-    const image = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${center}" cy="${center}" r="${screenRadius}" fill="none" stroke="#000000" stroke-opacity=".65" stroke-width="3"/><circle cx="${center}" cy="${center}" r="${screenRadius}" fill="none" stroke="${colour}" stroke-width="1"/><circle cx="${center}" cy="${center}" r="1" fill="${colour}"/></svg>`;
-    svgRef.current!.style.cursor = `url("data:image/svg+xml,${encodeURIComponent(image)}") ${center} ${center}, crosshair`;
-    if (cursorRef.current) cursorRef.current.style.visibility = 'hidden';
+  const updateCursor = (_matrix: DOMMatrix) => {
+    // A canvas-drawn ring stays visible at every zoom and brush size.
+    nativeCursor.current = false;
+    if (svgRef.current) svgRef.current.style.cursor = 'crosshair';
   };
   useLayoutEffect(() => {
     const matrix = svgRef.current?.getScreenCTM();
@@ -131,7 +117,10 @@ export function WashEditor({ wash, bounds, view, tool, onDraft, onCommit }: {
   const start = (event: ReactPointerEvent) => {
     if (event.button !== 0 || gesture.current) return;
     event.preventDefault(); event.stopPropagation();
-    const point = pointAt(event, svgRef.current!.getScreenCTM()!.inverse());
+    const matrix=svgRef.current?.getScreenCTM();
+    if(!matrix)return;
+    const point = pointAt(event, matrix.inverse());
+    if(cursorRef.current){cursorRef.current.setAttribute('cx',String(bounds.minX+point.x*width));cursorRef.current.setAttribute('cy',String(bounds.minY+point.y*height));cursorRef.current.style.visibility='visible';}
     const local = wash.views[view];
     const stroke: WashStroke = { id: crypto.randomUUID(), points: [point], size: tool.size / 100, strength: tool.strength, softness: tool.softness, erase: tool.erase, mirror: wash.symmetry };
     gesture.current = { initial: wash, stroke: { ...stroke, points: [...stroke.points] }, index: local.strokes.length, pointerId: event.pointerId };
@@ -174,8 +163,9 @@ export function WashEditor({ wash, bounds, view, tool, onDraft, onCommit }: {
     if (svgRef.current?.hasPointerCapture(event.pointerId)) svgRef.current.releasePointerCapture(event.pointerId);
   };
   return <svg ref={svgRef} viewBox="0 0 2048 2048" data-wash-editor="" aria-label={`${view} wash canvas`} className="absolute inset-0 h-full w-full touch-none" style={{ zIndex: 300, cursor: 'crosshair' }}
-    onPointerDown={start}
+    onPointerDown={start} onPointerEnter={move}
     onPointerMove={move} onPointerLeave={() => { if (cursorRef.current) cursorRef.current.style.visibility = 'hidden'; }} onPointerUp={event => finish(event, false)} onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => finish(event, true)}>
-    <circle ref={cursorRef} r={tool.size / 100 * Math.min(width, height) / 2} fill="none" stroke={tool.erase ? '#ffadad' : '#ffffff'} strokeWidth="1" vectorEffect="non-scaling-stroke" pointerEvents="none" style={{ visibility: 'hidden' }} />
+    <rect data-wash-hit-area="" width="2048" height="2048" fill="transparent" pointerEvents="all" />
+    <circle ref={cursorRef} r={tool.size / 100 * Math.min(width, height) / 2} fill="none" stroke={tool.erase ? '#ffadad' : '#ffffff'} strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" style={{ filter: 'drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000)', visibility: 'hidden' }} />
   </svg>;
 }

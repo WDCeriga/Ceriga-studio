@@ -1,0 +1,21 @@
+import {build} from 'esbuild';
+import {spawnSync} from 'node:child_process';
+const bundle=await build({stdin:{contents:`
+import assert from 'node:assert/strict';
+import {referencePageKey,updatePageReferences} from './src/app/data/pageReferences';
+let checks=0;const check=(ok:boolean,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label)};
+const wash=referencePageKey('Construction','Wash & Finish'),neck=referencePageKey('Construction','Neck & Collar');
+check(wash!==neck,'Construction pages use separate reference keys');
+check(referencePageKey('Materials & Colour','Fabric library')!==referencePageKey('Materials & Colour','Fabric & colour'),'Material pages keep separate references');
+const entry={title:'Wash & Finish',files:[{id:'r1',name:'finish.jpg',src:'data:image/jpeg;base64,AA'}],notes:'Match this fade',specification:'Protect rib',confirmed:true};
+const source={[wash]:entry};const saved=updatePageReferences(source,neck,{title:'Neck & Collar',files:[],notes:'Neck only',specification:'Add neck tape'});
+check(saved[wash]===entry,'Saving another page retains wash attachments and specifications');
+check(!source[neck],'Page updates do not mutate previous saved state');
+check(saved[neck].notes!==saved[wash].notes,'Reference notes stay isolated by page');
+const loaded=JSON.parse(JSON.stringify(saved));
+check(loaded[wash].files[0].src===entry.files[0].src&&loaded[wash].confirmed,'Attachments and confirmation survive serialization');
+const removed=updatePageReferences(saved,neck,{...saved[neck],files:[]});
+check(removed[wash].files.length===1,'Removing files on one page does not remove another page files');
+console.log(checks+' page reference checks passed.');
+`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'cjs',write:false});
+const result=spawnSync(process.execPath,['-e',bundle.outputFiles[0].text],{stdio:'inherit'});process.exitCode=result.status??1;
