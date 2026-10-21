@@ -72,6 +72,19 @@ export function availableStitchRegions(geometry: StitchGeometry, hems?: TshirtHe
   return regions.filter(region => geometry.rows[region].length > 0 && hemGroupEnabled(hems, region));
 }
 
+/** Only focus seams that will render visible thread, including local hem overrides. */
+export function stitchRegionsWithInk(geometry:StitchGeometry,settings:TshirtStitching={},hems?:TshirtHemStyles):StitchRegion[]{
+ return availableStitchRegions(geometry,hems).filter(region=>{
+  const style=resolveStitchSettings(settings,region).style??'standard';
+  const ids=region==='bottom'?['bodyHem']:region==='sleeve'?['sleeveHemLeft','sleeveHemRight']:region==='undersleeve'?['underlayerHemLeft','underlayerHemRight']:[];
+  return ids.length?ids.some(id=>{const hem=resolveHemSettings(hems,id);return hem.finish!=='none'&&(hem.stitchStyle??style)!=='none'}):style!=='none';
+ });
+}
+export function chooseStitchFocusRegion(visible:StitchRegion[],selected:StitchRegion,wholeGarment=false){
+ if(!wholeGarment&&visible.includes(selected))return selected;
+ return (['shoulder','bottom','sleeve','armhole','side','undersleeve','neckline'] as StitchRegion[]).find(r=>visible.includes(r));
+}
+
 export function resolveStitchSettings(settings: TshirtStitching, region: StitchRegion): StitchSettings {
   return settings[region] ?? settings.global ?? (region === 'armhole' || region === 'side' ? settings.shoulder : undefined) ?? {};
 }
@@ -79,8 +92,9 @@ export function resolveStitchSettings(settings: TshirtStitching, region: StitchR
 export function stitchFocus(geometry: StitchGeometry, region: StitchRegion) {
   const row = [...geometry.rows[region]].sort((first, second) => second.length - first.length)[0];
   if (!row?.length) return { x: 1024, y: 1024, scale: 1 };
-  const middle = row[Math.floor(row.length / 2)];
-  return { x: middle.x, y: middle.y, scale: 3.4 };
+  let remaining=row.slice(1).reduce((sum,p,i)=>sum+distance(row[i],p),0)/2;
+  for(let i=1;i<row.length;i++){const length=distance(row[i-1],row[i]);if(length&&remaining<=length){const t=remaining/length;return {x:row[i-1].x+(row[i].x-row[i-1].x)*t,y:row[i-1].y+(row[i].y-row[i-1].y)*t,scale:3.4}}remaining-=length}
+  return {x:row[0].x,y:row[0].y,scale:3.4};
 }
 
 export function stitchRegionPath(geometry: StitchGeometry, region: StitchRegion) {

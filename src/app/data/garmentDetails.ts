@@ -35,11 +35,11 @@ export const GARMENT_DETAIL_OPTIONS = {
     { id: 'zip-05', label: 'Open zip', stitch: true, hardware: true, width: .0733333333, ratio: 64 / 240 },
   ],
   pocket: [
-    { id: 'pocket-01', label: 'Rounded patch', stitch: true, hardware: false },
-    { id: 'pocket-02', label: 'Square patch', stitch: true, hardware: false },
-    { id: 'pocket-03', label: 'Pointed patch', stitch: true, hardware: false },
-    { id: 'pocket-04', label: 'Envelope flap', stitch: true, hardware: true },
-    { id: 'pocket-05', label: 'Divided patch', stitch: true, hardware: true },
+    { id: 'pocket-01', label: 'Rounded pocket', stitch: true, hardware: false },
+    { id: 'pocket-02', label: 'Square pocket', stitch: true, hardware: false },
+    { id: 'pocket-03', label: 'Pointed pocket', stitch: true, hardware: false },
+    { id: 'pocket-04', label: 'Flap pocket', stitch: true, hardware: true },
+    { id: 'pocket-05', label: 'Divided pocket', stitch: true, hardware: true },
   ],
 } as const;
 

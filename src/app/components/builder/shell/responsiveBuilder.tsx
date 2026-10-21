@@ -3,7 +3,7 @@ import {X,ChevronUp} from 'lucide-react';
 export type SheetSnap='peek'|'half'|'full';
 export type BuilderPanel='sections'|'tools'|'add'|'menu'|'appearance'|'fit'|'picker'|'how'|'settings'|null;
 export function useBuilderWidth(){const [width,setWidth]=useState(()=>window.innerWidth);useEffect(()=>{const update=()=>setWidth(window.innerWidth);window.addEventListener('resize',update);return()=>window.removeEventListener('resize',update)},[]);return width}
-export const ResponsiveBuilderContext=createContext({size:'m',setSize:(_s:string)=>{},panel:null as BuilderPanel,setPanel:(_s:BuilderPanel)=>{},inspectorSnap:'peek' as SheetSnap,setInspectorSnap:(_s:SheetSnap)=>{},openSections:()=>{}});
+export const ResponsiveBuilderContext=createContext({detailMode:null as 'add'|'edit'|null,setDetailMode:(_mode:'add'|'edit')=>{},detailAddRequest:0,onDetailAddHandled:()=>{},size:'m',setSize:(_s:string)=>{},panel:null as BuilderPanel,setPanel:(_s:BuilderPanel)=>{},inspectorSnap:'peek' as SheetSnap,setInspectorSnap:(_s:SheetSnap)=>{},openSections:()=>{}});
 export const useResponsiveBuilder=()=>useContext(ResponsiveBuilderContext);
 /** Shared snap geometry; drag moves only the panel DOM until release. */
 export function sheetSnapHeight(snap:SheetSnap,height:number){const usable=Math.max(260,height-114);return snap==='peek'?104:Math.round(usable*(snap==='half'?.46:.86))}
@@ -26,7 +26,7 @@ export function BuilderSheet({title,onClose,children,persistent=false,snap:contr
  const cycle=()=>{if(performance.now()<suppressClick.current){suppressClick.current=0;return}setSnap(snap==='peek'?'half':snap==='half'?'full':persistent?'peek':'half')};
  return <div className={persistent?'responsive-context-layer':'responsive-sheet-layer'}>{!persistent&&<button className="responsive-sheet-backdrop" aria-label="Close sheet" onClick={onClose}/>}<section ref={ref} tabIndex={persistent?undefined:-1} className={'responsive-sheet'+(persistent?' contextual-measurement-sheet':'')+(title==='Sections'?' responsive-section-sheet':'')} data-snap={snap} role={persistent?'region':'dialog'} aria-modal={persistent?undefined:true} aria-label={title}>
  <button className="mobile-sheet-handle" aria-label={`Resize ${title}: ${snap}`} onPointerDown={drag} onClick={cycle} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();setSnap(e.key==='ArrowUp'?(snap==='peek'?'half':'full'):(snap==='full'?'half':'peek'))}}}><span/></button>
- {!compactHeader&&<header><h2>{title}</h2>{persistent?<button aria-label="Collapse measurement details" onClick={()=>setSnap('peek')}><ChevronUp size={20} style={{transform:'rotate(180deg)'}}/></button>:<button aria-label="Close" onClick={onClose}><X size={20}/></button>}</header>}<div className="responsive-sheet-content">{children}</div></section></div>
+ {!compactHeader&&<header><h2>{title}</h2>{persistent?<button aria-label={`Collapse ${title}`} onClick={()=>setSnap('peek')}><ChevronUp size={20} style={{transform:'rotate(180deg)'}}/></button>:<button aria-label="Close" onClick={onClose}><X size={20}/></button>}</header>}<div className="responsive-sheet-content">{children}</div></section></div>
 }
 
 /** Horizontal navigation yields vertical scrolling and ignores value-entry gestures. */

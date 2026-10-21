@@ -1,0 +1,28 @@
+import {build} from 'esbuild';
+import {spawnSync} from 'node:child_process';
+const result=await build({stdin:{contents:`
+import assert from 'node:assert/strict';
+import {normaliseGarmentDetails} from './src/app/data/garmentDetailState';
+import {replaceViewDecorations,decorationsForView} from './src/app/data/garmentView';
+import type {GarmentDetail} from './src/app/data/garmentDetails';
+let checks=0;const check=(ok:boolean,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label)};
+const front={id:'front-pocket',name:'Pocket 1',type:'pocket',view:'front',x:.72,y:.4,scale:1,fill:'#fff',outline:'#111',stitch:'#777',hardware:'#ddd'} as GarmentDetail;
+const back={...front,id:'back-pocket',view:'back'} as GarmentDetail;
+const button={...front,id:'back-button',view:'back',type:'button',name:'Button 1'} as GarmentDetail;
+let current=[front,back,button];
+for(let i=0;i<12;i++)current=normaliseGarmentDetails(current.map(d=>d.id===front.id?{...d,x:.5+i*.01}:d));
+check(current.length===3,'Repeated canvas snapshots do not create details');
+check(decorationsForView(current,'front').length===1,'Front edits do not bring back details onto the front');
+check(decorationsForView(current,'back').length===2,'Back pocket and button remain on the back');
+const corrupt=replaceViewDecorations([front,back,button],'front',[front,back,button]);
+const repaired=normaliseGarmentDetails(corrupt);
+check(repaired.length===3,'Repair removes duplicated identities caused by the old view merge');
+check(repaired.find(d=>d.id===back.id)?.view==='back','Repair preserves the original saved side');
+const intentional={...front,id:'intentional-copy',name:'Pocket 2'};
+check(normaliseGarmentDetails([...repaired,intentional]).length===4,'Intentional copies with distinct identities remain');
+check(normaliseGarmentDetails(repaired).every((d,i)=>d===repaired[i]),'Healthy detail data is not changed');
+console.log(checks+' detail snapshot regression checks passed.');
+`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'});
+const {writeFile}=await import('node:fs/promises');
+const target='node_modules/.cache/detail-snapshot-checks.mjs';await writeFile(target,result.outputFiles[0].contents);
+const run=spawnSync(process.execPath,[target],{stdio:'inherit'});process.exitCode=run.status??1;

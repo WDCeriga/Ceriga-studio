@@ -2,7 +2,7 @@ import {build} from 'esbuild';
 import {spawnSync} from 'node:child_process';
 const result=await build({stdin:{contents:`
 import assert from 'node:assert/strict';
-import {resolveStitchSettings,updateStitchSettings,TSHIRT_STITCH_REGIONS} from './src/app/data/tshirtStitching';
+import {stitchFocus,stitchRegionsWithInk,chooseStitchFocusRegion,resolveStitchSettings,updateStitchSettings,TSHIRT_STITCH_REGIONS} from './src/app/data/tshirtStitching';
 let checks=0;const check=(ok:boolean,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label)};
 const legacy={global:{style:'double' as const,thread:'regular' as const},sleeve:{style:'coverstitch' as const,color:'#123456'}};
 const scoped=updateStitchSettings(legacy,{density:12,spacingMm:8,thread:'heavy'},'shoulder',false);
@@ -15,6 +15,17 @@ check(Object.keys(TSHIRT_STITCH_REGIONS).every(r=>resolveStitchSettings(global,r
 const copied=updateStitchSettings(global,{...resolveStitchSettings(scoped,'shoulder')},'bottom',false);
 check(resolveStitchSettings(copied,'bottom').density===12&&resolveStitchSettings(copied,'bottom').spacingMm===8,'Copied setup includes density and spacing');
 check(resolveStitchSettings(global,'neckline').material==='cotton'&&resolveStitchSettings(global,'neckline').notes==='Reinforce ends','Production thread and notes survive scoped storage');
+const geometry={rows:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(r=>[r,[[{x:0,y:100},{x:100,y:100}]]])),clips:{}} as any;
+check(stitchFocus(geometry,'shoulder').x===50,'Two-point seam close-up targets its centre, not an endpoint');
+geometry.rows.shoulder=[[{x:0,y:0},{x:1,y:0},{x:100,y:0}]];
+check(stitchFocus(geometry,'shoulder').x===50,'Uneven seam sampling focuses by distance');
+const ink=stitchRegionsWithInk(geometry,{global:{style:'none'},shoulder:{style:'chain'}});
+check(ink.length===1&&ink[0]==='shoulder','Focus excludes seams without visible stitches');
+check(chooseStitchFocusRegion(ink,'neckline',true)==='shoulder','Whole garment close-up prefers an actual stitched shoulder');
+check(chooseStitchFocusRegion([], 'neckline',true)===undefined,'No thread leaves no false close-up target');
+check(chooseStitchFocusRegion(['shoulder','bottom'],'bottom')==='bottom','Selected stitched seam retains its own focus');
+const hemInk=stitchRegionsWithInk(geometry,{global:{style:'none'}},{editing:{regions:{bodyHem:{finish:'normal',stitchStyle:'double'}}}});
+check(hemInk.includes('bottom'),'Hem-specific stitch override remains a valid focus target');
 console.log(checks+' stitching regression checks passed.');
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'});
 const {writeFile}=await import('node:fs/promises');

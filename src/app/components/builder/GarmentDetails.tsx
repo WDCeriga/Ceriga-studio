@@ -1,3 +1,6 @@
+import * as DetailMenu from '@radix-ui/react-dropdown-menu';
+import {MoreHorizontal} from 'lucide-react';
+import {useResponsiveBuilder,useBuilderWidth} from './shell/responsiveBuilder';
 import {MaterialSelect} from './shell/MaterialSelect';
 import {useTechnicalDrawing,normalizeTechnicalSvg} from '../../lib/technicalDrawing';
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
@@ -43,18 +46,19 @@ function DetailNumberInput({ value, onChange, label, step = .1, min, max }: { va
     className="mt-1 w-full min-w-0 rounded border border-white/15 bg-white/5 p-2 text-white" />;
 }
 
-export function DetailPositionControls({ detail, bounds, onChange, referenceWidthCm, unit = 'cm' }: { detail: GarmentDetail; bounds: DetailBounds; onChange: (detail: GarmentDetail) => void; referenceWidthCm: number; unit?: MeasurementUnit }) {
+export function DetailPositionControls({ detail, bounds, onChange, referenceWidthCm, unit = 'cm', view='front' }: { view?:GarmentView; detail: GarmentDetail; bounds: DetailBounds; onChange: (detail: GarmentDetail) => void; referenceWidthCm: number; unit?: MeasurementUnit }) {
   const [error, setError] = useState('');
   const placement = detailPlacement(detail, bounds);
   const bodyWidth = bounds.maxX - bounds.minX;
   const bodyHeight = bounds.maxY - bounds.minY;
   const cmPerUnit = referenceWidthCm / bodyWidth;
-  const display = (designUnits: number) => Number(formatMeasurementDisplay(String(designUnits * cmPerUnit), unit));
+  const display = (designUnits: number) => Number(Number(formatMeasurementDisplay(String(designUnits * cmPerUnit), unit)).toFixed(unit==='in'?2:1));
   const values = { x: display(placement.x * bodyWidth), y: display(placement.y * bodyHeight), width: display(placement.width), height: display(placement.height), rotation: detailRotation(detail) };
   const labels = { x: 'Centre from left', y: 'Centre from top', width: 'Width', height: detail.type === 'patch' ? 'Height' : 'Length', rotation: 'Rotation' };
   return <details open className="border-y border-white/15 py-3">
     <summary className="cursor-pointer text-xs font-semibold text-white">Position &amp; size</summary>
     <p className="mt-2 text-[10px] leading-relaxed text-white/50">Size M · {formatMeasurementDisplay(String(referenceWidthCm), unit)} {unit} chest. Position is measured to the detail centre.</p>
+    {detail.type==='pocket'&&<div className="detail-quick-placement" role="group" aria-label="Quick pocket placement">{[{label:'Left chest',x:view==='front'?.72:.28},{label:'Centre',x:.5},{label:'Right chest',x:view==='front'?.28:.72}].map(p=><button type="button" key={p.label} onClick={()=>onChange(setDetailTransform(detail,bounds,{x:p.x,y:.32}))}>{p.label}</button>)}</div>}
     <div className="mt-3 grid grid-cols-2 gap-3">
       {(['x', 'y', 'width', 'height', 'rotation'] as const).map(field => <label key={field} className="min-w-0 text-[11px] capitalize text-white/60">
         {labels[field]} ({field === 'rotation' ? 'deg' : unit})
@@ -75,7 +79,7 @@ export function DetailPositionControls({ detail, bounds, onChange, referenceWidt
         ['top', 'Align to panel top', AlignStartVertical], ['bottom', 'Align to bottom hem', AlignEndVertical],
       ] as const).map(([alignment, label, Icon]) => <button key={alignment} type="button" aria-label={label} title={label}
         onClick={() => onChange(alignGarmentDetail(detail, bounds, alignment as DetailAlignment))}
-        className="flex h-9 w-9 items-center justify-center rounded border border-white/15 text-white"><Icon size={16} /></button>)}
+        className="flex h-9 w-9 items-center justify-center rounded border border-white/15 text-white"><Icon size={16} /><span>{alignment==='horizontal'?'Centre X':alignment==='vertical'?'Centre Y':alignment==='top'?'Top':'Hem'}</span></button>)}
     </div>
     <div role="group" aria-label="Detail orientation" className="mt-2 flex gap-2">
       {[
@@ -84,7 +88,7 @@ export function DetailPositionControls({ detail, bounds, onChange, referenceWidt
         { label: 'Flip detail horizontally', icon: FlipHorizontal2, pressed: detail.flipX ?? false, action: () => onChange({ ...detail, flipX: !detail.flipX }) },
         { label: 'Flip detail vertically', icon: FlipVertical2, pressed: detail.flipY ?? false, action: () => onChange({ ...detail, flipY: !detail.flipY }) },
       ].map(({ label, icon: Icon, action, pressed }) => <button key={label} type="button" title={label} aria-label={label} aria-pressed={pressed} onClick={action}
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded border border-white/15 text-white ${pressed ? 'bg-white/20' : 'bg-white/5'}`}><Icon size={16} /></button>)}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded border border-white/15 text-white ${pressed ? 'bg-white/20' : 'bg-white/5'}`}><Icon size={16} /><span>{label.includes('left')?'Rotate left':label.includes('right')?'Rotate right':label.includes('horizontally')?'Flip X':'Flip Y'}</span></button>)}
     </div>
   </details>;
 }
@@ -197,20 +201,35 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   referenceWidthCm?: number;
   unit?: MeasurementUnit;
 }) {
+  const responsive=useResponsiveBuilder(),phone=useBuilderWidth()<768,workbenchRef=useRef<HTMLDivElement>(null);
   const [category, setCategory] = useState<GarmentDetailType>('pocket');
   const [builtinError, setBuiltinError] = useState('');
-  const [libraryOpen,setLibraryOpen]=useState(!selectedId);
+  const [localLibraryOpen,setLocalLibraryOpen]=useState(!selectedId);
+  const libraryOpen=responsive.detailMode?responsive.detailMode==='add':localLibraryOpen;
+  const setLibraryOpen=(open:boolean)=>{setLocalLibraryOpen(open);responsive.setDetailMode(open?'add':'edit')};
+  const previousSelection=useRef(selectedId);
   const selected = editor?.draft && editor.draft.id === selectedId ? editor.draft : details.find(detail => detail.id === selectedId);
   const asset = selected && detailAsset(selected);
+  const visibleDetails=details.filter(d=>!d.hidden);
+  const showLibrary=()=>{setLibraryOpen(true);if(phone)responsive.setInspectorSnap('full')};
+  const editDetail=(id:string)=>{onSelect(id);setLibraryOpen(false);if(phone)responsive.setInspectorSnap('half')};
+  useEffect(()=>{if(selectedId&&selectedId!==previousSelection.current)setLibraryOpen(false);previousSelection.current=selectedId},[selectedId]);
+  useEffect(()=>{if(responsive.detailAddRequest){showLibrary();responsive.onDetailAddHandled()}},[responsive.detailAddRequest]);
+  useEffect(()=>{workbenchRef.current?.closest('.responsive-sheet-content,.builder-inspector')?.scrollTo({top:0,behavior:'smooth'})},[libraryOpen,selectedId]);
+  const duplicateSelected=()=>{if(!selected)return;const identity=createGarmentDetail(selected.type,details,selected.fill);const copy={...selected,id:identity.id,name:identity.name,sourceLayerId:undefined,arrangementId:undefined,selected:true,scale:detailScale(selected.scale)};const next=bounds?setDetailTransform(copy,bounds,{x:selected.x+.04,y:selected.y+.04}):copy;onChange([...details,next]);editDetail(next.id)};
+  const removeSelected=()=>{if(!selected)return;const remaining=selected.sourceLayerId?details.map(d=>d.id===selected.id?{...d,hidden:true,selected:false}:d):details.filter(d=>d.id!==selected.id);onChange(remaining);const next=remaining.find(d=>!d.hidden);onSelect(next?.id??null);if(!next)showLibrary()};
   const update = (patch: Partial<GarmentDetail>) => onChange(details.map(detail => detail.id === selectedId ? { ...detail, ...patch } : detail));
   const add = (type: GarmentDetailType, variant?: GarmentDetailVariant) => {
     const overlay = { ...createGarmentDetail(type, details, type === 'patch' ? '#D4D4D4' : color, variant), view };
     const detail = type === 'zip' && bounds ? createOpening(overlay, bounds, 'neckline') : overlay;
     editor?.onOpeningStageChange?.('final');
     onChange([...details, detail]);
-    onSelect(detail.id); setLibraryOpen(false);
+    editDetail(detail.id);
   };
-  return <div className="detail-workbench space-y-5">
+  return <div ref={workbenchRef} className="detail-workbench space-y-5" data-mode={libraryOpen?'add':'edit'}>
+    <div className="detail-mode-tabs" role="group" aria-label="Detail workspace"><button type="button" aria-pressed={!libraryOpen} disabled={!visibleDetails.length} onClick={()=>setLibraryOpen(false)}>Edit details <span>{visibleDetails.length}</span></button><button type="button" aria-pressed={libraryOpen} onClick={showLibrary}><Plus size={14}/>Add a detail</button></div>
+    {!libraryOpen&&selected&&<div className="detail-switcher"><div className="detail-picker-caption"><label className="detail-field-caption">Editing · {view}</label>{phone&&<button type="button" className="detail-expand-editor" onClick={()=>responsive.setInspectorSnap(responsive.inspectorSnap==='full'?'half':'full')}>{responsive.inspectorSnap==='full'?'Show garment ↗':'Expand editor ↗'}</button>}</div><div><MaterialSelect aria-label="Choose detail to edit" value={selected.id} onChange={e=>editDetail(e.target.value)}>{visibleDetails.map(d=><option key={d.id} value={d.id}>{d.name} · {detailAsset(d).label}</option>)}</MaterialSelect><DetailMenu.Root><DetailMenu.Trigger className="detail-actions-trigger" aria-label="Detail actions"><MoreHorizontal size={19}/><span>Actions</span></DetailMenu.Trigger><DetailMenu.Portal><DetailMenu.Content className="detail-actions-menu" sideOffset={6} align="end" collisionPadding={12}><DetailMenu.Label>{selected.name}</DetailMenu.Label><DetailMenu.Item onSelect={duplicateSelected}><Copy size={15}/>Duplicate detail</DetailMenu.Item>{onDuplicateToOtherView&&!selected.opening&&<DetailMenu.Item disabled={copiedIds.includes(selected.id)} onSelect={()=>onDuplicateToOtherView(selected)}><CopyPlus size={15}/>Copy to {view==='front'?'back':'front'}</DetailMenu.Item>}<DetailMenu.Separator/><DetailMenu.Item className="detail-remove-action" onSelect={removeSelected}><Trash2 size={15}/>Remove detail</DetailMenu.Item></DetailMenu.Content></DetailMenu.Portal></DetailMenu.Root></div></div>}
+
     {editor?.onSnapChange && <label title="Aligns nearby centres and edges while dragging. Hold Alt to move freely." className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" aria-label="Snap to alignment guides" checked={editor.snap ?? true}
       onChange={event => editor.onSnapChange?.(event.target.checked)} />Snap to alignment guides</label>}
     {builtins.length > 0 && <div className="space-y-2"><h3 className="text-xs font-semibold text-white">Built-in trims</h3>
@@ -231,7 +250,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         Edit {detail.name}</button>)}
       {builtinError && <p role="status" className="text-xs text-amber-300">{builtinError}</p>}
     </div>}
-    <details className="detail-library" open={libraryOpen} onToggle={e=>setLibraryOpen(e.currentTarget.open)}><summary><span><Plus size={14}/>Add a detail</span><small>Browse the library</small></summary><div className="detail-library-content">
+    <section className="detail-library" hidden={!libraryOpen}><div className="detail-library-content">
       <div role="group" aria-label="Detail category" className="grid grid-cols-4 border-b border-white/15">
         {(['pocket', 'zip', 'button', 'patch'] as const).map(type => <button key={type} type="button"
           aria-pressed={category === type} onClick={() => setCategory(type)}
@@ -247,13 +266,10 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
           <img alt="" src={`data:image/svg+xml,${encodeURIComponent(detailAsset({ type: category, variant: option.id }).svg)}`} className="h-16 w-full bg-white object-contain p-1.5" />
           <span className="detail-option-label"><Plus size={12} className="shrink-0" /><span className="break-words">{option.label}</span></span>
         </button>)}
+        {category==='patch'&&<button type="button" className="detail-add-patch" onClick={()=>add('patch')}><img alt="" src={`data:image/svg+xml,${encodeURIComponent(GARMENT_DETAIL_ASSETS.patch.svg)}`}/><span className="detail-option-label"><Plus size={12}/>Customise a patch</span></button>}
       </div>
       {customUpload}<p className="detail-library-hint">{category==='pocket'?'A considered detail. Choose a shape, then make it yours.':category==='zip'?'Choose an opening, then refine its construction and placement.':category==='button'?'Small details, finished your way.':'Add a patch and customise its shape, material and artwork.'}</p>
-    </div></details>
-    {category === 'patch' && <section aria-label="Patches" className="space-y-2 border-t border-white/15 pt-3">
-      <h3 className="text-xs font-semibold text-white">Patches</h3>
-      <button type="button" onClick={() => add('patch')} className="flex items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-xs text-white"><Plus size={14} />Add patch</button>
-    </section>}
+    </div></section>
     <div className="detail-placed" role="group" aria-label="Added details"><div className="detail-section-title"><span>On your garment</span><small>{details.filter(d=>!d.hidden).length} {details.filter(d=>!d.hidden).length===1?'detail':'details'} · {view}</small></div>
       {details.length === 0 && <div className="detail-empty"><Plus size={20}/><strong>Make room for the details</strong><p>Choose from the library or create a drawing from your photo.</p></div>}
       {(['pocket', 'zip', 'button', 'patch'] as const).map(type => {
@@ -279,13 +295,11 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         </section>;
       })}
     </div>
-    {selected && asset && <div className="detail-selected-editor space-y-4">
+    {!libraryOpen && selected && asset && <div className="detail-selected-editor space-y-4">
       <div className="detail-selected-heading"><img alt="" src={`data:image/svg+xml,${encodeURIComponent(asset.svg)}`}/><div><small>EDITING DETAIL</small><h3>{selected.name}</h3><p>{asset.label} · {view}</p></div></div>
       {selected.type === 'patch' && onMoveToView && <div role="group" aria-label="Patch side" className="flex gap-1">
         {(['front', 'back'] as const).map(side => <button key={side} type="button" aria-pressed={view === side} onClick={() => onMoveToView(selected, side)} className={`flex-1 rounded border border-white/15 py-2 text-xs capitalize text-white ${view === side ? 'bg-white/20' : ''}`}>{side}</button>)}
       </div>}
-      {selected.type === 'patch' && !selected.customAsset && <PatchControls key={selected.id} detail={selected} onChange={update} />}
-      {selected.type === 'zip' && !selected.customAsset && <OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor} />}
       {editor && <div className="flex flex-wrap items-center justify-between gap-2">
         {selected.type === 'zip' && !selected.customAsset && <div role="group" aria-label="Edit zip part" className="flex border-b border-white/15">
           {(['zip', 'pull'] as const).map(part => <button key={part} type="button" aria-pressed={editor.part === part} onClick={() => editor.onPartChange(part)}
@@ -293,19 +307,21 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         </div>}
         <div role="group" aria-label="Detail preview" className="flex gap-1">
           {[{ closeUp: false, label: 'Full garment', icon: Maximize }, { closeUp: true, label: 'Close-up', icon: ZoomIn }].map(({ closeUp, label, icon: Icon }) =>
-            <button key={label} type="button" title={label} aria-label={label} aria-pressed={editor.closeUp === closeUp} onClick={() => editor.onCloseUpChange(closeUp)}
-              className={`flex h-9 w-9 items-center justify-center rounded border border-white/15 text-white ${editor.closeUp === closeUp ? 'bg-white/20' : ''}`}><Icon size={16} /></button>)}
+            <button key={label} type="button" title={label} aria-label={label} aria-pressed={editor.closeUp === closeUp} onClick={() => {editor.onCloseUpChange(closeUp);if(phone)responsive.setInspectorSnap('half')}}
+              className={`flex h-9 w-9 items-center justify-center rounded border border-white/15 text-white ${editor.closeUp === closeUp ? 'bg-white/20' : ''}`}><Icon size={16} /><span>{label}</span></button>)}
         </div>
       </div>}
+      {selected.type==='patch'&&!selected.customAsset&&<details open className="detail-construction-fold"><summary>Patch construction</summary><PatchControls key={selected.id} detail={selected} onChange={update}/></details>}
       {(selected.type !== 'zip' || editor?.part !== 'pull') && <>
       {bounds && Number.isFinite(referenceWidthCm) && referenceWidthCm! > 0
-        ? <DetailPositionControls detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} />
+        ? <DetailPositionControls detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} view={view} />
         : <p role="status" className="text-xs text-amber-300">Set a positive size M chest width in Measurements to use physical trim dimensions.</p>}
       <label className="flex items-center gap-2 text-xs text-white/60">
         <input type="checkbox" checked={selected.lockProportions ?? false} onChange={event => update({ lockProportions: event.target.checked })} />
         Lock proportions
       </label>
       </>}
+      {selected.type==='zip'&&!selected.customAsset&&<details className="detail-construction-fold"><summary>Opening construction</summary><OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor}/></details>}
       {selected.type === 'zip' && !selected.customAsset && <div className="space-y-3 border-y border-white/15 py-3">
         {bounds && Number.isFinite(referenceWidthCm) && referenceWidthCm! > 0
           ? <ZipPullMeasurements detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} />

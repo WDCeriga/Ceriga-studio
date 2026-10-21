@@ -1,3 +1,4 @@
+import {stitchRegionsWithInk,chooseStitchFocusRegion} from '../../data/tshirtStitching';
 import {getGarmentAsset} from '../../data/garmentSvgCatalog';
 import {withRegularConstruction} from '../../data/regularConstruction';
 import {withTshirtSurfaceQuality} from '../../data/tshirtSurfaceQuality';
@@ -1523,7 +1524,7 @@ export function TshirtSvgPreview({
 
   const { geometry: stitchGeometry } = useStitchGeometry(layers, fit ?? 'slim', Boolean(stitchEditor),technical);
   const visibleStitchRegions = stitchGeometry ? availableStitchRegions(stitchGeometry, tshirtHemStyles) : [];
-  const focusedStitchRegion = stitchEditor && visibleStitchRegions.includes(stitchEditor.region) ? stitchEditor.region : visibleStitchRegions[0];
+  const focusedStitchRegion = stitchEditor&&stitchGeometry?chooseStitchFocusRegion(stitchRegionsWithInk(stitchGeometry,tshirtStitching??{},tshirtHemStyles),stitchEditor.region):undefined;
   const stitchCamera = stitchEditor?.closeUp && stitchGeometry && focusedStitchRegion
     ? stitchFocus(stitchGeometry, focusedStitchRegion) : { x: 1024, y: 1024, scale: 1 };
   const detailCamera = (() => {
