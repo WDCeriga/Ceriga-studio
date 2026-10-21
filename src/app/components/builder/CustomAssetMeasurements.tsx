@@ -228,14 +228,16 @@ export function CustomAssetMeasurementLayer({ showGuides=true, presentation, onD
       const next = { view, assets: [...detailRows, ...catalogueRows, ...printRows, ...labelRows] };
       setSnapshot(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
     };
-    update();
+    // Labels need their attachment masks. Publishing an empty result first causes
+    // a feedback loop between unmasked and masked measurements on parent renders.
+    if (!labels.length) update();
     void Promise.all(sources.map(async source => [source.id, await labelAttachmentMask(source.svgRaw)] as const)).then(entries => { masks = Object.fromEntries(entries); update(); }).catch(() => {});
     const observer = new ResizeObserver(update);
     observer.observe(root);
     root.querySelectorAll<HTMLElement>('[data-print-id], [data-print-design-zone]').forEach(node => observer.observe(node));
-    void document.fonts.ready.then(update);
+    if (!labels.length) void document.fonts.ready.then(update);
     return () => { active = false; observer.disconnect(); };
-  }, [bounds, details, labels, prints, referenceWidthCm, view, shapes, sources]);
+  }, [bounds?.minX, bounds?.minY, bounds?.maxX, bounds?.maxY, details, labels, prints, referenceWidthCm, view, shapes, sources]);
   const snapshotKey = JSON.stringify({ view, assets });
   useEffect(() => { onMeasurementsChange?.({ view, assets }); }, [snapshotKey, onMeasurementsChange]);
   const selected = assets.find(asset => asset.id === selectedId);

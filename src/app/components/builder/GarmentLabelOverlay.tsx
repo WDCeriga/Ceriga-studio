@@ -1,3 +1,4 @@
+import {sleeveLabelAnchor} from '../../data/labelGeometry';
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { isInteriorLabel, labelVisible, normalizeLabel, type GarmentLabel } from '../../data/garmentLabels';
 import type { PotraceSvgBBox } from '../../lib/tshirtSvgUtils';
@@ -137,13 +138,12 @@ export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer
     const side = label.position.endsWith('left') ? 'Left' : 'Right';
     layer = layers.find(entry => entry.id === `${label.sleeveLayer === 'under' ? 'underSleeve' : 'sleeve'}${side}`) ?? layers.find(entry => entry.id === `sleeve${side}`) ?? base;
     const sleeve = layer.bbox;
-    x = clamp(sleeve.centerX + offsetX, sleeve.minX + width / 2, sleeve.maxX - width / 2);
-    y = boundary(maskById[layer.id], 'y', x, sleeve.minY, sleeve.maxY, true);
-    const leftY = boundary(maskById[layer.id], 'y', x - 8, sleeve.minY, sleeve.maxY, true);
-    const rightY = boundary(maskById[layer.id], 'y', x + 8, sleeve.minY, sleeve.maxY, true);
-    angle += Math.atan2(rightY - leftY, 16) * 180 / Math.PI;
-    y += clamp(offsetY, -2 * unit, 2 * unit);
-    y -= height * .35;
+    const anchor = maskById[layer.id] ? sleeveLabelAnchor(maskById[layer.id],side) : null;
+    // Both sleeves may share one SVG and one bounding box. Wait for its actual ink.
+    if (!anchor) return null;
+    x = anchor.x + offsetX;
+    y = anchor.y - height * .35 + offsetY;
+    angle += anchor.angle;
   } else if (label.position.endsWith('hem') || label.position === 'hem') {
     x = clamp(body.centerX + offsetX, body.minX + width, body.maxX - width);
     y = boundary(maskById.base, 'y', x, body.centerY, body.maxY, true) - height * (isInteriorLabel(label) ? 1 : .35) + clamp(offsetY, -2 * unit, 2 * unit);

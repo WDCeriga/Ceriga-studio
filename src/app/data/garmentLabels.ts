@@ -164,9 +164,9 @@ export function createGarmentLabel(category: LabelCategory, manualPlacement = fa
     ...(manualPlacement && category !== 'hand' ? { manualPosition: null } : {}),
     id: crypto.randomUUID(), category, construction: 'physical', method: category === 'hand' ? 'card' : category === 'care' ? 'fabric' : 'woven', fold: category === 'neck' ? 'end' : category === 'hand' ? 'die' : 'centre',
     shape: category === 'care' ? 'vertical' : 'rectangle', widthMm: category === 'care' ? 40 : category === 'tag' ? 20 : 50,
-    heightMm: category === 'care' ? 100 : category === 'hand' ? 85 : 25, foldMm: 5, marginMm: 2,
+    heightMm: category === 'care' ? 100 : category === 'hand' ? 85 : category === 'tag' ? 15 : 25, foldMm: 5, marginMm: 2,
     background: '#ffffff', foreground: '#171717', border: '#555555', borderEnabled: false,
-    brand: category === 'tag' ? '' : 'YOUR BRAND', logoWidth: 70, logoX: 50, logoY: 50, font: 'Montserrat', fontSizeMm: category === 'neck' ? 4.5 : 3, fontWeight: 600, letterSpacingMm: 0, textAlign: 'center',
+    brand: 'YOUR BRAND', logoWidth: 70, logoX: 50, logoY: 50, font: 'Montserrat', fontSizeMm: category === 'neck' ? 4.5 : 3, fontWeight: 600, letterSpacingMm: 0, textAlign: 'center',
     position: labelPositions(category)[0], exteriorView: 'front', offsetXmm: 0, offsetYmm: 0, rotation: 0,
     size: category === 'tag' ? '' : 'M', composition: category === 'care' ? '' : category === 'hand' ? 'ESSENTIAL COLLECTION' : '',
     origin: category === 'care' ? '[COUNTRY OF ORIGIN]' : '', business: '',
@@ -179,6 +179,7 @@ export function createGarmentLabel(category: LabelCategory, manualPlacement = fa
 }
 
 export function applyLabelPreset(label: GarmentLabel, preset: keyof typeof LABEL_PRESETS): GarmentLabel {
+  if (preset === 'care-stack' && label.category !== 'care' && label.construction !== 'printed') return label;
   if (preset === 'care-stack' && label.construction === 'physical' && label.method === 'woven') return label;
   const styled = applyLabelHierarchy(label, preset === 'size-led' ? 'size-first' : 'brand-first');
   return normalizeLabel({ ...styled, preset, regions: {}, fontWeight: preset === 'minimal' ? 400 : 600,
@@ -225,7 +226,7 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
     hierarchy: label.hierarchy && label.hierarchy in LABEL_HIERARCHIES ? label.hierarchy : 'brand-first',
     ...(label.blocks ? { blocks: labelBlocks({ ...label, blocks: undefined }).map(fallback => {
       const block = label.blocks!.find(candidate => candidate.key === fallback.key);
-      return block ? { ...fallback, ...block, enabled: Boolean(block.enabled),
+      return block ? { ...fallback, ...block, enabled: Boolean(block.enabled) && (block.key !== 'careText' || label.category === 'care' || printed),
         alignment: ['left', 'center', 'right'].includes(block.alignment) ? block.alignment : fallback.alignment,
         fontSizeMm: finite(block.fontSizeMm, fallback.fontSizeMm, 1.5, 20), fontWeight: finite(block.fontWeight, fallback.fontWeight, 100, 900),
         spaceAboveMm: finite(block.spaceAboveMm, 0, 0, 20), spaceBelowMm: finite(block.spaceBelowMm, .5, 0, 20), share: finite(block.share, 1, 1, 10),

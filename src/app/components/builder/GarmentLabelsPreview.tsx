@@ -59,7 +59,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
 }) {
   const current = labels.find(label => label.id === selectedId);
   const tagEditing = current?.category === 'tag';
-  const selected = tagEditing && current.exteriorView !== tagView ? undefined : current;
+  const selected = current;
   const imported = Boolean(garmentProps.customAssetState?.importedGarment);
   const manual = selected?.category !== 'hand' && (imported || selected?.manualPosition !== undefined);
   const unplaced = manual && selected && !selected.manualPosition;
@@ -107,7 +107,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const contextVisible = mode !== 'only' && (!closeup || showGarment);
   const controlClass = 'rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/10 aria-pressed:bg-white/15 aria-pressed:text-white';
   const interior = Boolean(!manual && selected && !neckSelected && isInteriorLabel(selected));
-  const view = tagEditing ? tagView : manual ? selected?.exteriorView ?? garmentProps.detailView ?? 'front' : selected?.category==='tag'?selected.exteriorView:'front';
+  const view = tagEditing ? current?.exteriorView ?? tagView : manual ? selected?.exteriorView ?? garmentProps.detailView ?? 'front' : selected?.category==='tag'?selected.exteriorView:'front';
   const downloadPlacement = async () => {
     try {
       await document.fonts.ready;
@@ -118,7 +118,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
     } catch { setExportError('Placement export failed'); }
   };
   return <div ref={rootRef} className="flex h-full min-h-0 w-full flex-col" data-label-editing-surface="" onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
-    {studio?<div className="label-studio-toolbar"><div role="group" aria-label="Label preview mode">{(['garment','closeup','only'] as const).map((value,i)=><button key={value} disabled={!current&&value!=='garment'} aria-pressed={mode===value} onClick={()=>{setEntryPending(false);setMode(value);setZoom(1);setPan({x:0,y:0})}}>{['On garment','Close-up','Artwork'][i]}</button>)}</div><span>{current?current.category==='hand'?'Standalone tag':interior||neckSelected?'Inside garment':view==='front'?'Front':'Back':'Label studio'}</span></div>:<div className="z-10 flex shrink-0 flex-wrap items-center justify-center gap-1 border-b border-white/10 bg-[#111113] p-1.5">
+    {studio?(!handSelected&&<div className="label-studio-toolbar"><div role="group" aria-label="Label preview mode">{(['garment','closeup','only'] as const).map((value,i)=><button key={value} disabled={!current&&value!=='garment'} aria-pressed={mode===value} onClick={()=>{setEntryPending(false);setMode(value);setZoom(1);setPan({x:0,y:0})}}>{['On garment','Close-up','Artwork'][i]}</button>)}</div></div>):<div className="z-10 flex shrink-0 flex-wrap items-center justify-center gap-1 border-b border-white/10 bg-[#111113] p-1.5">
       {!handSelected && current && <>
         <div role="group" aria-label="Label preview mode"><button type="button" className={controlClass} aria-pressed={mode==='garment'} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('garment'); setZoom(1); }}>Garment</button><button type="button" className={controlClass} aria-pressed={mode==='closeup'} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('closeup'); setZoom(1); }}>Label close-up</button><button type="button" className={controlClass} aria-pressed={mode==='only'} onClick={()=>{setEntryPending(false);setMode('only');setZoom(1);setPan({x:0,y:0})}}>Label only</button></div>
         {tagEditing && <div role="group" aria-label="Tag garment side">{(['front', 'back'] as const).map(side => <button key={side} type="button" className={controlClass} aria-pressed={view === side} onClick={() => { onTagViewChange?.(side); const next = labels.find(label => label.category === 'tag' && label.exteriorView === side); if (next) onSelect(next.id); }}>{side === 'front' ? 'Front' : 'Back'}</button>)}</div>}
@@ -138,16 +138,16 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
         <TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
           onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />
       </div>}
-      {selected && (handSelected || mode==='only') && <svg data-isolated-label="" aria-label="Active label close-up" viewBox={`-${selected.widthMm * .2} -${selected.heightMm * .2} ${selected.widthMm * 1.4} ${selected.heightMm * 1.4}`} className="absolute h-[85%] w-[85%] transition-transform duration-[650ms] ease-in-out motion-reduce:transition-none" style={{ transform: `scale(${zoom * .8})` }}><LabelArtwork label={selected} guide={selected.construction === 'printed'} /><g fill='#75869a' stroke='#a6b3bf' strokeWidth={Math.min(selected.widthMm,selected.heightMm)/150}><path d={`M0 -3V-5M0 -4H${selected.widthMm}M${selected.widthMm} -3V-5`} fill='none'/><text x={selected.widthMm/2} y={-6} textAnchor='middle' stroke='none' fontSize={Math.min(selected.widthMm,selected.heightMm)/12}>{selected.widthMm} mm</text></g></svg>}
+      {selected && (handSelected || mode==='only') && <svg data-isolated-label="" aria-label="Active label close-up" viewBox={`-${selected.widthMm * .2} -${selected.heightMm * .2} ${selected.widthMm * 1.4} ${selected.heightMm * 1.4}`} className="absolute h-[85%] w-[85%] transition-transform duration-[650ms] ease-in-out motion-reduce:transition-none" style={{left:'50%',top:'50%',transform: `translate(-50%,-50%) scale(${zoom * .8})` }}><LabelArtwork label={selected} guide={selected.construction === 'printed'} /><g fill='#75869a' stroke='#a6b3bf' strokeWidth={Math.min(selected.widthMm,selected.heightMm)/150}><path d={`M0 -3V-5M0 -4H${selected.widthMm}M${selected.widthMm} -3V-5`} fill='none'/><text x={selected.widthMm/2} y={-6} textAnchor='middle' stroke='none' fontSize={Math.min(selected.widthMm,selected.heightMm)/12}>{selected.widthMm} mm</text></g></svg>}
       {!selected && <p role="status" className="pointer-events-none absolute z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#252528]">{labels.length ? 'Select a saved label or use Add label in the panel. No label is selected for this view.' : 'No labels added. Choose any label category and use Add label in the panel when you are ready.'}</p>}
       {unplaced && <p role="status" className="pointer-events-none absolute bottom-4 z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#252528]">Click the garment to position your label. No attachment location is assumed.</p>}
     </div>
-    {studio&&<div className="label-studio-zoom"><button aria-label="Zoom out label editor" onClick={()=>setZoom(z=>Math.max(.5,z-.25))}>−</button><span>{Math.round(zoom*100)}%</span><button aria-label="Zoom in label editor" onClick={()=>setZoom(z=>Math.min(3,z+.25))}>+</button><button onClick={()=>{setZoom(1);setPan({x:0,y:0})}}>Fit</button>{selected&&<button onClick={()=>void downloadPlacement()} disabled={mode==='only'||handSelected||!ready} aria-label="Download label placement"><Download size={15}/></button>}</div>}
-    <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/10 bg-[#111113] px-2 py-2 text-[10px] text-white/65">
+    {studio&&<div className="label-studio-zoom"><button aria-label="Zoom out label editor" onClick={()=>setZoom(z=>Math.max(.5,z-.25))}>−</button><span>{Math.round(zoom*100)}%</span><button aria-label="Zoom in label editor" onClick={()=>setZoom(z=>Math.min(3,z+.25))}>+</button><button onClick={()=>{setZoom(1);setPan({x:0,y:0})}}>Fit</button></div>}
+    {!studio&&<div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/10 bg-[#111113] px-2 py-2 text-[10px] text-white/65">
       {selected ? <><span>{selected.widthMm} x {selected.heightMm} mm</span><span>{handSelected ? `Standalone hand tag — ${selected.exteriorView}` : manual ? selected.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[selected.position]}</span></> : <span>No label selected</span>}
       {selected && <span>{handSelected ? 'Hand tag' : interior || neckSelected ? 'Interior attachment' : `${view === 'back' ? 'Back' : 'Front'} exterior`}</span>}
       {selected && !handSelected && !garmentProps.labelReferenceWidthMm && <span className="text-white/45">Scale reference: 500 mm {manual ? 'garment width (approximate)' : 'chest'}</span>}
       {exportError && <span role="alert" className="text-red-300">{exportError}</span>}
-    </div>
+    </div>}
   </div>;
 }
