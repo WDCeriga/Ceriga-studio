@@ -1,3 +1,4 @@
+import {MaterialSelect} from './shell/MaterialSelect';
 import { useState } from 'react';
 import type { DetailBounds, GarmentDetail } from '../../data/garmentDetails';
 import { createOpening, resetOpening, setOpeningEndpoint, validateOpening, type OpeningPlacement } from '../../data/garmentOpenings';
@@ -35,11 +36,11 @@ export function OpeningControls({ detail, bounds, onChange, editor }: {
     <h3 className="text-xs font-semibold text-white">Opening construction</h3>
     {!opening && <p className="text-[11px] leading-relaxed text-white/60">This saved zip is an overlay. Its garment stays unchanged until you explicitly convert it.</p>}
     <label className="block text-[11px] text-white/60">Placement preset
-      <select aria-label="Opening attachment" value={opening?.attachment ?? placement} disabled={!bounds}
+      <MaterialSelect aria-label="Opening attachment" value={opening?.attachment ?? placement} disabled={!bounds}
         onChange={event => { const value = event.target.value as OpeningPlacement; setPlacement(value); if (opening && bounds) onChange(createOpening(detail, bounds, value)); }}
         className="mt-1 w-full rounded border border-white/15 bg-[#141416] p-2 text-xs text-white">
         {placements.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
+      </MaterialSelect>
     </label>
     {!opening && <button type="button" disabled={!bounds} onClick={() => bounds && onChange(createOpening(detail, bounds, placement))}
       className="rounded border border-white/20 px-3 py-2 text-xs text-white disabled:opacity-40">Convert to constructed opening</button>}

@@ -1,3 +1,4 @@
+import {MaterialSelect} from './shell/MaterialSelect';
 import {useTechnicalDrawing,normalizeTechnicalSvg} from '../../lib/technicalDrawing';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Copy, CopyPlus, Plus, Upload, Trash2, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw, ArrowDownToLine, Maximize, ZoomIn, AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, AlignStartVertical, AlignEndVertical } from 'lucide-react';
@@ -6,7 +7,8 @@ import { createOpening, openingNecklineReach } from '../../data/garmentOpenings'
 import { OpeningControls } from './OpeningControls';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
   type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
-import { TrimColorFamilyPicker } from './TrimColorFamilyPicker';
+import {MaterialColourBrowser} from './shell/MaterialColourBrowser';
+function TrimColorFamilyPicker({label,value,onChange,onClear}:{label:string;value?:string;onChange:(hex:string)=>void;onClear?:()=>void}){return <details className="detail-colour-section"><summary><i style={{background:value??'#FFFFFF'}}/>{label}<span>{value??'Inherited'}</span></summary><MaterialColourBrowser value={value??'#FFFFFF'} onChange={onChange} onReference={()=>{}}/>{onClear&&<button type="button" onClick={onClear}>Reset colour</button>}</details>}
 import { formatMeasurementDisplay, parseMeasurementInput, type MeasurementUnit } from '../../lib/measurements';
 import { patchSettings, PATCH_TYPES, PATCH_SHAPES, PATCH_FINISHES, PATCH_EDGES, PATCH_DEPTHS, PATCH_APPLICATIONS, PATCH_MATERIAL_APPLICATIONS, readPatchArtwork, type PatchSettings } from '../../data/garmentPatches';
 
@@ -138,12 +140,12 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
   const selectClass = 'mt-1 w-full min-w-0 rounded border border-white/15 bg-[#202023] p-2 text-xs text-white';
   return <section aria-label="Patch construction" className="space-y-3 border-y border-white/15 py-3">
     <div className="grid grid-cols-2 gap-3 text-[11px] text-white/60">
-      <label>Patch type<select aria-label="Patch type" className={selectClass} value={settings.material} onChange={event => update({ material: event.target.value as PatchSettings['material'], application: undefined, edgeStyle: undefined, depth: undefined })}>
+      <label>Patch type<MaterialSelect aria-label="Patch type" className={selectClass} value={settings.material} onChange={event => update({ material: event.target.value as PatchSettings['material'], application: undefined, edgeStyle: undefined, depth: undefined })}>
         {Object.entries(PATCH_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
-      <label>Shape<select aria-label="Patch shape" className={selectClass} value={settings.shape} onChange={event => update({ shape: event.target.value as PatchSettings['shape'] })}>
+      </MaterialSelect></label>
+      <label>Shape<MaterialSelect aria-label="Patch shape" className={selectClass} value={settings.shape} onChange={event => update({ shape: event.target.value as PatchSettings['shape'] })}>
         {Object.entries(PATCH_SHAPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
+      </MaterialSelect></label>
     </div>
     <input ref={input} type="file" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" aria-label="Patch artwork file" className="hidden" onChange={async event => {
       const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
@@ -167,20 +169,20 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
       <label>Artwork scale (%)<DetailNumberInput label="Patch artwork scale (%)" value={settings.artworkScale} min={10} max={120} step={1} onChange={value => update({ artworkScale: Math.max(10, Math.min(120, value)) })} /></label>
       <label>Artwork padding (%)<DetailNumberInput label="Patch artwork padding (%)" value={settings.padding} min={0} max={35} onChange={value => update({ padding: Math.max(0, Math.min(35, value)) })} /></label>
       {(settings.shape === 'rounded' || settings.shape === 'auto' && !settings.contour) && <label>Corner radius (%)<DetailNumberInput label="Patch corner radius (%)" value={settings.cornerRadius} min={0} max={50} onChange={value => update({ cornerRadius: Math.max(0, Math.min(50, value)) })} /></label>}
-      <label>Attachment finish<select aria-label="Patch attachment finish" className={selectClass} value={settings.finish} onChange={event => update({ finish: event.target.value as PatchSettings['finish'] })}>
+      <label>Attachment finish<MaterialSelect aria-label="Patch attachment finish" className={selectClass} value={settings.finish} onChange={event => update({ finish: event.target.value as PatchSettings['finish'] })}>
         {Object.entries(PATCH_FINISHES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
-      <label>Edge style<select aria-label="Patch edge style" className={selectClass} value={settings.edgeStyle} onChange={event => update({ edgeStyle: event.target.value as PatchSettings['edgeStyle'] })}>
+      </MaterialSelect></label>
+      <label>Edge style<MaterialSelect aria-label="Patch edge style" className={selectClass} value={settings.edgeStyle} onChange={event => update({ edgeStyle: event.target.value as PatchSettings['edgeStyle'] })}>
         {Object.entries(PATCH_EDGES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>
-      <label>Artwork application<select aria-label="Patch artwork application" className={selectClass} value={settings.application} onChange={event => update({ application: event.target.value as PatchSettings['application'] })}>
+      </MaterialSelect></label>
+      <label>Artwork application<MaterialSelect aria-label="Patch artwork application" className={selectClass} value={settings.application} onChange={event => update({ application: event.target.value as PatchSettings['application'] })}>
         {PATCH_MATERIAL_APPLICATIONS[settings.material].map(value => <option key={value} value={value}>{PATCH_APPLICATIONS[value]}</option>)}
-      </select></label>
-      {['leather', 'pvc', 'chenille'].includes(settings.material) && <label>Depth<select aria-label="Patch depth" className={selectClass} value={settings.depth} onChange={event => update({ depth: event.target.value as PatchSettings['depth'] })}>
+      </MaterialSelect></label>
+      {['leather', 'pvc', 'chenille'].includes(settings.material) && <label>Depth<MaterialSelect aria-label="Patch depth" className={selectClass} value={settings.depth} onChange={event => update({ depth: event.target.value as PatchSettings['depth'] })}>
         {Object.entries(PATCH_DEPTHS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></label>}
+      </MaterialSelect></label>}
     </div>
-    {settings.material === 'pvc' && settings.application === 'moulded' && <label className="block text-[11px] text-white/60">Artwork relief<select aria-label="PVC artwork relief" className={selectClass} value={settings.relief} onChange={event => update({ relief: event.target.value as PatchSettings['relief'] })}><option value="raised">Raised</option><option value="recessed">Recessed</option></select></label>}
+    {settings.material === 'pvc' && settings.application === 'moulded' && <label className="block text-[11px] text-white/60">Artwork relief<MaterialSelect aria-label="PVC artwork relief" className={selectClass} value={settings.relief} onChange={event => update({ relief: event.target.value as PatchSettings['relief'] })}><option value="raised">Raised</option><option value="recessed">Recessed</option></MaterialSelect></label>}
     {(settings.finish === 'stitched' || settings.finish === 'sewOn') && <label className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={settings.stitchedEdge} onChange={event => update({ stitchedEdge: event.target.checked })} />Visible perimeter stitching</label>}
     <TrimColorFamilyPicker label="Patch background colour" value={detail.fill} onChange={fill => onChange({ fill })} onClear={() => onChange({ fill: '#D4D4D4' })} />
     <TrimColorFamilyPicker label="Patch border colour" value={detail.outline} onChange={outline => onChange({ outline })} onClear={() => onChange({ outline: '#141414' })} />
@@ -195,7 +197,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   referenceWidthCm?: number;
   unit?: MeasurementUnit;
 }) {
-  const [category, setCategory] = useState<GarmentDetailType>('zip');
+  const [category, setCategory] = useState<GarmentDetailType>('pocket');
   const [builtinError, setBuiltinError] = useState('');
   const selected = editor?.draft && editor.draft.id === selectedId ? editor.draft : details.find(detail => detail.id === selectedId);
   const asset = selected && detailAsset(selected);
@@ -229,11 +231,11 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {builtinError && <p role="status" className="text-xs text-amber-300">{builtinError}</p>}
     </div>}
     <div className="space-y-3">
-      <div role="group" aria-label="Detail category" className="grid grid-cols-3 border-b border-white/15">
-        {(['pocket', 'zip', 'button'] as const).map(type => <button key={type} type="button"
+      <div role="group" aria-label="Detail category" className="grid grid-cols-4 border-b border-white/15">
+        {(['pocket', 'zip', 'button', 'patch'] as const).map(type => <button key={type} type="button"
           aria-pressed={category === type} onClick={() => setCategory(type)}
           className={`min-w-0 border-b-2 px-1 py-2 text-xs ${category === type ? 'border-[#CC2D24] text-white' : 'border-transparent text-white/50 hover:text-white'}`}>
-          {type === 'zip' ? 'Openings & Closures' : `${GARMENT_DETAIL_ASSETS[type].label}s`}
+          {type === 'zip' ? 'Zips' : type === 'patch' ? 'Patches' : `${GARMENT_DETAIL_ASSETS[type].label}s`}
         </button>)}
       </div>
       <div role="group" aria-label={`${GARMENT_DETAIL_ASSETS[category].label} options`} className="grid grid-cols-3 gap-2">
@@ -246,10 +248,10 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         </button>)}
       </div>
     </div>
-    <section aria-label="Patches" className="space-y-2 border-t border-white/15 pt-3">
+    {category === 'patch' && <section aria-label="Patches" className="space-y-2 border-t border-white/15 pt-3">
       <h3 className="text-xs font-semibold text-white">Patches</h3>
       <button type="button" onClick={() => add('patch')} className="flex items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-xs text-white"><Plus size={14} />Add patch</button>
-    </section>
+    </section>}
     <div className="space-y-1" role="group" aria-label="Added details">
       {details.length === 0 && <p className="text-xs text-white/45">No details</p>}
       {(['pocket', 'zip', 'button', 'patch'] as const).map(type => {
@@ -308,11 +310,11 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
           : editor?.part === 'pull' && <p role="status" className="text-xs text-amber-300">Set a positive size M chest width in Measurements to use physical trim dimensions.</p>}
         {editor?.part !== 'pull' && <>
         <label className="flex items-center justify-between gap-2 text-xs text-white/60">Zip length
-          <select aria-label="Zip length preset" value="" disabled={!bounds}
+          <MaterialSelect aria-label="Zip length preset" value="" disabled={!bounds}
             onChange={event => { if (bounds && event.target.value) update(alignGarmentZip(selected, bounds, event.target.value as 'chest' | 'quarter' | 'half' | 'full')); }}
             className="min-w-0 max-w-[65%] rounded border border-white/15 bg-[#202023] p-2 text-white">
             <option value="">Custom</option><option value="chest">Short chest</option><option value="quarter">Long quarter</option><option value="half">Half length</option><option value="full">Full-body / centre-front</option>
-          </select>
+          </MaterialSelect>
         </label>
         <button type="button" disabled={!bounds || Math.abs(Math.cos(detailRotation(selected) * Math.PI / 180)) < .001} onClick={() => { if (bounds) update(alignGarmentZip(selected, bounds, 'hem')); }}
           className="flex w-full items-center justify-center gap-2 rounded border border-white/15 p-2 text-xs text-white disabled:opacity-40"><ArrowDownToLine size={14} />Extend to hem</button>
@@ -333,8 +335,8 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
             onChange={event => update({ zipSliderPosition: event.currentTarget.valueAsNumber / 100 })} />
         </label>}
         <label className="flex items-center justify-between gap-3 text-xs text-white/60">Pull orientation
-          <select aria-label="Zip pull orientation" value={selected.zipPullSide ?? 'center'} onChange={event => update({ zipPullSide: event.target.value as GarmentDetail['zipPullSide'] })}
-            className="rounded border border-white/15 bg-[#202023] p-2 text-white"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></select>
+          <MaterialSelect aria-label="Zip pull orientation" value={selected.zipPullSide ?? 'center'} onChange={event => update({ zipPullSide: event.target.value as GarmentDetail['zipPullSide'] })}
+            className="rounded border border-white/15 bg-[#202023] p-2 text-white"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></MaterialSelect>
         </label>
       </div>}
       {(selected.type !== 'patch' || selected.customAsset) && <section aria-label={selected.type === 'zip' ? 'Zip colours' : 'Detail colours'} className="space-y-4">

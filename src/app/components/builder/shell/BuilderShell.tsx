@@ -20,7 +20,7 @@ function ConstructionToolIcon({index}:{index:number}){
  ];return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[index]}</svg>
 }
 export const MEASUREMENT_TOOLS=['Core measurements','Advanced sizing','Add custom measurement','Import measurements'] as const;
-const construction = ['Neck & Collar', 'Sleeves', 'Hem & Cuffs', 'Openings & Closures', 'Stitching', 'Wash & Finish'];
+const construction = ['Neck & Collar', 'Sleeves', 'Hem & Cuffs', 'Details & trims', 'Stitching', 'Wash & Finish'];
 export function BuilderTopBar({
   name,
   onName,

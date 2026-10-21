@@ -282,21 +282,23 @@ export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: Stitc
     if (!hemGroupEnabled(hems, region)) return '';
     const resolved = resolveStitchSettings(settings, region);
     const style = resolved.style ?? 'standard';
-    if (style === 'none') return '';
     const width = { fine: 2.1, regular: 2.7, heavy: 3.4 }[resolved.thread ?? 'regular'];
-    const path = geometry.rows[region].map(row => stitchPatternPath(row, style)).join('');
     const physical = Object.entries(geometry.hemClips ?? {}).filter(([id]) =>
       (id === 'bodyHem' ? 'bottom' : id.startsWith('underlayer') ? 'undersleeve' : 'sleeve') === region);
     const parts = physical.length ? physical.map(([id, clip]) => ({ id, clip: clip.stitchCut, hem: resolveHemSettings(hems, id) }))
       : [{ id: region, clip: geometry.clips[region], hem: undefined }];
     return parts.map(part => {
       if (part.hem?.finish === 'none') return '';
+      const partStyle=part.hem?.stitchStyle??style;
+      if(partStyle==='none')return '';
+      const partPath=geometry.rows[region].map(row=>stitchPatternPath(row,partStyle)).join('');
+      const partWidth=part.hem?.stitchThread?{fine:2.1,regular:2.7,heavy:3.4}[part.hem.stitchThread]:width;
       const selectedColor = colorValue(part.hem?.stitchColor || resolved.color || source.tint);
       const fabric = fabricColors?.[part.id] ?? fabricColors?.[region] ?? fabricColors?.base;
       const color = fabric ? constructionColor(fabric, selectedColor) : selectedColor;
       const clipId = `${prefix}stitch-region-${part.id}`;
-      const content = `<path d="${path}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`;
-      return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${part.clip}"/></clipPath></defs><g data-stitch-region="${region}" data-hem-stitch="${part.id}" data-stitch-style="${style}" clip-path="url(#${clipId})">${content}</g>`;
+      const content = `<path d="${partPath}" fill="none" stroke="${color}" stroke-width="${partWidth}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${part.clip}"/></clipPath></defs><g data-stitch-region="${region}" data-hem-stitch="${part.id}" data-stitch-style="${partStyle}" clip-path="url(#${clipId})">${content}</g>`;
     }).join('');
   }).join('');
   const collarMask = source.svgRaw.includes('custom-collar-')

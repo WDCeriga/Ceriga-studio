@@ -1,3 +1,4 @@
+import {MaterialSelect} from './shell/MaterialSelect';
 import './custom-asset-upload.css';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AlertCircle, Check, Copy, Crop, ImagePlus, LoaderCircle, Pencil, RotateCcw, Trash2, Upload, X } from 'lucide-react';
@@ -296,7 +297,7 @@ export function CustomAssetUpload(props: Props) {
     : category === 'sleeve' && (props.garmentType !== 'tshirt' || props.view !== 'front')
     ? 'Sleeve registration supports the main tee, front view only. Rear geometry is not verified.' : '';
   return <section className="space-y-2 border-t border-white/10 pt-3">
-    {props.aiNeckTrigger ? <button className="neck-custom-toggle" onClick={() => { cancel(); setImage(''); invalidate(); setSource('photo'); setCropping(true); setOpen(true); }}><span>{category === 'sleeve' ? 'Custom AI sleeves' : 'Custom AI neckline'}</span><span>Draw from a photo <Upload size={13}/></span></button> : <div className="flex items-center justify-between gap-2"><h3 className="text-xs text-white/80">Custom {labels[props.category]}</h3>
+    {props.aiNeckTrigger ? <button className="neck-custom-toggle" onClick={() => { cancel(); setImage(''); invalidate(); setSource('photo'); setCropping(true); setOpen(true); }}><span>{category === 'sleeve' ? 'Custom AI sleeves' : category === 'pocket' ? 'Custom AI detail' : 'Custom AI neckline'}</span><span>Draw from a photo <Upload size={13}/></span></button> : <div className="flex items-center justify-between gap-2"><h3 className="text-xs text-white/80">Custom {labels[props.category]}</h3>
       <button className={control} onClick={() => { cancel(); setImage(''); invalidate(); setSource('photo'); setCropping(true); setOpen(true); }}><Upload className="mr-2 inline size-3.5"/>Upload</button></div>}
     {props.assets.filter(asset => asset.category === props.category).map(asset => {
       const compatible = compatibleAsset(asset, props.garmentType, props.fit, props.view);
@@ -324,10 +325,10 @@ export function CustomAssetUpload(props: Props) {
           <p className="text-xs capitalize text-white/50">{props.garmentType === 'tshirtTest' ? 'Test tee' : 'T-shirt'} / {props.fit} / {props.view}</p><p className="drawing-dialog-description">Create a clean AI drawing from your photo, review it, then apply it to your garment.</p></div>
         <div className="drawing-source-toolbar flex flex-wrap items-end gap-3 border-y border-white/10 py-3">
           {category === 'pocket' && <label className="grid min-w-0 gap-1.5 text-[11px] text-white/50">Asset type
-          <select aria-label="Asset type" disabled={busy || category !== 'pocket'} value={category === 'pocket' ? detailType : category}
-            onChange={event => { setDetailType(event.target.value as CustomDetailType); invalidate(); }} className={control} style={{ colorScheme: 'dark' }}>
-            {category === 'pocket' ? <><option value="pocket">Pockets</option><option value="button">Buttons</option><option value="zip">Zips</option><option value="patch">Patches</option></> : <option value={category}>{labels[category]}</option>}</select></label>}
-          {category === 'sleeve' && <select aria-label="Sleeve side" disabled={busy} value={side} onChange={event => { setSide(event.target.value as 'both' | 'left' | 'right'); invalidate(); }} className={control} style={{ colorScheme: 'dark' }}><option value="both">Both sleeves</option><option value="left">Left sleeve</option><option value="right">Right sleeve</option></select>}
+          <MaterialSelect aria-label="Asset type" disabled={busy || category !== 'pocket'} value={category === 'pocket' ? detailType : category}
+            onChange={event => { setDetailType(event.target.value as CustomDetailType); invalidate(); }} className={control}>
+            {category === 'pocket' ? <><option value="pocket">Pockets</option><option value="button">Buttons</option><option value="zip">Zips</option><option value="patch">Patches</option></> : <option value={category}>{labels[category]}</option>}</MaterialSelect></label>}
+          {category === 'sleeve' && <MaterialSelect aria-label="Sleeve side" disabled={busy} value={side} onChange={event => { setSide(event.target.value as 'both' | 'left' | 'right'); invalidate(); }} className={control}><option value="both">Both sleeves</option><option value="left">Left sleeve</option><option value="right">Right sleeve</option></MaterialSelect>}
           <button className={control + (!image ? ' hidden' : '')} onClick={() => { cancel(); invalidate(); setImage(''); setCropping(true); setCrop([0, 0, 1, 1]); input.current?.click(); }}><Upload className="mr-2 inline size-3.5"/>{image ? 'Replace image' : 'Choose image'}</button>
           <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={async event => {
             const file = event.target.files?.[0];

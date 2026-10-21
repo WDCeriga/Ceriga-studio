@@ -1615,6 +1615,8 @@ export function TshirtSvgPreview({
               </div>
             </React.Fragment>;
           }
+          const rawHem=/^(bodyHem|sleeveHem(?:Left|Right)|underlayerHem(?:Left|Right))$/.test(id)&&resolveHemSettings(tshirtHemStyles,id).finish==='none'&&sourceLayer.hemSource!=='uploaded';
+          if(rawHem)return null;
           const scaleFixedAnchor =
             scaleGestureStorageId && transformStorageId(id) === scaleGestureStorageId
               ? activeScaleAnchor

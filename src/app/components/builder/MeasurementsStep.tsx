@@ -398,7 +398,7 @@ export function MeasurementPreview({
   onAssetSelect?: (id: string | null) => void;
   onAssetMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
   measurementUnit?: MeasurementUnit;
-  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'partFocus' | 'showSelectionHint' | 'materialHighlightIds' | 'onMaterialDrop' | 'onSelectedLayerChange' | 'selectedLayerId' | 'fabricAssignments' | 'fabricTextureIntensity' | 'technicalView' | 'customAssetState' | 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor' | 'garmentLabels' | 'labelReferenceWidthMm'>;
+  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'selectedDetailId' | 'onDetailBoundsChange' | 'onBuiltinDetailsChange' | 'detailEditor' | 'onDetailSelect' | 'onDetailsChange' | 'partFocus' | 'showSelectionHint' | 'materialHighlightIds' | 'onMaterialDrop' | 'onSelectedLayerChange' | 'selectedLayerId' | 'fabricAssignments' | 'fabricTextureIntensity' | 'technicalView' | 'customAssetState' | 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor' | 'garmentLabels' | 'labelReferenceWidthMm'>;
 }) {
   const svgPack: GarmentSvgGarmentType | null =
     garmentType === 'tshirt' ||

@@ -1,0 +1,25 @@
+import {build} from 'esbuild';
+import {spawnSync} from 'node:child_process';
+const result=await build({stdin:{contents:`
+import assert from 'node:assert/strict';
+import {resolveHemSettings,updateHemSettings,copyHemSettings} from './src/app/data/tshirtHemStyles';
+let checks=0;const check=(ok:boolean,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label)};
+const ids=['bodyHem','sleeveHemLeft','sleeveHemRight'];
+const legacy={sleeve:'ribbed' as const,bottom:'normal' as const};
+check(resolveHemSettings(legacy,'sleeveHemLeft').finish==='ribbed','Existing sleeve finish survives migration');
+const separate={...legacy,editing:{applyAll:false,regions:{sleeveHemRight:{finish:'ribbed' as const}}}};
+const bottom=updateHemSettings(separate,ids,'bodyHem',{construction:'double-fold',finish:'normal',depthCm:3.5,firstFoldCm:1.2,stitchStyle:'double'});
+check(resolveHemSettings(bottom,'bodyHem').depthCm===3.5,'Bottom hem stores physical depth');
+check(resolveHemSettings(bottom,'sleeveHemLeft').depthCm===undefined,'Separate edit leaves left cuff unchanged');
+check(resolveHemSettings(bottom,'sleeveHemRight').finish==='ribbed','Separate edit preserves right rib cuff');
+const copied=copyHemSettings(bottom,['sleeveHemLeft'],resolveHemSettings(bottom,'bodyHem'));
+check(resolveHemSettings(copied,'sleeveHemLeft').firstFoldCm===1.2,'Copy includes fold dimensions');
+check(resolveHemSettings(copied,'sleeveHemLeft').stitchStyle==='double','Copy includes stitching override');
+check(resolveHemSettings(copied,'sleeveHemRight').construction===undefined,'Copy preserves untargeted cuff construction');
+const linked=updateHemSettings({...copied,editing:{...copied.editing,applyAll:true}},ids,'bodyHem',{construction:'raw',finish:'none'});
+check(ids.every(id=>resolveHemSettings(linked,id).finish==='none'),'Linked raw finish updates all chosen hems');
+console.log(checks+' hem construction regression checks passed.');
+`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'});
+const {writeFile}=await import('node:fs/promises');
+const target='node_modules/.cache/hem-construction-checks.mjs';await writeFile(target,result.outputFiles[0].contents);
+const run=spawnSync(process.execPath,[target],{stdio:'inherit'});process.exitCode=run.status??1;
