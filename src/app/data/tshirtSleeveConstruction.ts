@@ -30,6 +30,27 @@ function replaceBodyArc(raw:string,a:P,b:P,curve:string,straightSide=false){
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
  parts[index]=svgpath('M'+pt(a)+curve+(rest.length>2?'L'+rest.slice(1,-1).map(q=>straightSide&&q.y>b.y&&(b.x<1024?q.x<700:q.x>1348)?{x:b.x,y:q.y}:q).map(pt).join('L'):'')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.filter((_,k)=>k===index||rings[k].every(q=>q.x>700&&q.x<1348&&q.y<900)).join(''));return new XMLSerializer().serializeToString(doc.documentElement);
 }
+/** Smooth shoulder seams for the oversized dropped-shoulder block. */
+export function straightenOversizedShoulders(layers:ResolvedGarmentLayer[],fit?:string):ResolvedGarmentLayer[]{
+ if(fit!=='oversized')return layers;
+ const body=layers.find(l=>l.id==='base'),neck=layers.find(l=>l.id==='neck');if(!body||/polo/i.test(neck?.displayName??''))return layers;
+ let neckPoints=neck?ring(neck.svgRaw):[];
+ if(!neckPoints.length){const outline=layers.find(l=>l.id==='outline'),support=outline?new DOMParser().parseFromString(outline.svgRaw,'image/svg+xml').querySelector('[data-ink-preserve],[data-shoulder-neck-boundary]'):null;if(support)neckPoints=ring('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><g transform="'+(support.getAttribute('transform')??'scale(1)')+'"><path fill="black" d="'+support.getAttribute('d')+'"/></g></svg>');}
+ if(!neckPoints.length)return layers;
+ const xs=neckPoints.map(p=>p.x);let raw=body.svgRaw;
+ for(const side of ['Left','Right'] as const){
+  const sleeve=layers.find(l=>l.id==='sleeve'+side);if(!sleeve)continue;
+  const sleevePoints=ring(sleeve.svgRaw),bodyPoints=ring(raw);if(!sleevePoints.length||!bodyPoints.length)continue;
+  const edge=side==='Left'?Math.min(...xs):Math.max(...xs);
+  const candidates=bodyPoints.filter(p=>Math.abs(p.x-edge)<12&&p.y<650);if(!candidates.length)continue;
+  const a=candidates.reduce((best,p)=>p.y<best.y?p:best),top=sleevePoints.reduce((best,p)=>p.y<best.y?p:best);
+  const b=bodyPoints[near(bodyPoints,top)];if(b.y<=a.y||Math.abs(b.x-a.x)<60)continue;
+  const i=near(bodyPoints,a),j=near(bodyPoints,b),one=walk(bodyPoints,i,j),two=walk(bodyPoints,j,i).reverse();
+  const length=(points:P[])=>points.slice(1).reduce((n,p,k)=>n+distance(p,points[k]),0);
+  raw=replaceBodyArc(raw,a,b,cubic(length(one)<length(two)?one:two,a,b));
+ }
+ return layers.map(l=>l.id==='base'?{...l,svgRaw:raw,panellingClipSvgRaw:undefined}:l);
+}
 function alignTorsoHem(raw:string,top:number,low:number[],high:number[]){
  const doc=new DOMParser().parseFromString(raw,'image/svg+xml'),g=[...doc.querySelectorAll('g[transform]')].find(e=>!e.closest('defs')) as SVGGraphicsElement|undefined,p=g?.querySelector('path'),m=g?.transform.baseVal.consolidate()?.matrix;if(!p||!m)return raw;
  const parts=(p.getAttribute('d')??'').match(/M[^M]*/g);if(!parts)return raw;
@@ -65,19 +86,22 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const maxX=Math.max(...r.map(p=>p.x)),candidates=r.filter(p=>p.x>maxX-4&&p.y>a.y&&p.y<a.y+650);
  const t={x:maxX,y:Math.min(...candidates.map(p=>p.y))},u={x:maxX,y:Math.max(...candidates.map(p=>p.y))};
  if(!Number.isFinite(t.y)||!Number.isFinite(u.y))return layers;
- const short=!long&&!/longer-short/.test(left.assetId);if(short){inner.x=maxX;hemInner.x=maxX;u.y=Math.min(u.y,inner.y);}
+ const longerShort=/longer-short/.test(left.assetId);
+ const short=!long&&!longerShort,closedUnderarm=short||longerShort;
+ if(closedUnderarm){inner.x=maxX;hemInner.x=maxX;u.y=longerShort?inner.y:Math.min(u.y,inner.y);}
+ else if(long){u.y=Math.min(inner.y-90,u.y+75);}
  const curve=cubic(sideArc(r,a,t,true),a,t,true)+'L'+pt(u);
  const innerCurve=long?cubic(sideArc(r,u,inner,true),u,inner):'L'+pt(inner);
  const outerCurve=long?cubic(sideArc(r,outer,a,false),outer,a):'L'+pt(a);
  const d='M'+pt(a)+curve+innerCurve+'L'+pt(outer)+outerCurve+'Z';
  let body=layers.find(l=>l.id==='base')?.svgRaw;
- if(body){const end=short?hemInner:u,attachment=curve+(short?'L'+pt(hemInner):'');body=replaceBodyArc(body,a,end,attachment,fit!=='slim');const mirrored=svgpath('M'+pt(a)+attachment).matrix([-1,0,0,1,2048,0]).toString();body=replaceBodyArc(body,{x:2048-a.x,y:a.y},{x:2048-end.x,y:end.y},mirrored.replace(/^M[^C]*C/,'C'),fit!=='slim');}
+ if(body){const end=closedUnderarm?hemInner:u,attachment=curve+(closedUnderarm?'L'+pt(hemInner):'');body=replaceBodyArc(body,a,end,attachment,fit!=='slim');const mirrored=svgpath('M'+pt(a)+attachment).matrix([-1,0,0,1,2048,0]).toString();body=replaceBodyArc(body,{x:2048-a.x,y:a.y},{x:2048-end.x,y:end.y},mirrored.replace(/^M[^C]*C/,'C'),fit!=='slim');}
  if(body&&(fit==='oversized'||fit==='boxy')){
   const doc=new DOMParser().parseFromString(body,'image/svg+xml');
   for(const mask of doc.querySelectorAll('mask[id*="sleeve-torso"]')){const rect=doc.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',String(u.x));rect.setAttribute('y',String(u.y));rect.setAttribute('width',String(2048-2*u.x));rect.setAttribute('height',String(2048-u.y));rect.setAttribute('fill','white');mask.appendChild(rect);}
   body=new XMLSerializer().serializeToString(doc.documentElement);
  }
- const seam='M'+pt(a)+curve+(short?'L'+pt(hemInner):'');
+ const seam='M'+pt(a)+curve+(closedUnderarm?'L'+pt(hemInner):'');
  const rightSeam=svgpath(seam).matrix([-1,0,0,1,2048,0]).toString();
  const right=wrap(svgpath(d).matrix([-1,0,0,1,2048,0]).toString()).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+rightSeam+'"/></svg>'),leftSvg=wrap(d).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+seam+'"/></svg>');
  const outerBottom=corner(lo,low);if(fit==='oversized'&&/longer-short/.test(left.assetId))outerBottom.x+=65;

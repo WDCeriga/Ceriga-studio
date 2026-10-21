@@ -247,3 +247,5 @@
 }
 
 @media(max-width:767px){.ceriga-builder-shell[data-section="Materials & Colour"] .builder-shell-grid{padding-bottom:calc(var(--phone-inspector-height) + var(--mobile-command-height) + env(safe-area-inset-bottom))}.ceriga-builder-shell[data-section="Materials & Colour"] .responsive-sheet>header h2{font-size:14px}.ceriga-builder-shell[data-section="Materials & Colour"] .responsive-sheet-content{padding-top:4px}}
+
+@media(max-width:767px){.ceriga-builder-shell[data-section="Construction"] .builder-shell-grid{padding-bottom:calc(var(--phone-inspector-height) + var(--mobile-command-height) + env(safe-area-inset-bottom))}.ceriga-builder-shell[data-section="Construction"] .responsive-sheet>header h2{font-size:14px}}

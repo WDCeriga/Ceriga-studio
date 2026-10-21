@@ -2,7 +2,7 @@ import {applyConstructedHemStyles} from './tshirtLiveHems';
 import type {TshirtHemStyles} from './tshirtHemStyles';
 import type {NeckFinish} from './tshirtNeckFinish';
 import {cleanNecklineFabric,necklineBoundary,poloJoinBoundary,neckRibbing} from './tshirtNecklineQuality';
-import {constructSleeveFamily} from './tshirtSleeveConstruction';
+import {constructSleeveFamily,straightenOversizedShoulders} from './tshirtSleeveConstruction';
 import svgpath from 'svgpath';
 import type {ResolvedGarmentLayer} from './garmentSvgCatalog';
 import {fabricRings} from './regularConstruction';
@@ -59,7 +59,7 @@ export function withTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:stri
 
  // Raster neck parts are already final traced construction. Keep their paths intact.
  if(layers.some(l=>l.svgRaw.includes('data-raster-neck="true"'))){
-  const cleaned=applyConstructedHemStyles(constructSleeveFamily(layers.map(l=>{const parent=l.id.startsWith('underlayerHem')?layers.find(p=>p.id===l.id.replace('underlayerHem','underSleeve')):undefined,ring=parent?fabricRings(parent.svgRaw)[0]:undefined;return cleanBodyFabric(cleanSleeveFabric(l,8,ring?{minX:Math.min(...ring.map(p=>p.x)),maxX:Math.max(...ring.map(p=>p.x))}:undefined));}),fit),hems);
+  const cleaned=applyConstructedHemStyles(straightenOversizedShoulders(constructSleeveFamily(layers.map(l=>{const parent=l.id.startsWith('underlayerHem')?layers.find(p=>p.id===l.id.replace('underlayerHem','underSleeve')):undefined,ring=parent?fabricRings(parent.svgRaw)[0]:undefined;return cleanBodyFabric(cleanSleeveFabric(l,8,ring?{minX:Math.min(...ring.map(p=>p.x)),maxX:Math.max(...ring.map(p=>p.x))}:undefined));}),fit),fit),hems);
   const outline=cleaned.find(l=>l.id==='outline');
   const support=outline?new DOMParser().parseFromString(outline.svgRaw,'image/svg+xml').querySelector('[data-ink-preserve]'):null;
   // Reuse the traced footprint as backing fabric; collar and inner-back layers sit above it.
@@ -72,7 +72,7 @@ export function withTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:stri
 
  }
  const smoothed=layers.map(l=>{const parent=l.id.startsWith('underlayerHem')?layers.find(p=>p.id===l.id.replace('underlayerHem','underSleeve')):undefined,ring=parent?fabricRings(parent.svgRaw).sort((a,b)=>Math.abs(signedArea(b))-Math.abs(signedArea(a)))[0]:undefined;const underBounds=ring?{minX:Math.min(...ring.map(p=>p.x)),maxX:Math.max(...ring.map(p=>p.x))}:undefined;return cleanNecklineFabric(cleanBodyFabric(cleanSleeveFabric(l,8,underBounds)),view);});
- let cleaned=constructSleeveFamily(smoothed,fit);
+ let cleaned=straightenOversizedShoulders(constructSleeveFamily(smoothed,fit),fit);
  const oldNeck=layers.find(l=>l.id==='neck');
  if(view==='front'&&oldNeck&&/v-?neck|thin crew/i.test(oldNeck.displayName)&&!/deep/i.test(oldNeck.displayName)){const sourceRing=fabricRings(oldNeck.svgRaw).sort((a,b)=>Math.abs(signedArea(b))-Math.abs(signedArea(a)))[0];if(sourceRing){const backing='<g transform="matrix(1 0 0 1 0 0)" fill="#000000" data-neck-support="true"><path d="'+path(sourceRing)+'"/></g>';cleaned=cleaned.map(l=>l.id==='base'?{...l,svgRaw:l.svgRaw.replace('</svg>',backing+'</svg>'),panellingClipSvgRaw:undefined}:l);}}
 

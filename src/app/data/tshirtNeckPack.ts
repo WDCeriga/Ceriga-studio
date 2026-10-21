@@ -85,7 +85,11 @@ export function withTshirtNeckPack(
   }
   if (parts.size !== needed(view, finish).length) return undefined;
   const swap = (layer: ResolvedGarmentLayer, part: Part): ResolvedGarmentLayer => {
-    const svgRaw = parts.get(part);
+    // A raw rear opening has no collar band. Its body silhouette supplies the
+    // neckline ink; the traced rear strip would otherwise become a solid black band.
+    const svgRaw = part === 'outline' && view === 'back' && finish === 'raw'
+      ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" data-raster-neck="true">'+(parts.get('outline')?.match(/<path[^>]*data-ink-preserve[^>]*\/>/)?.[0]??'').replace('data-ink-preserve','data-shoulder-neck-boundary')+'</svg>'
+      : parts.get(part);
     return svgRaw ? { ...layer, assetId: `${layer.assetId}:${view}:${finish}`, svgRaw } : layer;
   };
   const result: ResolvedGarmentLayer[] = [];

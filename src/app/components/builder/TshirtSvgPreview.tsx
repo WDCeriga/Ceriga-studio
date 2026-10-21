@@ -310,6 +310,7 @@ export interface TshirtSvgPreviewProps {
   detailEditor?: DetailEditorState;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
   onLayerTransformChange?: (id: string, transform: TshirtLayerTransform) => void;
+  partFocus?:string;
   showSelectionHint?:boolean;
   materialHighlightIds?:string[];
   selectedLayerId?: string | null;
@@ -952,6 +953,7 @@ export function TshirtSvgPreview({
   detailEditor,
   layerTransforms: builtinLayerTransforms,
   onLayerTransformChange,
+  partFocus,
   showSelectionHint=true,
   materialHighlightIds=[],
   selectedLayerId = null,
@@ -1548,7 +1550,9 @@ export function TshirtSvgPreview({
   const collarGeometry = selectedCollar ? collarEditGeometry(selectedCollar.definition.svg) : undefined;
   const collarCamera = collarGeometry ? { x: collarGeometry.left + collarGeometry.width / 2,
     y: collarGeometry.top + collarGeometry.height * .8, scale: 3 } : undefined;
-  const previewCamera = collarCamera ?? hemCamera ?? detailCamera ?? stitchCamera;
+  const focusedPart=partFocus?layerLayouts.find(layer=>layer.id===partFocus):undefined;
+  const partCamera=focusedPart?.bbox?{x:focusedPart.bbox.centerX,y:focusedPart.bbox.centerY,scale:Math.max(1.8,Math.min(4,1100/Math.max(focusedPart.bbox.maxX-focusedPart.bbox.minX,focusedPart.bbox.maxY-focusedPart.bbox.minY)))}:undefined;
+  const previewCamera = partCamera ?? (partFocus ? {x:1024,y:1024,scale:1} : undefined) ?? collarCamera ?? hemCamera ?? detailCamera ?? stitchCamera;
 
   const panellingGeometry = useMemo(() => {
     if (!renderPanellingOverlay&&!technical&&!['regular','boxy'].includes(fit??'')) return '';
@@ -1581,19 +1585,20 @@ export function TshirtSvgPreview({
       onPointerDown={editable ? handleBackgroundPointerDown : undefined}
       onPointerLeave={() => setHoveredLayerId(null)}
       onPointerCancel={() => setHoveredLayerId(null)}
-      style={stitchEditor || detailCamera || hemEditor || collarCamera ? { overflow: 'hidden' } : undefined}
+      style={stitchEditor || detailCamera || hemEditor || collarCamera || partFocus ? { overflow: 'hidden' } : undefined}
     >
       <div
         ref={canvasRef}
         className={cn(GARMENT_PREVIEW_CANVAS_CLASS, 'motion-reduce:!transition-none')}
         data-stitch-camera={stitchEditor ? `${focusedStitchRegion}:${stitchEditor.closeUp ? 'close-up' : 'garment'}` : undefined}
         data-detail-camera={detailCamera ? 'close-up' : 'garment'}
+        data-part-focus={partFocus}
         data-hem-camera={hemEditor ? `${hemEditor.region}:${hemEditor.closeUp ? 'close-up' : 'garment'}` : undefined}
-        style={stitchEditor || detailCamera || hemEditor || collarCamera ? {
-          width: `calc(min(100cqh, 100cqw) * ${previewCamera.scale})`,
-          height: `calc(min(100cqh, 100cqw) * ${previewCamera.scale})`,
-          transform: `translate(${(1024 - previewCamera.x) / 2048 * 100}%, ${(1024 - previewCamera.y) / 2048 * 100}%)`,
-          transition: detailCamera || collarCamera ? undefined : 'width 850ms cubic-bezier(.22,.68,0,1), height 850ms cubic-bezier(.22,.68,0,1), transform 850ms cubic-bezier(.22,.68,0,1)',
+        style={stitchEditor || detailCamera || hemEditor || collarCamera || partFocus ? {
+          width: `calc(min(100cqh, 100cqw) * ${partFocus ? 1 : previewCamera.scale})`,
+          height: `calc(min(100cqh, 100cqw) * ${partFocus ? 1 : previewCamera.scale})`,
+          transform: `${partFocus ? `scale(${previewCamera.scale}) ` : ''}translate(${(1024 - previewCamera.x) / 2048 * 100}%, ${(1024 - previewCamera.y) / 2048 * 100}%)`,
+          transition: partFocus ? 'transform 700ms cubic-bezier(.22,1,.36,1)' : detailCamera || collarCamera ? undefined : 'width 850ms cubic-bezier(.22,.68,0,1), height 850ms cubic-bezier(.22,.68,0,1), transform 850ms cubic-bezier(.22,.68,0,1)',
           transformOrigin: 'center',
         } : undefined}
       >

@@ -1,5 +1,6 @@
+import './custom-asset-upload.css';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AlertCircle, Check, Copy, Crop, LoaderCircle, Pencil, RotateCcw, Trash2, Upload, X } from 'lucide-react';
+import { AlertCircle, Check, Copy, Crop, ImagePlus, LoaderCircle, Pencil, RotateCcw, Trash2, Upload, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { acceptedAssetBundle, compatibleAsset, deriveOppositeSleeve, validateCollarReview, type CollarDrawingReview, type AssetView, type CustomAssetCategory, type CustomAssetDefinition, type CustomDetailType } from '../../data/customAssets';
 import { getPotraceSvgBBox, renderFabricSvg } from '../../lib/tshirtSvgUtils';
@@ -20,10 +21,11 @@ interface Props {
   renderPreview: (asset: CustomAssetDefinition, additionalAssets?: CustomAssetDefinition[], canvasOverlay?: ReactNode,
     collarEditor?: { edits?: CollarManualEdits; onChange: (edits?: CollarManualEdits) => void }) => ReactNode;
   previewColor?: string;
+  aiNeckTrigger?: boolean;
 }
 
 const labels = { collar: 'Neck / Collar', sleeve: 'Sleeve', pocket: 'Pockets, Buttons, Zips & Patches' };
-const control = 'min-h-9 rounded-md border border-white/20 bg-white/5 px-3 py-2 text-xs text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-40';
+const control = 'min-h-9 rounded-md border border-white/20 bg-white/5 px-3 py-2 text-xs text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-400 disabled:cursor-not-allowed disabled:opacity-40';
 const imageUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
 interface SleeveIsolation {
@@ -294,8 +296,8 @@ export function CustomAssetUpload(props: Props) {
     : category === 'sleeve' && (props.garmentType !== 'tshirt' || props.view !== 'front')
     ? 'Sleeve registration supports the main tee, front view only. Rear geometry is not verified.' : '';
   return <section className="space-y-2 border-t border-white/10 pt-3">
-    <div className="flex items-center justify-between gap-2"><h3 className="text-xs text-white/80">Custom {labels[props.category]}</h3>
-      <button className={control} onClick={() => { cancel(); setImage(''); invalidate(); setCropping(true); setOpen(true); }}><Upload className="mr-2 inline size-3.5"/>Upload</button></div>
+    {props.aiNeckTrigger ? <button className="neck-custom-toggle" onClick={() => { cancel(); setImage(''); invalidate(); setSource('photo'); setCropping(true); setOpen(true); }}><span>{category === 'sleeve' ? 'Custom AI sleeves' : 'Custom AI neckline'}</span><span>Draw from a photo <Upload size={13}/></span></button> : <div className="flex items-center justify-between gap-2"><h3 className="text-xs text-white/80">Custom {labels[props.category]}</h3>
+      <button className={control} onClick={() => { cancel(); setImage(''); invalidate(); setSource('photo'); setCropping(true); setOpen(true); }}><Upload className="mr-2 inline size-3.5"/>Upload</button></div>}
     {props.assets.filter(asset => asset.category === props.category).map(asset => {
       const compatible = compatibleAsset(asset, props.garmentType, props.fit, props.view);
       const selected = props.selectedIds.includes(asset.id);
@@ -317,19 +319,16 @@ export function CustomAssetUpload(props: Props) {
       </div>;
     })}
     <Dialog open={open} onOpenChange={value => { if (!value) cancel(); setOpen(value); }}>
-      <DialogContent className="max-h-[94dvh] overflow-y-auto rounded-lg border-white/15 bg-[#171719] p-4 text-white shadow-2xl sm:max-w-3xl sm:p-6" aria-describedby={undefined}>
-        <div className="space-y-1 pr-7"><DialogTitle className="text-base font-semibold">Custom {labels[category]} Upload</DialogTitle>
-          <p className="text-xs capitalize text-white/50">{props.garmentType === 'tshirtTest' ? 'Test tee' : 'T-shirt'} / {props.fit} / {props.view}</p></div>
-        <div className="flex flex-wrap items-end gap-3 border-y border-white/10 py-3">
-          <label className="grid min-w-0 gap-1.5 text-[11px] text-white/50">Asset type
+      <DialogContent className="custom-drawing-dialog max-h-[94dvh] overflow-y-auto rounded-lg border-white/15 bg-[#171719] p-4 text-white shadow-2xl sm:max-w-3xl sm:p-6" aria-describedby={undefined}>
+        <div className="space-y-1 pr-7"><DialogTitle className="text-base font-semibold">Custom {labels[category]} Drawing</DialogTitle>
+          <p className="text-xs capitalize text-white/50">{props.garmentType === 'tshirtTest' ? 'Test tee' : 'T-shirt'} / {props.fit} / {props.view}</p><p className="drawing-dialog-description">Create a clean AI drawing from your photo, review it, then apply it to your garment.</p></div>
+        <div className="drawing-source-toolbar flex flex-wrap items-end gap-3 border-y border-white/10 py-3">
+          {category === 'pocket' && <label className="grid min-w-0 gap-1.5 text-[11px] text-white/50">Asset type
           <select aria-label="Asset type" disabled={busy || category !== 'pocket'} value={category === 'pocket' ? detailType : category}
             onChange={event => { setDetailType(event.target.value as CustomDetailType); invalidate(); }} className={control} style={{ colorScheme: 'dark' }}>
-            {category === 'pocket' ? <><option value="pocket">Pockets</option><option value="button">Buttons</option><option value="zip">Zips</option><option value="patch">Patches</option></> : <option value={category}>{labels[category]}</option>}</select></label>
-          <label className="grid min-w-0 gap-1.5 text-[11px] text-white/50">Reference
-          <select aria-label="Reference type" disabled={busy} value={source} onChange={event => { setSource(event.target.value as 'photo' | 'drawing'); invalidate(); }} className={control} style={{ colorScheme: 'dark' }}>
-            <option value="photo">Photo · Azure AI</option><option value="drawing">Technical drawing · Local trace</option></select></label>
+            {category === 'pocket' ? <><option value="pocket">Pockets</option><option value="button">Buttons</option><option value="zip">Zips</option><option value="patch">Patches</option></> : <option value={category}>{labels[category]}</option>}</select></label>}
           {category === 'sleeve' && <select aria-label="Sleeve side" disabled={busy} value={side} onChange={event => { setSide(event.target.value as 'both' | 'left' | 'right'); invalidate(); }} className={control} style={{ colorScheme: 'dark' }}><option value="both">Both sleeves</option><option value="left">Left sleeve</option><option value="right">Right sleeve</option></select>}
-          <button className={control} onClick={() => { cancel(); invalidate(); setImage(''); setCropping(true); setCrop([0, 0, 1, 1]); input.current?.click(); }}><Upload className="mr-2 inline size-3.5"/>{image ? 'Replace image' : 'Choose image'}</button>
+          <button className={control + (!image ? ' hidden' : '')} onClick={() => { cancel(); invalidate(); setImage(''); setCropping(true); setCrop([0, 0, 1, 1]); input.current?.click(); }}><Upload className="mr-2 inline size-3.5"/>{image ? 'Replace image' : 'Choose image'}</button>
           <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={async event => {
             const file = event.target.files?.[0];
             event.target.value = '';
@@ -349,21 +348,21 @@ export function CustomAssetUpload(props: Props) {
         {limited && <p role="status" className="text-xs text-amber-200">{limited}</p>}
         <div role="tablist" aria-label="Asset preview" className="flex border-b border-white/15">
           {(['original', 'drawing', 'final'] as const).map(value => <button key={value} role="tab" aria-selected={tab === value} disabled={value === 'drawing' ? !drawing : value === 'final' ? !result : !image}
-            className={`flex-1 border-b-2 px-2 py-2 text-[10px] disabled:opacity-30 ${tab === value ? 'border-emerald-400 text-white' : 'border-transparent text-white/50'}`} onClick={() => setTab(value)}>{value === 'drawing' ? 'CLEAN DRAWING' : value === 'final' ? 'FINAL ASSET' : 'ORIGINAL'}</button>)}
+            className={`flex-1 border-b-2 px-2 py-2 text-[10px] disabled:opacity-30 ${tab === value ? 'border-slate-400 text-white' : 'border-transparent text-white/50'}`} onClick={() => setTab(value)}>{value === 'drawing' ? 'CLEAN DRAWING' : value === 'final' ? 'FINAL ASSET' : 'ORIGINAL'}</button>)}
         </div>
         {tab === 'final' && result && category === 'collar' && <div role="group" aria-label="Final asset view" className="flex flex-wrap gap-1">
           {(collarTopology ? ['drawing', 'fabric', 'collar', 'garment'] as const : ['collar', 'garment'] as const).map(value => <button key={value} type="button" aria-pressed={finalView === value}
-            className={`${control} ${finalView === value ? '!border-emerald-400 !bg-emerald-900/40' : ''}`}
+            className={`${control} ${finalView === value ? '!border-slate-400 !bg-slate-900/40' : ''}`}
             onClick={() => setFinalView(value)}>{value === 'drawing' ? '1. Clean Drawing' : value === 'fabric' ? '2. Fabric Mask' : value === 'collar' ? '3. Registered Collar' : '4. Final Garment'}</button>)}
         </div>}
         {tab === 'final' && result && category === 'collar' && collarTopology && <div role="group" aria-label="Collar topology diagnostics" className="flex flex-wrap gap-1">
           {([['outerBoundary', 'Outer Boundary'], ['opening', 'Inner Opening Mask'], ['innerBoundary', 'Opening Boundary'], ['attachment', 'Attachment Edge'], ['constructionInk', 'Construction Ink']] as const).map(([value, label]) =>
-            <button key={value} type="button" aria-pressed={finalView === value} className={`${control} ${finalView === value ? '!border-emerald-400' : ''}`} onClick={() => setFinalView(value)}>{label}</button>)}
+            <button key={value} type="button" aria-pressed={finalView === value} className={`${control} ${finalView === value ? '!border-slate-400' : ''}`} onClick={() => setFinalView(value)}>{label}</button>)}
         </div>}
         {tab === 'drawing' && isolation && <div role="group" aria-label="Sleeve isolation view" className="flex flex-wrap gap-1">
-          {(['context', 'raw', 'isolated', 'cuff'] as const).filter(value => (value !== 'raw' || isolation.rawIsolation) && (value !== 'cuff' || result?.sleeveReconstruction)).map(value => <button key={value} type="button" aria-pressed={isolationView === value} className={`${control} ${isolationView === value ? '!border-emerald-400' : ''}`} onClick={() => setIsolationView(value)}>{value === 'context' ? 'Detected Sleeve' : value === 'raw' ? 'Raw Isolation' : value === 'cuff' ? 'Cuff Isolation' : isolation.rawIsolation ? 'Normalized Asset' : 'Isolated Asset'}</button>)}
+          {(['context', 'raw', 'isolated', 'cuff'] as const).filter(value => (value !== 'raw' || isolation.rawIsolation) && (value !== 'cuff' || result?.sleeveReconstruction)).map(value => <button key={value} type="button" aria-pressed={isolationView === value} className={`${control} ${isolationView === value ? '!border-slate-400' : ''}`} onClick={() => setIsolationView(value)}>{value === 'context' ? 'Detected Sleeve' : value === 'raw' ? 'Raw Isolation' : value === 'cuff' ? 'Cuff Isolation' : isolation.rawIsolation ? 'Normalized Asset' : 'Isolated Asset'}</button>)}
         </div>}
-        {!(tab === 'final' && result?.sleeveReconstruction) && !(tab === 'drawing' && collarComparison) && <div role="tabpanel" aria-label={tab === 'final' ? 'FINAL ASSET' : tab === 'drawing' ? 'CLEAN DRAWING' : 'ORIGINAL'} aria-busy={busy} className={`flex ${tab === 'final' && category === 'collar' && finalView === 'garment' ? 'h-[min(44dvh,360px)]' : 'h-[min(32dvh,280px)]'} min-h-40 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-[#eeeeec] sm:h-[min(46dvh,430px)]`}>
+        {!(tab === 'final' && result?.sleeveReconstruction) && !(tab === 'drawing' && collarComparison) && <div role="tabpanel" aria-label={tab === 'final' ? 'FINAL ASSET' : tab === 'drawing' ? 'CLEAN DRAWING' : 'ORIGINAL'} aria-busy={busy} data-empty={!image} className={`flex ${tab === 'final' && category === 'collar' && finalView === 'garment' ? 'h-[min(44dvh,360px)]' : 'h-[min(32dvh,280px)]'} min-h-40 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-[#eeeeec] sm:h-[min(46dvh,430px)]`}>
           {tab === 'final' && result ? category === 'collar' && collarTopology && finalView !== 'garment' && finalView !== 'collar'
             ? <img alt={finalView === 'drawing' ? 'Approved clean collar drawing' : `Collar topology ${finalView}`} src={finalView === 'drawing' ? collarComparison?.cleanDrawing ?? drawing : collarTopology.previews[finalView]} className="h-full w-full object-contain p-3"/>
             : category === 'collar' && finalView === 'collar'
@@ -405,11 +404,11 @@ export function CustomAssetUpload(props: Props) {
               invalidate();
             }} onPointerUp={() => { origin.current = undefined; }} onPointerCancel={() => { origin.current = undefined; }}>
               <img alt="Original reference" draggable={false} src={image} className="max-h-[min(32dvh,280px)] max-w-full object-contain sm:max-h-[min(46dvh,430px)]"/>
-              <div className="pointer-events-none absolute border-2 border-emerald-500 bg-emerald-400/10" style={{ left: `${crop[0] * 100}%`, top: `${crop[1] * 100}%`, width: `${(crop[2] - crop[0]) * 100}%`, height: `${(crop[3] - crop[1]) * 100}%` }}/>
-            </div> : <Upload className="size-8 text-neutral-400"/>}
+              <div className="pointer-events-none absolute border-2 border-slate-500 bg-slate-400/10" style={{ left: `${crop[0] * 100}%`, top: `${crop[1] * 100}%`, width: `${(crop[2] - crop[0]) * 100}%`, height: `${(crop[3] - crop[1]) * 100}%` }}/>
+            </div> : <button type="button" className="drawing-upload-empty" onClick={()=>input.current?.click()}><span className="drawing-upload-icon"><ImagePlus size={27}/></span><strong>Add your {source==='photo'?'photo':'drawing'}</strong><span>{source==='photo'?'Use a clear, front-facing photo with the construction visible.':'Choose clean linework on a plain background.'}</span><i>Choose image <Upload size={13}/></i><small>PNG, JPG or WebP · up to 12 MB</small></button>}
         </div>}
         {collarComparison && <section aria-label="Collar reference comparison" className="min-w-0 space-y-3 border-t border-white/15 pt-3">
-          <p role="status" aria-label="Collar drawing match" className={`text-sm font-semibold ${collarComparison.review.status === 'Rejected' ? 'text-red-300' : collarComparison.review.status === 'Needs Review' ? 'text-amber-200' : 'text-emerald-300'}`}>{collarComparison.review.status}</p>
+          <p role="status" aria-label="Collar drawing match" className={`text-sm font-semibold ${collarComparison.review.status === 'Rejected' ? 'text-red-300' : collarComparison.review.status === 'Needs Review' ? 'text-amber-200' : 'text-slate-300'}`}>{collarComparison.review.status}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <figure className="min-w-0"><figcaption className="mb-1 text-xs text-white/70">Source crop</figcaption><img src={collarComparison.sourceCrop} alt="Source crop used for collar comparison" className="h-64 w-full rounded bg-[#eeeeec] object-contain"/></figure>
             <figure className="min-w-0"><figcaption className="mb-1 text-xs text-white/70">Generated clean drawing</figcaption><img src={collarComparison.cleanDrawing} alt="Generated collar drawing reviewed by validator" className="h-64 w-full rounded bg-[#eeeeec] object-contain"/></figure>
@@ -454,9 +453,9 @@ export function CustomAssetUpload(props: Props) {
         {proposal && !busy && <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Confirm sleeve area">
           <span className="mr-auto text-xs">Confirm sleeve area</span>
           <button className={control} onClick={() => { setTab('drawing'); setIsolationView('context'); setAdjustingIsolation(true); }}><Pencil className="mr-1 inline size-3.5"/>Adjust</button>
-          <button className={`${control} !bg-emerald-700`} onClick={() => process(true)}><Check className="mr-1 inline size-3.5"/>Confirm</button>
+          <button className={`${control} !bg-slate-700`} onClick={() => process(true)}><Check className="mr-1 inline size-3.5"/>Confirm</button>
         </div>}
-        {busy && <p role="status" className="flex items-center gap-2 text-xs text-emerald-300"><LoaderCircle className="size-4 shrink-0 animate-spin"/>{progress}…</p>}
+        {busy && <p role="status" className="flex items-center gap-2 text-xs text-slate-300"><LoaderCircle className="size-4 shrink-0 animate-spin"/>{progress}…</p>}
         {!busy && result?.sleeveReview && category === 'sleeve' && <p role="status" aria-label="Sleeve drawing match" className="text-xs text-white/80">
           Clean drawing: {result.sleeveReview.status}
         </p>}
@@ -470,12 +469,12 @@ export function CustomAssetUpload(props: Props) {
           </div>)}
         </section>}
         {error && <div role="alert" className="flex items-start gap-2 rounded-md border border-red-400/25 bg-red-400/10 p-3 text-xs text-red-200"><AlertCircle className="size-4 shrink-0"/><span className="min-w-0 break-words">{category === 'sleeve' ? `Rejected: ${error}` : error}</span></div>}
-        <div className="flex flex-wrap justify-between gap-3 border-t border-white/10 pt-3">
+        <div className="drawing-dialog-footer flex flex-wrap justify-between gap-3 border-t border-white/10 pt-3">
           <div className="flex gap-2"><button className={control} disabled={busy || !image || category === 'sleeve'} onClick={() => { invalidate(); setCropping(true); }}><Crop className="mr-1 inline size-3.5"/>Adjust Crop</button>
             <button title="Reset crop" aria-label="Reset crop" className={control} disabled={busy || !image} onClick={() => { setCrop([0, 0, 1, 1]); invalidate(); }}><RotateCcw className="size-3.5"/></button></div>
           <div className="flex gap-2"><button className={control} onClick={() => { cancel(); setOpen(false); }}><X className="mr-1 inline size-3.5"/>Cancel</button>
-            <button className={control} disabled={busy || !image || !!limited} onClick={() => process()}>{result || error || proposal ? 'Retry' : 'Process'}</button>
-            <button className={`${control} !bg-emerald-700`} disabled={busy || !result || collarComparison?.review.status === 'Rejected' || (collarComparison?.review.status === 'Needs Review' && !reviewed) || (Boolean(result?.sleeveReconstruction) && (!reviewed || results.some(asset => asset.sleeveReconstruction && sleeveGeometry(asset.sleeveReconstruction).issues.length > 0)))} onClick={() => {
+            <button className={control} disabled={busy || !image || !!limited} onClick={() => process()}>{result || error || proposal ? 'Try again' : source === 'photo' ? 'Generate drawing' : 'Trace drawing'}</button>
+            <button className={`${control} !bg-slate-700`} disabled={busy || !result || collarComparison?.review.status === 'Rejected' || (collarComparison?.review.status === 'Needs Review' && !reviewed) || (Boolean(result?.sleeveReconstruction) && (!reviewed || results.some(asset => asset.sleeveReconstruction && sleeveGeometry(asset.sleeveReconstruction).issues.length > 0)))} onClick={() => {
               if (!result || result.category !== props.category || contextRef.current !== context || busyRef.current || accepted.current) return;
               if (collarComparison?.review.status === 'Rejected' || (collarComparison?.review.status === 'Needs Review' && !reviewed)) return;
               if (result.sleeveReconstruction && (!reviewed || results.some(asset => asset.sleeveReconstruction && sleeveGeometry(asset.sleeveReconstruction).issues.length > 0))) return;
@@ -483,7 +482,7 @@ export function CustomAssetUpload(props: Props) {
               props.onAccept(result, results.slice(1), collarEdits);
               setOpen(false);
               cancel();
-            }}><Check className="mr-1 inline size-3.5"/>Accept</button></div>
+            }}><Check className="mr-1 inline size-3.5"/>Apply to garment</button></div>
         </div>
       </DialogContent>
     </Dialog>

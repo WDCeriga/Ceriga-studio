@@ -1,0 +1,1 @@
+.sleeve-shape-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sleeve-shape-grid>button svg{width:100%;height:65px}.sleeve-measurement-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sleeve-measurement-grid>div{padding:10px}.sleeve-measurement-grid strong{font-size:19px}
