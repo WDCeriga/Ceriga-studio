@@ -52,15 +52,15 @@ export function constrainNeckLabel(label: GarmentLabel, layers: LabelAttachmentL
   const maxWidth = Math.max(0, Math.floor((area.maxX - area.minX) / unit * 10) / 10);
   const maxHeight = Math.max(0, Math.floor((area.maxY - area.minY) / unit * 10) / 10);
   if (!maxWidth || !maxHeight) return label;
-  let widthMm = Math.min(label.widthMm, maxWidth);
-  let heightMm = Math.min(label.heightMm, maxHeight);
+  let widthMm = label.widthMm;
+  let heightMm = label.heightMm;
   if (['circle', 'square'].includes(label.shape)) widthMm = heightMm = Math.min(widthMm, heightMm);
-  const horizontalRoom = (maxWidth - widthMm) / 2;
+  const horizontalRoom = Math.max(0, (maxWidth - widthMm) / 2);
   const shift = label.position === 'neck-left' ? -horizontalRoom : label.position === 'neck-right' ? horizontalRoom : 0;
   return { ...label, widthMm, heightMm, marginMm: Math.min(label.marginMm, widthMm / 3, heightMm / 3), rotation: 0,
     position: label.position === 'neck-outside' ? 'neck-inside' as const : label.position,
     offsetXmm: clamp(label.offsetXmm, -horizontalRoom - shift, horizontalRoom - shift),
-    offsetYmm: clamp(label.offsetYmm, 0, maxHeight - heightMm) };
+    offsetYmm: clamp(label.offsetYmm, 0, Math.max(0, maxHeight - heightMm)) };
 }
 const masks = new Map<string, Promise<Mask>>();
 export function labelAttachmentMask(raw: string): Promise<Mask> {
@@ -132,7 +132,7 @@ export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer
     const centerX = (neck.minX + neck.maxX) / 2;
     const shift = label.position === 'neck-left' ? -(neck.maxX - neck.minX - width) / 2 : label.position === 'neck-right' ? (neck.maxX - neck.minX - width) / 2 : 0;
     x = clamp(centerX + shift + offsetX, neck.minX + width / 2, neck.maxX - width / 2);
-    y = clamp(neck.minY + offsetY, neck.minY, neck.maxY - height);
+    y = neck.minY + Math.max(0, offsetY);
   } else if (label.position.startsWith('sleeve-')) {
     const side = label.position.endsWith('left') ? 'Left' : 'Right';
     layer = layers.find(entry => entry.id === `${label.sleeveLayer === 'under' ? 'underSleeve' : 'sleeve'}${side}`) ?? layers.find(entry => entry.id === `sleeve${side}`) ?? base;
@@ -180,11 +180,6 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
   useEffect(() => {
     if (gesture.current && gesture.current.label.id !== selectedId) { gesture.current = null; draftRef.current = null; setDraft(null); }
   }, [selectedId]);
-  useEffect(() => {
-    if (manualPlacement || !onChange || view !== 'front' || !maskById.innerBackNeck) return;
-    const constrained = labels.map(label => constrainNeckLabel(label, layers, referenceWidthMm, maskById));
-    if (constrained.some((label, index) => JSON.stringify(label) !== JSON.stringify(labels[index]))) onChange(constrained);
-  }, [labels, layerKey, referenceWidthMm, maskById, view, onChange, manualPlacement]);
   const selected = labels.find(label => label.id === selectedId);
   const place = (label: GarmentLabel) => manualPlacement && label.manualPosition === undefined ? null : labelPlacement(label, layers, referenceWidthMm, maskById, manualBounds);
   const placement = selected && labelVisible(selected, view, interior) ? place(selected) : null;

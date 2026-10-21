@@ -1,0 +1,38 @@
+import {build} from 'esbuild';
+import {spawnSync} from 'node:child_process';
+const result=await build({stdin:{contents:`
+import assert from 'node:assert/strict';
+import {createGarmentLabel,normalizeLabel,generatedCareText,labelSpecification,labelWarnings,labelVisible,unfoldedLabelSize,switchTagFace,labelBlocks,applyLabelPreset} from './src/app/data/garmentLabels';
+let checks=0;function check(value:boolean,title:string){assert.ok(value,title);checks++;console.log('PASS '+title)}
+const care=createGarmentLabel('care');
+check(!Object.values(care.care).some(Boolean),'Care instructions are empty until explicitly chosen');
+check(!generatedCareText(care),'Care preview never substitutes illustrative instructions');
+check(!care.composition,'Composition is not invented for new care labels');
+check(labelWarnings(care).includes('Care information awaits manufacturer confirmation'),'Unconfirmed care labels are marked incomplete');
+const chosen=normalizeLabel({...care,care:{washing:'40',bleaching:'no',drying:'line',ironing:'low',cleaning:'no'},careConfirmed:true,composition:'80% Cotton, 20% Polyester',origin:'Portugal'});
+check(generatedCareText(chosen).includes('40 C')&&!generatedCareText(chosen).includes('30 C'),'Preview uses selected washing instruction');
+const spec=labelSpecification(chosen);
+check(spec.care.washing==='40'&&spec.careConfirmed&&spec.careText.includes('40 C'),'Production export preserves confirmed care choices');
+check(!labelWarnings(chosen).includes('Care information awaits manufacturer confirmation'),'Confirmed care state survives normalization');
+const neck=createGarmentLabel('neck');
+check(neck.heightMm===25,'Default neck label retains its requested finished size');
+check(unfoldedLabelSize(neck).width===60,'End fold includes two fold allowances');
+check(unfoldedLabelSize({...neck,fold:'centre'}).height===50,'Centre fold doubles finished height');
+check(normalizeLabel({...neck,construction:'printed',method:'woven'}).method==='heat','Direct printing cannot retain a woven method');
+check(normalizeLabel({...neck,construction:'printed',fold:'end'}).fold==='straight','Direct print has no physical folded construction');
+check(normalizeLabel({...neck,shape:'circle',widthMm:30,heightMm:90}).heightMm===30,'Circle dimensions remain consistent');
+check(normalizeLabel({...neck,widthMm:NaN,heightMm:-10}).widthMm===40,'Invalid dimensions safely normalize');
+const hang=createGarmentLabel('hand');
+check(hang.method==='card'&&normalizeLabel(hang).method==='card','Hangtags use printed card rather than fabric');
+const back=switchTagFace(hang,'back');
+check(!back.brand&&switchTagFace(back,'front').brand===hang.brand,'Hangtag faces save independent artwork');
+check(!labelVisible(hang,'front'),'Standalone hangtags are not accidentally drawn on garment');
+check(!labelVisible({...neck,position:'neck-outside'},'front')&&labelVisible({...neck,position:'neck-outside'},'back'),'Exterior back labels respect garment side');
+const manual=createGarmentLabel('tag',true);
+check(!labelVisible(manual,'front'),'Unplaced manual tags stay off canvas');
+check(labelVisible({...manual,manualPosition:{x:.5,y:.5}},'front'),'Explicit manual position makes tag visible');
+check(applyLabelPreset(neck,'size-led').blocks?.[0].key==='size','Size-first preset reorders actual artwork content');
+check(labelBlocks(care).find(b=>b.key==='careText')?.enabled,'Care labels expose care content from the start');
+console.log(checks+' label studio checks passed');
+`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'cjs',write:false});
+const run=spawnSync(process.execPath,['-e',result.outputFiles[0].text],{stdio:'inherit'});process.exitCode=run.status??1;

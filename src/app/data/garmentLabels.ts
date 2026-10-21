@@ -8,7 +8,7 @@ export const DEFAULT_REGION_TRANSFORM: LabelRegionTransform = { x: 0, y: 0, scal
 export const LABEL_PRESETS = { classic: 'Classic', framed: 'Framed', minimal: 'Essential', 'brand-led': 'Brand first', 'size-led': 'Size first', 'care-stack': 'Care stack' } as const;
 export const LABEL_SIZE_VERTICAL = { top: 'Top', 'upper-middle': 'Upper Middle', center: 'Centre', 'lower-middle': 'Lower Middle', bottom: 'Bottom' } as const;
 export const LABEL_SHAPES = { rectangle: 'Rectangle', rounded: 'Rounded rectangle', square: 'Square', oval: 'Oval', circle: 'Circle', horizontal: 'Narrow horizontal', vertical: 'Vertical', custom: 'Custom dimensions' } as const;
-export const LABEL_METHODS = { woven: 'Woven', fabric: 'Printed fabric', heat: 'Heat-transfer print', dtf: 'DTF', dtg: 'DTG', screen: 'Screen print' } as const;
+export const LABEL_METHODS = { card: 'Printed card', woven: 'Woven', fabric: 'Printed fabric', heat: 'Heat-transfer print', dtf: 'DTF', dtg: 'DTG', screen: 'Screen print' } as const;
 export const LABEL_FONTS = ['Inter', 'Arial', 'Helvetica', 'Montserrat', 'Poppins', 'Georgia'];
 export const LABEL_POSITIONS = {
   'neck-inside': 'Inside back neck - centered', 'neck-left': 'Inside back neck - left', 'neck-right': 'Inside back neck - right',
@@ -40,10 +40,11 @@ export interface LabelBlock {
   spaceBelowMm: number;
   share: number;
 }
-export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'position' | 'offsetXmm' | 'offsetYmm' | 'rotation' | 'sleeveLayer'>;
-const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'position', 'offsetXmm', 'offsetYmm', 'rotation', 'sleeveLayer'] as const;
+export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'position' | 'offsetXmm' | 'offsetYmm' | 'rotation' | 'sleeveLayer'>;
+const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'position', 'offsetXmm', 'offsetYmm', 'rotation', 'sleeveLayer'] as const;
 export interface GarmentLabel {
   id: string;
+  name?: string;
   category: LabelCategory;
   construction: 'physical' | 'printed';
   method: keyof typeof LABEL_METHODS;
@@ -82,6 +83,7 @@ export interface GarmentLabel {
   business: string;
   additional: string;
   careText: string;
+  careConfirmed?: boolean;
   care: Record<CareCategory, string>;
   editingMode?: 'preset' | 'custom';
   preset?: keyof typeof LABEL_PRESETS;
@@ -99,7 +101,7 @@ export const MANUFACTURER_CARE_NOTE = 'Manufacturer will add care label based on
 export const PREVIEW_CARE: Record<CareCategory, string> = { washing: '30', bleaching: 'no', drying: 'low', ironing: 'low', cleaning: 'no' };
 
 export function generatedCareText(label: GarmentLabel) {
-  const care = label.blocks ? PREVIEW_CARE : label.care;
+  const care = label.care;
   return (Object.keys(CARE_OPTIONS) as CareCategory[]).map(key => (CARE_OPTIONS[key] as Record<string, string>)[care[key]] ?? '').filter(text => text && text !== 'Incomplete').join('\n');
 }
 
@@ -160,19 +162,19 @@ export function labelPositions(category: LabelCategory): LabelPosition[] {
 export function createGarmentLabel(category: LabelCategory, manualPlacement = false): GarmentLabel {
   const label: GarmentLabel = {
     ...(manualPlacement && category !== 'hand' ? { manualPosition: null } : {}),
-    id: crypto.randomUUID(), category, construction: 'physical', method: category === 'care' || category === 'hand' ? 'fabric' : 'woven', fold: category === 'neck' ? 'end' : category === 'hand' ? 'die' : 'centre',
+    id: crypto.randomUUID(), category, construction: 'physical', method: category === 'hand' ? 'card' : category === 'care' ? 'fabric' : 'woven', fold: category === 'neck' ? 'end' : category === 'hand' ? 'die' : 'centre',
     shape: category === 'care' ? 'vertical' : 'rectangle', widthMm: category === 'care' ? 40 : category === 'tag' ? 20 : 50,
     heightMm: category === 'care' ? 100 : category === 'hand' ? 85 : 25, foldMm: 5, marginMm: 2,
     background: '#ffffff', foreground: '#171717', border: '#555555', borderEnabled: false,
     brand: category === 'tag' ? '' : 'YOUR BRAND', logoWidth: 70, logoX: 50, logoY: 50, font: 'Montserrat', fontSizeMm: category === 'neck' ? 4.5 : 3, fontWeight: 600, letterSpacingMm: 0, textAlign: 'center',
     position: labelPositions(category)[0], exteriorView: 'front', offsetXmm: 0, offsetYmm: 0, rotation: 0,
-    size: category === 'tag' ? '' : 'M', composition: category === 'care' ? '100% COTTON' : category === 'hand' ? 'ESSENTIAL COLLECTION' : '',
+    size: category === 'tag' ? '' : 'M', composition: category === 'care' ? '' : category === 'hand' ? 'ESSENTIAL COLLECTION' : '',
     origin: category === 'care' ? '[COUNTRY OF ORIGIN]' : '', business: '',
-    additional: '', careText: category === 'care' ? MANUFACTURER_CARE_NOTE : '',
+    additional: '', careText: '',
     care: { washing: '', bleaching: '', drying: '', ironing: '', cleaning: '' },
     editingMode: 'preset', preset: 'classic', sizePosition: 'center', sizeVertical: 'center', sizeFontSizeMm: category === 'neck' ? 4 : 3.45, sizeScale: 100, regions: {},
   };
-  const blocks = labelBlocks(label);
+  const blocks = labelBlocks(label).map(block => category === 'care' && ['composition','careText','origin'].includes(block.key) ? {...block,enabled:true} : block);
   return { ...label, careText: category === 'care' ? generatedCareText({ ...label, blocks }) : '', blocks, hierarchy: 'brand-first' };
 }
 
@@ -202,7 +204,7 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
   const heightMm = ['circle', 'square'].includes(label.shape) ? widthMm : finite(label.heightMm, 25, 8, 250);
   return { ...label, widthMm, heightMm,
     construction: printed ? 'printed' : 'physical',
-    method: printed ? (['heat', 'dtf', 'dtg', 'screen'].includes(label.method) ? label.method : 'heat') : (['woven', 'fabric'].includes(label.method) ? label.method : 'woven'),
+    method: label.category === 'hand' ? 'card' : printed ? (['heat', 'dtf', 'dtg', 'screen'].includes(label.method) ? label.method : 'heat') : (['woven', 'fabric'].includes(label.method) ? label.method : 'woven'),
     fold: printed ? 'straight' : curved ? 'die' : label.fold,
     borderEnabled: label.borderEnabled,
     position: labelPositions(label.category).includes(label.position) ? label.position : labelPositions(label.category)[0],
@@ -252,9 +254,10 @@ export function isInteriorLabel(label: GarmentLabel) {
 export function labelVisible(label: GarmentLabel, view: 'front' | 'back', interior = false) {
   if (label.category === 'hand') return false;
   if (label.manualPosition !== undefined) return Boolean(label.manualPosition) && view === label.exteriorView;
+  if (label.position === 'neck-outside') return view === 'back' && !interior;
   if (label.category === 'neck' || label.position.startsWith('neck-')) return view === 'front';
   if (isInteriorLabel(label)) return interior;
-  return !interior && (label.position === 'neck-outside' ? view === 'back' : view === label.exteriorView);
+  return !interior && view === label.exteriorView;
 }
 
 export function labelTextLines(label: GarmentLabel) {
@@ -279,6 +282,8 @@ export function labelWarnings(label: GarmentLabel) {
     for (const block of label.blocks.filter(block => block.enabled)) {
       if (block.key !== 'careText' && !(block.key === 'brand' && label.logo) && !label[block.key].trim()) warnings.push(`${LABEL_BLOCKS[block.key]} incomplete`);
     }
+    if (label.category === 'care' && Object.values(label.care).some(value=>!value)) warnings.push('Complete the care instructions before production');
+    if (label.category === 'care' && !label.careConfirmed) warnings.push('Care information awaits manufacturer confirmation');
     return warnings;
   }
   if (!label.brand.trim() && !label.logo) warnings.push('Brand artwork incomplete');
@@ -296,7 +301,7 @@ export function labelWarnings(label: GarmentLabel) {
 export function labelSpecification(label: GarmentLabel) {
   if (label.category === 'hand') label = { ...normalizeLabel(label), faces: Object.fromEntries(labelExportFaces(label).map(face => [face.exteriorView, captureTagFace(face)])) };
   return { ...label, ...(['tag', 'hand'].includes(label.category) && label.faces ? { faces: { ...label.faces, [label.exteriorView]: captureTagFace(label) } } : {}), categoryName: LABEL_CATEGORIES[label.category], manufacturingMethod: LABEL_METHODS[label.method], attachment: label.category === 'hand' ? 'Standalone hand tag' : label.manualPosition !== undefined ? label.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[label.position],
-    ...(label.blocks ? { care: { washing: '', bleaching: '', drying: '', ironing: '', cleaning: '' }, careText: label.blocks.some(block => block.key === 'careText' && block.enabled) ? MANUFACTURER_CARE_NOTE : '', careResponsibility: 'manufacturer' } : {}),
+    careResponsibility: label.careConfirmed ? 'confirmed by user' : 'awaiting manufacturer confirmation',
     finishedMm: { width: label.widthMm, height: label.heightMm }, unfoldedMm: unfoldedLabelSize(label),
     incomplete: labelWarnings(label), productionNote: 'Confirm fold allowances, care instructions, artwork and attachment with the manufacturer before production.' };
 }
