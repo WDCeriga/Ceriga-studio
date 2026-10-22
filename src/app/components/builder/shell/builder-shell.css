@@ -1103,3 +1103,6 @@
  .new-builder-canvas>.measurement-guides-toggle .guides-label-phone{display:inline}
  .measurement-guides-toggle-phone{display:none!important}
 }
+
+/* All builder pages share a plain white drawing canvas. */
+.ceriga-builder-shell .builder-workspace,.ceriga-builder-shell .new-builder-canvas,.ceriga-builder-shell .new-canvas-area,.ceriga-builder-shell .label-preview-studio,.ceriga-builder-shell .label-direct-editor,.ceriga-builder-shell .label-direct-stage{background-color:#fff!important;background-image:none!important}
