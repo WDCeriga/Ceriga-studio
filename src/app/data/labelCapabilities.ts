@@ -2,8 +2,8 @@ import {labelBlocks,normalizeLabel, type GarmentLabel, type LabelBlockKey} from 
 /** Content is explicit artwork, never an automatically generated garment-care recommendation. */
 export function labelContentKeys(label:GarmentLabel):LabelBlockKey[]{
  if(label.name==='Size label')return ['size'];
- if(label.category==='tag')return ['brand','additional'];
- if(label.category==='hand')return ['brand','size','additional','origin','business'];
+ if(label.category==='tag')return ['brand','additional','composition'];
+ if(label.category==='hand')return ['brand','size','additional','origin','business','composition'];
  if(label.category==='care')return ['brand','size','composition','careText','origin','business','additional'];
  return ['brand','size','composition',...(label.construction==='printed'?['careText' as const]:[]),'origin','business','additional'];
 }

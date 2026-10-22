@@ -1,5 +1,6 @@
+import {ArtworkSelection} from './ArtworkSelection';
 import { useId, useRef, type PointerEvent } from 'react';
-import { packagingTemplate, panelSize, printRegion, constrainPackagingElement, type PackagingDesign, type PackagingElement, type PackagingPanel, type PackagingView } from '../../data/packaging';
+import { packagingTemplate, panelSize, printRegion, packagingElementRegion, constrainPackagingElement, type PackagingDesign, type PackagingElement, type PackagingPanel, type PackagingView } from '../../data/packaging';
 
 interface ArtworkProps {
   design: PackagingDesign;
@@ -28,18 +29,18 @@ export function PackagingSurface({ design, panel, guides, selectedId, onSelect, 
     const original=drag.current.element,dx=position.x-drag.current.x,dy=position.y-drag.current.y;
     const angle=original.rotation*Math.PI/180,localX=dx*Math.cos(angle)+dy*Math.sin(angle),localY=-dx*Math.sin(angle)+dy*Math.cos(angle);
     const factor=Math.max(.05,1+2*(localX*original.width+localY*original.height)/(original.width**2+original.height**2));
-    const proposed = drag.current.resize?{...original,width:original.width*factor,height:original.height*factor,fontSize:original.fontSize*factor}:{ ...original, x: original.x + dx, y: original.y + dy };
-    const constrained = constrainPackagingElement(proposed, region);
+    const proposed = drag.current.resize?{...original,fullPanel:false,width:original.width*factor,height:original.height*factor,fontSize:original.fontSize*factor}:{ ...original,fullPanel:false, x: original.x + dx, y: original.y + dy };
+    const constrained = constrainPackagingElement(proposed, packagingElementRegion(design,proposed));
     onElementChange?.(constrained, Math.abs(proposed.x - constrained.x) > 0.01 || Math.abs(proposed.y - constrained.y) > 0.01 || Math.abs(proposed.width-constrained.width)>.01);
   }} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
     <defs><clipPath id={`${unique}-safe`}><rect {...region} /></clipPath></defs>
-    <g clipPath={`url(#${unique}-safe)`}>
-      {design.elements.filter(element => element.panel === panel).map(element => <g key={element.id} data-packaging-element={element.id}
+    {[true,false].map(background=><g key={String(background)} clipPath={background?undefined:`url(#${unique}-safe)`}>
+      {design.elements.filter(element => element.panel === panel && (element.kind==='section')===background).map(element => <g key={element.id} data-packaging-element={element.id} tabIndex={onSelect?0:undefined} role={onSelect?"button":undefined} aria-label={onSelect?`Select ${element.name}`:undefined}
         transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
         style={{ cursor: onElementChange ? 'move' : undefined, touchAction: 'none' }}
         onPointerDown={event => {
           if (!onElementChange || event.button !== 0) return;
-          event.preventDefault(); event.stopPropagation(); onSelect?.(element.id);
+          event.preventDefault(); event.stopPropagation();event.currentTarget.focus({preventScroll:true}); onSelect?.(element.id);
           const surface = event.currentTarget.parentElement?.parentElement as unknown as SVGGElement;
           const matrix = surface.getScreenCTM();
           if (!matrix) return;
@@ -47,13 +48,12 @@ export function PackagingSurface({ design, panel, guides, selectedId, onSelect, 
           drag.current = { pointer: event.pointerId, x: position.x, y: position.y, element };
           surface.setPointerCapture(event.pointerId);
         }}>
-        {element.kind === 'text' ? <svg x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} overflow="hidden">
+        {element.kind==='section'?<rect data-packaging-colour-section="" x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.color}/>:element.kind === 'text' ? <svg x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} overflow="hidden">
           <text x={element.align === 'left' ? 0 : element.align === 'right' ? element.width : element.width / 2} y={element.height / 2} dominantBaseline="central" textAnchor={element.align === 'left' ? 'start' : element.align === 'right' ? 'end' : 'middle'} fontFamily={element.font} fontSize={element.fontSize} fill={element.color} letterSpacing="0">{element.content}</text>
         </svg> : <image href={element.content} x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} preserveAspectRatio="xMidYMid meet" />}
-        {selectedId === element.id && <rect data-packaging-handle="selection" x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} fill="none" stroke="#7892a5" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
-        {selectedId===element.id&&onElementChange&&<rect data-packaging-handle="resize" role="button" aria-label={`Resize ${element.name}`} tabIndex={0} x={element.width/2-Math.min(region.width,region.height)/40} y={element.height/2-Math.min(region.width,region.height)/40} width={Math.min(region.width,region.height)/20} height={Math.min(region.width,region.height)/20} fill="white" stroke="#7892a5" strokeWidth="1" vectorEffect="non-scaling-stroke" style={{cursor:'nwse-resize',touchAction:'none'}} onPointerDown={event=>{if(event.button!==0)return;event.stopPropagation();event.preventDefault();const surface=event.currentTarget.parentElement?.parentElement?.parentElement as unknown as SVGGElement;const matrix=surface.getScreenCTM();if(!matrix)return;const position=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());drag.current={pointer:event.pointerId,x:position.x,y:position.y,element,resize:true};surface.setPointerCapture(event.pointerId)}}/>}
+        {selectedId===element.id&&<ArtworkSelection kind="packaging" box={{x:-element.width/2,y:-element.height/2,width:element.width,height:element.height}} unit={Math.min(region.width,region.height)} resizeLabel={`Resize ${element.name}`} onResize={onElementChange?event=>{if(event.button!==0)return;event.stopPropagation();event.preventDefault();const surface=event.currentTarget.closest('[data-packaging-surface]') as unknown as SVGGElement;const matrix=surface.getScreenCTM();if(!matrix)return;const position=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());drag.current={pointer:event.pointerId,x:position.x,y:position.y,element,resize:true};surface.setPointerCapture(event.pointerId)}:undefined}/>}
       </g>)}
-    </g>
+    </g>)}
     {guides && <rect data-packaging-guide="safe" {...region} fill="none" stroke="#28a99d" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="5 4" pointerEvents="none" />}
   </g>;
 }

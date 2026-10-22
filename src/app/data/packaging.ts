@@ -37,8 +37,9 @@ export const PACKAGING_TEMPLATES: PackagingTemplate[] = [
 ];
 export const PANEL_NAMES: Record<PackagingPanel, string> = { front: 'Front', back: 'Back', top: 'Top / lid', left: 'Left side', right: 'Right side', 'interior-lid': 'Interior lid', 'interior-base': 'Interior base' };
 export interface PackagingElement {
+  fullPanel?: boolean;
   id: string;
-  kind: 'logo' | 'artwork' | 'text';
+  kind: 'logo' | 'artwork' | 'text' | 'section';
   panel: PackagingPanel;
   content: string;
   name: string;
@@ -135,8 +136,9 @@ export function fitPackagingElement(element: PackagingElement, region: PrintRect
   const factor = Math.min(region.width * 0.62 / element.width, region.height * 0.35 / element.height);
   return constrainPackagingElement({ ...element, x: region.x + region.width / 2, y: region.y + region.height / 2, width: element.width * factor, height: element.height * factor, fontSize: element.fontSize * factor }, region);
 }
+export function packagingElementRegion(design:PackagingDesign,element:PackagingElement):PrintRect{return element.kind==='section'?{x:0,y:0,...panelSize(design,element.panel)}:printRegion(design,element.panel)}
 export function normalizePackagingDesign(design: PackagingDesign): PackagingDesign {
-  return { ...design, elements: design.elements.map(element => constrainPackagingElement(element, printRegion(design, element.panel))) };
+  return { ...design, elements: design.elements.map(element => constrainPackagingElement(element.kind==='section'&&element.fullPanel?{...element,...panelSize(design,element.panel),x:panelSize(design,element.panel).width/2,y:panelSize(design,element.panel).height/2,rotation:0}:element, packagingElementRegion(design, element))) };
 }
 export function packagingDimensionError(dimensions: PackagingDesign['dimensions'], category: PackagingCategory): string | undefined {
   if (![dimensions.width, dimensions.height].every(value => Number.isFinite(value) && value >= 100 && value <= 1000)) return 'Width and length must be between 100 and 1000 mm.';
@@ -160,13 +162,13 @@ export function packagingSummary(design: PackagingDesign): [string, string][] {
   rows.push(['Dimensions', design.dimensionsConfirmed ? `${design.dimensions.width} x ${design.dimensions.height}${design.category === 'box' ? ` x ${design.dimensions.depth}` : ''} mm (requested)` : 'Not selected; manufacturer to confirm']);
   if (design.category === 'mailer') rows.push(['Shipping-label reservation', design.shippingLabel ? 'Front right; reserved' : 'Disabled']);
   rows.push(['Printed surfaces', [...new Set(design.elements.map(element => PANEL_NAMES[element.panel]))].join(', ') || 'None']);
-  for (const element of design.elements) rows.push([`${PANEL_NAMES[element.panel]} / ${element.name}`, `${element.kind === 'text' ? element.content : element.kind}; ${element.width.toFixed(1)} x ${element.height.toFixed(1)} mm; centre ${element.x.toFixed(1)}, ${element.y.toFixed(1)} mm; ${element.rotation} deg${element.kind === 'text' ? `; ${element.font}; ${element.color}` : ''}`]);
+  for (const element of design.elements) rows.push([`${PANEL_NAMES[element.panel]} / ${element.name}`, `${element.kind === 'text' ? element.content : element.kind}; ${element.width.toFixed(1)} x ${element.height.toFixed(1)} mm; centre ${element.x.toFixed(1)}, ${element.y.toFixed(1)} mm; ${element.rotation} deg${element.kind === 'text' ? `; ${element.font}; ${element.color}` : element.kind==='section'?`; ${element.color}`:''}`]);
   if (design.notes.trim()) rows.push(['Manufacturing request', design.notes.trim()]);
   rows.push(['Production status', 'Concept only. Confirm dieline, material, colour, dimensions and print compatibility with manufacturer.']);
   return rows;
 }
 export function mapPackagingImages(state: PackagingState | undefined, mapper: (content: string) => string): PackagingState | undefined {
   if (!state) return state;
-  const mapDesign = (design: PackagingDesign): PackagingDesign => ({ ...design, elements: design.elements.map(element => element.kind === 'text' ? element : { ...element, content: mapper(element.content) }) });
+  const mapDesign = (design: PackagingDesign): PackagingDesign => ({ ...design, elements: design.elements.map(element => !['logo','artwork'].includes(element.kind) ? element : { ...element, content: mapper(element.content) }) });
   return { ...state, designs: Object.fromEntries(Object.entries(state.designs).map(([key, design]) => [key, mapDesign(design)])), presets: state.presets.map(preset => ({ ...preset, design: mapDesign(preset.design) })) };
 }

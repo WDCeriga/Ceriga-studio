@@ -23,3 +23,5 @@
 .label-advanced{margin:12px 0;border-top:1px solid #e1e6ec}.label-advanced>summary{padding:12px 0;font-size:11px;color:#8192a8;cursor:pointer}
 
 @media(max-width:767px){[data-label-editing-surface]:has([data-label-direct-editor]) .label-studio-zoom{display:none!important}}
+
+.label-saved-list{gap:0}.label-saved-list>button,.label-saved-list>button[aria-pressed=true]{border:0;border-bottom:1px solid #e1e6ec;border-radius:0;background:white;padding:16px 8px;box-shadow:none}.label-saved-list>button:hover{background:#f7f9fa}.labels-studio .label-text-button{border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;padding:8px 0!important;text-align:left;color:#657d90}

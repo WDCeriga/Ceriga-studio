@@ -25,7 +25,7 @@ export const CARE_OPTIONS = {
   cleaning: { '': 'Incomplete', 'no': 'Do not dry clean', 'P': 'Professional dry clean - P', 'F': 'Professional dry clean - F' },
 } as const;
 export type CareCategory = keyof typeof CARE_OPTIONS;
-export const LABEL_BLOCKS = { brand: 'Brand / logo', size: 'Size', composition: 'Fibre composition', careText: 'Care information', origin: 'Country of origin', business: 'Company details', additional: 'Footer' } as const;
+export const LABEL_BLOCKS = { brand: 'Brand / logo', size: 'Size', careText: 'Care information', origin: 'Country of origin', business: 'Company details', additional: 'Footer', composition: 'Custom' } as const;
 export type LabelBlockKey = keyof typeof LABEL_BLOCKS;
 export const LABEL_HIERARCHIES = { 'brand-first': 'Brand first', 'size-first': 'Size first', 'large-size-top': 'Large size top', 'large-size-bottom': 'Large size bottom', inline: 'Brand + inline size', split: 'Split' } as const;
 export interface LabelBlock {
@@ -48,6 +48,7 @@ export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 
 const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout', 'designSections'] as const;
 export interface LabelDesignSection {id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
 export interface GarmentLabel {
+  contentOrderVersion?: 2;
   designSections?: LabelDesignSection[];
   id: string;
   name?: string;
@@ -115,7 +116,7 @@ export function generatedCareText(label: GarmentLabel) {
 }
 
 export function labelBlocks(label: GarmentLabel): LabelBlock[] {
-  if (label.blocks) return label.blocks;
+  if (label.blocks) return label.contentOrderVersion===2?label.blocks:[...label.blocks.filter(block=>block.key!=='composition'),...label.blocks.filter(block=>block.key==='composition')];
   return (Object.keys(LABEL_BLOCKS) as LabelBlockKey[]).map(key => ({
     key, enabled: key === 'brand' ? Boolean(label.logo || label.brand.trim()) : key === 'careText' ? Boolean(label.careText.trim() || Object.values(label.care).some(Boolean)) : Boolean(label[key].trim()),
     alignment: key === 'size' ? label.sizePosition ?? 'center' : label.textAlign,
@@ -128,9 +129,9 @@ export function labelBlocks(label: GarmentLabel): LabelBlock[] {
 
 export function applyLabelHierarchy(label: GarmentLabel, hierarchy: keyof typeof LABEL_HIERARCHIES): GarmentLabel {
   const order: LabelBlockKey[] = hierarchy === 'size-first' || hierarchy === 'large-size-top'
-    ? ['size', 'brand', 'composition', 'careText', 'origin', 'business', 'additional']
-    : hierarchy === 'large-size-bottom' ? ['brand', 'composition', 'careText', 'origin', 'business', 'additional', 'size']
-      : ['brand', 'size', 'composition', 'careText', 'origin', 'business', 'additional'];
+    ? ['size', 'brand', 'careText', 'origin', 'business', 'additional', 'composition']
+    : hierarchy === 'large-size-bottom' ? ['brand', 'careText', 'origin', 'business', 'additional', 'size', 'composition']
+      : ['brand', 'size', 'careText', 'origin', 'business', 'additional', 'composition'];
   const blocks = labelBlocks(label);
   return { ...label, hierarchy, blocks: order.map(key => {
     const block = blocks.find(candidate => candidate.key === key)!;
@@ -213,7 +214,7 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
   const curved = ['oval', 'circle'].includes(label.shape);
   const widthMm = finite(label.widthMm, 40, 8, 150);
   const heightMm = ['circle', 'square'].includes(label.shape) ? widthMm : finite(label.heightMm, 25, 8, 250);
-  return { ...label, widthMm, heightMm,
+  return { ...label, widthMm, heightMm,contentOrderVersion:2,
     designSections: label.designSections?.slice(0,50).map(section=>{const width=finite(section.width,10,1,widthMm),height=finite(section.height,5,1,heightMm);return {...section,x:finite(section.x,0,0,widthMm-width),y:finite(section.y,0,0,heightMm-height),width,height,fontSizeMm:finite(section.fontSizeMm,3,.5,100),fontWeight:finite(section.fontWeight,600,100,900),text:String(section.text??'')}}),
     cut: curved ? 'straight' : label.cut && label.cut in LABEL_CUTS ? label.cut : label.shape === 'rounded' ? 'rounded' : label.fold === 'die' ? 'angled' : 'straight',
     construction: printed ? 'printed' : 'physical',
@@ -243,7 +244,7 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
         fontSizeMm: finite(block.fontSizeMm, fallback.fontSizeMm, 1.5, 20), fontWeight: finite(block.fontWeight, fallback.fontWeight, 100, 900),
         spaceAboveMm: finite(block.spaceAboveMm, 0, 0, 20), spaceBelowMm: finite(block.spaceBelowMm, .5, 0, 20), share: finite(block.share, 1, 1, 10),
       } : { ...fallback, enabled: false };
-    }).sort((first, second) => label.blocks!.findIndex(block => block.key === first.key) - label.blocks!.findIndex(block => block.key === second.key)), careText: generatedCareText(label) } : {}),
+    }).sort((first, second) => labelBlocks(label).findIndex(block => block.key === first.key) - labelBlocks(label).findIndex(block => block.key === second.key)), careText: generatedCareText(label) } : {}),
     regions: Object.fromEntries(Object.keys(LABEL_REGIONS).map(region => {
       const value = { ...DEFAULT_REGION_TRANSFORM, ...label.regions?.[region as LabelRegion] };
       return [region, { x: finite(value.x, 0, -100, 100), y: finite(value.y, 0, -100, 100), scale: finite(value.scale, 100, 20, 150), rotation: finite(value.rotation, 0, -180, 180), flipX: Boolean(value.flipX), flipY: Boolean(value.flipY) }];
