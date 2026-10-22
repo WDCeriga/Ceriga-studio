@@ -40,12 +40,15 @@ export interface LabelBlock {
   spaceAboveMm: number;
   spaceBelowMm: number;
   share: number;
+  box?: {x:number;y:number;width:number;height:number};
   background?: string;
   fillSection?: boolean;
 }
-export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'sectionLayout'>;
-const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout'] as const;
+export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'sectionLayout' | 'designSections'>;
+const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout', 'designSections'] as const;
+export interface LabelDesignSection {id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
 export interface GarmentLabel {
+  designSections?: LabelDesignSection[];
   id: string;
   name?: string;
   category: LabelCategory;
@@ -211,6 +214,7 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
   const widthMm = finite(label.widthMm, 40, 8, 150);
   const heightMm = ['circle', 'square'].includes(label.shape) ? widthMm : finite(label.heightMm, 25, 8, 250);
   return { ...label, widthMm, heightMm,
+    designSections: label.designSections?.slice(0,50).map(section=>{const width=finite(section.width,10,1,widthMm),height=finite(section.height,5,1,heightMm);return {...section,x:finite(section.x,0,0,widthMm-width),y:finite(section.y,0,0,heightMm-height),width,height,fontSizeMm:finite(section.fontSizeMm,3,.5,100),fontWeight:finite(section.fontWeight,600,100,900),text:String(section.text??'')}}),
     cut: curved ? 'straight' : label.cut && label.cut in LABEL_CUTS ? label.cut : label.shape === 'rounded' ? 'rounded' : label.fold === 'die' ? 'angled' : 'straight',
     construction: printed ? 'printed' : 'physical',
     method: label.category === 'hand' ? 'card' : printed ? (['heat', 'dtf', 'dtg', 'screen'].includes(label.method) ? label.method : 'heat') : (['woven', 'fabric'].includes(label.method) ? label.method : 'woven'),

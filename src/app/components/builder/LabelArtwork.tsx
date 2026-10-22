@@ -52,8 +52,8 @@ function blockLabelLayout(label: GarmentLabel) {
     const leftColumn = active.filter(entry=>['brand','size'].includes(entry.key));
     const rightColumn = active.filter(entry=>!['brand','size'].includes(entry.key));
     const splitColumn = label.sectionLayout === 'columns' && leftColumn.length > 0 && rightColumn.length > 0;
-    const width = splitColumn ? usableWidth * (['brand','size'].includes(block.key) ? .35 : .65) : sectioned ? usableWidth / columnCount : row.length === 1 ? usableWidth : (usableWidth - 1) * (column === 0 ? .7 : .3);
-    const x = splitColumn ? insetX + (['brand','size'].includes(block.key) ? 0 : usableWidth * .35) : sectioned ? insetX + (sectionIndex % 2) * width : insetX + (column === 1 ? (usableWidth - 1) * .7 + 1 : 0);
+    const width = block.box ? usableWidth * block.box.width / 100 : splitColumn ? usableWidth * (['brand','size'].includes(block.key) ? .35 : .65) : sectioned ? usableWidth / columnCount : row.length === 1 ? usableWidth : (usableWidth - 1) * (column === 0 ? .7 : .3);
+    const x = block.box ? insetX + usableWidth * block.box.x / 100 : splitColumn ? insetX + (['brand','size'].includes(block.key) ? 0 : usableWidth * .35) : sectioned ? insetX + (sectionIndex % 2) * width : insetX + (column === 1 ? (usableWidth - 1) * .7 + 1 : 0);
     const hasLogo = block.key === 'brand' && Boolean(label.logo);
     const hasSymbols = block.key === 'careText' && symbols.length > 0;
     const size = block.fontSizeMm;
@@ -98,8 +98,8 @@ function blockLabelLayout(label: GarmentLabel) {
       const splitColumn = label.sectionLayout === 'columns' && active.some(entry=>['brand','size'].includes(entry.key)) && active.some(entry=>!['brand','size'].includes(entry.key));
       const columnBlocks = active.filter(entry=>['brand','size'].includes(entry.key)===['brand','size'].includes(block.key));
       const sectionRows = splitColumn ? columnBlocks.length : Math.ceil(active.length / 2);
-      const zoneHeight = sectioned ? usableHeight / sectionRows : height;
-      const zoneY = sectioned ? insetY + (splitColumn ? columnBlocks.findIndex(entry=>entry.key===block.key) : Math.floor(sectionIndex / 2)) * zoneHeight : y;
+      const zoneHeight = block.box ? usableHeight * block.box.height / 100 : sectioned ? usableHeight / sectionRows : height;
+      const zoneY = block.box ? insetY + usableHeight * block.box.y / 100 : sectioned ? insetY + (splitColumn ? columnBlocks.findIndex(entry=>entry.key===block.key) : Math.floor(sectionIndex / 2)) * zoneHeight : y;
       const availableHeight = Math.max(.01, zoneHeight - spacing);
       const fit = Math.min(block.fillSection ? 20 : 1, width * .98 / contentWidth, availableHeight / contentHeight);
       const scale = Math.max(minimumScale, fit);
@@ -248,6 +248,7 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
       {label.category === 'hand' ? <circle cx={width / 2} cy="3.5" r="1.2" fill="#e7e9ec" stroke={label.border} strokeWidth=".3" /> : <path data-label-attachment="" d={label.fold === 'end' ? `M1 1V${height - 1}M${width - 1} 1V${height - 1}` : `M1 1H${width - 1}`} fill="none" stroke={label.border} strokeWidth=".2" strokeDasharray=".6 .6" />}
       </g>
     </g>}
+    <g clipPath={`url(#${clip})`}>{label.designSections?.map(section=><rect key={section.id} data-label-design-section={section.id} x={section.x} y={section.y} width={section.width} height={section.height} fill={section.background}/>)}</g>
     <g clipPath={`url(#${clip})`}><g clipPath={`url(#${safe})`}>
       {label.borderEnabled && <rect x={layout.insetX + .1} y={layout.insetY + .1} width={Math.max(0, layout.usableWidth - .2)} height={Math.max(0, layout.usableHeight - .2)} fill="none" stroke={label.border} strokeWidth=".2" />}
       {label.preset === 'framed' && layout.zones.slice(1).map(zone => <path key={zone.key} d={`M${zone.x} ${zone.y}H${zone.x + zone.width}`} stroke={label.foreground} strokeWidth=".2" opacity=".45" />)}
@@ -259,6 +260,7 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
         {zone.hasSymbols && layout.symbols.map(([category, value], index) => <g key={category} aria-label={CARE_OPTIONS[category as CareCategory][value as never]} transform={`translate(${(index - layout.symbols.length / 2) * layout.symbolSize} ${zone.symbolsY}) scale(${layout.symbolSize / 28})`}><CareSymbol category={category as CareCategory} value={value} /></g>)}
       </g></g>)}
     </g></g>
+    <g clipPath={`url(#${clip})`}>{label.designSections?.map(section=><svg key={section.id} x={section.x} y={section.y} width={section.width} height={section.height} viewBox={`0 0 ${section.width} ${section.height}`} overflow="hidden"><text x={section.width/2} y={section.height/2} dominantBaseline="middle" textAnchor="middle" fontFamily={section.font} fontSize={section.fontSizeMm} fontWeight={section.fontWeight} fill={section.color}>{section.text}</text></svg>)}</g>
     {guide && <rect data-label-guide="" x="0" y="0" width={width} height={height} fill="none" stroke="#db4d42" strokeWidth=".3" strokeDasharray="1 1" />}
   </g>;
 }

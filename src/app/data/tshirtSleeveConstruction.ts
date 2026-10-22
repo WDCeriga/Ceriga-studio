@@ -96,6 +96,13 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const d='M'+pt(a)+curve+innerCurve+'L'+pt(outer)+outerCurve+'Z';
  let body=layers.find(l=>l.id==='base')?.svgRaw;
  if(body){const end=closedUnderarm?hemInner:u,attachment=curve+(closedUnderarm?'L'+pt(hemInner):'');body=replaceBodyArc(body,a,end,attachment,fit!=='slim');const mirrored=svgpath('M'+pt(a)+attachment).matrix([-1,0,0,1,2048,0]).toString();body=replaceBodyArc(body,{x:2048-a.x,y:a.y},{x:2048-end.x,y:end.y},mirrored.replace(/^M[^C]*C/,'C'),fit!=='slim');}
+ // The reconstructed slim torso already follows the shared sleeve attachment.
+ // A traced keep-mask from the old short sleeve otherwise clips holes into that new edge.
+ if(body&&fit==='slim'&&(long||longerShort)){
+  const doc=new DOMParser().parseFromString(body,'image/svg+xml');
+  for(const group of doc.querySelectorAll('g[mask]'))if(/(?:long|longer-short)-sleeve-torso-slim-base/.test(group.getAttribute('mask')??'')){group.removeAttribute('mask');group.setAttribute('data-constructed-slim-torso','true')}
+  body=new XMLSerializer().serializeToString(doc.documentElement);
+ }
  if(body&&(fit==='oversized'||fit==='boxy')){
   const doc=new DOMParser().parseFromString(body,'image/svg+xml');
   for(const mask of doc.querySelectorAll('mask[id*="sleeve-torso"]')){const rect=doc.createElementNS('http://www.w3.org/2000/svg','rect');rect.setAttribute('x',String(u.x));rect.setAttribute('y',String(u.y));rect.setAttribute('width',String(2048-2*u.x));rect.setAttribute('height',String(2048-u.y));rect.setAttribute('fill','white');mask.appendChild(rect);}
