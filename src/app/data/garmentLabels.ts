@@ -7,6 +7,7 @@ export interface LabelRegionTransform { x: number; y: number; scale: number; rot
 export const DEFAULT_REGION_TRANSFORM: LabelRegionTransform = { x: 0, y: 0, scale: 100, rotation: 0, flipX: false, flipY: false };
 export const LABEL_PRESETS = { classic: 'Classic', framed: 'Framed', minimal: 'Essential', 'brand-led': 'Brand first', 'size-led': 'Size first', 'care-stack': 'Care stack' } as const;
 export const LABEL_SIZE_VERTICAL = { top: 'Top', 'upper-middle': 'Upper Middle', center: 'Centre', 'lower-middle': 'Lower Middle', bottom: 'Bottom' } as const;
+export const LABEL_CUTS = { straight: 'Straight edge', rounded: 'Rounded corners', angled: 'Angled corners' } as const;
 export const LABEL_SHAPES = { rectangle: 'Rectangle', rounded: 'Rounded rectangle', square: 'Square', oval: 'Oval', circle: 'Circle', horizontal: 'Narrow horizontal', vertical: 'Vertical', custom: 'Custom dimensions' } as const;
 export const LABEL_METHODS = { card: 'Printed card', woven: 'Woven', fabric: 'Printed fabric', heat: 'Heat-transfer print', dtf: 'DTF', dtg: 'DTG', screen: 'Screen print' } as const;
 export const LABEL_FONTS = ['Inter', 'Arial', 'Helvetica', 'Montserrat', 'Poppins', 'Georgia'];
@@ -39,9 +40,11 @@ export interface LabelBlock {
   spaceAboveMm: number;
   spaceBelowMm: number;
   share: number;
+  background?: string;
+  fillSection?: boolean;
 }
-export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'position' | 'offsetXmm' | 'offsetYmm' | 'rotation' | 'sleeveLayer'>;
-const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'position', 'offsetXmm', 'offsetYmm', 'rotation', 'sleeveLayer'] as const;
+export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'sectionLayout'>;
+const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout'] as const;
 export interface GarmentLabel {
   id: string;
   name?: string;
@@ -50,6 +53,7 @@ export interface GarmentLabel {
   method: keyof typeof LABEL_METHODS;
   fold: keyof typeof LABEL_FOLDS;
   shape: keyof typeof LABEL_SHAPES;
+  cut?: keyof typeof LABEL_CUTS;
   widthMm: number;
   heightMm: number;
   foldMm: number;
@@ -71,6 +75,8 @@ export interface GarmentLabel {
   textAlign: 'left' | 'center' | 'right';
   position: LabelPosition;
   exteriorView: 'front' | 'back';
+  artworkFace?: 'front' | 'back';
+  sectionLayout?: 'stack' | 'columns' | 'grid';
   /** Undefined preserves template attachment; null awaits placement; coordinates are relative to garment bounds. */
   manualPosition?: { x: number; y: number } | null;
   sleeveLayer?: 'outer' | 'under';
@@ -135,21 +141,21 @@ function captureTagFace(label: GarmentLabel): TagFaceDesign {
 }
 
 export function switchTagFace(label: GarmentLabel, side: 'front' | 'back'): GarmentLabel {
-  if (!['tag', 'hand'].includes(label.category) || side === label.exteriorView) return label;
+  if (!['tag', 'hand'].includes(label.category) || side === (label.artworkFace ?? (label.category === 'hand' ? label.exteriorView : 'front'))) return label;
   const blank = createGarmentLabel(label.category);
   blank.brand = ''; blank.blocks = labelBlocks(blank).map(block => ({ ...block, enabled: false }));
   const design = label.faces?.[side] ?? captureTagFace(blank);
-  return { ...label, ...structuredClone(design), exteriorView: side, faces: { ...label.faces, [label.exteriorView]: captureTagFace(label) } };
+  return { ...label, ...captureTagFace({...label,...structuredClone(design)}), artworkFace: side, exteriorView: label.category === 'hand' ? side : label.exteriorView, faces: { ...label.faces, [label.artworkFace ?? (label.category === 'hand' ? label.exteriorView : 'front')]: captureTagFace(label) } };
 }
 
 export function copyTagFrontToBack(label: GarmentLabel): GarmentLabel {
-  const front = label.exteriorView === 'front' ? captureTagFace(label) : label.faces?.front;
+  const front = (label.artworkFace ?? label.exteriorView) === 'front' ? captureTagFace(label) : label.faces?.front;
   if (!front) return label;
-  return { ...label, ...(label.exteriorView === 'back' ? structuredClone(front) : {}), faces: { ...label.faces, back: structuredClone(front) } };
+  return { ...label, ...((label.artworkFace ?? label.exteriorView) === 'back' ? structuredClone(front) : {}), faces: { ...label.faces, back: structuredClone(front) } };
 }
 
 export function labelExportFaces(label: GarmentLabel): GarmentLabel[] {
-  return label.category === 'hand' ? (['front', 'back'] as const).map(side => normalizeLabel(switchTagFace(label, side))) : [label];
+  return ['tag', 'hand'].includes(label.category) ? (['front', 'back'] as const).map(side => normalizeLabel(switchTagFace(label, side))) : [label];
 }
 
 export function labelPositions(category: LabelCategory): LabelPosition[] {
@@ -163,6 +169,7 @@ export function createGarmentLabel(category: LabelCategory, manualPlacement = fa
   const label: GarmentLabel = {
     ...(manualPlacement && category !== 'hand' ? { manualPosition: null } : {}),
     id: crypto.randomUUID(), category, construction: 'physical', method: category === 'hand' ? 'card' : category === 'care' ? 'fabric' : 'woven', fold: category === 'neck' ? 'end' : category === 'hand' ? 'die' : 'centre',
+    cut: category === 'hand' ? 'angled' : 'straight',
     shape: category === 'care' ? 'vertical' : 'rectangle', widthMm: category === 'care' ? 40 : category === 'tag' ? 20 : 50,
     heightMm: category === 'care' ? 100 : category === 'hand' ? 85 : category === 'tag' ? 15 : 25, foldMm: 5, marginMm: 2,
     background: '#ffffff', foreground: '#171717', border: '#555555', borderEnabled: false,
@@ -204,6 +211,7 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
   const widthMm = finite(label.widthMm, 40, 8, 150);
   const heightMm = ['circle', 'square'].includes(label.shape) ? widthMm : finite(label.heightMm, 25, 8, 250);
   return { ...label, widthMm, heightMm,
+    cut: curved ? 'straight' : label.cut && label.cut in LABEL_CUTS ? label.cut : label.shape === 'rounded' ? 'rounded' : label.fold === 'die' ? 'angled' : 'straight',
     construction: printed ? 'printed' : 'physical',
     method: label.category === 'hand' ? 'card' : printed ? (['heat', 'dtf', 'dtg', 'screen'].includes(label.method) ? label.method : 'heat') : (['woven', 'fabric'].includes(label.method) ? label.method : 'woven'),
     fold: printed ? 'straight' : curved ? 'die' : label.fold,
@@ -300,8 +308,8 @@ export function labelWarnings(label: GarmentLabel) {
 }
 
 export function labelSpecification(label: GarmentLabel) {
-  if (label.category === 'hand') label = { ...normalizeLabel(label), faces: Object.fromEntries(labelExportFaces(label).map(face => [face.exteriorView, captureTagFace(face)])) };
-  return { ...label, ...(['tag', 'hand'].includes(label.category) && label.faces ? { faces: { ...label.faces, [label.exteriorView]: captureTagFace(label) } } : {}), categoryName: LABEL_CATEGORIES[label.category], manufacturingMethod: LABEL_METHODS[label.method], attachment: label.category === 'hand' ? 'Standalone hand tag' : label.manualPosition !== undefined ? label.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[label.position],
+  if (label.category === 'hand') label = { ...normalizeLabel(label), faces: Object.fromEntries(labelExportFaces(label).map(face => [face.artworkFace ?? face.exteriorView, captureTagFace(face)])) };
+  return { ...label, ...(['tag', 'hand'].includes(label.category) && label.faces ? { faces: { ...label.faces, [label.artworkFace ?? (label.category === 'hand' ? label.exteriorView : 'front')]: captureTagFace(label) } } : {}), categoryName: LABEL_CATEGORIES[label.category], manufacturingMethod: LABEL_METHODS[label.method], shapeName: LABEL_SHAPES[label.shape], foldName: LABEL_FOLDS[label.fold], cutName: label.construction === 'printed' ? 'Not applicable' : LABEL_CUTS[label.cut ?? (label.shape === 'rounded' ? 'rounded' : label.fold === 'die' ? 'angled' : 'straight')], attachment: label.category === 'hand' ? 'Standalone hand tag' : label.manualPosition !== undefined ? label.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[label.position],
     careResponsibility: label.careConfirmed ? 'confirmed by user' : 'awaiting manufacturer confirmation',
     finishedMm: { width: label.widthMm, height: label.heightMm }, unfoldedMm: unfoldedLabelSize(label),
     incomplete: labelWarnings(label), productionNote: 'Confirm fold allowances, care instructions, artwork and attachment with the manufacturer before production.' };

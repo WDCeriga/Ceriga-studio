@@ -32,7 +32,7 @@ export async function downloadLabelArtwork(label: GarmentLabel) {
   await loadLabelFont(label);
   await document.fonts.ready;
   const svg = renderToStaticMarkup(<svg xmlns="http://www.w3.org/2000/svg" width={`${label.widthMm}mm`} height={`${label.heightMm}mm`} viewBox={`0 0 ${label.widthMm} ${label.heightMm}`}><LabelArtwork label={label} /></svg>);
-  downloadFile(svg, `${label.category}-${label.id}${['tag', 'hand'].includes(label.category) ? `-${label.exteriorView}` : ''}.svg`, 'image/svg+xml');
+  downloadFile(svg, `${label.category}-${label.id}${['tag', 'hand'].includes(label.category) ? `-${label.artworkFace ?? label.exteriorView}` : ''}.svg`, 'image/svg+xml');
 }
 export async function downloadLabelPdf(labels: GarmentLabel[]) {
   const { jsPDF } = await import('jspdf');
@@ -40,7 +40,7 @@ export async function downloadLabelPdf(labels: GarmentLabel[]) {
   for (const [index, label] of labels.flatMap(labelExportFaces).entries()) {
     if (index) pdf.addPage();
     await loadLabelFont(label); await document.fonts.ready;
-    pdf.setFontSize(14); pdf.text(`${LABEL_CATEGORIES[label.category]} ${index + 1}${['tag', 'hand'].includes(label.category) ? ` - ${label.exteriorView}` : ''}`, 20, 18);
+    pdf.setFontSize(14); pdf.text(`${LABEL_CATEGORIES[label.category]} ${index + 1}${['tag', 'hand'].includes(label.category) ? ` - ${label.artworkFace ?? label.exteriorView}` : ''}`, 20, 18);
     const scale = Math.min(1, 170 / label.widthMm, 240 / label.heightMm);
     const pixelsPerMm = Math.min(24, 4096 / Math.max(label.widthMm, label.heightMm));
     const rasterWidth = Math.ceil(label.widthMm * pixelsPerMm);
@@ -57,8 +57,8 @@ export async function downloadLabelPdf(labels: GarmentLabel[]) {
       `ID: ${label.id}`, `Method: ${LABEL_METHODS[label.method]}`, `Fold: ${LABEL_FOLDS[label.fold]}`,
       `Finished: ${label.widthMm} x ${label.heightMm} mm; unfolded: ${unfolded.width} x ${unfolded.height} mm`,
       `Safe margin: ${label.marginMm} mm; fold allowance: ${label.foldMm} mm`,
-      ...(label.category === 'hand' ? [`Standalone hand tag; artwork face: ${label.exteriorView}`] : [
-        `Attachment: ${labelSpecification(label).attachment}; exterior view: ${label.exteriorView}`,
+      ...(label.category === 'hand' ? [`Standalone hand tag; artwork face: ${label.artworkFace ?? label.exteriorView}`] : [
+        `Attachment: ${labelSpecification(label).attachment}; exterior view: ${label.artworkFace ?? label.exteriorView}`,
         ...(label.manualPosition ? [`Manual position: ${label.manualPosition.x * 100}% across, ${label.manualPosition.y * 100}% down garment bounds`] : []),
         `Offsets: ${label.offsetXmm}, ${label.offsetYmm} mm; rotation: ${label.rotation} degrees; sleeve: ${label.sleeveLayer ?? 'outer'}`,
       ]),

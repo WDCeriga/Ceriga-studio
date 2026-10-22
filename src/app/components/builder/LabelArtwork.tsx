@@ -1,3 +1,4 @@
+import {labelEdgeGeometry} from '../../data/labelGeometry';
 import { useEffect, useId, useState } from 'react';
 import { CARE_OPTIONS, PREVIEW_CARE, DEFAULT_REGION_TRANSFORM, labelTextSections, type CareCategory, type GarmentLabel, type LabelRegion } from '../../data/garmentLabels';
 
@@ -32,7 +33,8 @@ function blockLabelLayout(label: GarmentLabel) {
   const active = label.blocks!.filter(block => block.enabled);
   const symbols = active.some(block => block.key === 'careText') ? Object.entries(label.care).filter(([, value]) => Boolean(value)) : [];
   const symbolSize = Math.min(4.5, usableWidth / Math.max(1, symbols.length));
-  const paired = ['inline', 'split'].includes(label.hierarchy ?? '') && active.some(block => block.key === 'brand') && active.some(block => block.key === 'size');
+  const sectioned = label.sectionLayout && label.sectionLayout !== 'stack';
+  const paired = !sectioned && ['inline', 'split'].includes(label.hierarchy ?? '') && active.some(block => block.key === 'brand') && active.some(block => block.key === 'size');
   const rows: typeof active[] = [];
   for (const block of active) {
     if (paired && (block.key === 'brand' || block.key === 'size')) {
@@ -45,8 +47,13 @@ function blockLabelLayout(label: GarmentLabel) {
   let logoWidth = 0;
   let logoHeight = 0;
   const measured = rows.map(row => row.map((block, column) => {
-    const width = row.length === 1 ? usableWidth : (usableWidth - 1) * (column === 0 ? .7 : .3);
-    const x = insetX + (column === 1 ? (usableWidth - 1) * .7 + 1 : 0);
+    const sectionIndex = active.findIndex(entry => entry.key === block.key);
+    const columnCount = sectioned ? 2 : 1;
+    const leftColumn = active.filter(entry=>['brand','size'].includes(entry.key));
+    const rightColumn = active.filter(entry=>!['brand','size'].includes(entry.key));
+    const splitColumn = label.sectionLayout === 'columns' && leftColumn.length > 0 && rightColumn.length > 0;
+    const width = splitColumn ? usableWidth * (['brand','size'].includes(block.key) ? .35 : .65) : sectioned ? usableWidth / columnCount : row.length === 1 ? usableWidth : (usableWidth - 1) * (column === 0 ? .7 : .3);
+    const x = splitColumn ? insetX + (['brand','size'].includes(block.key) ? 0 : usableWidth * .35) : sectioned ? insetX + (sectionIndex % 2) * width : insetX + (column === 1 ? (usableWidth - 1) * .7 + 1 : 0);
     const hasLogo = block.key === 'brand' && Boolean(label.logo);
     const hasSymbols = block.key === 'careText' && symbols.length > 0;
     const size = block.fontSizeMm;
@@ -87,14 +94,20 @@ function blockLabelLayout(label: GarmentLabel) {
     const height = minimumTotal > usableHeight ? usableHeight * minimums[index] / minimumTotal : minimums[index] + (usableHeight - minimumTotal) * shares[index] / totalShares;
     const y = cursorY; cursorY += height;
     return row.map(({ block, x, width, textLines, contentWidth, contentHeight, hasLogo, hasSymbols, minimumScale, spacing }) => {
-      const availableHeight = Math.max(.01, height - spacing);
-      const fit = Math.min(1, width * .98 / contentWidth, availableHeight / contentHeight);
+      const sectionIndex = active.findIndex(entry => entry.key === block.key);
+      const splitColumn = label.sectionLayout === 'columns' && active.some(entry=>['brand','size'].includes(entry.key)) && active.some(entry=>!['brand','size'].includes(entry.key));
+      const columnBlocks = active.filter(entry=>['brand','size'].includes(entry.key)===['brand','size'].includes(block.key));
+      const sectionRows = splitColumn ? columnBlocks.length : Math.ceil(active.length / 2);
+      const zoneHeight = sectioned ? usableHeight / sectionRows : height;
+      const zoneY = sectioned ? insetY + (splitColumn ? columnBlocks.findIndex(entry=>entry.key===block.key) : Math.floor(sectionIndex / 2)) * zoneHeight : y;
+      const availableHeight = Math.max(.01, zoneHeight - spacing);
+      const fit = Math.min(block.fillSection ? 20 : 1, width * .98 / contentWidth, availableHeight / contentHeight);
       const scale = Math.max(minimumScale, fit);
       if (fit + .001 < minimumScale) overflow = true;
       const roomX = Math.max(0, width - contentWidth * scale);
       const centerX = x + contentWidth * scale / 2 + (block.alignment === 'left' ? 0 : block.alignment === 'right' ? roomX : roomX / 2);
-      const centerY = y + block.spaceAboveMm + availableHeight / 2;
-      return { key: block.key, x, y, width, height, textLines, hasLogo, hasSymbols, contentWidth, contentHeight, scale, font: block.font, color: block.color, alignment: block.alignment,
+      const centerY = zoneY + block.spaceAboveMm + availableHeight / 2;
+      return { key: block.key, x, y: zoneY, width, height: zoneHeight, textLines, hasLogo, hasSymbols, contentWidth, contentHeight, scale, font: block.font, color: block.color, alignment: block.alignment,
         symbolsY: -contentHeight / 2, transform: `translate(${centerX} ${centerY}) scale(${scale} ${scale})` };
     });
   });
@@ -211,10 +224,8 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
   const height = label.heightMm;
   const physical = label.construction === 'physical';
   const curved = label.shape === 'oval' || label.shape === 'circle';
-  const edgeShape = curved ? <ellipse cx={width / 2} cy={height / 2} rx={width / 2} ry={height / 2} /> :
-    label.fold === 'die' ? <path d={`M3 0H${width - 3}L${width} 3V${height - 3}L${width - 3} ${height}H3L0 ${height - 3}V3Z`} /> :
-    label.fold === 'mitre' && physical ? <path d={`M0 0H${width}V${height - 4}L${width - 4} ${height}H4L0 ${height - 4}Z`} /> :
-      <rect width={width} height={height} rx={label.shape === 'rounded' ? Math.min(3, height / 5) : .15} />;
+  const edge=labelEdgeGeometry(label);
+  const edgeShape=edge.kind==='ellipse'?<ellipse cx={edge.cx} cy={edge.cy} rx={edge.rx} ry={edge.ry}/>:edge.kind==='path'?<path d={edge.d}/>:<rect width={edge.width} height={edge.height} rx={edge.rx}/>;
   return <g data-label-artwork={label.id} color={label.foreground} strokeLinejoin="round" strokeLinecap="round">
     <defs>
       <clipPath id={clip}>{edgeShape}</clipPath>
@@ -240,7 +251,7 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
     <g clipPath={`url(#${clip})`}><g clipPath={`url(#${safe})`}>
       {label.borderEnabled && <rect x={layout.insetX + .1} y={layout.insetY + .1} width={Math.max(0, layout.usableWidth - .2)} height={Math.max(0, layout.usableHeight - .2)} fill="none" stroke={label.border} strokeWidth=".2" />}
       {label.preset === 'framed' && layout.zones.slice(1).map(zone => <path key={zone.key} d={`M${zone.x} ${zone.y}H${zone.x + zone.width}`} stroke={label.foreground} strokeWidth=".2" opacity=".45" />)}
-      {layout.zones.map(zone => <g key={zone.key} clipPath={label.blocks ? `url(#${safe}-${zone.key})` : undefined}><g data-label-region={zone.key} transform={zone.transform} color={zone.color}>
+      {layout.zones.map(zone => <g key={zone.key} clipPath={label.blocks ? `url(#${safe}-${zone.key})` : undefined}>{label.blocks?.find(block=>block.key===zone.key)?.background && <rect x={zone.x} y={zone.y} width={zone.width} height={zone.height} fill={label.blocks.find(block=>block.key===zone.key)!.background}/>}<g data-label-region={zone.key} transform={zone.transform} color={zone.color}>
         {zone.hasLogo && label.logo && <image data-label-logo="" href={label.logo.data} x={-layout.logoWidth / 2} y={-layout.logoHeight / 2} width={layout.logoWidth} height={layout.logoHeight} preserveAspectRatio="xMidYMid meet" />}
         <g fill={zone.color} fontFamily={zone.font} fontSize={label.fontSizeMm} fontWeight={label.fontWeight} letterSpacing={label.letterSpacingMm} textAnchor={zone.alignment === 'left' ? 'start' : zone.alignment === 'right' ? 'end' : 'middle'}>
           {zone.textLines.map((line, index) => <text key={index} data-label-text-section={line.section} x={zone.alignment === 'left' ? -zone.contentWidth / 2 : zone.alignment === 'right' ? zone.contentWidth / 2 : 0} y={line.y} fontSize={line.size} fontWeight={line.weight}>{line.text}</text>)}

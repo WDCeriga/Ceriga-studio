@@ -1,3 +1,4 @@
+import {labelCameraFrame} from '../../data/labelGeometry';
 import { useEffect, useRef, useState } from 'react';
 import { Download, Maximize, Minus, Plus, RotateCcw } from 'lucide-react';
 import { isInteriorLabel, labelSpecification, LABEL_POSITIONS, type GarmentLabel } from '../../data/garmentLabels';
@@ -50,8 +51,8 @@ export function labelPlacementSheet(root: HTMLElement, labels: GarmentLabel[], s
   return new XMLSerializer().serializeToString(output);
 }
 
-export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, garmentProps, animateEntry = false, tagView = 'front', onTagViewChange, studio = false }: {
-  studio?: boolean;
+export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, garmentProps, animateEntry = false, tagView = 'front', onTagViewChange, studio = false,closeUpRequest=0 }: {
+  studio?: boolean;closeUpRequest?:number;
   labels: GarmentLabel[]; selectedId: string | null; onSelect: (id: string | null) => void;
   onChange: (labels: GarmentLabel[]) => void; garmentProps: TshirtSvgPreviewProps;
   animateEntry?: boolean;
@@ -79,6 +80,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
     setPan({ x: 0, y: 0 });
     if (manual) { setMode('garment'); setZoom(1); }
   }, [selectedId, selected?.position, manual, Boolean(unplaced)]);
+  useEffect(()=>{if(!closeUpRequest)return;setEntryPending(false);setMode(unplaced?'only':'closeup');setZoom(1);setPan({x:0,y:0});},[closeUpRequest]);
   const handSelected = selected?.category === 'hand';
   const neckSelected = !manual && (selected?.category === 'neck' || selected?.position.startsWith('neck-'));
   const ready = Boolean(selected && !unplaced && focus?.id === selected.id && focus?.width && focus?.height);
@@ -101,7 +103,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const closeup = Boolean(selected) && !unplaced && (mode !== 'garment' || handSelected) && (!manual || mode === 'closeup' && !entryPending);
   const careCloseup = !manual && closeup && selected?.category === 'care';
   const cameraFocus = !unplaced && selected && focus?.id === selected.id && focus?.width && focus?.height ? focus : null;
-  const framing = cameraFocus?.context ?? cameraFocus;
+  const framing = cameraFocus?labelCameraFrame(cameraFocus,selected?.category):null;
   const scale = closeup && framing ? Math.min(tagEditing ? 22 : 18, 2048 * (cameraFocus?.context ? (tagEditing ? .9 : .8) : (tagEditing ? .64 : .68 * .8)) / Math.max(framing.width, framing.height)) * zoom : zoom;
   const point = closeup && framing ? framing : { x: 1024, y: 1024 };
   const contextVisible = mode !== 'only' && (!closeup || showGarment);

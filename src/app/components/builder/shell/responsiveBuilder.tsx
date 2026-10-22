@@ -33,7 +33,7 @@ export function BuilderSheet({title,onClose,children,persistent=false,snap:contr
 export function useMeasurementSwipe(onAdvance:(direction:number)=>void){
  const start=useRef<{x:number;y:number}|null>(null),suppress=useRef(0);
  return {
-  onPointerDown:(e:ReactPointerEvent<HTMLElement>)=>{start.current=e.pointerType==='touch'&&!((e.target as Element).closest('input,textarea,select,[role="switch"],.mobile-sheet-handle,.grading-matrix'))?{x:e.clientX,y:e.clientY}:null},
+  onPointerDown:(e:ReactPointerEvent<HTMLElement>)=>{start.current=e.pointerType==='touch'&&!((e.target as Element).closest('input,textarea,select,[role="switch"],[data-mobile-tool-tabs],.mobile-sheet-handle,.grading-matrix'))?{x:e.clientX,y:e.clientY}:null},
   onPointerCancel:()=>{start.current=null},
   onPointerUp:(e:ReactPointerEvent<HTMLElement>)=>{const from=start.current;start.current=null;if(!from)return;const dx=e.clientX-from.x,dy=e.clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.5){suppress.current=performance.now()+400;onAdvance(dx<0?1:-1)}},
   onClickCapture:(e:React.MouseEvent<HTMLElement>)=>{if(performance.now()<suppress.current){e.preventDefault();e.stopPropagation()}}

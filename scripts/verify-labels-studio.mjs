@@ -1,10 +1,13 @@
+import {writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {spawnSync} from 'node:child_process';
 const result=await build({stdin:{contents:`
+import {labelLayout} from './src/app/components/builder/LabelArtwork';
 import assert from 'node:assert/strict';
 import {createGarmentLabel,normalizeLabel,generatedCareText,labelSpecification,labelWarnings,labelVisible,unfoldedLabelSize,switchTagFace,labelBlocks,applyLabelPreset} from './src/app/data/garmentLabels';
-import {editableLabelBlocks,labelContentKeys,labelFoldChoices,reorderLabelBlocks} from './src/app/data/labelCapabilities';
-import {sleeveLabelAnchor} from './src/app/data/labelGeometry';
+import {editableLabelBlocks,labelContentKeys,labelFoldChoices,reorderLabelBlocks,applyLabelShape,applyLabelCut} from './src/app/data/labelCapabilities';
+import {sleeveLabelAnchor,labelCameraFrame,labelEdgeGeometry} from './src/app/data/labelGeometry';
 let checks=0;function check(value:boolean,title:string){assert.ok(value,title);checks++;console.log('PASS '+title)}
 const care=createGarmentLabel('care');
 check(!Object.values(care.care).some(Boolean),'Care instructions are empty until explicitly chosen');
@@ -52,6 +55,40 @@ const left=sleeveLabelAnchor(mask,'Left'),right=sleeveLabelAnchor(mask,'Right');
 check(Boolean(left&&right&&left.x<1024&&right.x>1024),'Paired sleeve masks anchor on their actual left and right ink');
 check(Boolean(left&&left.y<1200),'Sleeve tag does not fall through empty mask centre to garment bottom');
 check(sleeveLabelAnchor({size:4,pixels:new Uint8ClampedArray(64)},'Left')===null,'Missing sleeve ink stays unplaced instead of rendering an orphan tag');
+const focus={x:20,y:30,width:40,height:60,context:{x:100,y:100,width:500,height:400}};
+check(labelCameraFrame(focus,'tag')===focus,'Sleeve close-up frames tag bounds instead of whole sleeve');
+check(labelCameraFrame(focus,'neck')===focus.context,'Neck close-up keeps useful collar context');
+for(const shape of ['rectangle','rounded','square','oval','circle','horizontal','vertical','custom'] as const){
+ const shaped=applyLabelShape(care,shape),edge=labelEdgeGeometry(shaped);
+ check(shaped.widthMm>0&&shaped.heightMm>0&&['ellipse','rect','path'].includes(edge.kind),'Care label shape renders: '+shape);
+}
+check(applyLabelShape(care,'horizontal').heightMm<care.widthMm,'Horizontal shape changes actual proportions');
+check(applyLabelShape(care,'vertical').heightMm>care.widthMm,'Vertical shape changes actual proportions');
+const circular=applyLabelShape(care,'circle');
+check(circular.fold==='die'&&circular.heightMm===circular.widthMm,'Circle uses equal dimensions and a continuous cut edge');
+check(applyLabelShape(circular,'rectangle').fold==='straight','Changing from circle restores a flat textile construction');
+for(const cut of ['straight','rounded','angled'] as const){const cutLabel=applyLabelCut(care,cut),edge=labelEdgeGeometry(cutLabel);check(cutLabel.cut===cut&&(cut==='angled'?edge.kind==='path':edge.kind==='rect'),'Care label corner cut renders: '+cut)}
+check(labelEdgeGeometry({...care,fold:'mitre',cut:'straight'}).kind==='rect','Fold selection does not silently change the corner cut');
+const coloured={...hang,background:'#123456',foreground:'#abcdef'};
+const opposite=switchTagFace(coloured,'back'),restored=switchTagFace({...opposite,background:'#654321'},'front');
+check(restored.background==='#123456'&&restored.foreground==='#abcdef','Hangtag face colours are retained independently');
+const folded={...createGarmentLabel('tag'),exteriorView:'back' as const,position:'hem' as const,offsetXmm:12};
+const reverse=switchTagFace(folded,'back');
+check(reverse.exteriorView==='back'&&reverse.position==='hem'&&reverse.offsetXmm===12,'Folded tag artwork face keeps garment attachment');
+const returnFront=switchTagFace({...reverse,brand:'REVERSE',background:'#ff0000'},'front');
+check(returnFront.brand==='YOUR BRAND'&&returnFront.background==='#ffffff','Folded tag front artwork remains independent');
+check(switchTagFace(returnFront,'back').brand==='REVERSE','Folded tag reverse artwork persists');
+const customSections=normalizeLabel({...folded,sectionLayout:'columns',blocks:folded.blocks!.map(block=>({...block,background:'#123456',fillSection:true,font:'Georgia'}))});
+check(customSections.sectionLayout==='columns'&&customSections.blocks![0].background==='#123456'&&customSections.blocks![0].fillSection,'Section colours and sizing survive save normalization');
+check(folded.widthMm===20&&folded.heightMm===15,'New hem tags use landscape 20 by 15 mm proportions');
+
+globalThis.document={createElement:()=>({getContext:()=>({font:'',measureText:(text:string)=>({width:text.length*1.2})})})} as any;
+const sectionedLabel=normalizeLabel({...createGarmentLabel('neck'),sectionLayout:'columns'});
+const sectionZones=labelLayout(sectionedLabel).zones;
+check(sectionZones.some(zone=>zone.x>sectionZones[0].x),'Column layout changes actual artwork section positions');
+const filled=normalizeLabel({...createGarmentLabel('tag'),blocks:createGarmentLabel('tag').blocks!.map(block=>({...block,fillSection:true}))});
+check(labelLayout(filled).zones[0].scale>labelLayout({...filled,blocks:filled.blocks!.map(block=>({...block,fillSection:false}))}).zones[0].scale,'Fill section scales actual artwork content');
 console.log(checks+' label studio checks passed');
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'cjs',write:false});
-const run=spawnSync(process.execPath,['-e',result.outputFiles[0].text],{stdio:'inherit'});process.exitCode=run.status??1;
+const bundle=new URL('../node_modules/.cache/verify-labels-studio.cjs',import.meta.url);await writeFile(bundle,result.outputFiles[0].text);
+const run=spawnSync(process.execPath,[fileURLToPath(bundle)],{stdio:'inherit'});if(run.error)throw run.error;process.exitCode=run.status??1;

@@ -13,3 +13,7 @@ Sources checked 21 October 2026:
 - Custom Woven Labels, fold and sizing guide: https://customwovenlabels.com/woven-label-design-guide
 
 Technical regression: sleeve files may contain paired mirrored sleeves. Attachment samples the actual opaque sleeve on the selected side, not the bounding-box centre. Label measurements publish only after masks load; an unmasked/masked alternation must not trigger a render loop when leaving Labels.
+
+Shape and corner cuts are independent from textile folding. Rectangle, rounded rectangle, square, oval, circle, horizontal, vertical and custom proportions use the same edge geometry in thumbnails, canvas and exported SVG. Straight, rounded and angled corner cuts are included in specifications. Sleeve-tag close-ups frame the tag rather than the full sleeve. Successful logo uploads request a close-up, including an isolated artwork view while a manually placed label awaits attachment. Each label and hangtag face retains its own label/text colours; uploaded bitmap artwork keeps its own pixel colours.
+
+Folded sleeve/hem tags use a 20 × 15 mm finished default. Artwork face is separate from garment side and attachment offsets. Front/back artwork, fonts, section backgrounds and fill settings persist independently; production PDF includes both faces. Stacked, split-column and grid layouts use the same renderer in preview and export. Phone editing keeps a live artwork preview visible above the controls.

@@ -1,4 +1,4 @@
-import {labelBlocks, type GarmentLabel, type LabelBlockKey} from './garmentLabels';
+import {labelBlocks,normalizeLabel, type GarmentLabel, type LabelBlockKey} from './garmentLabels';
 /** Content is explicit artwork, never an automatically generated garment-care recommendation. */
 export function labelContentKeys(label:GarmentLabel):LabelBlockKey[]{
  if(label.name==='Size label')return ['size'];
@@ -18,3 +18,10 @@ export function labelFoldChoices(label:GarmentLabel){
  if(['circle','oval'].includes(label.shape))return ['die'] as const;
  return ['straight','end','centre','loop','mitre'] as const;
 }
+
+export function applyLabelShape(label:GarmentLabel,shape:GarmentLabel['shape']){
+ const width=label.widthMm,curved=['circle','oval'].includes(shape),wasCurved=['circle','oval'].includes(label.shape);
+ const height=shape==='circle'||shape==='square'?width:shape==='horizontal'?Math.max(8,Math.round(width/3)):shape==='vertical'?Math.min(250,Math.round(width*2.5)):shape==='oval'?Math.max(8,Math.round(width*.6)):wasCurved?Math.max(8,Math.round(width*.6)):label.heightMm;
+ return normalizeLabel({...label,shape,heightMm:height,cut:shape==='rounded'?'rounded':curved?'straight':label.cut==='rounded'?'straight':label.cut,fold:curved?'die':wasCurved?'straight':label.fold});
+}
+export function applyLabelCut(label:GarmentLabel,cut:NonNullable<GarmentLabel['cut']>){return normalizeLabel({...label,cut,shape:label.shape==='rounded'&&cut!=='rounded'?'rectangle':label.shape})}
