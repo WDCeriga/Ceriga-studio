@@ -34,3 +34,192 @@
 .packaging-studio .pkg-panel-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 14px}.packaging-studio .pkg-panel-choices>button{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 6px;border:1px solid #dce3ec;border-radius:6px;background:white;font-size:11px;color:#657d90;min-width:0}.packaging-studio .pkg-panel-choices>button svg{width:100%;height:65px}.packaging-studio .pkg-panel-choices>button[aria-pressed=true]{border-color:#7892a5;background:#f0f4f5;color:#405b6f}.packaging-studio .pkg-panel-choices>button span{line-height:1.4;text-align:center}@media(max-width:767px){.packaging-studio .pkg-panel-choices>button{min-height:100px}.packaging-studio .pkg-panel-choices>button svg{height:58px}}
 
 .packaging-studio .pkg-colour-chip[aria-pressed=true]{border-color:#7892a5;background:#f0f4f5;color:#405b6f;box-shadow:inset 0 0 0 1px #7892a514}
+
+/* Focused packaging layer editor */
+.packaging-studio .pkg-editor { --pkg-muted:#8192a8; --pkg-line:#dfe6ed; gap:20px; font-size:13px; }
+.packaging-studio .pkg-editor [hidden] { display:none!important; }
+.packaging-studio .pkg-editor section { padding-top:0; }
+.packaging-studio .pkg-editor .pkg-disclosure>summary { padding:14px 0; font-weight:600; color:#35414e; }
+.packaging-studio .pkg-editor button { transition:background .15s,border-color .15s; }
+.packaging-studio .pkg-editor :is(button,input,textarea):focus-visible { outline:2px solid #7892a5; outline-offset:3px; }
+.packaging-studio .pkg-editor .pkg-field { gap:6px; margin:0; }
+.packaging-studio .pkg-editor .pkg-field>span { color:#657d90; font-size:11px; font-weight:500; }
+.packaging-studio .pkg-editor :is(input:not([type=range]),select,textarea) { min-height:40px; }
+.packaging-studio .pkg-editor .pkg-layer-editor { display:flex; flex-direction:column; gap:16px; border:0; }
+.packaging-studio .pkg-edit-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.packaging-studio .pkg-editor .pkg-back-link { border:0; padding:5px 0; background:transparent; color:#657d90; font-size:12px; }
+.packaging-studio .pkg-type-badge { font-size:10px; font-weight:600; color:#657d90; background:#f0f4f5; padding:5px 9px; border-radius:20px; }
+.packaging-studio .pkg-selected-artwork { display:flex; align-items:center; gap:12px; margin:0; }
+.packaging-studio .pkg-artwork-thumb { width:48px; height:48px; flex:0 0 48px; padding:6px; border-radius:10px; border:1px solid #e0e6ec; background:#f7f9fa; display:grid; place-items:center; overflow:hidden; }
+.packaging-studio .pkg-artwork-thumb img { max-width:100%; max-height:100%; object-fit:contain; }
+.packaging-studio .pkg-layer-identity { display:grid; gap:5px; min-width:0; }
+.packaging-studio .pkg-layer-identity strong { font-size:14px; font-weight:600; color:#35414e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.packaging-studio .pkg-layer-identity small { color:#8192a8; font-size:11px; }
+.packaging-studio .pkg-control-card { display:flex; flex-direction:column; gap:14px; border:1px solid #e1e7ed; border-radius:12px; padding:16px; background:#fff; }
+.packaging-studio .pkg-editor h4 { margin:0; font-size:12px; font-weight:600; color:#35414e; }
+.packaging-studio .pkg-control-label { margin:0 0 -6px; color:#8192a8; font-size:11px; }
+.packaging-studio .pkg-editor .pkg-colour-chip { border:1px solid #e1e7ed; background:#f8fafb; border-radius:8px; min-height:54px; padding:10px 12px; }
+.packaging-studio .pkg-layout-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.packaging-studio .pkg-editor .pkg-layout-grid button { display:flex; flex-direction:column; align-items:center; gap:8px; border:1px solid #e1e7ed; border-radius:8px; min-height:74px; padding:10px 4px; font-size:10px; }
+.packaging-studio .pkg-editor .pkg-layout-grid button:hover { background:#f0f4f5; border-color:#7892a5; }
+.pkg-layout-icon { display:block; position:relative; width:32px; height:25px; border:1px solid #aec1c8; border-radius:3px; overflow:hidden; background:#f3f6f7; }
+.pkg-layout-icon:after { content:''; position:absolute; background:#657d90; }
+.pkg-layout-0:after { inset:0; }.pkg-layout-1:after { top:8px; left:0; right:0; height:9px; }.pkg-layout-2:after { top:0; bottom:0; left:11px; width:9px; }.pkg-layout-3:after,.pkg-layout-4:after { width:50px; height:9px; left:-9px; top:8px; transform:rotate(-45deg); }.pkg-layout-4:after { transform:rotate(45deg); }
+.packaging-studio .pkg-angle-row { display:grid; grid-template-columns:minmax(0,1fr) 80px; align-items:center; gap:16px; }
+.packaging-studio .pkg-editor input[type=range] { accent-color:#3e4c59; min-height:36px; margin:0; width:100%; }
+.packaging-studio .pkg-inline-help { margin:0; font-size:11px; line-height:1.65; color:#6b7d8c; }
+.packaging-studio .pkg-segmented { display:flex; gap:0; border:1px solid #dfe6ed; border-radius:8px; overflow:hidden; }
+.packaging-studio .pkg-editor .pkg-segmented button { display:flex; align-items:center; justify-content:center; gap:5px; flex:1; padding:10px 4px; border:0; border-radius:0; border-right:1px solid #dfe6ed; font-size:11px; }
+.packaging-studio .pkg-segmented button:last-child { border-right:0; }
+.packaging-studio .pkg-editor .pkg-segmented button[aria-pressed=true] { background:#f0f4f5; color:#405b6f; }
+.packaging-studio .pkg-alignment-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.packaging-studio .pkg-editor .pkg-alignment-grid button { display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 5px; font-size:11px; border:1px solid #e1e7ed; border-radius:7px; }
+.packaging-studio .pkg-precision { border-top:1px solid #edf0f3; padding-top:10px; }
+.packaging-studio .pkg-precision summary { cursor:pointer; font-size:11px; color:#61788a; padding:4px 0; }
+.packaging-studio .pkg-precision[open]>summary { margin-bottom:12px; }
+.packaging-studio .pkg-layer-actions { display:flex; flex-wrap:wrap; gap:8px; padding:0 0 12px; }
+.packaging-studio .pkg-editor .pkg-layer-actions button { display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid #dfe6ed; border-radius:7px; padding:9px 12px; font-size:11px; }
+.packaging-studio .pkg-editor .pkg-layer-actions .pkg-delete-layer { margin-left:auto; color:#aa4444; border-color:#efdada; }
+.packaging-studio .pkg-add-text { display:flex; flex-direction:column; gap:12px; background:#f7f9fa; border:1px solid #e5eaee; border-radius:12px; padding:14px; margin-top:16px; }
+.packaging-studio .pkg-editor .pkg-add-text .pkg-command { background:#3e4c59; border-color:#3e4c59; color:white; border-radius:7px; }
+.packaging-studio .pkg-editor .pkg-add-text .pkg-command:disabled { background:#e4e9eb; color:#82929d; border-color:#e4e9eb; }
+.packaging-studio .pkg-layer-list-title { margin-top:20px!important; }
+.packaging-studio .pkg-layers { gap:7px; }
+.packaging-studio .pkg-editor .pkg-layers button { border:1px solid #e1e7ed; border-radius:9px; padding:11px; gap:12px; }
+.packaging-studio .pkg-layers button span { display:grid; gap:5px; text-align:left; font-weight:500; }
+.packaging-studio .pkg-layers button small { font-size:10px; font-weight:400; color:#738698; }
+@media(max-width:480px) { .packaging-studio .pkg-control-card { padding:12px; }.packaging-studio .pkg-layer-editor>.pkg-two { grid-template-columns:1fr; gap:12px; } }
+
+.packaging-studio .pkg-more-controls>summary { cursor:pointer; font-size:12px; font-weight:500; color:#35414e; }
+.packaging-studio .pkg-more-controls[open]>summary { margin-bottom:14px; }
+.packaging-studio .pkg-more-controls:not([open]) { display:block; }
+.packaging-studio .pkg-editor .pkg-control-card .pkg-command { background:#3e4c59; color:white; border-color:#3e4c59; border-radius:6px; }
+
+/* Match Labels and Materials: white surfaces, slate controls, shared spacing. */
+.packaging-studio { --pkg-line:#d8e1eb; --pkg-muted:#8192a8; --pkg-ink:#405365; --pkg-active:#3e4c59; }
+.packaging-studio .pkg-editor { --pkg-line:#d8e1eb; color:#405365; font-size:12px; gap:20px; }
+.packaging-studio .pkg-editor :is(.pkg-control-card,.pkg-add-text,.pkg-artwork-thumb) { border-radius:8px; }
+.packaging-studio .pkg-editor :is(.pkg-template-grid>button,.pkg-panel-choices>button,.pkg-layers>button) { border-radius:7px; border-color:var(--pkg-line); }
+.packaging-studio .pkg-editor :is(.pkg-template-grid>button,.pkg-panel-choices>button,.pkg-categories>button,.pkg-size-presets>button)[aria-pressed=true] { background:#f0f3f4; border-color:#7892a5; color:#405365; box-shadow:inset 0 0 0 1px #7892a5; }
+.packaging-studio .pkg-editor :is(.pkg-categories,.pkg-size-presets,.pkg-actions) { gap:8px; }
+.packaging-studio .pkg-editor .pkg-categories>button { min-height:40px; }
+.packaging-studio .pkg-editor .pkg-actions>button { min-height:40px; padding:9px 12px; }
+.packaging-studio .pkg-editor .pkg-size-presets>button { min-height:64px; border-radius:7px; }
+.packaging-studio .pkg-editor .pkg-template-grid>button { position:relative; gap:8px; padding:14px; }
+.packaging-studio .pkg-editor .pkg-template-grid small { font-size:11px; line-height:1.5; }
+.packaging-studio .pkg-editor .pkg-two { gap:12px; margin-bottom:12px; }
+.packaging-studio .pkg-editor .pkg-control-card>.pkg-two,.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-two { margin-bottom:0; }
+.packaging-studio .pkg-editor .pkg-layer-actions button { min-height:40px; }
+.packaging-studio .pkg-editor .pkg-layer-actions .pkg-delete-layer:hover { color:#a93e3e; background:#fff5f5; border-color:#d8aaaa; }
+.packaging-studio .pkg-editor button:disabled { opacity:.45; cursor:not-allowed; }
+.packaging-studio .pkg-editor :is(button,input,textarea,select):focus-visible { outline:2px solid #a4b2c6; outline-offset:2px; }
+.packaging-studio .pkg-editor .pkg-error { padding:10px 12px; border:1px solid #efdada; border-radius:6px; color:#a14e3e; background:#fff8f6; }
+.packaging-studio .pkg-editor .pkg-field .material-select-trigger { min-height:40px; border-radius:6px; }
+.packaging-studio .pkg-editor .pkg-more-controls>summary { display:flex; align-items:center; justify-content:space-between; list-style:none; padding:0; }
+.packaging-studio .pkg-more-controls>summary:after { content:'+'; color:#8192a8; font-size:16px; }
+.packaging-studio .pkg-more-controls[open]>summary:after { content:'−'; }
+.packaging-studio .pkg-more-controls>summary::-webkit-details-marker { display:none; }
+.packaging-studio-canvas .pkg-canvas-controls>.pkg-panel-status { display:block; position:absolute; left:16px; bottom:68px; background:#fff; color:#8192a8; font-size:11px; padding:6px 9px; border:1px solid #d8e1eb; border-radius:6px; pointer-events:none; }
+.packaging-studio-canvas .pkg-preview button:focus-visible,.packaging-studio-canvas .pkg-preview input:focus-visible { outline:2px solid #a4b2c6; outline-offset:2px; }
+.packaging-studio-canvas .pkg-preview[data-studio] .new-view-switch { display:flex; flex-wrap:wrap; max-width:calc(100% - 32px); border-radius:6px; border:1px solid #d8e1eb; overflow:hidden; }
+.packaging-studio-canvas .pkg-canvas-controls>.pkg-check { display:inline-flex; align-items:center; white-space:nowrap; }
+@media(max-width:767px) {
+ .packaging-studio-canvas .pkg-canvas-controls>.pkg-panel-status { left:12px; bottom:56px; font-size:10px; max-width:calc(100% - 235px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ .packaging-studio .pkg-editor .pkg-layout-grid button { min-height:68px; }
+ .packaging-studio .pkg-editor .pkg-panel-choices { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .packaging-studio .pkg-editor .pkg-layer-actions button { flex:1; }
+}
+@media(prefers-reduced-motion:reduce) { .packaging-studio .pkg-editor button { transition:none; } }
+/* Keep the focused inspector within the Design tool. */
+.packaging-studio .pkg-editor:not([data-studio-tool="Design"]) .pkg-layer-editor { display:none; }
+.packaging-studio .pkg-editor[data-studio-tool="Design"] .pkg-layer-editor { display:flex; }
+
+/* Shared disclosure rhythm, including saved presets and layer controls. */
+.packaging-studio .pkg-editor .pkg-saved-designs .pkg-field { margin:12px 0 16px; }
+.packaging-studio .pkg-editor .pkg-saved-designs .pkg-actions { margin-top:16px; gap:8px; }
+.packaging-studio .pkg-editor .pkg-layer-editor { gap:20px; }
+.packaging-studio .pkg-editor .pkg-control-card { padding:16px; }
+.packaging-studio .pkg-editor .pkg-control-card[open]>summary { margin-bottom:18px; }
+.packaging-studio .pkg-editor .pkg-control-card[open]>.pkg-command { margin-bottom:16px; }
+.packaging-studio .pkg-editor .pkg-control-card[open]>.pkg-colour-chip { margin-bottom:16px; }
+.packaging-studio .pkg-editor .pkg-control-label { margin:0 0 12px; }
+.packaging-studio .pkg-editor .pkg-layout-grid { margin-top:0; gap:10px; }
+.packaging-studio .pkg-editor .pkg-control-card[open]>.pkg-field { margin-bottom:14px; }
+.packaging-studio .pkg-editor .pkg-size-presets>button[aria-pressed=true] { background:#f0f3f4; color:#405365; border-color:#7892a5; box-shadow:inset 0 0 0 1px #7892a5; }
+.packaging-studio .pkg-editor .pkg-more-controls>summary:after { content:'⌄'; font-size:16px; }
+.packaging-studio .pkg-editor .pkg-more-controls[open]>summary:after { content:'⌃'; }
+
+/* Packaging uses the same flat disclosure layout as Labels & branding. */
+.packaging-studio .pkg-editor .pkg-layer-editor { gap:0; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-two { margin:16px 0 20px; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card {
+ border:0; border-top:1px solid #e0e5ed; border-radius:0; padding:0 0 20px; margin:0; background:transparent;
+}
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card:not([open]) { padding-bottom:0; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card>summary {
+ display:flex; align-items:center; justify-content:space-between; min-height:56px; padding:18px 0;
+ font-size:14px; font-weight:400; line-height:1.5; color:#405365; margin:0;
+}
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card[open]>summary { margin:0 0 6px; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card>summary:after { color:#8b9cb1; font-size:14px; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card>.pkg-command { min-height:38px; margin-bottom:16px; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card>.pkg-colour-chip {
+ background:white; border-color:#d8e1eb; border-radius:8px; min-height:58px; margin-bottom:18px;
+}
+.packaging-studio .pkg-editor .pkg-layout-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.packaging-studio .pkg-editor .pkg-layout-grid button { min-height:82px; border-radius:7px; font-size:12px; padding:12px 6px; }
+.packaging-studio .pkg-editor .pkg-layer-actions { border-top:1px solid #e0e5ed; margin:0; padding:16px 0; gap:8px; }
+.packaging-studio .pkg-editor .pkg-add-text { background:transparent; border:0; border-top:1px solid #e0e5ed; border-radius:0; padding:18px 0 0; margin-top:20px; }
+.packaging-studio .pkg-editor .pkg-control-card .pkg-inline-help { font-size:12px; color:#8192a8; line-height:1.6; margin-top:12px; }
+.packaging-studio .pkg-editor .pkg-control-card .pkg-field>span { font-size:12px; color:#8192a8; font-weight:400; }
+.packaging-studio .pkg-editor .pkg-control-card .pkg-precision { margin-top:14px; }
+.packaging-studio .pkg-editor .pkg-selected-artwork { padding-bottom:16px; }
+
+/* Text inspector: content first, secondary settings tucked away. */
+.packaging-studio .pkg-editor .pkg-layer-editor .pkg-selected-artwork { margin-bottom:16px; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card[open]>summary { margin-bottom:12px; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card[open]>.pkg-field { margin:0 0 20px; }
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card[open]>.pkg-two { margin:0 0 20px; gap:12px; }
+.packaging-studio .pkg-editor input.pkg-text-content-field { min-height:52px; padding:12px; font-size:16px; background:#f8f9fa; }
+.packaging-studio .pkg-editor .pkg-control-card>.pkg-colour-chip { margin:0 0 20px!important; }
+.packaging-studio .pkg-editor .pkg-control-card>.pkg-segmented { margin:0 0 4px; }
+.packaging-studio .pkg-editor .pkg-layer-settings .pkg-inline-help { margin:8px 0 0; font-size:11px; }
+.packaging-studio .pkg-editor .pkg-layer-settings .pkg-two { margin-bottom:18px; }
+
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-edit-heading {
+ margin-bottom:18px;
+}
+
+/* Compact section headers match Construction. */
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card>summary,
+.packaging-studio .pkg-editor .pkg-disclosure>summary {
+ min-height:42px; padding:9px 0; font-size:12px; font-weight:500; line-height:1.5; color:#3c4855;
+}
+.packaging-studio .pkg-editor .pkg-layer-editor>.pkg-control-card[open]>summary { margin-bottom:10px; }
+
+.packaging-studio .pkg-editor .pkg-feedback { margin:0; padding:0 0 8px; background:none; font-size:11px; line-height:1.5; color:#657d90; }
+.packaging-studio .pkg-feedback:before { content:'✓'; margin-right:7px; }
+.packaging-studio .pkg-editor .pkg-material-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:2px 0 16px; padding:10px 12px; background:#f8f9fa; border-radius:6px; }
+.packaging-studio .pkg-material-heading>span { font-size:11px; color:#8192a8; }
+.packaging-studio .pkg-material-heading>strong { font-size:12px; font-weight:500; color:#405365; text-align:right; }
+.packaging-studio .pkg-material-single { margin-bottom:18px; }
+.packaging-studio .pkg-editor .pkg-material-section .pkg-colour-chip { width:100%; min-height:56px; background:white; padding:10px 12px; }
+.packaging-studio .pkg-appearance { display:flex; flex-direction:column; gap:10px; margin:18px 0 0; }
+.packaging-studio .pkg-appearance-label { font-size:11px; color:#8192a8; }
+.packaging-studio .pkg-editor .pkg-appearance .pkg-segmented button { min-height:38px; padding:8px; font-size:12px; }
+.packaging-studio .pkg-editor .pkg-appearance .pkg-segmented button[aria-pressed=true] { color:#405365; background:#f0f3f4; box-shadow:inset 0 -2px #7892a5; }
+.packaging-studio .pkg-appearance .pkg-inline-help { font-size:11px; line-height:1.5; }
+
+/* Quiet material controls, aligned with Construction's field layout. */
+.packaging-studio .pkg-editor .pkg-material-heading { display:block; margin:0 0 18px; padding:0; background:none; border-radius:0; }
+.packaging-studio .pkg-material-heading>span { display:none; }
+.packaging-studio .pkg-material-heading>strong { display:block; text-align:left; font-size:11px; font-weight:400; color:#8192a8; }
+.packaging-studio .pkg-editor .pkg-material-section .pkg-colour-chip { min-height:46px; padding:8px 10px; border-radius:5px; background:white; }
+.packaging-studio .pkg-material-section .pkg-colour-chip i { width:24px; height:24px; border-radius:4px; }
+.packaging-studio .pkg-material-section .pkg-colour-chip span { font-size:11px; }
+.packaging-studio .pkg-material-section .pkg-colour-chip small { margin-top:2px; font-size:10px; }
+.packaging-studio .pkg-appearance { margin-top:16px; gap:8px; }
+.packaging-studio .pkg-editor .pkg-appearance .pkg-segmented { gap:6px; border:0; border-radius:0; overflow:visible; }
+.packaging-studio .pkg-editor .pkg-appearance .pkg-segmented button { min-height:34px; padding:7px 10px; border:1px solid #e0e5ec; border-radius:5px; font-size:11px; }
+.packaging-studio .pkg-editor .pkg-appearance .pkg-segmented button[aria-pressed=true] { background:#edf1f6; border-color:#8595a8; color:#45586d; box-shadow:none; }
+.packaging-studio .pkg-appearance .pkg-inline-help { display:none; }

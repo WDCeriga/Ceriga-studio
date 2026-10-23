@@ -38,6 +38,7 @@ export const PACKAGING_TEMPLATES: PackagingTemplate[] = [
 export const PANEL_NAMES: Record<PackagingPanel, string> = { front: 'Front', back: 'Back', top: 'Top / lid', left: 'Left side', right: 'Right side', 'interior-lid': 'Interior lid', 'interior-base': 'Interior base' };
 export interface PackagingElement {
   fullPanel?: boolean;
+  sectionId?: string;
   id: string;
   kind: 'logo' | 'artwork' | 'text' | 'section';
   panel: PackagingPanel;
@@ -104,15 +105,7 @@ export function printRegion(design: PackagingDesign, panel: PackagingPanel): Pri
   const template = packagingTemplate(design.templateId);
   const size = panelSize(design, panel);
   const margin = Math.min(design.templateId === 'padded' ? 18 : 10, size.width * 0.12, size.height * 0.12);
-  let top = design.category === 'box' ? margin : Math.max(margin, template.topExclusion);
-  if (design.category === 'box' && (panel === 'front' || panel === 'back')) {
-    const lip = Math.min(design.dimensions.depth * .28, 22);
-    const obstruction = template.closure === 'tape' ? Math.min(design.dimensions.depth * .3, 65)
-      : template.closure === 'drawer' ? Math.min(14, design.dimensions.depth * .24)
-      : template.closure === 'fold' && panel === 'front' ? lip * 1.7
-      : ['fold', 'lift', 'magnet'].includes(template.closure) ? lip : 0;
-    top = Math.min(size.height - margin - 1, obstruction + margin);
-  }
+  const top = design.category === 'box' ? margin : Math.max(margin, template.topExclusion);
   const width = design.category === 'mailer' && design.shippingLabel && panel === 'front' ? size.width * 0.45 - margin * 2 : size.width - margin * 2;
   return { x: margin, y: top, width: Math.max(1, width), height: Math.max(1, size.height - top - margin) };
 }
@@ -120,8 +113,33 @@ export function rotatedExtents(element: PackagingElement) {
   const radians = element.rotation * Math.PI / 180;
   return { width: Math.abs(Math.cos(radians)) * element.width + Math.abs(Math.sin(radians)) * element.height, height: Math.abs(Math.sin(radians)) * element.width + Math.abs(Math.cos(radians)) * element.height };
 }
+export function packagingSectionHandle(element: PackagingElement, edge: 'left'|'right'|'top'|'bottom', panel: PrintRect, inset: number) {
+ const a=element.rotation*Math.PI/180,x=edge==='left'?-element.width/2:edge==='right'?element.width/2:0,y=edge==='top'?-element.height/2:edge==='bottom'?element.height/2:0;
+ return {x:Math.max(panel.x+inset,Math.min(panel.x+panel.width-inset,element.x+x*Math.cos(a)-y*Math.sin(a))),y:Math.max(panel.y+inset,Math.min(panel.y+panel.height-inset,element.y+x*Math.sin(a)+y*Math.cos(a)))};
+}
+/** Resize one edge in local coordinates while keeping its opposite edge fixed. */
+export function resizePackagingSectionEdge(element: PackagingElement, edge: 'left' | 'right' | 'top' | 'bottom', dx: number, dy: number): PackagingElement {
+  const angle = element.rotation * Math.PI / 180, c = Math.cos(angle), s = Math.sin(angle);
+  const horizontal = edge === 'left' || edge === 'right';
+  const sign = edge === 'left' || edge === 'top' ? -1 : 1;
+  const delta = horizontal ? dx * c + dy * s : -dx * s + dy * c;
+  const previous = horizontal ? element.width : element.height;
+  const next = Math.max(1, previous + sign * delta);
+  const shift = sign * (next - previous) / 2;
+  return { ...element, fullPanel: false, width: horizontal ? next : element.width, height: horizontal ? element.height : next,
+    x: element.x + (horizontal ? c : -s) * shift, y: element.y + (horizontal ? s : c) * shift };
+}
 export function constrainPackagingElement(element: PackagingElement, region: PrintRect): PackagingElement {
   const clean = { ...element, width: Math.max(0.1, element.width), height: Math.max(0.1, element.height) };
+  // Colour sections bleed beyond the panel and are clipped when rendered.
+  if (clean.kind === 'section') {
+    const limit = Math.hypot(region.width, region.height) * 4;
+    clean.width = Math.min(limit, clean.width);
+    clean.height = Math.min(limit, clean.height);
+    clean.x = Math.max(region.x - clean.width, Math.min(region.x + region.width + clean.width, clean.x));
+    clean.y = Math.max(region.y - clean.height, Math.min(region.y + region.height + clean.height, clean.y));
+    return clean;
+  }
   const bounds = rotatedExtents(clean);
   const factor = Math.min(1, region.width / bounds.width, region.height / bounds.height);
   clean.width *= factor;
@@ -136,8 +154,33 @@ export function fitPackagingElement(element: PackagingElement, region: PrintRect
   const factor = Math.min(region.width * 0.62 / element.width, region.height * 0.35 / element.height);
   return constrainPackagingElement({ ...element, x: region.x + region.width / 2, y: region.y + region.height / 2, width: element.width * factor, height: element.height * factor, fontSize: element.fontSize * factor }, region);
 }
-export function packagingElementRegion(design:PackagingDesign,element:PackagingElement):PrintRect{return element.kind==='section'?{x:0,y:0,...panelSize(design,element.panel)}:printRegion(design,element.panel)}
-export function normalizePackagingDesign(design: PackagingDesign): PackagingDesign {
+export function packagingElementRegion(design:PackagingDesign,element:PackagingElement):PrintRect{return (element.kind==='section'||element.sectionId)?{x:0,y:0,...panelSize(design,element.panel)}:printRegion(design,element.panel)}
+/** Explicit text targets keep section selection separate from the box panel. */
+export function placePackagingText(design: PackagingDesign, text: PackagingElement, sectionId?: string): PackagingElement {
+  const section = design.elements.find(e => e.id === sectionId && e.kind === 'section' && e.panel === text.panel);
+  if (!section) return fitPackagingElement({ ...text, sectionId: undefined }, printRegion(design, text.panel));
+  const safe = {x:0,y:0,...panelSize(design,section.panel)}, bounds = rotatedExtents(section);
+  const left = Math.max(safe.x, section.x - bounds.width / 2), top = Math.max(safe.y, section.y - bounds.height / 2);
+  const right = Math.min(safe.x + safe.width, section.x + bounds.width / 2), bottom = Math.min(safe.y + safe.height, section.y + bounds.height / 2);
+  if (right <= left || bottom <= top) return { ...fitPackagingElement(text, safe), sectionId: section.id };
+  return fitPackagingElement({ ...text, sectionId: section.id, rotation: section.rotation }, { x:left, y:top, width:right-left, height:bottom-top });
+}
+export function syncPackagingSectionText(design: PackagingDesign, previous?: PackagingDesign): PackagingDesign {
+  return { ...design, elements: design.elements.map(element => {
+    if (element.kind !== 'text' || !element.sectionId) return element;
+    const section = design.elements.find(e => e.id === element.sectionId && e.kind === 'section' && e.panel === element.panel);
+    if (!section) return { ...element, sectionId: undefined };
+    const old = previous?.elements.find(e => e.id === section.id);
+    if (!old || (old.x===section.x && old.y===section.y && old.rotation===section.rotation && old.width===section.width && old.height===section.height)) return element;
+    const angle = old.rotation * Math.PI / 180, next = section.rotation * Math.PI / 180;
+    const dx = element.x-old.x, dy=element.y-old.y;
+    const x=(dx*Math.cos(angle)+dy*Math.sin(angle))*section.width/old.width;
+    const y=(-dx*Math.sin(angle)+dy*Math.cos(angle))*section.height/old.height;
+    return { ...element, x:section.x+x*Math.cos(next)-y*Math.sin(next), y:section.y+x*Math.sin(next)+y*Math.cos(next), rotation:element.rotation+section.rotation-old.rotation };
+  }) };
+}
+export function normalizePackagingDesign(design: PackagingDesign, previous?: PackagingDesign): PackagingDesign {
+  design = syncPackagingSectionText(design, previous);
   return { ...design, elements: design.elements.map(element => constrainPackagingElement(element.kind==='section'&&element.fullPanel?{...element,...panelSize(design,element.panel),x:panelSize(design,element.panel).width/2,y:panelSize(design,element.panel).height/2,rotation:0}:element, packagingElementRegion(design, element))) };
 }
 export function packagingDimensionError(dimensions: PackagingDesign['dimensions'], category: PackagingCategory): string | undefined {

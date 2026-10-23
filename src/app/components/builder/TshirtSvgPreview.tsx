@@ -1595,6 +1595,7 @@ export function TshirtSvgPreview({
         className,
       )}
       data-tshirt-preview=""
+      data-fold-geometry={JSON.stringify(layerLayouts.filter(layout=>layout.bbox&&['neck','base'].includes(layout.id)).map(layout=>{const box=layout.bbox!,t=resolveLayerDisplayTransform(layout.id,layout.transform,box),scale=resolveLayerScale(t);const matrix=new DOMMatrix().translate(box.centerX+t.x*2048/canvasSize,box.centerY+t.y*2048/canvasSize).rotate(t.rotation).scale(scale.scaleX,scale.scaleY).translate((layout.alignOffset?.x??0)-box.centerX,(layout.alignOffset?.y??0)-box.centerY);const points=[[box.minX,box.minY],[box.maxX,box.minY],[box.minX,box.maxY],[box.maxX,box.maxY]].map(([x,y])=>new DOMPoint(x,y).matrixTransform(matrix));return {id:layout.id,left:Math.min(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),right:Math.max(...points.map(p=>p.x)),bottom:Math.max(...points.map(p=>p.y))}}))}
       data-preview-instance={previewInstance}
       onPointerDown={editable ? handleBackgroundPointerDown : undefined}
       onPointerLeave={() => setHoveredLayerId(null)}

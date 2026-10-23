@@ -19,6 +19,17 @@ export function verifyPackagingGeometry() {
       }
     }
   }
+  for (const template of PACKAGING_TEMPLATES.filter(t=>t.category==='box')) {
+    for (const depth of [20,80,500]) {
+      const design={...createPackagingDesign(template.id),dimensions:{width:300,height:380,depth}};
+      const side=printRegion(design,'left');
+      for (const panel of ['front','back'] as const) {
+        const region=printRegion(design,panel);
+        check(region.y===side.y && region.height===side.height, template.id+': front/back guide differs from side margin');
+        check(region.x===side.x, template.id+': guide inset differs');
+      }
+    }
+  }
   const mailer = createPackagingDesign('kraft-mailer');
   check(printRegion(mailer, 'front').width < printRegion({ ...mailer, shippingLabel: false }, 'front').width, 'Label reservation ignored');
   check(printRegion(createPackagingDesign('handle'), 'front').y >= 65, 'Handle area not excluded');

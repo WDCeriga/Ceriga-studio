@@ -1,8 +1,10 @@
+import {createPortal} from 'react-dom';
 import {ArtworkSelection} from './ArtworkSelection';
-import { useId, useRef, type PointerEvent } from 'react';
-import { packagingTemplate, panelSize, printRegion, packagingElementRegion, constrainPackagingElement, type PackagingDesign, type PackagingElement, type PackagingPanel, type PackagingView } from '../../data/packaging';
+import { useId, useRef, useState, useEffect, type PointerEvent, type ReactNode } from 'react';
+import { packagingTemplate, packagingSectionHandle, resizePackagingSectionEdge, panelSize, printRegion, packagingElementRegion, constrainPackagingElement, type PackagingDesign, type PackagingElement, type PackagingPanel, type PackagingView } from '../../data/packaging';
 
 interface ArtworkProps {
+  garmentPreview?: (reverse: boolean) => ReactNode;
   design: PackagingDesign;
   fit?: boolean;
   surfaceTone?: 'light' | 'dark';
@@ -15,46 +17,102 @@ interface ArtworkProps {
   onSelect?: (id: string) => void;
   onElementChange?: (element: PackagingElement, limited: boolean) => void;
 }
+function PackagingInlineText({element,onDone}:{element:PackagingElement;onDone:(content?:string)=>void}) {
+ const input=useRef<HTMLInputElement>(null),finished=useRef(false);
+ const [draft,setDraft]=useState(element.content);
+ useEffect(()=>{const field=input.current;if(field){field.focus({preventScroll:true});field.setSelectionRange(field.value.length,field.value.length)}},[]);
+ const finish=(content?:string)=>{if(finished.current)return;finished.current=true;onDone(content)};
+ return <foreignObject x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} overflow="visible">
+ <input className="pkg-inline-text-input" ref={input} aria-label="Edit packaging text on canvas" maxLength={160} value={draft} onChange={event=>setDraft(event.target.value)} onPointerDown={event=>event.stopPropagation()} onDoubleClick={event=>event.stopPropagation()} onBlur={()=>finish(draft)} onKeyDown={event=>{event.stopPropagation();if(event.key==='Enter'){event.preventDefault();finish(draft)}else if(event.key==='Escape'){event.preventDefault();finish()}}} style={{boxSizing:'border-box',width:'100%',height:'100%',minWidth:0,padding:0,border:'1px dashed #7892a5',outline:'none',borderRadius:2,background:'transparent',color:element.color,caretColor:element.color,boxShadow:'none',fontFamily:element.font,fontSize:element.fontSize,textAlign:element.align}}/>
+ </foreignObject>;
+}
 export function PackagingSurface({ design, panel, guides, selectedId, onSelect, onElementChange }: ArtworkProps & { panel: PackagingPanel }) {
   const unique = useId().replace(/:/g, '');
+  const [editingText,setEditingText]=useState<string|null>(null);
+  useEffect(()=>{if(editingText!==selectedId)setEditingText(null)},[selectedId,editingText]);
+  const surfaceRef=useRef<SVGGElement>(null);
+  const [screenScale,setScreenScale]=useState(1);
+  useEffect(()=>{const surface=surfaceRef.current;if(!surface)return;const measure=()=>{const matrix=surface.getScreenCTM();if(matrix)setScreenScale(Math.max(.01,Math.hypot(matrix.a,matrix.b)))};measure();const observer=new ResizeObserver(measure);const svg=surface.ownerSVGElement;if(svg)observer.observe(svg);return()=>observer.disconnect()},[design.templateId,design.view,design.dimensions.width,design.dimensions.height,design.dimensions.depth]);
   const region = printRegion(design, panel);
-  const drag = useRef<{ pointer: number; x: number; y: number; element: PackagingElement; resize?: boolean } | null>(null);
+  const panelBounds = { x: 0, y: 0, ...panelSize(design, panel) };
+  const lastTap=useRef<{id:string;time:number;x:number;y:number}|null>(null);
+  const drag = useRef<{ pointer: number; x: number; y: number; element: PackagingElement; resize?: boolean; rotate?: boolean; corner?: 'top-left'|'top-right'|'bottom-left'|'bottom-right'; lastAngle?: number; rotation?: number; edge?: 'left' | 'right' | 'top' | 'bottom' } | null>(null);
   const point = (event: PointerEvent<SVGGElement>) => {
     const matrix = event.currentTarget.getScreenCTM();
     return matrix ? new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()) : new DOMPoint();
   };
-  return <g data-packaging-surface={panel} onPointerMove={event => {
+  return <g ref={surfaceRef} data-packaging-surface={panel} onPointerMove={event => {
     if (!drag.current || event.pointerId !== drag.current.pointer) return;
     const position = point(event);
     const original=drag.current.element,dx=position.x-drag.current.x,dy=position.y-drag.current.y;
     const angle=original.rotation*Math.PI/180,localX=dx*Math.cos(angle)+dy*Math.sin(angle),localY=-dx*Math.sin(angle)+dy*Math.cos(angle);
     const factor=Math.max(.05,1+2*(localX*original.width+localY*original.height)/(original.width**2+original.height**2));
-    const proposed = drag.current.resize?{...original,fullPanel:false,width:original.width*factor,height:original.height*factor,fontSize:original.fontSize*factor}:{ ...original,fullPanel:false, x: original.x + dx, y: original.y + dy };
+    let proposed = drag.current.resize?{...original,fullPanel:false,width:original.width*factor,height:original.height*factor,fontSize:original.fontSize*factor}:{ ...original,fullPanel:false, x: original.x + dx, y: original.y + dy };
+    if (drag.current.edge) {
+      proposed = resizePackagingSectionEdge(original, drag.current.edge, dx, dy);
+    }
+    if (drag.current.corner) {
+      const horizontal=drag.current.corner.endsWith('left')?'left':'right';
+      const vertical=drag.current.corner.startsWith('top')?'top':'bottom';
+      proposed=resizePackagingSectionEdge(resizePackagingSectionEdge(original,horizontal,dx,dy),vertical,dx,dy);
+      if(original.kind!=='section') {
+        const sx=horizontal==='left'?-1:1,sy=vertical==='top'?-1:1;
+        const factor=Math.max(.05,1+(sx*localX*original.width+sy*localY*original.height)/(original.width**2+original.height**2));
+        const width=original.width*factor,height=original.height*factor;
+        const shiftX=sx*(width-original.width)/2,shiftY=sy*(height-original.height)/2;
+        proposed={...original,width,height,fontSize:original.fontSize*factor,x:original.x+shiftX*Math.cos(angle)-shiftY*Math.sin(angle),y:original.y+shiftX*Math.sin(angle)+shiftY*Math.cos(angle)};
+      }
+    }
+    if (drag.current.rotate) {
+      const current=Math.atan2(position.y-original.y,position.x-original.x)*180/Math.PI;
+      const previous=drag.current.lastAngle??current;
+      // Unwrap each pointer step so crossing -180/180 keeps turning smoothly.
+      const delta=((current-previous+540)%360)-180;
+      drag.current.lastAngle=current;
+      drag.current.rotation=(drag.current.rotation??original.rotation)+delta;
+      const degrees=drag.current.rotation;
+      proposed={...original,fullPanel:false,rotation:degrees};
+      if(event.shiftKey) proposed.rotation=Math.round(proposed.rotation/15)*15;
+    }
     const constrained = constrainPackagingElement(proposed, packagingElementRegion(design,proposed));
     onElementChange?.(constrained, Math.abs(proposed.x - constrained.x) > 0.01 || Math.abs(proposed.y - constrained.y) > 0.01 || Math.abs(proposed.width-constrained.width)>.01);
   }} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
-    <defs><clipPath id={`${unique}-safe`}><rect {...region} /></clipPath></defs>
-    {[true,false].map(background=><g key={String(background)} clipPath={background?undefined:`url(#${unique}-safe)`}>
-      {design.elements.filter(element => element.panel === panel && (element.kind==='section')===background).map(element => <g key={element.id} data-packaging-element={element.id} tabIndex={onSelect?0:undefined} role={onSelect?"button":undefined} aria-label={onSelect?`Select ${element.name}`:undefined}
+    <defs><clipPath id={`${unique}-panel`}><rect {...panelBounds} /></clipPath><clipPath id={`${unique}-safe`}><rect {...region} /></clipPath></defs>
+    {([true,false,'linked'] as const).map(background=><g key={String(background)} clipPath={background!==false?`url(#${unique}-panel)`:`url(#${unique}-safe)`}>
+      {design.elements.filter(element => element.panel === panel && (background===true?element.kind==='section':background==='linked'?element.kind==='text'&&Boolean(element.sectionId):element.kind!=='section'&&!element.sectionId)).map(element => <g key={element.id} data-packaging-element={element.id} tabIndex={onSelect?0:undefined} role={onSelect?"button":undefined} aria-label={onSelect?`Select ${element.name}`:undefined}
+        onDoubleClick={event=>{if(element.kind==='text'&&onElementChange){event.preventDefault();event.stopPropagation();drag.current=null;onSelect?.(element.id);setEditingText(element.id)}}}
+        onKeyDown={event=>{if((event.target as Element).closest('input'))return;if(event.key==='Enter'&&element.kind==='text'&&onElementChange){event.preventDefault();event.stopPropagation();onSelect?.(element.id);setEditingText(element.id);return}if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();onSelect?.(element.id)}else if(onElementChange&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();event.stopPropagation();const step=event.shiftKey?10:1;const proposed={...element,fullPanel:false,x:element.x+(event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0),y:element.y+(event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0)};onElementChange(constrainPackagingElement(proposed,packagingElementRegion(design,proposed)),false)}}}
         transform={`translate(${element.x} ${element.y}) rotate(${element.rotation})`}
         style={{ cursor: onElementChange ? 'move' : undefined, touchAction: 'none' }}
         onPointerDown={event => {
-          if (!onElementChange || event.button !== 0) return;
+          if ((event.target as Element).closest('input') || editingText===element.id || !onElementChange || event.button !== 0) return;
+          if(element.kind==='text') {
+            const previous=lastTap.current,time=performance.now();
+            lastTap.current={id:element.id,time,x:event.clientX,y:event.clientY};
+            if(previous?.id===element.id&&time-previous.time<450&&Math.hypot(event.clientX-previous.x,event.clientY-previous.y)<12){event.preventDefault();event.stopPropagation();drag.current=null;onSelect?.(element.id);setEditingText(element.id);lastTap.current=null;return;}
+          }
           event.preventDefault(); event.stopPropagation();event.currentTarget.focus({preventScroll:true}); onSelect?.(element.id);
           const surface = event.currentTarget.parentElement?.parentElement as unknown as SVGGElement;
           const matrix = surface.getScreenCTM();
           if (!matrix) return;
           const position = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
           drag.current = { pointer: event.pointerId, x: position.x, y: position.y, element };
-          surface.setPointerCapture(event.pointerId);
+          event.currentTarget.setPointerCapture(event.pointerId);
         }}>
-        {element.kind==='section'?<rect data-packaging-colour-section="" x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.color}/>:element.kind === 'text' ? <svg x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} overflow="hidden">
+        {element.kind==='section'?<rect data-packaging-colour-section="" x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.color}/>:element.kind === 'text' ? editingText===element.id?<PackagingInlineText element={element} onDone={content=>{setEditingText(null);if(content===undefined||!onElementChange)return;const context=document.createElement('canvas').getContext('2d');if(context)context.font=element.fontSize+'px '+element.font;const width=Math.max(element.fontSize,(context?.measureText(content).width??content.length*element.fontSize)+element.fontSize);onElementChange(constrainPackagingElement({...element,content,width,height:element.fontSize*1.6},packagingElementRegion(design,element)),false)}}/>:<svg x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} overflow="hidden">
           <text x={element.align === 'left' ? 0 : element.align === 'right' ? element.width : element.width / 2} y={element.height / 2} dominantBaseline="central" textAnchor={element.align === 'left' ? 'start' : element.align === 'right' ? 'end' : 'middle'} fontFamily={element.font} fontSize={element.fontSize} fill={element.color} letterSpacing="0">{element.content}</text>
         </svg> : <image href={element.content} x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} preserveAspectRatio="xMidYMid meet" />}
-        {selectedId===element.id&&<ArtworkSelection kind="packaging" box={{x:-element.width/2,y:-element.height/2,width:element.width,height:element.height}} unit={Math.min(region.width,region.height)} resizeLabel={`Resize ${element.name}`} onResize={onElementChange?event=>{if(event.button!==0)return;event.stopPropagation();event.preventDefault();const surface=event.currentTarget.closest('[data-packaging-surface]') as unknown as SVGGElement;const matrix=surface.getScreenCTM();if(!matrix)return;const position=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());drag.current={pointer:event.pointerId,x:position.x,y:position.y,element,resize:true};surface.setPointerCapture(event.pointerId)}:undefined}/>}
+
       </g>)}
     </g>)}
-    {guides && <rect data-packaging-guide="safe" {...region} fill="none" stroke="#28a99d" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="5 4" pointerEvents="none" />}
+    {design.elements.filter(element=>element.id===selectedId&&element.panel===panel&&editingText!==element.id).map(element=><g key={element.id} data-packaging-section-controls={element.id}>
+      <g clipPath={`url(#${unique}-panel)`}><g transform={'translate('+element.x+' '+element.y+') rotate('+element.rotation+')'}>
+      <ArtworkSelection kind="packaging" box={{x:-element.width/2,y:-element.height/2,width:element.width,height:element.height}} unit={Math.min(region.width,region.height)}/></g></g>
+      {onElementChange&&element.kind==='section'&&(['left','right','top','bottom'] as const).map(edge=>{const size=8/screenScale;const {x,y}=packagingSectionHandle(element,edge,panelBounds,size);return <rect key={edge} data-packaging-handle={edge} role="button" aria-label={'Resize colour section '+edge+' side'} x={x-size/2} y={y-size/2} width={size} height={size} rx={size/5} fill="white" stroke="#7892a5" strokeWidth="1" vectorEffect="non-scaling-stroke" style={{cursor:edge==='left'||edge==='right'?'ew-resize':'ns-resize',touchAction:'none'}} onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();const surface=event.currentTarget.closest('[data-packaging-surface]') as unknown as SVGGElement;const matrix=surface.getScreenCTM();if(!matrix)return;const position=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());drag.current={pointer:event.pointerId,x:position.x,y:position.y,element,edge};surface.setPointerCapture(event.pointerId)}}/>})}
+      {onElementChange&&(['top-left','top-right','bottom-left','bottom-right'] as const).map(corner=>{const size=10/screenScale,a=element.rotation*Math.PI/180,lx=(corner.endsWith('left')?-1:1)*element.width/2,ly=(corner.startsWith('top')?-1:1)*element.height/2;const x=Math.max(size,Math.min(panelBounds.width-size,element.x+lx*Math.cos(a)-ly*Math.sin(a))),y=Math.max(size,Math.min(panelBounds.height-size,element.y+lx*Math.sin(a)+ly*Math.cos(a)));return <rect key={corner} data-packaging-handle={corner} aria-label={'Resize '+element.name+' '+corner+' corner'} role="button" x={x-size/2} y={y-size/2} width={size} height={size} rx={size/5} fill="white" stroke="#7892a5" strokeWidth="1" vectorEffect="non-scaling-stroke" style={{cursor:corner==='top-left'||corner==='bottom-right'?'nwse-resize':'nesw-resize',touchAction:'none'}} onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();const surface=event.currentTarget.closest('[data-packaging-surface]') as unknown as SVGGElement;const matrix=surface.getScreenCTM();if(!matrix)return;const position=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());drag.current={pointer:event.pointerId,x:position.x,y:position.y,element,corner};surface.setPointerCapture(event.pointerId)}}/>})}
+      {onElementChange&&(()=>{const r=11/screenScale;const anchor=packagingSectionHandle(element,'top',panelBounds,r);const x=anchor.x,y=anchor.y-r*2.5;return <g data-packaging-handle="rotate"><rect x={x-r} y={y-r} width={r*2} height={r*2} rx={r*.4} fill="white" stroke="#a4b2c6" strokeWidth="1" vectorEffect="non-scaling-stroke" role="button" tabIndex={0} aria-label="Rotate colour section" style={{cursor:'grab',touchAction:'none'}} onKeyDown={event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();event.stopPropagation();onElementChange({...element,fullPanel:false,rotation:element.rotation+(event.key==='ArrowLeft'?-1:1)*(event.shiftKey?15:1)},false)}} onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();const surface=event.currentTarget.closest('[data-packaging-surface]') as unknown as SVGGElement;const matrix=surface.getScreenCTM();if(!matrix)return;const position=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());drag.current={pointer:event.pointerId,x:position.x,y:position.y,element,rotate:true,lastAngle:Math.atan2(position.y-element.y,position.x-element.x)*180/Math.PI,rotation:element.rotation};surface.setPointerCapture(event.pointerId)}}/><path d={'M '+(x+r*.5)+' '+(y-r*.1)+' A '+r*.53+' '+r*.53+' 0 1 0 '+(x+r*.28)+' '+(y+r*.45)+' M '+(x+r*.5)+' '+(y-r*.6)+' L '+(x+r*.5)+' '+(y-r*.1)+' L '+x+' '+(y-r*.1)} fill="none" stroke="#657d90" strokeWidth="1.3" vectorEffect="non-scaling-stroke" pointerEvents="none"/><title>Drag around the section centre to rotate through 360°. Hold Shift to snap to 15°. Arrow keys rotate by 1°.</title></g>})()}
+    </g>)}
+    {guides && <rect data-packaging-guide="safe" {...region} fill="none" stroke="#657d90" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="5 4" pointerEvents="none" />}
   </g>;
 }
 
@@ -97,11 +155,68 @@ function FoldedGarment({ color = '#737b7b', garmentType = 'tshirt', reverse = fa
   </svg>;
 }
 
-function PackagingContents({ design, panel, garmentColor, garmentType, reverse = false }: ArtworkProps & { panel: PackagingPanel; reverse?: boolean }) {
+export function foldedGarmentVectorImage(markup:string,x:number,y:number) {
+ const outline='M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z';
+ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="260" viewBox="0 0 240 260"><defs><clipPath id="fold-window"><path d="'+outline+'"/></clipPath></defs><g clip-path="url(#fold-window)"><svg x="'+x+'" y="'+y+'" width="520" height="520" viewBox="0 0 520 520">'+markup+'</svg></g></svg>');
+}
+function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(reverse:boolean)=>ReactNode;reverse:boolean;color:string;width:number;height:number}) {
+ const id=useId().replace(/:/g,'');
+ const sourceRef=useRef<HTMLDivElement>(null);
+ const [nativeMarkup,setNativeMarkup]=useState('');
+ const [framing,setFraming]=useState({x:-140,y:-80});
+ useEffect(()=>{
+  const host=sourceRef.current;if(!host)return;let frame=0;
+  const measure=()=>{
+   const native=host.querySelector('[data-fold-geometry]');if(!native)return;
+   try { const parts=JSON.parse(native.getAttribute('data-fold-geometry')??'[]') as {id:string;left:number;top:number;right:number;bottom:number}[];
+    const neck=parts.find(p=>p.id==='neck'),body=parts.find(p=>p.id==='base');if(!neck&&!body)return;
+    const target=neck??body!;
+    const next={x:120-(target.left+target.right)/2*520/2048,y:30-target.top*520/2048};
+    setFraming(old=>Math.abs(old.x-next.x)+Math.abs(old.y-next.y)>.2?next:old);
+    const bounds=host.getBoundingClientRect();
+    const root=new DOMMatrix().translate(bounds.left,bounds.top);if(bounds.width){
+     const pieces:string[]=[];
+     const layerOrder=(node:Element)=>{let order=0,current:Element|null=node;while(current&&current!==host){const value=Number(getComputedStyle(current).zIndex);if(Number.isFinite(value))order+=value;current=current.parentElement}return order};
+     Array.from(host.querySelectorAll('svg')).sort((a,b)=>layerOrder(a)-layerOrder(b)).forEach(node=>{const svg=node as SVGSVGElement;if(svg.closest('defs')||!svg.closest('[data-layer-id]')||!svg.viewBox.baseVal.width)return;const matrix=svg.getScreenCTM();if(!matrix)return;const relative=root.inverse().multiply(matrix);const clone=svg.cloneNode(true) as SVGSVGElement;const box=svg.viewBox.baseVal;clone.setAttribute('width',String(box.width));clone.setAttribute('height',String(box.height));clone.setAttribute('x','0');clone.setAttribute('y','0');clone.removeAttribute('class');clone.removeAttribute('style');
+      const originals=svg.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');const copies=clone.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');originals.forEach((element,index)=>{if(element.closest('defs'))return;const paint=getComputedStyle(element);for(const key of ['fill','stroke','stroke-width','opacity','fill-opacity','stroke-opacity','stroke-linejoin','stroke-linecap','font-family','font-size']){const value=paint.getPropertyValue(key);if(value)copies[index]?.setAttribute(key,value)}});
+      pieces.push('<g transform="'+'matrix('+[relative.a,relative.b,relative.c,relative.d,relative.e,relative.f].join(' ')+')'+'">'+new XMLSerializer().serializeToString(clone)+'</g>');
+     });
+     if(pieces.length){const prefix=id+'-mobile-';let markup=pieces.join('');const ids=[...markup.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]);for(const original of new Set(ids)){markup=markup.split('id="'+original+'"').join('id="'+prefix+original+'"').split('#'+original).join('#'+prefix+original)}setNativeMarkup(previous=>previous===markup?previous:markup)}
+    }
+   }catch{}
+  };
+  const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(measure)};
+  const observer=new MutationObserver(schedule);observer.observe(host,{subtree:true,childList:true,attributes:true});const resize=new ResizeObserver(schedule);resize.observe(host);schedule();return()=>{observer.disconnect();resize.disconnect();cancelAnimationFrame(frame)};
+ },[reverse,id]);
+
+ return <>{typeof document!=='undefined'&&createPortal(<div ref={sourceRef} data-live-fold-source="offscreen" className="pkg-fold-source" aria-hidden="true" style={{position:'fixed',left:-10000,top:0,width:520,height:520,opacity:0,pointerEvents:'none',overflow:'hidden',zIndex:-1}}>{preview(reverse)}</div>,document.body)}<svg data-packaging-folded-live="true" data-garment-facing={reverse?'back':'front'} width={width} height={height} viewBox="0 0 240 260" preserveAspectRatio="xMidYMid meet" overflow="hidden" pointerEvents="none">
+  <defs>
+   <clipPath id={id+'-folded-body'}><path d="M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z"/></clipPath>
+   <linearGradient id={id+'-side-fold'}><stop stopColor="#000" stopOpacity=".15"/><stop offset=".07" stopColor="#fff" stopOpacity=".1"/><stop offset=".18" stopColor="#000" stopOpacity="0"/><stop offset=".82" stopColor="#000" stopOpacity="0"/><stop offset=".94" stopColor="#fff" stopOpacity=".08"/><stop offset="1" stopColor="#000" stopOpacity=".16"/></linearGradient><linearGradient id={id+'-fold-shade'} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fff" stopOpacity=".10"/><stop offset=".75" stopColor="#000" stopOpacity="0"/><stop offset="1" stopColor="#000" stopOpacity=".09"/></linearGradient>
+  </defs>
+  <ellipse cx="120" cy="238" rx="88" ry="7" fill="#000" opacity=".10"/>
+  <rect data-folded-sleeves="tucked" x="38" y="47" width="164" height="186" rx="9" fill={color}/>
+  <rect x="38" y="47" width="164" height="186" rx="9" fill="#000" opacity=".13"/>
+  <rect x="36" y="43" width="168" height="186" rx="9" fill={color}/>
+  <defs><clipPath id={id+'-turned-fold'}><rect x="39" y="215" width="162" height="13" rx="5"/></clipPath></defs>
+
+  <g clipPath={'url(#'+id+'-folded-body)'}>
+   <rect x="36" y="23" width="168" height="201" fill={color}/>
+   {/* Only the central chest remains visible after both sleeves fold underneath. */}
+   {nativeMarkup&&<image data-native-fold-source="" data-fold-viewport="isolated" x="0" y="0" width="240" height="260" preserveAspectRatio="xMidYMid meet" href={foldedGarmentVectorImage(nativeMarkup,framing.x,framing.y)}/>}
+   <rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-fold-shade)'}/><rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-side-fold)'}/>
+  </g>
+  <path d="M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z" fill="none" stroke="#000" strokeOpacity=".05" strokeWidth=".5"/>
+  <path data-folded-hem="turned-up" d="M38 213Q120 218 202 213L201 222Q120 228 39 222Z" fill={color}/>
+  <path d="M39 214Q120 219 201 214" fill="none" stroke="#000" strokeOpacity=".13" strokeWidth="1"/>
+  <path d="M43 222Q120 227 197 222M44 229Q120 234 196 229" fill="none" stroke="#fff" strokeOpacity=".22" strokeWidth="1"/>
+ </svg></>;
+}
+function PackagingContents({ design, panel, garmentColor, garmentType, garmentPreview, reverse = false }: ArtworkProps & { panel: PackagingPanel; reverse?: boolean }) {
   const region = printRegion({ ...design, shippingLabel: false }, panel);
   const inset = Math.min(region.width, region.height) * .025;
   return <g data-packaging-contents="true" transform={`translate(${region.x + inset} ${region.y + inset})`} pointerEvents="none">
-    <FoldedGarment color={garmentColor} garmentType={garmentType} reverse={reverse} width={region.width - inset * 2} height={region.height - inset * 2} />
+    {garmentPreview?<FoldedLiveGarment preview={garmentPreview} reverse={reverse} color={garmentColor??'#737b7b'} width={region.width-inset*2} height={region.height-inset*2}/>:<FoldedGarment color={garmentColor} garmentType={garmentType} reverse={reverse} width={region.width - inset * 2} height={region.height - inset * 2} />}
   </g>;
 }
 

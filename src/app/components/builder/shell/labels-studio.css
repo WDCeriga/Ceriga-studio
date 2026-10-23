@@ -25,3 +25,8 @@
 @media(max-width:767px){[data-label-editing-surface]:has([data-label-direct-editor]) .label-studio-zoom{display:none!important}}
 
 .label-saved-list{gap:0}.label-saved-list>button,.label-saved-list>button[aria-pressed=true]{border:0;border-bottom:1px solid #e1e6ec;border-radius:0;background:white;padding:16px 8px;box-shadow:none}.label-saved-list>button:hover{background:#f7f9fa}.labels-studio .label-text-button{border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;padding:8px 0!important;text-align:left;color:#657d90}
+
+/* Match Construction's compact disclosure rows. */
+.labels-studio .label-section { margin-top:12px; padding-top:2px; }
+.labels-studio .label-section>summary { min-height:42px; padding:9px 0; font-size:12px; font-weight:500; line-height:1.5; color:#3c4855; }
+.labels-studio .label-section>summary small { font-size:10px; }

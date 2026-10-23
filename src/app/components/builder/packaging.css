@@ -87,3 +87,40 @@
 	.pkg-preview-footer .pkg-zoom input { width: 48px; }
 	.pkg-editor input:not([type=checkbox]):not([type=range]):not([type=file]), .pkg-editor select, .pkg-editor textarea { font-size: 16px; }
 }
+.pkg-preview input.pkg-inline-text-input,
+.pkg-preview input.pkg-inline-text-input:focus,
+.pkg-preview input.pkg-inline-text-input:focus-visible {
+ outline:none!important;
+ box-shadow:none!important;
+ border:0!important;
+ background:transparent!important;
+ --tw-ring-shadow:0 0 #0000;
+ --tw-ring-offset-shadow:0 0 #0000;
+}
+
+.pkg-preview input.pkg-inline-text-input {
+ box-sizing:border-box!important;
+ min-width:0!important;
+ min-height:0!important;
+ width:100%!important;
+ height:100%!important;
+ margin:0!important;
+ padding:0!important;
+}
+
+/* The folding source must remain square: rectangular viewports fit the entire
+   garment down and expose the sleeves and original side silhouette. */
+.pkg-fold-source { container-type:size; overflow:hidden; }
+.pkg-fold-source [data-tshirt-preview] { width:520px!important; height:520px!important; min-height:0!important; padding:0!important; }
+
+.pkg-fold-source { contain:layout paint size; isolation:isolate; }
+.pkg-fold-source [data-tshirt-preview]>div:first-child { width:520px!important; height:520px!important; flex:none!important; }
+.pkg-preview-viewport,.pkg-preview-drawing { box-sizing:border-box; flex-shrink:0; }
+
+/* Keep the live collar readable while the heavier construction overlay loads,
+   including inside scaled phone foreignObject previews. */
+.pkg-fold-source [data-layer-id="neck"] svg path:not(defs path) {
+ stroke:#526175;
+ stroke-width:6;
+ stroke-linejoin:round;
+}
