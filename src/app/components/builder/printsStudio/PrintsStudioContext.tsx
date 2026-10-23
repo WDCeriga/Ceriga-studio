@@ -36,6 +36,7 @@ export interface PrintsStudioState extends BrushSettings {
   distressSession: number;
   tool: PrintsStudioTool;
   panel: PrintsStudioPanel;
+  panelRequest: number;
   color: string;
   brushSize: number;
   eraserSize: number;
@@ -58,6 +59,7 @@ const DEFAULT_STATE: PrintsStudioState = {
   distressSession: 0,
   tool: 'select',
   panel: 'brush',
+  panelRequest: 0,
   color: '#171717',
   brushSize: 14,
   eraserSize: 22,
@@ -147,7 +149,7 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
               ? prev.tool
               : 'select'
             : 'select';
-      return { ...prev, panel, tool, drawingSession: prev.drawingSession + (panel !== prev.panel ? 1 : 0) };
+      return { ...prev, panel, panelRequest:(prev.panelRequest??0)+1, tool, drawingSession: prev.drawingSession + (panel !== prev.panel ? 1 : 0) };
     });
   }, []);
   const setColor = useCallback((color: string) => {

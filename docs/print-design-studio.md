@@ -21,3 +21,15 @@ These inform discoverability and focus, rather than reproducing another product'
 ## Verification
 
 Run `npm run build` and `node scripts/verify-print-studio.mjs`. Browser checks cover the T-shirt and hoodie entry points, brush category filtering, adding/editing text, contextual selection, layer navigation and phone canvas visibility. A full inherited-tool behaviour audit is intentionally separate from this layout phase.
+
+## Usability redesign
+
+The initial layout reused too much of the old inspector. The revised interface separates creation from selection editing, with a persistent visual layer dock and an independent brush-tuning view. Everyday controls use shared, labelled fields and consistent selected states. The canvas owns direct actions; the inspector owns adjustment. Deeper controls are grouped by their purpose rather than collected into a default scrolling form.
+
+Ceriga principles used here: keep the garment visible; show visual choices before technical fields; give each task one obvious starting point; retain editing context; preserve editable sources; make advanced options discoverable without placing them ahead of the basics. Medium categories, actual stroke previews, saved brushes, real text presets, filtered pattern previews and artwork thumbnails support these principles. Create/Edit labels accompany icons. V/B/E select the canvas tools and F toggles focus, without intercepting typing in form fields.
+
+Behaviour checks include same-tool navigation after selecting artwork, committed numeric input, brush/settings navigation, selected text properties, category filtering, and layer access. Image filters, custom repeats, font imports and original advanced tools remain available in context.
+
+
+### Clean workspace refinement
+The default inspector shows one tool family. Brush medium and visual strokes replace the old stacked toolbar; brush settings open separately. Layers stays collapsed until requested. The canvas has no duplicate tool rail or selection action strip. Typography presets, stroke tuning, texture, dynamics and other advanced controls are disclosed on demand. Shapes start with nine essentials and patterns with six previews. Shared control styling uses a consistent type scale, restrained section dividers, custom range tracks, visible keyboard focus and compact value badges. Desktop and phone keep the garment on the canvas.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ComponentProps } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { textCurveRadius, updateTextCurve, type TextCurvePatch } from '../../lib/textCurveControls';
 import { cn } from '../ui/utils';
@@ -270,7 +270,10 @@ export function designElementSide(el: Pick<DesignElement, 'side'>): 'front' | 'b
   return el.side ?? 'front';
 }
 
+export type PrintStudioToolAPI = ComponentProps<typeof PrintsStudioToolbar> & {onClearSelection?: () => void; onAddTextPreset?: (preset: Partial<DesignElement>) => void};
 interface PrintsDesignStepProps {
+  renderTools?: (api: PrintStudioToolAPI) => ReactNode;
+  renderSelection?: (element: DesignElement, update: (patch: Partial<DesignElement>) => void, fonts: string[]) => ReactNode;
   elements: DesignElement[];
   /** Merge supplies selection atomically so Undo never restores a deleted selection. */
   onChange: (elements: DesignElement[], selectedLayerId?: string) => void;
@@ -918,6 +921,7 @@ export function SidebarNumberField({
 }
 
 export function PrintsDesignStep({
+  renderTools, renderSelection,
   elements,
   onChange,
   selectedLayerId: selectedLayerIdProp,
@@ -925,11 +929,13 @@ export function PrintsDesignStep({
   usePhoneStrips = false,
   garmentSide = 'front',
 }: PrintsDesignStepProps) {
+  const [advancedSelectionOpen,setAdvancedSelectionOpen]=useState(!renderSelection);
   const assetWorkspace = useAssetWorkspaceContext();
   const assetMode = Boolean(assetWorkspace?.project);
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
   const selectedId = selectionControlled ? (selectedLayerIdProp ?? null) : fallbackSelectedId;
+  useLayoutEffect(()=>setAdvancedSelectionOpen(!renderSelection),[selectedId]);
   const setSelectedId = useCallback(
     (id: string | null) => {
       onSelectedLayerIdChange?.(id);
@@ -1207,6 +1213,11 @@ export function PrintsDesignStep({
     setTextInput('');
   };
 
+  const addTextPreset = (preset: Partial<DesignElement>) => {
+    const zone=document.querySelector('[data-print-design-zone]') as HTMLElement|null;
+    const element:DesignElement={id:crypto.randomUUID(),type:'text',content:preset.content??'Your brand',x:(zone?.clientWidth??720)/2,y:(zone?.clientHeight??616)/2,width:300,height:70,rotation:0,color:studio.color,fontFamily:'Inter',fontSize:30,textAlign:'center',autoWidth:true,autoHeight:true,opacity:100,printMethod:DEFAULT_PRINT_METHOD,side:garmentSide,...preset};
+    onChange([...elements,element],element.id);setSelectedId(element.id);studio.setTool('select');
+  };
   const capturePatternLayer = async (id: string): Promise<CustomPatternSource> => {
     const source = elements.find(element => element.id === id && canMergeLayer(element));
     const renderer = studio.layerRenderer.current;
@@ -1410,7 +1421,7 @@ export function PrintsDesignStep({
 
   return (
     <div className="print-imported-editor space-y-3.5">
-      <div data-print-panel="library"><PrintsStudioToolbar
+      <div data-print-panel="library">{renderTools ? renderTools({onPlaceAsset:placeStudioAsset,onUpload:handleUploadImage,previousUploads,onReuseUpload:reuseUpload,textInput,onTextInput:setTextInput,onAddText:handleAddText,onAddTextPreset:addTextPreset,onClearSelection:()=>setSelectedId(null),onImportFont:importFontFile,fontLibrary:importedFontFamilies,selectedElement:selected,onUpdateSelected:updateSelected,onStartCustomArea:startCustomArea,patternDocumentKey:`${assetWorkspace?.project?.id ?? 'garment'}:${garmentSide}`,patternLayers:sideElements.filter(element=>canMergeLayer(element)&&element.type!=='pattern').map(element=>({id:element.id,name:element.layerName??element.type})),onCapturePatternLayer:capturePatternLayer}) : <PrintsStudioToolbar
         compact={usePhoneStrips}
         layout="workspace"
         onPlaceAsset={placeStudioAsset}
@@ -1428,10 +1439,10 @@ export function PrintsDesignStep({
         patternDocumentKey={`${assetWorkspace?.project?.id ?? 'garment'}:${garmentSide}`}
         patternLayers={sideElements.filter(element => canMergeLayer(element) && element.type !== 'pattern').map(element => ({ id: element.id, name: element.type === 'text' ? element.content.slice(0, 50) : `${element.type} — ${element.id.slice(-6)}` }))}
         onCapturePatternLayer={capturePatternLayer}
-      /></div>
+      />}</div>
 
       {selected ? (
-        <PrintPanel title="Selected element">
+        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary>{selected.type==='text'?'Curves, outlines & advanced type':selected.type==='image'?'Adjustments, crop & distortion':'Effects & advanced editing'}</summary>{advancedSelectionOpen&&<PrintPanel title="Selected element">
           <div className="mb-4 flex items-center justify-between gap-2">
             <span className="text-[10px] text-[#8192a8]">
               {selected.type === 'image'
@@ -2436,10 +2447,10 @@ export function PrintsDesignStep({
               </div>
             </div>
           </div>
-        </PrintPanel>
+        </PrintPanel>}</details></div>
       ) : null}
 
-      <PrintPanel title={`Layers (${sideElements.length})`}>
+      {!renderTools&&<PrintPanel title={`Layers (${sideElements.length})`}>
         <details className="print-layer-actions" open={mergeIds.length > 1}><summary>Group & merge layers</summary>        <div className="mb-3 space-y-2">
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="flex-1" disabled={Boolean(groupIssue) || merging} onClick={groupSelectedLayers} title={groupIssue ?? 'Group editable children to move, resize, rotate or warp together'}>Group</Button>
@@ -2604,7 +2615,7 @@ export function PrintsDesignStep({
             })()
           )}
         </div>
-      </PrintPanel>
+      </PrintPanel>}
 
       <style>{`
         .rotation-scroller {

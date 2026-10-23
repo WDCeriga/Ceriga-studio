@@ -45,7 +45,7 @@ export function AssetWorkspaceHeader() {
 export function AssetLibraryPanel() {
   const workspace = useAssetWorkspaceContext();
   if (!workspace) return null;
-  return <section className="space-y-3 pb-4">
+  return <section data-studio-assets className="space-y-3 pb-4">
     <button className={`${button} w-full bg-[#405b6f]`} disabled={!!workspace.project || workspace.busy || !workspace.authReady || !!workspace.recovery} onClick={() => workspace.enter()}>+ Create Asset</button>
     {workspace.recovery && !workspace.project && <div className="space-y-2 rounded border border-amber-300/30 p-2 text-xs text-[#8192a8]"><p>An unfinished asset is saved on this device.</p><button className={button} onClick={workspace.resume}>Resume asset draft</button></div>}
     <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#8192a8]">My Assets</h3>

@@ -19,8 +19,8 @@ function sourceFromImage(src: string, name: string): Promise<CustomPatternSource
   });
 }
 
-export function PatternLibraryPanel({ color, selected, onChange, onPlace, uploads, layers, onCaptureLayer }: {
-  color: string; selected: DesignElement | null; onChange: (patch: PatternPatch) => void;
+export function PatternLibraryPanel({ customOnly = false, color, selected, onChange, onPlace, uploads, layers, onCaptureLayer }: {
+  customOnly?: boolean; color: string; selected: DesignElement | null; onChange: (patch: PatternPatch) => void;
   onPlace: (id: string, settings: PatternPatch) => void; uploads: SavedUpload[];
   layers: PatternLayerSource[]; onCaptureLayer?: (id: string) => Promise<CustomPatternSource>;
 }) {
@@ -59,7 +59,7 @@ export function PatternLibraryPanel({ color, selected, onChange, onPlace, upload
   const buttonClass = 'rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2 py-2 text-[11px] text-[#8192a8] hover:bg-[#eef2f5] disabled:opacity-40';
   return <div className="space-y-4" data-pattern-library>
     <p className="text-[10px] leading-relaxed text-[#8192a8]">Choose a style or drag its preview onto a garment part or closed Custom Area. Select a pattern to edit it.</p>
-    <details open className="space-y-3"><summary className="cursor-pointer text-xs font-semibold text-[#8192a8]">Pattern styles</summary>
+    {!customOnly&&<details open className="space-y-3"><summary className="cursor-pointer text-xs font-semibold text-[#8192a8]">Pattern styles</summary>
     {PATTERN_CATALOG.filter(item => item.id !== 'custom').reduce<string[]>((categories, item) => categories.includes(item.category) ? categories : [...categories, item.category], []).map(category =>
       <section key={category} className="space-y-2">
         <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#8192a8]">{category}</h4>
@@ -77,7 +77,7 @@ export function PatternLibraryPanel({ color, selected, onChange, onPlace, upload
           })}
         </div>
       </section>)}
-    </details>
+    </details>}
     <button type="button" className={`${buttonClass} w-full`} aria-expanded={customOpen || custom} onClick={() => setCustomOpen(value => !value)}>Custom Pattern</button>
     {(customOpen || custom) && <section className="space-y-3 rounded-lg border border-[#dce3ec] p-3" aria-label="Custom Pattern source">
       <p className="text-[10px] text-[#8192a8]">Choose an image, saved asset (including Asset Builder), or design layer. The original stays unchanged; the repeat uses an editable source snapshot.</p>
