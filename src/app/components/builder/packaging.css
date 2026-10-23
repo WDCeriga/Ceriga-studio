@@ -87,3 +87,28 @@
 	.pkg-preview-footer .pkg-zoom input { width: 48px; }
 	.pkg-editor input:not([type=checkbox]):not([type=range]):not([type=file]), .pkg-editor select, .pkg-editor textarea { font-size: 16px; }
 }
+.pkg-preview input.pkg-inline-text-input,
+.pkg-preview input.pkg-inline-text-input:focus,
+.pkg-preview input.pkg-inline-text-input:focus-visible {
+ outline:none!important;
+ box-shadow:none!important;
+ border:0!important;
+ background:transparent!important;
+ --tw-ring-shadow:0 0 #0000;
+ --tw-ring-offset-shadow:0 0 #0000;
+}
+
+.pkg-preview input.pkg-inline-text-input {
+ box-sizing:border-box!important;
+ min-width:0!important;
+ min-height:0!important;
+ width:100%!important;
+ height:100%!important;
+ margin:0!important;
+ padding:0!important;
+}
+
+/* The folding source must remain square: rectangular viewports fit the entire
+   garment down and expose the sleeves and original side silhouette. */
+.pkg-fold-source { container-type:size; overflow:hidden; }
+.pkg-fold-source [data-tshirt-preview] { width:520px!important; height:520px!important; min-height:0!important; padding:0!important; }
