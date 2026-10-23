@@ -155,7 +155,9 @@ function FoldedGarment({ color = '#737b7b', garmentType = 'tshirt', reverse = fa
 }
 
 function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(reverse:boolean)=>ReactNode;reverse:boolean;color:string;width:number;height:number}) {
+ const id=useId().replace(/:/g,'');
  const sourceRef=useRef<HTMLDivElement>(null);
+ const [nativeMarkup,setNativeMarkup]=useState('');
  const [framing,setFraming]=useState({x:-140,y:-80});
  useEffect(()=>{
   const host=sourceRef.current;if(!host)return;let frame=0;
@@ -166,12 +168,22 @@ function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(revers
     const target=neck??body!;
     const next={x:120-(target.left+target.right)/2*520/2048,y:30-target.top*520/2048};
     setFraming(old=>Math.abs(old.x-next.x)+Math.abs(old.y-next.y)>.2?next:old);
+    const foreign=host.closest('foreignObject') as unknown as SVGGraphicsElement;
+    const root=foreign?.getScreenCTM();if(root){
+     const pieces:string[]=[];
+     const layerOrder=(node:Element)=>{let order=0,current:Element|null=node;while(current&&current!==host){const value=Number(getComputedStyle(current).zIndex);if(Number.isFinite(value))order+=value;current=current.parentElement}return order};
+     Array.from(host.querySelectorAll('svg')).sort((a,b)=>layerOrder(a)-layerOrder(b)).forEach(node=>{const svg=node as SVGSVGElement;if(svg.closest('defs')||!svg.closest('[data-layer-id]')||!svg.viewBox.baseVal.width)return;const matrix=svg.getScreenCTM();if(!matrix)return;const relative=root.inverse().multiply(matrix);relative.e-=Number(foreign.getAttribute('x'));relative.f-=Number(foreign.getAttribute('y'));const clone=svg.cloneNode(true) as SVGSVGElement;const box=svg.viewBox.baseVal;clone.setAttribute('width',String(box.width));clone.setAttribute('height',String(box.height));clone.setAttribute('x','0');clone.setAttribute('y','0');clone.removeAttribute('class');clone.removeAttribute('style');
+      const originals=svg.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');const copies=clone.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');originals.forEach((element,index)=>{if(element.closest('defs'))return;const paint=getComputedStyle(element);for(const key of ['fill','stroke','stroke-width','opacity','fill-opacity','stroke-opacity','stroke-linejoin','stroke-linecap','font-family','font-size']){const value=paint.getPropertyValue(key);if(value)copies[index]?.setAttribute(key,value)}});
+      pieces.push('<g transform="'+'matrix('+[relative.a,relative.b,relative.c,relative.d,relative.e,relative.f].join(' ')+')'+'">'+new XMLSerializer().serializeToString(clone)+'</g>');
+     });
+     if(pieces.length){const prefix=id+'-mobile-';let markup=pieces.join('');const ids=[...markup.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]);for(const original of new Set(ids)){markup=markup.split('id="'+original+'"').join('id="'+prefix+original+'"').split('#'+original).join('#'+prefix+original)}setNativeMarkup(previous=>previous===markup?previous:markup)}
+    }
    }catch{}
   };
   const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(measure)};
-  const observer=new MutationObserver(schedule);observer.observe(host,{subtree:true,childList:true,attributes:true});schedule();return()=>{observer.disconnect();cancelAnimationFrame(frame)};
- },[reverse]);
- const id=useId().replace(/:/g,'');
+  const observer=new MutationObserver(schedule);observer.observe(host,{subtree:true,childList:true,attributes:true});const resize=new ResizeObserver(schedule);resize.observe(host);schedule();return()=>{observer.disconnect();resize.disconnect();cancelAnimationFrame(frame)};
+ },[reverse,id]);
+
  return <svg data-packaging-folded-live="true" data-garment-facing={reverse?'back':'front'} width={width} height={height} viewBox="0 0 240 260" preserveAspectRatio="xMidYMid meet" overflow="hidden" pointerEvents="none">
   <defs>
    <clipPath id={id+'-folded-body'}><path d="M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z"/></clipPath>
@@ -186,7 +198,7 @@ function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(revers
   <g clipPath={'url(#'+id+'-folded-body)'}>
    <rect x="36" y="23" width="168" height="201" fill={color}/>
    {/* Only the central chest remains visible after both sleeves fold underneath. */}
-   <foreignObject x={framing.x} y={framing.y} width="520" height="520"><div ref={sourceRef} data-live-fold-source="front-face" className="pkg-fold-source" style={{width:520,height:520,pointerEvents:'none'}}>{preview(reverse)}</div></foreignObject>
+   <foreignObject style={{opacity:nativeMarkup?0:1}} x={framing.x} y={framing.y} width="520" height="520"><div ref={sourceRef} data-live-fold-source="front-face" className="pkg-fold-source" style={{width:520,height:520,pointerEvents:'none'}}>{preview(reverse)}</div></foreignObject>{nativeMarkup&&<svg data-native-fold-source="" x={framing.x} y={framing.y} width="520" height="520" viewBox="0 0 520 520" overflow="visible" dangerouslySetInnerHTML={{__html:nativeMarkup}}/>}
    <rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-fold-shade)'}/><rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-side-fold)'}/>
   </g>
   <path d="M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z" fill="none" stroke="#000" strokeOpacity=".05" strokeWidth=".5"/>

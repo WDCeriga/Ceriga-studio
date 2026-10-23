@@ -112,3 +112,15 @@
    garment down and expose the sleeves and original side silhouette. */
 .pkg-fold-source { container-type:size; overflow:hidden; }
 .pkg-fold-source [data-tshirt-preview] { width:520px!important; height:520px!important; min-height:0!important; padding:0!important; }
+
+.pkg-fold-source { contain:layout paint size; isolation:isolate; }
+.pkg-fold-source [data-tshirt-preview]>div:first-child { width:520px!important; height:520px!important; flex:none!important; }
+.pkg-preview-viewport,.pkg-preview-drawing { box-sizing:border-box; flex-shrink:0; }
+
+/* Keep the live collar readable while the heavier construction overlay loads,
+   including inside scaled phone foreignObject previews. */
+.pkg-fold-source [data-layer-id="neck"] svg path:not(defs path) {
+ stroke:#526175;
+ stroke-width:6;
+ stroke-linejoin:round;
+}
