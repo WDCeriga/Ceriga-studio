@@ -155,6 +155,10 @@ function FoldedGarment({ color = '#737b7b', garmentType = 'tshirt', reverse = fa
   </svg>;
 }
 
+export function foldedGarmentVectorImage(markup:string,x:number,y:number) {
+ const outline='M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z';
+ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="260" viewBox="0 0 240 260"><defs><clipPath id="fold-window"><path d="'+outline+'"/></clipPath></defs><g clip-path="url(#fold-window)"><svg x="'+x+'" y="'+y+'" width="520" height="520" viewBox="0 0 520 520">'+markup+'</svg></g></svg>');
+}
 function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(reverse:boolean)=>ReactNode;reverse:boolean;color:string;width:number;height:number}) {
  const id=useId().replace(/:/g,'');
  const sourceRef=useRef<HTMLDivElement>(null);
@@ -195,11 +199,11 @@ function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(revers
   <rect x="38" y="47" width="164" height="186" rx="9" fill="#000" opacity=".13"/>
   <rect x="36" y="43" width="168" height="186" rx="9" fill={color}/>
   <defs><clipPath id={id+'-turned-fold'}><rect x="39" y="215" width="162" height="13" rx="5"/></clipPath></defs>
-  <g clipPath={'url(#'+id+'-turned-fold)'} transform="translate(0 443) scale(1 -1)">{nativeMarkup&&<svg x={framing.x} y={framing.y} width="520" height="520" viewBox="0 0 520 520" dangerouslySetInnerHTML={{__html:nativeMarkup}}/>}</g>
+
   <g clipPath={'url(#'+id+'-folded-body)'}>
    <rect x="36" y="23" width="168" height="201" fill={color}/>
    {/* Only the central chest remains visible after both sleeves fold underneath. */}
-   {nativeMarkup&&<svg data-native-fold-source="" x={framing.x} y={framing.y} width="520" height="520" viewBox="0 0 520 520" overflow="visible" dangerouslySetInnerHTML={{__html:nativeMarkup}}/>}
+   {nativeMarkup&&<image data-native-fold-source="" data-fold-viewport="isolated" x="0" y="0" width="240" height="260" preserveAspectRatio="xMidYMid meet" href={foldedGarmentVectorImage(nativeMarkup,framing.x,framing.y)}/>}
    <rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-fold-shade)'}/><rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-side-fold)'}/>
   </g>
   <path d="M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z" fill="none" stroke="#000" strokeOpacity=".05" strokeWidth=".5"/>
