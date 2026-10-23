@@ -1,3 +1,4 @@
+import {createPortal} from 'react-dom';
 import {ArtworkSelection} from './ArtworkSelection';
 import { useId, useRef, useState, useEffect, type PointerEvent, type ReactNode } from 'react';
 import { packagingTemplate, packagingSectionHandle, resizePackagingSectionEdge, panelSize, printRegion, packagingElementRegion, constrainPackagingElement, type PackagingDesign, type PackagingElement, type PackagingPanel, type PackagingView } from '../../data/packaging';
@@ -168,11 +169,11 @@ function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(revers
     const target=neck??body!;
     const next={x:120-(target.left+target.right)/2*520/2048,y:30-target.top*520/2048};
     setFraming(old=>Math.abs(old.x-next.x)+Math.abs(old.y-next.y)>.2?next:old);
-    const foreign=host.closest('foreignObject') as unknown as SVGGraphicsElement;
-    const root=foreign?.getScreenCTM();if(root){
+    const bounds=host.getBoundingClientRect();
+    const root=new DOMMatrix().translate(bounds.left,bounds.top);if(bounds.width){
      const pieces:string[]=[];
      const layerOrder=(node:Element)=>{let order=0,current:Element|null=node;while(current&&current!==host){const value=Number(getComputedStyle(current).zIndex);if(Number.isFinite(value))order+=value;current=current.parentElement}return order};
-     Array.from(host.querySelectorAll('svg')).sort((a,b)=>layerOrder(a)-layerOrder(b)).forEach(node=>{const svg=node as SVGSVGElement;if(svg.closest('defs')||!svg.closest('[data-layer-id]')||!svg.viewBox.baseVal.width)return;const matrix=svg.getScreenCTM();if(!matrix)return;const relative=root.inverse().multiply(matrix);relative.e-=Number(foreign.getAttribute('x'));relative.f-=Number(foreign.getAttribute('y'));const clone=svg.cloneNode(true) as SVGSVGElement;const box=svg.viewBox.baseVal;clone.setAttribute('width',String(box.width));clone.setAttribute('height',String(box.height));clone.setAttribute('x','0');clone.setAttribute('y','0');clone.removeAttribute('class');clone.removeAttribute('style');
+     Array.from(host.querySelectorAll('svg')).sort((a,b)=>layerOrder(a)-layerOrder(b)).forEach(node=>{const svg=node as SVGSVGElement;if(svg.closest('defs')||!svg.closest('[data-layer-id]')||!svg.viewBox.baseVal.width)return;const matrix=svg.getScreenCTM();if(!matrix)return;const relative=root.inverse().multiply(matrix);const clone=svg.cloneNode(true) as SVGSVGElement;const box=svg.viewBox.baseVal;clone.setAttribute('width',String(box.width));clone.setAttribute('height',String(box.height));clone.setAttribute('x','0');clone.setAttribute('y','0');clone.removeAttribute('class');clone.removeAttribute('style');
       const originals=svg.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');const copies=clone.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');originals.forEach((element,index)=>{if(element.closest('defs'))return;const paint=getComputedStyle(element);for(const key of ['fill','stroke','stroke-width','opacity','fill-opacity','stroke-opacity','stroke-linejoin','stroke-linecap','font-family','font-size']){const value=paint.getPropertyValue(key);if(value)copies[index]?.setAttribute(key,value)}});
       pieces.push('<g transform="'+'matrix('+[relative.a,relative.b,relative.c,relative.d,relative.e,relative.f].join(' ')+')'+'">'+new XMLSerializer().serializeToString(clone)+'</g>');
      });
@@ -184,7 +185,7 @@ function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(revers
   const observer=new MutationObserver(schedule);observer.observe(host,{subtree:true,childList:true,attributes:true});const resize=new ResizeObserver(schedule);resize.observe(host);schedule();return()=>{observer.disconnect();resize.disconnect();cancelAnimationFrame(frame)};
  },[reverse,id]);
 
- return <svg data-packaging-folded-live="true" data-garment-facing={reverse?'back':'front'} width={width} height={height} viewBox="0 0 240 260" preserveAspectRatio="xMidYMid meet" overflow="hidden" pointerEvents="none">
+ return <>{typeof document!=='undefined'&&createPortal(<div ref={sourceRef} data-live-fold-source="offscreen" className="pkg-fold-source" aria-hidden="true" style={{position:'fixed',left:-10000,top:0,width:520,height:520,opacity:0,pointerEvents:'none',overflow:'hidden',zIndex:-1}}>{preview(reverse)}</div>,document.body)}<svg data-packaging-folded-live="true" data-garment-facing={reverse?'back':'front'} width={width} height={height} viewBox="0 0 240 260" preserveAspectRatio="xMidYMid meet" overflow="hidden" pointerEvents="none">
   <defs>
    <clipPath id={id+'-folded-body'}><path d="M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z"/></clipPath>
    <linearGradient id={id+'-side-fold'}><stop stopColor="#000" stopOpacity=".15"/><stop offset=".07" stopColor="#fff" stopOpacity=".1"/><stop offset=".18" stopColor="#000" stopOpacity="0"/><stop offset=".82" stopColor="#000" stopOpacity="0"/><stop offset=".94" stopColor="#fff" stopOpacity=".08"/><stop offset="1" stopColor="#000" stopOpacity=".16"/></linearGradient><linearGradient id={id+'-fold-shade'} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fff" stopOpacity=".10"/><stop offset=".75" stopColor="#000" stopOpacity="0"/><stop offset="1" stopColor="#000" stopOpacity=".09"/></linearGradient>
@@ -194,18 +195,18 @@ function FoldedLiveGarment({preview,reverse,color,width,height}:{preview:(revers
   <rect x="38" y="47" width="164" height="186" rx="9" fill="#000" opacity=".13"/>
   <rect x="36" y="43" width="168" height="186" rx="9" fill={color}/>
   <defs><clipPath id={id+'-turned-fold'}><rect x="39" y="215" width="162" height="13" rx="5"/></clipPath></defs>
-  <g clipPath={'url(#'+id+'-turned-fold)'} transform="translate(0 443) scale(1 -1)"><foreignObject x="-140" y="-80" width="520" height="520"><div data-live-fold-source="under-fold" className="pkg-fold-source" style={{width:520,height:520,pointerEvents:'none'}}>{preview(!reverse)}</div></foreignObject></g>
+  <g clipPath={'url(#'+id+'-turned-fold)'} transform="translate(0 443) scale(1 -1)">{nativeMarkup&&<svg x={framing.x} y={framing.y} width="520" height="520" viewBox="0 0 520 520" dangerouslySetInnerHTML={{__html:nativeMarkup}}/>}</g>
   <g clipPath={'url(#'+id+'-folded-body)'}>
    <rect x="36" y="23" width="168" height="201" fill={color}/>
    {/* Only the central chest remains visible after both sleeves fold underneath. */}
-   <foreignObject style={{opacity:nativeMarkup?0:1}} x={framing.x} y={framing.y} width="520" height="520"><div ref={sourceRef} data-live-fold-source="front-face" className="pkg-fold-source" style={{width:520,height:520,pointerEvents:'none'}}>{preview(reverse)}</div></foreignObject>{nativeMarkup&&<svg data-native-fold-source="" x={framing.x} y={framing.y} width="520" height="520" viewBox="0 0 520 520" overflow="visible" dangerouslySetInnerHTML={{__html:nativeMarkup}}/>}
+   {nativeMarkup&&<svg data-native-fold-source="" x={framing.x} y={framing.y} width="520" height="520" viewBox="0 0 520 520" overflow="visible" dangerouslySetInnerHTML={{__html:nativeMarkup}}/>}
    <rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-fold-shade)'}/><rect x="36" y="23" width="168" height="201" fill={'url(#'+id+'-side-fold)'}/>
   </g>
   <path d="M36 40Q36 32 45 31Q120 23 195 31Q204 32 204 40V213Q204 222 193 223H47Q36 222 36 213Z" fill="none" stroke="#000" strokeOpacity=".05" strokeWidth=".5"/>
   <path data-folded-hem="turned-up" d="M38 213Q120 218 202 213L201 222Q120 228 39 222Z" fill={color}/>
   <path d="M39 214Q120 219 201 214" fill="none" stroke="#000" strokeOpacity=".13" strokeWidth="1"/>
   <path d="M43 222Q120 227 197 222M44 229Q120 234 196 229" fill="none" stroke="#fff" strokeOpacity=".22" strokeWidth="1"/>
- </svg>;
+ </svg></>;
 }
 function PackagingContents({ design, panel, garmentColor, garmentType, garmentPreview, reverse = false }: ArtworkProps & { panel: PackagingPanel; reverse?: boolean }) {
   const region = printRegion({ ...design, shippingLabel: false }, panel);
