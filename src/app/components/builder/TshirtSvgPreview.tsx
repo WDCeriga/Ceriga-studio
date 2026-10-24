@@ -1,3 +1,5 @@
+import {PanellingReadOnlyOverlay} from './shell/PanellingReadOnlyOverlay';
+import {withPanellingFabricParts} from '../../features/panelling/panellingMaterials';
 import {washAvailability} from '../../data/washCapabilities';
 import {stitchRegionsWithInk,chooseStitchFocusRegion} from '../../data/tshirtStitching';
 import {getGarmentAsset} from '../../data/garmentSvgCatalog';
@@ -267,6 +269,7 @@ export interface TshirtSvgPreviewProps {
   /** Resolved live geometry, mounted in the same canvas as the material and construction layers. */
   renderPanellingOverlay?: (geometryMarkup: string) => React.ReactNode;
   semanticPanels?: PanelRegion[];
+  savedPanelling?: {seams:import('../../features/panelling/panellingTypes').PanellingSeam[];mirror:boolean;boundaries?:BoundaryLoop[]};
   customAssetState?: import('../../data/customAssets').CustomAssetState;
   onCustomAssetTransformChange?: (id: string, transform?: AssetUserTransform) => void;
   onCustomCollarEditsChange?: (id: string, edits?: CollarManualEdits) => void;
@@ -751,11 +754,15 @@ function PreviewLayer({
           linework={layer.id === 'outline' || layer.kind === 'detail'}
           regions={regions}
         />
-        {semanticPanels?.filter(panel => panel.parentId === layerId && panel.fillOverride).map(panel =>
-          <div key={panel.id} data-semantic-panel-fill={panel.id} className="pointer-events-none absolute inset-0">
+        {semanticPanels?.filter(panel => panel.parentId === layerId && (panel.seamIds.length>0||panel.fillOverride)).map(panel => {
+          const panelPart=materialParts.find(part=>part.id===panel.id);
+          const material=panelPart?resolvePartMaterial(fabricAssignments,panelPart,materialParts):undefined;
+          const panelFabric=technicalView?undefined:material?.fabric??fabric;
+          return <div key={panel.id} data-semantic-panel-fill={panel.id} data-fabric-id={panelFabric?.id} className="pointer-events-none absolute inset-0" style={{maskImage:`url("data:image/svg+xml,${encodeURIComponent(layer.svgRaw)}")`,WebkitMaskImage:`url("data:image/svg+xml,${encodeURIComponent(layer.svgRaw)}")`,maskSize:'100% 100%',WebkitMaskSize:'100% 100%',maskRepeat:'no-repeat',WebkitMaskRepeat:'no-repeat'}}>
             <InlineSvg raw={`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path d="${panel.path}" transform="${placementTransform}" fill="#000000" fill-rule="evenodd"/></svg>`}
-              fill={panel.fillOverride!} fabric={fabric} interior={interior} textureIntensity={textureIntensity} fabricColor={bodyColor} />
-          </div>)}
+              fill={partColors?.[panel.id]??panel.fillOverride??fill} fabric={panelFabric} interior={material?.interior??interior} textureIntensity={partTextureIntensity(fabricTextureIntensity,panel.id)} fabricColor={bodyColor} />
+          </div>;
+        })}
         {layer.colourPanels?.map(panel => {
           const panelPart = materialParts.find(part => part.id === panel.id);
           const material = panelPart ? resolvePartMaterial(fabricAssignments, panelPart, materialParts) : undefined;
@@ -818,6 +825,11 @@ function LayerHitTarget({ layerId, displayName, raw, side, zIndexBase, bbox, tra
       onKeyDown={event => { if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onPointerDown(event as unknown as ReactPointerEvent<HTMLDivElement>); } }}
       dangerouslySetInnerHTML={{ __html: markup }} />
   </div>;
+}
+
+function SeamPanelMaterialTarget({panel,selected,hovered,onHover,onSelect,onMaterialDrop}:{panel:PanelRegion;selected:boolean;hovered:boolean;onHover:(id:string|null)=>void;onSelect?:(id:string)=>void;onMaterialDrop?:MaterialDropHandler}){
+ const {dragHovered,handlers}=useMaterialDrop(panel.id,onMaterialDrop);
+ return <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{zIndex:175}}><path d={panel.path} className="seam-panel-material-target" fill="#7c8b9b38" stroke="#657d90" strokeWidth="3" fillRule="evenodd" style={{pointerEvents:'fill',cursor:'pointer'}} data-tshirt-hit-target={panel.id} data-construction-region-hit={panel.id} data-material-highlight-active={selected||hovered||dragHovered?true:undefined} data-selection-highlight={selected?'selected':hovered||dragHovered?'hover':undefined} role="button" tabIndex={0} aria-label={'Select '+panel.label} aria-pressed={selected} {...handlers} onPointerMove={event=>{if(event.pointerType!=='touch')onHover(panel.id)}} onPointerLeave={()=>onHover(null)} onPointerCancel={()=>onHover(null)} onPointerDown={event=>{event.stopPropagation();onSelect?.(panel.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect?.(panel.id)}}}/></svg>;
 }
 
 function expandPreviewLayers(
@@ -922,6 +934,7 @@ export function TshirtSvgPreview({
   canvasOverlay,
   renderPanellingOverlay,
   semanticPanels,
+  savedPanelling,
   garmentWash,
   showWash = true,
   washTool,
@@ -1017,7 +1030,7 @@ export function TshirtSvgPreview({
 
   const fabricColor = color || '#5C7FB6';
   const bodyColor = partColors?.base ?? fabricColor;
-  const editable = !renderPanellingOverlay && Boolean(onSelectedLayerChange) && !washEditable && !labelEditor && !stitchEditor;
+  const editable = (!renderPanellingOverlay || Boolean(onMaterialDrop)) && Boolean(onSelectedLayerChange) && !washEditable && !labelEditor && !stitchEditor;
   const garmentAssetRevision = getGarmentAssetRevision();
   const [hoveredLayerId, setHoveredLayerId] = useState<string | null>(null);
   const [visibleSurfaces,setVisibleSurfaces]=useState<BoundaryLoop[]>([]);
@@ -1117,9 +1130,9 @@ export function TshirtSvgPreview({
     ?? (imported?.manifest.view === detailView ? imported.constructionRegions : undefined);
   const semanticRegionIds = new Set(constructionRegions?.regions.map(region => region.id));
   const semanticInkIds = new Set(imported?.parts.filter(part => part.structuralRole === 'source-ink').map(part => part.id));
-  const fabricParts = useMemo(() => new Map(fabricPartsFromLayers(imported
+  const fabricParts = useMemo(() => new Map(withPanellingFabricParts(fabricPartsFromLayers(imported
     ? [...importedGarmentLayers(imported, 'front'), ...importedGarmentLayers(imported, 'back')]
-    : layers, garmentType).map(part => [part.id, part])), [layers, garmentType, imported]);
+    : layers, garmentType),semanticPanels??[]).map(part => [part.id, part])), [layers, garmentType, imported,semanticPanels]);
   const fabricScanSurfaces = useMemo(() => {
     const parts = [...fabricParts.values()];
     const surfaces = new Map<string, { fabric: GarmentFabric; interior: boolean }>();
@@ -1676,6 +1689,7 @@ export function TshirtSvgPreview({
 
         {garmentType==='tshirt'&&(technical||['regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
         {canvasOverlay}
+        {savedPanelling?.seams.length? <PanellingReadOnlyOverlay {...savedPanelling}/>:null}
         {renderPanellingOverlay?.(panellingGeometry)}
         {editable && !panellingEditor?.enabled
           ? hitTargets.map(({ id, sourceLayer, side, transform, alignOffset, bbox }) =>
@@ -1715,6 +1729,8 @@ export function TshirtSvgPreview({
         {editable && constructionRegions && <ConstructionRegionHitTargets
           regions={constructionRegions.regions.filter(region => region.view === detailView)}
           selectedId={selectedLayerId} onSelect={onSelectedLayerChange} onMaterialDrop={onMaterialDrop} />}
+
+        {editable&&onMaterialDrop&&semanticPanels?.filter(panel=>panel.seamIds.length>0).map(panel=><SeamPanelMaterialTarget key={panel.id} panel={panel} selected={selectedLayerId===panel.id} hovered={!selectedLayerId&&hoveredLayerId===panel.id} onHover={setHoveredLayerId} onSelect={onSelectedLayerChange} onMaterialDrop={onMaterialDrop}/>)}
 
         {stitchEditor && stitchGeometry && focusedStitchRegion && <StitchRegionOverlay geometry={stitchGeometry}
           hems={tshirtHemStyles} editor={{ ...stitchEditor, region: focusedStitchRegion }} />}

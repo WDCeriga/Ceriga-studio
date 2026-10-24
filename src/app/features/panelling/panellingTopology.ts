@@ -10,7 +10,7 @@ interface Segment {
   cuts: { t: number; point: PanellingPoint }[];
 }
 interface HalfEdge { id: string; from: string; to: string; twin: string; edgeId: string; seamId?: string }
-interface Cycle { points: PanellingPoint[]; seamIds: Set<string>; area: number; sample: PanellingPoint }
+interface Cycle { points: PanellingPoint[]; seamIds: Set<string>; seamSides:Set<string>; area: number; sample: PanellingPoint }
 
 const cross = (a: PanellingPoint, b: PanellingPoint) => a.x * b.y - a.y * b.x;
 const vector = (a: PanellingPoint, b: PanellingPoint) => ({ x: b.x - a.x, y: b.y - a.y });
@@ -154,14 +154,14 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
   for (const initial of halfEdges.values()) {
     if (visited.has(initial.id)) continue;
     let edge: HalfEdge | undefined = initial;
-    const points: PanellingPoint[] = [], seamIds = new Set<string>();
+    const points: PanellingPoint[] = [], seamIds = new Set<string>(),seamSides=new Set<string>();
     let closed = false;
     let guard = halfEdges.size + 1;
     while (edge && !visited.has(edge.id) && guard-- > 0) {
       visited.add(edge.id);
       const node = graphNodeById.get(edge.from)!;
       points.push({ x: node.x, y: node.y });
-      if (edge.seamId) seamIds.add(edge.seamId);
+      if (edge.seamId){seamIds.add(edge.seamId);seamSides.add(edge.seamId+(edge.id.endsWith(':r')?':right':':left'));}
       const nextOptions = adjacency.get(edge.to) ?? [];
       const reverseIndex = nextOptions.findIndex(candidate => candidate.id === edge!.twin);
       if (reverseIndex < 0) break;
@@ -172,7 +172,7 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
     const area = signedArea(points);
     if (area <= 2) continue;
     const sample = interiorSample(points, area);
-    if (pointInSurface(sample, boundaries)) cycles.push({ points, seamIds, area, sample });
+    if (pointInSurface(sample, boundaries)) cycles.push({ points, seamIds,seamSides, area, sample });
   }
 
   const body = buildBodyGeometry(boundaries);
@@ -191,7 +191,9 @@ export function recomputePanellingTopology(boundaries: BoundaryLoop[], seams: Pa
     }
     if (areaOf(geometry) < 4) continue;
     const path = multiPath(geometry);
-    panels.push({ id: stableId(`${parentId}:${path}`), label: `${parentId} Panel ${panels.length + 1}`, parentId,
+    const legacyId=stableId(`${parentId}:${path}`),signature=[...face.seamSides].sort().join('|'),baseId=signature?stableId(parentId+':seam-face:'+signature):legacyId;
+    const repeat=panels.filter(panel=>panel.id===baseId||panel.id.startsWith(baseId+'-')).length,id=repeat?baseId+'-'+repeat:baseId;
+    panels.push({ id,legacyId:id!==legacyId?legacyId:undefined, label: `${parentId} Panel ${panels.length + 1}`, parentId,
       path, points: face.points, area: areaOf(geometry), seamIds: [...face.seamIds] });
   }
 

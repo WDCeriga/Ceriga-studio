@@ -59,8 +59,8 @@ export function mirrorSeam(seam: PanellingSeam, axis: number): PanellingSeam {
       ...anchor,
       id: `${anchor.id}:mirror`,
       ...mirrorPoint(anchor, axis),
-      incoming: anchor.outgoing ? mirrorPoint(anchor.outgoing, axis) : undefined,
-      outgoing: anchor.incoming ? mirrorPoint(anchor.incoming, axis) : undefined,
+      incoming: anchor.incoming ? mirrorPoint(anchor.incoming, axis) : undefined,
+      outgoing: anchor.outgoing ? mirrorPoint(anchor.outgoing, axis) : undefined,
       boundaryId: undefined,
     })),
   };

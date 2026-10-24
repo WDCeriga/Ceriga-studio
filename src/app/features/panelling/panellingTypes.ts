@@ -13,6 +13,7 @@ export interface PanellingSeam {
   label: string;
   parentSurfaceId?: string;
   view?: 'front' | 'back';
+  fit?: string;
   anchors: SeamAnchor[];
   construction: 'standard';
   mirrorGroupId?: string;
@@ -20,6 +21,8 @@ export interface PanellingSeam {
 }
 
 export interface BoundaryLoop {
+  fit?: string;
+  view?: 'front' | 'back';
   id: string;
   role: 'outer' | 'hole';
   surfaceId?: string;
@@ -28,6 +31,7 @@ export interface BoundaryLoop {
 
 export interface PanelRegion {
   id: string;
+  legacyId?:string;
   label: string;
   parentId: string;
   path: string;
@@ -36,6 +40,7 @@ export interface PanelRegion {
   seamIds: string[];
   fillOverride?: string;
   view?: 'front' | 'back';
+  fit?: string;
 }
 
 export interface GraphNode extends PanellingPoint {

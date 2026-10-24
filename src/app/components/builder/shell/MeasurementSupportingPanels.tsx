@@ -39,17 +39,18 @@ export function NewAssetMeasurements({
   unit,
   selectedId,
   onSelect,
-  onEdit
+  onEdit,onEditPanel
 }: {
   assets: AssetMeasurement[];
   unit: MeasurementUnit;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  onEdit: Edit;
+  onEdit: Edit;onEditPanel?:(id:string)=>void;
 }) {
   const display = (n: number | undefined) => n === undefined ? 'Not available' : (unit === 'in' ? n / 2.54 : n).toFixed(2) + ' ' + unit;
   if (!assets.length) return null;
-  return <details className="new-notes"><summary>Asset measurements <span className="builder-muted">{assets.length}</span></summary>{assets.map(asset => <section className="new-asset-measurements" key={asset.id}><button className="new-asset-select" aria-pressed={selectedId === asset.id} onClick={() => onSelect(selectedId === asset.id ? null : asset.id)}>{asset.name}</button><p>{asset.kind} · {asset.view}</p><div className="new-dimension-grid">{(asset.kind === 'button' ? [['diameter', 'Diameter'], ['count', 'Number of buttons'], ...(asset.count ? [['spacing', 'Centre spacing']] : [])] : [['width', 'Width'], ['height', asset.kind === 'zip' ? 'Length' : 'Height']]).map(([field, label]) => <DimensionField key={field + '-' + unit} asset={asset} field={field as AssetDimension} label={label} unit={unit} onEdit={onEdit} />)}{(asset.kind === 'patch' || asset.kind === 'Custom pocket') && ([['left', 'X centre from body left'], ['top', 'Y centre from body top'], ['rotation', 'Rotation']] as const).map(([field, label]) => <DimensionField key={field + '-' + unit} asset={asset} field={field} label={label} unit={unit} onEdit={onEdit} />)}</div><dl>{Object.entries({
+  const panelAssets=assets.filter(asset=>asset.kind==='seam panel'),otherAssets=assets.filter(asset=>asset.kind!=='seam panel');
+  return <>{panelAssets.length>0&&<details open className="new-notes panel-measurement-section"><summary>Panel measurements <span className="builder-muted">{panelAssets.length}</span></summary><p className="panel-measurement-help">Live dimensions for this fit and view. Width and height are the panel's full bounding dimensions.</p>{panelAssets.map(asset=><section key={asset.id} className="new-asset-measurements panel-measurement-card"><button className="new-asset-select" aria-pressed={selectedId===asset.id} onClick={()=>onSelect(selectedId===asset.id?null:asset.id)}>{asset.name}<small>{asset.view==='front'?'Front':'Back'}</small></button><dl className="panel-measurement-values"><div><dt>Width</dt><dd>{display(asset.width)}</dd></div><div><dt>Height</dt><dd>{display(asset.height)}</dd></div><div><dt>Panel seam length</dt><dd>{display(asset.seamLength)}</dd></div><div><dt>Area</dt><dd>{((asset.areaCm2??0)/(unit==='in'?6.4516:1)).toFixed(2)} {unit}²</dd></div></dl>{onEditPanel&&asset.sourceId&&<button className="builder-link panel-edit-shape" onClick={()=>onEditPanel(asset.sourceId!)}>Edit panel shape</button>}</section>)}</details>}{otherAssets.length>0&&<details className="new-notes"><summary>Asset measurements <span className="builder-muted">{otherAssets.length}</span></summary>{otherAssets.map(asset => <section className="new-asset-measurements" key={asset.id}><button className="new-asset-select" aria-pressed={selectedId === asset.id} onClick={() => onSelect(selectedId === asset.id ? null : asset.id)}>{asset.name}</button><p>{asset.kind} · {asset.view}</p><div className="new-dimension-grid">{(asset.kind === 'button' ? [['diameter', 'Diameter'], ['count', 'Number of buttons'], ...(asset.count ? [['spacing', 'Centre spacing']] : [])] : [['width', 'Width'], ['height', asset.kind === 'zip' ? 'Length' : 'Height']]).map(([field, label]) => <DimensionField key={field + '-' + unit} asset={asset} field={field as AssetDimension} label={label} unit={unit} onEdit={onEdit} />)}{(asset.kind === 'patch' || asset.kind === 'Custom pocket') && ([['left', 'X centre from body left'], ['top', 'Y centre from body top'], ['rotation', 'Rotation']] as const).map(([field, label]) => <DimensionField key={field + '-' + unit} asset={asset} field={field} label={label} unit={unit} onEdit={onEdit} />)}</div><dl>{Object.entries({
           'Centre from body left': display(asset.left),
           'Centre from body top': display(asset.top),
           'Centre-line offset': display(asset.centerOffset),
@@ -57,7 +58,8 @@ export function NewAssetMeasurements({
           'Hem clearance': display(asset.hemClearance),
           'Nearest side seam': display(asset.sideSeamClearance),
           'Rotation': asset.rotation.toFixed(1) + ' deg'
-        }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>)}</details>;
+        }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>)}</details>}</>;
+
 }
 export function NewReferencePanel({
   fileNamesText,

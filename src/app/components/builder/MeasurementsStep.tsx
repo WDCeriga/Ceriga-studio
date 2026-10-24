@@ -398,7 +398,7 @@ export function MeasurementPreview({
   onAssetSelect?: (id: string | null) => void;
   onAssetMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
   measurementUnit?: MeasurementUnit;
-  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'stitchEditor' | 'selectedDetailId' | 'onDetailBoundsChange' | 'onBuiltinDetailsChange' | 'detailEditor' | 'onDetailSelect' | 'onDetailsChange' | 'partFocus' | 'showSelectionHint' | 'materialHighlightIds' | 'onMaterialDrop' | 'onSelectedLayerChange' | 'selectedLayerId' | 'fabricAssignments' | 'fabricTextureIntensity' | 'technicalView' | 'customAssetState' | 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor' | 'garmentLabels' | 'labelReferenceWidthMm'>;
+  sharedGarmentProps?: Pick<ComponentProps<typeof TshirtSvgPreview>, 'semanticPanels' | 'savedPanelling' | 'renderPanellingOverlay' | 'stitchEditor' | 'selectedDetailId' | 'onDetailBoundsChange' | 'onBuiltinDetailsChange' | 'detailEditor' | 'onDetailSelect' | 'onDetailsChange' | 'partFocus' | 'showSelectionHint' | 'materialHighlightIds' | 'onMaterialDrop' | 'onSelectedLayerChange' | 'selectedLayerId' | 'fabricAssignments' | 'fabricTextureIntensity' | 'technicalView' | 'customAssetState' | 'garmentWash' | 'showWash' | 'layerTransforms' | 'customCollar' | 'customCollars' | 'neckTrimColor' | 'sleeveTrimColor' | 'cuffTrimColor' | 'pocketTrimColor' | 'garmentLabels' | 'labelReferenceWidthMm'>;
 }) {
   const svgPack: GarmentSvgGarmentType | null =
     garmentType === 'tshirt' ||
@@ -437,7 +437,7 @@ export function MeasurementPreview({
             detailView={detailView}
             labelEditor={sharedGarmentProps?.onSelectedLayerChange?undefined:{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
             renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer showGuides={showGuides} onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
-              details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
+              panels={sharedGarmentProps?.semanticPanels} panelSeams={sharedGarmentProps?.savedPanelling?.seams} panelMirror={sharedGarmentProps?.savedPanelling?.mirror} details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
               referenceWidthCm={sharedGarmentProps?.labelReferenceWidthMm ? sharedGarmentProps.labelReferenceWidthMm / 10 : 50}
               unit={measurementUnit} selectedId={selectedAssetId} highlightedId={highlightedMeasurementId} onSelect={onAssetSelect} onMeasurementsChange={onAssetMeasurementsChange} />}
             className={cn('h-full w-full', imgClassName)}

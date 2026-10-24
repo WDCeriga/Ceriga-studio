@@ -1,5 +1,5 @@
 import { distance, flattenPathContours, flattenSeam, mirrorSeam, pointInSurface } from './panellingGeometry';
-import { convertSeamToCurve, insertSeamAnchor, moveSeamAnchor, setAnchorMode, snapAnchor } from './panellingSeams';
+import { bendSeamSegment,closestSeamLocation,pointOnCurve,straightenSeamSegment,removeSeamAnchor,convertSeamToCurve, insertSeamAnchor, moveSeamAnchor, setAnchorMode, snapAnchor } from './panellingSeams';
 import { recomputeGarmentPanellingTopology, recomputePanellingTopology } from './panellingTopology';
 import type { BoundaryLoop, PanellingSeam } from './panellingTypes';
 
@@ -39,11 +39,51 @@ export function runPanellingSelfTests() {
     assert(flattenSeam(curved).length > 10, 'Bezier segment was not sampled.');
     assert(recomputePanellingTopology(rectangle, [curved]).panels.length === 2, 'Curved boundary-to-boundary seam did not split the surface.');
   });
-  test('mirroring reflects anchors and swaps reflected handles', () => {
+  test('mirroring reflects curved geometry without reversing handle direction', () => {
     const curved = seam('mirror', [[20, 40], [60, 70]]);
     curved.anchors[0].outgoing = { x: 28, y: 30 };
     const reflected = mirrorSeam(curved, 50);
-    assert(reflected.anchors[0].x === 80 && reflected.anchors[0].incoming?.x === 72, 'Mirror axis or handle reflection is incorrect.');
+    assert(reflected.anchors[0].x === 80 && reflected.anchors[0].outgoing?.x === 72, 'Mirror axis or handle reflection is incorrect.');
+  });
+  test('mirrored curves match the source at every sampled point',()=>{
+    const original=convertSeamToCurve(seam('curved-mirror',[[20,0],[20,100]]),0);
+    const bent=bendSeamSegment(original,0,.5,{x:40,y:50}),left=flattenSeam(bent),right=flattenSeam(mirrorSeam(bent,50));
+    assert(left.every((point,index)=>Math.abs(100-point.x-right[index].x)<1e-6&&Math.abs(point.y-right[index].y)<1e-6),'Reflected curve changed shape.');
+  });
+  test('two-point seam bends through the dragged position without moving its ends',()=>{
+    const original=seam('bend',[[20,0],[20,100]]),bent=bendSeamSegment(original,0,.5,{x:45,y:50});
+    assert(bent.anchors.length===2&&bent.anchors[0].x===20&&bent.anchors[1].x===20,'Bending changed endpoints or added points.');
+    assert(distance(pointOnCurve(bent.anchors[0],bent.anchors[1],.5),{x:45,y:50})<1e-6,'Curve missed the drag position.');
+    assert(recomputePanellingTopology(rectangle,[bent]).panels.length===2,'Bending no longer divides the garment.');
+  });
+  test('panel identity survives curve reshaping and adding a point',()=>{
+    const original=seam('stable',[[20,0],[20,100]]),before=recomputePanellingTopology(rectangle,[original]).panels.map(panel=>panel.id).sort();
+    const bent=bendSeamSegment(original,0,.5,{x:45,y:50}),inserted=insertSeamAnchor(bent,{x:45,y:50});
+    assert(JSON.stringify(before)===JSON.stringify(recomputePanellingTopology(rectangle,[bent]).panels.map(panel=>panel.id).sort()),'Bending changed panel identities and would lose materials.');
+    assert(JSON.stringify(before)===JSON.stringify(recomputePanellingTopology(rectangle,[inserted]).panels.map(panel=>panel.id).sort()),'Adding an anchor changed panel identities.');
+  });
+  test('bending one segment preserves the neighbouring curve handles',()=>{
+    const original=convertSeamToCurve(convertSeamToCurve(seam('multi',[[0,0],[50,50],[100,100]]),0),1),prior=JSON.stringify(original.anchors[1].outgoing);
+    const bent=bendSeamSegment(original,0,.3,{x:30,y:10});
+    assert(JSON.stringify(bent.anchors[1].outgoing)===prior,'Adjacent segment handles changed.');
+    assert(distance(pointOnCurve(bent.anchors[0],bent.anchors[1],.3),{x:30,y:10})<1e-6,'Off-centre drag missed its parameter.');
+  });
+  test('straightening removes only the selected segment curve',()=>{
+    const original=convertSeamToCurve(convertSeamToCurve(seam('straighten',[[0,0],[50,50],[100,100]]),0),1),straight=straightenSeamSegment(original,0);
+    assert(!straight.anchors[0].outgoing&&!straight.anchors[1].incoming&&Boolean(straight.anchors[1].outgoing),'Straighten affected the wrong handles.');
+  });
+  test('removing an interior point preserves endpoint identities',()=>{
+    const original=seam('remove',[[0,0],[30,40],[60,50],[100,100]]),removed=removeSeamAnchor(original,original.anchors[1].id);
+    assert(removed.anchors.length===3&&removed.anchors[0]===original.anchors[0]&&removed.anchors.at(-1)===original.anchors.at(-1),'Point removal damaged the endpoints.');
+    assert(removeSeamAnchor(original,original.anchors[0].id)===original,'Boundary endpoint should not be removed.');
+  });
+  test('curve hit testing identifies the intended segment and parameter',()=>{
+    const original=convertSeamToCurve(seam('locate',[[0,0],[100,100]]),0),at=pointOnCurve(original.anchors[0],original.anchors[1],.25),hit=closestSeamLocation(original,at);
+    assert(hit?.segmentIndex===0&&Math.abs(hit.t-.25)<.001,'Curve hit did not resolve the selected position.');
+  });
+  test('adding a point at an existing endpoint does not duplicate it',()=>{
+    const original=seam('endpoint-insert',[[0,0],[100,100]]);
+    assert(insertSeamAnchor(original,{x:0,y:0})===original&&insertSeamAnchor(original,{x:100,y:100})===original,'Endpoint insertion created a degenerate segment.');
   });
   test('segment insertion and anchor movement preserve seam identity', () => {
     const original = seam('editable', [[10, 50], [90, 50]]);

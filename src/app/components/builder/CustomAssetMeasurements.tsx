@@ -1,7 +1,11 @@
+import {measurePanellingPanels} from '../../features/panelling/panellingMeasurements';
+import type {PanelRegion,PanellingSeam} from '../../features/panelling/panellingTypes';
+import {MeasurementValueContext} from './shell/NewMeasurementOverlay';
+import {useResponsiveBuilder} from './shell/responsiveBuilder';
 import {SizeComparisonContext,SizeComparisonOverlay,sizeDrawingTransform} from './shell/SizeComparisonOverlay';
 import {comparisonRatios} from '../../lib/measurementGrading';
 import {NewMeasurementOverlay} from './shell/NewMeasurementOverlay';
-import { useEffect, useMemo, useRef, useState, useContext } from 'react';
+import { useEffect, useMemo, useRef, useState, useContext,type MouseEvent,type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Crosshair } from 'lucide-react';
 import { arrangeGarmentDetails, detailPlacement, detailRotation, setDetailTransform, type DetailBounds, type GarmentDetail } from '../../data/garmentDetails';
@@ -37,6 +41,7 @@ export interface AssetMeasurement {
   referenceWidthCm: number;
   bounds: DetailBounds;
   sourceId?: string;
+  readOnly?:boolean;outlinePath?:string;seamLength?:number;areaCm2?:number;
   printCmPerPixel?: number;
   labelSizing?: { effective: GarmentLabel; maxWidthMm: number; maxHeightMm: number };
 }
@@ -46,6 +51,7 @@ export type AssetDimension = 'width' | 'height' | 'diameter' | 'count' | 'spacin
 type AssetState = { garmentDetails?: GarmentDetail[]; prints: DesignElement[]; garmentLabels?: GarmentLabel[] };
 
 export function editAssetDimension(state: AssetState, asset: AssetMeasurement, field: AssetDimension, value: number): { changes?: Partial<AssetState>; error?: string } {
+  if(asset.readOnly)return {error:'Panel dimensions follow the live seam geometry. Edit the panel in Seams & panelling.'};
   const invalid = { error: 'That dimension does not fit here. Move the asset or use a smaller value.' };
   const positioning = field === 'left' || field === 'top' || field === 'rotation';
   if (!Number.isFinite(value) || !positioning && value <= 0) return { error: 'Enter a valid measurement.' };
@@ -154,11 +160,14 @@ export function printMeasurements(elements: DesignElement[], root: HTMLElement, 
   });
 }
 
-export function CustomAssetMeasurementLayer({ showGuides=true, presentation, onDrawingBounds, onGuideSelect, sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
+export function CustomAssetMeasurementLayer({ panels=[],panelSeams=[],panelMirror=false,showGuides=true, presentation, onDrawingBounds, onGuideSelect, sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
+  panels?:PanelRegion[];panelSeams?:PanellingSeam[];panelMirror?:boolean;
   showGuides?: boolean; presentation?: 'redesign'; onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void; onGuideSelect?: (id:string)=>void; sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
   referenceWidthCm?: number; unit?: MeasurementUnit; view: 'front' | 'back'; selectedId?: string | null; highlightedId?: string | null;
   onSelect?: (id: string | null) => void; onMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
 }) {
+  const measureValues=useContext(MeasurementValueContext);const {size}=useResponsiveBuilder();
+  const panelReferenceWidth=Number(measureValues.measurements.chestWidth?.[size])||referenceWidthCm;
   // The preview rebuilds this array each render; keep the previous one while its contents are unchanged.
   const stableSources = useRef(incomingSources);
   const previousSources = stableSources.current;
@@ -225,7 +234,7 @@ export function CustomAssetMeasurementLayer({ showGuides=true, presentation, onD
         return [{ ...assetMeasurement(`label:${view}:${label.id}`, label.brand || `${label.category} label`, label.construction === 'printed' ? 'Printed label' : 'Label', view, corners, bounds, shapes, referenceWidthCm), interior: isInteriorLabel(label), sourceId: label.id,
           labelSizing: { effective, maxWidthMm: maximum.widthMm, maxHeightMm: maximum.heightMm } }];
       });
-      const next = { view, assets: [...detailRows, ...catalogueRows, ...printRows, ...labelRows] };
+      const next = { view, assets: [...detailRows, ...catalogueRows, ...printRows, ...labelRows,...measurePanellingPanels(panels,panelSeams,panelMirror,bounds,panelReferenceWidth,view)] };
       setSnapshot(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
     };
     // Labels need their attachment masks. Publishing an empty result first causes
@@ -237,7 +246,7 @@ export function CustomAssetMeasurementLayer({ showGuides=true, presentation, onD
     root.querySelectorAll<HTMLElement>('[data-print-id], [data-print-design-zone]').forEach(node => observer.observe(node));
     if (!labels.length) void document.fonts.ready.then(update);
     return () => { active = false; observer.disconnect(); };
-  }, [bounds?.minX, bounds?.minY, bounds?.maxX, bounds?.maxY, details, labels, prints, referenceWidthCm, view, shapes, sources]);
+  }, [bounds?.minX, bounds?.minY, bounds?.maxX, bounds?.maxY, details, labels, prints, referenceWidthCm, view, shapes, sources,panels,panelSeams,panelMirror,panelReferenceWidth]);
   const snapshotKey = JSON.stringify({ view, assets });
   useEffect(() => { onMeasurementsChange?.({ view, assets }); }, [snapshotKey, onMeasurementsChange]);
   const selected = assets.find(asset => asset.id === selectedId);
@@ -258,11 +267,10 @@ export function CustomAssetMeasurementLayer({ showGuides=true, presentation, onD
     {presentation==='redesign'&&comparison.enabled&&<SizeComparisonOverlay shapes={shapes}/>}
     {showGuides&&(presentation==='redesign'?<NewMeasurementOverlay drawingTransform={comparisonTransform} guides={guides} highlightedId={highlightedId} onSelect={onGuideSelect}/>:<MeasurementGuideOverlay guides={guides} view={view} highlightedId={highlightedId || (selected ? selected.id : null)} />)}
     <svg ref={svgRef} data-measurement-source-ids={sources.map(s=>s.id).join(',')} data-measurement-shape-ids={shapes.map(s=>s.id).join(',')} data-measurement-guide-count={guides.length} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 260,visibility:showGuides?'visible':'hidden' }} aria-hidden={!showGuides} aria-label="Custom asset measurement guides">
-      {showGuides&&assets.filter(asset => !asset.interior || selected?.interior).map(asset => <polygon key={asset.id} data-asset-measurement={asset.id} points={asset.corners.map(point => `${point.x},${point.y}`).join(' ')}
-        fill={selectedId === asset.id ? '#FF3B3015' : 'transparent'} stroke={selectedId === asset.id ? '#FF3B30' : 'none'} strokeWidth={3}
-        style={{ pointerEvents: 'all', cursor: 'pointer' }} role="button" tabIndex={0} aria-label={`Measure ${asset.name}`} aria-pressed={selectedId === asset.id}
-        onClick={event => { event.stopPropagation(); onSelect?.(selectedId === asset.id ? null : asset.id); }}
-        onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect?.(asset.id); } }} />)}
+      {showGuides&&assets.filter(asset=>!asset.interior||selected?.interior).map(asset=>{
+        const common={'data-asset-measurement':asset.id,fill:selectedId===asset.id?'#FF3B3015':'transparent',stroke:selectedId===asset.id?'#FF3B30':'none',strokeWidth:3,style:{pointerEvents:'all' as const,cursor:'pointer'},role:'button',tabIndex:0,'aria-label':`Measure ${asset.name}`,'aria-pressed':selectedId===asset.id,onClick:(event:MouseEvent<SVGElement>)=>{event.stopPropagation();onSelect?.(selectedId===asset.id?null:asset.id)},onKeyDown:(event:KeyboardEvent<SVGElement>)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect?.(asset.id)}}};
+        return asset.outlinePath?<path key={asset.id} {...common} d={asset.outlinePath} fillRule="evenodd"/>:<polygon key={asset.id} {...common} points={asset.corners.map(point=>`${point.x},${point.y}`).join(' ')}/>;
+      })}
       {showGuides && selected && bounds && <path d={`M${(bounds.minX + bounds.maxX) / 2},${selected.center.y}H${selected.center.x}V${bounds.minY}`}
         fill="none" stroke="#FF3B30" strokeWidth={2} strokeDasharray="8 5" />}
     </svg>

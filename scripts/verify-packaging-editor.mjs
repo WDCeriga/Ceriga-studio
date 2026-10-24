@@ -31,6 +31,7 @@ assert(layersHtml.includes('1. Choose a panel'));
 assert(layersHtml.includes('2. Add a layer'));
 assert(layersHtml.includes('Layers on this panel'));assert(layersHtml.includes('New text destination'));
 design.dimensions={width:350,height:450,depth:120};const sizeHtml=render(null,'Material & size');assert(/aria-pressed="true"[^>]*><strong>Roomy/.test(sizeHtml));
+const picker=render(null,'Packaging type');assert(picker.includes('pkg-current-style'));assert(picker.includes('Style &amp; construction'));assert(picker.includes('pkg-compact-style-grid'));assert(picker.includes('aria-label="Packaging category"'));assert(picker.includes('pkg-template-selected'));
 console.log('Section/text editors render distinct controls without duplicate sizing; layer list and visible actions verified');
 `;
 await build({stdin:{contents,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'cjs',jsx:'automatic',loader:{'.css':'empty','.png':'dataurl'},plugins:[{name:'isolate-colour-and-select-widgets',setup(b){b.onResolve({filter:/\/(MaterialSelect|MaterialColourBrowser)$/},args=>({path:args.path,namespace:'widget'}));b.onLoad({filter:/.*/,namespace:'widget'},args=>({contents:args.path.endsWith('MaterialSelect')?"import {createElement} from 'react'; export function MaterialSelect({children,...props}){return createElement('select',props,children)}":"export function MaterialColourBrowser(){return null}",resolveDir:process.cwd()}))}}],outfile:'node_modules/.cache/verify-packaging-editor.cjs'});
