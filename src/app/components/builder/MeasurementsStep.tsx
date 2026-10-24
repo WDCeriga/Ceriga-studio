@@ -1,3 +1,5 @@
+import {StudioArtworkPreview} from './StudioArtworkPreview';
+import type {DesignElement as StudioDesignElement} from './PrintStudioEditor';
 import {type MeasurementGrading} from '../../lib/measurementGrading';
 import {type SizingActions} from './shell/AdvancedSizingEditor';
 import {FitMeasurementsInspector} from './shell/FitMeasurementsInspector';
@@ -369,6 +371,7 @@ export function MeasurementPreview({
   detailView,
   sharedGarmentProps,
   prints = [],
+  studioArtwork,
   selectedAssetId,
   onAssetSelect,
   onAssetMeasurementsChange,
@@ -394,6 +397,7 @@ export function MeasurementPreview({
   garmentDetails?: GarmentDetail[];
   detailView?: 'front' | 'back';
   prints?: DesignElement[];
+  studioArtwork?: StudioDesignElement[];
   selectedAssetId?: string | null;
   onAssetSelect?: (id: string | null) => void;
   onAssetMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
@@ -420,8 +424,7 @@ export function MeasurementPreview({
   return (
     <div data-measurement-preview data-view={detailView??'front'} className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
       {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
-        <PrintsDesignPreview elements={prints.filter(print => (print.view ?? 'front') === (detailView ?? 'front'))} editable={false}
-          className="h-full w-full" garmentBackdrop={<>
+        <MeasurementArtwork studioArtwork={studioArtwork} prints={prints} view={detailView??'front'}>
           <TshirtSvgPreview
             {...sharedGarmentProps}
             garmentType={svgPack}
@@ -443,10 +446,16 @@ export function MeasurementPreview({
             className={cn('h-full w-full', imgClassName)}
           />
           {overlay}
-        </>} />
+        </MeasurementArtwork>
       ) : (
         <div className="aspect-square w-full max-w-[576px] rounded-2xl border border-white/10 bg-[#171717]" />
       )}
     </div>
   );
+}
+
+function MeasurementArtwork({studioArtwork,prints,view,children}:{studioArtwork?:StudioDesignElement[];prints:DesignElement[];view:'front'|'back';children:ReactNode}) {
+ return studioArtwork !== undefined
+  ? <StudioArtworkPreview elements={studioArtwork} view={view} garment={children} interactive/>
+  : <PrintsDesignPreview elements={prints.filter(print=>(print.view??'front')===view)} editable={false} className="h-full w-full" garmentBackdrop={children}/>;
 }

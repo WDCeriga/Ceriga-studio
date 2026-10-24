@@ -1,3 +1,4 @@
+import {TypographyEditor} from './TypographyStudio';
 import {ArtworkPrintMethod} from './ArtworkPrintMethod';
 import { ShapeObjectEditor } from './ShapesStudio';
 import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, FlipHorizontal2, Copy, Trash2, Image, Type, Shapes, Brush, Layers, Lock, Unlock } from 'lucide-react';
@@ -9,6 +10,7 @@ import { PatternControls } from '../printsStudio/PatternControls';
 import { StudioPaint, StudioRange, StudioFold, StudioNumber } from './StudioControls';
 export function StudioLayerThumb({element}:{element:DesignElement}) {return <div className="studio-layer-thumb">{element.type==='image'||element.type==='drawing'?<img src={element.content} alt=""/>:element.type==='text'?<span style={{fontFamily:element.fontFamily,fontWeight:element.fontWeight}}>{element.content.slice(0,18)}</span>:element.type==='shape'||element.type==='pattern'||element.type==='distress'?<StudioGraphic element={element.type==='shape'?{...element,shapeEffects:undefined}:element}/>:element.type==='group'?<Layers size={18}/>:<Brush size={18}/>}</div>}
 export function StudioObjectPanel({element:el,update,fonts=[]}:{element:DesignElement;fonts?:string[];update:(patch:Partial<DesignElement>)=>void}) {
+ if(el.type==='text')return <TypographyEditor key={el.id} element={el} update={update} fonts={fonts}/>;
  if(el.type==='shape'||el.type==='customArea')return <ShapeObjectEditor element={el} update={update}/>;
  const sizeText=(size:number)=>{const ratio=size/(el.fontSize??30);update({fontSize:size,width:el.width*ratio,height:el.height*ratio})};
  return <div className="studio-object-panel"><div className="studio-object-identity"><StudioLayerThumb element={el}/><div><strong>{el.layerName??(el.type==='text'?el.content.slice(0,24):el.type==='image'?'Uploaded artwork':el.type)}</strong><small>{el.type==='image'?'Image':el.type.charAt(0).toUpperCase()+el.type.slice(1)} · {(el.side??'front')==='front'?'Front':'Back'}</small></div><button aria-label={el.locked?'Unlock artwork':'Lock artwork'} onClick={()=>update({locked:!el.locked})}>{el.locked?<Lock size={16}/>:<Unlock size={16}/>}</button></div>

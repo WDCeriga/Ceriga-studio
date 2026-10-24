@@ -1,0 +1,41 @@
+
+.typography-library{display:grid;gap:14px;padding:12px 0 24px;color:#262626}
+.typography-library .studio-solid-action{justify-content:center;min-height:38px}
+.typography-library .studio-field textarea,.typography-editor .studio-field textarea{min-height:88px;background:#fff!important;border:1px solid #dedede!important;border-radius:5px!important;padding:12px!important;color:#262626!important;font-size:13px!important;line-height:1.6;resize:vertical}
+.typography-help{font-size:11px;line-height:1.6;color:#737373;margin:0}
+.typography-presets{border-top:1px solid #e5e5e5;padding-top:24px;margin-top:8px}
+.typography-presets h3{font-size:13px;font-weight:500;margin:0 0 14px}
+.typography-presets>div{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.typography-presets button{display:flex;flex-direction:column;justify-content:space-between;min-width:0;min-height:116px;text-align:left;border:1px solid #e2e2e2;border-radius:5px;background:white;padding:14px;gap:18px;color:#262626}
+.typography-presets button:hover{background:#fafafa;border-color:#a3a3a3}
+.typography-presets button>span{font-size:20px;line-height:1.35;overflow-wrap:anywhere;letter-spacing:-.3px}
+.typography-presets small{display:flex;justify-content:space-between;align-items:center;font:11px/1.4 inherit;color:#737373}
+.typography-import{display:flex;align-items:center;gap:8px;margin-top:12px;min-height:38px!important;font-size:12px!important}
+.typography-import>span{margin-left:auto;font-size:10px;color:#737373}
+.typography-identity{display:flex;align-items:center;gap:12px;padding:0 0 18px;border-bottom:1px solid #e2e2e2}
+.typography-identity>span{display:grid;place-items:center;width:40px;height:40px;background:#f5f5f5;border-radius:4px;font:22px Georgia,serif;color:#404040}
+.typography-identity>input{flex:1;min-width:0;border:0!important;background:transparent!important;font-size:13px!important;color:#262626!important;padding:8px!important}
+.typography-identity>button{display:grid;place-items:center;width:30px;height:32px;color:#737373}
+.typography-editor>fieldset{border:0;padding:0;margin:0;min-width:0}
+.typography-editor .studio-fold>div{display:grid;gap:16px;padding-bottom:22px}
+.typography-editor .studio-field{margin:0!important;display:grid;gap:8px;font-size:12px}
+.typography-editor .studio-number{margin:0!important}
+.typography-font-row{display:grid;grid-template-columns:1fr auto;align-items:end;gap:12px}
+.typography-font-row>[role=group]{display:flex;gap:5px}
+.typography-font-row button{width:36px;height:36px;border:1px solid #e2e2e2;border-radius:4px;display:grid;place-items:center}
+.typography-segments{display:flex;gap:4px;min-width:0}
+.typography-segments>button{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:34px;border:1px solid #e2e2e2;border-radius:4px;background:white;color:#737373;font-size:11px;text-transform:none}
+.typography-segments>button[aria-pressed=true],.typography-font-row button[aria-pressed=true],.typography-curve-options>button[aria-pressed=true]{background:#f0f0f0;color:#171717;border-color:#a3a3a3}
+.typography-curve-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.typography-curve-options>button{display:grid;justify-items:center;gap:4px;border:1px solid #e2e2e2;border-radius:4px;padding:8px;font-size:11px;color:#737373;background:white}
+.typography-curve-options svg{width:64px;height:32px;max-width:100%}
+.typography-editor fieldset:disabled{opacity:.55}
+.typography-canvas-tools fieldset{display:grid;border:0;padding:0;margin:0;gap:3px}
+@media(max-width:767px){.typography-editor .studio-field textarea,.typography-editor input,.typography-library textarea{font-size:16px!important}.typography-segments>button{min-height:38px}.typography-canvas-tools{max-height:calc(100% - 70px);overflow:auto}}
+
+.studio-inspector-v2[data-family=text][data-mode=create] .studio-inspector-header{display:block;border-bottom:0;padding:0 0 24px}
+.studio-inspector-v2[data-family=text][data-mode=create] .studio-inspector-header h2{font-size:20px;font-weight:600;letter-spacing:-.45px;line-height:1.35;margin:0}
+.studio-inspector-v2[data-family=text][data-mode=create] .studio-inspector-main{padding-top:0}
+@media(max-width:767px){.studio-inspector-v2[data-family=text][data-mode=create] .studio-inspector-header{padding:4px 0 18px}.studio-inspector-v2[data-family=text][data-mode=create] .studio-inspector-header h2{font-size:16px}}
+
+.typography-library .studio-field{margin:0!important}.typography-library>.studio-solid-action{margin-top:0}.typography-font-row>[role=group]{gap:4px}.typography-font-row button{width:32px}

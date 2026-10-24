@@ -1,3 +1,5 @@
+import {StudioArtworkPreview} from './StudioArtworkPreview';
+import type {DesignElement as StudioDesignElement} from './PrintStudioEditor';
 import {useStudioWorkflow} from './shell/StudioWorkflow';
 import {CanvasZoom} from './shell/CanvasZoom';
 import {LabelArtworkEditor} from './LabelArtworkEditor';
@@ -54,8 +56,8 @@ export function labelPlacementSheet(root: HTMLElement, labels: GarmentLabel[], s
   return new XMLSerializer().serializeToString(output);
 }
 
-export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, garmentProps, animateEntry = false, tagView = 'front', onTagViewChange, studio = false,closeUpRequest=0 }: {
-  studio?: boolean;closeUpRequest?:number;
+export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, garmentProps, animateEntry = false, tagView = 'front', onTagViewChange, studio = false,closeUpRequest=0,artwork=[] }: {
+  studio?: boolean;closeUpRequest?:number;artwork?:StudioDesignElement[];
   labels: GarmentLabel[]; selectedId: string | null; onSelect: (id: string | null) => void;
   onChange: (labels: GarmentLabel[]) => void; garmentProps: TshirtSvgPreviewProps;
   animateEntry?: boolean;
@@ -142,8 +144,8 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
       onPointerUp={() => { panGesture.current = null; }} onPointerCancel={() => { panGesture.current = null; }} onLostPointerCapture={() => { panGesture.current = null; }}
       className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden [container-type:size]" style={{ touchAction: careCloseup ? 'none' : undefined, cursor: careCloseup ? 'grab' : undefined, backgroundColor: '#ffffff', backgroundImage: 'none', backgroundSize: '16px 16px' }}>
       {!handSelected && mode!=='only' && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible' : ''}`} style={{ transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
-        <TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
-          onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />
+        <StudioArtworkPreview elements={artwork} view={view} interactive garment={<TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
+          onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />}/>
       </div>}
       {selected && (handSelected || mode==='only') && (studio?<LabelArtworkEditor key={selected.id} label={selected} zoom={zoom} onChange={next=>onChange(labels.map(l=>l.id===next.id?normalizeLabel(next):l))}/>:<svg data-isolated-label="" viewBox={`0 0 ${selected.widthMm} ${selected.heightMm}`} className="absolute h-[85%] w-[85%]"><LabelArtwork label={selected}/></svg>)}
       {!selected && <p role="status" className="pointer-events-none absolute z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#171717]">{labels.length ? 'Select a saved label or use Add label in the panel. No label is selected for this view.' : 'No labels added. Choose any label category and use Add label in the panel when you are ready.'}</p>}
