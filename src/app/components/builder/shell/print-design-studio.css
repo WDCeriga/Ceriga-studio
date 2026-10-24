@@ -80,3 +80,5 @@
 .studio-clean .studio-brush-settings :is(label,select){font-size:13px}
 
 @media(max-width:767px){.studio-clean :is(.studio-field input,.studio-field textarea,.studio-field select,.studio-search-input,.studio-number input,.studio-library-filter select){font-size:16px}}
+
+.studio-field>input{width:100%;min-width:0;border:1px solid #dce3ec;border-radius:5px;background:white;padding:10px;color:#34414f;font-size:12px}.studio-object-panel .studio-fold fieldset+fieldset{margin-top:16px;padding-top:16px;border-top:1px solid #dce3ec}.studio-object-panel .studio-fold legend{font-size:10px;color:#8192a8;margin-bottom:10px}.studio-layer-footer>button>span{font-size:9px;white-space:nowrap}

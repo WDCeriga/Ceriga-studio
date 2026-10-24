@@ -33,3 +33,21 @@ Behaviour checks include same-tool navigation after selecting artwork, committed
 
 ### Clean workspace refinement
 The default inspector shows one tool family. Brush medium and visual strokes replace the old stacked toolbar; brush settings open separately. Layers stays collapsed until requested. The canvas has no duplicate tool rail or selection action strip. Typography presets, stroke tuning, texture, dynamics and other advanced controls are disclosed on demand. Shapes start with nine essentials and patterns with six previews. Shared control styling uses a consistent type scale, restrained section dividers, custom range tracks, visible keyboard focus and compact value badges. Desktop and phone keep the garment on the canvas.
+
+## Hoodie Prints & Design parity audit
+
+Compared against `origin/prints-and-design` (`8635557`). The shared `PrintStudioEditor` retains the source editor, rendering engine and advanced inspector; the studio navigation replaces the old rail.
+
+| Tool family | Where to find the source tools |
+| --- | --- |
+| Drawing | Draw & paint: all 41 brushes, Select/Draw/Erase, pressure, tilt, symmetry, grain, scatter, taper and saved brushes |
+| Shapes | Shapes & paths: full shape library, polygon/path editing and custom areas; advanced controls edit anchors, fills and effects |
+| Type | Typography: text and list entry, font import; selected text has layout/effects, with curves, outlines, lists and shadows under advanced type |
+| Images | Artwork library: upload/reuse, asset projects; selected artwork exposes filters, adjustments, crop, corner distortion and freeform/preset warp |
+| Patterns | Patterns & repeats: full catalogue, custom image/layer repeats, palettes and garment-part placement |
+| Fabric wear | Wear & texture: holes, abrasion, rips, scatter, wear painting and fabric restoration |
+| Layers | Layers: reorder, visibility, lock, duplicate, move front/back, group, ungroup and merge; group text/colours stay editable |
+
+The studio model remains intact in project state. Review descriptions and saved-project previews now read it, and saved previews use the same renderer for effects, patterns, paths and nested groups. An intentionally empty studio model never falls back to deleted legacy artwork. Recursive duplication creates fresh IDs throughout a group and does not share child objects.
+
+Verification: production build; brush/group/crop/model regression checks; browser checks for adding type, opening original advanced controls, duplicating/grouping/editing group sources and moving artwork between front and back. The tests do not certify every combination of inherited visual effects or printer output.

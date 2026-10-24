@@ -1,3 +1,5 @@
+import { StudioArtworkPreview } from '../builder/StudioArtworkPreview';
+import type { DesignElement as StudioDesignElement } from '../builder/PrintStudioEditor';
 import { useEffect, useMemo, useState } from 'react';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
@@ -29,6 +31,7 @@ import { cn } from '../ui/utils';
 
 /** Subset of builder state needed to render a draft/dashboard preview. */
 export type ProjectPreviewState = {
+  studioArtwork?: StudioDesignElement[];
   garmentLabels?: GarmentLabel[];
   measurements?: Record<string, Record<string, string>>;
   garmentWash?: GarmentWash;
@@ -147,7 +150,7 @@ export function ProjectGarmentPreview({
         )}
         aria-hidden
       >
-        <TshirtSvgPreview
+        <StudioArtworkPreview elements={preview.studioArtwork??[]} view={view} garment={<TshirtSvgPreview
           garmentLabels={preview.garmentLabels}
           labelReferenceWidthMm={Number(preview.measurements?.chestWidth?.m) * 10 || undefined}
           garmentWash={preview.garmentWash}
@@ -171,7 +174,7 @@ export function ProjectGarmentPreview({
           customCollars={preview.customCollars}
           layerTransforms={preview.tshirtLayerTransforms}
           className="h-full w-full min-h-0 scale-[0.92]"
-        />
+        />}/>
       </div>
     );
   }
@@ -186,7 +189,7 @@ export function ProjectGarmentPreview({
         )}
         aria-hidden
       >
-        <BuilderGarmentPreview
+        <StudioArtworkPreview elements={preview.studioArtwork??[]} view={view} garment={<BuilderGarmentPreview
           fabricAssignments={preview.fabricAssignments}
           garmentType={type}
           color={color}
@@ -204,7 +207,7 @@ export function ProjectGarmentPreview({
           sleeveTrimColor={preview.sleeveTrimColor}
           pocketTrimColor={preview.pocketTrimColor}
           className="mx-auto h-full max-h-full w-auto max-w-[85%]"
-        />
+        />}/>
       </div>
     );
   }
