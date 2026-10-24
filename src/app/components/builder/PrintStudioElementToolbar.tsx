@@ -1,0 +1,1726 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  CaseSensitive,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Crop,
+  Italic,
+  Strikethrough,
+  Underline,
+  Link2,
+  Lock,
+  Minus,
+  Move3d,
+  Plus,
+  RotateCw,
+  Sparkles,
+  Squircle,
+  Trash2,
+  Type,
+  Unlink2,
+  Unlock,
+} from 'lucide-react';
+import type { DesignElement } from './PrintStudioEditor';
+import { FlipControls } from './printsStudio/FlipControls';
+import { textCurveRadius, updateTextCurve, type TextCurvePatch } from '../../lib/textCurveControls';
+import { PaintInput } from './PrintStudioColorPopover';
+import { paintCss, solidPaint } from '../../lib/studioPaint';
+import { cn } from '../ui/utils';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
+import {
+  STUDIO_TEXT_MAIN_COLORS,
+  STUDIO_TEXT_POPULAR_COLORS,
+} from '../../data/studioColorPresets';
+
+const DEFAULT_FONTS = [
+  'Inter',
+  'Arial',
+  'Helvetica',
+  'Times New Roman',
+  'Georgia',
+  'Impact',
+  'Montserrat',
+  'Poppins',
+];
+
+type TextAlign = NonNullable<DesignElement['textAlign']>;
+type TextTransform = NonNullable<DesignElement['textTransform']>;
+
+interface Props {
+  element: DesignElement;
+  allowGradients?: boolean;
+  onPatch: (patch: Partial<DesignElement>) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  fontOptions?: readonly string[];
+  /** Compact layout — shrinks paddings / hides labels for narrow canvases. */
+  compact?: boolean;
+  /** Slightly larger compact controls (phone portaled toolbars on prints / label / packaging). */
+  comfortableCompact?: boolean;
+  /**
+   * Notifies the parent preview when the crop popover opens / closes, so it can render the
+   * "crop editing" preview (full image with dimmed overlays on the cropped regions, Canva-style).
+   */
+  onCropModeChange?: (cropping: boolean) => void;
+  onRequestCrop?: () => void;
+  className?: string;
+  /** When the bar is fixed above the mobile keyboard, open menus upward so they stay on-screen. */
+  popoverOpenAbove?: boolean;
+  /**
+   * Shorter bar for narrow surfaces (label, packaging, docked print zone): drops Effects and the
+   * Size / Flip controls (resize & rotation stay on-canvas; advanced styling stays in the sidebar).
+   */
+  variant?: 'full' | 'slim';
+}
+
+function TextEffectControls({
+  element,
+  onPatch,
+}: {
+  element: DesignElement;
+  onPatch: (patch: Partial<DesignElement>) => void;
+}) {
+  const range = (
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    suffix: string,
+    onChange: (value: number) => void,
+    disabled = false,
+    step = 1,
+  ) => (
+    <label className="block">
+      <span className="mb-1 flex items-center justify-between text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+        {label}<span>{value}{suffix}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        onChange={event => onChange(Number(event.target.value))}
+        onPointerDown={event => event.stopPropagation()}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+      />
+    </label>
+  );
+  const updateCurve = (patch: TextCurvePatch) => onPatch(updateTextCurve(element, patch));
+
+  return (
+    <div className="space-y-2 border-t border-[#dce3ec] pt-2">
+      <label className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+        Shadow enabled
+        <input
+          type="checkbox"
+          checked={element.textShadowEnabled ?? (element.shadowBlur ?? 0) > 0}
+          onChange={event => onPatch({ textShadowEnabled: event.target.checked })}
+        />
+      </label>
+      {range('Shadow opacity', element.shadowOpacity ?? 100, 0, 100, '%', value => onPatch({ shadowOpacity: value }))}
+      {range('Shadow X', Math.max(-8, Math.min(8, element.shadowOffsetX ?? 0)), -8, 8, 'px', value => onPatch({ shadowOffsetX: value }), false, 0.25)}
+      {range('Shadow Y', Math.max(-8, Math.min(8, element.shadowOffsetY ?? 2)), -8, 8, 'px', value => onPatch({ shadowOffsetY: value }), false, 0.25)}
+      <select
+        aria-label="Shadow edge"
+        value={element.shadowEdge ?? 'sharp'}
+        onChange={event => onPatch({ shadowEdge: event.target.value as 'sharp' | 'round' })}
+        className="h-7 w-full rounded-md border border-[#dce3ec] bg-white px-2 text-[10px] text-[#35414e]"
+      >
+        <option value="sharp">Sharp shadow edge</option>
+        <option value="round">Round shadow edge</option>
+      </select>
+      {range('Line spacing', element.lineSpacing ?? 115, 80, 240, '%', value => onPatch({ lineSpacing: value }))}
+      {range(
+        'Curve amount',
+        element.textCurveAmount ?? 0,
+        0,
+        100,
+        '%',
+        value => updateCurve({ textCurveAmount: value }),
+      )}
+      <select
+        aria-label="Curve shape"
+        value={element.textCurveShape ?? 'arc'}
+        onChange={event => updateCurve({
+          textCurveShape: event.target.value as 'arc' | 'circle',
+          ...(event.target.value === 'circle' ? { textCurveAmount: 100 } : {}),
+        })}
+        className="h-7 w-full rounded-md border border-[#dce3ec] bg-white px-2 text-[10px] text-[#35414e]"
+      >
+        <option value="arc">Arc</option>
+        <option value="circle">Circle</option>
+      </select>
+      {(element.textCurveAmount ?? 0) > 0 ? (
+        <>
+          {range('Curve radius', textCurveRadius(element), element.textCurveShape === 'circle' ? 32 : 80, element.textCurveShape === 'circle' ? 160 : 500, 'px', value => updateCurve({ textCurveRadius: value }), false, 1)}
+          <select
+            aria-label="Curve direction and side"
+            value={`${element.textCurveDirection ?? 'up'}:${element.textCurveSide ?? 'outside'}`}
+            onChange={event => {
+              const [textCurveDirection, textCurveSide] = event.target.value.split(':');
+              onPatch({
+                textCurveDirection: textCurveDirection as 'up' | 'down',
+                textCurveSide: textCurveSide as 'inside' | 'outside',
+              });
+            }}
+            className="h-7 w-full rounded-md border border-[#dce3ec] bg-white px-2 text-[10px] text-[#35414e]"
+          >
+            <option value="up:outside">Up · outside</option>
+            <option value="up:inside">Up · inside</option>
+            <option value="down:outside">Down · outside</option>
+            <option value="down:inside">Down · inside</option>
+          </select>
+        </>
+      ) : null}
+      <select
+        aria-label="Text fill style"
+        value={element.textFillMode ?? ((element.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')}
+        onChange={event => {
+          const textFillMode = event.target.value as NonNullable<DesignElement['textFillMode']>;
+          onPatch({
+            textFillMode,
+            ...(textFillMode === 'filled' ? {} : { borderWidth: (element.borderWidth ?? 0) || 0.25 }),
+          });
+        }}
+        className="h-7 w-full rounded-md border border-[#dce3ec] bg-white px-2 text-[10px] text-[#35414e]"
+      >
+        <option value="filled">Filled</option>
+        <option value="outline">Outline only</option>
+        <option value="fill-outline">Fill + outline</option>
+      </select>
+    </div>
+  );
+}
+
+const ALIGNS: { id: TextAlign; icon: typeof AlignLeft }[] = [
+  { id: 'left', icon: AlignLeft },
+  { id: 'center', icon: AlignCenter },
+  { id: 'right', icon: AlignRight },
+  { id: 'justify', icon: AlignJustify },
+];
+
+const TEXT_TRANSFORMS: TextTransform[] = ['none', 'uppercase', 'lowercase'];
+
+/**
+ * Inline toolbar for the selected canvas element. Parents may dock it at the top of the print /
+ * label surface; `variant="slim"` shortens the row for narrow layouts.
+ */
+export function InlineElementToolbar({
+  element,
+  allowGradients = false,
+  onPatch,
+  onDuplicate,
+  onDelete,
+  fontOptions = DEFAULT_FONTS,
+  compact = false,
+  comfortableCompact = false,
+  onCropModeChange,
+  onRequestCrop,
+  className,
+  popoverOpenAbove = false,
+  variant = 'full',
+}: Props) {
+  const slim = variant === 'slim';
+  const isText = element.type === 'text';
+  const isImage =
+    element.type === 'image' ||
+    element.type === 'shape' ||
+    element.type === 'pattern' ||
+    element.type === 'distress';
+  const isLocked = element.locked === true;
+
+  const [openPanel, setOpenPanel] = useState<
+    null | 'font' | 'color' | 'align' | 'case' | 'effects' | 'border' | 'size' | 'crop'
+  >(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openPanel) return;
+    const onDoc = (ev: PointerEvent) => {
+      const target = ev.target as Node | null;
+      if (!rootRef.current || !target) return;
+      const el = target as Element;
+      /** Portaled bottom sheet is outside `rootRef`; do not clear selection when using it. */
+      if (el.closest?.('[data-slot="sheet-content"]') || el.closest?.('[data-radix-dialog-content]')) return;
+      /** Popover panels (may be portaled later); must not close before swatch click applies. */
+      if (el.closest?.('[data-inline-toolbar-popover]')) return;
+      if (rootRef.current.contains(target)) return;
+      setOpenPanel(null);
+    };
+    /** Pointerdown closes open popovers when clicking anywhere outside the toolbar surface. */
+    document.addEventListener('pointerdown', onDoc);
+    return () => document.removeEventListener('pointerdown', onDoc);
+  }, [openPanel]);
+
+  useEffect(() => {
+    setOpenPanel(null);
+  }, [element.id]);
+
+  useEffect(() => {
+    if (element.locked) setOpenPanel(null);
+  }, [element.locked]);
+
+  // Mirror `openPanel === 'crop'` up to the preview so it can render an editing overlay
+  // showing the full image with dimmed crop regions (no crop applied while editing).
+  const cropModeChangeRef = useRef(onCropModeChange);
+  cropModeChangeRef.current = onCropModeChange;
+  useEffect(() => {
+    cropModeChangeRef.current?.(openPanel === 'crop');
+  }, [openPanel]);
+  useEffect(
+    () => () => {
+      cropModeChangeRef.current?.(false);
+    },
+    [],
+  );
+
+  const togglePanel = (id: Exclude<typeof openPanel, null>) =>
+    setOpenPanel((prev) => (prev === id ? null : id));
+
+  const btnBase =
+    'builder-focus press-feedback relative inline-flex shrink-0 items-center justify-center rounded-md text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e] disabled:opacity-40 disabled:pointer-events-none';
+  const iconBtn = cn(
+    btnBase,
+    !compact && 'h-8 w-8',
+    compact && comfortableCompact && 'h-12 w-12 rounded-md active:scale-[0.97]',
+    compact && !comfortableCompact && 'h-10 w-10 rounded-md active:scale-[0.97]',
+  );
+  const textBtn = cn(
+    btnBase,
+    !compact && 'h-8 gap-1 px-2.5 text-[11px]',
+    compact &&
+      comfortableCompact &&
+      'h-12 min-h-12 gap-0.5 rounded-md px-2.5 text-[12px] font-semibold active:scale-[0.98]',
+    compact && !comfortableCompact && 'h-10 min-h-10 gap-0.5 rounded-md px-2 text-[11px] font-semibold active:scale-[0.98]',
+  );
+  const ic =
+    compact && comfortableCompact ? 'h-5 w-5' : compact ? 'h-4 w-4' : 'h-3.5 w-3.5';
+
+  const currentFont = element.fontFamily ?? 'Inter';
+  const currentSize = element.fontSize ?? 30;
+  const currentAlign = (element.textAlign ?? 'center') as TextAlign;
+  const currentCase = (element.textTransform ?? 'none') as TextTransform;
+  const currentColor = element.color ?? '#FFFFFF';
+  const opacity = element.opacity ?? 100;
+  const outline = isText
+    && (element.textFillMode ?? ((element.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')) !== 'filled'
+    ? element.borderWidth ?? 0.25
+    : element.borderWidth ?? 0;
+  const outlineColor = element.borderColor ?? '#FFFFFF';
+  const cornerRadius = element.cornerRadius ?? 0;
+  const cropT = element.cropTop ?? 0;
+  const cropR = element.cropRight ?? 0;
+  const cropB = element.cropBottom ?? 0;
+  const cropL = element.cropLeft ?? 0;
+  const hasCrop = cropT > 0 || cropR > 0 || cropB > 0 || cropL > 0;
+  const aspectRatio = element.width && element.height ? element.width / element.height : 1;
+  const aspectLocked = element.aspectLocked ?? isImage;
+
+  const patchFontSize = (fontSize: number) =>
+    onPatch({
+      fontSize,
+      ...(element.textCurveShape === 'circle' && (element.textCurveAmount ?? 0) > 0 ? {
+        width: Math.ceil((textCurveRadius(element) + fontSize) * 2),
+        height: Math.ceil((textCurveRadius(element) + fontSize) * 2),
+      } : {}),
+    });
+  const bumpSize = (delta: number) =>
+    patchFontSize(Math.max(10, Math.min(160, currentSize + delta)));
+
+  const cycleAlign = () => {
+    const idx = ALIGNS.findIndex((a) => a.id === currentAlign);
+    const next = ALIGNS[(idx + 1) % ALIGNS.length]!;
+    onPatch({ textAlign: next.id });
+  };
+
+  const cycleCase = () => {
+    const idx = TEXT_TRANSFORMS.indexOf(currentCase);
+    const next = TEXT_TRANSFORMS[(idx + 1) % TEXT_TRANSFORMS.length]!;
+    onPatch({ textTransform: next });
+  };
+
+  const AlignIcon = ALIGNS.find((a) => a.id === currentAlign)?.icon ?? AlignCenter;
+  const popSide = popoverOpenAbove ? 'above' : 'below';
+
+  return (
+    <div
+      ref={rootRef}
+      role="toolbar"
+      aria-label="Element quick actions"
+      data-inline-toolbar
+      onPointerDown={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        'pointer-events-auto relative z-[60] min-w-0 max-w-full animate-builder-pop-in',
+        /** Compact: fixed viewport width — inner row is `w-max` and scrolls horizontally (no max-width on the pill). */
+        /** Use viewport width so portaled toolbars aren’t capped by a narrow parent `100%`. */
+        compact &&
+          'w-full max-w-[min(22rem,calc(100vw-2.75rem))] sm:max-w-[min(24rem,calc(100vw-2rem))]',
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          'flex shrink-0 flex-nowrap items-center rounded-2xl border text-[#35414e] shadow-[0_18px_48px_rgba(0,0,0,0.55),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-xl',
+          'border-[#dce3ec] bg-white ring-1 ring-[#dce3ec]',
+            compact
+            ? cn(
+                'no-scrollbar w-full min-w-0 touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain overscroll-y-none [-webkit-overflow-scrolling:touch]',
+                /** Same node as overflow so scroll clips to rounded corners (avoids square left edge). */
+                comfortableCompact ? 'gap-1.5 px-2.5 py-2' : 'gap-1 px-2 py-1.5',
+              )
+            : cn(
+                'no-scrollbar w-max min-w-0 max-w-full gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain border-[#dce3ec] bg-white px-1.5 py-1.5 [-webkit-overflow-scrolling:touch]',
+                'sm:max-w-[min(98vw,960px)]',
+              ),
+        )}
+      >
+        {isText ? (
+          <>
+            {/* Font family */}
+            <button
+              type="button"
+              onClick={() => togglePanel('font')}
+              disabled={isLocked}
+              className={cn(
+                textBtn,
+                compact ? 'max-w-[min(8.75rem,34vw)] min-w-[4.5rem] justify-between pr-0.5' : 'max-w-[128px] justify-between pr-1.5',
+                openPanel === 'font' && 'bg-[#eef2f5] text-[#35414e]',
+              )}
+              title="Font family"
+            >
+              <Type className={cn('shrink-0', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} strokeWidth={2} />
+              <span
+                className={cn('truncate font-semibold', compact ? 'text-[11px]' : 'text-[11px]')}
+                style={{ fontFamily: currentFont }}
+              >
+                {currentFont}
+              </span>
+              <ChevronDown className={cn('shrink-0 opacity-60', compact ? 'h-3.5 w-3.5' : 'h-3 w-3')} />
+            </button>
+
+            <Divider />
+
+            {/* Font size stepper */}
+            <div className="flex shrink-0 items-center gap-0.5 rounded-md bg-[#eef2f5] px-0.5">
+              <button
+                type="button"
+                onClick={() => bumpSize(-1)}
+                disabled={isLocked}
+                className={cn(iconBtn, 'text-[#8192a8]')}
+                title="Decrease size"
+                aria-label="Decrease font size"
+              >
+                <Minus className={ic} />
+              </button>
+              <input
+                type="number"
+                aria-label="Font size"
+                value={Math.round(currentSize)}
+                min={10}
+                max={160}
+                disabled={isLocked}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (Number.isFinite(v)) patchFontSize(Math.max(10, Math.min(160, v)));
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className={cn(
+                  'builder-focus rounded-md border border-transparent bg-transparent text-center font-semibold text-[#35414e] outline-none hover:border-[#dce3ec] focus:border-[#dce3ec] disabled:cursor-not-allowed disabled:opacity-40',
+                  compact && comfortableCompact
+                    ? 'h-9 w-11 text-[13px]'
+                    : compact
+                      ? 'h-8 w-10 text-[12px]'
+                      : 'h-6 w-10 text-[12px]',
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => bumpSize(1)}
+                disabled={isLocked}
+                className={cn(iconBtn, 'text-[#8192a8]')}
+                title="Increase size"
+                aria-label="Increase font size"
+              >
+                <Plus className={ic} />
+              </button>
+            </div>
+
+            <Divider />
+
+            {/* Text colour */}
+            <button
+              type="button"
+              onClick={() => togglePanel('color')}
+              disabled={isLocked}
+              className={cn(iconBtn, openPanel === 'color' && 'bg-[#eef2f5]')}
+              title="Text colour"
+              aria-label="Text colour"
+            >
+              <span
+                className={cn(
+                  'block rounded-full border border-[#dce3ec] shadow-[0_0_0_1px_rgba(0,0,0,0.35)_inset]',
+                  compact ? 'h-4 w-4' : 'h-4 w-4',
+                )}
+                style={{ background: paintCss(currentColor) }}
+              />
+            </button>
+
+            <Divider />
+
+            {/* Italic */}
+            <button
+              type="button"
+              onClick={() => onPatch({ fontWeight: element.fontWeight === 'bold' ? 'normal' : 'bold' })}
+              disabled={isLocked}
+              className={cn(iconBtn, element.fontWeight === 'bold' && 'bg-[#eef2f5] text-[#35414e]')}
+              title="Bold"
+              aria-label="Bold"
+              aria-pressed={element.fontWeight === 'bold'}
+            >
+              <Bold className={ic} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                onPatch({ fontStyle: element.fontStyle === 'italic' ? 'normal' : 'italic' })
+              }
+              disabled={isLocked}
+              className={cn(iconBtn, element.fontStyle === 'italic' && 'bg-[#eef2f5] text-[#35414e]')}
+              title="Italic"
+              aria-label="Italic"
+              aria-pressed={element.fontStyle === 'italic'}
+            >
+              <Italic className={ic} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onPatch({ textUnderline: !element.textUnderline })}
+              disabled={isLocked}
+              className={cn(iconBtn, element.textUnderline && 'bg-[#eef2f5] text-[#35414e]')}
+              title="Underline"
+              aria-label="Underline"
+              aria-pressed={element.textUnderline === true}
+            >
+              <Underline className={ic} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onPatch({ textStrikethrough: !element.textStrikethrough })}
+              disabled={isLocked}
+              className={cn(iconBtn, element.textStrikethrough && 'bg-[#eef2f5] text-[#35414e]')}
+              title="Strikethrough"
+              aria-label="Strikethrough"
+              aria-pressed={element.textStrikethrough === true}
+            >
+              <Strikethrough className={ic} />
+            </button>
+
+            <Divider />
+
+            {/* Alignment cycle + picker */}
+            <button
+              type="button"
+              onClick={cycleAlign}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                togglePanel('align');
+              }}
+              disabled={isLocked}
+              className={cn(iconBtn, openPanel === 'align' && 'bg-[#eef2f5]')}
+              title={`Alignment (${currentAlign})`}
+              aria-label="Alignment"
+            >
+              <AlignIcon className={ic} />
+            </button>
+
+            {/* Case cycle (Aa / AA / aa) */}
+            <button
+              type="button"
+              onClick={cycleCase}
+              disabled={isLocked}
+              className={cn(iconBtn, currentCase !== 'none' && 'bg-[#eef2f5] text-[#35414e]')}
+              title={`Text case: ${currentCase}`}
+              aria-label="Text case"
+            >
+              <CaseSensitive className={ic} />
+            </button>
+
+            {!slim ? (
+              <>
+                <Divider />
+                {/* Effects panel */}
+                <button
+                  type="button"
+                  onClick={() => togglePanel('effects')}
+                  disabled={isLocked}
+                  className={cn(textBtn, openPanel === 'effects' && 'bg-[#eef2f5] text-[#35414e]')}
+                  title="Effects"
+                >
+                  <Sparkles className={ic} />
+                  {!compact && <span className="font-semibold">Effects</span>}
+                </button>
+              </>
+            ) : null}
+          </>
+        ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onRequestCrop) {
+                  setOpenPanel(null);
+                  onRequestCrop();
+                } else togglePanel('crop');
+              }}
+              disabled={isLocked}
+              className={cn(textBtn, openPanel === 'crop' && 'bg-[#eef2f5] text-[#35414e]')}
+              title="Crop"
+              aria-pressed={hasCrop}
+            >
+              <Crop className={ic} />
+              {!compact && <span className="font-semibold">Crop</span>}
+            </button>
+
+        {!slim ? (
+          <>
+            <Divider />
+            {/* Size (width / height / rotate) — available for both text and image */}
+            <button
+              type="button"
+              onClick={() => togglePanel('size')}
+              disabled={isLocked}
+              className={cn(textBtn, openPanel === 'size' && 'bg-[#eef2f5] text-[#35414e]')}
+              title="Size & rotation"
+            >
+              <Move3d className={ic} />
+              {!compact && <span className="font-semibold">Size</span>}
+            </button>
+
+            <Divider />
+          </>
+        ) : (
+          <Divider />
+        )}
+
+        <FlipControls element={element} onChange={onPatch} compact className={iconBtn} />
+
+        {/* Lock / unlock position — always enabled so a locked element can be unlocked from the bar */}
+        <button
+          type="button"
+          onClick={() => onPatch({ locked: !isLocked })}
+          className={cn(iconBtn, isLocked && 'bg-[#eef2f5] text-[#35414e]')}
+          title={isLocked ? 'Unlock' : 'Lock'}
+          aria-label={isLocked ? 'Unlock element' : 'Lock element'}
+          aria-pressed={isLocked}
+        >
+          {isLocked ? <Unlock className={ic} /> : <Lock className={ic} />}
+        </button>
+
+        {/* Duplicate */}
+        <button
+          type="button"
+          onClick={onDuplicate}
+          disabled={isLocked}
+          className={iconBtn}
+          title="Duplicate"
+          aria-label="Duplicate"
+        >
+          <Copy className={ic} />
+        </button>
+
+        {/* Delete */}
+        <button
+          type="button"
+          onClick={onDelete}
+          className={cn(iconBtn, 'hover:bg-[#405b6f]/20 hover:text-[#FF8C85]')}
+          title="Delete"
+          aria-label="Delete"
+        >
+          <Trash2 className={ic} />
+        </button>
+      </div>
+
+      {/* ──────────────── Popovers ──────────────── */}
+      {!compact && openPanel === 'font' ? (
+        <Popover side={popSide}>
+          <div className="mb-1 px-2 pt-1 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+            Font
+          </div>
+          <div className="no-scrollbar max-h-[220px] overflow-y-auto px-1 pb-1">
+            {fontOptions.map((font) => (
+              <button
+                key={font}
+                type="button"
+                onClick={() => {
+                  onPatch({ fontFamily: font });
+                  setOpenPanel(null);
+                }}
+                className={cn(
+                  'builder-focus press-feedback flex w-full items-center justify-between rounded-md px-2.5 py-2 text-left text-[12px] text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]',
+                  currentFont === font && 'bg-[#eef2f5] text-[#35414e]',
+                )}
+                style={{ fontFamily: font }}
+              >
+                <span className="truncate">{font}</span>
+                {currentFont === font ? <span className="text-[9px] text-[#8192a8]">●</span> : null}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      ) : null}
+
+      {!compact && openPanel === 'color' ? (
+        <Popover side={popSide}>
+          <div className="px-2 pt-2 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+            Text colour
+          </div>
+          <ColorGrid
+            colors={STUDIO_TEXT_MAIN_COLORS as readonly string[]}
+            selected={currentColor}
+            onSelect={(hex) => {
+              onPatch({ color: hex });
+              setOpenPanel(null);
+            }}
+          />
+          <div className="mx-2 mb-1 mt-1 h-px bg-[#eef2f5]" />
+          <ColorGrid
+            colors={STUDIO_TEXT_POPULAR_COLORS as readonly string[]}
+            selected={currentColor}
+            onSelect={(hex) => {
+              onPatch({ color: hex });
+              setOpenPanel(null);
+            }}
+          />
+          <div className="flex items-center gap-2 border-t border-[#dce3ec] px-2 py-2">
+            <label className="text-[9px] uppercase tracking-wider text-[#8192a8]">Custom</label>
+            <PaintInput
+              allowGradients={allowGradients}
+              value={currentColor}
+              onChange={(e) => onPatch({ color: e.target.value })}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="h-6 w-8 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+            />
+            <input
+              type="text"
+              value={solidPaint(currentColor)}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ color: v });
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="builder-focus h-6 w-20 rounded-md border border-[#dce3ec] bg-[#f6f8f9] px-1.5 text-[11px] text-[#35414e]"
+              maxLength={9}
+            />
+          </div>
+        </Popover>
+      ) : null}
+
+      {!compact && openPanel === 'align' ? (
+        <Popover side={popSide}>
+          <div className="flex items-center gap-1 p-1.5">
+            {ALIGNS.map(({ id, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  onPatch({ textAlign: id });
+                  setOpenPanel(null);
+                }}
+                className={cn(
+                  'builder-focus press-feedback flex h-8 w-8 items-center justify-center rounded-md text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]',
+                  currentAlign === id && 'bg-[#eef2f5] text-[#35414e]',
+                )}
+                title={`Align ${id}`}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ))}
+          </div>
+        </Popover>
+      ) : null}
+
+      {!compact && openPanel === 'effects' ? (
+        <Popover side={popSide} className="w-[240px]">
+          <div className="space-y-3 p-2">
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                  Opacity
+                </span>
+                <span className="text-[10px] font-semibold text-[#8192a8]">{Math.round(opacity)}%</span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={100}
+                step={1}
+                value={opacity}
+                onChange={(e) => onPatch({ opacity: Number(e.target.value) })}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+              />
+            </div>
+            {isText ? (
+              <>
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                      Outline
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#8192a8]">{outline}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={4}
+                    step={0.05}
+                    value={outline}
+                    onChange={(e) => {
+                      const width = Number(e.target.value);
+                      onPatch({
+                        borderWidth: width,
+                        textFillMode: width > 0
+                          ? element.textFillMode === 'outline' ? 'outline' : 'fill-outline'
+                          : 'filled',
+                      });
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                  />
+                  {outline > 0 ? (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="text-[9px] uppercase tracking-wider text-[#8192a8]">Colour</span>
+                      <PaintInput
+                        allowGradients={allowGradients}
+                        value={outlineColor}
+                        onChange={(e) => onPatch({ borderColor: e.target.value })}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                      Letter spacing
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#8192a8]">
+                      {element.letterSpacing ?? 0}px
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={-4}
+                    max={20}
+                    step={0.5}
+                    value={element.letterSpacing ?? 0}
+                    onChange={(e) => onPatch({ letterSpacing: Number(e.target.value) })}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                    Shadow
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={0}
+                      max={24}
+                      step={1}
+                      value={element.shadowBlur ?? 0}
+                      onChange={(e) => onPatch({ shadowBlur: Number(e.target.value) })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                    />
+                    <PaintInput
+                      allowGradients={allowGradients}
+                      value={element.shadowColor ?? '#000000'}
+                      onChange={(e) => onPatch({ shadowColor: e.target.value })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                    />
+                  </div>
+                </div>
+                <TextEffectControls element={element} onPatch={onPatch} />
+              </>
+            ) : (
+              <div>
+                <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                  Shadow
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={32}
+                    step={1}
+                    value={element.shadowBlur ?? 0}
+                    onChange={(e) => onPatch({ shadowBlur: Number(e.target.value) })}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                  />
+                  <PaintInput
+                    allowGradients={allowGradients}
+                    value={element.shadowColor ?? '#000000'}
+                    onChange={(e) => onPatch({ shadowColor: e.target.value })}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Popover>
+      ) : null}
+
+      {!compact && openPanel === 'border' && isImage ? (
+        <Popover side={popSide} className="w-[240px]">
+          <div className="space-y-3 p-2">
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                  Outline width
+                </span>
+                <span className="text-[10px] font-semibold text-[#8192a8]">{outline}px</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={12}
+                step={0.5}
+                value={outline}
+                onChange={(e) => onPatch({ borderWidth: Number(e.target.value) })}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] uppercase tracking-wider text-[#8192a8]">Colour</span>
+              <PaintInput
+                allowGradients={allowGradients}
+                value={outlineColor}
+                onChange={(e) => onPatch({ borderColor: e.target.value })}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+              />
+              <input
+                type="text"
+                value={solidPaint(outlineColor)}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ borderColor: v });
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="builder-focus h-6 w-20 rounded-md border border-[#dce3ec] bg-[#f6f8f9] px-1.5 text-[11px] text-[#35414e]"
+                maxLength={9}
+              />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                  <Squircle className="h-3 w-3" /> Corner rounding
+                </span>
+                <span className="text-[10px] font-semibold text-[#8192a8]">
+                  {Math.round(cornerRadius)}px
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={50}
+                step={1}
+                value={cornerRadius}
+                onChange={(e) => onPatch({ cornerRadius: Number(e.target.value) })}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+              />
+            </div>
+          </div>
+        </Popover>
+      ) : null}
+
+      {!compact && openPanel === 'size' ? (
+        <Popover side={popSide} className="w-[260px]">
+          <div className="space-y-2.5 p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                Attributes
+              </span>
+              <button
+                type="button"
+                title={aspectLocked ? 'Width and height are linked' : 'Width and height are independent'}
+                onClick={() => onPatch({ aspectLocked: !aspectLocked })}
+                className={cn(
+                  'inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[9px] font-semibold uppercase',
+                  aspectLocked ? 'bg-[#405b6f]/20 text-[#35414e]' : 'text-[#8192a8] hover:text-[#35414e]',
+                )}
+              >
+                {aspectLocked ? <Link2 className="h-3 w-3" /> : <Unlink2 className="h-3 w-3" />}
+                {aspectLocked ? 'Linked' : 'Unlinked'}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <AttrField
+                label="Width"
+                suffix="px"
+                value={Math.round(element.width || 0)}
+                onChange={(v) => {
+                  const next = Math.max(8, Math.min(1200, v));
+                  const patch = aspectLocked
+                    ? { width: next, height: Math.round(next / aspectRatio) }
+                    : { width: next };
+                  onPatch(isText ? { ...patch, autoWidth: false } : patch);
+                }}
+              />
+              <AttrField
+                label="Height"
+                suffix="px"
+                value={Math.round(element.height || 0)}
+                onChange={(v) => {
+                  const next = Math.max(8, Math.min(1200, v));
+                  const patch = aspectLocked
+                    ? { height: next, width: Math.round(next * aspectRatio) }
+                    : { height: next };
+                  onPatch(isText ? { ...patch, autoHeight: false } : patch);
+                }}
+              />
+              <AttrField
+                label="Rotate"
+                suffix="°"
+                value={Math.round((element.rotation ?? 0) * 10) / 10}
+                step={1}
+                onChange={(v) => onPatch({ rotation: ((v % 360) + 360) % 360 })}
+              />
+              {isText ? (
+                <AttrField
+                  label="Font size"
+                  suffix="px"
+                  value={Math.round(element.fontSize ?? 30)}
+                  onChange={(v) => onPatch({ fontSize: Math.max(10, Math.min(160, v)) })}
+                />
+              ) : (
+                <AttrField
+                  label="Scale"
+                  suffix="%"
+                  value={100}
+                  step={1}
+                  onChange={(v) => {
+                    const pct = Math.max(10, Math.min(400, v)) / 100;
+                    onPatch({
+                      width: Math.round((element.width || 0) * pct),
+                      height: Math.round((element.height || 0) * pct),
+                    });
+                  }}
+                />
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-1 pt-1">
+              <button
+                type="button"
+                onClick={() => onPatch({ rotation: 0 })}
+                className="builder-focus press-feedback inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-semibold text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]"
+                title="Reset rotation"
+              >
+                <RotateCw className="h-3 w-3" /> Reset
+              </button>
+            </div>
+          </div>
+        </Popover>
+      ) : null}
+
+      {!compact && openPanel === 'crop' ? (
+        <Popover side={popSide} className="w-[260px]">
+          <div className="space-y-2.5 p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                Crop ({Math.round(100 - cropT - cropB)}×{Math.round(100 - cropL - cropR)}%)
+              </span>
+              {hasCrop ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onPatch({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 })
+                  }
+                  className="builder-focus press-feedback rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]"
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
+            <CropSlider
+              label="Top"
+              value={cropT}
+              otherOpposite={cropB}
+              onChange={(v) => onPatch({ cropTop: v })}
+            />
+            <CropSlider
+              label="Right"
+              value={cropR}
+              otherOpposite={cropL}
+              onChange={(v) => onPatch({ cropRight: v })}
+            />
+            <CropSlider
+              label="Bottom"
+              value={cropB}
+              otherOpposite={cropT}
+              onChange={(v) => onPatch({ cropBottom: v })}
+            />
+            <CropSlider
+              label="Left"
+              value={cropL}
+              otherOpposite={cropR}
+              onChange={(v) => onPatch({ cropLeft: v })}
+            />
+          </div>
+        </Popover>
+      ) : null}
+
+      {compact &&
+      openPanel &&
+      (openPanel !== 'border' || isImage) ? (
+        <Sheet
+          open
+          onOpenChange={(o) => {
+            if (!o) setOpenPanel(null);
+          }}
+        >
+          <SheetContent
+            side="bottom"
+            className={cn(
+              'z-[500] flex h-auto max-h-[min(90dvh,720px)] w-full max-w-full flex-col items-center gap-0 overflow-hidden rounded-t-[1.35rem] border-x-0 border-t border-[#dce3ec] bg-white p-0 !text-[#35414e] shadow-[0_-20px_60px_rgba(0,0,0,0.55)]',
+              /** Full-width sheet + centered column — avoids Radix slide transform fighting `translateX(-50%)` (panel jumped off-screen). */
+              '[&>button]:absolute [&>button]:right-[max(0.75rem,env(safe-area-inset-right,0px))] [&>button]:top-3 [&>button]:z-10 [&>button]:flex [&>button]:h-10 [&>button]:w-10 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-[#dce3ec] [&>button]:bg-[#eef2f5] [&>button]:p-0 [&>button]:!text-[#8192a8] [&>button]:shadow-sm [&>button]:hover:!text-[#35414e] [&>button]:hover:bg-[#eef2f5]',
+            )}
+          >
+            <div className="box-border flex w-full min-w-0 max-w-[min(22rem,calc(100vw-1.5rem))] flex-col pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))]">
+            <div
+              className="mx-auto mt-2.5 h-1.5 w-11 shrink-0 rounded-full bg-[#eef2f5]"
+              aria-hidden
+            />
+            <SheetHeader className="border-b border-[#dce3ec] px-4 pb-3 pt-0 pr-14">
+              <SheetTitle className="text-center text-lg font-bold tracking-tight text-[#35414e]">
+                {openPanel === 'font'
+                  ? 'Font'
+                  : openPanel === 'color'
+                    ? 'Text colour'
+                    : openPanel === 'align'
+                      ? 'Alignment'
+                      : openPanel === 'effects'
+                        ? 'Effects'
+                        : openPanel === 'size'
+                          ? 'Size'
+                          : openPanel === 'border'
+                            ? 'Outline'
+                            : openPanel === 'crop'
+                              ? 'Crop'
+                              : 'Options'}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="max-h-[min(72dvh,580px)] overflow-y-auto overscroll-contain pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))]">
+              {openPanel === 'font' ? (
+                <div>
+                  {fontOptions.map((font) => (
+                    <button
+                      key={font}
+                      type="button"
+                      onClick={() => {
+                        onPatch({ fontFamily: font });
+                        setOpenPanel(null);
+                      }}
+                      className={cn(
+                        'builder-focus press-feedback flex min-h-[3.75rem] w-full items-center justify-between gap-2 border-b border-[#dce3ec] px-4 py-4 text-left text-[16px] text-[#8192a8] active:bg-[#eef2f5]',
+                        currentFont === font && 'bg-[#eef2f5] text-[#35414e]',
+                      )}
+                      style={{ fontFamily: font }}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{font}</span>
+                      {currentFont === font ? (
+                        <span className="shrink-0 text-[12px] text-[#8192a8]">✓</span>
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-[#8192a8]" aria-hidden />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {openPanel === 'color' ? (
+                <div>
+                  <div className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                    Main colours
+                  </div>
+                  <ColorGrid
+                    comfortable
+                    colors={STUDIO_TEXT_MAIN_COLORS as readonly string[]}
+                    selected={currentColor}
+                    onSelect={(hex) => {
+                      onPatch({ color: hex });
+                      setOpenPanel(null);
+                    }}
+                  />
+                  <div className="mx-3 my-2 h-px bg-[#eef2f5]" />
+                  <div className="px-4 text-[10px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                    Popular
+                  </div>
+                  <ColorGrid
+                    comfortable
+                    colors={STUDIO_TEXT_POPULAR_COLORS as readonly string[]}
+                    selected={currentColor}
+                    onSelect={(hex) => {
+                      onPatch({ color: hex });
+                      setOpenPanel(null);
+                    }}
+                  />
+                  <div className="flex items-center gap-2 border-t border-[#dce3ec] px-4 py-3">
+                    <span className="text-[9px] uppercase tracking-wider text-[#8192a8]">Custom</span>
+                    <PaintInput
+                      allowGradients={allowGradients}
+                      value={currentColor}
+                      onChange={(e) => onPatch({ color: e.target.value })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-7 w-10 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                    />
+                    <input
+                      type="text"
+                      value={solidPaint(currentColor)}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ color: v });
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="builder-focus h-7 w-24 rounded-md border border-[#dce3ec] bg-[#f6f8f9] px-1.5 text-[12px] text-[#35414e]"
+                      maxLength={9}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {openPanel === 'align' ? (
+                <div className="grid grid-cols-2 gap-2.5 px-3 pb-4">
+                  {ALIGNS.map(({ id, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        onPatch({ textAlign: id });
+                        setOpenPanel(null);
+                      }}
+                      className={cn(
+                        'builder-focus press-feedback flex min-h-[3.5rem] items-center justify-center gap-2 rounded-xl border py-2 text-[13px] font-semibold text-[#8192a8]',
+                        currentAlign === id
+                          ? 'border-[#405b6f] bg-[#405b6f]/20 text-[#35414e]'
+                          : 'border-[#dce3ec] bg-[#eef2f5] hover:border-[#dce3ec] hover:text-[#35414e]',
+                      )}
+                    >
+                      <Icon className="h-6 w-6" />
+                      <span className="capitalize">{id}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {openPanel === 'effects' ? (
+                <div className="space-y-3 px-3 pb-4 pt-1">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                        Opacity
+                      </span>
+                      <span className="text-[10px] font-semibold text-[#8192a8]">{Math.round(opacity)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      step={1}
+                      value={opacity}
+                      onChange={(e) => onPatch({ opacity: Number(e.target.value) })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                    />
+                  </div>
+                  {isText ? (
+                    <>
+                      <div>
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                            Outline
+                          </span>
+                          <span className="text-[10px] font-semibold text-[#8192a8]">{outline}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={4}
+                          step={0.05}
+                          value={outline}
+                          onChange={(e) => {
+                            const width = Number(e.target.value);
+                            onPatch({
+                              borderWidth: width,
+                              textFillMode: width > 0
+                                ? element.textFillMode === 'outline' ? 'outline' : 'fill-outline'
+                                : 'filled',
+                            });
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                        />
+                        {outline > 0 ? (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <span className="text-[9px] uppercase tracking-wider text-[#8192a8]">Colour</span>
+                            <PaintInput
+                              allowGradients={allowGradients}
+                              value={outlineColor}
+                              onChange={(e) => onPatch({ borderColor: e.target.value })}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                            />
+                          </div>
+                        ) : null}
+                      </div>
+                      <div>
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                            Letter spacing
+                          </span>
+                          <span className="text-[10px] font-semibold text-[#8192a8]">
+                            {element.letterSpacing ?? 0}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={-4}
+                          max={20}
+                          step={0.5}
+                          value={element.letterSpacing ?? 0}
+                          onChange={(e) => onPatch({ letterSpacing: Number(e.target.value) })}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                        />
+                      </div>
+                      <div>
+                        <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                          Shadow
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min={0}
+                            max={24}
+                            step={1}
+                            value={element.shadowBlur ?? 0}
+                            onChange={(e) => onPatch({ shadowBlur: Number(e.target.value) })}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                          />
+                          <PaintInput
+                            allowGradients={allowGradients}
+                            value={element.shadowColor ?? '#000000'}
+                            onChange={(e) => onPatch({ shadowColor: e.target.value })}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                          />
+                        </div>
+                      </div>
+                      <TextEffectControls element={element} onPatch={onPatch} />
+                    </>
+                  ) : (
+                    <div>
+                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                        Shadow
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min={0}
+                          max={32}
+                          step={1}
+                          value={element.shadowBlur ?? 0}
+                          onChange={(e) => onPatch({ shadowBlur: Number(e.target.value) })}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                        />
+                        <PaintInput
+                          allowGradients={allowGradients}
+                          value={element.shadowColor ?? '#000000'}
+                          onChange={(e) => onPatch({ shadowColor: e.target.value })}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              {openPanel === 'size' ? (
+                <div className="space-y-2.5 px-3 pb-4 pt-1">
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      title={aspectLocked ? 'Width and height are linked' : 'Width and height are independent'}
+                      onClick={() => onPatch({ aspectLocked: !aspectLocked })}
+                      className={cn(
+                        'inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[9px] font-semibold uppercase',
+                        aspectLocked ? 'bg-[#405b6f]/20 text-[#35414e]' : 'text-[#8192a8] hover:text-[#35414e]',
+                      )}
+                    >
+                      {aspectLocked ? <Link2 className="h-3 w-3" /> : <Unlink2 className="h-3 w-3" />}
+                      {aspectLocked ? 'Linked' : 'Unlinked'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <AttrField
+                      label="Width"
+                      suffix="px"
+                      value={Math.round(element.width || 0)}
+                      onChange={(v) => {
+                        const next = Math.max(8, Math.min(1200, v));
+                        const patch = aspectLocked
+                          ? { width: next, height: Math.round(next / aspectRatio) }
+                          : { width: next };
+                        onPatch(isText ? { ...patch, autoWidth: false } : patch);
+                      }}
+                    />
+                    <AttrField
+                      label="Height"
+                      suffix="px"
+                      value={Math.round(element.height || 0)}
+                      onChange={(v) => {
+                        const next = Math.max(8, Math.min(1200, v));
+                        const patch = aspectLocked
+                          ? { height: next, width: Math.round(next * aspectRatio) }
+                          : { height: next };
+                        onPatch(isText ? { ...patch, autoHeight: false } : patch);
+                      }}
+                    />
+                    <AttrField
+                      label="Rotate"
+                      suffix="°"
+                      value={Math.round((element.rotation ?? 0) * 10) / 10}
+                      step={1}
+                      onChange={(v) => onPatch({ rotation: ((v % 360) + 360) % 360 })}
+                    />
+                    {isText ? (
+                      <AttrField
+                        label="Font size"
+                        suffix="px"
+                        value={Math.round(element.fontSize ?? 30)}
+                        onChange={(v) => onPatch({ fontSize: Math.max(10, Math.min(160, v)) })}
+                      />
+                    ) : (
+                      <AttrField
+                        label="Scale"
+                        suffix="%"
+                        value={100}
+                        step={1}
+                        onChange={(v) => {
+                          const pct = Math.max(10, Math.min(400, v)) / 100;
+                          onPatch({
+                            width: Math.round((element.width || 0) * pct),
+                            height: Math.round((element.height || 0) * pct),
+                          });
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => onPatch({ rotation: 0 })}
+                      className="builder-focus press-feedback inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]"
+                    >
+                      <RotateCw className="h-3.5 w-3.5" /> Reset rotation
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {openPanel === 'border' && isImage ? (
+                <div className="space-y-3 px-3 pb-4 pt-1">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                        Outline width
+                      </span>
+                      <span className="text-[10px] font-semibold text-[#8192a8]">{outline}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={12}
+                      step={0.5}
+                      value={outline}
+                      onChange={(e) => onPatch({ borderWidth: Number(e.target.value) })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[9px] uppercase tracking-wider text-[#8192a8]">Colour</span>
+                    <PaintInput
+                      allowGradients={allowGradients}
+                      value={outlineColor}
+                      onChange={(e) => onPatch({ borderColor: e.target.value })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-5 w-7 cursor-pointer rounded border border-[#dce3ec] bg-transparent p-0"
+                    />
+                    <input
+                      type="text"
+                      value={solidPaint(outlineColor)}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (/^#[0-9A-Fa-f]{3,8}$/.test(v)) onPatch({ borderColor: v });
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="builder-focus h-6 w-24 rounded-md border border-[#dce3ec] bg-[#f6f8f9] px-1.5 text-[11px] text-[#35414e]"
+                      maxLength={9}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                        <Squircle className="h-3 w-3" /> Corner rounding
+                      </span>
+                      <span className="text-[10px] font-semibold text-[#8192a8]">
+                        {Math.round(cornerRadius)}px
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={50}
+                      step={1}
+                      value={cornerRadius}
+                      onChange={(e) => onPatch({ cornerRadius: Number(e.target.value) })}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {openPanel === 'crop' ? (
+                <div className="space-y-2.5 px-3 pb-4 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                      Crop ({Math.round(100 - cropT - cropB)}×{Math.round(100 - cropL - cropR)}%)
+                    </span>
+                    {hasCrop ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onPatch({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 })
+                        }
+                        className="builder-focus press-feedback rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]"
+                      >
+                        Reset
+                      </button>
+                    ) : null}
+                  </div>
+                  <CropSlider
+                    label="Top"
+                    value={cropT}
+                    otherOpposite={cropB}
+                    onChange={(v) => onPatch({ cropTop: v })}
+                  />
+                  <CropSlider
+                    label="Right"
+                    value={cropR}
+                    otherOpposite={cropL}
+                    onChange={(v) => onPatch({ cropRight: v })}
+                  />
+                  <CropSlider
+                    label="Bottom"
+                    value={cropB}
+                    otherOpposite={cropT}
+                    onChange={(v) => onPatch({ cropBottom: v })}
+                  />
+                  <CropSlider
+                    label="Left"
+                    value={cropL}
+                    otherOpposite={cropR}
+                    onChange={(v) => onPatch({ cropLeft: v })}
+                  />
+                </div>
+              ) : null}
+            </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+    </div>
+  );
+}
+
+function AttrField({
+  label,
+  suffix,
+  value,
+  onChange,
+  step = 1,
+}: {
+  label: string;
+  suffix: string;
+  value: number;
+  onChange: (v: number) => void;
+  step?: number;
+}) {
+  const [draft, setDraft] = useState<string>(String(value));
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+  return (
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+        {label}
+      </span>
+      <div className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2.5 transition-colors focus-within:border-[#405b6f]/55 focus-within:bg-[#f6f8f9]">
+        <input
+          type="number"
+          value={draft}
+          step={step}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            const n = Number(draft);
+            if (Number.isFinite(n)) onChange(n);
+            else setDraft(String(value));
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="min-w-0 flex-1 bg-transparent text-left text-[12px] font-semibold tabular-nums text-[#35414e] outline-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <span className="shrink-0 text-[10px] font-medium tabular-nums leading-none text-[#8192a8]">
+          {suffix}
+        </span>
+      </div>
+    </label>
+  );
+}
+
+function CropSlider({
+  label,
+  value,
+  otherOpposite,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  /** The crop on the opposite edge — we clamp max so the two never overlap past 100%. */
+  otherOpposite: number;
+  onChange: (v: number) => void;
+}) {
+  const max = Math.max(0, 100 - otherOpposite);
+  const clamped = Math.min(value, max);
+  return (
+    <div>
+      <div className="mb-0.5 flex items-center justify-between">
+        <span className="text-[9px] font-medium uppercase tracking-wider text-[#8192a8]">{label}</span>
+        <span className="text-[10px] font-semibold text-[#8192a8]">{Math.round(clamped)}%</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={1}
+        value={clamped}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+      />
+    </div>
+  );
+}
+
+function Divider() {
+  return <span className="mx-0.5 h-6 w-px shrink-0 bg-[#eef2f5]" aria-hidden />;
+}
+
+/**
+ * Pop-over attached to the inline toolbar. Default is right-anchored so panels
+ * slide out toward the right edge instead of dropping over the centre of the
+ * canvas (where the element being edited usually sits).
+ */
+function Popover({
+  children,
+  className,
+  align = 'right',
+  side = 'below',
+}: {
+  children: React.ReactNode;
+  className?: string;
+  align?: 'left' | 'center' | 'right';
+  /** `above` = open upward (e.g. toolbar fixed above keyboard). */
+  side?: 'above' | 'below';
+}) {
+  return (
+    <div
+      data-inline-toolbar-popover
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        'absolute z-[500] w-[min(280px,calc(100vw-1.5rem))] max-h-[min(80dvh,640px)] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dce3ec] bg-white text-[#35414e] shadow-[0_20px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl animate-builder-fade-in [scrollbar-gutter:stable] isolate',
+        side === 'below' ? 'top-full mt-1.5' : 'bottom-full mb-1.5',
+        align === 'left' && 'left-0',
+        align === 'center' && 'left-1/2 -translate-x-1/2',
+        align === 'right' && 'right-0',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ColorGrid({
+  colors,
+  selected,
+  onSelect,
+  comfortable = false,
+}: {
+  colors: readonly string[];
+  selected: string;
+  onSelect: (hex: string) => void;
+  /** Larger swatches and spacing for bottom-sheet / touch layouts. */
+  comfortable?: boolean;
+}) {
+  return (
+    <div className={cn('flex flex-wrap', comfortable ? 'gap-2.5 px-3 py-3 sm:gap-3' : 'gap-1.5 p-2')}>
+      {colors.map((hex) => (
+        <button
+          key={hex}
+          type="button"
+          onClick={() => onSelect(hex)}
+          onPointerDown={(e) => e.stopPropagation()}
+          className={cn(
+            'builder-focus press-feedback shrink-0 rounded-full border transition-transform active:scale-95',
+            comfortable ? 'h-9 w-9 border-2 sm:h-10 sm:w-10' : 'h-6 w-6 border',
+            selected.toLowerCase() === hex.toLowerCase()
+              ? 'border-[#405b6f] shadow-[0_0_0_2px_rgba(204,45,36,0.45)]'
+              : comfortable
+                ? 'border-[#dce3ec] hover:border-[#dce3ec] hover:scale-105'
+                : 'border-[#dce3ec] hover:border-[#dce3ec]',
+          )}
+          style={{ backgroundColor: hex }}
+          aria-label={`Set colour ${hex}`}
+          title={hex}
+        />
+      ))}
+    </div>
+  );
+}
