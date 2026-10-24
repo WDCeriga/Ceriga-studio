@@ -16,7 +16,7 @@ export function TextListInput({ value, onChange, onSubmit }: {
       rows={3}
       aria-label="Type, then add"
       placeholder="Type, then add"
-      className="min-h-20 min-w-0 flex-1 resize-y rounded-md border border-[#dce3ec] bg-[#f6f8f9] px-3 py-2 text-[11px] text-[#35414e] placeholder:text-[#8192a8]"
+      className="min-h-20 min-w-0 flex-1 resize-y rounded-md border border-[#e2e2e2] bg-[#fafafa] px-3 py-2 text-[11px] text-[#262626] placeholder:text-[#737373]"
       onChange={event => {
         const input = event.currentTarget;
         const result = (event.nativeEvent as InputEvent).isComposing

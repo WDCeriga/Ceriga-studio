@@ -1,3 +1,4 @@
+import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
 import { toCanvas } from 'html-to-image';
 import { waitForImageFilters } from '../../../lib/imageFilterRendering';
@@ -166,19 +167,21 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
     window.addEventListener('keydown', key, true);
   };
 
-  return <>
+  const projected=(live??element.perspective)?.some((point,index)=>Math.abs(point.x-UNIT_QUAD[index].x)>1e-8||Math.abs(point.y-UNIT_QUAD[index].y)>1e-8);
+  const projectionTransform=projected?map.css(width,actualHeight):undefined;
+  return <ArtworkResolutionContext.Provider value={scale}>
     <div ref={surface} data-pattern-clip={element.patternTarget} data-drawing-clip={element.type === 'drawing' && garmentMask !== undefined ? '' : undefined} className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', ...((element.type === 'drawing' || element.patternTarget) && garmentMask !== undefined ? {
       visibility: garmentMask ? undefined : 'hidden',
       maskImage: garmentMask ? drawingMaskCss(garmentMask, width, actualHeight, position?.x ?? element.x, position?.y ?? element.y, element.rotation) : undefined,
       maskSize: '100% 100%', maskRepeat: 'no-repeat',
     } : {}) }}>
-    <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: map.css(width, actualHeight) }}>
+    <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: projectionTransform }}>
       <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }) }}>
         {element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}
       </div>
     </div>
     </div>
-    {cropping ? <div data-editor-chrome className="pointer-events-auto absolute inset-0" style={{ height: actualHeight, transformOrigin: '0 0', transform: map.css(width, actualHeight) }}>{cropOverlay}</div> : null}
+    {cropping ? <div data-editor-chrome className="pointer-events-auto absolute inset-0" style={{ height: actualHeight, transformOrigin: '0 0', transform: projectionTransform }}>{cropOverlay}</div> : null}
     <div data-visible-bounds className="pointer-events-none absolute" style={{ left: selectionLeft, top: selectionTop, width: selectionWidth, height: selectionHeight }}>
       {selected && !distort && !warpEditing ? overlay : null}
     </div>
@@ -186,10 +189,10 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
       <>
         <svg aria-hidden="true" className="absolute inset-0 h-full w-full overflow-visible">
           <polygon data-distort-outline points={corners.map(point => `${point.x * width},${point.y * actualHeight}`).join(' ')}
-            fill="none" stroke="#ef4444" strokeWidth={1 / scale} strokeLinejoin="round" />
+            fill="none" stroke="#737373" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
         </svg>
-        {corners.map((point, index) => <button key={index} type="button" aria-label={`Distort corner ${index + 1}`} title={`Distort corner ${index + 1}`} onPointerDown={event => startCorner(event, index)} className="pointer-events-auto absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 touch-none rounded-sm border-2 border-red-500 bg-white" style={{ left: point.x * width, top: point.y * actualHeight, scale: 1 / scale }} />)}
+        {corners.map((point, index) => <button key={index} type="button" aria-label={`Distort corner ${index + 1}`} title={`Distort corner ${index + 1}`} onPointerDown={event => startCorner(event, index)} className="artwork-perspective-handle" style={{ left: point.x * width, top: point.y * actualHeight, transform:`translate(-50%,-50%) scale(${1/scale})` }} />)}
       </>
     </div>}
-  </>;
+  </ArtworkResolutionContext.Provider>;
 }

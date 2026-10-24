@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import {artworkPixelRatio} from '../../../lib/artworkResolution';
+import {ArtworkResolutionContext} from './ArtworkResolutionContext';
+import { useContext, useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { toCanvas } from 'html-to-image';
 import { waitForImageFilters } from '../../../lib/imageFilterRendering';
 import { artworkEffectPadding } from '../../../lib/textEffectRendering';
-import { interpolateWarpGrid, warpGrid, type WarpControlPoint, type WarpSettings } from '../../../lib/warpGeometry';
+import { isIdentityWarp, interpolateWarpGrid, warpGrid, type WarpControlPoint, type WarpSettings } from '../../../lib/warpGeometry';
 import type { DesignElement } from '../PrintStudioEditor';
 
 function affineMap(source: WarpControlPoint[], target: WarpControlPoint[]) {
@@ -30,9 +32,10 @@ function drawTriangle(
   if (!matrix) return;
   context.save();
   context.beginPath();
-  context.moveTo(target[0]!.x, target[0]!.y);
-  context.lineTo(target[1]!.x, target[1]!.y);
-  context.lineTo(target[2]!.x, target[2]!.y);
+  // Slight overlap prevents antialiased cracks between adjacent texture triangles.
+  const centre={x:(target[0]!.x+target[1]!.x+target[2]!.x)/3,y:(target[0]!.y+target[1]!.y+target[2]!.y)/3};
+  const clip=target.map(p=>{const dx=p.x-centre.x,dy=p.y-centre.y,d=Math.hypot(dx,dy)||1;return {x:p.x+dx/d*.75,y:p.y+dy/d*.75}});
+  context.moveTo(clip[0]!.x,clip[0]!.y);context.lineTo(clip[1]!.x,clip[1]!.y);context.lineTo(clip[2]!.x,clip[2]!.y);
   context.closePath();
   context.clip();
   context.transform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
@@ -48,6 +51,7 @@ function drawMesh(
   height: number,
   padding = 0,
 ) {
+  if(isIdentityWarp(settings)){context.clearRect(0,0,width,height);context.drawImage(image,0,0,width,height);return {x:0,y:0,width:1,height:1}}
   const size = settings.mode === 'freeform' ? settings.gridSize : 3;
   const points = warpGrid(settings);
   const segments = (size - 1) * 8;
@@ -133,6 +137,7 @@ export function WarpedArtwork({
   children: ReactNode;
   onCommit: (warp: WarpSettings) => void;
 }) {
+  const displayScale=useContext(ArtworkResolutionContext),density=window.devicePixelRatio||1;
   const sourceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<number | null>(null);
@@ -160,7 +165,7 @@ export function WarpedArtwork({
       try {
         await waitForImageFilters(source);
         if (cancelled) return;
-        const raster = await toCanvas(source, { pixelRatio: Math.min(2, window.devicePixelRatio || 1), width: width + padding * 2, height: height + padding * 2, skipFonts: true, style: { width: `${width}px`, height: `${height}px`, transform: `translate(${padding}px, ${padding}px)`, opacity: '1' }, filter: child => !(child instanceof Element) || !child.matches('[data-editor-chrome]') });
+        const raster = await toCanvas(source, { pixelRatio: artworkPixelRatio(width+padding*2,height+padding*2,displayScale,density), width: width + padding * 2, height: height + padding * 2, skipFonts: true, style: { width: `${width}px`, height: `${height}px`, transform: `translate(${padding}px, ${padding}px)`, opacity: '1' }, filter: child => !(child instanceof Element) || !child.matches('[data-editor-chrome]') });
         if (!cancelled) { capturedSignature.current = signature; setSourceCanvas(raster); }
       } catch {
         if (!cancelled) setSourceCanvas(null);
@@ -168,7 +173,7 @@ export function WarpedArtwork({
     };
     void capture();
     return () => { cancelled = true; };
-  }, [signature, element.width, element.height, dimensions.width, dimensions.height]);
+  }, [signature, element.width, element.height, dimensions.width, dimensions.height,displayScale,density]);
 
   useEffect(() => {
     const source = sourceRef.current;
@@ -226,7 +231,7 @@ export function WarpedArtwork({
 
   useEffect(() => () => { if (frameRef.current !== null) cancelAnimationFrame(frameRef.current); }, []);
 
-  const pointerToNormalized = (event: PointerEvent<SVGCircleElement>) => {
+  const pointerToNormalized = (event: PointerEvent<SVGElement>) => {
     const svg = event.currentTarget.ownerSVGElement;
     const matrix = svg?.getScreenCTM();
     if (!svg || !matrix) return null;
@@ -306,11 +311,9 @@ export function WarpedArtwork({
     <canvas ref={canvasRef} className="absolute" style={{ left: -padding, top: -padding, width: dimensions.width + padding * 2, height: dimensions.height + padding * 2 }} aria-label="Warped design" data-warp-canvas data-warp-expected={signature + JSON.stringify(warp)} />
     {editing && displayedWarp.mode === 'freeform' ? (
       <svg className="pointer-events-none absolute inset-0 z-50 h-full w-full overflow-visible" viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} preserveAspectRatio="none" data-warp-mesh data-editor-chrome>
-        {gridLines.map((line) => <polyline key={line.key} points={line.points.map(point => `${point.x * dimensions.width},${point.y * dimensions.height}`).join(' ')} fill="none" stroke="#ff4b45" strokeWidth={1} vectorEffect="non-scaling-stroke" />)}
-        {displayPoints.map((point, index) => <circle key={index} cx={point.x * dimensions.width} cy={point.y * dimensions.height}
-          r={activePoint === index ? 7 : 5} fill={activePoint === index ? '#ff4b45' : '#fff'} stroke="#111" strokeWidth={2}
-          vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-move" data-warp-point={index}
-          onPointerDown={(event) => startControlDrag(event, index)} />)}
+        {gridLines.map(line=>{const boundary=line.key.endsWith('-0')||line.key.endsWith(`-${size-1}`),coords=line.points.map(point=>`${point.x*dimensions.width},${point.y*dimensions.height}`).join(' ');return <g key={line.key}><polyline points={coords} fill="none" stroke="white" strokeOpacity={boundary ? .55 : .3} strokeWidth={boundary?2.5:1.5} vectorEffect="non-scaling-stroke"/><polyline points={coords} fill="none" stroke="#525252" strokeOpacity={boundary ? .8 : .45} strokeWidth={boundary?1:.7} vectorEffect="non-scaling-stroke"/></g>})}
+        {displayPoints.map((point,index)=>{const marker=3.5/Math.max(.1,displayScale),hit=10/Math.max(.1,displayScale),x=point.x*dimensions.width,y=point.y*dimensions.height,active=activePoint===index;return <g key={index} role="button" tabIndex={0} aria-label={`Warp point ${index+1}`} aria-pressed={active} data-warp-point={index} style={{outline: 'none'}} className="pointer-events-auto cursor-move" onFocus={()=>setActivePoint(index)} onPointerDown={event=>startControlDrag(event,index)} onKeyDown={event=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();event.stopPropagation();const step=event.shiftKey?10:1,points=displayedWarp.points.map((p,i)=>i===index?{x:Math.max(0,Math.min(1,p.x+(event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0)/(dimensions.width*Math.max(.1,displayScale)))),y:Math.max(0,Math.min(1,p.y+(event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0)/(dimensions.height*Math.max(.1,displayScale))))}:p);onCommit({...displayedWarp,points})}}><rect x={x-hit} y={y-hit} width={hit*2} height={hit*2} fill="transparent"/><rect x={x-marker} y={y-marker} width={marker*2} height={marker*2} rx={marker*.2} fill={active?'#262626':'white'} stroke={active?'white':'#737373'} strokeWidth="1" vectorEffect="non-scaling-stroke"/></g>})}
+
       </svg>
     ) : null}
   </div>;

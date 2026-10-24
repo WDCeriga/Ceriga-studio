@@ -5,7 +5,7 @@ import { CARE_OPTIONS, DEFAULT_REGION_TRANSFORM, LABEL_CATEGORIES, LABEL_FOLDS, 
 import { LabelArtwork, labelLayout, loadLabelFont } from './LabelArtwork';
 import { LABEL_BLOCKS, LABEL_HIERARCHIES, MANUFACTURER_CARE_NOTE, applyLabelHierarchy, labelBlocks, labelExportFaces, switchTagFace, type LabelBlock, type LabelBlockKey } from '../../data/garmentLabels';
 
-const fieldClass = 'w-full min-w-0 rounded border border-white/15 bg-[#161619] px-2 py-2 text-xs text-white [color-scheme:dark]';
+const fieldClass = 'w-full min-w-0 rounded border border-white/15 bg-[#171717] px-2 py-2 text-xs text-white [color-scheme:dark]';
 function Field({ title, children }: { title: string; children: ReactNode }) {
   return <label className="grid min-w-0 gap-1 text-[11px] text-white/65">{title}{children}</label>;
 }
@@ -190,7 +190,7 @@ export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, lay
       {selected.category === 'neck' && select('construction', 'Label type', { physical: 'Sewn neck label', printed: 'Direct neck print' })}
       {selected.category === 'tag' && tagView === 'front' && <button type="button" onClick={() => { const copy = { ...structuredClone(selected), id: crypto.randomUUID(), exteriorView: 'back' as const, faces: undefined, ...(manual ? { manualPosition: null } : {}) }; onChange([...labels, copy]); onTagViewChange?.('back'); onSelect(copy.id); }} className="flex items-center gap-2 text-xs text-white/70"><Copy size={14} />Copy front to back</button>}
       {!custom && <div className="grid grid-cols-3 gap-2" role="group" aria-label="Label presets">{Object.entries(LABEL_PRESETS).filter(([key]) => key !== 'care-stack' || direct || selected.method !== 'woven').map(([key, title]) => <button key={key} type="button" aria-pressed={(selected.preset ?? 'classic') === key} onClick={() => { update(applyLabelPreset(selected, key as keyof typeof LABEL_PRESETS)); if (key === 'care-stack') setBlockKey('careText'); }} className="min-w-0 overflow-hidden rounded border border-white/15 bg-white/5 p-1.5 text-[11px] text-white/70 aria-pressed:border-[#e45449] aria-pressed:text-white">
-        <svg aria-hidden="true" viewBox={`-2 -2 ${selected.widthMm + 4} ${selected.heightMm + 4}`} className="mb-2 h-20 w-full rounded bg-[#e7e9ec] p-2"><LabelArtwork label={applyLabelPreset(selected, key as keyof typeof LABEL_PRESETS)} /></svg>{title}
+        <svg aria-hidden="true" viewBox={`-2 -2 ${selected.widthMm + 4} ${selected.heightMm + 4}`} className="mb-2 h-20 w-full rounded bg-[#f2f2f2] p-2"><LabelArtwork label={applyLabelPreset(selected, key as keyof typeof LABEL_PRESETS)} /></svg>{title}
       </button>)}</div>}
       <fieldset className={sectionClass}><legend className={legendClass}>Construction & size</legend>
         {select('method', direct ? 'Print method' : 'Manufacturing method', Object.fromEntries(Object.entries(LABEL_METHODS).filter(([key]) => direct ? ['heat', 'dtf', 'dtg', 'screen'].includes(key) : ['woven', 'fabric'].includes(key))))}

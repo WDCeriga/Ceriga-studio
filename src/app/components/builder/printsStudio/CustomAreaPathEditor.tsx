@@ -89,15 +89,15 @@ export function CustomAreaPathEditor({ element, scale, onChange, onPreview }: {
     cancelDrag.current = cancel;
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', cancel);
   }
-  const rx = 5 / Math.max(0.1, scale) * 100 / element.width, ry = 5 / Math.max(0.1, scale) * 100 / element.height;
-  const stroke = 1.5 / Math.max(0.1, scale);
+  const rx = 3.5 / Math.max(0.1, scale) * 100 / element.width, ry = 3.5 / Math.max(0.1, scale) * 100 / element.height;
+  const stroke = 1;
   return <svg ref={svg} data-editor-chrome data-custom-area-path-editor aria-label="Editable Custom Area path" viewBox="0 0 100 100" preserveAspectRatio="none"
     className="pointer-events-none absolute inset-0 z-50 h-full w-full overflow-visible" onPointerLeave={() => { if (!cancelDrag.current) setHover(null); }}>
     {shown.map((a, index) => {
       const b = shown[(index + 1) % shown.length];
       const d = Array.from({ length: 65 }, (_, i) => project(pathSegmentPoint(a, b, i / 64))).map((point, i) => `${i ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
       return <g key={index}>
-        <path d={d} fill="none" stroke="#ff6259" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
+        <path d={d} fill="none" stroke="#737373" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
         <path data-custom-area-segment={index} d={d} fill="none" stroke="transparent" strokeWidth={12 / scale} vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-crosshair"
           onPointerMove={event => { if (!cancelDrag.current) setHover(nearestCustomAreaSegment(points, clientPoint(event.clientX, event.clientY), index)); }}
           onPointerDown={event => drag(event, { index, segment: nearestCustomAreaSegment(points, clientPoint(event.clientX, event.clientY), index) })} />
@@ -105,21 +105,21 @@ export function CustomAreaPathEditor({ element, scale, onChange, onPreview }: {
     })}
     {hover && !preview && (() => { const p = project(hover.point); return <g data-custom-area-insert className="pointer-events-auto cursor-copy"
       onPointerDown={event => drag(event, { index: hover.index, segment: hover })}>
-      <ellipse cx={p.x} cy={p.y} rx={rx * 1.5} ry={ry * 1.5} fill="#fff" stroke="#ff6259" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
-      <path d={`M ${p.x - rx} ${p.y} H ${p.x + rx} M ${p.x} ${p.y - ry} V ${p.y + ry}`} stroke="#c22" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
+      <ellipse cx={p.x} cy={p.y} rx={rx * 1.5} ry={ry * 1.5} fill="#fff" stroke="#737373" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
+      <path d={`M ${p.x - rx} ${p.y} H ${p.x + rx} M ${p.x} ${p.y - ry} V ${p.y + ry}`} stroke="#404040" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
     </g>; })()}
     {shown.map((node, index) => { const p = project(node), selected = selection.includes(index); return <g key={index}>
       {selected && (['in', 'out'] as const).map(handle => {
         if (!node[handle]) return null;
         const h = project(node[handle]);
-        return <g key={handle}><line x1={p.x} y1={p.y} x2={h.x} y2={h.y} stroke="#60a5fa" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
-          <ellipse data-custom-area-handle={`${index}-${handle}`} cx={h.x} cy={h.y} rx={rx * .8} ry={ry * .8} fill="#60a5fa" stroke="white" strokeWidth={stroke} vectorEffect="non-scaling-stroke"
+        return <g key={handle}><line x1={p.x} y1={p.y} x2={h.x} y2={h.y} stroke="#737373" strokeWidth={stroke} vectorEffect="non-scaling-stroke" />
+          <ellipse data-custom-area-handle={`${index}-${handle}`} cx={h.x} cy={h.y} rx={rx * .8} ry={ry * .8} fill="#737373" stroke="white" strokeWidth={stroke} vectorEffect="non-scaling-stroke"
             className="pointer-events-auto cursor-move" onPointerDown={event => drag(event, { index, handle })} />
         </g>;
       })}
-      <ellipse data-custom-area-point={index} aria-label={`Custom Area point ${index + 1}`} cx={p.x} cy={p.y} rx={rx * (selected ? 1.25 : 1)} ry={ry * (selected ? 1.25 : 1)}
-        fill={selected ? '#ff6259' : '#fff'} stroke="#09090b" strokeWidth={stroke} vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-move"
-        onPointerDown={event => drag(event, { index })} onClick={event => event.stopPropagation()} />
+      <rect role="button" tabIndex={0} aria-pressed={selected} data-custom-area-point={index} aria-label={`Custom Area point ${index + 1}`} x={p.x-rx} y={p.y-ry} width={rx*2} height={ry*2} rx={rx*.15}
+        fill={selected ? '#262626' : '#fff'} stroke={selected?'#ffffff':'#737373'} strokeWidth={stroke} vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-move"
+        onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose([index])}}} onPointerDown={event => drag(event, { index })} onClick={event => event.stopPropagation()} />
     </g>; })}
   </svg>;
 }

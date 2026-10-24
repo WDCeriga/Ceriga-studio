@@ -1,3 +1,4 @@
+import {PaintInput} from '../PrintStudioColorPopover';
 import { useState, type ReactNode } from 'react';
 import { Pipette, Plus, X } from 'lucide-react';
 
@@ -35,34 +36,34 @@ export function PatternPaletteEditor({ colors, labels, min, max, onChange, group
     if (!Dropper) return;
     try { set(index, (await new Dropper().open()).sRGBHex); } catch { /* cancelled */ }
   };
-  return <div className="space-y-2 rounded-lg border border-[#dce3ec] bg-[#f6f8f9] p-2.5" data-pattern-palette>
+  return <div className="space-y-2 rounded-lg border border-[#e2e2e2] bg-[#fafafa] p-2.5" data-pattern-palette>
     {colors.map((color, index) => {
       const label = labels[index] ?? `Colour ${index + 1}`;
       return <div key={index} className="space-y-1.5">
         <div className="flex items-center gap-1.5">
-          <span className="min-w-0 flex-1 truncate text-[10px] text-[#8192a8]">{label}</span>
-          <input type="color" aria-label={label} value={HEX.test(color) ? color : '#888888'} onChange={event => set(index, event.target.value)}
-            className="h-7 w-9 cursor-pointer rounded border border-[#dce3ec] bg-transparent" />
+          <span className="min-w-0 flex-1 truncate text-[10px] text-[#737373]">{label}</span>
+          <PaintInput  ariaLabel={label} value={HEX.test(color) ? color : '#888888'} onChange={event => set(index, event.target.value)}
+            className="h-7 w-9 cursor-pointer rounded border border-[#e2e2e2] bg-transparent" />
           <input type="text" key={color} aria-label={`${label} HEX`} defaultValue={color} maxLength={7} spellCheck={false}
             onChange={event => { const value = event.target.value.startsWith('#') ? event.target.value : `#${event.target.value}`; if (HEX.test(value)) set(index, value.toUpperCase()); }}
             onBlur={event => { event.target.value = color; }}
-            className="h-7 w-[4.6rem] rounded border border-[#dce3ec] bg-[#171719] px-1.5 text-[10px] uppercase text-[#35414e]" />
+            className="h-7 w-[4.6rem] rounded border border-[#e2e2e2] bg-white px-1.5 text-[10px] uppercase text-[#262626]" />
           {supportsEyedropper && <button type="button" aria-label={`Pick ${label} from screen`} onClick={() => void pick(index)}
-            className="rounded border border-[#dce3ec] p-1.5 text-[#8192a8] hover:text-[#35414e]"><Pipette className="size-3" /></button>}
+            className="rounded border border-[#e2e2e2] p-1.5 text-[#737373] hover:text-[#262626]"><Pipette className="size-3" /></button>}
           <button type="button" aria-label={`Save ${label}`} title="Save colour" onClick={() => HEX.test(color) && save(color)}
-            className="rounded border border-[#dce3ec] p-1.5 text-[#8192a8] hover:text-[#35414e]"><Plus className="size-3" /></button>
+            className="rounded border border-[#e2e2e2] p-1.5 text-[#737373] hover:text-[#262626]"><Plus className="size-3" /></button>
           {colors.length > min && index > 0 && <button type="button" aria-label={`Remove ${label}`} onClick={() => onChange(colors.filter((_, i) => i !== index))}
-            className="rounded border border-[#dce3ec] p-1.5 text-[#8192a8] hover:text-[#35414e]"><X className="size-3" /></button>}
+            className="rounded border border-[#e2e2e2] p-1.5 text-[#737373] hover:text-[#262626]"><X className="size-3" /></button>}
         </div>
         {groups?.(index)}
       </div>;
     })}
     {colors.length < max && <button type="button" onClick={() => onChange([...colors, colors[colors.length - 1] ?? '#888888'])}
-      className="w-full rounded-lg border border-[#dce3ec] py-1.5 text-[10px] font-semibold text-[#8192a8] hover:bg-[#eef2f5]">Add colour</button>}
-    {saved.length > 0 && <div className="space-y-1"><span className="text-[9px] uppercase tracking-wider text-[#8192a8]">Saved colours</span>
+      className="w-full rounded-lg border border-[#e2e2e2] py-1.5 text-[10px] font-semibold text-[#737373] hover:bg-[#f2f2f2]">Add colour</button>}
+    {saved.length > 0 && <div className="space-y-1"><span className="text-[9px] uppercase tracking-wider text-[#737373]">Saved colours</span>
       <div className="flex flex-wrap gap-1">{saved.map(color => <button key={color} type="button" aria-label={`Saved colour ${color}`} title={color}
         onClick={() => onChange([...colors.slice(0, -1), color])}
-        className="size-5 rounded border border-[#dce3ec]" style={{ background: color }} />)}</div>
-      <span className="block text-[9px] text-[#8192a8]">Click a saved colour to apply it to the last colour slot.</span></div>}
+        className="size-5 rounded border border-[#e2e2e2]" style={{ background: color }} />)}</div>
+      <span className="block text-[9px] text-[#737373]">Click a saved colour to apply it to the last colour slot.</span></div>}
   </div>;
 }

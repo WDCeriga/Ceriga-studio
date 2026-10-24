@@ -1,4 +1,6 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEventHandler, type ReactNode } from 'react';
+import {artworkPixelRatio} from '../../../lib/artworkResolution';
+import {ArtworkResolutionContext} from './ArtworkResolutionContext';
+import { useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEventHandler, type ReactNode } from 'react';
 import { toCanvas } from 'html-to-image';
 import { applyTextEffects, type TextEffect } from '../../../lib/textEffects';
 import { cancelTextEffects, loadTextEffectImage, renderTextEffects, textEffectPadding, type TextPixels } from '../../../lib/textEffectRendering';
@@ -8,6 +10,8 @@ type Capture = TextPixels & { key: string; cssWidth: number; cssHeight: number; 
 export function TextEffectsArtwork({ effects, sourceKey, width, height, children, style, onDoubleClick, text, target = 'text', sourcePadding = 0 }: {
   effects: TextEffect[]; sourceKey: string; width: number; height?: number; children: ReactNode; style?: CSSProperties; onDoubleClick?: MouseEventHandler<HTMLDivElement>; text: string; target?: 'text' | 'shape'; sourcePadding?: number;
 }) {
+  const displayScale=useContext(ArtworkResolutionContext);
+  const density=typeof window==='undefined'?1:window.devicePixelRatio||1;
   const lane = useId();
   const sourceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -18,7 +22,7 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
   const [painted, setPainted] = useState<{ key: string; capture: Capture }>();
   const [failure, setFailure] = useState<{ key: string; message: string; capture?: boolean }>();
   const padding = textEffectPadding(effects) + sourcePadding;
-  const captureKey = JSON.stringify([sourceKey, size, padding, fontRevision, retry]);
+  const captureKey = JSON.stringify([sourceKey, size, padding, fontRevision, retry,displayScale,density]);
   const renderKey = JSON.stringify([captureKey, effects]);
   const activeError = failure?.key === (failure?.capture ? captureKey : renderKey) ? failure?.message : undefined;
 
@@ -57,7 +61,7 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
         if (cancelled) return;
         const cssWidth = size.width + padding * 2;
         const cssHeight = size.height + padding * 2;
-        const scale = Math.min(2, 1024 / Math.max(cssWidth, cssHeight));
+        const scale = artworkPixelRatio(cssWidth,cssHeight,displayScale,density);
         const canvas = await toCanvas(node, {
           width: cssWidth, height: cssHeight, pixelRatio: scale,
           style: { width: `${size.width}px`, height: `${size.height}px`, transform: `translate(${padding}px, ${padding}px)`, opacity: '1', visibility: 'visible' },
@@ -105,7 +109,7 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
     data-text-effects-error={activeError || undefined} onDoubleClick={onDoubleClick} style={{ position: 'relative', width: '100%', ...style }}>
     <div ref={sourceRef} data-text-effects-source aria-hidden={!!painted} style={{ width: '100%', height, opacity: painted ? 0 : 1 }}>{children}</div>
     <canvas ref={canvasRef} data-text-effects-canvas aria-label={text} style={{ position: 'absolute', left: -(displayed?.padding ?? padding), top: -(displayed?.padding ?? padding), width: displayed?.cssWidth, height: displayed?.cssHeight, display: painted ? 'block' : 'none', pointerEvents: 'none' }} />
-    {activeError && <div data-editor-chrome role="alert" className="absolute left-0 top-0 z-20 rounded bg-[#f6f8f9] p-2 text-xs text-[#35414e]">
+    {activeError && <div data-editor-chrome role="alert" className="absolute left-0 top-0 z-20 rounded bg-[#fafafa] p-2 text-xs text-[#262626]">
       <span>{target === 'shape' ? 'Shape' : 'Text'} effect unavailable. </span><button type="button" onClick={event => { event.stopPropagation(); setRetry(value => value + 1); }} className="underline">Retry effects</button>
     </div>}
   </div>;
@@ -158,5 +162,5 @@ export function TextEffectPreview({ effect, text = 'CERIGA', shape = false }: { 
     void paint().catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
   }, [key, text, shape]);
-  return <span className="block w-full"><canvas ref={ref} aria-hidden className="block w-full" style={{ aspectRatio: '2 / 1' }} />{failed && <span className="text-[9px] text-[#8192a8]">Preview unavailable</span>}</span>;
+  return <span className="block w-full"><canvas ref={ref} aria-hidden className="block w-full" style={{ aspectRatio: '2 / 1' }} />{failed && <span className="text-[9px] text-[#737373]">Preview unavailable</span>}</span>;
 }

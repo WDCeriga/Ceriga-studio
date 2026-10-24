@@ -3,7 +3,7 @@ import { FlipHorizontal2, RotateCcw } from 'lucide-react';
 import type { CustomAssetDefinition } from '../../data/customAssets';
 import { defaultSleeveEdits, sleeveGeometry, type SleeveContourHandle, type SleeveEdits, type SleevePoint, type SleeveReconstruction, type SleeveStyle } from '../../data/sleeveReconstruction';
 
-const fieldClass = 'min-h-9 w-full min-w-0 rounded border border-white/20 bg-[#252527] px-2 py-1 text-xs text-white';
+const fieldClass = 'min-h-9 w-full min-w-0 rounded border border-white/20 bg-[#171717] px-2 py-1 text-xs text-white';
 function NumberField({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void }) {
   const [draft, setDraft] = useState(String(Number(value.toFixed(2))));
   useEffect(() => setDraft(String(Number(value.toFixed(2)))), [value]);
@@ -99,7 +99,7 @@ export function SleeveReconstructionEditor({ assets, applyBoth, onApplyBoth, onC
     <div className="flex flex-wrap justify-between gap-2 text-xs"><span className="text-white/60">Detected: {model.detectedStyle.lengthClass} / {model.detectedStyle.silhouette} / {model.detectedStyle.cuffStyle} / {model.detectedStyle.confidence} confidence</span>
       <label className="flex items-center gap-2"><input type="checkbox" checked={applyBoth} onChange={event => onApplyBoth(event.target.checked)}/>Apply to both sleeves</label>
     </div>
-    <div role="tabpanel" aria-label="FINAL ASSET" className="h-[min(60dvh,560px)] min-h-72 overflow-hidden rounded-md bg-[#eeeeec]">{renderPreview(overlay)}</div>
+    <div role="tabpanel" aria-label="FINAL ASSET" className="h-[min(60dvh,560px)] min-h-72 overflow-hidden rounded-md bg-[#f2f2f2]">{renderPreview(overlay)}</div>
     <div className="grid grid-cols-2 gap-3 border-b border-white/15 pb-3">
       {(['bodyColor', 'cuffColor'] as const).filter(key => key !== 'cuffColor' || model.style.cuff).map(key => <label key={key} className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
         <input type="color" aria-label={key === 'bodyColor' ? 'Sleeve body color' : 'Cuff color'} value={model.edits[key] ?? model.edits.bodyColor ?? '#ffffff'} className="h-8 w-10 shrink-0 cursor-pointer bg-transparent" onChange={event => edit({ [key]: event.target.value })}/>

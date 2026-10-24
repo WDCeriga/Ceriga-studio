@@ -1,0 +1,6 @@
+/** Defaults for newly placed shapes; saved artwork keeps its own geometry and size. */
+export function studioShapeDefaults(id:string){
+ const sizes:Record<string,[number,number]>={ellipse:[144,112],polygon:[124,144],star:[144,137],crescent:[78,144],rect:[156,112],'rounded-rect':[156,112],line:[176,28],triangle:[139,120],diamond:[112,140],arrow:[176,96],wave:[180,72],squiggly:[180,72],zigzag:[176,68],arc:[144,112],semicircle:[156,78],cross:[124,124],chevron:[132,112],trapezoid:[156,104],parallelogram:[156,104],heart:[136,128],cloud:[168,112],'speech-bubble':[160,128],'lightning-bolt':[100,148]};
+ const params:Record<string,Record<string,number|string>>={star:{points:5,innerRadius:20,outerRadius:46},arrow:{head:28,headWidth:76,shaft:26,length:92},wave:{frequency:1.5,amplitude:24},squiggly:{frequency:2,amplitude:24},zigzag:{peaks:4,height:64,spacing:11},burst:{rays:12,innerRadius:29,outerRadius:46},badge:{rays:16,innerRadius:41,outerRadius:46},blob:{lobes:5,variation:7,seed:2},crescent:{inset:16},ring:{innerRadius:32},'rounded-rect':{cornerTopLeft:12,cornerTopRight:12,cornerBottomRight:12,cornerBottomLeft:12}};
+ const [width,height]=sizes[id]??[140,140];return {width,height,borderWidth:2,shapeGeometry:'bounds' as const,shapeParameters:{studioRevision:2,...params[id]}};
+}

@@ -1,3 +1,4 @@
+import { SliderValueInput } from '../SliderValueInput';
 import { useId } from 'react';
 import { Check, ChevronDown, Eraser, Pencil, Sparkles, Upload, Layers, FlipHorizontal2, PenTool } from 'lucide-react';
 import { BRUSH_PRESETS, type BrushPreset } from '../../../lib/drawingBrush';
@@ -112,11 +113,8 @@ function ToolSlider({
   return (
     <label className="block space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">{label}</span>
-        <span className="text-[10px] font-semibold tabular-nums text-[#8192a8]">
-          {value}
-          {suffix}
-        </span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">{label}</span>
+        <SliderValueInput label={label} value={value} min={min} max={max} unit={suffix} onChange={onChange}/>
       </div>
       <input
         type="range"
@@ -125,7 +123,7 @@ function ToolSlider({
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]"
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#f2f2f2] accent-[#262626]"
       />
     </label>
   );
@@ -143,12 +141,12 @@ function PencilRow({
   onCheckedChange: (on: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2.5 py-2">
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2.5 py-2">
       <div className="min-w-0">
-        <div className="text-[11px] font-medium text-[#35414e]">{label}</div>
-        <div className="mt-0.5 text-[10px] leading-snug text-[#8192a8]">{hint}</div>
+        <div className="text-[11px] font-medium text-[#262626]">{label}</div>
+        <div className="mt-0.5 text-[10px] leading-snug text-[#737373]">{hint}</div>
       </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} className="mt-0.5 data-[state=checked]:bg-[#405b6f]" />
+      <Switch checked={checked} onCheckedChange={onCheckedChange} className="mt-0.5 data-[state=checked]:bg-[#262626]" />
     </div>
   );
 }
@@ -186,7 +184,7 @@ function AssetCard({
         e.dataTransfer.setData('text/plain', encodeStudioDrag(asset.kind, asset.id));
         e.dataTransfer.effectAllowed = 'copy';
       }}
-      className="flex flex-col items-center gap-1.5 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] px-1.5 py-2 text-[#8192a8] transition hover:border-[#dce3ec] hover:text-[#35414e]"
+      className="flex flex-col items-center gap-1.5 rounded-xl border border-[#e2e2e2] bg-[#fafafa] px-1.5 py-2 text-[#737373] transition hover:border-[#e2e2e2] hover:text-[#262626]"
     >
       <div className="flex h-12 w-full items-center justify-center">
         <div className="h-10 w-10">
@@ -214,19 +212,19 @@ function Accordion({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn('overflow-hidden rounded-xl border', open ? 'border-[#405b6f]/50 bg-[#405b6f]/[0.06]' : 'border-[#dce3ec] bg-[#f6f8f9]')}>
+    <div className={cn('overflow-hidden rounded-xl border', open ? 'border-[#262626]/50 bg-[#262626]/[0.06]' : 'border-[#e2e2e2] bg-[#fafafa]')}>
       <button
         type="button"
         onClick={() => onOpen(id)}
         className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
       >
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-semibold text-[#35414e]">{title}</div>
-          <div className="truncate text-[10px] text-[#8192a8]">{hint}</div>
+          <div className="text-[11px] font-semibold text-[#262626]">{title}</div>
+          <div className="truncate text-[10px] text-[#737373]">{hint}</div>
         </div>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 text-[#8192a8] transition', open && 'rotate-180 text-[#35414e]')} />
+        <ChevronDown className={cn('h-4 w-4 shrink-0 text-[#737373] transition', open && 'rotate-180 text-[#262626]')} />
       </button>
-      {open ? <div className="space-y-3 border-t border-[#dce3ec] px-3 py-3">{children}</div> : null}
+      {open ? <div className="space-y-3 border-t border-[#e2e2e2] px-3 py-3">{children}</div> : null}
     </div>
   );
 }
@@ -284,15 +282,15 @@ export function PrintsStudioToolbar({
         className={cn(
           'flex h-10 w-full items-center justify-center gap-2 rounded-lg border text-[10px] font-semibold uppercase tracking-wide',
           studio.tool === 'customArea'
-            ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
-            : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:text-[#35414e]',
+            ? 'border-[#262626] bg-[#262626]/15 text-[#262626]'
+            : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:text-[#262626]',
         )}
       >
         <PenTool className="h-3.5 w-3.5" />
         Custom Area
       </button>
       {studio.tool === 'customArea' ? (
-        <p className="text-[10px] leading-relaxed text-[#8192a8]">
+        <p className="text-[10px] leading-relaxed text-[#737373]">
           Click points on the canvas to create a custom area. Click the first point again to close the shape.
         </p>
       ) : null}
@@ -342,8 +340,8 @@ export function PrintsStudioToolbar({
             className={cn(
               'flex h-9 items-center justify-center gap-1.5 rounded-lg border text-[10px] font-semibold uppercase tracking-wide',
               studio.tool === id
-                ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
-                : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:text-[#35414e]',
+                ? 'border-[#262626] bg-[#262626]/15 text-[#262626]'
+                : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:text-[#262626]',
             )}
           >
             {id === 'eraser' ? <Eraser className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
@@ -353,7 +351,7 @@ export function PrintsStudioToolbar({
       </div>
       {studio.tool === 'eraser' ? (
         <div className="space-y-2">
-          <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">Eraser size</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">Eraser size</div>
           <div className="grid grid-cols-3 gap-1.5">
             {eraserPresets.map((preset) => {
               const on = studio.eraserSize === preset.size;
@@ -367,12 +365,12 @@ export function PrintsStudioToolbar({
                   className={cn(
                     'flex flex-col items-center gap-1.5 rounded-xl border px-1 py-2',
                     on
-                      ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
-                      : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:text-[#35414e]',
+                      ? 'border-[#262626] bg-[#262626]/15 text-[#262626]'
+                      : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:text-[#262626]',
                   )}
                 >
                   <span
-                    className="rounded-full bg-[#eef2f5]"
+                    className="rounded-full bg-[#f2f2f2]"
                     style={{ width: d, height: d }}
                     aria-hidden
                   />
@@ -387,17 +385,17 @@ export function PrintsStudioToolbar({
       ) : (
         <>
           <div className="flex items-end gap-2">
-            <label className="min-w-0 flex-1 space-y-1.5 text-[10px] font-medium uppercase text-[#8192a8]">
+            <label className="min-w-0 flex-1 space-y-1.5 text-[10px] font-medium uppercase text-[#737373]">
               <span>Brush preset</span>
               <div className="print-active-brush">{BRUSH_PRESETS.find(preset => preset.id === studio.brushPreset)?.label}</div>
             </label>
-            <button type="button" title="New drawing layer" aria-label="New drawing layer" onClick={studio.newDrawingLayer} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#dce3ec] text-[#8192a8] hover:text-[#35414e]"><Layers className="h-4 w-4" /></button>
+            <button type="button" title="New drawing layer" aria-label="New drawing layer" onClick={studio.newDrawingLayer} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#e2e2e2] text-[#737373] hover:text-[#262626]"><Layers className="h-4 w-4" /></button>
           </div>
           <BrushPreview />
           <details className="print-advanced-settings"><summary>Brush behaviour</summary><BrushPresetControls /></details>
-          <div className="flex items-center justify-between gap-3 text-[11px] text-[#8192a8]">
+          <div className="flex items-center justify-between gap-3 text-[11px] text-[#737373]">
             <span className="flex items-center gap-2"><FlipHorizontal2 className="h-4 w-4" />Dual drawing / Symmetry</span>
-            <Switch aria-label="Dual drawing / Symmetry" checked={studio.symmetry} onCheckedChange={symmetry => studio.patchBrush({ symmetry })} className="data-[state=checked]:bg-[#405b6f]" />
+            <Switch aria-label="Dual drawing / Symmetry" checked={studio.symmetry} onCheckedChange={symmetry => studio.patchBrush({ symmetry })} className="data-[state=checked]:bg-[#262626]" />
           </div>
           <StudioColorField
             allowGradients
@@ -411,18 +409,18 @@ export function PrintsStudioToolbar({
           />
           <ToolSlider label="Brush size" value={studio.brushSize} min={2} max={64} suffix="px" onChange={studio.setBrushSize} />
           <ToolSlider label="Spacing" value={studio.brushSpacing} min={5} max={500} suffix="%" onChange={brushSpacing => studio.patchBrush({ brushSpacing })} />
-          <p className="text-[10px] text-[#8192a8]">Distance between marks, as a percentage of brush size. Higher values leave larger gaps.</p>
-          <div className="space-y-3 rounded-lg border border-[#dce3ec] p-3">
-            <div className="flex items-center justify-between text-[11px] text-[#8192a8]">
+          <p className="text-[10px] text-[#737373]">Distance between marks, as a percentage of brush size. Higher values leave larger gaps.</p>
+          <div className="space-y-3 rounded-lg border border-[#e2e2e2] p-3">
+            <div className="flex items-center justify-between text-[11px] text-[#737373]">
               <span>Scatter</span>
-              <Switch aria-label="Scatter" checked={studio.scatterEnabled} onCheckedChange={scatterEnabled => studio.patchBrush({ scatterEnabled })} className="data-[state=checked]:bg-[#405b6f]" />
+              <Switch aria-label="Scatter" checked={studio.scatterEnabled} onCheckedChange={scatterEnabled => studio.patchBrush({ scatterEnabled })} className="data-[state=checked]:bg-[#262626]" />
             </div>
             {studio.scatterEnabled && <>
               <ToolSlider label="Scatter spread" value={studio.scatterSpread} min={0} max={300} suffix="%" onChange={scatterSpread => studio.patchBrush({ scatterSpread })} />
               <ToolSlider label="Scatter count" value={studio.scatterCount} min={1} max={12} onChange={scatterCount => studio.patchBrush({ scatterCount })} />
               <ToolSlider label="Scatter size" value={studio.scatterSize} min={10} max={200} suffix="%" onChange={scatterSize => studio.patchBrush({ scatterSize })} />
               <ToolSlider label="Scatter opacity" value={studio.scatterOpacity ?? 100} min={0} max={100} suffix="%" onChange={scatterOpacity => studio.patchBrush({ scatterOpacity })} />
-              <p className="text-[10px] text-[#8192a8]">Spread and size are relative to brush size. Count and opacity apply to each mark; Opacity below controls the whole stroke.</p>
+              <p className="text-[10px] text-[#737373]">Spread and size are relative to brush size. Count and opacity apply to each mark; Opacity below controls the whole stroke.</p>
             </>}
           </div>
           <ToolSlider
@@ -449,7 +447,7 @@ export function PrintsStudioToolbar({
             onCheckedChange={studio.setPressure}
           />
           <details className="group">
-            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#8192a8] [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#737373] [&::-webkit-details-marker]:hidden">
               <Pencil className="h-3 w-3" />
               Apple Pencil
             </summary>
@@ -485,15 +483,15 @@ export function PrintsStudioToolbar({
       <Button
         type="button"
         onClick={onUpload}
-        className="h-9 w-full bg-[#405b6f] px-2 text-[10px] text-[#35414e] hover:bg-[#405b6f]/90"
+        className="h-9 w-full bg-[#262626] px-2 text-[10px] text-[#262626] hover:bg-[#262626]/90"
       >
         <Upload className="mr-1.5 h-3.5 w-3.5" />
         Upload image
       </Button>
       <div>
-        <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">Uploaded Assets</div>
+        <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">Uploaded Assets</div>
         {previousUploads.length === 0 ? (
-          <p className="text-[10px] leading-snug text-[#8192a8]">
+          <p className="text-[10px] leading-snug text-[#737373]">
             Files you upload are saved here so you can drop them onto a new project later.
           </p>
         ) : (
@@ -504,7 +502,7 @@ export function PrintsStudioToolbar({
                 type="button"
                 title={item.name}
                 onClick={() => onReuseUpload(item)}
-                className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#dce3ec] bg-[#f6f8f9]"
+                className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#e2e2e2] bg-[#fafafa]"
               >
                 <img src={item.dataUrl} alt="" className="h-full w-full object-cover" />
               </button>
@@ -520,7 +518,7 @@ export function PrintsStudioToolbar({
     <>
       <div className="flex gap-2">
         <TextListInput value={textInput} onChange={onTextInput} onSubmit={onAddText} />
-        <Button onClick={onAddText} className="h-9 shrink-0 bg-[#405b6f] px-3 text-[10px] hover:bg-[#405b6f]/90">
+        <Button onClick={onAddText} className="h-9 shrink-0 bg-[#262626] px-3 text-[10px] hover:bg-[#262626]/90">
           Add
         </Button>
       </div>
@@ -528,12 +526,12 @@ export function PrintsStudioToolbar({
         type="button"
         variant="outline"
         onClick={onImportFont}
-        className="h-9 w-full border-[#dce3ec] bg-[#eef2f5] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+        className="h-9 w-full border-[#e2e2e2] bg-[#f2f2f2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
       >
         <Upload className="mr-1.5 h-3.5 w-3.5" />
         Upload font
       </Button>
-      <p className="text-[10px] leading-snug text-[#8192a8]">
+      <p className="text-[10px] leading-snug text-[#737373]">
         {fontLibrary.length > 0
           ? `Font library: ${fontLibrary.length} saved across projects.`
           : 'Uploaded fonts stay in your library so you do not have to import them again.'}
@@ -549,8 +547,8 @@ export function PrintsStudioToolbar({
     <>
       <div className="space-y-3">
         <div>
-          <div className="text-xs font-semibold text-[#8192a8]">Choose your wear</div>
-          <p className="mt-1 text-[11px] leading-relaxed text-[#8192a8]">Three textures. Each with a different finish.</p>
+          <div className="text-xs font-semibold text-[#737373]">Choose your wear</div>
+          <p className="mt-1 text-[11px] leading-relaxed text-[#737373]">Three textures. Each with a different finish.</p>
         </div>
         <div className="grid gap-2">
           {DISTRESS_ASSETS.map((asset) => {
@@ -559,22 +557,22 @@ export function PrintsStudioToolbar({
             return <button key={asset.id} type="button" aria-pressed={selected}
               aria-label={asset.label} onClick={() => studio.setDistressType(kind)}
               className={cn(
-                'group flex min-w-0 items-center gap-3 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#405b6f] focus-visible:ring-offset-2 focus-visible:ring-offset-[#171717]',
-                selected ? 'border-[#405b6f]/65 bg-[#405b6f]/[0.06]' : 'border-[#dce3ec] bg-[#eef2f5] hover:border-[#dce3ec] hover:bg-[#eef2f5]',
+                'group flex min-w-0 items-center gap-3 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626] focus-visible:ring-offset-2 focus-visible:ring-offset-[#171717]',
+                selected ? 'border-[#262626]/65 bg-[#262626]/[0.06]' : 'border-[#e2e2e2] bg-[#f2f2f2] hover:border-[#e2e2e2] hover:bg-[#f2f2f2]',
               )}>
               <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg"><DistressPreview kind={kind} /></div>
               <div className="min-w-0 flex-1">
-                <span className="block text-[12px] font-semibold text-[#8192a8]">{asset.label}</span>
-                <span className="mt-1 block text-[10px] leading-relaxed text-[#8192a8]">{DISTRESS_DESCRIPTIONS[kind]}</span>
+                <span className="block text-[12px] font-semibold text-[#737373]">{asset.label}</span>
+                <span className="mt-1 block text-[10px] leading-relaxed text-[#737373]">{DISTRESS_DESCRIPTIONS[kind]}</span>
               </div>
-              <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', selected ? 'border-[#405b6f] bg-[#405b6f] text-[#35414e]' : 'border-[#dce3ec]')}>
+              <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', selected ? 'border-[#262626] bg-[#262626] text-[#262626]' : 'border-[#e2e2e2]')}>
                 {selected ? <Check className="h-2.5 w-2.5" aria-hidden /> : null}
               </span>
             </button>;
           })}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-[#eef2f5] p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-lg bg-[#f2f2f2] p-1">
         {(
           [
             ['distress', 'Brush'],
@@ -587,10 +585,10 @@ export function PrintsStudioToolbar({
             onClick={() => studio.setTool(studio.tool === id ? 'select' : id)}
             aria-pressed={studio.tool === id}
             className={cn(
-              'flex h-8 items-center justify-center gap-2 rounded-md text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#405b6f]',
+              'flex h-8 items-center justify-center gap-2 rounded-md text-[11px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]',
               studio.tool === id
-                ? 'bg-[#eef2f5] text-[#35414e] shadow-sm'
-                : 'text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#8192a8]',
+                ? 'bg-[#f2f2f2] text-[#262626] shadow-sm'
+                : 'text-[#737373] hover:bg-[#f2f2f2] hover:text-[#737373]',
             )}
           >
             {id === 'distressEraser' ? <Eraser className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -600,15 +598,15 @@ export function PrintsStudioToolbar({
       </div>
       <div className="space-y-1.5">
         <button type="button" onClick={studio.newDistressLayer}
-          className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#dce3ec] text-[11px] font-medium text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#405b6f]">
+          className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#e2e2e2] text-[11px] font-medium text-[#737373] hover:bg-[#f2f2f2] hover:text-[#262626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#262626]">
           <Layers className="h-3.5 w-3.5" aria-hidden />
           Add new distress layer
         </button>
-        <p className="text-[10px] leading-snug text-[#8192a8]">Marks share one layer. Add a new layer before painting separately.</p>
+        <p className="text-[10px] leading-snug text-[#737373]">Marks share one layer. Add a new layer before painting separately.</p>
       </div>
       {studio.tool === 'distressEraser' ? (
         <div className="space-y-2">
-          <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">Eraser size</div>
+          <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">Eraser size</div>
           <div className="grid grid-cols-3 gap-1.5">
             {eraserPresets.map((preset) => {
               const on = studio.eraserSize === preset.size;
@@ -622,11 +620,11 @@ export function PrintsStudioToolbar({
                   className={cn(
                     'flex flex-col items-center gap-1.5 rounded-xl border px-1 py-2',
                     on
-                      ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
-                      : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:text-[#35414e]',
+                      ? 'border-[#262626] bg-[#262626]/15 text-[#262626]'
+                      : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:text-[#262626]',
                   )}
                 >
-                  <span className="rounded-full border border-[#dce3ec] bg-transparent" style={{ width: d, height: d }} aria-hidden />
+                  <span className="rounded-full border border-[#e2e2e2] bg-transparent" style={{ width: d, height: d }} aria-hidden />
                   <span className="text-center text-[8px] font-semibold uppercase leading-tight tracking-wide">
                     {preset.label}
                   </span>
@@ -634,25 +632,25 @@ export function PrintsStudioToolbar({
               );
             })}
           </div>
-          <p className="text-[10px] leading-snug text-[#8192a8]">
+          <p className="text-[10px] leading-snug text-[#737373]">
             Hold and drag to clear distressing — brushed marks and placed holes, abrasion, and rips.
           </p>
         </div>
       ) : studio.tool === 'distress' ? (
         <div className="space-y-3" data-distress-scatter-controls>
-          <div className="overflow-hidden rounded-xl border border-[#dce3ec] bg-[#eef2f5]">
+          <div className="overflow-hidden rounded-xl border border-[#e2e2e2] bg-[#f2f2f2]">
             <div className="flex items-center justify-between gap-2 px-3 py-2">
-              <span className="text-[10px] font-medium text-[#8192a8]">Brush preview</span>
-              <span className="text-[9px] tabular-nums text-[#8192a8]">{studio.distressScatter.count} {studio.distressScatter.count === 1 ? 'mark' : 'marks'} / pass</span>
+              <span className="text-[10px] font-medium text-[#737373]">Brush preview</span>
+              <span className="text-[9px] tabular-nums text-[#737373]">{studio.distressScatter.count} {studio.distressScatter.count === 1 ? 'mark' : 'marks'} / pass</span>
             </div>
-            <div className="h-24 border-y border-[#dce3ec] bg-[#8c938e]">
+            <div className="h-24 border-y border-[#e2e2e2] bg-[#737373]">
               <DistressPreview kind={studio.distressType} scatter settings={studio.distressScatter}
                 radius={studio.eraserSize / 2} opacity={studio.opacity} />
             </div>
-            <p className="px-3 py-2 text-[10px] leading-relaxed text-[#8192a8]">Actual brush stamp · pen pressure varies size</p>
+            <p className="px-3 py-2 text-[10px] leading-relaxed text-[#737373]">Actual brush stamp · pen pressure varies size</p>
           </div>
           <div className="space-y-3">
-            <div className="text-[10px] font-medium text-[#8192a8]">Brush settings</div>
+            <div className="text-[10px] font-medium text-[#737373]">Brush settings</div>
             <ToolSlider label="Count" value={studio.distressScatter.count} min={1} max={48} suffix=" marks"
               onChange={(count) => studio.patchDistressScatter({ count })} />
             <ToolSlider label="Size" value={studio.distressScatter.size} min={2} max={28} suffix=" px"
@@ -666,12 +664,12 @@ export function PrintsStudioToolbar({
             onChange={(spread) => studio.patchDistressScatter({ spread })} /> : null}
           {studio.distressType === 'rips' ? <ToolSlider label="Rip length" value={studio.distressScatter.ripLength} min={40} max={180} suffix="%"
             onChange={(ripLength) => studio.patchDistressScatter({ ripLength })} /> : null}
-          <p className="text-[10px] leading-snug text-[#8192a8]">
+          <p className="text-[10px] leading-snug text-[#737373]">
             Brush to apply this stamp. Passes and texture types build up on the current distress layer.
           </p>
         </div>
       ) : (
-        <p className="text-[10px] leading-snug text-[#8192a8]">
+        <p className="text-[10px] leading-snug text-[#737373]">
           Choose a distress type, then select Brush to paint it onto the garment.
         </p>
       )}
@@ -693,7 +691,7 @@ export function PrintsStudioToolbar({
 
   if (layout === 'workspace') {
     return (
-      <div key={open} className="space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+      <div key={open} className="space-y-3 rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
         {body}
       </div>
     );

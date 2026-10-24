@@ -1,3 +1,5 @@
+import {PaintInput} from '../PrintStudioColorPopover';
+import { SliderValueInput } from '../SliderValueInput';
 import { useMemo, useState } from 'react';
 import type { DesignElement } from '../PrintStudioEditor';
 import { BRUSH_TEXTURES, createBrushTextureMask, loadBrushTexture, type BrushTexture } from '../../../lib/brushTextures';
@@ -27,11 +29,11 @@ function textureSource(texture: BrushTexture) {
 function AppearanceSlider({ label, value, min, max, step = 1, suffix = '', onChange }: {
   label: string; value: number; min: number; max: number; step?: number; suffix?: string; onChange: (value: number) => void;
 }) {
-  return <label className="block space-y-1.5 text-[10px] text-[#8192a8]">
-    <span className="flex justify-between gap-2"><span>{label}</span><span>{Math.round(value * 10) / 10}{suffix}</span></span>
+  return <label className="block space-y-1.5 text-[10px] text-[#737373]">
+    <span className="flex justify-between gap-2"><span>{label}</span><SliderValueInput label={label} value={value} min={Math.min(min,value)} max={Math.max(max,value)} step={step} unit={suffix} onChange={onChange}/></span>
     <input type="range" aria-label={label} value={value} min={Math.min(min, value)} max={Math.max(max, value)} step={step}
       onChange={event => onChange(Number(event.target.value))}
-      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#eef2f5] accent-[#405b6f]" />
+      className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#f2f2f2] accent-[#262626]" />
   </label>;
 }
 
@@ -48,10 +50,10 @@ export function CustomAreaAppearanceControls({ element, onChange }: {
   const updateFill = (patch: Partial<typeof fill>) => onChange({ customAreaFillTransform: { ...fill, ...patch } });
   const updateOutline = (patch: Partial<typeof outline>) => onChange({ customAreaOutline: { ...outline, ...patch } });
   const texture = textures.find(item => item.source === element.customAreaTexture);
-  const selectClass = 'h-9 w-full rounded-lg border border-[#dce3ec] bg-[#171719] px-2 text-xs text-[#35414e]';
+  const selectClass = 'h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#171717] px-2 text-xs text-[#262626]';
 
   return <fieldset disabled={element.locked || uploading} className="min-w-0 space-y-3 disabled:opacity-50" data-custom-area-appearance>
-    <label className="block space-y-1 text-[10px] text-[#8192a8]">Texture fill
+    <label className="block space-y-1 text-[10px] text-[#737373]">Texture fill
       <select aria-label="Custom Area texture" className={selectClass}
         value={element.customAreaTexture ? texture?.id ?? 'custom' : 'none'}
         onChange={event => {
@@ -66,12 +68,12 @@ export function CustomAreaAppearanceControls({ element, onChange }: {
       </select>
     </label>
     {element.customAreaTexture && <div className="flex items-center gap-3">
-      <img src={element.customAreaTexture} alt="Current Custom Area texture" className="h-12 w-12 rounded border border-[#dce3ec] bg-[#eef2f5] object-cover" />
-      <button type="button" className="text-xs text-[#8192a8] hover:text-[#35414e]" onClick={() => onChange({ customAreaTexture: undefined })}>Remove texture</button>
+      <img src={element.customAreaTexture} alt="Current Custom Area texture" className="h-12 w-12 rounded border border-[#e2e2e2] bg-[#f2f2f2] object-cover" />
+      <button type="button" className="text-xs text-[#737373] hover:text-[#262626]" onClick={() => onChange({ customAreaTexture: undefined })}>Remove texture</button>
     </div>}
-    <label className="block space-y-1 text-[10px] text-[#8192a8]">Upload texture (PNG, JPEG, WebP; up to 12 MB)
+    <label className="block space-y-1 text-[10px] text-[#737373]">Upload texture (PNG, JPEG, WebP; up to 12 MB)
       <input type="file" aria-label="Upload Custom Area texture" accept="image/png,image/jpeg,image/webp"
-        className="block w-full text-[10px] file:mr-2 file:rounded file:border-0 file:bg-[#eef2f5] file:px-2 file:py-2 file:text-[#35414e]"
+        className="block w-full text-[10px] file:mr-2 file:rounded file:border-0 file:bg-[#f2f2f2] file:px-2 file:py-2 file:text-[#262626]"
         onChange={async event => {
           const file = event.target.files?.[0];
           event.target.value = '';
@@ -99,35 +101,35 @@ export function CustomAreaAppearanceControls({ element, onChange }: {
         }} />
     </label>
     {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
-    <p className="text-[10px] text-[#8192a8]">Texture tiles over the current fill without changing the vector path.</p>
-    {(element.customAreaImage || element.customAreaTexture) && <div className="space-y-3 border-t border-[#dce3ec] pt-3" data-custom-area-fill-controls>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#8192a8]">Image &amp; texture placement</p>
+    <p className="text-[10px] text-[#737373]">Texture tiles over the current fill without changing the vector path.</p>
+    {(element.customAreaImage || element.customAreaTexture) && <div className="space-y-3 border-t border-[#e2e2e2] pt-3" data-custom-area-fill-controls>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">Image &amp; texture placement</p>
       <AppearanceSlider label="Fill scale" value={fill.scale} min={10} max={400} suffix="%" onChange={scale => updateFill({ scale })} />
       <AppearanceSlider label="Fill rotation" value={fill.rotation} min={-180} max={180} suffix="°" onChange={rotation => updateFill({ rotation })} />
       <AppearanceSlider label="Fill horizontal position" value={fill.x} min={-Math.ceil(element.customAreaViewWidth ?? element.width)} max={Math.ceil(element.customAreaViewWidth ?? element.width)} suffix=" px" onChange={x => updateFill({ x })} />
       <AppearanceSlider label="Fill vertical position" value={fill.y} min={-Math.ceil(element.customAreaViewHeight ?? element.height)} max={Math.ceil(element.customAreaViewHeight ?? element.height)} suffix=" px" onChange={y => updateFill({ y })} />
       <AppearanceSlider label="Fill opacity" value={fill.opacity} min={0} max={100} suffix="%" onChange={opacity => updateFill({ opacity })} />
-      <button type="button" className="text-xs text-[#8192a8] hover:text-[#35414e]" onClick={() => onChange({ customAreaFillTransform: { ...DEFAULT_TRANSFORM } })}>Reset fill placement</button>
+      <button type="button" className="text-xs text-[#737373] hover:text-[#262626]" onClick={() => onChange({ customAreaFillTransform: { ...DEFAULT_TRANSFORM } })}>Reset fill placement</button>
     </div>}
-    <div className="space-y-3 border-t border-[#dce3ec] pt-3">
-      <label className="flex items-center justify-between text-xs text-[#8192a8]">Outline
+    <div className="space-y-3 border-t border-[#e2e2e2] pt-3">
+      <label className="flex items-center justify-between text-xs text-[#737373]">Outline
         <input type="checkbox" aria-label="Custom Area outline" checked={outline.enabled}
-          onChange={event => updateOutline({ enabled: event.target.checked })} className="accent-[#405b6f]" />
+          onChange={event => updateOutline({ enabled: event.target.checked })} className="accent-[#262626]" />
       </label>
       {outline.enabled && <>
-        <label className="flex items-center justify-between text-[10px] text-[#8192a8]">Outline colour
-          <input type="color" aria-label="Custom Area outline colour" value={outline.color}
-            onChange={event => updateOutline({ color: event.target.value })} className="h-8 w-12 cursor-pointer rounded border border-[#dce3ec] bg-transparent" />
+        <label className="flex items-center justify-between text-[10px] text-[#737373]">Outline colour
+          <PaintInput  ariaLabel="Custom Area outline colour" value={outline.color}
+            onChange={event => updateOutline({ color: event.target.value })} className="h-8 w-12 cursor-pointer rounded border border-[#e2e2e2] bg-transparent" />
         </label>
         <AppearanceSlider label="Outline thickness" value={outline.width} min={.5} max={40} step={.5} suffix=" px" onChange={width => updateOutline({ width })} />
         <AppearanceSlider label="Outline opacity" value={outline.opacity} min={0} max={100} suffix="%" onChange={opacity => updateOutline({ opacity })} />
-        <label className="block space-y-1 text-[10px] text-[#8192a8]">Outline style
+        <label className="block space-y-1 text-[10px] text-[#737373]">Outline style
           <select aria-label="Custom Area outline style" className={selectClass} value={outline.style}
             onChange={event => updateOutline({ style: event.target.value as typeof outline.style })}>
             <option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option>
           </select>
         </label>
-        <p className="text-[10px] text-[#8192a8]">Outline is inset to stay inside the area.</p>
+        <p className="text-[10px] text-[#737373]">Outline is inset to stay inside the area.</p>
       </>}
     </div>
   </fieldset>;

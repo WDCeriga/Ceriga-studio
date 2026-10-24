@@ -130,7 +130,7 @@ function clonePath(path: ShapePath): ShapePath {
 }
 
 /** Materializes the visible geometry without baking in rotation, flips, paint, or effects. */
-export function shapeToEditablePath(element: ShapeGeometryElement): ShapePath {
+function rawShapeToEditablePath(element: ShapeGeometryElement): ShapePath {
   if (element.shapePath) return clonePath(element.shapePath);
   const content = element.content;
   const p = (key: string, fallback: number, min = 0, max = 100) => parameter(element, key, fallback, min, max);
@@ -145,6 +145,13 @@ export function shapeToEditablePath(element: ShapeGeometryElement): ShapePath {
     if (content === 'semicircle-open' || content === 'semicircle-closed') return { ...ellipseArc(50, 100 - y, 50 - x, 100 - 2 * y, 180, 180), closed: content === 'semicircle-closed' };
     if (content === 'rect') return rectangle(x, y, 100 - 2 * x, 100 - 2 * y, corners.map(item => p(item.key, 0) * 100 / width), width / height);
     if (content === 'line') return { closed: false, nodes: points([[x, 50], [100 - x, 50]]) };
+  }
+  if(element.shapeParameters?.studioRevision===2){
+    if(content==='rounded-rect'){const sw=element.borderWidth??2,w=element.width??156,h=element.height??112;return rectangle(sw/w*50,sw/h*50,100-sw/w*100,100-sw/h*100,corners.map(item=>p(item.key,12)*100/w),w/h)}
+    if(content==='semicircle')return {...ellipseArc(50,98,48,96,180,180),closed:true};
+    if(content==='heart')return {closed:true,nodes:[{x:50,y:24,in:node(40,2),out:node(60,2)},{x:94,y:30,in:node(94,0),out:node(94,54)},{x:50,y:94,in:node(68,76),out:node(32,76)},{x:6,y:30,in:node(6,54),out:node(6,0)}]};
+    if(content==='cloud')return {closed:true,nodes:[{x:24,y:84,in:node(0,84)}, {x:78,y:84,out:node(104,84)}, {x:90,y:42,in:node(108,49),out:node(91,21)}, {x:64,y:30,in:node(83,19),out:node(52,1)}, {x:24,y:40,in:node(23,8),out:node(8,35)}, {x:8,y:60,in:node(4,44),out:node(4,74)}]};
+    if(content==='cross')return poly([[37,4],[63,4],[63,37],[96,37],[96,63],[63,63],[63,96],[37,96],[37,63],[4,63],[4,37],[37,37]]);
   }
   switch (content) {
     case 'ellipse': return ellipseArc(50, 50, 42, 32, 0, 360);
@@ -283,4 +290,16 @@ export function shapeIsClosed(element: ShapeGeometryElement): boolean {
   const contours = (part: ShapePath): ShapePath[] => [...(part.nodes.length ? [part] : []), ...(part.subpaths ?? []).flatMap(contours)];
   const parts = contours(path);
   return parts.length > 0 && parts.every(part => part.closed && part.nodes.length >= 3);
+}
+
+/** Fit new studio shapes to their real cubic bounds, keeping stroke inside the selection box. */
+export function shapeToEditablePath(element:ShapeGeometryElement):ShapePath{
+ const path=rawShapeToEditablePath(element);if(element.shapeParameters?.studioRevision!==2||element.shapePath||!path.nodes.length)return path;
+ const xs:number[]=[],ys:number[]=[];
+ const cubic=(a:number,b:number,c:number,d:number,t:number)=>(1-t)**3*a+3*(1-t)**2*t*b+3*(1-t)*t*t*c+t**3*d;
+ const extrema=(a:number,b:number,c:number,d:number)=>{const A=-a+3*b-3*c+d,B=2*(a-2*b+c),C=b-a;if(Math.abs(A)<1e-10)return Math.abs(B)<1e-10?[]:[-C/B];const D=B*B-4*A*C;return D<0?[]:[(-B+Math.sqrt(D))/(2*A),(-B-Math.sqrt(D))/(2*A)]};
+ const visit=(p:ShapePath)=>{p.nodes.forEach(n=>{xs.push(n.x);ys.push(n.y)});p.nodes.slice(0,p.closed?undefined:-1).forEach((a,i)=>{const d=p.nodes[(i+1)%p.nodes.length],b=a.out??a,c=d.in??d;for(const axis of ['x','y'] as const)for(const t of extrema(a[axis],b[axis],c[axis],d[axis]))if(t>0&&t<1)(axis==='x'?xs:ys).push(cubic(a[axis],b[axis],c[axis],d[axis],t))});p.subpaths?.forEach(visit)};visit(path);
+ const minX=Math.min(...xs),minY=Math.min(...ys),w=Math.max(...xs)-minX,h=Math.max(...ys)-minY,sw=element.borderWidth??2,padX=sw/Math.max(sw,element.width??140)*50,padY=sw/Math.max(sw,element.height??140)*50;
+ const point=(n:{x:number;y:number})=>({x:w>1e-8?padX+(n.x-minX)/w*(100-2*padX):n.x,y:h>1e-8?padY+(n.y-minY)/h*(100-2*padY):n.y});
+ const fit=(p:ShapePath):ShapePath=>{const nodes:ShapePathNode[]=[];for(const n of p.nodes){const next={...point(n),...(n.in?{in:point(n.in)}:{}),...(n.out?{out:point(n.out)}:{})},prev=nodes.at(-1);if(prev&&Math.hypot(prev.x-next.x,prev.y-next.y)<1e-8){if(next.out)prev.out=next.out}else nodes.push(next)}return {closed:p.closed,nodes,...(p.subpaths?{subpaths:p.subpaths.map(fit)}:{})}};return fit(path);
 }

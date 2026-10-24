@@ -2732,7 +2732,7 @@ function BuilderContent() {
           <Label htmlFor="imported-measurement-notes" className="text-xs text-white/60">Extra Details</Label>
           <Textarea id="imported-measurement-notes" value={state.extraDetails.measurements || ''}
             onChange={event => setState(prev => ({ ...prev, extraDetails: { ...prev.extraDetails, measurements: event.target.value } }))}
-            className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white"
+            className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white"
             placeholder="Add any specific measurement requirements..." />
         </div>;
         return (
@@ -2812,7 +2812,7 @@ function BuilderContent() {
                     },
                   }))
                 }
-                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add any specific measurement requirements..."
               />
             </div>
@@ -2876,7 +2876,7 @@ function BuilderContent() {
               <Input
                 value={state.gsm || ''}
                 onChange={(e) => setState((prev) => ({ ...prev, gsm: e.target.value }))}
-                className="h-8 border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9"
+                className="h-8 border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9"
                 placeholder="180"
                 type="number"
               />
@@ -2894,7 +2894,7 @@ function BuilderContent() {
                     extraDetails: { ...prev.extraDetails, fabric: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add specific fabric or colour requirements..."
               />
             </div>
@@ -2915,7 +2915,7 @@ function BuilderContent() {
                   <select id="neck-finish" value={state.neckFinish==='raw'&&/polo/i.test(getGarmentAsset(garmentSelection['Neck']??'')?.displayName??'')?'clean':state.neckFinish??'ribbed'}
                     onChange={event => setState(prev => ({ ...prev, neckFinish: event.target.value as NeckFinish }))}
                     style={{ colorScheme: 'dark' }}
-                    className="w-full rounded-md border border-[#252528] bg-[#171719] px-3 py-2 text-xs text-white [&>option]:bg-[#171719] [&>option]:text-white">
+                    className="w-full rounded-md border border-[#171717] bg-[#171717] px-3 py-2 text-xs text-white [&>option]:bg-[#171717] [&>option]:text-white">
                     {NECK_FINISH_OPTIONS.filter(option=>option.value!=='raw'||!/polo/i.test(getGarmentAsset(garmentSelection['Neck']??'')?.displayName??'')).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                   <p className="mt-2 text-[11px] leading-relaxed text-white/50">
@@ -2946,7 +2946,7 @@ function BuilderContent() {
                       extraDetails: { ...prev.extraDetails, neck: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add any specific neck or collar requirements..."
                 />
               </div>
@@ -3028,7 +3028,7 @@ function BuilderContent() {
                       extraDetails: { ...prev.extraDetails, sleeves: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add sleeve requirements..."
                 />
               </div>
@@ -3073,7 +3073,7 @@ function BuilderContent() {
                     extraDetails: { ...prev.extraDetails, sleeves: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add sleeve requirements..."
               />
             </div>
@@ -3101,7 +3101,7 @@ function BuilderContent() {
                       extraDetails: { ...prev.extraDetails, hem: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add hem or cuff requirements..."
                 />
               </div>
@@ -3138,7 +3138,7 @@ function BuilderContent() {
                     extraDetails: { ...prev.extraDetails, hem: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add hem or cuff requirements..."
               />
             </div>
@@ -3190,7 +3190,7 @@ function BuilderContent() {
                       extraDetails: { ...prev.extraDetails, pockets: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Add pocket or zip requirements..."
                 />
               </div>}
@@ -3232,7 +3232,7 @@ function BuilderContent() {
                     extraDetails: { ...prev.extraDetails, pockets: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Add pocket or zip requirements..."
               />
             </div>
@@ -3258,7 +3258,7 @@ function BuilderContent() {
                       extraDetails: { ...prev.extraDetails, fading: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="Describe fade zones, intensity, or wash instructions..."
                 />
               </div>
@@ -3286,7 +3286,7 @@ function BuilderContent() {
                     extraDetails: { ...prev.extraDetails, fading: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="Describe fade zones, intensity, or wash instructions..."
               />
             </div>
@@ -3336,7 +3336,7 @@ function BuilderContent() {
                       extraDetails: { ...prev.extraDetails, stitching: e.target.value },
                     }))
                   }
-                  className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                  className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                   placeholder="SPI, seam notes, contrast stitching details, etc..."
                 />
               </div>
@@ -3372,7 +3372,7 @@ function BuilderContent() {
                     extraDetails: { ...prev.extraDetails, stitching: e.target.value },
                   }))
                 }
-                className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
+                className="min-h-[82px] border-[#171717] bg-white/5 text-[11px] text-white placeholder:text-white/30"
                 placeholder="SPI, seam notes, contrast stitching details, etc..."
               />
             </div>
@@ -3494,7 +3494,7 @@ function BuilderContent() {
       case 13:
         return (
           <div className="space-y-4">
-            <div className="space-y-2.5 rounded-lg border border-[#252528] bg-white/5 p-4">
+            <div className="space-y-2.5 rounded-lg border border-[#171717] bg-white/5 p-4">
               <ReviewRow label="Garment Type" value={state.garmentType} />
               <ReviewRow label="Fit" value={state.fit || 'Not selected'} />
               <ReviewRow
@@ -3651,7 +3651,7 @@ function BuilderContent() {
 
   const renderSummaryBody = () => (
     <div className="space-y-4 text-sm">
-        {(state.garmentLabels ?? []).length > 0 && <section className="space-y-3 border-b border-[#252528] pb-4">
+        {(state.garmentLabels ?? []).length > 0 && <section className="space-y-3 border-b border-[#171717] pb-4">
           <h4 className="text-xs font-semibold text-white">Labels &amp; Branding</h4>
           {state.garmentLabels!.map(label => <div key={label.id} className="space-y-1 text-xs text-white/65">
             <strong className="text-white">{label.brand || LABEL_CATEGORIES[label.category]}</strong>
@@ -3675,7 +3675,7 @@ function BuilderContent() {
         {state.gsm ? <SpecRow label="GSM" value={state.gsm} /> : null}
 
         {state.colors[0] ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -3740,7 +3740,7 @@ function BuilderContent() {
           <SpecRow label="Stitching" value={state.stitchingType.replace('-', ' ')} capitalize />
         ) : null}
         {state.stitchingColor ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Stitch colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -3752,7 +3752,7 @@ function BuilderContent() {
           </div>
         ) : null}
         {state.neckTrimColor ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Neck trim</div>
             <div className="flex items-center gap-2">
               <div
@@ -3764,7 +3764,7 @@ function BuilderContent() {
           </div>
         ) : null}
         {state.sleeveTrimColor ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Sleeve colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -3776,7 +3776,7 @@ function BuilderContent() {
           </div>
         ) : null}
         {state.cuffTrimColor ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Cuff trim</div>
             <div className="flex items-center gap-2">
               <div
@@ -3788,7 +3788,7 @@ function BuilderContent() {
           </div>
         ) : null}
         {state.pocketTrimColor ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Pocket / zip trim</div>
             <div className="flex items-center gap-2">
               <div
@@ -3812,7 +3812,7 @@ function BuilderContent() {
           : null}
         <SpecRow label="Neck label" value={formatPlanSummary('label', state.labelType)} />
         {state.labelColor ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Label colour</div>
             <div className="flex items-center gap-2">
               <div
@@ -3827,11 +3827,11 @@ function BuilderContent() {
         <OrderQuantitiesSummary plan={state.orderQuantities} />
 
         {summaryStepNotes ? (
-          <div className="border-b border-[#252528] pb-4">
+          <div className="border-b border-[#171717] pb-4">
             <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">
               Step notes
             </div>
-            <div className="rounded-lg border border-[#252528] bg-white/5 p-3 text-xs leading-relaxed text-white/80">
+            <div className="rounded-lg border border-[#171717] bg-white/5 p-3 text-xs leading-relaxed text-white/80">
               {summaryStepNotes}
             </div>
           </div>
@@ -3875,7 +3875,7 @@ function BuilderContent() {
     const editorNavFooter = (
       <div
         className={cn(
-          'border-t border-[#252528] bg-[#09090B]/50 pt-4',
+          'border-t border-[#171717] bg-[#171717]/50 pt-4',
           isPhone
             ? 'mt-5 mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] rounded-xl px-0.5 pb-1'
             : 'shrink-0 px-3 pb-4 pt-3.5 sm:px-4 md:px-4 lg:px-5',
@@ -3887,7 +3887,7 @@ function BuilderContent() {
             onClick={handleBack}
             disabled={currentStep === firstBuilderNavStepId}
             className={cn(
-              'h-9 flex-1 rounded-xl border-[#3A3A40] bg-white/[0.04] text-[11px] font-semibold !text-white hover:bg-white/10 disabled:opacity-30',
+              'h-9 flex-1 rounded-xl border-[#262626] bg-white/[0.04] text-[11px] font-semibold !text-white hover:bg-white/10 disabled:opacity-30',
               isPhone && 'min-h-11',
             )}
           >
@@ -3918,7 +3918,7 @@ function BuilderContent() {
           )}
         >
           {isPhone ? (
-            <div className="mb-3 flex min-w-0 items-center justify-between gap-2 border-b border-[#252528] pb-2.5">
+            <div className="mb-3 flex min-w-0 items-center justify-between gap-2 border-b border-[#171717] pb-2.5">
               <div className="min-w-0 text-[8px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">
                 Step {phoneProcessStepCount}
               </div>
@@ -4019,7 +4019,7 @@ function BuilderContent() {
             const group = materialGroupFor(part.id);
             return <div className="mt-4 space-y-2 border-t border-white/10 pt-3" data-part-colour-controls>
               <Label className="text-[11px] text-white/70">{part.label} colour</Label>
-              <select aria-label="Colour assignment scope" value={colourScope} onChange={event => setColourScope(event.target.value as typeof colourScope)} className="w-full rounded bg-[#161618] p-2 text-[11px] text-white">
+              <select aria-label="Colour assignment scope" value={colourScope} onChange={event => setColourScope(event.target.value as typeof colourScope)} className="w-full rounded bg-[#171717] p-2 text-[11px] text-white">
                 <option value="part">This part only</option>
                 {group && <option value="group">Linked matching parts</option>}
                 <option value="category">{fabricCategoryForPart(part)} category default</option>
@@ -4048,7 +4048,7 @@ function BuilderContent() {
   const livePreviewBlock = (
     <div
       className={cn(
-        'flex min-h-0 flex-col bg-[#09090B]',
+        'flex min-h-0 flex-col bg-[#171717]',
         previewSurfaceNeedsVisibleOverflow && 'overflow-visible',
         isPhone ? 'h-full min-h-0 w-full min-w-0 flex-1' : 'h-full min-h-0 min-w-0 flex-1',
       )}
@@ -4061,7 +4061,7 @@ function BuilderContent() {
         )}
         style={previewSurfaceStyle}
       >
-        {pendingMaterialDrop && <div role="group" aria-label="Apply dropped material" className="absolute left-1/2 top-14 z-[350] flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-lg border border-sky-400/40 bg-[#161618] p-3 text-[11px] text-white shadow-xl">
+        {pendingMaterialDrop && <div role="group" aria-label="Apply dropped material" className="absolute left-1/2 top-14 z-[350] flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-lg border border-sky-400/40 bg-[#171717] p-3 text-[11px] text-white shadow-xl">
           <span>{fabricParts.find(part => part.id === pendingMaterialDrop.partId)?.label}</span>
           <button type="button" className="rounded bg-sky-600 px-2 py-1" onClick={() => applyMaterialDrop(pendingMaterialDrop.partId, pendingMaterialDrop.material, true)}>
             {pendingMaterialDrop.ids.every(id => /sleeve/i.test(id)) ? 'Both sleeves' : 'All linked parts'}
@@ -4117,7 +4117,7 @@ function BuilderContent() {
         >
           <div data-builder-view-switch
             className={cn(
-              'pointer-events-auto flex flex-col gap-1 rounded-xl border border-[#252528] bg-black/45 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md',
+              'pointer-events-auto flex flex-col gap-1 rounded-xl border border-[#171717] bg-black/45 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-md',
               isPhone ? 'p-1.5' : 'p-1',
             )}
           >
@@ -4530,7 +4530,7 @@ function BuilderContent() {
 
         {!isPhone && !isLabelEditor && currentStep !== 11 ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[36] flex flex-wrap items-end justify-between gap-1.5 px-1.5 pb-1.5 sm:gap-2 sm:px-3 sm:pb-3">
-            <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-[#252528] bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-[#171717] bg-black/55 px-1.5 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2 sm:px-2.5 sm:py-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -4571,11 +4571,11 @@ function BuilderContent() {
               >
                 {Math.min(previewZoom, previewZoomMax)}%
               </span>
-              <span className="hidden max-w-[7rem] border-l border-[#252528] pl-2 text-[8px] leading-tight text-white/35 lg:inline">
+              <span className="hidden max-w-[7rem] border-l border-[#171717] pl-2 text-[8px] leading-tight text-white/35 lg:inline">
                 Drag empty · Ctrl+scroll
               </span>
             </div>
-            <div data-builder-completion className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#252528] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
+            <div data-builder-completion className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#171717] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
               <CircularProgress value={progress} compact />
               <div>
                 <div className="text-[11px] font-bold tabular-nums text-white sm:text-xs">
@@ -4623,7 +4623,7 @@ function BuilderContent() {
             <Button
               type="button"
               onClick={() => phoneEditorPanelRef.current?.expand()}
-              className="h-9 min-h-9 rounded-full border border-[#3A3A40] bg-[#161618]/95 px-5 text-[11px] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.4)] backdrop-blur-md"
+              className="h-9 min-h-9 rounded-full border border-[#262626] bg-[#171717]/95 px-5 text-[11px] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.4)] backdrop-blur-md"
             >
               Edit step
             </Button>
@@ -4654,10 +4654,10 @@ function BuilderContent() {
           <aside
             role="dialog"
             aria-label="Tech pack review"
-            className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
+            className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-[#171717] bg-[#171717] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
             {isPhone ? (
-              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
+              <div className="flex shrink-0 border-b border-[#171717] bg-black/40 px-2 py-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -4710,10 +4710,10 @@ function BuilderContent() {
           <aside
             role="dialog"
             aria-label="Version history"
-            className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
+            className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-[#171717] bg-[#171717] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
             {isPhone ? (
-              <div className="flex shrink-0 border-b border-[#252528] bg-black/40 px-2 py-2">
+              <div className="flex shrink-0 border-b border-[#171717] bg-black/40 px-2 py-2">
                 <Button
                   type="button"
                   variant="ghost"
@@ -4757,7 +4757,7 @@ function BuilderContent() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-10 min-h-10 shrink-0 border-[#3A3A40] bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
+                className="h-10 min-h-10 shrink-0 border-[#262626] bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
                 onClick={saveManualVersion}
               >
                 <Save className="mr-2 h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
@@ -4770,7 +4770,7 @@ function BuilderContent() {
                 {/* Current (live) version — always pinned at top */}
                 <li className="relative overflow-hidden rounded-xl border border-[#FF3B30]/55 bg-[#FF3B30]/[0.06] p-2.5 ring-1 ring-[#FF3B30]/25">
                   <div className="flex items-stretch gap-3">
-                    <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#3A3A40] bg-[#09090B]">
+                    <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#262626] bg-[#171717]">
                       <VersionThumbnail
                         state={state}
                         currentStep={currentStep}
@@ -4794,17 +4794,17 @@ function BuilderContent() {
                 </li>
 
                 {versions.length === 0 ? (
-                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-[#252528] px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">
+                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-[#171717] px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">
                     Your saves land here. We also snapshot automatically as you edit.
                   </li>
                 ) : (
                   versions.map((v, idx) => (
                     <li
                       key={v.id}
-                      className="group relative overflow-hidden rounded-xl border border-[#252528] bg-black/30 p-2.5 transition hover:border-white/22 hover:bg-white/[0.04]"
+                      className="group relative overflow-hidden rounded-xl border border-[#171717] bg-black/30 p-2.5 transition hover:border-white/22 hover:bg-white/[0.04]"
                     >
                       <div className="flex items-stretch gap-3">
-                        <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#252528] bg-[#09090B]">
+                        <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg border border-[#171717] bg-[#171717]">
                           <VersionThumbnail
                             state={v.state}
                             currentStep={v.currentStep}
@@ -4832,7 +4832,7 @@ function BuilderContent() {
                             <button
                               type="button"
                               onClick={() => restoreVersion(v.id)}
-                              className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-[#3A3A40] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
+                              className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-[#262626] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
                               title="Restore this version"
                             >
                               <RotateCcw className="h-4 w-4 sm:h-3 sm:w-3" strokeWidth={2.25} />
@@ -4944,7 +4944,7 @@ function BuilderContent() {
               onMeasurementChange={(measurementId,size,value)=>setState(prev=>editGradedMeasurement(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,measurementId,size,value))}
             /><NewAssetMeasurements onEditPanel={id=>{setRedesignSection('Construction');setConstructionTool('Seams & panelling');setPanellingTool('select');setPanellingEditAction('reshape');setSelectedPanelId(id);setPanellingSelection(null)}} assets={assetMeasurementSnapshot.view===garmentView?assetMeasurementSnapshot.assets:[]} unit={state.measurementUnit} selectedId={selectedMeasurementAssetId} onSelect={setSelectedMeasurementAssetId} onEdit={(asset,field,value)=>{const result=editAssetDimension(state,asset,field,value);if(result.changes)setState(prev=>({...prev,...result.changes}));return result.error}}/></>:measurementTool==='Import measurements'?<ImportMeasurementsPanel/>:measurementTool==='Upload reference'?<><p>Attach reference file names and notes. These files are references only; this does not import measurement values.</p><NewReferencePanel fileNamesText={state.referenceUploadFileNames??''} notes={state.extraDetails.referenceUploadNotes??''} onFileNamesChange={names=>setState(prev=>({...prev,referenceUploadFileNames:names||undefined}))} onNotesChange={notes=>setState(prev=>({...prev,extraDetails:{...prev.extraDetails,referenceUploadNotes:notes}}))}/></>:<><div className="builder-tool-notice"><p>{measurementTool==='Import measurements'?'Measurement file parsing and a review-before-apply flow are coming later.':'New custom measurement rows are coming later. Existing uploaded asset dimensions remain available in Core measurements.'}</p><button disabled className="builder-link">{measurementTool==='Import measurements'?'Import size chart — coming later':'Add measurement — coming later'}</button></div><button className="builder-link" onClick={()=>setMeasurementTool('Core measurements')}>Back to core measurements</button></>}
     </>;
-    return <AssetWorkspaceProvider value={studioAssetWorkspace}><SizeComparisonContext.Provider value={{measurements:state.measurements,presets:reviewPresets,grading:state.measurementGrading,enabled:redesignSection==='Fit & Measurements'&&measurementTool==='Advanced sizing'&&Boolean(state.measurementGrading?.compare?.enabled)}}><MeasurementValueContext.Provider value={{measurements:Object.fromEntries(Object.entries(fitMeasurements[activeFit||'regular']??fitMeasurements.regular).map(([id,defaults])=>[id,{...defaults,...state.measurements[id]}])),unit:state.measurementUnit}}><BuilderShell materialTool={materialTool} onMaterialTool={tool=>{setMaterialTool(tool);setMaterialBrush(null)}} sizeComparison={measurementTool==='Advanced sizing'&&redesignSection==='Fit & Measurements'?state.measurementGrading?.compare:undefined} reviewOpen={showReviewDrawer} onReview={()=>setShowReviewDrawer(v=>!v)} onWorkspaceFit={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}} section={redesignSection} onSection={section=>{setRedesignSection(section);if(section==='Labels & Branding'&&!garmentLabelSelectedId)setGarmentLabelSelectedId(state.garmentLabels?.[0]?.id??null);if(section==='Fit & Measurements')setMeasurementTool('Core measurements')}} tool={pageReferenceOpen?'Upload reference':measurementTool} onTool={tool=>{if(tool==='Upload reference'){setPageReferenceOpen(v=>!v);return}setPageReferenceOpen(false);setRedesignSection('Fit & Measurements');setMeasurementTool(tool)}} constructionTool={constructionTool} onConstructionTool={setConstructionTool} inspector={inspector} topbar={<BuilderTopBar onSaveVersion={saveManualVersion} name={projectName} onName={setProjectName} background={previewBackground} onBackground={setPreviewBackground} onUndo={undo} onRedo={redo} canUndo={undoAvailable} canRedo={redoAvailable} onHistory={()=>setShowVersionHistory(true)} onReview={()=>setShowReviewDrawer(true)} onSave={()=>handleSave(false)} status={saving?'Saving…':!networkOnline?'Offline':saveError?'Not synced':'Saved'} legacyUrl={legacyUrl}/>}>{redesignSection==='Artwork & Graphics'?<PrintDesignCanvas elements={studioArtwork} onChange={studioChange} selectedId={state.printsLayerSelectedId} onSelect={studioSelect} side={showFront?'front':'back'} onSide={side=>{setShowFront(side==='front');studioSelect(null)}} zoom={previewZoom} onZoom={setPreviewZoom} onFit={()=>setPreviewZoom(100)} garment={<TshirtSvgPreview savedPanelling={savedPanellingForView(garmentView)} semanticPanels={panellingPanels} garmentType={garmentSvgType??'tshirt'} color={primaryColor} selection={garmentSelection} fit={activeFit} detailView={showFront?'front':'back'} partColors={renderPartColors} fabricAssignments={state.fabricAssignments} fabricTextureIntensity={state.fabricTextureIntensity} garmentWash={state.garmentWash} showWash={showWash} garmentDetails={state.garmentDetails} customAssetState={state} customCollar={state.customCollar} customCollars={state.customCollars} layerTransforms={state.tshirtLayerTransforms} tshirtHemStyles={state.tshirtHemStyles} neckFinish={state.neckFinish} tshirtStitching={state.tshirtStitching} stitchingColor={state.stitchingColor} className="h-full w-full min-h-0"/>}/>:redesignSection==='Labels & Branding'?<div className="label-preview-studio"><GarmentLabelsPreview studio closeUpRequest={labelCloseUpRequest} labels={state.garmentLabels??[]} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId} tagView={garmentLabelTagView} onTagViewChange={setGarmentLabelTagView} onChange={garmentLabels=>setState(prev=>({...prev,garmentLabels}))} garmentProps={{savedPanelling:savedPanellingForView(garmentView),semanticPanels:panellingPanels,garmentType:garmentSvgType,color:primaryColor,selection:garmentSelection,fit:activeFit,fabricAssignments:state.fabricAssignments,fabricTextureIntensity:state.fabricTextureIntensity,garmentWash:washProcessAllowed?washProcess:{...washProcess,type:'none'},showWash,detailView:garmentView,partColors:renderPartColors,tshirtHemStyles:state.tshirtHemStyles,neckFinish:state.neckFinish,tshirtStitching:state.tshirtStitching,stitchingColor:state.stitchingColor,garmentDetails:state.garmentDetails,customAssetState:state,customCollar:state.customCollar,customCollars:state.customCollars,layerTransforms:state.tshirtLayerTransforms,labelReferenceWidthMm:Number(state.measurements.chestWidth?.m)*10||undefined,className:'h-full w-full min-h-0'}}/></div>:redesignSection==='Packaging'?<PackagingStudioPreview garmentPreview={garmentSvgType?(reverse)=><TshirtSvgPreview savedPanelling={savedPanellingForView(reverse?'back':'front')} semanticPanels={semanticPanelsForView(reverse?'back':'front')} garmentType={garmentSvgType} color={primaryColor} selection={garmentSelection} fit={activeFit} detailView={reverse?'back':'front'} fabricAssignments={state.fabricAssignments} fabricTextureIntensity={state.fabricTextureIntensity} garmentWash={state.garmentWash} showWash={showWash} neckTrimColor={state.neckTrimColor} sleeveTrimColor={state.sleeveTrimColor} cuffTrimColor={state.cuffTrimColor} pocketTrimColor={state.pocketTrimColor} stitchingColor={state.stitchingColor} partColors={state.partColors} tshirtHemStyles={state.tshirtHemStyles} neckFinish={state.neckFinish} tshirtStitching={state.tshirtStitching} garmentDetails={state.garmentDetails} customAssetState={state} customCollar={state.customCollar} customCollars={state.customCollars} layerTransforms={state.tshirtLayerTransforms} garmentLabels={state.garmentLabels} className="h-full w-full min-h-0"/>:undefined} design={packagingDesign} garmentColor={primaryColor} garmentType={garmentSvgType??'garment'} onChange={design=>changePackaging({...packagingValue,designs:{...packagingValue.designs,[packagingValue.active]:design}})} selectedId={state.packagingLayerSelectedId} onSelect={id=>setState(prev=>({...prev,packagingLayerSelectedId:id}))} limited={packagingBoundary} onBoundary={setPackagingBoundary}/>:<div ref={previewShellRef} className="new-builder-canvas" onPointerDown={event=>{if(redesignSection!=='Materials & Colour')return;const target=event.target as Element;if(target.closest('[data-tshirt-hit-target],[data-construction-region-hit],[data-tshirt-selection],button,input,select,textarea,[role="button"],[role="slider"]'))return;setTshirtLayerSelectedId(null);setMaterialBrush(null)}} data-material-brush={redesignSection==='Materials & Colour'?materialBrush?.kind:undefined} style={previewSurfaceStyle}>{redesignSection==='Materials & Colour'&&<ColourwayCanvasBar state={{...state,colors:state.colors.length?state.colors:[{hex:primaryColor,pantone:''}],partColors:{...panellingEffectiveColours,...state.partColors}}} onChange={patch=>{if('activeColourwayId' in patch)setMaterialBrush(null);setState(prev=>({...prev,...patch}))}} onOpen={()=>setMaterialTool('Colourways')}/>} {redesignSection==='Fit & Measurements'&&<MeasurementGuidesToggle checked={showMeasurementGuides} onChange={setShowMeasurementGuides}/>}<div className="new-view-switch" role="group" aria-label="Garment view"><button aria-pressed={showFront} onClick={()=>{setShowFront(true);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Front</button><button aria-pressed={!showFront} onClick={()=>{setShowFront(false);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Back</button></div><div className="new-canvas-area" onPointerDownCapture={e=>{if(redesignSection==='Construction'&&constructionTool==='Details & trims'&&e.button===0&&!(e.target as Element).closest('[data-detail-id],[data-opening-id],[data-measurement-guide],[data-asset-measurement]'))selectGarmentDetail(null)}} onPointerDown={e=>{if(!(e.target as Element).closest('[data-measurement-guide],[data-asset-measurement]'))beginCanvasPanFromPointer(e)}}><div ref={previewStageRef} className="new-canvas-stage" style={{transform:`translate(${Math.round(previewPan.x)}px, ${Math.round(previewPan.y)}px)`,transition:'none'}}><div className="new-drawing-frame" style={{zoom:previewZoom/100,width:`min(calc(100cqw / ${(redesignDrawingBounds.right-redesignDrawingBounds.left+(layoutTier==='phone'?100:160))/(1000*.9)}),calc(100cqh / ${(redesignDrawingBounds.bottom-redesignDrawingBounds.top+100)/(1000*.9)}))`,transform:`translate(${-100*(redesignDrawingBounds.left+redesignDrawingBounds.right)/2000}%,${-100*(redesignDrawingBounds.top+redesignDrawingBounds.bottom)/2000}%)`}}> <MeasurementMotionContext.Provider value={JSON.stringify(state.measurements)}><MeasurementPreview showGuides={redesignSection==='Fit & Measurements'&&showMeasurementGuides} onDrawingBounds={updateRedesignDrawingBounds} presentation="redesign" onGuideSelect={setHighlightedMeasurementId}
+    return <AssetWorkspaceProvider value={studioAssetWorkspace}><SizeComparisonContext.Provider value={{measurements:state.measurements,presets:reviewPresets,grading:state.measurementGrading,enabled:redesignSection==='Fit & Measurements'&&measurementTool==='Advanced sizing'&&Boolean(state.measurementGrading?.compare?.enabled)}}><MeasurementValueContext.Provider value={{measurements:Object.fromEntries(Object.entries(fitMeasurements[activeFit||'regular']??fitMeasurements.regular).map(([id,defaults])=>[id,{...defaults,...state.measurements[id]}])),unit:state.measurementUnit}}><BuilderShell materialTool={materialTool} onMaterialTool={tool=>{setMaterialTool(tool);setMaterialBrush(null)}} sizeComparison={measurementTool==='Advanced sizing'&&redesignSection==='Fit & Measurements'?state.measurementGrading?.compare:undefined} reviewOpen={showReviewDrawer} onReview={()=>setShowReviewDrawer(v=>!v)} onWorkspaceFit={()=>{setPreviewZoom(previewZoomDefault);setPreviewPan({x:0,y:0})}} section={redesignSection} onSection={section=>{setRedesignSection(section);if(section==='Labels & Branding'&&!garmentLabelSelectedId)setGarmentLabelSelectedId(state.garmentLabels?.[0]?.id??null);if(section==='Fit & Measurements')setMeasurementTool('Core measurements')}} tool={pageReferenceOpen?'Upload reference':measurementTool} onTool={tool=>{if(tool==='Upload reference'){setPageReferenceOpen(v=>!v);return}setPageReferenceOpen(false);setRedesignSection('Fit & Measurements');setMeasurementTool(tool)}} constructionTool={constructionTool} onConstructionTool={setConstructionTool} inspector={inspector} topbar={<BuilderTopBar onSaveVersion={saveManualVersion} name={projectName} onName={setProjectName} background={previewBackground} onBackground={setPreviewBackground} onUndo={undo} onRedo={redo} canUndo={undoAvailable} canRedo={redoAvailable} onHistory={()=>setShowVersionHistory(true)} onReview={()=>setShowReviewDrawer(true)} onSave={()=>handleSave(false)} status={saving?'Saving…':!networkOnline?'Offline':saveError?'Not synced':'Saved'} legacyUrl={legacyUrl}/>}>{redesignSection==='Artwork & Graphics'?<PrintDesignCanvas history={{onUndo:undo,onRedo:redo,canUndo:undoAvailable,canRedo:redoAvailable}} elements={studioArtwork} onChange={studioChange} selectedId={state.printsLayerSelectedId} onSelect={studioSelect} side={showFront?'front':'back'} onSide={side=>{setShowFront(side==='front');studioSelect(null)}} zoom={previewZoom} onZoom={setPreviewZoom} onFit={()=>setPreviewZoom(100)} garment={<TshirtSvgPreview savedPanelling={savedPanellingForView(garmentView)} semanticPanels={panellingPanels} garmentType={garmentSvgType??'tshirt'} color={primaryColor} selection={garmentSelection} fit={activeFit} detailView={showFront?'front':'back'} partColors={renderPartColors} fabricAssignments={state.fabricAssignments} fabricTextureIntensity={state.fabricTextureIntensity} garmentWash={state.garmentWash} showWash={showWash} garmentDetails={state.garmentDetails} customAssetState={state} customCollar={state.customCollar} customCollars={state.customCollars} layerTransforms={state.tshirtLayerTransforms} tshirtHemStyles={state.tshirtHemStyles} neckFinish={state.neckFinish} tshirtStitching={state.tshirtStitching} stitchingColor={state.stitchingColor} className="h-full w-full min-h-0"/>}/>:redesignSection==='Labels & Branding'?<div className="label-preview-studio"><GarmentLabelsPreview studio closeUpRequest={labelCloseUpRequest} labels={state.garmentLabels??[]} selectedId={garmentLabelSelectedId} onSelect={setGarmentLabelSelectedId} tagView={garmentLabelTagView} onTagViewChange={setGarmentLabelTagView} onChange={garmentLabels=>setState(prev=>({...prev,garmentLabels}))} garmentProps={{savedPanelling:savedPanellingForView(garmentView),semanticPanels:panellingPanels,garmentType:garmentSvgType,color:primaryColor,selection:garmentSelection,fit:activeFit,fabricAssignments:state.fabricAssignments,fabricTextureIntensity:state.fabricTextureIntensity,garmentWash:washProcessAllowed?washProcess:{...washProcess,type:'none'},showWash,detailView:garmentView,partColors:renderPartColors,tshirtHemStyles:state.tshirtHemStyles,neckFinish:state.neckFinish,tshirtStitching:state.tshirtStitching,stitchingColor:state.stitchingColor,garmentDetails:state.garmentDetails,customAssetState:state,customCollar:state.customCollar,customCollars:state.customCollars,layerTransforms:state.tshirtLayerTransforms,labelReferenceWidthMm:Number(state.measurements.chestWidth?.m)*10||undefined,className:'h-full w-full min-h-0'}}/></div>:redesignSection==='Packaging'?<PackagingStudioPreview garmentPreview={garmentSvgType?(reverse)=><TshirtSvgPreview savedPanelling={savedPanellingForView(reverse?'back':'front')} semanticPanels={semanticPanelsForView(reverse?'back':'front')} garmentType={garmentSvgType} color={primaryColor} selection={garmentSelection} fit={activeFit} detailView={reverse?'back':'front'} fabricAssignments={state.fabricAssignments} fabricTextureIntensity={state.fabricTextureIntensity} garmentWash={state.garmentWash} showWash={showWash} neckTrimColor={state.neckTrimColor} sleeveTrimColor={state.sleeveTrimColor} cuffTrimColor={state.cuffTrimColor} pocketTrimColor={state.pocketTrimColor} stitchingColor={state.stitchingColor} partColors={state.partColors} tshirtHemStyles={state.tshirtHemStyles} neckFinish={state.neckFinish} tshirtStitching={state.tshirtStitching} garmentDetails={state.garmentDetails} customAssetState={state} customCollar={state.customCollar} customCollars={state.customCollars} layerTransforms={state.tshirtLayerTransforms} garmentLabels={state.garmentLabels} className="h-full w-full min-h-0"/>:undefined} design={packagingDesign} garmentColor={primaryColor} garmentType={garmentSvgType??'garment'} onChange={design=>changePackaging({...packagingValue,designs:{...packagingValue.designs,[packagingValue.active]:design}})} selectedId={state.packagingLayerSelectedId} onSelect={id=>setState(prev=>({...prev,packagingLayerSelectedId:id}))} limited={packagingBoundary} onBoundary={setPackagingBoundary}/>:<div ref={previewShellRef} className="new-builder-canvas" onPointerDown={event=>{if(redesignSection!=='Materials & Colour')return;const target=event.target as Element;if(target.closest('[data-tshirt-hit-target],[data-construction-region-hit],[data-tshirt-selection],button,input,select,textarea,[role="button"],[role="slider"]'))return;setTshirtLayerSelectedId(null);setMaterialBrush(null)}} data-material-brush={redesignSection==='Materials & Colour'?materialBrush?.kind:undefined} style={previewSurfaceStyle}>{redesignSection==='Materials & Colour'&&<ColourwayCanvasBar state={{...state,colors:state.colors.length?state.colors:[{hex:primaryColor,pantone:''}],partColors:{...panellingEffectiveColours,...state.partColors}}} onChange={patch=>{if('activeColourwayId' in patch)setMaterialBrush(null);setState(prev=>({...prev,...patch}))}} onOpen={()=>setMaterialTool('Colourways')}/>} {redesignSection==='Fit & Measurements'&&<MeasurementGuidesToggle checked={showMeasurementGuides} onChange={setShowMeasurementGuides}/>}<div className="new-view-switch" role="group" aria-label="Garment view"><button aria-pressed={showFront} onClick={()=>{setShowFront(true);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Front</button><button aria-pressed={!showFront} onClick={()=>{setShowFront(false);setSelectedMeasurementAssetId(null);setHighlightedMeasurementId(null)}}>Back</button></div><div className="new-canvas-area" onPointerDownCapture={e=>{if(redesignSection==='Construction'&&constructionTool==='Details & trims'&&e.button===0&&!(e.target as Element).closest('[data-detail-id],[data-opening-id],[data-measurement-guide],[data-asset-measurement]'))selectGarmentDetail(null)}} onPointerDown={e=>{if(!(e.target as Element).closest('[data-measurement-guide],[data-asset-measurement]'))beginCanvasPanFromPointer(e)}}><div ref={previewStageRef} className="new-canvas-stage" style={{transform:`translate(${Math.round(previewPan.x)}px, ${Math.round(previewPan.y)}px)`,transition:'none'}}><div className="new-drawing-frame" style={{zoom:previewZoom/100,width:`min(calc(100cqw / ${(redesignDrawingBounds.right-redesignDrawingBounds.left+(layoutTier==='phone'?100:160))/(1000*.9)}),calc(100cqh / ${(redesignDrawingBounds.bottom-redesignDrawingBounds.top+100)/(1000*.9)}))`,transform:`translate(${-100*(redesignDrawingBounds.left+redesignDrawingBounds.right)/2000}%,${-100*(redesignDrawingBounds.top+redesignDrawingBounds.bottom)/2000}%)`}}> <MeasurementMotionContext.Provider value={JSON.stringify(state.measurements)}><MeasurementPreview showGuides={redesignSection==='Fit & Measurements'&&showMeasurementGuides} onDrawingBounds={updateRedesignDrawingBounds} presentation="redesign" onGuideSelect={setHighlightedMeasurementId}
 
                 garmentType={garmentSvgType ?? state.garmentType}
                 color={primaryColor}
@@ -4975,18 +4975,18 @@ function BuilderContent() {
   return (
     <div
       className={cn(
-        'builder-surface flex min-h-0 min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#09090B]',
+        'builder-surface flex min-h-0 min-w-0 max-w-[100vw] flex-col overflow-x-clip bg-[#171717]',
         'h-[100dvh] max-h-[100dvh] min-h-0 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] pl-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]',
       )}
     >
       {!(isPhone && currentStep === 13) ? (
       <div
         className={cn(
-          'relative flex border-b border-white/[0.09] bg-[#0c0c0c]',
+          'relative flex border-b border-white/[0.09] bg-[#171717]',
           /** Above portaled design toolbars (z-[200]) so nav + dropdown trigger stay tappable. */
           isPhone && 'z-[220]',
           isPhone
-            ? 'min-h-[4.5rem] items-center border-[#252528] py-1.5 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
+            ? 'min-h-[4.5rem] items-center border-[#171717] py-1.5 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]'
             : 'flex-wrap items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-2.5 md:px-5',
         )}
       >
@@ -5041,7 +5041,7 @@ function BuilderContent() {
                 role="group"
                 aria-label="Preview background"
               >
-                <div className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg border border-[#252528] bg-white/[0.06] px-1 shadow-inner">
+                <div className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg border border-[#171717] bg-white/[0.06] px-1 shadow-inner">
                   {!isLabelEditor && (['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
@@ -5186,7 +5186,7 @@ function BuilderContent() {
                 >
                   {showExtraDetails ? 'Hide details' : 'Show details'}
                 </button>
-                <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-[#252528] bg-white/[0.04] p-0.5">
+                <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-[#171717] bg-white/[0.04] p-0.5">
                   {!isLabelEditor && (['black', 'white', 'transparent'] as const).map((bg) => (
                     <button
                       key={bg}
@@ -5198,7 +5198,7 @@ function BuilderContent() {
                         'builder-focus press-feedback h-5 w-5 shrink-0 rounded border',
                         previewBackground === bg
                           ? 'border-[#FF3B30] ring-1 ring-[#FF3B30]'
-                          : 'border-[#3A3A40] hover:border-white/30',
+                          : 'border-[#262626] hover:border-white/30',
                       )}
                       style={
                         bg === 'transparent'
@@ -5295,7 +5295,7 @@ function BuilderContent() {
       <div className="relative flex min-h-0 flex-1 flex-col md:flex-row">
         {!isPhone ? (
           <aside
-            className="flex w-[4.5rem] shrink-0 flex-col bg-[#09090B] py-2 md:w-[5rem] lg:w-[5.75rem]"
+            className="flex w-[4.5rem] shrink-0 flex-col bg-[#171717] py-2 md:w-[5rem] lg:w-[5.75rem]"
             aria-label="Builder steps"
           >
             <div className="scrollbar-dark flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden pb-3 pl-1.5 pr-0">
@@ -5315,7 +5315,7 @@ function BuilderContent() {
                     className={cn(
                       'builder-focus press-feedback group relative flex w-full shrink-0 flex-col items-center gap-1 px-1 py-2.5 text-center',
                       current
-                        ? 'rounded-l-lg bg-[#09090B] text-white'
+                        ? 'rounded-l-lg bg-[#171717] text-white'
                         : enabled
                           ? 'mr-1.5 rounded-lg text-white/60 hover:bg-white/[0.04] hover:text-white'
                           : 'mr-1.5 cursor-not-allowed rounded-lg text-white/22',
@@ -5345,8 +5345,8 @@ function BuilderContent() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {isPhone ? (
           currentStep === 13 ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#09090B]">
-              <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden border-t border-white/[0.04] bg-[#0c0c0c]">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#171717]">
+              <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden border-t border-white/[0.04] bg-[#171717]">
                 {renderEditorMain()}
               </div>
             </div>
@@ -5376,7 +5376,7 @@ function BuilderContent() {
               <PanelResizeHandle
                 title="Drag to resize preview and configure"
                 className={cn(
-                  'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#09090B] transition-colors hover:bg-[#161618] data-[resize-handle-state=drag]:bg-[#1a1010]',
+                  'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#171717] transition-colors hover:bg-[#171717] data-[resize-handle-state=drag]:bg-[#171717]',
                   isPhone ? 'min-h-10 py-2' : 'h-3 py-0.5',
                   isPhone && phoneEditorCollapsed && 'pointer-events-none h-0 min-h-0 overflow-hidden !py-0 opacity-0',
                 )}
@@ -5398,7 +5398,7 @@ function BuilderContent() {
               >
                 <div
                   className={cn(
-                    'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#0c0c0c]',
+                    'flex h-full min-h-0 w-full flex-col border-t border-white/[0.04] bg-[#171717]',
                     // Softer upward shadow on phone so it does not visually cover the live preview toolbar.
                     'rounded-t-[1.25rem] shadow-[0_-4px_28px_rgba(0,0,0,0.38)] backdrop-blur-xl sm:rounded-t-2xl sm:shadow-[0_-12px_40px_rgba(0,0,0,0.5)]',
                   )}
@@ -5430,7 +5430,7 @@ function BuilderContent() {
               <div
                 key={leftPanelCollapsed ? 'collapsed' : `open-${currentStep}`}
                 className={cn(
-                  'flex h-full min-h-0 w-full min-w-0 flex-col bg-[#09090B]',
+                  'flex h-full min-h-0 w-full min-w-0 flex-col bg-[#171717]',
                   !leftPanelCollapsed && 'animate-builder-slide-up-in',
                 )}
               >
@@ -5460,7 +5460,7 @@ function BuilderContent() {
 
       {isPhone ? (
         <div
-          className="z-[25] flex shrink-0 flex-col border-t border-white/[0.1] bg-[#080808] shadow-[0_-2px_20px_rgba(0,0,0,0.35)]"
+          className="z-[25] flex shrink-0 flex-col border-t border-white/[0.1] bg-[#171717] shadow-[0_-2px_20px_rgba(0,0,0,0.35)]"
         >
           <div className="px-2.5 pt-1.5">
             <div className="text-[7px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">Process</div>
@@ -5487,7 +5487,7 @@ function BuilderContent() {
                       ? 'w-[min(8.5rem,calc((100vw-1rem)/4.25))] min-w-[min(7rem,calc((100vw-1rem)/4.25))] max-w-[9rem]'
                       : 'w-[calc((100vw-1.25rem)/5)] min-w-[calc((100vw-1.25rem)/5)] max-w-[5.25rem]',
                     current
-                      ? 'bg-[#09090B] text-white'
+                      ? 'bg-[#171717] text-white'
                       : enabled
                         ? 'text-white/60 active:text-white'
                         : 'cursor-not-allowed text-white/25',
@@ -5565,7 +5565,7 @@ function VersionThumbnail({ state, currentStep, showFront, light=false }: Versio
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       preserveAspectRatio="xMidYMid meet"
       className="h-full w-full"
-      style={{ background: light?'#f8fafc':'#161618' }}
+      style={{ background: light?'#fafafa':'#171717' }}
       aria-hidden
     >
       <rect x={0} y={0} width={VB_W} height={VB_H} fill={light?'#f8fafc':'#161618'} />
@@ -5743,7 +5743,7 @@ function ChoiceStep({
         <Textarea
           value={notes}
           onChange={(e) => onNotes(e.target.value)}
-          className="min-h-[68px] border-[#252528] bg-white/5 text-[10px] text-white placeholder:text-white/30 md:min-h-[82px] md:text-[11px]"
+          className="min-h-[68px] border-[#171717] bg-white/5 text-[10px] text-white placeholder:text-white/30 md:min-h-[82px] md:text-[11px]"
           placeholder={placeholder}
         />
       </div>
@@ -5778,7 +5778,7 @@ function ChoiceGrid({
             className={`rounded-md border px-2 py-1.5 text-center transition sm:rounded-lg sm:px-2.5 sm:py-2 md:py-1.5 xl:px-2.5 ${
               selected === option.id
                 ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
-                : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white'
+                : 'border-[#171717] bg-white/5 text-white/60 hover:border-white/20 hover:text-white'
             }`}
           >
             <div className="text-[10px] font-medium leading-snug sm:text-[11px]">{option.name}</div>
@@ -5791,7 +5791,7 @@ function ChoiceGrid({
 
 function EmptyStep({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-[#252528] bg-white/5 p-6 text-center text-white/60">
+    <div className="rounded-xl border border-[#171717] bg-white/5 p-6 text-center text-white/60">
       {text}
     </div>
   );
@@ -5811,7 +5811,7 @@ function ReviewRow({
   if (hidden) return null;
 
   return (
-    <div className="flex items-center justify-between border-b border-[#252528] pb-2.5">
+    <div className="flex items-center justify-between border-b border-[#171717] pb-2.5">
       <span className="text-xs text-white/50">{label}:</span>
       {swatch ? (
         <div className="flex items-center gap-2">
@@ -5838,7 +5838,7 @@ function SpecRow({
   capitalize?: boolean;
 }) {
   return (
-    <div className="border-b border-[#252528] pb-4">
+    <div className="border-b border-[#171717] pb-4">
       <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{label}</div>
       <div
         className={`flex items-center gap-2 text-sm font-semibold text-white ${

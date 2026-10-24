@@ -26,7 +26,7 @@ const RED = '#CC2D24';
 // ── tiny primitives ────────────────────────────────────────────────────────────
 
 function Divider() {
-  return <div style={{ height: 1, background: 'var(--export-border,#252528)', margin: '2px 0' }} />;
+  return <div style={{ height: 1, background: 'var(--export-border,#171717)', margin: '2px 0' }} />;
 }
 
 function RowToggle({
@@ -60,7 +60,7 @@ function RowToggle({
 
       {/* text */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: enabled ? 'var(--export-text,#F2F0EC)' : 'var(--export-muted,#ffffff60)', lineHeight: 1.3, transition: 'color 0.15s' }}>{title}</div>
+        <div style={{ fontSize: 12, fontWeight: 500, color: enabled ? 'var(--export-text,#f2f2f2)' : 'var(--export-muted,#ffffff60)', lineHeight: 1.3, transition: 'color 0.15s' }}>{title}</div>
         <div style={{ fontSize: 10, color: 'var(--export-muted,#ffffff30)', marginTop: 1, lineHeight: 1.4 }}>{sub}</div>
       </div>
 
@@ -91,16 +91,16 @@ function SegmentedControl({
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px' }}>
       <span style={{ fontSize: 11, color: 'var(--export-muted,#ffffff55)', fontWeight: 500 }}>{label}</span>
-      <div style={{ display: 'flex', background: 'var(--export-soft,#111113)', border: '1px solid var(--export-border,#252528)', borderRadius: 7, padding: 2, gap: 2 }}>
+      <div style={{ display: 'flex', background: 'var(--export-soft,#171717)', border: '1px solid var(--export-border,#171717)', borderRadius: 7, padding: 2, gap: 2 }}>
         {options.map(opt => (
           <button
             key={opt}
             onClick={() => onChange(opt)}
             style={{
               padding: '4px 12px', borderRadius: 5, fontSize: 11, fontWeight: 500,
-              background: value === opt ? 'var(--export-selected,#1C1C1E)' : 'transparent',
-              border: value === opt ? '1px solid var(--export-border,#3A3A40)' : '1px solid transparent',
-              color: value === opt ? 'var(--export-text,#F0EEEE)' : 'var(--export-muted,#6B6B72)',
+              background: value === opt ? 'var(--export-selected,#171717)' : 'transparent',
+              border: value === opt ? '1px solid var(--export-border,#262626)' : '1px solid transparent',
+              color: value === opt ? 'var(--export-text,#f2f2f2)' : 'var(--export-muted,#525252)',
               cursor: 'pointer', transition: 'all 0.15s',
             }}
           >
@@ -226,19 +226,19 @@ export function DownloadTechPackModal({
     >
       <div style={{
         width: '100%', maxWidth: 420,
-        background: 'var(--export-panel,#161618)', border: '1px solid var(--export-border,#252528)', borderRadius: 8,
+        background: 'var(--export-panel,#171717)', border: '1px solid var(--export-border,#171717)', borderRadius: 8,
         boxShadow: 'var(--export-shadow,0 32px 80px rgba(0,0,0,0.7))',
         display: 'flex', flexDirection: 'column',
         maxHeight: '90vh', overflow: 'hidden',
       }}>
 
         {/* ── header ──────────────────────────────────────────────────────── */}
-        <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--export-border,#252528)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
+        <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid var(--export-border,#171717)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 4 }}>
               Export
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--export-text,#F2F0EC)', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--export-text,#f2f2f2)', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
               Download Tech Pack
             </div>
             <div style={{ fontSize: 11, color: 'var(--export-muted,#ffffff35)', marginTop: 3 }}>
@@ -257,7 +257,7 @@ export function DownloadTechPackModal({
           </div>
           <button
             onClick={onClose}
-            style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--export-border,#252528)', border: '1px solid var(--export-border,#252528)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--export-muted,#ffffff50)', flexShrink: 0, marginTop: 2 }}
+            style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--export-border,#171717)', border: '1px solid var(--export-border,#171717)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--export-muted,#ffffff50)', flexShrink: 0, marginTop: 2 }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--export-hover,#ffffff12)'; (e.currentTarget as HTMLElement).style.color = 'var(--export-text,#ffffff90)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--export-hover,#ffffff08)'; (e.currentTarget as HTMLElement).style.color = 'var(--export-muted,#ffffff50)'; }}
           >
@@ -284,7 +284,7 @@ export function DownloadTechPackModal({
           </div>
 
           {/* separator */}
-          <div style={{ height: 1, background: 'var(--export-border,#252528)', margin: '8px 0' }} />
+          <div style={{ height: 1, background: 'var(--export-border,#171717)', margin: '8px 0' }} />
 
           {/* background */}
           <div style={{ padding: '4px 14px 8px' }}>
@@ -298,22 +298,22 @@ export function DownloadTechPackModal({
                   onClick={() => setSelectedTechPackColor(opt.hex)}
                   style={{
                     padding: '8px 6px', borderRadius: 9, cursor: 'pointer',
-                    border: selectedTechPackColor === opt.hex ? `1.5px solid ${RED}` : '1px solid var(--export-border,#252528)',
-                    background: selectedTechPackColor === opt.hex ? `${RED}0e` : 'var(--export-soft,#0e0e10)',
+                    border: selectedTechPackColor === opt.hex ? `1.5px solid ${RED}` : '1px solid var(--export-border,#171717)',
+                    background: selectedTechPackColor === opt.hex ? `${RED}0e` : 'var(--export-soft,#171717)',
                     transition: 'all 0.15s',
                   }}
                   onMouseEnter={e => { if (selectedTechPackColor !== opt.hex) (e.currentTarget as HTMLElement).style.borderColor = '#ffffff18'; }}
                   onMouseLeave={e => { if (selectedTechPackColor !== opt.hex) (e.currentTarget as HTMLElement).style.borderColor = '#ffffff0a'; }}
                 >
-                  <div style={{ width: '100%', height: 28, borderRadius: 5, backgroundColor: opt.hex, border: '1px solid #00000018', marginBottom: 5 }} />
-                  <div style={{ fontSize: 10, fontWeight: 500, color: selectedTechPackColor === opt.hex ? 'var(--export-text,#F2F0EC)' : 'var(--export-muted,#ffffff45)', textAlign: 'center' }}>{opt.name}</div>
+                  <div style={{ width: '100%', height: 28, borderRadius: 5, backgroundColor: opt.hex, border: '1px solid #17171718', marginBottom: 5 }} />
+                  <div style={{ fontSize: 10, fontWeight: 500, color: selectedTechPackColor === opt.hex ? 'var(--export-text,#f2f2f2)' : 'var(--export-muted,#ffffff45)', textAlign: 'center' }}>{opt.name}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* separator */}
-          <div style={{ height: 1, background: 'var(--export-border,#252528)', margin: '4px 0' }} />
+          <div style={{ height: 1, background: 'var(--export-border,#171717)', margin: '4px 0' }} />
 
           {/* format controls */}
           <div style={{ padding: '4px 0' }}>
@@ -328,7 +328,7 @@ export function DownloadTechPackModal({
           </div>
 
           {/* separator */}
-          <div style={{ height: 1, background: 'var(--export-border,#252528)', margin: '4px 0' }} />
+          <div style={{ height: 1, background: 'var(--export-border,#171717)', margin: '4px 0' }} />
 
           {/* AI render toggle */}
           <div style={{ padding: '4px 6px 8px' }}>
@@ -365,12 +365,12 @@ export function DownloadTechPackModal({
         </div>
 
         {/* ── footer ──────────────────────────────────────────────────────── */}
-        <div style={{ padding: '12px 14px', borderTop: '1px solid var(--export-border,#252528)', display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div style={{ padding: '12px 14px', borderTop: '1px solid var(--export-border,#171717)', display: 'flex', gap: 8, flexShrink: 0 }}>
           <button
             onClick={onClose}
             style={{
               flex: 1, padding: '9px 0', borderRadius: 9,
-              background: 'transparent', border: '1px solid var(--export-border,#252528)',
+              background: 'transparent', border: '1px solid var(--export-border,#171717)',
               color: 'var(--export-muted,#ffffff60)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.15s',
             }}

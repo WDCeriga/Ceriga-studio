@@ -12,7 +12,7 @@ import { OpeningControls } from './OpeningControls';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
   type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
 import {MaterialColourBrowser} from './shell/MaterialColourBrowser';
-function TrimColorFamilyPicker({label,value,onChange,onClear}:{label:string;value?:string;onChange:(hex:string)=>void;onClear?:()=>void}){return <TrimPopover.Root><TrimPopover.Trigger asChild><button type="button" className="detail-colour-chip" aria-label={label}><i style={{background:value??'#FFFFFF'}}/><span>{label.replace(/ colour$/, '')}<small>{value??'Inherited'}</small></span></button></TrimPopover.Trigger><TrimPopover.Portal><TrimPopover.Content className="detail-colour-popover" side="left" align="center" sideOffset={8} collisionPadding={12}><div className="detail-colour-popover-heading"><strong>{label}</strong><TrimPopover.Close aria-label="Close colour picker">×</TrimPopover.Close></div><MaterialColourBrowser value={value??'#FFFFFF'} onChange={onChange} onReference={()=>{}}/>{onClear&&<button type="button" className="detail-colour-reset" onClick={onClear}>Reset colour</button>}</TrimPopover.Content></TrimPopover.Portal></TrimPopover.Root>}
+function TrimColorFamilyPicker({label,value,onChange,onClear}:{label:string;value?:string;onChange:(hex:string)=>void;onClear?:()=>void}){return <TrimPopover.Root><TrimPopover.Trigger asChild><button type="button" className="detail-colour-chip" aria-label={label}><i style={{background:value??'#ffffff'}}/><span>{label.replace(/ colour$/, '')}<small>{value??'Inherited'}</small></span></button></TrimPopover.Trigger><TrimPopover.Portal><TrimPopover.Content className="detail-colour-popover" side="left" align="center" sideOffset={8} collisionPadding={12}><div className="detail-colour-popover-heading"><strong>{label}</strong><TrimPopover.Close aria-label="Close colour picker">×</TrimPopover.Close></div><MaterialColourBrowser value={value??'#FFFFFF'} onChange={onChange} onReference={()=>{}}/>{onClear&&<button type="button" className="detail-colour-reset" onClick={onClear}>Reset colour</button>}</TrimPopover.Content></TrimPopover.Portal></TrimPopover.Root>}
 
 import { formatMeasurementDisplay, parseMeasurementInput, type MeasurementUnit } from '../../lib/measurements';
 import { patchSettings, PATCH_TYPES, PATCH_SHAPES, PATCH_FINISHES, PATCH_EDGES, PATCH_DEPTHS, PATCH_APPLICATIONS, PATCH_MATERIAL_APPLICATIONS, readPatchArtwork, type PatchSettings } from '../../data/garmentPatches';
@@ -143,7 +143,7 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
   const [error, setError] = useState('');
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const update = (patch: Partial<PatchSettings>) => onChange({ patch: { ...settings, ...patch } });
-  const selectClass = 'mt-1 w-full min-w-0 rounded border border-white/15 bg-[#202023] p-2 text-xs text-white';
+  const selectClass = 'mt-1 w-full min-w-0 rounded border border-white/15 bg-[#171717] p-2 text-xs text-white';
   return <section aria-label="Patch construction" className="space-y-3 border-y border-white/15 py-3">
     <div className="grid grid-cols-2 gap-3 text-[11px] text-white/60">
       <label>Patch type<MaterialSelect aria-label="Patch type" className={selectClass} value={settings.material} onChange={event => update({ material: event.target.value as PatchSettings['material'], application: undefined, edgeStyle: undefined, depth: undefined })}>
@@ -340,7 +340,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         <label className="flex items-center justify-between gap-2 text-xs text-white/60">Zip length
           <MaterialSelect aria-label="Zip length preset" value="" disabled={!bounds}
             onChange={event => { if (bounds && event.target.value) update(alignGarmentZip(selected, bounds, event.target.value as 'chest' | 'quarter' | 'half' | 'full')); }}
-            className="min-w-0 max-w-[65%] rounded border border-white/15 bg-[#202023] p-2 text-white">
+            className="min-w-0 max-w-[65%] rounded border border-white/15 bg-[#171717] p-2 text-white">
             <option value="">Custom</option><option value="chest">Short chest</option><option value="quarter">Long quarter</option><option value="half">Half length</option><option value="full">Full-body / centre-front</option>
           </MaterialSelect>
         </label>
@@ -364,7 +364,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         </label>}
         <label className="flex items-center justify-between gap-3 text-xs text-white/60">Pull orientation
           <MaterialSelect aria-label="Zip pull orientation" value={selected.zipPullSide ?? 'center'} onChange={event => update({ zipPullSide: event.target.value as GarmentDetail['zipPullSide'] })}
-            className="rounded border border-white/15 bg-[#202023] p-2 text-white"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></MaterialSelect>
+            className="rounded border border-white/15 bg-[#171717] p-2 text-white"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></MaterialSelect>
         </label>
       </div>}
 

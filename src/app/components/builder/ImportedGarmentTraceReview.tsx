@@ -53,7 +53,7 @@ export function GarmentInputTypeControl({ label = 'Input type', control, disable
   label?: string; control: ReturnType<typeof useGarmentInputType>; disabled?: boolean;
 }) {
   return <div className="space-y-1">
-    <label className="block">{label}<select aria-label={label} className="mt-1 w-full rounded border border-white/20 bg-[#202024] px-2 py-1.5 text-xs text-white"
+    <label className="block">{label}<select aria-label={label} className="mt-1 w-full rounded border border-white/20 bg-[#171717] px-2 py-1.5 text-xs text-white"
       value={control.type} disabled={disabled} onChange={event => control.choose(event.target.value as ImportedInputType)}>
       <option value="auto">Automatic detection</option>
       <option value="photo">Photo / reference (redraw)</option>
@@ -71,7 +71,7 @@ export function ImportedGarmentTraceReview({ preview, open, onOpenChange, traceO
     ['Source raster', preview.sourceRaster], [traceOnly ? 'Cleaned raster' : 'Clean technical redraw', preview.cleanedRaster],
     ['Keyed line art', preview.keyedRaster], ['Traced SVG', svgUrl], ['Overlay comparison', preview.overlayRaster],
   ];
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] max-w-6xl overflow-auto border-white/20 bg-[#171719] text-white">
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] max-w-6xl overflow-auto border-white/20 bg-[#171717] text-white">
     <DialogTitle>{traceOnly ? 'Trace-only source fidelity review' : 'Photo raster and SVG review'}</DialogTitle>
     <DialogDescription className="text-xs text-white/60">{traceOnly ? 'The original drawing is traced without redrawing or changing garment geometry.' : 'The photograph is analysed and redrawn by Azure as a clean technical flat before the shared tracing stage. Compare its construction with the original photo; the overlay checks the SVG against the technical redraw, not the photo.'} White is keyed with a smooth luminance ramp. The SVG keeps the raster pixel-size viewBox.</DialogDescription>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

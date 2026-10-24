@@ -1,3 +1,4 @@
+import './shell/studio-colour-picker.css';
 import { useEffect, useRef, useState, type ReactNode, type PointerEventHandler } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { normalizeHex6 } from '../../lib/colorUtils';
@@ -10,11 +11,11 @@ function clamp255(n: number) {
   return Math.max(0, Math.min(255, Math.round(n)));
 }
 
-export function PaintInput({ value, onChange, className, onPointerDown, allowGradients = false }: {
-  value: string; onChange: (event: { target: { value: string } }) => void; className?: string; onPointerDown?: PointerEventHandler<HTMLButtonElement>; allowGradients?: boolean;
+export function PaintInput({ value, onChange, className, onPointerDown, allowGradients = false, ariaLabel = 'Open colour picker' }: {
+  value: string; onChange: (event: { target: { value: string } }) => void; className?: string; onPointerDown?: PointerEventHandler<HTMLButtonElement>; allowGradients?: boolean; ariaLabel?:string;
 }) {
   return <AdvancedColorPopover value={value} allowGradients={allowGradients} onChange={color => onChange({ target: { value: color } })}>
-    <button type="button" aria-label="Open colour picker" title="Colour" className={className} onPointerDown={onPointerDown} style={{ background: allowGradients ? paintCss(value) : solidPaint(value) }} />
+    <button type="button" aria-label={ariaLabel} title="Colour" className={`studio-paint-trigger ${className??''}`} onPointerDown={onPointerDown} style={{ background: allowGradients ? paintCss(value) : solidPaint(value) }} />
   </AdvancedColorPopover>;
 }
 
@@ -103,14 +104,19 @@ export function AdvancedColorPopover({
   contentClassName?: string;
 }) {
   const [stopIndex, setStopIndex] = useState(0);
+  const [phone,setPhone]=useState(()=>window.innerWidth<768);
+  useEffect(()=>{const media=window.matchMedia('(max-width:767px)');const update=()=>setPhone(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update)},[]);
   const paint = allowGradients ? parsePaint(value) : null;
   const activeIndex = Math.min(stopIndex, (paint?.stops.length ?? 1) - 1);
   const hex = normalizeHex6(paint?.stops[activeIndex].color ?? solidPaint(value));
+  const [hexDraft,setHexDraft]=useState(hex);
+  useEffect(()=>setHexDraft(hex),[hex]);
   const picker = useRef<AbortController | null>(null);
   useEffect(() => () => picker.current?.abort(), []);
   const commitColor = (color: string) => {
     onChange(paint ? serializePaint({ ...paint, stops: paint.stops.map((stop, index) => index === activeIndex ? { ...stop, color } : stop) }) : color);
   };
+  const commitHex=()=>{const raw=hexDraft.trim().replace(/^#/,'');if(/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(raw)){const next='#'+(raw.length===3?[...raw].map(c=>c+c).join(''):raw).toUpperCase();commitColor(next);setHexDraft(next)}else setHexDraft(hex)};
   const patchPaint = (patch: Partial<GradientPaint>) => { if (paint) onChange(serializePaint({ ...paint, ...patch })); };
   const pickColor = async () => {
     picker.current?.abort();
@@ -167,45 +173,44 @@ export function AdvancedColorPopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent
-        align="start"
-        sideOffset={8}
-        className={
-          contentClassName ??
-          'w-[min(calc(100vw-2rem),260px)] border border-[#dce3ec] bg-white p-3 text-[#35414e] shadow-sm'
-        }
+        side={phone?'bottom':'right'}
+        align="center"
+        collisionPadding={12}
+        sideOffset={10}
+        className={`studio-colour-panel ${contentClassName??''}`}
+        aria-label="Colour picker"
       >
-        <div className="mb-3 flex items-center gap-2">
-          {allowGradients && <select aria-label="Paint type" value={paint?.kind ?? 'solid'} className="h-8 min-w-0 flex-1 rounded border border-[#dce3ec] bg-white px-2 text-xs" onChange={event => {
-            const kind = event.target.value;
+        <div className="studio-colour-heading"><strong>Colour</strong>
+          <button type="button" title="Sample canvas colour" aria-label="Sample canvas colour" onClick={pickColor} className="studio-eyedropper"><Pipette size={16} /></button>
+        </div>
+        {allowGradients&&<div className="studio-paint-types" role="group" aria-label="Paint type">{(['solid','linear','radial','conic'] as const).map(kind=><button key={kind} type="button" aria-label={`${kind[0].toUpperCase()+kind.slice(1)} paint`} aria-pressed={(paint?.kind??'solid')===kind} onClick={()=>{
             if (kind === 'solid') onChange(hex);
             else onChange(serializePaint(paint ? { ...paint, kind: kind as GradientPaint['kind'] } : { kind: kind as GradientPaint['kind'], angle: 90, x: .5, y: .5, stops: [{ color: hex, offset: 0 }, { color: hex === '#FFFFFF' ? '#CC2D24' : '#FFFFFF', offset: 1 }] }));
             setStopIndex(0);
-          }}><option value="solid">Solid</option><option value="linear">Linear</option><option value="radial">Radial</option><option value="conic">Conic</option></select>}
-          <button type="button" title="Sample canvas colour" aria-label="Sample canvas colour" onClick={pickColor} className="flex h-8 w-8 items-center justify-center rounded border border-[#dce3ec]"><Pipette size={16} /></button>
-        </div>
-        {paint && <div className="mb-3 space-y-3">
-          <div className="relative h-8 touch-none border border-[#dce3ec]" style={{ background: paintCss(value) }}>
-            {paint.stops.map((stop, index) => <button key={index} type="button" aria-label={`Gradient stop ${index + 1}`} aria-pressed={index === activeIndex} title={`Gradient stop ${index + 1}`} className={`absolute top-6 h-4 w-3 -translate-x-1/2 touch-none border-2 ${index === activeIndex ? 'border-red-500' : 'border-white'}`} style={{ left: `${stop.offset * 100}%`, background: stop.color }}
+}}><i data-paint-kind={kind} aria-hidden="true"/><span>{kind[0].toUpperCase()+kind.slice(1)}</span></button>)}</div>}
+        {paint && <div className="studio-gradient-controls">
+          <div className="studio-gradient-preview" style={{ background: paintCss(value) }}>
+            {paint.stops.map((stop, index) => <button key={index} type="button" aria-label={`Gradient stop ${index + 1}`} aria-pressed={index === activeIndex} title={`Gradient stop ${index + 1}`} className="studio-gradient-stop" style={{ left: `${stop.offset * 100}%`, background: stop.color }}
               onClick={() => setStopIndex(index)} onPointerDown={event => { setStopIndex(index); event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={event => {
                 if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
                 const rect = event.currentTarget.parentElement!.getBoundingClientRect();
                 patchPaint({ stops: paint.stops.map((entry, entryIndex) => entryIndex === index ? { ...entry, offset: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) } : entry) });
               }} onPointerUp={event => event.currentTarget.releasePointerCapture(event.pointerId)} />)}
           </div>
-          <div className="flex items-center gap-2 pt-1">
-            <input aria-label="Stop position" type="number" min={0} max={100} value={Math.round(paint.stops[activeIndex].offset * 100)} className="h-7 w-16 rounded border border-[#dce3ec] bg-white px-2 text-xs" onChange={event => patchPaint({ stops: paint.stops.map((stop, index) => index === activeIndex ? { ...stop, offset: Math.max(0, Math.min(100, Number(event.target.value))) / 100 } : stop) })} />
-            <button type="button" title="Add gradient stop" aria-label="Add gradient stop" disabled={paint.stops.length >= 16} onClick={() => { patchPaint({ stops: [...paint.stops, { color: hex, offset: .5 }] }); setStopIndex(paint.stops.length); }}><Plus size={16} /></button>
+          <div className="studio-gradient-actions"><span>Position</span>
+            <input aria-label="Stop position" type="number" min={0} max={100} value={Math.round(paint.stops[activeIndex].offset * 100)} className="h-7 w-16 rounded border border-[#e2e2e2] bg-white px-2 text-xs" onChange={event => patchPaint({ stops: paint.stops.map((stop, index) => index === activeIndex ? { ...stop, offset: Math.max(0, Math.min(100, Number(event.target.value))) / 100 } : stop) })} />
+            <small>%</small><button type="button" title="Add gradient stop" aria-label="Add gradient stop" disabled={paint.stops.length >= 16} onClick={() => { patchPaint({ stops: [...paint.stops, { color: hex, offset: .5 }] }); setStopIndex(paint.stops.length); }}><Plus size={16} /></button>
             <button type="button" title="Remove gradient stop" aria-label="Remove gradient stop" disabled={paint.stops.length <= 2} onClick={() => { patchPaint({ stops: paint.stops.filter((_, index) => index !== activeIndex) }); setStopIndex(0); }}><Trash2 size={16} /></button>
             <button type="button" title="Reverse gradient" aria-label="Reverse gradient" onClick={() => patchPaint({ stops: paint.stops.map(stop => ({ ...stop, offset: 1 - stop.offset })) })}><ArrowLeftRight size={16} /></button>
           </div>
-          {paint.kind !== 'radial' && <label className="flex items-center gap-2 text-xs">Angle<input aria-label="Gradient angle" type="range" min={0} max={360} value={paint.angle} className="min-w-0 flex-1" onChange={event => patchPaint({ angle: Number(event.target.value) })} /></label>}
-          {paint.kind !== 'linear' && <>{(['x', 'y'] as const).map(axis => <label key={axis} className="flex items-center gap-2 text-xs">{axis.toUpperCase()}<input aria-label={`Gradient centre ${axis}`} type="range" min={0} max={100} value={paint[axis] * 100} className="min-w-0 flex-1" onChange={event => patchPaint({ [axis]: Number(event.target.value) / 100 })} /></label>)}</>}
+          <div className="studio-gradient-values">{paint.kind!=='radial'&&<label><span>Angle</span><div><input aria-label="Gradient angle" type="number" min={0} max={360} value={paint.angle} onChange={event=>patchPaint({angle:Math.max(0,Math.min(360,Number(event.target.value)||0))})}/><small>°</small></div></label>}{paint.kind!=='linear'&&(['x','y'] as const).map(axis=><label key={axis}><span>Centre {axis.toUpperCase()}</span><div><input aria-label={`Gradient centre ${axis}`} type="number" min={0} max={100} value={Math.round(paint[axis]*100)} onChange={event=>patchPaint({[axis]:Math.max(0,Math.min(100,Number(event.target.value)||0))/100})}/><small>%</small></div></label>)}</div>
+
         </div>}
         <div className="relative touch-none">
           <div
             ref={svRef}
             role="presentation"
-            className="relative h-36 w-full cursor-crosshair overflow-hidden rounded-lg border border-[#252528]"
+            className="studio-colour-spectrum"
             style={{
               background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, rgba(255,255,255,0)), hsl(${Math.round(hue)}, 100%, 50%)`,
             }}
@@ -231,10 +236,10 @@ export function AdvancedColorPopover({
             }}
           />
           <div
-            className="pointer-events-none absolute h-3 w-3 rounded-full border-2 border-white shadow-md"
+            className="studio-colour-cursor"
             style={{
-              left: `${hsv.s * 100}%`,
-              top: `${(1 - hsv.v) * 100}%`,
+              left: `clamp(6px, ${hsv.s * 100}%, calc(100% - 6px))`,
+              top: `clamp(6px, ${(1 - hsv.v) * 100}%, calc(100% - 6px))`,
               transform: 'translate(-50%, -50%)',
             }}
           />
@@ -247,7 +252,7 @@ export function AdvancedColorPopover({
             step={1}
             value={Math.round(hue)}
             onChange={(e) => commitHsv({ h: Number(e.target.value) })}
-            className="h-2.5 w-full cursor-pointer appearance-none rounded-full accent-[#CC2D24]"
+            className="studio-hue-slider"
             style={{
               background:
                 'linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%)',
@@ -255,11 +260,8 @@ export function AdvancedColorPopover({
             aria-label="Hue"
           />
         </div>
-        <div className="mt-3">
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">RGB</span>
-            <span className="font-mono text-[10px] text-[#8192a8]">{hex}</span>
-          </div>
+        <div className="studio-colour-values">
+          <label className="studio-hex-field"><span>Hex</span><div><i aria-hidden="true" style={{background:hex}}/><input aria-label="Hex colour" value={hexDraft} maxLength={7} spellCheck={false} autoComplete="off" onChange={e=>setHexDraft(e.target.value)} onBlur={commitHex} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur()}}/></div></label>
           <div className="grid grid-cols-3 gap-2">
             {(
               [
@@ -268,9 +270,9 @@ export function AdvancedColorPopover({
                 ['B', 'b', rgb.b] as const,
               ]
             ).map(([label, key, channel]) => (
-              <div key={key}>
-                <label className="mb-1 block text-center text-[9px] font-medium text-[#8192a8]">{label}</label>
+              <label className="studio-rgb-field" key={key}><span>{label}</span>
                 <input
+                  aria-label={`Colour ${label}`}
                   type="number"
                   min={0}
                   max={255}
@@ -280,9 +282,9 @@ export function AdvancedColorPopover({
                     const next = { ...rgb, [key]: n };
                     commitRgb(next.r, next.g, next.b);
                   }}
-                  className="h-8 w-full rounded-lg border border-[#dce3ec] bg-black/50 px-1 text-center font-mono text-[11px] tabular-nums text-[#35414e] outline-none focus:border-[#CC2D24]/80 focus:ring-1 focus:ring-[#CC2D24]/35"
+                  className="studio-rgb-input"
                 />
-              </div>
+              </label>
             ))}
           </div>
         </div>

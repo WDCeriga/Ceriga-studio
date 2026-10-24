@@ -45,7 +45,15 @@ export function technicalBoundaryPaths(boundaries:BoundaryLoop[],stitchOnlyHems:
  // Join normal folded hems to their parent only for presentation linework.
  const groups=new Map<string,BoundaryLoop[]>();
  for(const loop of boundaries){const id=loop.surfaceId??'';const owner=stitchOnlyHems.includes(id)?id.replace('sleeveHem','sleeve').replace('underlayerHem','underSleeve').replace('bodyHem','base'):id;groups.set(owner,[...(groups.get(owner)??[]),loop]);}
- boundaries=[...groups].flatMap(([surfaceId,loops])=>{const originalIds=[...new Set(loops.map(l=>l.surfaceId))];if(originalIds.length<2)return loops;const parts=originalIds.map(id=>polygon(loops.filter(l=>l.surfaceId===id))).filter(p=>p.length);const merged=polygonClipping.union(parts[0],...parts.slice(1));return merged.flatMap((p,i)=>p.map((r,j)=>({id:surfaceId+i+':'+j,surfaceId,role:j?'hole' as const:'outer' as const,points:r.slice(0,-1).map(([x,y])=>({x,y}))})));});
+ boundaries=[...groups].flatMap(([surfaceId,loops])=>{const originalIds=[...new Set(loops.map(l=>l.surfaceId))];if(originalIds.length<2)return loops;// Traced body/hem joins can differ by a few thousandths of a viewBox unit.
+ // Snap only a hem's near-coincident vertices to its parent for presentation union.
+ const parents=loops.filter(loop=>loop.surfaceId===surfaceId);
+ const joined=loops.map(loop=>loop.surfaceId===surfaceId?loop:{...loop,points:loop.points.map(point=>{
+  let best=point,nearest=.05;
+  for(const parent of parents)for(let i=0;i<parent.points.length;i++){const candidate=projectToSegment(point,parent.points[i],parent.points[(i+1)%parent.points.length]).point,gap=distance(point,candidate);if(gap<nearest){best=candidate;nearest=gap;}}
+  return best;
+ })});
+ const parts=originalIds.map(id=>polygon(joined.filter(l=>l.surfaceId===id))).filter(p=>p.length);const merged=polygonClipping.union(parts[0],...parts.slice(1));return merged.flatMap((p,i)=>p.map((r,j)=>({id:surfaceId+i+':'+j,surfaceId,role:j?'hole' as const:'outer' as const,points:r.slice(0,-1).map(([x,y])=>({x,y}))})));});
  const ids=[...new Set(boundaries.map(b=>b.surfaceId))];
  const geometries=ids.map(id=>polygon(boundaries.filter(b=>b.surfaceId===id))).filter(g=>g.length);
  if(!geometries.length)return {outline:'',construction:'',maxDeviation:TECH_CURVE_TOLERANCE+TECH_OUTLINE_WIDTH/2};

@@ -1,16 +1,19 @@
+import { BrushTextureSelect } from './BrushTextureSelect';
+import { SliderValueInput } from '../SliderValueInput';
+import { MaterialSelect } from '../shell/MaterialSelect';
 import { useEffect, useId, useRef, useState } from 'react';
 import { brushPresetControls, renderBrushStroke, type BrushSettings } from '../../../lib/drawingBrush';
 import { BRUSH_TEXTURES, DEFAULT_TEXTURE_SETTINGS, loadBrushTexture, type BrushTexture } from '../../../lib/brushTextures';
 import { usePrintsStudio } from './PrintsStudioContext';
 import { Switch } from '../../ui/switch';
 
-const selectClass = 'h-9 w-full rounded-md border border-[#dce3ec] bg-white px-2 text-[11px] text-[#35414e]';
+const selectClass = 'h-9 w-full rounded-md border border-[#e2e2e2] bg-white px-2 text-[11px] text-[#262626]';
 
 function BrushSlider({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void }) {
   const id = useId();
   return <div className="space-y-1">
-    <label htmlFor={id} className="flex justify-between text-[11px] text-[#8192a8]"><span>{label}</span><span>{value}</span></label>
-    <input id={id} aria-label={label} type="range" min={min} max={max} step={step} value={value} onChange={event => onChange(Number(event.target.value))} className="w-full accent-[#405b6f]" />
+    <label htmlFor={id} className="flex justify-between text-[11px] text-[#737373]"><span>{label}</span><SliderValueInput label={label} value={value} onChange={onChange} min={min} max={max} step={step}/></label>
+    <input id={id} aria-label={label} type="range" min={min} max={max} step={step} value={value} onChange={event => onChange(Number(event.target.value))} className="w-full accent-[#262626]" />
   </div>;
 }
 
@@ -49,8 +52,8 @@ export function BrushPreview() {
     context.drawImage(ink, 0, 0);
     context.restore();
   }, [studio, textureReady]);
-  return <figure className="space-y-1 rounded-lg border border-[#dce3ec] p-2">
-    <figcaption className="text-[10px] uppercase text-[#8192a8]">Live brush preview</figcaption>
+  return <figure className="space-y-1 rounded-lg border border-[#e2e2e2] p-2">
+    <figcaption className="text-[10px] uppercase text-[#737373]">Live brush preview</figcaption>
     <canvas ref={ref} width={600} height={208} aria-label="Live brush preview" className="w-full rounded bg-white" />
   </figure>;
 }
@@ -59,14 +62,14 @@ export function BrushPresetControls() {
   const studio = usePrintsStudio();
   const controls = brushPresetControls(studio.brushPreset);
   return <div className="space-y-3">
-    {studio.brushPreset === 'distress-brush' && <label className="block space-y-1 text-[11px] text-[#8192a8]">
+    {studio.brushPreset === 'distress-brush' && <label className="block space-y-1 text-[11px] text-[#737373]">
       <span>Distress mode</span>
-      <select aria-label="Distress mode" className={selectClass} value={studio.distressMode ?? 'erase'} onChange={event => studio.patchBrush({ distressMode: event.target.value as 'paint' | 'erase' })}>
+      <MaterialSelect aria-label="Distress mode" className={selectClass} value={studio.distressMode ?? 'erase'} onChange={event => studio.patchBrush({ distressMode: event.target.value as 'paint' | 'erase' })}>
         <option value="erase">Remove from drawing layers</option><option value="paint">Paint worn marks</option>
-      </select>
+      </MaterialSelect>
     </label>}
     {controls.map(control => <BrushSlider key={control.key} label={control.label} value={Number(studio[control.key] ?? control.default)} min={control.min} max={control.max} step={control.step} onChange={value => studio.patchBrush({ [control.key]: value } as Partial<BrushSettings>)} />)}
-    {['distress-brush', 'drip-paint', 'graffiti-mop'].includes(studio.brushPreset) && <button type="button" className="w-full rounded border border-[#dce3ec] px-3 py-2 text-[11px] text-[#8192a8]" onClick={() => studio.patchBrush({ brushSeed: ((studio.brushSeed ?? 0) + 1) >>> 0 })}>Randomise brush</button>}
+    {['distress-brush', 'drip-paint', 'graffiti-mop'].includes(studio.brushPreset) && <button type="button" className="w-full rounded border border-[#e2e2e2] px-3 py-2 text-[11px] text-[#737373]" onClick={() => studio.patchBrush({ brushSeed: ((studio.brushSeed ?? 0) + 1) >>> 0 })}>Randomise brush</button>}
   </div>;
 }
 
@@ -106,14 +109,12 @@ export function BrushTextureControls() {
     ['textureDensity', 'Texture density', 0, 100], ['textureRotation', 'Texture rotation', 0, 360],
     ['textureContrast', 'Texture contrast / depth', 0, 100],
   ] as const;
-  return <div className="space-y-3 rounded-lg border border-[#dce3ec] p-3">
-    <label className="block space-y-1.5 text-[10px] font-medium uppercase text-[#8192a8]">
-      <span>Texture</span>
-      <select aria-label="Texture" value={studio.texture} onChange={event => studio.patchBrush({ texture: event.target.value as BrushTexture })} className={selectClass}>
-        {BRUSH_TEXTURES.map(texture => <option key={texture.id} value={texture.id}>{texture.label}</option>)}
-      </select>
+  return <div className="brush-texture-controls space-y-3">
+    <label className="block space-y-1.5 text-[11px] text-[#737373]">
+      <span>Brush texture</span>
+      <BrushTextureSelect value={studio.texture} source={studio.customTextureSource} onChange={texture=>studio.patchBrush({texture})}/>
     </label>
-    {studio.texture === 'custom' && <div className="space-y-2 text-[11px] text-[#8192a8]">
+    {studio.texture === 'custom' && <div className="space-y-2 text-[11px] text-[#737373]">
       <label htmlFor={uploadId}>Upload texture image</label>
       <input id={uploadId} type="file" accept="image/png,image/jpeg,image/webp" className="w-full text-[10px]" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }} />
       <p>{loading ? 'Preparing texture…' : studio.customTextureSource ? 'Custom mask ready. Dark areas remove more ink.' : 'Upload an image to use its light and dark areas as a grain mask.'}</p>
@@ -121,7 +122,7 @@ export function BrushTextureControls() {
     </div>}
     {studio.texture !== 'smooth' && <>
       {controls.map(([key, label, min, max]) => <BrushSlider key={key} label={label} value={studio[key] ?? DEFAULT_TEXTURE_SETTINGS[key]} min={min} max={max} onChange={value => studio.patchBrush({ [key]: value })} />)}
-      {studio.texture === 'custom' && <div className="flex items-center justify-between text-[11px] text-[#8192a8]"><span>Invert texture</span><Switch aria-label="Invert texture" checked={studio.textureInvert ?? false} onCheckedChange={textureInvert => studio.patchBrush({ textureInvert })} /></div>}
+      {studio.texture === 'custom' && <div className="flex items-center justify-between text-[11px] text-[#737373]"><span>Invert texture</span><Switch aria-label="Invert texture" checked={studio.textureInvert ?? false} onCheckedChange={textureInvert => studio.patchBrush({ textureInvert })} /></div>}
     </>}
   </div>;
 }

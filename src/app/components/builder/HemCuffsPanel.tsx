@@ -24,7 +24,7 @@ export function HemCuffsPanel({ regions, styles, selectedId, closeUp, fabricColo
   const compatible = selected ? regions.filter(region => region.adjustable === selected.adjustable && region.source === selected.source) : [];
   const constructionEnabled = Boolean(selected?.adjustable);
   const uploaded = selected?.source === 'uploaded';
-  const controlClass = 'w-full rounded border border-white/15 bg-[#202023] p-2 text-xs text-white';
+  const controlClass = 'w-full rounded border border-white/15 bg-[#171717] p-2 text-xs text-white';
   return <div className="space-y-4" data-hem-panel="">
     <label className="flex items-center justify-between gap-3 text-xs font-medium text-white">
       Apply to all hems

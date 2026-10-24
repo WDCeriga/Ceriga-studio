@@ -26,7 +26,7 @@ Run `npm run build` and `node scripts/verify-print-studio.mjs`. Browser checks c
 
 The initial layout reused too much of the old inspector. The revised interface separates creation from selection editing, with a persistent visual layer dock and an independent brush-tuning view. Everyday controls use shared, labelled fields and consistent selected states. The canvas owns direct actions; the inspector owns adjustment. Deeper controls are grouped by their purpose rather than collected into a default scrolling form.
 
-Ceriga principles used here: keep the garment visible; show visual choices before technical fields; give each task one obvious starting point; retain editing context; preserve editable sources; make advanced options discoverable without placing them ahead of the basics. Medium categories, actual stroke previews, saved brushes, real text presets, filtered pattern previews and artwork thumbnails support these principles. Create/Edit labels accompany icons. V/B/E select the canvas tools and F toggles focus, without intercepting typing in form fields.
+Ceriga principles used here: keep the garment visible; show visual choices before technical fields; give each task one obvious starting point; retain editing context; preserve editable sources; make advanced options discoverable without placing them ahead of the basics. Medium categories, actual stroke previews, saved brushes, real text presets, filtered pattern previews and artwork thumbnails support these principles. Create/Edit labels accompany icons. V/B/E select the canvas tools without intercepting typing in form fields.
 
 Behaviour checks include same-tool navigation after selecting artwork, committed numeric input, brush/settings navigation, selected text properties, category filtering, and layer access. Image filters, custom repeats, font imports and original advanced tools remain available in context.
 
@@ -51,3 +51,62 @@ Compared against `origin/prints-and-design` (`8635557`). The shared `PrintStudio
 The studio model remains intact in project state. Review descriptions and saved-project previews now read it, and saved previews use the same renderer for effects, patterns, paths and nested groups. An intentionally empty studio model never falls back to deleted legacy artwork. Recursive duplication creates fresh IDs throughout a group and does not share child objects.
 
 Verification: production build; brush/group/crop/model regression checks; browser checks for adding type, opening original advanced controls, duplicating/grouping/editing group sources and moving artwork between front and back. The tests do not certify every combination of inherited visual effects or printer output.
+
+## Draw & paint design pass
+
+The brush page now follows the same white/slate palette, compact fields and fine section dividers as Labels and Materials. The right inspector contains a two-column brush library, medium/search controls, one save-brush action, and a single closed Brush settings section. The redundant current-brush row and the focus/expand action were removed.
+
+The canvas groups Select/Draw/Erase, ink colour, symmetry and undo/redo into a small tool palette. Size and opacity appear together while drawing. These controls use the existing brush state and builder history; asset projects use their own existing workspace history. The top bar and canvas do not create separate undo stacks. Advanced stroke/texture/pen settings remain available on demand. Brush-family, distress-mode and texture menus reuse the site's MaterialSelect instead of browser-native menus.
+
+The shared colour popover uses light inputs, an editable hex field, RGB channels, a restrained eyedropper and a colour-aware hue thumb. It opens beside the tool on desktop and below it on phones to keep the panel inside the screen.
+
+Interaction references: [Canva's draw tool grouping](https://www.canva.com/help/draw-in-canva/) and [CLO's separation of graphic placement and properties](https://support.clo3d.com/hc/en-us/articles/360049969394-Graphic-Properties). Ceriga's existing components and garment-first canvas define the visual design.
+
+
+### Shapes & paths design pass
+
+Shapes now use the same compact studio layout as Draw & Paint. The visual library groups essentials, geometry, lines and curves, and symbols, with search across every shape and a separate custom-outline action. The selection inspector puts independent Fill and Outline toggles and colour first, with geometry and placement in compact disclosures. Fill-only objects hide inactive outline controls; exact dimensions, proportions, flips and rotation remain available. Existing effects and advanced geometry remain accessible in the advanced inspector.
+
+Canvas actions expose point editing, duplicate, delete and artwork undo/redo. While editing a preset shape's path, the point toolbar supplies curve/corner conversion, point deletion and Done without duplicating the Done action in the footer. Inner contours use the shared select menu. Slate anchors and handles match the rest of the builder. The point toolbar is centred and counter-scaled with a string CSS scale value so React does not append a pixel unit; tested inside the 390px phone canvas. Escape also cancels custom drawing before its first point.
+
+Browser checks covered appearance modes, editable dimensions with linked proportions, hex colour, a seven-point star producing fourteen anchors, curve handles, ring inner-contour selection, duplicate/delete and undo/redo, and desktop/phone layouts.
+
+
+### Neutral builder palette
+
+Builder chrome uses the shared `src/styles/builder-palette.css` tokens: near-black text and actions, neutral secondary text, grey focus/selection boundaries, and light grey surfaces and dividers. Tokens load through the global styles entry so portalled menus and builder previews outside the main shell also resolve them. Artwork, packaging, materials, construction, labels, sizing and review styles follow the same palette. Semantic status colours and garment/artwork colour data remain independent.
+
+Shape fill and outline are separate toggles. Enable both for a filled shape with an edge. Disabled outline controls are hidden and the previous nonzero width is restored when re-enabled. Turning off the only visible paint enables the other paint so the object stays visible and editable.
+
+
+### Refined shape geometry and canvas tools
+
+New shapes share `studioShapeDefaults` for both click placement and drag/drop. Profiles use purposeful proportions, a lighter two-pixel outline and versioned parametric geometry. New hearts/clouds have cleaner cubic contours, stars use regular radial geometry, arrows have slimmer shafts and rounded rectangles use physical corner radii. Exact cubic extrema fit new paths inside their selection bounds, including stroke; coincident rectangle vertices are merged so point editing exposes four useful corners. Legacy artwork and explicitly edited paths retain their saved geometry.
+
+The canvas rail provides Select, Draw, Points and quick Fill/Outline colour pickers. Colours applied from the rail enable the corresponding paint. Duplicate, delete and undo/redo remain grouped in one footer strip. Shape-specific guides have a thin unshaded box, square corner markers, small side markers, larger invisible interaction targets and a compact rotation grip. Point-edit anchors are square; curve controls appear only for selected anchors. The inspector resets its own scroll when changing selection or mode.
+
+Validation: all 29 new profiles produce deterministic finite paths within bounds, preserve inputs, retain inner contours and leave legacy/edited artwork unchanged. Browser checks cover point-to-curve conversion, canvas colour editing, corner dragging, rotation, cancellation of unfinished custom outlines and responsive canvas controls.
+
+
+### Layers presentation
+
+The artwork layer dock uses named previews, neutral selection rails and checkerboard thumbnail backgrounds. Shape names come from the asset library rather than a generic Shape label; duplicated rows keep that name. Visibility is available directly on each row. Duplicate, ordering, locking, moving sides, ungrouping and deletion live in a keyboard-accessible row menu instead of a detached footer. Multi-select checkboxes and Group/Merge actions appear only in explicit multi-select mode. Drag ordering and menu-based ordering remain available; ungrouping clears a removed group selection.
+
+Browser validation covered visibility, lock/unlock, named duplication, stack ordering, explicit multi-selection, grouping, ungrouping and deletion. Shared artwork and shape regressions remain passing.
+
+
+### Advanced editing simplification
+
+Modern shape and custom-outline selection uses a focused Effects & finish editor instead of exposing the legacy inspector a second time. Geometry, colour, naming, opacity, placement and layer actions remain in their primary locations. Individual corner fields and a geometry reset are retained in Shape geometry. Advanced tools retain all ten warp presets, perspective, freeform mesh density, distortion values, resets, printing methods, uploaded effect sources and saved effect stacks.
+
+Shared shape/text effects use categories and search, initially showing six popular choices. Choosing an effect closes the library to focus on its settings; adding another effect reopens it. Applied effects use compact row menus. Strength combines an exact percentage with Subtle/Balanced/Strong presets. Colour fields use the studio picker, small option sets use segmented buttons, angles/depth/counts use exact numeric fields, and continuous surface amounts retain sliders. Gradient-stop positions are editable numbers. Decimal precision follows each effect's step. Reshape uses visual preset diagrams, a main bend slider and paired distortion fields; mesh density uses direct choices. Selected layer rows use a flat neutral highlight without a card frame or dark side rail.
+
+Browser checks covered duplicate/hide/show/remove effect actions, strength presets, numeric depth, edge styles, gradient colour/stop edits, sixteen-point meshes, preset/freeform switching back to nine points, warp reset and print-finish selection. Existing artwork and shape regressions remain passing.
+
+### Colour, production workflow and canvas clarity
+
+Artwork colour controls share the neutral studio picker, including visual Solid/Linear/Radial/Conic choices, editable HEX/RGB values and numeric gradient coordinates. Print method is the first expanded section for garment artwork. Shape editing proceeds through Shape & size, Appearance, Position & rotation, then Effects & reshape. Standalone assets omit manufacturing controls.
+
+Custom outline drawing uses square anchors, a solid committed outline and a dashed cursor preview. Warp uses a neutral contrast grid with seven-pixel square handles and larger invisible hit areas. Arrow keys nudge a mesh point by one display pixel, or ten with Shift. A fresh freeform mesh starts without deformation; untouched meshes bypass triangle resampling. Mesh clips overlap slightly to avoid raster cracks. Perspective handles use the same restrained visual language. Effects and nested reshape sections share the main accordion typography and chevrons.
+
+The artwork garment uses native layout zoom without the extra artwork-only enlargement. Undistorted artwork avoids an identity 3D transform. Effect and warp captures account for display scale and pixel density, bounded by 4096 pixels per side and eight megapixels. Resolution budgets and existing shape/brush migration regressions have automated checks.

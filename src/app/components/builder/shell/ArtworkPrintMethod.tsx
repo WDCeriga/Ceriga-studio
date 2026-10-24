@@ -1,0 +1,5 @@
+import type {DesignElement} from '../PrintStudioEditor';
+import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
+import {StudioFold} from './StudioControls';
+const METHODS=[['DTG','Direct to garment'],['DTF','Transfer film'],['Screen Print','Mesh printed ink'],['Embroidery','Stitched thread'],['Puff Print','Raised print'],['Heat Transfer','Vinyl or film']];
+export function ArtworkPrintMethod({element,update}:{element:DesignElement;update:(patch:Partial<DesignElement>)=>void}){const workspace=useAssetWorkspaceContext();if(workspace?.project||element.type==='distress')return null;return <StudioFold title="Print method" hint={element.printMethod??'DTG'} open><p className="print-method-help">How this artwork will be produced.</p><div className="advanced-finish-grid">{METHODS.map(([method,hint])=><button key={method} disabled={element.locked} aria-pressed={(element.printMethod??'DTG')===method} onClick={()=>update({printMethod:method})}><strong>{method}</strong><small>{hint}</small></button>)}</div></StudioFold>}

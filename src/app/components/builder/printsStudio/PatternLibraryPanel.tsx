@@ -56,13 +56,13 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
     if (selected && (patterned || selected.type === 'customArea')) onChange({ ...changePatternType(selected, 'custom'), ...settings });
     else onPlace('custom', { ...initialPatternSettings('custom', color), ...settings });
   };
-  const buttonClass = 'rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2 py-2 text-[11px] text-[#8192a8] hover:bg-[#eef2f5] disabled:opacity-40';
+  const buttonClass = 'rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2 py-2 text-[11px] text-[#737373] hover:bg-[#f2f2f2] disabled:opacity-40';
   return <div className="space-y-4" data-pattern-library>
-    <p className="text-[10px] leading-relaxed text-[#8192a8]">Choose a style or drag its preview onto a garment part or closed Custom Area. Select a pattern to edit it.</p>
-    {!customOnly&&<details open className="space-y-3"><summary className="cursor-pointer text-xs font-semibold text-[#8192a8]">Pattern styles</summary>
+    <p className="text-[10px] leading-relaxed text-[#737373]">Choose a style or drag its preview onto a garment part or closed Custom Area. Select a pattern to edit it.</p>
+    {!customOnly&&<details open className="space-y-3"><summary className="cursor-pointer text-xs font-semibold text-[#737373]">Pattern styles</summary>
     {PATTERN_CATALOG.filter(item => item.id !== 'custom').reduce<string[]>((categories, item) => categories.includes(item.category) ? categories : [...categories, item.category], []).map(category =>
       <section key={category} className="space-y-2">
-        <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#8192a8]">{category}</h4>
+        <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">{category}</h4>
         <div className="grid grid-cols-3 gap-1.5">
           {PATTERN_CATALOG.filter(item => item.category === category && item.id !== 'custom').map(item => {
             const settings = initialPatternSettings(item.id, color);
@@ -70,8 +70,8 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
             return <button key={item.id} type="button" draggable={!locked} disabled={locked} aria-label={item.label} data-pattern-card={item.id} aria-pressed={kind === item.id}
               onDragStart={event => drag(event, item.id, kind === item.id && selected ? selected : { ...settings, patternSeed: 1729 })}
               onClick={() => { setCustomOpen(false); if (selected && (patterned || selected.type === 'customArea')) onChange(changePatternType(selected, item.id)); else onPlace(item.id, settings); }}
-              className={`overflow-hidden rounded-lg border text-[9px] leading-tight text-[#8192a8] ${kind === item.id ? 'border-[#405b6f] bg-[#405b6f]/15' : 'border-[#dce3ec] bg-[#f6f8f9] hover:border-[#dce3ec]'} disabled:opacity-40`}>
-              <div className="h-14 w-full bg-[#343437] p-1"><PatternGraphic element={preview} /></div>
+              className={`overflow-hidden rounded-lg border text-[9px] leading-tight text-[#737373] ${kind === item.id ? 'border-[#262626] bg-[#262626]/15' : 'border-[#e2e2e2] bg-[#fafafa] hover:border-[#e2e2e2]'} disabled:opacity-40`}>
+              <div className="h-14 w-full bg-[#262626] p-1"><PatternGraphic element={preview} /></div>
               <span className="flex min-h-8 items-center justify-center px-1 py-1">{item.label}</span>
             </button>;
           })}
@@ -79,8 +79,8 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
       </section>)}
     </details>}
     <button type="button" className={`${buttonClass} w-full`} aria-expanded={customOpen || custom} onClick={() => setCustomOpen(value => !value)}>Custom Pattern</button>
-    {(customOpen || custom) && <section className="space-y-3 rounded-lg border border-[#dce3ec] p-3" aria-label="Custom Pattern source">
-      <p className="text-[10px] text-[#8192a8]">Choose an image, saved asset (including Asset Builder), or design layer. The original stays unchanged; the repeat uses an editable source snapshot.</p>
+    {(customOpen || custom) && <section className="space-y-3 rounded-lg border border-[#e2e2e2] p-3" aria-label="Custom Pattern source">
+      <p className="text-[10px] text-[#737373]">Choose an image, saved asset (including Asset Builder), or design layer. The original stays unchanged; the repeat uses an editable source snapshot.</p>
       <label className={`${buttonClass} block cursor-pointer text-center`}>Upload pattern image
         <input type="file" accept="image/*" aria-label="Upload pattern image" className="sr-only" disabled={busy || locked} onChange={event => {
           const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
@@ -91,36 +91,36 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
           });
         }} />
       </label>
-      <label className="block space-y-1 text-[10px] text-[#8192a8]">Uploaded images
-        <select aria-label="Pattern uploaded image" value="" disabled={busy || locked || !uploads.length} className={`${buttonClass} w-full bg-[#171719]`} onChange={event => { const item = uploads.find(upload => upload.id === event.target.value); if (item) void load(() => sourceFromImage(item.dataUrl, item.name)); }}>
+      <label className="block space-y-1 text-[10px] text-[#737373]">Uploaded images
+        <select aria-label="Pattern uploaded image" value="" disabled={busy || locked || !uploads.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = uploads.find(upload => upload.id === event.target.value); if (item) void load(() => sourceFromImage(item.dataUrl, item.name)); }}>
           <option value="">Select uploaded image</option>{uploads.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </label>
-      <label className="block space-y-1 text-[10px] text-[#8192a8]">My Assets / Asset Builder
-        <select aria-label="Pattern saved asset" value="" disabled={busy || locked || !workspace?.library.length} className={`${buttonClass} w-full bg-[#171719]`} onChange={event => { const item = workspace?.library.find(asset => asset.id === event.target.value); if (item) void load(() => sourceFromImage(item.preview, item.name)); }}>
+      <label className="block space-y-1 text-[10px] text-[#737373]">My Assets / Asset Builder
+        <select aria-label="Pattern saved asset" value="" disabled={busy || locked || !workspace?.library.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = workspace?.library.find(asset => asset.id === event.target.value); if (item) void load(() => sourceFromImage(item.preview, item.name)); }}>
           <option value="">Select saved asset</option>{workspace?.library.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </label>
-      <label className="block space-y-1 text-[10px] text-[#8192a8]">Design layer
-        <select aria-label="Pattern design layer" value="" disabled={busy || locked || !layers.length || !onCaptureLayer} className={`${buttonClass} w-full bg-[#171719]`} onChange={event => { if (onCaptureLayer && event.target.value) { const id = event.target.value; void load(() => onCaptureLayer(id)); } }}>
+      <label className="block space-y-1 text-[10px] text-[#737373]">Design layer
+        <select aria-label="Pattern design layer" value="" disabled={busy || locked || !layers.length || !onCaptureLayer} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { if (onCaptureLayer && event.target.value) { const id = event.target.value; void load(() => onCaptureLayer(id)); } }}>
           <option value="">Select graphic layer</option>{layers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </label>
-      {busy && <p role="status" className="text-xs text-[#8192a8]">Preparing source…</p>}
+      {busy && <p role="status" className="text-xs text-[#737373]">Preparing source…</p>}
       {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
-      {(source || selected?.patternSource) && <div className="flex items-center gap-2 text-[10px] text-[#8192a8]">
-        <img src={source?.src ?? selected?.patternSource} className="h-12 w-12 rounded bg-[#eef2f5] object-contain" alt="Pattern source" />
+      {(source || selected?.patternSource) && <div className="flex items-center gap-2 text-[10px] text-[#737373]">
+        <img src={source?.src ?? selected?.patternSource} className="h-12 w-12 rounded bg-[#f2f2f2] object-contain" alt="Pattern source" />
         <span className="break-all">{source?.name ?? selected?.patternSourceName ?? 'Custom image'}</span>
       </div>}
       <button type="button" disabled={!source || busy || locked} onClick={create} className={`${buttonClass} w-full`}>{custom ? 'Replace pattern source' : 'Create Pattern'}</button>
     </section>}
-    {patterned && selected && <section className="space-y-3 border-t border-[#dce3ec] pt-3">
-      <h4 className="text-[10px] font-semibold uppercase text-[#8192a8]">Selected pattern</h4>
+    {patterned && selected && <section className="space-y-3 border-t border-[#e2e2e2] pt-3">
+      <h4 className="text-[10px] font-semibold uppercase text-[#737373]">Selected pattern</h4>
       <div draggable={!selected.locked && (!custom || !!selected.patternSource)} onDragStart={event => drag(event, kind!, selected)}
-        data-configured-pattern={kind} role="img" aria-label={`Drag configured ${patternDefinition(kind!)?.label ?? kind} pattern`} className="h-24 cursor-grab overflow-hidden rounded-lg border border-[#dce3ec] bg-[#343437]">
+        data-configured-pattern={kind} role="img" aria-label={`Drag configured ${patternDefinition(kind!)?.label ?? kind} pattern`} className="h-24 cursor-grab overflow-hidden rounded-lg border border-[#e2e2e2] bg-[#262626]">
         <PatternGraphic element={selected} />
       </div>
-      <p className="text-[10px] text-[#8192a8]">Drag this preview to copy all settings onto another part.</p>
+      <p className="text-[10px] text-[#737373]">Drag this preview to copy all settings onto another part.</p>
       <PatternControls element={selected} onChange={patch => { if (!selected.locked) onChange(patch); }} />
       <button type="button" disabled={selected.locked || (custom && !selected.patternSource)} className={`${buttonClass} w-full`} onClick={() => onPlace(kind!, selected)}>Add another pattern layer</button>
     </section>}

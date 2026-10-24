@@ -135,14 +135,14 @@ export function AdvancedColorPopover({
         sideOffset={8}
         className={
           contentClassName ??
-          'w-[min(calc(100vw-2rem),260px)] border border-white/12 bg-[#121212] p-3 text-white shadow-xl'
+          'w-[min(calc(100vw-2rem),260px)] border border-white/12 bg-[#171717] p-3 text-white shadow-xl'
         }
       >
         <div className="relative touch-none">
           <div
             ref={svRef}
             role="presentation"
-            className="relative h-36 w-full cursor-crosshair overflow-hidden rounded-lg border border-[#252528]"
+            className="relative h-36 w-full cursor-crosshair overflow-hidden rounded-lg border border-[#171717]"
             style={{
               background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, rgba(255,255,255,0)), hsl(${Math.round(hue)}, 100%, 50%)`,
             }}

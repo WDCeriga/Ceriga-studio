@@ -2,6 +2,7 @@ import {build} from 'esbuild';
 import {spawnSync} from 'node:child_process';
 const result=await build({stdin:{contents:`
 import assert from 'node:assert/strict';
+import {technicalBoundaryPaths} from './src/app/features/panelling/TechnicalLinework';
 import {resolveHemSettings,updateHemSettings,copyHemSettings} from './src/app/data/tshirtHemStyles';
 let checks=0;const check=(ok:boolean,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label)};
 const ids=['bodyHem','sleeveHemLeft','sleeveHemRight'];
@@ -18,6 +19,15 @@ check(resolveHemSettings(copied,'sleeveHemLeft').stitchStyle==='double','Copy in
 check(resolveHemSettings(copied,'sleeveHemRight').construction===undefined,'Copy preserves untargeted cuff construction');
 const linked=updateHemSettings({...copied,editing:{...copied.editing,applyAll:true}},ids,'bodyHem',{construction:'raw',finish:'none'});
 check(ids.every(id=>resolveHemSettings(linked,id).finish==='none'),'Linked raw finish updates all chosen hems');
+const body={id:'body',surfaceId:'base',role:'outer' as const,points:[{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}]};
+const hem=(gap:number)=>({id:'hem',surfaceId:'bodyHem',role:'outer' as const,points:[{x:0,y:100+gap},{x:100,y:100+gap},{x:100,y:120},{x:0,y:120}]});
+const original=JSON.stringify(body);
+const touching=technicalBoundaryPaths([body,hem(0)],['bodyHem']);
+const traced=technicalBoundaryPaths([body,hem(.003)],['bodyHem']);
+check(traced.outline===touching.outline,'Subpixel body/hem tracing gaps do not create a second black outline');
+check(traced.construction==='','Folded body hem has no internal construction line');
+check((technicalBoundaryPaths([body,hem(1)],['bodyHem']).outline.match(/M/g)??[]).length===2,'Genuine separated geometry is retained');
+check(JSON.stringify(body)===original,'Hem linework repair leaves garment and measurement geometry unchanged');
 console.log(checks+' hem construction regression checks passed.');
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,logLevel:'silent'});
 const {writeFile}=await import('node:fs/promises');

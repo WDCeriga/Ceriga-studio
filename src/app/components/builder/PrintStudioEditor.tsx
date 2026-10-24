@@ -1,3 +1,6 @@
+import {ShapeAdvancedEditor} from './shell/ShapeAdvancedEditor';
+import { studioShapeDefaults } from '../../lib/studioShapePresets';
+import { SliderValueInput } from './SliderValueInput';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ComponentProps } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { textCurveRadius, updateTextCurve, type TextCurvePatch } from '../../lib/textCurveControls';
@@ -580,7 +583,7 @@ function zoneScaleFactor(zone: HTMLElement): number {
 
 export type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w';
 
-const HANDLE_RED = '#405b6f';
+const HANDLE_RED = '#262626';
 
 export type PrintManip =
   | {
@@ -616,6 +619,7 @@ export function PrintTransformOverlay({
   /** Phone + text: only corner scale + right-edge width (no rotate, other edges, or extra corners). */
   phoneTextMinimal = false,
   tight = false,
+  shapeChrome = false,
 }: {
   onRotatePointerDown: (e: React.PointerEvent) => void;
   onResizePointerDown: (e: React.PointerEvent, h: ResizeHandle) => void;
@@ -624,12 +628,15 @@ export function PrintTransformOverlay({
   compactHandles?: boolean;
   phoneTextMinimal?: boolean;
   tight?: boolean;
+  shapeChrome?: boolean;
 }) {
   const inv = !tight && uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
   const invStyle =
     inv === 1
       ? undefined
       : ({ transform: `scale(${inv})`, transformOrigin: '50% 50%' } as const);
+
+  if(shapeChrome){const scale=String(uiInverseScale>0?uiInverseScale:1);return <div data-handles data-shape-transform className="shape-transform-guide pointer-events-none absolute inset-0 z-50"><div className="shape-transform-bounds"/>{(['nw','n','ne','e','se','s','sw','w'] as ResizeHandle[]).map(h=>{const x=h.includes('w')?0:h.includes('e')?100:50,y=h.includes('n')?0:h.includes('s')?100:50;return <button key={h} aria-label={h.length===2?`Resize ${h.toUpperCase()} — scale`:`Stretch ${h==='n'||h==='s'?'height':'width'} — ${ {n:'north',s:'south',e:'east',w:'west'}[h]}`} className="shape-transform-handle" data-edge={h.length===1} style={{left:x+'%',top:y+'%',transform:`translate(-50%,-50%) scale(${scale})`,cursor:h==='n'||h==='s'?'ns-resize':h==='e'||h==='w'?'ew-resize':h==='nw'||h==='se'?'nwse-resize':'nesw-resize'}} onPointerDown={e=>onResizePointerDown(e,h)}/>})}<span className="shape-rotation-stem" style={{height:10*Number(scale)}}/><button aria-label="Rotate" className="shape-rotation-handle" style={{top:`calc(100% + ${22*Number(scale)}px)`,transform:`translate(-50%,-50%) scale(${scale})`}} onPointerDown={onRotatePointerDown}><RotateCw size={12}/></button></div>}
 
   if (phoneTextMinimal) {
     return (
@@ -639,7 +646,7 @@ export function PrintTransformOverlay({
         style={invStyle}
       >
         <div
-          className="pointer-events-none absolute rounded-md border-2 bg-gradient-to-b from-[#405b6f]/10 to-transparent"
+          className="pointer-events-none absolute rounded-md border-2 bg-gradient-to-b from-[#262626]/10 to-transparent"
           style={{ borderColor: `${HANDLE_RED}cc`, inset: tight ? 0 : '-1px', borderRadius: tight ? 0 : undefined }}
         />
         <button
@@ -661,7 +668,7 @@ export function PrintTransformOverlay({
   const large = comfortableTouch && !compactHandles;
   const dot = cn(
     /** `pointer-events-auto`: parent `data-handles` uses `pointer-events-none` so handles stay above the inline toolbar without stealing clicks from the pill. */
-    'pointer-events-auto absolute z-[60] flex touch-none items-center justify-center rounded-full before:absolute before:rounded-full before:border before:border-[#405b6f] before:bg-white active:scale-95',
+    'pointer-events-auto absolute z-[60] flex touch-none items-center justify-center rounded-full before:absolute before:rounded-full before:border before:border-[#262626] before:bg-white active:scale-95',
     compactHandles ? 'h-2.5 w-2.5 before:inset-0.5' : large ? 'h-5 w-5 before:inset-1' : 'h-3.5 w-3.5 before:inset-[3px]',
   );
   /** Single red ring (border only) — avoid border + box-shadow or duplicate rings on mobile. */
@@ -679,7 +686,7 @@ export function PrintTransformOverlay({
     >
       <div
         className={cn(
-          'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#405b6f]/12 to-transparent',
+          'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#262626]/12 to-transparent',
           off.box,
         )}
         style={{ borderColor: `${HANDLE_RED}aa`, inset: tight ? 0 : undefined, borderRadius: tight ? 0 : undefined }}
@@ -792,7 +799,7 @@ export function PrintTransformOverlay({
         type="button"
         aria-label="Rotate"
         className={cn(
-          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-white text-[#405b6f] shadow-lg active:scale-95',
+          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-white text-[#262626] shadow-lg active:scale-95',
           off.rot,
         )}
         style={{ borderColor: HANDLE_RED }}
@@ -815,7 +822,7 @@ export function PrintPanel({
 }) {
   return (
     <div data-print-panel={title.startsWith("Layers") ? "layers" : "properties"} className={cn('print-property-section', className)}>
-      <div className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8192a8]">
+      <div className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#737373]">
         {title}
       </div>
       {children}
@@ -845,11 +852,11 @@ function SliderField({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">{label}</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">{label}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold tabular-nums text-[#8192a8]">{value}{suffix}</span>
+          <SliderValueInput label={label} value={value} onChange={onChange} min={min} max={max} step={step} unit={suffix}/>
           {onReset && <button type="button" aria-label={`Reset ${label}`} title={`Reset ${label}`}
-            onClick={onReset} className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]">
+            onClick={onReset} className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[#737373] hover:bg-[#f2f2f2] hover:text-[#262626]">
             <RotateCcw className="h-3 w-3" />
           </button>}
         </div>
@@ -863,7 +870,7 @@ function SliderField({
         value={value}
         onDoubleClick={onReset}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer accent-[#405b6f] disabled:opacity-40"
+        className="h-2 w-full cursor-pointer accent-[#262626] disabled:opacity-40"
       />
     </div>
   );
@@ -888,11 +895,11 @@ export function SidebarNumberField({
   }, [value]);
   return (
     <label className="flex min-w-0 flex-col gap-1">
-      <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8192a8]">
+      <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#737373]">
         {label}
       </span>
       <div
-        className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2.5 transition-colors focus-within:border-[#405b6f]/55 focus-within:bg-[#f6f8f9]"
+        className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2.5 transition-colors focus-within:border-[#262626]/55 focus-within:bg-[#fafafa]"
         /* `min-w-0` on the label + this row + `shrink-0` on the unit keeps the
          *  suffix inside the field in a 2-col grid. Without it, `type="number"`
          *  (often end-aligned) + flex-1 can push `px` into the column gutter. */
@@ -910,9 +917,9 @@ export function SidebarNumberField({
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
-          className="min-w-0 flex-1 bg-transparent text-left text-[11px] font-semibold tabular-nums text-[#35414e] outline-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="min-w-0 flex-1 bg-transparent text-left text-[11px] font-semibold tabular-nums text-[#262626] outline-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
-        <span className="shrink-0 text-[9px] font-medium tabular-nums leading-none text-[#8192a8]">
+        <span className="shrink-0 text-[9px] font-medium tabular-nums leading-none text-[#737373]">
           {suffix}
         </span>
       </div>
@@ -1252,7 +1259,8 @@ export function PrintsDesignStep({
       height: size.height,
       rotation: 0,
       color: studio.color,
-      borderWidth: kind === 'shape' ? 4 : 0,
+      borderWidth: 0,
+      ...(kind === 'shape' ? studioShapeDefaults(id) : {}),
       opacity: 100,
       locked: false,
       printMethod: kind === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
@@ -1442,9 +1450,9 @@ export function PrintsDesignStep({
       />}</div>
 
       {selected ? (
-        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary>{selected.type==='text'?'Curves, outlines & advanced type':selected.type==='image'?'Adjustments, crop & distortion':'Effects & advanced editing'}</summary>{advancedSelectionOpen&&<PrintPanel title="Selected element">
+        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary><span>{selected.type==='text'?'Advanced type':selected.type==='image'?'Image adjustments':selected.type==='shape'||selected.type==='customArea'?'Effects & reshape':'Effects & advanced editing'}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m6 9 6 6 6-6"/></svg></summary>{advancedSelectionOpen&&(renderSelection&&(selected.type==='shape'||selected.type==='customArea')?<ShapeAdvancedEditor element={selected} update={updateSelected} assetMode={assetMode} images={[...elements.filter(item=>item.type==='image').map(item=>({name:item.layerName??'Uploaded image',src:item.content})),...previousUploads.map(item=>({name:item.name,src:item.dataUrl})),...(assetWorkspace?.library??[]).map(item=>({name:item.name,src:item.preview}))]}/>:<PrintPanel title="Selected element">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <span className="text-[10px] text-[#8192a8]">
+            <span className="text-[10px] text-[#737373]">
               {selected.type === 'image'
                 ? 'Image'
                 : selected.type === 'drawing'
@@ -1464,7 +1472,7 @@ export function PrintsDesignStep({
             <Button
               onClick={deleteSelected}
               variant="outline"
-              className="h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+              className="h-8 border-[#e2e2e2] px-2.5 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
             >
               <Trash2 className="mr-1 h-3 w-3" />
               Delete
@@ -1472,13 +1480,13 @@ export function PrintsDesignStep({
           </div>
 
           <div className="print-object-properties space-y-5">
-            <label className="block space-y-2 text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">
+            <label className="block space-y-2 text-[10px] font-medium uppercase tracking-wider text-[#737373]">
               Layer name
               <Input aria-label="Layer name" maxLength={120} value={selected.layerName ?? ''} placeholder={selected.type === 'text' ? selected.content : selected.type} onChange={event => updateSelected({ layerName: event.target.value || undefined })} />
             </label>
             {selected.type === 'shape' && <>
               <ShapePropertiesPanel element={selected} onChange={updateSelected} />
-              <div className="space-y-2 rounded-xl border border-[#dce3ec] p-3">
+              <div className="space-y-2 rounded-xl border border-[#e2e2e2] p-3">
                 <Button type="button" disabled={selected.locked} aria-pressed={studio.pathEditingId === selected.id}
                   onClick={() => {
                     if (studio.pathEditingId === selected.id) { studio.setPathEditingId(null); return; }
@@ -1488,7 +1496,7 @@ export function PrintsDesignStep({
                   }} className="h-8 text-[10px]">
                   {studio.pathEditingId === selected.id ? 'Done Editing Path' : selected.shapePath ? 'Edit Path' : 'Convert to Editable Path'}
                 </Button>
-                <p className="text-[10px] text-[#8192a8]">Shift-click anchors to select several. Drag anchors or curve handles. Double-click a segment to add a point. Delete removes selected points. Escape exits.</p>
+                <p className="text-[10px] text-[#737373]">Shift-click anchors to select several. Drag anchors or curve handles. Double-click a segment to add a point. Delete removes selected points. Escape exits.</p>
               </div>
               <ShapeEffectsPanel element={selected} onChange={updateSelected}
                 images={[
@@ -1500,42 +1508,42 @@ export function PrintsDesignStep({
             {canFillShape(selected) ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Solid fill</span>
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">Solid fill</span>
                   <Button type="button" variant="outline" size="sm" aria-label="Solid fill"
                     aria-pressed={selected.shapeFilled ?? false} disabled={selected.locked}
                     onClick={() => updateSelected({ shapeFilled: !selected.shapeFilled })}
-                    className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]">
+                    className="h-7 border-[#e2e2e2] px-2 text-[9px] !text-[#262626] hover:bg-[#f2f2f2]">
                     {selected.shapeFilled ? 'On' : 'Off'}
                   </Button>
                 </div>
-                <p className="text-[10px] text-[#8192a8]">Fill the inside using the shape colour.</p>
+                <p className="text-[10px] text-[#737373]">Fill the inside using the shape colour.</p>
               </div>
             ) : null}
             {selected.type === 'customArea' ? (
-              <div className="space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
-                <Label className="block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+              <div className="space-y-3 rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
+                <Label className="block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                   Custom Area Properties
                 </Label>
                 <Input aria-label="Custom Area name" value={selected.customAreaName ?? 'Custom Area'}
                   onChange={(event) => updateSelected({ customAreaName: event.target.value })}
-                  className="h-9 border-[#dce3ec] bg-[#f6f8f9] text-[11px] text-[#35414e]" />
+                  className="h-9 border-[#e2e2e2] bg-[#fafafa] text-[11px] text-[#262626]" />
                 <div>
-                  <Label className="mb-2 block text-[9px] font-semibold uppercase tracking-wide text-[#8192a8]">Fill</Label>
+                  <Label className="mb-2 block text-[9px] font-semibold uppercase tracking-wide text-[#737373]">Fill</Label>
                   <StudioColorField allowGradients value={selected.color ?? '#E53935'}
                     onChange={(color) => updateSelected({ color, customAreaPattern: undefined, customAreaImage: undefined, customAreaTexture: undefined })}
                     mainColors={STUDIO_TEXT_MAIN_COLORS} popularColors={STUDIO_TEXT_POPULAR_COLORS}
                     mainLabel="Area fill" popularLabel="Quick colours" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-semibold uppercase tracking-wide text-[#8192a8]" htmlFor="custom-area-pattern">Pattern fill</label>
+                  <label className="text-[9px] font-semibold uppercase tracking-wide text-[#737373]" htmlFor="custom-area-pattern">Pattern fill</label>
                   <select id="custom-area-pattern" aria-label="Custom Area pattern"
                     value={selected.customAreaPattern ?? 'none'}
                     onChange={(event) => { updateSelected(event.target.value === 'none' ? { customAreaPattern: undefined } : changePatternType(selected, event.target.value)); if (event.target.value === 'custom') studio.setPanel('patterns'); }}
-                    className="h-9 w-full rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2 text-[11px] text-[#35414e]">
+                    className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2 text-[11px] text-[#262626]">
                     <option value="none">None</option>{PATTERN_CATALOG.map(pattern => <option key={pattern.id} value={pattern.id}>{pattern.label}</option>)}
                   </select>
                 </div>
-                <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#dce3ec] bg-[#f6f8f9] text-[10px] font-semibold text-[#8192a8] hover:text-[#35414e]">
+                <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#e2e2e2] bg-[#fafafa] text-[10px] font-semibold text-[#737373] hover:text-[#262626]">
                   <ImagePlus className="h-3.5 w-3.5" />
                   {selected.customAreaImage ? 'Replace image fill' : 'Add image fill'}
                   <input aria-label="Custom Area image fill" type="file" accept="image/*" className="sr-only"
@@ -1548,7 +1556,7 @@ export function PrintsDesignStep({
                       event.target.value = '';
                     }} />
                 </label>
-                {selected.customAreaImage ? <button type="button" onClick={() => updateSelected({ customAreaImage: undefined })} className="text-[10px] text-[#8192a8] hover:text-[#35414e]">Remove image fill</button> : null}
+                {selected.customAreaImage ? <button type="button" onClick={() => updateSelected({ customAreaImage: undefined })} className="text-[10px] text-[#737373] hover:text-[#262626]">Remove image fill</button> : null}
                 <CustomAreaPathControls element={selected} onChange={updateSelected} />
                 <fieldset disabled={selected.locked}><CustomAreaAppearanceControls element={selected} onChange={updateSelected} /></fieldset>
                 <SliderField label="Grain" value={selected.filterGrain ?? 0} min={0} max={100} suffix="%"
@@ -1558,27 +1566,27 @@ export function PrintsDesignStep({
               </div>
             ) : null}
             <details className="print-transform-details"><summary>Transform & warp</summary>            <div data-distortion-settings>
-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                 Transform
               </Label>
               <div className="flex items-center gap-2">
                 <Button type="button" variant="outline" title="Distort" aria-label="Distort"
                   aria-pressed={studio.distortEditingId === selected.id} disabled={selected.locked === true}
-                  className={cn('h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]', studio.distortEditingId === selected.id && 'border-[#405b6f] bg-[#405b6f]/12')}
+                  className={cn('h-8 border-[#e2e2e2] px-2.5 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]', studio.distortEditingId === selected.id && 'border-[#262626] bg-[#262626]/12')}
                   onClick={() => { studio.setTool('select'); studio.setWarpEditingId(null); studio.setDistortEditingId(studio.distortEditingId === selected.id ? null : selected.id); }}>
                   <Scan className="mr-1 h-3 w-3" />
                   Distort
                 </Button>
                 <Button type="button" variant="outline" title="Reset perspective" aria-label="Reset perspective"
                   disabled={selected.locked === true || !selected.perspective}
-                  className="h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+                  className="h-8 border-[#e2e2e2] px-2.5 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
                   onClick={() => { studio.setDistortEditingId(null); updateSelected({ perspective: undefined }); }}>
                   <RotateCcw className="mr-1 h-3 w-3" />
                   Reset
                 </Button>
                 <Button type="button" variant="outline" title="Warp" aria-label="Warp"
                   aria-pressed={studio.warpEditingId === selected.id} disabled={selected.locked === true}
-                  className={cn('h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]', studio.warpEditingId === selected.id && 'border-[#405b6f] bg-[#405b6f]/12')}
+                  className={cn('h-8 border-[#e2e2e2] px-2.5 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]', studio.warpEditingId === selected.id && 'border-[#262626] bg-[#262626]/12')}
                   onClick={() => {
                     if (studio.warpEditingId === selected.id) studio.setWarpEditingId(null);
                     else {
@@ -1594,11 +1602,11 @@ export function PrintsDesignStep({
             {selected.warp && studio.warpEditingId === selected.id ? (() => {
               const settings = selected.warp!;
               const updateWarp = (patch: Partial<WarpSettings>) => updateSelected({ warp: { ...settings, ...patch } });
-              return <div className="space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3" data-warp-properties>
+              return <div className="space-y-3 rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3" data-warp-properties>
                 <div className="flex items-center justify-between gap-2">
-                  <Label className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">Warp</Label>
+                  <Label className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">Warp</Label>
                   <Button type="button" variant="outline" size="sm" aria-label="Reset Warp"
-                    className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+                    className="h-7 border-[#e2e2e2] px-2 text-[9px] !text-[#262626] hover:bg-[#f2f2f2]"
                     onClick={() => { updateSelected({ warp: undefined }); studio.setWarpEditingId(null); }}>
                     <RotateCcw className="mr-1 h-3 w-3" /> Reset Warp
                   </Button>
@@ -1609,7 +1617,7 @@ export function PrintsDesignStep({
                     onClick={() => updateWarp(mode === 'freeform'
                       ? { mode, points: settings.mode === 'preset' ? warpGrid(settings) : settings.points }
                       : { mode })}
-                    className={cn('h-9 rounded-lg border text-[10px] font-semibold', settings.mode === mode ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]')}>
+                    className={cn('h-9 rounded-lg border text-[10px] font-semibold', settings.mode === mode ? 'border-[#262626] bg-[#262626]/15 text-[#262626]' : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373]')}>
                     {mode === 'preset' ? 'Preset Warp' : 'Freeform'}
                   </button>)}
                 </div>
@@ -1617,7 +1625,7 @@ export function PrintsDesignStep({
                   <div className="grid grid-cols-2 gap-1.5">
                     {WARP_PRESETS.map((preset) => <button key={preset.id} type="button"
                       aria-pressed={settings.preset === preset.id} onClick={() => updateWarp({ preset: preset.id, bend: settings.bend === 0 ? 50 : settings.bend })}
-                      className={cn('h-8 rounded-lg border px-2 text-[10px] font-medium', settings.preset === preset.id ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]')}>
+                      className={cn('h-8 rounded-lg border px-2 text-[10px] font-medium', settings.preset === preset.id ? 'border-[#262626] bg-[#262626]/15 text-[#262626]' : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373]')}>
                       {preset.label}
                     </button>)}
                   </div>
@@ -1626,27 +1634,27 @@ export function PrintsDesignStep({
                   <SliderField label="Vertical Distortion" value={settings.verticalDistortion} min={-100} max={100} suffix="%" onChange={(verticalDistortion) => updateWarp({ verticalDistortion })} />
                 </> : <>
                   <div className="space-y-1">
-                    <label htmlFor="warp-grid-density" className="text-[9px] font-semibold uppercase tracking-wide text-[#8192a8]">Warp grid</label>
+                    <label htmlFor="warp-grid-density" className="text-[9px] font-semibold uppercase tracking-wide text-[#737373]">Warp grid</label>
                     <select id="warp-grid-density" aria-label="Warp grid density" value={settings.gridSize}
                       onChange={(event) => {
                         const gridSize = Number(event.target.value) as 2 | 3 | 4;
                         updateWarp({ gridSize, points: resizeWarpGrid(settings, gridSize) });
                       }}
-                      className="h-9 w-full rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2 text-[11px] text-[#35414e]">
+                      className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2 text-[11px] text-[#262626]">
                       <option value={2}>2 × 2</option><option value={3}>3 × 3</option><option value={4}>4 × 4</option>
                     </select>
                   </div>
-                  <p className="text-[10px] leading-relaxed text-[#8192a8]">Drag the mesh points on the design to reshape it.</p>
+                  <p className="text-[10px] leading-relaxed text-[#737373]">Drag the mesh points on the design to reshape it.</p>
                 </>}
               </div>;
             })() : null}
 </details>
-            {!assetMode && selected.type !== 'distress' ? (
+            {!renderSelection && !assetMode && selected.type !== 'distress' ? (
             <details className="print-production-details"><summary>Printing method</summary>
-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                 Printing method
               </Label>
-              <p className="mb-2 text-[9px] leading-snug text-[#8192a8]">
+              <p className="mb-2 text-[9px] leading-snug text-[#737373]">
                 Each layer uses one process. DTG = direct-to-garment; DTF = direct-to-film — hover a button for full
                 wording.
               </p>
@@ -1661,8 +1669,8 @@ export function PrintsDesignStep({
                       className={cn(
                         'shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition',
                         (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
-                          ? 'border-[#405b6f] bg-[#405b6f]/12 text-[#35414e]'
-                          : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:border-[#dce3ec] hover:text-[#35414e]',
+                          ? 'border-[#262626] bg-[#262626]/12 text-[#262626]'
+                          : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:border-[#e2e2e2] hover:text-[#262626]',
                       )}
                     >
                       {method}
@@ -1680,12 +1688,12 @@ export function PrintsDesignStep({
                     className={cn(
                       'min-h-9 rounded-xl border px-2 py-2 text-left text-[10px] font-medium transition',
                       (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
-                        ? 'border-[#405b6f] bg-[#405b6f]/12 text-[#35414e]'
-                        : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:border-[#dce3ec] hover:text-[#35414e]',
+                        ? 'border-[#262626] bg-[#262626]/12 text-[#262626]'
+                        : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:border-[#e2e2e2] hover:text-[#262626]',
                     )}
                   >
                     <span className="block">{method}</span>
-                    <span className="mt-0.5 block text-[8px] font-normal leading-tight text-[#8192a8]">
+                    <span className="mt-0.5 block text-[8px] font-normal leading-tight text-[#737373]">
                       {PRINT_METHOD_DESCRIPTIONS[method]}
                     </span>
                   </button>
@@ -1700,7 +1708,7 @@ export function PrintsDesignStep({
                 <label className="print-text-content">Text<textarea aria-label="Edit text content" value={selected.content} onChange={event=>updateSelected({content:event.target.value})} rows={3}/></label>
                 <div className="order-1"><label className="print-font-label">Font<select aria-label="Text font" value={selected.fontFamily ?? 'Inter'} onChange={event=>updateSelected({fontFamily:event.target.value})}>{allFontOptions.map(font=><option key={font} value={font}>{font}</option>)}</select></label></div>
                 <div className="order-4">
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                     Alignment
                   </Label>
                   <div className="flex flex-wrap gap-1">
@@ -1717,10 +1725,10 @@ export function PrintsDesignStep({
                         type="button"
                         onClick={() => updateSelected({ textAlign: align })}
                         className={cn(
-                          'flex h-9 min-w-[2.5rem] flex-1 items-center justify-center rounded-xl border text-[#8192a8] transition-colors',
+                          'flex h-9 min-w-[2.5rem] flex-1 items-center justify-center rounded-xl border text-[#737373] transition-colors',
                           (selected.textAlign ?? 'center') === align
-                            ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
-                            : 'border-[#dce3ec] bg-[#f6f8f9] hover:border-[#dce3ec] hover:text-[#35414e]',
+                            ? 'border-[#262626] bg-[#262626]/15 text-[#262626]'
+                            : 'border-[#e2e2e2] bg-[#fafafa] hover:border-[#e2e2e2] hover:text-[#262626]',
                         )}
                         aria-label={`Align ${align}`}
                       >
@@ -1742,8 +1750,8 @@ export function PrintsDesignStep({
                       aria-pressed={active}
                       onClick={() => updateSelected(patch)}
                       className={cn(
-                        'h-9 rounded-lg border px-1.5 text-[10px] font-semibold text-[#8192a8]',
-                        active ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9]',
+                        'h-9 rounded-lg border px-1.5 text-[10px] font-semibold text-[#737373]',
+                        active ? 'border-[#262626] bg-[#262626]/15 text-[#262626]' : 'border-[#e2e2e2] bg-[#fafafa]',
                       )}
                     >
                       {label}
@@ -1752,7 +1760,7 @@ export function PrintsDesignStep({
                 </div>
 
                 <div className="order-9">
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                     Fill style
                   </Label>
                   <div className="grid grid-cols-3 gap-1">
@@ -1773,10 +1781,10 @@ export function PrintsDesignStep({
                           }),
                         })}
                         className={cn(
-                          'min-h-9 rounded-lg border px-1 text-[9px] font-medium text-[#8192a8]',
+                          'min-h-9 rounded-lg border px-1 text-[9px] font-medium text-[#737373]',
                           (selected.textFillMode ?? ((selected.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled')) === value
-                            ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
-                            : 'border-[#dce3ec] bg-[#f6f8f9]',
+                            ? 'border-[#262626] bg-[#262626]/15 text-[#262626]'
+                            : 'border-[#e2e2e2] bg-[#fafafa]',
                         )}
                       >
                         {label}
@@ -1797,7 +1805,7 @@ export function PrintsDesignStep({
                         />
                       </div>
                       <div className="mt-3">
-                        <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#8192a8]">Outline colour</span>
+                        <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#737373]">Outline colour</span>
                         <StudioColorField
                           value={selected.borderColor ?? selected.color ?? '#FFFFFF'}
                           onChange={value => updateSelected({ borderColor: value })}
@@ -1819,7 +1827,7 @@ export function PrintsDesignStep({
                     onClick={() => updateSelected({ verticalText: !selected.verticalText })}
                     className={cn(
                       'h-9 rounded-lg border text-[10px] font-medium',
-                      selected.verticalText ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]',
+                      selected.verticalText ? 'border-[#262626] bg-[#262626]/15 text-[#262626]' : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373]',
                     )}
                   >
                     Vertical
@@ -1842,7 +1850,7 @@ export function PrintsDesignStep({
                         })}
                         className={cn(
                           'flex h-9 items-center justify-center rounded-lg border',
-                          active ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]',
+                          active ? 'border-[#262626] bg-[#262626]/15 text-[#262626]' : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373]',
                         )}
                       >
                         <Icon className="h-4 w-4" />
@@ -1863,8 +1871,8 @@ export function PrintsDesignStep({
                   </div>
                 ) : null}
 
-                <div className="order-last space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
-                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+                <div className="order-last space-y-3 rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
+                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                     <span>Curved text</span>
                     <span>{selected.textCurveAmount ?? 0}%</span>
                   </div>
@@ -1875,9 +1883,9 @@ export function PrintsDesignStep({
                     value={selected.textCurveAmount ?? 0}
                     aria-label="Curve amount"
                     onChange={event => updateCurve({ textCurveAmount: Number(event.target.value) })}
-                    className="h-2 w-full cursor-pointer accent-[#405b6f]"
+                    className="h-2 w-full cursor-pointer accent-[#262626]"
                   />
-                  <label className="flex flex-col gap-1 text-[9px] uppercase text-[#8192a8]">
+                  <label className="flex flex-col gap-1 text-[9px] uppercase text-[#737373]">
                     Curve shape
                     <select
                       value={selected.textCurveShape ?? 'arc'}
@@ -1885,30 +1893,30 @@ export function PrintsDesignStep({
                         textCurveShape: event.target.value as 'arc' | 'circle',
                         ...(event.target.value === 'circle' ? { textCurveAmount: 100 } : {}),
                       })}
-                      className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+                      className="h-8 rounded-lg border border-[#e2e2e2] bg-white px-2 text-[10px] normal-case text-[#262626]"
                     >
                       <option value="arc">Arc</option>
                       <option value="circle">Circle</option>
                     </select>
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    <label className="flex flex-col gap-1 text-[9px] uppercase text-[#8192a8]">
+                    <label className="flex flex-col gap-1 text-[9px] uppercase text-[#737373]">
                       Direction
                       <select
                         value={selected.textCurveDirection ?? 'up'}
                         onChange={event => updateSelected({ textCurveDirection: event.target.value as 'up' | 'down' })}
-                        className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+                        className="h-8 rounded-lg border border-[#e2e2e2] bg-white px-2 text-[10px] normal-case text-[#262626]"
                       >
                         <option value="up">Up</option>
                         <option value="down">Down</option>
                       </select>
                     </label>
-                    <label className="flex flex-col gap-1 text-[9px] uppercase text-[#8192a8]">
+                    <label className="flex flex-col gap-1 text-[9px] uppercase text-[#737373]">
                       Curve side
                       <select
                         value={selected.textCurveSide ?? 'outside'}
                         onChange={event => updateSelected({ textCurveSide: event.target.value as 'inside' | 'outside' })}
-                        className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+                        className="h-8 rounded-lg border border-[#e2e2e2] bg-white px-2 text-[10px] normal-case text-[#262626]"
                       >
                         <option value="outside">Outside</option>
                         <option value="inside">Inside</option>
@@ -1945,8 +1953,8 @@ export function PrintsDesignStep({
                       })
                     }
                     className={cn(
-                      'h-9 flex-1 border-[#dce3ec] bg-[#eef2f5] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]',
-                      selected.fontStyle === 'italic' && 'border-[#405b6f] bg-[#405b6f]/12',
+                      'h-9 flex-1 border-[#e2e2e2] bg-[#f2f2f2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]',
+                      selected.fontStyle === 'italic' && 'border-[#262626] bg-[#262626]/12',
                     )}
                   >
                     <Italic className="mr-1 h-3.5 w-3.5" />
@@ -1961,7 +1969,7 @@ export function PrintsDesignStep({
                         cur === 'none' ? 'uppercase' : cur === 'uppercase' ? 'lowercase' : 'none';
                       updateSelected({ textTransform: next });
                     }}
-                    className="h-9 flex-1 border-[#dce3ec] bg-[#eef2f5] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+                    className="h-9 flex-1 border-[#e2e2e2] bg-[#f2f2f2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
                   >
                     {(selected.textTransform ?? 'none') === 'uppercase'
                       ? 'AA'
@@ -1973,10 +1981,10 @@ export function PrintsDesignStep({
 
                 <div className="order-6">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <Label className="mb-0 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+                    <Label className="mb-0 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                       Letter spacing
                     </Label>
-                    <span className="text-[10px] tabular-nums text-[#8192a8]">
+                    <span className="text-[10px] tabular-nums text-[#737373]">
                       {selected.letterSpacing ?? 0}px
                     </span>
                   </div>
@@ -1987,7 +1995,7 @@ export function PrintsDesignStep({
                     step={0.5}
                     value={selected.letterSpacing ?? 0}
                     onChange={(e) => updateSelected({ letterSpacing: Number(e.target.value) })}
-                    className="h-2 w-full cursor-pointer accent-[#405b6f]"
+                    className="h-2 w-full cursor-pointer accent-[#262626]"
                   />
                 </div>
 
@@ -2002,15 +2010,15 @@ export function PrintsDesignStep({
                   />
                 </div>
 
-                <div className="order-10 space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+                <div className="order-10 space-y-3 rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
                   <div>
-                    <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+                    <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                       Line position
                     </Label>
                     <select
                       value={selected.textLinePosition ?? 'none'}
                       onChange={event => updateSelected({ textLinePosition: event.target.value as NonNullable<DesignElement['textLinePosition']> })}
-                      className="h-9 w-full rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] text-[#35414e]"
+                      className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-white px-2 text-[10px] text-[#262626]"
                     >
                       <option value="none">Off</option>
                       <option value="top">Top</option>
@@ -2046,7 +2054,7 @@ export function PrintsDesignStep({
                 </div>
 
                 <div className="order-2">
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                     Font size
                   </Label>
                   <NumberStepper
@@ -2057,7 +2065,7 @@ export function PrintsDesignStep({
                 </div>
 
                 <div className="order-3">
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                     Text colour
                   </Label>
                   <StudioColorField allowGradients
@@ -2068,9 +2076,9 @@ export function PrintsDesignStep({
                   />
                 </div>
 
-                <div className="order-8 space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+                <div className="order-8 space-y-3 rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Text shadow</span>
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">Text shadow</span>
                     <Button
                       type="button"
                       variant="outline"
@@ -2084,7 +2092,7 @@ export function PrintsDesignStep({
                         shadowOpacity: selected.shadowOpacity ?? 70,
                         shadowColor: selected.shadowColor ?? '#000000',
                       })}
-                      className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+                      className="h-7 border-[#e2e2e2] px-2 text-[9px] !text-[#262626] hover:bg-[#f2f2f2]"
                     >
                       {selected.textShadowEnabled ? 'On' : 'Off'}
                     </Button>
@@ -2131,12 +2139,12 @@ export function PrintsDesignStep({
                     suffix="px"
                     onChange={value => updateSelected({ shadowBlur: value })}
                   />
-                  <label className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+                  <label className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-[#737373]">
                     Edge
                     <select
                       value={selected.shadowEdge ?? 'sharp'}
                       onChange={event => updateSelected({ shadowEdge: event.target.value as 'sharp' | 'round' })}
-                      className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+                      className="h-8 rounded-lg border border-[#e2e2e2] bg-white px-2 text-[10px] normal-case text-[#262626]"
                     >
                       <option value="sharp">Sharp</option>
                       <option value="round">Round</option>
@@ -2151,13 +2159,13 @@ export function PrintsDesignStep({
             )}
 
             {!selected.patternTarget ? <div>
-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
                 Rotation
               </Label>
-              <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] px-3 py-3">
-                <div className="mb-2 flex justify-between text-[10px] tabular-nums text-[#8192a8]">
+              <div className="rounded-xl border border-[#e2e2e2] bg-[#fafafa] px-3 py-3">
+                <div className="mb-2 flex justify-between text-[10px] tabular-nums text-[#737373]">
                   <span>0°</span>
-                  <span className="font-semibold text-[#8192a8]">{rotNorm}°</span>
+                  <span className="font-semibold text-[#737373]">{rotNorm}°</span>
                   <span>359°</span>
                 </div>
                 <input
@@ -2182,11 +2190,11 @@ export function PrintsDesignStep({
             />
 
             {selected.type === 'image' || selected.type === 'drawing' ? (
-              <div className="space-y-3 border-y border-[#dce3ec] py-3">
+              <div className="space-y-3 border-y border-[#e2e2e2] py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Image adjustments</span>
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">Image adjustments</span>
                   <button type="button" onClick={() => updateSelected({ ...DEFAULT_IMAGE_ADJUSTMENTS })}
-                    className="flex h-8 shrink-0 items-center gap-1 text-[10px] text-[#8192a8] hover:text-[#35414e]">
+                    className="flex h-8 shrink-0 items-center gap-1 text-[10px] text-[#737373] hover:text-[#262626]">
                     <RotateCcw className="h-3 w-3" /> Reset All
                   </button>
                 </div>
@@ -2200,9 +2208,9 @@ export function PrintsDesignStep({
             ) : null}
 
             {selected.type !== 'text' && selected.type !== 'shape' && selected.type !== 'pattern' && selected.type !== 'distress' && selected.id !== DISTRESS_LAYER_ID ? (
-            <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+            <div className="rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Border</span>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">Border</span>
                 <Button
                   type="button"
                   variant="outline"
@@ -2211,7 +2219,7 @@ export function PrintsDesignStep({
                     borderWidth: (selected.borderWidth ?? 0) > 0 ? 0 : 2,
                     borderColor: selected.borderColor ?? '#FFFFFF',
                   })}
-                  className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+                  className="h-7 border-[#e2e2e2] px-2 text-[9px] !text-[#262626] hover:bg-[#f2f2f2]"
                 >
                   <Square className="mr-1 h-3 w-3" />
                   {(selected.borderWidth ?? 0) > 0 ? 'Off' : 'On'}
@@ -2226,7 +2234,7 @@ export function PrintsDesignStep({
                 onChange={(n) => updateSelected({ borderWidth: n })}
               />
               <div className="mt-3">
-                <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#8192a8]">Colour</span>
+                <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#737373]">Colour</span>
                 <StudioColorField allowGradients
                   value={selected.borderColor ?? '#FFFFFF'}
                   onChange={(h) => updateSelected({ borderColor: h })}
@@ -2249,9 +2257,9 @@ export function PrintsDesignStep({
             </div>
             ) : null}
 
-            {!selected.patternTarget ? <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+            {!selected.patternTarget ? <div className="rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">
                   Size &amp; rotation
                 </span>
                 <button
@@ -2269,8 +2277,8 @@ export function PrintsDesignStep({
                   className={cn(
                     'inline-flex h-7 items-center gap-1 rounded-md border px-2 text-[9px] font-semibold uppercase tracking-wide',
                     (selected.aspectLocked ?? selected.type === 'image')
-                      ? 'border-[#405b6f]/60 bg-[#405b6f]/15 text-[#35414e]'
-                      : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:text-[#35414e]',
+                      ? 'border-[#262626]/60 bg-[#262626]/15 text-[#262626]'
+                      : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:text-[#262626]',
                   )}
                 >
                   {(selected.aspectLocked ?? selected.type === 'image') ? (
@@ -2337,12 +2345,12 @@ export function PrintsDesignStep({
                   />
                 ) : null}
               </div>
-            </div> : <p className="text-[10px] text-[#8192a8]">This fill follows its garment section. Use the Patterns controls to change the repeat without moving its boundary.</p>}
+            </div> : <p className="text-[10px] text-[#737373]">This fill follows its garment section. Use the Patterns controls to change the repeat without moving its boundary.</p>}
 
             {selected.type === 'image' ? (
-              <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+              <div className="rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">
                     Drop shadow
                   </span>
                   <Button
@@ -2356,7 +2364,7 @@ export function PrintsDesignStep({
                         shadowOffsetY: selected.shadowOffsetY ?? 6,
                       })
                     }
-                    className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+                    className="h-7 border-[#e2e2e2] px-2 text-[9px] !text-[#262626] hover:bg-[#f2f2f2]"
                   >
                     {(selected.shadowBlur ?? 0) > 0 ? 'Off' : 'On'}
                   </Button>
@@ -2380,7 +2388,7 @@ export function PrintsDesignStep({
                   />
                 </div>
                 <div className="mt-3">
-                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#8192a8]">
+                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#737373]">
                     Colour
                   </span>
                   <StudioColorField allowGradients
@@ -2403,7 +2411,7 @@ export function PrintsDesignStep({
               <Button
                 variant="outline"
                 onClick={duplicateSelected}
-                className="h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+                className="h-9 border-[#e2e2e2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
               >
                 <Copy className="mr-1.5 h-3 w-3" />
                 Duplicate
@@ -2411,7 +2419,7 @@ export function PrintsDesignStep({
               <Button
                 variant="outline"
                 onClick={() => layer('front')}
-                className="h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+                className="h-9 border-[#e2e2e2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
               >
                 <BringToFront className="mr-1.5 h-3 w-3" />
                 Top
@@ -2419,7 +2427,7 @@ export function PrintsDesignStep({
               <Button
                 variant="outline"
                 onClick={() => layer('back')}
-                className="h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+                className="h-9 border-[#e2e2e2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
               >
                 <SendToBack className="mr-1.5 h-3 w-3" />
                 Bottom
@@ -2427,7 +2435,7 @@ export function PrintsDesignStep({
               <Button
                 variant="outline"
                 onClick={() => updateSelected({ locked: !selected.locked })}
-                className="col-span-2 h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+                className="col-span-2 h-9 border-[#e2e2e2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
               >
                 {selected.locked ? (
                   <>
@@ -2441,13 +2449,13 @@ export function PrintsDesignStep({
                   </>
                 )}
               </Button>
-              <div className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#dce3ec] bg-[#f6f8f9] px-3 py-2.5 text-[10px] text-[#8192a8]">
-                <Move className="h-3.5 w-3.5 shrink-0 text-[#8192a8]" />
+              <div className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#e2e2e2] bg-[#fafafa] px-3 py-2.5 text-[10px] text-[#737373]">
+                <Move className="h-3.5 w-3.5 shrink-0 text-[#737373]" />
                 Drag to move · corners scale · sides stretch · double-click text to edit
               </div>
             </div>
           </div>
-        </PrintPanel>}</details></div>
+        </PrintPanel>)}</details></div>
       ) : null}
 
       {!renderTools&&<PrintPanel title={`Layers (${sideElements.length})`}>
@@ -2456,11 +2464,11 @@ export function PrintsDesignStep({
             <Button type="button" variant="outline" className="flex-1" disabled={Boolean(groupIssue) || merging} onClick={groupSelectedLayers} title={groupIssue ?? 'Group editable children to move, resize, rotate or warp together'}>Group</Button>
             <Button type="button" variant="outline" className="flex-1" disabled={Boolean(ungroupIssue) || merging} onClick={ungroupSelectedLayer} title={ungroupIssue ?? 'Restore children without flattening artwork'}>Ungroup</Button>
           </div>
-          <p className="text-[10px] text-[#8192a8]">Check layers or Shift-click their names, then Group to transform together. Grouping retains editable sources.</p>
-          {mergeIds.length > 1 && groupIssue ? <p className="text-[10px] text-[#8192a8]">{groupIssue}</p> : null}
-          {selected?.type === 'group' ? <div className="space-y-2 rounded border border-[#dce3ec] p-2">
-            <p className="text-[10px] text-[#8192a8]">{ungroupIssue ?? 'Resized, flipped, cropped, distorted or warped children retain editable transform envelopes when ungrouped.'}</p>
-            {(selected.children ?? []).map((child, index) => <label key={child.id} className="block text-[10px] text-[#8192a8]">
+          <p className="text-[10px] text-[#737373]">Check layers or Shift-click their names, then Group to transform together. Grouping retains editable sources.</p>
+          {mergeIds.length > 1 && groupIssue ? <p className="text-[10px] text-[#737373]">{groupIssue}</p> : null}
+          {selected?.type === 'group' ? <div className="space-y-2 rounded border border-[#e2e2e2] p-2">
+            <p className="text-[10px] text-[#737373]">{ungroupIssue ?? 'Resized, flipped, cropped, distorted or warped children retain editable transform envelopes when ungrouped.'}</p>
+            {(selected.children ?? []).map((child, index) => <label key={child.id} className="block text-[10px] text-[#737373]">
               Source {index + 1}: {child.layerName ?? child.type}
               {child.type === 'text' ? <Input disabled={Boolean(selected.locked || child.locked)} aria-label={`Edit group source ${index + 1} text`} value={child.content} onChange={event => updateSelected({ children: selected.children!.map(item => item.id === child.id ? { ...item, content: event.target.value } : item) })} /> : null}
               {child.color !== undefined ? <Input disabled={Boolean(selected.locked || child.locked)} aria-label={`Edit group source ${index + 1} color`} value={child.color} onChange={event => updateSelected({ children: selected.children!.map(item => item.id === child.id ? { ...item, color: event.target.value } : item) })} /> : null}
@@ -2470,13 +2478,13 @@ export function PrintsDesignStep({
             onClick={() => void mergeSelectedLayers()} title={mergeIssue ?? 'Flatten selected layers into one editable image'}>
             {merging ? 'Merging…' : 'Merge Layers'}{mergeIds.length > 0 ? ` (${mergeIds.length})` : ''}
           </Button>
-          <p className="text-[10px] text-[#8192a8]">{mergeIssue ?? 'Appearance is flattened; Undo restores the original layers.'}</p>
+          <p className="text-[10px] text-[#737373]">{mergeIssue ?? 'Appearance is flattened; Undo restores the original layers.'}</p>
           {mergeError ? <p role="alert" className="text-xs text-red-400">{mergeError}</p> : null}
         </div>
         </details>
         <div className={cn('space-y-2', listDraggingId && 'list-reorder-active')}>
           {sideElements.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-[#dce3ec] px-3 py-4 text-center text-[11px] leading-relaxed text-[#8192a8]">
+            <div className="rounded-lg border border-dashed border-[#e2e2e2] px-3 py-4 text-center text-[11px] leading-relaxed text-[#737373]">
             Pick a tool, then draw, drop a shape, or upload artwork onto the {assetMode ? 'artboard' : 'garment'}.
             </div>
           ) : (
@@ -2521,10 +2529,10 @@ export function PrintsDesignStep({
                   className={cn(
                     'drag-list-row flex w-full items-stretch gap-1 rounded-lg border',
                     isDragging
-                      ? 'drag-list-floating border-[#dce3ec]'
+                      ? 'drag-list-floating border-[#e2e2e2]'
                       : selectedId === element.id
-                        ? 'border-[#405b6f] bg-[#405b6f]/10'
-                        : 'border-[#dce3ec] bg-[#f6f8f9] hover:border-[#dce3ec]',
+                        ? 'border-[#262626] bg-[#262626]/10'
+                        : 'border-[#e2e2e2] bg-[#fafafa] hover:border-[#e2e2e2]',
                   )}
                 >
                   <input type="checkbox" aria-label={`Select layer ${index + 1} for group or merge`} className="ml-2 shrink-0"
@@ -2538,7 +2546,7 @@ export function PrintsDesignStep({
                     role="button"
                     tabIndex={0}
                     onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
-                    className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#8192a8] active:cursor-grabbing"
+                    className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-[#737373] hover:bg-[#f2f2f2] hover:text-[#737373] active:cursor-grabbing"
                     aria-label="Drag to reorder layer"
                     title="Drag to reorder"
                   >
@@ -2560,7 +2568,7 @@ export function PrintsDesignStep({
                       {element.type === 'image' || (element.type === 'drawing' && element.content.startsWith('data:')) ? <img src={element.content} alt=""/> : element.type === 'text' ? <span style={{fontFamily:element.fontFamily,fontWeight:element.fontWeight}}>{element.content.slice(0,18)}</span> : element.type === 'shape' || element.type === 'pattern' || element.type === 'distress' ? <StudioGraphic element={{...element,color:element.color??'#405b6f'}}/> : element.type === 'customArea' ? <PenTool size={18}/> : <Brush size={18}/>}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[11px] font-medium text-[#35414e]">
+                      <div className="truncate text-[11px] font-medium text-[#262626]">
                         {element.type === 'group' ? `${element.layerName ?? 'Group'} (${element.children?.length ?? 0})` : element.layerName ?? (element.type === 'image'
                           ? 'Uploaded artwork'
                           : element.id === DISTRESS_LAYER_ID
@@ -2577,10 +2585,10 @@ export function PrintsDesignStep({
                                     ? 'Distressing'
                                     : element.content)}
                       </div>
-                      <div className="truncate text-[9.5px] text-[#8192a8]">
+                      <div className="truncate text-[9.5px] text-[#737373]">
                         {element.type !== 'distress' ? (
                           <>
-                            <span className="text-[#8192a8]">
+                            <span className="text-[#737373]">
                               {element.printMethod ?? DEFAULT_PRINT_METHOD}
                             </span>
                             {' · '}
@@ -2595,11 +2603,11 @@ export function PrintsDesignStep({
                     aria-label={`${element.hidden ? 'Show' : 'Hide'} ${element.type === 'customArea' ? 'Custom Area' : element.type} layer`}
                     title={element.hidden ? 'Show layer' : 'Hide layer'}
                     onClick={() => { studio.setTool('select'); onChange(elements.map(item => item.id === element.id ? { ...item, hidden: !item.hidden } : item)); }}
-                    className="flex shrink-0 items-center justify-center border-l border-[#dce3ec] px-2 text-[#8192a8] hover:text-[#35414e]"
+                    className="flex shrink-0 items-center justify-center border-l border-[#e2e2e2] px-2 text-[#737373] hover:text-[#262626]"
                   >{element.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button>
                   <button
                     type="button"
-                    className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#dce3ec] px-2 text-[#8192a8] transition hover:bg-[#eef2f5] hover:text-[#405b6f]"
+                    className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#e2e2e2] px-2 text-[#737373] transition hover:bg-[#f2f2f2] hover:text-[#262626]"
                     aria-label="Delete layer"
                     title="Delete"
                     onClick={(e) => {
@@ -3039,8 +3047,8 @@ export function PrintsDesignPreview({
 
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (studio.tool === 'customArea' && customAreaDraftIdRef.current) {
-          removeElement(customAreaDraftIdRef.current);
+        if (studio.tool === 'customArea') {
+          if (customAreaDraftIdRef.current) removeElement(customAreaDraftIdRef.current);
           customAreaDraftIdRef.current = null;
           setCustomAreaDraft([]);
           studio.setTool('select');
@@ -3474,14 +3482,14 @@ export function PrintsDesignPreview({
       >
         <div data-design-canvas className="relative h-full w-full" style={validCanvasSize ? {
           position: 'absolute', width: validCanvasSize.width, height: validCanvasSize.height,
-          left: '50%', top: '50%', transform: `translate(-50%, -50%) scale(${sceneScale})`,
+          left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zoom: liveCanvasS,
         } : undefined}>
         <div className="absolute inset-0 flex min-h-0 flex-col">
           {narrowViewport &&
           editable &&
           selectedElement?.type === 'text' &&
           editingTextId !== selectedElement.id ? (
-            <p className="pointer-events-none absolute inset-x-0 top-0 z-50 px-2 pb-1.5 text-center text-[10px] leading-tight text-[#8192a8]">
+            <p className="pointer-events-none absolute inset-x-0 top-0 z-50 px-2 pb-1.5 text-center text-[10px] leading-tight text-[#737373]">
               Tap the text on the design again to edit, or drag to move it.
             </p>
           ) : null}
@@ -3562,7 +3570,7 @@ export function PrintsDesignPreview({
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#dce3ec]" style={{ backgroundColor: '#ededed', backgroundImage: 'conic-gradient(#cfcfcf 25%, transparent 0 50%, #cfcfcf 0 75%, transparent 0)', backgroundSize: '24px 24px', boxShadow: '0 8px 32px #0008' }} /> : (
+          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ backgroundColor: '#f2f2f2', backgroundImage: 'conic-gradient(#e2e2e2 25%, transparent 0 50%, #e2e2e2 0 75%, transparent 0)', backgroundSize: '24px 24px', boxShadow: '0 8px 32px #0008' }} /> : (
           <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: garmentInteractive ? 'auto' : 'none' }} data-print-garment-preview>
             {typeof garmentPreview === 'function' ? garmentPreview(sceneScale) : garmentPreview}
           </div>
@@ -3642,7 +3650,8 @@ export function PrintsDesignPreview({
                 height: size.height,
                 rotation: 0,
                 color: studio.color,
-                borderWidth: payload.kind === 'shape' ? 4 : 0,
+                borderWidth: 0,
+                ...(payload.kind === 'shape' ? studioShapeDefaults(payload.id) : {}),
                 opacity: 100,
                 locked: false,
                 printMethod: payload.kind === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
@@ -3667,11 +3676,11 @@ export function PrintsDesignPreview({
             const part = patternHover.kind === 'part' ? patternTargets.find(target => target.id === patternHover.id) : undefined;
             const area = patternHover.kind === 'area' ? elements.find(element => element.id === patternHover.id) : undefined;
             return <div className="pointer-events-none absolute inset-0 z-[30]" data-pattern-drop-target={patternHover.id}>
-              {part ? <div className="absolute inset-0 bg-[#405b6f]/40" style={{ maskImage: `url("${part.url}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat' }} /> : null}
+              {part ? <div className="absolute inset-0 bg-[#262626]/40" style={{ maskImage: `url("${part.url}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat' }} /> : null}
               {area ? <svg className="absolute overflow-visible" viewBox={`0 0 ${area.width} ${area.height}`} style={{ left: area.x, top: area.y, width: area.width, height: area.height, transform: `translate(-50%, -50%) rotate(${area.rotation}deg)`, maskImage: drawingMask ? drawingMaskCss(drawingMask, area.width, area.height, area.x, area.y, area.rotation) : undefined }}>
-                <path d={customAreaTransformedPath(area)} fill="rgba(255,59,48,0.35)" stroke="#405b6f" strokeWidth="2" />
+                <path d={customAreaTransformedPath(area)} fill="rgba(255,59,48,0.35)" stroke="#262626" strokeWidth="2" />
               </svg> : null}
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#f6f8f9] px-3 py-1 text-xs text-[#35414e]" role="status">Fill {part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
+              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#fafafa] px-3 py-1 text-xs text-[#262626]" role="status">Fill {part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
             </div>;
           })()}
           {editable && alignmentGuides ? (
@@ -3721,21 +3730,18 @@ export function PrintsDesignPreview({
               onChange?.([...elements, next]); setSelectedId(next.id); studio.setTool('select');
             }} />}
           {editable && studio.tool === 'customArea' && customAreaDraft.length >= 3 && <button type="button" data-editor-chrome
-            className="pointer-events-auto absolute bottom-2 left-1/2 z-50 -translate-x-1/2 rounded bg-zinc-950 px-3 py-2 text-xs text-[#35414e]"
-            onPointerDown={event => event.stopPropagation()} onClick={closeCustomArea}>Close Path</button>}
+            className="custom-shape-finish pointer-events-auto absolute bottom-2 left-1/2 z-50" style={{transform:'translateX(-50%)',transformOrigin:'bottom center',scale:String(zoneEl?1/zoneScaleFactor(zoneEl):1)}}
+            onPointerDown={event => event.stopPropagation()} onClick={closeCustomArea}>Finish shape</button>}
           {editable && studio.tool === 'customArea' && customAreaDraft.length > 0 ? (
             <svg className="pointer-events-none absolute inset-0 z-40 h-full w-full overflow-visible" viewBox={`0 0 ${zoneEl?.clientWidth ?? 1} ${zoneEl?.clientHeight ?? 1}`} preserveAspectRatio="none" aria-label="Custom Area in progress">
-              {customAreaDraft.length > 0 ? <polyline points={[...customAreaDraft, ...(customAreaCursor ? [customAreaCursor] : [])].map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#405b6f" strokeWidth={2} strokeDasharray="5 4" /> : null}
-              {customAreaDraft.map((point, index) => {
-                const close = index === 0 && customAreaDraft.length >= 3 && customAreaCursor !== null && zoneEl !== null
-                  && Math.hypot(point.x - customAreaCursor.x, point.y - customAreaCursor.y) <= 18 / zoneScaleFactor(zoneEl);
-                return <circle key={index} cx={point.x} cy={point.y} r={close ? 11 : index === 0 ? 7 : 5}
-                  fill={close ? '#405b6f' : '#FFFFFF'} stroke="#09090B" strokeWidth={2} />;
-              })}
+              <polyline points={customAreaDraft.map(point=>`${point.x},${point.y}`).join(' ')} fill="none" stroke="#737373" strokeWidth="1" vectorEffect="non-scaling-stroke"/>
+              {customAreaCursor&&<line x1={customAreaDraft.at(-1)!.x} y1={customAreaDraft.at(-1)!.y} x2={customAreaCursor.x} y2={customAreaCursor.y} stroke="#737373" strokeOpacity=".75" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke"/>}
+              {customAreaDraft.map((point,index)=>{const inv=zoneEl?1/zoneScaleFactor(zoneEl):1,size=3.5*inv,close=index===0&&customAreaDraft.length>=3&&customAreaCursor&&Math.hypot(point.x-customAreaCursor.x,point.y-customAreaCursor.y)<=18*inv;return <g key={index} data-custom-draft-point={index}>{close&&<circle cx={point.x} cy={point.y} r={9*inv} fill="white" fillOpacity=".5" stroke="#737373" strokeWidth="1" vectorEffect="non-scaling-stroke"/>}<rect x={point.x-size} y={point.y-size} width={size*2} height={size*2} rx={inv} fill={index===0?'#262626':'white'} stroke={index===0?'white':'#737373'} strokeWidth="1" vectorEffect="non-scaling-stroke"/></g>})}
+
             </svg>
           ) : null}
           {editable && studio.drawing ? (
-            <div className="pointer-events-none absolute bottom-2 left-1/2 z-[20] -translate-x-1/2 rounded-full border border-[#dce3ec] bg-[#f6f8f9] px-3 py-1 text-[10px] font-medium tracking-wide text-[#8192a8] backdrop-blur-md">
+            <div data-drawing-status className="pointer-events-none absolute bottom-2 left-1/2 z-[20] -translate-x-1/2 rounded-full border border-[#e2e2e2] bg-[#fafafa] px-3 py-1 text-[10px] font-medium tracking-wide text-[#737373] backdrop-blur-md">
               {studio.tool === 'eraser' || studio.tool === 'distressEraser'
                 ? 'Eraser'
                 : studio.tool === 'distress'
@@ -3836,7 +3842,7 @@ export function PrintsDesignPreview({
                   warpEditing={warpEditingId === element.id && !studio.drawing}
                   onWarpChange={(warp) => updateElement(element.id, { warp })}
                   scale={1 / uiInv} onChange={patch => updateElement(element.id, patch)}
-                  overlay={<PrintTransformOverlay tight compactHandles={narrowViewport && element.type !== 'text'}
+                  overlay={<PrintTransformOverlay tight shapeChrome={element.type==='shape'||element.type==='customArea'} compactHandles={narrowViewport && element.type !== 'text'}
                     phoneTextMinimal={narrowViewport && element.type === 'text'} uiInverseScale={uiInv}
                     onRotatePointerDown={event => {
                       event.stopPropagation(); event.preventDefault();
@@ -3949,7 +3955,7 @@ export function PrintsDesignPreview({
                     }}
                     onPointerDown={(ev) => ev.stopPropagation()}
                     rows={1}
-                    className="pointer-events-auto z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#405b6f] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
+                    className="pointer-events-auto z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#262626] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
                     style={{
                       color: solidPaint(element.color),
                       fontFamily: element.fontFamily ?? 'Inter',
@@ -3990,7 +3996,7 @@ export function PrintsDesignPreview({
                 )}
                 </DesignAssetSurface>
                 {locked && editable ? (
-                  <div className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#405b6f]/50 bg-[#f6f8f9] text-[#405b6f]">
+                  <div className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#262626]/50 bg-[#fafafa] text-[#262626]">
                     <Lock className="h-2.5 w-2.5" />
                   </div>
                 ) : null}
@@ -4018,17 +4024,17 @@ function NumberStepper({
   onIncrease: () => void;
 }) {
   return (
-    <div className="inline-flex items-center overflow-hidden rounded-xl border border-[#dce3ec] bg-[#eef2f5]">
+    <div className="inline-flex items-center overflow-hidden rounded-xl border border-[#e2e2e2] bg-[#f2f2f2]">
       <button
         onClick={onDecrease}
-        className="flex h-9 w-9 items-center justify-center text-[#8192a8] transition hover:bg-[#eef2f5] hover:text-[#35414e]"
+        className="flex h-9 w-9 items-center justify-center text-[#737373] transition hover:bg-[#f2f2f2] hover:text-[#262626]"
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
-      <div className="min-w-[52px] text-center text-sm font-semibold text-[#35414e]">{value}</div>
+      <div className="min-w-[52px] text-center text-sm font-semibold text-[#262626]">{value}</div>
       <button
         onClick={onIncrease}
-        className="flex h-9 w-9 items-center justify-center text-[#8192a8] transition hover:bg-[#eef2f5] hover:text-[#35414e]"
+        className="flex h-9 w-9 items-center justify-center text-[#737373] transition hover:bg-[#f2f2f2] hover:text-[#262626]"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>

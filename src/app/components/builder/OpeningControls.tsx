@@ -38,7 +38,7 @@ export function OpeningControls({ detail, bounds, onChange, editor }: {
     <label className="block text-[11px] text-white/60">Placement preset
       <MaterialSelect aria-label="Opening attachment" value={opening?.attachment ?? placement} disabled={!bounds}
         onChange={event => { const value = event.target.value as OpeningPlacement; setPlacement(value); if (opening && bounds) onChange(createOpening(detail, bounds, value)); }}
-        className="mt-1 w-full rounded border border-white/15 bg-[#141416] p-2 text-xs text-white">
+        className="mt-1 w-full rounded border border-white/15 bg-[#171717] p-2 text-xs text-white">
         {placements.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </MaterialSelect>
     </label>

@@ -65,7 +65,7 @@ function MeasurementUnitToggle({
   return (
     <div
       className={cn(
-        'inline-flex min-w-[5.75rem] shrink-0 rounded-full border border-white/12 bg-[#09090B] p-0.5 touch-manipulation',
+        'inline-flex min-w-[5.75rem] shrink-0 rounded-full border border-white/12 bg-[#171717] p-0.5 touch-manipulation',
         'md:min-w-[4.25rem] md:p-px',
       )}
       role="group"
@@ -85,7 +85,7 @@ function MeasurementUnitToggle({
                 ? u === 'cm'
                   ? 'rounded-l-full bg-[#CC2D24] text-white shadow-[0_1px_4px_rgba(204,45,36,0.4)]'
                   : 'rounded-r-full bg-[#CC2D24] text-white shadow-[0_1px_4px_rgba(204,45,36,0.4)]'
-                : 'text-[#8b9aad]/90 hover:text-white/75',
+                : 'text-[#737373]/90 hover:text-white/75',
             )}
           >
             {u}
@@ -208,7 +208,7 @@ export function MeasurementsStep({
                   'rounded-md border px-2 py-2.5 text-center transition sm:rounded-lg sm:px-2.5 sm:py-3',
                   fit === option.id
                     ? 'border-[#FF3B30] bg-[#FF3B30]/10 text-white'
-                    : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
+                    : 'border-[#171717] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
                 )}
               >
                 <div className="text-[12px] font-medium leading-snug sm:text-[13px]">{option.name}</div>
@@ -235,7 +235,7 @@ export function MeasurementsStep({
             collisionPadding={12}
             className={cn(
               'z-[300] max-h-[min(50vh,22rem)] w-[var(--radix-select-trigger-width)] min-w-[var(--radix-select-trigger-width)]',
-              'border border-white/12 bg-[#161618] text-white shadow-[0_16px_48px_rgba(0,0,0,0.55)]',
+              'border border-white/12 bg-[#171717] text-white shadow-[0_16px_48px_rgba(0,0,0,0.55)]',
               'data-[state=open]:animate-in data-[state=closed]:animate-out',
             )}
           >
@@ -274,13 +274,13 @@ export function MeasurementsStep({
           convert for display. Each cell is one measurement in {measurementUnitLabel(measurementUnit)}.
         </p>
         <div
-          className="overflow-hidden rounded-lg border border-[#252528] bg-white/5"
+          className="overflow-hidden rounded-lg border border-[#171717] bg-white/5"
           onPointerLeave={() => setHighlightedMeasurementId(null)}
         >
           <div className="no-scrollbar overflow-x-auto">
             <table className="w-full text-xs md:text-xs">
               <thead>
-                <tr className="border-b border-[#252528]">
+                <tr className="border-b border-[#171717]">
                   <th className="px-1 py-1 text-left text-[10px] font-semibold text-white/70 md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     Size
                   </th>
@@ -445,7 +445,7 @@ export function MeasurementPreview({
           {overlay}
         </>} />
       ) : (
-        <div className="aspect-square w-full max-w-[576px] rounded-2xl border border-white/10 bg-[#111113]" />
+        <div className="aspect-square w-full max-w-[576px] rounded-2xl border border-white/10 bg-[#171717]" />
       )}
     </div>
   );

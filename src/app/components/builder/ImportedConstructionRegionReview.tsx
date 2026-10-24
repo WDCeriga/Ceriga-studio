@@ -3,7 +3,7 @@ import { constructionBrushPath, selectUnassignedConstructionArea, type BrushPoin
 import { importedBuilderCategories, importedRegionTypes, type ImportedGarment, type ImportedGarmentView } from '../../data/importedGarment';
 import { canPaintConstructionRegion, paintConstructionRegion, constructionRegionCategory, constructionRegionsForView, constructionSplitCandidates, linkConstructionRegions, mergeConstructionRegions, patchConstructionRegion, reviewConstructionRegions, splitConstructionRegion } from '../../data/importedConstructionRegions';
 
-const control = 'rounded border border-white/20 bg-[#202024] p-2 text-xs text-white disabled:opacity-40';
+const control = 'rounded border border-white/20 bg-[#171717] p-2 text-xs text-white disabled:opacity-40';
 const palette = ['#fb7185', '#38bdf8', '#a3e635', '#c084fc', '#fbbf24', '#2dd4bf', '#fb923c', '#818cf8', '#f472b6', '#94a3b8'];
 export function ImportedConstructionRegionReview({ value, view, selectedId, onSelect, onChange, onReviewed }: {
   value: ImportedGarment; view: ImportedGarmentView; selectedId: string | null; onSelect: (id: string | null) => void;

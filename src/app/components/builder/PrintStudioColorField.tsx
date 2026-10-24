@@ -34,8 +34,8 @@ function PresetGrid({
             className={cn(
               'aspect-square w-full min-w-0 rounded-lg border transition-all active:scale-[0.97]',
               active
-                ? 'border-[#405b6f] ring-1 ring-[#405b6f]/45'
-                : 'border-[#dce3ec] hover:border-[#dce3ec]',
+                ? 'border-[#262626] ring-1 ring-[#262626]/45'
+                : 'border-[#e2e2e2] hover:border-[#e2e2e2]',
             )}
             style={{ backgroundColor: norm }}
             aria-label={`Colour ${norm}`}
@@ -88,12 +88,12 @@ export function StudioColorField({
         <AdvancedColorPopover value={value} onChange={onChange} allowGradients={allowGradients}>
           <button
             type="button"
-            className="group relative aspect-square w-[3.25rem] shrink-0 overflow-hidden rounded-xl border border-[#dce3ec] bg-black/30 shadow-inner transition hover:border-[#dce3ec] sm:aspect-[5/3] sm:w-[5.5rem]"
+            className="group relative aspect-square w-[3.25rem] shrink-0 overflow-hidden rounded-xl border border-[#e2e2e2] bg-black/30 shadow-inner transition hover:border-[#e2e2e2] sm:aspect-[5/3] sm:w-[5.5rem]"
             aria-label="Open colour picker"
           >
             <span className="absolute inset-0" style={{ background: allowGradients ? paintCss(value) : hex }} aria-hidden />
             <span
-              className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#dce3ec] bg-black/55 text-[#35414e] shadow-sm backdrop-blur-sm transition group-hover:bg-black/65 sm:h-6 sm:w-6"
+              className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border border-[#e2e2e2] bg-black/55 text-[#262626] shadow-sm backdrop-blur-sm transition group-hover:bg-black/65 sm:h-6 sm:w-6"
               aria-hidden
             >
               <Palette className="h-2.5 w-2.5 sm:h-3 sm:w-3" strokeWidth={2} />
@@ -113,18 +113,18 @@ export function StudioColorField({
           }}
           spellCheck={false}
           placeholder="#FFFFFF"
-          className="h-9 min-w-0 flex-1 rounded-full border-[#dce3ec] bg-black/35 px-3 font-mono text-[11px] text-[#35414e] placeholder:text-[#8192a8]"
+          className="h-9 min-w-0 flex-1 rounded-full border-[#e2e2e2] bg-black/35 px-3 font-mono text-[11px] text-[#262626] placeholder:text-[#737373]"
           aria-label="Hex colour"
         />
       </div>
 
       <div>
-        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-[#8192a8] sm:mb-1">{mainLabel}</div>
+        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-[#737373] sm:mb-1">{mainLabel}</div>
         <PresetGrid colors={mainColors} selected={parsePaint(value) ? '' : hex} onSelect={onChange} />
       </div>
 
       <div>
-        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-[#8192a8] sm:mb-1">{popularLabel}</div>
+        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-[#737373] sm:mb-1">{popularLabel}</div>
         <PresetGrid colors={popularColors} selected={hex} onSelect={onChange} />
       </div>
 
@@ -132,7 +132,7 @@ export function StudioColorField({
         <button
           type="button"
           onClick={onClear}
-          className="text-[9px] font-medium text-[#8192a8] underline-offset-2 hover:text-[#8192a8] hover:underline"
+          className="text-[9px] font-medium text-[#737373] underline-offset-2 hover:text-[#737373] hover:underline"
         >
           {clearLabel}
         </button>

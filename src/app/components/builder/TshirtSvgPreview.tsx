@@ -829,7 +829,7 @@ function LayerHitTarget({ layerId, displayName, raw, side, zIndexBase, bbox, tra
 
 function SeamPanelMaterialTarget({panel,selected,hovered,onHover,onSelect,onMaterialDrop}:{panel:PanelRegion;selected:boolean;hovered:boolean;onHover:(id:string|null)=>void;onSelect?:(id:string)=>void;onMaterialDrop?:MaterialDropHandler}){
  const {dragHovered,handlers}=useMaterialDrop(panel.id,onMaterialDrop);
- return <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{zIndex:175}}><path d={panel.path} className="seam-panel-material-target" fill="#7c8b9b38" stroke="#657d90" strokeWidth="3" fillRule="evenodd" style={{pointerEvents:'fill',cursor:'pointer'}} data-tshirt-hit-target={panel.id} data-construction-region-hit={panel.id} data-material-highlight-active={selected||hovered||dragHovered?true:undefined} data-selection-highlight={selected?'selected':hovered||dragHovered?'hover':undefined} role="button" tabIndex={0} aria-label={'Select '+panel.label} aria-pressed={selected} {...handlers} onPointerMove={event=>{if(event.pointerType!=='touch')onHover(panel.id)}} onPointerLeave={()=>onHover(null)} onPointerCancel={()=>onHover(null)} onPointerDown={event=>{event.stopPropagation();onSelect?.(panel.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect?.(panel.id)}}}/></svg>;
+ return <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{zIndex:175}}><path d={panel.path} className="seam-panel-material-target" fill="#7c8b9b38" stroke="#525252" strokeWidth="3" fillRule="evenodd" style={{pointerEvents:'fill',cursor:'pointer'}} data-tshirt-hit-target={panel.id} data-construction-region-hit={panel.id} data-material-highlight-active={selected||hovered||dragHovered?true:undefined} data-selection-highlight={selected?'selected':hovered||dragHovered?'hover':undefined} role="button" tabIndex={0} aria-label={'Select '+panel.label} aria-pressed={selected} {...handlers} onPointerMove={event=>{if(event.pointerType!=='touch')onHover(panel.id)}} onPointerLeave={()=>onHover(null)} onPointerCancel={()=>onHover(null)} onPointerDown={event=>{event.stopPropagation();onSelect?.(panel.id)}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect?.(panel.id)}}}/></svg>;
 }
 
 function expandPreviewLayers(
@@ -1798,7 +1798,7 @@ export function TshirtSvgPreview({
       {collarContourError && <p role="alert" className="sr-only">
         Garment geometry preparation failed. The original preview is still shown.
       </p>}
-      {hemEditor && <div className="pointer-events-none absolute left-2 top-2 z-[260] bg-white/90 px-2 py-1 text-xs text-[#292929]">
+      {hemEditor && <div className="pointer-events-none absolute left-2 top-2 z-[260] bg-white/90 px-2 py-1 text-xs text-[#171717]">
         {hemEditor.regions.find(region => region.id === hemEditor.region)?.name}
       </div>}
       {showSelectionHint&&toolHint ? (

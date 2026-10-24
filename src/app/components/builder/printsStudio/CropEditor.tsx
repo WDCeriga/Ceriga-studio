@@ -126,11 +126,11 @@ export function CropEditorControls({ draft, onChange, onApply, onCancel }: {
 }) {
   const crop = normalizeCrop(draft);
   return (
-    <div {...chrome} role="group" aria-label="Crop controls" className="flex flex-wrap items-center justify-center gap-2 rounded-lg bg-[#18181b] p-2 text-xs text-[#35414e] shadow-lg" onPointerDown={event => event.stopPropagation()} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); onCancel(); } }}>
-      <span className="text-[#8192a8]">{Math.round(100 - crop.cropLeft - crop.cropRight)} × {Math.round(100 - crop.cropTop - crop.cropBottom)}%</span>
-      <button {...chrome} type="button" className="rounded bg-[#405b6f] px-3 py-2" onClick={onApply}>Apply crop</button>
-      <button {...chrome} type="button" className="rounded bg-[#eef2f5] px-3 py-2" onClick={onCancel}>Cancel crop</button>
-      <button {...chrome} type="button" className="rounded bg-[#eef2f5] px-3 py-2" onClick={() => onChange(normalizeCrop({}))}>Reset crop</button>
+    <div {...chrome} role="group" aria-label="Crop controls" className="flex flex-wrap items-center justify-center gap-2 rounded-lg bg-[#171717] p-2 text-xs text-[#262626] shadow-lg" onPointerDown={event => event.stopPropagation()} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); onCancel(); } }}>
+      <span className="text-[#737373]">{Math.round(100 - crop.cropLeft - crop.cropRight)} × {Math.round(100 - crop.cropTop - crop.cropBottom)}%</span>
+      <button {...chrome} type="button" className="rounded bg-[#262626] px-3 py-2" onClick={onApply}>Apply crop</button>
+      <button {...chrome} type="button" className="rounded bg-[#f2f2f2] px-3 py-2" onClick={onCancel}>Cancel crop</button>
+      <button {...chrome} type="button" className="rounded bg-[#f2f2f2] px-3 py-2" onClick={() => onChange(normalizeCrop({}))}>Reset crop</button>
     </div>
   );
 }

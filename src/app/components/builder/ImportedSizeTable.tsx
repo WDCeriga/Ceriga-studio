@@ -10,7 +10,7 @@ function SizeCell({ label, millimetres, unit, onChange, onHighlight }: {
   const [draft, setDraft] = useState(display);
   useEffect(() => setDraft(display), [display, unit]);
   return <input type="number" aria-label={`${label} (${unit})`} title="User supplied; blank means not supplied" placeholder="—" min="0" step="any"
-    className="w-full min-w-12 rounded border border-white/20 bg-[#1b1b1d] px-1 py-1.5 text-center text-[11px] text-white tabular-nums focus:border-[#FF3B30] focus:outline-none"
+    className="w-full min-w-12 rounded border border-white/20 bg-[#171717] px-1 py-1.5 text-center text-[11px] text-white tabular-nums focus:border-[#FF3B30] focus:outline-none"
     value={draft} onFocus={() => onHighlight(true)}
     onChange={event => { setDraft(event.target.value); event.target.setCustomValidity(''); }}
     onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
@@ -35,7 +35,7 @@ export function ImportedSizeTable({ value, view, guides, unit, onChange, highlig
   return <section aria-label="Size specifications" className="space-y-2">
     <h4 className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{view} size measurements ({unit})</h4>
     <p id={descriptionId} className="text-[10px] text-white/50">Rows follow the detected garment and current view. XS–XXL values are user supplied and blank until entered; no size grading is inferred from the photo. Stored in millimetres; changing units converts the display.</p>
-    <div className="overflow-x-auto rounded-md border border-white/10 bg-[#151517]">
+    <div className="overflow-x-auto rounded-md border border-white/10 bg-[#171717]">
       <table className="w-full min-w-[420px] table-fixed text-[11px]" aria-label={`${view} size measurement table`} aria-describedby={descriptionId}>
         <thead><tr className="border-b border-white/10 text-white/55"><th scope="col" className="w-24 px-2 py-2 text-left font-semibold">Measurement</th>
           {importedGarmentSizes.map(size => <th scope="col" key={size} className="px-1 py-2 font-semibold">{size}</th>)}

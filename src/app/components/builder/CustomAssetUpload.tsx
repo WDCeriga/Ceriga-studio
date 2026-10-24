@@ -320,7 +320,7 @@ export function CustomAssetUpload(props: Props) {
       </div>;
     })}
     <Dialog open={open} onOpenChange={value => { if (!value) cancel(); setOpen(value); }}>
-      <DialogContent className="custom-drawing-dialog max-h-[94dvh] overflow-y-auto rounded-lg border-white/15 bg-[#171719] p-4 text-white shadow-2xl sm:max-w-3xl sm:p-6" aria-describedby={undefined}>
+      <DialogContent className="custom-drawing-dialog max-h-[94dvh] overflow-y-auto rounded-lg border-white/15 bg-[#171717] p-4 text-white shadow-2xl sm:max-w-3xl sm:p-6" aria-describedby={undefined}>
         <div className="space-y-1 pr-7"><DialogTitle className="text-base font-semibold">Custom {labels[category]} Drawing</DialogTitle>
           <p className="text-xs capitalize text-white/50">{props.garmentType === 'tshirtTest' ? 'Test tee' : 'T-shirt'} / {props.fit} / {props.view}</p><p className="drawing-dialog-description">Create a clean AI drawing from your photo, review it, then apply it to your garment.</p></div>
         <div className="drawing-source-toolbar flex flex-wrap items-end gap-3 border-y border-white/10 py-3">
@@ -349,7 +349,7 @@ export function CustomAssetUpload(props: Props) {
         {limited && <p role="status" className="text-xs text-amber-200">{limited}</p>}
         <div role="tablist" aria-label="Asset preview" className="flex border-b border-white/15">
           {(['original', 'drawing', 'final'] as const).map(value => <button key={value} role="tab" aria-selected={tab === value} disabled={value === 'drawing' ? !drawing : value === 'final' ? !result : !image}
-            className={`flex-1 border-b-2 px-2 py-2 text-[10px] disabled:opacity-30 ${tab === value ? 'border-slate-400 text-white' : 'border-transparent text-white/50'}`} onClick={() => setTab(value)}>{value === 'drawing' ? 'CLEAN DRAWING' : value === 'final' ? 'FINAL ASSET' : 'ORIGINAL'}</button>)}
+            className={`flex-1 border-b-2 px-2 py-2 text-[10px] disabled:opacity-30 ${tab === value ? 'border-neutral-400 text-white' : 'border-transparent text-white/50'}`} onClick={() => setTab(value)}>{value === 'drawing' ? 'CLEAN DRAWING' : value === 'final' ? 'FINAL ASSET' : 'ORIGINAL'}</button>)}
         </div>
         {tab === 'final' && result && category === 'collar' && <div role="group" aria-label="Final asset view" className="flex flex-wrap gap-1">
           {(collarTopology ? ['drawing', 'fabric', 'collar', 'garment'] as const : ['collar', 'garment'] as const).map(value => <button key={value} type="button" aria-pressed={finalView === value}
@@ -363,7 +363,7 @@ export function CustomAssetUpload(props: Props) {
         {tab === 'drawing' && isolation && <div role="group" aria-label="Sleeve isolation view" className="flex flex-wrap gap-1">
           {(['context', 'raw', 'isolated', 'cuff'] as const).filter(value => (value !== 'raw' || isolation.rawIsolation) && (value !== 'cuff' || result?.sleeveReconstruction)).map(value => <button key={value} type="button" aria-pressed={isolationView === value} className={`${control} ${isolationView === value ? '!border-slate-400' : ''}`} onClick={() => setIsolationView(value)}>{value === 'context' ? 'Detected Sleeve' : value === 'raw' ? 'Raw Isolation' : value === 'cuff' ? 'Cuff Isolation' : isolation.rawIsolation ? 'Normalized Asset' : 'Isolated Asset'}</button>)}
         </div>}
-        {!(tab === 'final' && result?.sleeveReconstruction) && !(tab === 'drawing' && collarComparison) && <div role="tabpanel" aria-label={tab === 'final' ? 'FINAL ASSET' : tab === 'drawing' ? 'CLEAN DRAWING' : 'ORIGINAL'} aria-busy={busy} data-empty={!image} className={`flex ${tab === 'final' && category === 'collar' && finalView === 'garment' ? 'h-[min(44dvh,360px)]' : 'h-[min(32dvh,280px)]'} min-h-40 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-[#eeeeec] sm:h-[min(46dvh,430px)]`}>
+        {!(tab === 'final' && result?.sleeveReconstruction) && !(tab === 'drawing' && collarComparison) && <div role="tabpanel" aria-label={tab === 'final' ? 'FINAL ASSET' : tab === 'drawing' ? 'CLEAN DRAWING' : 'ORIGINAL'} aria-busy={busy} data-empty={!image} className={`flex ${tab === 'final' && category === 'collar' && finalView === 'garment' ? 'h-[min(44dvh,360px)]' : 'h-[min(32dvh,280px)]'} min-h-40 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-[#f2f2f2] sm:h-[min(46dvh,430px)]`}>
           {tab === 'final' && result ? category === 'collar' && collarTopology && finalView !== 'garment' && finalView !== 'collar'
             ? <img alt={finalView === 'drawing' ? 'Approved clean collar drawing' : `Collar topology ${finalView}`} src={finalView === 'drawing' ? collarComparison?.cleanDrawing ?? drawing : collarTopology.previews[finalView]} className="h-full w-full object-contain p-3"/>
             : category === 'collar' && finalView === 'collar'
@@ -405,14 +405,14 @@ export function CustomAssetUpload(props: Props) {
               invalidate();
             }} onPointerUp={() => { origin.current = undefined; }} onPointerCancel={() => { origin.current = undefined; }}>
               <img alt="Original reference" draggable={false} src={image} className="max-h-[min(32dvh,280px)] max-w-full object-contain sm:max-h-[min(46dvh,430px)]"/>
-              <div className="pointer-events-none absolute border-2 border-slate-500 bg-slate-400/10" style={{ left: `${crop[0] * 100}%`, top: `${crop[1] * 100}%`, width: `${(crop[2] - crop[0]) * 100}%`, height: `${(crop[3] - crop[1]) * 100}%` }}/>
+              <div className="pointer-events-none absolute border-2 border-neutral-500 bg-neutral-400/10" style={{ left: `${crop[0] * 100}%`, top: `${crop[1] * 100}%`, width: `${(crop[2] - crop[0]) * 100}%`, height: `${(crop[3] - crop[1]) * 100}%` }}/>
             </div> : <button type="button" className="drawing-upload-empty" onClick={()=>input.current?.click()}><span className="drawing-upload-icon"><ImagePlus size={27}/></span><strong>Add your {source==='photo'?'photo':'drawing'}</strong><span>{source==='photo'?'Use a clear, front-facing photo with the construction visible.':'Choose clean linework on a plain background.'}</span><i>Choose image <Upload size={13}/></i><small>PNG, JPG or WebP · up to 12 MB</small></button>}
         </div>}
         {collarComparison && <section aria-label="Collar reference comparison" className="min-w-0 space-y-3 border-t border-white/15 pt-3">
-          <p role="status" aria-label="Collar drawing match" className={`text-sm font-semibold ${collarComparison.review.status === 'Rejected' ? 'text-red-300' : collarComparison.review.status === 'Needs Review' ? 'text-amber-200' : 'text-slate-300'}`}>{collarComparison.review.status}</p>
+          <p role="status" aria-label="Collar drawing match" className={`text-sm font-semibold ${collarComparison.review.status === 'Rejected' ? 'text-red-300' : collarComparison.review.status === 'Needs Review' ? 'text-amber-200' : 'text-neutral-300'}`}>{collarComparison.review.status}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <figure className="min-w-0"><figcaption className="mb-1 text-xs text-white/70">Source crop</figcaption><img src={collarComparison.sourceCrop} alt="Source crop used for collar comparison" className="h-64 w-full rounded bg-[#eeeeec] object-contain"/></figure>
-            <figure className="min-w-0"><figcaption className="mb-1 text-xs text-white/70">Generated clean drawing</figcaption><img src={collarComparison.cleanDrawing} alt="Generated collar drawing reviewed by validator" className="h-64 w-full rounded bg-[#eeeeec] object-contain"/></figure>
+            <figure className="min-w-0"><figcaption className="mb-1 text-xs text-white/70">Source crop</figcaption><img src={collarComparison.sourceCrop} alt="Source crop used for collar comparison" className="h-64 w-full rounded bg-[#f2f2f2] object-contain"/></figure>
+            <figure className="min-w-0"><figcaption className="mb-1 text-xs text-white/70">Generated clean drawing</figcaption><img src={collarComparison.cleanDrawing} alt="Generated collar drawing reviewed by validator" className="h-64 w-full rounded bg-[#f2f2f2] object-contain"/></figure>
           </div>
           <h3 className="text-xs font-semibold">Detected differences</h3>
           {!collarComparison.review.differences.length && <p className="text-xs text-white/70">No visible differences reported.{collarComparison.review.confidence !== 'high' ? ' Source evidence is uncertain.' : ''}</p>}
@@ -456,7 +456,7 @@ export function CustomAssetUpload(props: Props) {
           <button className={control} onClick={() => { setTab('drawing'); setIsolationView('context'); setAdjustingIsolation(true); }}><Pencil className="mr-1 inline size-3.5"/>Adjust</button>
           <button className={`${control} !bg-slate-700`} onClick={() => process(true)}><Check className="mr-1 inline size-3.5"/>Confirm</button>
         </div>}
-        {busy && <p role="status" className="flex items-center gap-2 text-xs text-slate-300"><LoaderCircle className="size-4 shrink-0 animate-spin"/>{progress}…</p>}
+        {busy && <p role="status" className="flex items-center gap-2 text-xs text-neutral-300"><LoaderCircle className="size-4 shrink-0 animate-spin"/>{progress}…</p>}
         {!busy && result?.sleeveReview && category === 'sleeve' && <p role="status" aria-label="Sleeve drawing match" className="text-xs text-white/80">
           Clean drawing: {result.sleeveReview.status}
         </p>}

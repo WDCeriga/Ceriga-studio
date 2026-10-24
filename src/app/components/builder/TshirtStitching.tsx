@@ -118,7 +118,7 @@ export function TshirtStitchingPanel({ layers, fit, settings = {}, hems, color, 
     <div className="space-y-2">
       <label htmlFor="stitch-region" className="block text-xs text-white/80">{applyToAll ? 'Focus seam' : 'Stitching part'}</label>
       <select id="stitch-region" value={region ?? ''} onChange={event => editor.onSelect(event.target.value as StitchRegion)}
-        className="h-9 w-full rounded border border-white/20 bg-[#18181b] px-2 text-xs text-white">
+        className="h-9 w-full rounded border border-white/20 bg-[#171717] px-2 text-xs text-white">
         {!region && <option value="">No visible stitching</option>}
         {(Object.keys(TSHIRT_STITCH_REGIONS) as StitchRegion[]).map(part => <option key={part} value={part} disabled={!available.includes(part)}>
           {TSHIRT_STITCH_REGIONS[part]}{available.includes(part) ? '' : ' (unavailable)'}
@@ -129,7 +129,7 @@ export function TshirtStitchingPanel({ layers, fit, settings = {}, hems, color, 
       <div className="space-y-2">
         <label htmlFor="stitch-style" className="block text-xs text-white/80">Stitch type</label>
         <select id="stitch-style" value={selected.style ?? 'standard'}
-          className="h-9 w-full rounded border border-white/20 bg-[#18181b] px-2 text-xs text-white"
+          className="h-9 w-full rounded border border-white/20 bg-[#171717] px-2 text-xs text-white"
           onChange={event => change({ style: event.target.value as StitchStyle })}>
           {TSHIRT_STITCH_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
@@ -137,7 +137,7 @@ export function TshirtStitchingPanel({ layers, fit, settings = {}, hems, color, 
       <div className="space-y-2">
         <label htmlFor="stitch-thread" className="block text-xs text-white/80">Thread appearance</label>
         <select id="stitch-thread" value={selected.thread ?? 'regular'}
-          className="h-9 w-full rounded border border-white/20 bg-[#18181b] px-2 text-xs text-white"
+          className="h-9 w-full rounded border border-white/20 bg-[#171717] px-2 text-xs text-white"
           onChange={event => change({ thread: event.target.value as StitchSettings['thread'] })}>
           {Object.entries(STITCH_THREAD_OPTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>

@@ -67,7 +67,7 @@ export function FabricControls({ parts, value, onChange, textureIntensity, onTex
   const resetSelected = () => {
     if (target) onChange(resetPartFabric(state, parts, selection ?? target.id));
   };
-  const controlClass = 'h-9 border-[#252528] bg-white/5 text-[11px] text-white';
+  const controlClass = 'h-9 border-[#171717] bg-white/5 text-[11px] text-white';
   const labelClass = 'mb-1.5 block text-[10px] uppercase tracking-wider text-white/60';
 
   if (!parts.length) return <p className="text-[11px] text-white/50">Select garment parts to assign fabrics.</p>;
@@ -81,7 +81,7 @@ export function FabricControls({ parts, value, onChange, textureIntensity, onTex
         onSelectPart?.(parts.some(part => part.id === next) ? next : null);
       }}>
         <SelectTrigger id="fabric-part" className={controlClass}><SelectValue>{selectionLabel}</SelectValue></SelectTrigger>
-        <SelectContent className="border-[#252528] bg-[#161618] text-[#F0EEEE]">
+        <SelectContent className="border-[#171717] bg-[#171717] text-[#f2f2f2]">
           <SelectItem value={GARMENT_DEFAULT}>Garment default</SelectItem>
           {categories.map(item => <SelectItem key={item} value={`category:${item}`}>{CATEGORY_LABELS[item]} category default</SelectItem>)}
           {targets.map(item => <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>)}
@@ -97,7 +97,7 @@ export function FabricControls({ parts, value, onChange, textureIntensity, onTex
       <Label htmlFor="fabric-type" className={labelClass}>Fabric Type</Label>
       <Select value={fabric?.id ?? ''} onValueChange={applyFabric}>
         <SelectTrigger id="fabric-type" className={controlClass}><SelectValue placeholder={mixed ? 'Mixed fabrics' : 'Select fabric'} /></SelectTrigger>
-        <SelectContent className="border-[#252528] bg-[#161618] text-[#F0EEEE]">
+        <SelectContent className="border-[#171717] bg-[#171717] text-[#f2f2f2]">
           {FABRIC_LIBRARY.map(item => <SelectItem key={item.id} value={item.id}>{item.name}{fabricSourceRecord(item).sourceStatus === 'unresolved' ? ' — texture unavailable' : ''}</SelectItem>)}
         </SelectContent>
       </Select>
@@ -175,7 +175,7 @@ export function FabricControls({ parts, value, onChange, textureIntensity, onTex
       <Label htmlFor="fabric-preset" className={labelClass}>Quick preset</Label>
       <Select value="" onValueChange={id => onChange(applyFabricPreset(state, parts, id))}>
         <SelectTrigger id="fabric-preset" className={controlClass}><SelectValue placeholder="Apply a fabric preset" /></SelectTrigger>
-        <SelectContent className="border-[#252528] bg-[#161618] text-[#F0EEEE]">
+        <SelectContent className="border-[#171717] bg-[#171717] text-[#f2f2f2]">
           {FABRIC_PRESETS.map(preset => <SelectItem key={preset.id} value={preset.id}>{preset.name}</SelectItem>)}
         </SelectContent>
       </Select>
@@ -190,7 +190,7 @@ export function FabricControls({ parts, value, onChange, textureIntensity, onTex
         <Label htmlFor="interior-fabric-type" className={labelClass}>Interior fabric</Label>
         <Select value={interior.fabricId ?? state.garmentDefault ?? ''} onValueChange={fabricId => updateInterior({ fabricId })}>
           <SelectTrigger id="interior-fabric-type" className={controlClass}><SelectValue placeholder="Select interior fabric" /></SelectTrigger>
-          <SelectContent className="border-[#252528] bg-[#161618] text-[#F0EEEE]">
+          <SelectContent className="border-[#171717] bg-[#171717] text-[#f2f2f2]">
             {FABRIC_LIBRARY.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
           </SelectContent>
         </Select>

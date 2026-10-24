@@ -14,7 +14,7 @@ import { constructionNeedsReview, constructionRegionsForView, isConstructionInk,
 import { ImportedConstructionRegionReview } from './ImportedConstructionRegionReview';
 import { EstimatedBackComparison } from './EstimatedBackComparison';
 
-const inputClass = 'w-full min-w-0 rounded border border-white/20 bg-[#202024] px-2 py-1.5 text-xs text-white';
+const inputClass = 'w-full min-w-0 rounded border border-white/20 bg-[#171717] px-2 py-1.5 text-xs text-white';
 const buttonClass = 'inline-flex min-h-8 items-center justify-center gap-2 rounded border border-white/20 px-2 py-1 text-xs disabled:opacity-40';
 type Point = [number, number];
 
@@ -212,7 +212,7 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
                   {!viewMetadata?.inference && <button className={buttonClass} disabled={busy} onClick={() => void segmentConstruction()}>Re-analyse construction regions</button>}</>}
         {constructionNeedsReview(value) && <p role="status" className="text-amber-200">Review construction regions in each segmented view before accepting this garment.</p>}
       </div>}
-      {constructionReview && <Dialog open onOpenChange={open => { if (!open) setConstructionReview(null); }}><DialogContent className="max-h-[92dvh] overflow-auto border-white/20 bg-[#161618] text-white sm:max-w-6xl"><DialogTitle>Construction regions · {constructionReview}</DialogTitle>
+      {constructionReview && <Dialog open onOpenChange={open => { if (!open) setConstructionReview(null); }}><DialogContent className="max-h-[92dvh] overflow-auto border-white/20 bg-[#171717] text-white sm:max-w-6xl"><DialogTitle>Construction regions · {constructionReview}</DialogTitle>
         <ImportedConstructionRegionReview value={value} view={constructionReview} selectedId={selectedId} onSelect={selectRegion} onChange={onChange} onReviewed={() => setConstructionReview(null)}/>
       </DialogContent></Dialog>}
       {traceOnly && !construction && <p className="text-white/60">Original silhouette and construction ink preserved. No semantic garment reconstruction or hidden geometry is added.{!value.parts.some(part => part.view === view && part.colorable) && ' This faithful trace has no inferred colour fills; its ink and stitches stay together.'}</p>}
@@ -236,7 +236,7 @@ export function ImportedGarmentEditor({ value, onChange, onReplace, selectedId, 
         <p className="text-xs">Regeneration replaces estimated rear geometry and manual rear corrections using the current front.</p>
         {value.manifest.backView.constructionRegions && <button className={buttonClass} onClick={() => setConstructionReview('back')}>Review estimated back regions</button>}
         <button className={buttonClass} onClick={() => setBackComparison(true)}>Compare front and estimated back</button>
-        {backComparison && <Dialog open onOpenChange={setBackComparison}><DialogContent className="max-h-[92dvh] overflow-auto border-white/20 bg-[#161618] text-white sm:max-w-6xl"><DialogTitle>Front-derived estimated back</DialogTitle><EstimatedBackComparison value={value}/></DialogContent></Dialog>}
+        {backComparison && <Dialog open onOpenChange={setBackComparison}><DialogContent className="max-h-[92dvh] overflow-auto border-white/20 bg-[#171717] text-white sm:max-w-6xl"><DialogTitle>Front-derived estimated back</DialogTitle><EstimatedBackComparison value={value}/></DialogContent></Dialog>}
         <label className={buttonClass}><ImagePlus size={14}/>Replace estimate with real back<input aria-label="Replace estimated back with real back reference" className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) stageView(file, 'back'); }}/></label>
       </div>}
       {!value.accepted && canAcceptImportedConstruction(value) && <button className={`${buttonClass} bg-white/10`} disabled={constructionNeedsReview(value)} onClick={() => { if (!constructionNeedsReview(value)) onChange({ ...value, accepted: true, reviewed: true }); }}><Check size={14}/>{construction ? 'Use reviewed construction regions' : value.manifest.backView?.inference ? 'Use garment with estimated back' : traceOnly ? 'Use traced mockup' : 'Use detected garment'}</button>}
@@ -270,11 +270,11 @@ export function ImportedMeasurements({ value, view = 'front', onChange, highligh
     <ImportedSizeTable value={value} view={view} guides={guides} unit={unit} onChange={onChange} highlightedId={highlightedId} onHighlight={onHighlight}/>
     <h4 className="text-[11px] font-semibold uppercase tracking-wide text-white/60">Photo reference measurements</h4>
     {!guides.length && <p role="status">No source-evidenced measurement landmarks for this view.</p>}
-    <div className="overflow-hidden rounded-md border border-white/10 bg-[#151517]"><table className="w-full text-[11px]" aria-label="Garment measurement table"><thead><tr className="border-b border-white/10 text-white/55">{['Measurement', 'Value', 'Unit', 'Status'].map(column => <th key={column} className="px-2 py-2 text-left font-semibold">{column}</th>)}</tr></thead>
+    <div className="overflow-hidden rounded-md border border-white/10 bg-[#171717]"><table className="w-full text-[11px]" aria-label="Garment measurement table"><thead><tr className="border-b border-white/10 text-white/55">{['Measurement', 'Value', 'Unit', 'Status'].map(column => <th key={column} className="px-2 py-2 text-left font-semibold">{column}</th>)}</tr></thead>
       <tbody>{guides.map((guide, index) => <tr key={guide.id} data-measurement-row={guide.id} className={`border-b border-white/10 last:border-0 ${highlightedId === guide.id ? 'bg-[#cc2d24]/15' : ''}`}
         onMouseEnter={() => onHighlight?.(guide.id)} onMouseLeave={() => onHighlight?.(null)}>
         <td className="px-2 py-2"><button className="w-full break-words text-left font-medium" title={guide.method} disabled={!guide.length} onFocus={() => onHighlight?.(guide.id)} onBlur={() => onHighlight?.(null)} onClick={() => onHighlight?.(guide.id)}>{String.fromCharCode(65 + index)}. {guide.name}</button></td>
-        <td className="px-2 py-1 tabular-nums"><span className="block min-w-12 rounded border border-white/20 bg-[#1b1b1d] px-2 py-1.5 text-center">{guide.millimetres === null ? '—' : (guide.millimetres / (unit === 'cm' ? 10 : 1)).toFixed(1)}</span></td>
+        <td className="px-2 py-1 tabular-nums"><span className="block min-w-12 rounded border border-white/20 bg-[#171717] px-2 py-1.5 text-center">{guide.millimetres === null ? '—' : (guide.millimetres / (unit === 'cm' ? 10 : 1)).toFixed(1)}</span></td>
         <td className="px-2 py-2 text-white/60">{guide.millimetres === null ? 'relative' : unit}</td>
         <td className="px-2 py-2 text-[10px] text-white/50">{statuses[guide.status]}</td>
       </tr>)}</tbody></table></div>
@@ -401,7 +401,7 @@ function ImportedRegionReview({ value, open, initialView, onOpenChange, onChange
     const position = new DOMPoint(event.clientX, event.clientY).matrixTransform(svg.getScreenCTM()!.inverse());
     return [Math.max(0, Math.min(2048, position.x)), Math.max(0, Math.min(2048, position.y))];
   };
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="flex h-[92dvh] w-[96vw] max-w-[1250px] flex-col overflow-hidden border-white/20 bg-[#161618] p-4 text-white sm:max-w-[1250px]">
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="flex h-[92dvh] w-[96vw] max-w-[1250px] flex-col overflow-hidden border-white/20 bg-[#171717] p-4 text-white sm:max-w-[1250px]">
     <DialogTitle>{value.manifest.garmentType} · construction review</DialogTitle>
     {inferred && <p className="text-xs text-amber-200">Estimated back — inferred from front geometry. {inferred.notice}</p>}
     {valid && <div className="flex flex-wrap gap-2" aria-label="Download garment drawings">
@@ -419,7 +419,7 @@ function ImportedRegionReview({ value, open, initialView, onOpenChange, onChange
     <div className="flex gap-2">{(['front', 'back'] as const).map(side => <button key={side} className={`${buttonClass} capitalize`} aria-pressed={garmentView === side} disabled={!value.parts.some(part => part.view === side)} onClick={() => { setGarmentView(side); onSelect(null); setPoints([]); setMode('select'); }}>{side}</button>)}</div>
     <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col"><div className="mb-2 flex flex-wrap gap-2" role="tablist" aria-label="Import review stages">{['source', 'interpretation', 'boundaries', 'regions', 'controls'].map((tab, index) => <button role="tab" aria-selected={view === tab} className={`${buttonClass} capitalize ${view === tab ? 'bg-white/15' : ''}`} key={tab} onClick={() => { setView(tab); setMode('select'); setPoints([]); }}>{index + 1}. {tab}</button>)}</div>
-        <div className="relative min-h-[220px] flex-1 overflow-hidden bg-[#f7f7f7]">
+        <div className="relative min-h-[220px] flex-1 overflow-hidden bg-[#fafafa]">
           {inferred && view === 'source' ? <p className="p-5 text-sm text-amber-900">{inferred.notice} No back source image exists. Choose Regions to edit the estimated outline.</p> : view === 'source' || !valid ? <img src={value.sourceImages?.[garmentView] ?? (garmentView === value.manifest.view ? value.sourceImage : '')} alt={`Source ${value.manifest.garmentType} ${garmentView}`} className="absolute inset-0 h-full w-full object-contain"/> :
             <svg viewBox="0 0 2048 2048" className="absolute inset-0 h-full w-full touch-none" aria-label="Construction region review" onPointerDown={event => { if (mode !== 'select') setPoints(previous => [...previous, coordinate(event)]); else onSelect(null); }}>
               {value.parts.filter(part => part.view === garmentView && (view !== 'boundaries' || part.layerKind === 'structural')).map(part => <g key={part.id} data-review-part={part.id} onPointerEnter={() => setHovered(part.id)} onPointerLeave={() => setHovered(null)} onPointerDown={event => { if (mode === 'select') { event.stopPropagation(); onSelect(part.id); } }} style={{ cursor: mode === 'select' ? 'pointer' : 'crosshair' }}>

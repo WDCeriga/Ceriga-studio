@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { WASH_TYPES, WASH_PLACEMENTS, updateWashView, washStrokePath, washStrokeFilterBounds, type GarmentWash, type WashBounds, type WashPoint, type WashStroke, type WashTool } from '../../data/garmentWash';
 import type { GarmentView } from '../../data/garmentView';
 
-const fieldClass = 'w-full min-w-0 rounded border border-white/15 bg-[#202023] px-2 py-2 text-xs text-white';
+const fieldClass = 'w-full min-w-0 rounded border border-white/15 bg-[#171717] px-2 py-2 text-xs text-white';
 const buttonClass = 'inline-flex h-8 items-center justify-center gap-2 rounded border border-white/15 px-2 text-xs text-white/80 hover:bg-white/10 aria-pressed:bg-white/20 aria-pressed:border-white/60 disabled:opacity-30';
 
 function WashSelect({ label, ariaLabel, value, options, onChange }: {
@@ -14,8 +14,8 @@ function WashSelect({ label, ariaLabel, value, options, onChange }: {
     <span>{label}</span>
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger aria-label={ariaLabel} className={fieldClass}><SelectValue /></SelectTrigger>
-      <SelectContent className="z-[400] max-h-72 border-white/15 bg-[#202023] text-white shadow-xl">
-        {Object.entries(options).map(([optionValue, title]) => <SelectItem key={optionValue} value={optionValue} className="text-xs text-white focus:bg-[#38383d] focus:text-white data-[state=checked]:bg-[#303035] [&_svg]:text-white">{title}</SelectItem>)}
+      <SelectContent className="z-[400] max-h-72 border-white/15 bg-[#171717] text-white shadow-xl">
+        {Object.entries(options).map(([optionValue, title]) => <SelectItem key={optionValue} value={optionValue} className="text-xs text-white focus:bg-[#262626] focus:text-white data-[state=checked]:bg-[#262626] [&_svg]:text-white">{title}</SelectItem>)}
       </SelectContent>
     </Select>
   </div>;
@@ -23,7 +23,7 @@ function WashSelect({ label, ariaLabel, value, options, onChange }: {
 
 function Range({ label, value, onChange, min = 0, max = 100 }: { label: string; value: number; onChange: (value: number) => void; min?: number; max?: number }) {
   return <label className="block space-y-1.5 text-[11px] text-white/65"><span className="flex justify-between gap-2"><span>{label}</span><output>{Math.round(value)}</output></span>
-    <input aria-label={label} type="range" min={min} max={max} value={value} onChange={event => onChange(Number(event.target.value))} className="block w-full accent-[#b9ccff]" /></label>;
+    <input aria-label={label} type="range" min={min} max={max} value={value} onChange={event => onChange(Number(event.target.value))} className="block w-full accent-[#e2e2e2]" /></label>;
 }
 
 export function WashFinishPanel({ wash, onChange, view, tool, onToolChange, showWash, onShowWashChange }: {

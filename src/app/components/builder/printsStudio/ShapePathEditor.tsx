@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { DesignElement } from '../PrintStudioEditor';
+import { MaterialSelect } from '../shell/MaterialSelect';
 import type { ShapePath } from '../../../lib/shapeGeometry';
 import { deleteShapePoints, moveShapePoints, pathSegmentPoint, shapePointMapping, smoothShapePoints, splitShapeSegment } from '../../../lib/shapePathEditing';
 
 type Point = { x: number; y: number };
-const button = 'rounded border border-[#dce3ec] bg-[#f6f8f9] px-2 py-1 text-[10px] text-[#35414e] disabled:opacity-40';
+const button = 'shape-path-action';
 
 export function ShapePathEditor({ element, scale, onChange, onPreview, onDone }: {
   element: DesignElement; scale: number; onChange: (path: ShapePath) => void;
@@ -19,7 +20,7 @@ export function ShapePathEditor({ element, scale, onChange, onPreview, onDone }:
   const latest = useRef({ path, activePath, onChange, onPreview, onDone, selection, subpath });
   latest.current = { path, activePath, onChange, onPreview, onDone, selection, subpath };
   const mapping = shapePointMapping(element);
-  const radius = 4 / Math.max(0.1, scale) * 100 / Math.max(element.width, element.height);
+  const radiusX = 3 / Math.max(0.1, scale) * 100 / Math.max(1,element.width),radiusY = 3 / Math.max(0.1, scale) * 100 / Math.max(1,element.height);
   function replace(next: ShapePath, base = path): ShapePath {
     return subpath < 0 ? next : { ...base, subpaths: base.subpaths?.map((part, index) => index === subpath ? next : part) };
   }
@@ -81,18 +82,16 @@ export function ShapePathEditor({ element, scale, onChange, onPreview, onDone }:
     return Array.from({ length: 33 }, (_, i) => mapping.project(pathSegmentPoint(a, b, i / 32))).map((point, i) => `${i ? 'L' : 'M'} ${point.x} ${point.y}`).join(' ');
   }
   return <div data-shape-path-editor data-editor-chrome className="pointer-events-none absolute inset-0 z-50">
-    <div className="pointer-events-auto absolute bottom-full left-0 mb-3 flex w-max max-w-[320px] flex-wrap gap-1" style={{ transformOrigin: 'bottom left', scale: 1 / scale }}>
-      {path.subpaths?.length ? <select className={button} aria-label="Path contour" value={subpath} onChange={event => { setSubpath(Number(event.target.value)); setSelection([]); }}>
-        <option value={-1}>Outer path</option>{path.subpaths.map((_, index) => <option key={index} value={index}>Inner path {index + 1}</option>)}
-      </select> : null}
+    <div role="toolbar" aria-label="Path point actions" className="shape-point-toolbar pointer-events-auto absolute bottom-full left-1/2 -translate-x-1/2 mb-3 flex w-max max-w-[320px] flex-wrap gap-1" style={{ transformOrigin: 'bottom center', scale: String(1 / scale) }}>
+      {path.subpaths?.length ? <MaterialSelect aria-label="Path contour" value={String(subpath)} onChange={event=>{setSubpath(Number(event.target.value));setSelection([])}}><option value="-1">Outer path</option>{path.subpaths.map((_,index)=><option key={index} value={String(index)}>Inner path {index+1}</option>)}</MaterialSelect> : null}
       <button className={button} disabled={!selection.length} onClick={() => apply(smoothShapePoints(activePath, selection, true))}>Curve points</button>
       <button className={button} disabled={!selection.length} onClick={() => apply(smoothShapePoints(activePath, selection, false))}>Corner points</button>
       <button className={button} disabled={!selection.length} onClick={() => { apply(deleteShapePoints(activePath, selection)); setSelection([]); }}>Delete points</button>
       <button className={button} onClick={onDone}>Done</button>
     </div>
     <svg ref={svg} viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-label="Editable shape path">
-      {activePath.nodes.slice(0, activePath.closed ? undefined : -1).map((_, index) => <path key={index} d={segment(index)} fill="none" stroke="#ff6259" strokeWidth={1 / scale} vectorEffect="non-scaling-stroke"
-        className="pointer-events-auto cursor-copy" style={{ strokeWidth: 7 / scale, stroke: '#ff625955' }}
+      {activePath.nodes.slice(0, activePath.closed ? undefined : -1).map((_, index) => <path key={index} d={segment(index)} fill="none" stroke="#262626" strokeWidth={1 / scale} vectorEffect="non-scaling-stroke"
+        className="pointer-events-auto cursor-copy" style={{ strokeWidth: 7 / scale, stroke: '#52525233' }}
         onPointerDown={event => event.stopPropagation()}
         onDoubleClick={event => {
           event.preventDefault(); event.stopPropagation();
@@ -107,10 +106,10 @@ export function ShapePathEditor({ element, scale, onChange, onPreview, onDone }:
           {selection.includes(index) && (['in', 'out'] as const).map(handle => {
             if (!node[handle]) return null;
             const h = mapping.project(node[handle]);
-            return <g key={handle}><line x1={p.x} y1={p.y} x2={h.x} y2={h.y} stroke="#60a5fa" strokeWidth={1 / scale} vectorEffect="non-scaling-stroke" />
-              <circle aria-label={`Curve ${handle} handle ${index + 1}`} data-shape-curve-handle={handle} cx={h.x} cy={h.y} r={radius * 0.85} fill="#60a5fa" stroke="white" strokeWidth={1 / scale} vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-move" onPointerDown={event => drag(event, index, handle)} /></g>;
+            return <g key={handle}><line x1={p.x} y1={p.y} x2={h.x} y2={h.y} stroke="#737373" strokeWidth={1 / scale} vectorEffect="non-scaling-stroke" />
+              <ellipse aria-label={`Curve ${handle} handle ${index + 1}`} data-shape-curve-handle={handle} cx={h.x} cy={h.y} rx={radiusX * 0.85} ry={radiusY * 0.85} fill="#737373" stroke="white" strokeWidth={1 / scale} vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-move" onPointerDown={event => drag(event, index, handle)} /></g>;
           })}
-          <circle role="button" aria-label={`Shape anchor ${index + 1}`} aria-pressed={selection.includes(index)} data-shape-anchor={index} cx={p.x} cy={p.y} r={radius} fill={selection.includes(index) ? '#ff3b30' : 'white'} stroke="#ff3b30" strokeWidth={1.5 / scale} vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-move" onPointerDown={event => drag(event, index)} />
+          <rect role="button" aria-label={`Shape anchor ${index + 1}`} aria-pressed={selection.includes(index)} data-shape-anchor={index} x={p.x-radiusX} y={p.y-radiusY} width={radiusX*2} height={radiusY*2} rx={radiusX*.15} fill={selection.includes(index) ? '#262626' : 'white'} stroke="#262626" strokeWidth={1.5 / scale} vectorEffect="non-scaling-stroke" className="pointer-events-auto cursor-move" onPointerDown={event => drag(event, index)} />
         </g>;
       })}
     </svg>
@@ -136,12 +135,12 @@ export function ShapePolygonDraft({ width, height, color, onComplete, onCancel }
     return matrix ? new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()) : { x: 0, y: 0 };
   }
   return <div data-shape-polygon-draft data-editor-chrome className="pointer-events-auto absolute inset-0 z-[60] cursor-crosshair">
-    <div className="pointer-events-none absolute left-2 top-2 rounded bg-[#f6f8f9] p-2 text-[11px] text-[#35414e]">Click to add points; click the first point to close. Escape cancels.</div>
+    <div className="pointer-events-none absolute left-2 top-2 rounded bg-[#fafafa] p-2 text-[11px] text-[#171717]">Click to add points; click the first point to close. Escape cancels.</div>
     <svg ref={svg} viewBox={`0 0 ${Math.max(1, width)} ${Math.max(1, height)}`} className="h-full w-full overflow-visible" preserveAspectRatio="none"
       onPointerMove={event => setCursor(point(event))}
       onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.stopPropagation(); setPoints(previous => [...previous, point(event)]); }}>
-      <polyline points={[...points, ...(cursor ? [cursor] : [])].map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke={/^#[0-9a-f]{3,8}$/i.test(color) ? color : '#ff3b30'} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      {points.map((p, index) => <circle key={index} aria-label={index === 0 ? 'Close custom polygon' : `Draft point ${index + 1}`} cx={p.x} cy={p.y} r={6} fill={index === 0 && points.length >= 3 ? '#ff3b30' : 'white'} stroke="#ff3b30" strokeWidth={2}
+      <polyline points={[...points, ...(cursor ? [cursor] : [])].map(p => `${p.x},${p.y}`).join(' ')} fill="none" stroke={/^#[0-9a-f]{3,8}$/i.test(color) ? color : '#262626'} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+      {points.map((p, index) => <circle key={index} aria-label={index === 0 ? 'Close custom polygon' : `Draft point ${index + 1}`} cx={p.x} cy={p.y} r={6} fill={index === 0 && points.length >= 3 ? '#262626' : 'white'} stroke="#262626" strokeWidth={2}
         onPointerDown={event => { event.preventDefault(); event.stopPropagation(); if (index === 0 && points.length >= 3) onComplete(points); }} />)}
     </svg>
   </div>;

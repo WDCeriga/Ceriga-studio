@@ -89,3 +89,12 @@ export function resizeWarpGrid(settings: WarpSettings, gridSize: 2 | 3 | 4): War
     interpolateWarpGrid(previous, settings.gridSize, (index % gridSize) / (gridSize - 1), Math.floor(index / gridSize) / (gridSize - 1)),
   );
 }
+/** An untouched mesh should preserve the source pixels, without triangle resampling. */
+export function isIdentityWarp(settings: WarpSettings): boolean {
+  const points = warpGrid(settings);
+  const size = settings.mode === 'freeform' ? settings.gridSize : 3;
+  return points.length === size * size && points.every((point, index) =>
+    Math.abs(point.x - (index % size) / (size - 1)) < 1e-8 &&
+    Math.abs(point.y - Math.floor(index / size) / (size - 1)) < 1e-8,
+  );
+}

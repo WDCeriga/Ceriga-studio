@@ -164,10 +164,10 @@ export function CollarPhotoUpload({
         className={cn(
           'flex w-full items-center justify-center gap-2 rounded-md border px-2.5 py-2.5 text-center transition sm:rounded-lg',
           disabled
-            ? 'cursor-not-allowed border-[#252528] bg-white/5 text-white/35'
+            ? 'cursor-not-allowed border-[#171717] bg-white/5 text-white/35'
             : busy
               ? 'border-[#FF3B30]/40 bg-[#FF3B30]/10 text-white'
-              : 'border-[#252528] bg-white/5 text-white/80 hover:border-white/20 hover:text-white',
+              : 'border-[#171717] bg-white/5 text-white/80 hover:border-white/20 hover:text-white',
         )}
       >
         {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}

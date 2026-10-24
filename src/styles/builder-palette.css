@@ -1,0 +1,2 @@
+/* Shared builder chrome palette; also available to portalled menus. */
+:root{--builder-ui-ink:#171717;--builder-ui-text:#262626;--builder-ui-secondary:#525252;--builder-ui-muted:#737373;--builder-ui-focus:#737373;--builder-ui-line:#e2e2e2;--builder-ui-track:#e5e5e5;--builder-ui-soft:#f2f2f2;--builder-ui-surface:#fafafa;--builder-ui-white:#ffffff;}

@@ -181,7 +181,7 @@ export function MeasurementGuideOverlay({
       style={{'--guide-arrow':`url(#${arrowId}-arrow)`} as CSSProperties}
       aria-label="Garment measurement guides"
     >
-      <defs><marker id={arrowId+'-arrow'} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0L7,3.5L0,7Z" fill="#7c879d"/></marker></defs>
+      <defs><marker id={arrowId+'-arrow'} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0L7,3.5L0,7Z" fill="#737373"/></marker></defs>
       {activeGuides.map((guide) => {
         const active = highlightedId === null || highlightedId === guide.id;
         const opacity = highlightedId && !active ? 0.22 : 0.92;
@@ -246,7 +246,7 @@ export function MeasurementGuideOverlay({
               <div
                 xmlns="http://www.w3.org/1999/xhtml"
                 className={cn(
-                  'flex h-8 items-center gap-1 rounded border border-[#FF3B30]/30 bg-[#171719] px-1 text-[14px] font-medium text-white',
+                  'flex h-8 items-center gap-1 rounded border border-[#FF3B30]/30 bg-[#171717] px-1 text-[14px] font-medium text-white',
                   textAlign,
                 )}
                 style={{ opacity: labelOpacity }}

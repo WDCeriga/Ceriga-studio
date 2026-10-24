@@ -16,8 +16,8 @@ export function FlipControls({ element, onChange, compact = false, className }: 
         aria-pressed={Boolean(element[axis])} disabled={element.locked === true}
         onClick={() => onChange({ [axis]: !element[axis] })}
         className={cn('inline-flex items-center justify-center gap-1.5 rounded-md disabled:cursor-not-allowed disabled:opacity-40',
-          className ?? 'h-9 border border-[#dce3ec] px-2 text-[10px] font-semibold text-[#35414e] hover:bg-[#eef2f5]',
-          element[axis] && 'bg-[#eef2f5] text-[#35414e]')}>
+          className ?? 'h-9 border border-[#e2e2e2] px-2 text-[10px] font-semibold text-[#262626] hover:bg-[#f2f2f2]',
+          element[axis] && 'bg-[#f2f2f2] text-[#262626]')}>
         <Icon className={compact ? 'h-4 w-4' : 'h-3 w-3'} />
         {!compact && (axis === 'flipHorizontal' ? 'Flip horizontal' : 'Flip vertical')}
       </button>;

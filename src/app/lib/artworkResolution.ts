@@ -1,0 +1,2 @@
+/** Preserve supersampling while matching zoom/HiDPI, bounded to 4K and eight megapixels. */
+export function artworkPixelRatio(width:number,height:number,displayScale=1,dpr=1){const w=Number.isFinite(width)?Math.max(1,width):1,h=Number.isFinite(height)?Math.max(1,height):1,requested=Math.max(2,Math.min(4,(Number.isFinite(displayScale)?displayScale:1)*(Number.isFinite(dpr)?dpr:1)));return Math.min(requested,4096/Math.max(w,h),Math.sqrt(8_000_000/w/h))}
