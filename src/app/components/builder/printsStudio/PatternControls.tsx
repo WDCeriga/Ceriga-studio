@@ -1,3 +1,7 @@
+import {StudioPaint,StudioFold} from '../shell/StudioControls';
+import {MaterialSelect} from '../shell/MaterialSelect';
+import type {CSSProperties} from 'react';
+import '../shell/patterns-studio.css';
 import {PaintInput} from '../PrintStudioColorPopover';
 import { SliderValueInput } from '../SliderValueInput';
 import type { DesignElement } from '../PrintStudioEditor';
@@ -14,12 +18,12 @@ import { PatternPaletteEditor } from './PatternPaletteEditor';
 function PatternSlider({ label, ariaLabel = label, value, min, max, step = 1, suffix = '', onChange }: {
   label: string; ariaLabel?: string; value: number; min: number; max: number; step?: number; suffix?: string; onChange: (value: number) => void;
 }) {
-  return <label className="block space-y-1.5">
+  return <label className="pattern-control-slider">
     <div className="flex items-center justify-between gap-2">
-      <span className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">{label}</span>
+      <span className="pattern-control-label">{label}</span>
       <SliderValueInput label={ariaLabel} value={value} min={min} max={max} step={step} unit={suffix} onChange={onChange}/>
     </div>
-    <input type="range" aria-label={ariaLabel} min={min} max={max} step={step} value={value}
+    <input type="range" style={{'--range-fill':`${Math.max(0,Math.min(100,(value-min)/(max-min)*100))}%`} as CSSProperties} aria-label={ariaLabel} min={min} max={max} step={step} value={value}
       onChange={(event) => onChange(Number(event.target.value))}
       className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#f2f2f2] accent-[#262626]" />
   </label>;
@@ -39,22 +43,15 @@ export function PatternControls({ element, onChange }: {
   const fashionColors = definition?.fashion ? fashionPatternPalette(element, metrics.kind) : undefined;
   const plaidDefaultWidth = [18, 8, 2, 4, 3, 3, 2];
   const plaidDefaultPos = [20, 55, 80, 38, 10, 68, 92];
-  return <fieldset disabled={element.locked} className="min-w-0 space-y-3 disabled:opacity-50" data-pattern-controls>
+  return <fieldset disabled={element.locked} className="pattern-controls-v2 min-w-0 disabled:opacity-50" data-pattern-controls>
     <label className="block space-y-1 text-[10px] text-[#737373]">Pattern type
-      <select aria-label="Pattern type" value={metrics.kind} onChange={event => onChange(changePatternType(element, event.target.value))}
+      <MaterialSelect aria-label="Pattern type" value={metrics.kind} onChange={event => onChange(changePatternType(element, event.target.value))}
         className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#171717] px-2 text-xs text-[#262626]">
-        {Array.from(new Set(PATTERN_CATALOG.map(item => item.category))).map(category => <optgroup key={category} label={category}>
-          {PATTERN_CATALOG.filter(item => item.category === category).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
-        </optgroup>)}
-      </select>
+        {PATTERN_CATALOG.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+      </MaterialSelect>
     </label>
-    <div className="grid grid-cols-2 gap-2"><FlipControls element={element} onChange={onChange} /></div>
-    {custom && <label className="block space-y-1 text-[10px] text-[#737373]">Repeat type
-      <select aria-label="Pattern repeat type" value={element.patternRepeat ?? 'grid'} onChange={event => onChange({ patternRepeat: event.target.value as DesignElement['patternRepeat'] })}
-        className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#171717] px-2 text-xs text-[#262626]">
-        <option value="grid">Grid</option><option value="brick">Brick</option><option value="half-drop">Half-Drop</option><option value="mirror">Mirror</option><option value="random">Random</option>
-      </select>
-    </label>}
+    <StudioFold title="Repeat layout" hint="Density, scale & spacing" open><div className="pattern-flip-pair"><FlipControls element={element} onChange={onChange} /></div>
+    {custom&&<div className="pattern-layout-choices" role="group" aria-label="Repeat type">{(['grid','brick','half-drop','mirror','random'] as const).map(repeat=><button key={repeat} aria-pressed={(element.patternRepeat??'grid')===repeat} onClick={()=>onChange({patternRepeat:repeat})}><svg viewBox="0 0 44 34" aria-hidden="true">{Array.from({length:9},(_,index)=>{const column=index%3,row=Math.floor(index/3);return <rect key={index} x={5+column*12+(repeat==='brick'&&row%2?5:repeat==='random'?(index*7%5)-2:0)} y={4+row*11+(repeat==='half-drop'&&column%2?4:repeat==='random'?(index*3%5)-2:0)} width="6" height="6" rx="1" fill="currentColor" opacity={repeat==='mirror'&&column%2?.4:1}/>;})}</svg><span>{{grid:'Grid',brick:'Brick','half-drop':'Half drop',mirror:'Mirror',random:'Scatter'}[repeat]}</span></button>)}</div>}
     <PatternSlider label={definition?.amountLabel ?? (metrics.kind === 'dots' ? 'Dot density' : 'Pattern amount')} ariaLabel="Pattern amount" value={metrics.count} min={1} max={32}
       onChange={(patternCount) => onChange({ patternCount })} />
     <PatternSlider label="Pattern scale" value={metrics.scale * 100} min={10} max={400} suffix="%"
@@ -64,20 +61,22 @@ export function PatternControls({ element, onChange }: {
       <PatternSlider label="Horizontal spacing" value={element.patternSpacingX ?? element.patternSpacing ?? 0} min={0} max={200} suffix=" px" onChange={patternSpacingX => onChange({ patternSpacingX })} />
       <PatternSlider label="Vertical spacing" value={element.patternSpacingY ?? element.patternSpacing ?? 0} min={0} max={200} suffix=" px" onChange={patternSpacingY => onChange({ patternSpacingY })} />
     </>}
+    <PatternSlider label="Pattern rotation" value={element.patternRotation ?? 0} min={-180} max={180} suffix="°"
+      onChange={(patternRotation) => onChange({ patternRotation })} />
+    </StudioFold>
+    <StudioFold title="Pattern character" hint="Style, line weight & variation">
     {definition?.choices?.map(choice => <label key={choice.key} className="block space-y-1 text-[10px] text-[#737373]">{choice.label}
-      <select aria-label={choice.label} value={String(element.patternOptions?.[choice.key] ?? choice.value)}
+      <MaterialSelect aria-label={choice.label} value={String(element.patternOptions?.[choice.key] ?? choice.value)}
         onChange={event => setOption(choice.key, event.target.value)}
         className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#171717] px-2 text-xs text-[#262626]">
         {choice.options.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
-      </select>
+      </MaterialSelect>
     </label>)}
     {definition?.options?.map(option => <PatternSlider key={option.key} label={option.label}
       value={Number(element.patternOptions?.[option.key] ?? option.value)} min={option.min} max={option.max} suffix={option.suffix}
       onChange={value => setOption(option.key, value)} />)}
     {definition?.roughness && <PatternSlider label="Roughness" value={element.patternRoughness ?? 50} min={0} max={100} suffix="%" onChange={patternRoughness => onChange({ patternRoughness })} />}
     {definition?.variation && <PatternSlider label="Variation" value={element.patternVariation ?? 50} min={0} max={100} suffix="%" onChange={patternVariation => onChange({ patternVariation })} />}
-    <PatternSlider label="Pattern rotation" value={element.patternRotation ?? 0} min={-180} max={180} suffix="°"
-      onChange={(patternRotation) => onChange({ patternRotation })} />
     {(legacy ? metrics.kind !== 'checks' : definition?.thickness) ? <PatternSlider label={metrics.kind === 'dots' || metrics.kind === 'halftone' ? 'Dot size' : 'Line thickness'}
       value={thickness} min={.1} max={Math.max(100, thickness)} step={.1} suffix=" px"
       onChange={(patternThickness) => onChange({ patternThickness })} /> : null}
@@ -101,9 +100,9 @@ export function PatternControls({ element, onChange }: {
     </>}
     {((custom && element.patternRepeat === 'random') || (!custom && definition?.randomise && metrics.kind !== 'dots')) && <button type="button" onClick={() => onChange({ patternSeed: newPatternSeed() })}
       className="w-full rounded-lg border border-[#e2e2e2] py-2 text-xs text-[#737373] hover:bg-[#f2f2f2]">Randomise pattern</button>}
-    {!custom && !fashionColors && <StudioColorField allowGradients={legacy} value={element.color ?? defaults[0] ?? '#FFFFFF'}
-      onChange={(color) => onChange({ color })} mainColors={STUDIO_TEXT_MAIN_COLORS} popularColors={STUDIO_TEXT_POPULAR_COLORS}
-      mainLabel={definition?.colors?.[0] ?? 'Pattern colour'} popularLabel="Quick colours" clearVisible={false} />}
+    </StudioFold>
+    <StudioFold title="Colours" hint="Palette & ink" open>
+    {!custom&&!fashionColors&&<StudioPaint allowGradients={legacy} label={definition?.colors?.[0]??'Pattern colour'} value={element.color??defaults[0]??'#292929'} onChange={color=>onChange({color})}/>}
     {!fashionColors && definition?.colors?.slice(1).map((label, index) => <label key={label} className="flex items-center justify-between text-[11px] text-[#737373]">
       {label}<PaintInput  ariaLabel={label} value={element.patternColors?.[index + 1] ?? defaults[index + 1] ?? '#FFFFFF'}
         onChange={event => { const patternColors = [...(element.patternColors ?? defaults)]; patternColors[index + 1] = event.target.value; onChange({ patternColors }); }}
@@ -117,23 +116,15 @@ export function PatternControls({ element, onChange }: {
         <PatternSlider label="Position" ariaLabel={`Stripe group ${index} position`} value={Number(element.patternOptions?.[`g${index}p`] ?? plaidDefaultPos[index - 1] ?? 50)} min={0} max={100}
           onChange={value => setOption(`g${index}p`, value)} />
       </div> : undefined} />}
-    <details className="space-y-2 rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2.5 py-2" data-pattern-placement>
-      <summary className="cursor-pointer text-[11px] font-medium text-[#737373]">Pattern placement</summary>
-      <div className="space-y-2 pt-2">
+    </StudioFold>
+    <StudioFold title="Pattern placement" hint="Offsets & alignment">
+
         <PatternSlider label="Move pattern X" value={element.patternOffsetX ?? 0} min={-300} max={300} suffix=" px" onChange={patternOffsetX => onChange({ patternOffsetX })} />
         <PatternSlider label="Move pattern Y" value={element.patternOffsetY ?? 0} min={-300} max={300} suffix=" px" onChange={patternOffsetY => onChange({ patternOffsetY })} />
-        <label className="block space-y-1 text-[10px] text-[#737373]">Pattern alignment
-          <select aria-label="Pattern alignment" value={element.patternAlignment ?? 'independent'}
-            onChange={event => onChange({ patternAlignment: event.target.value as 'independent' | 'continuous' })}
-            className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#171717] px-2 text-xs text-[#262626]">
-            <option value="independent">Independent — each section has its own placement</option>
-            <option value="continuous">Continuous — share one coordinate system</option>
-          </select>
-        </label>
+        <div className="pattern-alignment-choices" role="group" aria-label="Pattern alignment">{(['independent','continuous'] as const).map(alignment=><button key={alignment} aria-pressed={(element.patternAlignment??'independent')===alignment} onClick={()=>onChange({patternAlignment:alignment})}><span className="pattern-alignment-diagram" data-mode={alignment}><i/><i/></span><strong>{alignment==='independent'?'Per section':'Continuous'}</strong><small>{alignment==='independent'?'Place each part separately':'Line up across garment parts'}</small></button>)}</div>
         <button type="button" onClick={() => onChange({ patternOffsetX: 0, patternOffsetY: 0, patternRotation: 0, patternScale: 100 })}
           className="w-full rounded-lg border border-[#e2e2e2] py-1.5 text-[10px] font-semibold text-[#737373] hover:bg-[#f2f2f2]">Reset pattern position</button>
-      </div>
-    </details>
+    </StudioFold>
     <PatternSlider label="Pattern opacity" value={element.opacity ?? 100} min={0} max={100} suffix="%"
       onChange={(opacity) => onChange({ opacity })} />
   </fieldset>;

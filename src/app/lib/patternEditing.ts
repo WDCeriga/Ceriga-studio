@@ -49,12 +49,12 @@ export function initialPatternSettings(id: string, color?: string): PatternPatch
   const palette = patternDefaultColors(id).slice(0, definition?.fashion ? definition.colors?.length : undefined);
   const multicolor = (definition?.colors?.length ?? 0) > 1;
   return {
-    color: multicolor ? palette[0] : color ?? palette[0] ?? '#FFFFFF',
+    color: multicolor ? palette[0] : color && !/^#(?:fff|ffffff)$/i.test(color) ? color : '#292929',
     patternColors: multicolor ? palette : undefined,
     patternSeed: newPatternSeed(),
-    patternCount: definition?.defaultCount ?? (id === 'checks' || id === 'dots' ? 4 : 5),
+    patternCount: definition?.defaultCount ?? (['pinstripes','grid','halftone'].includes(id) ? 18 : ['dots','checks','houndstooth'].includes(id) ? 12 : definition?.category === 'Classic' ? 10 : 8),
     patternOptions: undefined, patternOffsetX: 0, patternOffsetY: 0, patternAlignment: 'independent',
-    opacity: 100, patternScale: 100, patternSpacing: 0, patternSpacingX: 0, patternSpacingY: 0,
+    opacity: 100, patternScale: id.startsWith('camo-') ? 55 : id==='topographic' ? 75 : 100, patternSpacing: 0, patternSpacingX: 0, patternSpacingY: 0,
     patternRotation: 0, patternThickness: undefined, patternRandomise: false, flipHorizontal: false, flipVertical: false,
     patternRoughness: 50, patternVariation: 50, patternSource: undefined, patternSourceName: undefined,
     patternSourceWidth: undefined, patternSourceHeight: undefined, patternRepeat: 'grid',

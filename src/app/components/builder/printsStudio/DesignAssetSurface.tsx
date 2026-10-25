@@ -1,4 +1,5 @@
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
+import {ArtworkInteractionContext} from './ArtworkInteractionContext';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
 import { toCanvas } from 'html-to-image';
 import { waitForImageFilters } from '../../../lib/imageFilterRendering';
@@ -9,10 +10,11 @@ import { drawingMaskCss, type GarmentDrawingMask } from './useGarmentDrawingMask
 import { sourceSignature, WarpedArtwork } from './WarpedArtwork';
 import type { WarpSettings } from '../../../lib/warpGeometry';
 import { buildArtworkClipPath } from '../../../lib/artworkCrop';
-import { alphaContains, registerArtworkHitTest } from '../../../lib/artworkHitTesting';
+import { registerArtworkHitTest } from '../../../lib/artworkHitTesting';
 
-export function DesignAssetSurface({ element, selected, distort = false, scale, onChange, children, overlay, garmentMask, position, warpEditing = false, onWarpChange, cropping = false, cropOverlay }: {
+export function DesignAssetSurface({ element, selected, interacting = false, distort = false, scale, onChange, children, overlay, garmentMask, position, warpEditing = false, onWarpChange, cropping = false, cropOverlay }: {
   element: DesignElement; selected: boolean; distort?: boolean; scale: number; onChange: (patch: Partial<DesignElement>) => void; children: ReactNode; overlay: ReactNode;
+  interacting?: boolean;
   garmentMask?: GarmentDrawingMask | null;
   position?: { x: number; y: number };
   warpEditing?: boolean;
@@ -22,7 +24,6 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
 }) {
   const surface = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
-  const hitImage = useRef<{ image: ImageData; width: number; height: number; padding: number } | null>(null);
   const captureVersion = useRef(0);
   const [warpRevision, setWarpRevision] = useState(0);
   const [height, setHeight] = useState(element.height);
@@ -51,15 +52,13 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
 
   useLayoutEffect(() => {
     captureVersion.current++;
-    hitImage.current = null;
   }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping]);
 
   useLayoutEffect(() => {
     const root = surface.current?.parentElement;
     if (!root?.matches('[data-print-id]')) return;
     return registerArtworkHitTest(root, client => {
-      const raster = hitImage.current;
-      if (!raster || ((element.type === 'drawing' || element.patternTarget) && garmentMask === null)) return false;
+      if ((element.type === 'drawing' || element.patternTarget) && garmentMask === null) return false;
       const rect = root.getBoundingClientRect();
       const angle = element.rotation * Math.PI / 180;
       const cos = Math.cos(angle), sin = Math.sin(angle);
@@ -79,13 +78,16 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
             !garmentMask.canvas.getContext('2d')?.getImageData(x, y, 1, 1).data[3]) return false;
         }
       }
-      return alphaContains(raster.image, (local.x * raster.width + raster.padding) / (raster.width + raster.padding * 2), (local.y * raster.height + raster.padding) / (raster.height + raster.padding * 2));
+      // The whole visible selection rectangle is draggable, including gaps
+      // between letters and transparent space inside an illustration.
+      return local.x >= bounds.x && local.x <= bounds.x + bounds.width
+        && local.y >= bounds.y && local.y <= bounds.y + bounds.height;
     });
-  }, [element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live]);
+  }, [element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live, bounds]);
 
   useEffect(() => {
     const node = content.current;
-    if (!node) return;
+    if (!node || interacting) return;
     let cancelled = false;
     const version = captureVersion.current;
     const current = () => !cancelled && version === captureVersion.current;
@@ -102,7 +104,6 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
         const image = context?.getImageData(0, 0, canvas.width, canvas.height);
         const measured = image && alphaBounds(image);
         if (current()) {
-          hitImage.current = image ? { image, width, height: actualHeight, padding } : null;
           setBounds(measured ? { x: (measured.x * captureWidth - padding) / width, y: (measured.y * captureHeight - padding) / actualHeight, width: measured.width * captureWidth / width, height: measured.height * captureHeight / actualHeight } : { x: 0, y: 0, width: 0, height: 0 });
         }
       } catch {
@@ -110,7 +111,7 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
       }
     }, 80);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping]);
+  }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping, interacting]);
 
   useEffect(() => {
     const node = content.current;
@@ -169,7 +170,7 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
 
   const projected=(live??element.perspective)?.some((point,index)=>Math.abs(point.x-UNIT_QUAD[index].x)>1e-8||Math.abs(point.y-UNIT_QUAD[index].y)>1e-8);
   const projectionTransform=projected?map.css(width,actualHeight):undefined;
-  return <ArtworkResolutionContext.Provider value={scale}>
+  return <ArtworkInteractionContext.Provider value={interacting}><ArtworkResolutionContext.Provider value={scale}>
     <div ref={surface} data-pattern-clip={element.patternTarget} data-drawing-clip={element.type === 'drawing' && garmentMask !== undefined ? '' : undefined} className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', ...((element.type === 'drawing' || element.patternTarget) && garmentMask !== undefined ? {
       visibility: garmentMask ? undefined : 'hidden',
       maskImage: garmentMask ? drawingMaskCss(garmentMask, width, actualHeight, position?.x ?? element.x, position?.y ?? element.y, element.rotation) : undefined,
@@ -194,5 +195,5 @@ export function DesignAssetSurface({ element, selected, distort = false, scale, 
         {corners.map((point, index) => <button key={index} type="button" aria-label={`Distort corner ${index + 1}`} title={`Distort corner ${index + 1}`} onPointerDown={event => startCorner(event, index)} className="artwork-perspective-handle" style={{ left: point.x * width, top: point.y * actualHeight, transform:`translate(-50%,-50%) scale(${1/scale})` }} />)}
       </>
     </div>}
-  </ArtworkResolutionContext.Provider>;
+  </ArtworkResolutionContext.Provider></ArtworkInteractionContext.Provider>;
 }

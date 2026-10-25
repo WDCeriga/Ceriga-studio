@@ -3,7 +3,7 @@ import { waitForImageFilters } from './imageFilterRendering';
 import type { DesignElement } from '../components/builder/PrintStudioEditor';
 import { sourceSignature } from '../components/builder/printsStudio/WarpedArtwork';
 
-export async function exportAssetArtboard(width: number, height: number, elements: DesignElement[]): Promise<string> {
+export async function exportAssetArtboard(width: number, height: number, elements: DesignElement[], background?: string): Promise<string> {
   const zone = document.querySelector<HTMLElement>('[data-asset-artboard]');
   if (!zone || !zone.getBoundingClientRect().width) throw new Error('The asset artboard must be visible before saving.');
   await waitForImageFilters(zone);
@@ -27,8 +27,8 @@ export async function exportAssetArtboard(width: number, height: number, element
   await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   const nodes = [...zone.querySelectorAll(':scope > [data-print-id]')];
   const canvas = await toCanvas(zone, {
-    width, height, pixelRatio: 1, backgroundColor: 'transparent',
-    style: { position: 'relative', left: '0', top: '0', right: 'auto', bottom: 'auto', margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden', transform: 'none', border: 'none', boxShadow: 'none', background: 'transparent' },
+    width, height, pixelRatio: 1, backgroundColor: background ?? 'transparent',
+    style: { position: 'relative', left: '0', top: '0', right: 'auto', bottom: 'auto', margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden', transform: 'none', border: 'none', boxShadow: 'none', background: background ?? 'transparent' },
     filter: node => {
       if (!(node instanceof Element)) return true;
       if (node.matches('[data-editor-chrome], [data-handles], [data-visible-bounds], [data-inline-toolbar], [data-crop-editor]')) return false;

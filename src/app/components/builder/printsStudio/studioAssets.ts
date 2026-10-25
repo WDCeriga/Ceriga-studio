@@ -60,6 +60,18 @@ export function encodeStudioDrag(kind: StudioAssetKind, id: string, settings?: P
   return JSON.stringify({ kind, id, ...(kind === 'pattern' && settings ? { settings: patternAppearance(settings) } : {}) });
 }
 
+type PatternDrag = {kind:'pattern';id:string;settings?:PatternPatch};
+let activePatternDrag: PatternDrag | null = null;
+/** Native drag data is protected during dragover; keep an in-app appearance snapshot. */
+export function beginPatternDrag(transfer:DataTransfer,id:string,settings:PatternPatch) {
+ const payload=encodeStudioDrag('pattern',id,settings);
+ activePatternDrag={kind:'pattern',id,settings:patternAppearance(settings)};
+ transfer.setData(STUDIO_DRAG_MIME,payload);transfer.setData('text/plain',payload);
+ transfer.setData('application/x-ceriga-pattern',id);transfer.effectAllowed='copy';
+ window.addEventListener('dragend',()=>{activePatternDrag=null;},{once:true});
+}
+export const getActivePatternDrag=()=>activePatternDrag;
+
 export function decodeStudioDrag(raw: string | undefined | null): { kind: StudioAssetKind; id: string; settings?: PatternPatch } | null {
   if (!raw) return null;
   try {

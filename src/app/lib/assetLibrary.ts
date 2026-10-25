@@ -7,6 +7,7 @@ export type AssetProject = {
   name: string;
   width: number;
   height: number;
+  background?: string;
   elements: DesignElement[];
   preview: string;
   createdAt: string;
@@ -60,7 +61,7 @@ async function assertOwner(userId: string | null): Promise<void> {
 
 function validate(asset: AssetProject): AssetProject {
   if (!asset || typeof asset.id !== 'string' || !asset.id.trim() ||
-      typeof asset.name !== 'string' || !Number.isFinite(asset.width) || asset.width <= 0 ||
+      typeof asset.name !== 'string' || (asset.background !== undefined && !/^#[0-9a-f]{6}$/i.test(asset.background)) || !Number.isFinite(asset.width) || asset.width <= 0 ||
       !Number.isFinite(asset.height) || asset.height <= 0 || !Array.isArray(asset.elements) ||
       typeof asset.preview !== 'string' || !/^data:image\/(?:png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(asset.preview) ||
       typeof asset.createdAt !== 'string' || !Number.isFinite(Date.parse(asset.createdAt)) ||
@@ -99,7 +100,8 @@ function fromRow(row: AssetRow, userId: string): AssetProject {
   if (row.user_id !== userId) throw new Error('Unexpected asset account in cloud response.');
   return validate({
     id: row.id, name: row.name, width: row.width, height: row.height,
-    elements: row.elements, preview: row.preview, createdAt: row.created_at, updatedAt: row.updated_at,
+    background: row.elements.find(element => element.id === '__asset_canvas_background__')?.color,
+    elements: row.elements.filter(element => element.id !== '__asset_canvas_background__'), preview: row.preview, createdAt: row.created_at, updatedAt: row.updated_at,
   });
 }
 
@@ -166,7 +168,8 @@ export async function saveAssetProject(asset: AssetProject, userId: string | nul
       if (auth.user?.id !== userId) throw new Error('Sign in to this asset account before syncing.');
       const row: AssetRow = {
         id: saved.id, user_id: userId, name: saved.name, width: saved.width, height: saved.height,
-        elements: saved.elements, preview: saved.preview, created_at: saved.createdAt, updated_at: saved.updatedAt,
+        // Keep canvas metadata in the existing JSON layer payload for cloud compatibility.
+        elements: saved.background ? [{id:'__asset_canvas_background__',type:'shape',content:'rectangle',color:saved.background,x:0,y:0,width:saved.width,height:saved.height,rotation:0,opacity:100,hidden:true} as DesignElement,...saved.elements] : saved.elements, preview: saved.preview, created_at: saved.createdAt, updated_at: saved.updatedAt,
       };
       const { data, error } = await supabase.from('asset_projects').upsert(row, { onConflict: 'user_id,id' }).select(COLUMNS).single();
       if (error) throw error;

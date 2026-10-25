@@ -1,3 +1,6 @@
+import {PatternObjectEditor} from './PatternObjectEditor';
+import {beginPatternDrag} from '../printsStudio/studioAssets';
+import {ArtworkImageEditor} from './ArtworkImageEditor';
 import {TypographyEditor} from './TypographyStudio';
 import {ArtworkPrintMethod} from './ArtworkPrintMethod';
 import { ShapeObjectEditor } from './ShapesStudio';
@@ -10,6 +13,8 @@ import { PatternControls } from '../printsStudio/PatternControls';
 import { StudioPaint, StudioRange, StudioFold, StudioNumber } from './StudioControls';
 export function StudioLayerThumb({element}:{element:DesignElement}) {return <div className="studio-layer-thumb">{element.type==='image'||element.type==='drawing'?<img src={element.content} alt=""/>:element.type==='text'?<span style={{fontFamily:element.fontFamily,fontWeight:element.fontWeight}}>{element.content.slice(0,18)}</span>:element.type==='shape'||element.type==='pattern'||element.type==='distress'?<StudioGraphic element={element.type==='shape'?{...element,shapeEffects:undefined}:element}/>:element.type==='group'?<Layers size={18}/>:<Brush size={18}/>}</div>}
 export function StudioObjectPanel({element:el,update,fonts=[]}:{element:DesignElement;fonts?:string[];update:(patch:Partial<DesignElement>)=>void}) {
+ if(el.type==='pattern')return <PatternObjectEditor key={el.id} element={el} update={update}/>;
+ if(el.type==='image')return <ArtworkImageEditor key={el.id} element={el} update={update}/>;
  if(el.type==='text')return <TypographyEditor key={el.id} element={el} update={update} fonts={fonts}/>;
  if(el.type==='shape'||el.type==='customArea')return <ShapeObjectEditor element={el} update={update}/>;
  const sizeText=(size:number)=>{const ratio=size/(el.fontSize??30);update({fontSize:size,width:el.width*ratio,height:el.height*ratio})};
@@ -20,7 +25,7 @@ export function StudioObjectPanel({element:el,update,fonts=[]}:{element:DesignEl
  {el.type==='text'&&<StudioPaint label="Text colour" value={el.color??'#171717'} onChange={color=>update({color})}/>}
  {el.type==='text'&&<><StudioFold title="Type layout" hint="Spacing, line height & curved type"><StudioRange label="Letter spacing" value={el.letterSpacing??0} min={-10} max={30} unit="px" onChange={letterSpacing=>update({letterSpacing})}/><StudioRange label="Line height" value={el.lineSpacing??115} min={60} max={200} onChange={lineSpacing=>update({lineSpacing})}/></StudioFold><StudioFold title="Text effects" hint="Visual treatments & finishes"><TextEffectsPanel defaultOpen element={el} onChange={update}/></StudioFold></>}
  {el.type==='image'&&<StudioFold title="Image look" hint={el.imageFilter?.id??'Original'}><div className="studio-image-filters"><ImageFiltersPanel element={el} onChange={update}/></div></StudioFold>}
- {el.type==='pattern'&&<StudioFold title="Repeat & colour" hint="Scale, spacing & palette" open><PatternControls element={el} onChange={update}/></StudioFold>}
+ {el.type==='pattern'&&<StudioFold title="Repeat & colour" hint="Scale, spacing & palette" open><div className="studio-configured-repeat" draggable={!el.locked} onDragStart={event=>beginPatternDrag(event.dataTransfer,el.content,el)} role="img" aria-label="Drag this configured repeat to another garment part"><StudioGraphic element={el}/></div><p className="studio-repeat-help">Drag this swatch to copy the repeat onto another part.</p><PatternControls element={el} onChange={update}/></StudioFold>}
  <StudioFold title="Position & size" hint="Placement, scale & rotation"><div className="studio-two-columns"><StudioNumber label="Width" value={el.width} min={1} onChange={width=>update({width,...(el.aspectLocked?{height:el.height*width/el.width}:{})})}/><StudioNumber label="Height" value={el.height} min={1} onChange={height=>update({height,...(el.aspectLocked?{width:el.width*height/el.height}:{})})}/><StudioNumber label="Position X" value={el.x} min={-800} onChange={x=>update({x})}/><StudioNumber label="Position Y" value={el.y} min={-700} onChange={y=>update({y})}/><StudioNumber label="Rotation" value={el.rotation} min={-360} max={360} unit="°" onChange={rotation=>update({rotation})}/><button className="studio-outline-action" aria-pressed={el.flipHorizontal??false} onClick={()=>update({flipHorizontal:!el.flipHorizontal})}><FlipHorizontal2 size={15}/>Flip</button></div><label className="studio-switch"><span>Keep proportions</span><input type="checkbox" checked={el.aspectLocked??false} onChange={e=>update({aspectLocked:e.target.checked})}/></label></StudioFold>
  <StudioRange label="Opacity" value={el.opacity??100} onChange={opacity=>update({opacity})}/>
 

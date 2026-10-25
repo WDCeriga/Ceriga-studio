@@ -1,3 +1,4 @@
+import {initialPatternSettings} from '../../../lib/patternEditing';
 import { SliderValueInput } from '../SliderValueInput';
 import { useId } from 'react';
 import { Check, ChevronDown, Eraser, Pencil, Sparkles, Upload, Layers, FlipHorizontal2, PenTool } from 'lucide-react';
@@ -18,6 +19,7 @@ import {
   SHAPE_ASSETS,
   STUDIO_DRAG_MIME,
   encodeStudioDrag,
+  beginPatternDrag,
   type StudioAsset,
   type StudioAssetKind,
 } from './studioAssets';
@@ -179,6 +181,7 @@ function AssetCard({
       title={`Drag ${asset.label} onto the canvas, or tap to place`}
       onClick={() => onPlace(asset.kind, asset.id)}
       onDragStart={(e) => {
+        if(asset.kind==='pattern'){beginPatternDrag(e.dataTransfer,asset.id,initialPatternSettings(asset.id,color));return;}
         e.dataTransfer.setData(STUDIO_DRAG_MIME, encodeStudioDrag(asset.kind, asset.id));
         if (asset.kind === 'pattern') e.dataTransfer.setData('application/x-ceriga-pattern', asset.id);
         e.dataTransfer.setData('text/plain', encodeStudioDrag(asset.kind, asset.id));

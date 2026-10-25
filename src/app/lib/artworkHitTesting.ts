@@ -7,7 +7,7 @@ export function registerArtworkHitTest(root: HTMLElement, test: (point: Point) =
   return () => { if (hitTests.get(root) === test) hitTests.delete(root); };
 }
 
-/** Test painted pixels in stacking order, never the layer's layout rectangle. */
+/** Test each layer's visible selection bounds in stacking order. */
 export function artworkAtPoint(zone: HTMLElement, clientX: number, clientY: number): HTMLElement | null {
   const layers = Array.from(zone.querySelectorAll<HTMLElement>('[data-print-id]'));
   layers.sort((a, b) => (Number(getComputedStyle(a).zIndex) || 0) - (Number(getComputedStyle(b).zIndex) || 0));

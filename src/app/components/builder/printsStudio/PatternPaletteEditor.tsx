@@ -36,10 +36,11 @@ export function PatternPaletteEditor({ colors, labels, min, max, onChange, group
     if (!Dropper) return;
     try { set(index, (await new Dropper().open()).sRGBHex); } catch { /* cancelled */ }
   };
-  return <div className="space-y-2 rounded-lg border border-[#e2e2e2] bg-[#fafafa] p-2.5" data-pattern-palette>
+  return <div className="pattern-palette-v2" data-pattern-palette>
     {colors.map((color, index) => {
       const label = labels[index] ?? `Colour ${index + 1}`;
-      return <div key={index} className="space-y-1.5">
+      const extra=groups?.(index);
+      return <div key={index} className="pattern-palette-colour">
         <div className="flex items-center gap-1.5">
           <span className="min-w-0 flex-1 truncate text-[10px] text-[#737373]">{label}</span>
           <PaintInput  ariaLabel={label} value={HEX.test(color) ? color : '#888888'} onChange={event => set(index, event.target.value)}
@@ -55,7 +56,7 @@ export function PatternPaletteEditor({ colors, labels, min, max, onChange, group
           {colors.length > min && index > 0 && <button type="button" aria-label={`Remove ${label}`} onClick={() => onChange(colors.filter((_, i) => i !== index))}
             className="rounded border border-[#e2e2e2] p-1.5 text-[#737373] hover:text-[#262626]"><X className="size-3" /></button>}
         </div>
-        {groups?.(index)}
+        {extra&&<details className="pattern-palette-stripe"><summary>Stripe settings</summary>{extra}</details>}
       </div>;
     })}
     {colors.length < max && <button type="button" onClick={() => onChange([...colors, colors[colors.length - 1] ?? '#888888'])}

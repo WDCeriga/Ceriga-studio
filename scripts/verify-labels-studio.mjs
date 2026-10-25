@@ -7,7 +7,7 @@ import {labelLayout} from './src/app/components/builder/LabelArtwork';
 import assert from 'node:assert/strict';
 import {createGarmentLabel,normalizeLabel,generatedCareText,labelSpecification,labelWarnings,labelVisible,unfoldedLabelSize,switchTagFace,labelBlocks,applyLabelPreset} from './src/app/data/garmentLabels';
 import {editableLabelBlocks,labelContentKeys,labelFoldChoices,reorderLabelBlocks,applyLabelShape,applyLabelCut} from './src/app/data/labelCapabilities';
-import {sleeveLabelAnchor,labelCameraFrame,labelEdgeGeometry} from './src/app/data/labelGeometry';
+import {sleeveLabelAnchor,labelCameraFrame,labelCameraScale,labelEdgeGeometry} from './src/app/data/labelGeometry';
 let checks=0;function check(value:boolean,title:string){assert.ok(value,title);checks++;console.log('PASS '+title)}
 const care=createGarmentLabel('care');
 check(!Object.values(care.care).some(Boolean),'Care instructions are empty until explicitly chosen');
@@ -56,7 +56,12 @@ check(Boolean(left&&right&&left.x<1024&&right.x>1024),'Paired sleeve masks ancho
 check(Boolean(left&&left.y<1200),'Sleeve tag does not fall through empty mask centre to garment bottom');
 check(sleeveLabelAnchor({size:4,pixels:new Uint8ClampedArray(64)},'Left')===null,'Missing sleeve ink stays unplaced instead of rendering an orphan tag');
 const focus={x:20,y:30,width:40,height:60,context:{x:100,y:100,width:500,height:400}};
-check(labelCameraFrame(focus,'tag')===focus,'Sleeve close-up frames tag bounds instead of whole sleeve');
+const tagFrame=labelCameraFrame(focus,'tag');
+check(tagFrame.width>=800&&tagFrame.height>=800,'Sleeve close-up includes garment context instead of zooming into the tag');
+check(Math.abs(tagFrame.x-focus.x)<tagFrame.width/2&&Math.abs(tagFrame.y-focus.y)<tagFrame.height/2,'Context framing keeps the selected tag visible');
+const previousCloseup=2048*.8/Math.max(tagFrame.width,tagFrame.height);
+const defaultCloseup=labelCameraScale(tagFrame,'tag',true);
+check(defaultCloseup>previousCloseup*3&&defaultCloseup<=6.5,'Hem close-up starts slightly closer than the previous 300 percent view, with a safe maximum');
 check(labelCameraFrame(focus,'neck')===focus.context,'Neck close-up keeps useful collar context');
 for(const shape of ['rectangle','rounded','square','oval','circle','horizontal','vertical','custom'] as const){
  const shaped=applyLabelShape(care,shape),edge=labelEdgeGeometry(shaped);

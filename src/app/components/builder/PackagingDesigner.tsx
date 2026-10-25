@@ -74,6 +74,21 @@ export function PackagingDesigner({ value, onChange, selectedId, onSelect, onBou
     if (!selected) return;
     update({ elements: design.elements.map(element => element.id === selected.id ? { ...element, ...patch,...(patch.fullPanel!==true&&['x','y','width','height','rotation'].some(key=>key in patch)?{fullPanel:false}:{}) } : element) });
   };
+  const currentText = useRef({ selected, updateElement });
+  currentText.current = { selected, updateElement };
+  useEffect(() => {
+    if (selected?.kind !== 'text') return;
+    const descriptor = `12px ${JSON.stringify(selected.font)}`;
+    if (document.fonts.check(descriptor, selected.content)) return;
+    let active = true;
+    void document.fonts.load(descriptor, selected.content).then(() => {
+      const current = currentText.current;
+      if (active && current.selected?.id === selected.id && current.selected.font === selected.font) {
+        current.updateElement(textMetrics(current.selected.content, current.selected.font, current.selected.fontSize));
+      }
+    }).catch(() => setError('This font could not be loaded. Please try again.'));
+    return () => { active = false; };
+  }, [selected?.id, selected?.font]);
   const selectPanel = (panel: PackagingPanel) => {
     update({ selectedPanel: panel, view: design.category === 'box' ? 'panel' : panel === 'back' ? 'back' : 'front' });
     onSelect(null);

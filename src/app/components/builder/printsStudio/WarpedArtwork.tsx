@@ -1,6 +1,7 @@
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import { useContext, useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import {ArtworkInteractionContext} from './ArtworkInteractionContext';
 import { toCanvas } from 'html-to-image';
 import { waitForImageFilters } from '../../../lib/imageFilterRendering';
 import { artworkEffectPadding } from '../../../lib/textEffectRendering';
@@ -138,6 +139,7 @@ export function WarpedArtwork({
   onCommit: (warp: WarpSettings) => void;
 }) {
   const displayScale=useContext(ArtworkResolutionContext),density=window.devicePixelRatio||1;
+  const interacting=useContext(ArtworkInteractionContext);
   const sourceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<number | null>(null);
@@ -156,7 +158,7 @@ export function WarpedArtwork({
 
   useEffect(() => {
     const source = sourceRef.current;
-    if (!source) return;
+    if (!source || interacting) return;
     let cancelled = false;
     const capture = async () => {
       const width = Math.max(1, source.offsetWidth || element.width);
@@ -173,7 +175,7 @@ export function WarpedArtwork({
     };
     void capture();
     return () => { cancelled = true; };
-  }, [signature, element.width, element.height, dimensions.width, dimensions.height,displayScale,density]);
+  }, [signature, element.width, element.height, dimensions.width, dimensions.height,displayScale,density,interacting]);
 
   useEffect(() => {
     const source = sourceRef.current;

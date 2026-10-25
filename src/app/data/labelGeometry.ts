@@ -13,7 +13,17 @@ export function sleeveLabelAnchor(mask:LabelMask,side:'Left'|'Right'){
  const result={x:(x+.5)*2048/size,y:(y+.5)*2048/size,angle};previous[side]=result;cache.set(mask,previous);return result;
 }
 
-export function labelCameraFrame(focus:{x:number;y:number;width:number;height:number;context?:{x:number;y:number;width:number;height:number}},category?:string){return category==='tag'?focus:focus.context??focus}
+export function labelCameraFrame(focus:{x:number;y:number;width:number;height:number;context?:{x:number;y:number;width:number;height:number}},category?:string){
+ if(category!=='tag')return focus.context??focus;
+ // Include the sleeve/hem around the tag, with a small bias toward the garment.
+ return {x:focus.x*.8+1024*.2,y:focus.y*.8+1024*.2,
+  width:Math.max(800,Math.min(1200,focus.context?.width??0),focus.width*4),
+  height:Math.max(800,Math.min(1200,focus.context?.height??0),focus.height*4)};
+}
+export function labelCameraScale(frame:{width:number;height:number},category?:string,hasContext=false){
+ const tag=category==='tag';
+ return Math.min(tag?6.5:18,2048 * (tag ? 2.6 : hasContext ? .8 : .68 * .8)/Math.max(1,frame.width,frame.height));
+}
 export function labelEdgeGeometry(label:{widthMm:number;heightMm:number;shape:string;cut?:string;fold:string}){
  const width=label.widthMm,height=label.heightMm;
  if(['circle','oval'].includes(label.shape))return {kind:'ellipse' as const,cx:width/2,cy:height/2,rx:width/2,ry:height/2};

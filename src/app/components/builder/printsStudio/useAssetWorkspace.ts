@@ -8,7 +8,7 @@ import type { DesignElement } from '../PrintStudioEditor';
 
 type Point = { x: number; y: number };
 type Snapshot = { project: AssetProject; selectedId: string | null };
-const signature = (project: AssetProject) => JSON.stringify([project.name, project.width, project.height, project.elements]);
+const signature = (project: AssetProject) => JSON.stringify([project.name, project.width, project.height, project.background, project.elements]);
 const clone = <T,>(value: T): T => structuredClone(value);
 const message = (error: unknown) => error instanceof Error ? error.message : 'The asset could not be saved. Please retry.';
 
@@ -80,7 +80,7 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
     if (!recovery || busyRef.current || snapshotRef.current) return;
     enter(recovery); setBaseline(''); setRecovery(null);
   };
-  const changeProject = useCallback((patch: Partial<Pick<AssetProject, 'name' | 'width' | 'height' | 'elements'>>, selectedId?: string | null) => {
+  const changeProject = useCallback((patch: Partial<Pick<AssetProject, 'name' | 'width' | 'height' | 'background' | 'elements'>>, selectedId?: string | null) => {
     const current = snapshotRef.current;
     if (!current || busyRef.current) return;
     const next = { project: { ...current.project, ...patch }, selectedId: selectedId === undefined ? current.selectedId : selectedId };
@@ -118,7 +118,7 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
     busyRef.current = true; setBusy(true); setError(null); setNameRequest(null); setConfirmBack(false);
     const savingScope = scope;
     try {
-      const preview = await exportAssetArtboard(current.project.width, current.project.height, current.project.elements);
+      const preview = await exportAssetArtboard(current.project.width, current.project.height, current.project.elements, current.project.background);
       const now = new Date().toISOString();
       const saved = await saveAssetProject({ ...clone(current.project), name, preview, id: asNew ? crypto.randomUUID() : current.project.id, createdAt: asNew ? now : current.project.createdAt, updatedAt: now }, userId);
       if (scopeRef.current !== savingScope) throw new Error('The signed-in account changed. The saved asset remains in its original account.');

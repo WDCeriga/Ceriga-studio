@@ -78,7 +78,10 @@ const DEFAULT_STATE: PrintsStudioState = {
 };
 
 interface PrintsStudioContextValue extends PrintsStudioState {
+  textEditRequest: string | null;
+  setTextEditRequest: (id: string | null) => void;
   layerRenderer: MutableRefObject<LayerRenderer | null>;
+  imageUploader: MutableRefObject<(() => void) | null>;
   cropEditingId: string | null;
   setCropEditingId: (id: string | null) => void;
   patchBrush: (patch: Partial<BrushSettings>) => void;
@@ -120,7 +123,9 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
   const [state, setState] = useState<PrintsStudioState>(initialState);
   useLayoutEffect(() => onStateChange(state), [state, onStateChange]);
   const layerRenderer = useRef<LayerRenderer | null>(null);
+  const imageUploader = useRef<(() => void) | null>(null);
   const [cropEditingId, setCropEditingId] = useState<string | null>(null);
+  const [textEditRequest, setTextEditRequest] = useState<string | null>(null);
   const [distortEditingId, setDistortEditingId] = useState<string | null>(null);
   const [warpEditingId, setWarpEditingId] = useState<string | null>(null);
   const [pathEditingId, setPathEditingId] = useState<string | null>(null);
@@ -209,6 +214,9 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
     () => ({
       ...state,
       layerRenderer,
+      imageUploader,
+      textEditRequest,
+      setTextEditRequest,
       cropEditingId,
       setCropEditingId,
       distortEditingId,
@@ -241,15 +249,18 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
       setDistressType,
       patchDistressScatter,
     }),
-    [state, cropEditingId, distortEditingId, warpEditingId, pathEditingId, customAreaPointSelection, setCustomAreaPointSelection, setTool, setPanel, setColor, setBrushSize, setEraserSize, setOpacity, setPressure, setGrain, setStabilization, patchBrush, setBrushPreset, newDrawingLayer, newDistressLayer, patchPencil, setDistressType, patchDistressScatter],
+    [state, textEditRequest, cropEditingId, distortEditingId, warpEditingId, pathEditingId, customAreaPointSelection, setCustomAreaPointSelection, setTool, setPanel, setColor, setBrushSize, setEraserSize, setOpacity, setPressure, setGrain, setStabilization, patchBrush, setBrushPreset, newDrawingLayer, newDistressLayer, patchPencil, setDistressType, patchDistressScatter],
   );
 
   return <PrintsStudioContext.Provider value={value}>{children}</PrintsStudioContext.Provider>;
 }
 
 const IDLE: PrintsStudioContextValue = {
+  textEditRequest: null,
+  setTextEditRequest: () => {},
   ...DEFAULT_STATE,
   layerRenderer: { current: null },
+  imageUploader: { current: null },
   cropEditingId: null,
   setCropEditingId: () => {},
   patchBrush: () => {},

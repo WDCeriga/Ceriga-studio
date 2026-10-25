@@ -4,12 +4,12 @@ import { CARE_OPTIONS, PREVIEW_CARE, DEFAULT_REGION_TRANSFORM, labelTextSections
 
 const loadedFonts = new Map<string, Promise<FontFace>>();
 export function loadLabelFont(label: GarmentLabel) {
-  const fonts = [{ font: label.font, fontData: label.fontData }, ...(label.blocks ?? [])];
+  const fonts = [{ font: label.font, fontData: label.fontData, fontWeight: label.fontWeight }, ...(label.blocks ?? []), ...(label.designSections ?? [])];
   return Promise.all(fonts.map(loadFont));
 }
 
-function loadFont(label: { font: string; fontData?: string }) {
-  if (!label.fontData) return Promise.resolve();
+function loadFont(label: { font: string; fontData?: string; fontWeight?: number }) {
+  if (!label.fontData) return document.fonts.load(`${label.fontWeight ?? 400} 16px ${JSON.stringify(label.font)}`);
   const key = label.font + label.fontData;
   if (!loadedFonts.has(key)) {
     const face = new FontFace(label.font, `url(${label.fontData})`);
@@ -219,7 +219,7 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
     let active = true;
     void loadLabelFont(label).then(() => document.fonts.ready).then(() => { if (active) refreshFont(value => value + 1); }).catch(() => undefined);
     return () => { active = false; };
-  }, [label.font, label.fontData, label.blocks]);
+  }, [label.font, label.fontData, label.fontWeight, label.blocks, label.designSections]);
   const width = label.widthMm;
   const height = label.heightMm;
   const physical = label.construction === 'physical';

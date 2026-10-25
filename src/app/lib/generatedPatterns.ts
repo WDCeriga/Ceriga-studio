@@ -158,7 +158,7 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
       continue;
     }
     switch (kind) {
-      case 'pinstripes': primitives.push(rect(-.5, -.5, Math.min(.06, t / 2), 1)); break;
+      case 'pinstripes': primitives.push(rect(-.5, -.5, Math.max(.5/cell,Math.min(.06, t / 2)), 1),rect(-.37,-.5,Math.max(.25/cell,Math.min(.025,t/4)),1,0,.5)); break;
       case 'grid': primitives.push(rect(-.5, -.5, 1, t), rect(-.5, -.5, t, 1)); break;
       case 'diamonds': primitives.push(polygon([[0, -.45], [.38, 0], [0, .45], [-.38, 0]], 'none', 0, t)); break;
       case 'triangles': primitives.push(polygon([[-.45, .4], [0, -.4], [.45, .4]], 'none', 0, t)); break;
@@ -195,7 +195,7 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
       case 'tartan':
         primitives.push(rect(-.5, -.23, 1, .35, 0, .85), rect(-.23, -.5, .35, 1, 0, .85),
           rect(-.5, .25, 1, .12, 2, .85), rect(.25, -.5, .12, 1, 2, .85),
-          rect(-.5, -.4, 1, t / 3, 3), rect(-.4, -.5, t / 3, 1, 3)); break;
+          rect(-.5, -.4, 1, t / 3, 3), rect(-.4, -.5, t / 3, 1, 3),rect(-.5,-.32,1,t/5,3,.65),rect(-.32,-.5,t/5,1,3,.65),rect(-.5,.1,1,.025,2,.7),rect(.1,-.5,.025,1,2,.7)); break;
       case 'houndstooth':
         primitives.push(path('M-.5 -.5 H0 V-.25 L.25 -.5 H.5 L.25 -.25 V0 H0 V.25 L-.25 .5 H-.5 L-.25 .25 V0 H-.5Z')); break;
       case 'argyle':
@@ -215,10 +215,21 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
         } break;
       case 'cow': primitives.push(path(blob(random, roughness, .56 + jitter() * .3))); x += jitter() * cell * .35; y += jitter() * cell * .35; break;
       case 'leopard': {
-        const outline = blob(random, roughness, .34 + jitter() * .12);
-        primitives.push(path(outline, 2, 0, .075 + roughness * .035));
-        for (let i = 0; i < 3; i++) primitives.push(circle(jitter() * .95, jitter() * .95, .02 + random() * .025));
-        break;
+        // Broken, asymmetric rosettes rather than uniform outlined spots.
+        if(row%2)x+=pitchX*.5;
+        const radius=.29+random()*.1;
+        primitives.push(path(blob(random,roughness,radius*.85),2));
+        const segments=4+Math.floor(random()*3);
+        for(let segment=0;segment<segments;segment++) {
+          const start=segment/segments*Math.PI*2+random()*.16;
+          const end=start+Math.PI*2/segments*(.5+random()*.25);
+          const r=radius*(.85+random()*.22);
+          const mid=(start+end)/2;
+          primitives.push(path(`M${n(Math.cos(start)*r)} ${n(Math.sin(start)*r)} Q${n(Math.cos(mid)*r*1.2)} ${n(Math.sin(mid)*r*1.2)} ${n(Math.cos(end)*r)} ${n(Math.sin(end)*r)}`,'none',0,.075+random()*.055));
+        }
+        for(let spot=0;spot<2;spot++)primitives.push(path(blob(random,roughness,.035+random()*.03)));
+        add(x+jitter()*cell*.55,y+jitter()*cell*.55,primitives,random()*360,cell*(.8+random()*.3),cell*(.75+random()*.4));
+        continue;
       }
       case 'zebra': {
         if (row !== 0) continue;
@@ -234,8 +245,14 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
           const py = -.5 + u * divisions;
           left.push([bend - halfWidth, py]); right.push([bend + halfWidth, py]);
         }
-        add(x, y, [polygon([...left, ...right.reverse()])], 0, cell, pitchY, divisions);
-        motifs[motifs.length - 1].radiusX = cell * .55;
+        const stripes=[polygon([...left, ...right.reverse()])];
+        // Occasional forks break the uniform ribbon rhythm of the animal coat.
+        if(column%2===0){
+          const start=.4+random()*(divisions-1.4),sign=random()<.5?-1:1;
+          stripes.push(path(`M0 ${n(start)} Q${n(sign*.35)} ${n(start+.15)} ${n(sign*.65)} ${n(start+.65)} Q${n(sign*.28)} ${n(start+.38)} 0 ${n(start+.32)}Z`));
+        }
+        add(x, y, stripes, 0, cell, pitchY, divisions);
+        motifs[motifs.length - 1].radiusX = cell * .7;
         motifs[motifs.length - 1].radiusY = pitchY * (divisions - .5);
         continue;
       }

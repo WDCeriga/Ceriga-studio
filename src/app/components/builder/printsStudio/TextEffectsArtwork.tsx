@@ -1,5 +1,6 @@
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
+import {ArtworkInteractionContext} from './ArtworkInteractionContext';
 import { useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEventHandler, type ReactNode } from 'react';
 import { toCanvas } from 'html-to-image';
 import { applyTextEffects, type TextEffect } from '../../../lib/textEffects';
@@ -11,6 +12,7 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
   effects: TextEffect[]; sourceKey: string; width: number; height?: number; children: ReactNode; style?: CSSProperties; onDoubleClick?: MouseEventHandler<HTMLDivElement>; text: string; target?: 'text' | 'shape'; sourcePadding?: number;
 }) {
   const displayScale=useContext(ArtworkResolutionContext);
+  const interacting=useContext(ArtworkInteractionContext);
   const density=typeof window==='undefined'?1:window.devicePixelRatio||1;
   const lane = useId();
   const sourceRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
 
   useEffect(() => {
     const node = sourceRef.current;
-    if (!node) return;
+    if (!node || interacting) return;
     let cancelled = false;
     const capture = async () => {
       try {
@@ -77,7 +79,7 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
     };
     void capture();
     return () => { cancelled = true; };
-  }, [captureKey]);
+  }, [captureKey, interacting]);
 
   useEffect(() => {
     if (!source || source.key !== captureKey) return;
@@ -108,7 +110,7 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
   return <div data-text-effects data-text-effects-pending={painted?.key !== renderKey ? 'true' : undefined}
     data-text-effects-error={activeError || undefined} onDoubleClick={onDoubleClick} style={{ position: 'relative', width: '100%', ...style }}>
     <div ref={sourceRef} data-text-effects-source aria-hidden={!!painted} style={{ width: '100%', height, opacity: painted ? 0 : 1 }}>{children}</div>
-    <canvas ref={canvasRef} data-text-effects-canvas aria-label={text} style={{ position: 'absolute', left: -(displayed?.padding ?? padding), top: -(displayed?.padding ?? padding), width: displayed?.cssWidth, height: displayed?.cssHeight, display: painted ? 'block' : 'none', pointerEvents: 'none' }} />
+    <canvas ref={canvasRef} data-text-effects-canvas aria-label={text} style={{ position: 'absolute', left: -(displayed?.padding ?? padding), top: -(displayed?.padding ?? padding), width: interacting ? size.width + padding * 2 : displayed?.cssWidth, height: interacting ? size.height + padding * 2 : displayed?.cssHeight, display: painted ? 'block' : 'none', pointerEvents: 'none' }} />
     {activeError && <div data-editor-chrome role="alert" className="absolute left-0 top-0 z-20 rounded bg-[#fafafa] p-2 text-xs text-[#262626]">
       <span>{target === 'shape' ? 'Shape' : 'Text'} effect unavailable. </span><button type="button" onClick={event => { event.stopPropagation(); setRetry(value => value + 1); }} className="underline">Retry effects</button>
     </div>}

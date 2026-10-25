@@ -1,5 +1,4 @@
-/** Brand red — matches transform overlay / Ceriga accents */
-export const GUIDE_COLOR = '#CC2D24';
+export const GUIDE_COLOR = '#8a8a8a';
 export const SNAP_GUIDE_PX = 8;
 
 export type SnapBox = { id: string; x: number; y: number; width: number; height: number };
@@ -122,12 +121,28 @@ export function snapDragInZone(
     minY = cy;
     maxY = cy;
   }
+  const x = clamp(sx, minX, maxX);
+  const y = clamp(sy, minY, maxY);
   return {
-    x: clamp(sx, minX, maxX),
-    y: clamp(sy, minY, maxY),
-    verticalLines: [...new Set(verticalLines)],
-    horizontalLines: [...new Set(horizontalLines)],
+    x,
+    y,
+    verticalLines: [...new Set(verticalLines)].filter(line=>[x-halfW,x,x+halfW].some(edge=>Math.abs(edge-line)<.01)),
+    horizontalLines: [...new Set(horizontalLines)].filter(line=>[y-halfH,y,y+halfH].some(edge=>Math.abs(edge-line)<.01)),
   };
+}
+
+/** Visible artwork can sit off-centre inside a much larger text layout box. */
+export function measureArtworkBoundsInZone(zone: HTMLElement, element: HTMLElement) {
+  const zr=zone.getBoundingClientRect();
+  const root=element.getBoundingClientRect();
+  const visible=(element.querySelector('[data-visible-bounds]')??element).getBoundingClientRect();
+  const scaleX=zr.width>0?zone.offsetWidth/zr.width:1;
+  const scaleY=zr.height>0?zone.offsetHeight/zr.height:1;
+  const x=(visible.left+visible.width/2-zr.left)*scaleX;
+  const y=(visible.top+visible.height/2-zr.top)*scaleY;
+  return {x,y,width:Math.max(1,visible.width*scaleX),height:Math.max(1,visible.height*scaleY),
+    offsetX:(visible.left+visible.width/2-root.left-root.width/2)*scaleX,
+    offsetY:(visible.top+visible.height/2-root.top-root.height/2)*scaleY};
 }
 
 /**

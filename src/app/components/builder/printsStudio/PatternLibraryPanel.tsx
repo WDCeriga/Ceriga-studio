@@ -6,7 +6,7 @@ import { changePatternType, customPatternSettings, initialPatternSettings, isSel
 import { PatternGraphic } from './PatternGraphic';
 import { PatternControls } from './PatternControls';
 import { useAssetWorkspaceContext } from './AssetWorkspace';
-import { STUDIO_DRAG_MIME, encodeStudioDrag } from './studioAssets';
+import { beginPatternDrag } from './studioAssets';
 
 export type PatternLayerSource = { id: string; name: string };
 
@@ -44,11 +44,7 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
   };
   const drag = (event: DragEvent, id: string, settings: PatternPatch) => {
     if (id === 'custom' && !settings.patternSource) { event.preventDefault(); return; }
-    const payload = encodeStudioDrag('pattern', id, settings);
-    event.dataTransfer.setData(STUDIO_DRAG_MIME, payload);
-    event.dataTransfer.setData('text/plain', payload);
-    event.dataTransfer.setData('application/x-ceriga-pattern', id);
-    event.dataTransfer.effectAllowed = 'copy';
+    beginPatternDrag(event.dataTransfer,id,settings);
   };
   const create = () => {
     if (!source || locked) return;
@@ -65,7 +61,7 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
         <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">{category}</h4>
         <div className="grid grid-cols-3 gap-1.5">
           {PATTERN_CATALOG.filter(item => item.category === category && item.id !== 'custom').map(item => {
-            const settings = initialPatternSettings(item.id, color);
+            const settings = {...initialPatternSettings(item.id, color),patternSeed:1729};
             const preview = { ...settings, id: `preview-${item.id}`, type: 'pattern', content: item.id, x: 0, y: 0, width: 96, height: 72, rotation: 0, patternSeed: 1729 } as DesignElement;
             return <button key={item.id} type="button" draggable={!locked} disabled={locked} aria-label={item.label} data-pattern-card={item.id} aria-pressed={kind === item.id}
               onDragStart={event => drag(event, item.id, kind === item.id && selected ? selected : { ...settings, patternSeed: 1729 })}

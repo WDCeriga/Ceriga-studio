@@ -30,3 +30,6 @@
 .labels-studio .label-section { margin-top:12px; padding-top:2px; }
 .labels-studio .label-section>summary { min-height:42px; padding:9px 0; font-size:12px; font-weight:500; line-height:1.5; color:var(--builder-ui-text); }
 .labels-studio .label-section>summary small { font-size:10px; }
+
+.label-preview-studio:has([aria-label="Sleeve and hem tag garment side"]) .label-studio-toolbar{padding-right:150px}
+@media(max-width:767px){.label-preview-studio:has([aria-label="Sleeve and hem tag garment side"]) .label-studio-toolbar{padding:52px 14px 10px}}
