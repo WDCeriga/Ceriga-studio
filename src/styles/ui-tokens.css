@@ -1,0 +1,24 @@
+/* Shared interface rhythm. Artwork and marketing display type retain their own fonts. */
+:root {
+ --ui-font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ --ui-radius-control:4px;
+ --ui-radius-card:6px;
+ --ui-control-height:36px;
+ --ui-control-small:32px;
+ --ui-control-large:40px;
+ --ui-page-title:clamp(26px,2.25vw,30px);
+ --ui-page-gutter:clamp(16px,2.5vw,40px);
+ --ui-page-spacing:32px;
+ --ui-section-gap:24px;
+ --ui-field-gap:8px;
+ --ui-focus-width:2px;
+ --ui-transition:150ms;
+ --builder-ui-title:20px;
+ --builder-ui-section-title:12px;
+ --builder-ui-body:12px;
+ --builder-ui-caption:10px;
+ --builder-ui-card-radius:5px;
+ --builder-ui-control-height:36px;
+ --builder-ui-section-gap:20px;
+}
+@media(max-width:767px){:root{--ui-page-spacing:24px;--builder-ui-title:16px}}

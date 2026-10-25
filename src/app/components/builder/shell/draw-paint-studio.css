@@ -1,7 +1,7 @@
 /* Draw & paint uses Ceriga's shared white/slate surfaces and compact dividers. */
 .studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-header{display:block;padding:0 0 22px;border-bottom:0}
 .draw-studio-eyebrow{display:block;color:var(--builder-ui-muted);font-size:10px;letter-spacing:.14em;margin:0 0 12px}
-.studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-header h2{font-size:20px;letter-spacing:-.45px;line-height:1.35;margin:0;font-weight:600}
+.studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-header h2{font-size:var(--builder-ui-title);letter-spacing:-.45px;line-height:1.35;margin:0;font-weight:600}
 .draw-studio-intro{font-size:12px;color:var(--builder-ui-muted);line-height:1.6;margin:8px 0 0}
 .studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-main{padding-top:0}
 .draw-active-brush{display:flex;align-items:center;gap:11px;padding:14px 0 18px;border-bottom:1px solid var(--builder-ui-line);color:var(--builder-ui-secondary)}
@@ -19,7 +19,7 @@
 .print-design-canvas[data-draw-studio=true] .print-canvas-footer{gap:12px;justify-content:space-between;flex-wrap:wrap;padding:12px 18px 18px;overflow:visible}.draw-canvas-tools button:focus-visible{outline:2px solid var(--builder-ui-focus);outline-offset:3px}.draw-quick-settings input:focus-visible{outline:2px solid var(--builder-ui-line);outline-offset:2px}
 @media(min-width:768px) and (max-width:1160px){.draw-quick-settings{gap:10px;padding:8px}.draw-quick-settings .draw-tool-name{display:none}.draw-quick-settings input{width:48px}}
 @media(max-width:767px){
- .studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-header{padding:0 0 16px}.draw-studio-eyebrow{display:none}.studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-header h2{font-size:16px}.draw-studio-intro{font-size:12px;margin-top:5px}.draw-active-brush{padding:5px 0 16px}.draw-brushes{padding-top:16px}.draw-library-controls select,.draw-search input{font-size:16px}.draw-brush-grid canvas{height:30px}.draw-brush-grid>button{padding:6px 10px 9px}
+ .studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-header{padding:0 0 16px}.draw-studio-eyebrow{display:none}.studio-inspector-v2[data-family=brush][data-mode=create] .studio-inspector-header h2{font-size:var(--builder-ui-title)}.draw-studio-intro{font-size:12px;margin-top:5px}.draw-active-brush{padding:5px 0 16px}.draw-brushes{padding-top:16px}.draw-library-controls select,.draw-search input{font-size:16px}.draw-brush-grid canvas{height:30px}.draw-brush-grid>button{padding:6px 10px 9px}
  .draw-canvas-tools{left:12px;top:57px;transform:none;flex-direction:row;padding:3px;border-radius:5px}.draw-canvas-tools>button{width:35px;height:32px}.draw-canvas-tools>button>span,.draw-ink>span{display:none}.draw-canvas-tools>i{width:1px;height:20px;margin:0 4px}.draw-ink{padding:0 4px}.draw-ink-swatch{width:25px;height:25px}
  .print-design-canvas[data-draw-studio=true] .print-garment-stage{padding:34px 10px 0}.print-design-canvas[data-draw-studio=true] .studio-canvas-heading{min-height:50px;padding-bottom:6px}.print-design-canvas[data-draw-studio=true] .print-canvas-footer{padding:7px 12px;gap:7px;justify-content:space-between}.draw-quick-settings{order:0;width:100%;justify-content:space-between;gap:8px;padding:7px 10px;min-height:36px}.draw-quick-settings .draw-tool-name{display:none}.draw-quick-settings input{width:60px}.draw-quick-settings>label{gap:6px}.draw-quick-settings output{min-width:32px}
 }

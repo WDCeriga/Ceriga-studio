@@ -1,0 +1,77 @@
+/* Garment visibility takes priority; panels open only when requested on touch layouts. */
+@media(max-width:767px){
+ .ceriga-builder-shell[data-section] .builder-shell-grid{padding-bottom:calc(var(--phone-inspector-height,0px) + var(--mobile-command-height,56px) + env(safe-area-inset-bottom));transition:none}
+ .ceriga-builder-shell[data-canvas-focus=true] .responsive-context-layer{display:none}
+ .ceriga-builder-shell[data-canvas-focus=true] :is(.draw-canvas-tools,.shape-canvas-tools,.studio-canvas-dock,.draw-quick-settings,.print-quick-settings,.print-selection-actions,.shape-canvas-actions,.phone-fit-trigger,.measurement-guides-toggle,.pkg-canvas-controls>.pkg-check){display:none!important}
+ .ceriga-builder-shell[data-canvas-focus=true] .print-canvas-footer{display:none}
+ .ceriga-builder-shell[data-canvas-focus=true] .print-garment-stage{padding:52px 10px 8px!important}
+ .ceriga-builder-shell[data-canvas-focus=true] .print-design-canvas:has(.asset-workspace-header) .print-garment-stage{padding-top:8px!important}
+ .ceriga-builder-shell[data-canvas-focus=true] .new-canvas-area{inset:52px 8px 8px}
+ .ceriga-builder-shell .responsive-context-layer .responsive-sheet{max-height:calc((var(--builder-viewport-height,100dvh) - 114px) * .55)}
+ .ceriga-builder-shell .responsive-context-layer .responsive-sheet[data-snap=peek]{height:var(--phone-inspector-height);overflow:hidden}
+ .ceriga-builder-shell .responsive-context-layer .responsive-sheet[data-snap=peek]:not(:has(.phone-dock-heading,.advanced-phone-heading)) .mobile-sheet-handle{min-height:16px}
+ .responsive-sheet>header h2 .sheet-expand-title{width:auto;height:38px;text-align:left;font:inherit;justify-content:start}
+ .ceriga-builder-shell .builder-breadcrumb{min-width:0;flex:1;overflow:hidden}
+ .ceriga-builder-shell .builder-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+ .ceriga-builder-shell .builder-name-input{min-width:0;max-width:100%;font-size:16px}
+ .ceriga-builder-shell .builder-draft{flex:none}
+ .ceriga-builder-shell .phone-history-actions button{width:40px;min-height:44px}
+ .ceriga-builder-shell .phone-history-actions button::before{display:none}
+ .ceriga-builder-shell .phone-overflow{min-width:40px}
+ .ceriga-builder-shell .mobile-builder-dock{padding-left:max(4px,env(safe-area-inset-left));padding-right:max(4px,env(safe-area-inset-right))}
+ .ceriga-builder-shell .responsive-sheet-content{overscroll-behavior:contain;scrollbar-width:thin;scroll-padding-block:16px}
+ .ceriga-builder-shell .responsive-sheet :is(input:not([type=range]):not([type=checkbox]):not([type=color]),select,textarea){font-size:16px!important}
+ .ceriga-builder-shell .new-view-switch{max-width:calc(100% - 24px);overflow-x:auto;white-space:nowrap}
+ .ceriga-builder-shell .new-view-switch button{min-height:40px}
+ .ceriga-builder-shell:not([data-canvas-focus=true]) .print-garment-stage{padding:54px 10px 8px 52px!important}
+ .ceriga-builder-shell .print-design-canvas .draw-canvas-tools{top:52px;left:6px;bottom:8px;max-height:calc(100% - 64px);width:42px;flex-direction:column;transform:none;overflow-y:auto;scrollbar-width:none}
+ .ceriga-builder-shell .print-design-canvas .draw-canvas-tools>i{height:1px;width:26px;margin:4px 0}
+ .ceriga-builder-shell .print-design-canvas .shape-canvas-tools{top:52px;bottom:8px;left:6px;max-height:calc(100% - 64px);transform:none;overflow-y:auto;scrollbar-width:none}
+ .ceriga-builder-shell .print-design-canvas :is(.shape-canvas-tools,.draw-canvas-tools)>button{min-height:40px;flex-shrink:0}
+ .ceriga-builder-shell .print-design-canvas .draw-quick-settings{display:none}
+ .ceriga-builder-shell .label-studio-toolbar{max-width:100%;overflow-x:auto;flex-wrap:nowrap!important;padding:8px 10px!important}
+ .ceriga-builder-shell .label-preview-studio:has([aria-label="Sleeve and hem tag garment side"]) .label-studio-toolbar{padding:54px 10px 8px!important}
+ .ceriga-builder-shell .packaging-studio-canvas .pkg-preview[data-studio] .pkg-stage{inset:54px 8px 48px}
+ .ceriga-builder-shell .packaging-studio-canvas .pkg-canvas-controls>.pkg-check{display:none}
+}
+@media(min-width:768px) and (max-width:1199px){
+ .ceriga-builder-shell[data-inspector-collapsed=true] .builder-shell-grid{grid-template-columns:var(--builder-nav-width,64px) minmax(0,1fr) 32px}
+ .ceriga-builder-shell[data-inspector-collapsed=true] .builder-inspector-rail{width:32px}
+ .ceriga-builder-shell .builder-inspector-collapse{min-height:44px;min-width:32px}
+ .ceriga-builder-shell .builder-topbar{gap:8px;padding-inline:12px}
+ .ceriga-builder-shell .builder-project-actions{gap:4px;flex-shrink:0}
+ .ceriga-builder-shell .builder-save{display:none}
+ .ceriga-builder-shell .builder-project-actions>button{min-height:44px}
+ .ceriga-builder-shell .builder-breadcrumb{min-width:0;flex:1;overflow:hidden}
+ .ceriga-builder-shell .builder-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .ceriga-builder-shell .new-canvas-area{touch-action:none}
+ .ceriga-builder-shell .builder-inspector input:not([type=range]):not([type=checkbox]):not([type=color]),.ceriga-builder-shell .builder-inspector select{min-height:40px}
+}
+@media(max-width:767px) and (max-height:500px){
+ .ceriga-builder-shell[data-section]{--builder-topbar-height:44px;--mobile-command-height:48px}
+ .ceriga-builder-shell .builder-topbar{height:44px;min-height:44px}
+ .ceriga-builder-shell .builder-draft{display:none}
+ .ceriga-builder-shell .mobile-builder-dock{height:calc(48px + env(safe-area-inset-bottom))}
+ .ceriga-builder-shell .mobile-builder-dock>button{min-height:44px;flex-direction:row;gap:5px}
+ .ceriga-builder-shell .mobile-builder-dock svg{width:18px;height:18px}
+ .ceriga-builder-shell :is(.responsive-context-layer,.responsive-sheet-layer){bottom:calc(48px + env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){.ceriga-builder-shell :is(.responsive-sheet,.builder-shell-grid){transition:none!important;animation:none!important}}
+.touch-canvas-fit{display:none}
+@media(max-width:767px){
+ .ceriga-builder-shell .touch-canvas-fit{display:grid;place-items:center;position:absolute;left:12px;top:10px;z-index:22;min-width:44px;min-height:40px;padding:8px 10px;border:1px solid var(--builder-ui-line);border-radius:5px;background:white;font-size:11px}
+ .ceriga-builder-shell .print-design-canvas:has(.asset-workspace-header) .touch-canvas-fit{top:auto;bottom:8px}
+ .ceriga-builder-shell[data-canvas-focus=true] .print-garment-stage{touch-action:none}
+ .ceriga-builder-shell[data-canvas-focus=true] .measurement-focus-group{display:none}
+ .ceriga-builder-shell[data-canvas-focus=true] [data-handles]{display:none!important}
+}
+@media(pointer:coarse){
+ .ceriga-builder-shell .builder-inspector-collapse{min-width:36px;min-height:44px}
+ .ceriga-builder-shell .studio-layer-row{min-height:44px}
+ .ceriga-builder-shell :is(.builder-select-option,.material-select-option){min-height:44px}
+}
+@media(max-width:767px){
+ .ceriga-builder-shell[data-canvas-focus=true] [data-label-stage]>[role=status]{display:none}
+ .ceriga-builder-shell[data-canvas-focus=true] .label-studio-zoom>:not(:last-child){display:none}
+ .ceriga-builder-shell .label-studio-zoom button{min-height:44px;min-width:44px}
+}

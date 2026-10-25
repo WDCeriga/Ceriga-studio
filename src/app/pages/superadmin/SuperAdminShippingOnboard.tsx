@@ -144,7 +144,7 @@ export function SuperAdminShippingOnboard() {
             <Ship className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Logistics</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-2">
             Shipping
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-white/45">
@@ -221,7 +221,7 @@ export function SuperAdminShippingOnboard() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+            <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">Mode mix</h2>
               <ul className="mt-4 space-y-2">
                 {stats.modeMix.length === 0 ? (
@@ -236,7 +236,7 @@ export function SuperAdminShippingOnboard() {
                 )}
               </ul>
             </section>
-            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+            <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">Top carriers used</h2>
               <ul className="mt-4 space-y-2">
                 {stats.carrierUsage.length === 0 ? (
@@ -437,7 +437,7 @@ export function SuperAdminShippingOnboard() {
       ) : null}
 
       {tab === 'onboard' ? (
-        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+        <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
           {allOnboard.length === 0 ? (
             <p className="py-10 text-center text-sm text-white/40">No onboard requests.</p>
           ) : (
@@ -501,7 +501,7 @@ export function SuperAdminShippingOnboard() {
       ) : null}
 
       {tab === 'shipments' ? (
-        <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+        <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
               <thead>

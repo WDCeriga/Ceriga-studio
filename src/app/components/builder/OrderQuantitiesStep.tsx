@@ -6,12 +6,10 @@ import { cn } from '../ui/utils';
 import { ORDER_SIZE_KEYS } from '../../data/builderSteps';
 import {
   applySizeChange,
-  CUSTOM_SAMPLE_MAX_PER_SIZE,
   distributeQuantity,
   emptySizeBreakdown,
   maxBulkRuns,
   newBulkRun,
-  sampleFixedTotal,
   setOrderMode,
   sumBreakdown,
   type OrderQuantityLine,
@@ -279,15 +277,13 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
 
       <QuantityBlock
         title="Sample"
-        subtitle={
-          plan.mode === 'custom_clothing'
-            ? 'Fixed 6 units — one sample per size (max 1 each)'
-            : undefined
-        }
+        subtitle="Order from one sample, in any chosen size"
         line={plan.sample}
         onUpdate={updateSample}
-        fixedTotal={sampleFixedTotal(plan.mode)}
-        maxPerSize={plan.mode === 'custom_clothing' ? CUSTOM_SAMPLE_MAX_PER_SIZE : undefined}
+        showTargetTotal
+        minTotal={1}
+        targetLabel="Sample quantity"
+
       />
 
       <div className="space-y-2.5">

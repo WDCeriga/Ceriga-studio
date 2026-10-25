@@ -25,9 +25,9 @@
   --ceriga-status-done-bg: #14201a;
   --ceriga-status-done-text: #7fa888;
   --ceriga-status-done-border: #345040;
-  --ceriga-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ceriga-font-sans:var(--ui-font-sans);
   --ceriga-font-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --ceriga-radius: 6px;
+  --ceriga-radius:var(--ui-radius-card);
   --ceriga-sidebar-width: 216px;
   --ceriga-sidebar-collapsed: 72px;
 }

@@ -217,7 +217,7 @@ export function SuperAdminDashboard() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
             Owner console
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1">
             {greeting()}
           </h1>
           <p className="mt-1 text-sm text-white/45">{today}</p>
@@ -273,7 +273,7 @@ export function SuperAdminDashboard() {
 
       {/* Chart + pipeline */}
       <div className="grid gap-6 xl:grid-cols-5">
-        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 xl:col-span-3">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 xl:col-span-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-white">Revenue trend</h2>
@@ -329,7 +329,7 @@ export function SuperAdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 xl:col-span-2">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 xl:col-span-2">
           <h2 className="text-sm font-semibold text-white">Order pipeline</h2>
           <div className="mt-5 space-y-3">
             {pipeline.map((row) => (
@@ -355,7 +355,7 @@ export function SuperAdminDashboard() {
 
       {/* Attention + activity */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
           <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-amber-400" />
@@ -401,7 +401,7 @@ export function SuperAdminDashboard() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
           <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-white/40" />
@@ -442,7 +442,7 @@ export function SuperAdminDashboard() {
 
       {/* Recent orders + messages */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:col-span-2">
+        <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] lg:col-span-2">
           <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Recent orders</h2>
             <Link to="/superadmin/orders" className="text-[11px] font-medium text-[#CC2D24] hover:underline">
@@ -459,7 +459,7 @@ export function SuperAdminDashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#252528] bg-[#111113]">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
           <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Messages</h2>
             <Link to="/superadmin/messages" className="text-[11px] font-medium text-[#CC2D24] hover:underline">

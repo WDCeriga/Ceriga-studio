@@ -37,7 +37,7 @@ export function SuperAdminCRM() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
             Catalog
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1">
             CRM
           </h1>
         </div>
@@ -113,7 +113,7 @@ export function SuperAdminCRM() {
       </div>
 
       {filteredProducts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
+        <div className="rounded-[var(--ceriga-radius)] border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
           <p className="text-sm text-white/45">No products match your search.</p>
         </div>
       ) : (

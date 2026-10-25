@@ -216,7 +216,7 @@ export function SuperAdminUserDetail() {
       </Link>
 
       {/* Profile hero */}
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
         <div className="border-b border-[#252528] bg-gradient-to-br from-[#CC2D24]/14 via-[#CC2D24]/4 to-transparent px-6 py-8 sm:px-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-5">
@@ -225,7 +225,7 @@ export function SuperAdminUserDetail() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
                   User profile
                 </p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                <h1 className="ceriga-page-title mt-1">
                   {user.name}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -290,7 +290,7 @@ export function SuperAdminUserDetail() {
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Left column — management */}
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24]/15">
                 <Coins className="h-4 w-4 text-[#CC2D24]" />
@@ -345,7 +345,7 @@ export function SuperAdminUserDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24]/15">
                 <Shield className="h-4 w-4 text-[#CC2D24]" />
@@ -377,7 +377,7 @@ export function SuperAdminUserDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Account details</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between gap-4 border-b border-[#252528] pb-3">
@@ -401,7 +401,7 @@ export function SuperAdminUserDetail() {
 
         {/* Right column — orders & activity */}
         <div className="space-y-6 lg:col-span-3">
-          <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.25)]">
+          <section className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.25)]">
             <div className="flex items-center justify-between border-b border-[#252528] px-5 py-4 sm:px-6">
               <div>
                 <h2 className="text-sm font-semibold text-white">Recent orders</h2>
@@ -476,7 +476,7 @@ export function SuperAdminUserDetail() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Activity</h2>
             <ul className="mt-4 space-y-0">
               {[

@@ -196,7 +196,7 @@ export function ManufacturerProduction() {
           <ClipboardList className="h-4 w-4" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Floor</span>
         </div>
-        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h1 className="ceriga-page-title mt-1.5">
           Production board
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-white/45">

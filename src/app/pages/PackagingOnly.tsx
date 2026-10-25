@@ -29,7 +29,7 @@ export function PackagingOnly() {
         <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">
           Packaging designer
         </div>
-        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase leading-tight tracking-[-0.03em] text-white sm:text-[1.65rem]">
+        <h1 className="ceriga-page-title">
           Packaging
         </h1>
         <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/50 sm:text-sm">

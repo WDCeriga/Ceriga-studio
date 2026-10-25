@@ -1,3 +1,4 @@
+import {useResponsiveBuilder} from './shell/responsiveBuilder';
 import {GarmentViewSwitch} from './shell/GarmentViewSwitch';
 import {StudioArtworkPreview} from './StudioArtworkPreview';
 import type {DesignElement as StudioDesignElement} from './PrintStudioEditor';
@@ -65,7 +66,8 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   tagView?: 'front' | 'back'; onTagViewChange?: (side: 'front' | 'back') => void;
 }) {
   const workflow=useStudioWorkflow();
-  useEffect(()=>{if(!studio)return;if(workflow.tool==='Design'){setMode('only');setEntryPending(false)}else if(workflow.tool==='Placement'){setMode('garment');workflow.setSelection(null)}},[workflow.tool,studio]);
+  const {canvasFocus}=useResponsiveBuilder();
+  useEffect(()=>{if(!studio)return;if(workflow.tool==='Design'){setMode(window.innerWidth<768?'garment':'only');setEntryPending(false)}else if(workflow.tool==='Placement'){setMode('garment');workflow.setSelection(null)}},[workflow.tool,studio]);
   const current = labels.find(label => label.id === selectedId);
   const tagEditing = current?.category === 'tag';
   const selected = current;
@@ -92,9 +94,9 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   },[selected?.id]);
   useEffect(() => {
     setPan({ x: 0, y: 0 });
-    if (studio && window.matchMedia('(max-width:767px)').matches) {setMode('only');setEntryPending(false);setZoom(1);} else if (manual) { setMode('garment'); setZoom(1); }
+    if (studio && window.matchMedia('(max-width:767px)').matches) {setMode('garment');setEntryPending(false);setZoom(1);} else if (manual) { setMode('garment'); setZoom(1); }
   }, [selectedId, selected?.position, manual, Boolean(unplaced)]);
-  useEffect(()=>{if(!closeUpRequest||!selected)return;setEntryPending(false);setMode(studio&&window.matchMedia('(max-width:767px)').matches?'only':unplaced?'only':'closeup');setZoom(1);setPan({x:0,y:0});},[closeUpRequest]);
+  useEffect(()=>{if(!closeUpRequest||!selected)return;setEntryPending(false);setMode(unplaced?'only':'closeup');setZoom(1);setPan({x:0,y:0});},[closeUpRequest]);
   const handSelected = selected?.category === 'hand';
   const neckSelected = !manual && (selected?.category === 'neck' || selected?.position.startsWith('neck-'));
   const ready = Boolean(selected && !unplaced && focus?.id === selected.id && focus?.width && focus?.height);
@@ -114,6 +116,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
     const timer = window.setTimeout(() => setAnimatedTarget(null), 1850);
     return () => window.clearTimeout(timer);
   }, [animatedTarget, mode]);
+  useEffect(()=>{if(studio&&canvasFocus){setMode('garment');setZoom(1);setPan({x:0,y:0});setShowGarment(true);setEntryPending(false)}},[studio,canvasFocus]);
   const closeup = Boolean(selected) && !unplaced && (mode !== 'garment' || handSelected) && (!manual || mode === 'closeup' && !entryPending);
   const careCloseup = !manual && closeup && selected?.category === 'care';
   const cameraFocus = !unplaced && selected && focus?.id === selected.id && focus?.width && focus?.height ? focus : null;

@@ -108,7 +108,7 @@ function QuoteCalculatorSection() {
   );
 
   return (
-    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+    <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
@@ -375,7 +375,7 @@ export function SuperAdminPricing() {
             <DollarSign className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Billing</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-2">
             Pricing
           </h1>
         </div>
@@ -411,7 +411,7 @@ export function SuperAdminPricing() {
         ].map((card) => {
           const Icon = card.icon;
           const inner = (
-            <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.12]">
+            <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.12]">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
@@ -444,7 +444,7 @@ export function SuperAdminPricing() {
       <QuoteCalculatorSection />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-white">Tech pack exports</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <MoneyInput
@@ -466,7 +466,7 @@ export function SuperAdminPricing() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
           <h2 className="text-sm font-semibold text-white">Estimated duties / tax (%)</h2>
           <div className="mt-4">
             <Input
@@ -484,7 +484,7 @@ export function SuperAdminPricing() {
       </div>
 
       {/* Production margins per manufacturer plan */}
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">Production order markup by plan</h2>
           <Link
@@ -509,7 +509,7 @@ export function SuperAdminPricing() {
       </div>
 
       {/* AI chat plans */}
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">AI assistant plans</h2>
           <Link
@@ -583,7 +583,7 @@ export function SuperAdminPricing() {
       </div>
 
       {/* Revenue ledger */}
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white">Revenue ledger</h2>

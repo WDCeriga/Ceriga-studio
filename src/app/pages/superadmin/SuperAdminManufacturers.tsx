@@ -87,7 +87,7 @@ export function SuperAdminManufacturers() {
           <Factory className="h-5 w-5" />
           <span className="text-[11px] font-semibold uppercase tracking-wider">Partners</span>
         </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h1 className="ceriga-page-title mt-2">
           Manufacturers
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-white/45">
@@ -115,7 +115,7 @@ export function SuperAdminManufacturers() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 lg:col-span-3">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 lg:col-span-3">
           <h2 className="text-sm font-semibold text-white">Partner throughput</h2>
           <div className="mt-4 h-[220px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -130,7 +130,7 @@ export function SuperAdminManufacturers() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 lg:col-span-2">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-white">Garment coverage</h2>
           <p className="mt-1 text-[11px] text-white/35">How many factories cover each product type</p>
           <ul className="mt-4 space-y-2.5">
@@ -208,7 +208,7 @@ export function SuperAdminManufacturers() {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
+          <div className="rounded-[var(--ceriga-radius)] border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
             <p className="text-sm text-white/45">No manufacturers match.</p>
           </div>
         ) : (

@@ -23,13 +23,13 @@ export function SuperAdminStatistics() {
             <BarChart3 className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Analytics</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Statistics</h1>
+          <h1 className="ceriga-page-title mt-2">Statistics</h1>
         </div>
         <PeriodSelect period={period} onPeriodChange={setPeriod} />
       </div>
 
       {/* Platform snapshot */}
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white">Platform snapshot</h2>

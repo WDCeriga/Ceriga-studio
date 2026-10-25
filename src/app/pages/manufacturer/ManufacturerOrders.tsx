@@ -203,7 +203,7 @@ export function ManufacturerOrders() {
             <Package className="h-4 w-4" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Inbox</span>
           </div>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1.5">
             Orders
           </h1>
           <p className="mt-1 text-sm text-white/45">
@@ -266,7 +266,7 @@ export function ManufacturerOrders() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
@@ -351,7 +351,7 @@ export function ManufacturerOrders() {
           No orders in this view.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+        <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-left">
               <thead>

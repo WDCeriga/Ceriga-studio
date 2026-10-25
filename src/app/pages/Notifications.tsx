@@ -105,9 +105,8 @@ export function Notifications() {
           >
             Inbox
           </p>
-          <h1
-            className="text-3xl font-bold tracking-tight sm:text-4xl"
-            style={{ color: "#F8F8F7", lineHeight: 1.08 }}
+          <h1 className="ceriga-page-title"
+            style={{ color: "var(--ceriga-text)" }}
           >
             Notifications
           </h1>

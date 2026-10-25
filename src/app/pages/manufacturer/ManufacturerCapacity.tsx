@@ -283,7 +283,7 @@ export function ManufacturerCapacity() {
             <CalendarDays className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Floor load</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-2">
             Capacity calendar
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-white/45">
@@ -326,7 +326,7 @@ export function ManufacturerCapacity() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+        <section className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
           <div className="flex items-center justify-between gap-3 border-b border-[#252528] px-4 py-3 sm:px-5">
             <button
               type="button"
@@ -464,7 +464,7 @@ export function ManufacturerCapacity() {
         </section>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
+          <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
               Selected day
             </p>
@@ -626,7 +626,7 @@ export function ManufacturerCapacity() {
             )}
           </div>
 
-          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
+          <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
               Selected week · capacity
             </p>
@@ -697,7 +697,7 @@ export function ManufacturerCapacity() {
             ) : null}
           </div>
 
-          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
+          <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
               This month
             </p>

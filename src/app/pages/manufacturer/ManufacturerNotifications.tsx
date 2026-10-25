@@ -50,7 +50,7 @@ export function ManufacturerNotifications() {
             <Bell className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Inbox</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-2">
             Notifications
           </h1>
           <p className="mt-1 max-w-xl text-sm text-white/45">

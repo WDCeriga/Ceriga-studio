@@ -219,7 +219,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       </aside>
 
       <main
-        className="min-h-dvh overflow-x-hidden transition-all duration-300 lg:pt-0"
+        className="ceriga-workspace-content min-h-dvh overflow-x-hidden transition-all duration-300 lg:pt-0"
         style={{
           marginLeft: isLgUp ? sidebarWidth : 0,
           paddingTop: isLgUp ? 0 : 'calc(4.35rem + env(safe-area-inset-top))',

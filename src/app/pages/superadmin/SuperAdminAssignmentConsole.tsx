@@ -105,7 +105,7 @@ export function SuperAdminAssignmentConsole() {
             <Route className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Routing</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-2">
             Quote & assignment
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-white/45">
@@ -193,7 +193,7 @@ export function SuperAdminAssignmentConsole() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+      <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-left">
             <thead>

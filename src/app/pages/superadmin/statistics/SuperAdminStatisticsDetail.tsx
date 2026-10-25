@@ -406,7 +406,7 @@ function ManufacturersSection() {
         </ChartPanel>
       </div>
 
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-white">Manufacturer rankings</h2>

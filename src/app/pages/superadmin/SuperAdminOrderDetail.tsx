@@ -284,7 +284,7 @@ function OrderHero({
   const steps = isTechPack ? TECHPACK_STEPS : CUSTOM_STEPS;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+    <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
       <div className={cn('px-6 py-6 sm:px-8', 'bg-gradient-to-br', gradient)}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
@@ -309,7 +309,7 @@ function OrderHero({
                   <Copy className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-white sm:text-2xl">
+              <h1 className="ceriga-page-title mt-1.5">
                 {order.productName}
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -399,7 +399,7 @@ function OrderHero({
 
 function CustomerCard({ order }: { order: SuperAdminOrder }) {
   return (
-    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+    <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
       <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Customer</h2>
       <div className="mt-4 flex items-center gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04] text-sm font-bold text-white/75">
@@ -438,7 +438,7 @@ function CustomerCard({ order }: { order: SuperAdminOrder }) {
 function DeliveryCard({ order }: { order: SuperAdminOrder }) {
   const delivery: OrderDeliveryInfo | undefined = order.delivery;
   return (
-    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+    <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
       <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
         Delivery
       </h2>
@@ -497,7 +497,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
   const awaitingQuote = Boolean(order.manufacturerName) && !hasQuote;
 
   return (
-    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+    <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
       <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
         Manufacturer
       </h2>
@@ -589,7 +589,7 @@ function ProductionPulseCard({
   const [flagOpen, setFlagOpen] = useState(false);
 
   return (
-    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+    <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-white">Production pulse</h2>
@@ -780,7 +780,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
   const product = techPack ? getProductById(techPack.builderProductId) : undefined;
 
   return (
-    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+    <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
       <h2 className="text-sm font-semibold text-white">Production spec</h2>
 
       {techPack ? (
@@ -927,7 +927,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15">
                 <FileText className="h-4 w-4 text-violet-300" />
@@ -1296,7 +1296,7 @@ function CustomClothingOrderDetail({
           <DeliveryCard order={order} />
 
           {['paid', 'in_production', 'shipped', 'completed'].includes(order.status) ? (
-            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+            <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Truck className="h-4 w-4 text-[#CC2D24]" />
                 Tracking

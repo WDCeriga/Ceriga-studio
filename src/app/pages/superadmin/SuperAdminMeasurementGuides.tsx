@@ -139,7 +139,7 @@ export function SuperAdminMeasurementGuides() {
 
   if (!selectedGuide) {
     return (
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] px-6 py-16 text-center">
         <p className="text-sm text-white/50">No measurement guides found.</p>
       </div>
     );
@@ -156,7 +156,7 @@ export function SuperAdminMeasurementGuides() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Settings
           </Link>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-3">
             Measurement guides
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">
@@ -173,7 +173,7 @@ export function SuperAdminMeasurementGuides() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
+        <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">

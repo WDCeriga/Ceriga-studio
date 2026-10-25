@@ -205,7 +205,7 @@ export function ManufacturerMaterials() {
             <Boxes className="h-4 w-4" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Stock</span>
           </div>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1.5">
             Materials
           </h1>
           <p className="mt-1 text-sm text-white/45">
@@ -275,7 +275,7 @@ export function ManufacturerMaterials() {
       </div>
 
       {formOpen ? (
-        <section className="rounded-2xl border border-[#CC2D24]/25 bg-[#111113] p-5">
+        <section className="rounded-[var(--ceriga-radius)] border border-[#CC2D24]/25 bg-[#111113] p-5">
           <h2 className="text-sm font-semibold text-white">
             {editingId ? 'Edit material' : 'New material'}
           </h2>
@@ -404,7 +404,7 @@ export function ManufacturerMaterials() {
         </section>
       ) : null}
 
-      <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+      <section className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
         {filtered.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <Package className="mx-auto h-8 w-8 text-white/20" />

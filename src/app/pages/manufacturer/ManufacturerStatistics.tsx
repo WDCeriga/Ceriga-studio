@@ -118,7 +118,7 @@ function KpiCard({
   warn?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4">
+    <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] px-4 py-4">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{label}</p>
         {Icon ? (
@@ -160,7 +160,7 @@ export function ManufacturerStatistics() {
             <BarChart3 className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Analytics</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-2">
             Statistics
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-white/45">
@@ -393,7 +393,7 @@ export function ManufacturerStatistics() {
             </ChartPanel>
           </div>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Factory profile snapshot</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3">
@@ -788,7 +788,7 @@ export function ManufacturerStatistics() {
             </ChartPanel>
           </div>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-white">Needs reorder</h2>
               <Link

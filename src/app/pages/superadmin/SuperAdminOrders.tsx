@@ -295,7 +295,7 @@ export function SuperAdminOrders() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
             Fulfilment
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Orders</h1>
+          <h1 className="ceriga-page-title mt-1">Orders</h1>
         </div>
         {stats.awaitingReview > 0 ? (
           <Button
@@ -399,7 +399,7 @@ export function SuperAdminOrders() {
       ) : null}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-left text-sm">
             <thead>

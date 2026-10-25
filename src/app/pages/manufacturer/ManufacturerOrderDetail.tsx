@@ -249,7 +249,7 @@ export function ManufacturerOrderDetail() {
           <p className="text-[11px] font-semibold uppercase tracking-wider text-[#CC2D24]">
             {FACTORY_STATUS_LABEL[latest.status]}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1">
             {latest.productName}
           </h1>
           <p className="mt-1 text-sm text-white/45">
@@ -314,7 +314,7 @@ export function ManufacturerOrderDetail() {
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-2">
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Brief</h2>
             <dl className="mt-4 space-y-3 text-[12px]">
               <div className="flex items-start gap-2 text-white/60">
@@ -334,7 +334,7 @@ export function ManufacturerOrderDetail() {
           </section>
 
           {techPack ? (
-            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+            <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">Tech pack</h2>
               <div className="mt-3 flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#252528] bg-white/[0.04]">
@@ -362,7 +362,7 @@ export function ManufacturerOrderDetail() {
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Quantities requested</h2>
             <ul className="mt-3 space-y-1.5 text-[12px] text-white/60">
               {qtyLines.map((line) => (
@@ -372,7 +372,7 @@ export function ManufacturerOrderDetail() {
           </section>
 
           {delivery ? (
-            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+            <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-[#CC2D24]" />
                 <h2 className="text-sm font-semibold text-white">Delivery</h2>
@@ -417,7 +417,7 @@ export function ManufacturerOrderDetail() {
         </div>
 
         <div className="space-y-4 lg:col-span-3">
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div>
               <h2 className="text-sm font-semibold text-white">Price sample & bulk</h2>
               <p className="text-[11px] text-white/40">

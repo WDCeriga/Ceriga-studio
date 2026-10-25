@@ -338,7 +338,7 @@ export function SuperAdminMessages() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
             Inbox
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1">
             Messages
           </h1>
         </div>
@@ -350,7 +350,7 @@ export function SuperAdminMessages() {
         ) : null}
       </div>
 
-      <div className="flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
+      <div className="flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
         <aside className="flex w-full shrink-0 flex-col border-b border-[#252528] lg:w-[min(100%,360px)] lg:border-b-0 lg:border-r">
           <div className="border-b border-[#252528] p-4">
             <div className="relative">

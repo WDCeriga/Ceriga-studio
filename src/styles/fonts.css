@@ -2,7 +2,7 @@
 @import './design-fonts.css';
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--ui-font-sans, 'Inter', sans-serif);
 }
 
 h1,

@@ -53,7 +53,7 @@ export function SuperAdminNotificationsPage() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
             Inbox
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1">
             Notifications
           </h1>
           <p className="mt-1 text-sm text-white/45">

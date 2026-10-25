@@ -233,7 +233,7 @@ export function ManufacturerSettings() {
             <Settings className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Profile</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-2">
             Factory profile
           </h1>
           <p className="mt-1 text-sm text-white/45">
@@ -273,7 +273,7 @@ export function ManufacturerSettings() {
         </div>
       ) : null}
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#CC2D24]/25 bg-[#CC2D24]/10">
@@ -304,7 +304,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-[#CC2D24]" />
           <h2 className="text-sm font-semibold text-white">Identity & contact</h2>
@@ -376,7 +376,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#CC2D24]/20 bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#CC2D24]/20 bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Clothes you produce</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Turning a type off reduces what Ceriga can auto-assign. Removing one asks for confirmation.
@@ -403,7 +403,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Capabilities</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Print, embroidery, wash, packing — removing one requires confirmation.
@@ -430,7 +430,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Capacity & logistics</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Used for routing and capacity planning. Changes apply only after you save.

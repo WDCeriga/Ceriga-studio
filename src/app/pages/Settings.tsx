@@ -31,7 +31,7 @@ export default function Settings() {
 
         <div className="mb-6">
           <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">ACCOUNT</div>
-          <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase tracking-[-0.5px] text-white">SETTINGS</h1>
+          <h1 className="ceriga-page-title">Settings</h1>
           <p className="mt-1 text-sm text-white/55">Manage your profile, preferences and security.</p>
         </div>
 

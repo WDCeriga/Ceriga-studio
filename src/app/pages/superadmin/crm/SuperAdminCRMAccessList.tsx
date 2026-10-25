@@ -23,7 +23,7 @@ export function SuperAdminCRMAccessList() {
 
   if (!audienceParam || !VALID_AUDIENCES.has(audienceParam)) {
     return (
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] px-6 py-16 text-center">
         <p className="text-sm text-white/50">Unknown audience.</p>
       </div>
     );
@@ -56,7 +56,7 @@ export function SuperAdminCRMAccessList() {
         >
           {meta.title}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h1 className="ceriga-page-title mt-1">
           {meta.title} profiles
         </h1>
       </div>
@@ -73,7 +73,7 @@ export function SuperAdminCRMAccessList() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
+        <div className="rounded-[var(--ceriga-radius)] border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
           <p className="text-sm text-white/45">No profiles match.</p>
         </div>
       ) : (

@@ -1,3 +1,4 @@
+import './fit-measurements.css';
 import {MobileSectionTools} from './MobileToolTabs';
 import {MeasurementGuidesToggle} from './MeasurementGuidesToggle';
 import {BuilderSelect} from './BuilderSelect';
@@ -67,7 +68,7 @@ export function FitMeasurementsInspector({
   const selected=NEW_MEASUREMENT_LABELS.find(m=>m.id===highlightedMeasurementId)??NEW_MEASUREMENT_LABELS[0];
   const desktopContent=<div className="builder-fit-measurements touch-measurement-navigation" {...(!phone?swipe:{})}>
     <p className="compact-fit-helper">Choose a fit, then refine measurements.</p>
-    <h3 className="builder-eyebrow">Fit</h3>
+    <h3 className="builder-eyebrow fit-section-label">Fit</h3>
     {tablet?<><h3 className="tablet-fit-label">Fit</h3><button className="tablet-fit-select" aria-haspopup="dialog" onClick={()=>setSheet('fit')}>{fitChoices.find(f=>f.id===fit)?.name??fit}<ChevronDown size={16}/></button></>:fitGrid}
     {tablet&&<details className="tablet-size-disclosure"><summary>Size & units · {size.toUpperCase()} · {unit}</summary><div className="tablet-size-settings"><div className="builder-size-range">{sizes.map(s=><button key={s} aria-pressed={size===s} onClick={()=>setSize(s)}>{s.toUpperCase()}</button>)}</div><NewSegmentedControl label="Units" values={['cm','in']} value={measurementUnit} onChange={v=>onMeasurementUnitChange(v as MeasurementUnit)}/></div></details>}
     <div className="new-measure-settings restored-core-settings"><div><span>Size range</span><div className="builder-size-range">{sizes.map(s=><button key={s} aria-label={'Edit size '+s.toUpperCase()} aria-pressed={size===s} onClick={()=>setSize(s)}>{s.toUpperCase()}</button>)}</div></div><label>Units<NewSegmentedControl label="Units" values={['cm','in']} value={measurementUnit} onChange={v=>onMeasurementUnitChange(v as MeasurementUnit)}/></label></div>

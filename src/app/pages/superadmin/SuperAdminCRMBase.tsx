@@ -39,7 +39,7 @@ export function SuperAdminCRMBase() {
 
   if (!meta) {
     return (
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] px-6 py-16 text-center">
         <p className="text-sm text-white/50">Base not found.</p>
         <Button asChild className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
           <Link to="/superadmin/crm">Back to CRM</Link>
@@ -87,7 +87,7 @@ export function SuperAdminCRMBase() {
             >
               Garment base
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">{meta.name}</h1>
+            <h1 className="ceriga-page-title mt-1">{meta.name}</h1>
           </div>
         </div>
         <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={save}>
@@ -95,7 +95,7 @@ export function SuperAdminCRMBase() {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <Label className="text-white/60">Base description</Label>
         <Textarea
           value={config.description}
@@ -106,7 +106,7 @@ export function SuperAdminCRMBase() {
         />
       </div>
 
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">Base component defaults</h2>
           <button

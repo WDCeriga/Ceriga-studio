@@ -329,7 +329,7 @@ export function ManufacturerMessages() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
             Inbox
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1">
             Messages
           </h1>
           <p className="mt-1 max-w-xl text-sm text-white/45">
@@ -344,7 +344,7 @@ export function ManufacturerMessages() {
         ) : null}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+      <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
         <div className="grid min-h-[620px] lg:grid-cols-[minmax(260px,320px)_1fr]">
           <aside className="flex flex-col border-b border-[#252528] lg:border-b-0 lg:border-r">
             <div className="border-b border-[#252528] p-3">

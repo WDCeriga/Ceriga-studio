@@ -317,7 +317,7 @@ export function SuperAdminManufacturerDetail() {
       </Link>
 
       {/* Control hero */}
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
         <div className="border-b border-[#252528] bg-gradient-to-br from-amber-500/12 via-[#CC2D24]/5 to-transparent px-6 py-7 sm:px-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
@@ -328,7 +328,7 @@ export function SuperAdminManufacturerDetail() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400">
                   Partner control
                 </p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                <h1 className="ceriga-page-title mt-1">
                   {profile.name}
                 </h1>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -393,7 +393,7 @@ export function SuperAdminManufacturerDetail() {
       </div>
 
       {/* Factory scorecard — same KPIs as manufacturer stats export */}
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
@@ -478,7 +478,7 @@ export function SuperAdminManufacturerDetail() {
       </section>
 
       {/* Order matching — primary control for auto-assign */}
-      <section className="rounded-2xl border border-amber-500/20 bg-[#111113] p-4 sm:p-5">
+      <section className="rounded-[var(--ceriga-radius)] border border-amber-500/20 bg-[#111113] p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
             <Link2 className="h-4 w-4 text-amber-300" />
@@ -587,7 +587,7 @@ export function SuperAdminManufacturerDetail() {
       </section>
 
       {/* Certifications */}
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
             <BadgeCheck className="h-4 w-4 text-emerald-300" />
@@ -677,7 +677,7 @@ export function SuperAdminManufacturerDetail() {
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Controls column */}
         <div className="space-y-6 lg:col-span-2">
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#CC2D24]/15">
                 <Shield className="h-4 w-4 text-[#CC2D24]" />
@@ -722,7 +722,7 @@ export function SuperAdminManufacturerDetail() {
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Commercial plan</h2>
             <p className="mt-1 text-[11px] text-white/40">
               Sets commission tier and platform margin for this factory
@@ -797,7 +797,7 @@ export function SuperAdminManufacturerDetail() {
             ) : null}
           </section>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <h2 className="text-sm font-semibold text-white">Internal ops notes</h2>
             <p className="mt-1 text-[11px] text-white/40">Visible to Ceriga owners only</p>
             <Textarea
@@ -813,7 +813,7 @@ export function SuperAdminManufacturerDetail() {
         {/* Access + orders */}
         <div className="space-y-6 lg:col-span-3">
           {teamAudit ? (
-            <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+            <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-start gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
@@ -921,7 +921,7 @@ export function SuperAdminManufacturerDetail() {
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-white">Factory portal access</h2>
@@ -971,7 +971,7 @@ export function SuperAdminManufacturerDetail() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-white">Assigned order pipeline</h2>

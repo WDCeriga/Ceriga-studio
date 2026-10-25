@@ -117,8 +117,7 @@ export function Orders() {
             />
           </div>
 
-          <div
-            className="grid grid-cols-3 gap-1 rounded-[6px] border border-[#252528] bg-[#111113] p-1 sm:max-w-sm"
+          <div className="grid grid-cols-3 gap-1 rounded-[6px] border border-[#252528] bg-[#111113] p-1 sm:max-w-sm"
             role="tablist"
             aria-label="Filter orders by type"
           >

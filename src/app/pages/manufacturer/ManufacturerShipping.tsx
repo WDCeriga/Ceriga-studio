@@ -240,7 +240,7 @@ export function ManufacturerShipping() {
             <Ship className="h-4 w-4" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Logistics</span>
           </div>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1.5">
             Shipping
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-white/45">
@@ -375,7 +375,7 @@ export function ManufacturerShipping() {
           </div>
 
           {editCarrierId ? (
-            <section className="rounded-2xl border border-[#CC2D24]/25 bg-[#111113] p-5">
+            <section className="rounded-[var(--ceriga-radius)] border border-[#CC2D24]/25 bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">
                 Configure {getShippingCarrier(editCarrierId)?.name}
               </h2>
@@ -478,7 +478,7 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'defaults' ? (
-        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+        <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
           <h2 className="text-sm font-semibold text-white">Defaults for new quotes</h2>
           <p className="mt-1 text-[11px] text-white/40">
             Pre-fills carrier, mode, and Incoterm on order quote tiers. Changing this requires
@@ -549,7 +549,7 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'quotes' ? (
-        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+        <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
           <h2 className="text-sm font-semibold text-white">Generate shipping quotation</h2>
           <p className="mt-1 text-[11px] text-white/40">
             Mock estimate for sea, air, rail, or express with Incoterm uplift — use as a guide when
@@ -616,7 +616,7 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'tracking' ? (
-        <section className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+        <section className="overflow-hidden rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113]">
           <div className="border-b border-[#252528] px-5 py-4">
             <h2 className="text-sm font-semibold text-white">Shipments</h2>
             <p className="mt-0.5 text-[11px] text-white/40">Track booked and in-transit deliveries.</p>
@@ -718,7 +718,7 @@ export function ManufacturerShipping() {
       ) : null}
 
       {tab === 'onboard' ? (
-        <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+        <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
           <div className="flex items-center gap-2">
             <Plus className="h-4 w-4 text-[#CC2D24]" />
             <h2 className="text-sm font-semibold text-white">Request carrier onboarding</h2>

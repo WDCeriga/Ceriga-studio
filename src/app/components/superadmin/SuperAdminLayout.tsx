@@ -267,13 +267,13 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main
-        className="min-h-dvh transition-all duration-300 lg:pt-0"
+        className="ceriga-workspace-content min-h-dvh transition-all duration-300 lg:pt-0"
         style={{
           marginLeft: isLgUp ? sidebarW : 0,
           paddingTop: isLgUp ? 0 : 'calc(3.75rem + env(safe-area-inset-top))',
         }}
       >
-        <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+        <div className="ceriga-workspace-page mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
       </main>
     </div>
   );

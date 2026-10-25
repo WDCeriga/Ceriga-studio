@@ -165,7 +165,7 @@ export function ManufacturerTeam() {
           <Users className="h-5 w-5" />
           <span className="text-[11px] font-semibold uppercase tracking-wider">Access</span>
         </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h1 className="ceriga-page-title mt-2">
           Team & roles
         </h1>
         <p className="mt-1 text-sm text-white/45">
@@ -196,7 +196,7 @@ export function ManufacturerTeam() {
         ))}
       </div>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
         <h2 className="text-sm font-semibold text-white">People</h2>
         <ul className="mt-4 divide-y divide-white/[0.06]">
           {ws.team.map((member) => (
@@ -253,7 +253,7 @@ export function ManufacturerTeam() {
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+      <section className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
         <h2 className="text-sm font-semibold text-white">Invite teammate</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div>

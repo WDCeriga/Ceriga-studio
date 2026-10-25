@@ -21,7 +21,7 @@ export function SuperAdminCRMAccess() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
           Roles & access
         </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        <h1 className="ceriga-page-title mt-1">
           Who can see what
         </h1>
         <p className="mt-2 text-sm text-white/40">

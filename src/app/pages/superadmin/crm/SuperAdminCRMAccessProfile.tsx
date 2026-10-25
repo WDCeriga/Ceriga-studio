@@ -67,7 +67,7 @@ export function SuperAdminCRMAccessProfile() {
 
   if (!audience || !meta || !user || !config) {
     return (
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] px-6 py-16 text-center">
         <p className="text-sm text-white/50">Profile not found.</p>
         <Button asChild className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
           <Link to="/superadmin/crm/access">Back to roles & access</Link>
@@ -127,7 +127,7 @@ export function SuperAdminCRMAccessProfile() {
         <div className="flex items-start gap-4">
           <ProfileAvatar name={user.name} accent={meta.accent} className="h-14 w-14 text-base" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">{user.name}</h1>
+            <h1 className="ceriga-page-title">{user.name}</h1>
             <p className="mt-0.5 text-sm text-white/45">{user.email}</p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export function SuperAdminCRMAccessProfile() {
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-2">
-          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+          <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Profile</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-center gap-2 text-white/50">
@@ -156,7 +156,7 @@ export function SuperAdminCRMAccessProfile() {
             </dl>
           </div>
 
-          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+          <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
             <Label className="text-white/60">Role label</Label>
             <Input
               value={config.roleLabel}
@@ -166,7 +166,7 @@ export function SuperAdminCRMAccessProfile() {
           </div>
 
           {audience === 'workers' ? (
-            <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
+            <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5">
               <h2 className="text-sm font-semibold text-white">Role template</h2>
               <div className="mt-4 grid gap-2">
                 {WORKER_ROLE_TEMPLATES.map((role) => (
@@ -190,7 +190,7 @@ export function SuperAdminCRMAccessProfile() {
         </div>
 
         <div className="lg:col-span-3">
-          <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+          <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-white">Page access</h2>

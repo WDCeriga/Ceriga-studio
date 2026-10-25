@@ -1,0 +1,28 @@
+/* Explicitly excludes Wear & texture from this consistency pass. */
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])){font-family:var(--ui-font-sans);--builder-accent:var(--ceriga-accent)}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.materials-heading,.studio-inspector-header) h2{font-family:var(--ui-font-sans);font-size:var(--builder-ui-title);line-height:1.35;font-weight:600;letter-spacing:-.025em}
+.ceriga-builder-shell .studio-inspector-v2:not([data-family=distress]) .studio-inspector-header h2{font-size:var(--builder-ui-title);line-height:1.35;letter-spacing:-.025em}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.materials-heading>p,.draw-studio-intro){font-size:var(--builder-ui-body);line-height:1.6;margin:6px 0 22px;color:var(--builder-ui-muted)}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.materials-heading .builder-eyebrow,.draw-studio-eyebrow){font-size:9px;line-height:1.5;letter-spacing:.12em;color:var(--builder-ui-muted)}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.material-fabric-card,.neck-shape-grid>button,.neck-finish-grid>button,.hem-style-grid>button,.label-type-list>button,.label-templates>button,.pkg-template-grid>button,.draw-brush-grid>button,.shape-choice-grid>button,.pattern-swatch-collection>button){border-radius:var(--builder-ui-card-radius);border-color:var(--builder-ui-line)}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.material-fabric-card,.neck-shape-grid>button,.neck-finish-grid>button,.hem-style-grid>button,.label-type-list>button,.label-templates>button,.pkg-template-grid>button,.draw-brush-grid>button,.shape-choice-grid>button,.pattern-swatch-collection>button):hover:enabled{border-color:var(--builder-ui-muted);box-shadow:none;transform:none}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.material-fabric-card,.neck-shape-grid>button,.neck-finish-grid>button,.hem-style-grid>button,.label-templates>button,.pkg-template-grid>button,.draw-brush-grid>button,.shape-choice-grid>button)[aria-pressed=true]{border-color:var(--builder-ui-secondary)}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) .materials-editor :is(input:not([type=range]):not([type=checkbox]):not([type=color]):not([type=file]),select){min-height:var(--builder-ui-control-height)}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(button,a,input,textarea,select):not([data-slot]):focus-visible{outline:var(--ui-focus-width) solid var(--builder-ui-muted);outline-offset:2px}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) .builder-primary{background:var(--builder-accent)}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) .builder-primary:hover{background:var(--ceriga-accent-soft)}
+/* Shared portals adopt the currently open builder without repainting document artwork. */
+:root:has(.ceriga-builder-shell):not(:has([data-artwork-family=distress])){color-scheme:light;--background:#ffffff;--foreground:var(--builder-ui-text);--card:#ffffff;--card-foreground:var(--builder-ui-text);--popover:#ffffff;--popover-foreground:var(--builder-ui-text);--primary:var(--builder-ui-text);--primary-foreground:#ffffff;--secondary:var(--builder-ui-surface);--secondary-foreground:var(--builder-ui-text);--muted:var(--builder-ui-soft);--muted-foreground:var(--builder-ui-muted);--accent:var(--builder-ui-soft);--accent-foreground:var(--builder-ui-text);--border:var(--builder-ui-line);--input:var(--builder-ui-line);--input-background:#ffffff;--ring:var(--builder-ui-muted)}
+:is(.material-select-menu,.builder-select-menu,.studio-colour-panel,.typography-canvas-font-panel,.artwork-canvas-settings,.detail-colour-popover,.label-colour-popover,.ceriga-version-history){font-family:var(--ui-font-sans)}
+@media(max-width:767px){.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.materials-editor,.studio-inspector-v2) :is(input[type=text],input[type=number],textarea){font-size:16px}}
+@media(prefers-reduced-motion:reduce){.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(button,.builder-inspector-content,.materials-editor){animation:none;transition:none}}
+
+:is(.material-select-menu,.builder-select-menu,.studio-colour-panel,.typography-canvas-font-panel,.artwork-canvas-settings,.detail-colour-popover,.label-colour-popover){border-radius:var(--ui-radius-card)}
+/* One header gap: materials use their paragraph margin, artwork uses header padding. */
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) .materials-heading h2{margin:0}
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.materials-heading .builder-eyebrow,.draw-studio-eyebrow){margin:0 0 10px}
+.ceriga-builder-shell .studio-inspector-v2:not([data-family=distress])[data-mode=create] .studio-inspector-header{padding-bottom:22px}
+.ceriga-builder-shell .studio-inspector-v2:not([data-family=distress])[data-mode=create] .studio-inspector-header h2{margin:0}
+.ceriga-builder-shell .studio-inspector-v2:not([data-family=distress]) .draw-studio-intro{margin:6px 0 0}
+
+.ceriga-builder-shell:not(:has([data-artwork-family=distress])) :is(.materials-heading,.studio-inspector-header) h2{color:var(--builder-ui-text)}

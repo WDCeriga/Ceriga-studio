@@ -73,7 +73,7 @@ export function OrderCheckout() {
         </Link>
 
         <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">Checkout</p>
-        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase tracking-[-0.03em] text-white">
+        <h1 className="ceriga-page-title">
           {option.label}
         </h1>
         <p className="mt-1 text-sm text-white/45">{order.productName}</p>

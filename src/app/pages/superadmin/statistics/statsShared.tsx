@@ -104,7 +104,7 @@ export function StatsPageHeader({
       </Link>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">{title}</h1>
+          <h1 className="ceriga-page-title">{title}</h1>
         </div>
         <PeriodSelect period={period} onPeriodChange={onPeriodChange} />
       </div>
@@ -220,7 +220,7 @@ export function DataTable({
   rows: (string | number)[][];
 }) {
   return (
-    <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
+    <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-4 sm:p-5">
       <h2 className="text-sm font-semibold text-white">{title}</h2>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[320px] text-left text-sm">

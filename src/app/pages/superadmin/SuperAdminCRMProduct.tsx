@@ -91,7 +91,7 @@ export function SuperAdminCRMProduct() {
             Back to catalog
           </Link>
         </Button>
-        <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
+        <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] px-6 py-16 text-center">
           <p className="text-sm text-white/50">Product not found.</p>
           <Button asChild className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
             <Link to="/superadmin/crm">Return to CRM</Link>
@@ -208,7 +208,7 @@ export function SuperAdminCRMProduct() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
             {isNew ? 'New product' : 'Edit product'}
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          <h1 className="ceriga-page-title mt-1">
             {isNew ? 'Create catalog product' : product.name}
           </h1>
           {!isNew ? (
@@ -283,8 +283,7 @@ export function SuperAdminCRMProduct() {
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <div
-            className="inline-flex items-center gap-2 rounded-full border border-[#252528] bg-[#111113] px-3 py-1.5"
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#252528] bg-[#111113] px-3 py-1.5"
             style={{ borderColor: `${base.accent}44` }}
           >
             <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
@@ -302,7 +301,7 @@ export function SuperAdminCRMProduct() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Product details</h2>
 
         <div className="mt-4 flex flex-col gap-4 sm:flex-row">
@@ -403,7 +402,7 @@ export function SuperAdminCRMProduct() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <div className="rounded-[var(--ceriga-radius)] border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-white">Builder components</h2>
           <button
