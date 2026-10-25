@@ -25,7 +25,7 @@ function sourcePixels(source: string, size: number) {
     image.crossOrigin = 'anonymous';
     image.src = source;
     await image.decode();
-    const ratio = Math.min(1, size / Math.max(image.naturalWidth, image.naturalHeight));
+    const ratio = Math.min(1,size/Math.max(image.naturalWidth,image.naturalHeight),Math.sqrt(16_000_000/image.naturalWidth/image.naturalHeight));
     const width = Math.max(1, Math.round(image.naturalWidth * ratio));
     const height = Math.max(1, Math.round(image.naturalHeight * ratio));
     const canvas = document.createElement('canvas');
@@ -65,7 +65,7 @@ function processPixels(pixels: Pixels, settings: ImageFilterSettings): Promise<U
   });
 }
 
-export function filteredImagePixels(source: string, settings: ImageFilterSettings, size = 1600) {
+export function filteredImagePixels(source: string, settings: ImageFilterSettings, size = 4096) {
   const full = { ...settings, intensity: 100 };
   const key = JSON.stringify([source, full, size]);
   return remember(size <= 96 ? thumbnails : artwork, key, size <= 96 ? 40 : 2, async () => {

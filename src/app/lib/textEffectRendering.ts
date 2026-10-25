@@ -50,7 +50,7 @@ export function loadTextEffectImage(source: string): Promise<TextPixels> {
     image.crossOrigin = 'anonymous';
     image.src = source;
     await image.decode();
-    const scale = Math.min(1, 1024 / Math.max(image.naturalWidth, image.naturalHeight));
+    const scale = Math.min(1,4096/Math.max(image.naturalWidth,image.naturalHeight),Math.sqrt(16_000_000/image.naturalWidth/image.naturalHeight));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));

@@ -1,3 +1,4 @@
+import {ArtworkHistoryControls} from './ArtworkHistoryControls';
 import * as Popover from '@radix-ui/react-popover';
 import {MousePointer2,Upload,Crop,FlipHorizontal2,Grid3X3,SlidersHorizontal,Shuffle,Undo2,Redo2,X} from 'lucide-react';
 import type {ReactNode} from 'react';
@@ -33,6 +34,6 @@ export function ArtworkCanvasTools({mode,elements,selectedId,onChange,history,on
    {(!pattern||kind!=='custom')&&<div className="shape-tool-paint" role="group" aria-label={pattern?'Pattern colour':'Artwork ink colour'}><PaintInput ariaLabel={pattern?'Change pattern colour':'Change artwork ink colour'} value={selected?.color??'#262626'} onChange={event=>{const color=event.target.value;patch({color,...(pattern&&selected?.patternColors?.length?{patternColors:selected.patternColors.map((value,index)=>index===0?color:value)}:{})});}}/><span>Colour</span></div>}
    {pattern&&definition?.randomise&&(kind!=='custom'||selected?.patternRepeat==='random')&&(kind!=='dots'||selected?.patternRandomise)&&<button className="artwork-quick-trigger" aria-label="Shuffle selected pattern" onClick={()=>patch({patternSeed:newPatternSeed()})}><Shuffle size={18}/><span>Shuffle</span></button>}
   </fieldset>
-  {history&&<><i/><button aria-label="Undo artwork" title="Undo" disabled={!history.canUndo} onClick={history.onUndo}><Undo2 size={16}/></button><button aria-label="Redo artwork" title="Redo" disabled={!history.canRedo} onClick={history.onRedo}><Redo2 size={16}/></button></>}
+  <ArtworkHistoryControls history={history}/>
  </div>;
 }

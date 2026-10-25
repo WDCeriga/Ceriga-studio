@@ -1,6 +1,8 @@
 /* Shared interface rhythm. Artwork and marketing display type retain their own fonts. */
 :root {
  --ui-font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+ --font-sans:var(--ui-font-sans);
+ --font-mono:var(--ui-font-sans);
  --ui-radius-control:4px;
  --ui-radius-card:6px;
  --ui-control-height:36px;

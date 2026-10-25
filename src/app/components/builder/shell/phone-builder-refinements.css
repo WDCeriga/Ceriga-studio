@@ -1,0 +1,72 @@
+.phone-artwork-controls{display:none}
+/* Phone editors share one quiet canvas and predictable sheet navigation. */
+@media(max-width:767px){
+ .ceriga-builder-shell :is(.canvas-zoom,.studio-canvas-zoom,.new-zoom-control,.phone-fit-trigger,.touch-canvas-fit,.material-canvas-colourways,.measurement-guides-toggle,.panelling-canvas-toolbar,.draw-canvas-tools,.shape-canvas-tools,.artwork-canvas-tools,.studio-canvas-dock,.draw-quick-settings,.print-quick-settings,.shape-canvas-actions,.print-selection-actions,.print-canvas-footer,.label-studio-zoom){display:none!important}
+ .ceriga-builder-shell .pkg-canvas-controls :is(.pkg-panel-status,.pkg-zoom){display:none!important}
+ .ceriga-builder-shell .responsive-section-sheet{height:auto!important;max-height:min(540px,72dvh)!important;min-height:0}
+ .ceriga-builder-shell .responsive-section-sheet .responsive-sheet-content{flex:0 1 auto;max-height:calc(72dvh - 76px);padding:8px 16px 16px}
+ .ceriga-builder-shell .responsive-section-sheet .responsive-menu>button{min-height:44px;padding:10px 12px;font-size:13px}
+ .ceriga-builder-shell .responsive-sheet>header{min-height:54px;padding:8px 16px}
+ .ceriga-builder-shell .responsive-sheet>header h2{font-size:15px!important;line-height:1.4;font-weight:600}
+ .ceriga-builder-shell .mobile-tool-content>[data-mobile-tool-tabs]{margin-top:0;margin-bottom:18px}
+ .ceriga-builder-shell .mobile-page-tools{flex-shrink:0;min-height:48px;margin:0 0 18px!important;padding:4px 0 8px!important;gap:6px;scroll-padding-inline:0}
+ .ceriga-builder-shell .mobile-page-tools>button{font-size:12px!important;min-height:36px;padding:8px 12px!important;white-space:nowrap;flex-shrink:0}
+ .ceriga-builder-shell .mobile-tool-content{min-width:0}
+ .ceriga-builder-shell .responsive-sheet :is(h3,summary){font-size:12px!important;line-height:1.5}
+ .ceriga-builder-shell .responsive-sheet :is(p,small){line-height:1.6}
+ .ceriga-builder-shell .responsive-sheet :is(.studio-inspector-header h2,.inspector-heading h2){font-size:16px!important;line-height:1.4}
+ .ceriga-builder-shell .print-garment-stage{padding:52px 8px 8px!important}
+ .ceriga-builder-shell .print-garment-stage>div:not([data-unified-garment-frame]){width:100%!important;height:100%!important;max-width:none!important;max-height:none!important}
+ .ceriga-builder-shell .label-studio-toolbar{width:auto!important;justify-content:flex-start;max-width:none!important}
+ .ceriga-builder-shell .label-studio-toolbar [role=group]{display:flex;width:auto;max-width:100%;flex-wrap:nowrap}
+ .ceriga-builder-shell .label-studio-toolbar button{white-space:nowrap!important;min-width:0!important;min-height:34px!important;padding:7px 12px!important;line-height:1.3!important;font-size:11px!important;word-break:normal!important}
+ .ceriga-builder-shell .label-studio-toolbar [role=group] button:first-child{min-width:90px!important}
+ .ceriga-builder-shell .pkg-canvas-controls{gap:8px;padding:8px 12px}
+ .ceriga-builder-shell .pkg-canvas-controls>.pkg-check{font-size:11px;min-height:32px}
+ .ceriga-builder-shell .mobile-builder-dock button{min-height:48px}
+ .ceriga-builder-shell .mobile-builder-dock button span{font-size:10px;line-height:1.3}
+}
+
+@media(max-width:767px){
+ .ceriga-builder-shell .phone-artwork-controls{display:block;margin:0 0 18px}
+ .ceriga-builder-shell .phone-artwork-controls .draw-canvas-tools{display:flex!important;position:static!important;flex-direction:row!important;width:100%!important;max-height:none!important;bottom:auto!important;top:auto!important;left:auto!important;transform:none!important;align-items:center;justify-content:flex-start;gap:6px;overflow:visible!important;border:0;box-shadow:none;padding:0;background:transparent}
+ .ceriga-builder-shell .phone-artwork-controls .draw-canvas-tools>button{height:38px;min-width:40px;flex:1}
+ .ceriga-builder-shell .phone-artwork-controls .draw-canvas-tools>i{display:none}
+ .ceriga-builder-shell .phone-artwork-controls .draw-canvas-tools>button span{font-size:10px}
+ .ceriga-builder-shell .phone-artwork-controls .draw-ink{flex-shrink:0}
+}
+
+@media(max-width:767px){
+ .ceriga-builder-shell .label-preview-studio .label-studio-toolbar{padding:8px 12px!important}
+ .ceriga-builder-shell .label-preview-studio:has([aria-label="Sleeve and hem tag garment side"]) .label-studio-toolbar{padding:8px 12px!important}
+ .ceriga-builder-shell .responsive-sheet .studio-inspector-v2{overflow:visible;background:#fff}
+ .ceriga-builder-shell .responsive-sheet .studio-inspector-main{overflow:visible;background:#fff}
+}
+
+@media(max-width:767px){
+ .ceriga-builder-shell .label-preview-studio .label-studio-toolbar{position:relative!important;top:auto!important;left:auto!important;right:auto!important;margin:0;flex:none}
+ .ceriga-builder-shell .label-preview-studio:has([aria-label="Sleeve and hem tag garment side"]) .label-studio-toolbar{margin-top:52px}
+}
+
+.phone-artwork-selection{display:none}
+@media(max-width:767px){
+ .ceriga-builder-shell .labels-studio .label-mode{display:none!important}
+ .ceriga-builder-shell .responsive-sheet :is(.label-field,.pkg-field,.studio-field,.material-field){font-size:12px;line-height:1.5}
+ .ceriga-builder-shell .phone-artwork-selection{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;align-items:center;gap:0;background:white;border:1px solid #dedede;border-radius:6px;z-index:50;white-space:nowrap;box-shadow:0 2px 8px #00000008}
+ .ceriga-builder-shell .phone-artwork-selection>button{min-height:36px;padding:8px 12px;font-size:12px;color:#262626}
+ .ceriga-builder-shell .phone-artwork-selection>button+button{border-left:1px solid #e5e5e5;color:#737373}
+}
+
+@media(max-width:767px){
+ .ceriga-builder-shell :is(.phone-dock-heading,.advanced-phone-heading){min-height:44px;padding-bottom:8px}
+ .ceriga-builder-shell :is(.phone-dock-heading,.advanced-phone-heading)+.mobile-page-tools{margin-top:12px!important;margin-bottom:18px!important;padding-inline:0!important}
+}
+
+@media(max-width:767px){
+ .ceriga-builder-shell .responsive-sheet .measurement-guides-toggle-phone{display:none!important}
+}
+
+/* Measurements keeps its guide switch directly on the phone canvas. */
+@media(max-width:767px){
+ .ceriga-builder-shell[data-section="Fit & Measurements"] .new-builder-canvas>.measurement-guides-toggle{display:flex!important;left:auto;right:12px;bottom:12px;min-height:36px;padding:7px 10px;gap:8px;font-size:12px}
+}

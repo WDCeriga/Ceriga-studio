@@ -1,3 +1,5 @@
+import {warpSamplingScale} from '../../../lib/warpGeometry';
+import {waitForDrawingReplay} from './DrawingArtwork';
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import { useContext, useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
@@ -106,6 +108,8 @@ export function sourceSignature(element: DesignElement) {
     element.textLinePosition, element.textLineColor, element.textLineThickness, element.textLineOffset,
     element.textCurveAmount, element.textCurveShape, element.textCurveDirection, element.textCurveRadius, element.textCurveSpacing,
     element.textCurveSide, element.verticalText, element.textList, element.textListLineStyles, element.textListIndent,
+    JSON.stringify(element.drawing),
+    JSON.stringify(element.wear), JSON.stringify(element.wearDetail),
     element.shapeFilled, element.shapeFillColor, element.shapeStrokeColor, JSON.stringify(element.shapeParameters), JSON.stringify(element.shapePath), JSON.stringify(element.shapeEffects),
     element.borderWidth, element.borderColor, element.shadowBlur, element.shadowColor,
     element.shadowOffsetX, element.shadowOffsetY, element.shadowOpacity, element.shadowEdge,
@@ -155,6 +159,7 @@ export function WarpedArtwork({
   displayedWarpRef.current = displayedWarp;
   const displayPoints = warpGrid(displayedWarp);
   const padding = artworkEffectPadding(element);
+  const sampling=warpSamplingScale(warp);
 
   useEffect(() => {
     const source = sourceRef.current;
@@ -166,8 +171,9 @@ export function WarpedArtwork({
       setDimensions((previous) => previous.width === width && previous.height === height ? previous : { width, height });
       try {
         await waitForImageFilters(source);
+        await waitForDrawingReplay(source);
         if (cancelled) return;
-        const raster = await toCanvas(source, { pixelRatio: artworkPixelRatio(width+padding*2,height+padding*2,displayScale,density), width: width + padding * 2, height: height + padding * 2, skipFonts: true, style: { width: `${width}px`, height: `${height}px`, transform: `translate(${padding}px, ${padding}px)`, opacity: '1' }, filter: child => !(child instanceof Element) || !child.matches('[data-editor-chrome]') });
+        const raster = await toCanvas(source, { pixelRatio: artworkPixelRatio(width+padding*2,height+padding*2,displayScale*sampling,density), width: width + padding * 2, height: height + padding * 2, skipFonts: true, style: { width: `${width}px`, height: `${height}px`, transform: `translate(${padding}px, ${padding}px)`, opacity: '1' }, filter: child => !(child instanceof Element) || !child.matches('[data-editor-chrome]') });
         if (!cancelled) { capturedSignature.current = signature; setSourceCanvas(raster); }
       } catch {
         if (!cancelled) setSourceCanvas(null);
@@ -175,7 +181,7 @@ export function WarpedArtwork({
     };
     void capture();
     return () => { cancelled = true; };
-  }, [signature, element.width, element.height, dimensions.width, dimensions.height,displayScale,density,interacting]);
+  }, [signature, element.width, element.height, dimensions.width, dimensions.height,displayScale,density,interacting,sampling]);
 
   useEffect(() => {
     const source = sourceRef.current;
@@ -309,7 +315,7 @@ export function WarpedArtwork({
   })) : [];
 
   return <div className={`relative w-full overflow-visible ${element.type === 'text' ? 'h-auto' : 'h-full'}`} data-warp-layer>
-    <div ref={sourceRef} aria-hidden className={element.type === 'text' ? 'pointer-events-none relative w-full opacity-0' : 'pointer-events-none absolute inset-0 opacity-0'}>{children}</div>
+    <div ref={sourceRef} aria-hidden className={element.type === 'text' ? 'pointer-events-none relative w-full opacity-0' : 'pointer-events-none absolute inset-0 opacity-0'}><ArtworkResolutionContext.Provider value={displayScale*sampling}>{children}</ArtworkResolutionContext.Provider></div>
     <canvas ref={canvasRef} className="absolute" style={{ left: -padding, top: -padding, width: dimensions.width + padding * 2, height: dimensions.height + padding * 2 }} aria-label="Warped design" data-warp-canvas data-warp-expected={signature + JSON.stringify(warp)} />
     {editing && displayedWarp.mode === 'freeform' ? (
       <svg className="pointer-events-none absolute inset-0 z-50 h-full w-full overflow-visible" viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} preserveAspectRatio="none" data-warp-mesh data-editor-chrome>

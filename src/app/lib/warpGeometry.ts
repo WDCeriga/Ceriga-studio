@@ -98,3 +98,9 @@ export function isIdentityWarp(settings: WarpSettings): boolean {
     Math.abs(point.y - Math.floor(index / size) / (size - 1)) < 1e-8,
   );
 }
+
+/** Extra source detail needed when a warp stretches one cell over several original cells. */
+export function warpSamplingScale(settings:WarpSettings):number {
+ const points=warpGrid(settings),size=Math.round(Math.sqrt(points.length));if(size<2)return 1;
+ let scale=1;for(let row=0;row<size;row++)for(let col=0;col<size;col++){const p=points[row*size+col];for(const q of [col+1<size?points[row*size+col+1]:undefined,row+1<size?points[(row+1)*size+col]:undefined])if(p&&q){const stretch=Math.hypot(q.x-p.x,q.y-p.y)*(size-1);if(Number.isFinite(stretch))scale=Math.max(scale,stretch)}}return scale;
+}

@@ -1,3 +1,8 @@
+import {DrawingArtwork} from './printsStudio/DrawingArtwork';
+import type {RecordedDrawing} from '../../lib/drawingReplay';
+import type {DistressMark,DistressMarkKind} from '../../lib/distressScatter';
+import {GarmentWearHostContext} from './printsStudio/GarmentWearAppearance';
+import {GarmentPrintTextureContext,useGarmentPrintTexture} from './printsStudio/GarmentPrintTexture';
 import {orderDesignLayers,isBackgroundPattern} from '../../lib/designLayerOrdering';
 import {PatternGraphic} from './printsStudio/PatternGraphic';
 import {getActivePatternDrag} from './printsStudio/studioAssets';
@@ -140,6 +145,10 @@ export interface DesignElement extends ImageAdjustmentValues {
   width: number;
   height: number;
   rotation: number;
+  wear?:{kind:DistressMarkKind;sourceWidth:number;sourceHeight:number;marks:DistressMark[]};
+  drawing?:RecordedDrawing;
+  wearRasterTinted?:boolean;
+  wearDetail?:{roughness?:number;fray?:number;bend?:number;skew?:number;seed?:number};
   shapeGeometry?: 'bounds';
   shapeFilled?: boolean;
   shapeParameters?: Record<string, number | string>;
@@ -301,6 +310,7 @@ interface PrintsDesignPreviewProps {
   canvasSize?: PrintsCanvasSize;
   onCanvasSizeChange?: (size: PrintsCanvasSize) => void;
   garmentInteractive?: boolean;
+  onArtworkSelect?: (id:string)=>void;
   garmentPreview: ReactNode | ((sceneScale: number) => ReactNode);
   elements: DesignElement[];
   onChange?: (elements: DesignElement[], selectedLayerId?: string) => void;
@@ -2678,6 +2688,7 @@ export function PrintsDesignPreview({
   canvasSize,
   onCanvasSizeChange,
   garmentInteractive = false,
+  onArtworkSelect,
   garmentPreview,
   elements: sourceElements,
   onChange,
@@ -2765,8 +2776,9 @@ export function PrintsDesignPreview({
 
   const zoneRef = useRef<HTMLDivElement>(null);
   const [zoneEl, setZoneEl] = useState<HTMLDivElement | null>(null);
-  const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode);
-  const patternTargets = useGarmentPatternTargets(zoneEl, garmentSide);
+  const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode,sceneScale);
+  const printTexture=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale);
+  const patternTargets = useGarmentPatternTargets(zoneEl, garmentSide,sceneScale);
   useEffect(() => {
     if (!editable) return;
     const render = async (ids: string[]) => {
@@ -3509,7 +3521,7 @@ export function PrintsDesignPreview({
           narrowViewport && editable && 'overflow-hidden rounded-xl',
         )}
       >
-        <div data-design-canvas className="relative h-full w-full" style={validCanvasSize ? {
+        <GarmentWearHostContext.Provider value={zoneEl}><GarmentPrintTextureContext.Provider value={printTexture}><div data-design-canvas data-print-fabric-ready={Boolean(printTexture)} className="relative h-full w-full" style={validCanvasSize ? {
           position: 'absolute', width: validCanvasSize.width, height: validCanvasSize.height,
           left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zoom: liveCanvasS,
         } : undefined}>
@@ -3561,6 +3573,12 @@ export function PrintsDesignPreview({
               event.currentTarget.style.cursor = draggingId ? 'grabbing' : element && !element.locked ? 'grab' : '';
             }}
             onPointerDownCapture={(e) => {
+              if((e.target as Element).closest('[data-measurement-guide]'))return;
+              if(!editable&&onArtworkSelect&&zoneRef.current){
+                const root=artworkAtPoint(zoneRef.current,e.clientX,e.clientY);
+                if(root?.dataset.printId){e.stopPropagation();e.preventDefault();onArtworkSelect(root.dataset.printId)}
+                return;
+              }
               if (!editable || cropEditingId || studio.drawing || studio.pathEditingId || studio.tool === 'shapePolygon' || studio.tool === 'customArea' || studio.tool === 'customAreaAddPoint') return;
               if ((e.target as Element).closest('[data-handles], [data-editor-chrome], [data-inline-toolbar], [data-inline-toolbar-popover], textarea')) return;
               const zone = zoneRef.current;
@@ -3727,6 +3745,7 @@ export function PrintsDesignPreview({
             <PrintsDrawLayer
               zone={zoneEl}
               garmentMask={drawingMask}
+              displayScale={sceneScale}
               elements={elements}
               onChange={onChange}
               editable={editable}
@@ -3896,9 +3915,9 @@ export function PrintsDesignPreview({
                         points={visualElement.customAreaPoints ?? []}
                         garmentMask={drawingMask ? drawingMaskCss(drawingMask, visualElement.width, visualElement.height, liveX, liveY, visualElement.rotation) : undefined}
                       />
-                    ) : element.type === 'shape' ||
+                    ) : element.type==='drawing'&&element.drawing?<DrawingArtwork element={visualElement}/>:element.type === 'shape' ||
                     element.type === 'pattern' ||
-                    (element.type === 'distress' && !element.content.startsWith('data:')) ? (
+                    element.type === 'distress' ? (
                       <div className={cn('h-full w-full', element.type !== 'shape' && 'overflow-hidden')}>
                         <StudioGraphic element={visualElement} />
                       </div>
@@ -4031,7 +4050,7 @@ export function PrintsDesignPreview({
             </div>
           </div>
         </div>
-        </div>
+        </div></GarmentPrintTextureContext.Provider></GarmentWearHostContext.Provider>
       </div>
 
     </div>

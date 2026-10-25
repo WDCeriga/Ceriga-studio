@@ -1617,6 +1617,7 @@ export function TshirtSvgPreview({
     >
       <div
         ref={canvasRef}
+        data-garment-interior-color={openingInteriorColor}
         className={cn(GARMENT_PREVIEW_CANVAS_CLASS, 'motion-reduce:!transition-none')}
         data-stitch-camera={stitchEditor ? `${focusedStitchRegion}:${stitchEditor.closeUp ? 'close-up' : 'garment'}` : undefined}
         data-detail-camera={detailCamera ? 'close-up' : 'garment'}

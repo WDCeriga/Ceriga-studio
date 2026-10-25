@@ -1,3 +1,4 @@
+import {DrawingArtwork} from './DrawingArtwork';
 import { composeArtworkFilter, ImageFxDefs, type DesignElement } from '../PrintStudioEditor';
 import { imageAdjustmentFilter } from '../../../lib/imageAdjustments';
 import { artworkFlipStyle } from '../../../lib/artworkFlip';
@@ -27,7 +28,7 @@ export function DesignGroupArtwork({ element }: { element: DesignElement }) {
           {child.type === 'group' ? <DesignGroupArtwork element={child} />
             : child.type === 'text' ? <TextArtwork element={child} fontSize={child.fontSize ?? 30} />
               : child.type === 'customArea' ? <CustomAreaGraphic element={child} points={child.customAreaPoints ?? []} selectedPoint={null} editing={false} onSelectPoint={ignore} onPointPointerDown={ignore} />
-                : child.type === 'shape' || child.type === 'pattern' || (child.type === 'distress' && !child.content.startsWith('data:'))
+                : child.type==='drawing'&&child.drawing?<DrawingArtwork element={child}/>:child.type === 'shape' || child.type === 'pattern' || child.type === 'distress'
                   ? <div className={`h-full w-full ${child.type === 'shape' ? '' : 'overflow-hidden'}`}><StudioGraphic element={child} /></div>
                   : <div className="relative h-full w-full" style={{ filter: composeArtworkFilter(child) }}>
                     <FilteredImage source={child.content} settings={child.type === 'image' ? child.imageFilter : undefined} alt="Grouped artwork" className="h-full w-full object-fill" style={{ ...artworkFlipStyle(child), opacity: child.color ? 0 : undefined }} />

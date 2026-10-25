@@ -88,7 +88,7 @@ export function defaultStudioSize(kind: StudioAssetKind, id?: string): { width: 
     return { width: 120, height: id === 'line' ? 22 : 40 };
   }
   if (kind === 'shape') return { width: 88, height: 88 };
-  if (kind === 'distress') return { width: 110, height: 90 };
+  if (kind === 'distress') return id === 'rips' ? {width:120,height:26} : id === 'holes' ? {width:36,height:30} : {width:90,height:60};
   return { width: 140, height: 90 };
 }
 

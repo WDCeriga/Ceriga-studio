@@ -1,12 +1,9 @@
-import assert from 'node:assert/strict';import {build} from 'esbuild';import {pathToFileURL} from 'node:url';import {mkdir} from 'node:fs/promises';await mkdir('node_modules/.cache/print-checks',{recursive:true});const outfile='node_modules/.cache/print-checks/artwork-resolution.mjs';await build({entryPoints:['src/app/lib/artworkResolution.ts'],outfile,bundle:true,platform:'node',format:'esm',logLevel:'silent'});const{artworkPixelRatio:r}=await import(pathToFileURL(process.cwd()+'/'+outfile));assert.equal(r(200,100),2);assert.equal(r(200,100,2,2),4);assert.equal(r(200,100,1.5,2),3);for(const[w,h]of[[8000,4000],[10000,1000],[4000,4000],[1,1],[0,0]]){const ratio=r(w,h,3,3);assert(Number.isFinite(ratio)&&ratio>0);assert(Math.max(w,h)*ratio<=4096+1e-8);assert(w*h*ratio*ratio<=8_000_000+1e-8)}assert(Number.isFinite(r(NaN,Infinity)));console.log('Artwork resolution: baseline supersampling, zoom/HiDPI scaling, 4K dimension cap and 8MP memory budget passed.');
+import assert from 'node:assert/strict';import {build} from 'esbuild';import {pathToFileURL} from 'node:url';import {mkdir} from 'node:fs/promises';await mkdir('node_modules/.cache/print-checks',{recursive:true});
+async function load(name){const outfile=`node_modules/.cache/print-checks/${name}-quality.mjs`;await build({entryPoints:[`src/app/lib/${name}.ts`],outfile,bundle:true,platform:'node',format:'esm',logLevel:'silent'});return import(pathToFileURL(process.cwd()+'/'+outfile))}
+const{artworkPixelRatio:r,drawingPixelRatio:draw}=await load('artworkResolution');
+assert.equal(r(200,100),2);assert(r(200,100,2,2)>=4);assert(r(200,100,8,3)>4,'Enlarged small artwork cannot be capped to 4x');assert(draw(800,700,1,1)>=4,'Saved fallback strokes should be supersampled');
+for(const[w,h]of[[8000,4000],[10000,1000],[4000,4000],[1,1],[0,0]]){const ratio=r(w,h,3,3);assert(Number.isFinite(ratio)&&ratio>0);assert(Math.max(w,h)*ratio<=8192+1e-8);assert(w*h*ratio*ratio<=16_000_000+1e-8)}assert(Number.isFinite(r(NaN,Infinity)));
+const replay=await load('drawingReplay');const original={points:[{x:4,y:8,p:.3,tilt:.2},{x:30,y:40,p:.9,tilt:.5}],settings:{color:'#123456',brushSize:14,pencil:{tiltShading:true},setTool:()=>{}},seed:123,opacity:.4,mirrorAxis:40,paintFrame:{x:-20,y:-30,width:800,height:700},clip:{url:'data:source-mask',x:-20,y:-30,width:800,height:700}};const saved=replay.snapshotBrush(original.settings);assert(!('setTool'in saved));assert.equal(saved.pencil.tiltShading,true);const moved=replay.offsetRecordedStroke(original,10,-5);assert.equal(moved.points[0].p,.3);assert.equal(moved.points[0].tilt,.2);assert.equal(moved.points[0].x,14);assert.equal(moved.clip.x,-10);assert.equal(moved.paintFrame.y,-35);assert.equal(moved.mirrorAxis,50);assert.equal(original.points[0].x,4);assert.equal(moved.seed,123);
+console.log('Artwork quality: zoom/HiDPI supersampling, uncapped small-asset detail, 8K/16MP budgets and lossless stroke/clip/pressure/symmetry records passed.');
 
-const warpOutput = 'node_modules/.cache/print-checks/warp-identity.mjs';
-await build({entryPoints:['src/app/lib/warpGeometry.ts'],outfile:warpOutput,bundle:true,platform:'node',format:'esm',logLevel:'silent'});
-const {createWarpSettings, isIdentityWarp, resizeWarpGrid} = await import(pathToFileURL(process.cwd()+'/'+warpOutput));
-const freeform = {...createWarpSettings(), mode:'freeform'};
-assert(isIdentityWarp(freeform));
-assert(isIdentityWarp({...freeform, gridSize:4, points:resizeWarpGrid(freeform,4)}));
-assert(!isIdentityWarp({...freeform,points:freeform.points.map((p,i)=>i===4?{...p,x:p.x+.05}:p)}));
-assert(isIdentityWarp({...createWarpSettings(),bend:0}));
-assert(!isIdentityWarp(createWarpSettings()));
-console.log('Warp identity: untouched meshes preserve pixels; displaced meshes and actual presets deform.');
+const warp=await load('warpGeometry');const identity={...warp.createWarpSettings(),mode:'freeform'};assert.equal(warp.warpSamplingScale(identity),1);const stretched={...identity,points:identity.points.map((p,i)=>i===1?{x:1,y:1}:p)};assert(warp.warpSamplingScale(stretched)>1);console.log('Warped regions request extra source pixels when their mesh stretches.');

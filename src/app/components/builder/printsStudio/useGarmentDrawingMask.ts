@@ -1,17 +1,21 @@
-import { useEffect, useState } from 'react';
+import {artworkPixelRatio} from '../../../lib/artworkResolution';
+import { useEffect, useState,useRef } from 'react';
 
 export interface GarmentDrawingMask {
   canvas: HTMLCanvasElement;
   url: string;
+  vectorUrl?:string;
   width: number;
   height: number;
   axis: number;
 }
 
-export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front' | 'back', artboard = false) {
+export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front' | 'back', artboard = false,qualityScale=1) {
   const [mask, setMask] = useState<GarmentDrawingMask | null>(null);
+  const source=useRef<{zone:HTMLElement|null;side:string;artboard:boolean}|undefined>(undefined);
   useEffect(() => {
-    setMask(null);
+    if(source.current?.zone!==zone||source.current?.side!==side||source.current?.artboard!==artboard)setMask(null);
+    source.current={zone,side,artboard};
     if (zone && artboard) {
       const rebuild = () => {
         const width = zone.clientWidth, height = zone.clientHeight;
@@ -38,7 +42,7 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
       const bounds = zone.getBoundingClientRect();
       if (!bounds.width || !bounds.height) return;
       const canvas = document.createElement('canvas');
-      const resolution = Math.min(2, window.devicePixelRatio || 1);
+      const resolution = artworkPixelRatio(zone.clientWidth,zone.clientHeight,bounds.width/Math.max(1,zone.clientWidth),window.devicePixelRatio||1);
       canvas.width = Math.max(1, Math.round(zone.clientWidth * resolution));
       canvas.height = Math.max(1, Math.round(zone.clientHeight * resolution));
       const scaleX = canvas.width / bounds.width;
@@ -63,7 +67,14 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
       const axis = matrix && viewBox
         ? (matrix.a * (viewBox.x + viewBox.width / 2) + matrix.c * (viewBox.y + viewBox.height / 2) + matrix.e - bounds.left) / bounds.width * zone.clientWidth
         : zone.clientWidth / 2;
-      const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(root)], { type: 'image/svg+xml' }));
+      // Keep the clipping silhouette as SVG for replay at any future drawing size.
+      for(const pattern of root.querySelectorAll('pattern'))pattern.remove();
+      for(const shape of root.querySelectorAll<SVGElement>('path,rect,circle,ellipse,polygon,polyline')){
+        if(shape.getAttribute('fill')!=='none'){shape.setAttribute('fill','#fff');shape.style.fill='#fff'}
+      }
+      const serialized=new XMLSerializer().serializeToString(root);
+      const vectorUrl=`data:image/svg+xml,${encodeURIComponent(serialized)}`;
+      const url=URL.createObjectURL(new Blob([serialized],{type:'image/svg+xml'}));
       try {
         const image = new Image();
         image.src = url;
@@ -71,7 +82,7 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
         const context = canvas.getContext('2d');
         if (!context) return;
         context.drawImage(image, 0, 0);
-        if (generation === current) setMask({ canvas, url: canvas.toDataURL('image/png'), width: zone.clientWidth, height: zone.clientHeight, axis });
+        if (generation === current) setMask({ canvas,vectorUrl, url: canvas.toDataURL('image/png'), width: zone.clientWidth, height: zone.clientHeight, axis });
       } catch {
         if (generation === current) setMask(null);
       } finally { URL.revokeObjectURL(url); }
@@ -88,7 +99,7 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
     resize.observe(preview);
     schedule();
     return () => { generation++; observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); };
-  }, [zone, side, artboard]);
+  }, [zone, side, artboard,qualityScale]);
   return mask;
 }
 

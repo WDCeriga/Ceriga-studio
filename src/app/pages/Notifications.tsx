@@ -84,7 +84,7 @@ export function Notifications() {
       className="min-h-dvh overflow-x-hidden p-4 sm:p-6 md:p-8"
       style={{
         background: "#09090B",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: "var(--ui-font-sans)",
       }}
     >
       <Button

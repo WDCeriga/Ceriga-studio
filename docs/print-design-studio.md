@@ -110,3 +110,33 @@ Artwork colour controls share the neutral studio picker, including visual Solid/
 Custom outline drawing uses square anchors, a solid committed outline and a dashed cursor preview. Warp uses a neutral contrast grid with seven-pixel square handles and larger invisible hit areas. Arrow keys nudge a mesh point by one display pixel, or ten with Shift. A fresh freeform mesh starts without deformation; untouched meshes bypass triangle resampling. Mesh clips overlap slightly to avoid raster cracks. Perspective handles use the same restrained visual language. Effects and nested reshape sections share the main accordion typography and chevrons.
 
 The artwork garment uses native layout zoom without the extra artwork-only enlargement. Undistorted artwork avoids an identity 3D transform. Effect and warp captures account for display scale and pixel density, bounded by 4096 pixels per side and eight megapixels. Resolution budgets and existing shape/brush migration regressions have automated checks.
+
+### Wear and texture studio
+
+Wear uses the shared inspector heading, neutral tool choices and standard collapsibles. Finish cards and the live brush preview reuse the actual distress scatter/path renderer. Size combines visual presets with exact input; coverage offers Light/Balanced/Dense choices while custom counts and texture details remain available. Restore hides paint-only scatter controls. Single marks use a focused inspector for naming, locking, opacity, dimensions, position, rotation and flips; layer management remains in the shared dock. Phone controls stay inside the editor, preserving the clear canvas.
+
+### Shared garment surface and artwork interaction
+
+Measurement guides portal above the print plane. Read-only garment previews can select an existing print and return to that layer in Artwork, with the correct side and tool family. Fabric assignments remain independent of print data; a neutral relief pass from the actual assigned fabric is clipped to each artwork's alpha so weave stays visible through ink, including white ink. Garment masks apply to all artwork kinds. Canvas toolbars share geometry and an identical history component; Shapes history sits in the rail. Phone zoom controls remain hidden.
+
+### Wear graphics and fabric references
+
+Holes and rips now share a seeded, garment-unit vector renderer with the paint brushes and library previews. Openings have irregular contours, interrupted edge highlights, short broken cotton loops and loose fibres; tears have tapered jaws and occasional bridging yarns. Abrasion uses sparse, feathered fibrils with no filled patch, preserving the underlying cloth. Detail follows the local SVG fabric colour rather than a fixed beige outline. Brush dabs vary by position but remain deterministic across device pixel ratios. Single marks remain editable; new assets have suitable hole, abrasion and narrow-tear proportions. Restore continues to rasterise the visible vector artwork before erasing.
+
+Visual basis: [CottonWorks garment durability](https://cottonworks.com/learning-hub/quality-assurance/garment-durability/) distinguishes surface loss, fuzzing and pilling; [CottonWorks TOUGH COTTON](https://cottonworks.com/product-innovation/product-technologies/tough-cotton-technology/) describes raised fibres and fading from abrasion. [Jaded London's distressed cotton shirt](https://jadedldn.com/products/divine-bitten-t-shirt-menswear) provides a photographic reference for irregular small openings and restrained fraying. Reference photographs are not bundled in the application. These are scalable 2D garment graphics, not photographic overlays or a 3D cloth simulation.
+
+Run `node scripts/verify-wear-rendering.mjs` for geometry, preview stability, dab variation, colour adaptation and DPR checks.
+
+### Editable wear and separated openings
+
+New painted layers retain garment-unit vector marks alongside the cached bitmap. Each mark can be selected within the layer and adjusted for dimensions, placement, angle, bend, slant, roughness, fraying and variation, or removed independently. Layer corner distortion and warp use the shared canvas tools. Source signatures include wear geometry so reshaping refreshes warped artwork. Individual placement is a secondary disclosure.
+
+Hole scattering leaves intact cloth between openings; subsequent dabs reject occupied positions, including holes in existing editable layers. Crowded passes add fewer marks rather than overlapping holes. Openings reuse the rendered inner-back-neck fabric colour without additional darkening; when that layer is absent they use the garment interior colour. Legacy flattened layers are recoloured to remove white backing and can still be warped, but their individual hole positions cannot be recovered. Restore rasterises only layers it actually touches and Undo retains their prior editable data.
+
+### Artwork resolution and replayable drawings
+
+Freehand strokes retain source points, pressure, tilt, brush settings, random seed, opacity, symmetry axis, original paint frame and an SVG clipping silhouette. DrawingArtwork redraws those commands for the displayed size and pixel density; a cached PNG remains the compatibility/loading fallback. Reframing a merged drawing translates points, clipping and paint coordinates together. Standard erasing retains scalable cut paths alongside the stroke commands. Undo preserves both. Legacy bitmap layers and destructive texture removal retain their bitmap compatibility path.
+
+Warp, text/shape effects, hit masks, fabric relief and pattern clipping use the shared zoom-aware resolution policy. Small assets no longer have a 4x density ceiling. Raster allocations are bounded to 8192 pixels per edge and 16 megapixels. Drawing capture supersamples desktop strokes and uses a smaller baseline for compact canvases. Mask detail upgrades retain the current mask while preparing the replacement.
+
+Filtered artwork chooses a display-sized processing tier instead of a fixed 1600px preview, up to its source resolution and the shared memory budget. Imported effect images and brush textures retain more original detail. Original uploads are never enlarged to invent missing pixels; older flattened artwork remains limited by its stored source. Intentional blur, grain and distressed textures retain their chosen appearance.

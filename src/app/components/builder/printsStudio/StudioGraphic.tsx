@@ -1,3 +1,7 @@
+import {garmentWearMarks} from '../../../lib/wearEditing';
+import type {DistressMark,DistressMarkKind} from '../../../lib/distressScatter';
+import {distressPaths,singleDistressMarks} from '../../../lib/distressRendering';
+import {useGarmentWearPalette} from './GarmentWearAppearance';
 import type { DesignElement } from '../PrintStudioEditor';
 import { useId } from 'react';
 import { svgPaint } from '../../../lib/studioPaint';
@@ -121,36 +125,27 @@ function StudioGraphicBase({ element }: { element: DesignElement }) {
     );
   }
 
-  if (element.content === 'holes') {
-    return (
-      <svg viewBox="0 0 120 100" className="h-full w-full" preserveAspectRatio="none" style={flip} aria-hidden>
-        <ellipse cx="38" cy="42" rx="16" ry="13" fill="#1a1a1a" stroke="#0b0b0b" strokeWidth="3" />
-        <ellipse cx="78" cy="58" rx="11" ry="9" fill="#141414" stroke="#070707" strokeWidth="2.5" />
-        <ellipse cx="62" cy="28" rx="7" ry="6" fill="#111" />
-      </svg>
-    );
-  }
+  return <DistressGraphic element={element}/>;
+}
 
-  if (element.content === 'rips') {
-    return (
-      <svg viewBox="0 0 120 100" className="h-full w-full" preserveAspectRatio="none" style={flip} aria-hidden>
-        <path
-          d="M18 48 L34 40 L48 54 L62 36 L78 58 L96 42 L108 50 L96 62 L74 70 L58 52 L42 68 L24 58 Z"
-          fill="#0f0f0f"
-          stroke="#2a2a2a"
-          strokeWidth="1.5"
-        />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 120 100" className="h-full w-full" preserveAspectRatio="none" style={flip} aria-hidden>
-      {Array.from({ length: 28 }, (_, i) => {
-        const x = 8 + (i * 17) % 104;
-        const y = 10 + ((i * 29) % 80);
-        return <circle key={i} cx={x} cy={y} r={1.4 + (i % 3) * 0.7} fill="rgba(255,255,255,0.38)" />;
-      })}
-    </svg>
-  );
+function DistressGraphic({element}:{element:DesignElement}) {
+  const kind=element.wear?.kind??(element.content==='rips'?'rips':element.content==='abrasion'?'abrasion':'holes');
+  const seed=Array.from(element.id??'wear').reduce((v,c)=>Math.imul(v^c.charCodeAt(0),16777619),2166136261);
+  const marks=element.wear?.marks??singleDistressMarks(kind,element.width,element.height,seed);
+  const world=element.wear?garmentWearMarks(element):[{x:element.x,y:element.y}];
+  return element.content.startsWith('data:')&&!element.wear?<LegacyWearGraphic element={element}/>:<svg viewBox={`0 0 ${element.wear?.sourceWidth??element.width} ${element.wear?.sourceHeight??element.height}`} className="h-full w-full" preserveAspectRatio="none" style={artworkFlipStyle(element)} aria-hidden data-wear-graphic={kind}>
+    {marks.map((mark,i)=><WearVectorMark key={i} mark={{...mark,...element.wearDetail}} kind={kind} x={world[i]?.x??element.x} y={world[i]?.y??element.y}/>)}</svg>;
+}
+function WearVectorMark({mark,kind,x,y}:{mark:DistressMark;kind:DistressMarkKind;x:number;y:number}) {
+ const palette=useGarmentWearPalette(x,y);
+ return <g opacity={mark.opacity} transform={`translate(${mark.x} ${mark.y}) rotate(${mark.rotation*180/Math.PI})`}>
+  {distressPaths(mark,kind,palette).map((p,j)=><path key={j} d={p.d} data-wear-detail={p.role} fill={p.fill??'none'} stroke={p.stroke} strokeWidth={p.strokeWidth} opacity={p.opacity??1} strokeLinecap="round" strokeLinejoin="round"/>)}</g>;
+}
+/** Older flattened wear layers have no recoverable hole geometry. Keep their alpha and recolour the old white backing. */
+function LegacyWearGraphic({element}:{element:DesignElement}) {
+ const palette=useGarmentWearPalette(element.x,element.y),id=useId().replace(/:/g,'');
+ const rgb=(color:string)=>(color.match(/[\d.]+/g)??['0','0','0']).slice(0,3).map(v=>Number(v)/255);
+ const dark=rgb(palette.shadow),inner=rgb(palette.opening);
+ const matrix=inner.flatMap((v,i)=>[.2126*(v-dark[i]),.7152*(v-dark[i]),.0722*(v-dark[i]),0,dark[i]]).concat([0,0,0,1,0]).join(' ');
+ return <svg viewBox={`0 0 ${element.width} ${element.height}`} preserveAspectRatio="none" className="h-full w-full" style={artworkFlipStyle(element)} aria-hidden data-wear-legacy><defs><filter id={id} colorInterpolationFilters="sRGB"><feColorMatrix type="matrix" values={matrix}/></filter></defs><image href={element.content} width={element.width} height={element.height} preserveAspectRatio="none" filter={element.wearRasterTinted?undefined:`url(#${id})`}/></svg>;
 }

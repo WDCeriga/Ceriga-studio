@@ -26,7 +26,7 @@
   --ceriga-status-done-text: #7fa888;
   --ceriga-status-done-border: #345040;
   --ceriga-font-sans:var(--ui-font-sans);
-  --ceriga-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ceriga-font-mono:var(--ui-font-sans);
   --ceriga-radius:var(--ui-radius-card);
   --ceriga-sidebar-width: 216px;
   --ceriga-sidebar-collapsed: 72px;

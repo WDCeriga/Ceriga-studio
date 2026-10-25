@@ -27,6 +27,17 @@ The UI uses shared tokens in `src/styles/ui-tokens.css`, the dark app palette in
 
 ## Current scope
 
-Wear & texture is excluded from the builder harmony selectors and was not redesigned in this pass. Preserve its current layout until its separate design pass.
+Wear & texture uses the shared builder styling, typography and collapsible sections. Visual finish and coverage choices complement exact numeric controls.
 
 Fit & Measurements retains its four-fit chooser, measurement order, size controls and grading workflow. Its cards, numeric fields and disclosures use the same styling rhythm as the other inspectors. Compact tables and phone measurement docks remain intentionally dense.
+
+
+### Phone builder navigation
+
+Phone section changes open the contextual editor at its half snap. Canvas focus is an explicit choice. The Sections menu fits its content and scrolls within a capped height. Upload opens reference upload directly; creation remains inside each section's tools. Artwork tool families are persistent, horizontally scrollable tabs above the editor. Drawing actions are inside the phone editor instead of a canvas rail. Selected artwork exposes a compact Edit/Done control.
+
+Phone canvas chrome omits zoom/Fit buttons, colourway shortcuts and seam toolbars. Front/back stays visible. Label preview modes use a separate unwrapped row with consistent spacing; packaging omits the Editing panel status. Shared mobile rules use compact headings and 12px control labels while retaining 16px value-entry fields to prevent focus zoom. Desktop canvas controls are preserved.
+
+### Shared artwork camera and controls
+
+Garment views share the drawing-bounds frame calculation, including phone fitting, so entering Artwork preserves the garment position and size. Desktop artwork rails sit at the vertical centre of the canvas with the same Undo/Redo group. Zoom controls share a bottom-left anchor. UI text uses Inter, including Wear & texture; user-selected artwork fonts remain unchanged.

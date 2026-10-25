@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import {artworkPixelRatio} from '../../../lib/artworkResolution';
+import { useEffect, useState,useRef } from 'react';
 import type { GarmentDrawingMask } from './useGarmentDrawingMask';
 
 export interface GarmentPatternTarget extends GarmentDrawingMask {
@@ -21,10 +22,12 @@ export function targetContains(target: GarmentPatternTarget, x: number, y: numbe
     && target.alpha[(py * target.canvas.width + px) * 4 + 3] > 32;
 }
 
-export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'front' | 'back') {
+export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'front' | 'back',qualityScale=1) {
   const [targets, setTargets] = useState<GarmentPatternTarget[]>([]);
+  const source=useRef<{zone:HTMLElement|null;side:string}|undefined>(undefined);
   useEffect(() => {
-    setTargets([]);
+    if(source.current?.zone!==zone||source.current?.side!==side)setTargets([]);
+    source.current={zone,side};
     const preview = zone?.parentElement?.querySelector<HTMLElement>('[data-print-garment-preview]');
     if (!zone || !preview) return;
     let generation = 0;
@@ -34,7 +37,7 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
       if (!rect.width || !rect.height) return;
       const width = zone.clientWidth;
       const height = zone.clientHeight;
-      const resolution = Math.min(2, window.devicePixelRatio || 1);
+      const resolution=artworkPixelRatio(width,height,rect.width/Math.max(1,width),window.devicePixelRatio||1);
       const pixelWidth = Math.max(1, Math.round(width * resolution));
       const pixelHeight = Math.max(1, Math.round(height * resolution));
       const sx = pixelWidth / rect.width;
@@ -122,6 +125,6 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
     const resize = new ResizeObserver(schedule); resize.observe(zone); resize.observe(preview);
     schedule();
     return () => { generation++; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); };
-  }, [zone, side]);
+  }, [zone, side,qualityScale]);
   return targets;
 }

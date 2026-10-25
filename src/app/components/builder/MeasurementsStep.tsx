@@ -372,6 +372,7 @@ export function MeasurementPreview({
   sharedGarmentProps,
   prints = [],
   studioArtwork,
+  onArtworkSelect,
   selectedAssetId,
   onAssetSelect,
   onAssetMeasurementsChange,
@@ -398,6 +399,7 @@ export function MeasurementPreview({
   detailView?: 'front' | 'back';
   prints?: DesignElement[];
   studioArtwork?: StudioDesignElement[];
+  onArtworkSelect?:(id:string)=>void;
   selectedAssetId?: string | null;
   onAssetSelect?: (id: string | null) => void;
   onAssetMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
@@ -424,7 +426,7 @@ export function MeasurementPreview({
   return (
     <div data-measurement-preview data-view={detailView??'front'} className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
       {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
-        <MeasurementArtwork studioArtwork={studioArtwork} prints={prints} view={detailView??'front'}>
+        <MeasurementArtwork onArtworkSelect={onArtworkSelect} studioArtwork={studioArtwork} prints={prints} view={detailView??'front'}>
           <TshirtSvgPreview
             {...sharedGarmentProps}
             garmentType={svgPack}
@@ -454,8 +456,8 @@ export function MeasurementPreview({
   );
 }
 
-function MeasurementArtwork({studioArtwork,prints,view,children}:{studioArtwork?:StudioDesignElement[];prints:DesignElement[];view:'front'|'back';children:ReactNode}) {
+function MeasurementArtwork({studioArtwork,prints,view,children,onArtworkSelect}:{studioArtwork?:StudioDesignElement[];prints:DesignElement[];view:'front'|'back';children:ReactNode;onArtworkSelect?:(id:string)=>void}) {
  return studioArtwork !== undefined
-  ? <StudioArtworkPreview elements={studioArtwork} view={view} garment={children} interactive/>
+  ? <StudioArtworkPreview onArtworkSelect={onArtworkSelect} elements={studioArtwork} view={view} garment={children} interactive/>
   : <PrintsDesignPreview elements={prints.filter(print=>(print.view??'front')===view)} editable={false} className="h-full w-full" garmentBackdrop={children}/>;
 }

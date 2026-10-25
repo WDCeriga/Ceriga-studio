@@ -171,7 +171,7 @@ export function loadBrushTexture(source: string): Promise<void> {
     if (!width || !height || width * height > 64 * 1024 * 1024 || Math.max(width, height) > 32768) {
       throw new Error('Texture exceeds the 64 megapixel / 32768 pixel decode limit.');
     }
-    const ratio = Math.min(1, 512 / Math.max(width, height));
+    const ratio = Math.min(1,2048/Math.max(width,height),Math.sqrt(4_000_000/width/height));
     const blob = new Blob([bytes], { type: source.slice(5, source.indexOf(';')) });
     let bitmap: ImageBitmap | undefined;
     try {

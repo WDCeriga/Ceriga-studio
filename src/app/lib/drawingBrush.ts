@@ -610,6 +610,7 @@ export function renderBrushStroke(
   settings: BrushSettings & { color: string; brushSize: number; pressure: boolean; grain: number; pencil: { tiltShading: boolean } },
   scale: number,
   seed: number,
+  paintFrame?:{x:number;y:number;width:number;height:number},
 ) {
   if (!points.length || !Number.isFinite(scale) || scale <= 0) return;
   const size = bounded(settings.brushSize, 14, 1, 512) * scale;
@@ -617,7 +618,8 @@ export function renderBrushStroke(
   const thread = THREAD_PRESETS.includes(preset);
   const { samples, length } = createBrushStamps(points, settings, scale, seed);
   context.save();
-  context.fillStyle = canvasPaint(context, settings.color, context.canvas.width, context.canvas.height);
+  if(paintFrame){context.save();context.translate(paintFrame.x*scale,paintFrame.y*scale);const paint=canvasPaint(context,settings.color,paintFrame.width*scale,paintFrame.height*scale);context.restore();context.fillStyle=paint}
+  else context.fillStyle = canvasPaint(context, settings.color, context.canvas.width, context.canvas.height);
   context.strokeStyle = context.fillStyle;
   context.lineCap = 'round';
   context.lineJoin = 'round';

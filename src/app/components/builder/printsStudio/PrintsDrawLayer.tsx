@@ -1,3 +1,7 @@
+import {drawingPixelRatio} from '../../../lib/artworkResolution';
+import {snapshotBrush,offsetRecordedStroke,type RecordedStroke} from '../../../lib/drawingReplay';
+import {garmentWearMarks,cropWearMarks} from '../../../lib/wearEditing';
+import {garmentWearPalette} from './GarmentWearAppearance';
 import { useCallback, useEffect, useRef } from 'react';
 import { cn } from '../../ui/utils';
 import type { DesignElement } from '../PrintStudioEditor';
@@ -8,7 +12,7 @@ import { zoneToAsset } from '../../../lib/designGeometry';
 import { canvasPaint } from '../../../lib/studioPaint';
 import { createBrushStabilizer, renderBrushStroke, smoothBrushPoints } from '../../../lib/drawingBrush';
 import type { GarmentDrawingMask } from './useGarmentDrawingMask';
-import { createDistressStamp, type DistressMark, type DistressMarkKind } from '../../../lib/distressScatter';
+import { createDistressStamp, separateDistressMarks, type DistressMark, type DistressMarkKind } from '../../../lib/distressScatter';
 import { renderDistressMarks } from '../../../lib/distressRendering';
 import { removeBrushMask } from '../../../lib/brushRemoval';
 
@@ -21,6 +25,7 @@ interface PrintsDrawLayerProps {
   onChange?: (elements: DesignElement[]) => void;
   editable: boolean;
   adjustFilter?: string;
+  displayScale?:number;
   garmentSide?: 'front' | 'back';
 }
 
@@ -167,10 +172,12 @@ export function PrintsDrawLayer({
   editable,
   adjustFilter,
   garmentSide = 'front',
+  displayScale=1,
 }: PrintsDrawLayerProps) {
   const studio = usePrintsStudio();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const strokeRef = useRef<Pt[]>([]);
+  const replayPointsRef=useRef<Pt[]>([]);
   const shapeStrokeRef = useRef<Pt[]>([]);
   const drawingRef = useRef(false);
   const strokeLayerRef = useRef<HTMLCanvasElement | null>(null);
@@ -184,6 +191,9 @@ export function PrintsDrawLayer({
   const onChangeRef = useRef(onChange);
   const sideRef = useRef(garmentSide);
   const eraseBuffersRef = useRef(new Map<string, HTMLCanvasElement>());
+  useEffect(()=>{eraseBuffersRef.current.clear()},[studio.tool,garmentSide]);
+  const eraseSourcesRef=useRef(new Map<string,DesignElement>());
+  useEffect(()=>{for(const element of elements){if(!drawingRef.current&&eraseSourcesRef.current.get(element.id)!==element)eraseBuffersRef.current.delete(element.id);eraseSourcesRef.current.set(element.id,element)}},[elements]);
   const lastErasePtRef = useRef<Pt | null>(null);
   const eraseFlushRef = useRef<number | null>(null);
   const smoothTipRef = useRef<Pt | null>(null);
@@ -222,14 +232,15 @@ export function PrintsDrawLayer({
     if (!canvas || !host) return;
     const w = Math.max(1, host.clientWidth);
     const h = Math.max(1, host.clientHeight);
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if(drawingRef.current)return;
+    const dpr = drawingPixelRatio(w,h,displayScale,window.devicePixelRatio||1);
     if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
     }
-  }, [zone]);
+  }, [zone,displayScale]);
 
   useEffect(() => {
     syncSize();
@@ -311,7 +322,11 @@ export function PrintsDrawLayer({
     const pressureScale = studio.pressure && pt.pen ? 0.35 + pt.p * 0.65 : 1;
     const scatterSettings = { ...studio.distressScatter, size: studio.distressScatter.size * canvasScale * pressureScale };
     const kind = studio.distressType as DistressMarkKind;
-    distressStampsRef.current.push(...createDistressStamp(pt, (studio.eraserSize / 2) * canvasScale, scatterSettings, kind, canvasScale));
+    const palette=garmentWearPalette(zone,pt.x/canvas.width,pt.y/canvas.height);
+    const occupied=kind==='holes'?elementsRef.current.filter(el=>!el.hidden&&(el.side??'front')===sideRef.current&&el.wear?.kind==='holes').flatMap(garmentWearMarks).map(mark=>({...mark,x:mark.x*canvasScale,y:mark.y*canvasScale,width:mark.width*canvasScale,height:mark.height*canvasScale})):[];
+    const candidates=createDistressStamp(pt,(studio.eraserSize/2)*canvasScale,scatterSettings,kind,canvasScale);
+    const spaced=kind==='holes'?separateDistressMarks(candidates,[...occupied,...distressStampsRef.current],canvasScale):candidates;
+    distressStampsRef.current.push(...spaced.map(mark=>({...mark,palette})));
     paintStroke(strokeRef.current, 'distress');
   };
 
@@ -378,7 +393,8 @@ export function PrintsDrawLayer({
 
     if (tool === 'distress') {
       sctx.globalCompositeOperation = 'source-over';
-      renderDistressMarks(sctx, distressStampsRef.current, s.distressType, cssToCanvas);
+      const center=distressStampsRef.current.at(-1);
+      renderDistressMarks(sctx, distressStampsRef.current, s.distressType, cssToCanvas,garmentWearPalette(zone,center?center.x/strokeLayer.width:.5,center?center.y/strokeLayer.height:.5));
       clipToGarment(sctx);
       sctx.restore();
       ctx.save();
@@ -388,6 +404,7 @@ export function PrintsDrawLayer({
       return;
     }
 
+    replayPointsRef.current=[...points];
     renderBrushStroke(sctx, points, s, cssToCanvas, strokeSeedRef.current);
     sctx.restore();
 
@@ -419,6 +436,10 @@ export function PrintsDrawLayer({
       studio.distressType,
       canvasScale,
     );
+    if(studio.distressType==='holes') {
+      const occupied=elementsRef.current.filter(el=>!el.hidden&&(el.side??'front')===sideRef.current&&el.wear?.kind==='holes').flatMap(garmentWearMarks).map(mark=>({...mark,x:mark.x*canvasScale,y:mark.y*canvasScale,width:mark.width*canvasScale,height:mark.height*canvasScale}));
+      distressStampsRef.current=separateDistressMarks(distressStampsRef.current,occupied,canvasScale);
+    }
     paintStroke([pt], 'distress');
     distressStampsRef.current = [];
   };
@@ -449,7 +470,7 @@ export function PrintsDrawLayer({
         if (!removeBrushMask(source, mask, element, canvas.width / Math.max(1, host.clientWidth), canvas.height / Math.max(1, host.clientHeight), studioRef.current.opacity / 100)) return [element];
         changed = true;
         eraseBuffersRef.current.delete(element.id);
-        return canvasHasInk(source) ? [{ ...element, content: source.toDataURL('image/png') }] : [];
+        return canvasHasInk(source) ? [{ ...element,drawing:undefined, content: source.toDataURL('image/png') }] : [];
       });
       if (changed) {
         sessionRef.current = null;
@@ -458,14 +479,16 @@ export function PrintsDrawLayer({
       }
       return;
     }
+    if(tool==='distress'&&!distressStampsRef.current.length)return;
     const previous = tool === 'distress' ? distressSessionsRef.current.get(sideRef.current) : sessionRef.current;
     const existing = previous && elementsRef.current.find(element => element.id === previous.element.id);
     // Re-read erased/undone pixels, but never overwrite a layer's edited style or locked state.
-    const compatibleDistress = tool === 'distress' && existing && previous && !existing.locked && !existing.hidden &&
+    const unchangedWear=Boolean(existing?.wear&&previous&&existing.wear===previous.element.wear&&(['content','x','y','width','height'] as const).every(key=>existing[key]===previous.element[key]));
+    const compatibleDistress = tool === 'distress' && existing?.wear?.kind===studioRef.current.distressType && unchangedWear && previous && !existing.locked && !existing.hidden &&
       (Object.keys({ ...previous.element, ...existing }) as (keyof DesignElement)[]).every(key =>
         ['content', 'x', 'y', 'width', 'height'].includes(key) || existing[key] === previous.element[key]);
     const canAppend = previous && existing && (existing.side ?? 'front') === sideRef.current &&
-      (compatibleDistress || (tool === 'brush' && existing === previous.element &&
+      (compatibleDistress || (tool === 'brush' && existing === previous.element && !existing.drawing?.cuts?.length &&
         previous.canvas.width === canvas.width && previous.canvas.height === canvas.height));
     const merged = document.createElement('canvas');
     merged.width = canvas.width;
@@ -473,7 +496,7 @@ export function PrintsDrawLayer({
     const mergedContext = merged.getContext('2d');
     if (!mergedContext) return;
     if (canAppend) {
-      if (existing === previous.element && previous.canvas.width === canvas.width && previous.canvas.height === canvas.height) {
+      if ((existing === previous.element || unchangedWear) && previous.canvas.width === canvas.width && previous.canvas.height === canvas.height) {
         mergedContext.drawImage(previous.canvas, 0, 0);
       } else {
         const image = host.querySelector<HTMLImageElement>(`[data-print-id="${existing.id}"] img`);
@@ -485,7 +508,7 @@ export function PrintsDrawLayer({
       }
     }
     mergedContext.globalAlpha = tool === 'distress'
-      ? Math.max(0.04, Math.min(1, studioRef.current.opacity / 100))
+      ? Math.max(0, Math.min(1, studioRef.current.opacity / 100))
       : studioRef.current.opacity / 100;
     mergedContext.drawImage(strokeLayer, 0, 0);
     const box = alphaBounds(merged);
@@ -496,7 +519,14 @@ export function PrintsDrawLayer({
     const cssH = Math.max(1, host.clientHeight);
     const scaleX = canvas.width / cssW;
     const scaleY = canvas.height / cssH;
+    const originX=box.x/scaleX,originY=box.y/scaleY;
+    const recorded:RecordedStroke={points:replayPointsRef.current.map(p=>({...p,x:p.x/scaleX-originX,y:p.y/scaleY-originY})),settings:snapshotBrush(studioRef.current),seed:strokeSeedRef.current,opacity:studioRef.current.opacity/100,
+      paintFrame:{x:-originX,y:-originY,width:cssW,height:cssH},
+      mirrorAxis:studioRef.current.symmetry?(garmentMask?.axis??cssW/2)-originX:undefined,
+      clip:garmentMask?{url:garmentMask.vectorUrl??garmentMask.url,x:-originX,y:-originY,width:garmentMask.width,height:garmentMask.height}:undefined};
+    const oldStrokes=canAppend&&previous?.element.drawing?previous.element.drawing.strokes.map(s=>offsetRecordedStroke(s,previous.element.x-previous.element.width/2-originX,previous.element.y-previous.element.height/2-originY)):[];
     const next: DesignElement = {
+      ...(tool==='brush'&&recorded.points.length?{drawing:{width:box.w/scaleX,height:box.h/scaleY,strokes:[...oldStrokes,recorded]}}:{}),
       id: canAppend ? previous.element.id : crypto.randomUUID(),
       type: tool === 'distress' ? 'distress' : 'drawing',
       content: dataUrl,
@@ -507,6 +537,8 @@ export function PrintsDrawLayer({
       rotation: 0,
       opacity: 100,
       locked: false,
+      ...(tool==='distress'?{wear:{kind:studioRef.current.distressType,sourceWidth:box.w/scaleX,sourceHeight:box.h/scaleY,
+        marks:cropWearMarks([...(canAppend&&existing?garmentWearMarks(existing).map(mark=>({...mark,x:mark.x*scaleX,y:mark.y*scaleY,width:mark.width*scaleX,height:mark.height*scaleY})):[]),...distressStampsRef.current.map(mark=>({...mark,opacity:mark.opacity*studioRef.current.opacity/100}))],box.x,box.y,scaleX,scaleY)}}:{}),
       printMethod: tool === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
       side: sideRef.current,
       aspectLocked: false,
@@ -518,13 +550,15 @@ export function PrintsDrawLayer({
     if (tool === 'distress') distressSessionsRef.current.set(sideRef.current, { element: next, canvas: merged });
     elementsRef.current = updated;
     fn(updated);
-  }, [zone]);
+  }, [zone,garmentMask]);
 
   const ensureEraseBuffer = useCallback(
     (el: DesignElement) => {
       const existing = eraseBuffersRef.current.get(el.id);
       if (existing) return existing;
       const img = zone?.querySelector(`[data-print-id="${el.id}"] img`) as HTMLImageElement | null;
+      const replay=zone?.querySelector<HTMLCanvasElement>(`[data-print-id="${el.id}"] [data-replayed-drawing][data-drawing-rendered="true"]`);
+      if(replay){const buf=document.createElement('canvas');buf.width=replay.width;buf.height=replay.height;buf.getContext('2d')?.drawImage(replay,0,0);eraseBuffersRef.current.set(el.id,buf);return buf}
       if (!img?.naturalWidth) return null;
       const buf = canvasFromImage(img);
       eraseBuffersRef.current.set(el.id, buf);
@@ -542,7 +576,7 @@ export function PrintsDrawLayer({
     async (el: DesignElement) => {
       const existing = eraseBuffersRef.current.get(el.id);
       if (existing) return existing;
-      const fromImg = ensureEraseBuffer(el);
+      const fromImg = el.wear?null:ensureEraseBuffer(el);
       if (fromImg) return fromImg;
       const root = zone?.querySelector(`[data-print-id="${el.id}"]`) as HTMLElement | null;
       const svg = root?.querySelector<SVGSVGElement>('[data-asset-content] svg[viewBox]');
@@ -560,21 +594,8 @@ export function PrintsDrawLayer({
   const warmEraseBuffers = useCallback(async () => {
     const side = sideRef.current;
     const tool = studioRef.current.tool;
-    let converted = false;
-    const next = [...elementsRef.current];
-    for (let i = 0; i < next.length; i++) {
-      const el = next[i]!;
-      if (!isErasable(el, tool) || (el.side ?? 'front') !== side) continue;
-      const buf = await rasterizeDistress(el);
-      if (!buf) continue;
-      if (el.type === 'distress' && !el.content.startsWith('data:')) {
-        next[i] = { ...el, content: buf.toDataURL('image/png') };
-        converted = true;
-      }
-    }
-    if (converted) {
-      elementsRef.current = next;
-      onChangeRef.current?.(next);
+    for(const el of elementsRef.current) {
+      if(isErasable(el,tool)&&(el.side??'front')===side)await rasterizeDistress(el);
     }
   }, [rasterizeDistress]);
 
@@ -617,13 +638,14 @@ export function PrintsDrawLayer({
           octx.fill();
         }
         octx.restore();
+        const cuts=el.drawing?points.map(pt=>Array.from({length:64},(_,i)=>{const a=i*Math.PI/32,p=zoneToAsset({x:pt.x/dprX+Math.cos(a)*radiusCss,y:pt.y/dprY+Math.sin(a)*radiusCss},el);return{x:p.x*el.drawing!.width,y:p.y*el.drawing!.height}})):undefined;
         const url = buf.toDataURL('image/png');
         const img = host.querySelector(`[data-print-id="${el.id}"] img`) as HTMLImageElement | null;
         if (img) img.src = url;
         changed = true;
         return el.type === 'shape'
           ? { ...el, type: 'drawing' as const, shapeGeometry: undefined, borderWidth: 0, color: undefined, content: url }
-          : { ...el, content: url };
+          : { ...el,drawing:el.drawing?{...el.drawing,cuts:[...(el.drawing.cuts??[]),...(cuts??[])]}:undefined,wear:undefined,wearDetail:undefined,wearRasterTinted:Boolean(el.wear)||el.wearRasterTinted, content: url };
       });
       if (!changed) return;
       elementsRef.current = next;
@@ -643,7 +665,7 @@ export function PrintsDrawLayer({
             (el.type === 'distress' || el.type === 'shape') &&
             (el.side ?? 'front') === sideRef.current &&
             !eraseBuffersRef.current.has(el.id) &&
-            !el.content.startsWith('data:'),
+            (el.type==='distress'||!el.content.startsWith('data:')),
         );
       if (!needsWarm) {
         punchEraserNow(points);
@@ -744,6 +766,7 @@ export function PrintsDrawLayer({
       shapeRef.current = null;
       holdPointRef.current = null;
       strokeRef.current = [];
+      replayPointsRef.current=[];
       shapeStrokeRef.current = [];
       commitStroke();
       context.clearRect(0, 0, canvas.width, canvas.height);
@@ -757,6 +780,7 @@ export function PrintsDrawLayer({
     e.preventDefault();
     e.stopPropagation();
     const canvas = canvasRef.current;
+    syncSize();
     if (!canvas) return;
     if ((s.tool === 'brush' || s.tool === 'distress') && !garmentMask) return;
 
@@ -770,6 +794,7 @@ export function PrintsDrawLayer({
       lastPenTapRef.current = now;
     }
 
+    replayPointsRef.current=[];
     drawingRef.current = true;
     pointerIdRef.current = e.pointerId;
     strokeSeedRef.current = (Math.random() * 0x7fffffff) | 0;

@@ -1,3 +1,7 @@
+import {artworkPixelRatio} from '../../../lib/artworkResolution';
+import {waitForDrawingReplay} from './DrawingArtwork';
+import {useContext} from 'react';
+import {GarmentPrintTextureContext} from './GarmentPrintTexture';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import {ArtworkInteractionContext} from './ArtworkInteractionContext';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
@@ -22,6 +26,8 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
   cropping?: boolean;
   cropOverlay?: ReactNode;
 }) {
+  const texture=useContext(GarmentPrintTextureContext);
+  const [printMask,setPrintMask]=useState<{url:string;width:number;height:number;padding:number}|null>(null);
   const surface = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const captureVersion = useRef(0);
@@ -68,7 +74,7 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
       const dx = (client.x - (rect.left + rect.width / 2)) / pixelScale;
       const dy = (client.y - (rect.top + rect.height / 2)) / pixelScale;
       const local = quadMap(live ?? element.perspective).inverse({ x: (dx * cos + dy * sin) / w + 0.5, y: (-dx * sin + dy * cos) / h + 0.5 });
-      if (garmentMask && (element.type === 'drawing' || element.patternTarget)) {
+      if (garmentMask) {
         const zone = root.closest<HTMLElement>('[data-print-design-zone]');
         if (zone) {
           const zr = zone.getBoundingClientRect();
@@ -95,23 +101,26 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
       try {
         await document.fonts.ready;
         await waitForImageFilters(node);
+        await waitForDrawingReplay(node);
         if (!current()) return;
         const padding = artworkEffectPadding(element);
         const captureWidth = width + padding * 2;
         const captureHeight = actualHeight + padding * 2;
-        const canvas = await toCanvas(node, { pixelRatio: 2, width: captureWidth, height: captureHeight, style: { width: `${width}px`, height: `${actualHeight}px`, transform: `translate(${padding}px, ${padding}px)`, opacity: '1' }, filter: child => !(child instanceof Element) || !child.matches('[data-editor-chrome]') });
+        const canvas = await toCanvas(node, { skipFonts:element.type!=='text'&&element.type!=='group',preferredFontFormat:'woff2', pixelRatio: artworkPixelRatio(captureWidth,captureHeight,scale,window.devicePixelRatio||1), width: captureWidth, height: captureHeight, style: { width: `${width}px`, height: `${actualHeight}px`, transform: `translate(${padding}px, ${padding}px)`, opacity: '1' }, filter: child => !(child instanceof Element) || !child.matches('[data-editor-chrome]') });
         const context = canvas.getContext('2d');
         const image = context?.getImageData(0, 0, canvas.width, canvas.height);
         const measured = image && alphaBounds(image);
         if (current()) {
+          setPrintMask(image?{url:canvas.toDataURL('image/png'),width:captureWidth,height:captureHeight,padding}:null);
           setBounds(measured ? { x: (measured.x * captureWidth - padding) / width, y: (measured.y * captureHeight - padding) / actualHeight, width: measured.width * captureWidth / width, height: measured.height * captureHeight / actualHeight } : { x: 0, y: 0, width: 0, height: 0 });
         }
-      } catch {
+      } catch (error) {
+        console.warn('Could not prepare artwork pixel hit area.',error);
         if (current()) setBounds({ x: 0, y: 0, width: 1, height: 1 });
       }
     }, 80);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping, interacting]);
+  }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping, interacting,scale]);
 
   useEffect(() => {
     const node = content.current;
@@ -171,7 +180,7 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
   const projected=(live??element.perspective)?.some((point,index)=>Math.abs(point.x-UNIT_QUAD[index].x)>1e-8||Math.abs(point.y-UNIT_QUAD[index].y)>1e-8);
   const projectionTransform=projected?map.css(width,actualHeight):undefined;
   return <ArtworkInteractionContext.Provider value={interacting}><ArtworkResolutionContext.Provider value={scale}>
-    <div ref={surface} data-pattern-clip={element.patternTarget} data-drawing-clip={element.type === 'drawing' && garmentMask !== undefined ? '' : undefined} className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', ...((element.type === 'drawing' || element.patternTarget) && garmentMask !== undefined ? {
+    <div ref={surface} data-pattern-clip={element.patternTarget} data-drawing-clip={element.type === 'drawing' && garmentMask !== undefined ? '' : undefined} className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', ...((element.type === 'drawing' || element.patternTarget || garmentMask) && garmentMask !== undefined ? {
       visibility: garmentMask ? undefined : 'hidden',
       maskImage: garmentMask ? drawingMaskCss(garmentMask, width, actualHeight, position?.x ?? element.x, position?.y ?? element.y, element.rotation) : undefined,
       maskSize: '100% 100%', maskRepeat: 'no-repeat',
@@ -180,6 +189,7 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
       <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }) }}>
         {element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}
       </div>
+      {texture&&printMask&&element.type!=='distress'&&<div data-print-fabric-relief data-editor-chrome className="pointer-events-none absolute inset-0" style={{mixBlendMode:'multiply',backgroundImage:drawingMaskCss(texture,width,actualHeight,position?.x??element.x,position?.y??element.y,element.rotation),backgroundSize:'100% 100%',maskImage:`url("${printMask.url}")`,maskSize:`${printMask.width}px ${printMask.height}px`,maskPosition:`${-printMask.padding}px ${-printMask.padding}px`,maskRepeat:'no-repeat'}}/>}
     </div>
     </div>
     {cropping ? <div data-editor-chrome className="pointer-events-auto absolute inset-0" style={{ height: actualHeight, transformOrigin: '0 0', transform: projectionTransform }}>{cropOverlay}</div> : null}

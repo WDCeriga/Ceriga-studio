@@ -1,3 +1,4 @@
+import {WearMarkEditor} from './WearTextureStudio';
 import {PatternObjectEditor} from './PatternObjectEditor';
 import {beginPatternDrag} from '../printsStudio/studioAssets';
 import {ArtworkImageEditor} from './ArtworkImageEditor';
@@ -13,6 +14,7 @@ import { PatternControls } from '../printsStudio/PatternControls';
 import { StudioPaint, StudioRange, StudioFold, StudioNumber } from './StudioControls';
 export function StudioLayerThumb({element}:{element:DesignElement}) {return <div className="studio-layer-thumb">{element.type==='image'||element.type==='drawing'?<img src={element.content} alt=""/>:element.type==='text'?<span style={{fontFamily:element.fontFamily,fontWeight:element.fontWeight}}>{element.content.slice(0,18)}</span>:element.type==='shape'||element.type==='pattern'||element.type==='distress'?<StudioGraphic element={element.type==='shape'?{...element,shapeEffects:undefined}:element}/>:element.type==='group'?<Layers size={18}/>:<Brush size={18}/>}</div>}
 export function StudioObjectPanel({element:el,update,fonts=[]}:{element:DesignElement;fonts?:string[];update:(patch:Partial<DesignElement>)=>void}) {
+ if(el.type==='distress')return <WearMarkEditor key={el.id} element={el} update={update}/>;
  if(el.type==='pattern')return <PatternObjectEditor key={el.id} element={el} update={update}/>;
  if(el.type==='image')return <ArtworkImageEditor key={el.id} element={el} update={update}/>;
  if(el.type==='text')return <TypographyEditor key={el.id} element={el} update={update} fonts={fonts}/>;

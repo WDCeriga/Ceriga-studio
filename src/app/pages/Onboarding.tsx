@@ -167,7 +167,7 @@ export function Onboarding() {
   return (
     <div
       className="flex min-h-dvh flex-col overflow-x-hidden bg-[#09090B] text-[#F2F0EC]"
-      style={{ fontFamily: "'DM Sans', sans-serif", paddingTop: 'env(safe-area-inset-top)' }}
+      style={{ fontFamily: "var(--ui-font-sans)", paddingTop: 'env(safe-area-inset-top)' }}
     >
       <header className="flex items-center justify-between border-b border-[#252528] px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2">

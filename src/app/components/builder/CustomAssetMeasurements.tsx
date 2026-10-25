@@ -179,7 +179,7 @@ export function CustomAssetMeasurementLayer({ panels=[],panelSeams=[],panelMirro
   const sources = stableSources.current;
   const svgRef = useRef<SVGSVGElement>(null);
   const [overlayTarget, setOverlayTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => { setOverlayTarget(svgRef.current?.closest<HTMLElement>('[data-print-garment-backdrop]')?.parentElement ?? null); }, []);
+  useEffect(() => { setOverlayTarget(svgRef.current?.closest<HTMLElement>('[data-print-garment-preview],[data-print-garment-backdrop]')?.parentElement ?? null); }, []);
   const [snapshot, setSnapshot] = useState<AssetMeasurementSnapshot>({ view, assets: [] });
   const assets = snapshot.view === view ? snapshot.assets : [];
   const [sampledShapes, setSampledShapes] = useState<{ sources: MeasurementSource[]; shapes: MeasurementShape[] }>();
