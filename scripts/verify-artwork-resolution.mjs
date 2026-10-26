@@ -7,3 +7,11 @@ const replay=await load('drawingReplay');const original={points:[{x:4,y:8,p:.3,t
 console.log('Artwork quality: zoom/HiDPI supersampling, uncapped small-asset detail, 8K/16MP budgets and lossless stroke/clip/pressure/symmetry records passed.');
 
 const warp=await load('warpGeometry');const identity={...warp.createWarpSettings(),mode:'freeform'};assert.equal(warp.warpSamplingScale(identity),1);const stretched={...identity,points:identity.points.map((p,i)=>i===1?{x:1,y:1}:p)};assert(warp.warpSamplingScale(stretched)>1);console.log('Warped regions request extra source pixels when their mesh stretches.');
+
+const{artworkSceneScale}=await load('garmentCanvasFrame');
+for(const size of [280,390,447,700,1200]){
+ const scale=artworkSceneScale({width:size,height:size},{width:800,height:700});
+ assert.equal(scale*700,size,'Adding artwork must retain the bare garment SVG size');
+ assert.equal(artworkSceneScale({width:size,height:size},{width:800,height:700},true)*800,size,'Asset workspaces must retain their complete artboard');
+}
+console.log('Garment framing: matching square SVG size on phone/desktop; full asset artboards preserved.');

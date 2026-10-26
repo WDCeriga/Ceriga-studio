@@ -4,3 +4,9 @@ export function garmentFrameStyle(bounds:GarmentDrawingBounds,phone=false,zoom=1
  const width=`min(calc(100cqw / ${(bounds.right-bounds.left+(phone?100:160))/900}),calc(100cqh / ${(bounds.bottom-bounds.top+100)/900}))`;
  return {zoom:zoom/100,width,height:width,transform:`translate(${-100*(bounds.left+bounds.right)/2000}%,${-100*(bounds.top+bounds.bottom)/2000}%)`};
 }
+
+/** The garment SVG is square; the legacy artwork coordinates remain 800 x 700. */
+export function artworkSceneScale(frame:{width:number;height:number},board:{width:number;height:number},assetMode=false){
+ const reference=assetMode?board:{width:Math.min(board.width,board.height),height:Math.min(board.width,board.height)};
+ return Math.min(frame.width/reference.width,frame.height/reference.height);
+}

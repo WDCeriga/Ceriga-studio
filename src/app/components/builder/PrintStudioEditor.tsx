@@ -1,3 +1,4 @@
+import {artworkSceneScale} from '../../lib/garmentCanvasFrame';
 import {garmentPatternReference} from '../../lib/patternGeometry';
 import {DrawingArtwork} from './printsStudio/DrawingArtwork';
 import type {RecordedDrawing} from '../../lib/drawingReplay';
@@ -2721,8 +2722,11 @@ export function PrintsDesignPreview({
   useLayoutEffect(() => {
     if (editable && !validCanvasSize && frameSize.width > 0 && frameSize.height > 0) onCanvasSizeChange?.(frameSize);
   }, [editable, validCanvasSize, frameSize, onCanvasSizeChange]);
+  // Garments occupy a square SVG inside the legacy 800 x 700 artwork board.
+  // Fit that square, not the board's empty horizontal margin, just as the
+  // measurement/material views do. Asset workspaces still fit the full board.
   const sceneScale = validCanvasSize && frameSize.width > 0 && frameSize.height > 0
-    ? Math.min(frameSize.width / validCanvasSize.width, frameSize.height / validCanvasSize.height) : 1;
+    ? artworkSceneScale(frameSize,validCanvasSize,assetMode) : 1;
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
   useEffect(() => {
     void hydrateFontLibrary().then((names) => {
@@ -3526,7 +3530,7 @@ export function PrintsDesignPreview({
       >
         <GarmentWearHostContext.Provider value={zoneEl}><GarmentPrintTextureContext.Provider value={printTexture}><GarmentPatternReliefContext.Provider value={patternRelief}><div data-design-canvas data-print-fabric-ready={Boolean(printTexture)} className="relative h-full w-full" style={validCanvasSize ? {
           position: 'absolute', width: validCanvasSize.width, height: validCanvasSize.height,
-          left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zoom: liveCanvasS,
+          left: '50%', top: '50%', transform: `translate(-50%, -50%) scale(${liveCanvasS})`, transformOrigin: 'center',
         } : undefined}>
         <div className="absolute inset-0 flex min-h-0 flex-col">
           {narrowViewport &&

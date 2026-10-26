@@ -54,3 +54,10 @@
 @media(max-width:767px){
  .ceriga-builder-shell .new-canvas-area,.ceriga-builder-shell .print-design-canvas:has([data-unified-garment-frame])>.print-garment-stage{inset:52px 8px 8px;padding:0!important}
 }
+
+/* Keep the camera's available area identical in every garment section, even
+   when older phone rules or an artwork tool stylesheet load afterwards. */
+@media(max-width:767px){
+ .ceriga-builder-shell[data-section] .new-canvas-area,
+ .ceriga-builder-shell[data-section] .print-design-canvas:has([data-unified-garment-frame])>.print-garment-stage{inset:52px 8px 8px!important;padding:0!important}
+}
