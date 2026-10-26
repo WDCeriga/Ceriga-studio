@@ -1,11 +1,12 @@
+import {textileCamouflage} from './textileCamouflage';
 import { patternKind, type PatternSettings } from './patternGeometry';
 import { patternDefaultColors, patternDefinition } from './patternCatalog';
 import { fashionPatternTile } from './fashionPatterns';
 
 export type PatternPrimitive =
-  | { tag: 'path'; d: string; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number }
-  | { tag: 'circle'; cx: number; cy: number; r: number; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number }
-  | { tag: 'rect'; x: number; y: number; width: number; height: number; rx?: number; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number }
+  | { tag: 'path'; d: string; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number;transform?:string }
+  | { tag: 'circle'; cx: number; cy: number; r: number; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number;transform?:string }
+  | { tag: 'rect'; x: number; y: number; width: number; height: number; rx?: number; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number;transform?:string }
   | { tag: 'image'; href: string; x: number; y: number; width: number; height: number };
 
 export interface PatternMotif {
@@ -100,14 +101,25 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
   const width = bound(settings.width, 80, 1, 100000);
   const height = bound(settings.height, 80, 1, 100000);
   if (definition?.fashion) {
-    const tile = fashionPatternTile(settings, kind, settings.type === 'customArea' ? 120 : Math.min(width, height));
+    const tile = fashionPatternTile(settings, kind, bound(settings.patternReferenceSize, settings.type === 'customArea' ? 120 : Math.min(width, height), 1, 100000));
     return { kind, width, height, tileWidth: tile.tileWidth, tileHeight: tile.tileHeight,
       angle: bound(settings.patternRotation, 0, -360, 360), colors: tile.colors, background: tile.background,
       motifs: tile.motifs, replicas: tile.replicas };
   }
+  if(['camo','digital-camo','cow'].includes(kind)) {
+    const colors=patternDefaultColors(kind).map((color,index)=>(index===0?settings.color:undefined)||settings.patternColors?.[index]||color);
+    const reference=bound(settings.patternReferenceSize,Math.min(width,height),1,100000);
+    const tile=Math.max(32,reference*3.2*bound(settings.patternScale,100,10,400)/100);
+    const order=kind==='cow'?[1,0]:[1,0,2,3];
+    const primitives=textileCamouflage(kind==='cow'?'cow':kind==='digital-camo'?'digital-camo':'camo-woodland',{
+      irregularity:settings.patternRoughness??55,overlap:settings.patternVariation??50,style:kind==='digital-camo'?'angular':'organic',
+    },colors.length,settings.patternCount??8,settings.patternSeed??1,tile).map(primitive=>({...primitive,...('fill' in primitive&&typeof primitive.fill==='number'?{fill:order[primitive.fill]}:{})}));
+    return {kind,width,height,tileWidth:tile,tileHeight:tile,angle:bound(settings.patternRotation,0,-360,360),colors,background:1,
+      motifs:[{id:0,x:0,y:0,rotation:0,scaleX:1,scaleY:1,radius:0,primitives}],replicas:[{motif:0,dx:0,dy:0}]};
+  }
   const count = Math.round(bound(settings.patternCount, 5, 1, 32));
   const scale = bound(settings.patternScale, 100, 10, 400) / 100;
-  const cell = Math.max(.1, (settings.type === 'customArea' ? 120 / count : Math.min(width, height) / count) * scale);
+  const cell = Math.max(.1, bound(settings.patternReferenceSize, settings.type === 'customArea' ? 120 : Math.min(width, height), 1, 100000) / count * scale);
   const pitchX = cell + bound(settings.patternSpacingX ?? settings.patternSpacing, 0, 0, 200);
   const pitchY = cell + bound(settings.patternSpacingY ?? settings.patternSpacing, 0, 0, 200);
   const thickness = bound(settings.patternThickness, cell / scale * .055, .1, 1000) * scale / cell;
@@ -225,9 +237,9 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
           const end=start+Math.PI*2/segments*(.5+random()*.25);
           const r=radius*(.85+random()*.22);
           const mid=(start+end)/2;
-          primitives.push(path(`M${n(Math.cos(start)*r)} ${n(Math.sin(start)*r)} Q${n(Math.cos(mid)*r*1.2)} ${n(Math.sin(mid)*r*1.2)} ${n(Math.cos(end)*r)} ${n(Math.sin(end)*r)}`,'none',0,.075+random()*.055));
+          primitives.push(path(`M${n(Math.cos(start)*r)} ${n(Math.sin(start)*r)} Q${n(Math.cos(mid)*r*1.2)} ${n(Math.sin(mid)*r*1.2)} ${n(Math.cos(end)*r)} ${n(Math.sin(end)*r)}`,'none',0,.045+random()*.04));
         }
-        for(let spot=0;spot<2;spot++)primitives.push(path(blob(random,roughness,.035+random()*.03)));
+        for(let spot=0;spot<2;spot++)primitives.push({...path(blob(random,roughness,.028+random()*.025)),transform:`translate(${n((random()-.5)*.7)} ${n((random()-.5)*.7)})`});
         add(x+jitter()*cell*.55,y+jitter()*cell*.55,primitives,random()*360,cell*(.8+random()*.3),cell*(.75+random()*.4));
         continue;
       }
@@ -260,7 +272,7 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
         if (row % 2) x += pitchX / 2;
         const size = 1 + jitter() * .12;
         primitives.push(path(`M-.48 -.45 Q0 ${n(-.58 - roughness * .18)} .48 -.45 Q.48 .2 0 .5 Q-.48 .2 -.48 -.45Z`, 2, 0, .025 + roughness * .025),
-          polygon([[0, -.25 * size], [.18, 0], [0, .28 * size], [-.18, 0]], 0));
+          path(`M${n(-.16*size)} -.18 Q${n(jitter()*.25)} -.3 .17 -.16 Q.25 .12 .04 .27 Q-.2 .2 ${n(-.16*size)} -.18Z`,0));
         break;
       }
       case 'flames': {

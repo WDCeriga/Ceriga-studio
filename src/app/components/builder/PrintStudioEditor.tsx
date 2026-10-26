@@ -1,8 +1,9 @@
+import {garmentPatternReference} from '../../lib/patternGeometry';
 import {DrawingArtwork} from './printsStudio/DrawingArtwork';
 import type {RecordedDrawing} from '../../lib/drawingReplay';
 import type {DistressMark,DistressMarkKind} from '../../lib/distressScatter';
 import {GarmentWearHostContext} from './printsStudio/GarmentWearAppearance';
-import {GarmentPrintTextureContext,useGarmentPrintTexture} from './printsStudio/GarmentPrintTexture';
+import {GarmentPatternReliefContext,GarmentPrintTextureContext,useGarmentPrintTexture} from './printsStudio/GarmentPrintTexture';
 import {orderDesignLayers,isBackgroundPattern} from '../../lib/designLayerOrdering';
 import {PatternGraphic} from './printsStudio/PatternGraphic';
 import {getActivePatternDrag} from './printsStudio/studioAssets';
@@ -240,6 +241,7 @@ export interface DesignElement extends ImageAdjustmentValues {
   filterSaturate?: number;
   filterBlur?: number;
   /** Pattern tile count / grid density (e.g. 4 = 4×4 checks). */
+  patternReferenceSize?: number;
   patternCount?: number;
   patternScale?: number;
   patternSpacing?: number;
@@ -2778,6 +2780,7 @@ export function PrintsDesignPreview({
   const [zoneEl, setZoneEl] = useState<HTMLDivElement | null>(null);
   const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode,sceneScale);
   const printTexture=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale);
+  const patternRelief=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale,'pattern',studio.panel==='patterns'||elements.some(function hasPattern(element):boolean{return isBackgroundPattern(element)||!!element.children?.some(hasPattern);}));
   const patternTargets = useGarmentPatternTargets(zoneEl, garmentSide,sceneScale);
   useEffect(() => {
     if (!editable) return;
@@ -3521,7 +3524,7 @@ export function PrintsDesignPreview({
           narrowViewport && editable && 'overflow-hidden rounded-xl',
         )}
       >
-        <GarmentWearHostContext.Provider value={zoneEl}><GarmentPrintTextureContext.Provider value={printTexture}><div data-design-canvas data-print-fabric-ready={Boolean(printTexture)} className="relative h-full w-full" style={validCanvasSize ? {
+        <GarmentWearHostContext.Provider value={zoneEl}><GarmentPrintTextureContext.Provider value={printTexture}><GarmentPatternReliefContext.Provider value={patternRelief}><div data-design-canvas data-print-fabric-ready={Boolean(printTexture)} className="relative h-full w-full" style={validCanvasSize ? {
           position: 'absolute', width: validCanvasSize.width, height: validCanvasSize.height,
           left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zoom: liveCanvasS,
         } : undefined}>
@@ -3730,9 +3733,9 @@ export function PrintsDesignPreview({
             const part = patternHover.kind === 'part' ? patternTargets.find(target => target.id === patternHover.id) : undefined;
             const area = patternHover.kind === 'area' ? elements.find(element => element.id === patternHover.id) : undefined;
             return <div className="pointer-events-none absolute inset-0 z-[30]" data-pattern-drop-target={patternHover.id} style={{zIndex:0}}>
-              {part && dragPattern ? <div className="absolute inset-0" style={{maskImage:`url("${part.url}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'}}><div style={{position:'absolute',left:part.bounds.x,top:part.bounds.y,width:part.bounds.width,height:part.bounds.height,transform:'translate(-50%,-50%)',opacity:(dragPattern.settings?.opacity??100)/100}}><PatternGraphic element={{id:'drag-preview',type:'pattern',content:dragPattern.id,...part.bounds,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings} as DesignElement}/></div></div> : null}
+              {part && dragPattern ? <div className="absolute inset-0" style={{maskImage:`url("${part.url}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'}}><div style={{position:'absolute',left:part.bounds.x,top:part.bounds.y,width:part.bounds.width,height:part.bounds.height,transform:'translate(-50%,-50%)',opacity:(dragPattern.settings?.opacity??100)/100}}><PatternGraphic fabricPreview element={{id:'drag-preview',type:'pattern',content:dragPattern.id,...part.bounds,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></div></div> : null}
               {area ? <svg className="absolute overflow-visible" viewBox={`0 0 ${area.width} ${area.height}`} style={{ left: area.x, top: area.y, width: area.width, height: area.height, transform: `translate(-50%, -50%) rotate(${area.rotation}deg)`, maskImage: drawingMask ? drawingMaskCss(drawingMask, area.width, area.height, area.x, area.y, area.rotation) : undefined }}>
-                <defs><clipPath id="pattern-hover-area"><path d={customAreaTransformedPath(area)}/></clipPath></defs>{dragPattern&&<g clipPath="url(#pattern-hover-area)"><PatternGraphic element={{...area,type:'pattern',content:dragPattern.id,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings} as DesignElement}/></g>}<path d={customAreaTransformedPath(area)} fill="none" stroke="#737373" strokeWidth="1"/>
+                <defs><clipPath id="pattern-hover-area"><path d={customAreaTransformedPath(area)}/></clipPath></defs>{dragPattern&&<g clipPath="url(#pattern-hover-area)"><PatternGraphic fabricPreview element={{...area,type:'pattern',content:dragPattern.id,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></g>}<path d={customAreaTransformedPath(area)} fill="none" stroke="#737373" strokeWidth="1"/>
               </svg> : null}
               <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#fafafa] px-3 py-1 text-xs text-[#262626]" role="status">Fill {part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
             </div>;
@@ -3806,10 +3809,12 @@ export function PrintsDesignPreview({
 
             const patternPart = element.patternTarget ? patternTargets.find(target => target.id === element.patternTarget) : undefined;
             if (element.patternTarget && !patternPart) return null;
-            const visualElement = patternPart ? { ...element, ...patternPart.bounds, rotation: 0 }
+            const liveElement = patternPart ? { ...element, ...patternPart.bounds, rotation: 0, patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700) }
               : element.type === 'customArea' && liveCustomAreaPoints?.id === element.id
                 ? { ...element, customAreaViewWidth: customAreaViewport(element).width, customAreaViewHeight: customAreaViewport(element).height, customAreaPoints: liveCustomAreaPoints.points }
                 : liveShapePath?.id === element.id ? { ...element, shapePath: liveShapePath.path } : element;
+            const visualElement = !assetMode && liveElement.type === 'customArea' && liveElement.customAreaPattern
+              ? {...liveElement,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} : liveElement;
             const isHeld = draggingId === element.id && editable && !locked;
             const liveX =
               isHeld && dragLivePos ? dragLivePos.x : visualElement.x;
@@ -3834,6 +3839,7 @@ export function PrintsDesignPreview({
                 key={element.id}
                 data-print-id={element.id}
                 data-pattern-part-mask={patternPart?drawingMaskCss(patternPart,visualElement.width,visualElement.height,visualElement.x,visualElement.y,0):undefined}
+                data-pattern-reference-size={visualElement.patternReferenceSize}
                 data-pattern-part-label={patternPart?.label}
                 data-pattern-part-bounds={patternPart?JSON.stringify(patternPart.bounds):undefined}
                 data-artwork-hit-disabled={element.id === DRAWING_LAYER_ID ? '' : undefined}
@@ -4050,7 +4056,7 @@ export function PrintsDesignPreview({
             </div>
           </div>
         </div>
-        </div></GarmentPrintTextureContext.Provider></GarmentWearHostContext.Provider>
+        </div></GarmentPatternReliefContext.Provider></GarmentPrintTextureContext.Provider></GarmentWearHostContext.Provider>
       </div>
 
     </div>

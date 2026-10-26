@@ -4,6 +4,8 @@ export interface PatternSettings {
   customAreaPattern?: string;
   width: number;
   height: number;
+  /** Shared garment coordinate reference; never derived from a sleeve bounding box. */
+  patternReferenceSize?: number;
   patternCount?: number;
   patternScale?: number;
   patternSpacing?: number;
@@ -53,9 +55,9 @@ export function patternMetrics(element: PatternSettings) {
   const count = Math.round(bounded(element.patternCount, defaultCount, 1, 32));
   const scale = bounded(element.patternScale, 100, 10, 400) / 100;
   const spacing = bounded(element.patternSpacing, 0, 0, 200);
-  const reference = kind === 'stripes' ? width : kind === 'stripes-h' ? height : Math.min(width, height);
+  const reference = bounded(element.patternReferenceSize, kind === 'stripes' ? width : kind === 'stripes-h' ? height : Math.min(width, height), 1, 100000);
   const legacyCell = kind === 'checks' ? 12 : kind === 'diagonal' ? 24 / Math.SQRT2 : 24;
-  const baseCell = element.type === 'customArea' ? legacyCell * defaultCount / count : reference / count;
+  const baseCell = element.type === 'customArea' && element.patternReferenceSize == null ? legacyCell * defaultCount / count : reference / count;
   const cell = baseCell * scale;
   const pitch = cell + spacing;
   const defaultThickness = kind === 'dots' ? baseCell * (element.type === 'customArea' ? .25 : .44)
@@ -112,3 +114,6 @@ export function newPatternSeed() {
   if (globalThis.crypto?.getRandomValues) return globalThis.crypto.getRandomValues(words)[0]!;
   return Math.floor(Math.random() * 0x100000000);
 }
+
+/** Part fills share a fabric repeat scale in the garment's local canvas coordinates. */
+export function garmentPatternReference(width:number,height:number){return Math.max(1,Math.min(width,height)*.45);}

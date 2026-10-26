@@ -1,4 +1,5 @@
-import { useId } from 'react';
+import { useContext,useId } from 'react';
+import {GarmentPatternReliefContext} from './GarmentPrintTexture';
 import type { DesignElement } from '../PrintStudioEditor';
 import { patternGeometry, patternKind } from '../../../lib/patternGeometry';
 import { patternDefinition } from '../../../lib/patternCatalog';
@@ -7,13 +8,13 @@ import { artworkFlipStyle } from '../../../lib/artworkFlip';
 import { paintDataUrl, parsePaint, solidPaint, svgPaint } from '../../../lib/studioPaint';
 
 type PatternBounds = { x: number; y: number; width: number; height: number };
-type PatternGraphicProps = { element: DesignElement; bounds?: PatternBounds };
+type PatternGraphicProps = { element: DesignElement; bounds?: PatternBounds;fabricPreview?:boolean };
 
 /** Opacity belongs to the artwork wrapper, shared with the other element types. */
-export function PatternGraphic({ element, bounds }: PatternGraphicProps) {
+export function PatternGraphic({ element, bounds,fabricPreview }: PatternGraphicProps) {
   const definition = patternDefinition(patternKind(element));
   return definition && definition.category !== 'Classic'
-    ? <GeneratedPatternGraphic element={element} bounds={bounds} /> : <LegacyPatternGraphic element={element} bounds={bounds} />;
+    ? <GeneratedPatternGraphic element={element} bounds={bounds} fabricPreview={fabricPreview} /> : <LegacyPatternGraphic element={element} bounds={bounds} fabricPreview={fabricPreview} />;
 }
 
 function GeneratedPrimitive({ primitive, colors }: { primitive: PatternPrimitive; colors: string[] }) {
@@ -49,12 +50,12 @@ function GeneratedPaint({ value, id }: { value: string; id: string }) {
 
 function patternPlacement(element: PatternGraphicProps['element'], angle: number) {
   // Continuous sections share the garment coordinate origin, so neighbouring parts line up.
-  const shiftX = (element.patternOffsetX ?? 0) - (element.patternAlignment === 'continuous' ? element.x ?? 0 : 0);
-  const shiftY = (element.patternOffsetY ?? 0) - (element.patternAlignment === 'continuous' ? element.y ?? 0 : 0);
+  const shiftX = (element.patternOffsetX ?? 0) - (element.patternAlignment === 'continuous' ? (element.x ?? 0)-element.width/2 : 0);
+  const shiftY = (element.patternOffsetY ?? 0) - (element.patternAlignment === 'continuous' ? (element.y ?? 0)-element.height/2 : 0);
   return `translate(${shiftX} ${shiftY}) rotate(${angle})`;
 }
 
-function GeneratedPatternGraphic({ element, bounds }: PatternGraphicProps) {
+function GeneratedPatternGraphic({ element, bounds,fabricPreview }: PatternGraphicProps) {
   const id = useId().replace(/:/g, '');
   const geometry = generatedPatternGeometry(element);
   const { width, height, tileWidth, tileHeight } = geometry;
@@ -79,10 +80,11 @@ function GeneratedPatternGraphic({ element, bounds }: PatternGraphicProps) {
       </pattern>
     </defs>
     <rect {...(bounds ?? { x: 0, y: 0, width, height })} fill={`url(#generated-repeat-${id})`} />
+    {fabricPreview&&<PatternReliefImage element={element} bounds={bounds} fill={`url(#generated-repeat-${id})`}/>}
   </svg>;
 }
 
-function LegacyPatternGraphic({ element, bounds }: PatternGraphicProps) {
+function LegacyPatternGraphic({ element, bounds,fabricPreview }: PatternGraphicProps) {
   const id = useId().replace(/:/g, '');
   const geometry = patternGeometry(element);
   const { width, height, tileSize, angle } = geometry;
@@ -102,5 +104,12 @@ function LegacyPatternGraphic({ element, bounds }: PatternGraphicProps) {
       </mask>
     </defs>
     <rect {...(bounds ?? { x: 0, y: 0, width, height })} fill={paint.color} mask={`url(#pattern-mask-${id})`} />
+    {fabricPreview&&<PatternReliefImage element={element} bounds={bounds} fill="white" mask={`url(#pattern-mask-${id})`}/>}
   </svg>;
+}
+
+function PatternReliefImage({element,bounds,fill,mask}:{element:DesignElement;bounds?:PatternBounds;fill:string;mask?:string}){
+ const relief=useContext(GarmentPatternReliefContext),id=useId().replace(/:/g,'');
+ if(!relief)return null;
+ return <><defs><mask id={`hover-relief-${id}`} maskUnits="userSpaceOnUse" {...(bounds??{x:0,y:0,width:element.width,height:element.height})} style={{maskType:'alpha'}}><rect {...(bounds??{x:0,y:0,width:element.width,height:element.height})} fill={fill} mask={mask}/></mask></defs><image data-pattern-hover-relief href={relief.url} x={element.width/2-element.x} y={element.height/2-element.y} width={relief.width} height={relief.height} mask={`url(#hover-relief-${id})`} style={{mixBlendMode:'multiply'}}/></>;
 }

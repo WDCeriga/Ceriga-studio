@@ -1,3 +1,4 @@
+import {textileCamouflage} from './textileCamouflage';
 import type { PatternMotif, PatternPrimitive, PatternReplica } from './generatedPatterns';
 import { patternDefaultColors, patternDefinition } from './patternCatalog';
 import type { PatternSettings } from './patternGeometry';
@@ -143,122 +144,10 @@ function smoothClosed(points: Pt[]): string {
   const last = points.length - 1;
   return `M${mid(points[last], points[0])}${points.map((p, i) => `Q${f(p[0])} ${f(p[1])} ${mid(p, points[(i + 1) % points.length])}`).join('')}Z`;
 }
-const polygonPath = (points: Pt[]) => `M${points.map(p => `${f(p[0])} ${f(p[1])}`).join('L')}Z`;
-
-function organic(random: () => number, r: number, irregular: number, stretch: number, rotation: number, points = 16): Pt[] {
-  const harmonics = [1, 2, 3, 4].map(k => ({ k, a: (random() - .5) * 2 / (k * .8), p: random() * Math.PI * 2 }));
-  const cos = Math.cos(rotation), sin = Math.sin(rotation);
-  return Array.from({ length: points }, (_, i) => {
-    const angle = i / points * Math.PI * 2;
-    let m = 1 + irregular * .25 * (random() - .5);
-    for (const h of harmonics) m += irregular * h.a * Math.sin(h.k * angle + h.p) * .8;
-    m = Math.max(.25, m);
-    const x = Math.cos(angle) * r * m * stretch, y = Math.sin(angle) * r * m / Math.sqrt(stretch);
-    return [x * cos - y * sin, x * sin + y * cos] as Pt;
-  });
-}
-
-function angular(random: () => number, r: number, sharpness: number, stretch: number, rotation: number, base = 5): Pt[] {
-  const sides = base + Math.floor(random() * 4);
-  const cos = Math.cos(rotation), sin = Math.sin(rotation);
-  return Array.from({ length: sides }, (_, i) => {
-    const angle = (i + (random() - .5) * .7) / sides * Math.PI * 2;
-    const m = .55 + random() * (.35 + sharpness * .5);
-    const x = Math.cos(angle) * r * m * stretch, y = Math.sin(angle) * r * m / Math.sqrt(stretch);
-    return [x * cos - y * sin, x * sin + y * cos] as Pt;
-  });
-}
-
-/** Jittered-grid positions give an even but non-gridded distribution. */
-function spread(random: () => number, amount: number, size: number): Pt[] {
-  const side = Math.max(1, Math.ceil(Math.sqrt(amount)));
-  const cells = Array.from({ length: side * side }, (_, i) => i);
-  for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
-  return cells.slice(0, amount).map(cell => [((cell % side) + random()) / side * size, (Math.floor(cell / side) + random()) / side * size] as Pt);
-}
 
 function camouflage(kind: string, o: Record<string, number | string>, colors: string[], c: Context): FashionTile {
-  const T = Math.max(40, c.ref * 1.5 * c.scale);
-  const random = seeded(c.seed ^ kind.length * 2654435761);
-  const primitives: PatternPrimitive[] = [];
-  const num = (key: string, fallback = 0) => Number.isFinite(Number(o[key])) ? Number(o[key]) : fallback;
-  const overlap = .7 + num('overlap', 40) / 100 * .8;
-  const size = num('shapeSize', 100) / 100;
-  const emit = (points: Pt[], cx: number, cy: number, radius: number, fill: number, smooth: boolean) => {
-    for (const dx of [0, T, -T]) for (const dy of [0, T, -T]) {
-      const x = cx + dx, y = cy + dy;
-      if (x + radius < 0 || x - radius > T || y + radius < 0 || y - radius > T) continue;
-      const shifted = points.map(p => [p[0] + x, p[1] + y] as Pt);
-      primitives.push({ tag: 'path', d: smooth ? smoothClosed(shifted) : polygonPath(shifted), fill });
-    }
-  };
-  const layerCount = colors.length - 1;
-  const perLayer = Math.max(1, Math.round(c.count * 1.8));
-  const baseRadius = T * .13 * size * overlap;
-
-  if (kind === 'camo-tiger') {
-    const length = num('stripeLength', 120) / 100, width = num('stripeWidth', 100) / 100, curvature = num('curvature', 40) / 100;
-    const direction = num('direction', 70) * Math.PI / 180;
-    const total = Math.max(2, Math.round(c.count * 2.6));
-    for (let layer = 0; layer < layerCount; layer++) {
-      for (const [x, y] of spread(random, total, T)) {
-        const half = T * .2 * length * (.55 + random() * .8);
-        const w = T * .03 * width * (.6 + random() * .9);
-        const angle = direction + (random() - .5) * .45;
-        const phase = random() * Math.PI * 2, bend = curvature * half * .45;
-        const cos = Math.cos(angle), sin = Math.sin(angle);
-        const segments = random() < .4 ? [[-1, -.12], [.12, 1]] : [[-1, 1]];
-        for (const [from, to] of segments) {
-          const steps = 12, left: Pt[] = [], right: Pt[] = [];
-          for (let s = 0; s <= steps; s++) {
-            const t = from + (to - from) * s / steps;
-            const taper = Math.pow(Math.max(0, 1 - Math.abs(t) ** 1.7), .8) * (t < 0 ? 1 : .85);
-            const lateral = Math.sin(t * Math.PI * .9 + phase) * bend;
-            const hw = Math.max(.3, w * taper * (1 + .25 * Math.sin(t * 9 + phase)));
-            const px = t * half, py = lateral;
-            left.push([px * cos - (py - hw) * sin, px * sin + (py - hw) * cos]);
-            right.push([px * cos - (py + hw) * sin, px * sin + (py + hw) * cos]);
-          }
-          emit([...left, ...right.reverse()], x, y, half + w * 2, layer + 1, true);
-        }
-      }
-    }
-    return motifTile(T, T, primitives, colors);
-  }
-
-  const urban = kind === 'camo-urban';
-  const angularStyle = urban && o.style === 'angular';
-  const sharpness = num('sharpness', 50) / 100;
-  const irregular = kind === 'camo-abstract' ? .6 + num('distortion', 30) / 100 : urban ? (angularStyle ? 0 : 1 - sharpness * .6) : num('irregularity', 55) / 100 * 1.3;
-  const accentColor = kind === 'camo-desert' && layerCount >= 3 ? layerCount : 0;
-  const patchLayers = layerCount - (accentColor ? 1 : 0);
-
-  for (let layer = 0; layer < patchLayers; layer++) {
-    const amount = Math.max(1, Math.round(perLayer * (kind === 'camo-desert' ? 1.3 - layer * .08 : 1)));
-    for (const [x, y] of spread(random, amount, T)) {
-      const r = baseRadius * (.6 + random() * .8) * (kind === 'camo-abstract' ? .75 + random() * .35 : 1);
-      const rotation = random() * Math.PI * 2;
-      if (kind === 'camo-abstract') {
-        const complexity = num('complexity', 50) / 100, stretch = 1 + num('stretch', 40) / 100 * 2 * random();
-        const curvature = num('curvature', 50) / 100, distortion = num('distortion', 30) / 100;
-        const form = random();
-        const points = form < .3 * (1 - complexity * .5) ? angular(random, r, 1, stretch, rotation, 4 + Math.round(complexity * 4))
-          : organic(random, r, irregular, form > .75 ? stretch * 1.8 : stretch, rotation, 10 + Math.round(complexity * 14));
-        const bent = points.map(([px, py]) => [px + curvature * py * py / (r + 1) * .6 + (random() - .5) * distortion * r * .25, py] as Pt);
-        emit(bent, x, y, r * 3 * stretch, layer + 1, form >= .3 * (1 - complexity * .5) && curvature > .25);
-      } else if (angularStyle) {
-        emit(angular(random, r, sharpness, 1 + random() * .9, rotation, 4), x, y, r * 2, layer + 1, false);
-      } else {
-        const points = organic(random, r, irregular, 1 + random() * (kind === 'camo-desert' ? .5 : .7), rotation, kind === 'camo-urban' && sharpness > .7 ? 9 : 16);
-        emit(points, x, y, r * 2.2, layer + 1, !(urban && sharpness > .7));
-      }
-    }
-  }
-  if (accentColor) {
-    const marks = Math.round(perLayer * 3 * num('accents', 40) / 100);
-    for (const [x, y] of spread(random, marks, T)) emit(organic(random, T * .018 * size * (.6 + random()), irregular, 1.4 + random(), random() * Math.PI, 9), x, y, T * .06, accentColor, true);
-  }
-  return motifTile(T, T, primitives, colors);
+  const T = Math.max(40, c.ref * 3.2 * c.scale);
+  return motifTile(T,T,textileCamouflage(kind,o,colors.length,c.count,c.seed,T),colors);
 }
 
 function topographic(style: string, terrain: number, elevation: number, smoothness: number, spacing: number, colors: string[], c: Context): FashionTile {

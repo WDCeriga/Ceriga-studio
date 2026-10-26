@@ -4,7 +4,7 @@ import type {DesignElement} from '../PrintStudioEditor';
 import {PatternGraphic} from '../printsStudio/PatternGraphic';
 import {patternDefinition} from '../../../lib/patternCatalog';
 
-type Part={mask?:string;label:string;width:number;height:number;x:number;y:number};
+type Part={mask?:string;label:string;width:number;height:number;x:number;y:number;patternReferenceSize?:number};
 function GarmentPatternCard({element,onSelect}:{element:DesignElement;onSelect:()=>void}){
  const [part,setPart]=useState<Part>({label:element.patternTarget?'Garment part':'Artwork layer',width:element.width,height:element.height,x:element.x,y:element.y});
  useEffect(()=>{
@@ -13,10 +13,10 @@ function GarmentPatternCard({element,onSelect}:{element:DesignElement;onSelect:(
    const node=Array.from(zone.querySelectorAll<HTMLElement>('[data-print-id]')).find(node=>node.dataset.printId===element.id);
    if(!node)return;
    const bounds=node.dataset.patternPartBounds?JSON.parse(node.dataset.patternPartBounds):{width:element.width,height:element.height,x:element.x,y:element.y};
-   const next={...bounds,label:node.dataset.patternPartLabel??'Artwork layer',mask:node.dataset.patternPartMask};
+   const next={...bounds,label:node.dataset.patternPartLabel??'Artwork layer',mask:node.dataset.patternPartMask,patternReferenceSize:node.dataset.patternReferenceSize?Number(node.dataset.patternReferenceSize):undefined};
    setPart(previous=>JSON.stringify(previous)===JSON.stringify(next)?previous:next);
   };
-  refresh();const observer=new MutationObserver(refresh);observer.observe(zone,{childList:true,subtree:true,attributes:true,attributeFilter:['data-pattern-part-mask','data-pattern-part-label','data-pattern-part-bounds']});
+  refresh();const observer=new MutationObserver(refresh);observer.observe(zone,{childList:true,subtree:true,attributes:true,attributeFilter:['data-pattern-part-mask','data-pattern-part-label','data-pattern-part-bounds','data-pattern-reference-size']});
   return()=>observer.disconnect();
  },[element.id,element.width,element.height,element.x,element.y]);
  return <button className="applied-pattern-card" onClick={onSelect} aria-label={`Edit ${patternDefinition(element.content)?.label??'pattern'} on ${part.label}`}><div className="applied-pattern-part"><div style={{aspectRatio:`${part.width}/${part.height}`,height:part.height>=part.width?'100%':'auto',width:part.width>part.height?'100%':'auto',maxWidth:'100%',maxHeight:'100%',maskImage:part.mask,maskSize:'100% 100%',maskRepeat:'no-repeat',background:'#f4f1e9',opacity:(element.opacity??100)/100}}><PatternGraphic element={{...element,...part,rotation:0}}/></div></div><span><strong>{part.label}</strong><small>{patternDefinition(element.content)?.label??'Custom repeat'}</small></span><span className="applied-pattern-edit">Edit<ChevronRight size={13} aria-hidden="true"/></span></button>;

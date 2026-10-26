@@ -1,7 +1,7 @@
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {waitForDrawingReplay} from './DrawingArtwork';
 import {useContext} from 'react';
-import {GarmentPrintTextureContext} from './GarmentPrintTexture';
+import {GarmentPatternReliefContext,GarmentPrintTextureContext} from './GarmentPrintTexture';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import {ArtworkInteractionContext} from './ArtworkInteractionContext';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
@@ -26,7 +26,10 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
   cropping?: boolean;
   cropOverlay?: ReactNode;
 }) {
-  const texture=useContext(GarmentPrintTextureContext);
+  const printTexture=useContext(GarmentPrintTextureContext);
+  const patternTexture=useContext(GarmentPatternReliefContext);
+  const pattern=element.type==='pattern'||Boolean(element.customAreaPattern);
+  const texture=pattern?patternTexture:printTexture;
   const [printMask,setPrintMask]=useState<{url:string;width:number;height:number;padding:number}|null>(null);
   const surface = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -189,7 +192,7 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
       <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }) }}>
         {element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}
       </div>
-      {texture&&printMask&&element.type!=='distress'&&<div data-print-fabric-relief data-editor-chrome className="pointer-events-none absolute inset-0" style={{mixBlendMode:'multiply',backgroundImage:drawingMaskCss(texture,width,actualHeight,position?.x??element.x,position?.y??element.y,element.rotation),backgroundSize:'100% 100%',maskImage:`url("${printMask.url}")`,maskSize:`${printMask.width}px ${printMask.height}px`,maskPosition:`${-printMask.padding}px ${-printMask.padding}px`,maskRepeat:'no-repeat'}}/>}
+      {texture&&printMask&&element.type!=='distress'&&<div data-print-fabric-relief data-pattern-fabric-relief={pattern?'':undefined} data-editor-chrome className="pointer-events-none absolute inset-0" style={{mixBlendMode:'multiply',backgroundImage:drawingMaskCss(texture,width,actualHeight,position?.x??element.x,position?.y??element.y,element.rotation),backgroundSize:'100% 100%',maskImage:`url("${printMask.url}")`,maskSize:`${printMask.width}px ${printMask.height}px`,maskPosition:`${-printMask.padding}px ${-printMask.padding}px`,maskRepeat:'no-repeat'}}/>}
     </div>
     </div>
     {cropping ? <div data-editor-chrome className="pointer-events-auto absolute inset-0" style={{ height: actualHeight, transformOrigin: '0 0', transform: projectionTransform }}>{cropOverlay}</div> : null}

@@ -113,7 +113,7 @@ export function sourceSignature(element: DesignElement) {
     element.shapeFilled, element.shapeFillColor, element.shapeStrokeColor, JSON.stringify(element.shapeParameters), JSON.stringify(element.shapePath), JSON.stringify(element.shapeEffects),
     element.borderWidth, element.borderColor, element.shadowBlur, element.shadowColor,
     element.shadowOffsetX, element.shadowOffsetY, element.shadowOpacity, element.shadowEdge,
-    element.textShadowEnabled, JSON.stringify(element.textEffects), element.patternCount, element.patternScale, element.patternSpacing,
+    element.textShadowEnabled, JSON.stringify(element.textEffects), element.patternReferenceSize,element.patternCount, element.patternScale, element.patternSpacing,
     element.patternRotation, element.patternThickness, element.patternRandomise, element.patternSeed,
     element.patternSpacingX, element.patternSpacingY, JSON.stringify(element.patternColors), element.patternRoughness, element.patternVariation,
     element.patternSource, element.patternSourceWidth, element.patternSourceHeight, element.patternRepeat,
