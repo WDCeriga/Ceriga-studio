@@ -57,6 +57,7 @@ function cleanBodyFabric(layer:ResolvedGarmentLayer):ResolvedGarmentLayer{
 /** Shared garment outlines and bounded smoothing of the existing non-polo collar contours. */
 export function withTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:string,finish:NeckFinish='ribbed',view:'front'|'back'='front',hems?:TshirtHemStyles):ResolvedGarmentLayer[]{
 
+ if(layers.some(l=>l.svgRaw.includes('data-shoulder-construction="true"')))return layers;
  // Raster neck parts are already final traced construction. Keep their paths intact.
  if(layers.some(l=>l.svgRaw.includes('data-raster-neck="true"'))){
   const cleaned=applyConstructedHemStyles(straightenOversizedShoulders(constructSleeveFamily(layers.map(l=>{const parent=l.id.startsWith('underlayerHem')?layers.find(p=>p.id===l.id.replace('underlayerHem','underSleeve')):undefined,ring=parent?fabricRings(parent.svgRaw)[0]:undefined;return cleanBodyFabric(cleanSleeveFabric(l,8,ring?{minX:Math.min(...ring.map(p=>p.x)),maxX:Math.max(...ring.map(p=>p.x))}:undefined));}),fit),fit),hems);

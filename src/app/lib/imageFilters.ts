@@ -4,6 +4,9 @@
  */
 export const IMAGE_FILTERS = [
   { id: 'none', label: 'Original / None' },
+  { id: 'extract-light', label: 'Extract light ink' },
+  { id: 'extract-dark', label: 'Extract dark ink' },
+  { id: 'remove-colour', label: 'Remove background colour' },
   { id: 'bw', label: 'B&W' },
   { id: 'high-contrast-bw', label: 'High Contrast B&W' },
   { id: 'grayscale', label: 'Grayscale' },
@@ -51,6 +54,12 @@ export type ImageFilterSettings = {
   midtoneColor?: string;
   highlightColor?: string;
   threshold?: number;
+  softness?: number;
+  inkColor?: string;
+  backgroundColor?: string;
+  inkChroma?: number;
+  inkCleanup?: number;
+  backgroundTolerance?: number;
   pixelSize?: number;
   amount?: number;
   separation?: number;
@@ -82,6 +91,9 @@ const texture = (grain: number, fade: number): ImageFilterControl[] => [
   range('grain', 'Grain', 0, 100, grain, '%'), range('fade', 'Fade', 0, 100, fade, '%'),
 ];
 const CONTROLS: Partial<Record<ImageFilterId, ImageFilterControl[]>> = {
+  'extract-light': [range('threshold','Ink threshold',0,255,155),range('softness','Edge softness',1,100,25),range('inkChroma','Maximum ink colour spread',0,255,255),range('inkCleanup','Clean ink edges',0,100,0),color('backgroundColor','Reject background colour','#344357'),range('backgroundTolerance','Background rejection',0,255,0),color('inkColor','Ink colour','#ece8db')],
+  'extract-dark': [range('threshold','Ink threshold',0,255,110),range('softness','Edge softness',1,100,25),range('inkChroma','Maximum ink colour spread',0,255,255),range('inkCleanup','Clean ink edges',0,100,0),color('backgroundColor','Reject background colour','#344357'),range('backgroundTolerance','Background rejection',0,255,0),color('inkColor','Ink colour','#171717')],
+  'remove-colour': [color('backgroundColor','Background colour','#344357'),range('threshold','Colour tolerance',0,255,50),range('softness','Edge softness',1,100,20)],
   bw: [range('contrast', 'Contrast', 0, 100, 20)],
   'high-contrast-bw': [range('contrast', 'Contrast', 0, 100, 70)],
   vintage: texture(18, 22), washed: texture(0, 38), faded: texture(0, 48),
@@ -314,6 +326,12 @@ export function applyImageFilter(data: Uint8ClampedArray, width: number, height:
     return output;
   }
 
+  const hex=(value:string)=>[1,3,5].map(start=>parseInt(value.slice(start,start+2),16));
+  const soft=number('softness',25,1,100);
+  const cutoff=number('threshold',id==='extract-dark'?110:id==='remove-colour'?50:155,0,255);
+  const background=hex(/^#[a-f0-9]{6}$/i.test(settings.backgroundColor??'')?settings.backgroundColor!:'#344357');
+  const inkChroma=number('inkChroma',255,0,255),reject=number('backgroundTolerance',0,0,255);
+  const extractedInk=hex(/^#[a-f0-9]{6}$/i.test(settings.inkColor??'')?settings.inkColor!:id==='extract-light'?'#ece8db':'#171717');
   const blurDistance = scale * (id === 'dreamy' ? 7 : 3);
   const blurRadius = Math.max(1, Math.ceil(blurDistance));
   const blurred = id === 'soft' || id === 'dreamy' ? blur(data, width, height, blurRadius) : undefined;
@@ -349,6 +367,20 @@ export function applyImageFilter(data: Uint8ClampedArray, width: number, height:
         r *= vignette; g *= vignette; b *= vignette;
       }
     } else switch (id) {
+      case 'extract-light':
+      case 'extract-dark':
+      case 'remove-colour': {
+        const distance=id==='remove-colour'?Math.hypot(r-background[0],g-background[1],b-background[2]):light;
+        const chroma=Math.max(r,g,b)-Math.min(r,g,b);
+        const separation=id==='remove-colour'?1:clamp((inkChroma-chroma)/soft+.5,0,1)*(reject===0?1:clamp((Math.hypot(r-background[0],g-background[1],b-background[2])-reject)/soft+.5,0,1));
+        const coverage=clamp((id==='extract-dark'?cutoff-distance:distance-cutoff)/soft+.5,0,1)*separation;
+        if(id!=='remove-colour'){
+          r=extractedInk[0];g=extractedInk[1];b=extractedInk[2];
+        }
+        write(i,r,g,b);
+        output[i+3]=data[i+3]*coverage;
+        continue;
+      }
       case 'sepia':
         r = data[i] * 0.393 + data[i + 1] * 0.769 + data[i + 2] * 0.189;
         g = data[i] * 0.349 + data[i + 1] * 0.686 + data[i + 2] * 0.168;
@@ -402,6 +434,24 @@ export function applyImageFilter(data: Uint8ClampedArray, width: number, height:
       }
     }
     write(i, r, g, b);
+  }
+  if(id==='extract-light'||id==='extract-dark'||id==='remove-colour'){
+    const cleanup=number('inkCleanup',0,0,100);
+    if(cleanup>0){
+      const radius=Math.max(1,Math.min(4,Math.round(cleanup/100*3*scale)));
+      let alpha=new Uint8ClampedArray(width*height);for(let i=0;i<alpha.length;i++)alpha[i]=output[i*4+3];
+      const pass=(input:Uint8ClampedArray,r:number,max:boolean)=>{
+        const row=new Uint8ClampedArray(input.length),out=new Uint8ClampedArray(input.length);
+        for(let y=0;y<height;y++)for(let x=0;x<width;x++){let v=max?0:255;for(let k=-r;k<=r;k++){const px=x+k;const a=px>=0&&px<width?input[y*width+px]:0;v=max?Math.max(v,a):Math.min(v,a)}row[y*width+x]=v}
+        for(let y=0;y<height;y++)for(let x=0;x<width;x++){let v=max?0:255;for(let k=-r;k<=r;k++){const py=y+k;const a=py>=0&&py<height?row[py*width+x]:0;v=max?Math.max(v,a):Math.min(v,a)}out[y*width+x]=v}
+        return out;
+      };
+      // Close pinholes, then remove isolated one-pixel fibres. The source stays intact.
+      alpha=pass(pass(alpha,radius,true),radius,false);
+      alpha=pass(pass(alpha,1,false),1,true);
+      for(let i=0;i<alpha.length;i++)output[i*4+3]=Math.min(data[i*4+3],alpha[i]);
+    }
+    for(let i=3;i<output.length;i+=4)output[i]=data[i]+(output[i]-data[i])*intensity;
   }
   return output;
 }

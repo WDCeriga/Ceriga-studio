@@ -1,0 +1,23 @@
+@import '@fontsource/graduate/latin-400.css';
+@import '@fontsource/jersey-10/latin-400.css';
+@import '@fontsource/bungee/latin-400.css';
+@import '@fontsource/alfa-slab-one/latin-400.css';
+@import '@fontsource/anton/latin-400.css';
+@import '@fontsource/bebas-neue/latin-400.css';
+@import '@fontsource/oswald/latin-600.css';
+@import '@fontsource/barlow-condensed/latin-700.css';
+@import '@fontsource/archivo-black/latin-400.css';
+@import '@fontsource/black-ops-one/latin-400.css';
+@import '@fontsource/stardos-stencil/latin-700.css';
+@import '@fontsource/unifrakturcook/latin-700.css';
+@import '@fontsource/pirata-one/latin-400.css';
+@import '@fontsource/pinyon-script/latin-400.css';
+@import '@fontsource/yellowtail/latin-400.css';
+@import '@fontsource/lobster/latin-400.css';
+@import '@fontsource/permanent-marker/latin-400.css';
+@import '@fontsource/rye/latin-400.css';
+@import '@fontsource/abril-fatface/latin-400.css';
+
+@import '@fontsource/poppins/latin-400.css';
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2')}
+@font-face{font-family:'Montserrat';font-style:normal;font-weight:100 900;font-display:swap;src:url('@fontsource-variable/montserrat/files/montserrat-latin-wght-normal.woff2') format('woff2')}

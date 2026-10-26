@@ -91,6 +91,7 @@ export interface CustomAssetInstance {
 }
 
 export interface CustomAssetState {
+  shoulderConstruction?:import('./shoulderConstruction').ShoulderConstruction;
   importedGarment?: import('./importedGarment').ImportedGarment;
   garmentDetails?: GarmentDetail[];
   customAssets?: CustomAssetDefinition[];

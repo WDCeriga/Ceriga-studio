@@ -80,7 +80,7 @@ export function paintFilteredImage(canvas: HTMLCanvasElement, pixels: FilteredPi
   const data = new Uint8ClampedArray(pixels.data.length);
   for (let index = 0; index < data.length; index += 4) {
     for (let channel = 0; channel < 3; channel++) data[index + channel] = pixels.original[index + channel] + (pixels.data[index + channel] - pixels.original[index + channel]) * amount;
-    data[index + 3] = pixels.original[index + 3];
+    data[index + 3] = pixels.original[index + 3] + (pixels.data[index + 3] - pixels.original[index + 3]) * amount;
   }
   canvas.width = pixels.width; canvas.height = pixels.height;
   canvas.getContext('2d')!.putImageData(new ImageData(data, pixels.width, pixels.height), 0, 0);

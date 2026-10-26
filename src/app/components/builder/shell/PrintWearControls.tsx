@@ -1,0 +1,9 @@
+import type {DesignElement} from '../PrintStudioEditor';
+import {createTextEffect} from '../../../lib/textEffects';
+import {StudioFold,StudioRange,StudioNumber} from './StudioControls';
+export function PrintWearControls({element:el,update}:{element:DesignElement;update:(p:Partial<DesignElement>)=>void}){
+ const key=el.type==='text'?'textEffects':'shapeEffects',effects=el[key]??[],wear=effects.find(e=>e.id==='print-wear');
+ const apply=(type:'cracked'|'distressed')=>update({[key]:[...effects.filter(e=>e.id!=='print-wear'),{...createTextEffect(type),id:'print-wear'}]});
+ const patch=(p:Partial<NonNullable<typeof wear>>)=>update({[key]:effects.map(e=>e.id==='print-wear'?{...e,...p}:e)});
+ return <StudioFold title="Ink wear" hint={wear?wear.type==='cracked'?'Cracks through the ink':'Chips and holes through the ink':'Cracks & chipped print'}><div className="advanced-tool-pair"><button disabled={el.locked} aria-pressed={!wear} onClick={()=>update({[key]:effects.filter(e=>e.id!=='print-wear')})}>Clean</button><button disabled={el.locked} aria-pressed={wear?.type==='cracked'} onClick={()=>apply('cracked')}>Cracked</button><button disabled={el.locked} aria-pressed={wear?.type==='distressed'} onClick={()=>apply('distressed')}>Chipped</button></div>{wear&&<><StudioRange label="Wear strength" value={wear.intensity} onChange={intensity=>patch({intensity})}/><StudioNumber label={wear.type==='cracked'?'Crack size':'Chip size'} unit="px" min={wear.type==='cracked'?4:1} max={wear.type==='cracked'?60:24} value={Number(wear.settings.size)} onChange={size=>patch({settings:{...wear.settings,size}})}/><button disabled={el.locked} className="shape-geometry-reset" onClick={()=>patch({seed:wear.seed+1})}>New wear variation</button></>}<p className="typography-help">Removes printed ink so the fabric shows through. It does not cut holes into the garment. More controls are available in Effects & reshape.</p></StudioFold>;
+}

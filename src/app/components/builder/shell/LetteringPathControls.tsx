@@ -1,0 +1,11 @@
+import {useState} from 'react';
+import type {DesignElement} from '../PrintStudioEditor';
+import {loadFontLibrary} from '../printsStudio/designLibrary';
+import {canOutlineLettering,outlineLettering} from '../../../lib/editableLettering';
+import {usePrintsStudio} from '../printsStudio/PrintsStudioContext';
+import {StudioFold} from './StudioControls';
+export function LetteringPathControls({element,update}:{element:DesignElement;update:(p:Partial<DesignElement>)=>void}){
+ const studio=usePrintsStudio(),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const convert=async()=>{setBusy(true);setError('');try{update(await outlineLettering(element,loadFontLibrary()));studio.setTool('select');studio.setPathEditingId(element.id)}catch(e){setError(e instanceof Error?e.message:'Could not create lettering paths')}finally{setBusy(false)}};
+ return <StudioFold title="Custom lettering" hint="Reshape individual letters with vector points">{element.letteringSource?<><p className="typography-help">Edit points to shape the lettering. Its original words and font are kept below.</p><button className="studio-outline-action" onClick={()=>{studio.setTool('select');studio.setPathEditingId(studio.pathEditingId===element.id?null:element.id)}}>{studio.pathEditingId===element.id?'Finish editing letter points':'Edit letter points'}</button><button className="studio-outline-action" onClick={()=>{studio.setPathEditingId(null);update({...element.letteringSource!,x:element.x,y:element.y,rotation:element.rotation,letteringSource:undefined,shapePath:undefined,shapeEffects:undefined})}}>Restore editable text</button></>:<><p className="typography-help">Turn lettering into editable curves for custom logos. The original text is retained. Works with straight or arched text in the bundled display fonts and imported TTF, OTF or WOFF fonts.</p><button className="studio-outline-action" disabled={busy||Boolean(element.verticalText)||((element.textCurveAmount??0)>0&&element.textCurveShape==='circle')||!canOutlineLettering(element.fontFamily??'Inter',loadFontLibrary())} onClick={convert}>{busy?'Building curves…':'Convert to editable lettering'}</button></>}{error&&<p role="alert">{error}</p>}</StudioFold>;
+}

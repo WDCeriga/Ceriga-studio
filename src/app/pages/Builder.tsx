@@ -1,3 +1,4 @@
+import {ShoulderConstructionPicker} from '../components/builder/shell/ShoulderConstructionPicker';
 import {garmentFrameStyle} from '../lib/garmentCanvasFrame';
 import {CustomAssetMeasurementLayer} from '../components/builder/CustomAssetMeasurements';
 import { OrderQuantitiesStudio, OrderRequestInspector } from '../components/builder/OrderQuantitiesStudio';
@@ -367,6 +368,7 @@ interface BuilderState extends CustomAssetState {
   /** PNG layer offsets for garment SVG compositor (drag / scale per part). */
   tshirtLayerTransforms?: Partial<Record<GarmentLayerId, TshirtLayerTransform>>;
   /** One selected SVG asset id per folder under src/assets/{tshirts|hoodie|trousers}. */
+  shoulderConstruction?:import('../data/shoulderConstruction').ShoulderConstruction;
   tshirtAssetSelection?: GarmentAssetSelection;
   /** SVG part pack pinned by the product, when it differs from the garment type default. */
   svgPack?: GarmentSvgGarmentType;
@@ -653,7 +655,7 @@ function BuilderContent() {
   const [showMeasurementGuides,setShowMeasurementGuides]=useState(true);
   const [materialBrush,setMaterialBrush]=useState<MaterialDrop|null>(null);
   const [materialTool,setMaterialTool]=useState<MaterialTool>('Fabric & colour');
-  const [redesignSection,setRedesignSection]=useState<BuilderSection>('Fit & Measurements');
+  const [redesignSection,setRedesignSection]=useState<BuilderSection>(()=>searchParams.get('section')==='artwork'?'Artwork & Graphics':'Fit & Measurements');
   const [orderRunId,setOrderRunId]=useState('sample');
   useEffect(()=>{if(redesignSection!=='Materials & Colour')setMaterialBrush(null);const key=(event:KeyboardEvent)=>{if(event.key==='Escape')setMaterialBrush(null)};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[redesignSection]);
   const [measurementTool,setMeasurementTool]=useState<MeasurementTool>('Core measurements');
@@ -1640,7 +1642,7 @@ function BuilderContent() {
     ) : schematicFabricParts(state),panellingFitRegions);
   }, [garmentSvgType, garmentSelection, activeFit, state.importedGarment, state.tshirtHemStyles,
     state.neckFinish, state.customCollar, state.customCollars, state.customAssets, state.customAssetInstances, state.partColors,
-    state.garmentPanels, state.garmentType, state.neckType, state.sleeveType, state.sleeveLength, state.cuffType, state.hemType, state.pocketType,
+    state.shoulderConstruction, state.garmentPanels, state.garmentType, state.neckType, state.sleeveType, state.sleeveLength, state.cuffType, state.hemType, state.pocketType,
     garmentAssetRevision,panellingFitRegions]);
   const renderPartColors = useMemo(()=>{
     const result = resolveGarmentColours(fabricParts, primaryColor, {
@@ -2748,7 +2750,7 @@ function BuilderContent() {
         </div>;
         return (
           <div className="space-y-4">
-            <MeasurementsStep guidesVisible={showMeasurementGuides} onGuidesVisibleChange={setShowMeasurementGuides}
+            <MeasurementsStep shoulderControls={garmentSvgType==='tshirt'&&!state.importedGarment?<ShoulderConstructionPicker value={state.shoulderConstruction} onChange={shoulderConstruction=>setState(prev=>({...prev,shoulderConstruction}))}/>:undefined} guidesVisible={showMeasurementGuides} onGuidesVisibleChange={setShowMeasurementGuides}
               grading={state.measurementGrading}
               sizingActions={{
                 setBase:size=>setState(prev=>changeBaseSize(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,size)),
@@ -4921,7 +4923,7 @@ function BuilderContent() {
       <InspectorHeading eyebrow="FIT STUDIO" title={title} description={measurementTool==='Core measurements'?'Choose a fit, then refine your garment measurements.':measurementTool==='Advanced sizing'?'Refine size grading, tolerances and production measurements.':measurementTool==='Size comparison'?'Compare proportions across your size range.':undefined}/>
 
       {(!networkOnline||saveError)&&<div role="alert" className="builder-tool-notice"><p>{!networkOnline?'Offline. Reconnect to sync your draft.':'Your last save needs attention.'}</p><button className="builder-link" onClick={()=>handleSave(false)}>Retry save</button></div>}
-      {measurementTool==='Core measurements'||measurementTool==='Advanced sizing'?<>            <MeasurementsStep guidesVisible={showMeasurementGuides} onGuidesVisibleChange={setShowMeasurementGuides}
+      {measurementTool==='Core measurements'||measurementTool==='Advanced sizing'?<>            <MeasurementsStep shoulderControls={garmentSvgType==='tshirt'&&!state.importedGarment?<ShoulderConstructionPicker value={state.shoulderConstruction} onChange={shoulderConstruction=>setState(prev=>({...prev,shoulderConstruction}))}/>:undefined} guidesVisible={showMeasurementGuides} onGuidesVisibleChange={setShowMeasurementGuides}
               grading={state.measurementGrading}
               sizingActions={{
                 setBase:size=>setState(prev=>changeBaseSize(prev,fitMeasurements[prev.fit||activeFit||'regular']??fitMeasurements.regular,size)),

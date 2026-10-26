@@ -1,0 +1,13 @@
+import {PATTERN_CATALOG,patternDefinition} from '../../../lib/patternCatalog';
+import type {DesignElement} from '../PrintStudioEditor';
+import {TEXTILE_INKS,textileInkEffect} from '../../../lib/textileInk';
+import {StudioFold,StudioNumber,StudioPaint} from './StudioControls';
+import {MaterialSelect} from './MaterialSelect';
+export function TextileInkControls({element,update}:{element:DesignElement;update:(patch:Partial<DesignElement>)=>void}){
+ const key=element.type==='text'?'textEffects':'shapeEffects';const effects=element[key]??[],fill=effects.find(e=>e.id==='textile-ink');
+ let colors=['#c9b997','#a94747','#f1eee2','#344357'];try{if(fill)colors=JSON.parse(String(fill.settings.palette))}catch{}
+ const kind=String(fill?.settings.patternId??'plaid'),count=Number(fill?.settings.repeatCount??4),angle=Number(fill?.settings.rotation??0);
+ let options:Record<string,number|string>={};try{options=JSON.parse(String(fill?.settings.patternOptions??'{}'))}catch{}
+ const apply=(k=kind,c=colors,n=count,a=angle,o=options)=>update({...(element.type==='shape'?{shapeFilled:true}:{}),[key]:[textileInkEffect(k,c,n,a,o),...effects.filter(e=>e.id!=='textile-ink')]});
+ return <StudioFold title="Pattern ink" hint={fill?'Editable repeat inside this artwork':'Fill lettering or a badge with a textile repeat'}><label className="studio-switch"><span>Use pattern ink</span><input type="checkbox" aria-label="Use pattern ink" checked={Boolean(fill)} onChange={e=>e.target.checked?apply():update({[key]:effects.filter(e=>e.id!=='textile-ink')})}/></label>{fill&&<><label className="studio-field">Repeat<MaterialSelect aria-label="Pattern ink repeat" value={kind} onChange={e=>apply(e.target.value)}>{PATTERN_CATALOG.filter(p=>p.id!=='custom').map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</MaterialSelect></label><div className="studio-two-columns"><StudioNumber label="Repeat count" value={count} min={1} max={16} step={1} unit="" onChange={v=>apply(kind,colors,v)}/><StudioNumber label="Pattern angle" value={angle} min={-180} max={180} unit="°" onChange={v=>apply(kind,colors,count,v)}/></div>{patternDefinition(kind)?.options?.map(option=><StudioNumber key={option.key} label={option.label} value={Number(options[option.key]??option.value)} min={option.min} max={option.max} unit="%" onChange={v=>apply(kind,colors,count,angle,{...options,[option.key]:v})}/>)}<div className="studio-two-columns">{colors.map((c,i)=><StudioPaint key={i} label={`Ink ${i+1}`} value={c} allowGradients={false} onChange={v=>apply(kind,colors.map((x,j)=>i===j?v:x))}/>)}</div><p className="typography-help">The pattern stays inside your artwork. Text, shape and garment fabric remain editable. Add wear after this fill for faded printing.</p></>}</StudioFold>;
+}

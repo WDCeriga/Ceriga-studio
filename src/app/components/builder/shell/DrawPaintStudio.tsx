@@ -15,6 +15,7 @@ const MEDIA: Record<string, string[]> = {
   'Ink & pencil': ['pencil','pen','fine-liner','technical-pen','ink-pen','calligraphy','marker','highlighter'],
   Paint: ['paint','dry-brush','wet-brush','gouache','watercolour','oil-paint','sponge','airbrush'],
   Texture: ['crayon','chalk','charcoal','pastel','spray','graffiti-marker','graffiti-mop','splatter','drip-paint','halftone-brush','noise-brush','grain-brush','rough-edge-brush','pixel-brush','distress-brush'],
+  'Paint stains': ['splatter','drip-paint','graffiti-mop','sponge'],
   Thread: ['stitching','embroidery','running-stitch','chain-stitch','cross-stitch','zigzag-stitch','satin-stitch','fill-stitch','chain-embroidery','chenille'],
 };
 function StrokeSample({preset}:{preset:typeof BRUSH_PRESETS[number]}) {

@@ -31,8 +31,8 @@ export function DesignGroupArtwork({ element }: { element: DesignElement }) {
                 : child.type==='drawing'&&child.drawing?<DrawingArtwork element={child}/>:child.type === 'shape' || child.type === 'pattern' || child.type === 'distress'
                   ? <div className={`h-full w-full ${child.type === 'shape' ? '' : 'overflow-hidden'}`}><StudioGraphic element={child} /></div>
                   : <div className="relative h-full w-full" style={{ filter: composeArtworkFilter(child) }}>
-                    <FilteredImage source={child.content} settings={child.type === 'image' ? child.imageFilter : undefined} alt="Grouped artwork" className="h-full w-full object-fill" style={{ ...artworkFlipStyle(child), opacity: child.color ? 0 : undefined }} />
-                    {child.color && <div className="pointer-events-none absolute inset-0" style={{ background: paintCss(child.color), maskImage: `url("${child.content}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat', ...artworkFlipStyle(child) }} />}
+                    <FilteredImage source={child.content} settings={child.type === 'image' ? child.imageFilter : undefined} alt="Grouped artwork" className="h-full w-full object-fill" style={{ ...artworkFlipStyle(child), opacity: child.color && !child.imageFilter ? 0 : undefined }} />
+                    {child.color && !child.imageFilter && <div className="pointer-events-none absolute inset-0" style={{ background: paintCss(child.color), maskImage: `url("${child.content}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat', ...artworkFlipStyle(child) }} />}
                   </div>}
         </DesignAssetSurface>
       </div>)}

@@ -83,7 +83,7 @@ export function ShapePathEditor({ element, scale, onChange, onPreview, onDone }:
   }
   return <div data-shape-path-editor data-editor-chrome className="pointer-events-none absolute inset-0 z-50">
     <div role="toolbar" aria-label="Path point actions" className="shape-point-toolbar pointer-events-auto absolute bottom-full left-1/2 -translate-x-1/2 mb-3 flex w-max max-w-[320px] flex-wrap gap-1" style={{ transformOrigin: 'bottom center', scale: String(1 / scale) }}>
-      {path.subpaths?.length ? <MaterialSelect aria-label="Path contour" value={String(subpath)} onChange={event=>{setSubpath(Number(event.target.value));setSelection([])}}><option value="-1">Outer path</option>{path.subpaths.map((_,index)=><option key={index} value={String(index)}>Inner path {index+1}</option>)}</MaterialSelect> : null}
+      {path.subpaths?.length ? <MaterialSelect aria-label="Path contour" value={String(subpath)} onChange={event=>{setSubpath(Number(event.target.value));setSelection([])}}><option value="-1">{element.letteringSource?'Contour 1':'Outer path'}</option>{path.subpaths.map((_,index)=><option key={index} value={String(index)}>{element.letteringSource?`Contour ${index+2}`:`Inner path ${index+1}`}</option>)}</MaterialSelect> : null}
       <button className={button} disabled={!selection.length} onClick={() => apply(smoothShapePoints(activePath, selection, true))}>Curve points</button>
       <button className={button} disabled={!selection.length} onClick={() => apply(smoothShapePoints(activePath, selection, false))}>Corner points</button>
       <button className={button} disabled={!selection.length} onClick={() => { apply(deleteShapePoints(activePath, selection)); setSelection([]); }}>Delete points</button>

@@ -1,3 +1,4 @@
+import {withShoulderConstruction} from './shoulderConstruction';
 import type { GarmentType } from './builderSteps';
 import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
 import { withTshirtHemStyles, type TshirtHemStyles } from './tshirtHemStyles';
@@ -205,6 +206,7 @@ function virtualCustomAsset(
 }
 
 export interface ResolvedGarmentLayer {
+  measurementShoulder?:{x:number;y:number};
   fabricRegion?: {
     role: string; group?: string; interior?: boolean; defaultFromId?: string; parentId?: string;
     materialCategory?: import('./garmentFabrics').FabricCategory;
@@ -1345,6 +1347,7 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
       return { ...layer, tint: color || resolved.find(parent => parent.id === parentId)?.tint };
     });
   }
+  if(input.garmentType==='tshirt')resolved=withShoulderConstruction(resolved,input.customAssetState?.shoulderConstruction,fit,input.view??'front',neckFinish,input.tshirtHemStyles);
   resolved = withCustomAssets(resolved, input.customAssetState ?? {}, input.garmentType, fit, input.view ?? 'front', input.tshirtHemStyles);
   return resolved.sort((a, b) => a.zIndex - b.zIndex);
 }

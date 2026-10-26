@@ -76,7 +76,10 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const left=layers.find(l=>l.id==='sleeveLeft'),hem=layers.find(l=>l.id==='sleeveHemLeft');if(!left||!hem)return layers;
  const key=[fit,left.assetId,left.svgRaw,hem.svgRaw,layers.find(l=>l.id==='base')?.svgRaw,...layers.filter(l=>/^(underSleeve|underlayerHem)/.test(l.id)).map(l=>l.id+':'+l.svgRaw)].join('|'),cached=familyCache.get(key);if(cached)return apply(layers,cached);
  const r=ring(left.svgRaw),h=ring(hem.svgRaw);if(r.length<3||h.length<3)return layers;
- const long=/:long(?::|$)/.test(left.assetId),a=fit==='oversized'?{x:545.333,y:540}:r.reduce((p,q)=>q.y<p.y?q:p,r[0]);
+ const long=/:long(?::|$)/.test(left.assetId);let a=fit==='oversized'?{x:545.333,y:540}:r.reduce((p,q)=>q.y<p.y?q:p,r[0]);
+ // Register the slim cap to the torso shoulder, rather than joining two near-but-different corners.
+ const originalBody=layers.find(l=>l.id==='base'),bodyRing=originalBody?ring(originalBody.svgRaw):[];
+ if(fit==='slim'&&bodyRing.length){const cap=bodyRing[near(bodyRing,a)];if(distance(cap,a)<70)a=cap;}
  const cx=h.reduce((n,p)=>n+p.x,0)/h.length,cy=h.reduce((n,p)=>n+p.y,0)/h.length,xx=h.reduce((n,p)=>n+(p.x-cx)**2,0),yy=h.reduce((n,p)=>n+(p.y-cy)**2,0),xy=h.reduce((n,p)=>n+(p.x-cx)*(p.y-cy),0),angle=.5*Math.atan2(2*xy,xx-yy),ux=Math.cos(angle),uy=Math.sin(angle),nx=-uy,ny=ux;
  const ts=h.map(p=>p.x*ux+p.y*uy),top=Math.min(...h.map(p=>p.x*nx+p.y*ny)),low=Math.max(...h.map(p=>p.x*nx+p.y*ny)),lo=Math.min(...ts),hi=Math.max(...ts),corner=(t:number,n:number)=>({x:t*ux+n*nx,y:t*uy+n*ny}),outer=corner(lo,top),inner=corner(hi,top),hemInner=corner(hi,low);
  if(fit==='oversized'&&/longer-short/.test(left.assetId)){
@@ -143,14 +146,15 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  if(layered)for(const id of ['underSleeveLeft','underSleeveRight']){
   const layer=layers.find(l=>l.id===id);if(!layer)continue;
   const points=ring(layer.svgRaw),xs=points.map(p=>p.x),ys=points.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y1=Math.max(...ys),right=id==='underSleeveRight';
-  const openingY=(x:number)=>{const leftX=right?2048-x:x;return outerBottom.y+(leftX-outerBottom.x)*(hemInner.y-outerBottom.y)/(hemInner.x-outerBottom.x)-12;};
+  const openingY=(x:number)=>{const leftX=right?2048-x:x;return outerBottom.y+(leftX-outerBottom.x)*(hemInner.y-outerBottom.y)/(hemInner.x-outerBottom.x)-18;};
   // A straight under-sleeve ends behind the upper hem; it must never hook into the torso.
   const torso=body?ring(body):[],lower=torso.filter(p=>p.y>Math.min(openingY(x0),openingY(x1))&&p.x<1024);
   const bodyEdge=lower.length?Math.min(...lower.map(p=>p.x)):1024;
-  const leftInner=Math.min(right?2048-x0:x1,bodyEdge-28),innerX=right?2048-leftInner:leftInner,outerX=right?x1:x0;
-  under[id]=wrap('M'+outerX+','+openingY(outerX)+'L'+innerX+','+openingY(innerX)+'V'+y1+'H'+outerX+'Z');
+  const leftInner=Math.min(hemInner.x-3,bodyEdge-8),innerX=right?2048-leftInner:leftInner,leftOuter=outerBottom.x+3,outerX=right?2048-leftOuter:leftOuter;
+  const bottomLeftInner=Math.min(right?2048-x0:x1,bodyEdge-8),bottomInner=right?2048-bottomLeftInner:bottomLeftInner,bottomOuter=right?x1:x0;
+  under[id]=wrap('M'+outerX+','+openingY(outerX)+'L'+innerX+','+openingY(innerX)+'L'+bottomInner+','+y1+'H'+bottomOuter+'Z');
   const cuffId=id.replace('underSleeve','underlayerHem'),cuff=layers.find(l=>l.id===cuffId),cuffRing=cuff?ring(cuff.svgRaw):[];
-  if(cuffRing.length){const top=Math.min(...cuffRing.map(p=>p.y)),bottom=Math.max(...cuffRing.map(p=>p.y));under[cuffId]=wrap('M'+outerX+','+top+'H'+innerX+'V'+bottom+'H'+outerX+'Z');}
+  if(cuffRing.length){const top=Math.min(...cuffRing.map(p=>p.y)),bottom=Math.max(...cuffRing.map(p=>p.y));under[cuffId]=wrap('M'+bottomOuter+','+top+'H'+bottomInner+'V'+bottom+'H'+bottomOuter+'Z');}
  }
  const raw:Record<string,string>={...under,...(alignedBodyHem?{bodyHem:alignedBodyHem}:{}),sleeveLeft:leftSvg,sleeveRight:right,sleeveHemLeft:hemSvg(false),sleeveHemRight:hemSvg(true),...(body?{base:body}:{})};if(familyCache.size>24)familyCache.delete(familyCache.keys().next().value!);familyCache.set(key,raw);return apply(layers,raw);
 }

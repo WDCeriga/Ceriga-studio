@@ -25,6 +25,11 @@ function weightOf(el: DesignElement) {
 }
 
 export function StudioGraphic({ element }: { element: DesignElement }) {
+  if(element.type==='shape'&&canFillShape(element)&&element.shapeEffects?.some(e=>e.id==='textile-ink'&&e.enabled!==false)){
+    const filled={...element,borderWidth:0,shapeFilled:true};
+    const outline={...element,shapeFilled:false,shapeEffects:element.shapeEffects.filter(e=>e.id!=='textile-ink')};
+    return <div className="relative h-full w-full"><ShapeEffectsArtwork element={filled}><StudioGraphicBase element={filled}/></ShapeEffectsArtwork>{(element.borderWidth??0)>0&&<div className="pointer-events-none absolute inset-0"><ShapeEffectsArtwork element={outline}><StudioGraphicBase element={outline}/></ShapeEffectsArtwork></div>}</div>;
+  }
   const artwork = <StudioGraphicBase element={element} />;
   return element.type === 'shape' && element.shapeEffects?.some(effect => effect.enabled !== false)
     ? <ShapeEffectsArtwork element={element}>{artwork}</ShapeEffectsArtwork>
@@ -45,7 +50,7 @@ function StudioGraphicBase({ element }: { element: DesignElement }) {
   const flip = artworkFlipStyle(element);
   const legacy = ['ellipse', 'rect', 'line', 'zigzag', 'squiggly', 'triangle', 'star', 'arrow'];
   const boundsLegacy = ['ellipse', 'circle', 'rect', 'semicircle-open', 'semicircle-closed', 'line'];
-  const parametric = !!element.shapePath || !!Object.keys(element.shapeParameters ?? {}).length
+  const parametric = Boolean(element.shapeStrokeStyle&&element.shapeStrokeStyle!=='solid') || !!element.shapePath || !!Object.keys(element.shapeParameters ?? {}).length
     || !(element.shapeGeometry === 'bounds' ? boundsLegacy : legacy).includes(element.content);
 
   if (element.type === 'shape' && parametric) {
@@ -54,7 +59,8 @@ function StudioGraphicBase({ element }: { element: DesignElement }) {
     const path = scaledPath(shapeToEditablePath(element), width, height);
     return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={flip} aria-hidden>
       {definitions}
-      <path d={shapePathData(path)} fill={fill} fillRule="evenodd" stroke={stroke} strokeWidth={sw}
+      {element.shapeStrokeStyle==='double'&&sw>0&&<path d={shapePathData(path)} fill="none" stroke={element.shapeOutlineAccent??'#f0eadb'} strokeWidth={sw*1.8} strokeLinejoin="round"/>}
+      <path d={shapePathData(path)} strokeDasharray={element.shapeStrokeStyle==='dashed'?`${sw*3} ${sw*2}`:element.shapeStrokeStyle==='dotted'?`.01 ${sw*2}`:undefined} fill={fill} fillRule={element.paintStain?'nonzero':'evenodd'} stroke={stroke} strokeWidth={sw}
         strokeLinecap={element.content === 'zigzag' ? 'butt' : 'round'} strokeLinejoin={element.content === 'zigzag' ? 'miter' : 'round'} strokeMiterlimit={8} />
     </svg>;
   }

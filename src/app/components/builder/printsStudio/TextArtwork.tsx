@@ -1,10 +1,22 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import './clothing-fonts.css';
+import {SVG_FONT_SOURCES} from '../../../lib/displayFonts';
+import {loadFontLibrary} from './designLibrary';
+import { useEffect, useMemo, useState, useId, type CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import type { DesignElement } from '../PrintStudioEditor';
 import { parsePaint, paintCss, paintDataUrl, solidPaint } from '../../../lib/studioPaint';
 import { textCurveRadius } from '../../../lib/textCurveControls';
 import { artworkFlipStyle } from '../../../lib/artworkFlip';
 import { TextEffectsArtwork } from './TextEffectsArtwork';
+
+const embeddedFontCache=new Map<string,Promise<string>>();
+function useSvgFont(family:string,enabled:boolean){
+ const source=SVG_FONT_SOURCES[family]??loadFontLibrary().find(font=>font.family===family)?.dataUrl;
+ const id=useId().replace(/[^a-z0-9]/gi,'');const [font,setFont]=useState<{source:string;data:string;error?:boolean}>();
+ useEffect(()=>{if(!enabled||!source)return;let active=true;let pending=embeddedFontCache.get(source);if(!pending){pending=source.startsWith('data:')?Promise.resolve(source):fetch(source).then(r=>{if(!r.ok)throw new Error('Font is unavailable');return r.blob()}).then(blob=>new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Font could not be embedded'));reader.readAsDataURL(blob)}));embeddedFontCache.set(source,pending);pending.catch(()=>embeddedFontCache.delete(source))}pending.then(data=>{if(active)setFont({source,data})},()=>{if(active)setFont({source,data:'',error:true})});return()=>{active=false}},[source,enabled]);
+ const ready=enabled&&source&&font?.source===source&&!font.error;
+ return{family:ready?'CerigaSvg'+id:family,css:ready?`@font-face{font-family:"CerigaSvg${id}";src:url("${font!.data}");font-weight:100 900;font-style:normal;}`:'',pending:Boolean(enabled&&source&&font?.source!==source),error:Boolean(enabled&&source&&font?.source===source&&font.error)};
+}
 
 function textRows(element: DesignElement) {
   let number = 0;
@@ -162,6 +174,7 @@ function PlainTextArtwork({
   const fontWeight = element.fontWeight === 'bold' ? 700 : element.fontWeight === 'normal' ? 400 : 600;
   const lineHeight = `${element.lineSpacing ?? 115}%`;
   const curved = (element.textCurveAmount ?? 0) > 0 && !element.verticalText;
+  const svgFont=useSvgFont(element.fontFamily??'Inter',curved);
   const curveSpacing = curved ? Math.max(-0.5, Math.min(8, element.textCurveSpacing ?? 0)) : 0;
   const letterSpacing = curved
     ? Math.max(-0.5, (element.letterSpacing ?? 0) + curveSpacing)
@@ -298,6 +311,8 @@ function PlainTextArtwork({
   return (
     <div
       data-text-body
+      data-svg-font-pending={svgFont.pending?'true':undefined}
+      data-svg-font-error={svgFont.error?'true':undefined}
       onDoubleClick={onDoubleClick}
       className="w-full min-w-0 max-w-full font-semibold"
       style={{
@@ -314,6 +329,7 @@ function PlainTextArtwork({
           aria-label={element.content}
         >
           <defs>
+            {svgFont.css&&<style>{svgFont.css}</style>}
             {rows.map((_, index) => (
               <path key={index} id={`${id}-${index}`} d={getRowPath(index)} />
             ))}
@@ -323,7 +339,8 @@ function PlainTextArtwork({
           {rows.map((row, index) => (
             <text
               key={index}
-              fontFamily={element.fontFamily ?? 'Inter'}
+              fontFamily={svgFont.family}
+              data-svg-font-spec={`${element.fontStyle??'normal'} ${fontWeight} ${fontSize}px "${svgFont.family}"`}
               fontSize={fontSize}
               fontWeight={fontWeight}
               fontStyle={element.fontStyle ?? 'normal'}
@@ -339,6 +356,10 @@ function PlainTextArtwork({
               letterSpacing={letterSpacing}
               style={{
                 color: solidPaint(color),
+                fontFamily: svgFont.family,
+                fontSize,
+                fontWeight,
+                fontStyle: element.fontStyle ?? 'normal',
                 textTransform: element.textTransform ?? 'none',
                 textDecorationColor: solidPaint(color),
                 textDecorationThickness: `${element.textLineThickness ?? 0.5}px`,

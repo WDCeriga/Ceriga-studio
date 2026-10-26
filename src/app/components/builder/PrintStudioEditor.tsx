@@ -1,5 +1,8 @@
+import {CLOTHING_FONT_NAMES} from '../../lib/displayFonts';
 import {artworkSceneScale} from '../../lib/garmentCanvasFrame';
 import {garmentPatternReference} from '../../lib/patternGeometry';
+import {textileInkEffect} from '../../lib/textileInk';
+import {paintStainPath} from '../../lib/paintStains';
 import {DrawingArtwork} from './printsStudio/DrawingArtwork';
 import type {RecordedDrawing} from '../../lib/drawingReplay';
 import type {DistressMark,DistressMarkKind} from '../../lib/distressScatter';
@@ -135,6 +138,7 @@ export interface DesignElement extends ImageAdjustmentValues {
   layerName?: string;
   imageFilter?: ImageFilterSettings;
   textEffects?: TextEffect[];
+  letteringSource?: DesignElement;
   type: 'image' | 'text' | 'drawing' | 'shape' | 'pattern' | 'distress' | 'customArea' | 'group';
   children?: DesignElement[];
   groupSourceWidth?: number;
@@ -149,6 +153,11 @@ export interface DesignElement extends ImageAdjustmentValues {
   rotation: number;
   wear?:{kind:DistressMarkKind;sourceWidth:number;sourceHeight:number;marks:DistressMark[]};
   drawing?:RecordedDrawing;
+  drawingOriginal?:RecordedDrawing;
+  drawingSmoothness?:number;
+  paintStain?:{style:string;seed:number;spread:number};
+  shapeStrokeStyle?:'solid'|'dashed'|'dotted'|'double';
+  shapeOutlineAccent?:string;
   wearRasterTinted?:boolean;
   wearDetail?:{roughness?:number;fray?:number;bend?:number;skew?:number;seed?:number};
   shapeGeometry?: 'bounds';
@@ -268,6 +277,7 @@ export interface DesignElement extends ImageAdjustmentValues {
   patternMinScale?: number;
   patternMaxScale?: number;
   patternTarget?: string;
+  patternKeepNeckPlain?: boolean;
   customAreaPoints?: CustomAreaPoint[];
   customAreaViewWidth?: number;
   customAreaViewHeight?: number;
@@ -330,6 +340,7 @@ interface PrintsDesignPreviewProps {
 }
 
 const FONT_OPTIONS = [
+  ...CLOTHING_FONT_NAMES,
   'Inter',
   'Arial',
   'Helvetica',
@@ -1081,7 +1092,7 @@ export function PrintsDesignStep({
     if (studioPanelRef.current === studio.panel) return;
     studioPanelRef.current = studio.panel;
     const current = elementsRef.current.find(element => element.id === selectedId);
-    if (studio.panel === 'patterns' && (current?.type === 'pattern' || current?.customAreaPattern)) return;
+    if (studio.panel === 'patterns' && (current?.type === 'pattern' || current?.type==='shape' || current?.type==='text' || current?.customAreaPattern)) return;
     setSelectedIdRef.current(null);
   }, [studio.panel, selectedId]);
 
@@ -1268,6 +1279,11 @@ export function PrintsDesignStep({
       studio.setTool('shapePolygon');
       return;
     }
+    if(kind==='pattern' && selected && ['shape','text'].includes(selected.type) && !selected.locked && id!=='custom') {
+      const key=selected.type==='text'?'textEffects':'shapeEffects';
+      const fill=textileInkEffect(id,settings?.patternColors??[studio.color,'#f1eee2','#a94747','#344357'],4);
+      updateSelected({...(selected.type==='shape'?{shapeFilled:true}:{}),[key]:[fill,...(selected[key]??[]).filter(e=>e.id!=='textile-ink')]});return;
+    }
     const appearance = kind === 'pattern' ? { ...initialPatternSettings(id, studio.color), ...patternAppearance(settings) } : {};
     if (kind === 'pattern' && id === 'custom' && !appearance.patternSource) return;
     const zone = document.querySelector('[data-print-design-zone]') as HTMLElement | null;
@@ -1284,6 +1300,7 @@ export function PrintsDesignStep({
       color: studio.color,
       borderWidth: 0,
       ...(kind === 'shape' ? studioShapeDefaults(id) : {}),
+      ...(kind==='shape'&&id==='paint-stain'?{shapeGeometry:'bounds' as const,shapeFilled:true,shapeFillColor:studio.color,shapePath:paintStainPath(),paintStain:{style:'splash',seed:37,spread:65},width:110,height:110}:{}),
       opacity: 100,
       locked: false,
       printMethod: kind === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
@@ -2782,10 +2799,19 @@ export function PrintsDesignPreview({
 
   const zoneRef = useRef<HTMLDivElement>(null);
   const [zoneEl, setZoneEl] = useState<HTMLDivElement | null>(null);
-  const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode,sceneScale);
+  const [focusArtwork,setFocusArtwork]=useState<{id:string;x:number;y:number;width:number;height:number}|null>(null);
+  const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode||Boolean(focusArtwork),sceneScale);
   const printTexture=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale);
   const patternRelief=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale,'pattern',studio.panel==='patterns'||elements.some(function hasPattern(element):boolean{return isBackgroundPattern(element)||!!element.children?.some(hasPattern);}));
-  const patternTargets = useGarmentPatternTargets(zoneEl, garmentSide,sceneScale);
+  const patternTargets = useGarmentPatternTargets(zoneEl, garmentSide,sceneScale,assetMode||Boolean(focusArtwork));
+  const preservePatternCollar=elements.some(element=>element.patternKeepNeckPlain&&!element.patternTarget);
+  const collarSafePatternMask=useMemo(()=>{
+    if(!drawingMask||assetMode||!preservePatternCollar)return drawingMask;
+    const canvas=document.createElement('canvas');canvas.width=drawingMask.canvas.width;canvas.height=drawingMask.canvas.height;
+    const context=canvas.getContext('2d')!;context.drawImage(drawingMask.canvas,0,0);context.globalCompositeOperation='destination-out';
+    for(const target of patternTargets.filter(t=>['neck','innerBackNeck','hood'].includes(t.id)))context.drawImage(target.canvas,0,0,canvas.width,canvas.height);
+    return {...drawingMask,canvas,vectorUrl:undefined,url:canvas.toDataURL('image/png')};
+  },[drawingMask,patternTargets,assetMode,preservePatternCollar]);
   useEffect(() => {
     if (!editable) return;
     const render = async (ids: string[]) => {
@@ -2796,13 +2822,20 @@ export function PrintsDesignPreview({
     studio.layerRenderer.current = render;
     return () => { if (studio.layerRenderer.current === render) studio.layerRenderer.current = null; };
   }, [editable, elements, garmentSide, studio.layerRenderer]);
-  const [patternHover, setPatternHover] = useState<{ kind: 'part' | 'area'; id: string } | null>(null);
+  const [patternHover, setPatternHover] = useState<{ kind: 'part' | 'area' | 'artwork'; id: string } | null>(null);
   const [dragPattern,setDragPattern]=useState<ReturnType<typeof getActivePatternDrag>>(null);
   useEffect(()=>{const clear=()=>{setPatternHover(null);setDragPattern(null);};window.addEventListener('dragend',clear);return()=>window.removeEventListener('dragend',clear);},[]);
   const findPatternTarget = (clientX: number, clientY: number) => {
     const zone = zoneRef.current;
     if (!zone) return null;
     const point = clientToZonePoint(zone, clientX, clientY);
+    for(const item of [...elements].reverse()) {
+      if(!['shape','text'].includes(item.type)||item.hidden||item.locked||designElementSide(item)!==garmentSide)continue;
+      const angle=-item.rotation*Math.PI/180,dx=point.x-item.x,dy=point.y-item.y;
+      const x=dx*Math.cos(angle)-dy*Math.sin(angle),y=dx*Math.sin(angle)+dy*Math.cos(angle);
+      if(Math.abs(x)<=item.width/2&&Math.abs(y)<=item.height/2)return {kind:'artwork' as const,id:item.id};
+    }
+    if(assetMode && !elements.some(e=>e.type==='customArea'))return null;
     for (const area of [...elements].reverse()) {
       if (area.type !== 'customArea' || area.hidden || area.locked || area.customAreaOpen || designElementSide(area) !== garmentSide) continue;
       const local = customAreaLocalPoint(point, area);
@@ -2810,7 +2843,7 @@ export function PrintsDesignPreview({
       if (context?.isPointInPath(new Path2D(customAreaPath(area.customAreaPoints ?? [])), local.x, local.y)
         && (assetMode || patternTargets.some(target => targetContains(target, point.x, point.y)))) return { kind: 'area' as const, id: area.id };
     }
-    const part = patternTargets.find(target => targetContains(target, point.x, point.y));
+    const part = assetMode?undefined:patternTargets.find(target => targetContains(target, point.x, point.y));
     return part ? { kind: 'part' as const, id: part.id } : null;
   };
   useEffect(() => {
@@ -3477,7 +3510,9 @@ export function PrintsDesignPreview({
   useEffect(() => { if (studio.drawing) setWarpEditingId(null); }, [studio.drawing, setWarpEditingId]);
   useEffect(() => { if (distortEditingId) setCropEditingId(null); }, [distortEditingId]);
 
-  const liveCanvasS = (liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1) * sceneScale;
+  useEffect(()=>{if(focusArtwork&&(!selectedId||selectedId!==focusArtwork.id))setFocusArtwork(null)},[selectedId,focusArtwork]);
+  const focusScale=focusArtwork?Math.min(8,Math.max(.1,Math.min(frameSize.width/(focusArtwork.width+100),frameSize.height/(focusArtwork.height+100)))):null;
+  const liveCanvasS = focusScale??((liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1) * sceneScale);
   const uiInvRaw = 1 / liveCanvasS;
   /** On phone, avoid over-scaling handles when the preview is zoomed out. */
   const uiInv = narrowViewport ? Math.min(uiInvRaw, 2.25) : uiInvRaw;
@@ -3528,9 +3563,10 @@ export function PrintsDesignPreview({
           narrowViewport && editable && 'overflow-hidden rounded-xl',
         )}
       >
-        <GarmentWearHostContext.Provider value={zoneEl}><GarmentPrintTextureContext.Provider value={printTexture}><GarmentPatternReliefContext.Provider value={patternRelief}><div data-design-canvas data-print-fabric-ready={Boolean(printTexture)} className="relative h-full w-full" style={validCanvasSize ? {
+        {editable&&!assetMode&&selectedElement&&<button className="artwork-isolate-button" aria-pressed={Boolean(focusArtwork)} onPointerDown={e=>e.stopPropagation()} onClick={()=>{if(focusArtwork){setFocusArtwork(null);return}const el=selectedElement;const angle=el.rotation*Math.PI/180;setFocusArtwork({id:el.id,x:(zoneEl?.offsetLeft??0)+el.x,y:(zoneEl?.offsetTop??0)+el.y,width:Math.abs(Math.cos(angle))*el.width+Math.abs(Math.sin(angle))*el.height,height:Math.abs(Math.sin(angle))*el.width+Math.abs(Math.cos(angle))*el.height})}}>{focusArtwork?'← Back to garment':'Focus artwork'}</button>}
+        <GarmentWearHostContext.Provider value={zoneEl}><GarmentPrintTextureContext.Provider value={focusArtwork?null:printTexture}><GarmentPatternReliefContext.Provider value={focusArtwork?null:patternRelief}><div data-design-canvas data-print-fabric-ready={Boolean(printTexture)} className="relative h-full w-full" style={validCanvasSize ? {
           position: 'absolute', width: validCanvasSize.width, height: validCanvasSize.height,
-          left: '50%', top: '50%', transform: `translate(-50%, -50%) scale(${liveCanvasS})`, transformOrigin: 'center',
+          left: '50%', top: '50%', transform: `translate(-50%, -50%) scale(${liveCanvasS})${focusArtwork?` translate(${validCanvasSize.width/2-focusArtwork.x}px,${validCanvasSize.height/2-focusArtwork.y}px)`:``}`, transformOrigin: 'center',
         } : undefined}>
         <div className="absolute inset-0 flex min-h-0 flex-col">
           {narrowViewport &&
@@ -3631,7 +3667,7 @@ export function PrintsDesignPreview({
           >
             <div className="absolute inset-0 flex items-center justify-center">
           {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ backgroundColor: assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: assetWorkspace?.project?.background ? 'none' : 'conic-gradient(#f5f5f5 25%, transparent 0 50%, #f5f5f5 0 75%, transparent 0)', backgroundSize: '16px 16px' }} /> : (
-          <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: garmentInteractive ? 'auto' : 'none' }} data-print-garment-preview>
+          <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: focusArtwork?'none':garmentInteractive ? 'auto' : 'none',visibility:focusArtwork?'hidden':undefined }} data-print-garment-preview>
             {typeof garmentPreview === 'function' ? garmentPreview(sceneScale) : garmentPreview}
           </div>
           )}
@@ -3688,6 +3724,9 @@ export function PrintsDesignPreview({
               if (payload.kind === 'pattern' && !target && !assetMode) return;
               const appearance = payload.kind === 'pattern' ? { ...initialPatternSettings(payload.id, studio.color), ...patternAppearance(payload.settings) } : {};
               if (payload.kind === 'pattern' && payload.id === 'custom' && !appearance.patternSource) return;
+              if(target?.kind==='artwork' && payload.kind==='pattern'){
+                onChange(elements.map(element=>{if(element.id!==target.id)return element;const key=element.type==='text'?'textEffects':'shapeEffects';return {...element,...(element.type==='shape'?{shapeFilled:true}:{}),[key]:[textileInkEffect(payload.id,appearance.patternColors??[studio.color,'#f1eee2','#a94747','#344357'],4),...(element[key]??[]).filter(e=>e.id!=='textile-ink')]}}));setSelectedId(target.id);studio.setTool('select');return;
+              }
               if (target?.kind === 'area') {
                 onChange(elements.map(element => element.id === target.id ? {
                   ...element, customAreaPattern: payload.id, customAreaImage: undefined, customAreaTexture: undefined,
@@ -3736,12 +3775,13 @@ export function PrintsDesignPreview({
           {patternHover && (() => {
             const part = patternHover.kind === 'part' ? patternTargets.find(target => target.id === patternHover.id) : undefined;
             const area = patternHover.kind === 'area' ? elements.find(element => element.id === patternHover.id) : undefined;
+            const artwork=patternHover.kind==='artwork'?elements.find(element=>element.id===patternHover.id):undefined;
             return <div className="pointer-events-none absolute inset-0 z-[30]" data-pattern-drop-target={patternHover.id} style={{zIndex:0}}>
               {part && dragPattern ? <div className="absolute inset-0" style={{maskImage:`url("${part.url}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'}}><div style={{position:'absolute',left:part.bounds.x,top:part.bounds.y,width:part.bounds.width,height:part.bounds.height,transform:'translate(-50%,-50%)',opacity:(dragPattern.settings?.opacity??100)/100}}><PatternGraphic fabricPreview element={{id:'drag-preview',type:'pattern',content:dragPattern.id,...part.bounds,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></div></div> : null}
               {area ? <svg className="absolute overflow-visible" viewBox={`0 0 ${area.width} ${area.height}`} style={{ left: area.x, top: area.y, width: area.width, height: area.height, transform: `translate(-50%, -50%) rotate(${area.rotation}deg)`, maskImage: drawingMask ? drawingMaskCss(drawingMask, area.width, area.height, area.x, area.y, area.rotation) : undefined }}>
                 <defs><clipPath id="pattern-hover-area"><path d={customAreaTransformedPath(area)}/></clipPath></defs>{dragPattern&&<g clipPath="url(#pattern-hover-area)"><PatternGraphic fabricPreview element={{...area,type:'pattern',content:dragPattern.id,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></g>}<path d={customAreaTransformedPath(area)} fill="none" stroke="#737373" strokeWidth="1"/>
               </svg> : null}
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#fafafa] px-3 py-1 text-xs text-[#262626]" role="status">Fill {part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
+              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#fafafa] px-3 py-1 text-xs text-[#262626]" role="status">Fill {artwork?.layerName??(artwork?.type==='text'?'Text':artwork?.content)??part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
             </div>;
           })()}
           {editable && alignmentGuides && <ArtworkAlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} inverseScale={uiInv}/>}
@@ -3811,7 +3851,8 @@ export function PrintsDesignPreview({
             /** iOS zooms the page on focus if input font is under 16px — avoid while editing. */
             const editFontSize = narrowViewport ? Math.max(16, displayFont) : displayFont;
 
-            const patternPart = element.patternTarget ? patternTargets.find(target => target.id === element.patternTarget) : undefined;
+            if(focusArtwork&&element.id!==focusArtwork.id)return null;
+            const patternPart = !focusArtwork&&element.patternTarget ? patternTargets.find(target => target.id === element.patternTarget) : undefined;
             if (element.patternTarget && !patternPart) return null;
             const liveElement = patternPart ? { ...element, ...patternPart.bounds, rotation: 0, patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700) }
               : element.type === 'customArea' && liveCustomAreaPoints?.id === element.id
@@ -3890,7 +3931,7 @@ export function PrintsDesignPreview({
                 <DesignAssetSurface interacting={manip?.id===element.id||draggingId===element.id} element={visualElement} selected={selected && editable && !locked && !isEditingText && !cropEditingId && studio.pathEditingId !== element.id && !(element.type === 'customArea' && (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint')) && !patternPart}
                   cropping={editable && cropEditingId === element.id}
                   cropOverlay={<InteractiveCropOverlay element={cropDraft} onChange={setCropDraft} width={visualElement.width} height={visualElement.height} />}
-                  garmentMask={patternPart ?? drawingMask} position={{ x: liveX, y: liveY }}
+                  garmentMask={patternPart ?? (element.patternKeepNeckPlain?collarSafePatternMask:drawingMask)} position={{ x: liveX, y: liveY }}
                   distort={distortEditingId === element.id && !studio.drawing}
                   warpEditing={warpEditingId === element.id && !studio.drawing}
                   onWarpChange={(warp) => updateElement(element.id, { warp })}
@@ -3936,14 +3977,15 @@ export function PrintsDesignPreview({
                     <FilteredImage
                       source={element.content}
                       settings={element.type === 'image' ? element.imageFilter : undefined}
+                      tint={element.imageFilter?element.color:undefined}
                       alt={element.type === 'drawing' ? 'Drawing' : element.type === 'distress' ? 'Distress' : 'Artwork'}
                       className="h-full w-full object-fill"
                       style={{
                         ...artworkFlipStyle(element),
-                        opacity: element.color ? 0 : undefined,
+                        opacity: element.color && !element.imageFilter ? 0 : undefined,
                       }}
                     />
-                    {element.color && <div className="pointer-events-none absolute inset-0" style={{ background: paintCss(element.color), maskImage: `url("${element.content}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat', ...artworkFlipStyle(element) }} />}
+                    {element.color && !element.imageFilter && <div className="pointer-events-none absolute inset-0" style={{ background: paintCss(element.color), maskImage: `url("${element.content}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat', ...artworkFlipStyle(element) }} />}
                     </div>
                     )}
                   </>

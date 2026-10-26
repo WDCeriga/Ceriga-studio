@@ -1,3 +1,4 @@
+import {Link} from 'react-router';
 import {FilteredImage} from '../printsStudio/FilteredImage';
 import {useState} from 'react';
 import {ImagePlus,Plus,Search,Upload,ArrowUpRight} from 'lucide-react';
@@ -22,5 +23,6 @@ export function ArtworkLibrary({api}:{api:PrintStudioToolAPI}) {
   </section>
   {collection==='Uploads'&&workspace?.recovery&&!workspace.project&&<div className="artwork-recovery"><p>An unfinished asset is saved on this device.</p><button onClick={workspace.resume}>Resume asset draft<ArrowUpRight size={13}/></button></div>}
   {collection==='Uploads'&&workspace?.error&&!workspace.project&&<p role="alert" className="artwork-library-hint">{workspace.error}</p>}
+ <Link className="studio-outline-action" to="/artwork-studies" target="_blank">Open editable print studies<ArrowUpRight size={14}/></Link>
  </div>;
 }

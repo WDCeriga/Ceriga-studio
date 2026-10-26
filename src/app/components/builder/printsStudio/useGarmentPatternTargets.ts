@@ -22,14 +22,14 @@ export function targetContains(target: GarmentPatternTarget, x: number, y: numbe
     && target.alpha[(py * target.canvas.width + px) * 4 + 3] > 32;
 }
 
-export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'front' | 'back',qualityScale=1) {
+export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'front' | 'back',qualityScale=1,disabled=false) {
   const [targets, setTargets] = useState<GarmentPatternTarget[]>([]);
   const source=useRef<{zone:HTMLElement|null;side:string}|undefined>(undefined);
   useEffect(() => {
     if(source.current?.zone!==zone||source.current?.side!==side)setTargets([]);
     source.current={zone,side};
     const preview = zone?.parentElement?.querySelector<HTMLElement>('[data-print-garment-preview]');
-    if (!zone || !preview) return;
+    if (disabled || !zone || !preview) {setTargets([]);return;}
     let generation = 0;
     let frame = 0;
     const rebuild = async (version: number) => {
@@ -43,6 +43,7 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
       const sx = pixelWidth / rect.width;
       const sy = pixelHeight / rect.height;
       const layers = Array.from(preview.querySelectorAll<HTMLElement>('[data-layer-id]'))
+        .filter(layer => !['outline','stitching','construction','stitch'].includes(layer.dataset.layerId??''))
         .filter(layer => getComputedStyle(layer).visibility !== 'hidden' && getComputedStyle(layer).display !== 'none')
         .sort((a, b) => (Number(getComputedStyle(a).zIndex) || 0) - (Number(getComputedStyle(b).zIndex) || 0));
       const rasters = await Promise.all(layers.map(async layer => {
@@ -56,6 +57,12 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
         const group = document.createElementNS(root.namespaceURI, 'g');
         group.setAttribute('transform', `matrix(${matrix.a * sx} ${matrix.b * sy} ${matrix.c * sx} ${matrix.d * sy} ${(matrix.e - rect.left) * sx} ${(matrix.f - rect.top) * sy})`);
         for (const child of svg.childNodes) group.appendChild(child.cloneNode(true));
+        // Part targeting uses the closed fabric geometry, not the alpha of a
+        // fabric scan/texture tile. Preserve construction masks and their images.
+        for(const pattern of group.querySelectorAll('pattern'))pattern.remove();
+        for(const shape of group.querySelectorAll<SVGElement>('path,rect,circle,ellipse,polygon,polyline')){
+          if(shape.getAttribute('fill')!=='none'){shape.setAttribute('fill','#fff');shape.style.fill='#fff'}
+        }
         let clip = 'none';
         for (let parent = svg.parentElement; parent && parent !== layer; parent = parent.parentElement) {
           const value = getComputedStyle(parent).clipPath;
@@ -125,6 +132,6 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
     const resize = new ResizeObserver(schedule); resize.observe(zone); resize.observe(preview);
     schedule();
     return () => { generation++; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); };
-  }, [zone, side,qualityScale]);
+  }, [zone, side,qualityScale,disabled]);
   return targets;
 }

@@ -59,6 +59,10 @@ export function TextEffectsArtwork({ effects, sourceKey, width, height, children
     let cancelled = false;
     const capture = async () => {
       try {
+        const deadline=performance.now()+15000;
+        while(node.querySelector('[data-svg-font-pending="true"]')){if(cancelled)return;if(performance.now()>deadline)throw new Error('The selected typeface is still loading');await new Promise(resolve=>setTimeout(resolve,20))}
+        if(node.querySelector('[data-svg-font-error="true"]'))throw new Error('The selected typeface could not be embedded');
+        await Promise.all(Array.from(node.querySelectorAll<SVGElement>('[data-svg-font-spec]')).map(text=>document.fonts.load(text.dataset.svgFontSpec!)));
         await document.fonts.ready;
         if (cancelled) return;
         const cssWidth = size.width + padding * 2;

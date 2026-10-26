@@ -27,7 +27,7 @@ export function patternAppearance(value: unknown): PatternPatch {
   }
   if (typeof input.color === 'string') output.color = input.color;
   if (Array.isArray(input.patternColors)) output.patternColors = input.patternColors.filter(color => typeof color === 'string' && /^#[\da-f]{6}$/i.test(color)).slice(0, 8);
-  for (const key of ['patternRandomise', 'flipHorizontal', 'flipVertical']) {
+  for (const key of ['patternRandomise', 'flipHorizontal', 'flipVertical','patternKeepNeckPlain']) {
     if (typeof input[key] === 'boolean') output[key] = input[key];
   }
   if (safePatternSource(input.patternSource)) output.patternSource = input.patternSource;

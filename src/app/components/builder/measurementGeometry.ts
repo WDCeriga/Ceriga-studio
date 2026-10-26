@@ -3,8 +3,8 @@ import type { LabelAttachmentLayer } from './GarmentLabelOverlay';
 import { flattenAbsolutePath } from '../../features/panelling/panellingGeometry';
 
 export interface MeasurementPoint { x: number; y: number }
-export interface MeasurementShape { id: string; contours: MeasurementPoint[][] }
-export type MeasurementSource = LabelAttachmentLayer & { assetName?: string };
+export interface MeasurementShape { id: string; contours: MeasurementPoint[][]; shoulderPoint?:MeasurementPoint }
+export type MeasurementSource = LabelAttachmentLayer & { assetName?: string; shoulderPoint?:MeasurementPoint };
 
 const contourCache = new Map<string, MeasurementPoint[][]>();
 const pendingContours = new Map<string, Promise<MeasurementPoint[][]>>();
@@ -85,7 +85,8 @@ export async function sampleMeasurementShapes(sources: MeasurementSource[]): Pro
   for (const source of [...sources, ...cutout].filter(source => !['outline', 'stitching'].includes(source.id))) {
     const contours = await sampleSourceContours(source, yieldForPaint);
     const matrix = new DOMMatrix(source.matrix);
-    shapes.push({ id: source.id, contours: contours.map(contour => contour.map(point => {
+    const shoulder=source.shoulderPoint?matrix.transformPoint(source.shoulderPoint):undefined;
+    shapes.push({ id: source.id,shoulderPoint:shoulder?{x:shoulder.x*1000/2048,y:shoulder.y*1000/2048}:undefined, contours: contours.map(contour => contour.map(point => {
       const mapped = matrix.transformPoint(point);
       return { x: mapped.x * 1000 / 2048, y: mapped.y * 1000 / 2048 };
     })) });
@@ -187,7 +188,7 @@ export function buildGeometryGuides(shapes: MeasurementShape[]): MeasurementGuid
     guide('sleeveOpening', 'Sleeve Opening', cuffTop, cuffBottom, rightLabel, cuffBottom.y + 20),
     guide('neckOpening', 'Neck Opening', openingLeft, openingRight, center, topLabel, topLabel + 22),
     guide('neckDrop', 'Neck Drop', { x: neckBottom.x, y: neckReference }, neckBottom, openingLeft.x - 95, (neckReference + neckBottom.y) / 2),
-    guide('shoulderWidth', 'Shoulder to Shoulder', shoulderLeft, shoulderRight, center, topLabel + 36, Math.min(shoulderLeft.y, shoulderRight.y) - 12),
+    guide('shoulderWidth', 'Shoulder to Shoulder', shapes.find(s=>s.id==='sleeveLeft')?.shoulderPoint??shoulderLeft, shapes.find(s=>s.id==='sleeveRight')?.shoulderPoint??shoulderRight, center, topLabel + 36, Math.min(shoulderLeft.y, shoulderRight.y) - 12),
   ];
 }
 

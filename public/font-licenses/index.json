@@ -1,0 +1,156 @@
+[
+  {
+    "family": "Graduate",
+    "license": "OFL-1.1",
+    "copyright": "Copyright (c) 2012, Eduardo Tunni (http://www.tipo.net.ar edu@tipo.net.ar), with Reserved Font Name \"Graduate\"",
+    "source": "https://github.com/google/fonts",
+    "notice": "graduate.txt"
+  },
+  {
+    "family": "Jersey 10",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2023 The Soft Type Project Authors (https://github.com/scfried/soft-type-jersey)",
+    "source": "https://github.com/google/fonts",
+    "notice": "jersey-10.txt"
+  },
+  {
+    "family": "Bungee",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2023 The Bungee Project Authors (https://github.com/djrrb/Bungee)",
+    "source": "https://github.com/google/fonts",
+    "notice": "bungee.txt"
+  },
+  {
+    "family": "Alfa Slab One",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2016 The Alfa Slab One Project Authors (http://www.jmsole.cl | info@jmsole.cl), with Reserved Font Name \"Alfa Slab\".",
+    "source": "https://github.com/google/fonts",
+    "notice": "alfa-slab-one.txt"
+  },
+  {
+    "family": "Anton",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2020 The Anton Project Authors (https://github.com/googlefonts/AntonFont.git)",
+    "source": "https://github.com/google/fonts",
+    "notice": "anton.txt"
+  },
+  {
+    "family": "Bebas Neue",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2019 The Bebas Neue Project Authors (https://github.com/dharmatype/Bebas-Neue)",
+    "source": "https://github.com/google/fonts",
+    "notice": "bebas-neue.txt"
+  },
+  {
+    "family": "Oswald",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2016 The Oswald Project Authors (https://github.com/googlefonts/OswaldFont)",
+    "source": "https://github.com/google/fonts",
+    "notice": "oswald.txt"
+  },
+  {
+    "family": "Barlow Condensed",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-ThinItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-ExtraLight.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-ExtraLightItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-Light.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-LightItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-Regular.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-Italic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-Medium.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-MediumItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-SemiBold.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-SemiBoldItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-Bold.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-BoldItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-ExtraBold.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-ExtraBoldItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-Black.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow) BarlowCondensed-BlackItalic.ttf: Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)",
+    "source": "https://github.com/google/fonts",
+    "notice": "barlow-condensed.txt"
+  },
+  {
+    "family": "Archivo Black",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2017 The Archivo Black Project Authors (https://github.com/Omnibus-Type/ArchivoBlack)",
+    "source": "https://github.com/google/fonts",
+    "notice": "archivo-black.txt"
+  },
+  {
+    "family": "Black Ops One",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2022 The PinyonScript Project Authors (https://github.com/SorkinType/Black-Ops)",
+    "source": "https://github.com/google/fonts",
+    "notice": "black-ops-one.txt"
+  },
+  {
+    "family": "Stardos Stencil",
+    "license": "OFL-1.1",
+    "copyright": "Copyright (c) 2011, Vernon Adams (vern@newtypography.co.uk) with Reserved Font Names 'Stardos'. All rights reserved. StardosStencil-Bold.ttf: Copyright (c) 2011, Vernon Adams (vern@newtypography.co.uk) with Reserved Font Names 'Stardos'. All rights reserved.",
+    "source": "https://github.com/google/fonts",
+    "notice": "stardos-stencil.txt"
+  },
+  {
+    "family": "UnifrakturCook",
+    "license": "OFL-1.1",
+    "copyright": "Copyright (c) 2010 j. 'mach' wust (j.mach.wust@gmail.com) with Reserved Font Name UnifrakturCook. Copyright (c) 2009 Peter Wiegel (wiegel@peter-wiegel.de). This Font Software is licensed under the SIL Open Font License, Version 1.1.",
+    "source": "https://github.com/google/fonts",
+    "notice": "unifrakturcook.txt"
+  },
+  {
+    "family": "Pirata One",
+    "license": "OFL-1.1",
+    "copyright": "Copyright (c) 2012, Rodrigo Fuenzalida (hello@rfuenzalida.com), Nicolas Massi (www.taip.com.ar / abc.taip.com.ar / nmassi@gmail.com), with Reserved Font Name 'Pirata'",
+    "source": "https://github.com/google/fonts",
+    "notice": "pirata-one.txt"
+  },
+  {
+    "family": "Pinyon Script",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2022 The PinyonScript Project Authors (https://github.com/SorkinType/Pinyon)",
+    "source": "https://github.com/google/fonts",
+    "notice": "pinyon-script.txt"
+  },
+  {
+    "family": "Yellowtail",
+    "license": "Apache-2.0",
+    "copyright": "Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI). All rights reserved. Available under the Apache 2.0 licence. http://www.apache.org/licenses/LICENSE-2.0.html",
+    "source": "https://github.com/google/fonts",
+    "notice": "yellowtail.txt"
+  },
+  {
+    "family": "Lobster",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2010 The Lobster Project Authors (https://github.com/impallari/The-Lobster-Font), with Reserved Font Name \"Lobster\".",
+    "source": "https://github.com/google/fonts",
+    "notice": "lobster.txt"
+  },
+  {
+    "family": "Permanent Marker",
+    "license": "Apache-2.0",
+    "copyright": "Copyright (c) 2010 by Font Diner, Inc. All rights reserved.",
+    "source": "https://github.com/google/fonts",
+    "notice": "permanent-marker.txt"
+  },
+  {
+    "family": "Rye",
+    "license": "OFL-1.1",
+    "copyright": "Copyright (c) 2012, Sorkin Type Co (eben@eyebytes.com) with Reserved Font Name 'Rye'",
+    "source": "https://github.com/google/fonts",
+    "notice": "rye.txt"
+  },
+  {
+    "family": "Abril Fatface",
+    "license": "OFL-1.1",
+    "copyright": "Copyright (c) 2011, Copyright (c) 2011, TypeTogether (www.type-together.com info@type-together.com), with Reserved Font Names \"Abril\" and \"Abril Fatface\"",
+    "source": "https://github.com/google/fonts",
+    "notice": "abril-fatface.txt"
+  },
+  {
+    "family": "Inter",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter) Inter-Italic[opsz,wght].ttf: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)",
+    "source": "https://github.com/google/fonts",
+    "notice": "inter.txt"
+  },
+  {
+    "family": "Montserrat",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat) Montserrat-Italic[wght].ttf: Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)",
+    "source": "https://github.com/google/fonts",
+    "notice": "montserrat.txt"
+  },
+  {
+    "family": "Poppins",
+    "license": "OFL-1.1",
+    "copyright": "Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-ThinItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-ExtraLight.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-ExtraLightItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-Light.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-LightItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-Regular.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-Italic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-Medium.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-MediumItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-SemiBold.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-SemiBoldItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-Bold.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-BoldItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-ExtraBold.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-ExtraBoldItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-Black.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins) Poppins-BlackItalic.ttf: Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins)",
+    "source": "https://github.com/google/fonts",
+    "notice": "poppins.txt"
+  }
+]

@@ -1,0 +1,26 @@
+import '@fontsource/black-ops-one/latin-400.css';
+import {useEffect,useState} from 'react';
+import {Link,useNavigate,useSearchParams} from 'react-router';
+import {PRINT_STUDIES,buildPrintStudy} from '../lib/printStudies';
+import {preloadGarmentSvgAssets} from '../data/garmentSvgCatalog';
+import {preloadTshirtSleeveAssets} from '../data/tshirtLongSleeves';
+import {saveLocalProject} from '../lib/localProjects';
+import {TshirtSvgPreview} from '../components/builder/TshirtSvgPreview';
+import {StudioArtworkPreview} from '../components/builder/StudioArtworkPreview';
+import {PrintsStudioProvider} from '../components/builder/printsStudio/PrintsStudioContext';
+import '@fontsource/graduate/latin-400.css';
+import '@fontsource/stardos-stencil/latin-700.css';
+import '@fontsource/pinyon-script/latin-400.css';
+import './artwork-studies.css';
+const studies=PRINT_STUDIES.map(s=>buildPrintStudy(s.id));
+export function ArtworkStudies(){
+ const [params]=useSearchParams();
+ const selectedStudy=params.get('study');
+ const visibleStudies=selectedStudy?studies.filter(s=>s.study.id===selectedStudy):studies;
+ const previews=import.meta.glob('../../assets/artwork-studies/preview-*.png',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
+ const navigate=useNavigate(),[ready,setReady]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState('');
+ useEffect(()=>{if(!selectedStudy){setReady(true);return}setReady(false);let active=true;Promise.all([preloadGarmentSvgAssets(visibleStudies.flatMap(s=>Object.values(s.state.tshirtAssetSelection))),preloadTshirtSleeveAssets('boxy','long')]).then(()=>{if(active)setReady(true)}).catch(e=>setError(String(e)));return()=>{active=false}},[selectedStudy]);
+ const open=async(id:string)=>{setBusy(id);setError('');try{const {study,state}=buildPrintStudy(id);const projectId='local-'+crypto.randomUUID();await saveLocalProject({id:projectId,name:study.name,product_id:'ts-001',current_step:9,state});navigate(`/builder/ts-001?builder=redesign&section=artwork&projectId=${projectId}`)}catch(e){setError(e instanceof Error?e.message:'Could not create editable draft');setBusy('')}};
+ const download=async(id:string)=>{setError('');try{const result=buildPrintStudy(id);result.state.studioArtwork=await Promise.all(result.state.studioArtwork.map(async element=>{if(element.type!=='image'||element.content.startsWith('data:'))return element;const response=await fetch(element.content);if(!response.ok)throw new Error('Artwork source is unavailable');const blob=await response.blob();const content=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Artwork source could not be embedded'));reader.readAsDataURL(blob)});return{...element,content}}));const link=document.createElement('a');const url=URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'}));link.href=url;link.download=id+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e instanceof Error?e.message:'Source export failed')}};
+ return <PrintsStudioProvider><main className="artwork-studies" data-single-study={Boolean(selectedStudy)}><header><Link to={selectedStudy?'/artwork-studies':'/products'}>{selectedStudy?'← All studies':'← Products'}</Link><span>ARTWORK / WORKING STUDIES</span><h1>Four prints. Real tools.</h1><p>Editable recreations of the supplied references. Open a fresh draft to change lettering, ink separation, repeats, garment colours and fabrics.</p></header>{error&&<p role="alert">{error}</p>}<div className="study-grid">{visibleStudies.map(({study,state})=><article key={study.id}><div className="study-preview" data-study={study.id} data-sleeve-choice={state.tshirtAssetSelection['Sleeve length']}>{!selectedStudy?<Link to={'/artwork-studies?study='+study.id} className="study-open-preview">{previews['../../assets/artwork-studies/preview-'+study.id+'.png']?<img src={previews['../../assets/artwork-studies/preview-'+study.id+'.png']} alt={study.name+' garment preview'}/>:<span>View live garment</span>}</Link>:ready?<StudioArtworkPreview elements={state.studioArtwork} view="front" garment={<TshirtSvgPreview garmentType="tshirt" fit={state.fit} selection={state.tshirtAssetSelection} detailView="front" color={study.base} partColors={state.partColors} fabricAssignments={state.fabricAssignments} fabricTextureIntensity={state.fabricTextureIntensity} className="h-full w-full"/>}/>:<span>Loading garment…</span>}</div><div className="study-caption"><h2>{study.name}</h2><p>{study.summary}</p><div><button disabled={Boolean(busy)||!ready} onClick={()=>open(study.id)}>{busy===study.id?'Creating draft…':'Open editable draft'}</button><button onClick={()=>download(study.id)}>Download source</button></div></div></article>)}</div><footer>Reference studies use reconstructed type and repeats, with cropped tiger and calligraphy source graphics from the supplied images. Garment silhouette and construction are approximations; these are editable design studies, not production-approved specifications.</footer></main></PrintsStudioProvider>;
+}

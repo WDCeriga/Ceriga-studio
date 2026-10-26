@@ -4,6 +4,7 @@ import { NotFound } from "./pages/NotFound";
 import { SidebarLayout } from "./components/SidebarLayout";
 
 export const router = createBrowserRouter([
+ {path:"/artwork-studies",lazy:async()=>{const{ArtworkStudies}=await import("./pages/ArtworkStudies");return{Component:ArtworkStudies}}},
   ...(import.meta.env.DEV ? [{ path: '/garment-import-review', lazy: async () => ({ Component: (await import('./pages/GarmentImportReview')).GarmentImportReview }) }] : []),
   {
     path: "/",

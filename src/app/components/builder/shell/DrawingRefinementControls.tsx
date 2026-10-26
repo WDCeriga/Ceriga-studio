@@ -1,0 +1,8 @@
+import type {DesignElement} from '../PrintStudioEditor';
+import {refineDrawing} from '../../../lib/drawingRefinement';
+import {StudioFold,StudioRange} from './StudioControls';
+export function DrawingRefinementControls({element:el,update}:{element:DesignElement;update:(p:Partial<DesignElement>)=>void}){
+ if(el.type!=='drawing')return null;
+ const source=el.drawingOriginal??el.drawing;const original=source?{...source,cuts:el.drawing?.cuts??source.cuts}:undefined;
+ return <StudioFold title="Refine drawing" hint="Smooth a selected drawing" open>{original?<><StudioRange label="Smoothness" value={el.drawingSmoothness??0} onChange={amount=>update({drawingOriginal:original,drawing:refineDrawing(original,amount),drawingSmoothness:amount})}/><div className="advanced-tool-pair">{[25,55,85].map((amount,i)=><button key={amount} disabled={el.locked} aria-pressed={el.drawingSmoothness===amount} onClick={()=>update({drawingOriginal:original,drawing:refineDrawing(original,amount),drawingSmoothness:amount})}>{['Gentle','Balanced','Flowing'][i]}</button>)}</div><button className="shape-geometry-reset" disabled={!el.drawingOriginal||el.locked} onClick={()=>update({drawing:original,drawingOriginal:undefined,drawingSmoothness:0})}>Restore original drawing</button><p className="typography-help">Adjust after drawing. Stroke pressure, brush texture and erased areas stay intact. Every preview starts from the original, so repeated changes do not degrade it.</p></>:<p className="typography-help">This older drawing contains pixels only. New drawings record their strokes and can be smoothed here.</p>}</StudioFold>;
+}

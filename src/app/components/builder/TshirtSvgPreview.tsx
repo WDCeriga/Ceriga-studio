@@ -1,3 +1,4 @@
+import {withoutBodyHemFoldInk} from '../../data/tshirtHemInk';
 import {PanellingReadOnlyOverlay} from './shell/PanellingReadOnlyOverlay';
 import {withPanellingFabricParts} from '../../features/panelling/panellingMaterials';
 import {washAvailability} from '../../data/washCapabilities';
@@ -990,7 +991,7 @@ export function TshirtSvgPreview({
 }: TshirtSvgPreviewProps) {
   const previewInstance=useId();
   const inheritedTechnical=useTechnicalDrawing();
-  const regularSleeveCleanup=regularConstruction&&garmentType==='tshirt'&&fit==='regular';
+  const regularSleeveCleanup=regularConstruction&&garmentType==='tshirt'&&fit==='regular'&&(!customAssetState?.shoulderConstruction||customAssetState.shoulderConstruction==='set-in');
   const regularCleanup=regularSleeveCleanup&&detailView==='front';
   // Every T-shirt consumer uses the same SVG pipeline; explicit false is reserved for the comparison proof.
   const technical=inheritedTechnical??(garmentType==='tshirt');
@@ -1078,7 +1079,8 @@ export function TshirtSvgPreview({
     // Keep the last complete traced drawing on screen until all new neck parts are ready.
     // Never publish the legacy fallback between the selection change and the async asset load.
     if(awaitsTrace)return lastReadyDrawing.current;
-    const ready=technical&&garmentType==='tshirt'&&!customAssetState?.importedGarment?withTshirtSurfaceQuality(sourceResolvedLayers,fit,neckFinish,detailView,tshirtHemStyles):sourceResolvedLayers;
+    const prepared=technical&&garmentType==='tshirt'&&!customAssetState?.importedGarment?withTshirtSurfaceQuality(sourceResolvedLayers,fit,neckFinish,detailView,tshirtHemStyles):sourceResolvedLayers;
+    const ready=garmentType==='tshirt'&&!customAssetState?.importedGarment?withoutBodyHemFoldInk(prepared,tshirtHemStyles):prepared;
     lastReadyDrawing.current=ready;return ready;
   },[technical,garmentType,customAssetState?.importedGarment,sourceResolvedLayers,fit,neckFinish,detailView,selection,tshirtHemStyles]);
   useEffect(() => {
@@ -1789,7 +1791,7 @@ export function TshirtSvgPreview({
             .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
           const assetName = getGarmentSvgConfig(garmentType).stepCategories[6]?.includes(layout.sourceLayer.category)
             ? `${layout.sourceLayer.category}: ${layout.sourceLayer.displayName}` : undefined;
-          return { id: layout.id, svgRaw: layout.sourceLayer.svgRaw, bbox, matrix: matrix.toString(), assetName };
+          return { id: layout.id, svgRaw: layout.sourceLayer.svgRaw, bbox, matrix: matrix.toString(), assetName, shoulderPoint:layout.sourceLayer.measurementShoulder };
         }), detailBounds)}
         {washEditable && showWash && garmentWash && washBounds && washTool && onWashChange && onWashToolChange && <WashEditor
           key={detailView} wash={washDraft ?? garmentWash} bounds={washBounds} view={detailView} tool={washTool}
