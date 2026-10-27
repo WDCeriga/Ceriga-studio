@@ -40,7 +40,7 @@ export function withDistressedHem(layers:ResolvedGarmentLayer[],styles?:TshirtHe
  const bottom=Math.max(...ps.map(p=>p[1])),low=ps.filter(p=>p[1]>bottom-100),left=Math.min(...low.map(p=>p[0])),right=Math.max(...low.map(p=>p[0]));
  const {points,fibers,holes,bridges,rims,roll}=distressedHemEdge(left,right,bottom,settings.distressAmount,settings.distressDepth,settings.frayAmount,settings.distressSeed);
  const keep:MultiPolygon=[[[[left-20,0],[right+20,0],[right+20,bottom],...points.slice().reverse().map(p=>[p.x,p.y] as Pair),[left-20,bottom],[left-20,0]]]];
- const wrap=(shape:MultiPolygon)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" data-distressed-hem="true"><g transform="matrix(1 0 0 1 0 0)" fill="#000"><path fill-rule="evenodd" d="${shoulderGeometryPath(shape)}"/></g><path data-hem-clearance="distressed" fill="none" d="M${left-4},${bottom-85}H${right+4}V${bottom+40}H${left-4}Z"/><path data-worn-hem-clearance="true" fill="none" d="${rims.join(' ')} M${points.map(p=>p.x+','+p.y).join('L')}"/></svg>`;
+ const wrap=(shape:MultiPolygon)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" data-distressed-hem="true"><g transform="matrix(1 0 0 1 0 0)" fill="#000"><path fill-rule="evenodd" d="${shoulderGeometryPath(shape)}"/></g><path data-worn-hem-clearance="true" fill="none" d="${rims.join(' ')} M${points.map(p=>p.x+','+p.y).join('L')}"/></svg>`;
  const openings:MultiPolygon=holes.map(ring=>[ring.map(p=>[p.x,p.y] as Pair)]);
  let result=layers.map(layer=>{
   if(layer.id==='base'||layer.id==='bodyHem')return {...layer,svgRaw:wrap(polygonClipping.difference(polygonClipping.intersection(shoulderFabricGeometry(layer.svgRaw),keep),openings)),panellingClipSvgRaw:undefined};
