@@ -1,3 +1,5 @@
+import {GarmentPrintTextureContext} from './GarmentPrintTexture';
+import {multiplyInkFabricPixels} from '../../../lib/inkFabricRelief';
 import {usePrintsStudio} from './PrintsStudioContext';
 import {useContext,useEffect,useRef,useState} from 'react';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
@@ -13,10 +15,10 @@ export async function waitForDrawingReplay(root:HTMLElement) {
 }
 /** Repaint original brush commands at the current display density, instead of enlarging an old bitmap. */
 export function DrawingArtwork({element}:{element:DesignElement}) {
- const studio=usePrintsStudio(),erasing=studio.tool==='eraser';
+ const studio=usePrintsStudio(),erasing=studio.tool==='eraser',texture=useContext(GarmentPrintTextureContext);
  const source=element.drawing!,display=useContext(ArtworkResolutionContext),interacting=useContext(ArtworkInteractionContext),canvas=useRef<HTMLCanvasElement>(null);
  const ratio=artworkPixelRatio(source.width,source.height,display*Math.max(element.width/source.width,element.height/source.height),window.devicePixelRatio||1);
- const key=JSON.stringify([source,ratio,element.color]);const [status,setStatus]=useState<{key:string;error?:boolean}>();
+ const key=JSON.stringify([source,ratio,element.color,texture?.url,texture?[element.x,element.y,element.width,element.height,element.rotation]:null]);const [status,setStatus]=useState<{key:string;error?:boolean}>();
  const ready=status?.key===key&&!status.error,pending=status?.key!==key;
  useEffect(()=>{
   if(interacting||erasing)return;let cancelled=false;
@@ -35,6 +37,11 @@ export function DrawingArtwork({element}:{element:DesignElement}) {
    }
    ctx.globalAlpha=1;ctx.globalCompositeOperation='destination-out';
    for(const cut of source.cuts??[]){ctx.beginPath();cut.forEach((p,i)=>i?ctx.lineTo(p.x*ratio,p.y*ratio):ctx.moveTo(p.x*ratio,p.y*ratio));ctx.closePath();ctx.fill()}
+   if(texture){
+    const relief=document.createElement('canvas');relief.width=width;relief.height=height;
+    const surface=relief.getContext('2d')!;surface.scale(width/element.width,height/element.height);surface.translate(element.width/2,element.height/2);surface.rotate(-element.rotation*Math.PI/180);surface.translate(-element.x,-element.y);surface.drawImage(texture.canvas,0,0,texture.width,texture.height);
+    const pixels=ctx.getImageData(0,0,width,height);multiplyInkFabricPixels(pixels.data,surface.getImageData(0,0,width,height).data);ctx.putImageData(pixels,0,0);
+   }
    if(cancelled||!canvas.current)return;canvas.current.width=width;canvas.current.height=height;canvas.current.getContext('2d')?.drawImage(output,0,0);setStatus({key});
   };
   void redraw().catch(error=>{if(!cancelled){console.warn('Using the saved drawing while detail rendering is unavailable.',error);setStatus({key,error:true})}});

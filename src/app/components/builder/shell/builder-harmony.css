@@ -46,7 +46,7 @@
 
 @media(min-width:768px){
  .ceriga-builder-shell .print-canvas-footer>.shape-canvas-actions{position:absolute;right:16px;bottom:16px;left:auto;margin:0}
- .ceriga-builder-shell .print-canvas-footer>.draw-quick-settings{display:none}
+ .ceriga-builder-shell .print-canvas-footer>.draw-quick-settings{display:flex;position:absolute;right:16px;bottom:16px;max-width:calc(100% - 220px);margin:0;flex-wrap:wrap;gap:10px;box-shadow:none}
 }
 
 .ceriga-builder-shell .print-design-canvas:has([data-unified-garment-frame])>.print-garment-stage{position:absolute;inset:56px 12px 50px;padding:0!important;container-type:size}

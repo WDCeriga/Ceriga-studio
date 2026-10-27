@@ -85,3 +85,13 @@
 @media(max-width:767px){.studio-clean :is(.studio-field input,.studio-field textarea,.studio-field select,.studio-search-input,.studio-number input,.studio-library-filter select){font-size:16px}}
 
 .studio-field>input{width:100%;min-width:0;border:1px solid var(--builder-ui-line);border-radius:5px;background:white;padding:10px;color:var(--builder-ui-text);font-size:12px}.studio-object-panel .studio-fold fieldset+fieldset{margin-top:16px;padding-top:16px;border-top:1px solid var(--builder-ui-line)}.studio-object-panel .studio-fold legend{font-size:10px;color:var(--builder-ui-muted);margin-bottom:10px}.studio-layer-footer>button>span{font-size:9px;white-space:nowrap}
+
+.artwork-view-toggle{position:absolute;top:24px;left:16px;z-index:45;min-height:36px;padding:8px 13px;border:1px solid var(--builder-ui-line,#dedede);border-radius:5px;background:#fff;color:var(--builder-ui-secondary,#525252);font:inherit;font-size:11px;cursor:pointer}
+.ceriga-builder-shell .artwork-view-toggle[aria-pressed=true],.ceriga-builder-shell .artwork-view-toggle[aria-pressed=true]:hover{background:#262626;border-color:#262626;color:#fff}
+.artwork-view-toggle:disabled{opacity:.45;cursor:default}
+.artwork-view-toggle:focus-visible{outline:2px solid #737373;outline-offset:3px}
+@media(max-width:767px){.artwork-view-toggle{top:10px;left:14px;right:auto;min-height:34px;padding:7px 9px}.print-design-canvas:has(.artwork-view-toggle)>.new-view-switch{left:auto;right:14px}}
+
+/* Keep hover, pointer focus and keyboard focus consistent with the active view. */
+.ceriga-builder-shell .print-design-canvas>button.artwork-view-toggle[aria-pressed=true]:is(:hover,:focus,:focus-visible,:active){background:#262626!important;background-image:none!important;color:#fff!important;border-color:#262626}
+.ceriga-builder-shell .print-design-canvas>button.artwork-view-toggle[aria-pressed=false]:is(:hover,:focus,:focus-visible,:active){background:#f7f7f7!important;background-image:none!important;color:#525252!important}

@@ -1,3 +1,4 @@
+import {ARTWORK_MOTIFS,editableSvgPath} from './artworkMotifs';
 export interface ShapePathNode {
   x: number;
   y: number;
@@ -13,6 +14,7 @@ export interface ShapePath {
 }
 
 export interface ShapeGeometryElement {
+  drawingVectorSource?:unknown;
   type?: string;
   content: string;
   width?: number;
@@ -133,6 +135,7 @@ function clonePath(path: ShapePath): ShapePath {
 function rawShapeToEditablePath(element: ShapeGeometryElement): ShapePath {
   if (element.shapePath) return clonePath(element.shapePath);
   const content = element.content;
+  if(ARTWORK_MOTIFS[content])return editableSvgPath(ARTWORK_MOTIFS[content]);
   const p = (key: string, fallback: number, min = 0, max = 100) => parameter(element, key, fallback, min, max);
   const rounding = p('roundness', 0);
   const poly = (values: number[][]) => polygon(points(values), rounding);
@@ -289,7 +292,13 @@ export function shapeIsClosed(element: ShapeGeometryElement): boolean {
   const path = shapeToEditablePath(element);
   const contours = (part: ShapePath): ShapePath[] => [...(part.nodes.length ? [part] : []), ...(part.subpaths ?? []).flatMap(contours)];
   const parts = contours(path);
-  return parts.length > 0 && parts.every(part => part.closed && part.nodes.length >= 3);
+  const fillable=(part:ShapePath)=>{
+    if(!part.closed||part.nodes.length<2)return false;
+    if(part.nodes.length>=3)return true;
+    const [a,b]=part.nodes,dx=b.x-a.x,dy=b.y-a.y;
+    return [a.in,a.out,b.in,b.out].some(h=>h&&Math.abs(dx*(h.y-a.y)-dy*(h.x-a.x))>1e-6);
+  };
+  return parts.length>0&&(element.drawingVectorSource?parts.some(fillable):parts.every(fillable));
 }
 
 /** Fit new studio shapes to their real cubic bounds, keeping stroke inside the selection box. */

@@ -1,3 +1,4 @@
+import {outsideDrawing,isDrawingFinishTap} from '../../../lib/drawingCompletion';
 import {drawingPixelRatio} from '../../../lib/artworkResolution';
 import {snapshotBrush,offsetRecordedStroke,type RecordedStroke} from '../../../lib/drawingReplay';
 import {garmentWearMarks,cropWearMarks} from '../../../lib/wearEditing';
@@ -27,6 +28,7 @@ interface PrintsDrawLayerProps {
   adjustFilter?: string;
   displayScale?:number;
   garmentSide?: 'front' | 'back';
+  onFinishDrawing?: (id:string)=>void;
 }
 
 interface Pt {
@@ -173,6 +175,7 @@ export function PrintsDrawLayer({
   adjustFilter,
   garmentSide = 'front',
   displayScale=1,
+  onFinishDrawing,
 }: PrintsDrawLayerProps) {
   const studio = usePrintsStudio();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -190,6 +193,8 @@ export function PrintsDrawLayer({
   const elementsRef = useRef(elements);
   const onChangeRef = useRef(onChange);
   const sideRef = useRef(garmentSide);
+  const finishDrawingRef=useRef(onFinishDrawing);finishDrawingRef.current=onFinishDrawing;
+  const finishTapRef=useRef<{id:string;x:number;y:number;time:number}|null>(null);
   const eraseBuffersRef = useRef(new Map<string, HTMLCanvasElement>());
   useEffect(()=>{eraseBuffersRef.current.clear()},[studio.tool,garmentSide]);
   const eraseSourcesRef=useRef(new Map<string,DesignElement>());
@@ -799,6 +804,9 @@ export function PrintsDrawLayer({
     pointerIdRef.current = e.pointerId;
     strokeSeedRef.current = (Math.random() * 0x7fffffff) | 0;
     const pt = eventPoint(e, canvas);
+    const previous=s.tool==='brush'?sessionRef.current?.element:undefined;
+    const unit=canvas.width/Math.max(1,canvas.clientWidth);
+    finishTapRef.current=previous&&outsideDrawing({x:pt.x/unit,y:pt.y/unit},previous)?{id:previous.id,x:e.clientX,y:e.clientY,time:e.timeStamp}:null;
     strokeRef.current = [pt];
     shapeStrokeRef.current = [pt];
     smoothTipRef.current = pt;
@@ -862,6 +870,7 @@ export function PrintsDrawLayer({
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const tap=finishTapRef.current;if(tap&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>4)finishTapRef.current=null;
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (drawingRef.current && pointerIdRef.current !== e.pointerId) return;
@@ -895,6 +904,7 @@ export function PrintsDrawLayer({
     drawingRef.current = false;
     pointerIdRef.current = null;
     if (shapeTimerRef.current) clearTimeout(shapeTimerRef.current);
+    const finishTap=finishTapRef.current;finishTapRef.current=null;
     const heldShape = shapeRef.current;
     shapeRef.current = null;
     holdPointRef.current = null;
@@ -929,6 +939,9 @@ export function PrintsDrawLayer({
     if (event.type === 'pointercancel') {
       distressStampsRef.current = [];
       return;
+    }
+    if(tool==='brush'&&finishTap&&!heldShape&&isDrawingFinishTap(finishTap,{x:event.clientX,y:event.clientY,time:event.timeStamp})){
+      finishDrawingRef.current?.(finishTap.id);return;
     }
     if (isEraseTool(tool)) {
       finishEraser();

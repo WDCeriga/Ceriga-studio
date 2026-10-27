@@ -1,3 +1,4 @@
+import {ArtworkPrintMethod} from './shell/ArtworkPrintMethod';
 import {
   useCallback,
   useEffect,
@@ -1189,57 +1190,7 @@ export function PrintsDesignStep({
           </div>
 
           <div className="space-y-5">
-            <div>
-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                Printing method
-              </Label>
-              <p className="mb-2 text-[9px] leading-snug text-white/42">
-                Each layer uses one process. DTG = direct-to-garment; DTF = direct-to-film — hover a button for full
-                wording.
-              </p>
-              {usePhoneStrips ? (
-                <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
-                  {PRINT_METHODS.map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      title={PRINT_METHOD_DESCRIPTIONS[method]}
-                      onClick={() => updateSelected({ printMethod: method })}
-                      className={cn(
-                        'shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition',
-                        (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
-                          ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
-                          : 'border-[#171717] bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
-                      )}
-                    >
-                      {method}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {PRINT_METHODS.map((method) => (
-                  <button
-                    key={method}
-                    type="button"
-                    title={PRINT_METHOD_DESCRIPTIONS[method]}
-                    onClick={() => updateSelected({ printMethod: method })}
-                    className={cn(
-                      'min-h-9 rounded-xl border px-2 py-2 text-left text-[10px] font-medium transition',
-                      (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
-                        ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
-                        : 'border-[#171717] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
-                    )}
-                  >
-                    <span className="block">{method}</span>
-                    <span className="mt-0.5 block text-[8px] font-normal leading-tight text-white/38">
-                      {PRINT_METHOD_DESCRIPTIONS[method]}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              )}
-            </div>
+            <ArtworkPrintMethod element={selected} update={({printMethod})=>updateSelected({printMethod})}/>
 
             {selected.type === 'text' && (
               <>

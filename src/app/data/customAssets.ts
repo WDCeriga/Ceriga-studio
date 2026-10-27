@@ -91,6 +91,7 @@ export interface CustomAssetInstance {
 }
 
 export interface CustomAssetState {
+  torsoCrop?:number;
   shoulderConstruction?:import('./shoulderConstruction').ShoulderConstruction;
   importedGarment?: import('./importedGarment').ImportedGarment;
   garmentDetails?: GarmentDetail[];

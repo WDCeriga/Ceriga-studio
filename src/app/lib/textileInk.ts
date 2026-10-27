@@ -3,10 +3,14 @@ import {patternDefinition} from './patternCatalog';
 import {generatedPatternGeometry} from './generatedPatterns';
 import {initialPatternSettings} from './patternEditing';
 import {createTextEffect,type TextEffect} from './textEffects';
-export const TEXTILE_INKS=['plaid','tartan','gingham','houndstooth'] as const;
+export const TEXTILE_INKS=['hatch','plaid','tartan','gingham','houndstooth'] as const;
 const escape=(s:unknown)=>String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
 /** Serializable vector repeat used as a non-destructive fill inside any artwork alpha. */
 export function textileInkSource(kind='plaid',colors=['#c9b997','#a94747','#f1eee2','#344357'],count=4,options:Record<string,number|string>={}){
+ if(kind==='hatch'){
+  const pitch=512/Math.max(4,Math.min(160,count));
+  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><defs><pattern id="h" width="${pitch}" height="${pitch}" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="${pitch}" height="${pitch}" fill="${escape(colors[0]??'#e6e3d8')}"/><rect width="${pitch*.24}" height="${pitch}" fill="${escape(colors[1]??'#6f7474')}"/></pattern></defs><rect width="512" height="512" fill="url(#h)"/></svg>`);
+ }
  if(patternDefinition(kind)?.category==='Classic'){
  const geometry=patternGeometry({content:kind,width:512,height:512,...initialPatternSettings(kind,colors[0]),patternCount:count});
  const shapes=geometry.rectangles.map(r=>`<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" fill="${escape(colors[0])}"/>`).join('')+geometry.dots.map(d=>`<circle cx="${d.x}" cy="${d.y}" r="${d.radius}" fill="${escape(colors[0])}"/>`).join('');

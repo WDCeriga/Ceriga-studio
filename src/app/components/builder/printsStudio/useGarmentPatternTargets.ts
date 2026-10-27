@@ -32,6 +32,7 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
     if (disabled || !zone || !preview) {setTargets([]);return;}
     let generation = 0;
     let frame = 0;
+    let cameraTimer=0;
     const rebuild = async (version: number) => {
       const rect = zone.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
@@ -127,11 +128,18 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => { void rebuild(version).catch(() => { if (version === generation) setTargets([]); }); });
     };
-    const observer = new MutationObserver(schedule);
+    const observer = new MutationObserver(records=>{
+      // Geometry stays in garment coordinates during zoom. Refresh its raster once
+      // the camera settles instead of encoding a new full-size mask every frame.
+      if(records.every(record=>record.target===zone)){window.clearTimeout(cameraTimer);cameraTimer=window.setTimeout(schedule,120);}
+      else schedule();
+    });
     observer.observe(preview, { subtree: true, childList: true, attributes: true });
+    // The read-only camera transforms the artwork zone as well as the garment.
+    observer.observe(zone, {attributes:true,attributeFilter:['style']});
     const resize = new ResizeObserver(schedule); resize.observe(zone); resize.observe(preview);
     schedule();
-    return () => { generation++; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); };
+    return () => { window.clearTimeout(cameraTimer); generation++; cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect(); };
   }, [zone, side,qualityScale,disabled]);
   return targets;
 }

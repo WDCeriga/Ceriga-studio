@@ -14,7 +14,7 @@ import {ShapeAdvancedEditor} from './ShapeAdvancedEditor';
 import './artwork-library.css';
 
 const LOOK_GROUPS:Record<string,string[]>={
- 'Ink extraction':['extract-light','extract-dark','remove-colour'],
+ 'Ink extraction':['remove-background','extract-light','extract-dark','remove-colour'],
  Essentials:['none','bw','grayscale','vintage','washed','film','soft','vibrant','muted'],
  Colour:['sepia','cold','warm','faded','dark','dreamy','retro','y2k','disposable','polaroid','invert'],
  Print:['high-contrast-bw','posterize','duotone','tritone','threshold','halftone','comic','photocopy','newsprint','pixelate','glitch','chromatic','thermal','emboss','screen-print'],

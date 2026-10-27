@@ -70,3 +70,7 @@
 @media(max-width:767px){
  .ceriga-builder-shell[data-section="Fit & Measurements"] .new-builder-canvas>.measurement-guides-toggle{display:flex!important;left:auto;right:12px;bottom:12px;min-height:36px;padding:7px 10px;gap:8px;font-size:12px}
 }
+
+@media(max-width:767px){
+ .ceriga-builder-shell .phone-artwork-controls .draw-quick-settings{display:flex!important;position:static;max-width:none;margin-top:12px;width:100%;flex-wrap:wrap;justify-content:space-between}
+}

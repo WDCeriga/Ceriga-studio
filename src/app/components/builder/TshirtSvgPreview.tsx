@@ -1,3 +1,6 @@
+import {withDistressedHem} from '../../data/distressedHem';
+import {withTorsoCrop} from '../../data/torsoCrop';
+import {withRoundedShoulderCaps} from '../../data/tshirtShoulderGeometry';
 import {withoutBodyHemFoldInk} from '../../data/tshirtHemInk';
 import {PanellingReadOnlyOverlay} from './shell/PanellingReadOnlyOverlay';
 import {withPanellingFabricParts} from '../../features/panelling/panellingMaterials';
@@ -474,7 +477,7 @@ function InlineSvg({
     <div
       className="pointer-events-none absolute inset-0 [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
       aria-hidden
-      dangerouslySetInnerHTML={{ __html: technical?normalizeTechnicalSvg(markup,1,linework?'outline':'construction',linework):markup }}
+      dangerouslySetInnerHTML={{ __html: technical&&!raw.includes('data-hem-fray')?normalizeTechnicalSvg(markup,1,linework?'outline':'construction',linework):markup }}
     />
   );
 }
@@ -746,7 +749,7 @@ function PreviewLayer({
       >
         <InlineSvg
           raw={layer.svgRaw}
-          edgeSealWidth={technicalDrawing&& layer.id!=='outline'?36:0}
+          edgeSealWidth={technicalDrawing&&layer.id!=='outline'&&!layer.svgRaw.includes('data-distressed-hem')?36:0}
           fabric={fabric}
           interior={interior}
           textureIntensity={textureIntensity}
@@ -1053,6 +1056,9 @@ export function TshirtSvgPreview({
     };
   }, [onSelectedLayerChange]);
 
+  const structuralHemKey=JSON.stringify(tshirtHemStyles,(key,value)=>['distressAmount','distressDepth','frayAmount','distressSeed'].includes(key)?undefined:value);
+  const structuralHemStyles=useMemo(()=>structuralHemKey?JSON.parse(structuralHemKey) as TshirtHemStyles:undefined,[structuralHemKey]);
+  const structuralCustomAssetState=useMemo(()=>customAssetState?{torsoCrop:customAssetState.torsoCrop,shoulderConstruction:customAssetState.shoulderConstruction,importedGarment:customAssetState.importedGarment,garmentDetails:customAssetState.garmentDetails,customAssets:customAssetState.customAssets,customAssetInstances:customAssetState.customAssetInstances,customSleevesLinked:customAssetState.customSleevesLinked,customAssetAspectLocked:customAssetState.customAssetAspectLocked}:undefined,[customAssetState?.torsoCrop,customAssetState?.shoulderConstruction,customAssetState?.importedGarment,customAssetState?.garmentDetails,customAssetState?.customAssets,customAssetState?.customAssetInstances,customAssetState?.customSleevesLinked,customAssetState?.customAssetAspectLocked]);
   const sourceResolvedLayers = useMemo(() => {const result=resolveGarmentLayers({
         garmentType,
         view: detailView,
@@ -1063,15 +1069,16 @@ export function TshirtSvgPreview({
         pocketTrimColor,
         stitchingColor,
         partColors,
-        tshirtHemStyles,
+        tshirtHemStyles:structuralHemStyles,
         neckFinish,
         fit,
         customCollar,
         customCollars,
-        customAssetState,
+        customAssetState:structuralCustomAssetState,
       });const joined=regularSleeveCleanup?withRegularConstruction(result):result;return joined;}, [technical,regularSleeveCleanup,garmentType, detailView, selection, neckTrimColor, sleeveTrimColor, cuffTrimColor,
-    pocketTrimColor, stitchingColor, partColors, tshirtHemStyles, neckFinish, fit, customCollar,
-    customCollars, customAssetState, collarContourRevision, garmentAssetRevision]);
+    pocketTrimColor, stitchingColor, partColors, structuralHemStyles, neckFinish, fit, customCollar,
+    customCollars, structuralCustomAssetState, collarContourRevision, garmentAssetRevision]);
+  const preparedLayers=useMemo(()=>technical&&garmentType==='tshirt'&&!customAssetState?.importedGarment?withTshirtSurfaceQuality(sourceResolvedLayers,fit,neckFinish,detailView,structuralHemStyles):sourceResolvedLayers,[technical,garmentType,customAssetState?.importedGarment,sourceResolvedLayers,fit,neckFinish,detailView,structuralHemStyles]);
   const lastReadyDrawing=useRef<ResolvedGarmentLayer[]>([]);
   const resolvedLayers=useMemo(()=>{
     const selectedNeck=getGarmentAsset(selection?.Neck??'');
@@ -1079,10 +1086,9 @@ export function TshirtSvgPreview({
     // Keep the last complete traced drawing on screen until all new neck parts are ready.
     // Never publish the legacy fallback between the selection change and the async asset load.
     if(awaitsTrace)return lastReadyDrawing.current;
-    const prepared=technical&&garmentType==='tshirt'&&!customAssetState?.importedGarment?withTshirtSurfaceQuality(sourceResolvedLayers,fit,neckFinish,detailView,tshirtHemStyles):sourceResolvedLayers;
-    const ready=garmentType==='tshirt'&&!customAssetState?.importedGarment?withoutBodyHemFoldInk(prepared,tshirtHemStyles):prepared;
+    const ready=garmentType==='tshirt'&&!customAssetState?.importedGarment?withoutBodyHemFoldInk(withDistressedHem(withTorsoCrop(withRoundedShoulderCaps(preparedLayers),customAssetState?.torsoCrop),tshirtHemStyles),tshirtHemStyles):preparedLayers;
     lastReadyDrawing.current=ready;return ready;
-  },[technical,garmentType,customAssetState?.importedGarment,sourceResolvedLayers,fit,neckFinish,detailView,selection,tshirtHemStyles]);
+  },[technical,garmentType,customAssetState?.importedGarment,preparedLayers,sourceResolvedLayers,fit,neckFinish,detailView,selection,tshirtHemStyles,customAssetState?.torsoCrop]);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -1619,6 +1625,7 @@ export function TshirtSvgPreview({
     >
       <div
         ref={canvasRef}
+        data-garment-camera="true"
         data-garment-interior-color={openingInteriorColor}
         className={cn(GARMENT_PREVIEW_CANVAS_CLASS, 'motion-reduce:!transition-none')}
         data-stitch-camera={stitchEditor ? `${focusedStitchRegion}:${stitchEditor.closeUp ? 'close-up' : 'garment'}` : undefined}
@@ -1641,7 +1648,7 @@ export function TshirtSvgPreview({
           if (sourceLayer.id === 'stitching' && garmentType === 'tshirt') {
             return <React.Fragment key="stitching">
               {stitchOpeningClip && <svg className="absolute h-0 w-0" aria-hidden><defs><clipPath id={`${openingClipPrefix}-stitch`} clipPathUnits="objectBoundingBox"><path d={stitchOpeningClip} transform="scale(0.00048828125)" clipRule="evenodd" /></clipPath></defs></svg>}
-              <div className="pointer-events-none absolute inset-0" style={{ clipPath: stitchOpeningClip ? `url(#${openingClipPrefix}-stitch)` : undefined, zIndex: sourceLayer.zIndex }}>
+              <div className="pointer-events-none absolute inset-0" style={{ clipPath: stitchOpeningClip ? `url(#${openingClipPrefix}-stitch)` : undefined, zIndex: Math.min(sourceLayer.zIndex,90) }}>
                 <TshirtStitchingLayer layers={layers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} fabricColor={fabricColor} />
               </div>
             </React.Fragment>;
@@ -1690,7 +1697,7 @@ export function TshirtSvgPreview({
           );
         })}
 
-        {garmentType==='tshirt'&&(technical||['regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
+        {garmentType==='tshirt'&&(technical||['regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework completeOutline={!customAssetState?.importedGarment} visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
         {canvasOverlay}
         {savedPanelling?.seams.length? <PanellingReadOnlyOverlay {...savedPanelling}/>:null}
         {renderPanellingOverlay?.(panellingGeometry)}

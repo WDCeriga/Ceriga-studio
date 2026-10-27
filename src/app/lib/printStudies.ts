@@ -1,3 +1,4 @@
+import {REFERENCE_PRINT_STUDIES,buildReferencePrintStudy} from './referencePrintStudies';
 import type {DesignElement} from '../components/builder/PrintStudioEditor';
 import {getDefaultGarmentSelection,getGarmentAssetsForFit} from '../data/garmentSvgCatalog';
 import {createTextEffect} from './textEffects';
@@ -9,6 +10,7 @@ import leftScript from '../../assets/artwork-studies/sleeve-left-source.png';
 import rightScript from '../../assets/artwork-studies/sleeve-right-source.png';
 import badge from '../../assets/artwork-studies/badge-lettering-source.png';
 export const PRINT_STUDIES=[
+ ...REFERENCE_PRINT_STUDIES,
  {id:'tiger-varsity',name:'01 / Striped varsity',summary:'Arched outline lettering, tiger ink separation, striped cotton and local abrasion.',base:'#354456',neck:'#eeba14',long:true,fabric:'single-jersey'},
  {id:'plaid-athletic',name:'02 / Plaid athletic',summary:'Worn stencil stack, script overlay and independently coloured plaid sleeves.',base:'#e8e5dd',neck:'#984a4a',long:false,fabric:'single-jersey'},
  {id:'sleeve-script',name:'03 / Sleeve script',summary:'Ribbed black body, woven plaid sleeves, distressed number and extracted sleeve calligraphy.',base:'#151618',neck:'#333638',long:true,fabric:'rib-1x1'},
@@ -21,6 +23,7 @@ const oval=(id:string,x:number,y:number,width:number,height:number,color:string,
 function pattern(id:string,kind:string,target:string,colors:string[],count=12):DesignElement{return {id,layerName:id,type:'pattern',content:kind,x:400,y:350,width:700,height:700,rotation:0,side:'front',...initialPatternSettings(kind,colors[0]),patternColors:colors,patternCount:count,patternReferenceSize:700,patternAlignment:'continuous',patternSeed:1729,patternTarget:target,printMethod:'Screen Print'}}
 function shoulder(id:string,right:boolean,colors:string[]):DesignElement{return {id,layerName:id,type:'customArea',content:'',customAreaName:'Raglan shoulder colour area',x:right?493:307,y:187,width:105,height:170,rotation:0,side:'front',customAreaViewWidth:105,customAreaViewHeight:170,customAreaPoints:right?[{x:0,y:0},{x:105,y:35},{x:105,y:170}]:[{x:105,y:0},{x:0,y:35},{x:0,y:170}],customAreaPattern:'plaid',patternColors:colors,patternCount:12,patternReferenceSize:700,patternSeed:1729,patternAlignment:'continuous',opacity:100,customAreaOutline:{enabled:true,color:'#555555',width:.6,opacity:55,style:'solid'}}}
 export function buildPrintStudy(id:string){
+ const reference=buildReferencePrintStudy(id);if(reference)return reference;
  const study=PRINT_STUDIES.find(s=>s.id===id)??PRINT_STUDIES[0];const fit='boxy';
  const selection=getDefaultGarmentSelection('tshirt',fit);
  if(study.long){const long=getGarmentAssetsForFit('tshirt','Sleeve length',fit).find(a=>a.displayName===`Long sleeve (${fit})`);if(long)selection['Sleeve length']=long.id}

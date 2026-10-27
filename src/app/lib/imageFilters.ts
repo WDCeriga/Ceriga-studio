@@ -1,3 +1,4 @@
+import {removeImageBackground} from './removeImageBackground';
 /** Pure RGBA filters. Distances use a 600px longest-edge reference; angles use degrees.
  * Intensity is 0–100 (default 100). Alpha and fully transparent RGB are never changed.
  * Outputs are independent copies, suitable for caching at intensity 100 and blending later.
@@ -6,6 +7,7 @@ export const IMAGE_FILTERS = [
   { id: 'none', label: 'Original / None' },
   { id: 'extract-light', label: 'Extract light ink' },
   { id: 'extract-dark', label: 'Extract dark ink' },
+  { id: 'remove-background', label: 'Remove image background' },
   { id: 'remove-colour', label: 'Remove background colour' },
   { id: 'bw', label: 'B&W' },
   { id: 'high-contrast-bw', label: 'High Contrast B&W' },
@@ -57,6 +59,7 @@ export type ImageFilterSettings = {
   softness?: number;
   inkColor?: string;
   backgroundColor?: string;
+  backgroundAuto?: boolean;
   inkChroma?: number;
   inkCleanup?: number;
   backgroundTolerance?: number;
@@ -93,6 +96,7 @@ const texture = (grain: number, fade: number): ImageFilterControl[] => [
 const CONTROLS: Partial<Record<ImageFilterId, ImageFilterControl[]>> = {
   'extract-light': [range('threshold','Ink threshold',0,255,155),range('softness','Edge softness',1,100,25),range('inkChroma','Maximum ink colour spread',0,255,255),range('inkCleanup','Clean ink edges',0,100,0),color('backgroundColor','Reject background colour','#344357'),range('backgroundTolerance','Background rejection',0,255,0),color('inkColor','Ink colour','#ece8db')],
   'extract-dark': [range('threshold','Ink threshold',0,255,110),range('softness','Edge softness',1,100,25),range('inkChroma','Maximum ink colour spread',0,255,255),range('inkCleanup','Clean ink edges',0,100,0),color('backgroundColor','Reject background colour','#344357'),range('backgroundTolerance','Background rejection',0,255,0),color('inkColor','Ink colour','#171717')],
+  'remove-background': [range('threshold','Background tolerance',1,180,45),range('softness','Edge softness',1,80,18)],
   'remove-colour': [color('backgroundColor','Background colour','#344357'),range('threshold','Colour tolerance',0,255,50),range('softness','Edge softness',1,100,20)],
   bw: [range('contrast', 'Contrast', 0, 100, 20)],
   'high-contrast-bw': [range('contrast', 'Contrast', 0, 100, 70)],
@@ -323,6 +327,12 @@ export function applyImageFilter(data: Uint8ClampedArray, width: number, height:
       const paperGrain = id === 'newsprint' ? (noise(Math.floor((x + 0.5) / scale), Math.floor((y + 0.5) / scale), seed) - 0.5) * grain / 500 : 0;
       palette(i, 1 - coverage - paperGrain);
     }
+    return output;
+  }
+
+  if(id==='remove-background'){
+    const result=removeImageBackground(data,width,height,number('threshold',45,1,180),number('softness',18,1,80),settings.backgroundAuto===false?parseColor(settings.backgroundColor,'#ffffff'):undefined);
+    for(let i=0;i<output.length;i++)output[i]=data[i]+(result[i]-data[i])*intensity;
     return output;
   }
 

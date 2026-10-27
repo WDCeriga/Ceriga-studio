@@ -22,17 +22,26 @@ function cubic(points:P[],a:P,b:P,verticalEnd=false){
  return 'C'+pt(c)+' '+pt(d)+' '+pt(b);
 }
 const wrap=(d:string)=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><g transform="translate(0 2048) scale(.1 -.1)" fill="#000000"><path fill-rule="evenodd" d="'+svgpath(d).matrix([10,0,0,-10,0,20480]).toString()+'"/></g></svg>';
+/** Keep the first side-seam run registered to the inner cuff, then ease into the waist. */
+export function registeredTorsoSide(points:P[],join:P):P[]{
+ const left=join.x<1024;
+ return points.filter(q=>!((left?q.x<700:q.x>1348)&&Math.abs(q.x-join.x)<80&&q.y<join.y&&q.y>join.y-120)).map(q=>{
+  if(!(left?q.x<700:q.x>1348)||q.y<join.y||q.y>join.y+340)return q;
+  const t=Math.max(0,Math.min(1,(q.y-join.y-120)/220)),blend=t*t*(3-2*t);
+  return {x:join.x+(q.x-join.x)*blend,y:q.y};
+ });
+}
 function replaceBodyArc(raw:string,a:P,b:P,curve:string,straightSide=false){
  const doc=new DOMParser().parseFromString(raw,'image/svg+xml'),g=[...doc.querySelectorAll('g[transform]')].find(e=>!e.closest('defs')) as SVGGraphicsElement|undefined,p=g?.querySelector('path'),m=g?.transform.baseVal.consolidate()?.matrix;
  if(!p||!m)return raw;const parts=(p.getAttribute('d')??'').match(/M[^M]*/g);if(!parts)return raw;
  const rings=parts.map(d=>flattenPathContours(svgpath(d).matrix([m.a,m.b,m.c,m.d,m.e,m.f]).toString(),2)[0]??[]),index=rings.reduce((n,r,i)=>Math.abs(signedArea(r))>Math.abs(signedArea(rings[n]))?i:n,0),r=rings[index];if(!r.length)return raw;
  const i=near(r,a),j=near(r,b),first=walk(r,i,j),second=walk(r,j,i),len=(ps:P[])=>ps.slice(1).reduce((n,q,k)=>n+distance(q,ps[k]),0),rest=len(first)<len(second)?second:first.reverse();
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
- parts[index]=svgpath('M'+pt(a)+curve+(rest.length>2?'L'+rest.slice(1,-1).map(q=>straightSide&&q.y>b.y&&(b.x<1024?q.x<700:q.x>1348)?{x:b.x,y:q.y}:q).map(pt).join('L'):'')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.filter((_,k)=>k===index||rings[k].every(q=>q.x>700&&q.x<1348&&q.y<900)).join(''));return new XMLSerializer().serializeToString(doc.documentElement);
+ parts[index]=svgpath('M'+pt(a)+curve+(rest.length>2?'L'+registeredTorsoSide(rest.slice(1,-1),b).map(q=>straightSide&&q.y>b.y&&(b.x<1024?q.x<700:q.x>1348)?{x:b.x,y:q.y}:q).map(pt).join('L'):'')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.filter((_,k)=>k===index||rings[k].every(q=>q.x>700&&q.x<1348&&q.y<900)).join(''));return new XMLSerializer().serializeToString(doc.documentElement);
 }
-/** Smooth shoulder seams for the oversized dropped-shoulder block. */
+/** Keep the neck-to-cap shoulder line smooth for every fit, without changing the collar. */
 export function straightenOversizedShoulders(layers:ResolvedGarmentLayer[],fit?:string):ResolvedGarmentLayer[]{
- if(fit!=='oversized')return layers;
+
  const body=layers.find(l=>l.id==='base'),neck=layers.find(l=>l.id==='neck');if(!body||/polo/i.test(neck?.displayName??''))return layers;
  let neckPoints=neck?ring(neck.svgRaw):[];
  if(!neckPoints.length){const outline=layers.find(l=>l.id==='outline'),support=outline?new DOMParser().parseFromString(outline.svgRaw,'image/svg+xml').querySelector('[data-ink-preserve],[data-shoulder-neck-boundary]'):null;if(support)neckPoints=ring('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><g transform="'+(support.getAttribute('transform')??'scale(1)')+'"><path fill="black" d="'+support.getAttribute('d')+'"/></g></svg>');}

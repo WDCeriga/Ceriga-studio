@@ -1,3 +1,4 @@
+import {stablePolygonUnion,stablePolygonDifference} from '../../lib/stablePolygonUnion';
 import polygonClipping, {type MultiPolygon, type Pair} from 'polygon-clipping';
 import svgpath from 'svgpath';
 import type { BoundaryLoop, PanellingPoint, PanellingSeam, SeamAnchor } from './panellingTypes';
@@ -225,8 +226,8 @@ export function sampleSvgBoundaries(svg: SVGSVGElement, parentSurfaceId?: string
           if(!alpha && /^(black|#000(?:000)?)$/i.test(fill)) negative.push(geometry); else if(fill!=='none') positive.push(geometry);
         }
         if (positive.length) {
-          let keep=polygonClipping.union(positive[0],...positive.slice(1));
-          if(negative.length) keep=polygonClipping.difference(keep,...negative);
+          let keep=stablePolygonUnion(positive[0],...positive.slice(1));
+          if(negative.length) keep=stablePolygonDifference(keep,...negative);
           loops=geometryBoundaries(polygonClipping.intersection(boundaryGeometry(loops),keep),parentSurfaceId??'garment');
         }
       }
@@ -276,14 +277,14 @@ export function sampleGarmentSurfaces(svg: SVGSVGElement): BoundaryLoop[] {
     const close = (loop: BoundaryLoop): Pair[] => [...loop.points, loop.points[0]].map(p=>[p.x,p.y]);
     const geometry: MultiPolygon = boundaries.filter(b=>b.role==='outer').map(outer=>[close(outer),...boundaries.filter(hole=>hole.role==='hole' && pointInLoop(hole.points[0],outer.points)).map(close)]);
     if (!geometry.length) continue;
-    const owned = covered.length ? polygonClipping.difference(geometry, covered) : geometry;
+    const owned = covered.length ? stablePolygonDifference(geometry, covered) : geometry;
     for (const [polygonIndex, polygon] of owned.entries()) for (const [ringIndex, ring] of polygon.entries()) {
       let points = ring.slice(0,-1).map(([x,y])=>({x,y}));
       const outer = ringIndex===0;
       if ((signedArea(points)>0)!==outer) points=points.reverse();
       result.push({id:id+'-boundary-'+polygonIndex+'-'+ringIndex, surfaceId:id, role:outer?'outer':'hole',points});
     }
-    covered = covered.length ? polygonClipping.union(covered, geometry) : geometry;
+    covered = covered.length ? stablePolygonUnion(covered, geometry) : geometry;
   }
   return result.reverse();
 }

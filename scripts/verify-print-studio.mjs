@@ -27,3 +27,26 @@ assert.equal(copy.locked,false);assert.equal(copy.x,original.x+20);
 copy.children[0].content='EDIT COPY';assert.equal(original.children[0].content,'CERIGA');
 assert.equal(artwork.describeStudioArtwork({...source[0],type:'pattern',content:'data:huge-payload'}),'Pattern');
 console.log('Artwork migration, intentional deletion, recursive duplication and review descriptions passed.');
+
+const relief=await load('inkFabricRelief');
+const ink=new Uint8ClampedArray([0,0,0,80,30,60,90,255,200,200,200,0,50,80,100,125]);
+const before=ink.slice();relief.multiplyInkFabricPixels(ink,new Uint8ClampedArray([230,230,230,255,128,128,128,255,250,250,250,255,0,0,0,0]));
+assert.deepEqual([ink[3],ink[7],ink[11],ink[15]],[80,255,0,125]);
+assert.deepEqual([...ink.slice(0,3)],[0,0,0]);assert.deepEqual([...ink.slice(4,7)],[15,30,45]);assert.deepEqual([...ink.slice(8)], [...before.slice(8)]);
+console.log('Fabric relief preserves transparent and antialiased ink edges without adding pale pixels.');
+
+const view=await load('artworkViewBounds');
+const front={...source[0],x:100,y:100,width:80,height:40,rotation:0};
+const rotated={...source[1],x:200,y:100,width:100,height:20,rotation:90};
+const design=[front,rotated,{...front,id:'hidden',hidden:true,x:900},{...front,id:'back',side:'back',x:700}];
+assert.deepEqual(view.artworkViewBounds(design,'front'),{x:135,y:100,width:150,height:100});
+assert.deepEqual(view.artworkViewBounds(design,'back'),{x:700,y:100,width:80,height:40});
+assert.equal(view.artworkViewBounds([], 'front'),null);
+console.log('Artwork view fits the entire visible side, including rotated artwork, without selection or opposite-side leakage.');
+
+const completion=await load('drawingCompletion');
+const bounds={x:100,y:100,width:80,height:60};assert(!completion.outsideDrawing({x:100,y:100},bounds));assert(completion.outsideDrawing({x:180,y:150},bounds));
+assert(completion.isDrawingFinishTap({x:0,y:0,time:0},{x:2,y:1,time:100}));
+assert(!completion.isDrawingFinishTap({x:0,y:0,time:0},{x:30,y:1,time:100}));
+assert(!completion.isDrawingFinishTap({x:0,y:0,time:0},{x:1,y:1,time:500}));
+console.log('Drawing completion distinguishes a brief blank tap from another stroke or a held brush mark.');

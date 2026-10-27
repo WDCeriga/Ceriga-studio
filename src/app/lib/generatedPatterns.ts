@@ -130,7 +130,7 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
   const randomType = definition?.randomise === true;
   const fine = ['noise', 'grain', 'dither', 'distressed'].includes(kind);
   const repeat = settings.patternRepeat ?? 'grid';
-  const divisions = kind === 'custom' ? (repeat === 'random' ? 4 : 2) : fine ? 8 : randomType ? 4 : 2;
+  const divisions = kind === 'custom' ? (repeat === 'random' ? 4 : 2) : fine || kind === 'leopard' ? 8 : randomType ? 4 : 2;
   const tileWidth = pitchX * divisions;
   const tileHeight = pitchY * divisions;
   const defaults = patternDefaultColors(kind);
@@ -227,20 +227,38 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
         } break;
       case 'cow': primitives.push(path(blob(random, roughness, .56 + jitter() * .3))); x += jitter() * cell * .35; y += jitter() * cell * .35; break;
       case 'leopard': {
-        // Broken, asymmetric rosettes rather than uniform outlined spots.
+        // Filled, lobed rosettes: no uniform dashed circles or black centre dots.
         if(row%2)x+=pitchX*.5;
-        const radius=.29+random()*.1;
-        primitives.push(path(blob(random,roughness,radius*.85),2));
-        const segments=4+Math.floor(random()*3);
-        for(let segment=0;segment<segments;segment++) {
-          const start=segment/segments*Math.PI*2+random()*.16;
-          const end=start+Math.PI*2/segments*(.5+random()*.25);
-          const r=radius*(.85+random()*.22);
-          const mid=(start+end)/2;
-          primitives.push(path(`M${n(Math.cos(start)*r)} ${n(Math.sin(start)*r)} Q${n(Math.cos(mid)*r*1.2)} ${n(Math.sin(mid)*r*1.2)} ${n(Math.cos(end)*r)} ${n(Math.sin(end)*r)}`,'none',0,.045+random()*.04));
+        const radius=.34+random()*.09,phase=random()*Math.PI*2;
+        const lobes=3+Math.floor(random()*3),eccentricity=.78+random()*.35;
+        const contour=(angle:number,r:number)=>{
+          const wave=1+Math.sin(angle*3+phase)*(.075+roughness*.07)+Math.sin(angle*5-phase)*.055;
+          return [Math.cos(angle)*r*wave,Math.sin(angle)*r*wave*eccentricity];
+        };
+        const smoothLoop=(ps:number[][])=>{
+          const mid=(a:number[],b:number[])=>`${n((a[0]+b[0])/2)} ${n((a[1]+b[1])/2)}`;
+          return `M${mid(ps.at(-1)!,ps[0])} `+ps.map((p,i)=>`Q${n(p[0])} ${n(p[1])} ${mid(p,ps[(i+1)%ps.length])}`).join(' ')+'Z';
+        };
+        const center=Array.from({length:18},(_,i)=>contour(i/18*Math.PI*2,radius*.73));
+        primitives.push(path(smoothLoop(center),2));
+        for(let lobe=0;lobe<lobes;lobe++){
+          const start=phase+lobe/lobes*Math.PI*2+random()*.13;
+          const span=Math.PI*2/lobes*(.67+random()*.25);
+          const thickness=.07+random()*.065;
+          const outer=Array.from({length:12},(_,i)=>{
+            const t=i/11,edge=Math.sin(t*Math.PI)**.55;
+            return contour(start+span*t,radius+thickness*(.25+edge*.5));
+          });
+          const inner=Array.from({length:12},(_,i)=>{
+            const t=1-i/11,edge=Math.sin(t*Math.PI)**.55;
+            return contour(start+span*t,radius-thickness*(.25+edge*.5));
+          });
+          primitives.push(path(smoothLoop([...outer,...inner])));
         }
-        for(let spot=0;spot<2;spot++)primitives.push({...path(blob(random,roughness,.028+random()*.025)),transform:`translate(${n((random()-.5)*.7)} ${n((random()-.5)*.7)})`});
-        add(x+jitter()*cell*.55,y+jitter()*cell*.55,primitives,random()*360,cell*(.8+random()*.3),cell*(.75+random()*.4));
+        // Small solid marks sit between rosettes, never as jaguar-like centre dots.
+        if(random()>.3){const angle=random()*Math.PI*2,r=.49+random()*.12;
+          primitives.push({...path(blob(random,roughness,.025+random()*.035)),transform:`translate(${n(Math.cos(angle)*r)} ${n(Math.sin(angle)*r)})`});}
+        add(x+jitter()*cell*.24,y+jitter()*cell*.24,primitives,random()*360,cell*(.87+random()*.2),cell*(.82+random()*.27));
         continue;
       }
       case 'zebra': {

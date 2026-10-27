@@ -14,6 +14,7 @@ export function useGarmentPrintTexture(zone: HTMLDivElement | null, side: 'front
     if (!zone || !preview) return;
     let generation = 0;
     let frame = 0;
+    let cameraTimer=0;
     const rebuild = async () => {
       const current = ++generation;
       const bounds = zone.getBoundingClientRect();
@@ -95,13 +96,20 @@ export function useGarmentPrintTexture(zone: HTMLDivElement | null, side: 'front
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => { void rebuild(); });
     };
-    const observer = new MutationObserver(schedule);
+    const observer = new MutationObserver(records=>{
+      // Geometry stays in garment coordinates during zoom. Refresh its raster once
+      // the camera settles instead of encoding a new full-size mask every frame.
+      if(records.every(record=>record.target===zone)){window.clearTimeout(cameraTimer);cameraTimer=window.setTimeout(schedule,120);}
+      else schedule();
+    });
     observer.observe(preview, { subtree: true, childList: true, attributes: true });
+    // The read-only camera transforms the artwork zone as well as the garment.
+    observer.observe(zone, {attributes:true,attributeFilter:['style']});
     const resize = new ResizeObserver(schedule);
     resize.observe(zone);
     resize.observe(preview);
     schedule();
-    return () => { generation++; observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); };
+    return () => { window.clearTimeout(cameraTimer); generation++; observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); };
   }, [zone, side, artboard,qualityScale,mode,enabled]);
   return mask;
 }

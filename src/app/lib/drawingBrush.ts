@@ -514,7 +514,8 @@ function drawBrushMark(
           const x = -extent + random() * extent * (1 - load);
           line(x, y, x + extent * (0.35 + load + random() * 0.3), y + (random() - 0.5) * 0.06, 0.025 + random() * 0.07);
         } else {
-          context.strokeStyle = '#FFFFFF'; alpha(preset === 'oil-paint' ? 0.08 + random() * 0.24 : 0.18);
+          // Bristle variation uses the selected ink; white highlights leave a pale rim on dark fabric.
+          context.strokeStyle = context.fillStyle; alpha(preset === 'oil-paint' ? 0.08 + random() * 0.24 : 0.18);
           line(-extent * 0.75, y, extent * 0.75, y, preset === 'oil-paint' ? 0.03 + random() * 0.07 : Math.max(pixel * 0.45, 0.015));
         }
       }
@@ -527,7 +528,7 @@ function drawBrushMark(
       alpha(load * 0.2); dot(0, 0, 0.6); break;
     case 'gouache':
       alpha(Math.min(1, load * 1.5)); ragged(0, 0, 1, 0.14);
-      context.strokeStyle = '#FFFFFF';
+      context.strokeStyle = context.fillStyle;
       for (let bristle = 0; bristle < bristles; bristle++) {
         const [x, y] = position(0.85); alpha(0.06); line(x, y, x + 0.12, y, 0.035);
       }

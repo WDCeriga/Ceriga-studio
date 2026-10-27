@@ -1,3 +1,7 @@
+import {ArtworkPrintMethod} from './shell/ArtworkPrintMethod';
+import {DrawingAdvancedEditor} from './shell/DrawingAdvancedEditor';
+import {artworkViewBounds} from '../../lib/artworkViewBounds';
+import {useGarmentArtworkCamera} from './printsStudio/useGarmentArtworkCamera';
 import {CLOTHING_FONT_NAMES} from '../../lib/displayFonts';
 import {artworkSceneScale} from '../../lib/garmentCanvasFrame';
 import {garmentPatternReference} from '../../lib/patternGeometry';
@@ -154,6 +158,8 @@ export interface DesignElement extends ImageAdjustmentValues {
   wear?:{kind:DistressMarkKind;sourceWidth:number;sourceHeight:number;marks:DistressMark[]};
   drawing?:RecordedDrawing;
   drawingOriginal?:RecordedDrawing;
+  shapeBrush?:RecordedDrawing;
+  drawingVectorSource?:{content:string;drawing?:RecordedDrawing;color?:string;layerName?:string};
   drawingSmoothness?:number;
   paintStain?:{style:string;seed:number;spread:number};
   shapeStrokeStyle?:'solid'|'dashed'|'dotted'|'double';
@@ -226,6 +232,8 @@ export interface DesignElement extends ImageAdjustmentValues {
   hidden?: boolean;
   /** Print process for this layer (DTG, DTF, etc.) */
   printMethod?: string;
+  /** Whole-garment fills without a single part target; free squares remain placed artwork. */
+  patternCoverage?: 'garment';
   /** Image only — rounds the rendered artwork corners (px). */
   cornerRadius?: number;
   /** Image only — crop insets as a percentage (0–100) of the raw artwork. */
@@ -335,6 +343,8 @@ interface PrintsDesignPreviewProps {
   liveCanvasScale?: number;
   /** Phone: when the config sheet is collapsed, pin the *text* formatting bar above the soft keyboard. */
   phoneConfigSheetCollapsed?: boolean;
+  /** Isolate the complete design without selecting an object. */
+  artworkView?: boolean;
   /** Which garment face is on screen. Artwork on the other face is hidden. */
   garmentSide?: 'front' | 'back';
 }
@@ -358,6 +368,7 @@ export const PRINT_METHODS = [
   'Embroidery',
   'Puff Print',
   'Heat Transfer',
+  'Fabric Print',
 ] as const;
 
 export const DEFAULT_PRINT_METHOD = PRINT_METHODS[0];
@@ -372,6 +383,7 @@ const WARP_PRESETS: { id: WarpPreset; label: string }[] = [
 
 /** Longer labels for consistent terminology in the UI (abbrev + plain English). */
 export const PRINT_METHOD_DESCRIPTIONS: Record<(typeof PRINT_METHODS)[number], string> = {
+  'Fabric Print': 'Print fabric before cutting and sewing',
   DTG: 'Direct-to-garment (DTG)',
   DTF: 'Direct-to-film (DTF)',
   'Screen Print': 'Screen print (ink through mesh)',
@@ -1490,7 +1502,7 @@ export function PrintsDesignStep({
       />}</div>
 
       {selected ? (
-        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}{!(renderSelection&&(selected.type==='image'||selected.type==='pattern'))&&<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary><span>{selected.type==='text'?'Effects & reshape':selected.type==='image'?'Image adjustments':selected.type==='shape'||selected.type==='customArea'?'Effects & reshape':'Effects & advanced editing'}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m6 9 6 6 6-6"/></svg></summary>{advancedSelectionOpen&&(renderSelection&&(selected.type==='text'||selected.type==='shape'||selected.type==='customArea')?<ShapeAdvancedEditor element={selected} update={updateSelected} assetMode={assetMode} images={[...elements.filter(item=>item.type==='image').map(item=>({name:item.layerName??'Uploaded image',src:item.content})),...previousUploads.map(item=>({name:item.name,src:item.dataUrl})),...(assetWorkspace?.library??[]).map(item=>({name:item.name,src:item.preview}))]}/>:<PrintPanel title="Selected element">
+        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}{!(renderSelection&&(selected.type==='image'||selected.type==='pattern'))&&<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary><span>{selected.type==='text'?'Effects & reshape':selected.type==='image'?'Image adjustments':selected.type==='shape'||selected.type==='customArea'?'Effects & reshape':'Effects & advanced editing'}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m6 9 6 6 6-6"/></svg></summary>{advancedSelectionOpen&&(renderSelection&&selected.type==='drawing'?<DrawingAdvancedEditor element={selected} update={updateSelected}/>:renderSelection&&(selected.type==='text'||selected.type==='shape'||selected.type==='customArea')?<ShapeAdvancedEditor element={selected} update={updateSelected} assetMode={assetMode} images={[...elements.filter(item=>item.type==='image').map(item=>({name:item.layerName??'Uploaded image',src:item.content})),...previousUploads.map(item=>({name:item.name,src:item.dataUrl})),...(assetWorkspace?.library??[]).map(item=>({name:item.name,src:item.preview}))]}/>:<PrintPanel title="Selected element">
           <div className="mb-4 flex items-center justify-between gap-2">
             <span className="text-[10px] text-[#737373]">
               {selected.type === 'image'
@@ -1690,57 +1702,7 @@ export function PrintsDesignStep({
             })() : null}
 </details>
             {!renderSelection && !assetMode && selected.type !== 'distress' ? (
-            <details className="print-production-details"><summary>Printing method</summary>
-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-                Printing method
-              </Label>
-              <p className="mb-2 text-[9px] leading-snug text-[#737373]">
-                Each layer uses one process. DTG = direct-to-garment; DTF = direct-to-film — hover a button for full
-                wording.
-              </p>
-              {usePhoneStrips ? (
-                <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
-                  {PRINT_METHODS.map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      title={PRINT_METHOD_DESCRIPTIONS[method]}
-                      onClick={() => updateSelected({ printMethod: method })}
-                      className={cn(
-                        'shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition',
-                        (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
-                          ? 'border-[#262626] bg-[#262626]/12 text-[#262626]'
-                          : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:border-[#e2e2e2] hover:text-[#262626]',
-                      )}
-                    >
-                      {method}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {PRINT_METHODS.map((method) => (
-                  <button
-                    key={method}
-                    type="button"
-                    title={PRINT_METHOD_DESCRIPTIONS[method]}
-                    onClick={() => updateSelected({ printMethod: method })}
-                    className={cn(
-                      'min-h-9 rounded-xl border px-2 py-2 text-left text-[10px] font-medium transition',
-                      (selected.printMethod ?? DEFAULT_PRINT_METHOD) === method
-                        ? 'border-[#262626] bg-[#262626]/12 text-[#262626]'
-                        : 'border-[#e2e2e2] bg-[#fafafa] text-[#737373] hover:border-[#e2e2e2] hover:text-[#262626]',
-                    )}
-                  >
-                    <span className="block">{method}</span>
-                    <span className="mt-0.5 block text-[8px] font-normal leading-tight text-[#737373]">
-                      {PRINT_METHOD_DESCRIPTIONS[method]}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              )}
-            </details>
+              <ArtworkPrintMethod element={selected} update={updateSelected}/>
             ) : null}
 
             {selected.type === 'text' && (
@@ -2719,6 +2681,7 @@ export function PrintsDesignPreview({
   liveCanvasScale: liveCanvasScaleProp,
   phoneConfigSheetCollapsed = false,
   garmentSide = 'front',
+  artworkView = false,
 }: PrintsDesignPreviewProps) {
   const elements=useMemo(()=>orderDesignLayers(sourceElements),[sourceElements]);
   const studio = usePrintsStudio();
@@ -2799,7 +2762,9 @@ export function PrintsDesignPreview({
 
   const zoneRef = useRef<HTMLDivElement>(null);
   const [zoneEl, setZoneEl] = useState<HTMLDivElement | null>(null);
-  const [focusArtwork,setFocusArtwork]=useState<{id:string;x:number;y:number;width:number;height:number}|null>(null);
+  const bindZone=useCallback((node:HTMLDivElement|null)=>{zoneRef.current=node;setZoneEl(node);},[]);
+  const [focusArtwork,setFocusArtwork]=useState<{x:number;y:number;width:number;height:number}|null>(null);
+  const garmentCamera=useGarmentArtworkCamera(zoneEl,!editable&&!assetMode);
   const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode||Boolean(focusArtwork),sceneScale);
   const printTexture=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale);
   const patternRelief=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale,'pattern',studio.panel==='patterns'||elements.some(function hasPattern(element):boolean{return isBackgroundPattern(element)||!!element.children?.some(hasPattern);}));
@@ -3510,7 +3475,10 @@ export function PrintsDesignPreview({
   useEffect(() => { if (studio.drawing) setWarpEditingId(null); }, [studio.drawing, setWarpEditingId]);
   useEffect(() => { if (distortEditingId) setCropEditingId(null); }, [distortEditingId]);
 
-  useEffect(()=>{if(focusArtwork&&(!selectedId||selectedId!==focusArtwork.id))setFocusArtwork(null)},[selectedId,focusArtwork]);
+  useLayoutEffect(()=>{
+    const bounds=artworkView&&!assetMode?artworkViewBounds(elementsRef.current,garmentSide):null;
+    setFocusArtwork(bounds?{...bounds,x:bounds.x+(zoneEl?.offsetLeft??0),y:bounds.y+(zoneEl?.offsetTop??0)}:null);
+  },[artworkView,assetMode,garmentSide,zoneEl]);
   const focusScale=focusArtwork?Math.min(8,Math.max(.1,Math.min(frameSize.width/(focusArtwork.width+100),frameSize.height/(focusArtwork.height+100)))):null;
   const liveCanvasS = focusScale??((liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1) * sceneScale);
   const uiInvRaw = 1 / liveCanvasS;
@@ -3560,10 +3528,11 @@ export function PrintsDesignPreview({
         ref={frameRef}
         className={cn(
           'relative min-h-0 w-full flex-1',
+          !editable && 'overflow-hidden',
           narrowViewport && editable && 'overflow-hidden rounded-xl',
         )}
       >
-        {editable&&!assetMode&&selectedElement&&<button className="artwork-isolate-button" aria-pressed={Boolean(focusArtwork)} onPointerDown={e=>e.stopPropagation()} onClick={()=>{if(focusArtwork){setFocusArtwork(null);return}const el=selectedElement;const angle=el.rotation*Math.PI/180;setFocusArtwork({id:el.id,x:(zoneEl?.offsetLeft??0)+el.x,y:(zoneEl?.offsetTop??0)+el.y,width:Math.abs(Math.cos(angle))*el.width+Math.abs(Math.sin(angle))*el.height,height:Math.abs(Math.sin(angle))*el.width+Math.abs(Math.cos(angle))*el.height})}}>{focusArtwork?'← Back to garment':'Focus artwork'}</button>}
+
         <GarmentWearHostContext.Provider value={zoneEl}><GarmentPrintTextureContext.Provider value={focusArtwork?null:printTexture}><GarmentPatternReliefContext.Provider value={focusArtwork?null:patternRelief}><div data-design-canvas data-print-fabric-ready={Boolean(printTexture)} className="relative h-full w-full" style={validCanvasSize ? {
           position: 'absolute', width: validCanvasSize.width, height: validCanvasSize.height,
           left: '50%', top: '50%', transform: `translate(-50%, -50%) scale(${liveCanvasS})${focusArtwork?` translate(${validCanvasSize.width/2-focusArtwork.x}px,${validCanvasSize.height/2-focusArtwork.y}px)`:``}`, transformOrigin: 'center',
@@ -3673,10 +3642,7 @@ export function PrintsDesignPreview({
           )}
 
           <div
-            ref={(node) => {
-              zoneRef.current = node;
-              setZoneEl(node);
-            }}
+            ref={bindZone}
             data-print-design-zone
             data-asset-artboard={assetMode ? '' : undefined}
             className={cn('absolute z-10', assetMode ? 'overflow-hidden' : 'overflow-visible', editable && 'touch-none', editable && studio.tool === 'customArea' && 'cursor-crosshair')}
@@ -3730,6 +3696,7 @@ export function PrintsDesignPreview({
               if (target?.kind === 'area') {
                 onChange(elements.map(element => element.id === target.id ? {
                   ...element, customAreaPattern: payload.id, customAreaImage: undefined, customAreaTexture: undefined,
+                  printMethod:element.printMethod==='Fabric Print'?DEFAULT_PRINT_METHOD:element.printMethod??DEFAULT_PRINT_METHOD,
                   ...appearance, flipHorizontal: element.flipHorizontal, flipVertical: element.flipVertical,
                 } : element));
                 setSelectedId(target.id);
@@ -3754,7 +3721,7 @@ export function PrintsDesignPreview({
                 ...(payload.kind === 'shape' ? studioShapeDefaults(payload.id) : {}),
                 opacity: 100,
                 locked: false,
-                printMethod: payload.kind === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
+                printMethod: payload.kind === 'distress' ? undefined : payload.kind === 'pattern' && part ? 'Fabric Print' : DEFAULT_PRINT_METHOD,
                 patternCount: payload.kind === 'pattern' ? defaultPatternCount(payload.id) : undefined,
                 aspectLocked: payload.kind === 'shape' || payload.kind === 'pattern' || payload.kind === 'distress' ? false : undefined,
                 side: garmentSide,
@@ -3765,6 +3732,7 @@ export function PrintsDesignPreview({
               studio.setTool('select');
             }}
             style={{
+              transform:garmentCamera,transformOrigin:'0 0',
               left: assetMode ? 0 : `${PREVIEW_ZONE.left}%`,
               right: assetMode ? 0 : `${PREVIEW_ZONE.right}%`,
               top: assetMode ? 0 : `${PREVIEW_ZONE.top}%`,
@@ -3790,6 +3758,7 @@ export function PrintsDesignPreview({
             .map(element => <ImageAdjustmentDefs key={element.id} element={element} />)}
           {editable ? (
             <PrintsDrawLayer
+              onFinishDrawing={id=>{studio.setTool('select');setSelectedId(id);}}
               zone={zoneEl}
               garmentMask={drawingMask}
               displayScale={sceneScale}
@@ -3851,9 +3820,8 @@ export function PrintsDesignPreview({
             /** iOS zooms the page on focus if input font is under 16px — avoid while editing. */
             const editFontSize = narrowViewport ? Math.max(16, displayFont) : displayFont;
 
-            if(focusArtwork&&element.id!==focusArtwork.id)return null;
             const patternPart = !focusArtwork&&element.patternTarget ? patternTargets.find(target => target.id === element.patternTarget) : undefined;
-            if (element.patternTarget && !patternPart) return null;
+            if (element.patternTarget && !patternPart && !focusArtwork) return null;
             const liveElement = patternPart ? { ...element, ...patternPart.bounds, rotation: 0, patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700) }
               : element.type === 'customArea' && liveCustomAreaPoints?.id === element.id
                 ? { ...element, customAreaViewWidth: customAreaViewport(element).width, customAreaViewHeight: customAreaViewport(element).height, customAreaPoints: liveCustomAreaPoints.points }

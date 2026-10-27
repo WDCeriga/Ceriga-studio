@@ -21,3 +21,10 @@ assert.deepEqual(drag,drop,'Protected dragover preview uses the same appearance 
 assert.equal(transfer.effectAllowed,'copy');
 events.dispatchEvent(new Event('dragend'));assert.equal(api.getActivePatternDrag(),null,'Cancelled drags clear their preview source');
 console.log('49 pattern defaults, deterministic finite geometry, protected drag preview/drop parity and cancellation verified.');
+
+const leopard=api.generatedPatternGeometry({type:'pattern',content:'leopard',width:500,height:650,...api.initialPatternSettings('leopard'),patternSeed:1729});
+assert.equal(leopard.motifs.length,64,'Leopard has a larger varied repeat instead of repeating sixteen ring stamps');
+assert(leopard.motifs.every(m=>m.primitives.every(p=>p.tag!=='path'||p.stroke===undefined)),'Rosettes use filled vector contours rather than dashed-looking strokes');
+assert(new Set(leopard.motifs.map(m=>JSON.stringify(m.primitives))).size>50,'Rosette contours vary across the repeat');
+assert(leopard.motifs.every(m=>m.primitives.every(p=>p.tag!=='path'||p.d.endsWith('Z'))),'Rosette contours are closed for clean scaling');
+console.log('Leopard uses closed filled rosettes with varied contours and a larger seamless repeat.');

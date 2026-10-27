@@ -11,6 +11,8 @@ export interface StudioAsset {
 }
 
 export const SHAPE_ASSETS: StudioAsset[] = [
+  {id:'party-silhouette',label:'Party silhouette',kind:'shape'},
+  {id:'tribal-sigil',label:'Tribal sigil',kind:'shape'},
   { id: 'ellipse', label: 'Ellipse', kind: 'shape' },
   { id: 'rect', label: 'Rectangle', kind: 'shape' },
   { id: 'line', label: 'Line', kind: 'shape' },

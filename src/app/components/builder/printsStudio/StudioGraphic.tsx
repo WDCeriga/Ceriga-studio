@@ -1,3 +1,4 @@
+import {BrushVectorArtwork} from './BrushVectorArtwork';
 import {garmentWearMarks} from '../../../lib/wearEditing';
 import type {DistressMark,DistressMarkKind} from '../../../lib/distressScatter';
 import {distressPaths,singleDistressMarks} from '../../../lib/distressRendering';
@@ -39,6 +40,7 @@ export function StudioGraphic({ element }: { element: DesignElement }) {
 function StudioGraphicBase({ element }: { element: DesignElement }) {
   const id = useId().replace(/:/g, '');
   if (element.type === 'pattern') return <PatternGraphic element={element} />;
+  if(element.type==='shape'&&element.shapeBrush&&element.shapePath)return <BrushVectorArtwork element={element}/>;
   const paintWidth = element.shapeGeometry === 'bounds' ? element.width : 100;
   const paintHeight = element.shapeGeometry === 'bounds' ? element.height : paintWidth;
   const paint = svgPaint(strokeOf(element), `paint-${id}`, paintWidth, paintHeight);
@@ -59,8 +61,9 @@ function StudioGraphicBase({ element }: { element: DesignElement }) {
     const path = scaledPath(shapeToEditablePath(element), width, height);
     return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={flip} aria-hidden>
       {definitions}
+      {element.drawingVectorSource&&element.shapeFilled&&<path d={[path,...(path.subpaths??[])].filter(p=>p.closed).map(p=>shapePathData({...p,subpaths:undefined})).join(' ')} fill={fill} fillRule="evenodd" stroke="none"/>}
       {element.shapeStrokeStyle==='double'&&sw>0&&<path d={shapePathData(path)} fill="none" stroke={element.shapeOutlineAccent??'#f0eadb'} strokeWidth={sw*1.8} strokeLinejoin="round"/>}
-      <path d={shapePathData(path)} strokeDasharray={element.shapeStrokeStyle==='dashed'?`${sw*3} ${sw*2}`:element.shapeStrokeStyle==='dotted'?`.01 ${sw*2}`:undefined} fill={fill} fillRule={element.paintStain?'nonzero':'evenodd'} stroke={stroke} strokeWidth={sw}
+      <path d={shapePathData(path)} strokeDasharray={element.shapeStrokeStyle==='dashed'?`${sw*3} ${sw*2}`:element.shapeStrokeStyle==='dotted'?`.01 ${sw*2}`:undefined} fill={element.drawingVectorSource?'none':fill} fillRule={element.paintStain?'nonzero':'evenodd'} stroke={stroke} strokeWidth={sw}
         strokeLinecap={element.content === 'zigzag' ? 'butt' : 'round'} strokeLinejoin={element.content === 'zigzag' ? 'miter' : 'round'} strokeMiterlimit={8} />
     </svg>;
   }
@@ -140,7 +143,7 @@ function DistressGraphic({element}:{element:DesignElement}) {
   const marks=element.wear?.marks??singleDistressMarks(kind,element.width,element.height,seed);
   const world=element.wear?garmentWearMarks(element):[{x:element.x,y:element.y}];
   return element.content.startsWith('data:')&&!element.wear?<LegacyWearGraphic element={element}/>:<svg viewBox={`0 0 ${element.wear?.sourceWidth??element.width} ${element.wear?.sourceHeight??element.height}`} className="h-full w-full" preserveAspectRatio="none" style={artworkFlipStyle(element)} aria-hidden data-wear-graphic={kind}>
-    {marks.map((mark,i)=><WearVectorMark key={i} mark={{...mark,...element.wearDetail}} kind={kind} x={world[i]?.x??element.x} y={world[i]?.y??element.y}/>)}</svg>;
+    {marks.map((mark,i)=><WearVectorMark key={i} mark={{...mark,...element.wearDetail,...(element.wearDetail?.roughness!==undefined?{roughness:element.wearDetail.roughness/100}:{}),...(element.wearDetail?.fray!==undefined?{fray:element.wearDetail.fray/100}:{})}} kind={kind} x={world[i]?.x??element.x} y={world[i]?.y??element.y}/>)}</svg>;
 }
 function WearVectorMark({mark,kind,x,y}:{mark:DistressMark;kind:DistressMarkKind;x:number;y:number}) {
  const palette=useGarmentWearPalette(x,y);
