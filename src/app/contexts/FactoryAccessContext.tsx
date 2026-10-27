@@ -1,0 +1,13 @@
+import{setActiveFactoryCacheId}from '../lib/factoryWorkspaceIdentity';
+import {createContext,useContext,useEffect,useState,useRef,type ReactNode}from 'react';
+import {getSupabase,isSupabaseConfigured}from '../lib/supabaseClient';
+import {useAuth}from './AuthContext';
+export type FactoryAccess={factoryId:string|null;role:string;hadMembership?:boolean;passwordSetupRequired?:boolean;permissions:string[];organisations:{id:string;name:string}[]};
+const Context=createContext<{access:FactoryAccess|null;ready:boolean;error:string;refresh:()=>Promise<void>}>({access:null,ready:false,error:'',refresh:async()=>{}});
+export function FactoryAccessProvider({children}:{children:ReactNode}){const{user}=useAuth();const[access,setAccess]=useState<FactoryAccess|null>(null),[ready,setReady]=useState(false),[error,setError]=useState('');
+ const revision=useRef(0);const identity=useRef(user?.id);identity.current=user?.id;
+ const refresh=async()=>{const requested=identity.current,generation=revision.current;if(!isSupabaseConfigured){setReady(true);return;}try{const{data,error}=await getSupabase().rpc('factory_team_context');if(error)throw error;if(requested!==identity.current||generation!==revision.current)return;setActiveFactoryCacheId(data?.factoryId||null);setAccess(data);setError('');}catch(e){if(requested!==identity.current||generation!==revision.current)return;setActiveFactoryCacheId(null);setAccess(null);setError((e as Error).message);}finally{if(requested===identity.current&&generation===revision.current)setReady(true);}};
+ useEffect(()=>{let active=true;revision.current++;setActiveFactoryCacheId(null);setAccess(null);setReady(false);const load=()=>{if(active&&document.visibilityState==='visible')void refresh();};load();const timer=setInterval(load,30000);window.addEventListener('ceriga-team-updated',load);window.addEventListener('focus',load);return()=>{active=false;revision.current++;setActiveFactoryCacheId(null);clearInterval(timer);window.removeEventListener('ceriga-team-updated',load);window.removeEventListener('focus',load);};},[user?.id]);
+ return <Context.Provider value={{access,ready,error,refresh}}>{children}</Context.Provider>;}
+export const useFactoryAccess=()=>useContext(Context);
+export function factoryPagePermission(path:string){const section=path.split('/')[2]||'';return({quotations:'quote',production:'production',quality:'view_orders',shipping:'shipping',materials:'inventory',capacity:'calendar',portfolio:'portfolio',verification:'verification',statistics:'analytics',team:'team',settings:'settings',messages:'messages',onboarding:'settings'}as Record<string,string>)[section]||'view_orders';}

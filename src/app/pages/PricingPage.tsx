@@ -1,3 +1,4 @@
+import {displayMoney,useCurrency} from '../lib/accountCurrency';
 import { Link } from 'react-router';
 import { Check, MessageSquare } from 'lucide-react';
 import { MarketingShell, MarketingPageHeader } from '../components/marketing/MarketingShell';
@@ -136,6 +137,8 @@ const comparisonRows: {
 ];
 
 function CompareCell({ value }: { value: Cell | string }) {
+useCurrency();
+if(typeof value==='string'&&/^€[0-9]+$/.test(value))return <>{displayMoney(Number(value.slice(1))*100,'EUR')}</>;
   if (typeof value === 'string')
     return <span className="text-[11px] font-medium tabular-nums text-white/65">{value}</span>;
   if (value === 'yes')
@@ -149,6 +152,7 @@ function CompareCell({ value }: { value: Cell | string }) {
 }
 
 export function PricingPage() {
+useCurrency();
   return (
     <MarketingShell>
       <MarketingPageHeader
@@ -173,7 +177,7 @@ export function PricingPage() {
             <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Pay per export</div>
             <div className="mb-1">
               <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">
-                {techPackPricing.price}
+                {displayMoney(Number(techPackPricing.price.slice(1))*100,'EUR')}
               </span>
               <span className="ml-1 text-xs text-white/45 sm:text-sm">{techPackPricing.priceSub}</span>
             </div>
@@ -236,7 +240,7 @@ export function PricingPage() {
                   {t.tier}
                 </div>
                 <div className="mb-1">
-                  <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">{t.price}</span>
+                  <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">{displayMoney(Number(t.price.slice(1))*100,'EUR')}</span>
                   {t.priceSub ? <span className="ml-1 text-xs text-white/45 sm:text-sm">{t.priceSub}</span> : null}
                 </div>
                 <p className="mb-5 min-h-[2.5rem] text-[11px] leading-relaxed text-white/40 sm:min-h-0 sm:text-xs">

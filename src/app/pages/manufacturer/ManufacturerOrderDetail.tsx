@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
+import { AssignedOrderDetails } from '../../components/manufacturer/AssignedOrderDetails';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import {
   ArrowLeft,
@@ -49,8 +52,10 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { cn } from '../../components/ui/utils';
+import { currencySymbol, LEGACY_FACTORY_CURRENCY, type Currency } from '../../lib/currency';
+import { useManufacturerPricing } from '../../data/manufacturerPricing';
 
-function draftTiersFromOrder(order: FactoryOrder): FactoryQuoteTierDraft[] {
+export function draftTiersFromOrder(order: FactoryOrder, preferredCurrency: Currency = LEGACY_FACTORY_CURRENCY): FactoryQuoteTierDraft[] {
   const prefs = getFactoryShippingPrefs();
   const defaultCarrier = prefs.defaultCarrierId;
   const defaultMode = prefs.defaultMode ?? 'express';
@@ -69,6 +74,8 @@ function draftTiersFromOrder(order: FactoryOrder): FactoryQuoteTierDraft[] {
       });
     return {
       ...tier,
+      currency: tier.currency ?? (tier.factoryCostCents > 0 || order.quotedAt ? undefined : preferredCurrency),
+      shippingCurrency: tier.shippingCurrency ?? LEGACY_FACTORY_CURRENCY,
       shippingCarrierId: tier.shippingCarrierId ?? defaultCarrier,
       shippingMode: tier.shippingMode ?? mode,
       incoterm: tier.incoterm ?? defaultIncoterm,
@@ -122,7 +129,11 @@ function draftTiersFromOrder(order: FactoryOrder): FactoryQuoteTierDraft[] {
   return tiers;
 }
 
-export function ManufacturerOrderDetail() {
+export function ManufacturerOrderDetail(){
+  useCurrency();const {id}=useParams();return isSupabaseConfigured&&id?<AssignedOrderDetails id={id}/>:<ManufacturerOrderDetailPreview/>;}
+function ManufacturerOrderDetailPreview() {
+  useCurrency();
+  const { currency, ready: currencyReady, error: currencyError } = useManufacturerPricing();
   const { id } = useParams<{ id: string }>();
   const [version, setVersion] = useState(0);
   const order = useMemo(() => (id ? getFactoryOrder(id) : undefined), [id, version]);
@@ -135,10 +146,14 @@ export function ManufacturerOrderDetail() {
   const [shipCostInputs, setShipCostInputs] = useState<Record<string, string>>({});
   const [quoteConfirmOpen, setQuoteConfirmOpen] = useState(false);
   const enabledCarriers = listEnabledShippingCarriers();
+  const draftVersion = useRef('');
 
   useEffect(() => {
     if (!order) return;
-    const drafted = draftTiersFromOrder(order);
+    const revision = `${order.id}:${version}`;
+    if (draftVersion.current === revision && Object.values(costInputs).some(value => value.trim())) return;
+    draftVersion.current = revision;
+    const drafted = draftTiersFromOrder(order, currency);
     setTiers(drafted);
     const init: Record<string, string> = {};
     const shipInit: Record<string, string> = {};
@@ -151,7 +166,7 @@ export function ManufacturerOrderDetail() {
     }
     setCostInputs(init);
     setShipCostInputs(shipInit);
-  }, [order?.id, version]);
+  }, [order?.id, version, currency]);
 
   if (!id || !order) {
     return <Navigate to="/manufacturer/orders" replace />;
@@ -177,6 +192,10 @@ export function ManufacturerOrderDetail() {
   };
 
   const requestSubmitQuote = () => {
+    if (!currencyReady || (currencyError && !order.quoteTiers?.length)) {
+      toast.error('Load or confirm your account currency in settings before creating a quotation.');
+      return;
+    }
     for (const tier of tiers) {
       const n = Number(costInputs[tier.id]);
       if (!Number.isFinite(n) || n <= 0) {
@@ -440,6 +459,7 @@ export function ManufacturerOrderDetail() {
             ) : null}
 
             <div className="mt-5 space-y-3">
+              <p className="text-xs text-white/45">New quotation default: {currency}. Existing quotes retain their original currency and amount.</p>
               {tiers.map((tier) => {
                 const carrierSetup = tier.shippingCarrierId
                   ? getFactoryCarrierSetup(tier.shippingCarrierId)
@@ -474,10 +494,10 @@ export function ManufacturerOrderDetail() {
 
                   <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div>
-                      <Label className="text-[10px] text-white/40">Factory cost (£)</Label>
+                      <Label className="text-[10px] text-white/40">Factory cost ({currencySymbol(tier.currency ?? LEGACY_FACTORY_CURRENCY)} · {tier.currency ?? LEGACY_FACTORY_CURRENCY})</Label>
                       <Input
                         value={costInputs[tier.id] ?? ''}
-                        disabled={readOnlyQuote}
+                        disabled={readOnlyQuote || !currencyReady || Boolean(currencyError && !order.quoteTiers?.length)}
                         onChange={(e) =>
                           setCostInputs((prev) => ({ ...prev, [tier.id]: e.target.value }))
                         }
@@ -593,7 +613,8 @@ export function ManufacturerOrderDetail() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[10px] text-white/40">Shipping quote (£)</Label>
+                      <Label className="text-[10px] text-white/40">Shipping quote ({currencySymbol(tier.shippingCurrency ?? LEGACY_FACTORY_CURRENCY)} · {tier.shippingCurrency ?? LEGACY_FACTORY_CURRENCY})</Label>
+                      <p className="text-[10px] text-white/40">Carrier estimates retain their original currency and are converted for indicative display.</p>
                       <Input
                         value={shipCostInputs[tier.id] ?? ''}
                         disabled={readOnlyQuote}
@@ -628,11 +649,9 @@ export function ManufacturerOrderDetail() {
                   {tier.factoryCostCents > 0 || Number(costInputs[tier.id]) > 0 ? (
                     <p className="mt-1 text-[11px] text-white/35">
                       Factory{' '}
-                      {formatFactoryMoney(
-                        tier.factoryCostCents || Math.round((Number(costInputs[tier.id]) || 0) * 100),
-                      )}
+                      {displayMoney(tier.factoryCostCents || Math.round((Number(costInputs[tier.id]) || 0) * 100),tier.currency ?? LEGACY_FACTORY_CURRENCY)}
                       {Number(shipCostInputs[tier.id]) > 0
-                        ? ` + shipping ${formatFactoryMoney(Math.round(Number(shipCostInputs[tier.id]) * 100))}`
+                        ? ` + shipping ${displayMoney(Math.round(Number(shipCostInputs[tier.id]) * 100),tier.shippingCurrency ?? LEGACY_FACTORY_CURRENCY)}`
                         : ''}{' '}
                       before Ceriga margin
                     </p>

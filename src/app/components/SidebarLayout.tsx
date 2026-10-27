@@ -23,7 +23,7 @@ interface SidebarLayoutProps {
 }
 
 /** Full IA: Home · Projects · Create · Orders (+ Settings in footer). Catalog is a step, not nav. */
-const navItems = [
+const baseNavItems = [
   { path: '/dashboard', label: 'Home', icon: LayoutGrid },
   { path: '/projects', label: 'Projects', icon: FolderKanban },
   { path: '/create', label: 'Create', icon: Plus },
@@ -41,6 +41,7 @@ function navClass(active: boolean, collapsed?: boolean) {
 }
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
+  const navItems = baseNavItems;
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();

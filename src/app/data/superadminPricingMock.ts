@@ -1,4 +1,6 @@
-export type PricingCurrency = 'EUR' | 'GBP';
+import {amountToCents,percentMinor,applyStoredRate,type Currency} from '../lib/currency';
+import {getCurrencyState,sumConvertedMinor} from '../lib/accountCurrency';
+export type PricingCurrency = Currency;
 
 export type TechPackPricing = {
   currency: 'EUR';
@@ -45,7 +47,7 @@ export type RevenueLedgerRow = {
   revenueCents: number;
   manufacturerCostCents: number;
   manufacturerShippingCents: number;
-  currency: PricingCurrency;
+  currency?: PricingCurrency;
 };
 
 export type PlatformPricingConfig = {
@@ -57,6 +59,7 @@ export type PlatformPricingConfig = {
 type OrderKind = 'techpack' | 'custom_clothing';
 
 type LedgerOrder = {
+ currency?:Currency;manufacturerCurrency?:Currency;currencySnapshot?:import('./userOrders').OrderPriceOption['currencySnapshot'];
   id: string;
   kind: OrderKind;
   userName: string;
@@ -103,7 +106,7 @@ export function getPricingConfig(): PlatformPricingConfig {
   return normalizePricingConfig(structuredClone(pricingConfig));
 }
 
-function normalizePricingConfig(config: PlatformPricingConfig): PlatformPricingConfig {
+export function normalizePricingConfig(config: PlatformPricingConfig): PlatformPricingConfig {
   const prod = config.production as ProductionPricingRules & { platformMarginPercent?: number };
   if (!Array.isArray(prod.planMargins) || prod.planMargins.length === 0) {
     const legacyMargin = prod.platformMarginPercent ?? 17.5;
@@ -147,7 +150,7 @@ export function applyProductionMargin(
   quoteCents: number,
   marginPercent = getProductionMarginPercent(),
 ): number {
-  return Math.round(quoteCents * (1 + marginPercent / 100));
+  return quoteCents+percentMinor(quoteCents,Math.round(marginPercent*100));
 }
 
 export function formatPricingMoney(cents: number, currency: PricingCurrency): string {
@@ -165,7 +168,7 @@ function orderToLedgerRow(order: LedgerOrder): RevenueLedgerRow | null {
   if (order.finalPriceCents == null) return null;
 
   const isTechPack = order.kind === 'techpack';
-  const currency: PricingCurrency = isTechPack ? 'EUR' : 'GBP';
+  const currency=order.currency;
 
   return {
     id: `rev-${order.id}`,
@@ -176,7 +179,7 @@ function orderToLedgerRow(order: LedgerOrder): RevenueLedgerRow | null {
     description: order.productName,
     quantity: isTechPack ? 1 : undefined,
     revenueCents: order.finalPriceCents,
-    manufacturerCostCents: order.manufacturerQuoteCents ?? 0,
+    manufacturerCostCents: order.manufacturerQuoteCents==null?0:order.manufacturerCurrency===currency?order.manufacturerQuoteCents:order.currencySnapshot?applyStoredRate(order.manufacturerQuoteCents,order.currencySnapshot.rate,order.currencySnapshot.sourceRate,order.currencySnapshot.targetRate):NaN,
     manufacturerShippingCents: 0,
     currency,
   };
@@ -199,36 +202,9 @@ export function addManualLedgerRow(
   return entry;
 }
 
-export function getRevenueSummary(rows: RevenueLedgerRow[]) {
-  let totalRevenueGbp = 0;
-  let totalCostGbp = 0;
-  let techPackRevenueEur = 0;
-  let productionRevenueGbp = 0;
-  let productionMarginGbp = 0;
-
-  for (const row of rows) {
-    const profit = ledgerProfit(row);
-    if (row.currency === 'EUR') {
-      if (row.source === 'techpack') techPackRevenueEur += row.revenueCents;
-    } else {
-      totalRevenueGbp += row.revenueCents;
-      totalCostGbp += row.manufacturerCostCents + row.manufacturerShippingCents;
-      if (row.source === 'custom_clothing') {
-        productionRevenueGbp += row.revenueCents;
-        productionMarginGbp += profit;
-      }
-    }
-  }
-
-  return {
-    totalRevenueGbp,
-    totalCostGbp,
-    totalProfitGbp: totalRevenueGbp - totalCostGbp,
-    techPackRevenueEur,
-    productionRevenueGbp,
-    productionMarginGbp,
-    rowCount: rows.length,
-  };
+export function getRevenueSummary(rows:RevenueLedgerRow[]){
+ const sum=(selected:RevenueLedgerRow[],kind:'revenue'|'cost'|'profit')=>sumConvertedMinor(selected.map(row=>({currency:row.currency,cents:kind==='revenue'?row.revenueCents:kind==='cost'?row.manufacturerCostCents+row.manufacturerShippingCents:ledgerProfit(row)})));
+ return{currency:getCurrencyState().currency,totalRevenueGbp:sum(rows,'revenue'),totalCostGbp:sum(rows,'cost'),totalProfitGbp:sum(rows,'profit'),techPackRevenueEur:sum(rows.filter(r=>r.source==='techpack'),'revenue'),productionRevenueGbp:sum(rows.filter(r=>r.source==='custom_clothing'),'revenue'),productionMarginGbp:sum(rows.filter(r=>r.source==='custom_clothing'),'profit'),rowCount:rows.length};
 }
 
 export function techPackListPrice(format: 'pdf' | 'pdf_bundle'): number {
@@ -252,13 +228,11 @@ export function centsToInput(cents: number): string {
 }
 
 export function inputToCents(value: string): number | null {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 100);
+  const n=amountToCents(value);return n===undefined||!Number.isSafeInteger(n)?null:n;
 }
 
 /** Default USD → EUR rate used in the quote calculator (Price US × rate). */
-export const DEFAULT_USD_TO_EUR_RATE = 0.89;
+
 
 export type CommissionTier = {
   maxQty: number | null;
@@ -306,11 +280,12 @@ export type QuoteCalculatorResult = {
 export function calculateQuoteRow(
   priceUsd: number,
   quantity: number,
-  usdToEurRate = DEFAULT_USD_TO_EUR_RATE,
+  usdToEurRate: number,
 ): QuoteCalculatorResult {
   const usd = Number.isFinite(priceUsd) && priceUsd > 0 ? priceUsd : 0;
   const qty = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 0;
-  const rate = usdToEurRate > 0 ? usdToEurRate : DEFAULT_USD_TO_EUR_RATE;
+  if(!Number.isFinite(usdToEurRate)||usdToEurRate<=0)throw new Error('A current exchange rate is required');
+  const rate = usdToEurRate;
   const priceEur = usd * rate;
   const commissionRate = commissionRateForQuantity(qty);
   const commissionPerItem = priceEur * commissionRate;

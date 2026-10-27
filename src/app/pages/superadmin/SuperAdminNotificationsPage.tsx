@@ -37,7 +37,7 @@ function formatWhen(iso: string) {
 }
 
 export function SuperAdminNotificationsPage() {
-  const { items, unread, markRead, markAllRead, remove, clearAll } =
+  const { items, unread,error,refresh,hasMore,loadMore, markRead, markAllRead, remove, clearAll } =
     usePortalNotifications('superadmin');
   const [filter, setFilter] = useState<Cat>('all');
   const [clearOpen, setClearOpen] = useState(false);
@@ -48,6 +48,7 @@ export function SuperAdminNotificationsPage() {
 
   return (
     <div className="space-y-6">
+      {error&&<p role="alert" className="rounded-lg border border-red-400/25 p-3 text-sm text-red-200">{error} <button onClick={()=>void refresh()} className="ml-2 underline">Retry</button></p>}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
@@ -193,6 +194,7 @@ export function SuperAdminNotificationsPage() {
         )}
       </ul>
 
+      {hasMore&&<button className="rounded-lg border border-white/15 px-4 py-2 text-sm text-white" onClick={loadMore}>Load older notifications</button>}
       <ConfirmDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
@@ -201,8 +203,7 @@ export function SuperAdminNotificationsPage() {
         confirmLabel="Clear all"
         tone="danger"
         onConfirm={() => {
-          clearAll();
-          toast.success('Notifications cleared');
+          void clearAll().then(ok=>{if(ok)toast.success('Notifications cleared');});
         }}
       />
     </div>

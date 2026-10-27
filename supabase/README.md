@@ -23,6 +23,8 @@ Copy `.env.example` to `.env`, or use values from the Vercel Supabase integratio
 Restart `npm run dev` after changing env.
 
 ## 3. Database schema
+
+If onboarding reports missing `manufacturer_profiles` or `manufacturer_customisation_settings` tables, run [repair_manufacturer_onboarding.sql](./repair_manufacturer_onboarding.sql) in the configured project's SQL Editor. This standalone repair creates both tables, adds pricing, configures owner-only read/write access, and refreshes the REST schema cache without rewriting existing rows. Existing superadmin policies remain intact. The verification query should return both tables with both flags `true`. Then click **Retry sync** in onboarding to upload the local draft. The pricing migration alone cannot repair a missing base profile table.
 In Supabase: **SQL Editor → New query**, paste and run [`schema.sql`](./schema.sql).
 
 That script creates / updates:
@@ -50,6 +52,12 @@ on conflict do nothing;
 Re-sign in after adding your email so the JWT picks up the new RLS permissions.
 
 ## 4. Auth
+
+For account currency and structured indicative prices, apply [20261015_manufacturer_account_pricing.sql](./migrations/20261015_manufacturer_account_pricing.sql). It adds a nullable `pricing` JSON object to the existing manufacturer profile. Its `preferredCurrency` is the single account preference; price books and flat sample fees retain their own original currencies. Existing profile data, quote amounts, and order amounts are not rewritten. Currency changes do not invoke exchange-rate conversion. Existing quotes default to their original legacy GBP currency when no currency was recorded; new quote tiers explicitly store their currency. Shipping estimates retain their original GBP values when conversion is unavailable.
+
+
+For the onboarding method MOQ dropdown, apply [20261015_manufacturer_customisation_settings.sql](./migrations/20261015_manufacturer_customisation_settings.sql) to existing projects. New installs include it in `schema.sql`. It adds a separate owner-protected table for selected capability IDs, categories, custom methods, and MOQ constraints; it does not alter existing manufacturer profiles. Onboarding loads these settings on entry and autosaves them to Supabase. Sync failures retain the local draft and show an error instead of claiming the changes reached the database.
+
 In Supabase: **Authentication → Providers**
 - Enable **Email** (for login/signup forms).
 - Optionally enable **Google** and set the same client ID as `VITE_GOOGLE_CLIENT_ID`.

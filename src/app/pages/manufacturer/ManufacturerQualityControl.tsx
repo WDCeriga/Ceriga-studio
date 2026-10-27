@@ -1,0 +1,4 @@
+import {Link,useParams} from 'react-router';
+import {QualityControlQueue}from '../../components/quality/QualityControlQueue';
+import {OrderQualityControl}from '../../components/quality/OrderQualityControl';
+export function ManufacturerQualityControl(){const{orderId}=useParams();return <div className="mx-auto max-w-6xl space-y-6 text-white"><header>{orderId&&<Link to="/manufacturer/quality" className="mb-4 inline-block text-sm text-white/50 hover:text-white">← All QC reports</Link>}<p className="text-xs uppercase tracking-widest text-red-400">Factory quality</p><h1 className="mt-2 text-3xl font-semibold">Quality control</h1><p className="mt-2 text-sm text-white/50">Submit production photos and your report, then follow Ceriga’s review.</p></header>{orderId?<OrderQualityControl key={orderId} orderId={orderId} view="quality"/>:<QualityControlQueue/>}</div>;}

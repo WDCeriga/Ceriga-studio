@@ -1,3 +1,4 @@
+import { type ApprovedTierPrice } from './customerQuote';
 import { getSupabase, isSupabaseConfigured } from './supabaseClient';
 import { rowToUserOrder, type OrderRow } from './ordersDb';
 import type { UserOrder } from '../data/userOrders';
@@ -20,6 +21,32 @@ function requireConfigured(): void {
   }
 }
 
+function adminLoadError(error: unknown, fallback: string): Error {
+  const details = error as { message?: string; code?: string } | null;
+  if (details?.code === 'PGRST205' && details.message?.includes('profiles')) {
+    return new Error('User profiles are not set up in Supabase. Run supabase/repair_user_profiles.sql in the project SQL Editor, then retry.');
+  }
+  return new Error(details?.message || fallback);
+}
+
+async function performadminDeleteOrder(id: string): Promise<void> {
+ requireConfigured();
+ const {data,error}=await getSupabase().rpc('admin_delete_order',{p_order_id:id});
+ if(error)throw new Error(error.message);
+ if(data!==id)throw new Error('Order was not deleted. Check permissions and whether it still exists.');
+}
+
+async function performadminDeleteAccount(userId: string): Promise<void> {
+  requireConfigured();
+  const { data, error } = await getSupabase().functions.invoke('admin-delete-account', { body: { userId } });
+  if (error) {
+    const response = (error as { context?: Response }).context;
+    const details = response ? await response.json().catch(() => null) : null;
+    throw new Error(details?.error || error.message);
+  }
+  if (!data?.deleted) throw new Error(data?.error || 'Account was not deleted');
+}
+
 /** Matches RLS `public.is_superadmin()` — full email must be in `superadmin_emails`. */
 export async function fetchIsSuperadmin(): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
@@ -34,6 +61,10 @@ export async function fetchIsSuperadmin(): Promise<boolean> {
 
 /** DB order status → superadmin pipeline status. */
 function toSuperStatus(order: UserOrder): OrderStatus {
+  if(order.status==='priced') return order.priceOptions?.length ? 'sent_to_brand' : 'pending_review';
+  if(['paid','processing','shipping','completed','ready'].includes(order.status)) {
+    return ({paid:'paid',processing:'in_production',shipping:'shipped',completed:'completed',ready:'completed'} as const)[order.status as 'paid'|'processing'|'shipping'|'completed'|'ready'];
+  }
   if (order.factoryStatus === 'quoted') return 'pending_review';
   if (order.factoryStatus === 'rejected') return 'assigned';
   if (order.assignedManufacturerId) return 'assigned';
@@ -66,11 +97,13 @@ function toQuoteTiers(order: UserOrder): ManufacturerQuoteTier[] {
     label: tier.label,
     totalUnits: tier.totalUnits,
     manufacturerQuoteCents: tier.manufacturerQuoteCents,
+    currency: tier.currency,
+    leadTimeDays: tier.leadTimeDays,
     calculatedPriceCents: applyProductionMargin(tier.manufacturerQuoteCents, margin),
   }));
   if (order.status === 'priced' || order.paidAmountCents != null) {
     // Prices were sent to the brand — surface calculated values as final.
-    return calculated.map((t) => ({ ...t, finalPriceCents: t.calculatedPriceCents }));
+    return calculated.map(t=>{const option=order.priceOptions?.find(option=>option.id===t.id);return{...t,finalPriceCents:option?.currencySnapshot?.approvedOriginalCents??(option?.currency===t.currency?option?.priceCents:undefined),finalCurrency:t.currency,payablePriceCents:option?.priceCents,payableCurrency:option?.currency};});
   }
   return calculated;
 }
@@ -90,8 +123,12 @@ export function toSuperAdminOrder(
   const selectedOption = order.priceOptions?.find(
     (o) => o.id === order.selectedPriceOptionId,
   );
+  const manufacturerTier=order.manufacturerQuote?.find(t=>t.id===selectedOption?.id)??order.manufacturerQuote?.[0];
   return {
     id: order.id,
+    currency:order.paidCurrency??selectedOption?.currency,
+    currencySnapshot:selectedOption?.currencySnapshot,
+    manufacturerCurrency:manufacturerTier?.currency,
     kind,
     userId: opts.userId,
     userName: opts.userName ?? order.contactName ?? 'Brand',
@@ -106,7 +143,7 @@ export function toSuperAdminOrder(
     deliveryCity: order.delivery?.city ?? '—',
     orderQuantities: order.orderQuantities,
     quoteTiers: toQuoteTiers(order),
-    manufacturerQuoteCents: order.manufacturerQuote?.[0]?.manufacturerQuoteCents,
+    manufacturerQuoteCents: manufacturerTier?.manufacturerQuoteCents,
     dueQuoteBy: order.dueQuoteBy,
     assignedAt: order.assignedAt?.slice(0, 10),
     factoryQuoteStatus: order.factoryStatus,
@@ -118,21 +155,23 @@ export function toSuperAdminOrder(
     trackingNumber: order.tracking ?? undefined,
     notes: order.opsNotes,
     garmentType: order.garmentType,
+    requiredCapabilities: order.specifications?.requiredCapabilities,
+    specifications: order.specifications,
+    quoteExpiresAt: order.quoteExpiresAt,
+    routingVersion: order.routingVersion,
     exportFormat: order.exportFormat,
   };
 }
 
 /** Fetch every order visible to the superadmin (RLS-gated). */
-export async function fetchAllOrders(): Promise<SuperAdminOrder[]> {
+async function loadfetchAllOrders(): Promise<SuperAdminOrder[]> {
   requireConfigured();
   const supabase = getSupabase();
-  const { data: rows, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
+  const {data:rows,error}=await supabase.from('account_orders').select('*').order('created_at',{ascending:false});
+  if (error) throw new Error(error.message||'Could not load customer orders');
 
-  const orders = ((rows ?? []) as OrderRow[]).map(rowToUserOrder);
+  const orderRows=(rows??[]) as OrderRow[];
+  const orders = orderRows.map(rowToUserOrder);
 
   // Resolve manufacturer display names in one query.
   const manufacturerIds = [
@@ -140,43 +179,48 @@ export async function fetchAllOrders(): Promise<SuperAdminOrder[]> {
   ] as string[];
   const names = new Map<string, string>();
   if (manufacturerIds.length > 0) {
-    const { data: profiles } = await supabase
+    const { data: profiles,error:profileError } = await supabase
       .from('manufacturer_profiles')
       .select('user_id, factory_name')
       .in('user_id', manufacturerIds);
+    if(profileError)throw new Error('Could not load manufacturer details: '+profileError.message);
     for (const p of (profiles ?? []) as { user_id: string; factory_name: string }[]) {
       names.set(p.user_id, p.factory_name);
     }
   }
 
   // Resolve brand display names from profiles.
-  const brandIds = [...new Set(rows!.map((r) => r.user_id))] as string[];
+  const brandIds = [...new Set(orderRows.map((r) => r.user_id))] as string[];
   const brandNames = new Map<string, string>();
   const brandEmails = new Map<string, string>();
   if (brandIds.length > 0) {
-    const { data: profiles } = await supabase
+    const { data: profiles,error:profileError } = await supabase
       .from('profiles')
       .select('id, email, full_name')
       .in('id', brandIds);
+    if(profileError)throw new Error('Could not load customer details: '+profileError.message);
     for (const p of (profiles ?? []) as {
       id: string;
       email: string;
       full_name: string | null;
     }[]) {
-      brandNames.set(p.id, p.full_name || p.email.split('@')[0] || 'Brand');
+      brandNames.set(p.id, p.full_name || p.email?.split('@')[0] || 'Brand');
       brandEmails.set(p.id, p.email);
     }
   }
 
-  return rows!.map((row, i) => {
+  const routedIds=orderRows.filter(row=>row.routing_version===2).map(row=>row.id);
+  const events=routedIds.length?await supabase.from('order_routing_events').select('order_id,manufacturer_id,event_type').in('order_id',routedIds):{data:[],error:null};
+  if(events.error)throw new Error(events.error.message);
+  return orderRows.map((row, i) => {
     const order = orders[i];
-    return toSuperAdminOrder(order, {
+    return {...toSuperAdminOrder(order, {
       userId: row.user_id,
       createdAtIso: row.created_at,
       userName: brandNames.get(row.user_id),
       contactEmail: brandEmails.get(row.user_id) ?? row.contact_email,
       manufacturerName: names.get(row.assigned_manufacturer_id ?? ''),
-    });
+    }), rejectedManufacturerIds:(events.data??[]).filter(event=>event.order_id===row.id&&['manufacturer_declined','admin_rejected','manufacturer_quotation_rejected'].includes(event.event_type)).map(event=>event.manufacturer_id).filter(Boolean)};
   });
 }
 
@@ -299,7 +343,7 @@ function getLocalManufacturerList(): ManufacturerListItem[] {
 }
 
 /** Fetch platform users from profiles (RLS: superadmin sees all rows). */
-export async function fetchAllUsers(): Promise<SuperAdminUser[]> {
+async function loadfetchAllUsers(): Promise<SuperAdminUser[]> {
   const localUsers = getLocalUsers();
   if (!isSupabaseConfigured) {
     return localUsers;
@@ -310,13 +354,11 @@ export async function fetchAllUsers(): Promise<SuperAdminUser[]> {
     const [{ data, error }, { data: orderRows }] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, email, full_name, role, message_credits, created_at, updated_at')
+        .select('*')
         .order('created_at', { ascending: false }),
-      supabase.from('orders').select('user_id'),
+      supabase.from('account_orders').select('user_id'),
     ]);
-    if (error || !Array.isArray(data) || data.length === 0) {
-      return localUsers;
-    }
+    if (error) throw error;
 
     const orderCounts = new Map<string, number>();
     for (const row of (orderRows ?? []) as { user_id: string }[]) {
@@ -333,60 +375,32 @@ export async function fetchAllUsers(): Promise<SuperAdminUser[]> {
       updated_at: string;
     }[]).map((row) => ({
       id: row.id,
-      name: row.full_name || row.email.split('@')[0] || 'User',
-      email: row.email,
+      name: row.full_name || row.email?.split('@')[0] || 'User',
+      email: row.email || '',
       credits: row.message_credits ?? 0,
       role: row.role === 'manufacturer' || row.role === 'worker' ? row.role : 'brand',
-      createdAt: row.created_at.slice(0, 10),
-      lastActive: row.updated_at.slice(0, 10),
+      createdAt: row.created_at?.slice(0, 10) || '',
+      lastActive: row.updated_at?.slice(0, 10) || row.created_at?.slice(0, 10) || '',
       ordersCount: orderCounts.get(row.id) ?? 0,
     }));
 
-    // Merge in any local accounts not present in remote profiles
-    for (const loc of localUsers) {
-      if (!remoteUsers.some((r) => r.email.toLowerCase() === loc.email.toLowerCase())) {
-        remoteUsers.push(loc);
-      }
-    }
     return remoteUsers;
-  } catch {
-    return localUsers;
+  } catch (error) {
+    throw adminLoadError(error, 'Could not load user accounts');
   }
 }
 
-export async function adminPatchProfile(
+async function performadminPatchProfile(
   id: string,
   patch: { role?: SuperAdminUser['role']; messageCredits?: number; fullName?: string },
 ): Promise<void> {
-  if (patch.role) {
-    try {
-      localStorage.setItem(`ceriga_role_${id}`, patch.role);
-      if (id.includes('@')) {
-        localStorage.setItem(`ceriga_role_${id.toLowerCase()}`, patch.role);
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const idx = MOCK_SUPER_USERS.findIndex((u) => u.id === id || u.email.toLowerCase() === id.toLowerCase());
-  if (idx >= 0) {
-    if (patch.role) MOCK_SUPER_USERS[idx].role = patch.role;
-    if (patch.messageCredits !== undefined) MOCK_SUPER_USERS[idx].credits = patch.messageCredits;
-    if (patch.fullName) MOCK_SUPER_USERS[idx].name = patch.fullName;
-  }
-
-  if (!isSupabaseConfigured) return;
-  try {
-    const supabase = getSupabase();
-    const payload: Record<string, unknown> = {};
-    if (patch.role !== undefined) payload.role = patch.role;
-    if (patch.messageCredits !== undefined) payload.message_credits = Math.max(0, patch.messageCredits);
-    if (patch.fullName !== undefined) payload.full_name = patch.fullName;
-    await supabase.from('profiles').update(payload).eq('id', id);
-  } catch (err) {
-    console.warn('[superadminDb] adminPatchProfile remote update failed:', err);
-  }
+  requireConfigured();
+  const payload:Record<string,unknown>={};
+  if(patch.role!==undefined)payload.role=patch.role;
+  if(patch.messageCredits!==undefined){if(!Number.isSafeInteger(patch.messageCredits)||patch.messageCredits<0)throw new Error('Credits must be a non-negative whole number');payload.message_credits=patch.messageCredits;}
+  if(patch.fullName!==undefined)payload.full_name=patch.fullName;
+  const {data,error}=await getSupabase().rpc('admin_update_profile',{p_user_id:id,p_patch:payload});
+  if(error||data!==id)throw new Error(error?.message||'Profile update was not confirmed');
 }
 
 export type ManufacturerListItem = {
@@ -410,7 +424,7 @@ export type ManufacturerListItem = {
   assignedOrders: number;
 };
 
-export async function fetchManufacturerList(): Promise<ManufacturerListItem[]> {
+async function loadfetchManufacturerList(): Promise<ManufacturerListItem[]> {
   const localList = getLocalManufacturerList();
   if (!isSupabaseConfigured) {
     return localList;
@@ -418,19 +432,18 @@ export async function fetchManufacturerList(): Promise<ManufacturerListItem[]> {
 
   try {
     const supabase = getSupabase();
-    const [{ data, error }, { data: orderRows }] = await Promise.all([
+    const [{ data, error }, { data: orderRows, error: ordersError }, { data: factoryRows, error: factoriesError }] = await Promise.all([
       supabase
         .from('profiles')
-        .select(
-          'id, email, updated_at, created_at, manufacturer_profiles ( factory_name, contact_email, address_line, city, country, status, garments, specialties, certifications, moq, typical_lead_days, monthly_capacity, internal_notes, onboarding_complete, updated_at )',
-        )
+        .select('*')
         .eq('role', 'manufacturer')
         .order('created_at', { ascending: true }),
-      supabase.from('orders').select('assigned_manufacturer_id').not('assigned_manufacturer_id', 'is', null),
+      supabase.from('account_orders').select('assigned_manufacturer_id').not('assigned_manufacturer_id','is',null),
+      supabase.from('manufacturer_profiles').select('*'),
     ]);
-    if (error || !Array.isArray(data) || data.length === 0) {
-      return localList;
-    }
+    if (error) throw error;
+    if (ordersError) throw ordersError;
+    if (factoriesError) throw factoriesError;
 
     const assigned = new Map<string, number>();
     for (const row of (orderRows ?? []) as { assigned_manufacturer_id: string }[]) {
@@ -465,7 +478,8 @@ export async function fetchManufacturerList(): Promise<ManufacturerListItem[]> {
           }[]
         | null;
     }[]).map((row) => {
-      const mp = row.manufacturer_profiles?.[0];
+      const mp = (factoryRows || []).find((factory) => factory.user_id === row.id) as
+        NonNullable<typeof row.manufacturer_profiles>[number] | undefined;
       const status =
         mp?.status === 'active' || mp?.status === 'paused' || mp?.status === 'onboarding'
           ? mp.status
@@ -494,15 +508,9 @@ export async function fetchManufacturerList(): Promise<ManufacturerListItem[]> {
       };
     });
 
-    // Merge in local manufacturers not in remote
-    for (const loc of localList) {
-      if (!remoteList.some((r) => r.email.toLowerCase() === loc.email.toLowerCase())) {
-        remoteList.push(loc);
-      }
-    }
     return remoteList;
-  } catch {
-    return localList;
+  } catch (error) {
+    throw adminLoadError(error, 'Could not load manufacturer accounts');
   }
 }
 
@@ -562,7 +570,7 @@ export async function getPlatformSetting<T>(key: string): Promise<T | null> {
   return (data?.value as T) ?? null;
 }
 
-export async function setPlatformSetting(key: string, value: unknown): Promise<void> {
+async function performsetPlatformSetting(key: string, value: unknown): Promise<void> {
   requireConfigured();
   const supabase = getSupabase();
   const { error } = await supabase.from('platform_settings').upsert({
@@ -575,6 +583,9 @@ export async function setPlatformSetting(key: string, value: unknown): Promise<v
 
 /** Manufacturer accounts for the assignment console. */
 export type ManufacturerAccount = {
+  acceptingNewOrders?:boolean;maxSingleOrderQuantity?:number;unavailableUntil?:string;
+  status?: 'active'|'paused'|'onboarding';
+  assignedOrders?:number;
   userId: string;
   factoryName: string;
   email: string;
@@ -582,64 +593,40 @@ export type ManufacturerAccount = {
   moq: number | null;
   monthlyCapacity: number | null;
   garments: string[];
+  garmentDetails?: import('../data/manufacturerOnboardingTypes').CompleteManufacturerProfile['garmentDetails'];
+  capabilities?: string[];
+  availableCapacity?: number;
+  garmentMoqOverrides?: Record<string,number>;
+  methodMoqs?: {method:string;moq:number}[];
+  shippingRegions?: string[];
+  quoteStats?: {observed:number;onTime:number};
+  calendar?: {scheduleKnown:boolean;workload:string;utilisation:number|null;unscheduled:number;closures:{start:string;end:string}[]};
 };
 
-export async function fetchManufacturerAccounts(): Promise<ManufacturerAccount[]> {
-  if (isSupabaseConfigured) {
-    try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(
-          'id, email, manufacturer_profiles ( factory_name, onboarding_complete, moq, monthly_capacity, garments )',
-        )
-        .eq('role', 'manufacturer')
-        .order('created_at', { ascending: true });
-      if (!error && Array.isArray(data) && data.length > 0) {
-        return ((data ?? []) as {
-          id: string;
-          email: string;
-          manufacturer_profiles:
-            | {
-                factory_name: string;
-                onboarding_complete: boolean;
-                moq: number;
-                monthly_capacity: number;
-                garments: string[];
-              }[]
-            | null;
-        }[]).map((row) => ({
-          userId: row.id,
-          factoryName: row.manufacturer_profiles?.[0]?.factory_name ?? row.email,
-          email: row.email,
-          onboardingComplete: row.manufacturer_profiles?.[0]?.onboarding_complete ?? false,
-          moq: row.manufacturer_profiles?.[0]?.moq ?? null,
-          monthlyCapacity: row.manufacturer_profiles?.[0]?.monthly_capacity ?? null,
-          garments: row.manufacturer_profiles?.[0]?.garments ?? [],
-        }));
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const list = getLocalManufacturerList();
-  return list.map((m) => ({
-    userId: m.userId,
-    factoryName: m.name,
-    email: m.email,
-    onboardingComplete: m.onboardingComplete,
-    moq: m.moq,
-    monthlyCapacity: m.capacityUnitsPerMonth,
-    garments: m.garmentTypes,
-  }));
+async function loadfetchManufacturerAccounts(): Promise<ManufacturerAccount[]> {
+ const supabase=getSupabase();
+ const [list,profileResult,settingsResult,ordersResult,calendarResult]=await Promise.all([fetchManufacturerList(),supabase.from('manufacturer_profiles').select('*'),supabase.from('manufacturer_customisation_settings').select('user_id,settings'),supabase.from('account_orders').select('assigned_manufacturer_id,status,factory_status,due_quote_by,quoted_at'),supabase.rpc('manufacturer_calendar_signals')]);
+ for(const result of [profileResult,settingsResult,ordersResult,calendarResult])if(result.error)throw new Error(result.error.message);
+ return (profileResult.data??[]).map(profile=>{
+  const existing=list.find(item=>item.userId===profile.user_id);const settings=settingsResult.data?.find(row=>row.user_id===profile.user_id)?.settings||{};
+  const assigned=(ordersResult.data??[]).filter(row=>row.assigned_manufacturer_id===profile.user_id);
+  const measured=assigned.filter(row=>row.quoted_at&&row.due_quote_by);
+  return {userId:profile.user_id,factoryName:profile.factory_name,email:existing?.email||profile.contact_email||'',onboardingComplete:profile.onboarding_complete,status:profile.status|| (profile.onboarding_complete?'active':'onboarding'),moq:settings.generalMoq??profile.moq,monthlyCapacity:profile.monthly_capacity,garments:profile.garments||[],
+   assignedOrders:assigned.filter(row=>!['completed','ready'].includes(row.status)&&row.factory_status!=='rejected').length,
+   capabilities:settings.capabilitiesMap ? Object.entries(settings.capabilitiesMap).filter(([,source])=>source==='in_house'||source==='outsourced').map(([name])=>name) : (profile.capabilities||[]),
+   garmentDetails:settings.garmentDetails,
+   acceptingNewOrders:settings.acceptingNewOrders,maxSingleOrderQuantity:settings.maxSingleOrderQuantity,unavailableUntil:settings.unavailableUntil,availableCapacity:settings.currentAvailableMonthlyCapacity,garmentMoqOverrides:Object.fromEntries(Object.entries(settings.garmentMoqOverrides||{}).filter(([garment])=>(settings.confirmedGarmentMoqOverrides||[]).includes(garment))),methodMoqs:settings.customMethodMoqs,shippingRegions:settings.shippingDestinations||profile.shipping_regions,
+   calendar:calendarResult.data?.find((row:{id:string})=>row.id===profile.user_id),
+   quoteStats:{observed:measured.length,onTime:measured.filter(row=>new Date(row.quoted_at).getTime()<=new Date(row.due_quote_by+'T23:59:59.999Z').getTime()).length}};
+ });
 }
 
 /** Admin patch onto a DB order (RLS: is_superadmin). */
-export async function adminPatchOrder(
+async function performadminPatchOrder(
   id: string,
   patch: {
     status?: OrderStatus;
+    approvedPrices?: ApprovedTierPrice[];
     assignedManufacturerId?: string | null;
     dueQuoteBy?: string | null;
     tracking?: string | null;
@@ -650,6 +637,15 @@ export async function adminPatchOrder(
   requireConfigured();
   const supabase = getSupabase();
   const payload: Record<string, unknown> = {};
+  if(patch.approvedPrices){
+    const {data,error}=await supabase.rpc('publish_order_quote',{p_order_id:id,p_prices:patch.approvedPrices});
+    if(error||data!==id)throw new Error(error?.message||'Quote publication was not confirmed');return;
+  }
+  if(patch.assignedManufacturerId){
+    const {data,error}=await supabase.rpc('assign_order_manufacturer',{p_order_id:id,p_manufacturer:patch.assignedManufacturerId,p_due:patch.dueQuoteBy});
+    if(error||data!==id)throw new Error(error?.message||'Assignment was not confirmed');return;
+  }
+  if(patch.status==='sent_to_brand')throw new Error('Approved prices are required');
   if (patch.assignedManufacturerId !== undefined) {
     payload.assigned_manufacturer_id = patch.assignedManufacturerId;
     payload.assigned_at = patch.assignedManufacturerId ? new Date().toISOString() : null;
@@ -689,6 +685,33 @@ export async function adminPatchOrder(
     }
   }
   if (patch.statusLabel !== undefined) payload.status_label = patch.statusLabel;
-  const { error } = await supabase.from('orders').update(payload).eq('id', id);
-  if (error) throw error;
+  const {data,error}=await supabase.rpc('patch_account_order',{p_order_id:id,p_patch:payload});
+  if(error)throw new Error(error.message);
+  if(!data)throw new Error('Order update was not confirmed by the database');
 }
+
+const adminReads=new Map<string,{at:number;request:Promise<unknown>}>();
+async function cachedAdminRead<T>(name:string,read:()=>Promise<T>):Promise<T>{
+ const auth=getSupabase().auth;if(typeof auth.getSession!=='function')return read();
+ const{data:{session},error}=await auth.getSession();if(error||!session)throw new Error('Sign in to load admin data');
+ const key=session.user.id+':'+name;const entry=adminReads.get(key);if(entry&&Date.now()-entry.at<5000)return entry.request as Promise<T>;
+ const request=read().catch(error=>{adminReads.delete(key);throw error;});if(adminReads.size>24)adminReads.clear();adminReads.set(key,{at:Date.now(),request});return request;
+}
+
+export async function fetchAllOrders(...args:Parameters<typeof loadfetchAllOrders>){return cachedAdminRead('fetchAllOrders',()=>loadfetchAllOrders(...args));}
+
+export async function fetchAllUsers(...args:Parameters<typeof loadfetchAllUsers>){return cachedAdminRead('fetchAllUsers',()=>loadfetchAllUsers(...args));}
+
+export async function fetchManufacturerList(...args:Parameters<typeof loadfetchManufacturerList>){return cachedAdminRead('fetchManufacturerList',()=>loadfetchManufacturerList(...args));}
+
+export async function fetchManufacturerAccounts(...args:Parameters<typeof loadfetchManufacturerAccounts>){return cachedAdminRead('fetchManufacturerAccounts',()=>loadfetchManufacturerAccounts(...args));}
+
+export async function adminPatchProfile(...args:Parameters<typeof performadminPatchProfile>){try{return await performadminPatchProfile(...args);}finally{adminReads.clear();}}
+
+export async function adminPatchOrder(...args:Parameters<typeof performadminPatchOrder>){try{return await performadminPatchOrder(...args);}finally{adminReads.clear();}}
+
+export async function adminDeleteOrder(...args:Parameters<typeof performadminDeleteOrder>){try{return await performadminDeleteOrder(...args);}finally{adminReads.clear();}}
+
+export async function adminDeleteAccount(...args:Parameters<typeof performadminDeleteAccount>){try{return await performadminDeleteAccount(...args);}finally{adminReads.clear();}}
+
+export async function setPlatformSetting(...args:Parameters<typeof performsetPlatformSetting>){try{return await performsetPlatformSetting(...args);}finally{adminReads.clear();}}

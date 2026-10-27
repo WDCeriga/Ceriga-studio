@@ -35,9 +35,9 @@ export const ONBOARDING_STEPS: OnboardingStepDef[] = [
   },
   {
     id: 4,
-    label: 'Shipping & Services',
+    label: 'Shipping',
     shortLabel: 'Shipping',
-    description: 'Destinations, freight modes, customs, and studio services',
+    description: 'Destinations, freight modes, and customs',
   },
   {
     id: 5,

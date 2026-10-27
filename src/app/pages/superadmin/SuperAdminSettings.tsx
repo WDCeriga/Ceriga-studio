@@ -1,3 +1,6 @@
+import { getSupabase } from '../../lib/supabaseClient';
+import {CurrencyReviewQueue}from'../../components/superadmin/CurrencyReviewQueue';
+import { AccountCurrencySettings } from '../../components/Money';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getPlatformSetting, setPlatformSetting } from '../../lib/superadminDb';
@@ -40,12 +43,12 @@ export function SuperAdminSettings() {
       try {
         const [notif, keys, alibaba] = await Promise.all([
           getPlatformSetting<NotificationSettings>('notifications'),
-          getPlatformSetting<ApiKeySettings>('api_keys'),
+          getSupabase().rpc('admin_integration_status').then(({data,error})=>{if(error)throw error;return data as {emailConfigured:boolean};}),
           getAlibabaConnectionStatus(),
         ]);
         if (cancelled) return;
         if (notif) setNotifications({ ...DEFAULT_NOTIFICATIONS, ...notif });
-        if (keys?.sendgridKey) {
+        if (keys?.emailConfigured) {
           setHasStoredKey(true);
           setSendgridKey('');
         }
@@ -66,26 +69,6 @@ export function SuperAdminSettings() {
     try {
       await setPlatformSetting('notifications', notifications);
       toast.success('Notification settings saved');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveApiKeys = async () => {
-    if (!sendgridKey.trim() && !hasStoredKey) {
-      toast.error('Enter an API key');
-      return;
-    }
-    setSaving(true);
-    try {
-      if (sendgridKey.trim()) {
-        await setPlatformSetting('api_keys', { sendgridKey: sendgridKey.trim() });
-        setHasStoredKey(true);
-        setSendgridKey('');
-      }
-      toast.success('API keys saved');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -116,7 +99,11 @@ export function SuperAdminSettings() {
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Settings</h1>
+
       </div>
+
+      <AccountCurrencySettings />
+      <CurrencyReviewQueue />
 
       <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Notifications</h2>
@@ -154,27 +141,9 @@ export function SuperAdminSettings() {
       </section>
 
       <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">API keys</h2>
-        <div className="mt-4 space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-white/55">SendGrid / email provider</Label>
-            <Input
-              type="password"
-              value={sendgridKey}
-              onChange={(e) => setSendgridKey(e.target.value)}
-              placeholder={hasStoredKey ? '•••••••• (saved — enter new to replace)' : '••••••••'}
-              className="border-white/15 bg-white/5 font-mono text-sm text-white"
-            />
-          </div>
-          <Button
-            variant="outline"
-            className="border-white/15 text-white"
-            disabled={saving}
-            onClick={() => void saveApiKeys()}
-          >
-            Save
-          </Button>
-        </div>
+        <h2 className="text-sm font-semibold text-white">Server integrations</h2>
+        <p className="mt-3 text-sm text-white/55">Provider credentials are managed in Supabase server secrets. They are never returned to this browser.</p>
+        <p className="mt-2 text-sm text-white/55">Email credential archive: {hasStoredKey ? 'Stored securely on the server' : 'No stored credential'}. Email delivery requires a configured server integration.</p>
       </section>
 
       <section className="rounded-2xl border border-orange-500/20 bg-[#111113] p-5 sm:p-6">

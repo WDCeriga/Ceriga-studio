@@ -1,0 +1,34 @@
+begin;
+do $$
+declare target public.orders%rowtype; saved public.orders%rowtype; requirements jsonb; tiers jsonb; denied boolean:=false; result_status text;
+begin
+ select * into target from public.orders where assigned_manufacturer_id is not null and status in('submitted','awaiting_payment') and not workflow_managed and jsonb_typeof(order_quantities->'sample')='object' order by created_at limit 1;
+ if not found then raise exception 'No eligible customer quantity plan available for verification';end if;
+ requirements:=jsonb_build_array(target.order_quantities->'sample')||coalesce(target.order_quantities->'bulkRuns','[]'::jsonb);
+ select jsonb_agg(jsonb_build_object('id',value->>'id','unitPriceCents',1250,'manufacturerQuoteCents',1,'totalUnits',999,'currency','GBP','leadTimeDays',14)) into tiers from jsonb_array_elements(requirements);
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',target.user_id,'email','customer-check@example.invalid','role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ begin perform public.reject_order_quotation(target.id,'Unapproved customer rejection');exception when raise_exception then denied:=true;end;
+ if not denied then raise exception 'Customer could reject factory quote';end if;
+ execute 'reset role';
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',target.assigned_manufacturer_id,'email','factory-check@example.invalid','role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ perform public.submit_manufacturer_quote(target.id,tiers);
+ select * into saved from public.orders where id=target.id;
+ if saved.factory_status<>'quoted' or exists(select 1 from jsonb_array_elements(saved.manufacturer_quote) where (value->>'manufacturerQuoteCents')::numeric<>(value->>'totalUnits')::numeric*1250) then raise exception 'Unit total calculation failed';end if;
+ if saved.status is distinct from target.status or saved.total is distinct from target.total or saved.paid_amount_cents is distinct from target.paid_amount_cents then raise exception 'Customer status, price or payment changed';end if;
+ execute 'reset role';
+ perform set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","email":"owner@ceriga.io","role":"authenticated"}',true);
+ execute 'set local role authenticated';
+ result_status:=public.reject_order_quotation(target.id,'Please revise factory pricing');
+ if result_status<>'clarifying' then raise exception 'Admin rejection failed';end if;
+ execute 'reset role';
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',target.assigned_manufacturer_id,'email','factory-check@example.invalid','role','authenticated')::text,true);
+ execute 'set local role authenticated';
+ perform public.submit_manufacturer_quote(target.id,tiers);
+ result_status:=public.reject_order_quotation(target.id,'Factory cannot fulfil this order');
+ if result_status<>'rejected' then raise exception 'Manufacturer decline failed';end if;
+ execute 'reset role';
+end $$;
+select 'PASS: server quantities and totals; customer isolation; admin revision; manufacturer resubmission and decline. All test changes rolled back.' as verification;
+rollback;

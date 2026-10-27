@@ -4,12 +4,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Sliders,
-  Plus,
-  Trash2,
-  Sparkles,
-  Layers,
-  HelpCircle,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -23,6 +17,8 @@ import {
   type GarmentCategory,
   type GarmentDetail,
 } from '../../../data/manufacturerOnboardingTypes';
+import { createGarmentDetail, getGarmentSuggestions, garmentReviewError, initializeGarmentDetails, isGarmentConfirmed } from '../../../data/manufacturerGarmentDefaults';
+import { GarmentOptionField } from './GarmentOptionField';
 
 type Props = {
   profile: CompleteManufacturerProfile;
@@ -36,109 +32,52 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
   const [expandedCategory, setExpandedCategory] = useState<GarmentCategory | null>(
     profile.garments[0] || null,
   );
-  const [customMaterialInputs, setCustomMaterialInputs] = useState<Record<string, string>>({});
-
   const toggleGarment = (cat: GarmentCategory) => {
-    const isSelected = profile.garments.includes(cat);
-    let nextGarments: GarmentCategory[];
-    const nextDetails = { ...(profile.garmentDetails || {}) };
-
-    if (isSelected) {
-      nextGarments = profile.garments.filter((g) => g !== cat);
-      // Remove detail or keep it in case re-selected; prompt says "Manufacturer removes a garment category after entering advanced details"
-      delete nextDetails[cat];
-      if (expandedCategory === cat) {
-        setExpandedCategory(nextGarments[0] || null);
-      }
-    } else {
-      nextGarments = [...profile.garments, cat];
-      if (!nextDetails[cat]) {
-        nextDetails[cat] = {
-          category: cat,
-          styles: (GARMENT_STYLE_PRESETS[cat] || []).slice(0, 3),
-          materials: ['Cotton (100%)'],
-          minGsm: 180,
-          maxGsm: 450,
-        };
-      }
-      setExpandedCategory(cat);
-    }
-
-    onChange({
-      garments: nextGarments,
-      garmentDetails: nextDetails,
-    });
+    const selected = profile.garments.includes(cat);
+    const garments = selected ? profile.garments.filter(value => value !== cat) : [...profile.garments, cat];
+    const garmentDetails = initializeGarmentDetails(garments, profile.garmentDetails);
+    if (!selected) setExpandedCategory(cat);
+    else if (expandedCategory === cat) setExpandedCategory(garments[0] ?? null);
+    // Retain details when deselected so reselecting never resets a manufacturer's work.
+    onChange({ garments, garmentDetails });
   };
 
-  const updateGarmentDetail = (
-    cat: GarmentCategory,
-    patch: Partial<GarmentDetail>,
-  ) => {
-    const current = profile.garmentDetails?.[cat] || {
-      category: cat,
-      styles: [],
-      materials: [],
-    };
-    const updated: GarmentDetail = { ...current, ...patch };
+  const updateGarmentDetail = (cat: GarmentCategory, patch: Partial<GarmentDetail>) => {
+    const current = profile.garmentDetails?.[cat] ?? createGarmentDetail(cat);
     onChange({
       garmentDetails: {
-        ...(profile.garmentDetails || {}),
-        [cat]: updated,
+        ...profile.garmentDetails,
+        [cat]: { ...current, confirmed: false, ...patch },
       },
     });
   };
 
-  const toggleStyle = (cat: GarmentCategory, style: string) => {
-    const detail = profile.garmentDetails?.[cat] || {
-      category: cat,
-      styles: [],
-      materials: [],
-    };
-    const styles = detail.styles || [];
-    const nextStyles = styles.includes(style)
-      ? styles.filter((s) => s !== style)
-      : [...styles, style];
-    updateGarmentDetail(cat, { styles: nextStyles });
+  type ChoiceField = 'styles' | 'materials' | 'constructionDetails';
+  const customFieldFor = {
+    styles: 'customStyles', materials: 'customMaterials', constructionDetails: 'customConstructionDetails',
+  } as const;
+
+  const toggleChoice = (cat: GarmentCategory, field: ChoiceField, value: string) => {
+    const selected = profile.garmentDetails?.[cat]?.[field] ?? [];
+    updateGarmentDetail(cat, { [field]: selected.includes(value) ? selected.filter(item => item !== value) : [...selected, value] });
   };
 
-  const toggleMaterial = (cat: GarmentCategory, mat: string) => {
-    const detail = profile.garmentDetails?.[cat] || {
-      category: cat,
-      styles: [],
-      materials: [],
-    };
-    const materials = detail.materials || [];
-    const nextMaterials = materials.includes(mat)
-      ? materials.filter((m) => m !== mat)
-      : [...materials, mat];
-    updateGarmentDetail(cat, { materials: nextMaterials });
+  const addChoice = (cat: GarmentCategory, field: ChoiceField, value: string) => {
+    const detail = profile.garmentDetails?.[cat] ?? createGarmentDetail(cat);
+    const customField = customFieldFor[field];
+    updateGarmentDetail(cat, {
+      [field]: [...new Set([...(detail[field] ?? []), value])],
+      [customField]: [...new Set([...(detail[customField] ?? []), value])],
+    });
   };
 
-  const addCustomMaterial = (cat: GarmentCategory) => {
-    const text = customMaterialInputs[cat]?.trim();
-    if (!text) return;
-    const detail = profile.garmentDetails?.[cat] || {
-      category: cat,
-      styles: [],
-      materials: [],
-      customMaterials: [],
-    };
-    const custom = detail.customMaterials || [];
-    if (!custom.includes(text)) {
-      updateGarmentDetail(cat, {
-        customMaterials: [...custom, text],
-        materials: [...detail.materials, text],
-      });
-    }
-    setCustomMaterialInputs((prev) => ({ ...prev, [cat]: '' }));
-  };
-
-  const removeCustomMaterial = (cat: GarmentCategory, text: string) => {
+  const removeChoice = (cat: GarmentCategory, field: ChoiceField, value: string) => {
     const detail = profile.garmentDetails?.[cat];
     if (!detail) return;
+    const customField = customFieldFor[field];
     updateGarmentDetail(cat, {
-      customMaterials: (detail.customMaterials || []).filter((m) => m !== text),
-      materials: (detail.materials || []).filter((m) => m !== text),
+      [field]: (detail[field] ?? []).filter(item => item !== value),
+      [customField]: (detail[customField] ?? []).filter(item => item !== value),
     });
   };
 
@@ -148,21 +87,36 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
       <div>
         <h2 className="text-xl font-semibold text-white">2. Products & Garments</h2>
         <p className="mt-1 text-sm text-white/50">
-          Select all garment silhouettes your facility manufactures. Expand each category to specify supported cuts, fabric weights, and materials.
+          Select the garments you manufacture. Each category starts with editable suggestions. Review the styles, materials, construction, and fabric weights, then confirm what your facility supports.
         </p>
       </div>
 
       {/* Main Garment Selection Cards */}
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-white">
             <Shirt className="h-4 w-4 text-[#CC2D24]" />
             <h3 className="text-sm font-semibold">Select Garment Categories</h3>
             <span className="text-xs text-[#CC2D24] font-medium">* Select at least 1</span>
           </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-label="Select all garment categories"
+            disabled={ALL_GARMENT_CATEGORIES.every(cat => profile.garments.includes(cat))}
+            onClick={() => {
+              const garments = [...new Set([...profile.garments, ...ALL_GARMENT_CATEGORIES])];
+              onChange({ garments, garmentDetails: initializeGarmentDetails(garments, profile.garmentDetails) });
+              if (!expandedCategory) setExpandedCategory(garments[0] ?? null);
+            }}
+            className="h-8 border-white/15 text-xs text-white hover:bg-white/10"
+          >Select all</Button>
           <span className="text-xs text-white/50">
             {profile.garments.length} selected
           </span>
+          </div>
         </div>
 
         {errors.garments && (
@@ -201,7 +155,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                 </div>
                 {selected && (
                   <span className="mt-2 text-[10px] text-red-200/80 font-medium">
-                    Configured specs &rarr;
+                    {isGarmentConfirmed(profile.garmentDetails?.[cat]) ? 'Confirmed specs' : 'Review suggestions'} &rarr;
                   </span>
                 )}
               </button>
@@ -217,27 +171,22 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
             <div>
               <h3 className="text-sm font-semibold text-white">Garment-Specific Specifications</h3>
               <p className="text-xs text-white/40">
-                Click any selected category below to refine supported cuts, fabric weight limits, and material compositions.
+                Suggestions are not verified capabilities. Confirm each category before it can be used for order matching. Editing a category requires confirmation again.
               </p>
             </div>
             <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-white/40">
-              Optional deep-dive
+              Review required
             </span>
           </div>
 
           <div className="space-y-3">
             {profile.garments.map((cat) => {
               const isExpanded = expandedCategory === cat;
-              const detail = profile.garmentDetails?.[cat] || {
-                category: cat,
-                styles: [],
-                materials: [],
-              };
-              const stylePresets = GARMENT_STYLE_PRESETS[cat] || [
-                'Standard fit',
-                'Oversized',
-                'Custom cut-and-sew',
-              ];
+              const detail = profile.garmentDetails?.[cat] ?? createGarmentDetail(cat);
+              const defaults = getGarmentSuggestions(cat);
+              const stylePresets = [...new Set([...defaults.styles, ...(GARMENT_STYLE_PRESETS[cat] ?? [])])];
+              const reviewError = garmentReviewError(detail);
+              const confirmed = isGarmentConfirmed(detail);
 
               return (
                 <div
@@ -284,35 +233,22 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                     </div>
                   </button>
 
+                  {errors[cat] && <p className="px-5 pb-3 text-xs text-red-400">{errors[cat]}</p>}
+
                   {/* Expanded Customisation Form */}
                   {isExpanded && (
                     <div className="border-t border-[#252528] p-5 sm:p-6 space-y-6 bg-black/20">
-                      {/* Supported Styles */}
-                      <div>
-                        <Label className="text-xs text-white/80 font-medium">
-                          Supported Styles & Fits for {cat}
-                        </Label>
-                        <div className="mt-2.5 flex flex-wrap gap-2">
-                          {stylePresets.map((st) => {
-                            const on = detail.styles?.includes(st);
-                            return (
-                              <button
-                                key={st}
-                                type="button"
-                                onClick={() => toggleStyle(cat, st)}
-                                className={cn(
-                                  'rounded-lg border px-3 py-1.5 text-xs font-medium transition',
-                                  on
-                                    ? 'border-[#CC2D24] bg-[#CC2D24]/20 text-white'
-                                    : 'border-[#252528] bg-white/[0.02] text-white/60 hover:text-white',
-                                )}
-                              >
-                                {st}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      <GarmentOptionField
+                        label={`Supported styles & fits for ${cat}`}
+                        placeholder="Add custom style or fit..."
+                        options={stylePresets}
+                        selected={detail.styles ?? []}
+                        customOptions={detail.customStyles ?? []}
+                        onToggle={value => toggleChoice(cat, 'styles', value)}
+                        onSelectAll={values => updateGarmentDetail(cat, { styles: values })}
+                        onAdd={value => addChoice(cat, 'styles', value)}
+                        onRemove={value => removeChoice(cat, 'styles', value)}
+                      />
 
                       {/* Fabric Weight GSM Ranges */}
                       <div className="grid gap-4 sm:grid-cols-2">
@@ -325,8 +261,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                           </p>
                           <Input
                             type="number"
-                            min="50"
-                            max="1200"
+                            min="1"
                             value={detail.minGsm || ''}
                             onChange={(e) =>
                               updateGarmentDetail(cat, {
@@ -346,8 +281,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                           </p>
                           <Input
                             type="number"
-                            min="50"
-                            max="1200"
+                            min="1"
                             value={detail.maxGsm || ''}
                             onChange={(e) =>
                               updateGarmentDetail(cat, {
@@ -360,76 +294,51 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                         </div>
                       </div>
 
-                      {/* Supported Materials */}
-                      <div>
-                        <Label className="text-xs text-white/80 font-medium">
-                          Supported Materials & Fabrications
-                        </Label>
-                        <div className="mt-2.5 flex flex-wrap gap-2">
-                          {DEFAULT_MATERIALS.map((mat) => {
-                            const on = detail.materials?.includes(mat);
-                            return (
-                              <button
-                                key={mat}
-                                type="button"
-                                onClick={() => toggleMaterial(cat, mat)}
-                                className={cn(
-                                  'rounded-lg border px-2.5 py-1 text-xs transition',
-                                  on
-                                    ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-100 font-medium'
-                                    : 'border-[#252528] bg-white/[0.02] text-white/50 hover:text-white',
-                                )}
-                              >
-                                {mat}
-                              </button>
-                            );
-                          })}
-                          {detail.customMaterials?.map((cMat) => (
-                            <span
-                              key={cMat}
-                              className="inline-flex items-center gap-1 rounded-lg border border-[#CC2D24]/60 bg-[#CC2D24]/15 px-2.5 py-1 text-xs text-white font-medium"
-                            >
-                              {cMat}
-                              <button
-                                type="button"
-                                onClick={() => removeCustomMaterial(cat, cMat)}
-                                className="text-white/60 hover:text-white"
-                              >
-                                &times;
-                              </button>
-                            </span>
-                          ))}
-                        </div>
+                      <p className="text-[11px] text-white/40">
+                        GSM suggestions describe the main fabric, not the finished garment, lining, or insulation.
+                        Adjust to your actual range; leave blank where GSM is not applicable, such as yarn-based knitwear.
+                      </p>
 
-                        {/* Custom Material Input */}
-                        <div className="mt-3 flex max-w-sm gap-2">
-                          <Input
-                            value={customMaterialInputs[cat] || ''}
-                            onChange={(e) =>
-                              setCustomMaterialInputs({
-                                ...customMaterialInputs,
-                                [cat]: e.target.value,
-                              })
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                addCustomMaterial(cat);
-                              }
-                            }}
-                            placeholder="Add custom material (e.g. Bamboo fleece)..."
-                            className="h-8 text-xs border-white/10 bg-white/[0.03] text-white placeholder:text-white/30"
+                      <GarmentOptionField
+                        label="Supported materials & fabrications"
+                        placeholder="Add custom material (e.g. Bamboo fleece)..."
+                        options={[...new Set([...defaults.materials, ...DEFAULT_MATERIALS])]}
+                        selected={detail.materials ?? []}
+                        customOptions={detail.customMaterials ?? []}
+                        onToggle={value => toggleChoice(cat, 'materials', value)}
+                        onSelectAll={values => updateGarmentDetail(cat, { materials: values })}
+                        onAdd={value => addChoice(cat, 'materials', value)}
+                        onRemove={value => removeChoice(cat, 'materials', value)}
+                        green
+                      />
+
+                      <GarmentOptionField
+                        label="Construction details"
+                        placeholder="Add custom construction detail..."
+                        options={defaults.constructionDetails ?? []}
+                        selected={detail.constructionDetails ?? []}
+                        customOptions={detail.customConstructionDetails ?? []}
+                        onToggle={value => toggleChoice(cat, 'constructionDetails', value)}
+                        onSelectAll={values => updateGarmentDetail(cat, { constructionDetails: values })}
+                        onAdd={value => addChoice(cat, 'constructionDetails', value)}
+                        onRemove={value => removeChoice(cat, 'constructionDetails', value)}
+                      />
+
+                      <div className="border-t border-[#252528] pt-4 space-y-2">
+                        {reviewError && <p className="text-xs text-amber-300">{reviewError}</p>}
+                        <label className="flex items-start gap-2 text-xs text-white/80">
+                          <input
+                            type="checkbox"
+                            checked={confirmed}
+                            disabled={Boolean(reviewError)}
+                            onChange={event => updateGarmentDetail(cat, { confirmed: event.target.checked })}
+                            className="mt-0.5 accent-[#CC2D24]"
                           />
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => addCustomMaterial(cat)}
-                            className="h-8 text-xs border-white/15 text-white hover:bg-white/10"
-                          >
-                            <Plus className="mr-1 h-3 w-3" /> Add
-                          </Button>
-                        </div>
+                          I have reviewed these selections and confirm our facility supports the selected {cat.toLowerCase()} styles, materials, construction details, and fabric weights.
+                        </label>
+                        <p className="text-[11px] text-white/40">
+                          {confirmed ? 'Confirmed by you for order matching.' : 'Awaiting your review. These suggestions are excluded from order matching.'}
+                        </p>
                       </div>
                     </div>
                   )}

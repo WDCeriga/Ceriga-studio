@@ -1,3 +1,5 @@
+import {CatalogueConfiguration}from './components/CatalogueConfiguration';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 import { Suspense } from "react";
 import { RouterProvider } from "react-router";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -51,13 +53,13 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <NotificationsProvider>
+        <CurrencyProvider><CatalogueConfiguration><NotificationsProvider>
           {googleClientId.trim() ? (
             <GoogleOAuthProvider clientId={googleClientId.trim()}>{inner}</GoogleOAuthProvider>
           ) : (
             inner
           )}
-        </NotificationsProvider>
+        </NotificationsProvider></CatalogueConfiguration></CurrencyProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

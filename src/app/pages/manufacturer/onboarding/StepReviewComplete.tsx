@@ -13,6 +13,7 @@ import {
 import { Button } from '../../../components/ui/button';
 import { cn } from '../../../components/ui/utils';
 import type { CompleteManufacturerProfile } from '../../../data/manufacturerOnboardingTypes';
+import { isGarmentConfirmed } from '../../../data/manufacturerGarmentDefaults';
 
 type Props = {
   profile: CompleteManufacturerProfile;
@@ -149,6 +150,9 @@ export function StepReviewComplete({
                   className="rounded-xl border border-[#252528] bg-white/[0.02] p-3 text-xs min-w-[140px]"
                 >
                   <span className="font-semibold text-white">{g}</span>
+                  <p className={cn('mt-0.5 text-[10px]', isGarmentConfirmed(detail) ? 'text-emerald-300' : 'text-amber-300')}>
+                    {isGarmentConfirmed(detail) ? 'Confirmed by manufacturer' : 'Review and confirmation required'}
+                  </p>
                   {detail?.minGsm && detail?.maxGsm && (
                     <p className="text-[10px] text-white/40 mt-0.5">
                       {detail.minGsm}-{detail.maxGsm} GSM
@@ -240,6 +244,7 @@ export function StepReviewComplete({
             <div>
               <span className="text-white/40">General MOQ</span>
               <p className="font-semibold text-white mt-0.5">{profile.generalMoq} units</p>
+              <p className="mt-1 text-[10px] text-white/50">Account quoting currency: {profile.pricing.preferredCurrency}</p>
             </div>
             <div>
               <span className="text-white/40">Monthly Output</span>
@@ -264,12 +269,12 @@ export function StepReviewComplete({
           </div>
         </div>
 
-        {/* Step 5: Shipping & Services Summary */}
+        {/* Step 5: Shipping Summary */}
         <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-[#252528] pb-4">
             <div className="flex items-center gap-2.5">
               <Truck className="h-4 w-4 text-[#CC2D24]" />
-              <h3 className="text-sm font-semibold text-white">Shipping & Services</h3>
+              <h3 className="text-sm font-semibold text-white">Shipping</h3>
             </div>
             <Button
               type="button"
@@ -282,7 +287,7 @@ export function StepReviewComplete({
             </Button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 text-xs">
+          <div className="space-y-3 text-xs">
             <div>
               <span className="text-white/40">Destinations</span>
               <div className="mt-1 flex flex-wrap gap-1">
@@ -292,19 +297,6 @@ export function StepReviewComplete({
                     className="rounded bg-white/5 px-2 py-0.5 text-[10px] text-white/70"
                   >
                     {d}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <span className="text-white/40">Services Included</span>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {profile.additionalServices.map((s) => (
-                  <span
-                    key={s}
-                    className="rounded bg-emerald-500/10 text-emerald-200 px-2 py-0.5 text-[10px]"
-                  >
-                    {s}
                   </span>
                 ))}
               </div>

@@ -1,3 +1,4 @@
+import { transactionMoney,displayMoney,useCurrency } from '../lib/accountCurrency';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -68,11 +69,12 @@ function TrackingCell({ order }: { order: UserOrder }) {
 }
 
 function formatTotal(order: UserOrder): string {
-  if (order.total == null) return '—';
-  return `€${order.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  if (order.total == null && order.paidAmountCents==null && !order.priceOptions?.length) return '—';
+  const selected=order.priceOptions?.find(p=>p.id===order.selectedPriceOptionId)??order.priceOptions?.[0];return (order.paidAmountCents!=null?transactionMoney:displayMoney)(order.paidAmountCents??selected?.priceCents??Math.round((order.total??0)*100),order.paidCurrency??selected?.currency??order.totalCurrency);
 }
 
 export function Orders() {
+useCurrency();
   const navigate = useNavigate();
   const orders = useUserOrders();
   const [kindFilter, setKindFilter] = useState<'all' | UserOrderKind>('all');

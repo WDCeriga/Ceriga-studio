@@ -1,3 +1,4 @@
+import { formatAccountTotal,sumConvertedMinor, displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
@@ -33,6 +34,7 @@ import {
   type SuperAdminOrder,
 } from '../../data/superadminMock';
 import { useSuperadminData } from '../../hooks/useSuperadminData';
+import { DeleteRecordButton } from '../../components/DeleteRecordButton';
 import { Button } from '../../components/ui/button';
 import {
   Select,
@@ -137,8 +139,8 @@ function formatDate(iso: string) {
 }
 
 function displayPrice(order: SuperAdminOrder) {
-  if (order.finalPriceCents != null) return formatMoney(order.finalPriceCents);
-  if (order.calculatedPriceCents != null) return formatMoney(order.calculatedPriceCents);
+  if (order.finalPriceCents != null) return displayMoney(order.finalPriceCents,order.currency);
+  if (order.calculatedPriceCents != null) return displayMoney(order.calculatedPriceCents,order.manufacturerCurrency);
   return '—';
 }
 
@@ -171,6 +173,7 @@ function SortableHeader({
   onSort: (field: SortField) => void;
   className?: string;
 }) {
+  const currencyState=useCurrency();
   const active = sortField === field;
   return (
     <th className={className}>
@@ -198,8 +201,9 @@ function SortableHeader({
 }
 
 export function SuperAdminOrders() {
+  const currencyState=useCurrency();
   const navigate = useNavigate();
-  const { orders: MOCK_SUPER_ORDERS, loading, error } = useSuperadminData();
+  const { orders: MOCK_SUPER_ORDERS, loading, error, deleteOrder } = useSuperadminData();
   const [search, setSearch] = useState('');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [stageFilter, setStageFilter] = useState<OrderStageFilter>('all');
@@ -219,14 +223,14 @@ export function SuperAdminOrders() {
     const atManufacturer = MOCK_SUPER_ORDERS.filter((o) =>
       ORDER_STAGE_GROUPS.at_manufacturer.includes(o.status),
     ).length;
-    const totalValue = MOCK_SUPER_ORDERS.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0);
+    const totalValue = sumConvertedMinor(MOCK_SUPER_ORDERS.filter(o=>o.finalPriceCents!=null).map(o=>({cents:o.finalPriceCents!,currency:o.currency})));
     return {
       total: MOCK_SUPER_ORDERS.length,
       awaitingReview,
       atManufacturer,
       totalValue,
     };
-  }, [MOCK_SUPER_ORDERS]);
+  }, [MOCK_SUPER_ORDERS,currencyState.currency,currencyState.rates]);
 
   const filteredOrders = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -316,7 +320,7 @@ export function SuperAdminOrders() {
           { label: 'At manufacturer', value: stats.atManufacturer },
           {
             label: 'Order value',
-            value: stats.totalValue > 0 ? formatMoney(stats.totalValue) : '—',
+            value: formatAccountTotal(stats.totalValue),
           },
         ].map((s) => (
           <div
@@ -473,6 +477,10 @@ export function SuperAdminOrders() {
                     order={o}
                     active={activeOrderId === o.id}
                     onOpen={() => setActiveOrderId(o.id)}
+                    onDelete={async () => {
+                      await deleteOrder(o.id);
+                      if (activeOrderId === o.id) setActiveOrderId(null);
+                    }}
                   />
                 ))
               )}
@@ -506,11 +514,14 @@ function OrderTableRow({
   order,
   active,
   onOpen,
+  onDelete,
 }: {
   order: SuperAdminOrder;
   active: boolean;
   onOpen: () => void;
+  onDelete: () => Promise<void>;
 }) {
+  const currencyState=useCurrency();
   const needsReview = order.status === 'pending_review';
 
   return (
@@ -599,6 +610,7 @@ function OrderTableRow({
           {formatDate(order.createdAt)}
           <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
         </span>
+        <DeleteRecordButton label={`order ${order.id}`} description="Permanently delete this order and its related records? This cannot be undone." onDelete={onDelete} />
       </td>
     </tr>
   );
@@ -613,6 +625,7 @@ function OrderPreview({
   onClose: () => void;
   onOpenFull: () => void;
 }) {
+  const currencyState=useCurrency();
   const needsReview = order.status === 'pending_review';
   const isTechPack = order.kind === 'techpack';
   const headerGradient = isTechPack
@@ -767,7 +780,7 @@ function OrderPreview({
                       {tier.totalUnits > 0 ? ` · ${tier.totalUnits}u` : ''}
                     </dt>
                     <dd className="tabular-nums font-medium text-white">
-                      {formatMoney(tier.manufacturerQuoteCents)}
+                      {displayMoney(tier.manufacturerQuoteCents,tier.currency)}
                     </dd>
                   </div>
                 ))}
@@ -887,6 +900,7 @@ function DetailRow({
   value: string;
   mono?: boolean;
 }) {
+  const currencyState=useCurrency();
   return (
     <div className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/30" />

@@ -18,9 +18,11 @@ import { Label } from '../../../components/ui/label';
 import { cn } from '../../../components/ui/utils';
 import {
   CAPABILITY_GROUPS,
+  type CapabilityCategory,
   type CapabilitySource,
   type CompleteManufacturerProfile,
 } from '../../../data/manufacturerOnboardingTypes';
+import { addCustomCapabilityDefinition, getCapabilityCatalog, METHOD_CATEGORIES, normalizeCapabilityName } from '../../../data/manufacturerMethodConstraints';
 
 type Props = {
   profile: CompleteManufacturerProfile;
@@ -40,6 +42,7 @@ export function StepProductionCapabilities({
   const [search, setSearch] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [customCapInput, setCustomCapInput] = useState('');
+  const [customCategory, setCustomCategory] = useState<CapabilityCategory>('custom');
 
   const toggleCategoryCollapse = (cat: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
@@ -48,6 +51,12 @@ export function StepProductionCapabilities({
   const capabilitiesMap = profile.capabilitiesMap || {};
   const selectedCount = Object.keys(capabilitiesMap).length;
 
+  const selectAllCapabilities = (items: string[]) => {
+    const nextMap = { ...capabilitiesMap };
+    for (const item of items) nextMap[item] ??= 'in_house';
+    onChange({ capabilitiesMap: nextMap, capabilityCatalog: getCapabilityCatalog({ ...profile, capabilitiesMap: nextMap }) });
+  };
+
   const setCapability = (name: string, source: CapabilitySource | null) => {
     const nextMap = { ...capabilitiesMap };
     if (!source) {
@@ -55,22 +64,21 @@ export function StepProductionCapabilities({
     } else {
       nextMap[name] = source;
     }
-    onChange({ capabilitiesMap: nextMap });
+    onChange({ capabilitiesMap: nextMap, capabilityCatalog: getCapabilityCatalog({ ...profile, capabilitiesMap: nextMap }) });
   };
 
   const addCustomCapability = () => {
     const text = customCapInput.trim();
     if (!text) return;
-    const existing = profile.customCapabilities || [];
-    if (!existing.includes(text)) {
-      onChange({
-        customCapabilities: [...existing, text],
-        capabilitiesMap: {
-          ...capabilitiesMap,
-          [text]: 'in_house',
-        },
-      });
-    }
+    const { definition, catalog } = addCustomCapabilityDefinition(profile, text, customCategory);
+    const existingName = Object.keys(capabilitiesMap).find(name => normalizeCapabilityName(name) === normalizeCapabilityName(definition.name));
+    onChange({
+      customCapabilities: definition.custom
+        ? [...new Set([...(profile.customCapabilities ?? []), definition.name])]
+        : profile.customCapabilities,
+      capabilityCatalog: catalog,
+      capabilitiesMap: { ...capabilitiesMap, [existingName ?? definition.name]: capabilitiesMap[existingName ?? definition.name] ?? 'in_house' },
+    });
     setCustomCapInput('');
   };
 
@@ -175,6 +183,18 @@ export function StepProductionCapabilities({
               {/* Group Body Items */}
               {!isCollapsed && (
                 <div className="border-t border-[#252528] p-5 space-y-3 bg-black/10">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[11px] text-white/40">New selections default to in-house. Existing sources are preserved.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      aria-label={`Select all ${group.title.toLowerCase()}`}
+                      disabled={!group.items.length || group.items.every(item => Boolean(capabilitiesMap[item]))}
+                      onClick={() => selectAllCapabilities(group.items)}
+                      className="h-8 border-white/15 text-xs text-white hover:bg-white/10"
+                    >Select all{search.trim() ? ' matching' : ''}</Button>
+                  </div>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {group.items.map((item) => {
                       const source = capabilitiesMap[item];
@@ -257,7 +277,10 @@ export function StepProductionCapabilities({
           </p>
         </div>
 
-        <div className="flex max-w-md gap-2">
+        <div className="flex max-w-2xl flex-wrap gap-2">
+          <select aria-label="Custom capability category" value={customCategory} onChange={event => setCustomCategory(event.target.value as CapabilityCategory)} className="h-9 rounded-md border border-white/10 bg-[#111113] px-2 text-xs text-white">
+            {METHOD_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
+          </select>
           <Input
             value={customCapInput}
             onChange={(e) => setCustomCapInput(e.target.value)}

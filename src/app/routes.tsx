@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useLocation } from "react-router";
+import { createBrowserRouter, Navigate, useLocation, useParams } from "react-router";
 import { Home } from "./pages/Home";
 import { Features } from "./pages/Features";
 import { HowItWorks } from "./pages/HowItWorks";
@@ -14,7 +14,15 @@ function RedirectPreserveSearch({ to }: { to: string }) {
   return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
 }
 
+function LegacyCrmAccessRedirect(){const{audience,userId}=useParams();return <Navigate replace to={audience==='manufacturers'?'/superadmin/manufacturers':userId?(audience==='workers'?'/superadmin/workers/'+userId:'/superadmin/users/'+userId):'/superadmin/workers/roles'}/>;}
 export const router = createBrowserRouter([
+  {path:'/superadmin/workers/roles',lazy:async()=>{const[{SuperAdminLayout},{SuperAdminWorkerRoles}]=await Promise.all([import('./components/superadmin/SuperAdminLayout'),import('./pages/superadmin/SuperAdminWorkers')]);return{element:<SuperAdminLayout><SuperAdminWorkerRoles/></SuperAdminLayout>};}},
+  {path:"/team-password",lazy:async()=>{const{TeamPasswordSetup}=await import("./pages/TeamPasswordSetup");return{Component:TeamPasswordSetup};}},
+  {path:"/team-invite",lazy:async()=>{const{TeamInvitation}=await import("./pages/TeamInvitation");return{Component:TeamInvitation};}},
+  {
+    path: "/messages",
+    element: <Navigate to="/dashboard" replace />,
+  },
   {
     path: "/",
     Component: Home,
@@ -305,6 +313,26 @@ export const router = createBrowserRouter([
     },
   },
   {
+    path: "/superadmin/quality-control",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminQualityControl }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminQualityControl"),
+      ]);
+      return { element: <SuperAdminLayout><SuperAdminQualityControl /></SuperAdminLayout> };
+    },
+  },
+  {
+    path: "/superadmin/quality-control/:orderId",
+    lazy: async () => {
+      const [{ SuperAdminLayout }, { SuperAdminQualityControl }] = await Promise.all([
+        import("./components/superadmin/SuperAdminLayout"),
+        import("./pages/superadmin/SuperAdminQualityControl"),
+      ]);
+      return { element: <SuperAdminLayout><SuperAdminQualityControl /></SuperAdminLayout> };
+    },
+  },
+  {
     path: "/superadmin/users/:id",
     lazy: async () => {
       const [{ SuperAdminLayout }, { SuperAdminUserDetail }] = await Promise.all([
@@ -497,53 +525,28 @@ export const router = createBrowserRouter([
     },
   },
   {
-    path: "/superadmin/crm/access/:audience/:userId",
+    path: "/superadmin/workers",
     lazy: async () => {
-      const [{ SuperAdminLayout }, { SuperAdminCRMAccessProfile }] = await Promise.all([
+      const [{ SuperAdminLayout }, { SuperAdminWorkers }] = await Promise.all([
         import("./components/superadmin/SuperAdminLayout"),
-        import("./pages/superadmin/crm/SuperAdminCRMAccessProfile"),
+        import("./pages/superadmin/SuperAdminWorkers"),
       ]);
-      return {
-        element: (
-          <SuperAdminLayout>
-            <SuperAdminCRMAccessProfile />
-          </SuperAdminLayout>
-        ),
-      };
+      return { element: <SuperAdminLayout><SuperAdminWorkers /></SuperAdminLayout> };
     },
   },
   {
-    path: "/superadmin/crm/access/:audience",
+    path: "/superadmin/workers/:userId",
     lazy: async () => {
-      const [{ SuperAdminLayout }, { SuperAdminCRMAccessList }] = await Promise.all([
+      const [{ SuperAdminLayout }, { SuperAdminWorkerDetail }] = await Promise.all([
         import("./components/superadmin/SuperAdminLayout"),
-        import("./pages/superadmin/crm/SuperAdminCRMAccessList"),
+        import("./pages/superadmin/SuperAdminWorkers"),
       ]);
-      return {
-        element: (
-          <SuperAdminLayout>
-            <SuperAdminCRMAccessList />
-          </SuperAdminLayout>
-        ),
-      };
+      return { element: <SuperAdminLayout><SuperAdminWorkerDetail /></SuperAdminLayout> };
     },
   },
-  {
-    path: "/superadmin/crm/access",
-    lazy: async () => {
-      const [{ SuperAdminLayout }, { SuperAdminCRMAccess }] = await Promise.all([
-        import("./components/superadmin/SuperAdminLayout"),
-        import("./pages/superadmin/crm/SuperAdminCRMAccess"),
-      ]);
-      return {
-        element: (
-          <SuperAdminLayout>
-            <SuperAdminCRMAccess />
-          </SuperAdminLayout>
-        ),
-      };
-    },
-  },
+  {path:'/superadmin/crm/access/:audience/:userId',Component:LegacyCrmAccessRedirect},
+  {path:'/superadmin/crm/access/:audience',Component:LegacyCrmAccessRedirect},
+  {path:'/superadmin/crm/access',Component:LegacyCrmAccessRedirect},
   {
     path: "/superadmin/crm/bases/:baseId",
     lazy: async () => {
@@ -713,6 +716,8 @@ export const router = createBrowserRouter([
       };
     },
   },
+  {path: '/manufacturer/quotations',lazy:async()=>{const[{ManufacturerLayout},{ManufacturerQuotations}]=await Promise.all([import('./components/manufacturer/ManufacturerLayout'),import('./pages/manufacturer/ManufacturerQuotations')]);return{element:<ManufacturerLayout><ManufacturerQuotations/></ManufacturerLayout>};}},
+  {path: '/manufacturer/quotations/:id',lazy:async()=>{const[{ManufacturerLayout},{ManufacturerQuotations}]=await Promise.all([import('./components/manufacturer/ManufacturerLayout'),import('./pages/manufacturer/ManufacturerQuotations')]);return{element:<ManufacturerLayout><ManufacturerQuotations/></ManufacturerLayout>};}},
   {
     path: "/manufacturer/orders/:id",
     lazy: async () => {
@@ -775,6 +780,46 @@ export const router = createBrowserRouter([
           </ManufacturerLayout>
         ),
       };
+    },
+  },
+  {
+    path: "/manufacturer/quality",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerQualityControl }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerQualityControl"),
+      ]);
+      return { element: <ManufacturerLayout><ManufacturerQualityControl /></ManufacturerLayout> };
+    },
+  },
+  {
+    path: "/manufacturer/quality/:orderId",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerQualityControl }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerQualityControl"),
+      ]);
+      return { element: <ManufacturerLayout><ManufacturerQualityControl/></ManufacturerLayout> };
+    },
+  },
+  {
+    path: "/manufacturer/shipping/:orderId",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerShipping }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerShipping"),
+      ]);
+      return { element: <ManufacturerLayout><ManufacturerShipping/></ManufacturerLayout> };
+    },
+  },
+  {
+    path: "/manufacturer/production/:orderId",
+    lazy: async () => {
+      const [{ ManufacturerLayout }, { ManufacturerProductionOrder }] = await Promise.all([
+        import("./components/manufacturer/ManufacturerLayout"),
+        import("./pages/manufacturer/ManufacturerProductionOrder"),
+      ]);
+      return { element: <ManufacturerLayout><ManufacturerProductionOrder/></ManufacturerLayout> };
     },
   },
   {

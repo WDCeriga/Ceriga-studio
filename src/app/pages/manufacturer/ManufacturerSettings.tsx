@@ -1,4 +1,9 @@
-import { useMemo, useState } from 'react';
+import { readSavedOnboardingLeadTimes } from '../../hooks/useManufacturerLeadTimes';
+import { loadCustomisationSettingsFromDb, saveCustomisationSettingsToDb } from '../../data/manufacturerCustomisationDb';
+import { loadCompleteManufacturerProfile, saveCompleteManufacturerProfile } from '../../data/manufacturerOnboardingStore';
+import { saveMyManufacturerProfile } from '../../data/manufacturerDb';
+import { isSupabaseConfigured,getSupabase } from '../../lib/supabaseClient';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Building2,
   Factory,
@@ -15,7 +20,6 @@ import {
   ALL_FACTORY_GARMENTS,
   FACTORY_SHIPPING_REGION_OPTIONS,
   getFactoryWorkspace,
-  updateFactoryWorkspace,
   type FactoryCapability,
   type FactoryGarment,
   type FactoryWorkspace,
@@ -28,6 +32,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { cn } from '../../components/ui/utils';
 import { Link } from 'react-router';
 import { Sparkles, ArrowRight } from 'lucide-react';
+import { ManufacturerCurrencySettings } from '../../components/manufacturer/ManufacturerCurrencySettings';
 
 type ProfileDraft = {
   factoryName: string;
@@ -42,6 +47,10 @@ type ProfileDraft = {
   moq: string;
   capacity: string;
   typicalLeadDays: string;
+  sampleLeadTimeMinDays: string;
+  sampleLeadTimeMaxDays: string;
+  bulkLeadTimeMinDays: string;
+  bulkLeadTimeMaxDays: string;
   notes: string;
 };
 
@@ -59,6 +68,10 @@ function draftFromWorkspace(ws: FactoryWorkspace): ProfileDraft {
     moq: String(ws.moq),
     capacity: String(ws.monthlyCapacity),
     typicalLeadDays: String(ws.typicalLeadDays ?? 21),
+    sampleLeadTimeMinDays: String(readSavedOnboardingLeadTimes()?.sampleLeadTimeMinDays ?? ''),
+    sampleLeadTimeMaxDays: String(readSavedOnboardingLeadTimes()?.sampleLeadTimeMaxDays ?? ''),
+    bulkLeadTimeMinDays: String(readSavedOnboardingLeadTimes()?.bulkLeadTimeMinDays ?? ''),
+    bulkLeadTimeMaxDays: String(readSavedOnboardingLeadTimes()?.bulkLeadTimeMaxDays ?? ''),
     notes: ws.internalNotes,
   };
 }
@@ -95,11 +108,17 @@ function describeChanges(before: ProfileDraft, after: ProfileDraft): string[] {
   if (before.typicalLeadDays !== after.typicalLeadDays) {
     lines.push(`Typical lead time (${before.typicalLeadDays} → ${after.typicalLeadDays} days)`);
   }
+  for(const field of ['sampleLeadTimeMinDays','sampleLeadTimeMaxDays','bulkLeadTimeMinDays','bulkLeadTimeMaxDays'] as const) {
+    if(before[field]!==after[field]) lines.push(field.startsWith('sample')?'Sample lead time':'Bulk lead time');
+  }
   if (before.notes !== after.notes) lines.push('Internal ops notes');
   return lines;
 }
 
 export function ManufacturerSettings() {
+  const edited=useRef(false);
+  const [saving,setSaving]=useState(false),[loading,setLoading]=useState(isSupabaseConfigured),[saveError,setSaveError]=useState('');
+  useEffect(()=>{let current=true;if(!isSupabaseConfigured)return;void (async()=>{try{const {data:{user},error:authError}=await getSupabase().auth.getUser();if(authError||!user)throw Error(authError?.message||'Sign in to load your factory profile');const {data,error}=await getSupabase().rpc('factory_workspace_profile');if(error)throw Error(error.message);const timings=await loadCustomisationSettingsFromDb();if(current&&data&&!edited.current){const next=draftFromWorkspace({...getFactoryWorkspace(),factoryName:data.factory_name,contactName:data.contact_name||getFactoryWorkspace().contactName||'',contactEmail:data.contact_email||user.email||'',contactPhone:data.contact_phone,website:data.website,addressLine:data.address_line,garments:data.garments||[],capabilities:data.capabilities||[],shippingRegions:data.shipping_regions||[],moq:data.moq,monthlyCapacity:data.monthly_capacity,typicalLeadDays:data.typical_lead_days,internalNotes:data.internal_notes||''});for(const field of ['sampleLeadTimeMinDays','sampleLeadTimeMaxDays','bulkLeadTimeMinDays','bulkLeadTimeMaxDays'] as const){if(timings?.[field]!=null)next[field]=String(timings[field]);}setDraft(next);setBaseline(next);}}catch(cause){if(current)setSaveError((cause as Error).message);}finally{if(current)setLoading(false);}})();return()=>{current=false;};},[]);
   const [tick, setTick] = useState(0);
   const saved = useMemo(() => getFactoryWorkspace(), [tick]);
   const [draft, setDraft] = useState<ProfileDraft>(() => draftFromWorkspace(getFactoryWorkspace()));
@@ -118,7 +137,7 @@ export function ManufacturerSettings() {
   const dirty = changeLines.length > 0;
 
   const patch = <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) => {
-    setDraft((d) => ({ ...d, [key]: value }));
+    edited.current=true;setDraft((d) => ({ ...d, [key]: value }));
   };
 
   const requestToggleGarment = (g: FactoryGarment) => {
@@ -164,6 +183,7 @@ export function ManufacturerSettings() {
   };
 
   const toggleRegion = (region: string) => {
+    edited.current=true;
     setDraft((d) => ({
       ...d,
       regions: d.regions.includes(region)
@@ -191,6 +211,11 @@ export function ManufacturerSettings() {
       toast.error('MOQ and monthly capacity must be positive numbers');
       return;
     }
+    for(const kind of ['sample','bulk'] as const){
+      const minimum=Number(kind==='sample'?draft.sampleLeadTimeMinDays:draft.bulkLeadTimeMinDays);
+      const maximum=Number(kind==='sample'?draft.sampleLeadTimeMaxDays:draft.bulkLeadTimeMaxDays);
+      if(![minimum,maximum].every(value=>Number.isInteger(value)&&value>=1&&value<=3650)||minimum>maximum){toast.error(`Enter a valid ${kind} lead-time range (1–3650 days).`);return;}
+    }
     if (!dirty) {
       toast.message('No changes to save');
       return;
@@ -198,8 +223,9 @@ export function ManufacturerSettings() {
     setSaveConfirmOpen(true);
   };
 
-  const save = () => {
-    updateFactoryWorkspace({
+  const save = async () => {
+    if(saving)return;setSaving(true);setSaveError('');
+    try{await saveMyManufacturerProfile({
       factoryName: draft.factoryName.trim(),
       contactName: draft.contactName.trim(),
       contactEmail: draft.contactEmail.trim(),
@@ -208,17 +234,23 @@ export function ManufacturerSettings() {
       addressLine: draft.addressLine.trim() || undefined,
       garments: draft.garments,
       capabilities: draft.capabilities,
-      shippingRegions: draft.regions.length ? draft.regions : ['UK'],
+      shippingRegions: draft.regions,
       moq: Number(draft.moq) || 50,
-      monthlyCapacity: Number(draft.capacity) || 1000,
+      monthlyCapacity: Number(draft.capacity),
       typicalLeadDays: Number(draft.typicalLeadDays) || 21,
       internalNotes: draft.notes.trim(),
     });
-    const next = draftFromWorkspace(getFactoryWorkspace());
+    const local=loadCompleteManufacturerProfile();
+    const remote=await loadCustomisationSettingsFromDb();
+    const timings={sampleLeadTimeMinDays:Number(draft.sampleLeadTimeMinDays),sampleLeadTimeMaxDays:Number(draft.sampleLeadTimeMaxDays),bulkLeadTimeMinDays:Number(draft.bulkLeadTimeMinDays),bulkLeadTimeMaxDays:Number(draft.bulkLeadTimeMaxDays)};
+    await saveCustomisationSettingsToDb({...local,...remote,...timings});
+    saveCompleteManufacturerProfile({...local,...remote,...timings});
+    const next = {...draftFromWorkspace(getFactoryWorkspace()),sampleLeadTimeMinDays:draft.sampleLeadTimeMinDays,sampleLeadTimeMaxDays:draft.sampleLeadTimeMaxDays,bulkLeadTimeMinDays:draft.bulkLeadTimeMinDays,bulkLeadTimeMaxDays:draft.bulkLeadTimeMaxDays};
     setBaseline(next);
     setDraft(next);
     setTick((n) => n + 1);
-    toast.success('Factory profile saved — Ceriga matching will use the new details');
+    edited.current=false;toast.success('Factory profile saved');
+    }catch(cause){const message=(cause as Error).message||'Could not save factory profile';setSaveError(message);toast.error(message);}finally{setSaving(false);}
   };
 
   const discard = () => {
@@ -229,17 +261,20 @@ export function ManufacturerSettings() {
 
   return (
     <div className="space-y-6">
+
+      {saveError&&<div role='alert' className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300'>Factory profile: {saveError}. Your edits are still available; try saving again.</div>}
+      {saving&&<p role='status' className='text-sm text-white/60'>Saving factory profile…</p>}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <Settings className="h-5 w-5" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Profile</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Account</span>
           </div>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Factory profile
+            Settings
           </h1>
           <p className="mt-1 text-sm text-white/45">
-            How Ceriga presents and matches your factory. Edits stay local until you confirm save.
+            Manage your account preferences and factory profile. Currency saves automatically; profile edits use Save profile.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -252,7 +287,7 @@ export function ManufacturerSettings() {
           <Button
             variant="outline"
             className="border-white/15 text-white hover:bg-white/5"
-            disabled={!dirty}
+            disabled={!dirty||saving||loading}
             onClick={() => setDiscardConfirmOpen(true)}
           >
             Discard
@@ -266,6 +301,8 @@ export function ManufacturerSettings() {
           </Button>
         </div>
       </div>
+
+
 
       {dirty ? (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3">
@@ -395,6 +432,7 @@ export function ManufacturerSettings() {
             return (
               <button
                 key={g}
+                aria-pressed={on}
                 type="button"
                 onClick={() => requestToggleGarment(g)}
                 className={cn(
@@ -422,6 +460,7 @@ export function ManufacturerSettings() {
             return (
               <button
                 key={c}
+                aria-pressed={on}
                 type="button"
                 onClick={() => requestToggleCapability(c)}
                 className={cn(
@@ -443,7 +482,7 @@ export function ManufacturerSettings() {
         <p className="mt-1 text-[11px] text-white/40">
           Used for routing and capacity planning. Changes apply only after you save.
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <Label className="text-white/45">MOQ (units)</Label>
             <Input
@@ -460,15 +499,18 @@ export function ManufacturerSettings() {
               className="mt-1 border-white/15 bg-white/5 text-white tabular-nums"
             />
           </div>
-          <div>
-            <Label className="text-white/45">Typical lead time (days)</Label>
-            <Input
-              value={draft.typicalLeadDays}
-              onChange={(e) => patch('typicalLeadDays', e.target.value)}
-              className="mt-1 border-white/15 bg-white/5 text-white tabular-nums"
-            />
-          </div>
+
         </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {(['sample','bulk'] as const).map(kind=><fieldset key={kind} className="rounded-xl border border-white/10 p-4">
+            <legend className="px-2 text-sm font-medium text-white">{kind==='sample'?'Sample lead time':'Bulk lead time'}</legend>
+            <div className="grid grid-cols-2 gap-3">{(kind==='sample'?['sampleLeadTimeMinDays','sampleLeadTimeMaxDays'] as const:['bulkLeadTimeMinDays','bulkLeadTimeMaxDays'] as const).map((field,index)=><div key={field}>
+              <Label htmlFor={field} className="text-xs text-white/45">{index===0?'Minimum':'Maximum'} days</Label>
+              <Input id={field} type="number" min="1" max="3650" step="1" value={draft[field]} onChange={event=>patch(field,event.target.value)} className="mt-2 border-white/15 bg-white/5 text-white tabular-nums" />
+            </div>)}</div>
+          </fieldset>)}
+        </div>
+        <p className="mt-2 text-xs text-white/40">Saved sample and bulk lead times prefill the matching quotation options.</p>
         <div className="mt-5">
           <Label className="text-white/45">Shipping regions</Label>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -504,6 +546,10 @@ export function ManufacturerSettings() {
             Factory-only — not shown to brands.
           </p>
         </div>
+      </section>
+
+      <section aria-label="Account preferences" className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+        <ManufacturerCurrencySettings embedded />
       </section>
 
       <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#252528] bg-black/90 px-4 py-3 backdrop-blur-md">

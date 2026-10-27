@@ -75,6 +75,11 @@ export type GarmentDetail = {
   maxGsm?: number;
   materials: string[];
   customMaterials?: string[];
+  customStyles?: string[];
+  constructionDetails?: string[];
+  customConstructionDetails?: string[];
+  /** Manufacturer-reviewed suggestions, not independently verified capabilities. */
+  confirmed?: boolean;
   moqOverride?: number;
 };
 
@@ -229,14 +234,29 @@ export type CapabilityEntry = {
   source: CapabilitySource;
 };
 
+export type CapabilityCategory = CapabilityItem['category'] | 'custom';
+export type CapabilityDefinition = {
+  id: string;
+  name: string;
+  category: CapabilityCategory;
+  custom: boolean;
+};
+
 /** Step 4: Capacity & Pricing Types */
 export type CustomMethodMoq = {
+  /** Optional only for older name-based records that have not been linked yet. */
+  capabilityId?: string;
   method: string;
   moq: number;
 };
 
+export type GarmentPriceKey = 'hoodie' | 'tshirt' | 'sweatshirt' | 'jogger';
+export type GarmentPriceRange = { minCents?: number; maxCents?: number; currency: import('../lib/currency').Currency };
 export type PricingStructure = {
-  preferredCurrency: 'GBP' | 'USD' | 'EUR';
+  preferredCurrency: import('../lib/currency').Currency;
+  priceBooks?: Partial<Record<import('../lib/currency').Currency, Partial<Record<GarmentPriceKey, GarmentPriceRange>>>>;
+  flatSampleFeeByCurrency?: Partial<Record<import('../lib/currency').Currency, number>>;
+  updatedAt?: string;
   samplePricingApproach: 'flat_fee' | 'multiplier_2x' | 'multiplier_3x' | 'custom_quote';
   indicativePriceRanges?: {
     hoodie?: string;
@@ -363,7 +383,11 @@ export type CompleteManufacturerProfile = {
   timeUnit: 'working_days' | 'calendar_days';
   acceptingNewOrders: boolean;
   garmentMoqOverrides?: Record<string, number>;
+  /** Categories explicitly edited/confirmed under the inheritance-aware UI. */
+  confirmedGarmentMoqOverrides?: string[];
   customMethodMoqs?: CustomMethodMoq[];
+  capabilityCatalog?: CapabilityDefinition[];
+  customisationUpdatedAt?: string;
   pricing?: PricingStructure;
 
   // Step 5: Shipping & Services

@@ -1,3 +1,8 @@
+import { displayMoney,useCurrency } from '../lib/accountCurrency';
+import { formatMoney } from '../lib/currency';
+import { Money } from '../components/Money';
+import { PAYMENTS_ENABLED, offerExpired } from '../lib/orderOffer';
+import { submitOrderToManufacturer } from '../lib/manufacturerSubmission';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Clock, CreditCard, ShieldCheck } from 'lucide-react';
@@ -28,6 +33,7 @@ function resolveCheckoutOption(
       description: 'Digital export',
       totalUnits: 0,
       priceCents: (order.total ?? 29) * 100,
+      currency:order.totalCurrency,
     };
   }
 
@@ -35,6 +41,7 @@ function resolveCheckoutOption(
 }
 
 export function OrderCheckout() {
+  useCurrency();
   const { id, optionId } = useParams();
   const navigate = useNavigate();
   const { order, loading } = useUserOrder(id);
@@ -67,12 +74,16 @@ export function OrderCheckout() {
   }
 
   const handlePay = async () => {
+    if(offerExpired(order) || (order.kind !== 'production' && !PAYMENTS_ENABLED)){toast.error('This offer is unavailable or has expired.');return;}
     setPaying(true);
     try {
-      await completeCheckout(id, optionId);
+      if(order.kind==='production') {
+        await submitOrderToManufacturer(id, optionId);
+        toast.success('Order submitted to manufacturer');
+      } else await completeCheckout(id, optionId);
       navigate(`/orders/${id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Payment failed');
+      toast.error(err instanceof Error ? err.message : 'Could not submit order');
     } finally {
       setPaying(false);
     }
@@ -89,7 +100,7 @@ export function OrderCheckout() {
           Back to order
         </Link>
 
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">Checkout</p>
+        <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">{order.kind==='production'?'Submit order':'Checkout'}</p>
         <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase tracking-[-0.03em] text-white">
           {option.label}
         </h1>
@@ -99,29 +110,29 @@ export function OrderCheckout() {
           <div className="flex items-center justify-between text-sm">
             <span className="text-white/55">{option.description}</span>
             <span className="font-bold tabular-nums text-white">
-              {formatEuro(option.priceCents)}
+              {(option.currency?formatMoney(option.priceCents,option.currency):'Currency needs review')}
             </span>
           </div>
-          <div className="border-t border-[#252528] pt-4">
+          <p className="text-xs text-white/50">Approved amount: {option.currency||'currency needs review'}. Changing your preference does not change this amount.</p><p className="text-xs text-white/40">Indicative display: <Money cents={option.priceCents} currency={option.currency}/></p><div className="border-t border-[#252528] pt-4">
             <div className="mb-3 flex gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2.5">
               <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300/90" aria-hidden />
               <p className="text-[11px] leading-relaxed text-amber-100/85">
-                {priceValidityDisclaimer(order.pricedAt)}
+                {priceValidityDisclaimer(order.pricedAt,order.quoteExpiresAt)}
               </p>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-white/40">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-              Secure payment · mock checkout for prototype
+              {order.kind==='production'?'Submit this option to your assigned manufacturer. No payment is collected.':'Payments are not enabled yet.'}
             </div>
           </div>
           <Button
             type="button"
-            disabled={paying}
+            disabled={!option.currency || paying || (order.kind!=='production'&&!PAYMENTS_ENABLED) || offerExpired(order)}
             className="h-11 w-full bg-[#CC2D24] text-sm font-semibold hover:bg-[#CC2D24]/90 disabled:opacity-50"
             onClick={() => void handlePay()}
           >
             <CreditCard className="mr-2 h-4 w-4" />
-            {paying ? 'Processing…' : `Pay ${formatEuro(option.priceCents)}`}
+            {paying ? 'Submitting…' : order.kind==='production'?'Submit':`Pay ${(option.currency?formatMoney(option.priceCents,option.currency):'Currency needs review')}`}
           </Button>
         </div>
 

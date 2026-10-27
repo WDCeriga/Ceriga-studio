@@ -69,6 +69,7 @@ export async function fetchBrandNotifications(): Promise<AppNotification[]> {
   const { data, error } = await supabase
     .from('brand_notifications')
     .select('*')
+    .eq('user_id',session.user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return ((data ?? []) as NotificationRow[]).map(rowToNotification);

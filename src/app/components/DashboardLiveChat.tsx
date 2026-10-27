@@ -12,15 +12,15 @@ export function DashboardLiveChat() {
 
   return (
     <>
-      {!open && (
+      <div className="flex justify-end border-t border-[#252528] bg-[#09090B] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:px-6" aria-label="Support">
         <button
           type="button"
           onClick={() => setOpen(true)}
           data-ai-target="chat-with-us-button"
           data-ai-label="Open Chat with us"
           className={cn(
-            "fixed z-[95] flex items-center gap-2.5 rounded-[6px] border border-[#252528] bg-[#161618] px-3 py-2.5 text-[#F0EEEE] transition-colors hover:border-[#333338] hover:bg-[#1C1C1E] active:scale-[0.98] sm:px-3.5",
-            "bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] sm:bottom-6 sm:right-6",
+            "flex min-h-11 max-w-full items-center gap-2.5 rounded-[6px] border border-[#252528] bg-[#161618] px-3 py-2.5 text-[#F0EEEE] transition-colors hover:border-[#333338] hover:bg-[#1C1C1E] active:scale-[0.98] sm:px-3.5",
+            "w-full justify-center sm:w-auto",
           )}
           aria-haspopup="dialog"
           aria-expanded={open}
@@ -35,7 +35,7 @@ export function DashboardLiveChat() {
             Chat with us
           </span>
         </button>
-      )}
+      </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
@@ -43,7 +43,7 @@ export function DashboardLiveChat() {
           side="right"
           className={cn(
             "flex flex-col gap-0 overflow-hidden bg-[#161618] p-0 text-[#F0EEEE] [&>button:last-child]:hidden",
-            "max-lg:!fixed max-lg:!inset-0 max-lg:!left-0 max-lg:!right-0 max-lg:!top-0 max-lg:!bottom-0 max-lg:!h-[100svh] max-lg:!max-h-[100svh] max-lg:!w-full max-lg:!max-w-none max-lg:!rounded-none max-lg:!border-0",
+            "max-lg:!fixed max-lg:!inset-0 max-lg:!left-0 max-lg:!right-0 max-lg:!top-0 max-lg:!bottom-0 max-lg:!h-[100dvh] max-lg:!max-h-[100dvh] max-lg:!w-full max-lg:!max-w-none max-lg:!rounded-none max-lg:!border-0",
             desktopExpanded
               ? "lg:!fixed lg:!inset-y-4 lg:!right-4 lg:!top-4 lg:!bottom-4 lg:!left-auto lg:!h-auto lg:!max-h-[calc(100dvh-2rem)] lg:!w-[min(100vw-2rem,56rem)] lg:!max-w-[min(100vw-2rem,56rem)] lg:rounded-[6px] lg:border lg:border-[#252528] lg:!shadow-2xl"
               : "lg:h-full lg:max-h-dvh lg:w-[min(100vw-1rem,400px)] lg:border-l lg:border-[#252528]",

@@ -1,4 +1,8 @@
+import {FactoryShippingPanel}from '../../components/manufacturer/FactoryShippingPanel';
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useMemo, useState } from 'react';
+import { QualityControlQueue } from '../../components/quality/QualityControlQueue';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { Link } from 'react-router';
 import {
   ArrowUpRight,
@@ -45,6 +49,8 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { cn } from '../../components/ui/utils';
+import { LEGACY_FACTORY_CURRENCY } from '../../lib/currency';
+import { useManufacturerPricing } from '../../data/manufacturerPricing';
 
 type TabId = 'carriers' | 'defaults' | 'quotes' | 'tracking' | 'onboard';
 
@@ -64,7 +70,9 @@ const STATUS_STYLE: Record<string, string> = {
   exception: 'bg-[#CC2D24]/15 text-red-200',
 };
 
-export function ManufacturerShipping() {
+function ManufacturerShippingPreview() {
+  useCurrency();
+  const { currency } = useManufacturerPricing();
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState<TabId>('carriers');
   const refresh = () => setTick((n) => n + 1);
@@ -221,6 +229,11 @@ export function ManufacturerShipping() {
   };
 
   const saveTracking = () => {
+    if (isSupabaseConfigured) {
+      setTrackingConfirmOpen(false);
+      toast.error('Open the order quality workspace to record an approved shipment. This tracking workspace is a local preview.');
+      return;
+    }
     if (!trackingEditId) return;
     updateFactoryShipment(trackingEditId, {
       trackingNumber: trackingValue.trim(),
@@ -234,6 +247,8 @@ export function ManufacturerShipping() {
 
   return (
     <div className="space-y-6">
+      {isSupabaseConfigured && <QualityControlQueue shipping />}
+      {isSupabaseConfigured && <p className="rounded-xl border border-amber-400/20 p-3 text-sm text-amber-200">Record live dispatches through the order quality workspace above. The carrier configuration, estimates and tracking tools below use local preview data.</p>}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
@@ -599,6 +614,7 @@ export function ManufacturerShipping() {
               />
             </div>
           </div>
+          <p className="mt-3 text-xs text-white/45">Carrier estimates are supplied in {LEGACY_FACTORY_CURRENCY}. Your account default is {currency}; estimates are converted for display when current rates are available. Original carrier amounts remain unchanged.</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90" onClick={runQuoteEstimate}>
               Generate quote
@@ -607,7 +623,7 @@ export function ManufacturerShipping() {
               <p className="text-sm text-white">
                 Estimate{' '}
                 <span className="font-semibold tabular-nums text-emerald-300">
-                  {formatFactoryMoney(quoteResult)}
+                  {displayMoney(quoteResult,LEGACY_FACTORY_CURRENCY)}
                 </span>
               </p>
             ) : null}
@@ -857,3 +873,5 @@ export function ManufacturerShipping() {
     </div>
   );
 }
+
+export function ManufacturerShipping(){return isSupabaseConfigured?<FactoryShippingPanel/>:<ManufacturerShippingPreview/>;}

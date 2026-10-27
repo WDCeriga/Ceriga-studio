@@ -1,0 +1,47 @@
+-- Transaction-only verification. Existing orders, users, files and payment controls are never committed.
+begin;
+do $$
+declare buyer uuid;admin_id uuid;admin_email text;factories uuid[];oid uuid:=gen_random_uuid();saved public.orders%rowtype;before_orders jsonb;after_orders jsonb;currency text;denied boolean;
+begin
+ select jsonb_agg(to_jsonb(o) order by id) into before_orders from public.orders o;
+ select o.user_id into buyer from public.orders o join auth.users u on u.id=o.user_id where o.kind='production' and not exists(select 1 from public.superadmin_emails s where lower(s.email)=lower(u.email)) limit 1;
+ select u.id,u.email into admin_id,admin_email from auth.users u join public.superadmin_emails s on lower(s.email)=lower(u.email) limit 1;
+ select array_agg(user_id) into factories from (select user_id from public.manufacturer_profiles where onboarding_complete and status is distinct from 'paused' order by user_id limit 2)x;
+ if buyer is null or admin_id is null or coalesce(array_length(factories,1),0)<2 then raise exception 'Need existing customer, allowlisted admin and two active factories';end if;
+ if (select enabled from public.order_payment_controls where id) then raise exception 'Payments must remain disabled';end if;
+ if exists(select 1 from pg_class c where c.oid in('public.order_routing_events'::regclass,'public.order_payment_controls'::regclass,'public.order_verified_payments'::regclass) and not relrowsecurity)then raise exception 'RLS missing';end if;
+ if has_function_privilege('authenticated','public.confirm_order_payment(uuid,text,text,bigint,text,timestamptz)','execute') or has_function_privilege('anon','public.apply_superadmin_access()','execute')then raise exception 'Privileged function exposed';end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',buyer,'email','verification@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ insert into public.orders(id,user_id,kind,product_name,garment_type,status,status_label,order_quantities)values(oid,buyer,'production','ROLLBACK ONLY routing verification','Hoodies','submitted','Awaiting quote','{"mode":"custom_clothing","sample":{"id":"sample","kind":"sample","targetTotal":6,"bySize":{"s":6}},"bulkRuns":[]}');
+ select * into saved from public.orders where id=oid;if saved.routing_version<>2 then raise exception 'Missing v2 default';end if;
+ denied:=false;begin perform public.assign_order_manufacturer(oid,factories[1],current_date+3);exception when others then if sqlerrm like '%Superadmin%'then denied:=true;else raise;end if;end;if not denied then raise exception 'Customer self assignment allowed';end if;
+ denied:=false;begin update public.orders set kind='tech-pack' where id=oid;exception when others then if sqlerrm like '%identity%'then denied:=true;else raise;end if;end;if not denied then raise exception 'Identity bypass allowed';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'email',admin_email,'role','authenticated')::text,true);execute 'set local role authenticated';
+ perform public.assign_order_manufacturer(oid,factories[1],current_date+3);
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',factories[1],'email','factory-check@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ if not exists(select 1 from public.orders where id=oid)then raise exception 'Assigned factory cannot read order';end if;
+ perform public.reject_order_quotation(oid,'ROLLBACK ONLY capacity check');
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'email',admin_email,'role','authenticated')::text,true);execute 'set local role authenticated';
+ denied:=false;begin perform public.assign_order_manufacturer(oid,factories[1],current_date+3);exception when others then if sqlerrm like '%another manufacturer%'then denied:=true;else raise;end if;end;if not denied then raise exception 'Declined factory reassigned';end if;
+ perform public.assign_order_manufacturer(oid,factories[2],current_date+3);
+ execute 'reset role';select coalesce(pricing->>'preferredCurrency','GBP')into currency from public.manufacturer_profiles where user_id=factories[2];
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',factories[1],'email','factory-check@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ if exists(select 1 from public.orders where id=oid)then raise exception 'Previous factory retains access';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',factories[2],'email','factory-check@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ perform public.submit_manufacturer_quote(oid,jsonb_build_array(jsonb_build_object('id','sample','unitPriceCents',2000,'currency',currency,'leadTimeDays',14)));
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'email',admin_email,'role','authenticated')::text,true);execute 'set local role authenticated';
+ perform public.publish_order_quote(oid,'[{"id":"sample","cents":15000}]');
+ select * into saved from public.orders where id=oid;
+ if saved.quote_expires_at-saved.offer_issued_at<>interval '30 days' or saved.price_options->0->>'priceCents'<>'15000'then raise exception 'Offer amount or deadline incorrect';end if;
+ denied:=false;begin perform public.publish_order_quote(oid,'[{"id":"sample","cents":15000}]');exception when others then if sqlerrm like '%already been published%'then denied:=true;else raise;end if;end;if not denied then raise exception 'Active expiry silently extended';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',buyer,'email','verification@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ if not exists(select 1 from public.orders where id=oid and price_options is not null)then raise exception 'Customer cannot read published offer';end if;
+ if exists(select 1 from public.order_routing_events where order_id=oid) or exists(select 1 from public.order_verified_payments)then raise exception 'Private audit or receipts exposed';end if;
+ denied:=false;begin update public.orders set status='processing',paid_amount_cents=15000 where id=oid;exception when others then denied:=true;end;if not denied then raise exception 'Browser faked payment';end if;
+ execute 'reset role';perform set_config('request.jwt.claims','{}',true);execute 'set local role service_role';
+ denied:=false;begin perform public.confirm_order_payment(oid,'sample','rollback-only-event',15000,currency,now());exception when others then if sqlerrm like '%disabled%'then denied:=true;else raise;end if;end;if not denied then raise exception 'Payments enabled';end if;
+ execute 'reset role';select jsonb_agg(to_jsonb(o) order by id)into after_orders from public.orders o where id<>oid;
+ if before_orders is distinct from after_orders then raise exception 'Existing order changed';end if;
+end $$;
+select 'PASS: live customer/admin/factory routing, decline/reroute, quotation, publication, exact 30-day expiry, RLS isolation, privileged function denial, payment disabled and existing order preservation. All fixture writes rolled back.' as verification;
+rollback;

@@ -28,6 +28,7 @@ import {
   type AlibabaConnectionStatus,
 } from '../../lib/alibabaChat';
 import { useSuperadminData } from '../../hooks/useSuperadminData';
+import { subscribeChatUpdates } from '../../lib/sharedMessages';
 import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -47,7 +48,11 @@ const FILE_ACCEPT =
   '.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip';
 
 type PendingAttachment = ChatAttachment & { id: string };
-type ChannelFilter = 'all' | 'brand' | 'manufacturer' | 'alibaba';
+type ChannelFilter = 'all' | 'manufacturer' | 'alibaba';
+
+function chatErrorMessage(error: unknown, fallback: string) {
+  return (error as { message?: string } | null)?.message || fallback;
+}
 
 function initials(name: string) {
   return name
@@ -58,6 +63,7 @@ function initials(name: string) {
 }
 
 function threadRoleLabel(thread: ChatThread) {
+  if (thread.subtitle === 'Worker') return 'Worker';
   if (thread.type === 'alibaba') return 'Alibaba';
   return thread.type === 'manufacturer' ? 'Manufacturer' : 'Brand';
 }
@@ -210,7 +216,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function SuperAdminMessages() {
-  const { users, manufacturerList } = useSuperadminData();
+  const { manufacturerList } = useSuperadminData();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState('');
@@ -225,6 +231,8 @@ export function SuperAdminMessages() {
   const [alibabaStatus, setAlibabaStatus] = useState<AlibabaConnectionStatus | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [newQuery, setNewQuery] = useState('');
+  const [creatingConversation, setCreatingConversation] = useState(false);
+  const [conversationError, setConversationError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -246,7 +254,7 @@ export function SuperAdminMessages() {
         return next[0]?.id ?? '';
       });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load messages');
+      toast.error(chatErrorMessage(err, 'Failed to load messages'));
       setThreads([]);
     } finally {
       setLoading(false);
@@ -261,6 +269,7 @@ export function SuperAdminMessages() {
   useEffect(() => {
     void refreshThreads();
     void refreshAlibabaStatus();
+    return subscribeChatUpdates(() => { void refreshThreads(); });
   }, [refreshThreads, refreshAlibabaStatus]);
 
   useEffect(() => {
@@ -270,7 +279,7 @@ export function SuperAdminMessages() {
     }
     let cancelled = false;
     setMessagesLoading(true);
-    void (async () => {
+    const loadMessages = async () => {
       try {
         const rows = await listAdminChatMessages(active);
         if (cancelled) return;
@@ -281,22 +290,24 @@ export function SuperAdminMessages() {
         );
       } catch (err) {
         if (!cancelled) {
-          toast.error(err instanceof Error ? err.message : 'Failed to load thread');
+          toast.error(chatErrorMessage(err, 'Failed to load thread'));
           setMessages([]);
         }
       } finally {
         if (!cancelled) setMessagesLoading(false);
       }
-    })();
+    };
+    void loadMessages();
+    const stop = subscribeChatUpdates(() => { void loadMessages(); });
     return () => {
       cancelled = true;
+      stop();
     };
   }, [active]);
 
   const filteredThreads = useMemo(() => {
     const q = search.trim().toLowerCase();
     return threads.filter((t) => {
-      if (channelFilter === 'brand' && t.type !== 'user') return false;
       if (channelFilter === 'manufacturer' && t.type !== 'manufacturer') return false;
       if (channelFilter === 'alibaba' && t.type !== 'alibaba') return false;
       if (!q) return true;
@@ -315,29 +326,22 @@ export function SuperAdminMessages() {
 
   const newCandidates = useMemo(() => {
     const q = newQuery.trim().toLowerCase();
-    const brands = users
-      .filter((u) => u.role === 'brand')
-      .map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        type: 'brand' as const,
-      }));
     const factories = manufacturerList.map((m) => ({
       id: m.userId,
       name: m.name,
       email: m.email,
       type: 'manufacturer' as const,
+      displayRole: 'Manufacturer',
     }));
-    return [...brands, ...factories].filter((c) => {
+    return factories.filter((c) => {
       if (!q) return true;
       return (
         c.name.toLowerCase().includes(q) ||
         c.email.toLowerCase().includes(q) ||
-        c.type.includes(q)
+        c.displayRole.toLowerCase().includes(q)
       );
     });
-  }, [users, manufacturerList, newQuery]);
+  }, [manufacturerList, newQuery]);
 
   useEffect(() => {
     pendingRef.current = pendingAttachments;
@@ -431,7 +435,7 @@ export function SuperAdminMessages() {
         attachments: attachments.length > 0 ? attachments : undefined,
         channel: isAlibabaThread ? 'alibaba' : 'ceriga',
       });
-      setMessages((prev) => [...prev, saved]);
+      setMessages((prev) => prev.some(message => message.id === saved.id) ? prev : [...prev, saved]);
       setThreads((prev) =>
         prev.map((t) =>
           t.id === thread.id
@@ -445,9 +449,9 @@ export function SuperAdminMessages() {
         ),
       );
       setDraft('');
-      setPendingAttachments([]);
+      clearPendingAttachments();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to send');
+      toast.error(chatErrorMessage(err, 'Failed to send'));
     } finally {
       setSending(false);
     }
@@ -483,6 +487,9 @@ export function SuperAdminMessages() {
     name: string;
     type: 'brand' | 'manufacturer';
   }) => {
+    if (creatingConversation) return;
+    setCreatingConversation(true);
+    setConversationError(null);
     try {
       const created = await createAdminChatThread({
         participantUserId: candidate.id,
@@ -490,12 +497,18 @@ export function SuperAdminMessages() {
         subject: candidate.name,
       });
       setThreads((prev) => [created, ...prev]);
+      clearPendingAttachments();
+      setDraft('');
+      setSearch('');
+      setChannelFilter('all');
       setActive(created.id);
       setNewOpen(false);
       setNewQuery('');
       toast.success(`Started conversation with ${candidate.name}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not create conversation');
+      setConversationError(chatErrorMessage(err, 'Could not create conversation'));
+    } finally {
+      setCreatingConversation(false);
     }
   };
 
@@ -505,7 +518,6 @@ export function SuperAdminMessages() {
 
   const channelTabs: { id: ChannelFilter; label: string }[] = [
     { id: 'all', label: 'All' },
-    { id: 'brand', label: 'Brand' },
     { id: 'manufacturer', label: 'Manufacturer' },
     { id: 'alibaba', label: 'Alibaba' },
   ];
@@ -805,6 +817,7 @@ export function SuperAdminMessages() {
                   />
                   <Button
                     size="icon"
+                    aria-label="Send"
                     className="h-10 w-10 shrink-0 rounded-xl bg-[#CC2D24] hover:bg-[#CC2D24]/90"
                     disabled={!canSend || sending}
                     onClick={() => void sendMessage()}
@@ -823,7 +836,7 @@ export function SuperAdminMessages() {
                 {showAlibabaConnectPanel
                   ? 'Connect Alibaba to sync buyer conversations'
                   : threads.length === 0
-                    ? 'Start a conversation with a brand or manufacturer'
+                    ? 'Start a conversation with a manufacturer and their team'
                     : 'Select a conversation'}
               </p>
             </div>
@@ -831,15 +844,17 @@ export function SuperAdminMessages() {
         </section>
       </div>
 
-      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+      <Dialog open={newOpen} onOpenChange={(open) => { if (!creatingConversation) { setNewOpen(open); setConversationError(null); } }}>
         <DialogContent className="border-[#252528] bg-[#111113] text-white sm:max-w-md">
           <DialogHeader>
             <DialogTitle>New conversation</DialogTitle>
           </DialogHeader>
+          {conversationError && <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300">{conversationError}</p>}
+          {creatingConversation && <p role="status" className="text-xs text-white/50">Creating conversation…</p>}
           <Input
             value={newQuery}
             onChange={(e) => setNewQuery(e.target.value)}
-            placeholder="Search brands or manufacturers…"
+            placeholder="Search manufacturers…"
             className="border-[#252528] bg-black/30 text-white"
           />
           <ScrollArea className="mt-2 h-64">
@@ -852,14 +867,15 @@ export function SuperAdminMessages() {
                     key={`${c.type}-${c.id}`}
                     type="button"
                     onClick={() => void startConversation(c)}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-[#252528] hover:bg-white/[0.04]"
+                    disabled={creatingConversation}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-[#252528] hover:bg-white/[0.04] disabled:cursor-wait disabled:opacity-50"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-white">{c.name}</p>
                       <p className="truncate text-xs text-white/40">{c.email}</p>
                     </div>
                     <span className="shrink-0 text-[10px] uppercase tracking-wide text-white/35">
-                      {c.type}
+                      {c.displayRole}
                     </span>
                   </button>
                 ))
@@ -871,6 +887,7 @@ export function SuperAdminMessages() {
               variant="outline"
               className="border-white/15 text-white"
               onClick={() => setNewOpen(false)}
+              disabled={creatingConversation}
             >
               Cancel
             </Button>

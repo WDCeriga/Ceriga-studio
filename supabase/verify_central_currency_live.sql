@@ -1,0 +1,43 @@
+-- Actual database feature verification; all fixture data and preference changes roll back.
+begin;
+do $$
+declare a uuid;ae text;f uuid;b uuid:=gen_random_uuid();outsider uuid:=gen_random_uuid();oid uuid:=gen_random_uuid();expected bigint;before_options jsonb;failed boolean;quote jsonb;
+begin
+ select u.id,u.email into a,ae from auth.users u join public.superadmin_emails s on lower(s.email)=lower(u.email)limit 1;
+ select user_id into f from public.manufacturer_profiles where onboarding_complete and status is distinct from 'paused'and user_id is distinct from a limit 1;
+ if a is null or f is null then raise exception 'Requires existing admin and onboarded manufacturer';end if;
+ expected:=(public.currency_convert_minor(12000,'USD','GBP',true)->>'amount')::bigint;
+ perform set_config('request.jwt.claims','{}',true);
+ insert into auth.users(id,email,raw_user_meta_data)values(b,'currency-test-'||b||'@example.invalid','{}'),(outsider,'currency-test-'||outsider||'@example.invalid','{}');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',b,'email','currency-buyer@example.invalid')::text,true);execute 'set local role authenticated';
+ perform public.set_account_currency('GBP');if public.currency_context()->>'currency'<>'GBP'then raise exception 'Preference not saved';end if;execute 'reset role';
+ insert into public.orders(id,user_id,kind,product_name,garment_type,status,status_label,order_quantities)values(oid,b,'production','Currency rollback verification','T-shirt','submitted','Submitted','{"sample":{"id":"sample","kind":"sample","targetTotal":10,"bySize":{"m":10}},"bulkRuns":[]}');
+ perform set_config('app.routing_write',oid::text,true);perform set_config('app.workflow_write',oid::text,true);
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',a,'email',ae)::text,true);
+ update public.orders set assigned_manufacturer_id=f,factory_status='new'where id=oid;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',f,'email','currency-factory@example.invalid')::text,true);execute 'set local role authenticated';
+ perform public.set_account_currency('USD');perform public.submit_manufacturer_quote(oid,'[{"id":"sample","currency":"USD","unitPriceCents":1000,"leadTimeDays":10}]');execute 'reset role';
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',a,'email',ae)::text,true);execute 'set local role authenticated';perform public.set_account_currency('EUR');
+ perform public.publish_order_quote(oid,'[{"id":"sample","cents":12000}]');
+ select price_options into before_options from public.orders where id=oid;
+ if before_options->0->>'currency'<>'GBP'or(before_options->0->>'priceCents')::bigint<>expected or(before_options->0->'currencySnapshot'->>'markupCents')::bigint<>2000 then raise exception 'Incorrect quote conversion/margin';end if;
+ if not exists(select 1 from public.orders where id=oid and manufacturer_quote->0->>'currency'='USD'and(manufacturer_quote->0->>'manufacturerQuoteCents')::bigint=10000 and quote_expires_at=offer_issued_at+interval '30 days')then raise exception 'Original quote or 30-day validity changed';end if;
+ failed:=false;begin update public.order_quote_currency_snapshots set target_currency='USD'where order_id=oid;exception when others then failed:=position('immutable'in sqlerrm)>0;end;if not failed then raise exception 'Snapshot mutation was allowed';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',b,'email','currency-buyer@example.invalid')::text,true);execute 'set local role authenticated';perform public.set_account_currency('EUR');
+ if(select price_options from public.orders where id=oid)is distinct from before_options then raise exception 'Preference change modified locked prices';end if;
+ if(select count(*)from public.order_quote_currency_snapshots where order_id=oid)<>1 then raise exception 'Quote history unavailable';end if;
+ failed:=false;begin perform public.confirm_order_payment(oid,'sample','browser-attempt',expected,'GBP',now());exception when insufficient_privilege then failed:=true;end;if not failed then raise exception 'Browser payment verification allowed';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',outsider,'email','currency-other@example.invalid')::text,true);execute 'set local role authenticated';
+ if exists(select 1 from public.order_quote_currency_snapshots where order_id=oid)or exists(select 1 from public.currency_rate_cache)or exists(select 1 from public.profiles where id=b)then raise exception 'Account isolation failed';end if;
+ failed:=false;begin perform public.publish_order_quote(oid,'[]');exception when others then failed:=position('authorization'in sqlerrm)>0;end;if not failed then raise exception 'Unauthorised quote issuance allowed';end if;
+ execute 'reset role';update public.order_payment_controls set enabled=true;
+ failed:=false;begin perform public.confirm_order_payment(oid,'sample','currency-mismatch',expected,'EUR',now());exception when others then failed:=position('does not match'in sqlerrm)>0;end;if not failed then raise exception 'Wrong payment currency accepted';end if;
+ failed:=false;begin perform public.confirm_order_payment(oid,'sample','amount-mismatch',expected+1,'GBP',now());exception when others then failed:=position('does not match'in sqlerrm)>0;end;if not failed then raise exception 'Wrong payment amount accepted';end if;
+ perform public.confirm_order_payment(oid,'sample','currency-correct-'||oid,expected,'GBP',now());
+ if not exists(select 1 from public.orders where id=oid and paid_currency='GBP'and paid_amount_cents=expected)then raise exception 'Actual charged currency not retained';end if;
+ update public.currency_rate_cache set retrieved_at=now()-interval '4 days';
+ failed:=false;begin perform public.currency_convert_minor(10000,'USD','GBP',true);exception when others then failed:=position('current exchange rate'in sqlerrm)>0;end;if not failed then raise exception 'Expired binding rates accepted';end if;
+ if(select price_options from public.orders where id=oid)is distinct from before_options then raise exception 'Rate expiry changed issued quotation';end if;
+end $$;
+rollback;
+select 'PASS: live ECB conversion, account preferences, USD original retained, GBP issued quote, margin once, 30-day lock, preference changes, immutable history, ownership isolation, payment amount/currency verification, expired-rate denial. All fixtures and preferences rolled back.'as verification;

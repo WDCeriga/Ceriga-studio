@@ -1,0 +1,5 @@
+import assert from 'node:assert/strict';import{readFile}from'node:fs/promises';import{transformWithEsbuild}from'vite';
+const p='src/app/lib/orderOffer.ts';const{code}=await transformWithEsbuild(await readFile(p,'utf8'),p,{format:'cjs',target:'es2022'});const m={exports:{}};new Function('module','exports',code)(m,m.exports);const{offerExpiresAt,offerExpired,OFFER_VALIDITY_DAYS,PAYMENTS_ENABLED}=m.exports;
+const issued='2026-10-21T12:30:00Z';const expiry=new Date(issued).getTime()+30*86400000;
+assert.equal(OFFER_VALIDITY_DAYS,30);assert.equal(PAYMENTS_ENABLED,false);assert.equal(offerExpiresAt({pricedAt:issued}).getTime(),expiry);assert.equal(offerExpired({pricedAt:issued},expiry-1),false);assert.equal(offerExpired({pricedAt:issued},expiry),true);assert.equal(offerExpired({}),true);assert.equal(offerExpiresAt({pricedAt:'bad'}),null);assert.equal(offerExpiresAt({pricedAt:'2020-01-01',quoteExpiresAt:issued}).toISOString(),new Date(issued).toISOString());
+console.log('PASS: exact 30-day expiry boundary, saved server expiry priority, missing/invalid offers blocked, payments remain disabled');

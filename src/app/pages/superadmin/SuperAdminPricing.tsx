@@ -1,3 +1,5 @@
+import { formatAccountTotal,displayMoney,useCurrency } from '../../lib/accountCurrency';
+import { QuoteCalculatorSection } from "../../components/superadmin/QuoteCalculator";
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router';
 import {
@@ -15,18 +17,15 @@ import {
   addManualLedgerRow,
   applyProductionMargin,
   buildRevenueLedger,
-  calculateQuoteRow,
   centsToInput,
-  COMMISSION_TIERS,
   countPendingReviews,
-  DEFAULT_USD_TO_EUR_RATE,
-  formatEurAmount,
   formatPricingMoney,
   getDefaultPricingConfig,
   getPricingConfig,
   getRevenueSummary,
   inputToCents,
   ledgerProfit,
+  normalizePricingConfig,
   REVENUE_SOURCE_LABELS,
   upsertPricingConfig,
   type ManufacturerPlanMargin,
@@ -61,6 +60,7 @@ function MoneyInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const currencyState=useCurrency();
   return (
     <div className="space-y-1.5">
       <Label className="text-white/55">{label}</Label>
@@ -73,199 +73,13 @@ function MoneyInput({
   );
 }
 
-type CalculatorRow = {
-  id: string;
-  priceUsd: string;
-  quantity: string;
-};
-
-function newCalculatorRow(priceUsd = '', quantity = '1'): CalculatorRow {
-  return {
-    id: `calc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    priceUsd,
-    quantity,
-  };
-}
-
-function QuoteCalculatorSection() {
-  const [usdToEurRate, setUsdToEurRate] = useState(String(DEFAULT_USD_TO_EUR_RATE));
-  const [rows, setRows] = useState<CalculatorRow[]>([
-    newCalculatorRow('50', '1'),
-    newCalculatorRow('34', '30'),
-    newCalculatorRow('8.5', '100'),
-  ]);
-
-  const rate = Number(usdToEurRate);
-  const effectiveRate = Number.isFinite(rate) && rate > 0 ? rate : DEFAULT_USD_TO_EUR_RATE;
-
-  const computed = rows.map((row) =>
-    calculateQuoteRow(Number(row.priceUsd) || 0, Number(row.quantity) || 0, effectiveRate),
-  );
-
-  const totals = computed.reduce(
-    (acc, r) => ({
-      finalPrice: acc.finalPrice + r.finalPrice,
-      totalCommission: acc.totalCommission + r.totalCommission,
-    }),
-    { finalPrice: 0, totalCommission: 0 },
-  );
-
-  return (
-    <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-[#CC2D24]">
-            <Calculator className="h-4 w-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Calculator</span>
-          </div>
-          <h2 className="mt-1 text-sm font-semibold text-white">Quote calculator</h2>
-          <p className="mt-1 max-w-2xl text-[12px] text-white/40">
-            Enter Price US and Quantity. Converts to EUR, applies quantity commission tiers, then
-            builds cost per item, final price, and total commission.
-          </p>
-        </div>
-        <div className="w-full sm:w-40">
-          <Label className="text-[10px] uppercase tracking-wider text-white/40">USD → EUR rate</Label>
-          <Input
-            value={usdToEurRate}
-            onChange={(e) => setUsdToEurRate(e.target.value)}
-            className="mt-1 border-amber-500/25 bg-amber-500/10 text-white tabular-nums"
-          />
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        {COMMISSION_TIERS.map((tier) => (
-          <span
-            key={tier.label}
-            className="rounded-md border border-[#252528] bg-white/[0.03] px-2 py-0.5 text-[10px] text-white/50"
-          >
-            {tier.label}
-          </span>
-        ))}
-      </div>
-
-      <div className="mt-5 overflow-x-auto">
-        <table className="w-full min-w-[920px] border-collapse text-left text-[12px]">
-          <thead>
-            <tr className="border-b border-[#252528] text-[10px] font-semibold uppercase tracking-wider text-white/40">
-              <th className="px-2 py-2">Price US</th>
-              <th className="px-2 py-2">Price EUR</th>
-              <th className="px-2 py-2">Quantity</th>
-              <th className="px-2 py-2">Commission / item</th>
-              <th className="px-2 py-2">Cost per item</th>
-              <th className="px-2 py-2">Final price</th>
-              <th className="px-2 py-2">Total commission</th>
-              <th className="px-2 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => {
-              const result = computed[index];
-              return (
-                <tr key={row.id} className="border-b border-[#252528]">
-                  <td className="px-2 py-2">
-                    <Input
-                      value={row.priceUsd}
-                      onChange={(e) =>
-                        setRows((prev) =>
-                          prev.map((r) =>
-                            r.id === row.id ? { ...r, priceUsd: e.target.value } : r,
-                          ),
-                        )
-                      }
-                      className="h-9 border-amber-500/30 bg-amber-500/10 text-white tabular-nums"
-                      inputMode="decimal"
-                    />
-                  </td>
-                  <td className="px-2 py-2 tabular-nums text-white/80">
-                    {formatEurAmount(result.priceEur)}
-                  </td>
-                  <td className="px-2 py-2">
-                    <Input
-                      value={row.quantity}
-                      onChange={(e) =>
-                        setRows((prev) =>
-                          prev.map((r) =>
-                            r.id === row.id ? { ...r, quantity: e.target.value } : r,
-                          ),
-                        )
-                      }
-                      className="h-9 border-amber-500/30 bg-amber-500/10 text-white tabular-nums"
-                      inputMode="numeric"
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <div className="tabular-nums text-white/80">
-                      {formatEurAmount(result.commissionPerItem)}
-                    </div>
-                    <div className="text-[10px] text-white/35">
-                      {(result.commissionRate * 100).toFixed(0)}%
-                    </div>
-                  </td>
-                  <td className="px-2 py-2 tabular-nums text-white/80">
-                    {formatEurAmount(result.costPerItem)}
-                  </td>
-                  <td className="px-2 py-2 text-sm font-semibold tabular-nums text-white">
-                    {formatEurAmount(result.finalPrice)}
-                  </td>
-                  <td className="px-2 py-2 tabular-nums text-emerald-200/90">
-                    {formatEurAmount(result.totalCommission)}
-                  </td>
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      className="text-[11px] text-white/35 hover:text-white/70"
-                      onClick={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
-                      disabled={rows.length <= 1}
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="text-[12px]">
-              <td colSpan={5} className="px-2 py-3 text-right text-white/40">
-                Totals
-              </td>
-              <td className="px-2 py-3 font-semibold tabular-nums text-white">
-                {formatEurAmount(totals.finalPrice)}
-              </td>
-              <td className="px-2 py-3 font-semibold tabular-nums text-emerald-200">
-                {formatEurAmount(totals.totalCommission)}
-              </td>
-              <td />
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="border-white/15 bg-transparent text-white hover:bg-white/5"
-          onClick={() => setRows((prev) => [...prev, newCalculatorRow()])}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add row
-        </Button>
-        <p className="text-[11px] text-white/35">
-          Price EUR = Price US × {effectiveRate} · Cost/item = Price EUR + commission · Final =
-          Cost/item × qty
-        </p>
-      </div>
-    </section>
-  );
-}
-
 export function SuperAdminPricing() {
+  const currencyState=useCurrency();
   const { orders, loading: ordersLoading } = useSuperadminData();
   const [config, setConfig] = useState<PlatformPricingConfig>(() => getDefaultPricingConfig());
   const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [ledgerVersion, setLedgerVersion] = useState(0);
   const [sourceFilter, setSourceFilter] = useState<RevenueSource | 'all'>('all');
   const [manualOpen, setManualOpen] = useState(false);
@@ -287,6 +101,8 @@ export function SuperAdminPricing() {
 
   useEffect(() => {
     let cancelled = false;
+    setConfigLoading(true);
+    setConfigError(null);
     void (async () => {
       try {
         const remote = await getPlatformSetting<PlatformPricingConfig>('pricing');
@@ -298,7 +114,7 @@ export function SuperAdminPricing() {
           setConfig(getDefaultPricingConfig());
         }
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to load pricing');
+        if (!cancelled) setConfigError((err as { message?: string })?.message || 'Failed to load pricing');
       } finally {
         if (!cancelled) setConfigLoading(false);
       }
@@ -306,13 +122,13 @@ export function SuperAdminPricing() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const ledger = useMemo(
     () => buildRevenueLedger(orders),
     [orders, ledgerVersion],
   );
-  const summary = useMemo(() => getRevenueSummary(ledger), [ledger]);
+  const summary = useMemo(() => getRevenueSummary(ledger), [ledger,currencyState.currency,currencyState.rates]);
   const pendingReviews = countPendingReviews(orders);
 
   const filteredLedger = useMemo(() => {
@@ -335,19 +151,27 @@ export function SuperAdminPricing() {
   };
 
   const saveConfig = async () => {
+    if (saving || configError) return;
     setSaving(true);
     try {
-      upsertPricingConfig(config);
-      const normalized = getPricingConfig();
+      const normalized = normalizePricingConfig(structuredClone(config));
       await setPlatformSetting('pricing', normalized);
+      upsertPricingConfig(normalized);
       setConfig(normalized);
       toast.success('Pricing rules saved');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
+      toast.error((err as { message?: string })?.message || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
+
+  const manualProfitPreview = useMemo(() => {
+    const rev = inputToCents(manualDraft.revenue) ?? 0;
+    const cost = inputToCents(manualDraft.manufacturerCost) ?? 0;
+    const ship = inputToCents(manualDraft.manufacturerShipping) ?? 0;
+    return rev - cost - ship;
+  }, [manualDraft]);
 
   if (ordersLoading || configLoading) {
     return <PageLoadingFallback />;
@@ -402,15 +226,14 @@ export function SuperAdminPricing() {
     toast.success('Manual revenue row added');
   };
 
-  const manualProfitPreview = useMemo(() => {
-    const rev = inputToCents(manualDraft.revenue) ?? 0;
-    const cost = inputToCents(manualDraft.manufacturerCost) ?? 0;
-    const ship = inputToCents(manualDraft.manufacturerShipping) ?? 0;
-    return rev - cost - ship;
-  }, [manualDraft]);
-
   return (
     <div className="space-y-8">
+      {configError && (
+        <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+          Could not load saved pricing: {configError}
+          <button type="button" className="ml-3 underline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</button>
+        </div>
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
@@ -423,7 +246,7 @@ export function SuperAdminPricing() {
         </div>
         <Button
           className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-          disabled={saving}
+          disabled={saving || Boolean(configError)}
           onClick={() => void saveConfig()}
         >          Save all rules
         </Button>
@@ -434,17 +257,17 @@ export function SuperAdminPricing() {
         {[
           {
             label: 'Tech pack revenue',
-            value: formatPricingMoney(summary.techPackRevenueEur, 'EUR'),
+            value: formatAccountTotal(summary.techPackRevenueEur),
             icon: FileText,
           },
           {
             label: 'Production revenue',
-            value: formatPricingMoney(summary.productionRevenueGbp, 'GBP'),
+            value: formatAccountTotal(summary.productionRevenueGbp),
             icon: Shirt,
           },
           {
             label: 'Ceriga margin (production)',
-            value: formatPricingMoney(summary.productionMarginGbp, 'GBP'),
+            value: formatAccountTotal(summary.productionMarginGbp),
             icon: Calculator,
           },
           {
@@ -667,13 +490,13 @@ export function SuperAdminPricing() {
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
             <p className="text-[10px] uppercase tracking-wider text-white/35">GBP revenue</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-white">
-              {formatPricingMoney(summary.totalRevenueGbp, 'GBP')}
+              {formatAccountTotal(summary.totalRevenueGbp)}
             </p>
           </div>
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
             <p className="text-[10px] uppercase tracking-wider text-white/35">GBP profit</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-emerald-300">
-              {formatPricingMoney(summary.totalProfitGbp, 'GBP')}
+              {formatAccountTotal(summary.totalProfitGbp)}
             </p>
           </div>
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
@@ -770,7 +593,7 @@ export function SuperAdminPricing() {
               />
             </div>
             <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200/90">
-              Profit: {formatPricingMoney(manualProfitPreview, 'GBP')}
+              Profit: {displayMoney(manualProfitPreview,'GBP')}
             </p>
           </div>
           <DialogFooter>
@@ -821,6 +644,7 @@ function ManufacturerPlanMarginCard({
   previewQuote: number;
   onMarginChange: (percent: number) => void;
 }) {
+  const currencyState=useCurrency();
   const brandPrice = applyProductionMargin(previewQuote, planMargin.platformMarginPercent);
 
   return (
@@ -847,13 +671,14 @@ function ManufacturerPlanMarginCard({
       </div>
 
       <div className="mt-4 rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2.5 text-xs tabular-nums text-white">
-        {formatPricingMoney(brandPrice, 'GBP')}
+        {displayMoney(brandPrice,'GBP')}
       </div>
     </div>
   );
 }
 
 function LedgerRow({ row }: { row: RevenueLedgerRow }) {
+  const currencyState=useCurrency();
   const profit = ledgerProfit(row);
   return (
     <tr className="border-b border-[#252528] hover:bg-white/[0.02]">
@@ -876,11 +701,11 @@ function LedgerRow({ row }: { row: RevenueLedgerRow }) {
         ) : null}
       </td>
       <td className="py-2.5 pr-3 tabular-nums text-white">
-        {formatPricingMoney(row.revenueCents, row.currency)}
+        {displayMoney(row.revenueCents,row.currency)}
       </td>
       <td className="py-2.5 pr-3 tabular-nums text-white/55">
         {row.manufacturerCostCents > 0
-          ? formatPricingMoney(row.manufacturerCostCents, row.currency)
+          ? displayMoney(row.manufacturerCostCents,row.currency)
           : '—'}
       </td>
       <td
@@ -889,7 +714,7 @@ function LedgerRow({ row }: { row: RevenueLedgerRow }) {
           profit >= 0 ? 'text-emerald-300/90' : 'text-red-300/90',
         )}
       >
-        {formatPricingMoney(profit, row.currency)}
+        {displayMoney(profit,row.currency)}
       </td>
     </tr>
   );

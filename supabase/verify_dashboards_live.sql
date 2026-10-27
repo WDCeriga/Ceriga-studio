@@ -1,0 +1,21 @@
+begin read only;
+do $$ declare a record; f record; d jsonb; expected bigint; begin
+select u.id,u.email into a from auth.users u join public.superadmin_emails s on lower(u.email)=lower(s.email) limit 1;
+if a.id is null then raise exception 'No admin fixture'; end if;
+perform set_config('request.jwt.claims',jsonb_build_object('sub',a.id,'email',a.email,'role','authenticated')::text,true);
+d:=public.portal_dashboard(true,30);
+select count(*) into expected from public.orders where status not in('completed','ready','cancelled');
+if (d->'counts'->>'active')::bigint<>expected then raise exception 'Admin count mismatch';end if;
+select u.id,u.email into f from auth.users u join public.profiles p on p.id=u.id where p.role='manufacturer' and not exists(select 1 from public.superadmin_emails s where lower(s.email)=lower(u.email)) limit 1;
+if f.id is null then raise exception 'No manufacturer fixture';end if;
+perform set_config('request.jwt.claims',jsonb_build_object('sub',f.id,'email',f.email,'role','authenticated')::text,true);
+d:=public.portal_dashboard(false,30);
+select count(*) into expected from public.orders where assigned_manufacturer_id=f.id and status not in('completed','ready','cancelled');
+if (d->'counts'->>'active')::bigint<>expected then raise exception 'Factory count mismatch';end if;
+if d->'revenue'<>'[]'::jsonb then raise exception 'Factory financial exposure';end if;
+if exists(select 1 from jsonb_array_elements(d->'orders') r where not exists(select 1 from public.orders o where o.id=(r->>'id')::uuid and o.assigned_manufacturer_id=f.id)) then raise exception 'Cross-account exposure';end if;
+begin perform public.portal_dashboard(true,30);raise exception 'ADMIN_ACCESS_WAS_ALLOWED';exception when others then if sqlerrm='ADMIN_ACCESS_WAS_ALLOWED' then raise;end if;end;
+if has_function_privilege('anon','public.portal_dashboard(boolean,integer,text,text,text)','execute') then raise exception 'Anonymous access';end if;
+end $$;
+select 'PASS: live admin and manufacturer counts, manufacturer order isolation, hidden revenue, admin denial and anonymous denial' as verification;
+rollback;

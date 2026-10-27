@@ -1,3 +1,4 @@
+import { formatAccountTotal,sumConvertedMinor, displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import {
@@ -73,6 +74,7 @@ function initials(name: string) {
 }
 
 function UserAvatar({ name, className }: { name: string; className?: string }) {
+  const currencyState=useCurrency();
   return (
     <div
       className={cn(
@@ -105,6 +107,7 @@ function daysSince(iso: string) {
 }
 
 export function SuperAdminUserDetail() {
+  const currencyState=useCurrency();
   const { id } = useParams();
   const { users, orders, loading, patchProfile, refresh } = useSuperadminData();
   const user = users.find((u) => u.id === id);
@@ -136,8 +139,8 @@ export function SuperAdminUserDetail() {
   );
 
   const orderValueCents = useMemo(
-    () => userOrders.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0),
-    [userOrders],
+    () => sumConvertedMinor(userOrders.filter(o=>o.finalPriceCents!=null).map(o=>({cents:o.finalPriceCents!,currency:o.currency}))),
+    [userOrders,currencyState.currency,currencyState.rates],
   );
 
   if (loading) {
@@ -294,7 +297,7 @@ export function SuperAdminUserDetail() {
             { label: 'Orders', value: user.ordersCount, icon: ShoppingBag },
             {
               label: 'Order value',
-              value: orderValueCents > 0 ? formatMoney(orderValueCents) : '—',
+              value: formatAccountTotal(orderValueCents),
               icon: Package,
             },
             {
@@ -490,7 +493,7 @@ export function SuperAdminUserDetail() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 tabular-nums text-white/75">
-                          {order.finalPriceCents != null ? formatMoney(order.finalPriceCents) : '—'}
+                          {order.finalPriceCents != null ? displayMoney(order.finalPriceCents,order.currency) : '—'}
                         </td>
                         <td className="px-5 py-3.5 text-white/50 sm:px-6">
                           {formatDate(order.createdAt)}
@@ -639,6 +642,7 @@ export function SuperAdminUserDetail() {
 }
 
 function UsersIconFallback() {
+  const currencyState=useCurrency();
   return (
     <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04]">
       <Shield className="h-6 w-6 text-white/30" />

@@ -1,3 +1,4 @@
+import{isSupabaseConfigured}from '../../../lib/supabaseClient';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { Calendar, Mail, Shield } from 'lucide-react';
@@ -33,7 +34,7 @@ function formatDate(iso: string) {
   });
 }
 
-export function SuperAdminCRMAccessProfile() {
+function SuperAdminCRMAccessProfilePreview() {
   const { audience: audienceParam, userId } = useParams<{ audience: string; userId: string }>();
   const { users, loading } = useSuperadminData();
 
@@ -311,3 +312,5 @@ export function SuperAdminCRMAccessProfile() {
     </div>
   );
 }
+
+export function SuperAdminCRMAccessProfile(){const{userId,audience}=useParams();if(audience==='workers')return <Navigate to={userId?`/superadmin/workers/${userId}`:'/superadmin/workers'} replace/>;return isSupabaseConfigured?<div className="space-y-4 text-white"><h1 className="text-2xl font-semibold">Account access</h1><p className="text-sm text-white/60">Access is enforced by the account role, order ownership and the super-admin email allowlist. Local page switches do not grant or revoke database access.</p><p className="text-sm text-white/60">Super admins retain full application-data access. Manufacturer accounts can access their assigned work, and brands can access their own records.</p><Link className="inline-block text-red-300 underline" to={userId?`/superadmin/users/${userId}`:"/superadmin/users"}>Open account controls</Link></div>:<SuperAdminCRMAccessProfilePreview/>;}

@@ -1,4 +1,6 @@
 import { distributeQuantity, type OrderQuantityPlan } from './orderQuantities';
+import { formatMoney, LEGACY_FACTORY_CURRENCY, type Currency } from '../lib/currency';
+import { factoryQuoteFinancials } from './manufacturerFinancials';
 import {
   mockDelivery,
   type OrderDeliveryInfo,
@@ -217,6 +219,9 @@ export type FactoryOrderStatus =
   | 'completed';
 
 export type FactoryQuoteTierDraft = {
+  /** Older untagged factory quotes were entered in GBP. */
+  currency?: Currency;
+  shippingCurrency?: Currency;
   id: string;
   kind: 'sample' | 'bulk';
   label: string;
@@ -1700,6 +1705,21 @@ export function updateTeamMemberRole(id: string, role: FactoryTeamRole): Factory
   return workspace;
 }
 
+export function deleteTeamMember(id: string): FactoryWorkspace {
+  const acting = getActingFactoryMember();
+  if (!acting || !memberHasPermission(acting, 'manage_team')) throw new Error('You need Manage team permission');
+  const member = workspace.team.find((entry) => entry.id === id);
+  if (!member) throw new Error('Team member no longer exists');
+  if (member.id === acting.id) throw new Error('You cannot delete your own team membership');
+  if (member.role === 'admin' && member.status === 'active' && !workspace.team.some((entry) => entry.id !== id && entry.role === 'admin' && entry.status === 'active')) {
+    throw new Error('The last active administrator cannot be deleted');
+  }
+  const nextWorkspace = { ...workspace, team: workspace.team.filter((entry) => entry.id !== id) };
+  localStorage.setItem(getWorkspaceStorageKey(), JSON.stringify(nextWorkspace));
+  workspace = nextWorkspace;
+  return workspace;
+}
+
 export function memberPermissions(member: FactoryTeamMember): FactoryPermission[] {
   if (member.permissions && member.permissions.length > 0) {
     return member.permissions;
@@ -2020,8 +2040,8 @@ export function getFactoryTimeOffSummary() {
 
 export type AnalyticsPeriodDays = 30 | 90;
 
-export function factoryAnalyticsReportCsv(periodDays: AnalyticsPeriodDays): string {
-  const a = getFactoryAnalytics(periodDays);
+export function factoryAnalyticsReportCsv(periodDays: AnalyticsPeriodDays, currency: Currency = LEGACY_FACTORY_CURRENCY): string {
+  const a = getFactoryAnalytics(periodDays, currency);
   const lines = [
     'metric,value',
     `period,${a.periodLabel}`,
@@ -2036,7 +2056,7 @@ export function factoryAnalyticsReportCsv(periodDays: AnalyticsPeriodDays): stri
     `on_time_pct,${a.kpis.onTimePct}`,
     `otif_pct,${a.kpis.otifPct}`,
     `active_brands,${a.kpis.activeBrands}`,
-    `booked_value_gbp,${(a.kpis.bookedValueCents / 100).toFixed(2)}`,
+    ...Object.entries(a.bookedValueByCurrency).map(([code, cents]) => `booked_value_${code.toLowerCase()},${((cents ?? 0) / 100).toFixed(2)}`),
     `low_stock_skus,${a.kpis.lowStock}`,
     `blocked_capacity_weeks,${(workspace.capacityBlocks ?? []).filter((b) => b.full).length}`,
   ];
@@ -2156,8 +2176,9 @@ export function factoryStatsSeries() {
 }
 
 /** Rich analytics payload for the manufacturer Statistics page. */
-export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
+export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90, currency: Currency = LEGACY_FACTORY_CURRENCY) {
   const currentWs = getFactoryWorkspace();
+  const financials = factoryQuoteFinancials(currentWs.orders ?? [], currency, periodDays);
   const inbox = factoryInboxStats();
   const materials = currentWs.materials ?? [];
   const lowStock = materials.filter((m) => m.quantity <= m.reorderAt).length;
@@ -2257,7 +2278,8 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
       ),
       capacityUsed: inbox.capacityUsed,
       capacityTotal: inbox.capacityTotal,
-      bookedValueCents: hasOrders ? Math.round(4120000 * scale) : 0,
+      bookedValueCents: financials.totalCents,
+      currencyIncomplete:financials.currencyIncomplete,
       bookedValueDelta: hasOrders
         ? periodDays === 30 ? '+6% vs prior 30d' : '+14% vs prior 90d'
         : 'Fresh workspace',
@@ -2273,7 +2295,9 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
     },
     monthlyQuotes,
     quoteHours,
-    quoteValue: monthlyQuotes.map((r) => ({ m: r.m, valueK: r.valueK, wins: r.wins })),
+    quoteValue: financials.quoteValue,
+    bookedValueByCurrency: financials.byCurrency,
+    currency,
     weeklyThroughput: weeklyThroughputAll.slice(-weekTake),
     pipeline: [
       { status: 'Awaiting quote', count: inbox.awaitingQuote, fill: '#38BDF8' },
@@ -2396,11 +2420,8 @@ export function getFactoryAnalytics(periodDays: AnalyticsPeriodDays = 90) {
   };
 }
 
-export function formatFactoryMoney(cents: number, currency: 'GBP' | 'EUR' = 'GBP'): string {
-  return new Intl.NumberFormat(currency === 'EUR' ? 'de-DE' : 'en-GB', {
-    style: 'currency',
-    currency,
-  }).format(cents / 100);
+export function formatFactoryMoney(cents: number, currency: Currency = LEGACY_FACTORY_CURRENCY): string {
+  return formatMoney(cents, currency);
 }
 
 export function formatFactoryDate(iso: string): string {

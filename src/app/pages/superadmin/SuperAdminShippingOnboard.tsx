@@ -1,3 +1,4 @@
+import { sumConvertedMinor,formatAccountTotal,displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useEffect, useMemo, useState } from 'react';
 import { Package, Plus, Ship } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,6 +21,7 @@ type ShippingCarrier = {
 };
 
 export function SuperAdminShippingOnboard() {
+  const currencyState=useCurrency();
   const { orders, manufacturerList, loading: dataLoading } = useSuperadminData();
   const [tab, setTab] = useState<TabId>('overview');
   const [carriers, setCarriers] = useState<ShippingCarrier[]>([]);
@@ -49,7 +51,7 @@ export function SuperAdminShippingOnboard() {
   const overview = useMemo(() => {
     const shipped = orders.filter((o) => o.status === 'shipped' || o.status === 'completed');
     const inTransit = orders.filter((o) => o.status === 'shipped');
-    const value = shipped.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0);
+    const value = sumConvertedMinor(shipped.filter(o=>o.finalPriceCents!=null).map(o=>({cents:o.finalPriceCents!,currency:o.currency})));
     return {
       factories: manufacturerList.length,
       carriers: carriers.length,
@@ -57,7 +59,7 @@ export function SuperAdminShippingOnboard() {
       inTransit: inTransit.length,
       value,
     };
-  }, [orders, manufacturerList, carriers]);
+  }, [orders, manufacturerList, carriers,currencyState.currency,currencyState.rates]);
 
   const persistCarriers = async (next: ShippingCarrier[]) => {
     setSaving(true);
@@ -162,7 +164,7 @@ export function SuperAdminShippingOnboard() {
           <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
             <h2 className="text-sm font-semibold text-white">Shipped order value</h2>
             <p className="mt-1 text-2xl font-semibold tabular-nums text-white">
-              {formatMoney(overview.value)}
+              {formatAccountTotal(overview.value)}
             </p>
             <p className="mt-2 text-[11px] text-white/40">
               Sum of final prices on shipped and completed orders. Factory onboarding requests will

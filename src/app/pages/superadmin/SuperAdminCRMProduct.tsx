@@ -129,7 +129,8 @@ export function SuperAdminCRMProduct() {
     setConfirmKind('save');
   };
 
-  const save = () => {
+  const save = async () => {
+    try {
     if (!product.name.trim()) {
       toast.error('Enter a product name');
       return;
@@ -145,12 +146,13 @@ export function SuperAdminCRMProduct() {
     }
 
     const saved = normalizeProductConfig({ ...product, id });
-    upsertProductConfig(saved);
+    await upsertProductConfig(saved);
     setCatalogStore(getCatalogStore());
     toast.success(isNew ? `Created ${saved.name}` : `Saved ${saved.name}`);
     if (isNew) {
       navigate(`/superadmin/crm/products/${id}`, { replace: true });
     }
+    }catch(cause){toast.error(cause instanceof Error?cause.message:"Could not save product");}
   };
 
   const runConfirmed = () => {

@@ -1,3 +1,4 @@
+import { AccountCurrencySettings } from '../components/Money';
 import { useId, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { ChevronLeft } from 'lucide-react';
@@ -14,12 +15,12 @@ import {
 import { cn } from '../components/ui/utils';
 
 const MEASUREMENT_OPTIONS = ['Metric (cm)', 'Imperial (inches)'] as const;
-const CURRENCY_OPTIONS = ['€ EUR', '$ USD', '£ GBP', '$ AUD'] as const;
+
 
 export default function Settings() {
   const navigate = useNavigate();
   const [measurementSystem, setMeasurementSystem] = useState<string>(MEASUREMENT_OPTIONS[0]);
-  const [currency, setCurrency] = useState<string>(CURRENCY_OPTIONS[0]);
+
 
   return (
     <div className="min-h-dvh overflow-x-hidden bg-[#09090B] text-white">
@@ -46,6 +47,7 @@ export default function Settings() {
             <Toggle title="Email Notifications" subtitle="Receive updates about drafts and orders" defaultChecked />
             <Toggle title="SMS Notifications" subtitle="Get shipping and production updates" />
             <Toggle title="Marketing Emails" subtitle="Receive release notes and new features" />
+            <div className="border-t border-white/10 pt-4"><AccountCurrencySettings embedded /></div>
           </Section>
 
           <Section title="Units & Measurements">
@@ -54,12 +56,6 @@ export default function Settings() {
               options={[...MEASUREMENT_OPTIONS]}
               value={measurementSystem}
               onChange={setMeasurementSystem}
-            />
-            <SettingsSelect
-              label="Currency"
-              options={[...CURRENCY_OPTIONS]}
-              value={currency}
-              onChange={setCurrency}
             />
           </Section>
 

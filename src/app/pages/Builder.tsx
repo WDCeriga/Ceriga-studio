@@ -1158,6 +1158,7 @@ export function Builder() {
           productId: productId || state.productId || '',
           name: projectName,
           garmentType: state.garmentType,
+
           flowType,
           progress: progressPct,
           currentStep,
@@ -1443,6 +1444,7 @@ export function Builder() {
           productId,
           productName: product?.name ?? 'Studio project',
           garmentType: state.garmentType,
+          specifications: {fit:state.fit,fabricType:state.fabricType,gsm:Number(state.gsm)||undefined,neckType:state.neckType,sleeveType:state.sleeveType,sleeveLength:state.sleeveLength,constructionDetails:[state.hemType&&`${state.hemType} hem`,state.cuffType&&`${state.cuffType} cuffs`,state.pocketType&&state.pocketType!=='none'?`${state.pocketType} pocket`:undefined,state.zipType&&state.zipType!=='none'?`${state.zipType} zip`:undefined,state.fadingType,state.stitchingType].filter((value):value is string=>Boolean(value)&&value!=='none'),requiredCapabilities:[...new Set(state.prints.map(layer=>layer.printMethod ?? DEFAULT_PRINT_METHOD).filter((value):value is string=>Boolean(value)))]},
           orderQuantities: state.orderQuantities,
         },
       });
@@ -2813,6 +2815,7 @@ export function Builder() {
                         productId,
                         productName: product?.name ?? 'Studio project',
                         garmentType: state.garmentType,
+                        specifications: {fit:state.fit,fabricType:state.fabricType,gsm:Number(state.gsm)||undefined,neckType:state.neckType,sleeveType:state.sleeveType,sleeveLength:state.sleeveLength,constructionDetails:[state.hemType&&`${state.hemType} hem`,state.cuffType&&`${state.cuffType} cuffs`,state.pocketType&&state.pocketType!=='none'?`${state.pocketType} pocket`:undefined,state.zipType&&state.zipType!=='none'?`${state.zipType} zip`:undefined,state.fadingType,state.stitchingType].filter((value):value is string=>Boolean(value)&&value!=='none'),requiredCapabilities:[...new Set(state.prints.map(layer=>layer.printMethod ?? DEFAULT_PRINT_METHOD).filter((value):value is string=>Boolean(value)))]},
                         orderQuantities: state.orderQuantities,
                         from: 'builder',
                       },

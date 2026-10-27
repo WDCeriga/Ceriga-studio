@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
+import { checkManufacturerProduction, recommendManufacturers } from '../../data/assignmentRecommendation';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { AlertTriangle, ArrowRightLeft, Clock, Package, Route } from 'lucide-react';
 import { toast } from 'sonner';
@@ -6,6 +8,7 @@ import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { STATUS_LABELS, formatMoney, type OrderStatus, type SuperAdminOrder } from '../../data/superadminMock';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -66,7 +69,7 @@ function buildRows(orders: SuperAdminOrder[]): ConsoleRow[] {
         order,
         overdue,
         slaHoursLeft: order.dueQuoteBy && quoteOpen ? daysUntil(order.dueQuoteBy, today) * 24 : null,
-        needsReroute: order.factoryQuoteStatus === 'rejected' || Boolean(order.factoryRejectReason),
+        needsReroute: order.factoryQuoteStatus === 'rejected',
       };
     })
     .sort((a, b) => {
@@ -79,9 +82,10 @@ function buildRows(orders: SuperAdminOrder[]): ConsoleRow[] {
 }
 
 export function SuperAdminAssignmentConsole() {
+  useCurrency();
   const { orders, manufacturers, loading, patchOrder, refresh } = useSuperadminData();
   const rows = buildRows(orders);
-  const activeManufacturers = manufacturers.filter((m) => m.onboardingComplete);
+  const activeManufacturers = manufacturers.filter((m) => m.onboardingComplete&&m.status!=='paused');
 
   const [filter, setFilter] = useState<'all' | 'overdue' | 'unassigned' | 'reroute'>('all');
   const [action, setAction] = useState<AssignAction | null>(null);
@@ -101,10 +105,19 @@ export function SuperAdminAssignmentConsole() {
   const rerouteCount = rows.filter((r) => r.needsReroute).length;
 
   const openAssign = (orderId: string, productName: string, mode: 'assign' | 'reroute') => {
-    setManufacturerId(activeManufacturers[0]?.userId ?? '');
+    const order = orders.find((candidate) => candidate.id === orderId);
+    const primary = order ? recommendManufacturers(order, activeManufacturers)[0] : undefined;
+    setManufacturerId(primary?.factory.userId ?? '');
     setDueQuoteBy(addDaysIso(3));
     setAction({ orderId, productName, mode });
   };
+
+  useEffect(() => {
+    if (!action || manufacturerId) return;
+    const order = orders.find((candidate) => candidate.id === action.orderId);
+    const primary = order ? recommendManufacturers(order, activeManufacturers)[0] : undefined;
+    if (primary) setManufacturerId(primary.factory.userId);
+  }, [action, manufacturerId, orders, activeManufacturers]);
 
   const commit = () => {
     if (!action || !manufacturerId) {
@@ -116,6 +129,9 @@ export function SuperAdminAssignmentConsole() {
       return;
     }
     const target = activeManufacturers.find((m) => m.userId === manufacturerId);
+    const order=orders.find(item=>item.id===action.orderId);
+    const match=order&&target?checkManufacturerProduction(order,target):null;
+    if(!match?.eligible){toast.error(match?.failures.join('; ')||'Could not verify production capabilities');return;}
     setCommitting(true);
     void (async () => {
       const ok = await patchOrder(action.orderId, {
@@ -128,7 +144,7 @@ export function SuperAdminAssignmentConsole() {
         return;
       }
       toast.success(
-        `${action.mode === 'reroute' ? 'Re-routed' : 'Assigned'} to ${target?.factoryName ?? 'manufacturer'} — notified in their portal`,
+        `${action.mode === 'reroute' ? 'Re-routed' : 'Assigned'} to ${target?.factoryName ?? 'manufacturer'}`,
       );
       setAction(null);
       void refresh();
@@ -237,7 +253,7 @@ export function SuperAdminAssignmentConsole() {
             <thead>
               <tr className="border-b border-[#252528] bg-black/30 text-[10px] font-semibold uppercase tracking-wider text-white/40">
                 <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3">Manufacturer</th>
+                <th className="px-4 py-3">Assigned manufacturer</th>
                 <th className="px-4 py-3">Quote due</th>
                 <th className="px-4 py-3">SLA</th>
                 <th className="px-4 py-3">Status</th>
@@ -271,11 +287,6 @@ export function SuperAdminAssignmentConsole() {
                       ) : (
                         <span className="text-[12px] text-sky-200/80">Unassigned</span>
                       )}
-                      {order.assignedAt ? (
-                        <p className="text-[10px] text-white/35">
-                          Assigned {formatDate(order.assignedAt)}
-                        </p>
-                      ) : null}
                     </td>
                     <td className="px-4 py-3.5 align-middle">
                       <span
@@ -323,7 +334,7 @@ export function SuperAdminAssignmentConsole() {
                       ) : null}
                       {order.quoteTiers?.length ? (
                         <p className="text-[10px] text-emerald-300/80">
-                          Quote {formatMoney(order.quoteTiers[0].manufacturerQuoteCents)}+
+                          Quote {displayMoney(order.quoteTiers[0].manufacturerQuoteCents,order.quoteTiers[0].currency)}+
                         </p>
                       ) : null}
                     </td>
@@ -360,54 +371,71 @@ export function SuperAdminAssignmentConsole() {
       </div>
 
       {action ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#252528] bg-[#0c0c0e]/95 p-4 backdrop-blur sm:left-auto sm:right-6 sm:bottom-6 sm:w-[360px] sm:rounded-2xl sm:border">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+        <Dialog open onOpenChange={(next) => { if (!next && !committing) setAction(null); }}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border-[#252528] bg-[#0c0c0e] p-6 text-white sm:max-w-[600px] sm:p-8">
+          <DialogTitle className="pr-6 text-xl font-semibold leading-snug sm:text-2xl">
             {action.mode === 'reroute' ? 'Re-route' : 'Assign'} · {action.productName}
-          </p>
-          <div className="mt-3 space-y-3">
+          </DialogTitle>
+          <DialogDescription className="text-sm text-white/50">Choose a manufacturer and set the quotation deadline.</DialogDescription>
+          <div className="space-y-5">
             <div>
-              <p className="text-[11px] text-white/45">Manufacturer</p>
+              <p className="text-sm font-medium text-white/65">Manufacturer</p>
               <Select value={manufacturerId} onValueChange={setManufacturerId}>
-                <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
-                  <SelectValue placeholder="Select factory" />
+                <SelectTrigger className="mt-2 h-12 w-full border-white/15 bg-white/5 text-base text-white">
+                  <SelectValue placeholder="Select any available manufacturer" />
                 </SelectTrigger>
                 <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {activeManufacturers.map((m) => (
-                    <SelectItem key={m.userId} value={m.userId}>
+                    <SelectItem key={m.userId} value={m.userId} disabled={Boolean(orders.find(order=>order.id===action.orderId)?.rejectedManufacturerIds?.includes(m.userId) || (orders.find(order=>order.id===action.orderId)?.factoryQuoteStatus==='rejected' && orders.find(order=>order.id===action.orderId)?.manufacturerId===m.userId))}>
                       {m.factoryName}
-                      {m.moq ? ` · MOQ ${m.moq}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            {manufacturerId && (()=>{
+              const order=orders.find(item=>item.id===action.orderId);
+              const factory=activeManufacturers.find(item=>item.userId===manufacturerId);
+              const match=order&&factory?checkManufacturerProduction(order,factory):null;
+              if(!match)return null;
+              return <div className="space-y-3">
+                <details className="rounded-lg border border-amber-400/20 p-3 text-xs text-white/60">
+                  <summary className="cursor-pointer text-amber-200">Scheduling availability</summary>
+                  <ul className="mt-2 space-y-2">{match.warnings.filter(reason=>/working schedule|recorded closures|completion-month workload|active production orders|unavailability|calendar availability/i.test(reason)).map(reason=><li key={reason}>{reason}</li>)}</ul>
+                  <p className="mt-2">A quotation deadline is not a production deadline. Confirm the production window and capacity before commitment.</p>
+                  <Link to={`/superadmin/time-off?manufacturer=${manufacturerId}`} className="mt-2 inline-block text-red-300 underline">View factory calendar</Link>
+                </details>
+                {!!match.failures.length&&<div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200"><p className="font-semibold">Cannot assign — requirements do not match</p><ul className="mt-2 list-disc space-y-1 pl-4">{match.failures.map(reason=><li key={reason}>{reason}</li>)}</ul></div>}
+              </div>;
+            })()}
             <div>
-              <p className="text-[11px] text-white/45">Quote due</p>
+              <p className="text-sm font-medium text-white/65">Quote due</p>
               <Input
                 type="date"
                 value={dueQuoteBy}
                 onChange={(e) => setDueQuoteBy(e.target.value)}
-                className="mt-1 border-white/15 bg-white/5 text-white"
+                className="mt-2 h-12 w-full border-white/15 bg-white/5 text-base text-white"
               />
             </div>
             <div className="flex gap-2">
               <Button
-                className="flex-1 bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
+                className="h-12 flex-1 bg-[#CC2D24] text-base text-white hover:bg-[#CC2D24]/90"
                 onClick={commit}
-                disabled={committing}
+                disabled={committing||!manufacturerId||!(() => { const order=orders.find(item=>item.id===action.orderId);const factory=activeManufacturers.find(item=>item.userId===manufacturerId);return order&&factory&&checkManufacturerProduction(order,factory).eligible; })()}
               >
                 {committing ? 'Saving…' : 'Confirm'}
               </Button>
               <Button
                 variant="outline"
-                className="border-white/15 bg-transparent text-white/70"
+                className="h-12 border-white/15 bg-transparent px-6 text-base text-white/70"
                 onClick={() => setAction(null)}
               >
                 Cancel
               </Button>
             </div>
           </div>
-        </div>
+        </DialogContent>
+        </Dialog>
       ) : null}
     </div>
   );

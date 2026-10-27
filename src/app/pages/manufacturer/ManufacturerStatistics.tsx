@@ -1,3 +1,6 @@
+import { PortalReport } from '../../components/PortalReport';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import {
@@ -41,6 +44,8 @@ import {
 import { cn } from '../../components/ui/utils';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
+import { useManufacturerPricing } from '../../data/manufacturerPricing';
+import { currencySymbol, type Currency } from '../../lib/currency';
 
 const RED = '#CC2D24';
 const PIE_COLORS = ['#CC2D24', '#3B82F6', '#10B981', '#F59E0B', '#A78BFA', '#64748B'];
@@ -85,6 +90,7 @@ function ChartPanel({
   className?: string;
   action?: ReactNode;
 }) {
+  useCurrency();
   return (
     <section
       className={cn(
@@ -117,6 +123,7 @@ function KpiCard({
   icon?: typeof TrendingUp;
   warn?: boolean;
 }) {
+  useCurrency();
   return (
     <div className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4">
       <div className="flex items-start justify-between gap-2">
@@ -138,13 +145,15 @@ function KpiCard({
   );
 }
 
-export function ManufacturerStatistics() {
+function ManufacturerStatisticsPreview() {
+  const currencyState=useCurrency();
+  const { currency } = useManufacturerPricing();
   const [section, setSection] = useState<SectionId>('overview');
   const [periodDays, setPeriodDays] = useState<AnalyticsPeriodDays>(90);
-  const a = useMemo(() => getFactoryAnalytics(periodDays), [periodDays]);
+  const a = useMemo(() => getFactoryAnalytics(periodDays, currency), [periodDays, currency,currencyState.rates]);
 
   const exportReport = () => {
-    const csv = factoryAnalyticsReportCsv(periodDays);
+    const csv = factoryAnalyticsReportCsv(periodDays, currency);
     downloadTextFile(
       `ceriga-factory-report-${periodDays}d-${new Date().toISOString().slice(0, 10)}.csv`,
       csv,
@@ -167,6 +176,7 @@ export function ManufacturerStatistics() {
             Throughput, quoting speed, capacity, materials, brand mix, and quality for{' '}
             {a.profile.factoryName} · {a.periodLabel}.
           </p>
+          <p className="mt-2 text-xs text-white/50">{a.kpis.currencyIncomplete?'Some historical quotes have unknown currencies and need review. ':''}Account default: {currency}. Recorded quote totals: {Object.entries(a.bookedValueByCurrency).map(([code, cents]) => `${code} ${displayMoney(cents ?? 0,code as Currency)}`).join(' · ') || 'No recorded quotes in this period'}. Original currency totals are shown for reconciliation; charts use indicative conversions.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl border border-[#252528] bg-white/[0.03] p-0.5">
@@ -246,8 +256,8 @@ export function ManufacturerStatistics() {
             />
             <KpiCard
               label="Booked factory value"
-              value={formatFactoryMoney(a.kpis.bookedValueCents)}
-              hint={a.kpis.bookedValueDelta}
+              value={displayMoney(a.kpis.bookedValueCents,currency)}
+              hint={`Indicative converted total in ${currency}`}
               icon={TrendingUp}
             />
             <KpiCard
@@ -574,7 +584,7 @@ export function ManufacturerStatistics() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <ChartPanel title="Quoted value" subtitle="Factory cost booked (£k)">
+            <ChartPanel title="Quoted value" subtitle={`Factory cost booked (${currency}, thousands)`}>
               <div className="h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={a.quoteValue}>
@@ -586,8 +596,8 @@ export function ManufacturerStatistics() {
                     </defs>
                     <CartesianGrid stroke={gridStroke} vertical={false} />
                     <XAxis dataKey="m" {...axisProps} />
-                    <YAxis {...axisProps} tickFormatter={(v) => `£${v}k`} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <YAxis {...axisProps} tickFormatter={(v) => `${currencySymbol(currency)}${v}k`} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={value => displayMoney(Number(value) * 100000,currency)} />
                     <Area
                       type="monotone"
                       dataKey="valueK"
@@ -895,3 +905,5 @@ export function ManufacturerStatistics() {
     </div>
   );
 }
+
+export function ManufacturerStatistics(){return isSupabaseConfigured?<PortalReport admin={false} dashboard={false}/>:<ManufacturerStatisticsPreview/>;}

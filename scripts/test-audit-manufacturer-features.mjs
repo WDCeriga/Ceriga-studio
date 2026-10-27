@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import {testDatabase,asAccount} from './support/testDatabase.mjs';
+const db=await testDatabase(),factory='22222222-2222-2222-2222-222222222222',other='33333333-3333-3333-3333-333333333333',admin='44444444-4444-4444-4444-444444444444';
+try{
+ await db.exec(`insert into auth.users(id,email)values('${factory}','factory@example.invalid'),('${other}','other@example.invalid'),('${admin}','owner@ceriga.io');update public.profiles set role='manufacturer'where id in('${factory}','${other}');`);
+ await asAccount(db,factory);
+ const profile={factoryName:'Saved Factory',contactName:'Test',contactEmail:'factory@example.invalid',contactPhone:'+44123456789',country:'United Kingdom',city:'London',manufacturerTypes:['Cut and sew'],garments:['T-shirts'],garmentDetails:{'T-shirts':{confirmed:true}},capabilitiesMap:{printing:true},shippingMethods:['Air'],shippingDestinations:['Germany'],generalMoq:1,monthlyCapacity:1000,sampleLeadTimeMinDays:7,sampleLeadTimeMaxDays:14,bulkLeadTimeMinDays:14,bulkLeadTimeMaxDays:30};
+ await db.query('select public.save_manufacturer_profile($1,true)',[JSON.stringify(profile)]);
+ assert.equal((await db.query('select profile_details from public.manufacturer_profiles where user_id=$1',[factory])).rows[0].profile_details.city,'London');
+ await assert.rejects(db.query('select public.save_manufacturer_profile($1,true)',[JSON.stringify({...profile,contactPhone:''})]),/phone/);
+ const path=factory+'/test/photo.webp';await db.query("insert into storage.objects(bucket_id,name,metadata)values('manufacturer-assets',$1,'{\"mimetype\":\"image/webp\"}')",[path]);
+ const item={title:'Test garment',image_paths:[path],gsm:180};
+ const id=(await db.query('select public.save_portfolio_item($1) id',[JSON.stringify(item)])).rows[0].id;
+ await db.query('select public.save_portfolio_item($1,$2,1)',[JSON.stringify({...item,title:'Updated'}),id]);
+ await assert.rejects(db.query('select public.save_portfolio_item($1,$2,1)',[JSON.stringify(item),id]),/changed/);
+ const submit=()=>db.query('select public.submit_factory_verification($1,$2,$3,$4) id',['REG-TEST','Test address',[],[path]]);
+ const verification=(await submit()).rows[0].id;assert.equal((await submit()).rows[0].id,verification);
+ await assert.rejects(db.query('select public.review_factory_verification($1,true)',[verification]),/admin/i);
+ assert.equal((await db.query("delete from storage.objects where name=$1 returning id",[path])).rows.length,0);
+ await asAccount(db,other);assert.equal((await db.query('select *from public.manufacturer_portfolio_items')).rows.length,0);assert.equal((await db.query('select *from public.manufacturer_verification_submissions')).rows.length,0);
+ await assert.rejects(db.query('select public.remove_portfolio_item($1,2)',[id]),/unavailable|Permission denied/);
+ await asAccount(db,admin,'owner@ceriga.io');await assert.rejects(db.query("select public.review_factory_verification($1,false,'')",[verification]),/feedback/);await db.query("select public.review_factory_verification($1,false,'Clearer document needed')",[verification]);
+ await asAccount(db,factory);const revised=(await submit()).rows[0].id;assert.notEqual(revised,verification);assert.equal((await db.query('select *from public.manufacturer_verification_submissions')).rows.length,2);
+ const block=(await db.query("select public.request_factory_availability('capacity_block',current_date,current_date+2,'Fully booked') id")).rows[0].id;
+ await db.query('select public.withdraw_factory_availability($1)',[block]);assert.equal((await db.query('select status from public.manufacturer_availability where id=$1',[block])).rows[0].status,'withdrawn');
+ const leave=(await db.query("select public.request_factory_availability('time_off',current_date+3,current_date+4,'Holiday') id")).rows[0].id;
+ await assert.rejects(db.query('select public.review_factory_availability($1,true)',[leave]),/admin/i);
+ assert.equal((await db.query('select status from public.manufacturer_availability where id=$1',[leave])).rows[0].status,'approved');await asAccount(db,admin,'owner@ceriga.io');await assert.rejects(db.query('select public.review_factory_availability($1,true)',[leave]),/pending/);
+ console.log('PASS: profile persistence/validation, private files, portfolio concurrency/isolation, verification review/resubmission/history, immediate self-managed availability and withdrawal.');
+}finally{await db.close();}

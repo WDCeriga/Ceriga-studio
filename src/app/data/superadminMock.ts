@@ -34,16 +34,28 @@ export type OrderStatus =
 
 /** One priced tier from the manufacturer (sample + up to 3 bulk runs). */
 export type ManufacturerQuoteTier = {
+  payablePriceCents?:number;payableCurrency?:import('../lib/currency').Currency;
+  finalCurrency?: import('../lib/currency').Currency;
+  currency?: import('../lib/currency').Currency;
   id: string;
   kind: 'sample' | 'bulk';
   label: string;
   totalUnits: number;
   manufacturerQuoteCents: number;
+  leadTimeDays?: number;
   calculatedPriceCents?: number;
   finalPriceCents?: number;
 };
 
 export type SuperAdminOrder = {
+  currency?: import('../lib/currency').Currency;
+  currencySnapshot?:import('./userOrders').OrderPriceOption['currencySnapshot'];
+  manufacturerCurrency?: import('../lib/currency').Currency;
+  routingVersion?: number;
+  specifications?: import('./userOrders').UserOrder['specifications'];
+  requiredCapabilities?: string[];
+  rejectedManufacturerIds?: string[];
+  quoteExpiresAt?: string;
   id: string;
   kind: OrderKind;
   userId: string;
@@ -187,6 +199,7 @@ export type CustomerTechPackRef = {
 };
 
 export type ChatAttachment = {
+  storagePath?: string;
   kind: 'image' | 'file';
   name: string;
   url: string;

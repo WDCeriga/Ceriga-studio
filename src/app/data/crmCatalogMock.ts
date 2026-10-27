@@ -1,3 +1,4 @@
+import {getSupabase,isSupabaseConfigured} from '../lib/supabaseClient';
 import {
   builderSteps,
   cuffOptions,
@@ -205,7 +206,8 @@ export function getBaseConfig(baseId: GarmentBaseId): GarmentBaseConfig {
   return normalizeBaseConfig(baseStore[baseId] ?? defaultBaseConfig(baseId));
 }
 
-export function upsertBaseConfig(config: GarmentBaseConfig): void {
+export async function upsertBaseConfig(config: GarmentBaseConfig): Promise<void> {
+  if(isSupabaseConfigured){const {error}=await getSupabase().from('platform_settings').upsert({key:'catalog_base_'+config.baseId,value:normalizeBaseConfig(config)});if(error)throw new Error(error.message);}
   baseStore = { ...baseStore, [config.baseId]: normalizeBaseConfig(config) };
 }
 
@@ -402,7 +404,8 @@ export function getProductConfig(id: string): CatalogProductConfig | undefined {
   return product ? normalizeProductConfig(product) : undefined;
 }
 
-export function upsertProductConfig(product: CatalogProductConfig): void {
+export async function upsertProductConfig(product: CatalogProductConfig): Promise<void> {
+  if(isSupabaseConfigured){const {error}=await getSupabase().from('platform_settings').upsert({key:'catalog_product_'+product.id,value:normalizeProductConfig(product)});if(error)throw new Error(error.message);}
   const normalized = normalizeProductConfig(product);
   const idx = catalogStore.findIndex((p) => p.id === normalized.id);
   if (idx >= 0) {
@@ -420,4 +423,9 @@ export function slugFromName(name: string): string {
     .slice(0, 24);
   const suffix = Math.random().toString(36).slice(2, 6);
   return `${prefix || 'product'}-${suffix}`;
+}
+
+export function hydrateCatalogueConfiguration(values:Record<string,unknown>){
+ baseStore=initialBaseStore();catalogStore=[...INITIAL_CATALOG_CONFIG];
+ for(const [key,value]of Object.entries(values)){if(key.startsWith('catalog_base_')){const config=value as GarmentBaseConfig;if(GARMENT_BASES.some(b=>b.id===config.baseId))baseStore[config.baseId]=normalizeBaseConfig(config);}else if(key.startsWith('catalog_product_')){const product=normalizeProductConfig(value as CatalogProductConfig);const index=catalogStore.findIndex(p=>p.id===product.id);if(index<0)catalogStore.push(product);else catalogStore[index]=product;}}
 }

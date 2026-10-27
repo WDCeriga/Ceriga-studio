@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { Plus, Pencil, Search, Shield } from 'lucide-react';
+import { Plus, Pencil, Search } from 'lucide-react';
 import {
   GARMENT_BASES,
   countEnabledForProduct,
@@ -42,16 +42,6 @@ export function SuperAdminCRM() {
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            asChild
-            variant="outline"
-            className="border-white/15 text-white hover:bg-white/10"
-          >
-            <Link to="/superadmin/crm/access">
-              <Shield className="mr-2 h-4 w-4" />
-              Roles & access
-            </Link>
-          </Button>
           <Button asChild className="bg-[#CC2D24] hover:bg-[#CC2D24]/90">
             <Link to="/superadmin/crm/products/new">
               <Plus className="mr-2 h-4 w-4" />

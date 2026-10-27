@@ -1,80 +1,91 @@
-import { useState } from 'react';
+import { FactoryVerificationPanel } from '../../components/manufacturer/FactoryVerificationPanel';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { useRef, useState } from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
   Clock,
   FileText,
   Upload,
-  CheckCircle2,
   Building2,
   ExternalLink,
-  Award,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
 import { cn } from '../../components/ui/utils';
 import {
   loadCompleteManufacturerProfile,
   saveCompleteManufacturerProfile,
 } from '../../data/manufacturerOnboardingStore';
-import type { FactoryVerification } from '../../data/manufacturerOnboardingTypes';
+import type { FactoryVerificationData } from '../../data/manufacturerOnboardingTypes';
 
-export function ManufacturerVerification() {
+function ManufacturerVerificationPreview() {
   const [profile, setProfile] = useState(() => loadCompleteManufacturerProfile());
-  const [verification, setVerification] = useState<FactoryVerification>(
+  const [verification, setVerification] = useState<FactoryVerificationData>(
     profile.verification || {
       status: 'not_submitted',
-      registrationNumber: profile.factoryProfile.registrationNumber || '',
+      registrationNumber: profile.businessRegNumber || '',
       registeredAddress: '',
       certifications: [],
-      documents: [],
+      documentUrls: [],
     },
   );
 
   const [registrationNumber, setRegistrationNumber] = useState(
-    verification.registrationNumber || '',
+    verification.registrationNumber || profile.businessRegNumber || '',
   );
   const [registeredAddress, setRegisteredAddress] = useState(
-    verification.registeredAddress || '',
+    verification.registeredAddress || profile.addressLine || '',
   );
   const [certificationsInput, setCertificationsInput] = useState(
-    verification.certifications.join(', '),
+    (verification.certifications || []).join(', '),
   );
-  const [notes, setNotes] = useState(verification.adminNotes || '');
-  const [documentName, setDocumentName] = useState('');
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const [isReading, setIsReading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const documents = verification.documentUrls || [];
+  const locked = verification.status === 'verified' || verification.status === 'pending_review';
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddDocument = () => {
-    if (!documentName.trim()) {
-      toast.error('Document title is required');
+  const handleAddDocuments = async (files: FileList | null) => {
+    if (!files?.length || locked || isReading) return;
+    const selected = Array.from(files);
+    if (selected.some((file) => !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type))) {
+      toast.error('Choose PDF, JPG, PNG or WebP files');
       return;
     }
-    const newDoc = {
-      id: `doc-${Date.now()}`,
-      title: documentName.trim(),
-      fileUrl: '#',
-      uploadedAt: new Date().toISOString().slice(0, 10),
-      status: 'pending' as const,
-    };
-    setVerification((prev) => ({
-      ...prev,
-      documents: [...prev.documents, newDoc],
-    }));
-    setDocumentName('');
-    toast.success('Document uploaded for inspection');
+    if (documents.reduce((size, url) => size + url.length, 0) + selected.reduce((size, file) => size + Math.ceil(file.size * 4 / 3), 0) > 2 * 1024 * 1024) {
+      toast.error('Attachments must total less than 2 MB');
+      return;
+    }
+    setIsReading(true);
+    try {
+      const urls = await Promise.all(selected.map((file) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('File read failed'));
+        reader.readAsDataURL(file);
+      })));
+      setVerification((prev) => ({ ...prev, documentUrls: [...(prev.documentUrls || []), ...urls] }));
+      toast.success('Documents attached. Submit the package to save them.');
+    } catch {
+      toast.error('Unable to read attachments. Please try again.');
+    } finally {
+      setIsReading(false);
+    }
   };
 
-  const handleRemoveDoc = (id: string) => {
+  const handleRemoveDoc = (index: number) => {
     setVerification((prev) => ({
       ...prev,
-      documents: prev.documents.filter((d) => d.id !== id),
+      documentUrls: (prev.documentUrls || []).filter((_, i) => i !== index),
     }));
   };
 
   const handleSubmitVerification = () => {
+    if (locked || isReading || isSubmitting) return;
     if (!registrationNumber.trim()) {
       toast.error('Business registration number is required for verification');
       return;
@@ -84,8 +95,12 @@ export function ManufacturerVerification() {
       return;
     }
 
+    if (!documents.length) {
+      toast.error('Attach at least one supporting document');
+      return;
+    }
     setIsSubmitting(true);
-    const updatedVerification: FactoryVerification = {
+    const updatedVerification: FactoryVerificationData = {
       ...verification,
       status: 'pending_review',
       submittedAt: new Date().toISOString(),
@@ -139,14 +154,14 @@ export function ManufacturerVerification() {
             </div>
           </div>
         );
-      case 'requires_changes':
+      case 'rejected':
         return (
           <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-red-400">
             <ShieldAlert className="h-5 w-5" />
             <div>
               <div className="text-xs font-semibold">Action Required / Re-submission Needed</div>
               <div className="text-[10px] text-red-400/80">
-                {verification.adminNotes || 'Please update registration documentation.'}
+                {verification.rejectionReason || 'Please update registration documentation.'}
               </div>
             </div>
           </div>
@@ -204,7 +219,7 @@ export function ManufacturerVerification() {
             <Label className="text-white/80">Business Registration Number *</Label>
             <Input
               value={registrationNumber}
-              disabled={verification.status === 'verified'}
+              disabled={locked || isSubmitting}
               onChange={(e) => setRegistrationNumber(e.target.value)}
               placeholder="e.g. US-EIN-94820194 or UK-CRN-098273"
               className="mt-1 text-xs border-white/10 bg-white/[0.03] text-white"
@@ -215,7 +230,7 @@ export function ManufacturerVerification() {
             <Label className="text-white/80">Official Registered Address *</Label>
             <Input
               value={registeredAddress}
-              disabled={verification.status === 'verified'}
+              disabled={locked || isSubmitting}
               onChange={(e) => setRegisteredAddress(e.target.value)}
               placeholder="Full legal facility address"
               className="mt-1 text-xs border-white/10 bg-white/[0.03] text-white"
@@ -229,7 +244,7 @@ export function ManufacturerVerification() {
           </Label>
           <Input
             value={certificationsInput}
-            disabled={verification.status === 'verified'}
+            disabled={locked || isSubmitting}
             onChange={(e) => setCertificationsInput(e.target.value)}
             placeholder="e.g. OEKO-TEX Standard 100, GOTS Certified, ISO 9001"
             className="mt-1 text-xs border-white/10 bg-white/[0.03] text-white"
@@ -249,50 +264,68 @@ export function ManufacturerVerification() {
             </div>
           </div>
 
-          {/* Upload Mock Input */}
-          {verification.status !== 'verified' && (
-            <div className="flex gap-2">
-              <Input
-                value={documentName}
-                onChange={(e) => setDocumentName(e.target.value)}
-                placeholder="e.g. Business Registration Certificate.pdf"
-                className="text-xs border-white/10 bg-white/[0.03] text-white flex-1"
+          {!locked && (
+            <div>
+              <input
+                ref={documentInputRef}
+                type="file"
+                multiple
+                accept="application/pdf,image/jpeg,image/png,image/webp"
+                aria-label="Attach verification documents"
+                className="sr-only"
+                disabled={isReading || isSubmitting}
+                onChange={(event) => {
+                  void handleAddDocuments(event.target.files);
+                  event.target.value = '';
+                }}
               />
-              <Button
+              <button
                 type="button"
-                onClick={handleAddDocument}
-                variant="outline"
-                className="border-white/15 text-xs text-white hover:bg-white/5"
+                disabled={isReading || isSubmitting}
+                onClick={() => documentInputRef.current?.click()}
+                onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setIsDragging(false);
+                  if (!isSubmitting) void handleAddDocuments(event.dataTransfer.files);
+                }}
+                className={cn('flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed p-6 text-xs text-white/70 transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CC2D24] disabled:opacity-50', isDragging ? 'border-[#CC2D24] bg-[#CC2D24]/10' : 'border-white/15')}
               >
-                <Upload className="h-3.5 w-3.5 mr-1" /> Attach
-              </Button>
+                <Upload className="h-6 w-6 text-white/40" />
+                <span>{isReading ? 'Reading documents…' : 'Drag and drop documents or click to browse'}</span>
+                <span className="text-[11px] text-white/40">PDF, JPG, PNG or WebP · 2 MB total</span>
+              </button>
             </div>
           )}
 
           {/* Documents List */}
-          {verification.documents.length === 0 ? (
+          {documents.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#252528] p-4 text-center text-xs text-white/40">
               No documents attached yet.
             </div>
           ) : (
             <div className="space-y-2">
-              {verification.documents.map((doc) => (
+              {documents.map((url, index) => (
                 <div
-                  key={doc.id}
+                  key={`${index}-${url.slice(0, 40)}`}
                   className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs"
                 >
                   <div className="flex items-center gap-2.5">
                     <FileText className="h-4 w-4 text-[#CC2D24]" />
                     <div>
-                      <div className="font-medium text-white">{doc.title}</div>
-                      <div className="text-[10px] text-white/40">Uploaded on {doc.uploadedAt}</div>
+                      <a href={url} download={`verification-document-${index + 1}`} className="font-medium text-white hover:underline">
+                        Supporting document {index + 1} <ExternalLink className="inline h-3 w-3" />
+                      </a>
+                      <div className="text-[10px] text-white/40">Attached to verification package</div>
                     </div>
                   </div>
 
-                  {verification.status !== 'verified' && (
+                  {!locked && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveDoc(doc.id)}
+                      disabled={isReading || isSubmitting}
+                      onClick={() => handleRemoveDoc(index)}
                       className="text-xs text-red-400 hover:text-red-300"
                     >
                       Delete
@@ -305,11 +338,11 @@ export function ManufacturerVerification() {
         </div>
 
         {/* Submit Action */}
-        {verification.status !== 'verified' && (
+        {!locked && (
           <div className="pt-4 border-t border-[#252528] flex justify-end">
             <Button
               onClick={handleSubmitVerification}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isReading}
               className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold text-xs"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Verification Package'}
@@ -320,3 +353,5 @@ export function ManufacturerVerification() {
     </div>
   );
 }
+
+export function ManufacturerVerification(){return isSupabaseConfigured ? <FactoryVerificationPanel/> : <ManufacturerVerificationPreview/>;}

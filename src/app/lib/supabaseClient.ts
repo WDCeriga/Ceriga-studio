@@ -1,3 +1,4 @@
+import{getActiveFactoryCacheId}from './factoryWorkspaceIdentity';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
@@ -38,6 +39,7 @@ export function getSupabase(): SupabaseClient {
   }
   if (!client) {
     client = createClient(url, anonKey, {
+      global:{fetch:async(input,init)=>{const headers=new Headers(init?.headers);const factory=getActiveFactoryCacheId();const destination=typeof input==='string'?input:input instanceof URL?input.href:input.url;if(factory&&destination.includes('/rest/v1/'))headers.set('x-ceriga-factory',factory);return fetch(input,{...init,headers});}},
       auth: {
         persistSession: true,
         autoRefreshToken: true,

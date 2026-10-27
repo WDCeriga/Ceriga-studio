@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { type SuperAdminUser } from '../../data/superadminMock';
 import { useSuperadminData } from '../../hooks/useSuperadminData';
+import { DeleteRecordButton } from '../../components/DeleteRecordButton';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Checkbox } from '../../components/ui/checkbox';
@@ -164,7 +165,7 @@ export function SuperAdminUsers() {
   const [sentRecipients, setSentRecipients] = useState<SentRecipient[]>([]);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
-  const { users: MOCK_SUPER_USERS, loading: usersLoading, error: usersError } = useSuperadminData();
+  const { users: MOCK_SUPER_USERS, loading: usersLoading, usersError, deleteAccount, refresh } = useSuperadminData();
 
   const activeUser = useMemo(
     () => MOCK_SUPER_USERS.find((u) => u.id === activeUserId) ?? null,
@@ -435,6 +436,7 @@ export function SuperAdminUsers() {
       {usersError ? (
         <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">
           Could not load users: {usersError}
+          <button type="button" className="ml-3 underline" disabled={usersLoading} onClick={() => { void refresh(); }}>Retry</button>
         </div>
       ) : null}
 
@@ -633,6 +635,13 @@ export function SuperAdminUsers() {
                           {u.lastActive}
                           <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
                         </span>
+                        <DeleteRecordButton label={u.name} description="Permanently delete this user account and its associated profile data? Accounts that own orders must have those orders deleted first. This cannot be undone."
+                          onDelete={async () => {
+                            await deleteAccount(u.id);
+                            setSelectedIds((previous) => new Set([...previous].filter((id) => id !== u.id)));
+                            setEmailSelectedIds((previous) => new Set([...previous].filter((id) => id !== u.id)));
+                            if (activeUserId === u.id) setActiveUserId(null);
+                          }} />
                       </td>
                     </tr>
                   );

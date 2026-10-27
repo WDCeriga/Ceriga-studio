@@ -40,6 +40,7 @@ export function SuperAdminCRMAccessList() {
     );
   }, [profiles, search]);
 
+  if (audienceParam === 'workers') return <Navigate to="/superadmin/workers" replace />;
   if (audienceParam === 'manufacturers') {
     return <Navigate to="/superadmin/manufacturers" replace />;
   }

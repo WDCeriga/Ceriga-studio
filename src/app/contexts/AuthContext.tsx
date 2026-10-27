@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { passwordLogin } from '../lib/passwordLogin';
 
 export type GoogleProfile = { email: string; name: string; credential?: string };
 
@@ -209,9 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const supabase = getSupabase();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    await passwordLogin(email, password);
   }, []);
 
   const signup = useCallback(async (email: string, password: string, name: string, role?: AuthUser['role']) => {

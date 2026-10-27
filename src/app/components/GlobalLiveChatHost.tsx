@@ -7,7 +7,7 @@ type AppDataRouter = typeof import('../routes').router;
 const HIDE_ON = new Set(['/support']);
 
 /**
- * Renders the floating "Chat with us" sheet on every app route.
+ * Renders the support footer and chat sheet on every app route.
  * Lives beside RouterProvider and subscribes to the data router for path changes.
  */
 export function GlobalLiveChatHost({ router }: { router: AppDataRouter }) {

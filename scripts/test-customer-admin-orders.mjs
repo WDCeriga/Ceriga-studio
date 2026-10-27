@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {transformWithEsbuild} from 'vite';
+async function load(path,mocks){const {code}=await transformWithEsbuild(await readFile(path,'utf8'),path,{format:'cjs',target:'es2022'});const m={exports:{}};new Function('require','module','exports',code)(name=>{if(name in mocks)return mocks[name];throw Error('Unexpected import: '+name)},m,m.exports);return m.exports;}
+let orders=[],orderError=null,profileError=null;
+const client={rpc:async(name,args)=>{assert.equal(name,'create_customer_order');const row={id:'saved-order',created_at:'2026-10-19T00:00:00Z',...args.p_input};orders.push(row);return{data:row,error:null};},auth:{getUser:async()=>({data:{user:{id:'customer'}},error:null})},from(table){return {select(){return this},order:async()=>({data:table==='account_orders'?orders:null,error:orderError}),in:async()=>({data:table==='profiles'?[{id:'customer',email:'buyer@example.invalid',full_name:'Customer account'}]:[],error:profileError}),insert(payload){return {select(){return this},single:async()=>{const row={id:'saved-order',created_at:'2026-10-19T00:00:00Z',...payload};orders.push(row);return {data:row,error:null}}}}}}};
+const supabase={getSupabase:()=>client,isSupabaseConfigured:true};
+const errors=await load('src/app/lib/requestErrors.ts',{});
+const ordersDb=await load('src/app/lib/ordersDb.ts',{'./supabaseClient':supabase,'./requestErrors':errors});
+const quoteHelper=await load('src/app/lib/customerQuote.ts',{'./currency':{isCurrency:value=>['GBP','USD','EUR'].includes(value)}});
+const admin=await load('src/app/lib/superadminDb.ts',{'./customerQuote':quoteHelper,'./supabaseClient':supabase,'./ordersDb':ordersDb,'../data/superadminMock':{MOCK_SUPER_USERS:[]},'../data/superadminPricingMock':{getProductionMarginPercent:()=>16,applyProductionMargin:n=>n},'../data/manufacturersMock':{listManufacturerProfiles:()=>[]},'../data/manufacturerInvites':{getStoredInvites:()=>[]}});
+assert.deepEqual(await admin.fetchAllOrders(),[]);
+await ordersDb.insertOrder({kind:'production',productName:'Customer hoodie',garmentType:'Hoodies',status:'submitted',statusLabel:'Awaiting quote',contactName:'Delivery contact',contactEmail:'delivery@example.invalid'});
+let result=await admin.fetchAllOrders();assert.equal(result.length,1);assert.equal(result[0].id,'saved-order');assert.equal(result[0].userId,'customer');assert.equal(result[0].userName,'Customer account');assert.equal(result[0].productName,'Customer hoodie');
+orderError={message:'Database unavailable'};await assert.rejects(admin.fetchAllOrders(),/Database unavailable/);orderError=null;
+profileError={message:'Permission denied'};await assert.rejects(admin.fetchAllOrders(),/Could not load customer details: Permission denied/);profileError=null;
+orders=null;assert.deepEqual(await admin.fetchAllOrders(),[]);
+console.log('PASS: saved customer order appears in admin adapter with matching order/owner; empty/null results; database and profile errors remain visible');
+const quoted=admin.toSuperAdminOrder({id:'quoted-order',kind:'production',productName:'Quoted hoodie',garmentType:'Hoodies',status:'submitted',statusLabel:'Awaiting quote',orderDate:'2026-10-20',total:null,assignedManufacturerId:'factory',factoryStatus:'quoted',manufacturerQuote:[{id:'sample',kind:'sample',label:'Samples',totalUnits:6,manufacturerQuoteCents:12000,currency:'GBP',leadTimeDays:14}]},{userId:'customer',createdAtIso:'2026-10-20T00:00:00Z'});
+assert.equal(quoted.status,'pending_review');assert.equal(quoted.quoteTiers[0].manufacturerQuoteCents,12000);assert.equal(quoted.quoteTiers[0].leadTimeDays,14);
+console.log('PASS: submitted manufacturer quote maps to superadmin review with price and lead time');
+assert.equal(admin.toSuperAdminOrder({id:'euro-quote',kind:'production',productName:'Euro sample',garmentType:'Hoodies',status:'submitted',statusLabel:'Awaiting quote',orderDate:'2026-10-20',total:null,assignedManufacturerId:'factory',factoryStatus:'quoted',manufacturerQuote:[{id:'sample',kind:'sample',label:'Samples',totalUnits:6,manufacturerQuoteCents:12000,currency:'EUR',leadTimeDays:14}]},{userId:'customer',createdAtIso:'2026-10-20T00:00:00Z'}).quoteTiers[0].currency,'EUR');
+console.log('PASS: superadmin adapter retains quotation currency');
+
+let capturedRpc=null,rpcError=null;
+client.rpc=async(name,args)=>{capturedRpc={name,args};return {data:rpcError?null:'published-order',error:rpcError};};
+await admin.adminPatchOrder('published-order',{status:'sent_to_brand',approvedPrices:[{id:'sample',cents:34104}]});
+assert.equal(capturedRpc.name,'publish_order_quote');assert.equal(capturedRpc.args.p_prices[0].cents,34104);
+await admin.adminPatchOrder('published-order',{assignedManufacturerId:'factory',dueQuoteBy:'2027-01-01'});assert.equal(capturedRpc.name,'assign_order_manufacturer');assert.equal(capturedRpc.args.p_manufacturer,'factory');
+await assert.rejects(admin.adminPatchOrder('published-order',{status:'sent_to_brand'}),/Approved prices/);
+rpcError={message:'Superadmin authorization required'};await assert.rejects(admin.adminPatchOrder('published-order',{approvedPrices:[{id:'sample',cents:34104}]}),/Superadmin authorization/);
+console.log('PASS: publication/assignment use checked database transitions; database errors surfaced; no fake success');
+const approvedOrder={id:'approved-order',kind:'production',productName:'Customer quote',garmentType:'Hoodies',status:'priced',statusLabel:'Quote ready',orderDate:'2026-10-20',total:null,assignedManufacturerId:'factory',factoryStatus:'quoted',manufacturerQuote:[{id:'sample',kind:'sample',label:'Samples',totalUnits:6,manufacturerQuoteCents:29400,currency:'EUR',leadTimeDays:14}],priceOptions:[{id:'sample',kind:'sample',label:'Samples',totalUnits:6,priceCents:34104,currency:'EUR',description:'6 units'}]};
+const published=admin.toSuperAdminOrder(approvedOrder,{userId:'customer',createdAtIso:'2026-10-20T00:00:00Z'});
+assert.equal(published.status,'sent_to_brand');assert.equal(published.quoteTiers[0].finalPriceCents,34104);
+const incomplete=admin.toSuperAdminOrder({...approvedOrder,priceOptions:[]},{userId:'customer',createdAtIso:'2026-10-20T00:00:00Z'});
+assert.equal(incomplete.status,'pending_review');assert.equal(incomplete.quoteTiers[0].finalPriceCents,undefined);
+console.log('PASS: published orders leave review queue with actual approved prices; old status-only publication returns to review without invented prices');

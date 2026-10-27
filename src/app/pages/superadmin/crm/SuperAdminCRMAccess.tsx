@@ -12,7 +12,7 @@ const AUDIENCE_ICONS = {
 } as const;
 
 /** Manufacturers live under /superadmin/manufacturers — not Roles & access. */
-const AUDIENCES: Exclude<AccessAudience, 'manufacturers'>[] = ['users', 'workers'];
+const AUDIENCES: Exclude<AccessAudience, 'manufacturers'>[] = ['users'];
 
 export function SuperAdminCRMAccess() {
   const { users, loading } = useSuperadminData();
@@ -33,7 +33,7 @@ export function SuperAdminCRMAccess() {
           Who can see what
         </h1>
         <p className="mt-2 text-sm text-white/40">
-          Brand and worker portal access.{' '}
+          Brand portal access.{' '}
           <Link to="/superadmin/manufacturers" className="text-[#CC2D24] hover:underline">
             Manage manufacturers
           </Link>{' '}

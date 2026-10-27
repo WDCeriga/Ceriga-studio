@@ -1,15 +1,20 @@
+import{getActiveFactoryCacheId}from '../lib/factoryWorkspaceIdentity';
 import type {
   CompleteManufacturerProfile,
   GarmentCategory,
   CapabilitySource,
 } from './manufacturerOnboardingTypes';
 import { getFactoryWorkspace, updateFactoryWorkspace } from './manufacturerPortalMock';
+import { initializeGarmentDetails, isGarmentConfirmed } from './manufacturerGarmentDefaults';
+import { getCapabilityCatalog, linkLegacyMethodConstraints } from './manufacturerMethodConstraints';
+import { normalizePricing } from './manufacturerPricingModel';
+import { garmentMoqOverridesForProfile } from './manufacturerGarmentMoqs';
 
 export const COMPREHENSIVE_ONBOARDING_KEY_PREFIX = 'ceriga_mfg_full_profile_';
 
 export function getProfileStorageKey(userEmailOrId?: string): string {
   if (typeof window === 'undefined') return 'ceriga_mfg_full_profile_default';
-  let id = userEmailOrId;
+  let id = userEmailOrId||getActiveFactoryCacheId();
   if (!id) {
     try {
       const raw = localStorage.getItem('user');
@@ -29,6 +34,7 @@ export function createDefaultCompleteProfile(
   seed?: Partial<CompleteManufacturerProfile>,
 ): CompleteManufacturerProfile {
   const ws = getFactoryWorkspace();
+  const garments = seed?.garments ?? (ws.garments.length ? (ws.garments as GarmentCategory[]) : ['Hoodies', 'T-shirts'] as GarmentCategory[]);
   return {
     userId: seed?.userId || 'default',
     // Step 1: Profile
@@ -49,23 +55,8 @@ export function createDefaultCompleteProfile(
     companyDescription: seed?.companyDescription || '',
 
     // Step 2: Garments
-    garments: seed?.garments || (ws.garments.length ? (ws.garments as GarmentCategory[]) : ['Hoodies', 'T-shirts']),
-    garmentDetails: seed?.garmentDetails || {
-      Hoodies: {
-        category: 'Hoodies',
-        styles: ['Pullover', 'Oversized', 'Heavyweight'],
-        minGsm: 320,
-        maxGsm: 500,
-        materials: ['French Terry', 'Brushed Fleece', 'Cotton (100%)'],
-      },
-      'T-shirts': {
-        category: 'T-shirts',
-        styles: ['Crewneck', 'Oversized', 'Drop shoulder'],
-        minGsm: 180,
-        maxGsm: 280,
-        materials: ['Single Jersey', 'Organic Cotton'],
-      },
-    },
+    garments,
+    garmentDetails: initializeGarmentDetails(garments, seed?.garmentDetails),
 
     // Step 3: Capabilities
     capabilitiesMap: seed?.capabilitiesMap || {
@@ -91,15 +82,13 @@ export function createDefaultCompleteProfile(
     repeatOrderLeadTimeDays: seed?.repeatOrderLeadTimeDays ?? 14,
     timeUnit: seed?.timeUnit || 'working_days',
     acceptingNewOrders: seed?.acceptingNewOrders ?? true,
-    garmentMoqOverrides: seed?.garmentMoqOverrides || {
-      Hoodies: 30,
-      'T-shirts': 50,
-    },
-    customMethodMoqs: seed?.customMethodMoqs || [
-      { method: 'Screen printing', moq: 50 },
-      { method: 'Garment dyeing', moq: 100 },
-    ],
-    pricing: seed?.pricing || {
+    garmentMoqOverrides: garmentMoqOverridesForProfile(seed ?? {}),
+    // Explicit new edits remain custom; retired seeded values inherit instead.
+    confirmedGarmentMoqOverrides: [...(seed?.confirmedGarmentMoqOverrides ?? [])],
+    customMethodMoqs: seed?.customMethodMoqs ?? [],
+    capabilityCatalog: seed?.capabilityCatalog,
+    customisationUpdatedAt: seed?.customisationUpdatedAt,
+    pricing: normalizePricing(seed?.pricing || {
       preferredCurrency: 'GBP',
       samplePricingApproach: 'multiplier_2x',
       indicativePriceRanges: {
@@ -111,7 +100,7 @@ export function createDefaultCompleteProfile(
       quantityTierDiscount: true,
       requiresCustomQuotation: true,
       notes: 'Final prices depend on fabric weight, embroidery stitch count and wash treatments.',
-    },
+    }),
 
     // Step 5: Shipping & Services
     shippingDestinations: seed?.shippingDestinations || (ws.shippingRegions?.length ? ws.shippingRegions : ['UK', 'EU', 'US']),
@@ -122,13 +111,8 @@ export function createDefaultCompleteProfile(
     directToCustomerShipping: seed?.directToCustomerShipping ?? false,
     bulkShipmentHandling: seed?.bulkShipmentHandling ?? true,
     typicalDispatchDays: seed?.typicalDispatchDays ?? 2,
-    additionalServices: seed?.additionalServices || [
-      'Tech pack review',
-      'Fabric sourcing',
-      'Sample development',
-      'Quality control inspections',
-      'Custom packaging',
-    ],
+    // Retain existing services for profile compatibility; onboarding no longer collects them.
+    additionalServices: seed?.additionalServices ?? [],
 
     // Step 6 / System flags
     onboardingComplete: seed?.onboardingComplete ?? ws.onboardingComplete ?? false,
@@ -147,13 +131,24 @@ export function createDefaultCompleteProfile(
 export function loadCompleteManufacturerProfile(userEmailOrId?: string): CompleteManufacturerProfile {
   const key = getProfileStorageKey(userEmailOrId);
   try {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    let raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    // Older autosaves used the account email while loads used its ID.
+    // Read that account's previous key without clearing or rewriting it.
+    if (!raw && !userEmailOrId && typeof window !== 'undefined') {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      if (user?.email&&(!getActiveFactoryCacheId()||getActiveFactoryCacheId()===user.id)) raw = localStorage.getItem(getProfileStorageKey(user.email));
+    }
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
         return {
-          ...createDefaultCompleteProfile(),
+          ...createDefaultCompleteProfile(parsed),
           ...parsed,
+          garmentMoqOverrides: garmentMoqOverridesForProfile(parsed),
+          garmentDetails: initializeGarmentDetails(parsed.garments ?? [], parsed.garmentDetails),
+          capabilityCatalog: getCapabilityCatalog(parsed),
+          customMethodMoqs: linkLegacyMethodConstraints(parsed),
+          pricing: normalizePricing(parsed.pricing),
         };
       }
     }
@@ -181,20 +176,28 @@ export function loadCompleteManufacturerProfile(userEmailOrId?: string): Complet
 export function saveCompleteManufacturerProfile(
   profile: CompleteManufacturerProfile,
   userEmailOrId?: string,
+  options: { syncWorkspace?: boolean } = {},
 ): CompleteManufacturerProfile {
-  const key = getProfileStorageKey(userEmailOrId || profile.contactEmail || profile.userId);
+  const key = getProfileStorageKey(userEmailOrId);
   const updated: CompleteManufacturerProfile = {
     ...profile,
+    garmentMoqOverrides: garmentMoqOverridesForProfile(profile),
+    capabilityCatalog: getCapabilityCatalog(profile),
+    customMethodMoqs: linkLegacyMethodConstraints(profile),
+    pricing: normalizePricing(profile.pricing),
     updatedAt: new Date().toISOString(),
   };
 
   try {
     if (typeof window !== 'undefined') {
       localStorage.setItem(key, JSON.stringify(updated));
+      if (typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event('ceriga-manufacturer-profile-changed'));
     }
   } catch {
     /* ignore storage quota */
   }
+
+  if (options.syncWorkspace === false) return updated;
 
   // Sync core fields backwards into legacy factory workspace
   try {
@@ -205,7 +208,10 @@ export function saveCompleteManufacturerProfile(
       contactPhone: updated.contactPhone,
       addressLine: `${updated.city ? updated.city + ', ' : ''}${updated.country || ''}`,
       website: updated.website,
-      garments: updated.garments as any,
+      // Autosaved suggestions must not enter the legacy matching workspace.
+      ...(updated.garments.every(category => isGarmentConfirmed(updated.garmentDetails?.[category]))
+        ? { garments: updated.garments as any }
+        : {}),
       capabilities: Object.keys(updated.capabilitiesMap) as any,
       shippingRegions: updated.shippingDestinations,
       moq: updated.generalMoq,
@@ -252,9 +258,9 @@ export function calculateProfileCompleteness(profile: CompleteManufacturerProfil
       id: 'garment_capabilities',
       name: 'Garment Specialisations',
       weight: 20,
-      completed: profile.garments.length > 0 && Object.keys(profile.garmentDetails || {}).length > 0,
-      score: profile.garments.length > 0 ? (Object.keys(profile.garmentDetails || {}).length > 0 ? 20 : 12) : 0,
-      hint: 'Categories (Hoodies, T-shirts, etc.) with styles, GSM ranges and fabrics',
+      completed: profile.garments.length > 0 && profile.garments.every(category => isGarmentConfirmed(profile.garmentDetails?.[category])),
+      score: profile.garments.length > 0 ? (profile.garments.every(category => isGarmentConfirmed(profile.garmentDetails?.[category])) ? 20 : 12) : 0,
+      hint: 'Review and confirm garment styles, GSM ranges, fabrics, and construction',
       link: '/manufacturer/onboarding?step=1',
     },
     {
@@ -277,11 +283,11 @@ export function calculateProfileCompleteness(profile: CompleteManufacturerProfil
     },
     {
       id: 'shipping_services',
-      name: 'Shipping & Value-Add Services',
+      name: 'Shipping',
       weight: 10,
       completed: profile.shippingDestinations.length > 0 && profile.shippingMethods.length > 0,
       score: profile.shippingDestinations.length > 0 && profile.shippingMethods.length > 0 ? 10 : 0,
-      hint: 'Delivery destinations, freight methods, and tech pack/sourcing services',
+      hint: 'Delivery destinations and freight methods',
       link: '/manufacturer/onboarding?step=4',
     },
     {

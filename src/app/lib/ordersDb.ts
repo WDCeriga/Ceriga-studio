@@ -1,4 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from './supabaseClient';
+import { requestMessage } from './requestErrors';
 import type {
   OrderPriceOption,
   UserOrder,
@@ -9,6 +10,9 @@ import type { OrderQuantityPlan } from '../data/orderQuantities';
 import type { OrderDeliveryInfo } from '../data/orderDelivery';
 
 export type ManufacturerQuoteTierRow = {
+  unitPriceCents?: number;
+  currency?: import('./currency').Currency;
+  shippingCurrency?: import('./currency').Currency;
   id: string;
   kind: 'sample' | 'bulk';
   label: string;
@@ -20,6 +24,22 @@ export type ManufacturerQuoteTierRow = {
 };
 
 export type OrderRow = {
+  paid_currency?: import('./currency').Currency|null;
+  total_currency?: import('./currency').Currency|null;
+  routing_version?: number;
+  quote_expires_at?: string|null;
+  production_released_at?: string|null;
+  fully_dispatched_at?: string | null;
+  completion_due_at?: string | null;
+  completion_on_hold?: boolean | null;
+  completion_hold_reason?: string | null;
+  delivery_confirmed_at?: string | null;
+  delivery_confirmed_by?: string | null;
+  delivery_confirmation_note?: string | null;
+  completed_at?: string | null;
+  completion_method?: 'admin_delivery' | 'automatic' | null;
+  manufacturer_submitted_at?: string|null;
+  qc_status?: import('../data/qualityControl').QcReportStatus;
   id: string;
   user_id: string;
   kind: UserOrderKind;
@@ -73,6 +93,22 @@ function formatOrderDate(iso: string): string {
 export function rowToUserOrder(row: OrderRow): UserOrder {
   return {
     id: row.id,
+    paidCurrency: row.paid_currency??undefined,
+    totalCurrency: row.total_currency??undefined,
+    routingVersion: row.routing_version,
+    quoteExpiresAt: row.quote_expires_at ?? undefined,
+    productionReleasedAt: row.production_released_at ?? undefined,
+    fullyDispatchedAt: row.fully_dispatched_at ?? undefined,
+    completionDueAt: row.completion_due_at ?? undefined,
+    completionOnHold: row.completion_on_hold ?? undefined,
+    completionHoldReason: row.completion_hold_reason ?? undefined,
+    deliveryConfirmedAt: row.delivery_confirmed_at ?? undefined,
+    deliveryConfirmedBy: row.delivery_confirmed_by ?? undefined,
+    deliveryConfirmationNote: row.delivery_confirmation_note ?? undefined,
+    completedAt: row.completed_at ?? undefined,
+    completionMethod: row.completion_method ?? undefined,
+    manufacturerSubmittedAt: row.manufacturer_submitted_at ?? undefined,
+    qcStatus: row.qc_status,
     kind: row.kind,
     productName: row.product_name,
     garmentType: row.garment_type,
@@ -157,9 +193,11 @@ export type OrderPatch = Partial<{
 export async function listOrders(): Promise<UserOrder[]> {
   requireConfigured();
   const supabase = getSupabase();
+  const {data:{session},error:sessionError}=await supabase.auth.getSession();if(sessionError)throw sessionError;if(!session)return [];
+
   const { data, error } = await supabase
-    .from('orders')
-    .select('*')
+    .from('account_orders')
+    .select('*').eq('user_id',session.user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return ((data ?? []) as OrderRow[]).map(rowToUserOrder);
@@ -168,7 +206,7 @@ export async function listOrders(): Promise<UserOrder[]> {
 export async function getOrder(id: string): Promise<UserOrder | null> {
   requireConfigured();
   const supabase = getSupabase();
-  const { data, error } = await supabase.from('orders').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await supabase.from('account_orders').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return rowToUserOrder(data as OrderRow);
@@ -181,7 +219,7 @@ export async function insertOrder(input: CreateOrderDbInput): Promise<UserOrder>
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
-  if (userError) throw userError;
+  if (userError) throw new Error(requestMessage(userError, 'Could not verify your account. Please sign in again.'));
   if (!user) throw new Error('You must be signed in to create an order');
 
   const payload = {
@@ -207,8 +245,8 @@ export async function insertOrder(input: CreateOrderDbInput): Promise<UserOrder>
     delivery_address: input.delivery ?? null,
   };
 
-  const { data, error } = await supabase.from('orders').insert(payload).select('*').single();
-  if (error) throw error;
+  const { data, error } = await supabase.rpc('create_customer_order',{p_input:payload});
+  if (error) throw new Error(requestMessage(error, 'Could not create order. Please try again.'));
   return rowToUserOrder(data as OrderRow);
 }
 
@@ -246,12 +284,7 @@ export async function patchOrder(id: string, patch: OrderPatch): Promise<UserOrd
   if (patch.quotedAt !== undefined) payload.quoted_at = patch.quotedAt;
   if (patch.opsNotes !== undefined) payload.ops_notes = patch.opsNotes;
 
-  const { data, error } = await supabase
-    .from('orders')
-    .update(payload)
-    .eq('id', id)
-    .select('*')
-    .single();
+  const {data,error}=await supabase.rpc('patch_account_order',{p_order_id:id,p_patch:payload});
   if (error) throw error;
   return rowToUserOrder(data as OrderRow);
 }

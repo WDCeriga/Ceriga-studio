@@ -1,3 +1,6 @@
+import { PortalReport } from '../../components/PortalReport';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { sumConvertedMinor,formatAccountTotal, displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useMemo, useState } from 'react';
 import {
   Area,
@@ -26,20 +29,21 @@ function monthLabel(key: string): string {
   return new Date(y, (m ?? 1) - 1, 1).toLocaleString('en-GB', { month: 'short' });
 }
 
-export function SuperAdminStatistics() {
+function SuperAdminStatisticsPreview() {
+  const currencyState=useCurrency();
   const { orders, users, loading } = useSuperadminData();
   const [period, setPeriod] = useState<StatsPeriod>('month');
 
   const snapshot = useMemo(() => {
-    const grossCents = orders.reduce((sum, o) => sum + (o.finalPriceCents ?? 0), 0);
-    const factoryCents = orders.reduce((sum, o) => sum + (o.manufacturerQuoteCents ?? 0), 0);
-    const marginCents = Math.max(0, grossCents - factoryCents);
+    const grossCents = sumConvertedMinor(orders.filter(o=>o.finalPriceCents!=null).map(o=>({cents:o.finalPriceCents!,currency:o.currency})));
+    const factoryCents = sumConvertedMinor(orders.filter(o=>o.finalPriceCents!=null).map(o=>({cents:o.manufacturerQuoteCents??0,currency:o.manufacturerCurrency})));
+    const marginCents = grossCents===undefined||factoryCents===undefined?undefined:grossCents-factoryCents;
     const activeUsers = users.filter((u) => u.role === 'brand' || u.role === 'manufacturer').length;
 
     const byMonth = new Map<string, number>();
     for (const o of orders) {
       const key = monthKey(o.createdAt);
-      byMonth.set(key, (byMonth.get(key) ?? 0) + (o.finalPriceCents ?? 0));
+      const amount=o.finalPriceCents==null?0:sumConvertedMinor([{cents:o.finalPriceCents,currency:o.currency}]);byMonth.set(key,(byMonth.get(key)??0)+(amount??NaN));
     }
     const keys = Array.from(byMonth.keys()).sort();
     const lastSix = keys.slice(-6);
@@ -55,7 +59,7 @@ export function SuperAdminStatistics() {
       orderCount: orders.length,
       chart,
     };
-  }, [orders, users]);
+  }, [orders, users,currencyState.currency,currencyState.rates]);
 
   if (loading) {
     return <PageLoadingFallback />;
@@ -86,10 +90,10 @@ export function SuperAdminStatistics() {
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: 'Gross revenue', value: formatMoney(snapshot.grossCents) },
+            { label: 'Gross revenue', value: formatAccountTotal(snapshot.grossCents) },
             { label: 'Active users', value: String(snapshot.activeUsers) },
             { label: 'Orders', value: String(snapshot.orderCount) },
-            { label: 'Est. margin', value: formatMoney(snapshot.marginCents) },
+            { label: 'Est. margin', value: formatAccountTotal(snapshot.marginCents) },
           ].map((k) => (
             <div key={k.label} className="rounded-xl border border-[#252528] bg-white/[0.02] px-4 py-3">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{k.label}</div>
@@ -108,8 +112,8 @@ export function SuperAdminStatistics() {
               </defs>
               <CartesianGrid stroke={gridStroke} vertical={false} />
               <XAxis dataKey="m" {...axisProps} />
-              <YAxis {...axisProps} tickFormatter={(v) => `£${v >= 1000 ? `${Math.round(v / 1000)}k` : v}`} />
-              <Tooltip contentStyle={chartTooltipStyle} />
+              <YAxis {...axisProps} tickFormatter={(v) => formatAccountTotal(Math.round(v*100))} />
+              <Tooltip contentStyle={chartTooltipStyle} formatter={v=>formatAccountTotal(Math.round(Number(v)*100))} />
               <Area type="monotone" dataKey="revenue" stroke={RED} fill="url(#hubRev)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
@@ -127,3 +131,5 @@ export function SuperAdminStatistics() {
     </div>
   );
 }
+
+export function SuperAdminStatistics(){return isSupabaseConfigured?<PortalReport admin={true} dashboard={false}/>:<SuperAdminStatisticsPreview/>;}

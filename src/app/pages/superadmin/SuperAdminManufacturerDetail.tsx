@@ -1,3 +1,5 @@
+import { FactoryVerificationPanel } from '../../components/manufacturer/FactoryVerificationPanel';
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import {
@@ -57,11 +59,7 @@ type PendingConfirm =
   | { kind: 'save-certs' };
 
 function formatMoneyCents(cents: number): string {
-  return new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: 'GBP',
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+  return displayMoney(cents,undefined);
 }
 
 function defaultManufacturerAccess(userId: string): ProfileAccessConfig {
@@ -116,6 +114,7 @@ function formatDate(iso: string) {
 }
 
 export function SuperAdminManufacturerDetail() {
+  useCurrency();
   const { id } = useParams<{ id: string }>();
   const { manufacturerList, orders, loading, refresh } = useSuperadminData();
   const seed = id ? manufacturerList.find((m) => m.userId === id) : undefined;
@@ -397,6 +396,7 @@ export function SuperAdminManufacturerDetail() {
 
   return (
     <div className="space-y-6">
+      <FactoryVerificationPanel admin manufacturerId={id}/>
       <Link
         to="/superadmin/manufacturers"
         className="inline-flex items-center gap-2 text-sm text-white/45 transition hover:text-white"
@@ -513,7 +513,7 @@ export function SuperAdminManufacturerDetail() {
               hint: 'Done',
             },
             {
-              label: 'Quoted £',
+              label: 'Quoted value (account currency)',
               value: formatMoneyCents(orderStats.totalQuoteCents),
               hint: 'Factory quotes',
             },
@@ -985,7 +985,7 @@ export function SuperAdminManufacturerDetail() {
                       </div>
                       <div className="shrink-0 text-right text-[12px] tabular-nums text-white/55">
                         {order.manufacturerQuoteCents != null
-                          ? formatMoney(order.manufacturerQuoteCents)
+                          ? displayMoney(order.manufacturerQuoteCents,order.quoteTiers?.[0]?.currency)
                           : 'Awaiting quote'}
                       </div>
                     </Link>

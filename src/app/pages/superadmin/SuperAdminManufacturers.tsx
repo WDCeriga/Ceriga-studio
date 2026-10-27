@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSuperadminData } from '../../hooks/useSuperadminData';
+import { DeleteRecordButton } from '../../components/DeleteRecordButton';
 import { PageLoadingFallback } from '../../components/PageLoadingFallback';
 import { cn } from '../../components/ui/utils';
 import {
@@ -65,7 +66,7 @@ function GarmentChip({ label }: { label: string }) {
 }
 
 export function SuperAdminManufacturers() {
-  const { manufacturerList, users, loading, refresh, patchProfile } = useSuperadminData();
+  const { manufacturerList, users, loading, error, refresh, patchProfile, deleteAccount } = useSuperadminData();
   const [search, setSearch] = useState('');
   const [garmentFilter, setGarmentFilter] = useState<string | 'all'>('all');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -195,6 +196,7 @@ export function SuperAdminManufacturers() {
 
   return (
     <div className="space-y-8">
+      {error && <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{error}</p>}
       <div>
         <div className="flex items-center gap-2 text-[#CC2D24]">
           <Factory className="h-5 w-5" />
@@ -479,14 +481,13 @@ export function SuperAdminManufacturers() {
         ) : (
           <div className="space-y-2">
             {filtered.map((profile) => (
-              <Link
+              <div
                 key={profile.userId}
-                to={`/superadmin/manufacturers/${profile.userId}`}
                 className="group flex flex-col gap-4 rounded-2xl border border-[#252528] bg-[#111113] p-4 transition hover:border-white/[0.14] sm:flex-row sm:items-center sm:justify-between sm:p-5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold text-white">{profile.name}</h3>
+                    <h3 className="text-base font-semibold text-white"><Link to={`/superadmin/manufacturers/${profile.userId}`}>{profile.name}</Link></h3>
                     <span
                       className={cn(
                         'rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
@@ -522,9 +523,10 @@ export function SuperAdminManufacturers() {
                       </div>
                     </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-[#CC2D24]" />
+                  <DeleteRecordButton label={profile.name} description="Permanently delete this manufacturer account and profile? Assigned orders will remain and become unassigned. This cannot be undone." onDelete={() => deleteAccount(profile.userId)} />
+                  <Link to={`/superadmin/manufacturers/${profile.userId}`} aria-label={`View ${profile.name}`}><ChevronRight className="h-4 w-4 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-[#CC2D24]" /></Link>
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}

@@ -1,3 +1,5 @@
+import {displayMoney}from'../lib/accountCurrency';
+import { OFFER_VALIDITY_DAYS } from '../lib/orderOffer';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -31,6 +33,9 @@ export type UserOrderStatus =
   | 'ready';
 
 export type OrderPriceOption = {
+  currency?: import('../lib/currency').Currency;
+  currencySnapshot?:{originalManufacturerCents:number;originalCurrency:import('../lib/currency').Currency;approvedOriginalCents:number;rate:string;sourceRate?:string;targetRate?:string;rateDate?:string;provider:string;issuedAt:string;expiresAt:string;markupCents:number;shippingCents:number;taxCents:number;feesCents:number};
+  leadTimeDays?: number;
   id: string;
   kind: 'sample' | 'bulk';
   label: string;
@@ -52,6 +57,22 @@ export type PodPlacement = {
 };
 
 export type UserOrder = {
+  paidCurrency?: import('../lib/currency').Currency;
+  totalCurrency?: import('../lib/currency').Currency;
+  routingVersion?: number;
+  quoteExpiresAt?: string;
+  productionReleasedAt?: string;
+  fullyDispatchedAt?: string;
+  completionDueAt?: string;
+  completionOnHold?: boolean;
+  completionHoldReason?: string;
+  deliveryConfirmedAt?: string;
+  deliveryConfirmedBy?: string;
+  deliveryConfirmationNote?: string;
+  completedAt?: string;
+  completionMethod?: 'admin_delivery' | 'automatic';
+  manufacturerSubmittedAt?: string;
+  qcStatus?: import('./qualityControl').QcReportStatus;
   id: string;
   kind: UserOrderKind;
   productName: string;
@@ -88,6 +109,8 @@ export type UserOrder = {
     };
   };
   specifications?: {
+    requiredCapabilities?: string[];
+    constructionDetails?: string[];
     fit?: string;
     color?: string;
     colorName?: string;
@@ -177,16 +200,16 @@ export function checkoutPath(orderId: string, optionId: string): string {
 }
 
 export function formatEuro(cents: number): string {
-  return `€${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  return displayMoney(cents,'EUR');
 }
 
 /** How long quoted prices remain valid before a new quote may be required */
-export const PRICE_VALIDITY_WEEKS = 6;
+export const PRICE_VALIDITY_DAYS = OFFER_VALIDITY_DAYS;
 
 export function priceValidUntilDate(pricedAt: string): Date {
   const issued = new Date(pricedAt);
   const expires = new Date(issued);
-  expires.setDate(expires.getDate() + PRICE_VALIDITY_WEEKS * 7);
+  expires.setTime(issued.getTime() + PRICE_VALIDITY_DAYS * 24 * 60 * 60 * 1000);
   return expires;
 }
 
@@ -198,8 +221,9 @@ export function formatPriceValidUntil(pricedAt: string): string {
   });
 }
 
-export function priceValidityDisclaimer(pricedAt?: string): string {
-  const base = `This price is only valid for ${PRICE_VALIDITY_WEEKS} weeks from when it was quoted. After that, material and production costs may have changed and you may need a new quote before paying.`;
+export function priceValidityDisclaimer(pricedAt?: string,expiresAt?:string): string {
+  const base = `This price is only valid for ${PRICE_VALIDITY_DAYS} days from when it was quoted. After that, material and production costs may have changed and you may need a new quote before proceeding.`;
+  if(expiresAt)return `${base} Valid until ${new Date(expiresAt).toLocaleString('en-GB')}.`;
   if (!pricedAt) return base;
   return `${base} Valid until ${formatPriceValidUntil(pricedAt)}.`;
 }
@@ -341,6 +365,7 @@ export async function createOrderFromSubmit(input: {
   garmentType?: string;
   kind: UserOrderKind;
   orderQuantities?: OrderQuantityPlan;
+  specifications?: UserOrder['specifications'];
   quoteRequest?: UserOrder['quoteRequest'];
   files?: File[];
   contactName?: string;
@@ -368,6 +393,7 @@ export async function createOrderFromSubmit(input: {
       }),
       total: isTechPack ? 29 : null,
       orderQuantities: input.orderQuantities,
+      specifications: input.specifications,
       exportFormat: isTechPack ? 'pdf' : undefined,
       pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
       quoteRequest: input.quoteRequest,
@@ -390,6 +416,7 @@ export async function createOrderFromSubmit(input: {
     statusLabel,
     total: isTechPack ? 29 : null,
     orderQuantities: input.orderQuantities,
+    specifications: input.specifications,
     exportFormat: isTechPack ? 'pdf' : undefined,
     pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
     quoteRequest: input.quoteRequest,
@@ -504,17 +531,15 @@ export async function createPrintOnDemandOrder(input: {
       productName: input.productName,
       garmentType: garmentLabel,
       productId: input.productId,
-      status: 'priced',
-      statusLabel: 'Ready to pay',
+      status: 'submitted',
+      statusLabel: 'Awaiting quote',
       orderDate: new Date().toLocaleDateString('en-GB', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
       }),
-      total: priceCents / 100,
+      total: null,
       orderQuantities,
-      priceOptions,
-      pricedAt: new Date().toISOString().slice(0, 10),
       quoteRequest,
       specifications: specs,
     };
@@ -528,12 +553,10 @@ export async function createPrintOnDemandOrder(input: {
     productName: input.productName,
     garmentType: garmentLabel,
     productId: input.productId,
-    status: 'priced',
-    statusLabel: 'Ready to pay',
-    total: priceCents / 100,
+    status: 'submitted',
+    statusLabel: 'Awaiting quote',
+    total: null,
     orderQuantities,
-    priceOptions,
-    pricedAt: new Date().toISOString().slice(0, 10),
     quoteRequest,
     specifications: specs,
   });
@@ -553,33 +576,8 @@ export async function createPrintOnDemandOrder(input: {
   return order;
 }
 
-export async function completeCheckout(
-  orderId: string,
-  optionId: string,
-): Promise<UserOrder | undefined> {
-  const order = await fetchUserOrderById(orderId);
-  if (!order) return undefined;
-
-  if (order.kind === 'tech-pack') {
-    return updateUserOrder(orderId, {
-      status: 'paid',
-      statusLabel: 'Paid',
-      paidAmountCents: (order.total ?? 29) * 100,
-      downloadReady: true,
-      revisionUsed: false,
-    });
-  }
-
-  const option = getPriceOption(order, optionId);
-  if (!option) return undefined;
-
-  return updateUserOrder(orderId, {
-    status: 'processing',
-    statusLabel: 'In production',
-    selectedPriceOptionId: optionId,
-    paidAmountCents: option.priceCents,
-    total: option.priceCents / 100,
-  });
+export async function completeCheckout(_orderId: string,_optionId: string): Promise<UserOrder | undefined> {
+ throw new Error('Payments are disabled. Production requires verified payment confirmation.');
 }
 
 export function useUserOrders(): UserOrder[] {
@@ -612,8 +610,10 @@ export function useUserOrders(): UserOrder[] {
 export function useUserOrder(id: string | undefined): {
   order: UserOrder | undefined;
   loading: boolean;
+  error: string;
 } {
   const { isAuthenticated, authReady, usingSupabase } = useAuth();
+  const [error,setError]=useState('');
   const [order, setOrder] = useState<UserOrder | undefined>(undefined);
   const [loading, setLoading] = useState(Boolean(id));
 
@@ -633,26 +633,33 @@ export function useUserOrder(id: string | undefined): {
     void (async () => {
       try {
         const row = await fetchUserOrderById(id);
-        if (!cancelled) setOrder(row);
-      } catch {
-        if (!cancelled) setOrder(undefined);
+        if (!cancelled) {setOrder(row);setError('');}
+      } catch (cause) {
+        if (!cancelled) {setOrder(undefined);setError(cause instanceof Error?cause.message:'Could not load order');}
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+    let refreshing=false;
     const handler = () => {
+      if(refreshing)return;
+      refreshing=true;
       void fetchUserOrderById(id).then((row) => {
         if (!cancelled) setOrder(row);
-      });
+      }).catch(cause => {if(!cancelled)setError(cause instanceof Error?cause.message:'Could not refresh order');}).finally(()=>{refreshing=false;});
     };
     window.addEventListener('ceriga-orders-updated', handler);
+    window.addEventListener('focus',handler);
+    const timer=window.setInterval(()=>{if(document.visibilityState==='visible')handler();},10000);
     return () => {
       cancelled = true;
       window.removeEventListener('ceriga-orders-updated', handler);
+      window.removeEventListener('focus',handler);
+      window.clearInterval(timer);
     };
   }, [id, authReady, isAuthenticated, usingSupabase]);
 
-  return { order, loading };
+  return { order, loading, error };
 }
 
 export function listQuantityLabel(order: UserOrder): string | null {

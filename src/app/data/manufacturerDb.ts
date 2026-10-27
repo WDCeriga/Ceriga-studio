@@ -1,3 +1,4 @@
+import{currentFactoryId}from '../lib/factoryTeam';
 import { useCallback, useEffect, useState } from 'react';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { rowToUserOrder, type OrderRow } from '../lib/ordersDb';
@@ -11,6 +12,8 @@ import {
   type FactoryMaterialUnit,
 } from './manufacturerPortalMock';
 import { getStoredInvites } from './manufacturerInvites';
+import type { PricingStructure } from './manufacturerOnboardingTypes';
+import type { Currency } from '../lib/currency';
 
 function requireConfigured(): void {
   if (!isSupabaseConfigured) {
@@ -23,6 +26,7 @@ function requireConfigured(): void {
 // ---------------------------------------------------------------------------
 
 export type ManufacturerProfile = {
+  pricing?: PricingStructure;
   userId: string;
   factoryName: string;
   contactName: string | null;
@@ -41,6 +45,7 @@ export type ManufacturerProfile = {
 };
 
 type ProfileRow = {
+  pricing?: PricingStructure | null;
   user_id: string;
   factory_name: string;
   contact_name: string | null;
@@ -60,6 +65,7 @@ type ProfileRow = {
 
 function rowToProfile(row: ProfileRow): ManufacturerProfile {
   return {
+    pricing: row.pricing ?? undefined,
     userId: row.user_id,
     factoryName: row.factory_name,
     contactName: row.contact_name,
@@ -108,128 +114,18 @@ export async function fetchMyManufacturerProfile(): Promise<ManufacturerProfile 
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  try {
-    const { data, error } = await supabase
-      .from('manufacturer_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-    if (error) {
-      console.warn('[manufacturerDb] manufacturer_profiles table not available, using local profile:', error.message);
-      return {
-        ...fallbackProfile,
-        userId: user.id,
-        contactEmail: user.email ?? fallbackProfile.contactEmail,
-        onboardingComplete:
-          localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true' ||
-          Boolean(
-            user.email &&
-              localStorage.getItem(
-                `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
-              ) === 'true',
-          ) ||
-          Boolean(userWs.onboardingComplete),
-      };
-    }
-    if (!data) {
-      try {
-        const localProfRaw =
-          localStorage.getItem(`ceriga_manufacturer_profile_${user.id}`) ||
-          (user.email ? localStorage.getItem(`ceriga_manufacturer_profile_${user.email.toLowerCase()}`) : null);
-        if (localProfRaw) {
-          return JSON.parse(localProfRaw);
-        }
-        const isOnboarded =
-          localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true' ||
-          Boolean(
-            user.email &&
-              localStorage.getItem(
-                `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
-              ) === 'true',
-          ) ||
-          Boolean(userWs.onboardingComplete);
-        return {
-          ...fallbackProfile,
-          userId: user.id,
-          factoryName: userWs.factoryName,
-          contactName: userWs.contactName || (user.email ? user.email.split('@')[0] : 'Partner'),
-          contactEmail: user.email ?? userWs.contactEmail,
-          onboardingComplete: isOnboarded,
-        };
-      } catch {
-        /* ignore */
-      }
-      return null;
-    }
-    return rowToProfile(data as ProfileRow);
-  } catch {
-    return fallbackProfile;
-  }
+  const {data,error}=await supabase.rpc('factory_workspace_profile');
+  if(error)throw new Error('Could not load factory profile: '+error.message);
+  return data?rowToProfile(data as ProfileRow):null;
 }
 
-export async function fetchMyProfileRole(): Promise<string | null> {
-  if (!isSupabaseConfigured) {
-    return 'manufacturer';
-  }
-
-  const supabase = getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  // 1. Check user_metadata.role
-  const meta = user.user_metadata as { role?: string } | undefined;
-  if (meta?.role === 'manufacturer' || meta?.role === 'worker') {
-    return meta.role;
-  }
-
-  // 2. Check localStorage cached role
-  try {
-    const localRoleById = localStorage.getItem(`ceriga_role_${user.id}`);
-    if (localRoleById === 'manufacturer' || localRoleById === 'worker') {
-      return localRoleById;
-    }
-    if (user.email) {
-      const localRoleByEmail = localStorage.getItem(`ceriga_role_${user.email.toLowerCase()}`);
-      if (localRoleByEmail === 'manufacturer' || localRoleByEmail === 'worker') {
-        return localRoleByEmail;
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-
-  // 3. Check if user email matches any manufacturer invite
-  if (user.email) {
-    const normalized = user.email.toLowerCase();
-    const invites = getStoredInvites();
-    if (invites.some((i) => i.email.toLowerCase() === normalized)) {
-      try {
-        localStorage.setItem(`ceriga_role_${normalized}`, 'manufacturer');
-        localStorage.setItem(`ceriga_role_${user.id}`, 'manufacturer');
-      } catch {
-        /* ignore */
-      }
-      return 'manufacturer';
-    }
-  }
-
-  // 4. Query public.profiles if table is available
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (!error && typeof data?.role === 'string') {
-      return data.role;
-    }
-  } catch {
-    /* ignore if profiles table is not created */
-  }
-
-  return meta?.role ?? null;
+export async function fetchMyProfileRole():Promise<string|null>{
+ if(!isSupabaseConfigured)return 'manufacturer';
+ const client=getSupabase();const {data:{user},error:authError}=await client.auth.getUser();
+ if(authError)throw new Error(authError.message);if(!user)return null;
+ const membership=await client.rpc('current_factory_id');if(membership.error)throw new Error(membership.error.message);if(membership.data)return 'manufacturer';
+ const {data,error}=await client.from('profiles').select('role').eq('id',user.id).maybeSingle();
+ if(error)throw new Error('Could not verify your account role: '+error.message);return data?.role??null;
 }
 
 export async function saveMyManufacturerProfile(
@@ -252,91 +148,32 @@ export async function saveMyManufacturerProfile(
   if (patch.moq !== undefined) payload.moq = patch.moq;
   if (patch.monthlyCapacity !== undefined) payload.monthly_capacity = patch.monthlyCapacity;
   if (patch.internalNotes !== undefined) payload.internal_notes = patch.internalNotes;
+  if (patch.pricing !== undefined) payload.pricing = patch.pricing;
 
-  updateFactoryWorkspace({
-    factoryName: patch.factoryName,
-    moq: patch.moq,
-    monthlyCapacity: patch.monthlyCapacity,
-    onboardingComplete: patch.onboardingComplete,
-    garments: patch.garments as any,
-    capabilities: patch.capabilities as any,
-    internalNotes: patch.internalNotes,
-  });
-
-  if (!isSupabaseConfigured) {
-    return (await fetchMyManufacturerProfile())!;
+  // Commit to Supabase before updating caches or reporting success.
+  if(isSupabaseConfigured){
+    const supabase=getSupabase();
+    const {data:{user},error:authError}=await supabase.auth.getUser();
+    if(authError)throw new Error(authError.message||'Could not verify your account');
+    if(!user)throw new Error('You must be signed in');
+    const savedResponse=await supabase.rpc('patch_factory_workspace',{p_patch:payload});if(savedResponse.error)throw new Error(savedResponse.error.message);
+    const {data,error}=await supabase.rpc('factory_workspace_profile');
+    if(error)throw new Error(error.message||'Could not save factory profile');
+    if(!data)throw new Error('The database did not confirm the factory profile save');
+    const saved=rowToProfile(data as ProfileRow);
+    updateFactoryWorkspace({factoryName:saved.factoryName,contactName:saved.contactName??'',contactEmail:saved.contactEmail??'',contactPhone:saved.contactPhone??undefined,website:saved.website??undefined,addressLine:saved.addressLine??undefined,typicalLeadDays:saved.typicalLeadDays??undefined,onboardingComplete:saved.onboardingComplete,garments:saved.garments as any,capabilities:saved.capabilities as any,shippingRegions:saved.shippingRegions,moq:saved.moq,monthlyCapacity:saved.monthlyCapacity,internalNotes:saved.internalNotes??''});
+    try{
+      localStorage.setItem('ceriga_manufacturer_profile_'+user.id,JSON.stringify(saved));
+      if(user.email)localStorage.setItem('ceriga_manufacturer_profile_'+user.email.toLowerCase(),JSON.stringify(saved));
+      if(saved.onboardingComplete){localStorage.setItem('ceriga_manufacturer_onboarded_'+user.id,'true');if(user.email)localStorage.setItem('ceriga_manufacturer_onboarded_'+user.email.toLowerCase(),'true');}
+    }catch{/* The confirmed database write remains authoritative if browser storage is unavailable. */}
+    window.dispatchEvent(new Event('ceriga-manufacturer-profile-changed'));
+    return saved;
   }
-
-  const supabase = getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('You must be signed in');
-
-  try {
-    if (patch.onboardingComplete) {
-      localStorage.setItem(`ceriga_manufacturer_onboarded_${user.id}`, 'true');
-      if (user.email) {
-        localStorage.setItem(`ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`, 'true');
-        localStorage.setItem(`ceriga_role_${user.email.toLowerCase()}`, 'manufacturer');
-      }
-      localStorage.setItem(`ceriga_role_${user.id}`, 'manufacturer');
-    }
-    const localProfileObj: ManufacturerProfile = {
-      userId: user.id,
-      factoryName: patch.factoryName ?? 'My factory',
-      contactName: patch.contactName ?? null,
-      contactEmail: patch.contactEmail ?? user.email ?? null,
-      contactPhone: patch.contactPhone ?? null,
-      website: patch.website ?? null,
-      addressLine: patch.addressLine ?? null,
-      typicalLeadDays: patch.typicalLeadDays ?? null,
-      onboardingComplete: patch.onboardingComplete ?? true,
-      garments: patch.garments ?? [],
-      capabilities: patch.capabilities ?? [],
-      shippingRegions: patch.shippingRegions ?? [],
-      moq: patch.moq ?? 50,
-      monthlyCapacity: patch.monthlyCapacity ?? 0,
-      internalNotes: patch.internalNotes ?? null,
-    };
-    localStorage.setItem(`ceriga_manufacturer_profile_${user.id}`, JSON.stringify(localProfileObj));
-    if (user.email) {
-      localStorage.setItem(`ceriga_manufacturer_profile_${user.email.toLowerCase()}`, JSON.stringify(localProfileObj));
-    }
-  } catch {
-    /* ignore */
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('manufacturer_profiles')
-      .upsert({ user_id: user.id, ...payload })
-      .select('*')
-      .single();
-    if (!error && data) {
-      return rowToProfile(data as ProfileRow);
-    }
-  } catch (err) {
-    console.warn('[manufacturerDb] Could not save to manufacturer_profiles in DB:', err);
-  }
-
-  return {
-    userId: user.id,
-    factoryName: patch.factoryName ?? 'My factory',
-    contactName: patch.contactName ?? null,
-    contactEmail: patch.contactEmail ?? user.email ?? null,
-    contactPhone: patch.contactPhone ?? null,
-    website: patch.website ?? null,
-    addressLine: patch.addressLine ?? null,
-    typicalLeadDays: patch.typicalLeadDays ?? null,
-    onboardingComplete: patch.onboardingComplete ?? true,
-    garments: patch.garments ?? [],
-    capabilities: patch.capabilities ?? [],
-    shippingRegions: patch.shippingRegions ?? [],
-    moq: patch.moq ?? 50,
-    monthlyCapacity: patch.monthlyCapacity ?? 0,
-    internalNotes: patch.internalNotes ?? null,
-  };
+  const workspacePatch:Record<string,unknown>={};
+  for(const [key,value]of Object.entries(patch))if(value!==undefined)workspacePatch[key]=value;
+  updateFactoryWorkspace(workspacePatch);
+  return (await fetchMyManufacturerProfile())!;
 }
 
 // ---------------------------------------------------------------------------
@@ -344,18 +181,16 @@ export async function saveMyManufacturerProfile(
 // ---------------------------------------------------------------------------
 
 /** Order visible to the signed-in manufacturer (RLS: assigned_manufacturer_id). */
-export async function fetchAssignedOrders(): Promise<UserOrder[]> {
+export async function fetchAssignedOrders(options:{quotations?:boolean}={}): Promise<UserOrder[]> {
   requireConfigured();
   const supabase = getSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return [];
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('assigned_manufacturer_id', user.id)
-    .order('created_at', { ascending: false });
+  let query=supabase.from('account_orders').select('*').eq('assigned_manufacturer_id',await currentFactoryId());
+  if(options.quotations)query=query.in('status',['submitted','awaiting_payment']).or('factory_status.in.(new,reviewing,clarifying,quoted),factory_status.is.null').order('due_quote_by',{ascending:true,nullsFirst:false});
+  const {data,error}=await query.order('created_at',{ascending:false});
   if (error) throw error;
   return ((data ?? []) as OrderRow[]).map(rowToUserOrder);
 }
@@ -368,6 +203,8 @@ export type AssignedOrderPatch = {
     label: string;
     totalUnits: number;
     manufacturerQuoteCents: number;
+    currency?: Currency;
+    shippingCurrency?: Currency;
     leadTimeDays?: number;
     deliveryOptionId?: string;
     shippingQuoteCents?: number;
@@ -397,7 +234,7 @@ export async function patchAssignedOrder(
   if (patch.tracking !== undefined) payload.tracking = patch.tracking;
   if (patch.status !== undefined) payload.status = patch.status;
   if (patch.statusLabel !== undefined) payload.status_label = patch.statusLabel;
-  const { error } = await supabase.from('orders').update(payload).eq('id', id);
+  const { error } = await supabase.rpc('patch_account_order',{p_order_id:id,p_patch:payload});
   if (error) throw error;
 }
 
@@ -443,7 +280,7 @@ export async function fetchFactoryMaterials(): Promise<FactoryMaterial[]> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('factory_materials')
-    .select('*')
+    .select('*').eq('user_id',await currentFactoryId())
     .order('name', { ascending: true });
   if (error) throw error;
   return ((data ?? []) as MaterialRow[]).map(rowToMaterial);
@@ -461,7 +298,7 @@ export async function insertFactoryMaterial(
   const { data, error } = await supabase
     .from('factory_materials')
     .insert({
-      user_id: user.id,
+      user_id: await currentFactoryId(),
       name: input.name,
       kind: input.kind,
       colour: input.colour ?? null,
@@ -496,14 +333,14 @@ export async function patchFactoryMaterial(
   if (patch.supplier !== undefined) payload.supplier = patch.supplier ?? null;
   if (patch.location !== undefined) payload.location = patch.location ?? null;
   if (patch.notes !== undefined) payload.notes = patch.notes ?? null;
-  const { error } = await supabase.from('factory_materials').update(payload).eq('id', id);
+  const { data, error } = await supabase.from('factory_materials').update(payload).eq('id', id).select('id').single();
   if (error) throw error;
 }
 
 export async function deleteFactoryMaterial(id: string): Promise<void> {
   requireConfigured();
   const supabase = getSupabase();
-  const { error } = await supabase.from('factory_materials').delete().eq('id', id);
+  const { data, error } = await supabase.from('factory_materials').delete().eq('id', id).select('id').single();
   if (error) throw error;
 }
 

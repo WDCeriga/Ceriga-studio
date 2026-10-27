@@ -1,5 +1,11 @@
+import { ProductionProgress } from '../../components/manufacturer/ProductionProgress';
+import { amountToCents } from '../../lib/currency';
+import { formatMoney as originalMoney } from '../../lib/currency';
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
+import { RejectQuotation } from '../../components/superadmin/RejectQuotation';
+import { OrderRoutingHistory } from '../../components/superadmin/OrderRoutingHistory';
 import { useMemo, useState, type ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -42,6 +48,8 @@ import { formatDeliveryLines, type OrderDeliveryInfo } from '../../data/orderDel
 import { formatOrderQuantitiesSummary } from '../../data/orderQuantities';
 import { getProductById } from '../../data/products';
 import { ProductionQcGallery } from '../../components/orders/ProductionQcGallery';
+import { OrderQualityControl } from '../../components/quality/OrderQualityControl';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import {
   clearQcBrandFlag,
   flagQcForBrand,
@@ -146,8 +154,8 @@ function copyText(text: string, label: string) {
 }
 
 function displayPrice(order: SuperAdminOrder) {
-  if (order.finalPriceCents != null) return formatMoney(order.finalPriceCents);
-  if (order.calculatedPriceCents != null) return formatMoney(order.calculatedPriceCents);
+  if (order.finalPriceCents != null) return displayMoney(order.finalPriceCents,order.currency);
+  if (order.calculatedPriceCents != null) return displayMoney(order.calculatedPriceCents,order.manufacturerCurrency);
   return null;
 }
 
@@ -157,6 +165,7 @@ function mockQuantity(productName: string) {
 }
 
 export function SuperAdminOrderDetail() {
+  useCurrency();
   const { id } = useParams();
   const { orders, patchOrder } = useSuperadminData();
   const order = id ? orders.find((o) => o.id === id) : undefined;
@@ -190,8 +199,9 @@ export function SuperAdminOrderDetail() {
       onOpsChange={(patch) => {
         void patchOrder(order.id, patch);
       }}
-      onOpsSubmitPricing={async () => {
+      onOpsSubmitPricing={async (rows) => {
         const ok = await patchOrder(order.id, {
+          approvedPrices: rows.map(row=>({id:row.id,cents:row.cents})),
           status: 'sent_to_brand',
           statusLabel: 'Quote sent to brand',
         });
@@ -202,6 +212,7 @@ export function SuperAdminOrderDetail() {
 }
 
 function OrderBackLink() {
+  useCurrency();
   return (
     <Link
       to="/superadmin/orders"
@@ -222,6 +233,7 @@ function WorkflowPipeline({
   steps: { status: OrderStatus; label: string }[];
   accent?: 'red' | 'violet';
 }) {
+  useCurrency();
   const currentRank = STATUS_RANK[order.status];
 
   const stepState = (stepStatus: OrderStatus) => {
@@ -295,6 +307,7 @@ function OrderHero({
   statusLabel: string;
   children?: ReactNode;
 }) {
+  useCurrency();
   const gradient = isTechPack
     ? 'from-violet-500/14 via-violet-500/[0.03] to-transparent'
     : 'from-[#CC2D24]/14 via-[#CC2D24]/[0.02] to-transparent';
@@ -418,6 +431,7 @@ function OrderHero({
 }
 
 function CustomerCard({ order }: { order: SuperAdminOrder }) {
+  useCurrency();
   return (
     <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
       <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Customer</h2>
@@ -458,6 +472,7 @@ function CustomerCard({ order }: { order: SuperAdminOrder }) {
 }
 
 function DeliveryCard({ order }: { order: SuperAdminOrder }) {
+  useCurrency();
   const delivery: OrderDeliveryInfo | undefined = order.delivery;
   return (
     <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
@@ -514,6 +529,7 @@ function DeliveryCard({ order }: { order: SuperAdminOrder }) {
 }
 
 function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
+  useCurrency();
   const tiers = getOrderQuoteTiers(order);
   const hasQuote = tiers.length > 0;
   const awaitingQuote = Boolean(order.manufacturerName) && !hasQuote;
@@ -572,7 +588,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
                     {tier.totalUnits > 0 ? ` · ${tier.totalUnits}u` : ''}
                   </span>
                   <span className="tabular-nums text-white/75">
-                    {formatMoney(tier.manufacturerQuoteCents)}
+                    {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">Original: {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}</span>{tier.payableCurrency&&tier.payablePriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/60">Customer payable: {originalMoney(tier.payablePriceCents,tier.payableCurrency)} (locked)</span>}
                   </span>
                 </li>
               ))}
@@ -607,6 +623,7 @@ function ProductionPulseCard({
   order: SuperAdminOrder;
   onOpsChange?: () => void;
 }) {
+  useCurrency();
   const pulse = getProductionPulse(order.id);
   const [flagOpen, setFlagOpen] = useState(false);
 
@@ -729,6 +746,7 @@ function TechPackDownloadButton({
   variant?: 'outline' | 'default';
   className?: string;
 }) {
+  useCurrency();
   const [exporting, setExporting] = useState(false);
   const handle = async () => {
     setExporting(true);
@@ -778,6 +796,7 @@ function TechPackViewerDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  useCurrency();
   const product = getProductById(techPack.builderProductId);
   const builderHref = builderUrl(techPack);
 
@@ -856,6 +875,7 @@ function TechPackViewerDialog({
 }
 
 function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
+  useCurrency();
   const qty = mockQuantity(order.productName);
   const techPack = order.customerTechPack;
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -984,6 +1004,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
 }
 
 function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
+  useCurrency();
   const isReady = order.status === 'completed';
   const isPaid = order.status === 'paid' || isReady;
   const exportLabel = order.exportFormat ? EXPORT_LABEL[order.exportFormat] : 'PDF export';
@@ -992,6 +1013,8 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
   return (
     <div className="space-y-6">
       <OrderBackLink />
+      {order.routingVersion===2 && <OrderRoutingHistory orderId={order.id} />}
+      {order.quoteExpiresAt && <p className="rounded-lg border border-amber-500/20 p-3 text-sm text-amber-200">Customer offer expires {new Date(order.quoteExpiresAt).toLocaleString('en-GB')}. Expired offers require a fresh approval.</p>}
 
       <OrderHero order={order} isTechPack statusLabel={techPackStatusLabel(order.status)}>
         {isReady ? (
@@ -1099,6 +1122,7 @@ function CustomClothingOrderDetail({
     calculated: number | null;
   }[]) => Promise<boolean | void>;
 }) {
+  useCurrency();
   const resolved = resolveMarginForManufacturer(order.manufacturerId, order.manufacturerName);
   const marginPercent = order.cerigaMarginPercent ?? resolved.platformMarginPercent;
 
@@ -1128,12 +1152,12 @@ function CustomClothingOrderDetail({
   const parseTierFinals = () => {
     const rows: { id: string; label: string; cents: number; calculated: number | null }[] = [];
     for (const tier of quoteTiers) {
-      const n = Number(finalByTier[tier.id]);
-      if (!Number.isFinite(n) || n <= 0) return null;
+      const n = amountToCents(finalByTier[tier.id]??'');
+      if (!Number.isSafeInteger(n) || n==null || n <= 0) return null;
       rows.push({
         id: tier.id,
         label: tier.label,
-        cents: Math.round(n * 100),
+        cents: n!,
         calculated: tier.calculatedPriceCents ?? null,
       });
     }
@@ -1166,17 +1190,19 @@ function CustomClothingOrderDetail({
       setSubmitted(true);
       toast.success(
         `${rows.length} pricing option${rows.length === 1 ? '' : 's'} sent to brand (${rows
-          .map((r) => `${r.label} ${formatMoney(r.cents)}`)
+          .map((r) => `${r.label} ${displayMoney(r.cents,quoteTiers.find(t=>t.id===r.id)?.currency)}`)
           .join(' · ')})`,
       );
     })();
   };
 
-  const pricingLocked =
+  const navigate=useNavigate();
+  const expiredOffer=Boolean(order.quoteExpiresAt && new Date(order.quoteExpiresAt).getTime()<=Date.now());
+  const pricingLocked = !expiredOffer && (
     submitted ||
-    order.status === 'sent_to_brand' ||
+    (order.status === 'sent_to_brand' && quoteTiers.some(tier=>tier.finalPriceCents!=null)) ||
     quoteTiers.some((t) => t.finalPriceCents != null) ||
-    order.finalPriceCents != null;
+    order.finalPriceCents != null);
 
   return (
     <div className="space-y-6">
@@ -1296,7 +1322,7 @@ function CustomClothingOrderDetail({
                             Mfg quote
                           </p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
-                            {formatMoney(tier.manufacturerQuoteCents)}
+                            {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">Original: {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}</span>{tier.payableCurrency&&tier.payablePriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/60">Customer payable: {originalMoney(tier.payablePriceCents,tier.payableCurrency)} (locked)</span>}
                           </p>
                         </div>
                         <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2">
@@ -1305,7 +1331,7 @@ function CustomClothingOrderDetail({
                           </p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
                             {tier.calculatedPriceCents != null
-                              ? formatMoney(tier.calculatedPriceCents)
+                              ? displayMoney(tier.calculatedPriceCents,tier.currency)
                               : '—'}
                           </p>
                         </div>
@@ -1314,7 +1340,7 @@ function CustomClothingOrderDetail({
                             htmlFor={`final-${tier.id}`}
                             className="text-[9px] font-semibold uppercase tracking-wider text-white/50"
                           >
-                            To brand (£)
+                            Approved total in original currency ({tier.currency ?? 'needs review'})
                           </Label>
                           <Input
                             id={`final-${tier.id}`}
@@ -1337,11 +1363,12 @@ function CustomClothingOrderDetail({
                   );
                 })}
 
+                {!pricingLocked && order.factoryQuoteStatus==='quoted' && <RejectQuotation orderId={order.id} onRejected={action=>{toast.success(action==='revise'?'Revised quotation requested from manufacturer':'Quotation rejected — choose another manufacturer');if(action==='reassign')navigate('/superadmin/assignment');}} />}
                 {!pricingLocked ? (
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={submitToBrand}>
                       <Send className="mr-2 h-4 w-4" />
-                      {canReview ? 'Submit all tiers to brand' : 'Send to brand'}
+                      {expiredOffer ? 'Renew 30-day offer' : canReview ? 'Submit all tiers to brand' : 'Send to brand'}
                     </Button>
                     {canReview ? (
                       <Button
@@ -1381,11 +1408,12 @@ function CustomClothingOrderDetail({
           </section>
 
           <ProductionSpecCard order={order} />
-          <ProductionPulseCard order={order} onOpsChange={onOpsChange} />
-          <ProductionQcGallery
+          {isSupabaseConfigured && <><ProductionProgress orderId={order.id}/><OrderQualityControl orderId={order.id} /></>}
+          {!isSupabaseConfigured && <ProductionPulseCard order={order} onOpsChange={onOpsChange} />}
+          {!isSupabaseConfigured && <ProductionQcGallery
             orderId={order.id}
             emptyHint="No factory QC photos published for this order yet."
-          />
+          />}
         </div>
 
         <div className="space-y-6">

@@ -1,16 +1,9 @@
 import { useState, useMemo } from 'react';
 import {
-  Ship,
   Truck,
   Globe2,
-  Package,
-  Layers,
   Check,
   Search,
-  Plus,
-  Trash2,
-  FileCheck,
-  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -18,9 +11,7 @@ import { Label } from '../../../components/ui/label';
 import { Switch } from '../../../components/ui/switch';
 import { cn } from '../../../components/ui/utils';
 import {
-  ALL_ADDITIONAL_SERVICES,
   ALL_SHIPPING_METHODS,
-  type AdditionalService,
   type CompleteManufacturerProfile,
   type ShippingMethod,
 } from '../../../data/manufacturerOnboardingTypes';
@@ -66,21 +57,13 @@ export function StepShippingServices({
     onChange({ shippingMethods: next });
   };
 
-  const toggleService = (service: AdditionalService) => {
-    const existing = profile.additionalServices || [];
-    const next = existing.includes(service)
-      ? existing.filter((s) => s !== service)
-      : [...existing, service];
-    onChange({ additionalServices: next });
-  };
-
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">5. Shipping & Additional Services</h2>
+        <h2 className="text-xl font-semibold text-white">5. Shipping</h2>
         <p className="mt-1 text-sm text-white/50">
-          Define global delivery destinations, logistics methods, customs compliance, and value-added manufacturing services.
+          Define global delivery destinations, logistics methods, and customs compliance.
         </p>
       </div>
 
@@ -233,52 +216,6 @@ export function StepShippingServices({
               className="mt-1 h-8 text-xs border-white/10 bg-white/[0.03] text-white"
             />
           </div>
-        </div>
-      </div>
-
-      {/* Additional Manufacturing & Studio Services */}
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white">
-            <Package className="h-4 w-4 text-[#CC2D24]" />
-            <h3 className="text-sm font-semibold">Additional Studio & Value-Add Services</h3>
-          </div>
-          <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-white/40">
-            Optional
-          </span>
-        </div>
-
-        <p className="text-xs text-white/40">
-          Services beyond basic cut & sew that brands can commission through Ceriga.
-        </p>
-
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-          {ALL_ADDITIONAL_SERVICES.map((srv) => {
-            const on = profile.additionalServices.includes(srv);
-            return (
-              <button
-                key={srv}
-                type="button"
-                onClick={() => toggleService(srv)}
-                className={cn(
-                  'flex items-center gap-2 p-3 rounded-xl border text-left transition',
-                  on
-                    ? 'border-emerald-500/50 bg-emerald-500/10 text-white font-medium'
-                    : 'border-[#252528] bg-white/[0.02] text-white/60 hover:text-white',
-                )}
-              >
-                <div
-                  className={cn(
-                    'h-3.5 w-3.5 rounded flex items-center justify-center border text-[9px]',
-                    on ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-white/20',
-                  )}
-                >
-                  {on && <Check className="h-3 w-3 stroke-[3]" />}
-                </div>
-                <span className="text-xs">{srv}</span>
-              </button>
-            );
-          })}
         </div>
       </div>
 

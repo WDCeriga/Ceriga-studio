@@ -48,11 +48,13 @@ export function SuperAdminCRMBase() {
 
   const Icon = BASE_ICONS[baseId];
 
-  const save = () => {
+  const save = async () => {
+    try {
     const saved = normalizeBaseConfig(config);
-    upsertBaseConfig(saved);
+    await upsertBaseConfig(saved);
     setConfig(saved);
     toast.success(`Saved ${meta.name}`);
+    }catch(cause){toast.error(cause instanceof Error?cause.message:"Could not save base");}
   };
 
   const resetToCodeDefaults = () => {

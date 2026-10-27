@@ -1,0 +1,65 @@
+import assert from'node:assert/strict';import{readFile}from'node:fs/promises';import{transformWithEsbuild}from'vite';
+const p='src/app/data/assignmentRecommendation.ts';const{code}=await transformWithEsbuild(await readFile(p,'utf8'),p,{format:'cjs',target:'es2022'});const shippingCode=(await transformWithEsbuild(await readFile('src/app/data/shippingDestinations.ts','utf8'),'shippingDestinations.ts',{format:'cjs',target:'es2022'})).code;const shipping={exports:{}};new Function('module','exports',shippingCode)(shipping,shipping.exports);const m={exports:{}};new Function('require','module','exports',code)(()=>shipping.exports,m,m.exports);const rec=m.exports.recommendManufacturer;
+const o={id:'order',kind:'custom_clothing',garmentType:'T-Shirt',specifications:{fabricType:'jersey',gsm:180,fit:'regular',requiredCapabilities:[]},orderQuantities:{bulkRuns:[{kind:'bulk',targetTotal:100,bySize:{}}]}};
+const f={userId:'factory',factoryName:'Factory',onboardingComplete:true,status:'active',garments:['T-shirts'],garmentDetails:{'T-shirts':{confirmed:true,materials:['Single Jersey'],styles:['Regular fit'],minGsm:140,maxGsm:260}},moq:50,monthlyCapacity:1000,assignedOrders:0};
+assert.equal(rec(o,[f]).factory.userId,'factory');assert.equal(rec(o,[{...f,status:'paused'}]),null);assert.equal(rec(o,[{...f,moq:200}]),null);assert.equal(rec(o,[{...f,monthlyCapacity:0}]),null);assert.equal(rec(o,[{...f,garments:['Hoodies']}]),null);assert.equal(rec({...o,orderQuantities:undefined},[f]),null);assert.equal(rec({...o,factoryQuoteStatus:'rejected',manufacturerId:'factory'},[f]),null);assert.equal(rec(o,[{...f,userId:'busy',assignedOrders:3},f]).factory.userId,'factory');assert.equal(rec({...o,kind:'techpack'},[f]),null);
+console.log('PASS: one recommendation, garment aliases, MOQ, zero/insufficient capacity, paused factories, missing quantity, previous rejection, actual workload ordering, no auto-assignment');
+const ranked=m.exports.recommendManufacturers;
+assert.deepEqual(ranked(o,[]),[]);
+assert.equal(ranked(o,[f]).length,1);
+const alternatives=[{...f,userId:'third',assignedOrders:4},{...f,userId:'second',assignedOrders:2},f];
+assert.deepEqual(ranked(o,alternatives).map(r=>r.factory.userId),['factory','second']);
+assert.deepEqual(ranked(o,alternatives.slice().reverse()).map(r=>r.factory.userId),['factory','second']);
+assert.equal(ranked(o,[f,{...f,userId:'paused',status:'paused'}]).length,1);
+console.log('PASS: primary and secondary ranking, at most two recommendations, missing secondary, stable ordering');
+const capable={...f,capabilities:['DTG (Direct to Garment)','Cut and sew'],shippingRegions:['UK']};
+assert.equal(ranked({...o,specifications:{...o.specifications,requiredCapabilities:['DTG']},deliveryCountry:'UK'},[capable])[0].factory.userId,f.userId);
+assert.equal(ranked({...o,specifications:{...o.specifications,requiredCapabilities:['Embroidery']}},[capable]).length,0);
+assert.equal(ranked({...o,rejectedManufacturerIds:[f.userId]},[f]).length,0);
+assert.equal(ranked(o,[{...f,availableCapacity:0}]).length,0);
+assert.equal(ranked(o,[{...f,garmentMoqOverrides:{'T-shirts':200}}]).length,0);
+const preferred={...f,userId:'on-time',quoteStats:{observed:10,onTime:10}},late={...f,userId:'late',quoteStats:{observed:10,onTime:2}};
+assert.equal(ranked(o,[late,preferred])[0].factory.userId,'on-time');
+const counts={a:0,b:0};for(let n=0;n<200;n++){counts[ranked({...o,id:'random-order-'+n},[{...f,userId:'a'},{...f,userId:'b'}])[0].factory.userId]++;}
+assert.ok(counts.a>50&&counts.b>50);
+console.log('PASS: onboarding capabilities, shipping, garment MOQ, actual available capacity, rejection history, measured statistics, stable randomized tie distribution');
+
+const check=m.exports.checkManufacturerProduction;
+for(const [label,patch]of [['fabric',{fabricType:'french-terry'}],['GSM',{gsm:400}],['fit',{fit:'oversized'}],['neck',{neckType:'vneck'}],['sleeves',{sleeveType:'raglan'}]])assert.equal(ranked({...o,specifications:{...o.specifications,...patch}},[f]).length,0,label);
+const missingDecoration=check({...o,specifications:{...o.specifications,requiredCapabilities:undefined}},f);
+assert.equal(missingDecoration.eligible,true);assert.ok(missingDecoration.warnings.some(w=>w.includes('decoration')));
+const missingSpecs=check({...o,specifications:undefined},f);
+assert.equal(missingSpecs.eligible,true);assert.equal(missingSpecs.failures.length,0);assert.ok(missingSpecs.warnings.some(w=>w.includes('fabric, GSM, decoration')));
+const unconfirmed={...f,garmentDetails:{'T-shirts':{...f.garmentDetails['T-shirts'],confirmed:false}}};
+assert.equal(check(o,unconfirmed).eligible,true);assert.ok(check(o,unconfirmed).warnings.some(w=>w.includes('not been confirmed')));
+assert.equal(ranked(o,[unconfirmed,{...f,userId:'confirmed'}])[0].factory.userId,'confirmed');
+assert.ok(!ranked(o,[unconfirmed])[0].warning.includes('manufacturer-confirmed capabilities'));
+assert.equal(ranked({...o,garmentType:'Trousers'},[{...f,garments:['Joggers']}]).length,0);
+const sample={...o,orderQuantities:{sample:{id:'sample',kind:'sample',targetTotal:6,bySize:{}},bulkRuns:[]}};
+assert.equal(ranked(sample,[{...f,moq:100,availableCapacity:6}]).length,1);
+assert.equal(ranked(sample,[{...f,availableCapacity:5}]).length,0);
+assert.equal(ranked({...sample,specifications:{...o.specifications,requiredCapabilities:['DTG']}},[{...capable,methodMoqs:[{method:'DTG',moq:10}]}]).length,0);
+assert.equal(ranked({...sample,orderQuantities:{...sample.orderQuantities,bulkRuns:[{kind:'bulk',targetTotal:100,bySize:{}}]}},[{...f,availableCapacity:50}]).length,0);
+assert.ok(check(o,f).reasons.some(reason=>reason.includes('180 GSM')));
+assert.equal(check({...o,specifications:undefined,requiredCapabilities:['Embroidery']},capable).eligible,false);
+assert.equal(check({...o,specifications:{...o.specifications,requiredCapabilities:[]},requiredCapabilities:['Embroidery']},capable).eligible,false);
+const unknownLimits=check(o,{...f,monthlyCapacity:null,moq:null});assert.equal(unknownLimits.eligible,true);assert.equal(unknownLimits.warnings.length,3);assert.ok(unknownLimits.warnings.some(w=>w.includes('Calendar availability')));
+const openRange=check(o,{...f,garmentDetails:{'T-shirts':{...f.garmentDetails['T-shirts'],maxGsm:undefined}}});assert.equal(openRange.eligible,true);assert.ok(openRange.warnings.some(w=>w.includes('complete GSM range')));
+assert.equal(check({...o,specifications:{...o.specifications,gsm:120}},{...f,garmentDetails:{'T-shirts':{...f.garmentDetails['T-shirts'],maxGsm:undefined}}}).eligible,false);
+console.log('PASS: saved fabric/GSM/style/decoration mismatches block; missing order details and unconfirmed specifications warn without claiming verification; confirmed factories rank first; capacities and method minima remain enforced');
+
+
+assert.equal(ranked({...o,deliveryCountry:'DE'},[{...f,shippingRegions:['Germany']}]).length,1);
+assert.equal(ranked({...o,deliveryCountry:'DE'},[{...f,shippingRegions:['European Union (EU)']}]).length,1);
+assert.equal(ranked(o,[{...f,acceptingNewOrders:false}]).length,0);
+assert.equal(ranked(o,[{...f,maxSingleOrderQuantity:99}]).length,0);
+console.log('PASS: country names, regional destinations, availability and per-order ceiling');
+
+const calendarKnown={scheduleKnown:true,workload:'available',utilisation:20,unscheduled:0,closures:[]};
+const near=new Date().toISOString().slice(0,10);
+const calendarBusy={...calendarKnown,workload:'busy',utilisation:80,closures:[{start:near,end:near}]};
+assert.equal(ranked(o,[{...f,userId:'closed',calendar:calendarBusy},{...f,userId:'open',calendar:calendarKnown}])[0].factory.userId,'open');
+assert.equal(ranked(o,[{...f,calendar:calendarBusy}]).length,1);
+assert.ok(check(o,{...f,calendar:calendarBusy}).warnings.some(w=>w.includes('Recorded closures')));
+assert.equal(ranked(o,[{...f,unavailableUntil:'2099-01-01'}]).length,1);
+console.log('PASS: calendar closures and estimated workload affect ranking with explanations, unknown availability remains unconfirmed, closures do not falsely exclude quote requests without a production window');

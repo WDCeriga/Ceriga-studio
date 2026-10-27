@@ -1,3 +1,4 @@
+import { displayMoney,useCurrency } from '../lib/accountCurrency';
 import {
   useCallback,
   useEffect,
@@ -189,6 +190,7 @@ function Section({
   title: string;
   children: React.ReactNode;
 }) {
+  useCurrency();
   return (
     <section className="border-b border-[#252528] px-4 py-4 last:border-b-0 sm:px-5">
       <div className="mb-3 flex items-center gap-2">
@@ -224,6 +226,7 @@ function PlacementControl({
   value: number;
   onChange: (v: number) => void;
 }) {
+  useCurrency();
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
@@ -307,6 +310,7 @@ function LiveMockup({
   editing?: boolean;
   large?: boolean;
 }) {
+  useCurrency();
   const spec = BASES.find((b) => b.id === base)!;
   const [angle, setAngle] = useState<PhotoAngle>('front');
   const zoneRef = useRef<HTMLDivElement | null>(null);
@@ -571,6 +575,7 @@ function LiveMockup({
 }
 
 export function PrintOnDemand() {
+  useCurrency();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('pick');
   const [base, setBase] = useState<PodBase>('tshirt');
@@ -735,7 +740,7 @@ export function PrintOnDemand() {
                       {b.label}
                     </div>
                     <span className="ceriga-mono shrink-0 text-[12px] text-[#A3A3A8]">
-                      from {formatEuro(POD_UNIT_PRICE_CENTS[b.id])}
+                      from {displayMoney(POD_UNIT_PRICE_CENTS[b.id],'EUR')}
                       <span className="text-[#6B6B72]"> / unit</span>
                     </span>
                   </div>
@@ -778,7 +783,7 @@ export function PrintOnDemand() {
               <span className="font-normal text-[#6B6B72]"> · {color.name}</span>
             </p>
             <p className="ceriga-mono truncate text-[10px] uppercase tracking-[0.08em] text-[#45454B]">
-              Front print · {formatEuro(unitCents)} / unit
+              Front print · {displayMoney(unitCents,'EUR')} / unit
             </p>
           </div>
         </div>
@@ -788,7 +793,7 @@ export function PrintOnDemand() {
               {units > 0 ? `${units} units` : 'Add sizes'}
             </p>
             <p className="text-sm font-semibold tabular-nums text-[#F0EEEE]">
-              {formatEuro(totalCents)}
+              {displayMoney(totalCents,'EUR')}
             </p>
           </div>
           <Button
@@ -1104,10 +1109,10 @@ export function PrintOnDemand() {
               <div className="rounded-[8px] border border-[#252528] bg-[#111113] p-3.5">
                 <div className="flex items-center justify-between text-[12px] text-[#8A8A90]">
                   <span>
-                    {units || 0} × {formatEuro(unitCents)}
+                    {units || 0} × {displayMoney(unitCents,'EUR')}
                   </span>
                   <span className="text-lg font-semibold tabular-nums text-[#F0EEEE]">
-                    {formatEuro(totalCents)}
+                    {displayMoney(totalCents,'EUR')}
                   </span>
                 </div>
                 <Button
@@ -1120,7 +1125,7 @@ export function PrintOnDemand() {
                   {submitting
                     ? 'Creating order…'
                     : canPay
-                      ? `Pay ${formatEuro(totalCents)}`
+                      ? `Pay ${displayMoney(totalCents,'EUR')}`
                       : !designReady
                         ? 'Add a print to continue'
                         : 'Add sizes to continue'}
@@ -1140,7 +1145,7 @@ export function PrintOnDemand() {
             {units > 0 ? `${units} units` : 'No sizes yet'} · {color.name}
           </span>
           <span className="font-semibold tabular-nums text-[#F0EEEE]">
-            {formatEuro(totalCents)}
+            {displayMoney(totalCents,'EUR')}
           </span>
         </div>
         <Button
@@ -1153,7 +1158,7 @@ export function PrintOnDemand() {
           {submitting
             ? 'Creating order…'
             : canPay
-              ? `Pay ${formatEuro(totalCents)}`
+              ? `Pay ${displayMoney(totalCents,'EUR')}`
               : !designReady
                 ? 'Add a print to continue'
                 : 'Add sizes to continue'}

@@ -1,3 +1,4 @@
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { AlertTriangle, Boxes, CheckCircle2, Ship, Truck } from 'lucide-react';
@@ -32,6 +33,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { cn } from '../ui/utils';
+import { LEGACY_FACTORY_CURRENCY } from '../../lib/currency';
 
 /** Materials match + book shipment — compact workflow on manufacturer order detail. */
 export function OrderFloorWorkflow({
@@ -41,6 +43,7 @@ export function OrderFloorWorkflow({
   order: FactoryOrder;
   onBooked?: () => void;
 }) {
+  useCurrency();
   const matches = useMemo(
     () =>
       matchMaterialsToOrder(
@@ -89,6 +92,7 @@ export function OrderFloorWorkflow({
       origin: 'Manchester, UK',
       destination: `${order.deliveryCity}, ${order.deliveryCountry}`,
       shippingQuoteCents: quoteCents,
+      shippingCurrency: LEGACY_FACTORY_CURRENCY,
       eta: undefined,
     });
     setConfirmOpen(false);
@@ -251,7 +255,7 @@ export function OrderFloorWorkflow({
               </div>
             </div>
             <p className="text-[11px] text-white/40">
-              Est. shipping {formatFactoryMoney(quoteCents)} · to {order.deliveryCity},{' '}
+              Est. shipping {displayMoney(quoteCents,LEGACY_FACTORY_CURRENCY)} · to {order.deliveryCity},{' '}
               {order.deliveryCountry}
             </p>
             <Button

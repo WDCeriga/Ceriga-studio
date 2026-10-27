@@ -27,12 +27,6 @@ export function useSuperadminGate() {
     }
 
     let cancelled = false;
-    // Check allowlist first as a fallback/fast-path or RPC for DB-verified superadmins
-    if (canAccessSuperadminLocalPreview(user.email)) {
-      setAllowed(true);
-      return;
-    }
-
     void fetchIsSuperadmin().then((ok) => {
       if (!cancelled) setAllowed(ok);
     });

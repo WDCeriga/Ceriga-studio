@@ -1,3 +1,5 @@
+import { FactoryMaterialsPanel } from '../../components/manufacturer/FactoryMaterialsPanel';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -110,7 +112,7 @@ function parseDraft(draft: Draft): Omit<FactoryMaterial, 'id' | 'updatedAt'> | n
   };
 }
 
-export function ManufacturerMaterials() {
+function ManufacturerMaterialsPreview() {
   const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState<(typeof KIND_FILTERS)[number]['id']>('all');
   const [search, setSearch] = useState('');
@@ -527,3 +529,5 @@ export function ManufacturerMaterials() {
     </div>
   );
 }
+
+export function ManufacturerMaterials(){return isSupabaseConfigured ? <FactoryMaterialsPanel/> : <ManufacturerMaterialsPreview/>;}

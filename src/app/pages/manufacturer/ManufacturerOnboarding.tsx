@@ -6,9 +6,15 @@ import { toast } from 'sonner';
 import {
   loadCompleteManufacturerProfile,
   saveCompleteManufacturerProfile,
+  getProfileStorageKey,
 } from '../../data/manufacturerOnboardingStore';
 import type { CompleteManufacturerProfile } from '../../data/manufacturerOnboardingTypes';
+import { garmentReviewError, isGarmentConfirmed } from '../../data/manufacturerGarmentDefaults';
 import { completeOnboardingInDb } from '../../data/manufacturerOnboarding';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { loadCustomisationSettingsFromDb, saveCustomisationSettingsToDb } from '../../data/manufacturerCustomisationDb';
+import { loadManufacturerPricingFromDb, saveManufacturerPricingToDb } from '../../data/manufacturerPricing';
+import { normalizePricing, pricingValidationError } from '../../data/manufacturerPricingModel';
 
 import { OnboardingProgress } from './onboarding/OnboardingProgress';
 import { StepFactoryProfile } from './onboarding/StepFactoryProfile';
@@ -26,8 +32,9 @@ export function ManufacturerOnboarding() {
   const [profile, setProfile] = useState<CompleteManufacturerProfile>(() =>
     loadCompleteManufacturerProfile(),
   );
+  const profileRef = useRef(profile);
 
-  const initialStepParam = Number(searchParams.get('step'));
+  const initialStepParam = searchParams.has('step')?Number(searchParams.get('step')):NaN;
   const [step, setStep] = useState<number>(
     !Number.isNaN(initialStepParam) && initialStepParam >= 0 && initialStepParam < 6
       ? initialStepParam
@@ -42,6 +49,66 @@ export function ManufacturerOnboarding() {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveSequence = useRef(0);
+  const pendingSnapshot = useRef<{ profile: CompleteManufacturerProfile; owner: string } | null>(null);
+  // A failed cloud read must not hide the local onboarding draft or permit a
+  // blind overwrite of settings that have not been loaded successfully.
+  const syncReady = useRef({ methods: !isSupabaseConfigured, pricing: !isSupabaseConfigured });
+  const [customisationLoadError, setCustomisationLoadError] = useState('');
+  const [syncRetry, setSyncRetry] = useState(0);
+
+  useEffect(() => () => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    const pending = pendingSnapshot.current;
+    if (pending && pending.owner === getProfileStorageKey()) {
+      saveCompleteManufacturerProfile(pending.profile);
+      void Promise.allSettled([
+        ...(syncReady.current.methods ? [saveCustomisationSettingsToDb(pending.profile)] : []),
+        ...(syncReady.current.pricing ? [saveManufacturerPricingToDb(pending.profile.pricing)] : []),
+      ]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let cancelled = false;
+    setCustomisationLoadError('');
+    const owner = getProfileStorageKey();
+    void Promise.allSettled([loadCustomisationSettingsFromDb(), loadManufacturerPricingFromDb()]).then(async ([methodsResult, pricingResult]) => {
+      if (cancelled || owner !== getProfileStorageKey()) return;
+      syncReady.current = { methods: methodsResult.status === 'fulfilled', pricing: pricingResult.status === 'fulfilled' };
+      const remote = methodsResult.status === 'fulfilled' ? methodsResult.value : null;
+      const remotePricing = pricingResult.status === 'fulfilled' ? pricingResult.value : null;
+      const local = profileRef.current;
+      const profileBase=remote?.factoryProfile&&(!local.updatedAt||String(remote.factoryProfile.updatedAt||'')>local.updatedAt)?{...local,...remote.factoryProfile}:local;
+      let merged = remote && (!local.customisationUpdatedAt || remote.customisationUpdatedAt! > local.customisationUpdatedAt)
+        ? { ...profileBase, ...remote } : profileBase;
+      if (remotePricing) merged = { ...merged, pricing: remotePricing };
+      profileRef.current = merged;
+      if (pendingSnapshot.current?.owner === owner) pendingSnapshot.current.profile = merged;
+      setProfile(merged);
+      if(!searchParams.has('step')&&merged.onboardingStep!=null)setStep(Math.max(0,Math.min(5,merged.onboardingStep)));
+      saveCompleteManufacturerProfile(merged);
+      const failures = [methodsResult, pricingResult].filter(result => result.status === 'rejected');
+      setCustomisationLoadError(failures.map(result => String(result.reason?.message ?? result.reason)).join(' '));
+      if (failures.length) setSaveStatus('error');
+      // Retry first reads the cloud, merges newer data, then saves the retained
+      // draft. Never write an unread resource after a failed load.
+      if (syncRetry > 0) {
+        const sequence = saveSequence.current;
+        const writes = await Promise.allSettled([
+          ...(syncReady.current.methods ? [saveCustomisationSettingsToDb(merged)] : []),
+          ...(syncReady.current.pricing ? [saveManufacturerPricingToDb(merged.pricing)] : []),
+        ]);
+        if (!cancelled && owner === getProfileStorageKey() && sequence === saveSequence.current) {
+          setSaveStatus(failures.length || writes.some(result => result.status === 'rejected') ? 'error' : 'saved');
+        }
+      }
+    }).catch(error => {
+      if (!cancelled) setCustomisationLoadError(error instanceof Error ? error.message : 'Could not load saved method settings.');
+    });
+    return () => { cancelled = true; };
+  }, [syncRetry]);
 
   // Sync step changes into URL for back/forward navigation
   const goToStep = (nextStep: number) => {
@@ -52,26 +119,39 @@ export function ManufacturerOnboarding() {
 
   // Autosave implementation with debouncing
   const persistChanges = useCallback((updated: CompleteManufacturerProfile) => {
+    const sequence = ++saveSequence.current;
+    const owner = getProfileStorageKey();
+    pendingSnapshot.current = { profile: updated, owner };
     setSaveStatus('saving');
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
-    debounceTimerRef.current = setTimeout(() => {
+    debounceTimerRef.current = setTimeout(async () => {
+      if (owner !== getProfileStorageKey()) return;
+      pendingSnapshot.current = null;
       try {
-        saveCompleteManufacturerProfile(updated);
-        setSaveStatus('saved');
+        const saved = saveCompleteManufacturerProfile(profileRef.current);
+        const results = await Promise.allSettled([
+          ...(syncReady.current.methods ? [saveCustomisationSettingsToDb(saved)] : []),
+          ...(syncReady.current.pricing ? [saveManufacturerPricingToDb(saved.pricing)] : []),
+        ]);
+        if (!syncReady.current.methods || !syncReady.current.pricing || results.some(result => result.status === 'rejected')) {
+          throw new Error('Cloud sync is unavailable. Your draft is saved on this device.');
+        }
+        if (sequence === saveSequence.current) setSaveStatus('saved');
       } catch (err) {
         console.error('[ManufacturerOnboarding] Autosave failed:', err);
-        setSaveStatus('error');
+        if (sequence === saveSequence.current) setSaveStatus('error');
       }
     }, 600);
   }, []);
 
   const handleProfileChange = (patch: Partial<CompleteManufacturerProfile>) => {
-    setProfile((prev) => {
-      const next = { ...prev, ...patch };
-      persistChanges(next);
-      return next;
-    });
+    const customisationChanged = ['capabilitiesMap', 'customCapabilities', 'capabilityCatalog', 'customMethodMoqs', 'generalMoq', 'garmentMoqOverrides', 'confirmedGarmentMoqOverrides'].some(key => Object.prototype.hasOwnProperty.call(patch, key));
+    const next = { ...profileRef.current, ...patch, ...(patch.pricing ? { pricing: normalizePricing({ ...patch.pricing, updatedAt: new Date().toISOString() }) } : {}), ...(customisationChanged ? { customisationUpdatedAt: new Date().toISOString() } : {}) };
+    profileRef.current = next;
+    setProfile(next);
+    saveCompleteManufacturerProfile(next);
+    persistChanges(next);
   };
 
   // Validation functions per step
@@ -97,6 +177,15 @@ export function ManufacturerOnboarding() {
     if (!profile.garments || profile.garments.length === 0) {
       errs.garments = 'Select at least one garment category (e.g. Hoodies, T-shirts)';
     }
+    for (const category of profile.garments) {
+      const detail = profile.garmentDetails?.[category];
+      if (!isGarmentConfirmed(detail)) {
+        errs[category] = garmentReviewError(detail) ?? 'Review and confirm these garment specifications.';
+      }
+    }
+    if (Object.keys(errs).length && !errs.garments) {
+      errs.garments = 'Review and confirm each selected garment category before continuing.';
+    }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -112,6 +201,8 @@ export function ManufacturerOnboarding() {
 
   const validateStep4 = (): boolean => {
     const errs: Record<string, string> = {};
+    const pricingError = pricingValidationError(profile.pricing);
+    if (pricingError) errs.pricing = pricingError;
     if (!profile.generalMoq || profile.generalMoq <= 0) {
       errs.generalMoq = 'MOQ must be greater than 0';
     }
@@ -138,6 +229,13 @@ export function ManufacturerOnboarding() {
       profile.bulkLeadTimeMinDays > profile.bulkLeadTimeMaxDays
     ) {
       errs.bulkLead = 'Minimum bulk lead time cannot exceed maximum';
+    }
+    for (const kind of ['sample', 'bulk'] as const) {
+      const min = kind === 'sample' ? profile.sampleLeadTimeMinDays : profile.bulkLeadTimeMinDays;
+      const max = kind === 'sample' ? profile.sampleLeadTimeMaxDays : profile.bulkLeadTimeMaxDays;
+      if (![min,max].every(value => Number.isInteger(value) && value >= 1 && value <= 3650) || min > max) {
+        errs[kind === 'sample' ? 'sampleLead' : 'bulkLead'] = 'Enter a valid minimum and maximum lead time (1–3650 days).';
+      }
     }
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
@@ -189,12 +287,22 @@ export function ManufacturerOnboarding() {
   // Step 6 Final Submission
   const getFullValidationErrors = (): string[] => {
     const list: string[] = [];
+    const pricingError = pricingValidationError(profile.pricing);
+    if (pricingError) list.push(pricingError);
     if (!profile.factoryName.trim()) list.push('Facility name is missing');
     if (!profile.contactName.trim()) list.push('Primary contact person is missing');
-    if (!profile.contactEmail.trim()) list.push('Business email is missing');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.contactEmail.trim())) list.push('A valid business email is required');
+    if(!profile.contactPhone.trim())list.push('Business phone is required');
+    if(!profile.manufacturerTypes?.length)list.push('Select a manufacturer type');
+    if(!profile.shippingMethods?.length)list.push('Select a shipping method');
     if (!profile.country.trim()) list.push('Country is missing');
     if (!profile.city.trim()) list.push('City is missing');
     if (profile.garments.length === 0) list.push('At least one garment category must be selected');
+    for (const category of profile.garments) {
+      if (!isGarmentConfirmed(profile.garmentDetails?.[category])) {
+        list.push(`${category}: review and confirm the garment specifications`);
+      }
+    }
     if (Object.keys(profile.capabilitiesMap || {}).length === 0) {
       list.push('At least one production capability must be selected');
     }
@@ -205,6 +313,11 @@ export function ManufacturerOnboarding() {
       profile.currentAvailableMonthlyCapacity > profile.monthlyCapacity
     ) {
       list.push('Available monthly capacity cannot exceed total monthly capacity');
+    }
+    for (const kind of ['sample','bulk'] as const) {
+      const min=kind==='sample'?profile.sampleLeadTimeMinDays:profile.bulkLeadTimeMinDays;
+      const max=kind==='sample'?profile.sampleLeadTimeMaxDays:profile.bulkLeadTimeMaxDays;
+      if(![min,max].every(value=>Number.isInteger(value)&&value>=1&&value<=3650)||min>max) list.push(`Enter a valid ${kind} lead-time range`);
     }
     if (profile.shippingDestinations.length === 0) {
       list.push('At least one shipping destination must be selected');
@@ -228,18 +341,19 @@ export function ManufacturerOnboarding() {
         onboardingStep: 5,
       };
 
-      // Persist in comprehensive store
+      // Never report onboarding as complete while method constraints failed to sync.
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      pendingSnapshot.current = null;
+      if (!syncReady.current.methods || !syncReady.current.pricing) {
+        saveCompleteManufacturerProfile(profileRef.current);
+        throw new Error('Your draft is saved on this device. Restore cloud sync using Retry sync before completing onboarding.');
+      }
+      await saveCustomisationSettingsToDb(completedProfile);
+      await saveManufacturerPricingToDb(completedProfile.pricing);
       saveCompleteManufacturerProfile(completedProfile);
 
       // Persist via existing database bridge for backward-compatibility
-      await completeOnboardingInDb({
-        factoryName: completedProfile.factoryName.trim(),
-        garments: completedProfile.garments,
-        capabilities: Object.keys(completedProfile.capabilitiesMap || {}),
-        shippingRegions: completedProfile.shippingDestinations,
-        moq: completedProfile.generalMoq || 50,
-        monthlyCapacity: completedProfile.monthlyCapacity || 1000,
-      });
+      await completeOnboardingInDb(completedProfile);
 
       toast.success('Manufacturer setup complete! Welcome to your factory portal.');
       navigate('/manufacturer', {
@@ -256,6 +370,13 @@ export function ManufacturerOnboarding() {
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-16">
+      {customisationLoadError && (
+        <div role="alert" className="rounded-2xl border border-[#252528] bg-[#111113] p-6 text-sm text-white/70">
+          <p>You can continue editing. Your draft is saved on this device, but cloud sync needs attention before final submission.</p>
+          <p className="mt-2">{customisationLoadError}</p>
+          <button type="button" onClick={() => setSyncRetry(value => value + 1)} className="mt-3 text-[#CC2D24]">Retry sync</button>
+        </div>
+      )}
       {/* Top Banner with Auto-Save Indicator */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#252528] pb-6">
         <div>
@@ -284,7 +405,8 @@ export function ManufacturerOnboarding() {
             ) : saveStatus === 'error' ? (
               <>
                 <AlertCircle className="h-3 w-3 text-red-400" />
-                <span className="text-red-400">Autosave failed</span>
+                <span className="text-red-400">Saved on this device; sync failed</span>
+                <button type="button" onClick={() => setSyncRetry(value => value + 1)} className="ml-1 text-[#CC2D24]">Retry</button>
               </>
             ) : (
               <>

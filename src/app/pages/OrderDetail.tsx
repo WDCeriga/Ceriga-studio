@@ -9,7 +9,7 @@ import { useUserOrder } from '../data/userOrders';
 
 export function OrderDetail() {
   const { id } = useParams();
-  const { order, loading } = useUserOrder(id);
+  const { order, loading, error } = useUserOrder(id);
 
   if (loading) {
     return (
@@ -25,7 +25,7 @@ export function OrderDetail() {
         <div className="text-center">
           <Package className="mx-auto mb-4 h-12 w-12 text-white/20" />
           <h2 className="text-lg font-semibold">Order not found</h2>
-          <p className="mt-1 text-sm text-white/45">This order may have been removed or the link is wrong.</p>
+          <p className="mt-1 text-sm text-white/45">{error || 'This order may have been removed or the link is wrong.'}</p>
           <Button asChild className="mt-4 h-9 bg-[#CC2D24] text-xs hover:bg-[#CC2D24]/90">
             <Link to="/orders">Back to orders</Link>
           </Button>
@@ -36,6 +36,7 @@ export function OrderDetail() {
 
   return (
     <OrderDetailShell order={order}>
+      {error && <p role="alert" className="mx-auto mb-4 max-w-3xl rounded-xl border border-red-500/30 p-3 text-sm text-red-300">{error}</p>}
       <OrderDetailContent order={order} />
     </OrderDetailShell>
   );

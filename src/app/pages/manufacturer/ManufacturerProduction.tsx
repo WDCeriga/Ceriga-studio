@@ -1,3 +1,6 @@
+import { ReleasedProductionOrders } from '../../components/manufacturer/ReleasedProductionOrders';
+import { QualityControlQueue } from '../../components/quality/QualityControlQueue';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -437,8 +440,12 @@ export function ManufacturerProduction() {
   const overdueCount = jobs.filter(isOverdue).length;
   const activeCount = jobs.filter((j) => j.stage !== 'done').length;
 
+  if (isSupabaseConfigured) return <div className="space-y-6"><header><p className="text-xs uppercase tracking-widest text-[#CC2D24]">Factory floor</p><h1 className="mt-2 text-3xl font-semibold text-white">Production</h1><p className="mt-2 text-sm text-white/50">Open an order to update production progress and report delays.</p></header><ReleasedProductionOrders /></div>;
+
   return (
     <div className="space-y-6">
+      {isSupabaseConfigured && <ReleasedProductionOrders />}
+      {isSupabaseConfigured && <QualityControlQueue compact />}
       {/* Header & Controls */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>

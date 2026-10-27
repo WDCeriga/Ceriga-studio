@@ -1,4 +1,6 @@
 import type { CompleteManufacturerProfile, GarmentCategory } from './manufacturerOnboardingTypes';
+import { isGarmentConfirmed } from './manufacturerGarmentDefaults';
+import { getActiveMethodConstraints, getCapabilityCatalog, normalizeCapabilityName, resolveConstraintMethod } from './manufacturerMethodConstraints';
 
 export type BrandOrderMatchingCriteria = {
   garmentCategory: GarmentCategory;
@@ -35,6 +37,9 @@ export function evaluateManufacturerMatch(
   if (!profile.garments.includes(order.garmentCategory)) {
     disqualifiers.push(`Manufacturer does not produce ${order.garmentCategory}.`);
     score -= 40;
+  } else if (!isGarmentConfirmed(profile.garmentDetails?.[order.garmentCategory])) {
+    disqualifiers.push(`Manufacturer must review and confirm ${order.garmentCategory} specifications before matching.`);
+    score -= 40;
   } else {
     reasons.push(`Produces ${order.garmentCategory}.`);
   }
@@ -70,7 +75,7 @@ export function evaluateManufacturerMatch(
 
   // 4. GSM Weight Check
   const detail = profile.garmentDetails?.[order.garmentCategory];
-  if (detail) {
+  if (isGarmentConfirmed(detail)) {
     if (order.minGsm && detail.maxGsm && order.minGsm > detail.maxGsm) {
       warnings.push(
         `Desired fabric weight (${order.minGsm} GSM) exceeds factory usual ceiling for ${order.garmentCategory} (${detail.maxGsm} GSM).`,
@@ -86,9 +91,12 @@ export function evaluateManufacturerMatch(
   }
 
   // 5. Capabilities Check
+  const catalog = getCapabilityCatalog(profile);
   if (order.requiredCapabilities && order.requiredCapabilities.length > 0) {
     for (const cap of order.requiredCapabilities) {
-      const source = profile.capabilitiesMap?.[cap];
+      const definition = catalog.find(method => method.id === cap || normalizeCapabilityName(method.name) === normalizeCapabilityName(cap));
+      const entry = definition && Object.entries(profile.capabilitiesMap ?? {}).find(([name]) => normalizeCapabilityName(name) === normalizeCapabilityName(definition.name));
+      const source = entry?.[1];
       if (!source) {
         disqualifiers.push(`Missing required technique: "${cap}".`);
         score -= 20;
@@ -98,6 +106,18 @@ export function evaluateManufacturerMatch(
       } else {
         reasons.push(`Supports "${cap}" (${source === 'in_house' ? 'In-house' : 'Outsourced partner'}).`);
       }
+    }
+  }
+
+  // Only active method constraints relevant to this order affect its MOQ.
+  const requiredIds = new Set((order.requiredCapabilities ?? []).map(name =>
+    catalog.find(method => method.id === name || normalizeCapabilityName(method.name) === normalizeCapabilityName(name))?.id,
+  ).filter(Boolean));
+  for (const constraint of getActiveMethodConstraints(profile)) {
+    const method = resolveConstraintMethod(constraint, catalog);
+    if (method && requiredIds.has(method.id) && order.quantity < constraint.moq) {
+      disqualifiers.push(`Order quantity (${order.quantity}) is below the ${method.name} MOQ (${constraint.moq} units).`);
+      score -= 20;
     }
   }
 

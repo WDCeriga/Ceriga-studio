@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { transformWithEsbuild } from 'vite';
+const path='src/app/data/manufacturerLeadTimes.ts';
+const {code}=await transformWithEsbuild(await readFile(path,'utf8'),path,{format:'cjs',target:'es2022'});
+const m={exports:{}};new Function('module','exports',code)(m,m.exports);
+const days=m.exports.onboardingLeadDays;
+assert.equal(days({sampleLeadTimeMinDays:7,sampleLeadTimeMaxDays:14,bulkLeadTimeMinDays:21,bulkLeadTimeMaxDays:35},'sample'),'14');
+assert.equal(days({sampleLeadTimeMaxDays:14,bulkLeadTimeMaxDays:35},'bulk'),'35');
+assert.equal(days({sampleLeadTimeMinDays:7},'sample'),'7');
+assert.equal(days(null,'sample'),'');assert.equal(days({},'bulk'),'');
+assert.equal(days({sampleLeadTimeMaxDays:0},'sample'),'');
+assert.equal(days({bulkLeadTimeMaxDays:4000,bulkLeadTimeMinDays:21},'bulk'),'21');
+console.log('PASS: sample/bulk onboarding ranges, upper bound, valid minimum fallback, missing/invalid values stay empty');
+assert.equal(m.exports.onboardingLeadRange({sampleLeadTimeMinDays:7,sampleLeadTimeMaxDays:14},'sample'),'7–14');
+assert.equal(m.exports.onboardingLeadRange({bulkLeadTimeMinDays:20,bulkLeadTimeMaxDays:40},'bulk'),'20–40');
+assert.equal(m.exports.onboardingLeadRange({},'bulk'),'Not set');
+console.log('PASS: separate sample/bulk range displays and missing settings');

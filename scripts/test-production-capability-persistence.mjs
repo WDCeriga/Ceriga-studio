@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFile}from'node:fs/promises';import{transformWithEsbuild}from'vite';
+const path='src/app/data/manufacturerCustomisationDb.ts';const{code}=await transformWithEsbuild(await readFile(path,'utf8'),path,{format:'cjs',target:'es2022'});
+let data=null,error=null,payload;
+const client={rpc:async(name,args)=>{if(name==='save_factory_operational_settings'){payload={user_id:'factory',settings:args.p_settings};return{data:'factory',error};}return{data:name==='factory_operational_settings'?data?.settings||null:{profile_details:{}},error};},auth:{getUser:async()=>({data:{user:{id:'factory'}},error:null})},from:()=>({upsert:async(value)=>{payload=value;return{error}},select(){return this},eq(){return this},maybeSingle:async()=>({data,error})})};
+const mocks={'../lib/supabaseClient':{isSupabaseConfigured:false},'./manufacturerMethodConstraints':{getCapabilityCatalog:()=>[],linkLegacyMethodConstraints:()=>[]},'./manufacturerGarmentMoqs':{garmentMoqOverridesForProfile:p=>p.garmentMoqOverrides||{}}};
+const m={exports:{}};new Function('require','module','exports',code)(key=>{if(!(key in mocks))throw Error(key);return mocks[key]},m,m.exports);
+const garmentDetails={'T-shirts':{category:'T-shirts',confirmed:true,materials:['French Terry'],styles:['Oversized'],constructionDetails:['Raglan sleeve'],minGsm:280,maxGsm:400}};
+const profile={garmentDetails,capabilitiesMap:{DTG:'in_house'},customCapabilities:[],capabilityCatalog:[],customMethodMoqs:[]};
+await m.exports.saveCustomisationSettingsToDb(profile,client);assert.deepEqual(payload.settings.garmentDetails,garmentDetails);assert.equal(payload.user_id,'factory');data={settings:structuredClone(payload.settings)};assert.deepEqual((await m.exports.loadCustomisationSettingsFromDb(client)).garmentDetails,garmentDetails);
+data=null;assert.equal(await m.exports.loadCustomisationSettingsFromDb(client),null);
+error={message:'Database denied'};await assert.rejects(m.exports.saveCustomisationSettingsToDb(profile,client),/Database denied/);await assert.rejects(m.exports.loadCustomisationSettingsFromDb(client),/Database denied/);
+assert.ok(!('garmentDetails'in m.exports.toCustomisationSettings({...profile,garmentDetails:undefined})));
+console.log('PASS: confirmed garment materials/styles/GSM persist and reload through owner JSONB; empty results, read/write failures and older documents handled without invented capabilities');

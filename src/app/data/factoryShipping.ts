@@ -36,6 +36,7 @@ export type FactoryShippingPrefs = {
 };
 
 export type FactoryShipment = {
+  shippingCurrency?: import('../lib/currency').Currency;
   id: string;
   orderId: string;
   brandName: string;
@@ -335,7 +336,7 @@ export type ShippingQuoteEstimateInput = {
   destinationRegion?: string;
 };
 
-/** Rough mock shipping quotation for quoting UI / shipping page. */
+/** Rough shipping estimate in GBP cents; never relabel as another currency. */
 export function estimateShippingQuoteCents(input: ShippingQuoteEstimateInput): number {
   const baseByMode: Record<ShippingMode, number> = {
     sea: 42000,

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchAllOrders,
   fetchAllUsers,
   adminPatchOrder,
   adminPatchProfile,
+  adminDeleteOrder,
+  adminDeleteAccount,
   type ManufacturerAccount,
   fetchManufacturerAccounts,
   fetchManufacturerList,
@@ -29,15 +31,22 @@ const SUPERADMIN_RLS_HINT =
  */
 export function useSuperadminData() {
   const { authReady, isAuthenticated, usingSupabase, user } = useAuth();
+  const accountKey=`${user?.id||''}:${user?.email||''}`;
+  const currentAccount=useRef(accountKey);currentAccount.current=accountKey;
+  const inFlight=useRef<string|null>(null);
   const [orders, setOrders] = useState<SuperAdminOrder[]>([]);
   const [users, setUsers] = useState<SuperAdminUser[]>([]);
   const [manufacturers, setManufacturers] = useState<ManufacturerAccount[]>([]);
   const [manufacturerList, setManufacturerList] = useState<ManufacturerListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    if (!authReady) return;
+  const refresh = useCallback(async ({background=false}:{background?:boolean}={}) => {
+    if (!authReady||inFlight.current===accountKey) return;
+    const requestedAccount=accountKey;
+    const current=()=>currentAccount.current===requestedAccount;
+    setUsersError(null);
 
     if (!isAuthenticated) {
       setOrders([]);
@@ -65,7 +74,8 @@ export function useSuperadminData() {
       return;
     }
 
-    setLoading(true);
+    inFlight.current=accountKey;
+    if(!background)setLoading(true);
     try {
       const localPreviewEnabled =
         import.meta.env.DEV && import.meta.env.VITE_DEV_SUPERADMIN_PREVIEW === 'true';
@@ -83,12 +93,14 @@ export function useSuperadminData() {
         isAdmin = true;
       }
 
+      if(!current())return;
       if (!isAdmin) {
         setOrders([]);
         setUsers([]);
         setManufacturers([]);
         setManufacturerList([]);
         setError(SUPERADMIN_RLS_HINT);
+        setUsersError(SUPERADMIN_RLS_HINT);
         return;
       }
 
@@ -100,17 +112,18 @@ export function useSuperadminData() {
           fetchManufacturerList(),
         ]);
 
-      if (ordersResult.status === 'fulfilled' && ordersResult.value.length > 0) {
+      if(!current())return;
+      if (ordersResult.status === 'fulfilled') {
         setOrders(ordersResult.value);
       } else {
-        hydrateSuperAdminOrdersFromStorage();
-        setOrders(MOCK_SUPER_ORDERS);
+        setOrders([]);
       }
 
-      if (usersResult.status === 'fulfilled' && usersResult.value.length > 0) {
+      if (usersResult.status === 'fulfilled') {
         setUsers(usersResult.value);
       } else {
-        setUsers(MOCK_SUPER_USERS);
+        setUsers([]);
+        setUsersError(usersResult.reason?.message || 'Could not load user accounts');
       }
 
       if (manufacturersResult.status === 'fulfilled' && manufacturersResult.value.length > 0) {
@@ -125,16 +138,26 @@ export function useSuperadminData() {
         setManufacturerList([]);
       }
 
-      setError(null);
+      const failed = [ordersResult, usersResult, manufacturersResult, manufacturerListResult].find((result) => result.status === 'rejected');
+      setError(failed?.status === 'rejected' ? (failed.reason?.message || 'Failed to refresh admin data') : null);
     } catch (err) {
+      if(!current())return;
       setError(err instanceof Error ? err.message : 'Failed to load data');
+      setUsersError(err instanceof Error ? err.message : 'Could not load user accounts');
     } finally {
-      setLoading(false);
+      if(inFlight.current===requestedAccount)inFlight.current=null;
+      if(current())setLoading(false);
     }
-  }, [authReady, isAuthenticated, usingSupabase, user?.email]);
+  }, [authReady, isAuthenticated, usingSupabase, accountKey]);
 
   useEffect(() => {
+    setOrders([]);setUsers([]);setManufacturers([]);setManufacturerList([]);
     void refresh();
+    const update=()=>{if(document.visibilityState==='visible')void refresh({background:true});};
+    const timer=window.setInterval(update,30000);
+    window.addEventListener('focus',update);
+    window.addEventListener('ceriga-orders-updated',update);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);window.removeEventListener('ceriga-orders-updated',update);};
   }, [refresh]);
 
   const patchOrder = useCallback(
@@ -178,8 +201,20 @@ export function useSuperadminData() {
     manufacturerList,
     loading,
     error,
+    usersError,
     refresh,
     patchOrder,
     patchProfile,
+    deleteOrder: async (id: string) => {
+      await adminDeleteOrder(id);
+      setOrders((previous) => previous.filter((order) => order.id !== id));
+      await refresh();
+    },
+    deleteAccount: async (id: string) => {
+      await adminDeleteAccount(id);
+      setUsers((previous) => previous.filter((account) => account.id !== id));
+      setManufacturerList((previous) => previous.filter((account) => account.userId !== id));
+      await refresh();
+    },
   };
 }

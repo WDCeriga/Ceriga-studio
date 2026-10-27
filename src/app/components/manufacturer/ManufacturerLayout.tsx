@@ -26,28 +26,37 @@ import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { getFactoryWorkspace } from '../../data/manufacturerPortalMock';
 import { usePortalNotifications } from '../../hooks/usePortalNotifications';
 import { cn } from '../ui/utils';
+import { useManufacturerPricing } from '../../data/manufacturerPricing';
+
+import{FactoryAccessProvider,useFactoryAccess,factoryPagePermission}from '../../contexts/FactoryAccessContext';
+import{teamRpc}from '../../lib/factoryTeam';
 
 const RED = '#CC2D24';
 
 const navItems = [
   { path: '/manufacturer', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { path: '/manufacturer/orders', label: 'Orders', icon: Package },
+  { path: '/manufacturer/quotations', label: 'Quotations', icon: ClipboardList },
   { path: '/manufacturer/production', label: 'Production', icon: ClipboardList },
-  { path: '/manufacturer/shipping', label: 'Shipping', icon: Ship },
+  { path: '/manufacturer/quality', label: 'Quality control', icon: ShieldCheck },
+  { path: '/manufacturer/shipping', label: 'Delivery', icon: Ship },
   { path: '/manufacturer/materials', label: 'Materials', icon: Boxes },
-  { path: '/manufacturer/capacity', label: 'Capacity', icon: CalendarDays },
+  { path: '/manufacturer/capacity', label: 'Production calendar', icon: CalendarDays },
   { path: '/manufacturer/portfolio', label: 'Portfolio', icon: ImagePlus },
   { path: '/manufacturer/verification', label: 'Verification', icon: ShieldCheck },
   { path: '/manufacturer/statistics', label: 'Statistics', icon: BarChart3 },
   { path: '/manufacturer/team', label: 'Team & roles', icon: Users },
   { path: '/manufacturer/messages', label: 'Messages', icon: MessageCircle },
-  { path: '/manufacturer/settings', label: 'Factory profile', icon: Settings },
+  { path: '/manufacturer/settings', label: 'Settings', icon: Settings },
 ] as const;
 
-export function ManufacturerLayout({ children }: { children: ReactNode }) {
+export function ManufacturerLayout({children}:{children:ReactNode}){return <FactoryAccessProvider><ManufacturerWorkspace>{children}</ManufacturerWorkspace></FactoryAccessProvider>;}
+function ManufacturerWorkspace({ children }: { children: ReactNode }) {
+ const {access,ready:accessReady,error:accessError}=useFactoryAccess();
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, authReady } = useAuth();
+  useManufacturerPricing();
   const { unread: notifUnread } = usePortalNotifications('manufacturer');
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -56,6 +65,7 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
   const [dbFactoryName, setDbFactoryName] = useState<string | null>(null);
   const [dbOnboarded, setDbOnboarded] = useState<boolean | null>(null);
   const [dbRole, setDbRole] = useState<string | null>(null);
+  const [loadError,setLoadError]=useState('');
   const [dbRoleResolved, setDbRoleResolved] = useState(!isSupabaseConfigured);
   const locationState = location.state as { manufacturerOnboardingComplete?: boolean } | null;
   const onboardingJustCompleted = locationState?.manufacturerOnboardingComplete === true;
@@ -87,45 +97,17 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
         if (profile) {
                 setDbFactoryName(profile.factoryName);
           setDbOnboarded(profile.onboardingComplete);
-        } else {
-          const localOnboarded =
-            Boolean(
-              user?.id &&
-                localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true',
-            ) ||
-            Boolean(
-              user?.email &&
-                localStorage.getItem(
-                  `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
-                ) === 'true',
-            ) ||
-                  (!user && demoWorkspace.onboardingComplete);
-          setDbOnboarded(localOnboarded);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          const localOnboarded =
-            Boolean(
-              user?.id &&
-                localStorage.getItem(`ceriga_manufacturer_onboarded_${user.id}`) === 'true',
-            ) ||
-            Boolean(
-              user?.email &&
-                localStorage.getItem(
-                  `ceriga_manufacturer_onboarded_${user.email.toLowerCase()}`,
-                ) === 'true',
-            ) ||
-                  (!user && demoWorkspace.onboardingComplete);
-          setDbOnboarded(localOnboarded);
-          setDbRole('manufacturer');
-          setDbRoleResolved(true);
-        }
-      });
+        }else setDbOnboarded(false);
+        setLoadError('');
+      }).catch(cause=>{if(!cancelled){setLoadError(cause instanceof Error?cause.message:'Could not verify your factory account');setDbRoleResolved(false);}});
     return () => {
       cancelled = true;
     };
-  }, [authReady, user, onboardingJustCompleted, demoWorkspace.onboardingComplete]);
+  }, [authReady, user, onboardingJustCompleted, demoWorkspace.onboardingComplete,access?.factoryId]);
+
+  if(isSupabaseConfigured&&accessReady&&access?.passwordSetupRequired)return <Navigate to="/team-password" replace/>;
+  if(isSupabaseConfigured&&accessReady&&access&&!access.factoryId&&(access.hadMembership||access.organisations.length>0))return <main className="mx-auto mt-16 max-w-lg space-y-4 rounded-2xl border border-white/10 p-6 text-white"><h1 className="text-xl font-semibold">Select a factory workspace</h1><p className="text-sm text-white/55">Your previous factory access is no longer active. Select an authorised organisation or ask an owner for a new invitation.</p>{access.organisations.length>0?<select aria-label="Choose factory workspace" defaultValue="" className="w-full rounded-lg border border-white/20 bg-[#111113] p-3" onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}><option disabled value="">Choose an organisation</option>{access.organisations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select>:<Link to="/dashboard" className="inline-block text-red-300 underline">Return to your account</Link>}{loadError&&<p role="alert" className="text-red-200">{loadError}</p>}</main>;
+  if(loadError)return <div className="mx-auto mt-16 max-w-lg rounded-xl border border-red-400/25 p-6 text-white"><h1 className="font-semibold">Factory account unavailable</h1><p role="alert" className="mt-3 text-sm text-red-200">{loadError}</p><button type="button" onClick={()=>window.location.reload()} className="mt-4 rounded-lg border border-white/20 px-4 py-2">Retry account check</button></div>;
 
   const onOnboarding = location.pathname.startsWith('/manufacturer/onboarding');
 
@@ -146,11 +128,11 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
   // In demo mode, use the locally persisted workspace. With Supabase, wait for
   // the profile lookup instead of redirecting while its status is still unknown.
   const onboardingComplete = isSupabaseConfigured
-    ? dbOnboarded === true || isLocallyOnboarded
+    ? dbOnboarded === true
           : (user ? isLocallyOnboarded : demoWorkspace.onboardingComplete);
   const factoryName = dbFactoryName ?? demoWorkspace.factoryName;
 
-  const onboardingStatusResolved = !isSupabaseConfigured || dbOnboarded !== null || isLocallyOnboarded;
+  const onboardingStatusResolved = !isSupabaseConfigured || dbOnboarded !== null;
   if (
     isSupabaseConfigured &&
     authReady &&
@@ -193,10 +175,11 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
     setSheetOpen(false);
   };
 
+  const visibleNavItems=navItems.filter(item=>!isSupabaseConfigured||access?.permissions.includes(factoryPagePermission(item.path)));
   const NavBlock = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
       <nav className="flex-1 space-y-1 p-2">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path, 'end' in item ? item.end : false);
           return (
@@ -253,7 +236,7 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
   if (onOnboarding) {
     return (
       <div className="min-h-dvh bg-[#09090B] text-[#F0EEEE]">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{isSupabaseConfigured&&accessError?<p role="alert" className="text-red-200">{accessError}</p>:isSupabaseConfigured&&!accessReady?<p role="status" className="text-white/60">Checking factory permissions…</p>:isSupabaseConfigured&&((!access?.factoryId&&!onOnboarding)||(access?.factoryId&&!access.permissions.includes(factoryPagePermission(location.pathname))))?<p role="alert" className="text-white/60">Your role does not have permission to access this page. Ask a factory owner to update your access.</p>:<div key={access?.factoryId}>{access?.organisations&&access.organisations.length>1&&<label className="mb-6 block text-xs text-white/60">Factory workspace<select aria-label="Switch factory organisation" className="ml-3 rounded-lg border border-white/20 bg-[#111113] p-2" value={access.factoryId||''} onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}>{access.organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}{children}</div>}</div>
       </div>
     );
   }
@@ -343,7 +326,7 @@ export function ManufacturerLayout({ children }: { children: ReactNode }) {
             <NavBlock />
           ) : (
             <div className="flex flex-col items-center gap-1 p-2">
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path, 'end' in item ? item.end : false);
                 return (

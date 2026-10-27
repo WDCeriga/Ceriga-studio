@@ -1,3 +1,8 @@
+import { amountToCents } from '../../lib/currency';
+import { formatMoney as originalMoney } from '../../lib/currency';
+import { displayMoney,useCurrency } from '../../lib/accountCurrency';
+import type { ApprovedTierPrice } from '../../lib/customerQuote';
+import { RejectQuotation } from '../../components/superadmin/RejectQuotation';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
@@ -46,11 +51,14 @@ function PricingReviewForm({
   order,
   onSubmit,
   onSkip,
+  onRejected,
 }: {
   order: SuperAdminOrder;
-  onSubmit: (priceCents: number) => void;
+  onSubmit: (prices: ApprovedTierPrice[]) => void;
   onSkip?: () => void;
+  onRejected: (action: 'revise' | 'reassign') => void;
 }) {
+  useCurrency();
   const resolved = resolveMarginForManufacturer(order.manufacturerId, order.manufacturerName);
   const marginPercent = order.cerigaMarginPercent ?? resolved.platformMarginPercent;
   const quoteTiers = useMemo(
@@ -72,20 +80,19 @@ function PricingReviewForm({
   const handleSubmit = () => {
     const priced: number[] = [];
     for (const tier of quoteTiers) {
-      const n = Number(finalByTier[tier.id]);
-      if (!Number.isFinite(n) || n <= 0) {
+      const n = amountToCents(finalByTier[tier.id]??'');
+      if (!Number.isSafeInteger(n) || n==null || n <= 0) {
         toast.error(`Enter a valid final price for ${tier.label}`);
         return;
       }
-      priced.push(Math.round(n * 100));
+      priced.push(n!);
     }
     if (priced.length === 0) {
       toast.error('No quote tiers on this order');
       return;
     }
-    const bulkIdx = quoteTiers.findIndex((t) => t.kind === 'bulk');
-    const primary = priced[bulkIdx >= 0 ? bulkIdx : 0];
-    onSubmit(primary);
+
+    onSubmit(quoteTiers.map((tier,index)=>({id:tier.id,cents:priced[index]})));
   };
 
   return (
@@ -132,6 +139,7 @@ function PricingReviewForm({
                   <p className="text-sm font-medium text-white">{tier.label}</p>
                   <p className="mt-0.5 text-[11px] text-white/40">
                     {tier.totalUnits > 0 ? `${tier.totalUnits} units` : '—'}
+                    {tier.leadTimeDays ? ` · ${tier.kind === 'sample' ? 'Sample' : 'Bulk'} lead time: ${tier.leadTimeDays} days` : ''}
                   </p>
                 </div>
                 <span
@@ -150,14 +158,14 @@ function PricingReviewForm({
                 <div className="rounded-lg bg-white/[0.03] px-2.5 py-2">
                   <p className="text-white/35">Factory</p>
                   <p className="mt-0.5 font-medium tabular-nums text-white/80">
-                    {formatMoney(tier.manufacturerQuoteCents)}
+                    {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">Original: {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}</span>
                   </p>
                 </div>
                 <div className="rounded-lg bg-white/[0.03] px-2.5 py-2">
                   <p className="text-white/35">Calculated</p>
                   <p className="mt-0.5 font-medium tabular-nums text-white/80">
                     {tier.calculatedPriceCents != null
-                      ? formatMoney(tier.calculatedPriceCents)
+                      ? displayMoney(tier.calculatedPriceCents,tier.currency)
                       : '—'}
                   </p>
                 </div>
@@ -165,7 +173,7 @@ function PricingReviewForm({
 
               <div className="mt-3">
                 <Label htmlFor={`queue-final-${tier.id}`} className="text-[11px] text-white/50">
-                  Final to brand (£)
+                  Approved total in original currency ({tier.currency ?? 'needs review'})
                 </Label>
                 <Input
                   id={`queue-final-${tier.id}`}
@@ -183,6 +191,7 @@ function PricingReviewForm({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-[#252528] px-5 py-4 lg:px-6">
+        <RejectQuotation key={order.id} orderId={order.id} onRejected={onRejected} />
         <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={handleSubmit}>
           <Send className="mr-2 h-4 w-4" />
           Submit all & next
@@ -202,6 +211,7 @@ function PricingReviewForm({
 }
 
 export function SuperAdminOrderReviewQueue() {
+  useCurrency();
   const navigate = useNavigate();
   const location = useLocation();
   const { orders, loading, patchOrder } = useSuperadminData();
@@ -220,11 +230,7 @@ export function SuperAdminOrderReviewQueue() {
   const doneCount = completedIds.size;
   const progress = totalCount > 0 ? (doneCount / totalCount) * 100 : 100;
 
-  useEffect(() => {
-    if (reviewQueue.length === 0 && !finished) {
-      setFinished(true);
-    }
-  }, [reviewQueue.length, finished]);
+
 
   useEffect(() => {
     if (remaining.length === 0 && doneCount > 0 && !finished) {
@@ -232,10 +238,11 @@ export function SuperAdminOrderReviewQueue() {
     }
   }, [remaining.length, doneCount, finished]);
 
-  const handleSubmit = (priceCents: number) => {
+  const handleSubmit = (prices: ApprovedTierPrice[]) => {
     if (!current) return;
     void (async () => {
       const ok = await patchOrder(current.id, {
+        approvedPrices: prices,
         status: 'sent_to_brand',
         statusLabel: 'Quote sent to brand',
       });
@@ -244,7 +251,7 @@ export function SuperAdminOrderReviewQueue() {
         return;
       }
       setCompletedIds((prev) => new Set([...prev, current.id]));
-      toast.success(`${current.id} sent to brand · ${formatMoney(priceCents)}`);
+      toast.success('Approved quotation sent to the customer');
     })();
   };
 
@@ -418,7 +425,8 @@ export function SuperAdminOrderReviewQueue() {
           <PricingReviewForm
             key={current.id}
             order={current}
-            onSubmit={handleSubmit}
+            onRejected={action => { setCompletedIds(previous => new Set([...previous, current.id])); toast.success(action==='revise'?'Revised quotation requested from manufacturer':'Quotation rejected — choose another manufacturer'); if(action==='reassign')navigate('/superadmin/assignment'); }}
+          onSubmit={handleSubmit}
             onSkip={() => {
               setCompletedIds((prev) => new Set([...prev, current.id]));
               toast.info(`Skipped ${current.id} for now`);

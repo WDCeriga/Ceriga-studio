@@ -1,3 +1,4 @@
+import {displayMoney,useCurrency}from'../../../lib/accountCurrency';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import {
@@ -117,6 +118,7 @@ export function KpiGrid({
 }: {
   items: { label: string; value: string; delta?: string }[];
 }) {
+  useCurrency();
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((k) => (
@@ -124,7 +126,7 @@ export function KpiGrid({
           <div className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
             {k.label}
           </div>
-          <div className="mt-2 text-2xl font-semibold tabular-nums text-white">{k.value}</div>
+          <div className="mt-2 text-2xl font-semibold tabular-nums text-white">{formatDemoValue(k.value)}</div>
           {k.delta ? (
             <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
               <TrendingUp className="h-3 w-3" />
@@ -255,3 +257,5 @@ export function DataTable({
     </div>
   );
 }
+
+function formatDemoValue(value:string){const match=value.match(/^£([\d,.]+)(k)?$/);return match?displayMoney(Math.round(Number(match[1].replaceAll(',',''))*(match[2]?100000:100)),'GBP'):value;}

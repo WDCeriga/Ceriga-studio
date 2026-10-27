@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { FactoryPortfolioPanel } from '../../components/manufacturer/FactoryPortfolioPanel';
+import { isSupabaseConfigured } from '../../lib/supabaseClient';
+import { useRef, useState } from 'react';
 import {
   ImagePlus,
   Plus,
@@ -26,7 +28,7 @@ import {
   type PortfolioItem,
 } from '../../data/manufacturerOnboardingTypes';
 
-export function ManufacturerPortfolio() {
+function ManufacturerPortfolioPreview() {
   const [profile, setProfile] = useState(() => loadCompleteManufacturerProfile());
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>(profile.portfolio || []);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -41,6 +43,32 @@ export function ManufacturerPortfolio() {
   const [customisationTechniques, setCustomisationTechniques] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isReadingImage, setIsReadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageFile = (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Please choose a JPG, PNG or WebP image');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Please choose an image smaller than 2 MB');
+      return;
+    }
+    setIsReadingImage(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageUrl(reader.result as string);
+      setIsReadingImage(false);
+    };
+    reader.onerror = () => {
+      toast.error('Unable to read this image. Please try again.');
+      setIsReadingImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const openCreateDialog = () => {
     setEditingItem(null);
@@ -51,7 +79,8 @@ export function ManufacturerPortfolio() {
     setProductionMethods('Cut and sew, Flatlock stitch');
     setCustomisationTechniques('Screen print, Woven neck label');
     setDescription('Heavyweight oversized hoodie with double-layered hood and drop shoulders.');
-    setImageUrl('https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=800&fit=crop');
+    setImageUrl('');
+    setIsDraggingImage(false);
     setDialogOpen(true);
   };
 
@@ -65,6 +94,7 @@ export function ManufacturerPortfolio() {
     setCustomisationTechniques(item.customisationTechniques?.join(', ') || '');
     setDescription(item.description);
     setImageUrl(item.images[0] || '');
+    setIsDraggingImage(false);
     setDialogOpen(true);
   };
 
@@ -247,7 +277,7 @@ export function ManufacturerPortfolio() {
       {/* Create / Edit Modal Dialog */}
       {dialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl border border-[#252528] bg-[#161618] p-6 space-y-5 shadow-2xl my-8">
+          <div className="w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-[#252528] bg-[#161618] p-6 space-y-5 shadow-2xl my-8">
             <div className="flex items-center justify-between border-b border-[#252528] pb-4">
               <h3 className="text-base font-semibold text-white">
                 {editingItem ? 'Edit Garment Sample' : 'Add Production Sample'}
@@ -331,13 +361,60 @@ export function ManufacturerPortfolio() {
               </div>
 
               <div>
-                <Label className="text-white/80">Sample Image URL</Label>
-                <Input
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="mt-1 text-xs border-white/10 bg-white/[0.03] text-white"
+                <Label htmlFor="sample-image" className="text-white/80">Sample Image</Label>
+                <input
+                  ref={imageInputRef}
+                  id="sample-image"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={isReadingImage}
+                  onChange={(event) => {
+                    handleImageFile(event.target.files?.[0]);
+                    event.target.value = '';
+                  }}
                 />
+                <button
+                  type="button"
+                  disabled={isReadingImage}
+                  onClick={() => imageInputRef.current?.click()}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'copy';
+                    setIsDraggingImage(true);
+                  }}
+                  onDragLeave={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      setIsDraggingImage(false);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setIsDraggingImage(false);
+                    if (!isReadingImage) handleImageFile(event.dataTransfer.files[0]);
+                  }}
+                  className={cn(
+                    'mt-1 flex min-h-32 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#CC2D24] disabled:opacity-50',
+                    isDraggingImage
+                      ? 'border-[#CC2D24] bg-[#CC2D24]/10'
+                      : 'border-white/15 bg-white/[0.03] hover:border-white/35 hover:bg-white/5',
+                  )}
+                >
+                  {imageUrl ? (
+                    <img src={imageUrl} alt="Selected garment sample" className="h-24 w-full rounded object-contain" />
+                  ) : (
+                    <ImagePlus className="h-7 w-7 text-white/40" />
+                  )}
+                  <span className="font-medium text-white/80">
+                    {isReadingImage ? 'Reading image…' : isDraggingImage ? 'Drop your image here' : imageUrl ? 'Drop a new image or click to replace' : 'Drag and drop your image here'}
+                  </span>
+                  <span className="text-[11px] text-white/40">Click to browse · JPG, PNG or WebP · Up to 2 MB</span>
+                </button>
+                {imageUrl && (
+                  <button type="button" disabled={isReadingImage} onClick={() => setImageUrl('')} className="mt-2 text-xs text-white/50 hover:text-red-400">
+                    Remove image
+                  </button>
+                )}
               </div>
 
               <div>
@@ -364,6 +441,7 @@ export function ManufacturerPortfolio() {
               <Button
                 size="sm"
                 onClick={handleSaveItem}
+                disabled={isReadingImage}
                 className="text-xs bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 font-semibold"
               >
                 Save Garment
@@ -375,3 +453,5 @@ export function ManufacturerPortfolio() {
     </div>
   );
 }
+
+export function ManufacturerPortfolio(){return isSupabaseConfigured ? <FactoryPortfolioPanel/> : <ManufacturerPortfolioPreview/>;}

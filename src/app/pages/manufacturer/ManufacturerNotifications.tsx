@@ -33,7 +33,7 @@ function formatWhen(iso: string) {
 }
 
 export function ManufacturerNotifications() {
-  const { items, unread, markRead, markAllRead, remove, clearAll } =
+  const { items, unread,error,refresh,hasMore,loadMore, markRead, markAllRead, remove, clearAll } =
     usePortalNotifications('manufacturer');
   const [filter, setFilter] = useState<Cat>('all');
   const [clearOpen, setClearOpen] = useState(false);
@@ -44,6 +44,7 @@ export function ManufacturerNotifications() {
 
   return (
     <div className="space-y-6">
+      {error&&<p role="alert" className="rounded-lg border border-red-400/25 p-3 text-sm text-red-200">{error} <button onClick={()=>void refresh()} className="ml-2 underline">Retry</button></p>}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
@@ -190,6 +191,7 @@ export function ManufacturerNotifications() {
         )}
       </ul>
 
+      {hasMore&&<button className="rounded-lg border border-white/15 px-4 py-2 text-sm text-white" onClick={loadMore}>Load older notifications</button>}
       <ConfirmDialog
         open={clearOpen}
         onOpenChange={setClearOpen}
@@ -198,8 +200,7 @@ export function ManufacturerNotifications() {
         confirmLabel="Clear all"
         tone="danger"
         onConfirm={() => {
-          clearAll();
-          toast.success('Notifications cleared');
+          void clearAll().then(ok=>{if(ok)toast.success('Notifications cleared');});
         }}
       />
     </div>

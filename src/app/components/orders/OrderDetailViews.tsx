@@ -1,3 +1,8 @@
+import { OrderCompletion } from './OrderCompletion';
+import { transactionMoney,displayMoney,useCurrency } from '../../lib/accountCurrency';
+import { offerExpiresAt, offerExpired } from '../../lib/orderOffer';
+import { submitOrderToManufacturer } from '../../lib/manufacturerSubmission';
+import { formatMoney } from '../../lib/currency';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -10,6 +15,7 @@ import {
   Pencil,
   RefreshCw,
   Truck,
+  Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
@@ -40,6 +46,7 @@ export function OrderDetailShell({
   order: UserOrder;
   children: React.ReactNode;
 }) {
+  useCurrency();
   return (
     <div className="min-h-dvh overflow-x-hidden bg-[#09090B] text-white">
       <div className="border-b border-[#252528] px-4 pb-4 pt-4 sm:px-5 md:px-7">
@@ -91,6 +98,7 @@ function Panel({
   children: React.ReactNode;
   className?: string;
 }) {
+  useCurrency();
   return (
     <div className={cn('rounded-xl border border-[#252528] bg-white/[0.03] p-4 sm:p-5', className)}>
       {title ? (
@@ -104,6 +112,7 @@ function Panel({
 }
 
 function EditOrderButton({ order }: { order: UserOrder }) {
+  useCurrency();
   if (!canEditOrder(order) || !order.productId) return null;
   return (
     <Button
@@ -119,12 +128,13 @@ function EditOrderButton({ order }: { order: UserOrder }) {
   );
 }
 
-function PriceValidityNotice({ pricedAt }: { pricedAt?: string }) {
+function PriceValidityNotice({ pricedAt,expiresAt }: { pricedAt?: string;expiresAt?:string }) {
+  useCurrency();
   return (
     <div className="flex gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2.5">
       <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300/90" aria-hidden />
       <p className="text-[11px] leading-relaxed text-amber-100/85">
-        {priceValidityDisclaimer(pricedAt)}
+        {priceValidityDisclaimer(pricedAt,expiresAt)}
       </p>
     </div>
   );
@@ -135,12 +145,25 @@ function PriceOptionCard({
   option,
   selected,
   paid,
+  paymentPlaceholder,
+  expired,
 }: {
   orderId: string;
   option: OrderPriceOption;
   selected?: boolean;
   paid?: boolean;
+  paymentPlaceholder?: boolean;
+  expired?: boolean;
 }) {
+  useCurrency();
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const submit = async () => {
+    setSubmitting(true);
+    try { await submitOrderToManufacturer(orderId, option.id); setSubmitted(true); toast.success('Order submitted to manufacturer'); }
+    catch(cause) { toast.error(cause instanceof Error ? cause.message : 'Could not submit order'); }
+    finally { setSubmitting(false); }
+  };
   return (
     <div
       className={cn(
@@ -155,11 +178,13 @@ function PriceOptionCard({
           <p className="text-sm font-semibold text-white">{option.label}</p>
           <p className="mt-0.5 text-xs text-white/45">{option.description}</p>
           <p className="mt-2 text-lg font-bold tabular-nums text-white">
-            {formatEuro(option.priceCents)}
+            {displayMoney(option.priceCents,option.currency)}
           </p>
         </div>
         {paid ? (
           <Badge className="bg-emerald-500/20 text-emerald-300">Paid</Badge>
+        ) : paymentPlaceholder ? (
+          <Button type="button" disabled={expired || submitting || submitted} onClick={() => void submit()} className="h-10 bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"><Send className="mr-2 h-3.5 w-3.5" />{expired ? 'Offer expired' : submitting ? 'Submitting…' : submitted ? 'Submitted' : 'Submit'}</Button>
         ) : (
           <Button
             asChild
@@ -177,6 +202,7 @@ function PriceOptionCard({
 }
 
 export function ProductionAwaitingQuote({ order }: { order: UserOrder }) {
+  useCurrency();
   const qr = order.quoteRequest;
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -243,19 +269,22 @@ export function ProductionAwaitingQuote({ order }: { order: UserOrder }) {
 }
 
 export function ProductionPriced({ order }: { order: UserOrder }) {
+  useCurrency();
   const options = order.priceOptions ?? [];
+  const expired=offerExpired(order);
+  const expiry=offerExpiresAt(order);
   const isPod = Boolean(order.quoteRequest?.pod);
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Panel>
         <p className="text-sm leading-relaxed text-white/70">
           {isPod
-            ? 'Your print-on-demand order is priced. Pay to send it into production.'
-            : 'Your quote is ready. Choose sample only or one of the bulk production runs — each option has its own payment link.'}
+            ? 'Your print-on-demand quote is ready. Submit your selected option to the manufacturer.'
+            : (options.length ? 'Your approved quote is ready. Submit your selected sample or bulk option to the manufacturer.' : 'Ceriga is finalising your quotation. Approved pricing will appear here shortly.')}
         </p>
-        <div className="mt-3">
-          <PriceValidityNotice pricedAt={order.pricedAt} />
-        </div>
+        {options.length > 0 && <div className="mt-3">
+          <PriceValidityNotice pricedAt={order.pricedAt} expiresAt={order.quoteExpiresAt} />
+        </div>}
       </Panel>
       {order.quoteRequest?.pod ? (
         <Panel title="Print design">
@@ -294,10 +323,15 @@ export function ProductionPriced({ order }: { order: UserOrder }) {
           <OrderQuantitiesSummary plan={order.orderQuantities} />
         </Panel>
       ) : null}
-      <Panel title={isPod ? 'Payment' : 'Pricing options'}>
+      {options.length>0 && <Panel><p className={expired?'text-sm text-amber-200':'text-sm text-white/60'}>{expired?'This offer has expired. Contact Ceriga for a new quotation.':`Offer valid until ${expiry?.toLocaleString('en-GB')} (30 days from approval).`}</p></Panel>}
+      <Panel title="Pricing options">
         <div className="space-y-3">
+          {!options.length && <div className="flex flex-wrap items-center justify-between gap-4">
+            <div><p className="text-sm text-white/70">Awaiting approved pricing</p><p id="quote-payment-pending" className="mt-1 text-xs text-white/45">Ceriga must publish the approved quote before you can submit.</p></div>
+            <Button type="button" disabled aria-describedby="quote-payment-pending" className="h-10 bg-[#CC2D24] text-xs font-semibold disabled:opacity-60"><Send className="mr-2 h-3.5 w-3.5" />Submit</Button>
+          </div>}
           {options.map((opt) => (
-            <PriceOptionCard key={opt.id} orderId={order.id} option={opt} />
+            <PriceOptionCard key={opt.id} orderId={order.id} option={opt} paymentPlaceholder expired={expired} />
           ))}
         </div>
       </Panel>
@@ -306,6 +340,7 @@ export function ProductionPriced({ order }: { order: UserOrder }) {
 }
 
 export function ProductionPaidOrFulfilment({ order }: { order: UserOrder }) {
+  useCurrency();
   const selected = order.selectedPriceOptionId
     ? getPriceOption(order, order.selectedPriceOptionId)
     : undefined;
@@ -318,20 +353,21 @@ export function ProductionPaidOrFulfilment({ order }: { order: UserOrder }) {
             ? 'This order is complete.'
             : order.status === 'shipping'
               ? 'Your order is on the way.'
-              : 'Payment received — your order is in production.'}
+              : order.manufacturerSubmittedAt ? 'Your order has been submitted to the manufacturer.' : 'Payment received — your order is in production.'}
         </p>
         {selected ? (
           <div className="mt-4 rounded-lg border border-[#252528] bg-black/20 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/40">You paid for</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/40">{order.manufacturerSubmittedAt ? 'Submitted option' : 'You paid for'}</p>
             <p className="mt-1 text-sm font-semibold text-white">{selected.label}</p>
             <p className="text-xs text-white/45">{selected.description}</p>
             <p className="mt-2 text-sm font-bold tabular-nums text-white">
-              {formatEuro(order.paidAmountCents ?? selected.priceCents)}
+              {transactionMoney(order.paidAmountCents ?? selected.priceCents,order.paidCurrency??selected.currency)}
             </p>
           </div>
         ) : null}
       </Panel>
 
+      <OrderCompletion order={order}/>
       {order.tracking ? (
         <Panel title="Tracking">
           <div className="flex items-center gap-2">
@@ -355,6 +391,7 @@ export function ProductionPaidOrFulfilment({ order }: { order: UserOrder }) {
 }
 
 export function TechPackAwaitingPayment({ order }: { order: UserOrder }) {
+  useCurrency();
   const cents = (order.total ?? 29) * 100;
   const option: OrderPriceOption = {
     id: 'techpack',
@@ -392,6 +429,7 @@ export function TechPackAwaitingPayment({ order }: { order: UserOrder }) {
 }
 
 export function TechPackPaid({ order }: { order: UserOrder }) {
+  useCurrency();
   const revisionAvailable = canUseFreeRevision(order);
   const [exporting, setExporting] = useState(false);
 
@@ -479,7 +517,7 @@ export function TechPackPaid({ order }: { order: UserOrder }) {
           </span>
           {order.paidAmountCents != null ? (
             <span className="ml-auto font-semibold tabular-nums text-white">
-              {formatEuro(order.paidAmountCents)}
+              {transactionMoney(order.paidAmountCents,order.paidCurrency)}
             </span>
           ) : null}
         </div>
@@ -489,6 +527,7 @@ export function TechPackPaid({ order }: { order: UserOrder }) {
 }
 
 export function OrderDetailContent({ order }: { order: UserOrder }) {
+  useCurrency();
   if (order.kind === 'tech-pack') {
     if (order.status === 'awaiting_payment' || order.status === 'submitted') {
       return <TechPackAwaitingPayment order={order} />;

@@ -19,6 +19,7 @@ import {
   CalendarOff,
   Route,
   Ship,
+  ShieldCheck,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { cn } from '../ui/utils';
@@ -31,13 +32,15 @@ const RED = '#CC2D24';
 const navItems = [
   { path: '/superadmin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { path: '/superadmin/users', label: 'Users', icon: Users },
+  { path: '/superadmin/workers', label: 'Workers', icon: Briefcase },
   { path: '/superadmin/orders', label: 'Orders', icon: Package },
+  { path: '/superadmin/quality-control', label: 'Quality control', icon: ShieldCheck },
   { path: '/superadmin/assignment', label: 'Assignment', icon: Route },
   { path: '/superadmin/statistics', label: 'Statistics', icon: BarChart3 },
   { path: '/superadmin/manufacturers', label: 'Manufacturers', icon: Factory },
-  { path: '/superadmin/time-off', label: 'Capacity', icon: CalendarOff },
+  { path: '/superadmin/time-off', label: 'Production calendar', icon: CalendarOff },
   { path: '/superadmin/shipping-onboard', label: 'Shipping', icon: Ship },
-  { path: '/superadmin/crm', label: 'CRM & roles', icon: Briefcase },
+  { path: '/superadmin/crm', label: 'CRM', icon: Briefcase },
   { path: '/superadmin/pricing', label: 'Pricing', icon: DollarSign },
   { path: '/superadmin/messages', label: 'Messages', icon: MessageCircle },
 ] as const;

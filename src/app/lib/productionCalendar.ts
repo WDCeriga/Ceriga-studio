@@ -1,0 +1,16 @@
+export type CalendarFactory={id:string;name:string;garments:string[];country:string;capacity:number;workdays:number[]|null;timezone:string;revision:number;month_start:string;adjusted_capacity:number|null;units:number;unscheduled:number;unknown_units:number;blocked:number;utilisation:number|null;workload:'unknown'|'available'|'busy'|'full';availability:string;active_orders:number;deadlines:number};
+export type CalendarOrder={id:string;manufacturer_id:string;product:string;garment:string;quantity:number|null;starts_on:string|null;due_on:string|null;stage:string;status:string;delay_reason:string|null;effort_active:boolean;at_risk:boolean};
+export type CalendarBlock={id:string;manufacturer_id:string;starts_on:string;ends_on:string;reason:string;status:string;revision:number;timezone:string;updated_at:string;conflicts:string[]};
+export type CalendarDay={date_key:string;production?:number;deadlines?:number;total:number;unavailable:number;working:number;unknown:number;busy:number;fully_booked:number;utilisation:number|null};
+export type CalendarRisk={date_key:string;garment:string;total:number;unavailable:number;capacity_loss:number|null;level:'warning'|'critical'};
+export type CalendarData={stats?:{active:number;deadlines:number;upcoming:number;atRisk:number;unscheduled:number};start:string;end:string;thresholds:{busy:number;full:number;warning:number;critical:number};factories:CalendarFactory[];orders:CalendarOrder[];orderCount:number;blocks:CalendarBlock[];days:CalendarDay[];risks:CalendarRisk[];filterOptions:{factories:{id:string;name:string}[];garments:string[];countries:string[]}};
+/** Calendar-only dates use UTC arithmetic, never the browser's offset or a UTC timestamp as a local date. */
+export function localDate(date=new Date(),timezone?:string){return new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date);}
+export function shiftDate(value:string,days:number){const d=new Date(value+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
+export function shiftMonth(value:string,months:number){const d=new Date(value.slice(0,7)+'-01T12:00:00Z');d.setUTCMonth(d.getUTCMonth()+months);return d.toISOString().slice(0,10);}
+export function calendarRange(focus:string,mode:'month'|'week'){const first=mode==='month'?focus.slice(0,7)+'-01':focus;const offset=(new Date(first+'T12:00:00Z').getUTCDay()+6)%7;const start=shiftDate(first,-offset);return {start,end:shiftDate(start,mode==='month'?41:6)};}
+export function dateList(start:string,end:string){const dates:string[]=[];for(let d=start;d<=end&&dates.length<366;d=shiftDate(d,1))dates.push(d);return dates;}
+export function selectedRanges(dates:string[]){return [...new Set(dates)].sort().reduce<{start:string;end:string}[]>((ranges,date)=>{const last=ranges.at(-1);if(last&&shiftDate(last.end,1)===date)last.end=date;else ranges.push({start:date,end:date});return ranges;},[]);}
+export function orderOnDate(order:CalendarOrder,date:string){return order.due_on===date||Boolean(order.starts_on&&order.due_on&&date>=order.starts_on&&date<=order.due_on);}
+export const stageName=(stage:string)=>stage.replaceAll('_',' ');
+export function daysUntil(date:string,today:string){return Math.round((Date.parse(date+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);}

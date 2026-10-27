@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -31,7 +32,8 @@ type NotificationsContextValue = {
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, authReady, usingSupabase } = useAuth();
+  const { isAuthenticated, authReady, usingSupabase, user } = useAuth();
+  const currentAccount=useRef(user?.id);currentAccount.current=user?.id;
   const [items, setItems] = useState<AppNotification[]>([]);
 
   const refresh = useCallback(async () => {
@@ -41,14 +43,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      setItems(await fetchBrandNotifications());
+      const account=user?.id;const next=await fetchBrandNotifications();
+      if(currentAccount.current===account)setItems(next);
     } catch {
-      setItems([]);
+      if(currentAccount.current===user?.id)setItems([]);
     }
-  }, [authReady, isAuthenticated, usingSupabase]);
+  }, [authReady, isAuthenticated, usingSupabase, user?.id]);
 
   useEffect(() => {
-    void refresh();
+    setItems([]);void refresh();
+    const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void refresh();},10000);
+    window.addEventListener('focus',refresh);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',refresh);};
   }, [refresh]);
 
   const markRead = useCallback(

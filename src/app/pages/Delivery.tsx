@@ -8,7 +8,7 @@ import { Textarea } from '../components/ui/textarea';
 import { cn } from '../components/ui/utils';
 import type { OrderQuantityPlan } from '../data/orderQuantities';
 import type { OrderDeliveryInfo } from '../data/orderDelivery';
-import { createOrderFromSubmit } from '../data/userOrders';
+import { createOrderFromSubmit, type UserOrder } from '../data/userOrders';
 import { useAuth } from '../contexts/AuthContext';
 
 const fieldClass =
@@ -109,6 +109,7 @@ export default function Delivery() {
             productName?: string;
             garmentType?: string;
             orderQuantities?: OrderQuantityPlan;
+            specifications?: UserOrder['specifications'];
             from?: string;
           }
         | undefined,
@@ -167,6 +168,7 @@ export default function Delivery() {
         garmentType: st?.garmentType ?? (isPackaging ? 'Packaging' : undefined),
         kind: isTechPackExport ? 'tech-pack' : 'production',
         orderQuantities: st?.orderQuantities,
+        specifications: st?.specifications,
         contactName: `${delivery.firstName} ${delivery.lastName}`.trim(),
         contactEmail: delivery.email,
         contactPhone: delivery.phone,

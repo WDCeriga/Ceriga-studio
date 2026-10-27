@@ -1,41 +1,9 @@
-import { isSupabaseConfigured } from '../lib/supabaseClient';
-import { completeFactoryOnboarding } from './manufacturerPortalMock';
-import {
-  saveMyManufacturerProfile,
-  type ManufacturerProfile,
-} from './manufacturerDb';
-
-/**
- * Persist factory onboarding to Supabase when configured; always fall back to
- * the local demo workspace so the preview stays functional without env keys.
- */
-export async function completeOnboardingInDb(input: {
-  factoryName: string;
-  garments: string[];
-  capabilities: string[];
-  shippingRegions: string[];
-  moq: number;
-  monthlyCapacity: number;
-}): Promise<ManufacturerProfile | null> {
-  // Keep the local workspace in sync either way (layout uses it as fallback).
-  completeFactoryOnboarding({
-    factoryName: input.factoryName,
-    garments: input.garments as never[],
-    capabilities: input.capabilities as never[],
-    shippingRegions: input.shippingRegions,
-    moq: input.moq,
-    monthlyCapacity: input.monthlyCapacity,
-  });
-
-  if (!isSupabaseConfigured) return null;
-
-  return saveMyManufacturerProfile({
-    factoryName: input.factoryName,
-    garments: input.garments,
-    capabilities: input.capabilities,
-    shippingRegions: input.shippingRegions,
-    moq: input.moq,
-    monthlyCapacity: input.monthlyCapacity,
-    onboardingComplete: true,
-  });
+import {getSupabase,isSupabaseConfigured}from '../lib/supabaseClient';
+import {completeFactoryOnboarding}from './manufacturerPortalMock';
+import {fetchMyManufacturerProfile,type ManufacturerProfile}from './manufacturerDb';
+import type {CompleteManufacturerProfile}from './manufacturerOnboardingTypes';
+export async function completeOnboardingInDb(profile:CompleteManufacturerProfile):Promise<ManufacturerProfile|null>{
+ if(isSupabaseConfigured){const{data,error}=await getSupabase().rpc('save_manufacturer_profile',{p_profile:profile,p_complete:true});if(error||!data)throw new Error(error?.message||'Onboarding completion was not confirmed');}
+ completeFactoryOnboarding({factoryName:profile.factoryName,garments:profile.garments as never[],capabilities:Object.keys(profile.capabilitiesMap)as never[],shippingRegions:profile.shippingDestinations,moq:profile.generalMoq,monthlyCapacity:profile.monthlyCapacity});
+ return isSupabaseConfigured?fetchMyManufacturerProfile():null;
 }

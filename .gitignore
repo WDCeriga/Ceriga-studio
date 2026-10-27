@@ -28,3 +28,12 @@ Thumbs.db
 
 # Vite
 *.tsbuildinfo
+
+# Isolated workflow test runtime and synthetic recovery fixtures
+.tmp-workflow-test/
+
+# Reversible snapshot of removed order workflow work
+.tmp-order-workflow-undo/
+
+# Dedicated synthetic order sandboxes (never live application data)
+.sandbox/

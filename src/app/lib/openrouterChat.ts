@@ -1,16 +1,4 @@
-/**
- * OpenRouter AI chat — powers the "Chat with us" support assistant with real
- * answers grounded in Ceriga Studio knowledge (product, flows, pricing).
- *
- * Runs client-side: set VITE_OPENROUTER_API_KEY in your .env / hosting env.
- * Free models are used by default (see FREE_MODELS below) — requests fall
- * through the list until one succeeds.
- *
- * Note: a client-side key is visible to anyone using the app. Fine for demos
- * / internal tools; for production put this behind a server proxy and keep
- * the key server-side.
- */
-
+import { getSupabase, isSupabaseConfigured } from './supabaseClient';
 import {
   extractAiCursorActionsFromStream,
   parseAiCursorActions,
@@ -18,7 +6,7 @@ import {
 } from "./aiCursor/parseAiActions";
 import type { AiCursorAction } from "./aiCursor/types";
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 
 /**
  * Fallback used only when the live model list cannot be fetched (offline,
@@ -88,7 +76,7 @@ async function fetchModelCatalog(apiKey: string): Promise<OpenRouterModel[] | nu
   try {
     const res = await fetch(MODELS_URL, {
       signal: AbortSignal.timeout(10_000),
-      headers: { Authorization: `Bearer ${apiKey}` },
+
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { data?: OpenRouterModel[] };
@@ -550,7 +538,7 @@ export async function askOpenRouter(
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     let cursorEmitted = false;
     try {
-      const res = await fetch(OPENROUTER_URL, {
+      const res = await fetch(getSupabase().supabaseUrl + '/functions/v1/ai-chat', {
         method: "POST",
         signal: controller.signal,
         headers: {

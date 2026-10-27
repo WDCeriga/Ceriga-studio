@@ -1,0 +1,40 @@
+-- Isolated fixture and notifications are rolled back; no real order is changed.
+begin;
+do $$
+declare a uuid;ae text;f uuid;other_factory uuid;b uuid:=gen_random_uuid();oid uuid:=gen_random_uuid();old_quote jsonb;tiers jsonb;denied boolean;
+begin
+ select u.id,u.email into a,ae from auth.users u join public.superadmin_emails s on lower(s.email)=lower(u.email)limit 1;
+ select user_id into f from public.manufacturer_profiles where onboarding_complete and status is distinct from 'paused'and user_id<>a limit 1;
+ select user_id into other_factory from public.manufacturer_profiles where onboarding_complete and status is distinct from 'paused'and user_id<>f and user_id<>a limit 1;
+ if a is null or f is null then raise exception 'Requires admin and onboarded manufacturer';end if;
+ perform set_config('request.jwt.claims','{}',true);
+ insert into auth.users(id,email,raw_user_meta_data)values(b,'review-'||b||'@example.invalid','{}');
+ insert into public.orders(id,user_id,kind,product_name,garment_type,status,status_label)values(oid,b,'production','Quote review rollback fixture','T-shirts','submitted','Submitted');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',a,'email',ae,'role','authenticated')::text,true);
+ perform set_config('app.routing_write',oid::text,true);perform set_config('app.workflow_write',oid::text,true);
+ update public.orders set assigned_manufacturer_id=f,factory_status='new',order_quantities='{"sample":{"id":"sample","kind":"sample","targetTotal":2,"bySize":{"m":2}},"bulkRuns":[]}'where id=oid;
+ tiers:=jsonb_build_array(jsonb_build_object('id','sample','kind','sample','label','Sample','totalUnits',2,'unitPriceCents',1000,'manufacturerQuoteCents',2000,'currency',coalesce((select to_jsonb(p)->>'preferred_currency' from public.profiles p where id=f),(select pricing->>'preferredCurrency'from public.manufacturer_profiles where user_id=f),'EUR'),'leadTimeDays',14));
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',f,'email','factory@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ perform public.submit_manufacturer_quote(oid,tiers);
+ select manufacturer_quote into old_quote from public.orders where id=oid;
+ denied:=false;begin perform public.review_manufacturer_quotation(oid,'Too expensive','revise');exception when others then denied:=position('Superadmin'in sqlerrm)>0;end;if not denied then raise exception 'Manufacturer review bypass';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',a,'email',ae,'role','authenticated')::text,true);execute 'set local role authenticated';
+ denied:=false;begin perform public.review_manufacturer_quotation(oid,'','revise');exception when others then denied:=true;end;if not denied then raise exception 'Missing feedback accepted';end if;
+ denied:=false;begin perform public.review_manufacturer_quotation(oid,'Too expensive','bad');exception when others then denied:=true;end;if not denied then raise exception 'Invalid action accepted';end if;
+ perform public.review_manufacturer_quotation(oid,'Please reduce the unit price and confirm lead time.','revise');
+ if not exists(select 1 from public.orders where id=oid and factory_status='clarifying'and assigned_manufacturer_id=f and manufacturer_quote is null and price_options is null)then raise exception 'Revision did not persist';end if;
+ if not exists(select 1 from public.order_routing_events where order_id=oid and details->'previousManufacturerQuote'=old_quote and details->>'nextAction'='revise')then raise exception 'Original quote history missing';end if;
+ denied:=false;begin perform public.review_manufacturer_quotation(oid,'Duplicate rejection','revise');exception when others then denied:=true;end;if not denied then raise exception 'Duplicate accepted';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',f,'email','factory@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ perform public.submit_manufacturer_quote(oid,jsonb_set(tiers,'{0,unitPriceCents}','900'));
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',a,'email',ae,'role','authenticated')::text,true);execute 'set local role authenticated';
+ perform public.review_manufacturer_quotation(oid,'Need another production partner','reassign');
+ if not exists(select 1 from public.orders where id=oid and factory_status='rejected'and status='submitted')then raise exception 'Reassignment queue state missing';end if;
+ execute 'reset role';perform set_config('request.jwt.claims',jsonb_build_object('sub',f,'email','factory@example.invalid','role','authenticated')::text,true);execute 'set local role authenticated';
+ denied:=false;begin perform public.submit_manufacturer_quote(oid,tiers);exception when others then denied:=true;end;if not denied then raise exception 'Rejected manufacturer can overwrite quote';end if;
+ execute 'reset role';
+ if not exists(select 1 from public.portal_notifications where order_id=oid and user_id=f and title='Revised quotation requested')then raise exception 'Manufacturer notification missing';end if;
+ if has_function_privilege('anon','public.review_manufacturer_quotation(uuid,text,text)','execute')then raise exception 'Anonymous RPC exposed';end if;
+end $$;
+rollback;
+select 'PASS: revised quotation, manufacturer resubmission, reroute, required feedback, duplicate prevention, access control, notifications and preserved history. All fixtures rolled back.'as verification;

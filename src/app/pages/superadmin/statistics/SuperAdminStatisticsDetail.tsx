@@ -1,3 +1,6 @@
+import { PortalReport } from '../../../components/PortalReport';
+import { isSupabaseConfigured } from '../../../lib/supabaseClient';
+import { displayMoney,useCurrency } from '../../../lib/accountCurrency';
 import { useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import {
@@ -64,6 +67,7 @@ const VALID_SECTIONS: StatsSectionId[] = [
 ];
 
 function FinancialSection() {
+useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
@@ -85,7 +89,7 @@ function FinancialSection() {
               </defs>
               <CartesianGrid stroke={gridStroke} vertical={false} />
               <XAxis dataKey="m" {...axisProps} />
-              <YAxis {...axisProps} tickFormatter={(v) => `£${v / 1000}k`} />
+              <YAxis {...axisProps} tickFormatter={(v) => displayMoney(Math.round(v*100),'GBP')} />
               <Tooltip contentStyle={chartTooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }} />
               <Area
@@ -142,7 +146,7 @@ function FinancialSection() {
               <Tooltip
                 contentStyle={chartTooltipStyle}
                 formatter={(v: number, _n, item) => [
-                  `${v}% · £${(item.payload as { revenue: number }).revenue.toLocaleString()}`,
+                  `${v}% · ${displayMoney(Math.round((item.payload as { revenue: number }).revenue*100),'GBP')}`,
                   'Share',
                 ]}
               />
@@ -154,7 +158,7 @@ function FinancialSection() {
         <DataTable
           title="Top revenue lines"
           columns={['Product', 'Share', 'Revenue']}
-          rows={revenueByProduct.map((r) => [`${r.name}`, `${r.value}%`, `£${r.revenue.toLocaleString()}`])}
+          rows={revenueByProduct.map((r) => [`${r.name}`, `${r.value}%`, displayMoney(Math.round(r.revenue*100),'GBP')])}
         />
       </div>
     </div>
@@ -162,6 +166,7 @@ function FinancialSection() {
 }
 
 function UsersSection() {
+useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
@@ -228,6 +233,7 @@ function UsersSection() {
 }
 
 function OrdersSection() {
+useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
@@ -305,6 +311,7 @@ function OrdersSection() {
 }
 
 function AiChatSection() {
+useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
@@ -368,7 +375,7 @@ function AiChatSection() {
         rows={chatPlansByTier.map((p) => [
           p.plan,
           p.subscribers.toLocaleString(),
-          p.plan === 'Free' ? '—' : `£${(p.subscribers * (p.plan === 'Studio' ? 19 : p.plan === 'Scale' ? 49 : 99)).toLocaleString()}`,
+          p.plan === 'Free' ? '—' : displayMoney(p.subscribers * (p.plan === 'Studio' ? 1900 : p.plan === 'Scale' ? 4900 : 9900),'GBP'),
         ])}
       />
     </div>
@@ -376,6 +383,7 @@ function AiChatSection() {
 }
 
 function ManufacturersSection() {
+useCurrency();
   const rankings = listFactoryRankings();
 
   return (
@@ -464,6 +472,7 @@ function ManufacturersSection() {
 }
 
 function EngagementSection() {
+useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
@@ -520,7 +529,8 @@ const SECTION_VIEWS: Record<StatsSectionId, () => JSX.Element> = {
   engagement: EngagementSection,
 };
 
-export function SuperAdminStatisticsDetail() {
+function SuperAdminStatisticsDetailPreview() {
+useCurrency();
   const { section } = useParams<{ section: string }>();
   const [period, setPeriod] = useState<StatsPeriod>('month');
 
@@ -547,3 +557,5 @@ export function SuperAdminStatisticsDetail() {
     </div>
   );
 }
+
+export function SuperAdminStatisticsDetail(){return isSupabaseConfigured?<PortalReport admin/>:<SuperAdminStatisticsDetailPreview/>;}
