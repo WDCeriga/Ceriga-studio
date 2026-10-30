@@ -1,0 +1,884 @@
+[
+  {
+    "name": "label-straight-true",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "label-straight-false",
+    "status": "intentional-fix",
+    "reason": "block is not defined"
+  },
+  {
+    "name": "label-end-true",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "label-end-false",
+    "status": "intentional-fix",
+    "reason": "block is not defined"
+  },
+  {
+    "name": "label-centre-true",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "label-centre-false",
+    "status": "intentional-fix",
+    "reason": "block is not defined"
+  },
+  {
+    "name": "label-mitre-true",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "label-mitre-false",
+    "status": "intentional-fix",
+    "reason": "block is not defined"
+  },
+  {
+    "name": "label-loop-true",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "label-loop-false",
+    "status": "intentional-fix",
+    "reason": "block is not defined"
+  },
+  {
+    "name": "label-manhattan-true",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "label-manhattan-false",
+    "status": "intentional-fix",
+    "reason": "block is not defined"
+  },
+  {
+    "name": "label-die-true",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "label-die-false",
+    "status": "intentional-fix",
+    "reason": "block is not defined"
+  },
+  {
+    "name": "shape-rectangle",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "shape-rounded",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "shape-square",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "shape-oval",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "shape-circle",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "shape-horizontal",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "shape-vertical",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "shape-custom",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "tag-tag-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "tag-tag-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "tag-hand-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "tag-hand-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "layout-stack",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "layout-columns",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "layout-grid",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "manual-overflow-rotation",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 1
+  },
+  {
+    "name": "package-clear-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-clear-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-clear-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-clear-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-frosted-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-frosted-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-frosted-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-frosted-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-white-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-white-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-white-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-white-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-black-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-black-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-black-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-black-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-zip-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-zip-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-zip-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-zip-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-adhesive-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-adhesive-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-adhesive-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-adhesive-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-handle-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-handle-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-handle-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-handle-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-kraft-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-kraft-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-kraft-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-kraft-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-white-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-white-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-white-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-white-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-black-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-black-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-black-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-black-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-frosted-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-frosted-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-frosted-mailer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-frosted-mailer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-padded-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-padded-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-padded-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-padded-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-folding-closed",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-folding-open",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-folding-reverse",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-folding-top",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-folding-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-folding-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-folding-left",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-folding-right",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-folding-interior-lid",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-folding-interior-base",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-rigid-closed",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-rigid-open",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-rigid-reverse",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-rigid-top",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-rigid-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-rigid-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-rigid-left",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-rigid-right",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-rigid-interior-lid",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-rigid-interior-base",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-magnetic-closed",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-magnetic-open",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-magnetic-reverse",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-magnetic-top",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-magnetic-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-magnetic-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-magnetic-left",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-magnetic-right",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-magnetic-interior-lid",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-magnetic-interior-base",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-drawer-closed",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-drawer-open",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-drawer-reverse",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-drawer-top",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-drawer-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-drawer-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-drawer-left",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-drawer-right",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-drawer-interior-base",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-carton-closed",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-carton-open",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-carton-reverse",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-carton-front",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-carton-back",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-carton-left",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-carton-right",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "panel-carton-interior-base",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-bulk-closed",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-bulk-open",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  },
+  {
+    "name": "package-bulk-reverse",
+    "status": "pass",
+    "changedPixels": 0,
+    "ratio": 0,
+    "max": 0
+  }
+]

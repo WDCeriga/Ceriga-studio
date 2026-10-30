@@ -29,6 +29,7 @@ export const LABEL_BLOCKS = { brand: 'Brand / logo', size: 'Size', careText: 'Ca
 export type LabelBlockKey = keyof typeof LABEL_BLOCKS;
 export const LABEL_HIERARCHIES = { 'brand-first': 'Brand first', 'size-first': 'Size first', 'large-size-top': 'Large size top', 'large-size-bottom': 'Large size bottom', inline: 'Brand + inline size', split: 'Split' } as const;
 export interface LabelBlock {
+  sectionId?:string;paddingMm?:number;fullWidth?:boolean;frameMm?:{x:number;y:number;width:number;height:number};
   textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;
   textStyle?:import('../lib/textStyles').SavedTextStyle;
   letterSpacingMm?:number;lineSpacing?:number;fontStyle?:'normal'|'italic';
@@ -49,7 +50,7 @@ export interface LabelBlock {
 }
 export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'sectionLayout' | 'designSections'>;
 const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout', 'designSections'] as const;
-export interface LabelDesignSection {appearance?:import('../lib/surfaceDesign').SurfaceAppearance;textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;align?:'left'|'center'|'right';id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
+export interface LabelDesignSection {sectionId?:string;paddingMm?:number;appearance?:import('../lib/surfaceDesign').SurfaceAppearance;textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;align?:'left'|'center'|'right';id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
 export interface GarmentLabel {
   schemaVersion?:2;
   artworkSurfaces?:Record<string,import('../lib/artworkSurface').SurfaceArtwork>;

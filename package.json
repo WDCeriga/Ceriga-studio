@@ -7,7 +7,7 @@
     "build": "vite build",
     "predev": "npm install --prefer-offline --no-audit --no-fund",
     "dev": "vite",
-    "test:surfaces": "node scripts/verify-surface-migration.mjs && node scripts/verify-surface-contracts.mjs",
+    "test:surfaces": "node scripts/verify-surface-migration.mjs && node scripts/verify-surface-contracts.mjs && node scripts/verify-label-section-frames.mjs",
     "prebuild": "npm run test:surfaces"
   },
   "dependencies": {

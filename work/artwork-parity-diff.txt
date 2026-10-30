@@ -1,0 +1,404 @@
+old/new lines 4074 4037
+-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
++import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ComponentProps } from 'react';
+-import { StudioColorField } from './StudioColorField';
++import { StudioColorField } from './PrintStudioColorField';
+-import { InlineElementToolbar } from './InlineElementToolbar';
++import { InlineElementToolbar } from './PrintStudioElementToolbar';
++export type PrintStudioToolAPI = ComponentProps<typeof PrintsStudioToolbar> & {onClearSelection?: () => void; onAddTextPreset?: (preset: Partial<DesignElement>) => void};
++  renderTools?: (api: PrintStudioToolAPI) => ReactNode;
++  renderSelection?: (element: DesignElement, update: (patch: Partial<DesignElement>) => void, fonts: string[]) => ReactNode;
++  canvasToolbar?: boolean;
+-const HANDLE_RED = '#CC2D24';
++const HANDLE_RED = '#405b6f';
+-          className="pointer-events-none absolute rounded-md border-2 bg-gradient-to-b from-[#CC2D24]/10 to-transparent"
++          className="pointer-events-none absolute rounded-md border-2 bg-gradient-to-b from-[#405b6f]/10 to-transparent"
+-    'pointer-events-auto absolute z-[60] flex touch-none items-center justify-center rounded-full before:absolute before:rounded-full before:border before:border-[#CC2D24] before:bg-[#09090B] active:scale-95',
++    'pointer-events-auto absolute z-[60] flex touch-none items-center justify-center rounded-full before:absolute before:rounded-full before:border before:border-[#405b6f] before:bg-white active:scale-95',
+-          'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#CC2D24]/12 to-transparent',
++          'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#405b6f]/12 to-transparent',
+-          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#09090B] text-[#CC2D24] shadow-lg active:scale-95',
++          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-white text-[#405b6f] shadow-lg active:scale-95',
+-    <div className={cn('rounded-xl border border-white/[0.07] bg-black/30 p-3', className)}>
+-      <div className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-white/38">
++    <div data-print-panel={title.startsWith("Layers") ? "layers" : "properties"} className={cn('print-property-section', className)}>
++      <div className="mb-2.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8192a8]">
+-        <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{label}</span>
++        <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">{label}</span>
+-          <span className="text-[10px] font-semibold tabular-nums text-white/65">{value}{suffix}</span>
++          <span className="text-[10px] font-semibold tabular-nums text-[#8192a8]">{value}{suffix}</span>
+-            onClick={onReset} className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-white/55 hover:bg-white/10 hover:text-white">
++            onClick={onReset} className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#35414e]">
+-        className="h-2 w-full cursor-pointer accent-[#FF3B30] disabled:opacity-40"
++        className="h-2 w-full cursor-pointer accent-[#405b6f] disabled:opacity-40"
+-      <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/38">
++      <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8192a8]">
+-        className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#252528] bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60"
++        className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2.5 transition-colors focus-within:border-[#405b6f]/55 focus-within:bg-[#f6f8f9]"
+-          className="min-w-0 flex-1 bg-transparent text-left text-[11px] font-semibold tabular-nums text-white outline-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
++          className="min-w-0 flex-1 bg-transparent text-left text-[11px] font-semibold tabular-nums text-[#35414e] outline-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+-        <span className="shrink-0 text-[9px] font-medium tabular-nums leading-none text-white/45">
++        <span className="shrink-0 text-[9px] font-medium tabular-nums leading-none text-[#8192a8]">
++  renderTools, renderSelection,
++  const [advancedSelectionOpen,setAdvancedSelectionOpen]=useState(!renderSelection);
++  useLayoutEffect(()=>setAdvancedSelectionOpen(!renderSelection),[selectedId]);
+-      color: '#FFFFFF',
++      color: studio.color,
++  const addTextPreset = (preset: Partial<DesignElement>) => {
++    const zone=document.querySelector('[data-print-design-zone]') as HTMLElement|null;
++    const element:DesignElement={id:crypto.randomUUID(),type:'text',content:preset.content??'Your brand',x:(zone?.clientWidth??720)/2,y:(zone?.clientHeight??616)/2,width:300,height:70,rotation:0,color:studio.color,fontFamily:'Inter',fontSize:30,textAlign:'center',autoWidth:true,autoHeight:true,opacity:100,printMethod:DEFAULT_PRINT_METHOD,side:garmentSide,...preset};
++    onChange([...elements,element],element.id);setSelectedId(element.id);studio.setTool('select');
++  };
+-    <div className="space-y-3.5">
+-      <PrintsStudioToolbar
++    <div className="print-imported-editor space-y-3.5">
++      <div data-print-panel="library">{renderTools ? renderTools({onPlaceAsset:placeStudioAsset,onUpload:handleUploadImage,previousUploads,onReuseUpload:reuseUpload,textInput,onTextInput:setTextInput,onAddText:handleAddText,onAddTextPreset:addTextPreset,onClearSelection:()=>setSelectedId(null),onImportFont:importFontFile,fontLibrary:importedFontFamilies,selectedElement:selected,onUpdateSelected:updateSelected,onStartCustomArea:startCustomArea,pa
+-      />
++      />}</div>
+-        <PrintPanel title="Selected element">
++        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary>{selected.type==='text'?'Curves, outlines & advanced type':selected.type==='image'?'Adjustments, crop & distortion':'Effects & advanced editing
+-            <span className="text-[10px] text-white/45">
++            <span className="text-[10px] text-[#8192a8]">
+-              className="h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10"
++              className="h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+-          <div className="space-y-5">
+-            <label className="block space-y-2 text-[10px] font-medium uppercase tracking-wider text-white/50">
++          <div className="print-object-properties space-y-5">
++            <label className="block space-y-2 text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">
+-              <div className="space-y-2 rounded-xl border border-white/15 p-3">
++              <div className="space-y-2 rounded-xl border border-[#dce3ec] p-3">
+-                <p className="text-[10px] text-white/50">Shift-click anchors to select several. Drag anchors or curve handles. Double-click a segment to add a point. Delete removes selected points. Escape exits.</p>
++                <p className="text-[10px] text-[#8192a8]">Shift-click anchors to select several. Drag anchors or curve handles. Double-click a segment to add a point. Delete removes selected points. Escape exits.</p>
+-                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Solid fill</span>
++                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Solid fill</span>
+-                    className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10">
++                    className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]">
+-                <p className="text-[10px] text-white/45">Fill the inside using the shape colour.</p>
++                <p className="text-[10px] text-[#8192a8]">Fill the inside using the shape colour.</p>
+-              <div className="space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
+-                <Label className="block text-[9px] font-bold uppercase tracking-[0.14em] text-white/55">
++              <div className="space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
++                <Label className="block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                  className="h-9 border-white/12 bg-black/35 text-[11px] text-white" />
++                  className="h-9 border-[#dce3ec] bg-[#f6f8f9] text-[11px] text-[#35414e]" />
+-                  <Label className="mb-2 block text-[9px] font-semibold uppercase tracking-wide text-white/45">Fill</Label>
++                  <Label className="mb-2 block text-[9px] font-semibold uppercase tracking-wide text-[#8192a8]">Fill</Label>
+-                  <label className="text-[9px] font-semibold uppercase tracking-wide text-white/45" htmlFor="custom-area-pattern">Pattern fill</label>
++                  <label className="text-[9px] font-semibold uppercase tracking-wide text-[#8192a8]" htmlFor="custom-area-pattern">Pattern fill</label>
+-                    className="h-9 w-full rounded-lg border border-white/12 bg-black/35 px-2 text-[11px] text-white">
++                    className="h-9 w-full rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2 text-[11px] text-[#35414e]">
+-                <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/12 bg-black/25 text-[10px] font-semibold text-white/75 hover:text-white">
++                <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#dce3ec] bg-[#f6f8f9] text-[10px] font-semibold text-[#8192a8] hover:text-[#35414e]">
+-                {selected.customAreaImage ? <button type="button" onClick={() => updateSelected({ customAreaImage: undefined })} className="text-[10px] text-white/50 hover:text-white">Remove image fill</button> : null}
++                {selected.customAreaImage ? <button type="button" onClick={() => updateSelected({ customAreaImage: undefined })} className="text-[10px] text-[#8192a8] hover:text-[#35414e]">Remove image fill</button> : null}
+-            <div data-distortion-settings>
+-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++            <details className="print-transform-details"><summary>Transform & warp</summary>            <div data-distortion-settings>
++              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                  className={cn('h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10', studio.distortEditingId === selected.id && 'border-[#FF3B30] bg-[#FF3B30]/12')}
++                  className={cn('h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]', studio.distortEditingId === selected.id && 'border-[#405b6f] bg-[#405b6f]/12')}
+-                  className="h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10"
++                  className="h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                  className={cn('h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10', studio.warpEditingId === selected.id && 'border-[#FF3B30] bg-[#FF3B30]/12')}
++                  className={cn('h-8 border-[#dce3ec] px-2.5 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]', studio.warpEditingId === selected.id && 'border-[#405b6f] bg-[#405b6f]/12')}
+-              return <div className="space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3" data-warp-properties>
++              return <div className="space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3" data-warp-properties>
+-                  <Label className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/55">Warp</Label>
++                  <Label className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">Warp</Label>
+-                    className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
++                    className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                    className={cn('h-9 rounded-lg border text-[10px] font-semibold', settings.mode === mode ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-white/10 bg-black/25 text-white/65')}>
++                    className={cn('h-9 rounded-lg border text-[10px] font-semibold', settings.mode === mode ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]')}>
+-                      className={cn('h-8 rounded-lg border px-2 text-[10px] font-medium', settings.preset === preset.id ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-white/10 bg-black/25 text-white/65')}>
++                      className={cn('h-8 rounded-lg border px-2 text-[10px] font-medium', settings.preset === preset.id ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]')}>
+-                    <label htmlFor="warp-grid-density" className="text-[9px] font-semibold uppercase tracking-wide text-white/45">Warp grid</label>
++                    <label htmlFor="warp-grid-density" className="text-[9px] font-semibold uppercase tracking-wide text-[#8192a8]">Warp grid</label>
+-                      className="h-9 w-full rounded-lg border border-white/12 bg-black/35 px-2 text-[11px] text-white">
++                      className="h-9 w-full rounded-lg border border-[#dce3ec] bg-[#f6f8f9] px-2 text-[11px] text-[#35414e]">
+-                  <p className="text-[10px] leading-relaxed text-white/48">Drag the mesh points on the design to reshape it.</p>
++                  <p className="text-[10px] leading-relaxed text-[#8192a8]">Drag the mesh points on the design to reshape it.</p>
++</details>
+-            <div>
+-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++            <details className="print-production-details"><summary>Printing method</summary>
++              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-              <p className="mb-2 text-[9px] leading-snug text-white/42">
++              <p className="mb-2 text-[9px] leading-snug text-[#8192a8]">
+-                          ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
+-                          : 'border-[#252528] bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
++                          ? 'border-[#405b6f] bg-[#405b6f]/12 text-[#35414e]'
++                          : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:border-[#dce3ec] hover:text-[#35414e]',
+-                        ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
+-                        : 'border-[#252528] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
++                        ? 'border-[#405b6f] bg-[#405b6f]/12 text-[#35414e]'
++                        : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:border-[#dce3ec] hover:text-[#35414e]',
+-                    <span className="mt-0.5 block text-[8px] font-normal leading-tight text-white/38">
++                    <span className="mt-0.5 block text-[8px] font-normal leading-tight text-[#8192a8]">
+-            </div>
++            </details>
+-              <div className="flex flex-col gap-4">
+-                <div className="order-1">
+-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
+-                    Font
+-                  </Label>
+-                  {usePhoneStrips ? (
+-                    <div className="-mx-0.5 flex max-w-full gap-2.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
+-                      {allFontOptions.map((font) => (
+-                        <button
+-                          key={font}
+-                          type="button"
+-                          onClick={() => updateSelected({ fontFamily: font })}
+-                          className={cn(
+-                            'flex min-h-11 min-w-0 shrink-0 snap-start items-center rounded-xl border px-3.5 py-2.5 text-[11px] transition',
+-                            selected.fontFamily === font
+-                              ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
+-                              : 'border-[#252528] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
+-                          )}
+-                          style={{ fontFamily: font }}
+-                        >
+-                          {font.startsWith('Custom ') ? font.split('-')[0]?.trim() ?? font : font}
+-                        </button>
+-                      ))}
+-                    </div>
+-                  ) : (
+-                  <div className="grid grid-cols-2 gap-2">
+-                    {allFontOptions.map((font) => (
+-                      <button
+-                        key={font}
+-                        type="button"
+-                        onClick={() => updateSelected({ fontFamily: font })}
+-                        className={cn(
+-                          'h-9 rounded-xl border px-2 text-[10px] transition',
+-                          selected.fontFamily === font
+-                            ? 'border-[#FF3B30] bg-[#FF3B30]/12 text-white'
+-                            : 'border-[#252528] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
+-                        )}
+-                        style={{ fontFamily: font }}
+-                      >
+-                        {font.startsWith('Custom ') ? font.split('-')[0]?.trim() ?? font : font}
+-                      </button>
+-                    ))}
+-                  </div>
+-                  )}
+-                </div>
+-
++              <div className="print-text-properties flex flex-col gap-4">
++                <label className="print-text-content">Text<textarea aria-label="Edit text content" value={selected.content} onChange={event=>updateSelected({content:event.target.value})} rows={3}/></label>
++                <div className="order-1"><label className="print-font-label">Font<select aria-label="Text font" value={selected.fontFamily ?? 'Inter'} onChange={event=>updateSelected({fontFamily:event.target.value})}>{allFontOptions.map(font=><option key={font} value={font}>{font}</option>)}</select></label></div>
+-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                          'flex h-9 min-w-[2.5rem] flex-1 items-center justify-center rounded-xl border text-white/70 transition-colors',
++                          'flex h-9 min-w-[2.5rem] flex-1 items-center justify-center rounded-xl border text-[#8192a8] transition-colors',
+-                            ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white'
+-                            : 'border-[#252528] bg-black/25 hover:border-white/20 hover:text-white',
++                            ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
++                            : 'border-[#dce3ec] bg-[#f6f8f9] hover:border-[#dce3ec] hover:text-[#35414e]',
+-                        'h-9 rounded-lg border px-1.5 text-[10px] font-semibold text-white/75',
+-                        active ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-[#252528] bg-black/25',
++                        'h-9 rounded-lg border px-1.5 text-[10px] font-semibold text-[#8192a8]',
++                        active ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9]',
+-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                          'min-h-9 rounded-lg border px-1 text-[9px] font-medium text-white/70',
++                          'min-h-9 rounded-lg border px-1 text-[9px] font-medium text-[#8192a8]',
+-                            ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white'
+-                            : 'border-[#252528] bg-black/25',
++                            ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]'
++                            : 'border-[#dce3ec] bg-[#f6f8f9]',
+-                        <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">Outline colour</span>
++                        <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#8192a8]">Outline colour</span>
+-                      selected.verticalText ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-[#252528] bg-black/25 text-white/70',
++                      selected.verticalText ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]',
+-                          active ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white' : 'border-[#252528] bg-black/25 text-white/70',
++                          active ? 'border-[#405b6f] bg-[#405b6f]/15 text-[#35414e]' : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8]',
+-                <div className="order-last space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
+-                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.14em] text-white/45">
++                <div className="order-last space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
++                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                    className="h-2 w-full cursor-pointer accent-[#FF3B30]"
++                    className="h-2 w-full cursor-pointer accent-[#405b6f]"
+-                  <label className="flex flex-col gap-1 text-[9px] uppercase text-white/40">
++                  <label className="flex flex-col gap-1 text-[9px] uppercase text-[#8192a8]">
+-                      className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
++                      className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+-                    <label className="flex flex-col gap-1 text-[9px] uppercase text-white/40">
++                    <label className="flex flex-col gap-1 text-[9px] uppercase text-[#8192a8]">
+-                        className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
++                        className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+-                    <label className="flex flex-col gap-1 text-[9px] uppercase text-white/40">
++                    <label className="flex flex-col gap-1 text-[9px] uppercase text-[#8192a8]">
+-                        className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
++                        className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+-                      'h-9 flex-1 border-white/18 bg-white/[0.04] px-2 text-[10px] !text-white hover:bg-white/10',
+-                      selected.fontStyle === 'italic' && 'border-[#FF3B30] bg-[#FF3B30]/12',
++                      'h-9 flex-1 border-[#dce3ec] bg-[#eef2f5] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]',
++                      selected.fontStyle === 'italic' && 'border-[#405b6f] bg-[#405b6f]/12',
+-                    className="h-9 flex-1 border-white/18 bg-white/[0.04] px-2 text-[10px] !text-white hover:bg-white/10"
++                    className="h-9 flex-1 border-[#dce3ec] bg-[#eef2f5] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                    <Label className="mb-0 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++                    <Label className="mb-0 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                    <span className="text-[10px] tabular-nums text-white/45">
++                    <span className="text-[10px] tabular-nums text-[#8192a8]">
+-                    className="h-2 w-full cursor-pointer accent-[#FF3B30]"
++                    className="h-2 w-full cursor-pointer accent-[#405b6f]"
+-                <div className="order-10 space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
++                <div className="order-10 space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+-                    <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++                    <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                      className="h-9 w-full rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] text-white"
++                      className="h-9 w-full rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] text-[#35414e]"
+-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-                <div className="order-8 space-y-3 rounded-xl border border-[#252528] bg-black/20 p-3">
++                <div className="order-8 space-y-3 rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+-                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Text shadow</span>
++                    <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Text shadow</span>
+-                      className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
++                      className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                  <label className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-white/45">
++                  <label className="flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wider text-[#8192a8]">
+-                      className="h-8 rounded-lg border border-[#252528] bg-[#111] px-2 text-[10px] normal-case text-white"
++                      className="h-8 rounded-lg border border-[#dce3ec] bg-white px-2 text-[10px] normal-case text-[#35414e]"
+-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
++              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-[#8192a8]">
+-              <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-3">
+-                <div className="mb-2 flex justify-between text-[10px] tabular-nums text-white/55">
++              <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] px-3 py-3">
++                <div className="mb-2 flex justify-between text-[10px] tabular-nums text-[#8192a8]">
+-                  <span className="font-semibold text-white/80">{rotNorm}°</span>
++                  <span className="font-semibold text-[#8192a8]">{rotNorm}°</span>
+-              <div className="space-y-3 border-y border-[#252528] py-3">
++              <div className="space-y-3 border-y border-[#dce3ec] py-3">
+-                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Image adjustments</span>
++                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Image adjustments</span>
+-                    className="flex h-8 shrink-0 items-center gap-1 text-[10px] text-white/65 hover:text-white">
++                    className="flex h-8 shrink-0 items-center gap-1 text-[10px] text-[#8192a8] hover:text-[#35414e]">
+-            <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
++            <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+-                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">Border</span>
++                <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">Border</span>
+-                  className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
++                  className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">Colour</span>
++                <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#8192a8]">Colour</span>
+-            {!selected.patternTarget ? <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
++            {!selected.patternTarget ? <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+-                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
++                <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">
+-                      ? 'border-[#FF3B30]/60 bg-[#FF3B30]/15 text-white'
+-                      : 'border-white/15 bg-black/30 text-white/70 hover:text-white',
++                      ? 'border-[#405b6f]/60 bg-[#405b6f]/15 text-[#35414e]'
++                      : 'border-[#dce3ec] bg-[#f6f8f9] text-[#8192a8] hover:text-[#35414e]',
+-            </div> : <p className="text-[10px] text-white/50">This fill follows its garment section. Use the Patterns controls to change the repeat without moving its boundary.</p>}
++            </div> : <p className="text-[10px] text-[#8192a8]">This fill follows its garment section. Use the Patterns controls to change the repeat without moving its boundary.</p>}
+-              <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
++              <div className="rounded-xl border border-[#dce3ec] bg-[#f6f8f9] p-3">
+-                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
++                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#8192a8]">
+-                    className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
++                    className="h-7 border-[#dce3ec] px-2 text-[9px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
++                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-[#8192a8]">
+-                className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
++                className="h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
++                className="h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
++                className="h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+-                className="col-span-2 h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
++                className="col-span-2 h-9 border-[#dce3ec] px-2 text-[10px] !text-[#35414e] hover:bg-[#eef2f5]"
+-              <div className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/25 px-3 py-2.5 text-[10px] text-white/55">
+-                <Move className="h-3.5 w-3.5 shrink-0 text-white/45" />
++              <div className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#dce3ec] bg-[#f6f8f9] px-3 py-2.5 text-[10px] text-[#8192a8]">
++                <Move className="h-3.5 w-3.5 shrink-0 text-[#8192a8]" />
+-        </PrintPanel>
++        </PrintPanel>}</details></div>
+-      <PrintPanel title={`Layers (${sideElements.length})`}>
+-        <div className="mb-3 space-y-2">
++      {!renderTools&&<PrintPanel title={`Layers (${sideElements.length})`}>
++        <details className="print-layer-actions" open={mergeIds.length > 1}><summary>Group & merge layers</summary>        <div className="mb-3 space-y-2">
+-          <p className="text-[10px] text-white/50">Check layers or Shift-click their names, then Group to transform together. Grouping retains editable sources.</p>
+-          {mergeIds.length > 1 && groupIssue ? <p className="text-[10px] text-white/50">{groupIssue}</p> : null}
+-          {selected?.type === 'group' ? <div className="space-y-2 rounded border border-white/10 p-2">
+-            <p className="text-[10px] text-white/50">{ungroupIssue ?? 'Resized, flipped, cropped, distorted or warped children retain editable transform envelopes when ungrouped.'}</p>
+-            {(selected.children ?? []).map((child, index) => <label key={child.id} className="block text-[10px] text-white/60">
++          <p className="text-[10px] text-[#8192a8]">Check layers or Shift-click their names, then Group to transform together. Grouping retains editable sources.</p>
++          {mergeIds.length > 1 && groupIssue ? <p className="text-[10px] text-[#8192a8]">{groupIssue}</p> : null}
++          {selected?.type === 'group' ? <div className="space-y-2 rounded border border-[#dce3ec] p-2">
++            <p className="text-[10px] text-[#8192a8]">{ungroupIssue ?? 'Resized, flipped, cropped, distorted or warped children retain editable transform envelopes when ungrouped.'}</p>
++            {(selected.children ?? []).map((child, index) => <label key={child.id} className="block text-[10px] text-[#8192a8]">
+-          <p className="text-[10px] text-white/50">{mergeIssue ?? 'Appearance is flattened; Undo restores the original layers.'}</p>
++          <p className="text-[10px] text-[#8192a8]">{mergeIssue ?? 'Appearance is flattened; Undo restores the original layers.'}</p>
++        </details>
+-            <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">
++            <div className="rounded-lg border border-dashed border-[#dce3ec] px-3 py-4 text-center text-[11px] leading-relaxed text-[#8192a8]">
+-                      ? 'drag-list-floating border-white/30'
++                      ? 'drag-list-floating border-[#dce3ec]'
+-                        ? 'border-[#FF3B30] bg-[#FF3B30]/10'
+-                        : 'border-[#252528] bg-black/25 hover:border-white/18',
++                        ? 'border-[#405b6f] bg-[#405b6f]/10'
++                        : 'border-[#dce3ec] bg-[#f6f8f9] hover:border-[#dce3ec]',
+-                    className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
++                    className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-[#8192a8] hover:bg-[#eef2f5] hover:text-[#8192a8] active:cursor-grabbing"
+-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/12 bg-white/[0.06] text-white/55">
+-                      {element.type === 'image' ? (
+-                        <ImageIcon className="h-3.5 w-3.5" />
+-                      ) : element.type === 'customArea' ? (
+-                        <PenTool className="h-3.5 w-3.5" />
+-                      ) : element.type === 'drawing' || element.type === 'distress' ? (
+-                        <Brush className="h-3.5 w-3.5" />
+-                      ) : (
+-                        <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+-                      )}
++                    <div className="print-layer-thumbnail">
++                      {element.type === 'image' || (element.type === 'drawing' && element.content.startsWith('data:')) ? <img src={element.content} alt=""/> : element.type === 'text' ? <span style={{fontFamily:element.fontFamily,fontWeight:element.fontWeight}}>{element.content.slice(0,18)}</span> : element.type === 'shape' || element.type === 'pattern' || element.type === 'distress' ? <StudioGraphic element={{...element,color:element.color??'#40
+-                      <div className="truncate text-[11px] font-medium text-white">
++                      <div className="truncate text-[11px] font-medium text-[#35414e]">
+-                      <div className="truncate text-[9.5px] text-white/40">
++                      <div className="truncate text-[9.5px] text-[#8192a8]">
+-                            <span className="text-white/55">
++                            <span className="text-[#8192a8]">
+-                        {Math.round(element.x)}, {Math.round(element.y)} ·{' '}
+-                        {Math.round(element.rotation)}°
++                        {element.type === 'image' ? 'Artwork' : element.type.charAt(0).toUpperCase()+element.type.slice(1)} · {garmentSide === 'front' ? 'Front' : 'Back'}
+-                    className="flex shrink-0 items-center justify-center border-l border-[#252528] px-2 text-white/50 hover:text-white"
++                    className="flex shrink-0 items-center justify-center border-l border-[#dce3ec] px-2 text-[#8192a8] hover:text-[#35414e]"
+-                    className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#252528] px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
++                    className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#dce3ec] px-2 text-[#8192a8] transition hover:bg-[#eef2f5] hover:text-[#405b6f]"
+-      </PrintPanel>
++      </PrintPanel>}
++  canvasToolbar = true,
+-    showInlineToolbar && selectedElement && !selectedElement.patternTarget,
++    canvasToolbar && showInlineToolbar && selectedElement && !selectedElement.patternTarget,
+-            <p className="pointer-events-none absolute inset-x-0 top-0 z-50 px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">
++            <p className="pointer-events-none absolute inset-x-0 top-0 z-50 px-2 pb-1.5 text-center text-[10px] leading-tight text-[#8192a8]">
+-          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-white/35" style={{ backgroundColor: '#ededed', backgroundImage: 'conic-gradient(#cfcfcf 25%, transparent 0 50%, #cfcfcf 0 75%, transparent 0)', backgroundSize: '24px 24px', boxShadow: '0 8px 32px #0008' }} /> : (
++          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#dce3ec]" style={{ backgroundColor: '#ededed', backgroundImage: 'conic-gradient(#cfcfcf 25%, transparent 0 50%, #cfcfcf 0 75%, transparent 0)', backgroundSize: '24px 24px', boxShadow: '0 8px 32px #0008' }} /> : (
+-              {part ? <div className="absolute inset-0 bg-[#FF3B30]/40" style={{ maskImage: `url("${part.url}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat' }} /> : null}
++              {part ? <div className="absolute inset-0 bg-[#405b6f]/40" style={{ maskImage: `url("${part.url}")`, maskSize: '100% 100%', maskRepeat: 'no-repeat' }} /> : null}
+-                <path d={customAreaTransformedPath(area)} fill="rgba(255,59,48,0.35)" stroke="#FF3B30" strokeWidth="2" />
++                <path d={customAreaTransformedPath(area)} fill="rgba(255,59,48,0.35)" stroke="#405b6f" strokeWidth="2" />
+-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/85 px-3 py-1 text-xs text-white" role="status">Fill {part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
++              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#f6f8f9] px-3 py-1 text-xs text-[#35414e]" role="status">Fill {part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
+-            className="pointer-events-auto absolute bottom-2 left-1/2 z-50 -translate-x-1/2 rounded bg-zinc-950 px-3 py-2 text-xs text-white"
++            className="pointer-events-auto absolute bottom-2 left-1/2 z-50 -translate-x-1/2 rounded bg-zinc-950 px-3 py-2 text-xs text-[#35414e]"
+-              {customAreaDraft.length > 0 ? <polyline points={[...customAreaDraft, ...(customAreaCursor ? [customAreaCursor] : [])].map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#CC2D24" strokeWidth={2} strokeDasharray="5 4" /> : null}
++              {customAreaDraft.length > 0 ? <polyline points={[...customAreaDraft, ...(customAreaCursor ? [customAreaCursor] : [])].map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#405b6f" strokeWidth={2} strokeDasharray="5 4" /> : null}
+-                  fill={close ? '#CC2D24' : '#FFFFFF'} stroke="#09090B" strokeWidth={2} />;
++                  fill={close ? '#405b6f' : '#FFFFFF'} stroke="#09090B" strokeWidth={2} />;
+-            <div className="pointer-events-none absolute bottom-2 left-1/2 z-[20] -translate-x-1/2 rounded-full border border-white/10 bg-black/70 px-3 py-1 text-[10px] font-medium tracking-wide text-white/80 backdrop-blur-md">
++            <div className="pointer-events-none absolute bottom-2 left-1/2 z-[20] -translate-x-1/2 rounded-full border border-[#dce3ec] bg-[#f6f8f9] px-3 py-1 text-[10px] font-medium tracking-wide text-[#8192a8] backdrop-blur-md">
+-                    className="pointer-events-auto z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#FF3B30] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
++                    className="pointer-events-auto z-40 block w-full resize-none overflow-hidden whitespace-pre-wrap break-words rounded-[3px] bg-transparent px-[3px] py-0 font-semibold caret-[#405b6f] [overflow-wrap:anywhere] focus:outline-none focus:ring-0"
+-                  <div className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#CC2D24]/50 bg-black/80 text-[#CC2D24]">
++                  <div className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#405b6f]/50 bg-[#f6f8f9] text-[#405b6f]">
+-    <div className="inline-flex items-center overflow-hidden rounded-xl border border-white/15 bg-white/5">
++    <div className="inline-flex items-center overflow-hidden rounded-xl border border-[#dce3ec] bg-[#eef2f5]">
+-        className="flex h-9 w-9 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white"
++        className="flex h-9 w-9 items-center justify-center text-[#8192a8] transition hover:bg-[#eef2f5] hover:text-[#35414e]"
+-      <div className="min-w-[52px] text-center text-sm font-semibold text-white">{value}</div>
++      <div className="min-w-[52px] text-center text-sm font-semibold text-[#35414e]">{value}</div>
+-        className="flex h-9 w-9 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white"
++        className="flex h-9 w-9 items-center justify-center text-[#8192a8] transition hover:bg-[#eef2f5] hover:text-[#35414e]"

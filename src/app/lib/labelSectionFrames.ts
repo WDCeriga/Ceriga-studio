@@ -1,0 +1,7 @@
+import type{GarmentLabel,LabelBlock,LabelDesignSection}from'../data/garmentLabels';
+type Box={x:number;y:number;width:number;height:number};
+const padding=(value:number|undefined,w:number,h:number)=>Math.max(0,Math.min(Number.isFinite(value)?value!:0,(w-.1)/2,(h-.1)/2));
+export function labelBlockFrame(label:GarmentLabel,block:LabelBlock):Partial<Box>|undefined{const parent=label.designSections?.find(s=>s.id===block.sectionId&&!s.text);if(parent){const p=padding(block.paddingMm,parent.width,parent.height);return{x:parent.x+p,y:parent.y+p,width:parent.width-2*p,height:parent.height-2*p}}if(block.fullWidth){const p=Math.max(0,Math.min(block.paddingMm??0,(label.widthMm-.1)/2));return{...block.frameMm,x:p,width:label.widthMm-2*p}}return block.frameMm}
+export function resolvedLabelSections(label:GarmentLabel):LabelDesignSection[]{return(label.designSections??[]).map(section=>{const parent=label.designSections?.find(s=>s.id===section.sectionId&&!s.text&&s.id!==section.id);if(!parent)return section;const p=padding(section.paddingMm,parent.width,parent.height);return{...section,x:parent.x+p,y:parent.y+p,width:parent.width-2*p,height:parent.height-2*p}})}
+
+export function removeLabelSection(label:GarmentLabel,id:string):GarmentLabel{return{...label,blocks:label.blocks?.map(block=>block.sectionId===id?{...block,sectionId:undefined,fullWidth:false,frameMm:labelBlockFrame(label,block) as Box}:block),designSections:resolvedLabelSections(label).filter(s=>s.id!==id).map(s=>s.sectionId===id?{...s,sectionId:undefined}:s)}}
