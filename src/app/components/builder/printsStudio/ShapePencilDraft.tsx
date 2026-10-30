@@ -1,0 +1,20 @@
+import {useEffect,useRef,useState,type PointerEvent as ReactPointerEvent} from 'react';
+import {createPortal} from 'react-dom';
+import {usePenControlsHost} from './usePenControlsHost';
+import {frameGesture} from '../../../lib/frameGesture';
+import {cleanSketchCurve} from '../../../lib/cleanSketchCurves';
+import {mapShapePath} from '../../../lib/artworkPathOperations';
+import type {ShapePath} from '../../../lib/shapeGeometry';
+type Point={x:number;y:number};
+/** Sample at device rate, preview at display rate, and store only fitted cubic curves. */
+export function ShapePencilDraft({width,height,onComplete,onCancel}:{width:number;height:number;onComplete:(path:ShapePath)=>void;onCancel:()=>void}){
+ const host=usePenControlsHost(),svg=useRef<SVGSVGElement>(null),ink=useRef<SVGPathElement>(null),underlay=useRef<SVGPathElement>(null),points=useRef<Point[]>([]),pointer=useRef<number|null>(null),matrix=useRef<DOMMatrix|null>(null),[smoothing,setSmoothing]=useState(55),latest=useRef({smoothing,onComplete,onCancel});latest.current={smoothing,onComplete,onCancel};
+ const paint=()=>{const d=points.current.map((p,i)=>`${i?'L':'M'}${p.x} ${p.y}`).join(' ');ink.current?.setAttribute('d',d);underlay.current?.setAttribute('d',d);};
+ const queue=useRef<ReturnType<typeof frameGesture<number>>|null>(null);if(!queue.current)queue.current=frameGesture(paint);
+ useEffect(()=>{const key=(event:KeyboardEvent)=>{if((event.target as Element)?.closest('input,textarea,select'))return;if(event.key==='Escape'){event.preventDefault();event.stopImmediatePropagation();latest.current.onCancel();}};window.addEventListener('keydown',key,true);return()=>{queue.current?.cancel();window.removeEventListener('keydown',key,true);};},[]);
+ const append=(event:{clientX:number;clientY:number})=>{if(!matrix.current)return;const p=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.current),last=points.current.at(-1);if(!last||Math.hypot(p.x-last.x,p.y-last.y)>.2)points.current.push({x:p.x,y:p.y});};
+ const start=(event:ReactPointerEvent<SVGSVGElement>)=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();matrix.current=svg.current?.getScreenCTM()?.inverse()??null;points.current=[];pointer.current=event.pointerId;append(event);event.currentTarget.setPointerCapture(event.pointerId);queue.current?.push(0);};
+ const move=(event:ReactPointerEvent<SVGSVGElement>)=>{if(pointer.current!==event.pointerId)return;const samples=event.nativeEvent.getCoalescedEvents?.();for(const sample of samples?.length?samples:[event])append(sample);queue.current?.push(0);};
+ const end=(event:ReactPointerEvent<SVGSVGElement>)=>{if(pointer.current!==event.pointerId)return;append(event);queue.current?.flush();pointer.current=null;if(points.current.length<2)return;const path=cleanSketchCurve(points.current,false,100-latest.current.smoothing,width,height);if(path.nodes.length>=2)latest.current.onComplete(mapShapePath(path,p=>({x:p.x*width/100,y:p.y*height/100})));};
+ return <div data-editor-chrome data-shape-pencil className="absolute inset-0 z-[60]" style={{touchAction:'none'}}>{host&&createPortal(<div className="pencil-precision-controls"><label>Curve smoothing<span>{smoothing}%</span><input aria-label="Pencil curve smoothing" type="range" min="0" max="100" value={smoothing} onChange={event=>setSmoothing(Number(event.target.value))}/></label><small>Draw freely. The result stays an editable vector path.</small></div>,host)}<svg ref={svg} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-label="Vector pencil canvas" style={{cursor:'crosshair'}} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{queue.current?.cancel();pointer.current=null;points.current=[];paint();}}><path ref={underlay} fill="none" stroke="white" strokeWidth="3" vectorEffect="non-scaling-stroke" pointerEvents="none"/><path ref={ink} fill="none" stroke="#404040" strokeWidth="1" vectorEffect="non-scaling-stroke" pointerEvents="none"/></svg></div>;
+}

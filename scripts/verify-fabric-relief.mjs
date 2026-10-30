@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+import {pathToFileURL} from 'node:url';
+const out='node_modules/.cache/fabric-relief-regression.mjs';
+await build({stdin:{contents:"export {drawingMaskCss} from './src/app/components/builder/printsStudio/useGarmentDrawingMask';",resolveDir:process.cwd()},outfile:out,bundle:true,platform:'node',format:'esm',logLevel:'silent'});
+const {drawingMaskCss}=await import(pathToFileURL(process.cwd()+'/'+out));
+const texture={url:'data:image/png;base64,AA==',width:800,height:700,axis:400};
+const svg=decodeURIComponent(drawingMaskCss(texture,200,250,300,350,37,true).slice(5,-2).split(',').slice(1).join(','));
+assert(svg.includes('rotate(-37)'));assert(svg.includes('viewBox="0 0 200 250"'));
+assert(svg.includes('in2="SourceAlpha" operator="in"'));
+const matrix=svg.match(/values="([^"]+)"/)[1].split(/\s+/).map(Number);
+function shade(rgb,coverage){const input=[...rgb.map(v=>v/255),coverage,1],output=Array.from({length:4},(_,row)=>Math.max(0,Math.min(1,input.reduce((sum,v,i)=>sum+v*matrix[row*5+i],0))));return [...output.slice(0,3).map(v=>Math.round(v*255)),Math.round(output[3]*coverage*255)];}
+assert.deepEqual(shade([255,255,255],1),[0,0,0,0]);
+assert.deepEqual(shade([0,0,0],1),[0,0,0,255]);
+assert.deepEqual(shade([128,128,128],1),[0,0,0,127]);
+assert.deepEqual(shade([0,0,0],.5),[0,0,0,128]);
+assert.deepEqual(shade([80,140,210],0),[0,0,0,0]);
+const original=decodeURIComponent(drawingMaskCss(texture,200,250,300,350,37).slice(5,-2));
+assert(!original.includes('feColorMatrix'),'Garment coverage masks must not be converted to shading.');
+console.log('Fabric relief: neutral white becomes transparent; grey/black retain only black shading and original coverage; garment masks remain unchanged.');

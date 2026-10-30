@@ -1,3 +1,4 @@
+import {physicalRepeatScale} from '../../../lib/patternPhysical';
 import { useContext,useId } from 'react';
 import {GarmentPatternReliefContext} from './GarmentPrintTexture';
 import type { DesignElement } from '../PrintStudioEditor';
@@ -48,11 +49,11 @@ function GeneratedPaint({ value, id }: { value: string; id: string }) {
   </pattern>;
 }
 
-function patternPlacement(element: PatternGraphicProps['element'], angle: number) {
+function patternPlacement(element: PatternGraphicProps['element'], angle: number,tile:{width:number;height:number}) {
   // Continuous sections share the garment coordinate origin, so neighbouring parts line up.
   const shiftX = (element.patternOffsetX ?? 0) - (element.patternAlignment === 'continuous' ? (element.x ?? 0)-element.width/2 : 0);
   const shiftY = (element.patternOffsetY ?? 0) - (element.patternAlignment === 'continuous' ? (element.y ?? 0)-element.height/2 : 0);
-  return `translate(${shiftX} ${shiftY}) rotate(${angle})`;
+  const scale=physicalRepeatScale(element,tile);return `translate(${shiftX} ${shiftY}) rotate(${angle}) scale(${scale.x} ${scale.y})`;
 }
 
 function GeneratedPatternGraphic({ element, bounds,fabricPreview }: PatternGraphicProps) {
@@ -70,7 +71,7 @@ function GeneratedPatternGraphic({ element, bounds,fabricPreview }: PatternGraph
         {motif.primitives.map((primitive, index) => <GeneratedPrimitive key={index} primitive={primitive} colors={colors} />)}
       </g>)}
       <pattern id={`generated-repeat-${id}`} width={tileWidth} height={tileHeight}
-        patternUnits="userSpaceOnUse" patternTransform={patternPlacement(element, geometry.angle)}>
+        patternUnits="userSpaceOnUse" patternTransform={patternPlacement(element, geometry.angle,{width:tileWidth,height:tileHeight})}>
         {geometry.background !== undefined && <rect width={tileWidth} height={tileHeight} fill={colors[geometry.background]} />}
         {geometry.replicas.map((replica, index) => {
           const motif = geometry.motifs[replica.motif];
@@ -95,7 +96,7 @@ function LegacyPatternGraphic({ element, bounds,fabricPreview }: PatternGraphicP
     <defs dangerouslySetInnerHTML={{ __html: paint.defs }} />
     <defs>
       <pattern id={`repeat-${id}`} width={tileSize} height={tileSize} patternUnits="userSpaceOnUse"
-        patternTransform={patternPlacement(element, angle)}>
+        patternTransform={patternPlacement(element, angle,{width:tileSize,height:tileSize})}>
         {geometry.rectangles.map((rect, index) => <rect key={index} {...rect} fill="white" />)}
         {geometry.dots.map((dot, index) => <circle key={index} cx={dot.x} cy={dot.y} r={dot.radius} fill="white" />)}
       </pattern>

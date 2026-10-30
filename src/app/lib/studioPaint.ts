@@ -42,19 +42,15 @@ export function canvasPaint(context: CanvasRenderingContext2D, value: string, wi
   return gradient;
 }
 
-const rasterCache = new Map<string, string>();
+const vectorPaintCache = new Map<string, string>();
 export function paintDataUrl(value: string, width = 256, height = 256): string {
   const key = `${width}:${height}:${value}`;
-  const existing = rasterCache.get(key);
+  const existing = vectorPaintCache.get(key);
   if (existing) return existing;
-  const canvas = document.createElement('canvas');
-  canvas.width = width; canvas.height = height;
-  const context = canvas.getContext('2d')!;
-  context.fillStyle = canvasPaint(context, value, width, height);
-  context.fillRect(0, 0, width, height);
-  const result = canvas.toDataURL();
-  if (rasterCache.size >= 64) rasterCache.delete(rasterCache.keys().next().value!);
-  rasterCache.set(key, result);
+  const paint=svgPaint(value,'paint-source',width,height);
+  const result='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${paint.defs}</defs><rect width="${width}" height="${height}" fill="${paint.color}"/></svg>`);
+  if (vectorPaintCache.size >= 64) vectorPaintCache.delete(vectorPaintCache.keys().next().value!);
+  vectorPaintCache.set(key, result);
   return result;
 }
 
@@ -73,8 +69,13 @@ export function svgPaint(value: string, id: string, width: number, height: numbe
     const radius = Math.hypot(Math.max(paint.x, 1 - paint.x) * width, Math.max(paint.y, 1 - paint.y) * height);
     definition = `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${paint.x * width}" cy="${paint.y * height}" r="${radius}">${stops}</radialGradient>`;
   } else {
-    const data = paintDataUrl(value, 512, Math.max(1, Math.round(512 * height / width)));
-    definition = `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${width}" height="${height}"><image href="${data}" width="${width}" height="${height}" preserveAspectRatio="none"/></pattern>`;
+    definition = `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${width}" height="${height}">${conicPaintMarkup(paint,width,height)}</pattern>`;
   }
   return { color: `url(#${id})`, defs: definition };
+}
+/** Angular colour wedges stay geometric at every zoom, rather than a fixed 512px bitmap. */
+export function conicPaintMarkup(paint:GradientPaint,width:number,height:number){
+ const stops=[...paint.stops].sort((a,b)=>a.offset-b.offset),cx=paint.x*width,cy=paint.y*height,r=Math.hypot(width,height)*2;
+ const color=(t:number)=>{const b=stops.find(s=>s.offset>=t)??stops.at(-1)!,a=[...stops].reverse().find(s=>s.offset<=t)??stops[0];const f=a.offset===b.offset?0:(t-a.offset)/(b.offset-a.offset);return '#'+[1,3,5].map(i=>Math.round(parseInt(a.color.slice(i,i+2),16)*(1-f)+parseInt(b.color.slice(i,i+2),16)*f).toString(16).padStart(2,'0')).join('')};
+ return Array.from({length:720},(_,i)=>{const a=(paint.angle-90+i*.5)*Math.PI/180,b=a+.501*Math.PI/180;return `<path d="M${cx},${cy}L${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}A${r},${r} 0 0 1 ${cx+r*Math.cos(b)},${cy+r*Math.sin(b)}Z" fill="${color((i+.5)/720)}"/>`}).join('');
 }

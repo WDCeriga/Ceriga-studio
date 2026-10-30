@@ -1,0 +1,122 @@
+/* Artwork studio: a quiet canvas, compact properties and focused asset navigation. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"]{--studio-rule:#e9e9e7;--studio-muted:#777974}
+.ceriga-builder-shell[data-asset-editing=true] .builder-sidebar{background:#fcfcfb}
+.asset-navigation-heading{padding:28px 24px 22px;border-bottom:1px solid #ececea}
+.asset-navigation-heading>span{display:block;font-size:9px;font-weight:500;letter-spacing:.16em;color:#8a8c87;margin-bottom:9px}
+.asset-navigation-heading>strong{font-size:17px;font-weight:550;letter-spacing:-.3px;color:#272924}
+.builder-sidebar[data-asset-navigation=true] .builder-context{padding-top:14px;margin-top:0;border-top:0;flex:1;overflow:auto;scrollbar-width:none}
+.builder-sidebar[data-asset-navigation=true] .builder-context>h2[hidden]{display:none}
+.builder-sidebar[data-asset-navigation=true] .print-family-navigation>button{min-height:44px;margin-bottom:4px;border-radius:7px;color:#64665f;font-size:12px}
+.builder-sidebar[data-asset-navigation=true] .print-family-navigation>button.is-selected{background:#ededeb;color:#242620;font-weight:500}
+.builder-sidebar[data-asset-navigation=true] .builder-sidebar-footer{border-top:1px solid #ececea;padding-top:16px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-header{border-bottom:1px solid #e6e7e3;background:#fff}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-topline{min-height:78px;padding:15px 24px;gap:20px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-identity{border-left:1px solid #e9e9e5;padding-left:20px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-identity>span{font-size:8px;letter-spacing:.17em;color:#91938b}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-identity>input{font-size:15px;letter-spacing:-.2px;font-weight:500}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-header .asset-save-primary{border-radius:7px;min-height:38px;padding:8px 18px;font-size:12px}
+.ceriga-builder-shell[data-asset-editing=true] .print-garment-stage{background:#f8f7f4}
+.ceriga-builder-shell[data-asset-editing=true] [data-print-design-zone]{box-shadow:0 1px 5px #20251c09;outline:1px solid #20251c06}
+.ceriga-builder-shell[data-asset-editing=true] .asset-canvas-size>summary{border-radius:6px;background:#ffffffef;box-shadow:0 1px 6px #20251c08;font-size:11px;padding:9px 12px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-size-panel{border-radius:10px;border:1px solid #e6e7e3;box-shadow:0 12px 36px #20251c14;padding:20px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-header{padding:24px 22px 20px;border-bottom:1px solid var(--studio-rule)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-header h2{font-size:20px;font-weight:550;letter-spacing:-.5px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main{padding-inline:22px;scrollbar-width:none}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold{margin:0;border:0;border-bottom:1px solid var(--studio-rule);border-radius:0;background:transparent}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold>summary{min-height:44px;padding:13px 0;gap:10px;font-size:12px;font-weight:500;line-height:1.4;color:#373a33}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold>summary small{display:block;font-size:10px;font-weight:400;color:#73796c;margin-top:4px;line-height:1.4}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold>div{padding:4px 0 18px;display:flex;flex-direction:column;gap:15px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold .studio-fold>summary{min-height:40px;font-size:11px;padding:10px 0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold>summary .studio-paint-swatch{flex:none;width:22px;height:22px;border-radius:5px;box-shadow:inset 0 0 0 1px #00000012;border:3px solid white;outline:1px solid #e5e6e1}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold>summary>label{margin-left:auto;display:flex}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-number,.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-field,.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-switch{font-size:11px;color:#66695f;line-height:1.5}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] :is(.studio-number input,.studio-field>input,.studio-field>textarea,.material-select-trigger){border-radius:6px;background:#fafbf8;border-color:#e5e7e0;min-height:34px;font-size:12px;color:#30342a;box-shadow:none}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] :is(input,textarea,button):focus-visible{outline:2px solid #909887;outline-offset:3px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-switch input{accent-color:#343b2d;width:14px;height:14px;flex:none}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-range{padding:0;margin:2px 0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-range-heading{margin-bottom:9px;font-size:11px;color:#72766c}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] :is(.studio-outline-action,.shape-path-action){min-height:34px;border:1px solid #e2e5dc;border-radius:6px;background:#fff;color:#444a3c;font-size:11px;box-shadow:none}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] :is(.studio-outline-action,.shape-path-action):hover{background:#f6f7f3;border-color:#ccd2c3}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-solid-action{border-radius:6px;min-height:38px;font-size:12px;font-weight:500;background:#2b3026;color:white}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .pen-inspector-controls{padding:18px 0;margin:0 0 16px;border:0;border-bottom:1px solid var(--studio-rule);background:transparent;box-shadow:none;border-radius:0;gap:12px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .pen-controls-heading{font-size:12px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .pen-controls-heading>span{font-size:10px;color:#969a8d}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .pen-controls-hint{font-size:11px;line-height:1.65;color:#717868;margin:0 0 4px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .pen-mode-actions{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:0;background:transparent;border:0;border-radius:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .pen-mode-actions>button{display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:9px 8px;min-height:36px;border:0;background:transparent;color:#69725e;border-radius:5px;font-size:11px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .pen-mode-actions>button[aria-pressed=true]{background:#eef1e8;color:#303a25;box-shadow:none}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .path-workflow-help{font-size:10px;line-height:1.65;color:#737b68;margin:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .shape-object-summary{padding:8px 0 16px;gap:12px}
+.logo-piece-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 0 14px;border-bottom:1px solid #eceee7}
+.logo-piece-heading button{font-size:11px;border:0;background:transparent;color:#555e4b;padding:0}
+.logo-piece-heading span{font-size:9px;color:#9a9e92}
+.logo-piece-name{display:none}
+.logo-piece-actions{display:flex;gap:6px;padding:14px 0}
+.logo-piece-actions button{flex:1;border:1px solid #e4e8dd;border-radius:6px;background:#fff;color:#626b55;font-size:10px;min-height:32px;padding:7px 9px}
+.logo-piece-actions button:hover{background:#f1f4ec}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] [data-logo-selection] rect,.ceriga-builder-shell[data-section="Artwork & Graphics"] [data-logo-selection] ellipse{stroke:#69745d}
+@media(max-width:767px){.asset-navigation-heading{padding:18px 12px}.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-topline{padding:12px;min-height:65px;gap:10px}.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-save>[role=status]{display:none}.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main{padding-inline:16px}}
+@media(prefers-reduced-motion:reduce){.ceriga-builder-shell[data-section="Artwork & Graphics"] *{scroll-behavior:auto!important}}
+
+/* Keep the asset command bar compact, with most of the space reserved for art. */
+.ceriga-builder-shell[data-asset-editing=true][data-nav-collapsed=false]{--builder-nav-width:190px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-topline{min-height:54px;padding:8px 18px;gap:14px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-identity{padding-left:14px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-identity>span{font-size:8px;margin-bottom:1px;letter-spacing:.13em}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-identity>input{font-size:13px;padding:2px 0}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-header .asset-save-primary{min-height:32px;padding:6px 14px;font-size:11px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-workspace-save>[role=status]{font-size:9px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-navigation-heading{padding:18px 20px 16px}
+.ceriga-builder-shell[data-asset-editing=true] .asset-navigation-heading>strong{font-size:15px}
+.ceriga-builder-shell[data-asset-editing=true] .studio-inspector-header{padding:18px 20px 16px}
+.ceriga-builder-shell[data-asset-editing=true] .studio-inspector-header h2{font-size:18px}
+.ceriga-builder-shell[data-asset-editing=true] .studio-inspector-header p{font-size:11px;line-height:1.6}
+.logo-piece-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+
+.ceriga-builder-shell[data-asset-editing=true] .print-garment-stage{cursor:grab}
+.ceriga-builder-shell[data-asset-editing=true] [data-asset-artboard]{cursor:default}
+.ceriga-builder-shell .print-design-canvas[data-drag-pan] .print-garment-stage,.ceriga-builder-shell .print-design-canvas[data-drag-pan] .print-garment-stage *{cursor:grabbing!important}
+
+.ceriga-builder-shell[data-asset-editing=true] .print-design-canvas[data-asset-workspace=true],.ceriga-builder-shell[data-asset-editing=true] .print-garment-stage{background:#f8f7f4}
+
+/* One shared gutter: nested editor wrappers must not add a second left inset. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main{padding-left:0;padding-right:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main>.print-imported-editor{padding-left:0;padding-right:0;margin-left:0;margin-right:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main :is([data-print-panel="library"],[data-print-selection-content],[data-pen-controls-host]){padding-left:0;padding-right:0;margin-left:0;margin-right:0}
+
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-header{padding-left:0;padding-right:0}
+/* No coloured backdrop around the asset artboard. */
+.ceriga-builder-shell[data-asset-editing=true] :is(.builder-workspace,.print-design-canvas[data-asset-workspace=true],.print-garment-stage){background:#fff;background-image:none}
+
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-fold>summary>.trace-region-visibility{width:auto;min-width:0;max-width:none;flex:0 0 auto;padding:0;margin-left:auto;min-height:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .trace-region-visibility input{margin:0;width:14px;height:14px}
+
+.ceriga-builder-shell[data-asset-editing=true] :is([data-asset-artboard-background],[data-print-design-zone]){box-shadow:none;outline:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup>div{display:flex;flex-direction:column;gap:10px;padding-block:8px 4px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup .shape-path-action{padding:9px 12px;min-height:36px;line-height:1.4}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup .curve-cleanup-primary{display:flex;align-items:center;gap:9px;text-align:left;background:#eef1e8;border-color:transparent;color:#343e2d}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup-choices>button{width:100%;text-align:center;background:#fafbf8}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup .curve-cleanup-arc{display:flex;align-items:center;gap:9px;border:0;background:transparent;text-align:left}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup button:disabled{opacity:.45;cursor:default}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .curve-cleanup button>svg{flex:none;stroke-width:1.6}
+
+/* Selected artwork: a compact property header with an explicit return action. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-inspector-header{padding:14px 0;min-height:62px;column-gap:12px;align-items:center}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-inspector-header>.studio-back{display:inline-flex;align-items:center;justify-content:center;gap:5px;width:auto;min-width:62px;height:34px;padding:6px 8px;margin-left:-8px;border:0;border-radius:6px;background:transparent;color:#73766e;font-size:11px;font-weight:450;line-height:1}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-back:hover{background:#f1f3ed;color:#30372a}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-back>svg{width:15px;height:15px;stroke-width:1.7;flex:none}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-inspector-header>h2{font-size:18px;font-weight:550;line-height:1.35;letter-spacing:-.35px;margin:0;padding-left:13px;border-left:1px solid #e6e8e1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-inspector-main{padding-top:6px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-fold{margin:0;padding-top:0;border-top:0;border-bottom:1px solid var(--studio-rule)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-fold>summary{min-height:48px;padding:12px 0;font-size:12px;line-height:1.45;gap:12px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-fold>summary small{font-size:11px;line-height:1.45;margin-top:3px;color:#7a7e73}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-fold>summary>svg{width:14px;height:14px;color:#818777;flex:none}
+@media(max-width:767px){.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-inspector-header{padding:9px 0;min-height:58px}.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-inspector-header>.studio-back{min-height:40px}}
+
+/* Property sections stay single-line; the controls carry their own labels. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] :is(.studio-fold,.studio-effects-panel,.studio-deep-controls)>summary small{display:none}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2[data-mode=edit] .studio-fold>summary{min-height:44px;padding:11px 0}
+
+/* Match the Construction inspector's roughly 56px section rhythm. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-v2:is([data-mode=edit],[data-mode=create]) :is(.studio-fold,.studio-deep-controls)>summary{min-height:56px;padding:16px 0;box-sizing:border-box}

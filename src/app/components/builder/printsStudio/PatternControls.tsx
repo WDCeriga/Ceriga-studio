@@ -29,10 +29,11 @@ function PatternSlider({ label, ariaLabel = label, value, min, max, step = 1, su
   </label>;
 }
 
-export function PatternControls({ element, onChange }: {
+export function PatternControls({ element, onChange:write }: {
   element: DesignElement;
   onChange: (patch: Partial<DesignElement>) => void;
 }) {
+  const onChange=(patch:Partial<DesignElement>)=>write({...patch,...(('patternScale'in patch||'patternCount'in patch)?{patternTileCm:undefined}:{})});
   const metrics = patternMetrics(element);
   const definition = patternDefinition(metrics.kind);
   const legacy = ['stripes', 'stripes-h', 'checks', 'diagonal', 'dots'].includes(metrics.kind);

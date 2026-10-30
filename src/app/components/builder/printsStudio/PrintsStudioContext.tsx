@@ -1,3 +1,4 @@
+import type {DesignElement} from '../PrintStudioEditor';
 import {
   createContext,
   useCallback,
@@ -14,7 +15,7 @@ import { BRUSH_PRESETS, DEFAULT_BRUSH_SETTINGS, type BrushSettings, type BrushPr
 import { DEFAULT_DISTRESS_SCATTER, type DistressScatterSettings } from '../../../lib/distressScatter';
 import type { LayerRenderer } from '../../../lib/mergeDesignLayers';
 
-export type PrintsStudioTool = 'select' | 'brush' | 'eraser' | 'distress' | 'distressEraser' | 'customArea' | 'customAreaEdit' | 'customAreaAddPoint' | 'shapePolygon';
+export type PrintsStudioTool = 'select' | 'brush' | 'eraser' | 'distress' | 'distressEraser' | 'customArea' | 'customAreaEdit' | 'customAreaAddPoint' | 'shapePolygon' | 'shapePencil'|'shapeLive'|'textPlace'|'textTracking';
 export type DistressBrushType = 'holes' | 'abrasion' | 'rips';
 
 export interface CustomAreaPointSelection {
@@ -23,7 +24,7 @@ export interface CustomAreaPointSelection {
   indices?: number[];
 }
 
-export type PrintsStudioPanel = 'brush' | 'shapes' | 'upload' | 'text' | 'patterns' | 'distress';
+export type PrintsStudioPanel = 'placements'|'library'|'brush' | 'shapes' | 'upload' | 'text' | 'patterns' | 'distress';
 
 export interface PencilSettings {
   pencilOnly: boolean;
@@ -58,7 +59,7 @@ const DEFAULT_STATE: PrintsStudioState = {
   drawingSession: 0,
   distressSession: 0,
   tool: 'select',
-  panel: 'brush',
+  panel: 'placements',
   panelRequest: 0,
   color: '#171717',
   brushSize: 14,
@@ -93,6 +94,29 @@ interface PrintsStudioContextValue extends PrintsStudioState {
   setDistortEditingId: (id: string | null) => void;
   warpEditingId: string | null;
   setWarpEditingId: (id: string | null) => void;
+  liveShape:'rect'|'ellipse'|'polygon'|'star'|'line';
+  setLiveShape:(kind:'rect'|'ellipse'|'polygon'|'star'|'line')=>void;
+  textSelection:{id:string;start:number;end:number}|null;
+  setTextSelection:(selection:{id:string;start:number;end:number}|null)=>void;
+  printArea:{x:number;y:number;width:number;height:number};
+  setPrintArea:(area:{x:number;y:number;width:number;height:number})=>void;
+  unitsPerCm:number;
+  setUnitsPerCm:(value:number)=>void;
+  booleanPreview:DesignElement[];
+  setBooleanPreview:(elements:DesignElement[])=>void;
+  selectionAdditive: boolean;
+  setSelectionAdditive: (enabled: boolean) => void;
+  selectionIds: string[];
+  setSelectionIds: (ids: string[] | ((previous: string[]) => string[])) => void;
+  penTargetId: string | null;
+  setPenTargetId: (id: string | null) => void;
+  penOperation: 'subtract' | 'join' | 'continue';
+  setPenOperation: (operation: 'subtract' | 'join' | 'continue') => void;
+  outlineRequest:{id:string;serial:number}|null;requestOutline:(id:string)=>void;
+  logoRegionEditing:{rootId:string;regionId:string}|null;setLogoRegionEditing:(value:{rootId:string;regionId:string}|null)=>void;
+  penCurvature:boolean;setPenCurvature:(value:boolean|((previous:boolean)=>boolean))=>void;
+  referenceTask:{id:string;mode:'calibrate'|'region';distance:number;tolerance:number}|null;setReferenceTask:(task:{id:string;mode:'calibrate'|'region';distance:number;tolerance:number}|null)=>void;
+  adjustLettersId:string|null;setAdjustLettersId:(id:string|null)=>void;
   pathEditingId: string | null;
   setPathEditingId: (id: string | null) => void;
   setTool: (tool: PrintsStudioTool) => void;
@@ -128,7 +152,22 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
   const [textEditRequest, setTextEditRequest] = useState<string | null>(null);
   const [distortEditingId, setDistortEditingId] = useState<string | null>(null);
   const [warpEditingId, setWarpEditingId] = useState<string | null>(null);
-  const [pathEditingId, setPathEditingId] = useState<string | null>(null);
+  const [outlineRequest,setOutlineRequest]=useState<{id:string;serial:number}|null>(null);const requestOutline=useCallback((id:string)=>setOutlineRequest(value=>({id,serial:(value?.serial??0)+1})),[]);
+  const [logoRegionEditing,setLogoRegionEditing]=useState<{rootId:string;regionId:string}|null>(null);
+  const [penCurvature,setPenCurvature]=useState(false);
+  const [referenceTask,setReferenceTask]=useState<{id:string;mode:'calibrate'|'region';distance:number;tolerance:number}|null>(null);
+  const [adjustLettersId,setAdjustLettersId]=useState<string|null>(null);
+  const [pathEditingId,setPathEditingId]=useState<string|null>(null);
+  const [selectionAdditive,setSelectionAdditive] = useState(false);
+  const [liveShape,setLiveShape]=useState<'rect'|'ellipse'|'polygon'|'star'|'line'>('rect');
+  const [textSelection,setTextSelection]=useState<{id:string;start:number;end:number}|null>(null);
+  const [printArea,setPrintArea]=useState({x:0,y:0,width:800,height:700});
+  const [unitsPerCm,setUnitsPerCm]=useState(10);
+  const [booleanPreview,setBooleanPreview]=useState<DesignElement[]>([]);
+  const [selectionIds, setSelectionIds] = useState<string[]>([]);
+  useEffect(()=>setBooleanPreview([]),[state.tool,selectionIds.join('|')]);
+  const [penTargetId, setPenTargetId] = useState<string | null>(null);
+  const [penOperation, setPenOperation] = useState<'subtract' | 'join' | 'continue'>('subtract');
   useEffect(() => {
     if (state.tool !== 'select' || cropEditingId || warpEditingId || distortEditingId) setPathEditingId(null);
   }, [state.tool, cropEditingId, warpEditingId, distortEditingId]);
@@ -223,8 +262,8 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
       setDistortEditingId,
       warpEditingId,
       setWarpEditingId,
-      pathEditingId,
-      setPathEditingId,
+      outlineRequest,requestOutline,logoRegionEditing,setLogoRegionEditing,penCurvature,setPenCurvature,referenceTask,setReferenceTask,adjustLettersId,setAdjustLettersId,pathEditingId,
+      setPathEditingId,printArea,setPrintArea,textSelection,setTextSelection,liveShape,setLiveShape,unitsPerCm,setUnitsPerCm, booleanPreview,setBooleanPreview,selectionAdditive, setSelectionAdditive, selectionIds, setSelectionIds, penTargetId, setPenTargetId, penOperation, setPenOperation,
       customAreaPointSelection,
       setCustomAreaPointSelection,
       drawing:
@@ -249,7 +288,7 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
       setDistressType,
       patchDistressScatter,
     }),
-    [state, textEditRequest, cropEditingId, distortEditingId, warpEditingId, pathEditingId, customAreaPointSelection, setCustomAreaPointSelection, setTool, setPanel, setColor, setBrushSize, setEraserSize, setOpacity, setPressure, setGrain, setStabilization, patchBrush, setBrushPreset, newDrawingLayer, newDistressLayer, patchPencil, setDistressType, patchDistressScatter],
+    [outlineRequest,logoRegionEditing,penCurvature,referenceTask,adjustLettersId,selectionAdditive,printArea,textSelection, liveShape,unitsPerCm,booleanPreview,selectionIds, penTargetId, penOperation, state, textEditRequest, cropEditingId, distortEditingId, warpEditingId, pathEditingId, customAreaPointSelection, setCustomAreaPointSelection, setTool, setPanel, setColor, setBrushSize, setEraserSize, setOpacity, setPressure, setGrain, setStabilization, patchBrush, setBrushPreset, newDrawingLayer, newDistressLayer, patchPencil, setDistressType, patchDistressScatter],
   );
 
   return <PrintsStudioContext.Provider value={value}>{children}</PrintsStudioContext.Provider>;
@@ -272,7 +311,8 @@ const IDLE: PrintsStudioContextValue = {
   setDistortEditingId: () => {},
   warpEditingId: null,
   setWarpEditingId: () => {},
-  pathEditingId: null,
+  printArea:{x:0,y:0,width:800,height:700},setPrintArea:()=>{},textSelection:null,setTextSelection:()=>{},liveShape:'rect',setLiveShape:()=>{},unitsPerCm:10,setUnitsPerCm:()=>{},booleanPreview:[],setBooleanPreview:()=>{},selectionAdditive: false, setSelectionAdditive: () => {}, selectionIds: [], setSelectionIds: () => {}, penTargetId: null, setPenTargetId: () => {}, penOperation: 'subtract', setPenOperation: () => {},
+  outlineRequest:null,requestOutline:()=>{},logoRegionEditing:null,setLogoRegionEditing:()=>{},penCurvature:false,setPenCurvature:()=>{},referenceTask:null,setReferenceTask:()=>{},adjustLettersId:null,setAdjustLettersId:()=>{},pathEditingId: null,
   setPathEditingId: () => {},
   setTool: () => {},
   setPanel: () => {},

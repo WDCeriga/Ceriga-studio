@@ -1,3 +1,6 @@
+import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
+import {useArtworkDismissal} from './useArtworkDismissal';
+import './artwork-workspace-polish.css';
 import {BuilderTooltips} from './BuilderTooltips';
 import {PRINT_TOOL_GROUPS} from './PrintDesignStudio';
 import {usePrintsStudio} from '../printsStudio/PrintsStudioContext';
@@ -14,6 +17,7 @@ import './builder-shell.css';
 import './builder-harmony.css';
 import './builder-responsive.css';
 import './builder-canvas-first.css';
+import './artwork-usability.css';
 export const BUILDER_SECTIONS = ['Fit & Measurements', 'Materials & Colour', 'Construction', 'Artwork & Graphics', 'Labels & Branding', 'Packaging', 'Order & quantities'] as const;
 export type BuilderSection = typeof BUILDER_SECTIONS[number];
 export type MeasurementTool = 'Core measurements' | 'Advanced sizing' | 'Add custom measurement' | 'Import measurements' | 'Upload reference';
@@ -84,11 +88,11 @@ export function BuilderSidebar({
   constructionTool: string;
   onConstructionTool: (s: string) => void;
 }) {
-  const workflow=useStudioWorkflow();
- return <aside className="builder-sidebar" data-collapsed={collapsed}><button className="builder-collapse" aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!collapsed} onClick={onCollapse}>{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button><nav aria-label="Builder sections">{BUILDER_SECTIONS.map((s, i) => {
+  const workflow=useStudioWorkflow(),assetEditing=Boolean(useAssetWorkspaceContext()?.project);
+ return <aside className="builder-sidebar" data-asset-navigation={assetEditing} data-collapsed={collapsed}><button className="builder-collapse" aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!collapsed} onClick={onCollapse}>{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button>{assetEditing?<div className="asset-navigation-heading"><span>ARTWORK STUDIO</span><strong>Design tools</strong></div>:<nav aria-label="Builder sections">{BUILDER_SECTIONS.map((s, i) => {
         const Icon = icons[i];
         return <button key={s} className={section === s ? 'is-selected' : ''} onClick={() => onSection(s)} aria-current={section === s ? 'page' : undefined} title={s}><Icon size={21} /><span>{s}</span>{section === s && <i className="builder-status-dot" />}</button>;
-      })}</nav><div className="builder-context"><h2>{section === 'Materials & Colour'?'Material tools':section === 'Construction' ? 'Construction tools' : section === 'Fit & Measurements' ? 'Measurement tools' : 'Section tools'}</h2>{section === 'Fit & Measurements' ? MEASUREMENT_TOOLS.map((s, i) => {
+      })}</nav>}<div className="builder-context"><h2 hidden={assetEditing}>{section === 'Materials & Colour'?'Material tools':section === 'Construction' ? 'Construction tools' : section === 'Fit & Measurements' ? 'Measurement tools' : section==='Artwork & Graphics'?'Artwork tools':'Section tools'}</h2>{section === 'Fit & Measurements' ? MEASUREMENT_TOOLS.map((s, i) => {
         const Icon = [Ruler, TableProperties, CirclePlus, FileUp][i];
         return <button key={s} className={tool === s ? 'is-selected' : ''} onClick={() => onTool(s)} title={s}><Icon size={20} /><span>{s}</span></button>;
       }) : section==='Materials & Colour'?MATERIAL_TOOLS.map((s,i)=><button key={s} className={materialTool===s?'is-selected':''} onClick={()=>onMaterialTool?.(s)} title={s}>{(()=>{const Icon=[Palette,Shirt,Grid2X2,BookOpen,Blend][i];return <Icon size={20}/>})()}<span>{s}</span></button>):section === 'Construction' ? construction.map((s,index) => {return <button key={s} className={constructionTool === s ? 'is-selected' : ''} onClick={() => onConstructionTool(s)} title={s}><ConstructionToolIcon index={index}/><span>{s}</span></button>}) : section==='Artwork & Graphics'?<PrintDesignNavigation/> : (section==='Labels & Branding'||section==='Packaging'||section==='Artwork & Graphics')?(section==='Labels & Branding'?LABEL_TOOLS:PACKAGING_TOOLS).map((name,i)=><button key={name} className={workflow.tool===name?'is-selected':''} onClick={()=>workflow.setTool(name)}>{(()=>{const Icon=[Tag,PenLine,Settings,ScanLine][i];return <Icon size={20}/>})()}<span>{name}</span></button>): <p>{section==='Order & quantities'?'Select a run, adjust your size curve and continue to delivery.':'More tools will appear here.'}</p>}</div><div className="builder-sidebar-footer"><button onClick={() => onTool('Upload reference')} title="Upload reference"><Upload size={19} /><span>Upload reference</span></button><small>Reference / inspiration only</small></div></aside>;
@@ -156,6 +160,7 @@ export function BuilderShell({
 }) {
   const [viewportHeight,setViewportHeight]=useState(()=>window.visualViewport?.height??window.innerHeight);const [viewportTop,setViewportTop]=useState(0);
  useEffect(()=>{const update=()=>{setViewportHeight(window.visualViewport?.height??window.innerHeight);setViewportTop(window.visualViewport?.offsetTop??0)};window.addEventListener('resize',update);window.visualViewport?.addEventListener('resize',update);window.visualViewport?.addEventListener('scroll',update);return()=>{window.removeEventListener('resize',update);window.visualViewport?.removeEventListener('resize',update);window.visualViewport?.removeEventListener('scroll',update)}},[]);
+ const assetEditing=Boolean(useAssetWorkspaceContext()?.project);useArtworkDismissal(section==='Artwork & Graphics');
  const width=useBuilderWidth();const phone=width<768;const tablet=width>=768&&width<1200;
  const touchTablet=width>=768&&width<1440&&window.matchMedia('(pointer: coarse)').matches;
  useEffect(()=>{if(!phone)return;const oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=oldOverflow}},[phone]);
@@ -172,7 +177,8 @@ export function BuilderShell({
  // Canvas bounds respond through CSS containers; do not reset shared zoom on breakpoint changes.
   const [desktopInspectorWidth,setDesktopInspectorWidth]=useState(()=>{try{const saved=Number(sessionStorage.getItem('ceriga-inspector-width'));return saved>=300&&saved<=480?saved:340}catch{return 340}});
   const [tabletInspectorWidth,setTabletInspectorWidth]=useState(()=>{try{const saved=Number(sessionStorage.getItem('ceriga-tablet-inspector-width'));return saved>=280&&saved<=430?saved:320}catch{return 320}});
-  const inspectorWidth=tablet?tabletInspectorWidth:desktopInspectorWidth;const setInspectorWidth=tablet?setTabletInspectorWidth:setDesktopInspectorWidth;
+  const [assetInspectorWidth,setAssetInspectorWidth]=useState(360);
+  const inspectorWidth=assetEditing?assetInspectorWidth:tablet?tabletInspectorWidth:desktopInspectorWidth;const setInspectorWidth=assetEditing?setAssetInspectorWidth:tablet?setTabletInspectorWidth:setDesktopInspectorWidth;
   useEffect(()=>{try{sessionStorage.setItem('ceriga-inspector-width',String(desktopInspectorWidth));sessionStorage.setItem('ceriga-tablet-inspector-width',String(tabletInspectorWidth))}catch{}},[desktopInspectorWidth,tabletInspectorWidth]);
   const [inspectorCollapsed,setInspectorCollapsed]=useState(tablet||touchTablet);
  useEffect(()=>{setInspectorCollapsed(tablet||touchTablet)},[tablet,touchTablet]);
@@ -190,7 +196,7 @@ export function BuilderShell({
  const artworkStudio=usePrintsStudio();
  const mobileTools=section==='Artwork & Graphics'?<MobileToolTabs label="Artwork tools" items={PRINT_TOOL_GROUPS.map(t=>({id:t.id,label:t.label}))} value={artworkStudio.panel} onChange={id=>{artworkStudio.setPanel(id as typeof artworkStudio.panel);openInspector('half')}}/>:section==='Materials & Colour'?<MobileToolTabs label="Material tools" items={MATERIAL_TOOLS.map(t=>({id:t,label:t}))} value={materialTool??MATERIAL_TOOLS[0]} onChange={id=>{onMaterialTool?.(id as MaterialTool);setInspectorSnap('half')}}/>:section==='Construction'?<MobileToolTabs label="Construction tools" items={construction.map(t=>({id:t,label:t}))} value={constructionTool} onChange={id=>{onConstructionTool(id);setInspectorSnap('half')}}/>:section==='Fit & Measurements'?<MobileToolTabs label="Measurement tools" items={MEASUREMENT_TOOLS.map(t=>({id:t,label:t}))} value={tool} onChange={id=>{onTool(id as MeasurementTool);setInspectorSnap('half')}}/>:null;
  const responsiveValue=useMemo(()=>({detailMode,setDetailMode,detailAddRequest,onDetailAddHandled:()=>setDetailAddRequest(0),size,setSize,panel,setPanel,canvasFocus:phone&&canvasFocus,inspectorSnap,setInspectorSnap:openInspector,openSections:()=>setPanel('sections')}),[size,panel,inspectorSnap,detailAddRequest,detailMode,phone,tablet,touchTablet,canvasFocus]);
- return <StudioWorkflowContext.Provider value={{tool:workflowTool,setTool:name=>{setWorkflowTool(name);if(name!=='Design')setWorkflowSelection(null);openInspector('half')},selection:workflowSelection,setSelection:setWorkflowSelection,controlsHost,setControlsHost}}><MobileSectionToolsContext.Provider value={mobileTools}><ResponsiveBuilderContext.Provider value={responsiveValue}><div className="ceriga-builder-shell" style={{'--builder-viewport-top':`${viewportTop}px`,'--builder-viewport-height':`${viewportHeight}px`,'--builder-inspector-width':`${inspectorCollapsed?40:effectiveWidth}px`,'--phone-inspector-height':`${canvasFocus||panel||reviewOpen?0:sheetSnapHeight(inspectorSnap,viewportHeight,true)}px`} as CSSProperties} data-canvas-focus={phone&&canvasFocus} data-inspector-collapsed={inspectorCollapsed} data-resizing={resizing} data-section={section} data-construction-tool={section==='Construction'?constructionTool:undefined} data-size-compare={Boolean(sizeComparison?.enabled)} data-tool={tool} data-phone-snap={inspectorSnap} data-nav-collapsed={collapsed||tablet&&(!tabletExpanded||width<1000)}><BuilderTooltips/>{topbar}<div className="builder-shell-grid"><BuilderSidebar {...{
+ return <StudioWorkflowContext.Provider value={{tool:workflowTool,setTool:name=>{setWorkflowTool(name);if(name!=='Design')setWorkflowSelection(null);openInspector('half')},selection:workflowSelection,setSelection:setWorkflowSelection,controlsHost,setControlsHost}}><MobileSectionToolsContext.Provider value={mobileTools}><ResponsiveBuilderContext.Provider value={responsiveValue}><div className="ceriga-builder-shell" data-asset-editing={assetEditing} style={{'--builder-viewport-top':`${viewportTop}px`,'--builder-viewport-height':`${viewportHeight}px`,'--builder-inspector-width':`${inspectorCollapsed?40:effectiveWidth}px`,'--phone-inspector-height':`${canvasFocus||panel||reviewOpen?0:sheetSnapHeight(inspectorSnap,viewportHeight,true)}px`} as CSSProperties} data-canvas-focus={phone&&canvasFocus} data-inspector-collapsed={inspectorCollapsed} data-resizing={resizing} data-section={section} data-construction-tool={section==='Construction'?constructionTool:undefined} data-size-compare={Boolean(sizeComparison?.enabled)} data-tool={tool} data-phone-snap={inspectorSnap} data-nav-collapsed={collapsed||tablet&&(!tabletExpanded||width<1000)}><BuilderTooltips/>{!assetEditing&&topbar}<div className="builder-shell-grid"><BuilderSidebar {...{
         section,materialTool,onMaterialTool,
         onSection:(next:BuilderSection)=>{onSection(next)},
         tool,

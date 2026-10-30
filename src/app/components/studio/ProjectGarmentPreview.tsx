@@ -1,3 +1,4 @@
+import {resolveStudioArtwork} from '../../lib/studioArtwork';
 import { StudioArtworkPreview } from '../builder/StudioArtworkPreview';
 import type { DesignElement as StudioDesignElement } from '../builder/PrintStudioEditor';
 import { useEffect, useMemo, useState } from 'react';
@@ -32,6 +33,8 @@ import { cn } from '../ui/utils';
 /** Subset of builder state needed to render a draft/dashboard preview. */
 export type ProjectPreviewState = {
   studioArtwork?: StudioDesignElement[];
+  artworkPlacements?:import('../../lib/artworkPlacements').ArtworkPlacements;
+  artworkSlotOverrides?:import('../../lib/artworkColourSlots').ArtworkSlotOverrides;
   garmentLabels?: GarmentLabel[];
   measurements?: Record<string, Record<string, string>>;
   garmentWash?: GarmentWash;
@@ -150,7 +153,7 @@ export function ProjectGarmentPreview({
         )}
         aria-hidden
       >
-        <StudioArtworkPreview elements={preview.studioArtwork??[]} view={view} garment={<TshirtSvgPreview
+        <StudioArtworkPreview elements={resolveStudioArtwork(preview).filter(element=>!element.sketchOnly)} view={view} garment={<TshirtSvgPreview
           garmentLabels={preview.garmentLabels}
           labelReferenceWidthMm={Number(preview.measurements?.chestWidth?.m) * 10 || undefined}
           garmentWash={preview.garmentWash}
@@ -189,7 +192,7 @@ export function ProjectGarmentPreview({
         )}
         aria-hidden
       >
-        <StudioArtworkPreview elements={preview.studioArtwork??[]} view={view} garment={<BuilderGarmentPreview
+        <StudioArtworkPreview elements={resolveStudioArtwork(preview).filter(element=>!element.sketchOnly)} view={view} garment={<BuilderGarmentPreview
           fabricAssignments={preview.fabricAssignments}
           garmentType={type}
           color={color}

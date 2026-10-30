@@ -111,7 +111,10 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
   return mask;
 }
 
-export function drawingMaskCss(mask: GarmentDrawingMask, width: number, height: number, x: number, y: number, rotation: number) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><image href="${mask.url}" width="${mask.width}" height="${mask.height}" transform="translate(${width / 2} ${height / 2}) rotate(${-rotation}) translate(${-x} ${-y})"/></svg>`;
+export function drawingMaskCss(mask: GarmentDrawingMask, width: number, height: number, x: number, y: number, rotation: number, shadingOnly = false) {
+  // White is neutral fabric relief, not white ink. Convert neutral pixels to
+  // transparency before compositing inside an isolated/masked artwork layer.
+  const shading = shadingOnly ? '<defs><filter id="relief-shade" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -.2126 -.7152 -.0722 0 1" result="shade"/><feComposite in="shade" in2="SourceAlpha" operator="in"/></filter></defs>' : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${shading}<image ${shadingOnly ? 'filter="url(#relief-shade)"' : ''} href="${mask.url}" width="${mask.width}" height="${mask.height}" transform="translate(${width / 2} ${height / 2}) rotate(${-rotation}) translate(${-x} ${-y})"/></svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }

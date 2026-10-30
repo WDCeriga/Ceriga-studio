@@ -29,6 +29,8 @@ export const LABEL_BLOCKS = { brand: 'Brand / logo', size: 'Size', careText: 'Ca
 export type LabelBlockKey = keyof typeof LABEL_BLOCKS;
 export const LABEL_HIERARCHIES = { 'brand-first': 'Brand first', 'size-first': 'Size first', 'large-size-top': 'Large size top', 'large-size-bottom': 'Large size bottom', inline: 'Brand + inline size', split: 'Split' } as const;
 export interface LabelBlock {
+  textStyle?:import('../lib/textStyles').SavedTextStyle;
+  letterSpacingMm?:number;lineSpacing?:number;fontStyle?:'normal'|'italic';
   key: LabelBlockKey;
   enabled: boolean;
   alignment: 'left' | 'center' | 'right';

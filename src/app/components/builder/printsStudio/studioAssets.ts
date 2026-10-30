@@ -1,3 +1,4 @@
+export const ARTWORK_UPLOAD_DRAG_MIME='application/x-ceriga-upload';
 import { PATTERN_CATALOG } from '../../../lib/patternCatalog';
 import { shapeIsClosed, type ShapeGeometryElement } from '../../../lib/shapeGeometry';
 import { patternAppearance, type PatternPatch } from '../../../lib/patternEditing';

@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
 type TouchGesture = { count: number; x: number; y: number; distance: number; zoom: number; pan: { x: number; y: number } };
-export function resolveCanvasTouchTransform(gesture: TouchGesture, point: { x: number; y: number }, distance: number, bounds: { width: number; height: number }) {
-  const zoom = gesture.count === 2 && gesture.distance > 8 ? Math.min(200, Math.max(50, Math.round(gesture.zoom * distance / gesture.distance))) : gesture.zoom;
+export function resolveCanvasTouchTransform(gesture: TouchGesture, point: { x: number; y: number }, distance: number, bounds: { width: number; height: number }, limits={min:50,max:200}) {
+  const zoom = gesture.count === 2 && gesture.distance > 8 ? Math.min(limits.max, Math.max(limits.min, gesture.zoom * distance / gesture.distance)) : gesture.zoom;
   const ratio = zoom / gesture.zoom;
   return { zoom, pan: { x: Math.max(-bounds.width, Math.min(bounds.width, point.x - (gesture.x - gesture.pan.x) * ratio)), y: Math.max(-bounds.height, Math.min(bounds.height, point.y - (gesture.y - gesture.pan.y) * ratio)) } };
 }
 
 /** View-mode gestures never change artwork; animation frames keep touch movement smooth. */
-export function useCanvasTouchNavigation(surface: RefObject<HTMLDivElement>, enabled: boolean, zoom: number, onZoom: (value: number) => void) {
+export function useCanvasTouchNavigation(surface: RefObject<HTMLDivElement>, enabled: boolean, zoom: number, onZoom: (value: number) => void, limits={min:50,max:200}) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const current = useRef({ pan, zoom, onZoom });
-  current.current = { pan, zoom, onZoom };
+  const current = useRef({ pan, zoom, onZoom, limits });
+  current.current = { pan, zoom, onZoom, limits };
   useEffect(() => {
     const node = surface.current;
     if (!node || !enabled) return;
@@ -34,7 +34,7 @@ export function useCanvasTouchNavigation(surface: RefObject<HTMLDivElement>, ena
       event.preventDefault();
       const point = center(event.touches);
       const distance = event.touches.length === 2 ? Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY) : 0;
-      pending = resolveCanvasTouchTransform(gesture, point, distance, node.getBoundingClientRect());
+      pending = resolveCanvasTouchTransform(gesture, point, distance, node.getBoundingClientRect(), current.current.limits);
       if (frame === undefined) frame = requestAnimationFrame(flush);
     };
     const end = (event: TouchEvent) => { if (frame !== undefined) { cancelAnimationFrame(frame); flush(); } start(event); };
@@ -44,5 +44,5 @@ export function useCanvasTouchNavigation(surface: RefObject<HTMLDivElement>, ena
     node.addEventListener('touchcancel', end);
     return () => { node.removeEventListener('touchstart', start); node.removeEventListener('touchmove', move); node.removeEventListener('touchend', end); node.removeEventListener('touchcancel', end); if (frame !== undefined) cancelAnimationFrame(frame); };
   }, [enabled, surface]);
-  return { pan, reset: () => setPan({ x: 0, y: 0 }) };
+  return { pan, setPan, reset: () => setPan({ x: 0, y: 0 }) };
 }

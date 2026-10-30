@@ -1,3 +1,4 @@
+import {groupDesignLayers} from './designGroups';
 import { toCanvas } from 'html-to-image';
 import { waitForImageFilters } from './imageFilterRendering';
 import { artworkEffectPadding } from './textEffectRendering';
@@ -8,7 +9,7 @@ export type FlattenedArtwork = Pick<DesignElement, 'content' | 'x' | 'y' | 'widt
 export type LayerRenderer = (ids: string[]) => Promise<FlattenedArtwork>;
 
 export function canMergeLayer(element: DesignElement) {
-  return !element.locked && !element.hidden && !element.customAreaOpen
+  return !element.locked && !element.hidden && !element.customAreaOpen && !element.patternTarget
     && element.id !== 'print-drawing-layer' && element.id !== 'print-distress-layer'
     && ['image', 'text', 'drawing', 'shape', 'pattern', 'customArea', 'group'].includes(element.type);
 }
@@ -35,13 +36,8 @@ export function mergeLayersIssue(elements: DesignElement[], ids: string[]) {
 export function replaceMergedLayers(elements: DesignElement[], ids: string[], artwork: FlattenedArtwork, id: string): DesignElement[] {
   const issue = mergeLayersIssue(elements, ids);
   if (issue) throw new Error(issue);
-  const first = elements.find(element => ids.includes(element.id))!;
-  const merged: DesignElement = {
-    ...artwork, id, type: 'image', layerName: 'Merged layers', rotation: 0,
-    opacity: 100, side: first.side ?? 'front', printMethod: first.printMethod,
-    aspectLocked: true,
-  };
-  return elements.flatMap(element => element.id === first.id ? [merged] : ids.includes(element.id) ? [] : [element]);
+  // Keep native child sources. A merge must never bake vectors into a fixed-size PNG.
+  return groupDesignLayers(elements,ids,id).map(element=>element.id===id?{...element,layerName:'Merged layers'}:element);
 }
 
 export async function flattenDesignLayers(zone: HTMLElement, elements: DesignElement[], ids: string[]): Promise<FlattenedArtwork> {

@@ -1,3 +1,4 @@
+import {STUDIO_MAIN_COLORS} from '../../data/studioColorPresets';
 import './shell/studio-colour-picker.css';
 import { useEffect, useRef, useState, type ReactNode, type PointerEventHandler } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
@@ -11,10 +12,10 @@ function clamp255(n: number) {
   return Math.max(0, Math.min(255, Math.round(n)));
 }
 
-export function PaintInput({ value, onChange, className, onPointerDown, allowGradients = false, ariaLabel = 'Open colour picker' }: {
-  value: string; onChange: (event: { target: { value: string } }) => void; className?: string; onPointerDown?: PointerEventHandler<HTMLButtonElement>; allowGradients?: boolean; ariaLabel?:string;
+export function PaintInput({ value, onChange, className, onPointerDown, allowGradients = false, colourLibrary=true,onReference,ariaLabel = 'Open colour picker' }: {
+  value: string; onChange: (event: { target: { value: string } }) => void; className?: string; onPointerDown?: PointerEventHandler<HTMLButtonElement>; allowGradients?: boolean;colourLibrary?:boolean;onReference?:(reference:string,hex?:string)=>void;ariaLabel?:string;
 }) {
-  return <AdvancedColorPopover value={value} allowGradients={allowGradients} onChange={color => onChange({ target: { value: color } })}>
+  return <AdvancedColorPopover colourLibrary={colourLibrary} onReference={onReference} value={value} allowGradients={allowGradients} onChange={color => onChange({ target: { value: color } })}>
     <button type="button" aria-label={ariaLabel} title="Colour" className={`studio-paint-trigger ${className??''}`} onPointerDown={onPointerDown} style={{ background: allowGradients ? paintCss(value) : solidPaint(value) }} />
   </AdvancedColorPopover>;
 }
@@ -94,12 +95,12 @@ export function AdvancedColorPopover({
   onChange,
   children,
   contentClassName,
-  allowGradients = false,
+  allowGradients = false,colourLibrary=true,onReference,
 }: {
   value: string;
   onChange: (hex: string) => void;
   children: ReactNode;
-  allowGradients?: boolean;
+  allowGradients?: boolean;colourLibrary?:boolean;onReference?:(reference:string,hex?:string)=>void;
   /** Optional class for the popover panel (e.g. width). */
   contentClassName?: string;
 }) {
@@ -206,8 +207,9 @@ export function AdvancedColorPopover({
           <div className="studio-gradient-values">{paint.kind!=='radial'&&<label><span>Angle</span><div><input aria-label="Gradient angle" type="number" min={0} max={360} value={paint.angle} onChange={event=>patchPaint({angle:Math.max(0,Math.min(360,Number(event.target.value)||0))})}/><small>°</small></div></label>}{paint.kind!=='linear'&&(['x','y'] as const).map(axis=><label key={axis}><span>Centre {axis.toUpperCase()}</span><div><input aria-label={`Gradient centre ${axis}`} type="number" min={0} max={100} value={Math.round(paint[axis]*100)} onChange={event=>patchPaint({[axis]:Math.max(0,Math.min(100,Number(event.target.value)||0))/100})}/><small>%</small></div></label>)}</div>
 
         </div>}
+        <div className="studio-artwork-swatches" role="group" aria-label="Artwork colours">{STUDIO_MAIN_COLORS.map(color=><button key={color} type="button" aria-label={`Choose ${color}`} aria-pressed={hex.toLowerCase()===color.toLowerCase()} style={{background:color}} onClick={()=>commitColor(color)}/>)}</div>
         <div className="relative touch-none">
-          <div
+        <div
             ref={svRef}
             role="presentation"
             className="studio-colour-spectrum"

@@ -1,0 +1,9 @@
+# Artwork rendering and zoom quality
+
+Native geometry is retained for garment outlines, seams, construction, generated repeats, vector shape profiles, lettering, new wear marks and distressed hems. Recorded drawings and refined brush vectors now replay the shared 41 brush media as SVG paths. Pressure, tilt, seed, scatter, symmetry, colour, material grain and blur stay part of the source. Grain masks use geometric runs with the original alpha values; identical texture definitions are shared within each drawing. Conic paints use angular vector geometry rather than a fixed 256/512px image.
+
+Nested groups also propagate the current zoom and group enlargement to image/effect samplers, rather than resetting their detail to 1x. Merging combines native children instead of baking a fixed 2x PNG. Regular erasing stores normalized geometric cut-outs for recorded drawings, vector wear and editable bounds shapes. The distress brush's erase mode stores a negative brush recording. Existing saved projects remain readable; old bitmaps are preserved when no geometric source exists.
+
+Photos, custom texture images, imported bitmap repeats, old flattened artwork and scanned fabric surfaces remain images. Image filters, image fills, mesh warp and advanced text/shape material effects retain their source and use the existing display-scale/DPR-aware rendering budget (8K edge / 16MP). These effects are not falsely advertised as editable vector paths. SVG blur also uses the browser's filter renderer rather than mathematical outlines. Raster previews do not replace an asset project's editable elements.
+
+Validation: verify-vector-quality covers all 41 media, finite deterministic SVG without embedded brush PNGs, editable merge children, negative-brush masks and SVG gradient resources. verify-artwork-resolution covers adaptive pixel sampling and warp stretch. Brush comparison fixture was used for side-by-side canvas/SVG visual parity.

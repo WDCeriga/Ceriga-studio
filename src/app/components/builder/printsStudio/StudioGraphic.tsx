@@ -1,3 +1,4 @@
+import {ShapeAppearanceArtwork} from './ShapeAppearanceArtwork';
 import {BrushVectorArtwork} from './BrushVectorArtwork';
 import {garmentWearMarks} from '../../../lib/wearEditing';
 import type {DistressMark,DistressMarkKind} from '../../../lib/distressScatter';
@@ -18,14 +19,15 @@ function strokeOf(el: DesignElement) {
 
 function scaledPath(path: ShapePath, width: number, height: number): ShapePath {
   const point = (p: { x: number; y: number }) => ({ x: p.x * width / 100, y: p.y * height / 100 });
-  return { closed: path.closed, nodes: path.nodes.map(n => ({ ...point(n), ...(n.in ? { in: point(n.in) } : {}), ...(n.out ? { out: point(n.out) } : {}) })), subpaths: path.subpaths?.map(part => scaledPath(part, width, height)) };
+  return { ...path,closed: path.closed, nodes: path.nodes.map(n => ({ ...point(n), ...(n.in ? { in: point(n.in) } : {}), ...(n.out ? { out: point(n.out) } : {}) })), subpaths: path.subpaths?.map(part => scaledPath(part, width, height)) };
 }
 
 function weightOf(el: DesignElement) {
-  return Math.max(0, el.borderWidth ?? 4);
+  return Math.max(0, el.borderWidth ?? (el.shapeFilled?0:4));
 }
 
 export function StudioGraphic({ element }: { element: DesignElement }) {
+  if(element.type==='shape'&&element.artworkAppearance)return <ShapeAppearanceArtwork element={element}/>;
   if(element.type==='shape'&&canFillShape(element)&&element.shapeEffects?.some(e=>e.id==='textile-ink'&&e.enabled!==false)){
     const filled={...element,borderWidth:0,shapeFilled:true};
     const outline={...element,shapeFilled:false,shapeEffects:element.shapeEffects.filter(e=>e.id!=='textile-ink')};
@@ -61,10 +63,13 @@ function StudioGraphicBase({ element }: { element: DesignElement }) {
     const path = scaledPath(shapeToEditablePath(element), width, height);
     return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={flip} aria-hidden>
       {definitions}
+      {element.shapeStrokeAlign==='inside'&&<defs><clipPath id={'stroke-inside-'+id}><path d={shapePathData(path)} fillRule={element.shapeFillRule??'evenodd'}/></clipPath></defs>}
+      {element.shapeStrokeAlign==='outside'&&<><defs><mask id={'stroke-outside-'+id} maskUnits="userSpaceOnUse" x={-sw*3} y={-sw*3} width={width+sw*6} height={height+sw*6}><rect x={-sw*3} y={-sw*3} width={width+sw*6} height={height+sw*6} fill="white"/><path d={shapePathData(path)} fill="black" fillRule={element.shapeFillRule??'evenodd'}/></mask></defs><path d={shapePathData(path)} fill={fill} fillRule={element.shapeFillRule??'evenodd'} stroke="none"/></>}
       {element.drawingVectorSource&&element.shapeFilled&&<path d={[path,...(path.subpaths??[])].filter(p=>p.closed).map(p=>shapePathData({...p,subpaths:undefined})).join(' ')} fill={fill} fillRule="evenodd" stroke="none"/>}
-      {element.shapeStrokeStyle==='double'&&sw>0&&<path d={shapePathData(path)} fill="none" stroke={element.shapeOutlineAccent??'#f0eadb'} strokeWidth={sw*1.8} strokeLinejoin="round"/>}
-      <path d={shapePathData(path)} strokeDasharray={element.shapeStrokeStyle==='dashed'?`${sw*3} ${sw*2}`:element.shapeStrokeStyle==='dotted'?`.01 ${sw*2}`:undefined} fill={element.drawingVectorSource?'none':fill} fillRule={element.paintStain?'nonzero':'evenodd'} stroke={stroke} strokeWidth={sw}
-        strokeLinecap={element.content === 'zigzag' ? 'butt' : 'round'} strokeLinejoin={element.content === 'zigzag' ? 'miter' : 'round'} strokeMiterlimit={8} />
+      {element.shapeStrokeStyle==='double'&&sw>0&&<path data-editable-ink d={shapePathData(path)} fill="none" stroke={element.shapeOutlineAccent??'#f0eadb'} strokeWidth={sw*1.8} strokeLinejoin="round"/>}
+      {element.letteringPaints?.length&&element.shapeFilled?element.letteringPaints.map((paint,index)=>{const parts=[path,...(path.subpaths??[])].filter(p=>p.letterKey===paint.key);const ink=svgPaint(paint.fill,`glyph-${id}-${index}`,width,height);return parts.length?<g key={index}><defs dangerouslySetInnerHTML={{__html:ink.defs}}/><path d={shapePathData({...parts[0],subpaths:parts.slice(1)})} fill={ink.color} fillRule={element.shapeFillRule??'evenodd'} stroke="none"/></g>:null;}):null}
+      <path data-editable-ink d={shapePathData(path)} strokeDasharray={element.shapeStrokeStyle==='dashed'?`${sw*3} ${sw*2}`:element.shapeStrokeStyle==='dotted'?`.01 ${sw*2}`:undefined} fill={element.letteringPaints?.length||element.drawingVectorSource||element.shapeStrokeAlign==='outside'?'none':fill} clipPath={element.shapeStrokeAlign==='inside'?`url(#stroke-inside-${id})`:undefined} mask={element.shapeStrokeAlign==='outside'?`url(#stroke-outside-${id})`:undefined} fillRule={element.shapeFillRule??(element.paintStain?'nonzero':'evenodd')} stroke={stroke} strokeWidth={element.shapeStrokeAlign&&element.shapeStrokeAlign!=='center'?sw*2:sw}
+        strokeLinecap={element.shapeStrokeCap??(element.content === 'zigzag' ? 'butt' : 'round')} strokeLinejoin={element.shapeStrokeJoin??(element.content === 'zigzag' ? 'miter' : 'round')} strokeMiterlimit={8} />
     </svg>;
   }
 

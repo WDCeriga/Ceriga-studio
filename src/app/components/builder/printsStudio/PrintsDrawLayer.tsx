@@ -469,6 +469,11 @@ export function PrintsDrawLayer({
       let changed = false;
       const updated = elementsRef.current.flatMap(element => {
         if (element.type !== 'drawing' || element.locked || element.hidden || (element.side ?? 'front') !== sideRef.current) return [element];
+        if(element.drawing){
+          const scaleX=canvas.width/Math.max(1,host.clientWidth),scaleY=canvas.height/Math.max(1,host.clientHeight),recording=element.drawing;
+          const eraser:RecordedStroke={points:replayPointsRef.current.map(p=>{const local=zoneToAsset({x:p.x/scaleX,y:p.y/scaleY},element);return {...p,x:local.x*recording.width,y:local.y*recording.height}}),settings:{...snapshotBrush(studioRef.current),color:'#000',brushSize:studioRef.current.brushSize*recording.width/element.width},seed:strokeSeedRef.current,opacity:studioRef.current.opacity/100};
+          changed=true;return [{...element,drawing:{...recording,erasers:[...(recording.erasers??[]),eraser]}}];
+        }
         const image = host.querySelector<HTMLImageElement>(`[data-print-id="${element.id}"] img`);
         if (!image?.complete || !image.naturalWidth || image.getAttribute('src') !== element.content) return [element];
         const source = canvasFromImage(image);
@@ -493,7 +498,7 @@ export function PrintsDrawLayer({
       (Object.keys({ ...previous.element, ...existing }) as (keyof DesignElement)[]).every(key =>
         ['content', 'x', 'y', 'width', 'height'].includes(key) || existing[key] === previous.element[key]);
     const canAppend = previous && existing && (existing.side ?? 'front') === sideRef.current &&
-      (compatibleDistress || (tool === 'brush' && existing === previous.element && !existing.drawing?.cuts?.length &&
+      (compatibleDistress || (tool === 'brush' && existing === previous.element && !existing.drawing?.cuts?.length && !existing.drawing?.erasers?.length && !existing.eraseContours?.length &&
         previous.canvas.width === canvas.width && previous.canvas.height === canvas.height));
     const merged = document.createElement('canvas');
     merged.width = canvas.width;
@@ -600,7 +605,7 @@ export function PrintsDrawLayer({
     const side = sideRef.current;
     const tool = studioRef.current.tool;
     for(const el of elementsRef.current) {
-      if(isErasable(el,tool)&&(el.side??'front')===side)await rasterizeDistress(el);
+      if(isErasable(el,tool)&&!el.drawing&&!el.wear&&!(el.type==='shape'&&el.shapeGeometry==='bounds')&&(el.side??'front')===side)await rasterizeDistress(el);
     }
   }, [rasterizeDistress]);
 
@@ -623,6 +628,10 @@ export function PrintsDrawLayer({
           return local.x >= -radiusCss / el.width && local.x <= 1 + radiusCss / el.width && local.y >= -radiusCss / el.height && local.y <= 1 + radiusCss / el.height;
         });
         if (!hit) return el;
+        if(el.drawing||el.wear||(el.type==='shape'&&el.shapeGeometry==='bounds')){
+          const contours=points.map(pt=>Array.from({length:64},(_,i)=>{const a=i*Math.PI/32;return zoneToAsset({x:pt.x/dprX+Math.cos(a)*radiusCss,y:pt.y/dprY+Math.sin(a)*radiusCss},el)}));
+          changed=true;return {...el,eraseContours:[...(el.eraseContours??[]),...contours]};
+        }
         const buf = eraseBuffersRef.current.get(el.id) ?? ensureEraseBuffer(el);
         if (!buf) return el;
         const octx = buf.getContext('2d');
@@ -666,7 +675,7 @@ export function PrintsDrawLayer({
       const tool = studioRef.current.tool;
       const needsWarm = elementsRef.current.some(
           (el) =>
-            isErasable(el, tool) &&
+            isErasable(el, tool) && !el.drawing&&!el.wear&&!(el.type==='shape'&&el.shapeGeometry==='bounds') &&
             (el.type === 'distress' || el.type === 'shape') &&
             (el.side ?? 'front') === sideRef.current &&
             !eraseBuffersRef.current.has(el.id) &&

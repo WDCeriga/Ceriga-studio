@@ -21,7 +21,7 @@ export interface TextEffectsPanelProps {
   defaultOpen?: boolean;
 }
 
-const EFFECT_GROUPS:Record<string,string[]>={Popular:['distressed','grain','halftone','gradient','bevel','inner-shadow'],Surface:['distressed','grunge','cracked','faded','vintage-print','grain','halftone','noise','photocopy','screen-print','spray-paint','ink-bleed','rough-edges'],Dimension:['embroidery','puff-print','chrome','metallic','foil','gloss','extrude','bevel','inner-shadow','glow','neon','long-shadow'],Colour:['gradient','duotone','texture-fill','image-fill','offset-print','rgb-split'],Distortion:['glitch','pixelated','blur','motion-blur']};
+const EFFECT_GROUPS:Record<string,string[]>={Popular:['faded','vintage-print','distressed','cracked','halftone','gradient'],Surface:['distressed','grunge','cracked','faded','vintage-print','grain','halftone','noise','photocopy','screen-print','spray-paint','ink-bleed','rough-edges'],Dimension:['embroidery','puff-print','chrome','metallic','foil','gloss','extrude','bevel','inner-shadow','glow','neon','long-shadow'],Colour:['gradient','duotone','texture-fill','image-fill','offset-print','rgb-split'],Distortion:['glitch','pixelated','blur','motion-blur']};
 const CONTINUOUS_EFFECT_KEYS=new Set(['amount','strength','opacity','softness','roughness','blur','intensity']);
 const numericControl=(control:{type:string;key:string})=>control.type==='range'&&!CONTINUOUS_EFFECT_KEYS.has(control.key);
 const RANDOM_EFFECTS = new Set<TextEffectId>(['distressed', 'cracked', 'faded', 'glitch']);

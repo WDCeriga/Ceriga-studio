@@ -13,7 +13,7 @@ export function artworkAtPoint(zone: HTMLElement, clientX: number, clientY: numb
   layers.sort((a, b) => (Number(getComputedStyle(a).zIndex) || 0) - (Number(getComputedStyle(b).zIndex) || 0));
   for (const layer of layers.reverse()) {
     const style = getComputedStyle(layer);
-    if (layer.hasAttribute('data-artwork-hit-disabled') || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
+    if (layer.hasAttribute('data-tracing-reference') || layer.hasAttribute('data-artwork-hit-disabled') || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;
     if (hitTests.get(layer)?.({ x: clientX, y: clientY })) return layer;
   }
   return null;

@@ -1,3 +1,4 @@
+import {cutOrAddPenPath,mapShapePath} from './artworkPathOperations';
 import type {DesignElement} from '../components/builder/PrintStudioEditor';
 import {getDefaultGarmentSelection,getGarmentAssetsForFit,applyGarmentSelectionLinks} from '../data/garmentSvgCatalog';
 import {defaultOrderQuantityPlan} from '../data/orderQuantities';
@@ -10,7 +11,7 @@ export const REFERENCE_PRINT_STUDIES=[
  {id:'berry-raglan',name:'05 / Berry sport club',summary:'Separate serif letters, multicolour woven plaid, waffle body and raw-edge wear. No extracted artwork.',base:'#ded9c8',neck:'#b85e7c',long:true,fabric:'waffle'},
  {id:'raspberry-washed',name:'06 / Raspberry archive',summary:'Rebuilt arched sports typography, faded cream ink, slate wash and individual frayed holes.',base:'#5f7f83',neck:'#658184',long:false,fabric:'single-jersey'},
  {id:'allure-social',name:'07 / Allure social',summary:'Editable party silhouettes, layered pink badge, metallic-blue sleeve sigils and outlined lettering.',base:'#e5e5dc',neck:'#343842',long:false,fabric:'single-jersey'},
- {id:'varsity-75',name:'08 / Washed varsity 75',summary:'Hatched number ink, sleeve stripes, pink raglan stitching, collar inset and ribbed sweatshirt trims.',base:'#424f69',neck:'#dc979f',long:true,fabric:'french-terry'},
+ {id:'varsity-75',name:'08 / Washed varsity 75',summary:'Editable cutout number ink, sleeve stripes, pink raglan stitching, collar inset and ribbed sweatshirt trims.',base:'#424f69',neck:'#dc979f',long:true,fabric:'french-terry'},
 ] as const;
 const base=(id:string,type:DesignElement['type'],content:string,x:number,y:number,width:number,height:number,color='#171717'):DesignElement=>({id,layerName:id,type,content,x,y,width,height,color,rotation:0,side:'front',opacity:100,printMethod:'Screen Print'});
 const worn=(seed:number,amount=24)=>{const e=createTextEffect('distressed');return{...e,seed,settings:{...e.settings,amount,size:1,density:64,roughness:65}}};
@@ -29,7 +30,7 @@ export function buildReferencePrintStudy(id:string){
   elements.push(type('Sport club caption','sport club',380,355,178,24,'#bd647e',{fontFamily:'Inter',fontStyle:'italic',textEffects:[worn(72,10)]}));
   
  }else if(id==='raspberry-washed'){
-  const ink={textEffects:[worn(92,36)]};
+  const ink={textEffects:[{...createTextEffect('faded'),id:'print-wear',seed:92,settings:{amount:62,variation:90,opacity:100}},worn(92,24)]};
   elements=[type('Arched property','PROPERTY OF',400,247,180,21,cream,{...ink,textCurveAmount:30,textCurveRadius:90,textCurveDirection:'up'}),type('Season','1908 · 25',400,275,100,13,cream,ink),type('Raspberry headline','RASPBERRY',400,321,320,57,cream,ink),type('City line','ATLANTA CITY',400,367,132,15,cream,{...ink,fontFamily:'Stardos Stencil',letterSpacing:3}),type('Left athletic badge','ATHL',300,369,48,15,cream,{fontFamily:'Stardos Stencil',letterSpacing:2}),type('Right dept badge','DEPT',500,369,48,15,cream,{fontFamily:'Stardos Stencil',letterSpacing:2}),type('Limited edition arc','LIMITED EDITION · CLASSIC.',400,411,276,22,cream,{...ink,textCurveAmount:10,textCurveRadius:220}),type('Year','1997',343,456,105,39,cream,{...ink,fontFamily:'Stardos Stencil'}),type('Studio signature','Nyowji\nStudios',461,454,115,30,cream,{fontFamily:'Pinyon Script',fontWeight:'normal',rotation:-10}),type('Forever caption','GOD IS FOREVER',400,508,310,29,cream,ink)];
   for(const x of [300,500])elements.push(rect('Thin badge frame '+x,x,370,59,34,cream,{shapeFilled:false,borderWidth:.9,shapeStrokeColor:cream,shapeParameters:{cornerTopLeft:0,cornerTopRight:0,cornerBottomLeft:0,cornerBottomRight:0},shapeEffects:[worn(51,15)]}));
   elements.push(hole('Shoulder hole 1',273,205,24,31,18),hole('Shoulder hole 2',307,205,23,32,19));for(const [i,x,y,w,h]of [[0,528,535,18,21],[1,512,558,14,18],[2,542,572,23,24],[3,528,596,25,24]])elements.push(hole('Lower frayed hole '+i,x,y,w,h,24+i));
@@ -41,6 +42,11 @@ export function buildReferencePrintStudy(id:string){
  }else{
   const hatch=textileInkEffect('hatch',['#e5e2d6','#7a8190'],110);
   elements=[vector('Hatched athletic 75','M1 1 L48 1 L44 19 L26 98 L9 98 L27 22 L12 22 L9 33 L1 33Z M65 1 L99 1 L95 22 L76 22 L72 40 L91 40 L98 52 L88 93 L73 99 L51 94 L56 73 L68 81 L75 79 L80 60 L57 60 L55 49Z',400,340,228,166,'#e5e2d6',{borderWidth:1.2,shapeStrokeColor:'#e9e7dc',shapeEffects:[hatch,worn(75,13)],letteringSource:type('Number source','75',400,340,228,156,'#e5e2d6',{fontFamily:'Bungee'})}),vector('Pink V collar insert','M0 0 L100 0 L50 100Z',400,180,31,28,'#d69ca3',{borderWidth:.6,shapeStrokeColor:'#ab7784'}),type('Left sleeve signature','Unlimited',214,486,102,24,'#e9e7dc',{fontFamily:'Pinyon Script',fontWeight:'normal',rotation:78})];
+  const number=elements[0],numberFrame={x:number.x,y:number.y,width:number.width,height:number.height};
+  for(const d of ['M16 -2L21 4L25 5L28 1L31 -2Z','M13 93L18 95L22 94L25 100L13 102Z','M88 -2L87 3L91 5L95 11L101 10L103 -2Z','M65 95L67 90L72 92L76 88L81 90L85 96L83 103L66 103Z','M27 53L29 51L30 54L28 59L26 59Z']){
+    const region=mapShapePath(editableSvgPath(d),p=>({x:numberFrame.x+(p.x/100-.5)*numberFrame.width,y:numberFrame.y+(p.y/100-.5)*numberFrame.height}));
+    elements[0]=cutOrAddPenPath(elements[0],region,'subtract');
+  }
   for(const [side,x,angle]of [['Left',225,13],['Right',575,-13]] as const)for(let i=0;i<3;i++)elements.push(rect(side+' athletic stripe '+(i+1),x,354+i*13,94,i===1?11:4,'#e5e4d9',{rotation:angle,shapeParameters:{cornerTopLeft:0,cornerTopRight:0,cornerBottomLeft:0,cornerBottomRight:0},shapeEffects:[worn(71+i,30)]}));
  }
  elements=elements.map(el=>el.patternTarget?el:{...el,x:el.x-40,y:el.y-45.5-(id==='berry-raglan'?28:0)});

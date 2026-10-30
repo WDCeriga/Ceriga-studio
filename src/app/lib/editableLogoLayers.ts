@@ -1,0 +1,23 @@
+import type {DesignElement} from '../components/builder/PrintStudioEditor';
+import {logoRegionShape} from './logoRegionEditing';
+import {shapeWorldPath,mapShapePath,fitPenPath} from './artworkPathOperations';
+import {shapePathData} from './shapeGeometry';
+const splitRevisions=new Set<string>();
+const revision=(root:DesignElement)=>(globalThis.location?.pathname??'')+(globalThis.location?.search??'')+':'+root.id+':'+(root.logoTrace?.completedAt??root.children?.map(child=>child.id).join(',')??'');
+export function wasLogoLayerSplit(root:DesignElement){return splitRevisions.has(revision(root));}
+export function isEditableLogoGroup(element:DesignElement){if(element.type!=='group'||!element.logoTrace&&!['vector-trace','outlined-logo'].includes(element.content))return false;const regions=(element.children??[]).filter(region=>!region.hidden);return regions.length>0&&regions.every(region=>region.type==='shape'||region.type==='group'&&region.children?.length===1&&region.children[0].type==='shape');}
+/** Real document layers avoid a separate, competing selection system inside traced groups. */
+export function editableLogoParts(root:DesignElement):{element:DesignElement;regionKey:string}[]{
+ if(!isEditableLogoGroup(root))return[];
+ const sw=root.groupSourceWidth??root.width,sh=root.groupSourceHeight??root.height,a=root.rotation*Math.PI/180,sx=root.width/sw,sy=root.height/sh;
+ return(root.children??[]).filter(region=>!region.hidden).map((region,index)=>{const shape=logoRegionShape(region),world=mapShapePath(shapeWorldPath(shape),p=>{const x=(p.x-sw/2)*sx*(root.flipHorizontal?-1:1),y=(p.y-sh/2)*sy*(root.flipVertical?-1:1);return{x:root.x+x*Math.cos(a)-y*Math.sin(a),y:root.y+x*Math.sin(a)+y*Math.cos(a)}}),fit=fitPenPath(world),key=region.logoTraceRegion?.key??root.logoTrace?.result.regions.find(result=>result.name===region.layerName)?.key??(index===0?'silhouette':region.id),id=key==='silhouette'?root.id:region.id;return{regionKey:key,element:{...root,...shape,...fit,id,type:'shape',content:'custom-path',shapeGeometry:'bounds',shapeFillRule:shape.shapeFillRule??'evenodd',rotation:0,flipHorizontal:false,flipVertical:false,opacity:(root.opacity??100)*(shape.opacity??100)/100,borderWidth:(shape.borderWidth??0)*Math.min(Math.abs(sx),Math.abs(sy)),shapeCornerRadius:(shape.shapeCornerRadius??0)*Math.min(Math.abs(sx),Math.abs(sy)),side:root.side,locked:root.locked||shape.locked,printMethod:shape.printMethod??root.printMethod,layerName:region.layerName??'Shape '+(index+1),hidden:root.hidden,children:undefined,groupSourceWidth:undefined,groupSourceHeight:undefined,logoTrace:undefined,logoTraceRegion:undefined,imageTrace:undefined}}});
+}
+export function splitEditableLogoLayers(elements:DesignElement[],onlyId?:string){
+ const mapping=new Map<string,string>(),wholeMasks=new Map<string,string[]>(),next=elements.flatMap(root=>{if(!isEditableLogoGroup(root)||onlyId&&root.id!==onlyId)return[root];const parts=editableLogoParts(root);if(!parts.length)return[root];splitRevisions.add(revision(root));for(const part of parts)mapping.set(root.id+'::'+part.regionKey,part.element.id);mapping.set(root.id,parts.find(part=>part.regionKey==='silhouette')?.element.id??parts[0].element.id);if(parts.length>1)wholeMasks.set(root.id,parts.map(part=>part.element.id));return parts.map(part=>part.element)});
+ return next.map(element=>{if(!element.clipToArtworkId&&!element.clipToArtworkIds?.length)return element;if(!element.clipToRegionKey){const ids=(element.clipToArtworkIds??[element.clipToArtworkId!]).flatMap(id=>wholeMasks.get(id)??[mapping.get(id)??id]);if(ids.length>1)return{...element,clipToArtworkId:ids[0],clipToArtworkIds:[...new Set(ids)],clipToRegionKey:undefined};}const key=element.clipToArtworkId+(element.clipToRegionKey?'::'+element.clipToRegionKey:''),id=mapping.get(key);return id?{...element,clipToArtworkId:id,clipToArtworkIds:undefined,clipToRegionKey:undefined}:element});
+}
+let hitContext:CanvasRenderingContext2D|null=null;
+export function logoPartAtPoint(root:DesignElement,point:{x:number;y:number},minimumStroke=5){
+ hitContext??=document.createElement('canvas').getContext('2d');if(!hitContext)return null;
+ for(const {element} of editableLogoParts(root).reverse()){if(element.hidden||element.locked)continue;const path=new Path2D(shapePathData(shapeWorldPath(element)));if(element.shapeFilled&&hitContext.isPointInPath(path,point.x,point.y,element.shapeFillRule??'evenodd'))return element;hitContext.lineWidth=Math.max(minimumStroke,element.borderWidth??0);if((element.borderWidth??0)>0&&hitContext.isPointInStroke(path,point.x,point.y))return element;}return null;
+}

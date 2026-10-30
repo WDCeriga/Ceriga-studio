@@ -1,0 +1,3 @@
+import type {ShapePathNode} from './shapeGeometry';
+/** Centripetal tangent lengths avoid loops when successive anchors are close. */
+export function autoCurve(nodes:ShapePathNode[],corners:Set<number>,closed=false):ShapePathNode[]{return nodes.map((node,i)=>{if(corners.has(i))return{x:node.x,y:node.y};const previous=nodes[i-1]??(closed?nodes.at(-1):undefined),next=nodes[i+1]??(closed?nodes[0]:undefined);if(!previous||!next)return{x:node.x,y:node.y};const a=Math.hypot(node.x-previous.x,node.y-previous.y),b=Math.hypot(next.x-node.x,next.y-node.y),dx=next.x-previous.x,dy=next.y-previous.y,length=Math.hypot(dx,dy)||1;return{x:node.x,y:node.y,in:{x:node.x-dx/length*a/3,y:node.y-dy/length*a/3},out:{x:node.x+dx/length*b/3,y:node.y+dy/length*b/3}};});}

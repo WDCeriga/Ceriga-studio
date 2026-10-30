@@ -8,11 +8,11 @@ export function loadLabelFont(label: GarmentLabel) {
   return Promise.all(fonts.map(loadFont));
 }
 
-function loadFont(label: { font: string; fontData?: string; fontWeight?: number }) {
+function loadFont(label: { font: string; fontData?: string; fontWeight?: number;fontStyle?:'normal'|'italic' }) {
   if (!label.fontData) return document.fonts.load(`${label.fontWeight ?? 400} 16px ${JSON.stringify(label.font)}`);
-  const key = label.font + label.fontData;
+  const key = label.font + label.fontData + label.fontWeight + label.fontStyle;
   if (!loadedFonts.has(key)) {
-    const face = new FontFace(label.font, `url(${label.fontData})`);
+    const face = new FontFace(label.font, `url(${label.fontData})`,{weight:String(label.fontWeight??400),style:label.fontStyle??'normal'});
     loadedFonts.set(key, face.load().then(font => { document.fonts.add(font); return font; }));
   }
   return loadedFonts.get(key)!;
@@ -58,11 +58,11 @@ function blockLabelLayout(label: GarmentLabel) {
     const hasSymbols = block.key === 'careText' && symbols.length > 0;
     const size = block.fontSizeMm;
     context.font = `${block.fontWeight} ${size}px "${block.font}"`;
-    const measure = (text: string) => context.measureText(text).width + Math.max(0, text.length - 1) * label.letterSpacingMm;
+    const measure = (text: string) => context.measureText(text).width + Math.max(0, text.length - 1) * (block.letterSpacingMm??label.letterSpacingMm);
     const textLines: { text: string; section: string; size: number; weight: number; y: number }[] = [];
     let cursor = hasSymbols ? symbolSize + 1.5 : 0;
     let contentWidth = hasSymbols ? symbols.length * symbolSize : 0;
-    const addLine = (text: string) => { contentWidth = Math.max(contentWidth, measure(text)); cursor += size; textLines.push({ text, section: block.key, size, weight: block.fontWeight, y: cursor }); cursor += size * .3; };
+    const addLine = (text: string) => { contentWidth = Math.max(contentWidth, measure(text)); cursor += size; textLines.push({ text, section: block.key, size, weight: block.fontWeight, y: cursor }); cursor += size * ((block.lineSpacing??130)/100-1); };
     for (const paragraph of (sections.find(section => section.key === block.key)?.text ?? '').split('\n')) {
       let line = '';
       for (const word of paragraph.split(/\s+/).filter(Boolean)) {
@@ -140,7 +140,7 @@ function legacyLabelLayout(label: GarmentLabel) {
   const logoHeight = label.logo ? logoWidth / label.logo.aspect : 0;
   measureCanvas ??= document.createElement('canvas');
   const context = measureCanvas.getContext('2d')!;
-  const measure = (text: string) => context.measureText(text).width + Math.max(0, text.length - 1) * label.letterSpacingMm;
+  const measure = (text: string) => context.measureText(text).width + Math.max(0, text.length - 1) * (block.letterSpacingMm??label.letterSpacingMm);
   let oversizedWord = false;
   const zones = ranges.map(([key, start, end]) => {
     const height = usableHeight * (end - start);
@@ -157,7 +157,7 @@ function legacyLabelLayout(label: GarmentLabel) {
         contentWidth = Math.max(contentWidth, measure(text));
         cursor += size;
         textLines.push({ text, section: section.key, size, weight, y: cursor });
-        cursor += size * .3;
+        cursor += size * ((block.lineSpacing??130)/100-1);
       };
       for (const paragraph of section.text.split('\n')) {
         let line = '';
@@ -255,7 +255,7 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
       {layout.zones.map(zone => <g key={zone.key} clipPath={label.blocks ? `url(#${safe}-${zone.key})` : undefined}>{label.blocks?.find(block=>block.key===zone.key)?.background && <rect x={zone.x} y={zone.y} width={zone.width} height={zone.height} fill={label.blocks.find(block=>block.key===zone.key)!.background}/>}<g data-label-region={zone.key} transform={zone.transform} color={zone.color}>
         {zone.hasLogo && label.logo && <image data-label-logo="" href={label.logo.data} x={-layout.logoWidth / 2} y={-layout.logoHeight / 2} width={layout.logoWidth} height={layout.logoHeight} preserveAspectRatio="xMidYMid meet" />}
         <g fill={zone.color} fontFamily={zone.font} fontSize={label.fontSizeMm} fontWeight={label.fontWeight} letterSpacing={label.letterSpacingMm} textAnchor={zone.alignment === 'left' ? 'start' : zone.alignment === 'right' ? 'end' : 'middle'}>
-          {zone.textLines.map((line, index) => <text key={index} data-label-text-section={line.section} x={zone.alignment === 'left' ? -zone.contentWidth / 2 : zone.alignment === 'right' ? zone.contentWidth / 2 : 0} y={line.y} fontSize={line.size} fontWeight={line.weight}>{line.text}</text>)}
+          {zone.textLines.map((line, index) => <LabelStyledText key={index} section={line.section} style={label.blocks?.find(block=>block.key===zone.key)?.textStyle} tracking={label.blocks?.find(block=>block.key===zone.key)?.letterSpacingMm} text={line.text} x={zone.alignment === 'left' ? -zone.contentWidth / 2 : zone.alignment === 'right' ? zone.contentWidth / 2 : 0} y={line.y} size={line.size} weight={line.weight} width={zone.contentWidth}/>)}
         </g>
         {zone.hasSymbols && layout.symbols.map(([category, value], index) => <g key={category} aria-label={CARE_OPTIONS[category as CareCategory][value as never]} transform={`translate(${(index - layout.symbols.length / 2) * layout.symbolSize} ${zone.symbolsY}) scale(${layout.symbolSize / 28})`}><CareSymbol category={category as CareCategory} value={value} /></g>)}
       </g></g>)}
@@ -264,3 +264,4 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
     {guide && <rect data-label-guide="" x="0" y="0" width={width} height={height} fill="none" stroke="#db4d42" strokeWidth=".3" strokeDasharray="1 1" />}
   </g>;
 }
+import {LabelStyledText} from './LabelStyledText';

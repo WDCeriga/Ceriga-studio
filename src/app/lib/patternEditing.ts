@@ -25,6 +25,8 @@ export function patternAppearance(value: unknown): PatternPatch {
   for (const [key, [min, max]] of Object.entries(numericBounds)) {
     if (typeof input[key] === 'number' && Number.isFinite(input[key])) output[key] = Math.max(min, Math.min(max, input[key] as number));
   }
+  if(input.patternTileCm&&typeof input.patternTileCm==='object'){const tile=input.patternTileCm as {width:number;height:number};if(Number.isFinite(tile.width)&&Number.isFinite(tile.height)&&tile.width>0&&tile.height>0)output.patternTileCm={width:Math.min(200,tile.width),height:Math.min(200,tile.height)};}
+  if(typeof input.artworkUnitsPerCm==='number'&&Number.isFinite(input.artworkUnitsPerCm)&&input.artworkUnitsPerCm>0)output.artworkUnitsPerCm=input.artworkUnitsPerCm;
   if (typeof input.color === 'string') output.color = input.color;
   if (Array.isArray(input.patternColors)) output.patternColors = input.patternColors.filter(color => typeof color === 'string' && /^#[\da-f]{6}$/i.test(color)).slice(0, 8);
   for (const key of ['patternRandomise', 'flipHorizontal', 'flipVertical','patternKeepNeckPlain']) {
@@ -56,7 +58,7 @@ export function initialPatternSettings(id: string, color?: string): PatternPatch
     patternOptions: undefined, patternOffsetX: 0, patternOffsetY: 0, patternAlignment: 'independent',
     opacity: 100, patternScale: id.startsWith('camo-') ? 55 : id==='topographic' ? 75 : 100, patternSpacing: 0, patternSpacingX: 0, patternSpacingY: 0,
     patternRotation: 0, patternThickness: undefined, patternRandomise: false, flipHorizontal: false, flipVertical: false,
-    patternRoughness: 50, patternVariation: 50, patternSource: undefined, patternSourceName: undefined,
+    patternRoughness: 50, patternVariation: 50,patternTileCm:undefined,patternSeamCheck:undefined, patternSource: undefined, patternSourceName: undefined,
     patternSourceWidth: undefined, patternSourceHeight: undefined, patternRepeat: 'grid',
     patternRandomPosition: 70, patternRandomRotation: 0, patternMinScale: 70, patternMaxScale: 130,
   };

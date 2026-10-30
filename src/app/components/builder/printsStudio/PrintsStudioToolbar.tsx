@@ -263,7 +263,7 @@ export function PrintsStudioToolbar({
   textInput: string;
   onTextInput: (value: string) => void;
   onAddText: () => void;
-  onImportFont: () => void;
+  onImportFont: (rightsAccepted?:boolean) => void;
   fontLibrary: string[];
   selectedElement?: DesignElement | null;
   onUpdateSelected?: (patch: Partial<DesignElement>) => void;
@@ -528,7 +528,7 @@ export function PrintsStudioToolbar({
       <Button
         type="button"
         variant="outline"
-        onClick={onImportFont}
+        onClick={()=>onImportFont()}
         className="h-9 w-full border-[#e2e2e2] bg-[#f2f2f2] px-2 text-[10px] !text-[#262626] hover:bg-[#f2f2f2]"
       >
         <Upload className="mr-1.5 h-3.5 w-3.5" />

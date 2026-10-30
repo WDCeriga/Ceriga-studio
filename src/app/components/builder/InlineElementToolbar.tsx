@@ -114,7 +114,7 @@ export function InlineElementToolbar({
       /** Portaled bottom sheet is outside `rootRef`; do not clear selection when using it. */
       if (el.closest?.('[data-slot="sheet-content"]') || el.closest?.('[data-radix-dialog-content]')) return;
       /** Popover panels (may be portaled later); must not close before swatch click applies. */
-      if (el.closest?.('[data-inline-toolbar-popover]')) return;
+      if (isArtworkFloatingControl(el)) return;
       if (rootRef.current.contains(target)) return;
       setOpenPanel(null);
     };
@@ -1535,3 +1535,4 @@ function ColorGrid({
     </div>
   );
 }
+import {isArtworkFloatingControl} from '../../lib/artworkDismissal';

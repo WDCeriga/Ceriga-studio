@@ -1,10 +1,11 @@
+import {ArtworkFinishPreview} from './ArtworkFinishPreview';
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {waitForDrawingReplay} from './DrawingArtwork';
 import {useContext} from 'react';
 import {GarmentPatternReliefContext,GarmentPrintTextureContext} from './GarmentPrintTexture';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import {ArtworkInteractionContext} from './ArtworkInteractionContext';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties, type PointerEvent } from 'react';
 import { toCanvas } from 'html-to-image';
 import { waitForImageFilters } from '../../../lib/imageFilterRendering';
 import { artworkEffectPadding } from '../../../lib/textEffectRendering';
@@ -16,9 +17,13 @@ import type { WarpSettings } from '../../../lib/warpGeometry';
 import { buildArtworkClipPath } from '../../../lib/artworkCrop';
 import { registerArtworkHitTest } from '../../../lib/artworkHitTesting';
 
-export function DesignAssetSurface({ element, selected, interacting = false, distort = false, scale, onChange, children, overlay, garmentMask, position, warpEditing = false, onWarpChange, cropping = false, cropOverlay }: {
+const FULL_VECTOR_BOUNDS:Bounds={x:0,y:0,width:1,height:1};
+
+export function DesignAssetSurface({ clipStyle,element, selected, interacting = false, editingPath = false, distort = false, scale, onChange, children, overlay, garmentMask, position, warpEditing = false, onWarpChange, cropping = false, cropOverlay }: {
+  clipStyle?:CSSProperties;
   element: DesignElement; selected: boolean; distort?: boolean; scale: number; onChange: (patch: Partial<DesignElement>) => void; children: ReactNode; overlay: ReactNode;
   interacting?: boolean;
+  editingPath?: boolean;
   garmentMask?: GarmentDrawingMask | null;
   position?: { x: number; y: number };
   warpEditing?: boolean;
@@ -30,18 +35,21 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
   const patternTexture=useContext(GarmentPatternReliefContext);
   const pattern=element.type==='pattern'||Boolean(element.customAreaPattern);
   const texture=pattern?patternTexture:printTexture;
-  const [printMask,setPrintMask]=useState<{url:string;width:number;height:number;padding:number}|null>(null);
+  const [printMask,setPrintMask]=useState<{url:string;width:number;height:number;padding:number;key:string}|null>(null);
   const surface = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const captureVersion = useRef(0);
   const [warpRevision, setWarpRevision] = useState(0);
   const [height, setHeight] = useState(element.height);
-  const [bounds, setBounds] = useState<Bounds>({ x: 0, y: 0, width: 1, height: 1 });
+  const [measuredBounds, setBounds] = useState<Bounds>({ x: 0, y: 0, width: 1, height: 1 });
+  const unpainted=element.type==='shape'&&!element.shapeFilled&&!(element.borderWidth??0);
+  const bounds=unpainted?FULL_VECTOR_BOUNDS:measuredBounds;
   const [live, setLive] = useState<Quad | null>(null);
   const cancelDrag = useRef<(() => void) | null>(null);
   const width = Math.max(1, element.width);
   const actualHeight = Math.max(1, height);
-  const renderSignature = sourceSignature(element);
+  const renderSignature = sourceSignature(element)+'|'+JSON.stringify(element.eraseContours??[]);
+  const printMaskKey=JSON.stringify([renderSignature,width,actualHeight,element.warp,cropping]);
   const map = quadMap(live ?? element.perspective);
   const corners = boundsQuad(bounds).map(map.project);
   const selectionLeft = Math.min(...corners.map(point => point.x)) * width;
@@ -66,6 +74,8 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
   useLayoutEffect(() => {
     const root = surface.current?.parentElement;
     if (!root?.matches('[data-print-id]')) return;
+    const vectorContext=unpainted?document.createElement('canvas').getContext('2d'):null;
+    const hitPaths=unpainted?Array.from(content.current?.querySelectorAll<SVGPathElement>('[data-editable-ink]')??[]).map(node=>({node,path:new Path2D(node.getAttribute('d')??'')})):[];
     return registerArtworkHitTest(root, client => {
       if ((element.type === 'drawing' || element.patternTarget) && garmentMask === null) return false;
       const rect = root.getBoundingClientRect();
@@ -87,16 +97,20 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
             !garmentMask.canvas.getContext('2d')?.getImageData(x, y, 1, 1).data[3]) return false;
         }
       }
+      if(unpainted&&!selected){
+        if(local.x<-.1||local.x>1.1||local.y<-.1||local.y>1.1||!vectorContext)return false;
+        return hitPaths.some(({node,path})=>{const matrix=node.getScreenCTM();if(!matrix)return false;vectorContext.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);vectorContext.lineWidth=12/Math.max(.01,Math.sqrt(Math.abs(matrix.a*matrix.d-matrix.b*matrix.c)));return vectorContext.isPointInStroke(path,client.x,client.y);});
+      }
       // The whole visible selection rectangle is draggable, including gaps
       // between letters and transparent space inside an illustration.
       return local.x >= bounds.x && local.x <= bounds.x + bounds.width
         && local.y >= bounds.y && local.y <= bounds.y + bounds.height;
     });
-  }, [element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live, bounds]);
+  }, [element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live, bounds,unpainted,selected,element.shapePath]);
 
   useEffect(() => {
     const node = content.current;
-    if (!node || interacting) return;
+    if (!node || interacting || editingPath) return;
     let cancelled = false;
     const version = captureVersion.current;
     const current = () => !cancelled && version === captureVersion.current;
@@ -114,7 +128,7 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
         const image = context?.getImageData(0, 0, canvas.width, canvas.height);
         const measured = image && alphaBounds(image);
         if (current()) {
-          setPrintMask(image?{url:canvas.toDataURL('image/png'),width:captureWidth,height:captureHeight,padding}:null);
+          setPrintMask(image?{url:canvas.toDataURL('image/png'),width:captureWidth,height:captureHeight,padding,key:printMaskKey}:null);
           setBounds(measured ? { x: (measured.x * captureWidth - padding) / width, y: (measured.y * captureHeight - padding) / actualHeight, width: measured.width * captureWidth / width, height: measured.height * captureHeight / actualHeight } : { x: 0, y: 0, width: 0, height: 0 });
         }
       } catch (error) {
@@ -123,7 +137,7 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
       }
     }, 80);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping, interacting,scale]);
+  }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping, interacting,editingPath,scale]);
 
   useEffect(() => {
     const node = content.current;
@@ -180,6 +194,7 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
     window.addEventListener('keydown', key, true);
   };
 
+  const eraseMask=element.eraseContours?.length?'url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" preserveAspectRatio="none"><defs><mask id="cut" maskContentUnits="objectBoundingBox" style="mask-type:luminance"><rect width="1" height="1" fill="white"/>'+element.eraseContours.map(ps=>'<path fill="black" d="M'+ps.map(p=>p.x+','+p.y).join('L')+'Z"/>').join('')+'</mask></defs><rect width="1" height="1" fill="white" mask="url(#cut)"/></svg>')+'")':undefined;
   const projected=(live??element.perspective)?.some((point,index)=>Math.abs(point.x-UNIT_QUAD[index].x)>1e-8||Math.abs(point.y-UNIT_QUAD[index].y)>1e-8);
   const projectionTransform=projected?map.css(width,actualHeight):undefined;
   return <ArtworkInteractionContext.Provider value={interacting}><ArtworkResolutionContext.Provider value={scale}>
@@ -189,10 +204,10 @@ export function DesignAssetSurface({ element, selected, interacting = false, dis
       maskSize: '100% 100%', maskRepeat: 'no-repeat',
     } : {}) }}>
     <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: projectionTransform }}>
-      <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }) }}>
-        {element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}
+      <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }),maskImage:eraseMask,maskSize:'100% 100%',maskRepeat:'no-repeat' }}>
+        <div data-artwork-clipped={clipStyle?true:undefined} style={clipStyle} className="h-full w-full"><ArtworkFinishPreview element={element}>{element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}</ArtworkFinishPreview></div>
       </div>
-      {texture&&printMask&&element.type!=='distress'&&element.type!=='drawing'&&<div data-print-fabric-relief data-pattern-fabric-relief={pattern?'':undefined} data-editor-chrome className="pointer-events-none absolute inset-0" style={{mixBlendMode:'multiply',backgroundImage:drawingMaskCss(texture,width,actualHeight,position?.x??element.x,position?.y??element.y,element.rotation),backgroundSize:'100% 100%',maskImage:`url("${printMask.url}")`,maskSize:`${printMask.width}px ${printMask.height}px`,maskPosition:`${-printMask.padding}px ${-printMask.padding}px`,maskRepeat:'no-repeat'}}/>}
+      {!interacting&&!editingPath&&texture&&printMask&&printMask.key===printMaskKey&&element.type!=='distress'&&element.type!=='drawing'&&<div data-print-fabric-relief data-pattern-fabric-relief={pattern?'':undefined} data-editor-chrome className="pointer-events-none absolute inset-0" style={{mixBlendMode:'multiply',backgroundImage:drawingMaskCss(texture,width,actualHeight,position?.x??element.x,position?.y??element.y,element.rotation,true),backgroundSize:'100% 100%',maskImage:`url("${printMask.url}")`,maskSize:`${printMask.width}px ${printMask.height}px`,maskPosition:`${-printMask.padding}px ${-printMask.padding}px`,maskRepeat:'no-repeat'}}/>}
     </div>
     </div>
     {cropping ? <div data-editor-chrome className="pointer-events-auto absolute inset-0" style={{ height: actualHeight, transformOrigin: '0 0', transform: projectionTransform }}>{cropOverlay}</div> : null}

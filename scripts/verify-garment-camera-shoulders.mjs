@@ -57,3 +57,12 @@ for(const sign of [1,-1]){
  assert.deepEqual(result.at(-2),points.at(-2),'Transition rejoins the authored waist');
 }
 console.log('Body side seams meet the sleeve cuff without an inward step on either side, preserving the lower fit.');
+
+for(const mirror of [false,true]){
+ const x=v=>mirror?200-v:v,row=Array.from({length:16},(_,i)=>({x:x(40),y:20+i*8}));
+ const contains=p=>{const px=x(p.x);return px>40||(p.y<65&&px>20)};
+ const inset=api.insetConstructionRow(row,contains);
+ assert(inset.every(p=>Math.abs(x(p.x)-54)<1e-6),'Shoulder overlap must not flip the armhole stitch to the sleeve side');
+ assert(inset.slice(1).every((p,i)=>Math.hypot(p.x-inset[i].x,p.y-inset[i].y)<9),'Armhole thread has no sideways jump');
+}
+console.log('Left/right armhole thread stays on one owning side through ambiguous shoulder overlap.');

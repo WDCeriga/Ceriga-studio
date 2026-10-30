@@ -1,3 +1,5 @@
+import {nativeArtworkSource} from '../../../lib/nativeArtworkSource';
+import {MaterialSelect} from '../shell/MaterialSelect';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import type { DesignElement } from '../PrintStudioEditor';
 import type { SavedUpload } from './designLibrary';
@@ -88,19 +90,19 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
         }} />
       </label>
       <label className="block space-y-1 text-[10px] text-[#737373]">Uploaded images
-        <select aria-label="Pattern uploaded image" value="" disabled={busy || locked || !uploads.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = uploads.find(upload => upload.id === event.target.value); if (item) void load(() => sourceFromImage(item.dataUrl, item.name)); }}>
+        <MaterialSelect aria-label="Pattern uploaded image" value="" disabled={busy || locked || !uploads.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = uploads.find(upload => upload.id === event.target.value); if (item) void load(() => sourceFromImage(item.dataUrl, item.name)); }}>
           <option value="">Select uploaded image</option>{uploads.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </MaterialSelect>
       </label>
       <label className="block space-y-1 text-[10px] text-[#737373]">My Assets / Asset Builder
-        <select aria-label="Pattern saved asset" value="" disabled={busy || locked || !workspace?.library.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = workspace?.library.find(asset => asset.id === event.target.value); if (item) void load(() => sourceFromImage(item.preview, item.name)); }}>
+        <MaterialSelect aria-label="Pattern saved asset" value="" disabled={busy || locked || !workspace?.library.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = workspace?.library.find(asset => asset.id === event.target.value); if (item) void load(() => nativeArtworkSource(item.elements,item.name)); }}>
           <option value="">Select saved asset</option>{workspace?.library.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </MaterialSelect>
       </label>
       <label className="block space-y-1 text-[10px] text-[#737373]">Design layer
-        <select aria-label="Pattern design layer" value="" disabled={busy || locked || !layers.length || !onCaptureLayer} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { if (onCaptureLayer && event.target.value) { const id = event.target.value; void load(() => onCaptureLayer(id)); } }}>
+        <MaterialSelect aria-label="Pattern design layer" value="" disabled={busy || locked || !layers.length || !onCaptureLayer} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { if (onCaptureLayer && event.target.value) { const id = event.target.value; void load(() => onCaptureLayer(id)); } }}>
           <option value="">Select graphic layer</option>{layers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        </MaterialSelect>
       </label>
       {busy && <p role="status" className="text-xs text-[#737373]">Preparing source…</p>}
       {error && <p role="alert" className="text-xs text-red-300">{error}</p>}

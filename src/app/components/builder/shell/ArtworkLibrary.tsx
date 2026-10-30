@@ -1,3 +1,4 @@
+import {ArtworkReuseLibrary} from './ArtworkReuseLibrary';
 import {Link} from 'react-router';
 import {FilteredImage} from '../printsStudio/FilteredImage';
 import {useState} from 'react';
@@ -7,12 +8,13 @@ import {AssetLibraryPanel,useAssetWorkspaceContext} from '../printsStudio/AssetW
 import {MaterialSelect} from './MaterialSelect';
 import './artwork-library.css';
 
-export function ArtworkLibrary({api}:{api:PrintStudioToolAPI}) {
+export function ArtworkLibrary({api,libraryMode=false}:{api:PrintStudioToolAPI;libraryMode?:boolean}) {
  const workspace=useAssetWorkspaceContext();
  const [collection,setCollection]=useState('Uploads'),[query,setQuery]=useState(''),[search,setSearch]=useState(false);
  const uploads=api.previousUploads.filter(item=>item.name.toLowerCase().includes(query.trim().toLowerCase()));
  const count=collection==='Uploads'?api.previousUploads.length:workspace?.library.length??0;
  const currentImages=(api.garmentImages??[]).filter(image=>!image.hidden&&(!query||image.layerName?.toLowerCase().includes(query.toLowerCase())));
+ if(libraryMode)return <ArtworkReuseLibrary api={api}/>;
  return <div className="artwork-library">
   <button className="artwork-upload-action" onClick={api.onUpload}><Upload size={15}/><span>Upload artwork</span><small>PNG · JPG · WebP · SVG</small></button>
   {currentImages.length>0&&<section className="artwork-current-collection"><div className="artwork-section-heading"><h3>{workspace?.project?'On this asset':'On this garment'}</h3><span>{currentImages.length}</span></div><div className="artwork-upload-grid artwork-current-grid">{currentImages.map(image=><button key={image.id} aria-label={`Edit ${image.layerName??'garment image'}`} onClick={()=>api.onSelectArtwork?.(image.id)}><div className="artwork-library-preview"><FilteredImage source={image.content} settings={image.imageFilter} alt="" thumbnail/></div><span>{image.layerName??'Placed artwork'}<small>Edit</small></span></button>)}</div></section>}

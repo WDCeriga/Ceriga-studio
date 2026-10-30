@@ -1,7 +1,13 @@
+import {VectorTextArtwork} from './VectorTextArtwork';
+import {TextAppearanceArtwork} from './TextAppearanceArtwork';
+import {outlineFontSource} from '../../../lib/outlineFontSources';
+import {shapePathData} from '../../../lib/shapeGeometry';
+import {mapShapePath} from '../../../lib/artworkPathOperations';
+import {richTextSpans} from '../../../lib/richArtworkText';
 import './clothing-fonts.css';
 import {SVG_FONT_SOURCES} from '../../../lib/displayFonts';
 import {loadFontLibrary} from './designLibrary';
-import { useEffect, useMemo, useState, useId, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useMemo, useState, useId, type CSSProperties } from 'react';
 import type { MouseEventHandler } from 'react';
 import type { DesignElement } from '../PrintStudioEditor';
 import { parsePaint, paintCss, paintDataUrl, solidPaint } from '../../../lib/studioPaint';
@@ -9,25 +15,33 @@ import { textCurveRadius } from '../../../lib/textCurveControls';
 import { artworkFlipStyle } from '../../../lib/artworkFlip';
 import { TextEffectsArtwork } from './TextEffectsArtwork';
 
+const registeredFaces=new Map<string,Promise<FontFace>>();
+function registerTextFace(family:string,weight?:string,style='normal'){
+ const source=outlineFontSource(family,weight,style);if(!source||typeof FontFace==='undefined')return;
+ const key=[family,weight??'600',style].join(':');if(registeredFaces.has(key))return;
+ const face=new FontFace(family,`url("${source}")`,{weight:weight==='bold'?'700':weight==='normal'?'400':'600',style});document.fonts.add(face);const pending=face.load();registeredFaces.set(key,pending);pending.catch(()=>{registeredFaces.delete(key);document.fonts.delete(face);});
+}
 const embeddedFontCache=new Map<string,Promise<string>>();
-function useSvgFont(family:string,enabled:boolean){
- const source=SVG_FONT_SOURCES[family]??loadFontLibrary().find(font=>font.family===family)?.dataUrl;
+function useSvgFont(family:string,enabled:boolean,weight?:string,style='normal'){
+ const source=outlineFontSource(family,weight,style)??SVG_FONT_SOURCES[family]??loadFontLibrary().find(font=>font.family===family)?.dataUrl;
  const id=useId().replace(/[^a-z0-9]/gi,'');const [font,setFont]=useState<{source:string;data:string;error?:boolean}>();
  useEffect(()=>{if(!enabled||!source)return;let active=true;let pending=embeddedFontCache.get(source);if(!pending){pending=source.startsWith('data:')?Promise.resolve(source):fetch(source).then(r=>{if(!r.ok)throw new Error('Font is unavailable');return r.blob()}).then(blob=>new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Font could not be embedded'));reader.readAsDataURL(blob)}));embeddedFontCache.set(source,pending);pending.catch(()=>embeddedFontCache.delete(source))}pending.then(data=>{if(active)setFont({source,data})},()=>{if(active)setFont({source,data:'',error:true})});return()=>{active=false}},[source,enabled]);
  const ready=enabled&&source&&font?.source===source&&!font.error;
- return{family:ready?'CerigaSvg'+id:family,css:ready?`@font-face{font-family:"CerigaSvg${id}";src:url("${font!.data}");font-weight:100 900;font-style:normal;}`:'',pending:Boolean(enabled&&source&&font?.source!==source),error:Boolean(enabled&&source&&font?.source===source&&font.error)};
+ return{family:ready?'CerigaSvg'+id:family,css:ready?`@font-face{font-family:"CerigaSvg${id}";src:url("${font!.data}");font-weight:100 900;font-style:${style};}`:'',pending:Boolean(enabled&&source&&font?.source!==source),error:Boolean(enabled&&source&&font?.source===source&&font.error)};
 }
 
 function textRows(element: DesignElement) {
   let number = 0;
   let previousKind: string | undefined;
+  let sourceOffset=0;
   return element.content.split(/\r?\n/).map((content, index) => {
     const kind = element.textListLineStyles?.[index] ?? element.textList ?? 'none';
     if (kind === 'numbered') number = previousKind === 'numbered' ? number + 1 : 1;
     else number = 0;
     previousKind = kind;
+    const offset=sourceOffset;sourceOffset+=content.length+(element.content.slice(sourceOffset+content.length).startsWith("\r\n")?2:1);
     return {
-      content,
+      sourceOffset:offset,content,
       kind,
       marker: kind === 'bulleted' ? '•' : kind === 'numbered' ? `${number}.` : '',
     };
@@ -136,11 +150,14 @@ type TextArtworkProps = {
   element: DesignElement;
   fontSize: number;
   defaultColor?: string;
+  onFrameChange?:(frame:{width:number;height:number})=>void;
   onDoubleClick?: MouseEventHandler<HTMLDivElement>;
 };
 
 export function TextArtwork(props: TextArtworkProps) {
   const { element, fontSize, defaultColor, onDoubleClick } = props;
+  if(element.textAppearance)return <TextAppearanceArtwork element={element} onDoubleClick={onDoubleClick} onFrameChange={props.onFrameChange}/>;
+  if(element.textUnderline||element.textStrikethrough||element.textWordSpacing||element.textKerningMode==='optical'||element.textStackFit||element.textBadge||element.textTransform==='title'||element.textPath?.flip||(element.textScaleX??100)!==100||(element.textScaleY??100)!==100||element.fontId||element.vectorTextEffects?.length||Object.keys(element.textGlyphTransforms??{}).length||Object.keys(element.fontAxes??{}).length||Object.keys(element.fontFeatures??{}).length)return <VectorTextArtwork element={element} onDoubleClick={onDoubleClick} onFrameChange={props.onFrameChange}/>;
   const effects = element.textEffects ?? [];
   if (!effects.some(effect => effect.enabled && effect.intensity > 0)) return <PlainTextArtwork {...props} />;
   const sourceElement = { ...element, textShadowEnabled: false, flipHorizontal: false, flipVertical: false };
@@ -148,7 +165,7 @@ export function TextArtwork(props: TextArtworkProps) {
   const shadow = element.textShadowEnabled ?? (element.shadowBlur ?? 0) > 0;
   return <TextEffectsArtwork effects={effects} sourceKey={sourceKey} width={element.width} text={element.content} onDoubleClick={onDoubleClick}
     style={{ ...artworkFlipStyle(element), filter: shadow ? `url(#fx-${element.id})` : undefined }}>
-    <PlainTextArtwork element={sourceElement} fontSize={fontSize} defaultColor={defaultColor} />
+    <PlainTextArtwork element={sourceElement} fontSize={fontSize} defaultColor={defaultColor} onFrameChange={props.onFrameChange} />
   </TextEffectsArtwork>;
 }
 
@@ -156,12 +173,13 @@ function PlainTextArtwork({
   element,
   fontSize,
   defaultColor = '#FFFFFF',
-  onDoubleClick,
+  onDoubleClick,onFrameChange,
 }: {
   element: DesignElement;
   fontSize: number;
   defaultColor?: string;
   onDoubleClick?: MouseEventHandler<HTMLDivElement>;
+  onFrameChange?:(frame:{width:number;height:number})=>void;
 }) {
   const color = element.color ?? defaultColor;
   const fillMode = element.textFillMode ?? ((element.borderWidth ?? 0) > 0 ? 'fill-outline' : 'filled');
@@ -173,12 +191,15 @@ function PlainTextArtwork({
   ].filter(Boolean).join(' ');
   const fontWeight = element.fontWeight === 'bold' ? 700 : element.fontWeight === 'normal' ? 400 : 600;
   const lineHeight = `${element.lineSpacing ?? 115}%`;
-  const curved = (element.textCurveAmount ?? 0) > 0 && !element.verticalText;
-  const svgFont=useSvgFont(element.fontFamily??'Inter',curved);
+  const curved = (Boolean(element.textPath)||(element.textCurveAmount ?? 0) > 0) && !element.verticalText;
+  useEffect(()=>{registerTextFace(element.fontFamily??'Inter',element.fontWeight,element.fontStyle);for(const range of element.textCharacterStyles??[])registerTextFace(range.style.fontFamily??element.fontFamily??'Inter',range.style.fontWeight??element.fontWeight,range.style.fontStyle??element.fontStyle);},[element.fontFamily,element.fontWeight,element.fontStyle,JSON.stringify(element.textCharacterStyles)]);
+  const ink=useRef<HTMLDivElement|SVGSVGElement>(null);
+  useLayoutEffect(()=>{if(element.textFrameMode!=='point'||!onFrameChange||!ink.current)return;const node=ink.current;const measure=()=>{const style=getComputedStyle(node);onFrameChange({width:curved||element.autoWidth===false?element.width:parseFloat(style.width)||element.width,height:element.autoHeight===false?element.height:parseFloat(style.height)||element.height});};const ticket=requestAnimationFrame(measure);const observer=new ResizeObserver(measure);observer.observe(node);document.fonts.addEventListener('loadingdone',measure);return()=>{cancelAnimationFrame(ticket);observer.disconnect();document.fonts.removeEventListener('loadingdone',measure)};},[element.textFrameMode,element.autoWidth,element.autoHeight,element.width,element.height,curved,onFrameChange]);
+  const svgFont=useSvgFont(element.fontFamily??'Inter',curved,element.fontWeight,element.fontStyle);
   const curveSpacing = curved ? Math.max(-0.5, Math.min(8, element.textCurveSpacing ?? 0)) : 0;
   const letterSpacing = curved
-    ? Math.max(-0.5, (element.letterSpacing ?? 0) + curveSpacing)
-    : element.letterSpacing ?? 0;
+    ? Math.max(-0.5, (element.letterSpacing ?? 0) + curveSpacing+(element.textKerning??0))
+    : (element.letterSpacing ?? 0)+(element.textKerning??0);
   const font = `${element.fontStyle ?? 'normal'} ${fontWeight} ${fontSize}px ${element.fontFamily ?? 'Inter'}`;
   const [fontRevision, setFontRevision] = useState(0);
   useEffect(() => {
@@ -221,10 +242,13 @@ function PlainTextArtwork({
     WebkitTextFillColor: fillMode === 'outline' ? 'transparent' : undefined,
     paintOrder: outlineWidth > 0 ? 'stroke fill' : undefined,
     filter,
-    width: '100%',
-    maxWidth: '100%',
+    width: element.textFrameMode==='point'&&element.autoWidth!==false&&!curved?'max-content':'100%',
+    marginLeft:element.textFrameMode==='point'&&element.textAlign!=='left'?'auto':undefined,
+    marginRight:element.textFrameMode==='point'&&(element.textAlign??'center')==='center'?'auto':undefined,
+    maxWidth: element.textFrameMode==='point'&&element.autoWidth!==false&&!curved?'none':'100%',
     overflowWrap: 'anywhere',
     whiteSpace: 'pre-wrap',
+    position:'relative',top:-(element.textBaselineShift??0),
     writingMode: element.verticalText ? 'vertical-rl' : undefined,
     textOrientation: element.verticalText ? 'upright' : undefined,
   };
@@ -235,7 +259,7 @@ function PlainTextArtwork({
     textStyle.WebkitBackgroundClip = 'text';
   }
 
-  const circular = curved && element.textCurveShape === 'circle';
+  const circular = curved && !element.textPath&&element.textCurveShape === 'circle';
   const width = Math.max(1, element.width);
   const sourceRows = textRows(element);
   const rowSpacing = fontSize * (element.lineSpacing ?? 115) / 100;
@@ -249,12 +273,12 @@ function PlainTextArtwork({
   const availableLength = circular
     ? Math.max(widestCharacter, 2 * Math.PI * minimumCircleRadius * circleAmount / 100 - fontSize * 2)
     : Math.max(fontSize, width - Math.min(width * 0.08, fontSize) * 2 - fontSize * 0.5);
-  const rows = curved ? sourceRows.flatMap(row =>
-    wrapCurveRow(row.marker ? `${row.marker} ${row.content}` : row.content, availableLength, measureText)
-      .map(content => ({ ...row, marker: '', content })),
-  ) : sourceRows;
+  const rows = curved&&!element.textPath ? sourceRows.flatMap(row => {
+    let offset=row.sourceOffset-(row.marker?row.marker.length+1:0);
+    return wrapCurveRow(row.marker ? `${row.marker} ${row.content}` : row.content,availableLength,measureText).map(content=>{const sourceOffset=offset;offset+=content.length;return {...row,sourceOffset,marker:'',content};});
+  }) : sourceRows;
   const arcDepth = curved && !circular ? curvePath(element, width, 0, fontSize).sagitta : 0;
-  const height = fontSize * 2.8 + arcDepth + rowSpacing * (rows.length - 1);
+  const height = element.textPath?element.height:fontSize * 2.8 + arcDepth + rowSpacing * (rows.length - 1);
   const circleRadius = minimumCircleRadius + rowSpacing * (rows.length - 1);
   const circleSize = (circleRadius + fontSize) * 2;
   const id = `text-curve-${element.id}`;
@@ -285,7 +309,7 @@ function PlainTextArtwork({
     : element.textAlign === 'right'
       ? '100%'
       : '50%';
-  const getRowPath = (index: number, offset = 0) => circular
+  const getRowPath = (index: number, offset = 0) => element.textPath?shapePathData(mapShapePath(element.textPath.path,p=>({x:p.x*width/100,y:p.y*height/100+index*rowSpacing+offset}))):circular
     ? circlePath(
         circleSize,
         Math.max(1, circleRadius - index * rowSpacing + offset),
@@ -322,6 +346,7 @@ function PlainTextArtwork({
     >
       {curved ? (
         <svg
+          ref={ink as React.RefObject<SVGSVGElement>}
           className="block w-full overflow-visible"
           viewBox={`0 0 ${circular ? circleSize : width} ${circular ? circleSize : height}`}
           preserveAspectRatio="xMidYMid meet"
@@ -330,6 +355,7 @@ function PlainTextArtwork({
         >
           <defs>
             {svgFont.css&&<style>{svgFont.css}</style>}
+            {element.textCharacterStyles?.map((range,index)=>range.style.color?<SvgPaintDef key={'char-'+index} value={range.style.color} id={id+'-char-'+index} width={width} height={height}/>:null)}
             {rows.map((_, index) => (
               <path key={index} id={`${id}-${index}`} d={getRowPath(index)} />
             ))}
@@ -345,9 +371,9 @@ function PlainTextArtwork({
               fontWeight={fontWeight}
               fontStyle={element.fontStyle ?? 'normal'}
               textAnchor={textAnchor}
-              dy={element.textCurveSide === 'inside'
-                ? element.textCurveDirection === 'down' ? -fontSize * 0.1 : fontSize * 0.65
-                : element.textCurveDirection === 'down' ? fontSize * 0.65 : -fontSize * 0.1}
+              dy={element.textPath?element.textPath.offset-(element.textBaselineShift??0):element.textCurveSide === 'inside'
+                ? (element.textCurveDirection === 'down' ? -fontSize * 0.1 : fontSize * 0.65)-(element.textBaselineShift??0)
+                : (element.textCurveDirection === 'down' ? fontSize * 0.65 : -fontSize * 0.1)-(element.textBaselineShift??0)}
               textDecoration={decorations || undefined}
               fill={solidPaint(color)}
               stroke="none"
@@ -374,7 +400,7 @@ function PlainTextArtwork({
                 stroke={outlineWidth > 0 ? svgStroke : 'none'}
                 strokeWidth={outlineWidth}
               >
-                {row.marker ? `${row.marker} ${row.content}` : row.content}
+                {row.marker?`${row.marker} `:null}{(element.textCharacterStyles?.length||element.textKerningPairs?.length)?(()=>{const parts=richTextSpans(row.content,element.textCharacterStyles,row.sourceOffset,element.textKerningPairs);return parts.map((part,i)=>{const paintIndex=(element.textCharacterStyles??[]).findLastIndex(range=>range.style.color===part.style.color);return <tspan key={i} dx={part.kerning||undefined} fontFamily={part.style.fontFamily??(part.style.fontWeight||part.style.fontStyle?element.fontFamily??'Inter':undefined)} fontSize={part.style.fontSize} fontWeight={part.style.fontWeight} fontStyle={part.style.fontStyle} letterSpacing={part.style.letterSpacing===undefined?undefined:part.style.letterSpacing+(element.textKerning??0)+curveSpacing} dy={(parts[i-1]?.style.baselineShift??0)-(part.style.baselineShift??0)} fill={part.style.color?(parsePaint(part.style.color)?`url(#${id}-char-${paintIndex})`:solidPaint(part.style.color)):undefined}>{part.content}</tspan>});})():row.content}
               </textPath>
             </text>
           ))}
@@ -400,7 +426,7 @@ function PlainTextArtwork({
         </svg>
       ) : (
         <div className="relative">
-          <div style={textStyle}>
+          <div ref={ink as React.RefObject<HTMLDivElement>} style={textStyle}>
             {rows.map((row, index) => (
               <div
                 key={index}
@@ -428,7 +454,7 @@ function PlainTextArtwork({
                     {row.marker}
                   </span>
                 ) : null}
-                {row.content || '\u00a0'}
+                {(element.textCharacterStyles?.length||element.textKerningPairs?.length)?richTextSpans(row.content,element.textCharacterStyles,row.sourceOffset,element.textKerningPairs).map((part,i)=><span key={i} style={{...part.style,marginLeft:part.kerning||undefined,color:part.style.color,position:part.style.baselineShift?'relative':undefined,top:part.style.baselineShift?-part.style.baselineShift:undefined}}>{part.content}</span>):row.content || '\u00a0'}
               </div>
             ))}
           </div>

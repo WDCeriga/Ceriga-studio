@@ -1,7 +1,8 @@
 import {GarmentPrintTextureContext} from './GarmentPrintTexture';
 import {multiplyInkFabricPixels} from '../../../lib/inkFabricRelief';
 import {usePrintsStudio} from './PrintsStudioContext';
-import {useContext,useEffect,useRef,useState} from 'react';
+import {useContext,useEffect,useRef,useState,useId,useMemo} from 'react';
+import {supportsVectorDrawing,vectorDrawingMarkup} from '../../../lib/vectorDrawing';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import {ArtworkInteractionContext} from './ArtworkInteractionContext';
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
@@ -14,7 +15,7 @@ export async function waitForDrawingReplay(root:HTMLElement) {
  while(root.querySelector('[data-drawing-ready="false"]')){if(performance.now()-start>6000)throw new Error('Drawing detail is still rendering');await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()))}
 }
 /** Repaint original brush commands at the current display density, instead of enlarging an old bitmap. */
-export function DrawingArtwork({element}:{element:DesignElement}) {
+function RasterDrawingArtwork({element}:{element:DesignElement}) {
  const studio=usePrintsStudio(),erasing=studio.tool==='eraser',texture=useContext(GarmentPrintTextureContext);
  const source=element.drawing!,display=useContext(ArtworkResolutionContext),interacting=useContext(ArtworkInteractionContext),canvas=useRef<HTMLCanvasElement>(null);
  const ratio=artworkPixelRatio(source.width,source.height,display*Math.max(element.width/source.width,element.height/source.height),window.devicePixelRatio||1);
@@ -36,6 +37,8 @@ export function DrawingArtwork({element}:{element:DesignElement}) {
     ctx.globalAlpha=stroke.opacity;ctx.drawImage(strokeCanvas,0,0);
    }
    ctx.globalAlpha=1;ctx.globalCompositeOperation='destination-out';
+   for(const erased of source.erasers??[]){ink.clearRect(0,0,width,height);renderBrushStroke(ink,erased.points.map(p=>({...p,x:p.x*ratio,y:p.y*ratio})),{...erased.settings,color:'#fff'},ratio,erased.seed,erased.paintFrame);ctx.globalAlpha=erased.opacity;ctx.drawImage(strokeCanvas,0,0);}
+   ctx.globalAlpha=1;
    for(const cut of source.cuts??[]){ctx.beginPath();cut.forEach((p,i)=>i?ctx.lineTo(p.x*ratio,p.y*ratio):ctx.moveTo(p.x*ratio,p.y*ratio));ctx.closePath();ctx.fill()}
    if(texture){
     const relief=document.createElement('canvas');relief.width=width;relief.height=height;
@@ -51,4 +54,13 @@ export function DrawingArtwork({element}:{element:DesignElement}) {
   <img src={element.content} alt="Drawing" className="absolute inset-0 h-full w-full object-fill" style={{opacity:ready?0:1}}/>
   <canvas ref={canvas} data-replayed-drawing data-drawing-rendered={ready?'true':'false'} aria-label="High resolution drawing" className="absolute inset-0 h-full w-full" style={{opacity:ready?1:0}}/>
  </div>;
+}
+
+function VectorDrawingArtwork({element}:{element:DesignElement}){
+ const id='drawing-'+useId().replace(/:/g,''),source=element.drawing!;
+ const markup=useMemo(()=>vectorDrawingMarkup(source,id,element.color),[source,id,element.color]);
+ return <svg viewBox={`0 0 ${source.width} ${source.height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={{...artworkFlipStyle(element),filter:composeArtworkFilter(element),mixBlendMode:'multiply'}} aria-label="Vector drawing" data-vector-drawing data-drawing-ready="true" dangerouslySetInnerHTML={{__html:markup}}/>;
+}
+export function DrawingArtwork({element}:{element:DesignElement}){
+ return supportsVectorDrawing(element.drawing!)?<VectorDrawingArtwork element={element}/>:<RasterDrawingArtwork element={element}/>;
 }

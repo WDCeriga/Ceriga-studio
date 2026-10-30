@@ -93,3 +93,12 @@ export function cleanSketchCurve(raw:P[],closed:boolean,detail:number,width:numb
  const normalize=(p:P)=>({x:p.x/width*100,y:p.y/height*100});
  return {closed,nodes:nodes.map(p=>({...normalize(p),...(p.in?{in:normalize(p.in)}:{}),...(p.out?{out:normalize(p.out)}:{})}))};
 }
+
+/** Fit an already designed contour without smoothing or moving its corners. */
+export function fitVectorContour(points:P[],closed:boolean,tolerance=.05,cornerAngle=.55):ShapePath{
+ if(points.length<3)return{closed,nodes:points};
+ const n=points.length,corners:number[]=[];for(let i=closed?0:1;i<(closed?n:n-1);i++){const a=unit(sub(points[i],points[(i-1+n)%n])),b=unit(sub(points[(i+1)%n],points[i]));if(Math.acos(Math.max(-1,Math.min(1,dot(a,b))))>cornerAngle)corners.push(i);}
+ const stops=closed?(corners.length?corners:[0,Math.floor(n/2)]):[0,...corners,n-1],nodes:ShapePathNode[]=[];
+ for(let segment=0;segment<stops.length-(closed?0:1);segment++){const a=stops[segment],b=stops[(segment+1)%stops.length],row:P[]=[points[a]];let i=(a+1)%n;while(i!==b){row.push(points[i]);i=(i+1)%n;if(row.length>n)break;}row.push(points[b]);if(row.length<2)continue;const curves=fit(row,unit(sub(row[1],row[0])),unit(sub(row.at(-2)!,row.at(-1)!)),tolerance);for(const curve of curves){let last=nodes.at(-1);if(!last||dist(last,curve[0])>1e-7){last={...curve[0]};nodes.push(last);}last.out=curve[1];nodes.push({...curve[3],in:curve[2]});}}
+ if(closed&&nodes.length>1&&dist(nodes[0],nodes.at(-1)!)<1e-6){nodes[0].in=nodes.at(-1)!.in;nodes.pop();}return{closed,nodes};
+}

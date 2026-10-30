@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+import {readFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+const out='node_modules/.cache/artwork-selection-tests.mjs';
+await build({stdin:{contents:"export * from './src/app/lib/editableLettering';export * from './src/app/lib/letteringParts';export * from './src/app/lib/artworkMarquee';export * from './src/app/lib/artworkPathOperations';",resolveDir:process.cwd()},outfile:out,bundle:true,platform:'node',format:'esm',logLevel:'silent',plugins:[{name:'font-url-stubs',setup(b){b.onLoad({filter:/\.(woff2?|ttf|otf)$/},()=>({contents:'export default ""',loader:'js'}));}}]});
+const api=await import(pathToFileURL(process.cwd()+'/'+out));
+const font=readFileSync('node_modules/@fontsource/bungee/files/bungee-latin-400-normal.woff');globalThis.fetch=async()=>({ok:true,arrayBuffer:async()=>font.buffer.slice(font.byteOffset,font.byteOffset+font.byteLength)});
+const source={id:'word',type:'text',content:'PEN',fontFamily:'Fixture',fontSize:80,width:400,height:90,x:330,y:220,rotation:23,flipHorizontal:true,color:'#191919',side:'front'};
+const outlined={...source,...await api.outlineLettering(source,[{family:'Fixture',dataUrl:'fixture:bungee'}])};
+assert.deepEqual(outlined.letteringParts.map(p=>p.label),['P','E','N']);
+let number=0;const id=()=>`part-${++number}`;
+const split=api.separateLettering([outlined],'word',undefined,false,id);assert.equal(split.elements.length,3);
+const flatten=p=>[...p.nodes.flatMap(n=>[n,...(n.in?[n.in]:[]),...(n.out?[n.out]:[])]),...(p.subpaths??[]).flatMap(flatten)];
+for(const part of split.elements){const original=api.letteringContours(api.shapeWorldPath(outlined)).filter(p=>p.letterKey===part.letteringParts[0].key).flatMap(flatten),actual=api.letteringContours(api.shapeWorldPath(part)).flatMap(flatten);assert.equal(actual.length,original.length);actual.forEach((p,i)=>assert(Math.hypot(p.x-original[i].x,p.y-original[i].y)<.000001));assert(part.letteringSource);}
+assert.equal(api.letteringContours(split.elements[0].shapePath).length,2,'P retains its counter');
+const chosen=api.separateLettering([outlined],'word',outlined.letteringParts[0].key,false,id);assert.equal(chosen.elements.length,2);assert.equal(chosen.elements[1].letteringSource.content,'EN');
+const copied=api.separateLettering([outlined],'word',outlined.letteringParts[0].key,true,id);assert.equal(copied.elements[0],outlined);assert.equal(copied.elements.length,2);assert.equal(copied.elements[1].x,chosen.elements[0].x+20);
+const lowercase=readFileSync('node_modules/@fontsource/poppins/files/poppins-latin-400-normal.woff');globalThis.fetch=async()=>({ok:true,arrayBuffer:async()=>lowercase.buffer.slice(lowercase.byteOffset,lowercase.byteOffset+lowercase.byteLength)});const dotted={...source,id:'dotted',content:'i'};const dotOutline={...dotted,...await api.outlineLettering(dotted,[{family:'Fixture',dataUrl:'fixture:poppins'}])};assert.equal(api.separateLettering([dotOutline],'dotted',undefined,false,id).elements.length,1);assert(api.letteringContours(dotOutline.shapePath).length>=2,'Dot remains with its letter');
+const box=api.selectionBox({x:90,y:80},{x:10,y:20});assert.deepEqual(box,{x:10,y:20,width:80,height:60});assert(api.pointInSelection({x:10,y:80},box));assert(!api.pointInSelection({x:9,y:80},box));
+const base={id:'front',type:'shape',content:'rect',width:30,height:20,x:50,y:50,rotation:35,side:'front'};
+assert.deepEqual(api.marqueeArtworkIds([base,{...base,id:'back',side:'back'},{...base,id:'locked',locked:true},{...base,id:'hidden',hidden:true},{...base,id:'fill',patternTarget:'body'},{...base,id:'outside',x:500}], 'front',box),['front']);
+assert(api.marqueeArtworkIds([{...base,x:100,width:60,height:10,rotation:45}],'front',box).length===1,'Rotated bounds intersect the box');
+assert.equal(api.marqueeArtworkIds([base],'back',box).length,0);
+console.log('Artwork selection: real font letters, counters, dots, individual copies, exact rotated/flipped placement, reverse-direction marquee, rotated bounds and protected/other-side layers passed.');

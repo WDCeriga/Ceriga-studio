@@ -1,3 +1,4 @@
+import {workspaceFonts,importWorkspaceFont,fontWorkspaceScope} from '../../../lib/workspaceFonts';
 const UPLOAD_KEY = 'ceriga_print_upload_library';
 const FONT_KEY = 'ceriga_print_font_library';
 const MAX_UPLOADS = 16;
@@ -10,6 +11,7 @@ export interface SavedUpload {
 }
 
 export interface SavedFont {
+  id?:string;postscriptName?:string;weight?:number;italic?:boolean;
   family: string;
   mime: string;
   dataUrl: string;
@@ -52,7 +54,7 @@ export function saveUploadToLibrary(name: string, dataUrl: string): SavedUpload[
 export function loadFontLibrary(): SavedFont[] {
   if (typeof window === 'undefined') return [];
   const list = readJson<SavedFont[]>(FONT_KEY, []);
-  return Array.isArray(list) ? list.filter((item) => item?.family && item?.dataUrl) : [];
+  return [...workspaceFonts(),...(fontWorkspaceScope()==='guest'&&Array.isArray(list)?list.filter(item=>item?.family&&item?.dataUrl):[])];
 }
 
 export async function hydrateFontLibrary(): Promise<string[]> {
@@ -71,28 +73,4 @@ export async function hydrateFontLibrary(): Promise<string[]> {
   return names;
 }
 
-export async function saveFontToLibrary(file: File): Promise<string | null> {
-  const base = file.name.replace(/\.[^.]+$/, '').replace(/[^\w\s-]+/g, '') || 'Font';
-  const family = `Custom ${base}`.slice(0, 40);
-  const unique = `${family}-${Date.now().toString(36)}`;
-  try {
-    const buf = await file.arrayBuffer();
-    const face = new FontFace(unique, buf);
-    await face.load();
-    document.fonts.add(face);
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(new Error('read failed'));
-      reader.readAsDataURL(file);
-    });
-    if (dataUrl.length < 2_400_000) {
-      const list = loadFontLibrary().filter((item) => item.family !== unique);
-      list.unshift({ family: unique, mime: file.type || 'font/ttf', dataUrl });
-      localStorage.setItem(FONT_KEY, JSON.stringify(list.slice(0, 24)));
-    }
-    return unique;
-  } catch {
-    return null;
-  }
-}
+export async function saveFontToLibrary(file:File,rightsAccepted=false):Promise<string|null>{const font=await importWorkspaceFont(file,rightsAccepted);return font.family;}

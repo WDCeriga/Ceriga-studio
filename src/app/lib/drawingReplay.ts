@@ -1,7 +1,7 @@
 import type {BrushPoint,renderBrushStroke} from './drawingBrush';
 export type RecordedBrushSettings=Parameters<typeof renderBrushStroke>[2];
 export interface RecordedStroke {points:BrushPoint[];settings:RecordedBrushSettings;seed:number;opacity:number;mirrorAxis?:number;paintFrame?:{x:number;y:number;width:number;height:number};clip?:{url:string;x:number;y:number;width:number;height:number}}
-export interface RecordedDrawing {width:number;height:number;strokes:RecordedStroke[];cuts?:{x:number;y:number}[][]}
+export interface RecordedDrawing {width:number;height:number;strokes:RecordedStroke[];erasers?:RecordedStroke[];cuts?:{x:number;y:number}[][]}
 export function snapshotBrush(settings:RecordedBrushSettings):RecordedBrushSettings {
  return {...Object.fromEntries(Object.entries(settings).filter(([,v])=>['number','boolean','string'].includes(typeof v))),pencil:{tiltShading:settings.pencil.tiltShading}} as RecordedBrushSettings;
 }

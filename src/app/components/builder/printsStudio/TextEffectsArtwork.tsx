@@ -1,3 +1,4 @@
+import { fadedInkMask } from '../../../lib/fadedInk';
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import {ArtworkInteractionContext} from './ArtworkInteractionContext';
@@ -8,7 +9,7 @@ import { cancelTextEffects, loadTextEffectImage, renderTextEffects, textEffectPa
 
 type Capture = TextPixels & { key: string; cssWidth: number; cssHeight: number; padding: number; scale: number };
 
-export function TextEffectsArtwork({ effects, sourceKey, width, height, children, style, onDoubleClick, text, target = 'text', sourcePadding = 0 }: {
+function RasterTextEffectsArtwork({ effects, sourceKey, width, height, children, style, onDoubleClick, text, target = 'text', sourcePadding = 0 }: {
   effects: TextEffect[]; sourceKey: string; width: number; height?: number; children: ReactNode; style?: CSSProperties; onDoubleClick?: MouseEventHandler<HTMLDivElement>; text: string; target?: 'text' | 'shape'; sourcePadding?: number;
 }) {
   const displayScale=useContext(ArtworkResolutionContext);
@@ -169,4 +170,13 @@ export function TextEffectPreview({ effect, text = 'CERIGA', shape = false }: { 
     return () => { cancelled = true; };
   }, [key, text, shape]);
   return <span className="block w-full"><canvas ref={ref} aria-hidden className="block w-full" style={{ aspectRatio: '2 / 1' }} />{failed && <span className="text-[9px] text-[#737373]">Preview unavailable</span>}</span>;
+}
+
+/** Fade is an SVG mask, so text and vector artwork stay sharp at every scale. */
+export function TextEffectsArtwork(props:Parameters<typeof RasterTextEffectsArtwork>[0]) {
+  const fades=props.effects.filter(effect=>effect.type==='faded'&&effect.enabled&&effect.intensity>0);
+  const other=props.effects.filter(effect=>effect.type!=='faded');
+  let artwork=other.some(effect=>effect.enabled&&effect.intensity>0)?<RasterTextEffectsArtwork {...props} effects={other}/>:<div style={{width:'100%',height:props.height,...props.style}} onDoubleClick={props.onDoubleClick}>{props.children}</div>;
+  for(const effect of fades)artwork=<div key={effect.id} data-vector-faded-ink style={{width:'100%',height:props.height,...props.style,maskImage:`url("${fadedInkMask(effect)}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'}}>{artwork}</div>;
+  return artwork;
 }

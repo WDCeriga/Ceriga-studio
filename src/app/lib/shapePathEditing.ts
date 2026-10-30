@@ -30,13 +30,31 @@ export function moveShapePoints(path: ShapePath, indices: number[], delta: Point
   })) };
 }
 export function deleteShapePoints(path: ShapePath, indices: number[]): ShapePath {
-  const nodes = path.nodes.filter((_, index) => !indices.includes(index));
-  return nodes.length >= (path.closed ? 3 : 2) ? { ...path, nodes } : path;
+  const remove=[...new Set(indices)].filter(i=>i>=0&&i<path.nodes.length).sort((a,b)=>b-a);
+  if(path.nodes.length-remove.length<(path.closed?3:2))return path;
+  const nodes=path.nodes.map(n=>({...n}));
+  for(const index of remove){
+    if(path.closed||(index>0&&index<nodes.length-1)){
+      const before=(index-1+nodes.length)%nodes.length,after=(index+1)%nodes.length,a=nodes[before],m=nodes[index],b=nodes[after];
+      if(m.in&&m.out){
+        const l=Math.hypot(m.x-m.in.x,m.y-m.in.y),r=Math.hypot(m.out.x-m.x,m.out.y-m.y),t=l/(l+r);
+        if(t>1e-6&&t<1-1e-6){
+          const first=a.out??a,last=b.in??b,c1={x:a.x+(first.x-a.x)/t,y:a.y+(first.y-a.y)/t},c2={x:b.x+(last.x-b.x)/(1-t),y:b.y+(last.y-b.y)/(1-t)},left={...a,out:c1},right={...b,in:c2};
+          const matches=[0,.25,.5,.75,1].every(u=>{const p=pathSegmentPoint(a,m,u),q=pathSegmentPoint(left,right,u*t),v=pathSegmentPoint(m,b,u),w=pathSegmentPoint(left,right,t+u*(1-t));return Math.hypot(p.x-q.x,p.y-q.y)<1e-5&&Math.hypot(v.x-w.x,v.y-w.y)<1e-5;});
+          if(matches){nodes[before]=left;nodes[after]=right;}
+        }
+      }
+    }
+    nodes.splice(index,1);
+  }
+  return {...path,nodes};
 }
 export function smoothShapePoints(path: ShapePath, indices: number[], smooth: boolean): ShapePath {
   return { ...path, nodes: path.nodes.map((node, index, nodes) => {
     if (!indices.includes(index)) return node;
     if (!smooth) return { ...node, in: undefined, out: undefined };
+    if(!path.closed&&index===0){const next=nodes[1];return {...node,in:undefined,out:{x:node.x+(next.x-node.x)/3,y:node.y+(next.y-node.y)/3}};}
+    if(!path.closed&&index===nodes.length-1){const prev=nodes[index-1];return {...node,out:undefined,in:{x:node.x-(node.x-prev.x)/3,y:node.y-(node.y-prev.y)/3}};}
     const prev = nodes[(index - 1 + nodes.length) % nodes.length], next = nodes[(index + 1) % nodes.length];
     const dx = (next.x - prev.x) / 6, dy = (next.y - prev.y) / 6;
     return { ...node, in: { x: node.x - dx, y: node.y - dy }, out: { x: node.x + dx, y: node.y + dy } };

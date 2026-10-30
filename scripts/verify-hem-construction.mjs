@@ -2,6 +2,15 @@ import {build} from 'esbuild';
 import {spawnSync} from 'node:child_process';
 const result=await build({stdin:{contents:`
 import assert from 'node:assert/strict';
+import {sleeveHemStitchRow} from './src/app/data/hemStitchGeometry';
+for(const angle of [-.45,0,.45])for(const depth of [12,24,60,100]){
+ const c=Math.cos(angle),s=Math.sin(angle),world=(x:number,y:number)=>({x:300+x*c-y*s,y:700+x*s+y*c});
+ const band=[world(-80,0),world(80,0),world(80,depth),world(-80,depth)];
+ const row=sleeveHemStitchRow(band);assert.equal(row.length,2);
+ for(const p of row){const y=-(p.x-300)*s+(p.y-700)*c;assert(Math.abs(y-Math.min(6,depth*.2))<.001,'Thread follows the upper fold at every depth and sleeve angle');}
+}
+const moved=sleeveHemStitchRow([{x:0,y:50},{x:160,y:50},{x:160,y:90},{x:0,y:90}]);assert(moved.every(p=>Math.abs(p.y-56)<.001),'Changing the hem height moves the stitch row');
+console.log('Sleeve hems: upper-fold registration at four depths and three angles; height changes move thread.');
 import {technicalBoundaryPaths} from './src/app/features/panelling/TechnicalLinework';
 import {resolveHemSettings,updateHemSettings,copyHemSettings} from './src/app/data/tshirtHemStyles';
 let checks=0;const check=(ok:boolean,label:string)=>{assert.ok(ok,label);checks++;console.log('PASS '+label)};

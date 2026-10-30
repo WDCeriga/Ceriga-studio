@@ -612,6 +612,7 @@ export function renderBrushStroke(
   scale: number,
   seed: number,
   paintFrame?:{x:number;y:number;width:number;height:number},
+  surfaceEffects=true,
 ) {
   if (!points.length || !Number.isFinite(scale) || scale <= 0) return;
   const size = bounded(settings.brushSize, 14, 1, 512) * scale;
@@ -642,6 +643,7 @@ export function renderBrushStroke(
       context.restore();
   }
   context.restore();
+  if(!surfaceEffects)return;
   applyBrushTexture(context, settings, settings.grain, scale);
   if (settings.blur > 0) {
     const copy = document.createElement('canvas');

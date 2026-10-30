@@ -16,6 +16,7 @@ import type { MeasurementUnit } from '../../lib/measurements';
 
 interface DownloadTechPackModalProps {
   appearance?: 'light';
+  onArtworkExport?:()=>Promise<void>;
   onClose: () => void;
   availableColors: Array<{ hex: string; pantone: string }>;
   measurementUnit: MeasurementUnit;
@@ -115,7 +116,7 @@ function SegmentedControl({
 // ── main modal ─────────────────────────────────────────────────────────────────
 
 export function DownloadTechPackModal({
-  appearance,
+  appearance,onArtworkExport,
   onClose,
   availableColors,
   measurementUnit,
@@ -160,6 +161,7 @@ export function DownloadTechPackModal({
   const runDownload = useCallback(async () => {
     setDownloadPhase('working');
     try {
+      if(includeArtworkPages&&onArtworkExport)await onArtworkExport();
       if (!navigator.onLine) {
         throw new Error('offline');
       }
@@ -185,11 +187,11 @@ export function DownloadTechPackModal({
       toast.success('Tech pack export started');
       setDownloadPhase('idle');
       onClose();
-    } catch {
+    } catch (error) {
       setDownloadPhase('error');
-      toast.error('Export failed — check your connection and try again.');
+      toast.error(error instanceof Error?error.message:'Export failed. Try again.');
     }
-  }, [
+  }, [onArtworkExport,
     includeDetailsImage,
     includeMeasurementTable,
     includeMaterialCallouts,

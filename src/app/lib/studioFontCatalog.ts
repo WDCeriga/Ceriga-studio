@@ -1,0 +1,6 @@
+import catalog from '../data/studioFontCatalog.json';
+export const STUDIO_FONTS=catalog.map(font=>({...font,category:({'sans-serif':'Sans',serif:'Serif',display:'Display',handwriting:'Script',monospace:'Mono'} as Record<string,string>)[font.category]??font.category}));
+const loading=new Map<string,Promise<FontFace>>();
+export function studioFontSource(family:string,weight?:string,style='normal'){const font=STUDIO_FONTS.find(f=>f.family===family);if(!font)return undefined;const w=weight==='bold'?700:400;if(!font.weights.includes(w)||!font.styles.includes(style))return undefined;return `https://cdn.jsdelivr.net/fontsource/fonts/${font.id}@latest/latin-${w}-${style}.woff2`;}
+export function studioFontIdentity(family:string){const font=STUDIO_FONTS.find(f=>f.family===family);return font?{fontId:'builtin:'+font.id,fontPostscriptName:font.id,fontDisplayName:family,fontWeight:'normal' as const,fontStyle:'normal' as const}:null;}
+export function ensureStudioFont(family:string){const source=studioFontSource(family);if(!source||typeof FontFace==='undefined')return Promise.resolve();let pending=loading.get(source);if(!pending){const face=new FontFace(family,`url(${source})`,{weight:'400',style:'normal'});document.fonts.add(face);pending=face.load();loading.set(source,pending);pending.catch(()=>{loading.delete(source);document.fonts.delete(face)});}return pending;}

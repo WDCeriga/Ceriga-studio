@@ -1,0 +1,6 @@
+import type {DesignElement} from '../components/builder/PrintStudioEditor';
+const mime='application/x-ceriga-artwork',prefix='CERIGA_ARTWORK_V1:';
+let local:DesignElement[]=[];
+export function writeArtworkClipboard(event:ClipboardEvent,elements:DesignElement[]){if(!elements.length||!event.clipboardData)return false;local=structuredClone(elements);const json=JSON.stringify(local);event.clipboardData.setData(mime,json);event.clipboardData.setData('text/plain',prefix+json);event.preventDefault();return true;}
+export function readArtworkClipboard(event:ClipboardEvent):DesignElement[]|null{const raw=event.clipboardData?.getData(mime)||event.clipboardData?.getData('text/plain');if(!raw)return null;try{const data=JSON.parse(raw.startsWith(prefix)?raw.slice(prefix.length):raw);if(!Array.isArray(data)||data.length>1000||data.some(e=>!e||!['shape','image','text','drawing','pattern','group','customArea','distress'].includes(e.type)||!Number.isFinite(e.x)||!Number.isFinite(e.y)||!(e.width>0)||!(e.height>0)))return null;return structuredClone(data);}catch{return null;}}
+export function pastedArtwork(elements:DesignElement[],side:'front'|'back'){return elements.map(element=>({...structuredClone(element),id:crypto.randomUUID(),side,x:element.x+16,y:element.y+16,locked:false,hidden:false}));}

@@ -5,8 +5,14 @@
 @media(max-width:767px){.studio-layers-v2 .studio-layer-list{max-height:260px}.studio-layers-v2 .studio-layer-row>.layer-visibility,.studio-layers-v2 .studio-layer-row>.layer-more{width:32px;height:36px}.layer-drag-grip{opacity:.5}}
 
 /* Keep fine outlines readable at thumbnail size without changing artwork. */
-.studio-layers-v2 .studio-layer-thumb svg :is(path,rect,ellipse,line,polygon)[stroke-width]:not([stroke-width="0"]){vector-effect:non-scaling-stroke;stroke-width:1px}
+.studio-layers-v2 .studio-layer-thumb>svg :is(path,rect,ellipse,line,polygon)[stroke-width]:not([stroke-width="0"]){vector-effect:non-scaling-stroke;stroke-width:1px}
 
 .studio-layers-v2 .studio-layer-row[data-selected=true] .studio-layer-select strong{color:#171717;font-weight:600}.studio-layers-v2 .studio-layer-row[data-selected=true]:hover{background:#f0f0f0}
 
 .studio-layers-v2 .studio-layer-select[aria-pressed=true]{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+
+/* Native artwork previews replace generic layer icons, at every thumbnail size. */
+.studio-layer-thumb:has(.studio-artwork-thumbnail){position:relative;overflow:hidden;flex:none}
+.studio-artwork-thumbnail{position:absolute;inset:3px;pointer-events:none;overflow:hidden}
+.studio-artwork-thumbnail>svg{display:block;width:100%!important;height:100%!important;max-width:none;max-height:none}
+.studio-artwork-thumbnail foreignObject{overflow:hidden}

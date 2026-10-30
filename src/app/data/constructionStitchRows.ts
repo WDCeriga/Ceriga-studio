@@ -7,11 +7,15 @@ import type {StitchGeometry} from './tshirtStitching';
 type P={x:number;y:number};
 /** Offset from the seam towards its owning fabric, rather than shifting every curve horizontally. */
 export function insetConstructionRow(row:P[],contains:(p:P)=>boolean,inset=14):P[]{
- return row.map((p,i)=>{const a=row[Math.max(0,i-1)],b=row[Math.min(row.length-1,i+1)],length=Math.hypot(b.x-a.x,b.y-a.y)||1;
+ const candidates=row.map((p,i)=>{const a=row[Math.max(0,i-1)],b=row[Math.min(row.length-1,i+1)],length=Math.hypot(b.x-a.x,b.y-a.y)||1;
  const normal={x:-(b.y-a.y)/length*inset,y:(b.x-a.x)/length*inset};
- const one={x:p.x+normal.x,y:p.y+normal.y},other={x:p.x-normal.x,y:p.y-normal.y};
- return contains(one)?one:contains(other)?other:one;
+ return [{x:p.x+normal.x,y:p.y+normal.y},{x:p.x-normal.x,y:p.y-normal.y}];
  });
+ // Tracing overlaps can contain both candidates near the shoulder. Pick the owning
+ // side once for the entire seam, never flip the thread to the other side mid-row.
+ const scores=[0,0];for(const pair of candidates)pair.forEach((p,i)=>{if(contains(p))scores[i]++});
+ const side=scores[1]>scores[0]?1:0;
+ return candidates.map(pair=>pair[side]);
 }
 export function flattenConstructionSeam(d:string):P[]{
  const normalized=svgpath(d).abs().unshort().unarc();let end:P|undefined;

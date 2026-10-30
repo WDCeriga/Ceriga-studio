@@ -1,3 +1,4 @@
+import {roundNormalizedVectorPath} from './roundedVectorPath';
 import {ARTWORK_MOTIFS,editableSvgPath} from './artworkMotifs';
 export interface ShapePathNode {
   x: number;
@@ -8,12 +9,18 @@ export interface ShapePathNode {
 
 /** Coordinates and cubic handles are absolute percentages of the element bounds. */
 export interface ShapePath {
+  /** Temporary provenance for reference-edge fitting. */
+  referenceRaster?:boolean;
+  /** Semantic glyph membership, retained while editing contour points. */
+  letterKey?: string;
+  fillRule?:'evenodd'|'nonzero';
   closed: boolean;
   nodes: ShapePathNode[];
   subpaths?: ShapePath[];
 }
 
 export interface ShapeGeometryElement {
+  shapeCornerRadius?:number;
   drawingVectorSource?:unknown;
   type?: string;
   content: string;
@@ -128,7 +135,7 @@ function radial(count: number, outer: number, inner: number | undefined, rotatio
 }
 
 function clonePath(path: ShapePath): ShapePath {
-  return { closed: !!path.closed, nodes: path.nodes.map(n => ({ x: n.x, y: n.y, ...(n.in ? { in: { ...n.in } } : {}), ...(n.out ? { out: { ...n.out } } : {}) })), ...(path.subpaths ? { subpaths: path.subpaths.map(clonePath) } : {}) };
+  return { ...(path.fillRule?{fillRule:path.fillRule}:{}), ...(path.letterKey?{letterKey:path.letterKey}:{}), closed: !!path.closed, nodes: path.nodes.map(n => ({ x: n.x, y: n.y, ...(n.in ? { in: { ...n.in } } : {}), ...(n.out ? { out: { ...n.out } } : {}) })), ...(path.subpaths ? { subpaths: path.subpaths.map(clonePath) } : {}) };
 }
 
 /** Materializes the visible geometry without baking in rotation, flips, paint, or effects. */
@@ -302,7 +309,7 @@ export function shapeIsClosed(element: ShapeGeometryElement): boolean {
 }
 
 /** Fit new studio shapes to their real cubic bounds, keeping stroke inside the selection box. */
-export function shapeToEditablePath(element:ShapeGeometryElement):ShapePath{
+function fittedShapeToEditablePath(element:ShapeGeometryElement):ShapePath{
  const path=rawShapeToEditablePath(element);if(element.shapeParameters?.studioRevision!==2||element.shapePath||!path.nodes.length)return path;
  const xs:number[]=[],ys:number[]=[];
  const cubic=(a:number,b:number,c:number,d:number,t:number)=>(1-t)**3*a+3*(1-t)**2*t*b+3*(1-t)*t*t*c+t**3*d;
@@ -312,3 +319,6 @@ export function shapeToEditablePath(element:ShapeGeometryElement):ShapePath{
  const point=(n:{x:number;y:number})=>({x:w>1e-8?padX+(n.x-minX)/w*(100-2*padX):n.x,y:h>1e-8?padY+(n.y-minY)/h*(100-2*padY):n.y});
  const fit=(p:ShapePath):ShapePath=>{const nodes:ShapePathNode[]=[];for(const n of p.nodes){const next={...point(n),...(n.in?{in:point(n.in)}:{}),...(n.out?{out:point(n.out)}:{})},prev=nodes.at(-1);if(prev&&Math.hypot(prev.x-next.x,prev.y-next.y)<1e-8){if(next.out)prev.out=next.out}else nodes.push(next)}return {closed:p.closed,nodes,...(p.subpaths?{subpaths:p.subpaths.map(fit)}:{})}};return fit(path);
 }
+
+/** A zero radius always returns the original editable path. */
+export function shapeToEditablePath(element:ShapeGeometryElement):ShapePath{const path=fittedShapeToEditablePath(element);return element.shapeCornerRadius?roundNormalizedVectorPath(path,element.shapeCornerRadius,Math.max(1,element.width??100),Math.max(1,element.height??100)):path;}

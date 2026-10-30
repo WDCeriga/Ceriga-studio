@@ -1,3 +1,6 @@
+import {artworkBounds} from '../../../lib/artworkPlacements';
+import {placeNativeStudioAsset} from '../../../lib/studioArtwork';
+import {setFontWorkspace} from '../../../lib/workspaceFonts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { listAssetProjects, listLocalAssetProjects, saveAssetProject, type AssetProject } from '../../../lib/assetLibrary';
@@ -15,6 +18,7 @@ const message = (error: unknown) => error instanceof Error ? error.message : 'Th
 export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (asset: AssetProject, point?: Point) => void }) {
   const { user, authReady } = useAuth();
   const userId = user?.id ?? null;
+  useEffect(()=>{if(authReady)void setFontWorkspace(userId).catch(()=>{});},[userId,authReady]);
   const scope = `asset-draft:${userId ?? 'guest'}`;
   const scopeRef = useRef(scope);
   const documentScope = useRef(scope);
@@ -80,14 +84,14 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
     if (!recovery || busyRef.current || snapshotRef.current) return;
     enter(recovery); setBaseline(''); setRecovery(null);
   };
-  const changeProject = useCallback((patch: Partial<Pick<AssetProject, 'name' | 'width' | 'height' | 'background' | 'elements'>>, selectedId?: string | null) => {
+  const changeProject = useCallback((patch: Partial<Pick<AssetProject, 'name' | 'width' | 'height' | 'background' | 'elements'>>, selectedId?: string | null,options?:{transient?:boolean}) => {
     const current = snapshotRef.current;
     if (!current || busyRef.current) return;
     const next = { project: { ...current.project, ...patch }, selectedId: selectedId === undefined ? current.selectedId : selectedId };
-    if (signature(next.project) !== signature(current.project)) { setPast(items => [...items.slice(-99), current]); setFuture([]); }
+    if (!options?.transient&&signature(next.project) !== signature(current.project)) { setPast(items => [...items.slice(-99), current]); setFuture([]); }
     updateSnapshot(next);
   }, [updateSnapshot]);
-  const change = useCallback((elements: DesignElement[], selectedId?: string | null) => changeProject({ elements }, selectedId), [changeProject]);
+  const change = useCallback((elements: DesignElement[], selectedId?: string | null,options?:{transient?:boolean}) => changeProject({ elements }, selectedId,options), [changeProject]);
   const select = useCallback((id: string | null) => {
     if (snapshotRef.current && !busyRef.current) updateSnapshot({ ...snapshotRef.current, selectedId: id });
   }, [updateSnapshot]);
@@ -135,7 +139,16 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
     if (!current) { onPlaceOnGarment(asset, point); return; }
     const width = Math.min(180, current.project.width * .5);
     const id = `asset-${crypto.randomUUID()}`;
-    change([...current.project.elements, { id, type: 'image', content: asset.preview, layerName: asset.name, x: point?.x ?? current.project.width / 2, y: point?.y ?? current.project.height / 2, width, height: width * asset.height / asset.width, rotation: 0, opacity: 100, aspectLocked: true, side: 'front', printMethod: 'DTG' }], id);
+    change([...current.project.elements, placeNativeStudioAsset(asset,{id,x:point?.x??current.project.width/2,y:point?.y??current.project.height/2,width,side:'front'})], id);
   }, [change, onPlaceOnGarment]);
-  return { project, selectedId: snapshot?.selectedId ?? null, select, change, changeProject, undo, redo, canUndo: !busy && past.length > 0, canRedo: !busy && future.length > 0, busy, dirty, enter, back, save, insert, library, error, libraryError, recovery, resume, confirmBack, setConfirmBack, discard, nameRequest, setNameRequest, nameInput, setNameInput, authReady };
+  const saveSelectionToLibrary=useCallback(async(elements:DesignElement[],name:string)=>{
+    const selected=elements.filter(element=>!element.hidden&&!element.tracingReference);if(!authReady||busyRef.current||!selected.length||!name.trim())throw new Error('Select artwork and give it a name first.');
+    busyRef.current=true;setBusy(true);setError(null);const capturedScope=scope;
+    try{const boxes=selected.map(artworkBounds),left=Math.min(...boxes.map(box=>box.x)),top=Math.min(...boxes.map(box=>box.y)),width=Math.max(32,Math.ceil(Math.max(...boxes.map(box=>box.x+box.width))-left+40)),height=Math.max(32,Math.ceil(Math.max(...boxes.map(box=>box.y+box.height))-top+40));
+      const clean=(element:DesignElement):DesignElement=>({...clone(element),placementId:undefined,colourSlots:undefined,sketchOnly:false,side:'front',children:element.children?.map(clean)}),native=selected.map(element=>({...clean(element),x:element.x-left+20,y:element.y-top+20})),scale=Math.min(1,4096/width,4096/height),w=Math.max(32,Math.round(width*scale)),h=Math.max(32,Math.round(height*scale)),content=scale===1?native:[{id:crypto.randomUUID(),type:'group' as const,content:'saved-selection',x:w/2,y:h/2,width:w,height:h,rotation:0,groupSourceWidth:width,groupSourceHeight:height,children:native}],preview=await exportAssetArtboard(w,h,content);
+      if(scopeRef.current!==capturedScope)throw new Error('The active workspace changed. Save the selection again in the intended workspace.');
+      const now=new Date().toISOString(),asset=await saveAssetProject({id:crypto.randomUUID(),name:name.trim(),width:w,height:h,elements:content,preview,createdAt:now,updatedAt:now},userId);if(scopeRef.current===capturedScope)setLibrary(items=>[asset,...items]);return asset;
+    }catch(error){setError(message(error));throw error}finally{busyRef.current=false;setBusy(false)}
+  },[scope,userId,authReady]);
+  return { saveSelectionToLibrary,project, selectedId: snapshot?.selectedId ?? null, select, change, changeProject, undo, redo, canUndo: !busy && past.length > 0, canRedo: !busy && future.length > 0, busy, dirty, enter, back, save, insert, library, error, libraryError, recovery, resume, confirmBack, setConfirmBack, discard, nameRequest, setNameRequest, nameInput, setNameInput, authReady };
 }
