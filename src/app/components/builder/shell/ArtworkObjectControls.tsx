@@ -1,14 +1,12 @@
 import {isFabricArtwork} from '../../../lib/artworkProduction';
-import {Eye,EyeOff,Lock,Unlock,FlipHorizontal2,FlipVertical2,Copy} from 'lucide-react';
+import {Eye,EyeOff,Lock,Unlock,FlipHorizontal2,FlipVertical2} from 'lucide-react';
 import type {DesignElement} from '../PrintStudioEditor';
 import {ArtworkThumbnail} from '../printsStudio/ArtworkThumbnail';
-import {useArtworkPlacements} from '../printsStudio/ArtworkPlacementsContext';
+import {useArtwork} from '../printsStudio/ArtworkContext';
 import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
 import {usePrintsStudio} from '../printsStudio/PrintsStudioContext';
-import {createArtworkPlacement,placementBounds,type ArtworkFinish} from '../../../lib/artworkPlacements';
+import type {ArtworkFinish} from '../../../lib/artworkGeometry';
 import {artworkSlotKey} from '../../../lib/artworkColourSlots';
-import {duplicateStudioArtwork} from '../../../lib/studioArtwork';
-import {placementChecks} from '../../../lib/artworkPlacementChecks';
 import {StudioFold,StudioNumber,StudioPaint,StudioRange} from './StudioControls';
 import {MaterialSelect} from './MaterialSelect';
 import {PrintWearControls} from './PrintWearControls';
@@ -16,24 +14,21 @@ import {TextileInkControls} from './TextileInkControls';
 
 type Props={element:DesignElement;update:(patch:Partial<DesignElement>)=>void};
 export function ArtworkObjectIdentity({element,update}:Props){return <div className="studio-object-identity"><span className="studio-layer-thumb"><ArtworkThumbnail element={element}/></span><div style={{flex:1,minWidth:0}}><input aria-label="Artwork layer name" placeholder={element.type==='text'?element.content:'Name this artwork'} value={element.layerName??''} onChange={event=>update({layerName:event.target.value||undefined})}/><small>{element.type==='drawing'?(element.sketchOnly?'Sketch':'Drawing'):element.logoTrace?'Trace':element.type==='customArea'?'Path':element.type.charAt(0).toUpperCase()+element.type.slice(1)}</small></div><button aria-label={element.hidden?'Show artwork':'Hide artwork'} onClick={()=>update({hidden:!element.hidden})}>{element.hidden?<EyeOff size={15}/>:<Eye size={15}/>}</button><button aria-label={element.locked?'Unlock artwork':'Lock artwork'} onClick={()=>update({locked:!element.locked})}>{element.locked?<Lock size={16}/>:<Unlock size={16}/>}</button></div>;}
-export function ArtworkPlacementFields({element,update}:Props){
- const context=useArtworkPlacements(),workspace=useAssetWorkspaceContext(),studio=usePrintsStudio(),garment=!workspace?.project?context:null,units=garment?.document.unitsPerCm??studio.unitsPerCm,origin=garment?.document.origin??{x:0,y:0},placement=garment?.document.placements.find(item=>item.id===element.placementId);
- return <StudioFold title="Placement" rowHeight={40} value={placement?.name??'Canvas'}><fieldset disabled={element.locked}>
- {garment&&<label className="studio-field">Print area<MaterialSelect aria-label="Artwork placement" value={element.placementId??''} onChange={event=>{const next=garment.document.placements.find(item=>item.id===event.target.value);if(!next)return;const box=placementBounds(next,garment.document);update({placementId:next.id,x:box.x+box.width/2,y:box.y+box.height/2,side:next.side});garment.onSide(next.side);}}><option value="">Choose placement</option>{garment.document.placements.map(item=><option key={item.id} value={item.id}>{item.name} · {item.side}</option>)}</MaterialSelect></label>}
- {placement&&<p className="typography-help">{placement.method}<button className="studio-outline-action" onClick={()=>{studio.setPanel('placements');garment!.select(placement.id,true)}}>Edit print area and method</button></p>}
- <div className="studio-two-columns">{(['x','y','width','height'] as const).map(key=><StudioNumber key={key} label={{x:'X',y:'Y',width:'W',height:'H'}[key]} unit="cm" min={key==='width'||key==='height'?.01:-200} max={200} step={.01} value={(element[key]-(key==='x'?origin.x:key==='y'?origin.y:0))/units} onChange={value=>update({[key]:value*units+(key==='x'?origin.x:key==='y'?origin.y:0),...(element.aspectLocked&&key==='width'?{height:element.height*value*units/element.width}:element.aspectLocked&&key==='height'?{width:element.width*value*units/element.height}:{})})}/>)}</div>
+export function ArtworkTransformFields({element,update}:Props){
+ const studio=usePrintsStudio(),units=studio.unitsPerCm,origin={x:studio.printArea.x+studio.printArea.width/2,y:studio.printArea.y};
+ return <StudioFold title="Position & size" rowHeight={40}><fieldset disabled={element.locked}>
+ <div className="studio-two-columns">{(['x','y','width','height'] as const).map(key=><StudioNumber key={key} label={{x:'X',y:'Y',width:'Width',height:'Height'}[key]} unit="cm" min={key==='width'||key==='height'?.01:-200} max={200} step={.01} value={(element[key]-(key==='x'?origin.x:key==='y'?origin.y:0))/units} onChange={value=>update({[key]:value*units+(key==='x'?origin.x:key==='y'?origin.y:0),...(element.aspectLocked&&key==='width'?{height:element.height*value*units/element.width}:element.aspectLocked&&key==='height'?{width:element.width*value*units/element.height}:{})})}/>)}</div>
  <StudioNumber label="Rotation" unit="°" min={-360} max={360} value={element.rotation} onChange={rotation=>update({rotation})}/><label className="studio-switch">Lock ratio<input type="checkbox" checked={element.aspectLocked??false} onChange={event=>update({aspectLocked:event.target.checked})}/></label>
  <div className="path-workflow-actions"><button onClick={()=>update({flipHorizontal:!element.flipHorizontal})}><FlipHorizontal2 size={14}/>Flip H</button><button onClick={()=>update({flipVertical:!element.flipVertical})}><FlipVertical2 size={14}/>Flip V</button></div>
- {garment&&placement&&<button className="studio-outline-action" onClick={()=>{const side=element.side==='back'?'front':'back',target=garment.document.placements.find(item=>item.side===side&&item.preset===placement.preset)??{...createArtworkPlacement(side==='back'?'full-back':'full-front',placement.method),printArea:{...placement.printArea},position:{...placement.position}},copy={...duplicateStudioArtwork(garment.sourceElements.find(item=>item.id===element.id)??element),placementId:target.id,side,x:origin.x*2-element.x,y:element.y,flipHorizontal:!element.flipHorizontal};garment.onCommit([...garment.sourceElements,copy],{...garment.document,placements:garment.document.placements.some(item=>item.id===target.id)?garment.document.placements:[...garment.document.placements,target]},copy.id);garment.onSide(side);}}><Copy size={14}/>Mirror to other side</button>}
  </fieldset></StudioFold>;
 }
 export function ArtworkColourSlots({element,update}:Props){
- const context=useArtworkPlacements(),workspace=useAssetWorkspaceContext(),slots=element.colourSlots??[];
+ const context=useArtwork(),workspace=useAssetWorkspaceContext(),slots=element.colourSlots??[];
  return <>{slots.map(slot=>{const key=artworkSlotKey(element.id,slot.id),swatch=!workspace?.project?context?.overrides[key]??slot.swatch:slot.swatch;const change=(hex:string,reference?:string)=>{if(!workspace?.project&&context?.colourwayId)context.onOverrides({...context.overrides,[key]:{hex,reference}});else update({colourSlots:slots.map(item=>item.id===slot.id?{...item,swatch:{hex,reference}}:item)})};return <StudioPaint key={slot.id} label={slot.name} value={swatch.hex} allowGradients={false} onChange={hex=>change(hex)} onReference={(reference,hex)=>change(hex??swatch.hex,reference)}/>})}</>;
 }
 export const ARTWORK_FINISHES:ArtworkFinish['type'][]=['Puff','Foil','Flock','Reflective','Glitter','Rubber patch','Woven patch','Embroidery'];
 export function ArtworkFinishControls({element,update}:Props){
- const finish=element.artworkFinish,context=useArtworkPlacements(),workspace=useAssetWorkspaceContext(),studio=usePrintsStudio(),units=!workspace?.project?context?.document.unitsPerCm??studio.unitsPerCm:studio.unitsPerCm;
+ const finish=element.artworkFinish,workspace=useAssetWorkspaceContext(),studio=usePrintsStudio(),units=studio.unitsPerCm;
  if(isFabricArtwork(element))return <p className="typography-help">Fabric fill uses printed garment material. Apply raised or applied finishes to placed artwork.</p>;
  return <><label className="studio-field">Finish<MaterialSelect aria-label="Artwork finish" value={finish?.type??''} onChange={event=>{const type=event.target.value as ArtworkFinish['type'];update({artworkUnitsPerCm:units,artworkFinish:type?{type,...(['Puff','Flock','Rubber patch'].includes(type)?{heightMm:type==='Puff'?.5:1}:{}),...(type==='Embroidery'?{thread:'Polyester'}:{}),...(type.includes('patch')?{widthCm:element.width/units,heightCm:element.height/units,attachment:'Sew on'}:{}),...(['Foil','Reflective'].includes(type)?{colour:'#b8b8b8'}:{})}:undefined});}}><option value="">Standard ink</option>{ARTWORK_FINISHES.map(type=><option key={type}>{type}</option>)}</MaterialSelect></label>
  {finish&&['Puff','Flock','Rubber patch'].includes(finish.type)&&<StudioNumber label={finish.type==='Puff'?'Puff height':finish.type==='Flock'?'Pile height':'Patch thickness'} unit="mm" min={.1} max={5} value={finish.heightMm??.5} onChange={heightMm=>update({artworkFinish:{...finish,heightMm}})}/>}
@@ -50,4 +45,3 @@ export function ArtworkFinishControls({element,update}:Props){
  <TextileInkControls element={element} update={update}/><PrintWearControls element={element} update={update}/>
  </>;
 }
-export function ArtworkObjectChecks({element}:Pick<Props,'element'>){const context=useArtworkPlacements(),workspace=useAssetWorkspaceContext(),placement=context?.document.placements.find(item=>item.id===element.placementId);if(!context||workspace?.project||!placement)return null;const checks=placementChecks(placement,context.elements,context.document,context.measurements).filter(check=>!check.artworkId||check.artworkId===element.id);return <StudioFold title="Checks" rowHeight={40} value={checks.some(check=>check.kind==='Blocker')?'Blocker':checks.some(check=>check.kind==='Risk')?'Risk':checks.length?'Polish':'Ready'}>{checks.map(check=><div key={check.id}><p className="typography-help"><strong>{check.kind}</strong> {check.message}</p><button className="studio-outline-action" onClick={()=>{context.select(placement.id,true);context.onSelectArtwork(element.id)}}>Show me</button></div>)}</StudioFold>;}

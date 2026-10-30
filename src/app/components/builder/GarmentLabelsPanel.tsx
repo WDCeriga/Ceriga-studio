@@ -1,6 +1,7 @@
+import {embedSurfaceFonts} from '../../lib/embedSurfaceFonts';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, Copy, Download, FlipHorizontal2, FlipVertical2, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import {renderSurfaceViewToSvg} from './ArtworkSurfaceSvg';
 import { CARE_OPTIONS, DEFAULT_REGION_TRANSFORM, LABEL_CATEGORIES, LABEL_FOLDS, LABEL_FONTS, LABEL_METHODS, LABEL_POSITIONS, LABEL_PRESETS, LABEL_REGIONS, LABEL_SHAPES, LABEL_SIZE_VERTICAL, applyLabelPreset, createGarmentLabel, labelPositions, labelSpecification, labelWarnings, normalizeLabel, unfoldedLabelSize, type CareCategory, type GarmentLabel, type LabelCategory, type LabelRegion, type LabelRegionTransform } from '../../data/garmentLabels';
 import { LabelArtwork, labelLayout, loadLabelFont } from './LabelArtwork';
 import { LABEL_BLOCKS, LABEL_HIERARCHIES, MANUFACTURER_CARE_NOTE, applyLabelHierarchy, labelBlocks, labelExportFaces, switchTagFace, type LabelBlock, type LabelBlockKey } from '../../data/garmentLabels';
@@ -31,8 +32,8 @@ function downloadFile(content: string, name: string, type: string) {
 export async function downloadLabelArtwork(label: GarmentLabel) {
   await loadLabelFont(label);
   await document.fonts.ready;
-  const svg = renderToStaticMarkup(<svg xmlns="http://www.w3.org/2000/svg" width={`${label.widthMm}mm`} height={`${label.heightMm}mm`} viewBox={`0 0 ${label.widthMm} ${label.heightMm}`}><LabelArtwork label={label} /></svg>);
-  downloadFile(svg, `${label.category}-${label.id}${['tag', 'hand'].includes(label.category) ? `-${label.artworkFace ?? label.exteriorView}` : ''}.svg`, 'image/svg+xml');
+  const svg = await renderSurfaceViewToSvg(<svg xmlns="http://www.w3.org/2000/svg" width={`${label.widthMm}mm`} height={`${label.heightMm}mm`} viewBox={`0 0 ${label.widthMm} ${label.heightMm}`}><LabelArtwork label={label} /></svg>);
+  downloadFile(await embedSurfaceFonts(svg), `${label.category}-${label.id}${['tag', 'hand'].includes(label.category) ? `-${label.artworkFace ?? label.exteriorView}` : ''}.svg`, 'image/svg+xml');
 }
 export async function downloadLabelPdf(labels: GarmentLabel[]) {
   const { jsPDF } = await import('jspdf');
@@ -46,8 +47,8 @@ export async function downloadLabelPdf(labels: GarmentLabel[]) {
     const rasterWidth = Math.ceil(label.widthMm * pixelsPerMm);
     const rasterHeight = Math.ceil(label.heightMm * pixelsPerMm);
     pdf.setFontSize(9); pdf.text(`Finished: ${label.widthMm} x ${label.heightMm} mm; artwork scale: ${(scale * 100).toFixed(1)}%`, 20, 25);
-    const svg = renderToStaticMarkup(<svg xmlns="http://www.w3.org/2000/svg" width={rasterWidth} height={rasterHeight} viewBox={`0 0 ${label.widthMm} ${label.heightMm}`}><LabelArtwork label={label} /></svg>);
-    const image = new Image(); image.src = `data:image/svg+xml,${encodeURIComponent(svg)}`; await image.decode();
+    const svg = await renderSurfaceViewToSvg(<svg xmlns="http://www.w3.org/2000/svg" width={rasterWidth} height={rasterHeight} viewBox={`0 0 ${label.widthMm} ${label.heightMm}`}><LabelArtwork label={label} /></svg>);
+    const image = new Image(); image.src = `data:image/svg+xml,${encodeURIComponent(await embedSurfaceFonts(svg))}`; await image.decode();
     const canvas = document.createElement('canvas'); canvas.width = rasterWidth; canvas.height = rasterHeight;
     canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
     pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 20, 32, label.widthMm * scale, label.heightMm * scale);

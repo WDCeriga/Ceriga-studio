@@ -1,12 +1,13 @@
+import type {SurfaceTextOptions} from '../../lib/surfaceDesign';
 import {useId} from 'react';
 import type {SavedTextStyle} from '../../lib/textStyles';
 import {svgPaint} from '../../lib/studioPaint';
 /** Labels share the same physical-mm paint stack without changing their layout components. */
-export function LabelStyledText({style,text,x,y,size,weight,width,tracking,section}:{style?:SavedTextStyle;text:string;x:number;y:number;size:number;weight:number;width:number;tracking?:number;section?:string}){
- const id=useId().replace(/:/g,''),source=style?.values,stack=source?.textAppearance;
+export function LabelStyledText({style,text,x,y,size,weight,width,tracking,section,options={}}:{options?:SurfaceTextOptions;style?:SavedTextStyle;text:string;x:number;y:number;size:number;weight:number;width:number;tracking?:number;section?:string}){
+ const id=useId().replace(/:/g,''),source={...style?.values,...(options.transform&&options.transform!=='none'?{textTransform:options.transform}:{}),...(options.fontStyle?{fontStyle:options.fontStyle}:{}),...(options.underline!==undefined?{textUnderline:options.underline}:{})},stack=source?.textAppearance;
  const words=source?.textTransform==='uppercase'?text.toUpperCase():source?.textTransform==='lowercase'?text.toLowerCase():source?.textTransform==='title'?text.toLowerCase().replace(/(^|\s)(\p{L})/gu,(_m,space,letter)=>space+letter.toUpperCase()):text;
- const base={fontSize:size,fontWeight:weight,fontStyle:source?.fontStyle,letterSpacing:tracking,textDecoration:[source?.textUnderline?'underline':'',source?.textStrikethrough?'line-through':''].filter(Boolean).join(' ')||undefined},node=(props:React.SVGProps<SVGTextElement>,key?:string)=><text key={key} data-label-text-section={section} {...base} x={x} y={y} {...props}>{words}</text>;
- if(!stack)return node({});
+ const base={fontSize:size,fontWeight:weight,fontStyle:source?.fontStyle,letterSpacing:options.tracking??tracking,textDecoration:[source?.textUnderline?'underline':'',source?.textStrikethrough?'line-through':''].filter(Boolean).join(' ')||undefined},node=(props:React.SVGProps<SVGTextElement>,key?:string)=><text key={key} data-label-text-section={section} {...base} x={x} y={y} {...props}>{words}</text>;
+ if(!stack)return node({stroke:options.outlineWidth?options.outlineColor??'#262626':undefined,strokeWidth:(options.outlineWidth??0)*2,paintOrder:'stroke fill',strokeLinejoin:'round'});
  return <g>{[...stack].reverse().filter(item=>item.enabled).map(item=>{
   const key=id+item.id,paint=svgPaint(item.colour,key,Math.max(1,width),size*2),fill=node({fill:paint.color},key);
   if(item.type==='fill')return <g key={key}><defs dangerouslySetInnerHTML={{__html:paint.defs}}/>{fill}</g>;

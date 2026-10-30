@@ -1,5 +1,4 @@
 import {ArtworkFinishesPanel} from './ArtworkFinishesPanel';
-import {ArtworkPlacementsPanel} from './ArtworkPlacementsPanel';
 import {WearTextureLibrary} from './WearTextureStudio';
 import {AppliedGarmentPatterns} from './AppliedGarmentPatterns';
 import {MaterialSelect} from './MaterialSelect';
@@ -24,7 +23,6 @@ export function StudioCreationPanel({api}:{api:PrintStudioToolAPI}) {
  const studio=usePrintsStudio();const [patternCategory,setPatternCategory]=useState('All');
  const featured=['plaid','gingham','camo-woodland','topographic','leopard','tartan','houndstooth','stripes','argyle','camo-tiger','dots','zebra'];
  const matchingPatterns=[...PATTERN_CATALOG].sort((a,b)=>(featured.includes(a.id)?featured.indexOf(a.id):99)-(featured.includes(b.id)?featured.indexOf(b.id):99)).filter(p=>p.id!=='custom'&&(patternCategory==='All'||patternCategory===p.category));
- if(studio.panel==='placements')return <ArtworkPlacementsPanel/>;
  if(studio.panel==='library')return <ArtworkLibrary api={api} libraryMode/>;
  if(studio.panel==='brush')return <DrawPaintPanel onPick={()=>api.onClearSelection?.()}/>;
  if(studio.panel==='text')return <TypographyLibrary api={api}/>;

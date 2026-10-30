@@ -33,7 +33,7 @@ import { cn } from '../ui/utils';
 /** Subset of builder state needed to render a draft/dashboard preview. */
 export type ProjectPreviewState = {
   studioArtwork?: StudioDesignElement[];
-  artworkPlacements?:import('../../lib/artworkPlacements').ArtworkPlacements;
+  artworkPlacements?:import('../../lib/studioArtwork').LegacyArtworkState['artworkPlacements'];
   artworkSlotOverrides?:import('../../lib/artworkColourSlots').ArtworkSlotOverrides;
   garmentLabels?: GarmentLabel[];
   measurements?: Record<string, Record<string, string>>;

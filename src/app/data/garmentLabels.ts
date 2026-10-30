@@ -29,6 +29,7 @@ export const LABEL_BLOCKS = { brand: 'Brand / logo', size: 'Size', careText: 'Ca
 export type LabelBlockKey = keyof typeof LABEL_BLOCKS;
 export const LABEL_HIERARCHIES = { 'brand-first': 'Brand first', 'size-first': 'Size first', 'large-size-top': 'Large size top', 'large-size-bottom': 'Large size bottom', inline: 'Brand + inline size', split: 'Split' } as const;
 export interface LabelBlock {
+  textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;
   textStyle?:import('../lib/textStyles').SavedTextStyle;
   letterSpacingMm?:number;lineSpacing?:number;fontStyle?:'normal'|'italic';
   key: LabelBlockKey;
@@ -48,8 +49,10 @@ export interface LabelBlock {
 }
 export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'sectionLayout' | 'designSections'>;
 const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout', 'designSections'] as const;
-export interface LabelDesignSection {id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
+export interface LabelDesignSection {appearance?:import('../lib/surfaceDesign').SurfaceAppearance;textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;align?:'left'|'center'|'right';id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
 export interface GarmentLabel {
+  schemaVersion?:2;
+  artworkSurfaces?:Record<string,import('../lib/artworkSurface').SurfaceArtwork>;
   contentOrderVersion?: 2;
   designSections?: LabelDesignSection[];
   id: string;
@@ -281,7 +284,7 @@ export function labelTextLines(label: GarmentLabel) {
 }
 
 export function labelTextSections(label: GarmentLabel) {
-  if (label.blocks) return label.blocks.filter(block => block.enabled).map(block => ({ key: block.key, text: block.key === 'brand' && label.logo ? '' : block.key === 'careText' ? generatedCareText(label) : label[block.key] })).filter(section => section.text.trim());
+  if (label.blocks) return label.blocks.filter(block => block.enabled).map(block => ({ key: block.key, text: (()=>{const text=block.key==='brand'&&label.logo?'':block.key==='careText'?generatedCareText(label):label[block.key];return block.textOptions?.transform==='uppercase'?text.toUpperCase():block.textOptions?.transform==='lowercase'?text.toLowerCase():text;})() })).filter(section => section.text.trim());
   return [
     { key: 'brand', text: label.logo ? '' : label.brand }, { key: 'size', text: label.size },
     ...(['neck', 'care', 'hand'].includes(label.category) ? [{ key: 'composition', text: label.composition }, { key: 'careText', text: label.careText }, { key: 'origin', text: label.origin }] : []),

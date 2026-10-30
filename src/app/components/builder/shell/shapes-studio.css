@@ -22,3 +22,8 @@
 @media(max-width:767px){.shape-canvas-tools{left:7px;padding:3px}.ceriga-builder-shell .shape-canvas-tools>button{width:32px;height:39px;font-size:8px}.shape-canvas-tools svg{width:16px;height:16px}.shape-choice-grid>button{min-height:94px}.shape-tool-paint{font-size:8px}.shape-tool-paint button{width:22px;height:22px}}
 
 .custom-shape-finish{min-height:32px;padding:7px 12px;border:1px solid #d4d4d4;border-radius:4px;background:white;color:#262626;font:11px Arial,Helvetica,sans-serif;white-space:nowrap;box-shadow:0 2px 8px #0000000d;touch-action:manipulation}.custom-shape-finish:hover{background:#f5f5f5;border-color:#737373}
+
+/* Match the brush library: a useful preview above a compact name. */
+.shapes-library .shape-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.shapes-library .shape-choice-grid>.shape-choice-card{display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:8px;min-width:0;min-height:88px;padding:10px 12px;background:var(--builder-ui-surface,#fff);border:1px solid var(--builder-ui-line,#dedede);border-radius:5px;text-align:left;color:var(--builder-ui-text,#262626)}
+.shapes-library .shape-choice-preview{height:44px;width:100%}.shapes-library .shape-choice-card>span:last-child{font-size:11px;text-align:left;line-height:1.4}.shapes-library .shape-choice-card:hover{background:var(--builder-ui-soft,#f5f5f5);border-color:var(--builder-ui-muted,#a3a3a3)}.shape-choice-card:focus-visible{outline:2px solid currentColor;outline-offset:2px}

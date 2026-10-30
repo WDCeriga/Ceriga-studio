@@ -1,4 +1,3 @@
-import {useArtworkPlacements} from '../printsStudio/ArtworkPlacementsContext';
 import {AddArtworkMenu,UnifiedArtworkTools} from './UnifiedArtworkTools';
 import {FontDropDialog} from './FontUploadControls';
 import {useArtworkNavigation} from './useArtworkNavigation';
@@ -15,7 +14,7 @@ import {TypographyCanvasTools} from './TypographyStudio';
 import { ShapeCanvasActions,ShapeCanvasTools } from './ShapesStudio';
 import { DrawPaintCanvasTools, DrawPaintQuickSettings, type DrawHistory } from './DrawPaintStudio';
 import { useEffect, useLayoutEffect, useMemo, useState, useRef, Fragment, type ReactNode } from 'react';
-import { Brush, Shapes, Type, Grid3X3, ImagePlus, Sparkles, ChevronLeft,MapPin,Library } from 'lucide-react';
+import { Brush, Shapes, Type, Grid3X3, ImagePlus, Sparkles, ChevronLeft,Library } from 'lucide-react';
 import { PrintsDesignStep, PrintsDesignPreview, type DesignElement } from '../PrintStudioEditor';
 import { usePrintsStudio } from '../printsStudio/PrintsStudioContext';
 import { useAssetWorkspaceContext, AssetWorkspaceEntry, AssetWorkspaceHeader, AssetWorkspaceDialogs } from '../printsStudio/AssetWorkspace';
@@ -27,7 +26,6 @@ import { StudioLayerDock } from './StudioLayerDock';
 import './print-design-studio.css';
 
 export const PRINT_TOOL_GROUPS = [
- {id:'placements',label:'Placements',hint:'Print areas and methods',icon:MapPin,group:'PLACE'},
  {id:'shapes',label:'Shapes & paths',hint:'Geometry and paths',icon:Shapes,group:'CREATE'},
  {id:'text',label:'Typography',hint:'Text and lettering',icon:Type,group:'CREATE'},
  {id:'brush',label:'Sketch',hint:'Brushes and markup',icon:Brush,group:'CREATE'},
@@ -37,7 +35,7 @@ export const PRINT_TOOL_GROUPS = [
  {id:'distress',label:'Finishes & texture',hint:'Print finishes and wear',icon:Sparkles,group:'FINISH'},
 ] as const;
 export function PrintDesignNavigation({onActivate}:{onActivate?:()=>void}){
- const studio=usePrintsStudio(),assetEditing=Boolean(useAssetWorkspaceContext()?.project),items=PRINT_TOOL_GROUPS.filter(item=>!assetEditing||item.id!=='placements');
+ const studio=usePrintsStudio(),items=PRINT_TOOL_GROUPS;
  return <div className="print-family-navigation">{items.map(({id,label,icon:Icon,group},index)=><Fragment key={id}>{items[index-1]?.group!==group&&<h2>{group}</h2>}<button className={studio.panel===id?'is-selected':''} aria-current={studio.panel===id?'true':undefined} onClick={()=>{studio.setPanel(id);onActivate?.();}}><Icon size={19} strokeWidth={1.7}/><span>{label}</span></button></Fragment>)}<AddArtworkMenu onActivate={onActivate}/></div>;
 }
 
@@ -52,10 +50,10 @@ export function PrintDesignInspector(props: EditorProps & {hemWear?:HemWearBindi
  const [mode,setMode]=useState<'create'|'edit'>('create');const family=PRINT_TOOL_GROUPS.find(item=>item.id===studio.panel)??PRINT_TOOL_GROUPS[0];const selected=props.elements.find(el=>el.id===props.selectedId);
  useLayoutEffect(()=>setMode('create'),[studio.panel,studio.panelRequest]);useLayoutEffect(()=>setMode(props.selectedId?'edit':'create'),[props.selectedId]);
  useLayoutEffect(()=>{const main=inspectorScroll.current;if(main)main.scrollTop=0},[props.selectedId,studio.panel,mode,studio.pathEditingId,studio.logoRegionEditing?.regionId,studio.tool==='shapePolygon']);
- return <HemWearContext.Provider value={workspace?.project?null:props.hemWear??null}><div className="studio-inspector-v2 studio-clean" data-mode={mode} data-family={studio.panel}>{<InspectorHeading className="studio-inspector-header" eyebrow={mode==='create'?'ARTWORK STUDIO':undefined} title={mode==='edit'&&selected?selected.logoTrace?(selected.logoTrace.selectedRegion?'Shape':'Logo'):selected.type==='text'?'Text':selected.type==='image'?'Artwork':selected.type==='customArea'?'Custom shape':selected.type==='distress'?'Wear mark':selected.type.charAt(0).toUpperCase()+selected.type.slice(1):family.label} description={mode==='create'?(studio.panel==='text'?'Create type that belongs on your garment.':studio.panel==='shapes'?'Start with a shape or draw your own.':studio.panel==='placements'?'Plan your print areas and production methods.':studio.panel==='library'?'Reuse and organise your artwork.':studio.panel==='upload'?'Upload, outline or trace a reference.':studio.panel==='patterns'?'Build a repeat that belongs on fabric.':studio.panel==='distress'?'Set the finish. Add character and texture.':'Choose a brush. Make it yours.'):undefined} leading={mode==='edit'?<button className="studio-back" title="Back to tools" aria-label="Back to tools" onClick={()=>setMode('create')}><ChevronLeft size={15}/><span>Tools</span></button>:undefined}/>}<div className="studio-inspector-main" ref={inspectorScroll}><PrintsDesignStep elements={props.elements} onChange={props.onChange} selectedLayerId={props.selectedId} onSelectedLayerIdChange={props.onSelect} garmentSide={props.side} renderTools={api=><StudioCreationPanel api={api}/>} renderSelection={(element,update,fonts)=><StudioObjectPanel element={element} update={update} fonts={fonts}/>}/></div><StudioLayerDock {...props} onSelect={id=>{props.onSelect(id);if(id)setMode('edit')}}/></div></HemWearContext.Provider>;
+ return <HemWearContext.Provider value={workspace?.project?null:props.hemWear??null}><div className="studio-inspector-v2 studio-clean" data-mode={mode} data-family={studio.panel}>{<InspectorHeading className="studio-inspector-header" eyebrow={mode==='create'?'ARTWORK STUDIO':undefined} title={mode==='edit'&&selected?selected.logoTrace?(selected.logoTrace.selectedRegion?'Shape':'Logo'):selected.type==='text'?'Text':selected.type==='image'?'Artwork':selected.type==='customArea'?'Custom shape':selected.type==='distress'?'Wear mark':selected.type.charAt(0).toUpperCase()+selected.type.slice(1):family.label} description={mode==='create'?(studio.panel==='text'?'Create type that belongs on your garment.':studio.panel==='shapes'?'Start with a shape or draw your own.':studio.panel==='library'?'Reuse and organise your artwork.':studio.panel==='upload'?'Upload, outline or trace a reference.':studio.panel==='patterns'?'Build a repeat that belongs on fabric.':studio.panel==='distress'?'Set the finish. Add character and texture.':'Choose a brush. Make it yours.'):undefined} leading={mode==='edit'?<button className="studio-back" title="Back to tools" aria-label="Back to tools" onClick={()=>setMode('create')}><ChevronLeft size={15}/><span>Tools</span></button>:undefined}/>}<div className="studio-inspector-main" ref={inspectorScroll}><PrintsDesignStep elements={props.elements} onChange={props.onChange} selectedLayerId={props.selectedId} onSelectedLayerIdChange={props.onSelect} garmentSide={props.side} renderTools={api=><StudioCreationPanel api={api}/>} renderSelection={(element,update,fonts)=><StudioObjectPanel element={element} update={update} fonts={fonts}/>}/></div><StudioLayerDock {...props} onSelect={id=>{props.onSelect(id);if(id)setMode('edit')}}/></div></HemWearContext.Provider>;
 }
 export function PrintDesignCanvas({ garment, side, onSide, zoom, onZoom, onFit, history,drawingBounds,referenceWidthCm, ...props }: EditorProps & { garment: ReactNode; side: 'front' | 'back'; onSide:(side:'front'|'back')=>void; zoom:number; onZoom:(n:number)=>void; onFit:()=>void; history?:DrawHistory;drawingBounds?:GarmentDrawingBounds;referenceWidthCm?:number }) {
-  const studio = usePrintsStudio(),placements=useArtworkPlacements();
+  const studio = usePrintsStudio();
   const responsive = useResponsiveBuilder();
   const phone=useBuilderWidth()<768;
   const [artworkView,setArtworkView] = useState(false);
@@ -75,7 +73,6 @@ export function PrintDesignCanvas({ garment, side, onSide, zoom, onZoom, onFit, 
   useEffect(()=>{const shortcuts=(event:KeyboardEvent)=>{if(event.defaultPrevented||event.ctrlKey||event.metaKey||event.altKey||(event.target as Element)?.closest('input,textarea,select,[contenteditable="true"],[role="dialog"]'))return;const key=event.key.toLowerCase();if(key==='v'){event.preventDefault();studio.setTool('select')}if(key==='p'){event.preventDefault();select(null);studio.setPanel('shapes');studio.setPenTargetId(null);studio.setSelectionIds([]);studio.setTool('shapePolygon')}if(key==='b'||key==='e'){event.preventDefault();select(null);studio.setPanel('brush');studio.setTool(key==='b'?'brush':'eraser')}};window.addEventListener('keydown',shortcuts);return()=>window.removeEventListener('keydown',shortcuts)},[studio.setTool,studio.setPanel,select]);
   const touchSurface = useRef<HTMLDivElement>(null);
   const navigation = useCanvasTouchNavigation(touchSurface, responsive.canvasFocus, zoom, onZoom, project ? {min:.01,max:1000000} : undefined);
-  useEffect(()=>{if(project||!placements?.focusRequest)return;if(!placements.selectedId){navigation.reset();onFit();return;}let frame=requestAnimationFrame(()=>{const zone=touchSurface.current?.querySelector<HTMLElement>(`[data-artwork-placement="${placements.selectedId}"]`),surface=touchSurface.current;if(!zone||!surface)return;const area=zone.getBoundingClientRect(),bounds=surface.getBoundingClientRect(),factor=Math.min((bounds.width-100)/Math.max(1,area.width),(bounds.height-100)/Math.max(1,area.height));onZoom(Math.max(50,Math.min(200,zoom*factor)));frame=requestAnimationFrame(()=>{const rect=zone.getBoundingClientRect();navigation.setPan(previous=>({x:previous.x+bounds.left+bounds.width/2-rect.left-rect.width/2,y:previous.y+bounds.top+bounds.height/2-rect.top-rect.height/2}))})});return()=>cancelAnimationFrame(frame)},[placements?.focusRequest,placements?.selectedId,project?.id]);
   const fitCanvas = () => { navigation.reset(); if(project)setAssetZoom(100);else onFit(); };
   useArtworkNavigation(touchSurface,{pasteboardPan:Boolean(project),zoom,pan:navigation.pan,onPan:navigation.setPan,onZoom,onFit:fitCanvas,selection:studio.selectionIds.length?studio.selectionIds:selectedId?[selectedId]:[],minZoom:project ? .01 : 50,maxZoom:project?1000000:200,penActive:studio.tool==='shapePolygon'||studio.tool==='shapePencil'});
   useEffect(()=>navigation.reset(),[side,project?.id,artworkView]);

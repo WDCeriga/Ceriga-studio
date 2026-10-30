@@ -6,14 +6,14 @@ import {toast} from 'sonner';
 import type {DesignElement} from '../PrintStudioEditor';
 import {usePrintsStudio} from '../printsStudio/PrintsStudioContext';
 import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
-import {useArtworkPlacements} from '../printsStudio/ArtworkPlacementsContext';
+import {useArtwork} from '../printsStudio/ArtworkContext';
 import {shapeToEditablePath} from '../../../lib/shapeGeometry';
 import {PaintInput} from '../PrintStudioColorPopover';
 import {ArtworkHistoryControls} from './ArtworkHistoryControls';
 import type {DrawHistory} from './DrawPaintStudio';
 export function AddArtworkMenu({onActivate}:{onActivate?:()=>void}){
- const studio=usePrintsStudio(),workspace=useAssetWorkspaceContext(),placements=useArtworkPlacements();
- const start=(kind:'upload'|'text'|'shapes'|'brush'|'library')=>{studio.setPanel(kind);if(kind==='upload')studio.imageUploader.current?.();if(kind==='text'||kind==='shapes'||kind==='brush'){if(workspace?.project)workspace.select(null);else placements?.onSelectArtwork(null);studio.setTool(kind==='text'?'textPlace':kind==='shapes'?'shapeLive':'brush')}onActivate?.();};
+ const studio=usePrintsStudio(),workspace=useAssetWorkspaceContext(),artwork=useArtwork();
+ const start=(kind:'upload'|'text'|'shapes'|'brush'|'library')=>{studio.setPanel(kind);if(kind==='upload')studio.imageUploader.current?.();if(kind==='text'||kind==='shapes'||kind==='brush'){if(workspace?.project)workspace.select(null);else artwork?.onSelectArtwork(null);studio.setTool(kind==='text'?'textPlace':kind==='shapes'?'shapeLive':'brush')}onActivate?.();};
  return <div className="asset-workspace-entry"><Menu.Root><Menu.Trigger className="studio-outline-action" style={{width:'100%'}}><Plus size={16}/>Add artwork</Menu.Trigger><Menu.Portal><Menu.Content className="layer-actions-menu" side="right" align="end" sideOffset={6}>{([{id:'upload',label:'Upload',icon:Upload},{id:'text',label:'Text',icon:Type},{id:'shapes',label:'Shape',icon:Square},{id:'brush',label:'Sketch',icon:Brush},{id:'library',label:'From library',icon:Library}] as const).map(({id,label,icon:Icon})=><Menu.Item key={id} onSelect={()=>start(id)}><Icon size={15}/>{label}</Menu.Item>)}{workspace&&!workspace.project&&<><Menu.Separator/><Menu.Item disabled={!workspace.authReady||workspace.busy} onSelect={()=>{workspace.enter();onActivate?.()}}>Create reusable asset</Menu.Item>{workspace.recovery&&<Menu.Item onSelect={()=>{workspace.resume();onActivate?.()}}>Resume asset draft</Menu.Item>}</>}</Menu.Content></Menu.Portal></Menu.Root></div>;
 }
 export function UnifiedArtworkTools({elements,selectedId,onChange,onSelect,history}:{elements:DesignElement[];selectedId:string|null;onChange:(elements:DesignElement[],id?:string)=>void;onSelect:(id:string|null)=>void;history?:DrawHistory}){

@@ -1,0 +1,11 @@
+import type {DesignElement} from '../components/builder/PrintStudioEditor';
+export type ArtworkFinish={type:'Puff'|'Foil'|'Flock'|'Reflective'|'Glitter'|'Rubber patch'|'Woven patch'|'Embroidery';heightMm?:number;thread?:string;widthCm?:number;heightCm?:number;colour?:string;material?:string;style?:string;particleMm?:number;attachment?:string;edge?:string};
+export function artworkBounds(element:DesignElement):{x:number;y:number;width:number;height:number}{
+ const units=element.artworkUnitsPerCm??element.textUnitsPerCm??10,stack=element.artworkAppearance??element.textAppearance;
+ let left=-element.width/2,right=element.width/2,top=-element.height/2,bottom=element.height/2;
+ if(element.type==='group'&&element.children){const sx=element.width/(element.groupSourceWidth??element.width),sy=element.height/(element.groupSourceHeight??element.height);for(const child of element.children.filter(item=>!item.hidden)){const b=artworkBounds(child);left=Math.min(left,b.x*sx-element.width/2);right=Math.max(right,(b.x+b.width)*sx-element.width/2);top=Math.min(top,b.y*sy-element.height/2);bottom=Math.max(bottom,(b.y+b.height)*sy-element.height/2);}}
+ let padding=stack?0:Math.max(0,element.borderWidth??0)*(element.shapeStrokeAlign==='inside'?0:element.shapeStrokeAlign==='outside'?1:.5),dx=0,dy=0;
+ for(const item of stack??[]){if(!item.enabled)continue;if(item.type==='stroke'||item.type==='offset')padding=Math.max(padding,(item.widthMm??0)*units/10*(item.position==='inside'?0:item.position==='center'?.5:1));if(item.type==='shadow'){dx=Math.max(dx,Math.abs(item.xMm??0)*units/10);dy=Math.max(dy,Math.abs(item.yMm??0)*units/10)}if(item.type==='extrude'){const angle=(item.angle??45)*Math.PI/180,depth=(item.depthMm??0)*units/10;dx=Math.max(dx,Math.abs(Math.cos(angle)*depth));dy=Math.max(dy,Math.abs(Math.sin(angle)*depth));}}
+ left-=padding+dx;right+=padding+dx;top-=padding+dy;bottom+=padding+dy;
+ const angle=element.rotation*Math.PI/180,c=Math.cos(angle),sn=Math.sin(angle),points=[[left,top],[right,top],[right,bottom],[left,bottom]].map(([x,y])=>({x:element.x+x*c-y*sn,y:element.y+x*sn+y*c})),xs=points.map(p=>p.x),ys=points.map(p=>p.y),x=Math.min(...xs),y=Math.min(...ys);return{x,y,width:Math.max(...xs)-x,height:Math.max(...ys)-y};
+}

@@ -37,6 +37,9 @@ export const PACKAGING_TEMPLATES: PackagingTemplate[] = [
 ];
 export const PANEL_NAMES: Record<PackagingPanel, string> = { front: 'Front', back: 'Back', top: 'Top / lid', left: 'Left side', right: 'Right side', 'interior-lid': 'Interior lid', 'interior-base': 'Interior base' };
 export interface PackagingElement {
+  appearance?:import('../lib/surfaceDesign').SurfaceAppearance;
+  textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;
+  fontWeight?:number;
   fullPanel?: boolean;
   sectionId?: string;
   id: string;
@@ -57,6 +60,8 @@ export interface PackagingElement {
   pixelHeight?: number;
 }
 export interface PackagingDesign {
+  schemaVersion?:2;
+  artworkSurfaces?:Partial<Record<PackagingPanel,import('../lib/artworkSurface').SurfaceArtwork>>;
   templateId: string;
   category: PackagingCategory;
   material: string;

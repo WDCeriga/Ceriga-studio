@@ -24,7 +24,7 @@ export interface CustomAreaPointSelection {
   indices?: number[];
 }
 
-export type PrintsStudioPanel = 'placements'|'library'|'brush' | 'shapes' | 'upload' | 'text' | 'patterns' | 'distress';
+export type PrintsStudioPanel = 'library'|'brush' | 'shapes' | 'upload' | 'text' | 'patterns' | 'distress';
 
 export interface PencilSettings {
   pencilOnly: boolean;
@@ -59,7 +59,7 @@ const DEFAULT_STATE: PrintsStudioState = {
   drawingSession: 0,
   distressSession: 0,
   tool: 'select',
-  panel: 'placements',
+  panel: 'shapes',
   panelRequest: 0,
   color: '#171717',
   brushSize: 14,

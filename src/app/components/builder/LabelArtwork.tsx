@@ -1,3 +1,5 @@
+import {ArtworkSurfaceSvg} from './ArtworkSurfaceSvg';
+import {SurfaceDecoration,SurfaceText} from './SurfaceDesign';
 import {labelEdgeGeometry} from '../../data/labelGeometry';
 import { useEffect, useId, useState } from 'react';
 import { CARE_OPTIONS, PREVIEW_CARE, DEFAULT_REGION_TRANSFORM, labelTextSections, type CareCategory, type GarmentLabel, type LabelRegion } from '../../data/garmentLabels';
@@ -140,7 +142,7 @@ function legacyLabelLayout(label: GarmentLabel) {
   const logoHeight = label.logo ? logoWidth / label.logo.aspect : 0;
   measureCanvas ??= document.createElement('canvas');
   const context = measureCanvas.getContext('2d')!;
-  const measure = (text: string) => context.measureText(text).width + Math.max(0, text.length - 1) * (block.letterSpacingMm??label.letterSpacingMm);
+  const measure = (text: string) => context.measureText(text).width + Math.max(0, text.length - 1) * label.letterSpacingMm;
   let oversizedWord = false;
   const zones = ranges.map(([key, start, end]) => {
     const height = usableHeight * (end - start);
@@ -157,7 +159,7 @@ function legacyLabelLayout(label: GarmentLabel) {
         contentWidth = Math.max(contentWidth, measure(text));
         cursor += size;
         textLines.push({ text, section: section.key, size, weight, y: cursor });
-        cursor += size * ((block.lineSpacing??130)/100-1);
+        cursor += size * ((label.lineSpacing??130)/100-1);
       };
       for (const paragraph of section.text.split('\n')) {
         let line = '';
@@ -208,7 +210,7 @@ function CareSymbol({ category, value }: { category: CareCategory; value: string
   </g>;
 }
 
-export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: { label: GarmentLabel; guide?: boolean; layout?: ReturnType<typeof labelLayout> }) {
+export function LegacyLabelArtwork({ label, guide = false, layout: suppliedLayout }: { label: GarmentLabel; guide?: boolean; layout?: ReturnType<typeof labelLayout> }) {
   const [, refreshFont] = useState(0);
   const layout = suppliedLayout ?? labelLayout(label);
   const generatedId = useId().replace(/:/g, '');
@@ -248,20 +250,22 @@ export function LabelArtwork({ label, guide = false, layout: suppliedLayout }: {
       {label.category === 'hand' ? <circle cx={width / 2} cy="3.5" r="1.2" fill="#e7e9ec" stroke={label.border} strokeWidth=".3" /> : <path data-label-attachment="" d={label.fold === 'end' ? `M1 1V${height - 1}M${width - 1} 1V${height - 1}` : `M1 1H${width - 1}`} fill="none" stroke={label.border} strokeWidth=".2" strokeDasharray=".6 .6" />}
       </g>
     </g>}
-    <g clipPath={`url(#${clip})`}>{label.designSections?.map(section=><rect key={section.id} data-label-design-section={section.id} x={section.x} y={section.y} width={section.width} height={section.height} fill={section.background}/>)}</g>
+    <g clipPath={`url(#${clip})`}>{label.designSections?.map(section=><g key={section.id} data-surface-frame={section.id}><SurfaceDecoration x={section.x} y={section.y} width={section.width} height={section.height} fill={section.background} appearance={section.appearance}/></g>)}</g>
     <g clipPath={`url(#${clip})`}><g clipPath={`url(#${safe})`}>
       {label.borderEnabled && <rect x={layout.insetX + .1} y={layout.insetY + .1} width={Math.max(0, layout.usableWidth - .2)} height={Math.max(0, layout.usableHeight - .2)} fill="none" stroke={label.border} strokeWidth=".2" />}
       {label.preset === 'framed' && layout.zones.slice(1).map(zone => <path key={zone.key} d={`M${zone.x} ${zone.y}H${zone.x + zone.width}`} stroke={label.foreground} strokeWidth=".2" opacity=".45" />)}
       {layout.zones.map(zone => <g key={zone.key} clipPath={label.blocks ? `url(#${safe}-${zone.key})` : undefined}>{label.blocks?.find(block=>block.key===zone.key)?.background && <rect x={zone.x} y={zone.y} width={zone.width} height={zone.height} fill={label.blocks.find(block=>block.key===zone.key)!.background}/>}<g data-label-region={zone.key} transform={zone.transform} color={zone.color}>
         {zone.hasLogo && label.logo && <image data-label-logo="" href={label.logo.data} x={-layout.logoWidth / 2} y={-layout.logoHeight / 2} width={layout.logoWidth} height={layout.logoHeight} preserveAspectRatio="xMidYMid meet" />}
         <g fill={zone.color} fontFamily={zone.font} fontSize={label.fontSizeMm} fontWeight={label.fontWeight} letterSpacing={label.letterSpacingMm} textAnchor={zone.alignment === 'left' ? 'start' : zone.alignment === 'right' ? 'end' : 'middle'}>
-          {zone.textLines.map((line, index) => <LabelStyledText key={index} section={line.section} style={label.blocks?.find(block=>block.key===zone.key)?.textStyle} tracking={label.blocks?.find(block=>block.key===zone.key)?.letterSpacingMm} text={line.text} x={zone.alignment === 'left' ? -zone.contentWidth / 2 : zone.alignment === 'right' ? zone.contentWidth / 2 : 0} y={line.y} size={line.size} weight={line.weight} width={zone.contentWidth}/>)}
+          {zone.textLines.map((line, index) => <LabelStyledText key={index} section={line.section} options={label.blocks?.find(block=>block.key===zone.key)?.textOptions} style={label.blocks?.find(block=>block.key===zone.key)?.textStyle} tracking={label.blocks?.find(block=>block.key===zone.key)?.letterSpacingMm} text={line.text} x={zone.alignment === 'left' ? -zone.contentWidth / 2 : zone.alignment === 'right' ? zone.contentWidth / 2 : 0} y={line.y} size={line.size} weight={line.weight} width={zone.contentWidth}/>)}
         </g>
         {zone.hasSymbols && layout.symbols.map(([category, value], index) => <g key={category} aria-label={CARE_OPTIONS[category as CareCategory][value as never]} transform={`translate(${(index - layout.symbols.length / 2) * layout.symbolSize} ${zone.symbolsY}) scale(${layout.symbolSize / 28})`}><CareSymbol category={category as CareCategory} value={value} /></g>)}
       </g></g>)}
     </g></g>
-    <g clipPath={`url(#${clip})`}>{label.designSections?.map(section=><svg key={section.id} x={section.x} y={section.y} width={section.width} height={section.height} viewBox={`0 0 ${section.width} ${section.height}`} overflow="hidden"><text x={section.width/2} y={section.height/2} dominantBaseline="middle" textAnchor="middle" fontFamily={section.font} fontSize={section.fontSizeMm} fontWeight={section.fontWeight} fill={section.color}>{section.text}</text></svg>)}</g>
+    <g clipPath={`url(#${clip})`}>{label.designSections?.map(section=><svg key={section.id} data-surface-frame={section.id} x={section.x} y={section.y} width={section.width} height={section.height} viewBox={`0 0 ${section.width} ${section.height}`} overflow="hidden"><SurfaceText text={section.text} x={section.align==='left'?1:section.align==='right'?section.width-1:section.width/2} y={section.height/2} size={section.fontSizeMm} font={section.font} weight={section.fontWeight} color={section.color} align={section.align} options={section.textOptions}/></svg>)}</g>
     {guide && <rect data-label-guide="" x="0" y="0" width={width} height={height} fill="none" stroke="#db4d42" strokeWidth=".3" strokeDasharray="1 1" />}
   </g>;
 }
 import {LabelStyledText} from './LabelStyledText';
+
+export function LabelArtwork(props:Parameters<typeof LegacyLabelArtwork>[0]){const label=props.label,face=['tag','hand'].includes(label.category)?label.artworkFace??label.exteriorView??'front':'label',native=label.artworkSurfaces?.[face];return native?<ArtworkSurfaceSvg surface={native.surface} document={native.document}/>:<LegacyLabelArtwork {...props}/>;}

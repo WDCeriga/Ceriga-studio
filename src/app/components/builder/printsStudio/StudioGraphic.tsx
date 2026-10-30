@@ -1,3 +1,5 @@
+import {SurfacePrecisionGraphic} from './SurfacePrecisionGraphic';
+import {precisionGeometryChanged} from '../../../lib/svgPrecision';
 import {ShapeAppearanceArtwork} from './ShapeAppearanceArtwork';
 import {BrushVectorArtwork} from './BrushVectorArtwork';
 import {garmentWearMarks} from '../../../lib/wearEditing';
@@ -27,6 +29,7 @@ function weightOf(el: DesignElement) {
 }
 
 export function StudioGraphic({ element }: { element: DesignElement }) {
+  if(element.svgPrecision&&!precisionGeometryChanged(element))return <SurfacePrecisionGraphic element={element}/>;
   if(element.type==='shape'&&element.artworkAppearance)return <ShapeAppearanceArtwork element={element}/>;
   if(element.type==='shape'&&canFillShape(element)&&element.shapeEffects?.some(e=>e.id==='textile-ink'&&e.enabled!==false)){
     const filled={...element,borderWidth:0,shapeFilled:true};

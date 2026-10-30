@@ -1,4 +1,3 @@
-import {useArtworkPlacements} from '../printsStudio/ArtworkPlacementsContext';
 import {Check,ChevronDown,Layers} from 'lucide-react';
 import type {DesignElement} from '../PrintStudioEditor';
 import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
@@ -6,7 +5,7 @@ import {productionOptions,isFabricArtwork} from '../../../lib/artworkProduction'
 import {StudioFold} from './StudioControls';
 import './artwork-production.css';
 export function ArtworkPrintMethod({element,update,initiallyOpen=false}:{element:DesignElement;update:(patch:Partial<DesignElement>)=>void;initiallyOpen?:boolean}){
- const placements=useArtworkPlacements(),workspace=useAssetWorkspaceContext();if(placements?.document.placements.some(item=>item.id===element.placementId)&&!workspace?.project)return null;if(workspace?.project||element.type==='distress'||element.type==='group')return null;
+ const workspace=useAssetWorkspaceContext();if(workspace?.project||element.type==='distress'||element.type==='group')return null;
  const fabric=isFabricArtwork(element),methods=productionOptions(element),current=element.printMethod??(fabric?'Fabric Print':'DTG');
  const selected=methods.find(method=>method.id===current),invalid=!selected?.available;
  const repeat=element.type==='pattern'||element.type==='customArea'&&Boolean(element.customAreaPattern);

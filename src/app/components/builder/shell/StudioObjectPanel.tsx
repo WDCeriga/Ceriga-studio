@@ -1,6 +1,5 @@
 import {GroupSourceControls} from './GroupSourceControls';
 import {SharedArtworkObjectPanel} from './SharedArtworkObjectPanel';
-import {useArtworkPlacements} from '../printsStudio/ArtworkPlacementsContext';
 import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
 import {useEffect} from 'react';
 import {editableLogoParts,isEditableLogoGroup,splitEditableLogoLayers,wasLogoLayerSplit} from '../../../lib/editableLogoLayers';

@@ -7,7 +7,7 @@
 
   Run `npm i` to install the dependencies.
 
-  Run `npm run dev` to start the development server.
+  Run `npm run dev` to start the development server. It automatically syncs the dependencies required by the current branch before Vite starts, including after pulling changes or switching branches. Installing missing packages requires an internet connection.
 
 ## Construction material model
 

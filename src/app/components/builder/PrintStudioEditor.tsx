@@ -1,7 +1,6 @@
 import {nativeArtworkSource} from '../../lib/nativeArtworkSource';
 import {ARTWORK_UPLOAD_DRAG_MIME} from './printsStudio/studioAssets';
 import {GroupPathOverlay} from './printsStudio/GroupPathOverlay';
-import {ArtworkPlacementZones} from './printsStudio/ArtworkPlacementZones';
 import {isEditableLogoGroup,logoPartAtPoint,splitEditableLogoLayers} from '../../lib/editableLogoLayers';
 import {artworkClipStyle} from '../../lib/artworkClipping';
 import {artworkImagePlacement} from '../../lib/artworkImagePlacement';
@@ -173,13 +172,14 @@ import { CustomAreaPathControls } from './printsStudio/CustomAreaPathControls';
 import { CustomAreaAppearanceControls } from './printsStudio/CustomAreaAppearanceControls';
 
 export interface DesignElement extends ImageAdjustmentValues {
-  placementId?:string;
+  svgPrecision?:import('../../lib/artworkSurface').SvgPrecision;
+  frameId?:string;
   artworkUnitsPerCm?:number;
   patternTileCm?:{width:number;height:number};
   patternSeamCheck?:{status:'pass'|'risk';message:string;sourceKey:string;checkedAt:string};
   artworkAppearance?:import('../../lib/textAppearance').TextAppearanceItem[];
   colourSlots?:import('../../lib/artworkColourSlots').ArtworkColourSlot[];
-  artworkFinish?:import('../../lib/artworkPlacements').ArtworkFinish;
+  artworkFinish?:import('../../lib/artworkGeometry').ArtworkFinish;
   sketchOnly?:boolean;
   imagePixels?:{width:number;height:number};
 
@@ -414,6 +414,9 @@ interface PrintsDesignPreviewProps {
   canvasToolbar?: boolean;
   assetMode?: boolean;
   canvasSize?: PrintsCanvasSize;
+  canvasLockedBadges?:boolean;
+  /** Surface hosts receive transient gesture frames without creating product history/save entries. */
+  onLiveChange?: (elements: DesignElement[] | null) => void;
   referenceWidthCm?:number;
   onCanvasSizeChange?: (size: PrintsCanvasSize) => void;
   garmentInteractive?: boolean;
@@ -2755,6 +2758,8 @@ export function PrintsDesignPreview({
   canvasToolbar = true,
   assetMode = false,
   canvasSize,
+  canvasLockedBadges=true,
+  onLiveChange,
   onCanvasSizeChange,
   garmentInteractive = false,
   onArtworkSelect,
@@ -2842,6 +2847,20 @@ export function PrintsDesignPreview({
   const dragLivePosRef = useRef<{ x: number; y: number } | null>(null);
   const [manip, setManip] = useState<PrintManip | null>(null);
   const [liveTransform,setLiveTransform] = useState<{id:string;patch:Partial<DesignElement>}|null>(null);
+  const liveSurfaceCallback=useRef(onLiveChange);liveSurfaceCallback.current=onLiveChange;
+  useEffect(()=>{
+    if(!liveSurfaceCallback.current)return;
+    const frame=requestAnimationFrame(()=>{
+      if(!dragLivePos&&!liveTransform&&!liveShapePath){liveSurfaceCallback.current?.(null);return;}
+      liveSurfaceCallback.current?.(elements.map(el=>{
+        if(liveTransform?.id===el.id)return{...el,...liveTransform.patch};
+        if(liveShapePath?.id===el.id)return{...el,...liveShapePath.frame,shapePath:liveShapePath.frame?.shapePath??liveShapePath.path};
+        if(dragLivePos&&draggingId&&(el.id===draggingId||studio.selectionIds.includes(draggingId)&&studio.selectionIds.includes(el.id))){const origin=elements.find(item=>item.id===draggingId);if(origin)return{...el,x:el.x+dragLivePos.x-origin.x,y:el.y+dragLivePos.y-origin.y};}
+        return el;
+      }));
+    });return()=>cancelAnimationFrame(frame);
+  },[dragLivePos,liveTransform,liveShapePath,draggingId,elements,studio.selectionIds]);
+
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const editAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -3849,7 +3868,6 @@ export function PrintsDesignPreview({
               pointerEvents: editable ? undefined : 'none',
             }}
           >
-          {editable&&!assetMode&&<ArtworkPlacementZones elements={elements.map(element=>{const transformed=liveTransform?.id===element.id?{...element,...liveTransform.patch}:element;if(!dragLivePos||!draggingId)return transformed;if(element.id===draggingId)return {...transformed,...dragLivePos};const origin=elements.find(item=>item.id===draggingId);return origin&&studio.selectionIds.includes(draggingId)&&studio.selectionIds.includes(element.id)?{...transformed,x:element.x+dragLivePos.x-origin.x,y:element.y+dragLivePos.y-origin.y}:transformed;})} side={garmentSide}/>}
           {patternHover && (() => {
             const part = patternHover.kind === 'part' ? patternTargets.find(target => target.id === patternHover.id) : undefined;
             const area = patternHover.kind === 'area' ? elements.find(element => element.id === patternHover.id) : undefined;
@@ -4189,7 +4207,7 @@ export function PrintsDesignPreview({
                   </div>
                 )}
                 </DesignAssetSurface>
-                {locked && editable ? (
+                {locked && editable && canvasLockedBadges ? (
                   <div className="pointer-events-none absolute -right-0.5 -top-0.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border border-[#262626]/50 bg-[#fafafa] text-[#262626]">
                     <Lock className="h-2.5 w-2.5" />
                   </div>

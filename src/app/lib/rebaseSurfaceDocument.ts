@@ -1,0 +1,13 @@
+import type {DesignElement} from '../components/builder/PrintStudioEditor';
+import type {SurfaceArtwork} from './artworkSurface';
+/** Stable semantic keys avoid global SVG-leaf indices when legacy blocks are inserted. */
+export function sourceElementKeys(elements:DesignElement[]){const counts=new Map<string,number>(),keys=new Map<string,string>();for(const e of elements){if(!e.svgPrecision)continue;const prefix=[e.svgPrecision.owner??'construction',e.svgPrecision.node.tag].join(':'),index=counts.get(prefix)??0;counts.set(prefix,index+1);keys.set(e.id,prefix+':'+index)}return keys}
+export function rebaseSurfaceArtwork(saved:SurfaceArtwork,fresh:SurfaceArtwork):SurfaceArtwork{
+ const oldKeys=sourceElementKeys(saved.document.elements),newKeys=sourceElementKeys(fresh.document.elements),oldByKey=new Map(saved.document.elements.filter(e=>e.svgPrecision).map(e=>[oldKeys.get(e.id),e])),ids=new Map<string,string>();
+ const elements=fresh.document.elements.flatMap(e=>{const key=newKeys.get(e.id);if(key&&saved.document.deletedSourceKeys?.includes(key))return[];const previous=oldByKey.get(key);if(!previous?.svgPrecision)return[e];ids.set(e.id,previous.id);const base=previous.svgPrecision.base,next={...e,id:previous.id};
+ for(const field of Object.keys(previous) as (keyof DesignElement)[]){if(['id','svgPrecision','x','y','width','height','rotation','frameId'].includes(field))continue;if(JSON.stringify(previous[field])!==JSON.stringify(base[field])&&JSON.stringify(e[field])===JSON.stringify(base[field]))(next as any)[field]=structuredClone(previous[field]);}
+ next.x+=previous.x-(base.x??previous.x);next.y+=previous.y-(base.y??previous.y);next.width*=previous.width/(base.width??previous.width);next.height*=previous.height/(base.height??previous.height);next.rotation+=previous.rotation-(base.rotation??previous.rotation);return[next];});
+ elements.push(...saved.document.elements.filter(e=>!e.svgPrecision));const order=new Map(saved.document.elements.map((e,i)=>[e.id,i]));elements.sort((a,b)=>(order.get(a.id)??1e9)-(order.get(b.id)??1e9));
+ const scene=structuredClone(fresh.document.scene);const remap=(nodes:typeof scene)=>nodes.forEach(n=>{if(n.artworkId)n.artworkId=ids.get(n.artworkId)??n.artworkId;if(n.children)remap(n.children)});remap(scene);
+ return{surface:fresh.surface,document:{...fresh.document,elements,scene,frames:fresh.document.frames.map(f=>({...f,artworks:f.artworks.map(id=>ids.get(id)??id)})),deletedSourceKeys:saved.document.deletedSourceKeys,revision:saved.document.revision}};
+}

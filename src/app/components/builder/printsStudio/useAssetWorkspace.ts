@@ -1,4 +1,4 @@
-import {artworkBounds} from '../../../lib/artworkPlacements';
+import {artworkBounds} from '../../../lib/artworkGeometry';
 import {placeNativeStudioAsset} from '../../../lib/studioArtwork';
 import {setFontWorkspace} from '../../../lib/workspaceFonts';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -145,7 +145,7 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
     const selected=elements.filter(element=>!element.hidden&&!element.tracingReference);if(!authReady||busyRef.current||!selected.length||!name.trim())throw new Error('Select artwork and give it a name first.');
     busyRef.current=true;setBusy(true);setError(null);const capturedScope=scope;
     try{const boxes=selected.map(artworkBounds),left=Math.min(...boxes.map(box=>box.x)),top=Math.min(...boxes.map(box=>box.y)),width=Math.max(32,Math.ceil(Math.max(...boxes.map(box=>box.x+box.width))-left+40)),height=Math.max(32,Math.ceil(Math.max(...boxes.map(box=>box.y+box.height))-top+40));
-      const clean=(element:DesignElement):DesignElement=>({...clone(element),placementId:undefined,colourSlots:undefined,sketchOnly:false,side:'front',children:element.children?.map(clean)}),native=selected.map(element=>({...clean(element),x:element.x-left+20,y:element.y-top+20})),scale=Math.min(1,4096/width,4096/height),w=Math.max(32,Math.round(width*scale)),h=Math.max(32,Math.round(height*scale)),content=scale===1?native:[{id:crypto.randomUUID(),type:'group' as const,content:'saved-selection',x:w/2,y:h/2,width:w,height:h,rotation:0,groupSourceWidth:width,groupSourceHeight:height,children:native}],preview=await exportAssetArtboard(w,h,content);
+      const clean=(element:DesignElement):DesignElement=>({...clone(element),colourSlots:undefined,sketchOnly:false,side:'front',children:element.children?.map(clean)}),native=selected.map(element=>({...clean(element),x:element.x-left+20,y:element.y-top+20})),scale=Math.min(1,4096/width,4096/height),w=Math.max(32,Math.round(width*scale)),h=Math.max(32,Math.round(height*scale)),content=scale===1?native:[{id:crypto.randomUUID(),type:'group' as const,content:'saved-selection',x:w/2,y:h/2,width:w,height:h,rotation:0,groupSourceWidth:width,groupSourceHeight:height,children:native}],preview=await exportAssetArtboard(w,h,content);
       if(scopeRef.current!==capturedScope)throw new Error('The active workspace changed. Save the selection again in the intended workspace.');
       const now=new Date().toISOString(),asset=await saveAssetProject({id:crypto.randomUUID(),name:name.trim(),width:w,height:h,elements:content,preview,createdAt:now,updatedAt:now},userId);if(scopeRef.current===capturedScope)setLibrary(items=>[asset,...items]);return asset;
     }catch(error){setError(message(error));throw error}finally{busyRef.current=false;setBusy(false)}

@@ -1,3 +1,5 @@
+import {ArtworkSurfaceSvg} from './ArtworkSurfaceSvg';
+import {SurfaceDecoration,SurfaceText} from './SurfaceDesign';
 import {createPortal} from 'react-dom';
 import {ArtworkSelection} from './ArtworkSelection';
 import { useId, useRef, useState, useEffect, type PointerEvent, type ReactNode } from 'react';
@@ -23,10 +25,10 @@ function PackagingInlineText({element,onDone}:{element:PackagingElement;onDone:(
  useEffect(()=>{const field=input.current;if(field){field.focus({preventScroll:true});field.setSelectionRange(field.value.length,field.value.length)}},[]);
  const finish=(content?:string)=>{if(finished.current)return;finished.current=true;onDone(content)};
  return <foreignObject x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} overflow="visible">
- <input className="pkg-inline-text-input" ref={input} aria-label="Edit packaging text on canvas" maxLength={160} value={draft} onChange={event=>setDraft(event.target.value)} onPointerDown={event=>event.stopPropagation()} onDoubleClick={event=>event.stopPropagation()} onBlur={()=>finish(draft)} onKeyDown={event=>{event.stopPropagation();if(event.key==='Enter'){event.preventDefault();finish(draft)}else if(event.key==='Escape'){event.preventDefault();finish()}}} style={{boxSizing:'border-box',width:'100%',height:'100%',minWidth:0,padding:0,border:'1px dashed #737373',outline:'none',borderRadius:2,background:'transparent',color:element.color,caretColor:element.color,boxShadow:'none',fontFamily:element.font,fontSize:element.fontSize,textAlign:element.align}}/>
+ <input className="pkg-inline-text-input" ref={input} aria-label="Edit packaging text on canvas" maxLength={160} value={draft} onChange={event=>setDraft(event.target.value)} onPointerDown={event=>event.stopPropagation()} onDoubleClick={event=>event.stopPropagation()} onBlur={()=>finish(draft)} onKeyDown={event=>{event.stopPropagation();if(event.key==='Enter'){event.preventDefault();finish(draft)}else if(event.key==='Escape'){event.preventDefault();finish()}}} style={{boxSizing:'border-box',width:'100%',height:'100%',minWidth:0,padding:0,border:'1px dashed #737373',outline:'none',borderRadius:2,background:'transparent',color:element.color,caretColor:element.color,boxShadow:'none',fontFamily:element.font,fontSize:element.fontSize,fontWeight:element.fontWeight,fontStyle:element.textOptions?.fontStyle,letterSpacing:element.textOptions?.tracking,textAlign:element.align}}/>
  </foreignObject>;
 }
-export function PackagingSurface({ design, panel, guides, selectedId, onSelect, onElementChange }: ArtworkProps & { panel: PackagingPanel }) {
+export function LegacyPackagingSurface({ design, panel, guides, selectedId, onSelect, onElementChange }: ArtworkProps & { panel: PackagingPanel }) {
   const unique = useId().replace(/:/g, '');
   const [editingText,setEditingText]=useState<string|null>(null);
   useEffect(()=>{if(editingText!==selectedId)setEditingText(null)},[selectedId,editingText]);
@@ -99,8 +101,8 @@ export function PackagingSurface({ design, panel, guides, selectedId, onSelect, 
           drag.current = { pointer: event.pointerId, x: position.x, y: position.y, element };
           event.currentTarget.setPointerCapture(event.pointerId);
         }}>
-        {element.kind==='section'?<rect data-packaging-colour-section="" x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.color}/>:element.kind === 'text' ? editingText===element.id?<PackagingInlineText element={element} onDone={content=>{setEditingText(null);if(content===undefined||!onElementChange)return;const context=document.createElement('canvas').getContext('2d');if(context)context.font=element.fontSize+'px '+element.font;const width=Math.max(element.fontSize,(context?.measureText(content).width??content.length*element.fontSize)+element.fontSize);onElementChange(constrainPackagingElement({...element,content,width,height:element.fontSize*1.6},packagingElementRegion(design,element)),false)}}/>:<svg x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} overflow="hidden">
-          <text x={element.align === 'left' ? 0 : element.align === 'right' ? element.width : element.width / 2} y={element.height / 2} dominantBaseline="central" textAnchor={element.align === 'left' ? 'start' : element.align === 'right' ? 'end' : 'middle'} fontFamily={element.font} fontSize={element.fontSize} fill={element.color} letterSpacing="0">{element.content}</text>
+        {element.kind==='section'?<SurfaceDecoration x={-element.width/2} y={-element.height/2} width={element.width} height={element.height} fill={element.color} appearance={element.appearance}/>:element.kind === 'text' ? editingText===element.id?<PackagingInlineText element={element} onDone={content=>{setEditingText(null);if(content===undefined||!onElementChange)return;const context=document.createElement('canvas').getContext('2d');if(context)context.font=element.fontSize+'px '+element.font;const width=Math.max(element.fontSize,(context?.measureText(content).width??content.length*element.fontSize)+element.fontSize);onElementChange(constrainPackagingElement({...element,content,width,height:element.fontSize*1.6},packagingElementRegion(design,element)),false)}}/>:<svg x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} overflow="hidden">
+          <SurfaceText text={element.content} x={element.align==='left'?0:element.align==='right'?element.width:element.width/2} y={element.height/2} size={element.fontSize} font={element.font} weight={element.fontWeight} color={element.color} align={element.align} options={element.textOptions}/>
         </svg> : <image href={element.content} x={-element.width / 2} y={-element.height / 2} width={element.width} height={element.height} preserveAspectRatio="xMidYMid meet" />}
 
       </g>)}
@@ -450,3 +452,4 @@ export function PackagingArtwork(props: ArtworkProps) {
     })() : <PackagingBox {...props} view={view} />}
   </svg>;
 }
+export function PackagingSurface(props:ArtworkProps&{panel:PackagingPanel}){const native=props.design.artworkSurfaces?.[props.panel];return native?<ArtworkSurfaceSvg surface={native.surface} document={native.document} quality={(props.design as PackagingDesign&{surfaceGesture?:boolean}).surfaceGesture?'gesture':'full'}/>:<LegacyPackagingSurface {...props}/>;}

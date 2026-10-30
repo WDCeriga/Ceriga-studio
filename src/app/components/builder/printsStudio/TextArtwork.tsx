@@ -1,3 +1,5 @@
+import {SurfacePrecisionGraphic} from './SurfacePrecisionGraphic';
+import {precisionGeometryChanged} from '../../../lib/svgPrecision';
 import {VectorTextArtwork} from './VectorTextArtwork';
 import {TextAppearanceArtwork} from './TextAppearanceArtwork';
 import {outlineFontSource} from '../../../lib/outlineFontSources';
@@ -154,7 +156,8 @@ type TextArtworkProps = {
   onDoubleClick?: MouseEventHandler<HTMLDivElement>;
 };
 
-export function TextArtwork(props: TextArtworkProps) {
+export function TextArtwork(props:TextArtworkProps){return props.element.svgPrecision&&!precisionGeometryChanged(props.element)?<SurfacePrecisionGraphic element={props.element}/>:<StandardTextArtwork {...props}/>;}
+function StandardTextArtwork(props: TextArtworkProps) {
   const { element, fontSize, defaultColor, onDoubleClick } = props;
   if(element.textAppearance)return <TextAppearanceArtwork element={element} onDoubleClick={onDoubleClick} onFrameChange={props.onFrameChange}/>;
   if(element.textUnderline||element.textStrikethrough||element.textWordSpacing||element.textKerningMode==='optical'||element.textStackFit||element.textBadge||element.textTransform==='title'||element.textPath?.flip||(element.textScaleX??100)!==100||(element.textScaleY??100)!==100||element.fontId||element.vectorTextEffects?.length||Object.keys(element.textGlyphTransforms??{}).length||Object.keys(element.fontAxes??{}).length||Object.keys(element.fontFeatures??{}).length)return <VectorTextArtwork element={element} onDoubleClick={onDoubleClick} onFrameChange={props.onFrameChange}/>;

@@ -6,7 +6,7 @@ import type { useAssetWorkspace } from './useAssetWorkspace';
 export const ASSET_LIBRARY_DRAG_MIME = 'application/x-ceriga-saved-asset';
 type Workspace = ReturnType<typeof useAssetWorkspace>;
 const Context = createContext<Workspace | null>(null);
-export function AssetWorkspaceProvider({ value, children }: { value: Workspace; children: ReactNode }) { return <Context.Provider value={value}>{children}</Context.Provider>; }
+export function AssetWorkspaceProvider({ value, children }: { value: Workspace | null; children: ReactNode }) { return <Context.Provider value={value}>{children}</Context.Provider>; }
 export const useAssetWorkspaceContext = () => useContext(Context);
 const button = 'rounded-md border border-[#e2e2e2] px-3 py-2 text-xs font-semibold text-[#262626] hover:bg-[#f2f2f2] disabled:opacity-40';
 const input = 'min-w-0 rounded-md border border-[#e2e2e2] bg-[#fafafa] px-2 py-1.5 text-xs text-[#262626]';
@@ -54,7 +54,7 @@ export function AssetLibraryPanel({query='',showCreate=true,showHeading=true,rec
   const workspace = useAssetWorkspaceContext();
   if (!workspace) return null;
   return <section data-studio-assets className="space-y-3 pb-4">
-    {showCreate&&<button className={`${button} w-full bg-[#262626]`} disabled={!!workspace.project || workspace.busy || !workspace.authReady || !!workspace.recovery} onClick={() => workspace.enter()}>+ Create Asset</button>}
+    {showCreate&&<button className="asset-create-action" disabled={!!workspace.project || workspace.busy || !workspace.authReady || !!workspace.recovery} onClick={() => workspace.enter()}>+ Create Asset</button>}
     {workspace.recovery && !workspace.project && <div className="space-y-2 rounded border border-amber-300/30 p-2 text-xs text-[#737373]"><p>An unfinished asset is saved on this device.</p><button className={button} onClick={workspace.resume}>Resume asset draft</button></div>}
     {showHeading&&<h3 className="artwork-section-title">Saved assets</h3>}
     {workspace.libraryError && <p role="alert" className="text-xs text-amber-200">{workspace.libraryError}</p>}
