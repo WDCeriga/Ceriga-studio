@@ -1,7 +1,10 @@
+import {ArtworkSurfaceContext} from './ArtworkSurfaceContext';
+import {mapShapePath} from '../../../lib/artworkPathOperations';
+import {shapePathData} from '../../../lib/shapeGeometry';
 import {ArtworkFinishPreview} from './ArtworkFinishPreview';
 import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {waitForDrawingReplay} from './DrawingArtwork';
-import {useContext} from 'react';
+import {useContext,useMemo} from 'react';
 import {GarmentPatternReliefContext,GarmentPrintTextureContext} from './GarmentPrintTexture';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import {ArtworkInteractionContext} from './ArtworkInteractionContext';
@@ -31,6 +34,8 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
   cropping?: boolean;
   cropOverlay?: ReactNode;
 }) {
+  const artworkSurface=useContext(ArtworkSurfaceContext);
+  const surfaceMask=useMemo(()=>{if(!artworkSurface?.surface.clip)return undefined;const a=-element.rotation*Math.PI/180,c=Math.cos(a),sn=Math.sin(a),local=mapShapePath(artworkSurface.surface.outline,p=>{const x=p.x-(position?.x??element.x),y=p.y-(position?.y??element.y);return{x:x*c-y*sn+element.width/2,y:x*sn+y*c+element.height/2}});const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${element.width} ${element.height}" preserveAspectRatio="none"><path d="${shapePathData(local)}" fill="white" fill-rule="evenodd"/></svg>`;return{maskImage:`url("data:image/svg+xml,${encodeURIComponent(svg)}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'};},[artworkSurface?.surface,element.rotation,element.x,element.y,element.width,element.height,position?.x,position?.y]);
   const printTexture=useContext(GarmentPrintTextureContext);
   const patternTexture=useContext(GarmentPatternReliefContext);
   const pattern=element.type==='pattern'||Boolean(element.customAreaPattern);
@@ -205,7 +210,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
     } : {}) }}>
     <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: projectionTransform }}>
       <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }),maskImage:eraseMask,maskSize:'100% 100%',maskRepeat:'no-repeat' }}>
-        <div data-artwork-clipped={clipStyle?true:undefined} style={clipStyle} className="h-full w-full"><ArtworkFinishPreview element={element}>{element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}</ArtworkFinishPreview></div>
+        <div style={surfaceMask} className="h-full w-full"><ArtworkSurfaceContext.Provider value={null}><div data-artwork-clipped={clipStyle?true:undefined} style={clipStyle} className="h-full w-full"><ArtworkFinishPreview element={element}>{element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}</ArtworkFinishPreview></div></ArtworkSurfaceContext.Provider></div>
       </div>
       {!interacting&&!editingPath&&texture&&printMask&&printMask.key===printMaskKey&&element.type!=='distress'&&element.type!=='drawing'&&<div data-print-fabric-relief data-pattern-fabric-relief={pattern?'':undefined} data-editor-chrome className="pointer-events-none absolute inset-0" style={{mixBlendMode:'multiply',backgroundImage:drawingMaskCss(texture,width,actualHeight,position?.x??element.x,position?.y??element.y,element.rotation,true),backgroundSize:'100% 100%',maskImage:`url("${printMask.url}")`,maskSize:`${printMask.width}px ${printMask.height}px`,maskPosition:`${-printMask.padding}px ${-printMask.padding}px`,maskRepeat:'no-repeat'}}/>}
     </div>

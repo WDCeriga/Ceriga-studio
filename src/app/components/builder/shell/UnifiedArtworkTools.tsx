@@ -28,11 +28,11 @@ export function UnifiedArtworkTools({elements,selectedId,onChange,onSelect,histo
  <button aria-label="Direct select" title="Edit points (A)" disabled={!editable||!['shape','customArea'].includes(selected.type)||!!selected.booleanOperation} aria-pressed={Boolean(studio.pathEditingId)||studio.tool==='customAreaEdit'} onClick={direct}><MousePointer size={18}/><span>Points</span></button>
  <i/>
  <button aria-label="Pen tool" title="Pen (P)" aria-pressed={studio.tool==='shapePolygon'} onClick={()=>tool('pen')}><PenTool size={18}/><span>Pen</span></button>
- <button aria-label="Pencil tool" aria-pressed={studio.tool==='shapePencil'} onClick={()=>tool('pencil')}><Pencil size={18}/><span>Pencil</span></button>
- <button aria-label="Shape tool" aria-pressed={studio.tool==='shapeLive'} onClick={()=>tool('shape')}><Square size={18}/><span>Shape</span></button>
+ <button aria-label="Pencil tool" title="Pencil" aria-pressed={studio.tool==='shapePencil'} onClick={()=>tool('pencil')}><Pencil size={18}/><span>Pencil</span></button>
+ <button aria-label="Shape tool" title="Draw a shape" aria-pressed={studio.tool==='shapeLive'} onClick={()=>tool('shape')}><Square size={18}/><span>Shape</span></button>
  <button aria-label="Type tool" title="Type (T)" aria-pressed={studio.tool==='textPlace'} onClick={()=>tool('type')}><Type size={18}/><span>Type</span></button>
  <button aria-label="Eraser tool" title="Eraser (E)" aria-pressed={studio.tool==='eraser'} onClick={()=>tool('eraser')}><Eraser size={18}/><span>Eraser</span></button>
- <i/><button aria-label="Eyedropper" onClick={async()=>{picker.current?.abort();const controller=new AbortController();picker.current=controller;try{paint(await sampleCanvasColor(controller.signal))}catch(error){if(!(error instanceof DOMException&&error.name==='AbortError'))toast.error(error instanceof Error?error.message:'Could not sample this colour.')}}}><Pipette size={18}/><span>Pick</span></button>
+ <i/><button aria-label="Eyedropper" title="Sample a colour" onClick={async()=>{picker.current?.abort();const controller=new AbortController();picker.current=controller;try{paint(await sampleCanvasColor(controller.signal))}catch(error){if(!(error instanceof DOMException&&error.name==='AbortError'))toast.error(error instanceof Error?error.message:'Could not sample this colour.')}}}><Pipette size={18}/><span>Pick</span></button>
  <div className="shape-tool-paint"><PaintInput ariaLabel="Artwork ink colour" value={selected?.shapeFilled?selected.shapeFillColor??selected.color??studio.color:selected?.shapeStrokeColor??selected?.color??studio.color} onChange={event=>paint(event.target.value)}/><span>Colour</span></div>
  <ArtworkHistoryControls history={history}/>
  </div>;

@@ -1,1 +1,23 @@
 .surface-artwork-editor.builder-context{position:fixed;inset:44px 0 0;z-index:80;background:#fff;display:grid;grid-template-columns:190px minmax(0,1fr) 400px;grid-template-rows:48px minmax(0,1fr);color:#262626;font:inherit}.surface-artwork-editor>header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid #e2e2e2;font-size:12px}.surface-artwork-editor>header span{color:#737373}.surface-artwork-editor>header button{margin-left:auto;padding:4px}.surface-artwork-editor>nav{border-right:1px solid #e2e2e2;overflow:auto}.surface-artwork-editor>main{min-width:0;min-height:0;display:flex;flex-direction:column;background:#fafafa}.surface-artwork-editor-board{position:relative;display:flex;flex:1;min-height:0;margin:24px}.surface-artwork-editor-board>.shape-canvas-tools{position:absolute;left:0;top:50%;transform:translateY(-50%)}.surface-artwork-editor>aside{border-left:1px solid #e2e2e2;min-height:0;overflow:hidden}.surface-artwork-editor-preview{height:180px;border-top:1px solid #e2e2e2;background:#fff}.surface-artwork-editor-preview>svg{height:100%;width:100%}@media(max-width:767px){.surface-artwork-editor{grid-template-columns:1fr;grid-template-rows:44px 1fr 42%;inset:58px 0 0}.surface-artwork-editor>nav{display:none}.surface-artwork-editor>aside{border-top:1px solid #e2e2e2}.surface-artwork-editor-board{margin:16px}.surface-artwork-editor-preview{height:110px}}
+
+/* The embedded label board shares the studio tools, with compact canvas chrome. */
+[data-shared-surface-editor]>.artwork-canvas-tools{
+ position:absolute;inset:50% auto auto 16px;transform:translateY(-50%);z-index:40;
+ display:flex;flex-direction:column;align-items:center;gap:3px;width:44px;padding:6px;
+ border:1px solid #e2e2e2;border-radius:8px;background:#fff;box-shadow:0 2px 10px #17171708;
+}
+.ceriga-builder-shell [data-shared-surface-editor]>.artwork-canvas-tools>button{
+ display:grid;place-items:center;width:30px;height:30px;min-height:0;padding:0;border:0;border-radius:4px;background:#fff;color:#525252;
+}
+[data-shared-surface-editor]>.artwork-canvas-tools>button>span,[data-shared-surface-editor]>.artwork-canvas-tools>.shape-tool-paint>span{display:none}
+[data-shared-surface-editor]>.artwork-canvas-tools>button>svg{width:16px;height:16px}
+.ceriga-builder-shell [data-shared-surface-editor]>.artwork-canvas-tools>button:is(:hover,[aria-pressed=true]){background:#f2f2f2;color:#171717}
+[data-shared-surface-editor]>.artwork-canvas-tools>i{width:22px;height:1px;min-height:1px;margin:3px 0;background:#e5e5e5}
+[data-shared-surface-editor]>.artwork-canvas-tools>.shape-tool-paint{display:grid;place-items:center;width:30px;height:30px;padding:4px}
+[data-shared-surface-editor]>.artwork-canvas-tools .artwork-rail-history{display:grid;grid-template-columns:1fr;gap:3px}
+[data-shared-surface-editor]>.artwork-canvas-tools .artwork-rail-history button{width:30px;height:27px;padding:5px}
+@media(max-height:720px),(max-width:767px){
+ [data-shared-surface-editor]>.artwork-canvas-tools{inset:auto auto 68px 12px;transform:none;flex-direction:row;flex-wrap:wrap;width:auto;max-width:calc(100% - 24px);gap:2px;padding:4px}
+ [data-shared-surface-editor]>.artwork-canvas-tools>i{width:1px;height:20px;margin:0 3px}
+ [data-shared-surface-editor]>.artwork-canvas-tools .artwork-rail-history{grid-template-columns:repeat(2,1fr)}
+}

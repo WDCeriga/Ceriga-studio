@@ -33,3 +33,17 @@
 
 .label-preview-studio:has([aria-label="Sleeve and hem tag garment side"]) .label-studio-toolbar{padding-right:150px}
 @media(max-width:767px){.label-preview-studio:has([aria-label="Sleeve and hem tag garment side"]) .label-studio-toolbar{padding:52px 14px 10px}}
+
+.labels-studio .label-section-layout{display:grid;gap:14px;margin:18px 0}
+.labels-studio .label-section-layout>.studio-segments{display:flex;gap:3px;padding:3px;background:#f4f4f4;border-radius:6px}
+.labels-studio .label-section-layout>.studio-segments>button{flex:1;min-height:34px;padding:6px 12px;border:0;border-radius:4px;background:transparent;color:var(--builder-ui-muted);font:inherit;font-size:12px}
+.labels-studio .label-section-layout>.studio-segments>button[aria-pressed=true]{background:#fff;color:var(--builder-ui-text);box-shadow:0 1px 3px #1717170a}
+.labels-studio label.studio-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;font-size:12px;color:var(--builder-ui-secondary)}
+.labels-studio label.studio-switch>input[type=checkbox]{appearance:none;flex:0 0 30px;width:30px;height:18px;min-height:0;margin:0;border:0;border-radius:12px;background:#dedede;cursor:pointer;position:relative}
+.labels-studio label.studio-switch>input[type=checkbox]::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #1717171a}
+.labels-studio label.studio-switch>input[type=checkbox]:checked{background:#303030}
+.labels-studio label.studio-switch>input[type=checkbox]:checked::after{transform:translateX(12px)}
+.labels-studio label.studio-switch>input:focus-visible{outline:2px solid #737373;outline-offset:3px}
+.labels-studio .label-content>details>summary{display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 12px}
+.labels-studio .label-content>details>summary>.label-block-eye{display:grid;place-items:center;width:28px;height:28px;margin-left:auto;padding:0;border:0;background:transparent;color:var(--builder-ui-muted)}
+.labels-studio .label-content>details>summary>.label-block-eye>svg{width:15px;height:15px}

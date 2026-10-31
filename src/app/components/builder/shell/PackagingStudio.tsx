@@ -1,3 +1,4 @@
+import './brand-studio-controls.css';
 import {PackagingDesigner,PackagingDesignerPreview} from '../PackagingDesigner';
 import {MobileToolTabs} from './MobileToolTabs';
 import {PACKAGING_TOOLS,useStudioWorkflow} from './StudioWorkflow';

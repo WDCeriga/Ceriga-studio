@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {build} from 'esbuild';
 import {pathToFileURL} from 'node:url';
 const output='node_modules/.cache/logo-outline-tests.mjs';
-await build({stdin:{contents:"import './src/app/lib/logoOutline.worker';export {traceLogoImage} from './src/app/lib/logoOutline.worker';export * from './src/app/lib/logoOutline';export * from './src/app/lib/artworkImagePlacement';export * from './src/app/lib/logoRegionEditing';export * from './src/app/lib/editableLogoLayers';export * from './src/app/lib/artworkClipping';export {productionArtworkSvg} from './src/app/lib/productionArtwork';export {shapeWorldPath,mapShapePath} from './src/app/lib/artworkPathOperations';export {pathSegmentPoint} from './src/app/lib/shapePathEditing';",resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',outfile:output,logLevel:'silent',plugins:[{name:'font-assets',setup(build){build.onLoad({filter:/\.(ttf|otf|woff2?)$/},args=>({contents:'export default '+JSON.stringify(args.path),loader:'js'}));}}]});
+await build({stdin:{contents:"import './src/app/lib/logoOutline.worker';export {traceLogoImage} from './src/app/lib/logoOutline.worker';export * from './src/app/lib/logoOutline';export * from './src/app/lib/artworkImagePlacement';export * from './src/app/lib/logoRegionEditing';export * from './src/app/lib/editableLogoLayers';export * from './src/app/lib/artworkClipping';export {productionArtworkSvg} from './src/app/lib/productionArtwork';export {shapeWorldPath,mapShapePath} from './src/app/lib/artworkPathOperations';export {shapeIsClosed,shapeContourHasArea} from './src/app/lib/shapeGeometry';export {pathSegmentPoint} from './src/app/lib/shapePathEditing';",resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',outfile:output,logLevel:'silent',plugins:[{name:'font-assets',setup(build){build.onLoad({filter:/\.(ttf|otf|woff2?)$/},args=>({contents:'export default '+JSON.stringify(args.path),loader:'js'}));}}]});
 let reply;globalThis.self={postMessage:value=>reply=value};
 const api=await import(pathToFileURL(process.cwd()+'/'+output));
 const w=200,h=200,pixels=new Uint8ClampedArray(w*h*4);
@@ -40,3 +40,35 @@ function linkedLogo(opaque){const width=420,height=100,data=new Uint8ClampedArra
 function softenEdges(fixture){const original=fixture.data,data=new Uint8ClampedArray(original.length),{width,height}=fixture;for(let y=0;y<height;y++)for(let x=0;x<width;x++){let weight=0,alpha=0,red=0,green=0,blue=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=Math.max(0,Math.min(width-1,x+dx)),yy=Math.max(0,Math.min(height-1,y+dy)),i=(yy*width+xx)*4,w=(dx===0?2:1)*(dy===0?2:1),a=original[i+3]/255;weight+=w;alpha+=a*w;red+=original[i]*a*w;green+=original[i+1]*a*w;blue+=original[i+2]*a*w;}const i=(y*width+x)*4;if(alpha)data.set([red/alpha,green/alpha,blue/alpha,alpha/weight*255],i);}return{...fixture,data};}
 for(const opaque of [false,true])for(const soften of[false,true])for(const autoColours of[false,true]){const fixture=soften?softenEdges(linkedLogo(opaque)):linkedLogo(opaque),settings={...api.LOGO_OUTLINE_DEFAULTS,supersample:1,specksMm2:0,autoColours,colours:2},traced=api.traceLogoImage({pixels:fixture.data.buffer,width:fixture.width,height:fixture.height,sourceWidth:fixture.width,sourceHeight:fixture.height,settings,placedWidthMm:100,preview:false}),bases=traced.regions.filter(region=>region.silhouette),outlined=api.logoTraceElement({...source,width:420,height:100},{...state,settings,result:traced},30);assert.equal(traced.palette.length,1,'Antialias/background must not become an extra ink.');assert.equal(bases.length,7,'Connected rim plus six letters must produce seven positive shapes.');assert.equal(bases[0].path.subpaths.length,6,'The six circle centres are holes in one connected rim.');assert.equal(api.editableLogoParts(outlined).length,7);assert(bases.slice(1).some(region=>(region.path.subpaths?.length??0)===2),'Letter counters remain holes in the B.');}
 console.log('Seven-shape logo passed: one connected rim, six independent letters, counters retained as holes, transparent and opaque white backgrounds, antialiased edges and automatic/manual palettes.');
+
+// A connected colour can contain collapsed antialias specks at narrow joins.
+// They must not suppress its entire fill, including traces saved before this fix.
+const closedSquare={closed:true,nodes:[{x:10,y:10},{x:90,y:10},{x:90,y:90},{x:10,y:90}]};
+const collapsed={closed:true,nodes:[{x:50,y:50},{x:51,y:50}]};
+const compound={type:'shape',content:'custom-path',shapePath:{...closedSquare,subpaths:[collapsed]}};
+assert(api.shapeIsClosed(compound),'A collapsed closed contour must not remove a valid compound fill.');
+assert(!api.shapeContourHasArea(collapsed));
+assert(!api.shapeIsClosed({...compound,shapePath:collapsed}),'A collapsed path alone has no fill.');
+assert(!api.shapeIsClosed({...compound,shapePath:{...closedSquare,subpaths:[{...collapsed,closed:false}]}}),'A genuine open contour remains open.');
+const lens={closed:true,nodes:[{x:20,y:50,out:{x:20,y:20},in:{x:20,y:80}},{x:80,y:50,in:{x:80,y:20},out:{x:80,y:80}}]};
+assert(api.shapeContourHasArea(lens),'Two-anchor curved shapes remain valid.');
+console.log('Compound fill passed: collapsed closed specks preserve the main fill, genuine open paths stay open and two-anchor curved shapes remain fillable.');
+
+// Joined rays remain one colour region despite narrow gaps and one-pixel edge specks.
+const fw=240,fh=220,fanPixels=new Uint8ClampedArray(fw*fh*4);
+for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){
+ const outer=x>=10&&x<=230&&y>=10&&y<=210;
+ if(!outer)continue;
+ let yellow=x>=30&&x<=210&&y>=35&&y<=190;
+ if(y<130&&[-.6,-.4,-.2,.2,.4,.6].some(slope=>Math.abs(x-(120+slope*(160-y)))<1.5&&y>=35))yellow=false;
+ if(x===120&&y===180)yellow=false;
+ fanPixels.set(yellow?[255,205,0,255]:[218,41,28,255],(y*fw+x)*4);
+}
+const fanSettings={...api.LOGO_OUTLINE_DEFAULTS,supersample:1},fanResult=api.traceLogoImage({pixels:fanPixels.buffer,width:fw,height:fh,sourceWidth:fw,sourceHeight:fh,settings:fanSettings,placedWidthMm:100,preview:false});
+const fanRoot=api.logoTraceElement({...source,width:fw,height:fh},{...state,settings:fanSettings,result:fanResult},30),fanParts=api.editableLogoParts(fanRoot);
+assert.equal(fanParts.length,2,'Connected two-colour artwork must expose two independent visible shapes.');
+assert(fanParts.every(({element})=>api.shapeIsClosed(element)),'Both traced colour shapes must keep their fills.');
+assert.equal(fanResult.regions.filter(region=>region.colour===fanResult.palette[1]).length,1,'Joined rays belong to one yellow shape.');
+const fanSvg=await api.productionArtworkSvg([fanRoot],fw,fh);
+assert(fanSvg.includes('#da291c')&&fanSvg.includes('#ffcd00'),'Both inks survive production rendering.');
+console.log('Joined-colour logo passed: one connected yellow region, independent red shape, visible fills and both inks in native output.');

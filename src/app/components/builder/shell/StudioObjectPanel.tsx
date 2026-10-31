@@ -1,3 +1,4 @@
+import {SurfaceColourLinks} from './SurfaceColourLinks';
 import {GroupSourceControls} from './GroupSourceControls';
 import {SharedArtworkObjectPanel} from './SharedArtworkObjectPanel';
 import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
@@ -52,4 +53,4 @@ function ObjectEditor({element:el,update,fonts=[],toolsOnly=false}:{element:Desi
  <ArtworkPrintMethod element={el} update={update}/></fieldset></div>;
 }
 
-export function StudioObjectPanel(props:{element:DesignElement;fonts?:string[];update:(patch:Partial<DesignElement>)=>void}){if(props.element.type==='text')return <ObjectEditor {...props}/>;return <SharedArtworkObjectPanel element={props.element} update={props.update}><ObjectEditor {...props} toolsOnly/></SharedArtworkObjectPanel>;}
+export function StudioObjectPanel(props:{element:DesignElement;fonts?:string[];update:(patch:Partial<DesignElement>)=>void}){if(props.element.type==='text')return <><SurfaceColourLinks element={props.element} update={props.update}/><ObjectEditor {...props}/></>;return <><SurfaceColourLinks element={props.element} update={props.update}/><SharedArtworkObjectPanel element={props.element} update={props.update}><ObjectEditor {...props} toolsOnly/></SharedArtworkObjectPanel></>;}

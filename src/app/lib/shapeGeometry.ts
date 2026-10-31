@@ -294,18 +294,19 @@ export function shapePathData(path: ShapePath): string {
   return commands.join(' ');
 }
 
+/** Degenerate closed specks do not invalidate the other contours in a compound shape. */
+export function shapeContourHasArea(part:ShapePath):boolean {
+  if(!part.closed||part.nodes.length<2)return false;
+  if(part.nodes.length>=3)return true;
+  const [a,b]=part.nodes,dx=b.x-a.x,dy=b.y-a.y;
+  return [a.in,a.out,b.in,b.out].some(h=>h&&Math.abs(dx*(h.y-a.y)-dy*(h.x-a.x))>1e-6);
+}
 export function shapeIsClosed(element: ShapeGeometryElement): boolean {
   if (element.type && element.type !== 'shape') return false;
   const path = shapeToEditablePath(element);
   const contours = (part: ShapePath): ShapePath[] => [...(part.nodes.length ? [part] : []), ...(part.subpaths ?? []).flatMap(contours)];
   const parts = contours(path);
-  const fillable=(part:ShapePath)=>{
-    if(!part.closed||part.nodes.length<2)return false;
-    if(part.nodes.length>=3)return true;
-    const [a,b]=part.nodes,dx=b.x-a.x,dy=b.y-a.y;
-    return [a.in,a.out,b.in,b.out].some(h=>h&&Math.abs(dx*(h.y-a.y)-dy*(h.x-a.x))>1e-6);
-  };
-  return parts.length>0&&(element.drawingVectorSource?parts.some(fillable):parts.every(fillable));
+  return parts.some(shapeContourHasArea) && (Boolean(element.drawingVectorSource) || parts.every(part=>part.closed));
 }
 
 /** Fit new studio shapes to their real cubic bounds, keeping stroke inside the selection box. */

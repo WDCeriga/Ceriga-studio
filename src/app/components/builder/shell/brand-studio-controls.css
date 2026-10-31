@@ -1,0 +1,32 @@
+/* Shared control rules for labels and packaging; fabric controls keep their own palette. */
+:is(.labels-studio,.packaging-studio){--brand-control-height:36px;--brand-control-radius:5px}
+:is(.labels-studio,.packaging-studio) :is(.label-field,.pkg-field,.surface-field){min-width:0;gap:7px;font-size:12px;line-height:1.45;color:var(--builder-ui-secondary)}
+:is(.labels-studio,.packaging-studio) :is(.label-field,.pkg-field,.surface-field)>:is(input:not([type=checkbox],[type=range],[type=file],[type=color]),textarea,.material-select-trigger){width:100%;min-width:0;min-height:var(--brand-control-height);padding:8px 10px;border:1px solid var(--builder-ui-line);border-radius:var(--brand-control-radius);background:#fff;color:var(--builder-ui-text);font:inherit;font-size:12px;box-shadow:none}
+:is(.labels-studio,.packaging-studio) :is(.label-field,.pkg-field,.surface-field)>textarea{resize:none;min-height:76px;line-height:1.55}
+:is(.labels-studio,.packaging-studio) :is(.label-field,.pkg-field,.surface-field)>:is(input,textarea):focus-visible{outline:2px solid #73737324;outline-offset:1px;border-color:#858585}
+:is(.labels-studio,.packaging-studio) :is(.label-two,.surface-two){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+:is(.labels-studio,.packaging-studio) .label-colour-chip{display:flex;align-items:center;gap:9px;min-width:0;min-height:54px;padding:10px 11px;border:1px solid var(--builder-ui-line);border-radius:6px;background:#fff;text-align:left;color:var(--builder-ui-text)}
+:is(.labels-studio,.packaging-studio) .label-colour-chip>i{width:26px;height:26px;flex:0 0 26px;border:1px solid #17171714;border-radius:4px}
+:is(.labels-studio,.packaging-studio) .label-colour-chip>span{min-width:0;font-size:12px;line-height:1.4;font-weight:400}
+:is(.labels-studio,.packaging-studio) .label-colour-chip small{display:block;margin-top:3px;color:var(--builder-ui-muted);font-size:10px;font-weight:400;letter-spacing:.1px}
+:is(.labels-studio,.packaging-studio) :is(.label-section,.pkg-editor details,.surface-detail){border-color:var(--builder-ui-line);box-shadow:none}
+:is(.labels-studio,.packaging-studio) :is(.label-section,.pkg-editor details,.surface-detail)>summary{display:flex;align-items:center;gap:10px;min-height:52px;padding:14px 0;list-style:none;font-size:12px;font-weight:500;line-height:1.5;color:var(--builder-ui-text);cursor:pointer}
+:is(.labels-studio,.packaging-studio) :is(.label-section,.pkg-editor details,.surface-detail)>summary::-webkit-details-marker{display:none}
+:is(.labels-studio,.packaging-studio) :is(.label-section,.pkg-editor details,.surface-detail)>summary>small{margin-left:auto;font-size:11px;font-weight:400;color:var(--builder-ui-muted)}
+:is(.labels-studio,.packaging-studio) :is(.label-section,.pkg-editor details,.surface-detail)[open]>summary{margin-bottom:12px}
+:is(.labels-studio,.packaging-studio) :is(.label-templates,.pkg-material-options){gap:8px}
+:is(.labels-studio,.packaging-studio) .surface-design-controls{gap:14px;margin:14px 0}
+:is(.labels-studio,.packaging-studio) :is(.label-check,.pkg-check){font-size:12px;line-height:1.5}
+:is(.labels-studio,.packaging-studio) :is(.label-exports,.pkg-actions,.pkg-section-actions,.pkg-layer-actions){display:flex;gap:8px;flex-wrap:wrap}
+:is(.labels-studio,.packaging-studio) :is(.label-exports,.pkg-actions,.pkg-section-actions)>button{min-height:34px;padding:7px 11px;border-radius:5px;font-size:12px;box-shadow:none}
+.surface-editor-entry{display:flex;align-items:center;margin:12px 24px 0 auto;padding:5px 0;border:0;background:transparent;color:#737373;font:inherit;font-size:11px}
+.surface-editor-entry:hover{color:#262626;text-decoration:underline}
+@media(max-width:767px){:is(.labels-studio,.packaging-studio){--brand-control-height:40px}:is(.labels-studio,.packaging-studio) .label-colour-chip{padding:9px;gap:7px}.surface-editor-entry{margin-right:16px}}
+
+:is(.labels-studio,.packaging-studio) :is(.label-check,.pkg-check){display:flex;align-items:center;gap:9px;min-height:32px}
+:is(.labels-studio,.packaging-studio,.packaging-studio-canvas) :is(.label-check,.pkg-check)>input[type=checkbox]{appearance:none;position:relative;flex:0 0 28px;width:28px;height:17px;min-height:0;margin:0;padding:0;border:0;border-radius:10px;background:#dedede;cursor:pointer}
+:is(.labels-studio,.packaging-studio,.packaging-studio-canvas) :is(.label-check,.pkg-check)>input[type=checkbox]::after{content:'';position:absolute;left:3px;top:3px;width:11px;height:11px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #17171714}
+:is(.labels-studio,.packaging-studio,.packaging-studio-canvas) :is(.label-check,.pkg-check)>input[type=checkbox]:checked{background:#303030}
+:is(.labels-studio,.packaging-studio,.packaging-studio-canvas) :is(.label-check,.pkg-check)>input[type=checkbox]:checked::after{transform:translateX(11px)}
+:is(.labels-studio,.packaging-studio,.packaging-studio-canvas) :is(.label-check,.pkg-check)>input:focus-visible{outline:2px solid #737373;outline-offset:3px}
+.surface-editor-entry{margin:4px 24px 20px auto}

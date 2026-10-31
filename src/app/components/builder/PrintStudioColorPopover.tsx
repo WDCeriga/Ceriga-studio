@@ -1,6 +1,6 @@
 import {STUDIO_MAIN_COLORS} from '../../data/studioColorPresets';
 import './shell/studio-colour-picker.css';
-import { useEffect, useRef, useState, type ReactNode, type PointerEventHandler } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type PointerEventHandler } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { normalizeHex6 } from '../../lib/colorUtils';
 import { Pipette, Plus, Trash2, ArrowLeftRight } from 'lucide-react';
@@ -95,11 +95,12 @@ export function AdvancedColorPopover({
   onChange,
   children,
   contentClassName,
-  allowGradients = false,colourLibrary=true,onReference,
+  allowGradients = false,colourLibrary=true,onReference,onOpenChange,
 }: {
   value: string;
   onChange: (hex: string) => void;
   children: ReactNode;
+  onOpenChange?:(open:boolean)=>void;
   allowGradients?: boolean;colourLibrary?:boolean;onReference?:(reference:string,hex?:string)=>void;
   /** Optional class for the popover panel (e.g. width). */
   contentClassName?: string;
@@ -133,6 +134,18 @@ export function AdvancedColorPopover({
     }
   };
   const [open, setOpen] = useState(false);
+  const pickerId=useId().replace(/:/g,'');
+  useEffect(()=>{
+    if(!open)return;
+    const dismiss=(event:globalThis.PointerEvent)=>{
+      const target=event.target instanceof Element?event.target:null;
+      if(target?.closest(`[data-colour-popup="${pickerId}"],[data-colour-trigger="${pickerId}"]`))return;
+      setOpen(false);onOpenChange?.(false);
+    };
+    // Canvas gestures stop bubbling; capture sees genuine outside clicks first.
+    document.addEventListener('pointerdown',dismiss,true);
+    return()=>document.removeEventListener('pointerdown',dismiss,true);
+  },[open,pickerId,onOpenChange]);
   const [hsv, setHsv] = useState(() => {
     const { r, g, b } = hexToRgb(hex);
     return rgbToHsv(r, g, b);
@@ -171,8 +184,8 @@ export function AdvancedColorPopover({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
+    <Popover open={open} onOpenChange={next=>{setOpen(next);onOpenChange?.(next)}}>
+      <PopoverTrigger data-colour-trigger={pickerId} asChild>{children}</PopoverTrigger>
       <PopoverContent
         side={phone?'bottom':'right'}
         align="center"
@@ -180,6 +193,7 @@ export function AdvancedColorPopover({
         sideOffset={10}
         className={`studio-colour-panel ${contentClassName??''}`}
         aria-label="Colour picker"
+        data-colour-popup={pickerId}
       >
         <div className="studio-colour-heading"><strong>Colour</strong>
           <button type="button" title="Sample canvas colour" aria-label="Sample canvas colour" onClick={pickColor} className="studio-eyedropper"><Pipette size={16} /></button>

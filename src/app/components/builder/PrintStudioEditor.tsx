@@ -1,3 +1,4 @@
+import {GarmentArtworkCameraLayer} from './printsStudio/GarmentArtworkCameraLayer';
 import {nativeArtworkSource} from '../../lib/nativeArtworkSource';
 import {ARTWORK_UPLOAD_DRAG_MIME} from './printsStudio/studioAssets';
 import {GroupPathOverlay} from './printsStudio/GroupPathOverlay';
@@ -32,7 +33,6 @@ import {mergeNativeLayers} from '../../lib/designGroups';
 import {ArtworkPrintMethod} from './shell/ArtworkPrintMethod';
 import {DrawingAdvancedEditor} from './shell/DrawingAdvancedEditor';
 import {artworkViewBounds} from '../../lib/artworkViewBounds';
-import {useGarmentArtworkCamera} from './printsStudio/useGarmentArtworkCamera';
 import {CLOTHING_FONT_NAMES} from '../../lib/displayFonts';
 import {artworkSceneScale} from '../../lib/garmentCanvasFrame';
 import {garmentPatternReference} from '../../lib/patternGeometry';
@@ -2880,7 +2880,7 @@ export function PrintsDesignPreview({
   const [zoneEl, setZoneEl] = useState<HTMLDivElement | null>(null);
   const bindZone=useCallback((node:HTMLDivElement|null)=>{zoneRef.current=node;setZoneEl(node);},[]);
   const [focusArtwork,setFocusArtwork]=useState<{x:number;y:number;width:number;height:number}|null>(null);
-  const garmentCamera=useGarmentArtworkCamera(zoneEl,!editable&&!assetMode);
+  const garmentCamera=undefined;
   const drawingMask = useGarmentDrawingMask(zoneEl, garmentSide, assetMode||Boolean(focusArtwork),sceneScale);
   const printTexture=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale);
   const patternRelief=useGarmentPrintTexture(zoneEl,garmentSide,assetMode,sceneScale,'pattern',studio.panel==='patterns'||elements.some(function hasPattern(element):boolean{return isBackgroundPattern(element)||!!element.children?.some(hasPattern);}));
@@ -3767,7 +3767,7 @@ export function PrintsDesignPreview({
           </div>
           )}
 
-          <div
+          <GarmentArtworkCameraLayer zone={zoneEl} enabled={!editable&&!assetMode} insets={PREVIEW_ZONE}><div
             ref={bindZone}
             data-print-design-zone
             data-asset-artboard={assetMode ? '' : undefined}
@@ -4215,7 +4215,7 @@ export function PrintsDesignPreview({
               </div>
             );
           })}
-          </div>
+          </div></GarmentArtworkCameraLayer>
             </div>
           </div>
         </div>

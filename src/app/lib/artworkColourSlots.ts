@@ -41,7 +41,7 @@ export function refreshArtworkSlots(element:DesignElement):DesignElement{
 }
 /** Bind inks to their owning subtree, so two black objects can have different colourway inks. */
 export function applyArtworkSlots(element:DesignElement,overrides:ArtworkSlotOverrides={}):DesignElement{
- const slots=element.colourSlots??[];if(!slots.length)return element;const bindings=new Map<string,Map<string,string>>(),members=new Set(elementIds(element));
+ const slots=element.colourSlots??[];if(!slots.length||slots.every(slot=>(overrides[artworkSlotKey(element.id,slot.id)]??slot.swatch).hex.toLowerCase()===slot.source.toLowerCase()))return element;const bindings=new Map<string,Map<string,string>>(),members=new Set(elementIds(element));
  for(const slot of slots){const targets=slot.owners?.filter(owner=>members.has(owner)),owners=targets?.length?targets:[element.id],ink=(overrides[artworkSlotKey(element.id,slot.id)]??slot.swatch).hex;for(const owner of owners){const map=bindings.get(owner)??new Map();map.set(slot.source.toLowerCase(),ink);bindings.set(owner,map)}}
  const paint=(value:string,inks:Map<string,string>):string=>{const gradient=parsePaint(value);return gradient?serializePaint({...gradient,stops:gradient.stops.map(stop=>({...stop,color:inks.get(stop.color.toLowerCase())??stop.color}))}):inks.get(value.toLowerCase())??value;};
  const walk=(value:any,key='',inherited=new Map<string,string>()):any=>{

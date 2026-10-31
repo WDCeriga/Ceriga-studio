@@ -3,8 +3,8 @@ import type {ShapePath} from './shapeGeometry';
 export type SurfaceKind='garmentPlacement'|'label'|'tagFace'|'packagingPanel';
 export type SurfaceUnits='mm'|'cm';
 export type Matrix=[number,number,number,number,number,number];
-export interface Surface {id:string;kind:SurfaceKind;units:SurfaceUnits;width:number;height:number;outline:ShapePath;clip:boolean;background:string;safeInset:number;bleed:number}
-export interface SurfaceFrame {id:string;name:string;x:number;y:number;width:number;height:number;padding:number;fill:string;clip:boolean;layout:'stacked'|'free';artworks:string[];sourceKey?:string}
+export interface Surface {id:string;kind:SurfaceKind;units:SurfaceUnits;width:number;height:number;outline:ShapePath;clip:boolean;background:string;colours?:Record<string,{name:string;hex:string;reference?:string}>;safeInset?:number;bleed:number}
+export interface SurfaceFrame {leaderId?:string;id:string;name:string;x:number;y:number;width:number;height:number;padding:number;fill:string;clip:boolean;layout:'stacked'|'free';artworks:string[];sourceKey?:string}
 export interface SvgSceneNode {tag:string;attrs:Record<string,string>;children?:SvgSceneNode[];text?:string;artworkId?:string}
 /** SVG precision data preserves legacy baselines/clip coordinates, never a bitmap of text. */
 export interface SvgPrecision {node:SvgSceneNode;parents:SvgSceneNode[];matrix:Matrix;definitions:string;base:Partial<DesignElement>;owner?:string}

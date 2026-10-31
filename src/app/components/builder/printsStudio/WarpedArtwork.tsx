@@ -96,12 +96,14 @@ function drawMesh(
   };
 }
 
+const signatureCache=new WeakMap<DesignElement,string>();
 export function sourceSignature(element: DesignElement) {
+  const cached=signatureCache.get(element);if(cached!==undefined)return cached;
   const content = element.content ?? '';
   const contentKey = element.type === 'text' || element.type === 'shape' || element.type === 'pattern' || element.type === 'distress'
     ? content
     : `${content.length}:${content.slice(0, 48)}:${content.slice(-24)}`;
-  return [element.id, element.type, contentKey, element.groupSourceWidth, element.groupSourceHeight,
+  const signature=[element.id, element.type, contentKey, element.groupSourceWidth, element.groupSourceHeight,
     element.children ? JSON.stringify(element.children) : '', element.color, element.fontSize, element.fontFamily,
     element.textAlign, element.fontStyle, element.fontWeight, element.textTransform, element.letterSpacing,
     element.lineSpacing, element.textFillMode, element.textUnderline, element.textStrikethrough,
@@ -127,6 +129,7 @@ export function sourceSignature(element: DesignElement) {
     JSON.stringify(element.customAreaPoints), element.customAreaViewWidth, element.customAreaViewHeight,
     JSON.stringify(element.customAreaOutline), JSON.stringify(element.customAreaFillTransform), element.customAreaTexture,
     element.customAreaImage ? `${element.customAreaImage.length}:${element.customAreaImage.slice(0, 48)}:${element.customAreaImage.slice(-24)}` : ''].join('|');
+  signatureCache.set(element,signature);return signature;
 }
 
 export function WarpedArtwork({

@@ -7,7 +7,7 @@ import type {DistressMark,DistressMarkKind} from '../../../lib/distressScatter';
 import {distressPaths,singleDistressMarks} from '../../../lib/distressRendering';
 import {useGarmentWearPalette} from './GarmentWearAppearance';
 import type { DesignElement } from '../PrintStudioEditor';
-import { useId } from 'react';
+import { memo,useId } from 'react';
 import { svgPaint } from '../../../lib/studioPaint';
 import { PatternGraphic } from './PatternGraphic';
 import { artworkFlipStyle } from '../../../lib/artworkFlip';
@@ -28,7 +28,7 @@ function weightOf(el: DesignElement) {
   return Math.max(0, el.borderWidth ?? (el.shapeFilled?0:4));
 }
 
-export function StudioGraphic({ element }: { element: DesignElement }) {
+export const StudioGraphic=memo(function StudioGraphic({ element }: { element: DesignElement }) {
   if(element.svgPrecision&&!precisionGeometryChanged(element))return <SurfacePrecisionGraphic element={element}/>;
   if(element.type==='shape'&&element.artworkAppearance)return <ShapeAppearanceArtwork element={element}/>;
   if(element.type==='shape'&&canFillShape(element)&&element.shapeEffects?.some(e=>e.id==='textile-ink'&&e.enabled!==false)){
@@ -40,7 +40,7 @@ export function StudioGraphic({ element }: { element: DesignElement }) {
   return element.type === 'shape' && element.shapeEffects?.some(effect => effect.enabled !== false)
     ? <ShapeEffectsArtwork element={element}>{artwork}</ShapeEffectsArtwork>
     : artwork;
-}
+});
 
 function StudioGraphicBase({ element }: { element: DesignElement }) {
   const id = useId().replace(/:/g, '');

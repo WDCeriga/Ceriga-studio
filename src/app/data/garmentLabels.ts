@@ -28,7 +28,9 @@ export type CareCategory = keyof typeof CARE_OPTIONS;
 export const LABEL_BLOCKS = { brand: 'Brand / logo', size: 'Size', careText: 'Care information', origin: 'Country of origin', business: 'Company details', additional: 'Footer', composition: 'Custom' } as const;
 export type LabelBlockKey = keyof typeof LABEL_BLOCKS;
 export const LABEL_HIERARCHIES = { 'brand-first': 'Brand first', 'size-first': 'Size first', 'large-size-top': 'Large size top', 'large-size-bottom': 'Large size bottom', inline: 'Brand + inline size', split: 'Split' } as const;
+export type LabelColourLink='label'|'text'|'border'|'custom';
 export interface LabelBlock {
+  appearance?:import('../lib/surfaceDesign').SurfaceAppearance;colourLink?:LabelColourLink;backgroundLink?:LabelColourLink;autoTextColour?:boolean;
   sectionId?:string;paddingMm?:number;fullWidth?:boolean;frameMm?:{x:number;y:number;width:number;height:number};
   textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;
   textStyle?:import('../lib/textStyles').SavedTextStyle;
@@ -48,10 +50,14 @@ export interface LabelBlock {
   background?: string;
   fillSection?: boolean;
 }
-export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'sectionLayout' | 'designSections'>;
-const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout', 'designSections'] as const;
-export interface LabelDesignSection {sectionId?:string;paddingMm?:number;appearance?:import('../lib/surfaceDesign').SurfaceAppearance;textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;align?:'left'|'center'|'right';id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
+export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 'logoX' | 'logoY' | 'size' | 'composition' | 'careText' | 'careConfirmed' | 'care' | 'origin' | 'business' | 'additional' | 'background' | 'foreground' | 'border' | 'borderEnabled' | 'font' | 'fontData' | 'fontWeight' | 'fontSizeMm' | 'letterSpacingMm' | 'textAlign' | 'sizePosition' | 'sizeVertical' | 'sizeFontSizeMm' | 'sizeScale' | 'regions' | 'blocks' | 'hierarchy' | 'preset' | 'editingMode' | 'sectionLayout' | 'designSections'|'edgeToEdge'|'layoutMode'|'extendIntoFolds'|'borderVersion'|'borderInsetMm'|'borderWidthMm'|'borderStyle'|'colourReferences'>;
+const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout', 'designSections', 'edgeToEdge', 'layoutMode', 'extendIntoFolds', 'borderVersion', 'borderInsetMm', 'borderWidthMm', 'borderStyle', 'colourReferences'] as const;
+export interface LabelDesignSection {colourLink?:LabelColourLink;backgroundLink?:LabelColourLink;autoTextColour?:boolean;sectionId?:string;paddingMm?:number;appearance?:import('../lib/surfaceDesign').SurfaceAppearance;textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;align?:'left'|'center'|'right';id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
 export interface GarmentLabel {
+  edgeToEdge?:boolean;layoutMode?:'stacked'|'free';extendIntoFolds?:boolean;borderVersion?:2;borderInsetMm?:number;borderWidthMm?:number;borderStyle?:'solid'|'stitched';
+  colourReferences?:Partial<Record<'label'|'text'|'border',string>>;
+  customOutline?:import('../lib/shapeGeometry').ShapePath;
+
   schemaVersion?:2;
   artworkSurfaces?:Record<string,import('../lib/artworkSurface').SurfaceArtwork>;
   contentOrderVersion?: 2;
@@ -128,7 +134,7 @@ export function labelBlocks(label: GarmentLabel): LabelBlock[] {
     alignment: key === 'size' ? label.sizePosition ?? 'center' : label.textAlign,
     font: label.font, fontData: label.fontData, fontWeight: key === 'brand' ? Math.max(700, label.fontWeight) : key === 'size' ? 600 : 400,
     fontSizeMm: key === 'brand' ? label.fontSizeMm * 1.5 : key === 'size' ? label.sizeFontSizeMm ?? label.fontSizeMm * 1.15 : Math.max(1.5, label.fontSizeMm * .85),
-    color: label.foreground, spaceAboveMm: 0, spaceBelowMm: .5,
+    color: label.foreground,colourLink:label.borderVersion===2?'text':undefined, spaceAboveMm: 0, spaceBelowMm: .5,
     share: key === 'brand' ? 3 : key === 'size' ? 2 : key === 'careText' ? 3 : 1,
   }));
 }
@@ -183,6 +189,7 @@ export function createGarmentLabel(category: LabelCategory, manualPlacement = fa
     shape: category === 'care' ? 'vertical' : 'rectangle', widthMm: category === 'care' ? 40 : category === 'tag' ? 20 : 50,
     heightMm: category === 'care' ? 100 : category === 'hand' ? 85 : category === 'tag' ? 15 : 25, foldMm: 5, marginMm: 2,
     background: '#ffffff', foreground: '#171717', border: '#555555', borderEnabled: false,
+    edgeToEdge:true,layoutMode:'stacked',extendIntoFolds:true,borderVersion:2,borderInsetMm:1.5,borderWidthMm:.2,borderStyle:'stitched',
     brand: 'YOUR BRAND', logoWidth: 70, logoX: 50, logoY: 50, font: 'Montserrat', fontSizeMm: category === 'neck' ? 4.5 : 3, fontWeight: 600, letterSpacingMm: 0, textAlign: 'center',
     position: labelPositions(category)[0], exteriorView: 'front', offsetXmm: 0, offsetYmm: 0, rotation: 0,
     size: category === 'tag' ? '' : 'M', composition: category === 'care' ? '' : category === 'hand' ? 'ESSENTIAL COLLECTION' : '',

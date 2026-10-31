@@ -1,5 +1,5 @@
 import {artworkClipStyle} from '../../../lib/artworkClipping';
-import {useContext,useRef,useEffect} from 'react';
+import {memo,useContext,useRef,useEffect} from 'react';
 import {ArtworkResolutionContext} from './ArtworkResolutionContext';
 import {DrawingArtwork} from './DrawingArtwork';
 import { composeArtworkFilter, ImageFxDefs, type DesignElement } from '../PrintStudioEditor';
@@ -16,7 +16,7 @@ import { FilteredImage } from './FilteredImage';
 const ignore = () => {};
 
 /** Keeps child artwork in its original coordinate system; only the envelope scales. */
-export function DesignGroupArtwork({ element }: { element: DesignElement }) {
+export const DesignGroupArtwork=memo(function DesignGroupArtwork({ element }: { element: DesignElement }) {
   const host=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!element.logoTrace?.completedAt||!host.current)return;const animations:Animation[]=[],restores:(()=>void)[]=[];if(matchMedia('(prefers-reduced-motion: reduce)').matches){animations.push(host.current.animate([{opacity:0},{opacity:1}],{duration:100}));}else{for(const path of host.current.querySelectorAll<SVGPathElement>('[data-editable-ink]')){let length=0;try{length=path.getTotalLength()}catch{}if(!length)continue;const original=path.getAttribute('style'),colour=path.getAttribute('fill')??'#262626';if(path.getAttribute('stroke')==='none'||!path.getAttribute('stroke')){path.style.stroke=colour;path.style.strokeWidth='1px';}restores.push(()=>{if(original===null)path.removeAttribute('style');else path.setAttribute('style',original)});animations.push(path.animate([{strokeDasharray:String(length),strokeDashoffset:length,fillOpacity:0},{strokeDasharray:String(length),strokeDashoffset:0,fillOpacity:0,offset:.75},{strokeDasharray:String(length),strokeDashoffset:0,fillOpacity:1}],{duration:800,easing:'ease-out'}));}}void Promise.allSettled(animations.map(a=>a.finished)).then(()=>restores.forEach(restore=>restore()));return()=>{animations.forEach(animation=>animation.cancel());restores.forEach(restore=>restore())}},[element.logoTrace?.completedAt]);
   const width = element.groupSourceWidth ?? element.width;
@@ -45,4 +45,4 @@ export function DesignGroupArtwork({ element }: { element: DesignElement }) {
       </div>)}
     </div>
   </div>;
-}
+});
