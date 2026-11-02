@@ -13,6 +13,7 @@ import type { UserOrder } from '../../data/userOrders';
 function Detail({ label, children }: { label: string; children?: ReactNode }) {
   return <div><dt className="text-xs text-white/45">{label}</dt><dd className="mt-1 break-words text-sm text-white/85">{children || 'Not specified'}</dd></div>;
 }
+function SupportingDetails({collapsed,children}:{collapsed:boolean;children:ReactNode}){const content=<div className="grid items-start gap-6 lg:grid-cols-2">{children}</div>;return collapsed?<details className="quotation-specifications"><summary>Order specifications & requirements</summary>{content}</details>:content;}
 const date = (value?: string) => value ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not specified';
 const specLabels: Record<string, string> = { fit: 'Fit', color: 'Colour', colorName: 'Colour name', neckType: 'Neckline', sleeveType: 'Sleeve style', sleeveLength: 'Sleeve length', fabricType: 'Fabric', gsm: 'Fabric weight (GSM)' };
 
@@ -39,7 +40,7 @@ export function AssignedOrderDetails({ id,quotationOnly=false }: { id: string;qu
   const lines = order?.orderQuantities ? [order.orderQuantities.sample, ...order.orderQuantities.bulkRuns].filter(Boolean) : [];
   const specs = Object.entries(order?.specifications || {}).filter(([, value]) => value != null && value !== '');
   const panel = 'rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6';
-  return <div className="mx-auto max-w-5xl space-y-6 text-white">
+  return <div className={quotationOnly?"quotation-detail mx-auto max-w-6xl space-y-6":"mx-auto max-w-5xl space-y-6 text-white"}>
     <Link to={quotationOnly?'/manufacturer/quotations':'/manufacturer/orders'} className="inline-flex text-sm text-white/55 hover:text-white">← Back to {quotationOnly?'quotations':'orders'}</Link>
     {loading && <p role="status">Loading order…</p>}
     {error && <p role="alert" className="rounded-xl border border-red-500/30 p-4 text-sm text-red-300">{error}</p>}
@@ -50,10 +51,10 @@ export function AssignedOrderDetails({ id,quotationOnly=false }: { id: string;qu
       </header>
       <section className={panel} aria-label="Order overview"><dl className="grid gap-5 sm:grid-cols-3"><Detail label="Garment">{order.garmentType}</Detail><Detail label="Order type">{order.kind === 'tech-pack' ? 'Tech pack' : 'Production'}</Detail><Detail label="Quotation deadline">{date(order.dueQuoteBy)}</Detail></dl></section>
       {!quotationOnly && order.productionReleasedAt && <section className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-5"><h2 className="font-semibold text-emerald-200">{order.manufacturerSubmittedAt?'Customer submitted — ready for production':'Payment verified — production released'}</h2><p className="mt-2 text-sm text-white/70">Selected option: {order.priceOptions?.find(option=>option.id===order.selectedPriceOptionId)?.label} · {order.priceOptions?.find(option=>option.id===order.selectedPriceOptionId)?.totalUnits} units.</p></section>}
-      {quotationOnly&&access?.permissions.includes('quote')&&<ManufacturerQuoteForm key={`${order.id}:${order.quotedAt||''}:${order.factoryStatus}:${order.factoryRejectReason||''}`} order={order} onRejected={reason => setOrder(previous => previous ? { ...previous, factoryStatus: 'rejected', factoryRejectReason: reason } : previous)} onSubmitted={tiers => setOrder(previous => previous ? { ...previous, manufacturerQuote: tiers, factoryStatus: 'quoted', factoryRejectReason: undefined, quotedAt: new Date().toISOString() } : previous)} />}
+      {quotationOnly&&access?.permissions.includes('quote')&&<ManufacturerQuoteForm appearance={quotationOnly?'light':'dark'} key={`${order.id}:${order.quotedAt||''}:${order.factoryStatus}:${order.factoryRejectReason||''}`} order={order} onRejected={reason => setOrder(previous => previous ? { ...previous, factoryStatus: 'rejected', factoryRejectReason: reason } : previous)} onSubmitted={tiers => setOrder(previous => previous ? { ...previous, manufacturerQuote: tiers, factoryStatus: 'quoted', factoryRejectReason: undefined, quotedAt: new Date().toISOString() } : previous)} />}
       {!quotationOnly&&order.kind === 'production' && <OrderQualityControl orderId={order.id} />}
       {!quotationOnly&&access?.permissions.includes('quote')&&<Link className="inline-block rounded-xl border border-red-400/25 px-4 py-3 text-sm text-red-200" to={"/manufacturer/quotations/"+order.id}>View quotation</Link>}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <SupportingDetails collapsed={quotationOnly}>
         <section className={panel}><h2 className="text-lg font-semibold">Quantities & sizes</h2>
           {lines.length ? <div className="mt-4 space-y-5">{lines.map((line, index) => {
             const sizes = ORDER_SIZE_KEYS.map(size => [size, line.bySize?.[size] ?? 0] as const);
@@ -66,7 +67,7 @@ export function AssignedOrderDetails({ id,quotationOnly=false }: { id: string;qu
         <section className={panel}><h2 className="text-lg font-semibold">Garment specifications</h2>{specs.length ? <dl className="mt-4 grid grid-cols-2 gap-5">{specs.map(([key, value]) => <Detail key={key} label={specLabels[key] || key}>{String(value)}</Detail>)}</dl> : <p className="mt-3 text-sm text-white/50">No additional specifications supplied.</p>}</section>
         <section className={panel}><h2 className="text-lg font-semibold">Customer requirements</h2><dl className="mt-4 space-y-5"><Detail label="Requested timeline">{order.quoteRequest?.timeline}</Detail><Detail label="Notes"><span className="whitespace-pre-wrap">{order.quoteRequest?.notes || 'No additional notes.'}</span></Detail></dl></section>
         <section className={panel}><h2 className="text-lg font-semibold">Delivery details</h2>{order.delivery ? <dl className="mt-4 space-y-5"><Detail label="Recipient">{[order.delivery.firstName, order.delivery.lastName].filter(Boolean).join(' ')}</Detail><Detail label="Address"><span className="whitespace-pre-line">{formatDeliveryLines(order.delivery).join('\n')}</span></Detail><div className="grid gap-5 sm:grid-cols-2"><Detail label="Email">{order.delivery.email}</Detail><Detail label="Phone">{order.delivery.phone}</Detail></div>{order.delivery.instructions && <Detail label="Delivery instructions">{order.delivery.instructions}</Detail>}</dl> : <p className="mt-3 text-sm text-white/50">No delivery details supplied.</p>}</section>
-      </div>
+      </SupportingDetails>
       {!quotationOnly && order.productionReleasedAt && <ProductionProgress orderId={order.id} editable={!!access?.permissions.includes('production') && order.status === 'processing' && order.factoryStatus === 'in_production'}/>}
       <section className={panel}><h2 className="text-lg font-semibold">Supporting files</h2>{order.quoteRequest?.storagePaths?.length ? <div className="mt-4 flex flex-wrap gap-3">{order.quoteRequest.storagePaths.map((path, index) => <button type="button" className="max-w-full break-all rounded-lg border border-white/15 px-4 py-2 text-left text-sm text-red-300 hover:bg-white/5" key={path} onClick={() => void open(path)}>{order.quoteRequest?.fileNames?.[index] || path.split('/').pop() || 'Open file'}</button>)}</div> : <p className="mt-3 text-sm text-white/50">No supporting files attached.</p>}</section>
     </>}

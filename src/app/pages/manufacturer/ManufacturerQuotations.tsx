@@ -1,3 +1,5 @@
+import '../../components/dashboard/manufacturer-dashboard.css';
+import '../../components/manufacturer/manufacturer-quotations.css';
 import{useParams}from'react-router';
 import{AssignedOrdersInbox}from'../../components/manufacturer/AssignedOrdersInbox';
 import{AssignedOrderDetails}from'../../components/manufacturer/AssignedOrderDetails';

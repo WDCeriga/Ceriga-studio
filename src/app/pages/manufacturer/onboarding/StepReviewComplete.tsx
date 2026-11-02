@@ -44,9 +44,9 @@ export function StepReviewComplete({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">6. Review & Complete Setup</h2>
+        <h2 className="text-xl font-semibold text-white">7. Review & complete</h2>
         <p className="mt-1 text-sm text-white/50">
-          Verify your factory onboarding details before entering your production portal. You can return and update any section later from Settings.
+          Check your details before completing setup. Use Edit to return to a section; you can also update these details later in Settings.
         </p>
       </div>
 
@@ -253,14 +253,14 @@ export function StepReviewComplete({
               </p>
             </div>
             <div>
-              <span className="text-white/40">Sample Turnaround</span>
+              <button type="button" onClick={() => onEditStep(4)} className="text-white/40 hover:text-white underline underline-offset-4">Sample Turnaround · Edit timeline</button>
               <p className="font-semibold text-white mt-0.5">
                 {profile.sampleLeadTimeMinDays} - {profile.sampleLeadTimeMaxDays}{' '}
                 {profile.timeUnit === 'working_days' ? 'work days' : 'days'}
               </p>
             </div>
             <div>
-              <span className="text-white/40">Bulk Turnaround</span>
+              <button type="button" onClick={() => onEditStep(4)} className="text-white/40 hover:text-white underline underline-offset-4">Bulk Turnaround · Edit timeline</button>
               <p className="font-semibold text-white mt-0.5">
                 {profile.bulkLeadTimeMinDays} - {profile.bulkLeadTimeMaxDays}{' '}
                 {profile.timeUnit === 'working_days' ? 'work days' : 'days'}
@@ -280,7 +280,7 @@ export function StepReviewComplete({
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => onEditStep(4)}
+              onClick={() => onEditStep(5)}
               className="text-xs text-[#CC2D24] hover:bg-white/5"
             >
               <Edit2 className="h-3 w-3 mr-1" /> Edit
@@ -306,7 +306,7 @@ export function StepReviewComplete({
       </div>
 
       {/* Confirmation & Submission */}
-      <div className="flex items-center justify-between pt-4 border-t border-[#252528]">
+      <div className="onboarding-actions flex items-center justify-between pt-4 border-t border-[#252528]">
         <Button
           type="button"
           variant="outline"
@@ -320,9 +320,9 @@ export function StepReviewComplete({
           type="button"
           onClick={onSubmit}
           disabled={submitting || hasErrors}
-          className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-8 font-semibold shadow-lg shadow-red-900/30"
+          className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-8 font-semibold shadow-lg shadow-red-900/30"
         >
-          {submitting ? 'Activating Profile...' : 'Complete Onboarding & Enter Portal'}
+          {submitting ? 'Activating Profile...' : 'Complete setup'}
         </Button>
       </div>
     </div>

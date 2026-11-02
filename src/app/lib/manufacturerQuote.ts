@@ -1,7 +1,13 @@
+import {loadFreight} from './freight';
 import { getSupabase } from './supabaseClient';
 import type { ManufacturerQuoteTierRow } from './ordersDb';
 
 export async function submitManufacturerQuote(orderId: string, tiers: ManufacturerQuoteTierRow[]): Promise<void> {
+  // An older backend would silently drop unknown shipping fields. Fail before saving until the migration is live.
+  try { await loadFreight(orderId); } catch(cause) {
+    const message=cause instanceof Error?cause.message:'Could not verify shipping availability';
+    throw new Error(/could not find.*freight_context/i.test(message)?'Shipping quotations are not enabled in the database yet. Ceriga must deploy the freight update before this quotation can be submitted.':message);
+  }
   const { data, error } = await getSupabase().rpc('submit_manufacturer_quote', { p_order_id: orderId, p_tiers: tiers });
   if (error) throw new Error(error.message);
   if (data !== orderId) throw new Error('The database did not confirm quotation submission');

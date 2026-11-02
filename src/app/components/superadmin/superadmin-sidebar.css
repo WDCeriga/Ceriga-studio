@@ -1,0 +1,13 @@
+/* Compact desktop navigation. Retain scrolling only as a fallback for very short windows / zoom. */
+@media(min-width:1024px){
+ .ceriga-admin-sidebar{--admin-nav-row:clamp(28px,calc((100dvh - 100px)/17),38px)}
+ .ceriga-admin-sidebar>.admin-sidebar-heading{min-height:44px;height:44px;flex-shrink:0;padding:8px 12px}
+ .ceriga-admin-sidebar .admin-sidebar-body>nav,.ceriga-admin-sidebar .admin-sidebar-body>nav+div{padding:6px 8px}
+ .ceriga-admin-sidebar .admin-sidebar-body>nav{display:flex;flex-direction:column;gap:0}
+ .ceriga-admin-sidebar .admin-sidebar-body>nav>a,.ceriga-admin-sidebar .admin-sidebar-body>nav+div>:is(a,button){height:var(--admin-nav-row);min-height:var(--admin-nav-row);margin:0;padding:0 10px;gap:9px;flex-shrink:0;box-sizing:border-box;border-radius:4px}
+ .ceriga-admin-sidebar .admin-sidebar-body>nav a>span,.ceriga-admin-sidebar .admin-sidebar-body>nav+div :is(a,button)>span{font-size:12px;line-height:16px}
+ .ceriga-admin-sidebar .admin-sidebar-body :is(a,button)>svg,.ceriga-admin-sidebar .admin-sidebar-body a>span>svg{width:16px;height:16px}
+ .ceriga-admin-sidebar .admin-sidebar-body>.admin-sidebar-icons{gap:0;padding:6px 8px}
+ .ceriga-admin-sidebar .admin-sidebar-icons>a{height:var(--admin-nav-row);min-height:var(--admin-nav-row);width:36px;border-radius:4px}
+ .ceriga-admin-sidebar a:focus-visible,.ceriga-admin-sidebar button:focus-visible{outline:2px solid #888;outline-offset:-2px}
+}

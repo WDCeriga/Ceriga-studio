@@ -1,0 +1,52 @@
+.materials-heading-actions{display:flex;align-items:center;gap:8px}
+.factory-materials .materials-primary,.materials-dialog .materials-primary{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #171717;background:#171717;color:white;border-radius:4px;font-size:11px;font-weight:500;min-height:38px;padding:8px 14px}
+.factory-materials .materials-primary:hover,.materials-dialog .materials-primary:hover{background:#333}
+.materials-overview{grid-template-columns:repeat(3,minmax(0,1fr))}
+.materials-quantity{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;color:#262626}
+.materials-quantity>strong{font-size:17px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.3px;overflow-wrap:anywhere}
+.materials-quantity>span{font-size:10px;color:#8c8c8c}
+.factory-materials .materials-stock-action{display:inline-flex;align-items:center;gap:7px;border:0;background:none;color:#737373;font-size:10px;min-height:26px;padding:4px 0}
+.factory-materials .materials-stock-action:hover{background:none;color:#171717;text-decoration:underline;text-underline-offset:3px}
+.materials-supplier{font-size:11px;color:#525252;max-width:200px;overflow-wrap:anywhere}
+.materials-supplier>small{display:block;font-size:9px;color:#8c8c8c;margin-top:5px}
+.materials-actions{display:flex;gap:7px;align-items:center;justify-content:flex-end}
+.factory-materials .materials-actions>button{display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #e2e2e2;background:white;color:#525252;border-radius:4px;min-height:34px;padding:6px 10px;font-size:10px}
+.factory-materials .materials-actions>.materials-remove{color:#8c8c8c;padding:6px 9px}
+.factory-materials .materials-actions>.materials-remove:hover{color:#a82b25;background:#fdf5f4;border-color:#efcfcc}
+.materials-mobile-title{display:flex;justify-content:space-between;gap:16px}
+.materials-mobile-title>div:first-child{min-width:0}
+.materials-mobile-title>div>strong{font-size:12px;font-weight:500;overflow-wrap:anywhere}
+.materials-mobile-title p{font-size:10px;color:#8c8c8c;margin-top:5px}
+.materials-mobile-title>.materials-quantity{flex-shrink:0;max-width:40%;align-self:flex-start}
+.materials-mobile-title>.materials-quantity>strong{font-size:18px}
+.materials-mobile-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px}
+.materials-mobile-supplier{font-size:10px!important;color:#8c8c8c!important;overflow-wrap:anywhere}
+.materials-dialog{background:white!important;color:#171717!important;color-scheme:light;border:1px solid #e2e2e2!important;border-radius:6px!important;font-size:12px;padding:24px}
+.materials-dialog h2{font-size:18px;font-weight:500;letter-spacing:-.3px;padding-right:24px}
+.materials-dialog p{font-size:11px;color:#737373;line-height:1.7}
+.materials-dialog>button{background:none;color:#737373;border:0;min-width:38px;min-height:38px;top:10px;right:10px}
+.materials-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}
+.materials-fields>label{display:block;font-size:11px;color:#525252;min-width:0}
+.materials-full{grid-column:1/-1}
+.materials-fields :is(input,select,textarea){display:block;width:100%;max-width:100%;min-height:40px;margin-top:7px;background:white;color:#171717;border:1px solid #d9d9d9;border-radius:4px;font:inherit;font-size:12px;padding:8px 10px;box-shadow:none}
+.materials-fields textarea{min-height:85px;resize:vertical;line-height:1.7}
+.materials-fields input::placeholder,.materials-fields textarea::placeholder{color:#a3a3a3}
+.materials-dialog :is(input,select,textarea,button,summary):focus-visible{outline:2px solid #737373;outline-offset:3px}
+.materials-dialog button{border-radius:4px;font-size:11px;min-height:38px;border-color:#dedede;background:white;color:#525252}
+.materials-dialog button:disabled{opacity:.45;cursor:not-allowed}
+.materials-dialog .materials-danger{border:1px solid #a82b25;background:#a82b25;color:white;padding:8px 14px;font-weight:500}
+.materials-dialog .materials-danger:hover{background:#8c241f}
+.materials-dialog .materials-helper{display:block;font-size:10px;color:#8c8c8c;line-height:1.7;margin:5px 0 0}
+.materials-optional{border-top:1px solid #e2e2e2;padding-top:14px}
+.materials-optional summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:11px;font-weight:500;color:#525252;min-height:26px}
+.materials-optional summary>span{color:#909090;font-size:10px;font-weight:400}
+.materials-optional summary:after{content:'+';color:#737373;margin-left:auto}
+.materials-optional[open] summary:after{content:'−'}
+.materials-optional>.materials-fields{margin-top:16px}
+.materials-dialog-footer{margin-top:22px;padding-top:16px;border-top:1px solid #e2e2e2;gap:8px}
+.materials-dialog .materials-form-error{color:#a82b25;border:1px solid #efcfcc;background:#fdf5f4;border-radius:4px;padding:10px 12px;margin-top:16px}
+.materials-removal-note{grid-column:1/-1;background:#fafafa;border:1px solid #e2e2e2;padding:12px;border-radius:4px}
+.materials-stale{display:block;font-size:10px;margin-top:5px}
+.materials-dialog .materials-unit-warning{color:#885f2e;background:#fdfaf5;border:1px solid #eadcc6;padding:10px;border-radius:4px;font-size:11px}
+@media(max-width:760px){.materials-mobile-actions .materials-stock-action{min-height:44px}.factory-materials .materials-actions>button{min-height:40px}.factory-materials .fo-toolbar select{min-height:44px}}
+@media(max-width:600px){.materials-heading-actions{width:100%;justify-content:space-between}.factory-materials .materials-primary{min-height:44px}.factory-materials .materials-overview{grid-template-columns:repeat(3,minmax(0,1fr))}.factory-materials .materials-overview>.fh-stat{border-bottom:0;border-right:1px solid #e2e2e2;padding:14px 10px}.factory-materials .materials-overview>.fh-stat:last-child{border:0}.materials-overview .fh-stat-label{font-size:10px}.materials-overview .fh-stat-label>svg,.materials-overview .fh-stat-note>svg{display:none}.materials-overview .fh-stat-note{font-size:9px}.materials-fields{grid-template-columns:1fr;gap:14px}.materials-dialog{padding:20px!important}.materials-fields :is(input,select,textarea),.materials-dialog button{min-height:44px}.materials-dialog-footer{flex-direction:column-reverse}.materials-dialog-footer>button{width:100%}.materials-optional summary{min-height:32px}}

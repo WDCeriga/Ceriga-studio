@@ -1,3 +1,4 @@
+import {ProductionTimelineEditor} from '../../components/manufacturer/ProductionTimelineEditor';
 import { readSavedOnboardingLeadTimes } from '../../hooks/useManufacturerLeadTimes';
 import { loadCustomisationSettingsFromDb, saveCustomisationSettingsToDb } from '../../data/manufacturerCustomisationDb';
 import { loadCompleteManufacturerProfile, saveCompleteManufacturerProfile } from '../../data/manufacturerOnboardingStore';
@@ -24,7 +25,9 @@ import {
   type FactoryGarment,
   type FactoryWorkspace,
 } from '../../data/manufacturerPortalMock';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
+import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle} from '../../components/ui/dialog';
+import '../../components/dashboard/manufacturer-dashboard.css';
+import '../../components/manufacturer/manufacturer-settings.css';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -116,9 +119,9 @@ function describeChanges(before: ProfileDraft, after: ProfileDraft): string[] {
 }
 
 export function ManufacturerSettings() {
-  const edited=useRef(false);
-  const [saving,setSaving]=useState(false),[loading,setLoading]=useState(isSupabaseConfigured),[saveError,setSaveError]=useState('');
-  useEffect(()=>{let current=true;if(!isSupabaseConfigured)return;void (async()=>{try{const {data:{user},error:authError}=await getSupabase().auth.getUser();if(authError||!user)throw Error(authError?.message||'Sign in to load your factory profile');const {data,error}=await getSupabase().rpc('factory_workspace_profile');if(error)throw Error(error.message);const timings=await loadCustomisationSettingsFromDb();if(current&&data&&!edited.current){const next=draftFromWorkspace({...getFactoryWorkspace(),factoryName:data.factory_name,contactName:data.contact_name||getFactoryWorkspace().contactName||'',contactEmail:data.contact_email||user.email||'',contactPhone:data.contact_phone,website:data.website,addressLine:data.address_line,garments:data.garments||[],capabilities:data.capabilities||[],shippingRegions:data.shipping_regions||[],moq:data.moq,monthlyCapacity:data.monthly_capacity,typicalLeadDays:data.typical_lead_days,internalNotes:data.internal_notes||''});for(const field of ['sampleLeadTimeMinDays','sampleLeadTimeMaxDays','bulkLeadTimeMinDays','bulkLeadTimeMaxDays'] as const){if(timings?.[field]!=null)next[field]=String(timings[field]);}setDraft(next);setBaseline(next);}}catch(cause){if(current)setSaveError((cause as Error).message);}finally{if(current)setLoading(false);}})();return()=>{current=false;};},[]);
+  const edited=useRef(false),saveLock=useRef(false);
+  const [saving,setSaving]=useState(false),[loading,setLoading]=useState(isSupabaseConfigured),[saveError,setSaveError]=useState(''),[loadFailed,setLoadFailed]=useState(false),[reload,setReload]=useState(0);
+  useEffect(()=>{let current=true;if(!isSupabaseConfigured){setLoadFailed(true);setSaveError('Connect to the database to load factory settings.');setLoading(false);return;}setLoading(true);setLoadFailed(false);void (async()=>{try{const {data:{user},error:authError}=await getSupabase().auth.getUser();if(authError||!user)throw Error(authError?.message||'Sign in to load your factory profile');const {data,error}=await getSupabase().rpc('factory_workspace_profile');if(error)throw Error(error.message);if(!data)throw Error('Your factory profile was not returned.');const timings=await loadCustomisationSettingsFromDb();if(current)setSaveError('');if(current&&data&&!edited.current){const next=draftFromWorkspace({...getFactoryWorkspace(),factoryName:data.factory_name,contactName:data.contact_name||'',contactEmail:data.contact_email||user.email||'',contactPhone:data.contact_phone,website:data.website,addressLine:data.address_line,garments:data.garments||[],capabilities:data.capabilities||[],shippingRegions:data.shipping_regions||[],moq:data.moq,monthlyCapacity:data.monthly_capacity,typicalLeadDays:data.typical_lead_days,internalNotes:data.internal_notes||''});for(const field of ['sampleLeadTimeMinDays','sampleLeadTimeMaxDays','bulkLeadTimeMinDays','bulkLeadTimeMaxDays'] as const){if(timings?.[field]!=null)next[field]=String(timings[field]);}setDraft(next);setBaseline(next);}}catch(cause){if(current){setSaveError((cause as Error).message);setLoadFailed(true);};}finally{if(current)setLoading(false);}})();return()=>{current=false;};},[reload]);
   const [tick, setTick] = useState(0);
   const saved = useMemo(() => getFactoryWorkspace(), [tick]);
   const [draft, setDraft] = useState<ProfileDraft>(() => draftFromWorkspace(getFactoryWorkspace()));
@@ -193,6 +196,7 @@ export function ManufacturerSettings() {
   };
 
   const requestSave = () => {
+    if(saving||loading||loadFailed||saveLock.current)return;
     if (draft.garments.length === 0) {
       toast.error('Keep at least one garment type for matching');
       return;
@@ -201,14 +205,14 @@ export function ManufacturerSettings() {
       toast.error('Keep at least one capability');
       return;
     }
-    if (!draft.factoryName.trim() || !draft.contactEmail.trim()) {
+    if (!draft.factoryName.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.contactEmail.trim())) {
       toast.error('Factory name and contact email are required');
       return;
     }
     const moqN = Number(draft.moq);
     const capN = Number(draft.capacity);
-    if (!Number.isFinite(moqN) || moqN <= 0 || !Number.isFinite(capN) || capN <= 0) {
-      toast.error('MOQ and monthly capacity must be positive numbers');
+    if (!Number.isSafeInteger(moqN) || moqN <= 0 || !Number.isSafeInteger(capN) || capN <= 0) {
+      toast.error('MOQ and monthly capacity must be positive whole numbers');
       return;
     }
     for(const kind of ['sample','bulk'] as const){
@@ -224,14 +228,14 @@ export function ManufacturerSettings() {
   };
 
   const save = async () => {
-    if(saving)return;setSaving(true);setSaveError('');
+    if(saveLock.current||loading||loadFailed)return false;saveLock.current=true;setSaving(true);setSaveError('');
     try{await saveMyManufacturerProfile({
       factoryName: draft.factoryName.trim(),
       contactName: draft.contactName.trim(),
       contactEmail: draft.contactEmail.trim(),
-      contactPhone: draft.contactPhone.trim() || undefined,
-      website: draft.website.trim() || undefined,
-      addressLine: draft.addressLine.trim() || undefined,
+      contactPhone: draft.contactPhone.trim(),
+      website: draft.website.trim(),
+      addressLine: draft.addressLine.trim(),
       garments: draft.garments,
       capabilities: draft.capabilities,
       shippingRegions: draft.regions,
@@ -245,33 +249,33 @@ export function ManufacturerSettings() {
     const timings={sampleLeadTimeMinDays:Number(draft.sampleLeadTimeMinDays),sampleLeadTimeMaxDays:Number(draft.sampleLeadTimeMaxDays),bulkLeadTimeMinDays:Number(draft.bulkLeadTimeMinDays),bulkLeadTimeMaxDays:Number(draft.bulkLeadTimeMaxDays)};
     await saveCustomisationSettingsToDb({...local,...remote,...timings});
     saveCompleteManufacturerProfile({...local,...remote,...timings});
-    const next = {...draftFromWorkspace(getFactoryWorkspace()),sampleLeadTimeMinDays:draft.sampleLeadTimeMinDays,sampleLeadTimeMaxDays:draft.sampleLeadTimeMaxDays,bulkLeadTimeMinDays:draft.bulkLeadTimeMinDays,bulkLeadTimeMaxDays:draft.bulkLeadTimeMaxDays};
+    const next = {...draft,garments:[...draft.garments],capabilities:[...draft.capabilities],regions:[...draft.regions]};
     setBaseline(next);
     setDraft(next);
     setTick((n) => n + 1);
-    edited.current=false;toast.success('Factory profile saved');
-    }catch(cause){const message=(cause as Error).message||'Could not save factory profile';setSaveError(message);toast.error(message);}finally{setSaving(false);}
+    edited.current=false;toast.success('Factory profile saved');return true;
+    }catch(cause){const message=(cause as Error).message||'Could not save factory profile';setSaveError(message);toast.error(message);return false;}finally{saveLock.current=false;setSaving(false);}
   };
 
   const discard = () => {
-    setDraft({ ...baseline });
+    setDraft({ ...baseline });edited.current=false;
     setDiscardConfirmOpen(false);
     toast.message('Changes discarded');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="factory-home factory-settings space-y-6">
 
-      {saveError&&<div role='alert' className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300'>Factory profile: {saveError}. Your edits are still available; try saving again.</div>}
+      {saveError&&<div role='alert' className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300'>Factory profile: {saveError}. {loadFailed?<button onClick={()=>setReload(v=>v+1)}>Reload saved profile</button>:'Your edits remain available. If a save partly completed, retry to finish.'}</div>}
       {saving&&<p role='status' className='text-sm text-white/60'>Saving factory profile…</p>}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="settings-heading flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <Settings className="h-5 w-5" />
             <span className="text-[11px] font-semibold uppercase tracking-wider">Account</span>
           </div>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Settings
+            Settings<span>.</span>
           </h1>
           <p className="mt-1 text-sm text-white/45">
             Manage your account preferences and factory profile. Currency saves automatically; profile edits use Save profile.
@@ -281,29 +285,17 @@ export function ManufacturerSettings() {
           <Button asChild variant="outline" className="border-white/15 text-white hover:bg-white/5">
             <Link to="/manufacturer/onboarding">
               <Sparkles className="mr-1.5 h-4 w-4 text-[#CC2D24]" />
-              Relaunch 6-Step Onboarding
+              Edit onboarding
             </Link>
           </Button>
-          <Button
-            variant="outline"
-            className="border-white/15 text-white hover:bg-white/5"
-            disabled={!dirty||saving||loading}
-            onClick={() => setDiscardConfirmOpen(true)}
-          >
-            Discard
-          </Button>
-          <Button
-            className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
-            disabled={!dirty}
-            onClick={requestSave}
-          >
-            Save profile
-          </Button>
+
         </div>
       </div>
 
 
 
+<nav className="settings-nav" aria-label="Settings sections"><a href="#identity">Identity & contact</a><a href="#products">Products & capabilities</a><a href="#logistics">Capacity & logistics</a><a href="#production-timeline">Turnaround timeline</a><a href="#preferences">Account preferences</a></nav>
+      {loading&&<p role="status" className="settings-loading">Loading saved factory settings…</p>}
       {dirty ? (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
@@ -312,13 +304,13 @@ export function ManufacturerSettings() {
             <p className="mt-0.5 text-[12px] text-amber-100/70">
               {changeLines.slice(0, 3).join(' · ')}
               {changeLines.length > 3 ? ` · +${changeLines.length - 3} more` : ''}
-              . Nothing is live until you confirm Save.
+              . Save your profile to apply these changes.
             </p>
           </div>
         </div>
       ) : null}
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section className="settings-summary rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6" hidden={loading||loadFailed}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#CC2D24]/25 bg-[#CC2D24]/10">
@@ -328,28 +320,28 @@ export function ManufacturerSettings() {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
                 Live profile
               </p>
-              <h2 className="mt-0.5 text-lg font-semibold text-white">{saved.factoryName}</h2>
+              <h2 className="mt-0.5 text-lg font-semibold text-white">{baseline.factoryName}</h2>
               <p className="mt-1 text-[12px] text-white/45">
-                {saved.contactName} · {saved.contactEmail}
+                {baseline.contactName} · {baseline.contactEmail}
               </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:text-right">
             <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-2">
               <p className="text-[10px] uppercase tracking-wider text-white/35">MOQ</p>
-              <p className="text-sm font-semibold text-white">{saved.moq}</p>
+              <p className="text-sm font-semibold text-white">{baseline.moq}</p>
             </div>
             <div className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-2">
               <p className="text-[10px] uppercase tracking-wider text-white/35">Capacity / mo</p>
               <p className="text-sm font-semibold text-white">
-                {saved.monthlyCapacity.toLocaleString()}
+                {Number(baseline.capacity).toLocaleString()}
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <fieldset className="settings-profile-fields" disabled={loading||saving||loadFailed} hidden={loading||loadFailed}><section id="identity" className="settings-panel rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-[#CC2D24]" />
           <h2 className="text-sm font-semibold text-white">Identity & contact</h2>
@@ -359,37 +351,41 @@ export function ManufacturerSettings() {
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label className="text-white/45">Factory name</Label>
+            <Label htmlFor="settings-factory-name" className="text-white/45">Factory name</Label>
             <Input
+              id="settings-factory-name"
               value={draft.factoryName}
               onChange={(e) => patch('factoryName', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white"
             />
           </div>
           <div>
-            <Label className="text-white/45">Primary contact</Label>
+            <Label htmlFor="settings-contact-name" className="text-white/45">Primary contact</Label>
             <Input
+              id="settings-contact-name"
               value={draft.contactName}
               onChange={(e) => patch('contactName', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white"
             />
           </div>
           <div>
-            <Label className="flex items-center gap-1.5 text-white/45">
+            <Label htmlFor="settings-email" className="flex items-center gap-1.5 text-white/45">
               <Mail className="h-3 w-3" /> Email
             </Label>
             <Input
               type="email"
+              id="settings-email"
               value={draft.contactEmail}
               onChange={(e) => patch('contactEmail', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white"
             />
           </div>
           <div>
-            <Label className="flex items-center gap-1.5 text-white/45">
+            <Label htmlFor="settings-phone" className="flex items-center gap-1.5 text-white/45">
               <Phone className="h-3 w-3" /> Phone
             </Label>
             <Input
+              id="settings-phone"
               value={draft.contactPhone}
               onChange={(e) => patch('contactPhone', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white"
@@ -397,10 +393,11 @@ export function ManufacturerSettings() {
             />
           </div>
           <div>
-            <Label className="flex items-center gap-1.5 text-white/45">
+            <Label htmlFor="settings-website" className="flex items-center gap-1.5 text-white/45">
               <Globe2 className="h-3 w-3" /> Website
             </Label>
             <Input
+              id="settings-website"
               value={draft.website}
               onChange={(e) => patch('website', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white"
@@ -408,10 +405,11 @@ export function ManufacturerSettings() {
             />
           </div>
           <div className="sm:col-span-2">
-            <Label className="flex items-center gap-1.5 text-white/45">
+            <Label htmlFor="settings-address" className="flex items-center gap-1.5 text-white/45">
               <MapPin className="h-3 w-3" /> Factory address
             </Label>
             <Input
+              id="settings-address"
               value={draft.addressLine}
               onChange={(e) => patch('addressLine', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white"
@@ -421,7 +419,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#CC2D24]/20 bg-[#111113] p-5 sm:p-6">
+      <section id="products" className="settings-panel rounded-2xl border border-[#CC2D24]/20 bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Clothes you produce</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Turning a type off reduces what Ceriga can auto-assign. Removing one asks for confirmation.
@@ -449,7 +447,7 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section className="settings-panel rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Capabilities</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Print, embroidery, wash, packing — removing one requires confirmation.
@@ -477,23 +475,25 @@ export function ManufacturerSettings() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <section id="logistics" className="settings-panel rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Capacity & logistics</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Used for routing and capacity planning. Changes apply only after you save.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <Label className="text-white/45">MOQ (units)</Label>
+            <Label htmlFor="settings-moq" className="text-white/45">MOQ (units)</Label>
             <Input
+              id="settings-moq" type="number" min="1" step="1" inputMode="numeric"
               value={draft.moq}
               onChange={(e) => patch('moq', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white tabular-nums"
             />
           </div>
           <div>
-            <Label className="text-white/45">Monthly capacity</Label>
+            <Label htmlFor="settings-capacity" className="text-white/45">Monthly capacity</Label>
             <Input
+              id="settings-capacity" type="number" min="1" step="1" inputMode="numeric"
               value={draft.capacity}
               onChange={(e) => patch('capacity', e.target.value)}
               className="mt-1 border-white/15 bg-white/5 text-white tabular-nums"
@@ -520,6 +520,7 @@ export function ManufacturerSettings() {
                 <button
                   key={region}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => toggleRegion(region)}
                   className={cn(
                     'rounded-lg border px-3 py-1.5 text-[12px] font-medium transition',
@@ -535,24 +536,26 @@ export function ManufacturerSettings() {
           </div>
         </div>
         <div className="mt-5">
-          <Label className="text-white/45">Internal ops notes</Label>
+          <Label htmlFor="settings-notes" className="text-white/45">Internal ops notes</Label>
           <Textarea
-            value={draft.notes}
+            id="settings-notes"
+              value={draft.notes}
             onChange={(e) => patch('notes', e.target.value)}
             className="mt-1 min-h-[100px] border-white/15 bg-white/5 text-white"
             placeholder="Preferences, rib colours, packing rules…"
           />
           <p className="mt-1.5 text-[11px] text-white/35">
-            Factory-only — not shown to brands.
+            Saved as internal factory notes.
           </p>
         </div>
       </section>
 
-      <section aria-label="Account preferences" className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      </fieldset><details id="production-timeline" className="settings-timeline"><summary><span>Production turnaround timeline<small>Stage durations, automation and timing factors · Saved separately</small></span><span>Configure</span></summary><ProductionTimelineEditor/></details>
+        <section id="preferences" aria-label="Account preferences" className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <ManufacturerCurrencySettings embedded />
       </section>
 
-      <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#252528] bg-black/90 px-4 py-3 backdrop-blur-md">
+      {dirty&&<div className="settings-savebar sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#252528] bg-black/90 px-4 py-3 backdrop-blur-md">
         <p className="text-[12px] text-white/45">
           {dirty
             ? `${changeLines.length} pending change${changeLines.length === 1 ? '' : 's'} — confirm to publish`
@@ -563,7 +566,7 @@ export function ManufacturerSettings() {
             variant="outline"
             size="sm"
             className="border-white/15 text-white hover:bg-white/5"
-            disabled={!dirty}
+            disabled={!dirty||saving||loading||loadFailed}
             onClick={() => setDiscardConfirmOpen(true)}
           >
             Discard
@@ -577,10 +580,11 @@ export function ManufacturerSettings() {
             Save profile
           </Button>
         </div>
-      </div>
+      </div>}
 
-      <ConfirmDialog
+      <SettingsConfirmation
         open={saveConfirmOpen}
+        error={saveError}
         onOpenChange={setSaveConfirmOpen}
         title="Save factory profile?"
         description={
@@ -592,7 +596,7 @@ export function ManufacturerSettings() {
         onConfirm={save}
       />
 
-      <ConfirmDialog
+      <SettingsConfirmation
         open={discardConfirmOpen}
         onOpenChange={setDiscardConfirmOpen}
         title="Discard unsaved changes?"
@@ -602,7 +606,7 @@ export function ManufacturerSettings() {
         onConfirm={discard}
       />
 
-      <ConfirmDialog
+      <SettingsConfirmation
         open={Boolean(pendingToggleOff)}
         onOpenChange={(open) => {
           if (!open) setPendingToggleOff(null);
@@ -624,3 +628,5 @@ export function ManufacturerSettings() {
     </div>
   );
 }
+
+function SettingsConfirmation({open,onOpenChange,title,description,confirmLabel,onConfirm,tone,error}:{error?:string;open:boolean;onOpenChange:(value:boolean)=>void;title:string;description:string;confirmLabel:string;onConfirm:()=>unknown|Promise<unknown>;tone?:string}){const[busy,setBusy]=useState(false),lock=useRef(false);return <Dialog open={open} onOpenChange={value=>{if(!lock.current)onOpenChange(value);}}><DialogContent className="settings-dialog sm:max-w-lg"><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>{error&&<p role="alert">{error}</p>}<DialogFooter><button disabled={busy} onClick={()=>onOpenChange(false)}>Cancel</button><button className={tone==='danger'?'settings-danger':'settings-primary'} disabled={busy} onClick={async()=>{if(lock.current)return;lock.current=true;setBusy(true);try{const result=await onConfirm();if(result!==false)onOpenChange(false);}finally{lock.current=false;setBusy(false);}}}>{busy?'Saving…':confirmLabel}</button></DialogFooter></DialogContent></Dialog>;}

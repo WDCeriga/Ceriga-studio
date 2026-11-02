@@ -67,7 +67,7 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
       <div>
         <h2 className="text-xl font-semibold text-white">1. Factory Profile & Contacts</h2>
         <p className="mt-1 text-sm text-white/50">
-          Establish your facility credentials, location, and primary operations point of contact.
+          Add your factory’s location and the person Ceriga should contact.
         </p>
       </div>
 
@@ -82,10 +82,10 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Factory Name */}
           <div className="sm:col-span-2">
-            <Label className="text-xs text-white/80 font-medium">
+            <Label htmlFor="onboarding-factoryName" className="text-xs text-white/80 font-medium">
               Factory / Facility Name <span className="text-[#CC2D24]">*</span>
             </Label>
-            <Input
+            <Input id="onboarding-factoryName" aria-invalid={Boolean(errors.factoryName)}
               value={profile.factoryName}
               onChange={(e) => onChange({ factoryName: e.target.value })}
               placeholder="e.g. Apex Apparel Ltd or Porto Stitch Works"
@@ -101,12 +101,12 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Primary Contact Person */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">
+            <Label htmlFor="onboarding-contactName" className="text-xs text-white/80 font-medium">
               Primary Contact Person <span className="text-[#CC2D24]">*</span>
             </Label>
             <div className="relative mt-1.5">
               <User className="absolute left-3 top-2.5 h-4 w-4 text-white/35" />
-              <Input
+              <Input id="onboarding-contactName" aria-invalid={Boolean(errors.contactName)}
                 value={profile.contactName}
                 onChange={(e) => onChange({ contactName: e.target.value })}
                 placeholder="e.g. Sarah Jenkins or Marco Silva"
@@ -123,12 +123,12 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Business Email */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">
+            <Label htmlFor="onboarding-contactEmail" className="text-xs text-white/80 font-medium">
               Business Email <span className="text-[#CC2D24]">*</span>
             </Label>
             <div className="relative mt-1.5">
               <Mail className="absolute left-3 top-2.5 h-4 w-4 text-white/35" />
-              <Input
+              <Input id="onboarding-contactEmail" aria-invalid={Boolean(errors.contactEmail)}
                 type="email"
                 value={profile.contactEmail}
                 onChange={(e) => onChange({ contactEmail: e.target.value })}
@@ -146,12 +146,12 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Phone Number with country code */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">
+            <Label htmlFor="onboarding-contactPhone" className="text-xs text-white/80 font-medium">
               Phone Number (with Country Code) <span className="text-[#CC2D24]">*</span>
             </Label>
             <div className="relative mt-1.5">
               <Phone className="absolute left-3 top-2.5 h-4 w-4 text-white/35" />
-              <Input
+              <Input id="onboarding-contactPhone" aria-invalid={Boolean(errors.contactPhone)}
                 value={profile.contactPhone}
                 onChange={(e) => onChange({ contactPhone: e.target.value })}
                 placeholder="+44 7700 900123"
@@ -210,10 +210,10 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* City */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">
+            <Label htmlFor="onboarding-city" className="text-xs text-white/80 font-medium">
               City / Municipality <span className="text-[#CC2D24]">*</span>
             </Label>
-            <Input
+            <Input id="onboarding-city" aria-invalid={Boolean(errors.city)}
               value={profile.city}
               onChange={(e) => onChange({ city: e.target.value })}
               placeholder="e.g. Manchester or Porto"
@@ -227,8 +227,8 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Street / Facility Address */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">Street Address / Industrial Park</Label>
-            <Input
+            <Label htmlFor="onboarding-addressLine" className="text-xs text-white/80 font-medium">Street Address / Industrial Park</Label>
+            <Input id="onboarding-addressLine" aria-invalid={Boolean(errors.addressLine)}
               value={profile.addressLine}
               onChange={(e) => onChange({ addressLine: e.target.value })}
               placeholder="e.g. Unit 4, Ancoats Mill, Pollard Street"
@@ -282,7 +282,7 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
       </div>
 
       {/* Optional Information Section */}
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-6">
+      <details className="onboarding-optional rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-6"><summary><span>Additional factory details<small>Website, business details, languages and company description</small></span><span>Optional</span></summary>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
             <Layers className="h-4 w-4 text-[#CC2D24]" />
@@ -296,10 +296,10 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Company Website */}
           <div>
-            <Label className="text-xs text-white/60">Company Website</Label>
+            <Label htmlFor="onboarding-website" className="text-xs text-white/60">Company Website</Label>
             <div className="relative mt-1.5">
               <Globe className="absolute left-3 top-2.5 h-4 w-4 text-white/30" />
-              <Input
+              <Input id="onboarding-website" aria-invalid={Boolean(errors.website)}
                 value={profile.website}
                 onChange={(e) => onChange({ website: e.target.value })}
                 placeholder="https://yourfactory.com"
@@ -310,8 +310,8 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Years in Operation */}
           <div>
-            <Label className="text-xs text-white/60">Years in Operation</Label>
-            <Input
+            <Label htmlFor="onboarding-yearsInOperation" className="text-xs text-white/60">Years in Operation</Label>
+            <Input id="onboarding-yearsInOperation" aria-invalid={Boolean(errors.yearsInOperation)}
               type="number"
               min="0"
               value={profile.yearsInOperation || ''}
@@ -323,8 +323,8 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Employee Count */}
           <div>
-            <Label className="text-xs text-white/60">Number of Employees</Label>
-            <Input
+            <Label htmlFor="onboarding-employeeCount" className="text-xs text-white/60">Number of Employees</Label>
+            <Input id="onboarding-employeeCount" aria-invalid={Boolean(errors.employeeCount)}
               type="number"
               min="1"
               value={profile.employeeCount || ''}
@@ -336,8 +336,8 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Factory Floor Size */}
           <div>
-            <Label className="text-xs text-white/60">Facility Size (Sq Ft)</Label>
-            <Input
+            <Label htmlFor="onboarding-factorySizeSqFt" className="text-xs text-white/60">Facility Size (Sq Ft)</Label>
+            <Input id="onboarding-factorySizeSqFt" aria-invalid={Boolean(errors.factorySizeSqFt)}
               type="number"
               min="100"
               value={profile.factorySizeSqFt || ''}
@@ -349,8 +349,8 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
           {/* Business Registration Number */}
           <div className="sm:col-span-2 lg:col-span-2">
-            <Label className="text-xs text-white/60">Business Registration / VAT Number</Label>
-            <Input
+            <Label htmlFor="onboarding-businessRegNumber" className="text-xs text-white/60">Business Registration / VAT Number</Label>
+            <Input id="onboarding-businessRegNumber" aria-invalid={Boolean(errors.businessRegNumber)}
               value={profile.businessRegNumber || ''}
               onChange={(e) => onChange({ businessRegNumber: e.target.value })}
               placeholder="e.g. GB 123 4567 89 or PT 509876543"
@@ -386,13 +386,13 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
 
         {/* Short Company Description */}
         <div>
-          <Label className="text-xs text-white/60">
+          <Label htmlFor="onboarding-companyDescription" className="text-xs text-white/60">
             Company Description & Specialisations
           </Label>
           <p className="mt-0.5 text-[11px] text-white/40">
             Explain your craftsmanship, primary machinery, aesthetic focus, and brand pedigree.
           </p>
-          <Textarea
+          <Textarea id="onboarding-companyDescription" aria-invalid={Boolean(errors.companyDescription)}
             rows={3}
             value={profile.companyDescription || ''}
             onChange={(e) => onChange({ companyDescription: e.target.value })}
@@ -400,14 +400,14 @@ export function StepFactoryProfile({ profile, onChange, onNext, errors }: Props)
             className="mt-2 border-white/10 bg-white/[0.03] text-white placeholder:text-white/30"
           />
         </div>
-      </div>
+      </details>
 
       {/* Navigation */}
-      <div className="flex justify-end pt-2">
+      <div className="onboarding-actions flex justify-end pt-2">
         <Button
           type="button"
           onClick={onNext}
-          className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
+          className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
         >
           Continue to Products & Garments
         </Button>

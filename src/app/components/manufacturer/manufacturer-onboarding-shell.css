@@ -1,0 +1,16 @@
+.manufacturer-onboarding-shell{min-height:100dvh;background:#fafafa;color:#262626;color-scheme:light;overflow-x:clip}
+.manufacturer-onboarding-shell *{box-sizing:border-box}
+.manufacturer-onboarding-topbar{background:white;border-bottom:1px solid #e2e2e2;padding:0 32px}
+.manufacturer-onboarding-topbar>div{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:66px;max-width:1200px;margin:0 auto}
+.manufacturer-onboarding-brand{display:flex;align-items:center;gap:18px;text-decoration:none;color:#262626;font-size:12px;letter-spacing:.09em;font-weight:600}
+.manufacturer-onboarding-brand>span{border-left:1px solid #e2e2e2;padding-left:18px;color:#aaa;font-size:10px;font-weight:400;letter-spacing:0}
+.manufacturer-onboarding-exit{display:flex;align-items:center;gap:6px;color:#8c8c8c;font-size:10px;text-decoration:none;min-height:36px}
+.manufacturer-onboarding-exit:hover{color:#262626}
+.manufacturer-onboarding-content{max-width:1264px;margin:0 auto;padding:32px;min-width:0}
+.manufacturer-onboarding-access>div>label{font-size:11px;color:#737373}
+.manufacturer-onboarding-access>div>label>select{background:white;border:1px solid #dedede;border-radius:4px;color:#525252;min-height:38px;font-size:11px;max-width:100%}
+.manufacturer-onboarding-access>[role=alert]{color:#ad352d;font-size:12px;line-height:1.8}
+.manufacturer-onboarding-access>[role=status]{color:#8c8c8c;font-size:12px;padding:50px 0;text-align:center}
+.manufacturer-onboarding-shell a:focus-visible{outline:2px solid #737373;outline-offset:4px}
+@media(max-width:767px){.manufacturer-onboarding-topbar{padding:0 20px}.manufacturer-onboarding-topbar>div{min-height:60px}.manufacturer-onboarding-brand{gap:10px}.manufacturer-onboarding-brand>span{padding-left:10px;font-size:9px}.manufacturer-onboarding-exit{font-size:9px;min-height:44px}.manufacturer-onboarding-content{padding:24px 20px}.manufacturer-onboarding-access>div>label{display:block}.manufacturer-onboarding-access>div>label>select{display:block;margin:8px 0 0;width:100%;min-height:44px}}
+@media(max-width:359px){.manufacturer-onboarding-brand>span{display:none}.manufacturer-onboarding-content{padding:20px 16px}.manufacturer-onboarding-topbar{padding:0 16px}}

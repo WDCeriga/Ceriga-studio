@@ -1,3 +1,5 @@
+import './manufacturer-sidebar.css';
+import {ManufacturerOnboardingShell} from './ManufacturerOnboardingShell';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
@@ -235,14 +237,14 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
 
   if (onOnboarding) {
     return (
-      <div className="min-h-dvh bg-[#09090B] text-[#F0EEEE]">
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{isSupabaseConfigured&&accessError?<p role="alert" className="text-red-200">{accessError}</p>:isSupabaseConfigured&&!accessReady?<p role="status" className="text-white/60">Checking factory permissions…</p>:isSupabaseConfigured&&((!access?.factoryId&&!onOnboarding)||(access?.factoryId&&!access.permissions.includes(factoryPagePermission(location.pathname))))?<p role="alert" className="text-white/60">Your role does not have permission to access this page. Ask a factory owner to update your access.</p>:<div key={access?.factoryId}>{access?.organisations&&access.organisations.length>1&&<label className="mb-6 block text-xs text-white/60">Factory workspace<select aria-label="Switch factory organisation" className="ml-3 rounded-lg border border-white/20 bg-[#111113] p-2" value={access.factoryId||''} onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}>{access.organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}{children}</div>}</div>
-      </div>
+      <ManufacturerOnboardingShell>
+        <div className="manufacturer-onboarding-access">{isSupabaseConfigured&&accessError?<p role="alert" className="text-red-200">{accessError}</p>:isSupabaseConfigured&&!accessReady?<p role="status" className="text-white/60">Checking factory permissions…</p>:isSupabaseConfigured&&((!access?.factoryId&&!onOnboarding)||(access?.factoryId&&!access.permissions.includes(factoryPagePermission(location.pathname))))?<p role="alert" className="text-white/60">Your role does not have permission to access this page. Ask a factory owner to update your access.</p>:<div key={access?.factoryId}>{access?.organisations&&access.organisations.length>1&&<label className="mb-6 block text-xs text-white/60">Factory workspace<select aria-label="Switch factory organisation" className="ml-3 rounded-lg border border-white/20 bg-[#111113] p-2" value={access.factoryId||''} onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}>{access.organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}{children}</div>}</div>
+      </ManufacturerOnboardingShell>
     );
   }
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)] text-[#F0EEEE]">
+    <div className={cn("min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)] text-[#F0EEEE]",(['/manufacturer','/manufacturer/orders','/manufacturer/quotations'].includes(location.pathname.replace(/\/$/,''))||location.pathname.startsWith('/manufacturer/quotations/')||location.pathname==='/manufacturer/production'||location.pathname.startsWith('/manufacturer/production/')||location.pathname==='/manufacturer/quality'||location.pathname.startsWith('/manufacturer/quality/')||location.pathname==='/manufacturer/shipping'||location.pathname.startsWith('/manufacturer/shipping/')||location.pathname==='/manufacturer/materials'||location.pathname==='/manufacturer/capacity'||location.pathname==='/manufacturer/portfolio'||location.pathname==='/manufacturer/verification'||location.pathname==='/manufacturer/statistics'||location.pathname==='/manufacturer/team'||location.pathname==='/manufacturer/messages'||location.pathname==='/manufacturer/settings'||location.pathname==='/manufacturer/notifications'||location.pathname==='/manufacturer/onboarding')&&'manufacturer-home-shell')}>
       {!isLgUp && (
         <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-[#252528] bg-[#09090B]/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <button
@@ -293,13 +295,13 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 hidden h-dvh flex-col border-r border-[#252528] bg-[#09090B] transition-all duration-300 lg:flex',
+          'ceriga-manufacturer-sidebar fixed left-0 top-0 z-40 hidden h-dvh flex-col border-r border-[#252528] bg-[#09090B] transition-all duration-300 lg:flex',
           collapsed ? 'w-[72px]' : 'w-[220px]',
         )}
       >
         <div
           className={cn(
-            'flex items-center border-b border-[#252528] px-3 py-3',
+            'manufacturer-sidebar-heading flex items-center border-b border-[#252528] px-3 py-3',
             collapsed ? 'justify-center' : 'justify-between',
           )}
         >
@@ -321,11 +323,11 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
             )}
           </button>
         </div>
-        <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed && 'items-center')}>
+        <div className={cn('manufacturer-sidebar-body flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed && 'items-center')}>
           {!collapsed ? (
             <NavBlock />
           ) : (
-            <div className="flex flex-col items-center gap-1 p-2">
+            <div className="manufacturer-sidebar-icons flex flex-col items-center gap-1 p-2">
               {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path, 'end' in item ? item.end : false);

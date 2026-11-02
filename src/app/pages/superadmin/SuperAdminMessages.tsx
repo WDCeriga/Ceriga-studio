@@ -1,5 +1,7 @@
+import './superadmin-messages.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
+  ArrowLeft,
   Factory,
   FileText,
   Globe2,
@@ -97,7 +99,7 @@ function ThreadAvatar({ thread, size = 'md' }: { thread: ChatThread; size?: 'sm'
   return (
     <div
       className={cn(
-        'relative flex shrink-0 items-center justify-center rounded-full border font-semibold text-white',
+        'messages-avatar relative flex shrink-0 items-center justify-center rounded-full border font-semibold text-white',
         dim,
       )}
       style={{
@@ -184,7 +186,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     <div className={cn('flex', outbound ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[min(100%,28rem)] px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
+          'messages-bubble '+(outbound?'messages-outbound ':'messages-inbound ')+'max-w-[min(100%,28rem)] px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
           outbound
             ? 'rounded-2xl rounded-br-md bg-gradient-to-br from-[#CC2D24] to-[#a8241c] text-white'
             : 'rounded-2xl rounded-bl-md border border-[#252528] bg-[#161618] text-white/90',
@@ -233,6 +235,8 @@ export function SuperAdminMessages() {
   const [newQuery, setNewQuery] = useState('');
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
+  const [listError,setListError]=useState(''),[messageError,setMessageError]=useState(''),[mobileConversation,setMobileConversation]=useState(false),[unreadOnly,setUnreadOnly]=useState(false),[messageReload,setMessageReload]=useState(0);
+  const sendLock=useRef(false),createLock=useRef(false),draftsRef=useRef<Record<string,{text:string;attachments:PendingAttachment[]}>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -248,22 +252,20 @@ export function SuperAdminMessages() {
   const refreshThreads = useCallback(async () => {
     try {
       const next = await listAdminChatThreads();
-      setThreads(next);
+      setThreads(next);setListError('');
       setActive((prev) => {
         if (prev && next.some((t) => t.id === prev)) return prev;
-        return next[0]?.id ?? '';
+        return '';
       });
     } catch (err) {
-      toast.error(chatErrorMessage(err, 'Failed to load messages'));
-      setThreads([]);
+      setListError(chatErrorMessage(err, 'Failed to load conversations'));
     } finally {
       setLoading(false);
     }
   }, []);
 
   const refreshAlibabaStatus = useCallback(async () => {
-    const status = await getAlibabaConnectionStatus();
-    setAlibabaStatus(status);
+    try{const status = await getAlibabaConnectionStatus();setAlibabaStatus(status);}catch{setAlibabaStatus(null);}
   }, []);
 
   useEffect(() => {
@@ -278,20 +280,20 @@ export function SuperAdminMessages() {
       return;
     }
     let cancelled = false;
-    setMessagesLoading(true);
+    setMessagesLoading(true);setMessageError('');
     const loadMessages = async () => {
       try {
         const rows = await listAdminChatMessages(active);
         if (cancelled) return;
         setMessages(rows);
-        await markAdminThreadRead(active);
+        try{await markAdminThreadRead(active);}catch{if(!cancelled)setMessageError('Messages loaded, but read status could not be saved.');return;}
+        if(cancelled)return;
         setThreads((prev) =>
           prev.map((t) => (t.id === active ? { ...t, unread: 0 } : t)),
         );
       } catch (err) {
         if (!cancelled) {
-          toast.error(chatErrorMessage(err, 'Failed to load thread'));
-          setMessages([]);
+          setMessageError(chatErrorMessage(err, 'Failed to load conversation'));
         }
       } finally {
         if (!cancelled) setMessagesLoading(false);
@@ -303,11 +305,12 @@ export function SuperAdminMessages() {
       cancelled = true;
       stop();
     };
-  }, [active]);
+  }, [active,messageReload]);
 
   const filteredThreads = useMemo(() => {
     const q = search.trim().toLowerCase();
     return threads.filter((t) => {
+      if(unreadOnly&&t.unread===0)return false;
       if (channelFilter === 'manufacturer' && t.type !== 'manufacturer') return false;
       if (channelFilter === 'alibaba' && t.type !== 'alibaba') return false;
       if (!q) return true;
@@ -317,7 +320,7 @@ export function SuperAdminMessages() {
         threadRoleLabel(t).toLowerCase().includes(q)
       );
     });
-  }, [search, threads, channelFilter]);
+  }, [search, threads, channelFilter,unreadOnly]);
 
   const alibabaThreadCount = useMemo(
     () => threads.filter((t) => t.type === 'alibaba').length,
@@ -349,7 +352,7 @@ export function SuperAdminMessages() {
 
   useEffect(() => {
     return () => {
-      pendingRef.current.forEach((a) => revokeBlobUrl(a.url));
+      pendingRef.current.forEach((a) => revokeBlobUrl(a.url));Object.values(draftsRef.current).forEach(d=>d.attachments.forEach(a=>revokeBlobUrl(a.url)));
     };
   }, []);
 
@@ -363,10 +366,9 @@ export function SuperAdminMessages() {
   };
 
   const selectThread = (threadId: string) => {
-    if (threadId === active) return;
-    clearPendingAttachments();
-    setDraft('');
-    setActive(threadId);
+    if (threadId === active){setMobileConversation(true);return;}if(sendLock.current)return;
+    if(active)draftsRef.current[active]={text:draft,attachments:pendingAttachments};
+    const saved=draftsRef.current[threadId];setDraft(saved?.text||'');setPendingAttachments(saved?.attachments||[]);setMessages([]);setMessageError('');setMobileConversation(true);setActive(threadId);
   };
 
   const removePendingAttachment = (id: string) => {
@@ -378,7 +380,7 @@ export function SuperAdminMessages() {
   };
 
   const addFiles = (files: FileList | null, kind: 'image' | 'file') => {
-    if (!files?.length || !thread) return;
+    if (!files?.length || !thread || sendLock.current) return;
 
     const next: PendingAttachment[] = [];
 
@@ -388,7 +390,7 @@ export function SuperAdminMessages() {
         continue;
       }
 
-      if (kind === 'image' && !file.type.startsWith('image/')) {
+      if (kind === 'image' && !['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) {
         toast.error(`${file.name} is not a supported image`);
         continue;
       }
@@ -420,7 +422,8 @@ export function SuperAdminMessages() {
   };
 
   const sendMessage = async () => {
-    if (!thread || !canSend || sending) return;
+    if (!thread || !canSend || sendLock.current || messagesLoading) return;
+    sendLock.current=true;setMessageError('');
 
     const text = draft.trim();
     const attachments: ChatAttachment[] = isAlibabaThread
@@ -448,12 +451,12 @@ export function SuperAdminMessages() {
             : t,
         ),
       );
-      setDraft('');
+      delete draftsRef.current[thread.id];setDraft('');
       clearPendingAttachments();
     } catch (err) {
-      toast.error(chatErrorMessage(err, 'Failed to send'));
+      setMessageError(chatErrorMessage(err, 'Message could not be sent. Your draft has been kept.'));
     } finally {
-      setSending(false);
+      sendLock.current=false;setSending(false);
     }
   };
 
@@ -487,7 +490,7 @@ export function SuperAdminMessages() {
     name: string;
     type: 'brand' | 'manufacturer';
   }) => {
-    if (creatingConversation) return;
+    if (createLock.current||sendLock.current) return;createLock.current=true;
     setCreatingConversation(true);
     setConversationError(null);
     try {
@@ -496,9 +499,8 @@ export function SuperAdminMessages() {
         participantType: candidate.type,
         subject: candidate.name,
       });
-      setThreads((prev) => [created, ...prev]);
-      clearPendingAttachments();
-      setDraft('');
+      setThreads((prev) => [created, ...prev.filter(t=>t.id!==created.id)]);
+      selectThread(created.id);
       setSearch('');
       setChannelFilter('all');
       setActive(created.id);
@@ -508,12 +510,12 @@ export function SuperAdminMessages() {
     } catch (err) {
       setConversationError(chatErrorMessage(err, 'Could not create conversation'));
     } finally {
-      setCreatingConversation(false);
+      createLock.current=false;setCreatingConversation(false);
     }
   };
 
   if (loading) {
-    return <PageLoadingFallback />;
+    return <div className="admin-messages"><h1>Messages</h1><p role="status" className="messages-loading">Loading conversations…</p></div>;
   }
 
   const channelTabs: { id: ChannelFilter; label: string }[] = [
@@ -526,15 +528,16 @@ export function SuperAdminMessages() {
     channelFilter === 'alibaba' && !alibabaConfigured && alibabaThreadCount === 0;
 
   return (
-    <div className="space-y-6">
+    <div className={'admin-messages space-y-6 '+(mobileConversation?'messages-show-thread':'')}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-            Inbox
+            CERIGA / INBOX
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             Messages
           </h1>
+          <p className="messages-intro">Conversations with your factories and partners, in one place.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -556,12 +559,14 @@ export function SuperAdminMessages() {
         </div>
       </div>
 
-      <div className="flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
-        <aside className="flex w-full shrink-0 flex-col border-b border-[#252528] lg:w-[min(100%,360px)] lg:border-b-0 lg:border-r">
+      {listError&&<div role="alert" className="messages-error"><span>{listError}</span><button type="button" onClick={()=>void refreshThreads()}>Retry inbox</button></div>}
+      <div className="messages-workspace flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
+        <aside className="messages-inbox flex w-full shrink-0 flex-col border-b border-[#252528] lg:w-[min(100%,360px)] lg:border-b-0 lg:border-r">
           <div className="border-b border-[#252528] p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
               <Input
+                aria-label="Search conversations"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search conversations"
@@ -573,7 +578,7 @@ export function SuperAdminMessages() {
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setChannelFilter(tab.id)}
+                  aria-pressed={channelFilter===tab.id} onClick={() => setChannelFilter(tab.id)}
                   className={cn(
                     'rounded-full border px-2.5 py-1 text-[11px] font-medium transition',
                     channelFilter === tab.id
@@ -585,11 +590,12 @@ export function SuperAdminMessages() {
                 </button>
               ))}
             </div>
+            <label className="messages-unread"><input type="checkbox" checked={unreadOnly} onChange={e=>setUnreadOnly(e.target.checked)}/>Unread only</label>
             <Button
               size="sm"
               className="mt-3 w-full bg-[#CC2D24] hover:bg-[#CC2D24]/90"
               onClick={() => setNewOpen(true)}
-              disabled={channelFilter === 'alibaba'}
+              disabled={channelFilter === 'alibaba'||sending}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               New conversation
@@ -603,8 +609,7 @@ export function SuperAdminMessages() {
                   <Globe2 className="mx-auto h-6 w-6 text-orange-300/80" />
                   <p className="mt-3 text-sm font-medium text-white">Connect Alibaba.com</p>
                   <p className="mt-1.5 text-xs leading-relaxed text-white/50">
-                    Buyer IM sync needs Open Platform App Key, Secret, session token, and account
-                    id on Edge Function secrets. Until those are approved, this channel stays empty.
+                    Connect your Alibaba account in Settings to sync buyer conversations. Existing Ceriga conversations remain available.
                   </p>
                   <Button
                     size="sm"
@@ -635,6 +640,7 @@ export function SuperAdminMessages() {
                     <button
                       key={t.id}
                       type="button"
+                      aria-label={'Open conversation with '+t.name} aria-pressed={selected} disabled={sending}
                       onClick={() => selectThread(t.id)}
                       className={cn(
                         'relative flex w-full gap-3 rounded-xl px-3 py-3 text-left transition',
@@ -686,10 +692,11 @@ export function SuperAdminMessages() {
           </ScrollArea>
         </aside>
 
-        <section className="flex min-h-[420px] flex-1 flex-col bg-[#09090B]">
+        <section className="messages-conversation flex min-h-[420px] flex-1 flex-col bg-[#09090B]">
           {thread ? (
             <>
-              <div className="flex items-center justify-between gap-4 border-b border-[#252528] px-4 py-4 sm:px-6">
+              <div className="messages-thread-heading flex items-center justify-between gap-4 border-b border-[#252528] px-4 py-4 sm:px-6">
+                <button type="button" className="messages-back" aria-label="Back to conversations" disabled={sending} onClick={()=>{if(active)draftsRef.current[active]={text:draft,attachments:pendingAttachments};setMobileConversation(false);setActive('');setMessages([]);}}><ArrowLeft size={18}/></button>
                 <div className="flex min-w-0 items-center gap-3">
                   <ThreadAvatar thread={thread} />
                   <div className="min-w-0">
@@ -699,11 +706,12 @@ export function SuperAdminMessages() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1">
+              {messageError&&<div role="alert" className="messages-error"><span>{messageError}</span><button type="button" disabled={sending} onClick={()=>setMessageReload(n=>n+1)}>Reload messages</button></div>}
+              <ScrollArea className="messages-history flex-1">
                 <div className="space-y-4 px-4 py-5 sm:px-6">
                   {messagesLoading ? (
                     <p className="py-8 text-center text-sm text-white/40">Loading messages…</p>
-                  ) : messages.length === 0 ? (
+                  ) : messageError&&messages.length===0?null:messages.length === 0 ? (
                     <p className="py-8 text-center text-sm text-white/40">No messages yet — say hello.</p>
                   ) : (
                     messages.map((message) => (
@@ -714,7 +722,7 @@ export function SuperAdminMessages() {
                 </div>
               </ScrollArea>
 
-              <div className="border-t border-[#252528] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
+              <div className="messages-composer border-t border-[#252528] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
                 {isAlibabaThread ? (
                   <p className="mb-3 text-[11px] text-white/40">
                     Alibaba send is text-only. Attachments are not supported yet.
@@ -765,7 +773,7 @@ export function SuperAdminMessages() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => removePendingAttachment(attachment.id)}
+                          disabled={sending} onClick={() => removePendingAttachment(attachment.id)}
                           className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-[#161618] text-white/60 transition hover:text-white"
                           aria-label={`Remove ${attachment.name}`}
                         >
@@ -784,7 +792,7 @@ export function SuperAdminMessages() {
                         size="icon"
                         variant="ghost"
                         className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
-                        onClick={() => imageInputRef.current?.click()}
+                        disabled={sending||messagesLoading} onClick={() => imageInputRef.current?.click()}
                         aria-label="Upload image"
                       >
                         <ImagePlus className="h-4 w-4" />
@@ -794,14 +802,14 @@ export function SuperAdminMessages() {
                         size="icon"
                         variant="ghost"
                         className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
-                        onClick={() => fileInputRef.current?.click()}
+                        disabled={sending||messagesLoading} onClick={() => fileInputRef.current?.click()}
                         aria-label="Upload file"
                       >
                         <Paperclip className="h-4 w-4" />
                       </Button>
                     </>
                   ) : null}
-                  <Input
+                  <textarea rows={2} aria-label="Message" disabled={sending||messagesLoading}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     placeholder={
@@ -809,7 +817,7 @@ export function SuperAdminMessages() {
                     }
                     className="min-h-10 flex-1 border-0 bg-transparent text-sm text-white shadow-none placeholder:text-white/30 focus-visible:ring-0"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                      if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                         e.preventDefault();
                         void sendMessage();
                       }
@@ -819,12 +827,12 @@ export function SuperAdminMessages() {
                     size="icon"
                     aria-label="Send"
                     className="h-10 w-10 shrink-0 rounded-xl bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-                    disabled={!canSend || sending}
+                    disabled={!canSend || sending||messagesLoading}
                     onClick={() => void sendMessage()}
                   >
                     <Send className="h-4 w-4" />
                   </Button>
-                </div>
+                </div><p className="messages-compose-hint">{sending?'Sending…':'Enter to send · Shift + Enter for a new line · attachments up to 10 MB each'}</p>
               </div>
             </>
           ) : (
@@ -845,13 +853,14 @@ export function SuperAdminMessages() {
       </div>
 
       <Dialog open={newOpen} onOpenChange={(open) => { if (!creatingConversation) { setNewOpen(open); setConversationError(null); } }}>
-        <DialogContent className="border-[#252528] bg-[#111113] text-white sm:max-w-md">
+        <DialogContent className="messages-new-dialog border-[#252528] bg-[#111113] text-white sm:max-w-md">
           <DialogHeader>
             <DialogTitle>New conversation</DialogTitle>
           </DialogHeader>
           {conversationError && <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300">{conversationError}</p>}
           {creatingConversation && <p role="status" className="text-xs text-white/50">Creating conversation…</p>}
           <Input
+            aria-label="Search manufacturers to message"
             value={newQuery}
             onChange={(e) => setNewQuery(e.target.value)}
             placeholder="Search manufacturers…"

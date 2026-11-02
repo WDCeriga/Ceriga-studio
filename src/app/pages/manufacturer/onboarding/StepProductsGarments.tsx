@@ -32,7 +32,12 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
   const [expandedCategory, setExpandedCategory] = useState<GarmentCategory | null>(
     profile.garments[0] || null,
   );
+  const [confirmationMessage,setConfirmationMessage]=useState('');
+  const [confirmationIssues,setConfirmationIssues]=useState<string[]>([]);
+  const clearConfirmation=()=>{setConfirmationMessage('');setConfirmationIssues([]);};
+  const confirmSelected=()=>{const details={...profile.garmentDetails},issues:string[]=[];let confirmed=0,firstInvalid:GarmentCategory|null=null;for(const cat of profile.garments){const detail=details[cat]??createGarmentDetail(cat),issue=garmentReviewError(detail);if(issue){issues.push(cat+': '+issue);firstInvalid??=cat;}else{details[cat]={...detail,confirmed:true};confirmed++;}}if(confirmed)onChange({garmentDetails:details});setConfirmationMessage(confirmed?`${confirmed} selected garment${confirmed===1?'':'s'} confirmed.`:'');setConfirmationIssues(issues);if(firstInvalid)setExpandedCategory(firstInvalid);};
   const toggleGarment = (cat: GarmentCategory) => {
+    clearConfirmation();
     const selected = profile.garments.includes(cat);
     const garments = selected ? profile.garments.filter(value => value !== cat) : [...profile.garments, cat];
     const garmentDetails = initializeGarmentDetails(garments, profile.garmentDetails);
@@ -43,6 +48,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
   };
 
   const updateGarmentDetail = (cat: GarmentCategory, patch: Partial<GarmentDetail>) => {
+    clearConfirmation();
     const current = profile.garmentDetails?.[cat] ?? createGarmentDetail(cat);
     onChange({
       garmentDetails: {
@@ -87,7 +93,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
       <div>
         <h2 className="text-xl font-semibold text-white">2. Products & Garments</h2>
         <p className="mt-1 text-sm text-white/50">
-          Select the garments you manufacture. Each category starts with editable suggestions. Review the styles, materials, construction, and fabric weights, then confirm what your facility supports.
+          Choose the garments you make, review each category’s specifications, then confirm what your factory supports.
         </p>
       </div>
 
@@ -107,6 +113,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
             aria-label="Select all garment categories"
             disabled={ALL_GARMENT_CATEGORIES.every(cat => profile.garments.includes(cat))}
             onClick={() => {
+              clearConfirmation();
               const garments = [...new Set([...profile.garments, ...ALL_GARMENT_CATEGORIES])];
               onChange({ garments, garmentDetails: initializeGarmentDetails(garments, profile.garmentDetails) });
               if (!expandedCategory) setExpandedCategory(garments[0] ?? null);
@@ -162,6 +169,9 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
             );
           })}
         </div>
+        <div className="garment-confirmation-bar"><p>Confirm that your factory supports the selected garment specifications. You can review and edit each category below.</p><Button type="button" className="garment-confirm-selected" disabled={!profile.garments.length||profile.garments.every(cat=>isGarmentConfirmed(profile.garmentDetails?.[cat]))} onClick={confirmSelected}><Check className="h-3.5 w-3.5"/>{profile.garments.length>0&&profile.garments.every(cat=>isGarmentConfirmed(profile.garmentDetails?.[cat]))?'All selected confirmed':'Confirm selected garments'}</Button></div>
+        {confirmationMessage&&<p role="status" className="garment-confirmation-message">{confirmationMessage}</p>}
+        {confirmationIssues.length>0&&<div role="alert" className="garment-confirmation-issues"><p>These garments still need attention:</p><ul>{confirmationIssues.map(issue=><li key={issue}>{issue}</li>)}</ul></div>}
       </div>
 
       {/* Garment-Specific Capabilities (Conditional Sections) */}
@@ -350,7 +360,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
       )}
 
       {/* Navigation */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="onboarding-actions flex items-center justify-between pt-2">
         <Button
           type="button"
           variant="outline"
@@ -362,7 +372,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
         <Button
           type="button"
           onClick={onNext}
-          className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
+          className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
         >
           Continue to Production Capabilities
         </Button>

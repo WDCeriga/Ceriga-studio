@@ -1,3 +1,4 @@
+import './superadmin-quality.css';
 import { Link, useParams } from 'react-router';
 import { ArrowLeft, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { QualityControlQueue } from '../../components/quality/QualityControlQueue';
@@ -7,7 +8,7 @@ export function SuperAdminQualityControl() {
   const { orderId } = useParams();
 
   return (
-    <div className="space-y-6">
+    <div className="admin-qc-page space-y-6">
       <header className="space-y-3">
         {orderId && (
           <Link to="/superadmin/quality-control" className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white">
@@ -18,10 +19,10 @@ export function SuperAdminQualityControl() {
           <div>
             <div className="flex items-center gap-2 text-[#CC2D24]">
               <ShieldCheck className="h-5 w-5" />
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Production review</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider">CERIGA / PRODUCTION</span>
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Quality Control</h1>
-            <p className="mt-1 text-sm text-white/45">Review manufacturer submissions, approve production or request changes before dispatch.</p>
+            <p className="mt-1 text-sm text-white/45">Review the evidence. Confirm the quality. Keep production moving.</p>
           </div>
           {orderId && (
             <Link to={`/superadmin/orders/${orderId}`} className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 hover:bg-white/5">
@@ -31,7 +32,7 @@ export function SuperAdminQualityControl() {
         </div>
       </header>
       {orderId ? (
-        <OrderQualityControl key={orderId} orderId={orderId} />
+        <OrderQualityControl key={orderId} orderId={orderId} view="quality" />
       ) : (
         <QualityControlQueue admin title="Production reports" reviewBasePath="/superadmin/quality-control" />
       )}

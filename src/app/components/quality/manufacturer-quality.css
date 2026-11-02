@@ -1,0 +1,67 @@
+.manufacturer-quality-page{color:#171717;color-scheme:light;font-size:12px;line-height:1.6}
+.qc-back-link{color:#737373;font-size:11px;display:inline-flex;align-items:center;min-height:30px}
+.qc-back-link:hover{color:#171717}
+.qc-page-heading{padding:0 0 24px;border-bottom:1px solid #e2e2e2}
+.qc-page-heading h1{font-size:clamp(26px,2.5vw,34px);font-weight:500;letter-spacing:-1px;color:#171717;margin:10px 0 8px}
+.qc-page-heading h1>span{color:#cc2d24}.qc-page-heading>p{font-size:12px;color:#737373}
+.manufacturer-quality-page .qc-order-workspace{background:white;color:#171717;border:1px solid #e2e2e2;border-radius:6px;padding:24px}
+.manufacturer-quality-page .qc-order-workspace>header h2{font-size:13px;font-weight:500;color:#171717}
+.manufacturer-quality-page .qc-order-workspace>header h2 svg{color:#737373;width:17px;height:17px}
+.manufacturer-quality-page .qc-order-workspace>header>div>p{font-size:11px;color:#737373}
+.manufacturer-quality-page .qc-order-workspace>header span{border-color:#e2e2e2;background:#f7f7f7;color:#525252;border-radius:4px;font-size:10px}
+.manufacturer-quality-page .qc-order-workspace>div[class*='border-b']{padding:16px 0;border-color:#e2e2e2;color:#737373;font-size:11px}
+.manufacturer-quality-page .qc-order-workspace>div>div>h3{color:#171717;font-size:18px;font-weight:500;letter-spacing:-.3px}
+.manufacturer-quality-page .qc-order-workspace :is(p,dt,summary){color:#737373}
+.manufacturer-quality-page .qc-order-workspace dd{color:#262626}
+.manufacturer-quality-page .qc-order-workspace h3{color:#262626;font-weight:500;font-size:12px}
+.manufacturer-quality-page .qc-order-workspace>p{font-size:11px;line-height:1.7}
+.manufacturer-quality-page .qc-order-workspace :is(details,div,section)[class*='border-white']{border-color:#e2e2e2;border-radius:4px}
+.manufacturer-quality-page .qc-order-workspace details>summary{font-size:11px;font-weight:500;min-height:24px;cursor:pointer}
+.manufacturer-quality-page .qc-order-workspace button{color:#525252;border-color:#dedede;border-radius:4px;font-size:11px}
+.manufacturer-quality-page .qc-order-workspace button:hover{background:#f2f2f2}
+.manufacturer-quality-page .qc-order-workspace>header button{min-width:36px;min-height:36px;padding:8px}
+.manufacturer-quality-page .qc-order-workspace>div[class*='border-amber'],.manufacturer-quality-page .qc-order-workspace>p[class*='border-amber']{border-color:#eadcc6;background:#fdfaf5;border-radius:4px;padding:14px}
+.manufacturer-quality-page .qc-order-workspace>div[class*='border-amber'] :is(h3,p){color:#885f2e}
+.manufacturer-quality-page .qc-order-workspace>p[class*='emerald'],.manufacturer-quality-page .qc-order-workspace>p[role='status']{border:1px solid #dce7dd;background:#f7faf7;color:#3f6248;border-radius:4px;font-size:11px;padding:14px}
+.manufacturer-quality-page .qc-order-workspace>p[role='alert']{border:1px solid #efcfcc;background:#fdf5f4;color:#a82b25;border-radius:4px;padding:12px}
+.manufacturer-quality-page .qc-order-workspace>div>section{border-color:#e2e2e2;background:#fafafa;border-radius:4px}
+.manufacturer-quality-page .qc-order-workspace>div>section p{font-size:12px}
+.manufacturer-quality-page .qc-order-workspace span[class*='text-white']{color:#525252}
+.manufacturer-quality-page .qc-order-workspace div[class*='bg-black/15']{background:#f7f7f7;border-radius:4px}
+.manufacturer-quality-page .qc-order-workspace [class*='text-amber']{color:#885f2e}
+.manufacturer-quality-page .qc-order-workspace span[class*='text-emerald']{color:#3f6248}
+.qc-production-form{padding-top:4px}
+.qc-production-form>fieldset{display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
+.manufacturer-quality-page .qc-production-form h3,.manufacturer-quality-page .qc-production-form>fieldset>label{font-size:12px;font-weight:500;color:#262626}
+.manufacturer-quality-page .qc-production-form h3>span,.manufacturer-quality-page .qc-production-form label>span[class*='text-red']{color:#a82b25}
+.manufacturer-quality-page .qc-production-form :is(input:not([type='checkbox']):not([type='radio']):not([type='file']),textarea){background:white;border:1px solid #d9d9d9;color:#171717;border-radius:4px;font-size:12px;min-height:42px;box-shadow:none}
+.manufacturer-quality-page .qc-production-form textarea{resize:vertical;line-height:1.7;padding:10px 12px}
+.manufacturer-quality-page .qc-production-form input::placeholder,.manufacturer-quality-page .qc-production-form textarea::placeholder{color:#a3a3a3}
+.manufacturer-quality-page .qc-production-form input:is([type='checkbox'],[type='radio']){accent-color:#171717}
+.manufacturer-quality-page .qc-photo-dropzone{background:#fafafa;border:1px dashed #c9c9c9;border-radius:5px;min-height:165px;transition:background 150ms,border-color 150ms}
+.manufacturer-quality-page .qc-photo-dropzone:hover,.manufacturer-quality-page .qc-photo-dropzone:focus-within{border-color:#737373;background:#f5f5f5}
+.manufacturer-quality-page .qc-photo-dropzone[data-dragging='true']{border-color:#171717;background:#f2f2f2;outline:2px solid #d4d4d4;outline-offset:3px}
+.manufacturer-quality-page .qc-photo-dropzone>svg{color:#737373;width:24px;height:24px}
+.manufacturer-quality-page .qc-photo-dropzone>span:first-of-type{font-size:12px;font-weight:500;color:#262626}
+.manufacturer-quality-page .qc-photo-dropzone>span:last-of-type{font-size:10px;color:#8c8c8c}
+.manufacturer-quality-page .qc-production-form section>p{font-size:10px;line-height:1.7}
+.qc-photo-grid>div{border-color:#e2e2e2;background:#fafafa;border-radius:5px}
+.manufacturer-quality-page .qc-photo-grid button[aria-label^='Remove photo']{color:white;background:#171717;border:0;border-radius:50%;min-width:30px;min-height:30px}
+.manufacturer-quality-page .qc-photo-grid div[class*='border-t']{border-color:#e2e2e2;color:#737373}
+.manufacturer-quality-page .qc-photo-grid label{color:#525252;font-size:10px}
+.manufacturer-quality-page .qc-order-workspace button[aria-label^='Enlarge production photo']{background:#fafafa;border-color:#e2e2e2;border-radius:5px}
+.manufacturer-quality-page .qc-order-workspace button[aria-label^='Enlarge production photo']>div,.manufacturer-quality-page .qc-photo-grid button[aria-label^='Enlarge photo']>div{color:#737373}
+.manufacturer-quality-page .qc-production-form section>div>label:has(input[type='radio']){border-color:#dedede;background:white;border-radius:4px;font-size:11px;color:#525252;min-height:40px}
+.manufacturer-quality-page .qc-production-form section>div>label:has(input[type='radio']:checked){border-color:#737373;background:#fafafa;color:#171717}
+.manufacturer-quality-page .qc-production-form section>div[class*='border-white']{border-color:#e2e2e2;border-radius:4px}
+.manufacturer-quality-page .qc-production-form label[class*='text-white']{color:#525252;font-size:11px}
+.manufacturer-quality-page .qc-production-form .qc-confirmation{border-color:#e2e2e2;padding-top:18px;font-size:11px;font-weight:400;line-height:1.8;color:#525252}
+.manufacturer-quality-page .qc-production-form .qc-confirmation>span{color:#525252}
+.qc-submit-row{padding-top:16px;border-top:1px solid #e2e2e2}
+.manufacturer-quality-page .qc-submit-row>button{border:1px solid #171717;background:#171717;color:white;border-radius:4px;min-height:42px;font-size:11px;font-weight:500;padding:10px 18px}
+.manufacturer-quality-page .qc-submit-row>button:hover{background:#333}
+.manufacturer-quality-page .qc-submit-row>span{font-size:10px;color:#8c8c8c}
+.manufacturer-quality-page .qc-production-form [role='alert']{background:#fdf5f4;color:#a82b25;border-color:#efcfcc;border-radius:4px;font-size:11px}
+.manufacturer-quality-page :is(a,button,input,textarea,summary):focus-visible{outline:2px solid #737373;outline-offset:3px}
+.manufacturer-quality-page button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:650px){.manufacturer-quality-page .qc-order-workspace{padding:16px}.qc-page-heading{padding-bottom:18px}.qc-production-form>fieldset{gap:22px}.manufacturer-quality-page .qc-photo-dropzone{min-height:150px;padding:20px 14px}.manufacturer-quality-page .qc-submit-row>button{width:100%;min-height:44px}.manufacturer-quality-page .qc-order-workspace>header button{min-height:44px;min-width:44px}.manufacturer-quality-page .qc-production-form section>div>label:has(input[type='radio']){min-height:44px}.manufacturer-quality-page .qc-photo-grid button[aria-label^='Remove photo']{min-width:36px;min-height:36px}.factory-qc .fo-toolbar select{min-height:44px}.manufacturer-quality-page .qc-order-workspace details>summary{min-height:32px}}

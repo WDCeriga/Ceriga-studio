@@ -1,0 +1,25 @@
+/* The picker is portalled outside the onboarding root, so it owns its light theme. */
+.method-moq-picker[data-slot="popover-content"] {
+  width: min(360px, calc(100vw - 32px));
+  max-height: var(--radix-popover-content-available-height);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dedede;
+  border-radius: 6px;
+  background: #fff;
+  color: #262626;
+  color-scheme: light;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 10%);
+}
+.method-moq-picker [data-slot="command"] { background: #fff; color: #262626; border-radius: 6px; }
+.method-moq-picker [data-slot="command-input-wrapper"] { height: 46px; border-color: #ededed; padding: 0 14px; color: #737373; }
+.method-moq-picker input[data-slot="command-input"] { height: 44px; border: 0; border-radius: 0; background: transparent; color: #262626; font-size: 12px; box-shadow: none; outline: none; }
+.method-moq-picker input::placeholder { color: #8c8c8c; }
+.method-moq-picker [data-slot="command-input-wrapper"]:focus-within { box-shadow: inset 0 -2px #737373; }
+.method-moq-picker [data-slot="command-list"] { max-height: min(300px, calc(var(--radix-popover-content-available-height, 360px) - 48px)); padding: 4px; scrollbar-width: thin; scrollbar-color: #ccc transparent; overscroll-behavior: contain; }
+.method-moq-picker [cmdk-group-heading] { padding: 10px 10px 6px; color: #8c8c8c; font-size: 10px; font-weight: 500; letter-spacing: .04em; }
+.method-moq-picker [data-slot="command-item"] { min-height: 38px; padding: 9px 10px; border-radius: 4px; color: #404040; font-size: 12px; cursor: pointer; }
+.method-moq-picker [data-slot="command-item"][data-selected="true"] { background: #f2f2f2; color: #171717; }
+.method-moq-picker [data-slot="command-empty"] { padding: 24px 16px; color: #737373; font-size: 12px; line-height: 1.7; }
+.method-moq-picker .method-moq-custom { margin-left: auto; color: #8c8c8c; font-size: 10px; }
+@media (pointer: coarse) { .method-moq-picker [data-slot="command-item"] { min-height: 44px; } }

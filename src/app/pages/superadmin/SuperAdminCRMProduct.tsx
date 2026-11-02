@@ -1,3 +1,4 @@
+import './superadmin-crm.css';
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, ExternalLink, ImageIcon, Layers, Pencil, Shirt, Upload } from 'lucide-react';
@@ -66,6 +67,8 @@ export function SuperAdminCRMProduct() {
     null,
   );
 
+  const [saving,setSaving]=useState(false),[saveError,setSaveError]=useState('');
+  const saveLock=useRef(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const base = garmentBaseById(product.baseId);
@@ -126,10 +129,11 @@ export function SuperAdminCRMProduct() {
       toast.error('Add a catalog image');
       return;
     }
-    setConfirmKind('save');
+    void save();
   };
 
   const save = async () => {
+    if(saveLock.current)return;saveLock.current=true;setSaving(true);setSaveError('');
     try {
     if (!product.name.trim()) {
       toast.error('Enter a product name');
@@ -152,7 +156,7 @@ export function SuperAdminCRMProduct() {
     if (isNew) {
       navigate(`/superadmin/crm/products/${id}`, { replace: true });
     }
-    }catch(cause){toast.error(cause instanceof Error?cause.message:"Could not save product");}
+    }catch(cause){const message=cause instanceof Error?cause.message:"Could not save product";setSaveError(message);toast.error(message);}finally{saveLock.current=false;setSaving(false);}
   };
 
   const runConfirmed = () => {
@@ -194,7 +198,7 @@ export function SuperAdminCRMProduct() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="admin-crm-editor space-y-6" aria-busy={saving}><fieldset className="crm-editor-fields" disabled={saving} aria-label="Product settings"><p className="crm-editor-hint">Changes, including publication status, take effect after you save.</p>{saveError&&<p role="alert" className="crm-save-error">{saveError}</p>}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Button
@@ -232,7 +236,7 @@ export function SuperAdminCRMProduct() {
             </Button>
           ) : null}
           <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={requestSave}>
-            {isNew ? 'Create product' : 'Save changes'}
+            {saving?'Saving…':isNew?'Create product':'Save changes'}
           </Button>
         </div>
       </div>
@@ -363,6 +367,7 @@ export function SuperAdminCRMProduct() {
           <div className="space-y-2 lg:col-span-2">
             <Label className="text-white/60">Display name</Label>
             <Input
+              required aria-label="Product display name"
               value={product.name}
               onChange={(e) => update({ name: e.target.value })}
               className="border-white/15 bg-white/5 text-white"
@@ -372,6 +377,7 @@ export function SuperAdminCRMProduct() {
             <Label className="text-white/60">MOQ</Label>
             <Input
               type="number"
+              min="0" step="1" aria-label="Product MOQ"
               value={product.moq}
               onChange={(e) => update({ moq: Number(e.target.value) || 0 })}
               className="border-white/15 bg-white/5 text-white"
@@ -382,6 +388,7 @@ export function SuperAdminCRMProduct() {
             <Input
               type="number"
               step="0.01"
+              min="0" aria-label="Starting price in GBP"
               value={product.startingPrice}
               onChange={(e) => update({ startingPrice: Number(e.target.value) || 0 })}
               className="border-white/15 bg-white/5 text-white"
@@ -396,7 +403,7 @@ export function SuperAdminCRMProduct() {
             />
           </div>
           <div className="flex items-center justify-between rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
-            <p className="text-sm font-medium text-white">Published</p>
+            <p className="text-sm font-medium text-white">Published after saving</p>
             <Switch
               checked={product.published}
               onCheckedChange={(v) => setConfirmKind(v ? 'publish' : 'unpublish')}
@@ -432,7 +439,7 @@ export function SuperAdminCRMProduct() {
         </div>
       </div>
 
-      <ConfirmDialog
+      </fieldset><ConfirmDialog className="crm-confirmation"
         open={confirmKind != null}
         onOpenChange={(open) => {
           if (!open) setConfirmKind(null);

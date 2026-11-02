@@ -1,208 +1,36 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
-import { Bell, CheckCheck, ChevronRight, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { Button } from '../../components/ui/button';
-import { usePortalNotifications } from '../../hooks/usePortalNotifications';
-import {
-  PORTAL_NOTIFICATION_CATEGORY_LABEL,
-  type PortalNotificationCategory,
-} from '../../data/portalNotifications';
-import { cn } from '../../components/ui/utils';
-
-type Cat = 'all' | PortalNotificationCategory;
-
-const FILTERS: { key: Cat; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'order', label: 'Orders' },
-  { key: 'message', label: 'Messages' },
-  { key: 'shipping', label: 'Shipping' },
-  { key: 'capacity', label: 'Capacity' },
-  { key: 'team', label: 'Team' },
-  { key: 'system', label: 'System' },
-];
-
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-export function ManufacturerNotifications() {
-  const { items, unread,error,refresh,hasMore,loadMore, markRead, markAllRead, remove, clearAll } =
-    usePortalNotifications('manufacturer');
-  const [filter, setFilter] = useState<Cat>('all');
-  const [clearOpen, setClearOpen] = useState(false);
-
-  const list = useMemo(() => {
-    return items.filter((n) => (filter === 'all' ? true : n.category === filter));
-  }, [filter, items]);
-
-  return (
-    <div className="space-y-6">
-      {error&&<p role="alert" className="rounded-lg border border-red-400/25 p-3 text-sm text-red-200">{error} <button onClick={()=>void refresh()} className="ml-2 underline">Retry</button></p>}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-[#CC2D24]">
-            <Bell className="h-5 w-5" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Inbox</span>
-          </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Notifications
-          </h1>
-          <p className="mt-1 max-w-xl text-sm text-white/45">
-            Assignments, Ceriga messages, shipping, capacity, and team alerts.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {unread > 0 ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#CC2D24]/30 bg-[#CC2D24]/10 px-3 py-1.5 text-xs font-medium text-red-100">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" />
-              {unread} unread
-            </span>
-          ) : null}
-          {unread > 0 ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-white/15 bg-white/[0.03] text-white/80"
-              onClick={() => {
-                markAllRead();
-                toast.success('Marked all as read');
-              }}
-            >
-              <CheckCheck className="mr-1.5 h-3.5 w-3.5" />
-              Mark all read
-            </Button>
-          ) : null}
-          {items.length > 0 ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-              onClick={() => setClearOpen(true)}
-            >
-              Clear all
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              'rounded-lg border px-2.5 py-1 text-[11px] font-medium',
-              filter === f.key
-                ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-[#252528] text-white/45 hover:text-white/75',
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <ul className="space-y-2">
-        {list.length === 0 ? (
-          <li className="rounded-2xl border border-dashed border-white/12 bg-[#111113] px-4 py-12 text-center text-sm text-white/40">
-            {items.length === 0 ? 'No notifications yet.' : 'Nothing in this category.'}
-          </li>
-        ) : (
-          list.map((n) => {
-            const inner = (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {!n.read ? (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" aria-hidden />
-                    ) : null}
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#CC2D24]/90">
-                      {PORTAL_NOTIFICATION_CATEGORY_LABEL[n.category]}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <time className="text-[11px] text-white/40">{formatWhen(n.at)}</time>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        remove(n.id);
-                      }}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-white/35 hover:bg-red-500/15 hover:text-red-300"
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-1 flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-medium text-white">{n.title}</div>
-                    <p className="mt-0.5 text-sm text-white/55">{n.body}</p>
-                  </div>
-                  {n.href ? (
-                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-white/30" />
-                  ) : null}
-                </div>
-              </>
-            );
-
-            return (
-              <li key={n.id}>
-                {n.href ? (
-                  <Link
-                    to={n.href}
-                    onClick={() => markRead(n.id)}
-                    className={cn(
-                      'block rounded-xl border px-4 py-3 transition hover:border-white/15 sm:px-5',
-                      !n.read
-                        ? 'border-[#CC2D24]/25 bg-[#CC2D24]/[0.06]'
-                        : 'border-[#252528] bg-[#111113]',
-                    )}
-                  >
-                    {inner}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => markRead(n.id)}
-                    className={cn(
-                      'w-full rounded-xl border px-4 py-3 text-left transition hover:border-white/15 sm:px-5',
-                      !n.read
-                        ? 'border-[#CC2D24]/25 bg-[#CC2D24]/[0.06]'
-                        : 'border-[#252528] bg-[#111113]',
-                    )}
-                  >
-                    {inner}
-                  </button>
-                )}
-              </li>
-            );
-          })
-        )}
-      </ul>
-
-      {hasMore&&<button className="rounded-lg border border-white/15 px-4 py-2 text-sm text-white" onClick={loadMore}>Load older notifications</button>}
-      <ConfirmDialog
-        open={clearOpen}
-        onOpenChange={setClearOpen}
-        title="Clear all notifications?"
-        description="Removes every item from the factory inbox."
-        confirmLabel="Clear all"
-        tone="danger"
-        onConfirm={() => {
-          void clearAll().then(ok=>{if(ok)toast.success('Notifications cleared');});
-        }}
-      />
-    </div>
-  );
+import {useRef,useState} from 'react';
+import {useNavigate} from 'react-router';
+import {Bell,Check,CheckCheck,ChevronRight,Clock3,FileText,MessageSquare,Package,RefreshCw,Search,Settings,ShieldCheck,Trash2,Truck,Users} from 'lucide-react';
+import {toast} from 'sonner';
+import {useAuth} from '../../contexts/AuthContext';
+import {useFactoryAccess} from '../../contexts/FactoryAccessContext';
+import {isSupabaseConfigured} from '../../lib/supabaseClient';
+import {usePortalNotificationsDb} from '../../data/portalNotificationsDb';
+import {PORTAL_NOTIFICATION_CATEGORY_LABEL,type PortalNotification} from '../../data/portalNotifications';
+import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle} from '../../components/ui/dialog';
+import '../../components/dashboard/manufacturer-dashboard.css';
+import '../../components/manufacturer/manufacturer-notifications.css';
+const icons={order:Package,pricing:FileText,message:MessageSquare,shipping:Truck,capacity:Clock3,team:Users,system:Settings};
+function destination(href?:string){if(!href||!/^\/manufacturer(?:\/|$)/.test(href)||href.includes('\\'))return null;return href.replace('/manufacturer/quality-control','/manufacturer/quality');}
+function groupDate(value:string){const date=new Date(value),today=new Date(),yesterday=new Date();yesterday.setDate(today.getDate()-1);return date.toDateString()===today.toDateString()?'Today':date.toDateString()===yesterday.toDateString()?'Yesterday':'Earlier';}
+const when=(value:string)=>new Date(value).toLocaleString(undefined,{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+export function ManufacturerNotifications(){const {user,authReady,isAuthenticated}=useAuth(),{access,ready}=useFactoryAccess(),enabled=!!(isSupabaseConfigured&&authReady&&ready&&isAuthenticated&&access?.factoryId&&access.permissions.includes('view_orders'));return <ManufacturerNotificationsInbox key={`${user?.id||''}:${access?.factoryId||''}:${enabled}`} enabled={enabled} waiting={!authReady||!ready}/>;}
+export function ManufacturerNotificationsInbox({enabled,waiting=false}:{enabled:boolean;waiting?:boolean}){
+ const query=usePortalNotificationsDb('manufacturer',enabled),navigate=useNavigate();
+ const [view,setView]=useState<'all'|'unread'>('all'),[category,setCategory]=useState('all'),[search,setSearch]=useState(''),[busy,setBusy]=useState(''),[error,setError]=useState(''),[confirmation,setConfirmation]=useState<PortalNotification|'all'|null>(null);
+ const lock=useRef(false);
+ const items=enabled?query.items:[],needle=search.trim().toLowerCase(),list=items.filter(n=>(view==='all'||!n.read)&&(category==='all'||category===n.category)&&[n.title,n.body].some(v=>v.toLowerCase().includes(needle))),groups=['Today','Yesterday','Earlier'].map(label=>({label,items:list.filter(n=>groupDate(n.at)===label)})).filter(g=>g.items.length),filtered=!!needle||category!=='all'||view!=='all';
+ async function run(id:string,action:()=>Promise<unknown>,message?:string){if(lock.current||!enabled)return false;lock.current=true;setBusy(id);setError('');try{const result=await action();if(result===false)throw new Error('The change could not be saved. Please retry.');if(message)toast.success(message);return true;}catch(cause){setError(cause instanceof Error?cause.message:'Could not update notifications.');return false;}finally{lock.current=false;setBusy('');}}
+ async function open(item:PortalNotification){if(lock.current)return;const to=destination(item.href);if(!item.read){const saved=await run(item.id,()=>query.markRead(item.id));if(!saved)return;}if(to)navigate(to);}
+ const reset=()=>{setView('all');setCategory('all');setSearch('');};
+ return <section className="factory-home factory-notifications"><header className="notifications-heading"><div><p className="fh-eyebrow">YOUR UPDATES</p><h1>Notifications<span>.</span></h1><p>Order updates, messages and the work that needs your attention.</p></div><div className="notifications-heading-actions"><button className="notifications-icon" aria-label="Refresh notifications" disabled={!enabled||!!busy||query.loading} onClick={()=>void query.refresh()}><RefreshCw size={15}/></button>{enabled&&query.unread>0&&<button className="notifications-primary" disabled={!!busy||query.loading} onClick={()=>void run('read-all',()=>query.markAllRead(),'All notifications marked as read')}><CheckCheck size={14}/>{busy==='read-all'?'Saving…':'Mark all read'}</button>}</div></header>
+ {(error||query.error)&&<div role="alert" className="notifications-error"><span>{error||query.error}</span><button disabled={!!busy} onClick={()=>{setError('');void query.refresh();}}>Retry</button></div>}
+ {waiting?<div role="status" className="notifications-empty">Checking notification access…</div>:!enabled?<div className="notifications-empty"><ShieldCheck size={27}/><h2>Notifications unavailable</h2><p>Sign in with an authorised factory account to view saved notifications.</p></div>:<>
+  <div className="notifications-toolbar"><div className="notifications-tabs" aria-label="Notification views"><button aria-pressed={view==='all'} onClick={()=>setView('all')}>All updates</button><button aria-pressed={view==='unread'} onClick={()=>setView('unread')}>Unread{query.unread>0&&<span>{query.unread}</span>}</button></div><label className="notifications-search"><Search size={13}/><input type="search" aria-label="Search notifications" placeholder="Search updates…" value={search} onChange={e=>setSearch(e.target.value)}/></label><select aria-label="Notification category" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All categories</option>{Object.entries(PORTAL_NOTIFICATION_CATEGORY_LABEL).map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></div>
+  <div className="notifications-list-meta"><span>{query.loading?'Loading updates…':`${list.length} ${list.length===1?'update':'updates'}${query.hasMore?' loaded':''}`}</span>{items.length>0&&<button disabled={!!busy||query.loading} onClick={()=>{setError('');setConfirmation('all');}}>Clear inbox</button>}</div>
+  {query.loading&&!items.length?<div role="status" className="notifications-empty"><Bell size={27}/><h2>Loading notifications…</h2><p>Reading your saved factory updates.</p></div>:!items.length&&query.error?<div className="notifications-empty"><Bell size={27}/><h2>Your inbox could not be loaded</h2><p>Retry to load your saved notifications.</p></div>:!list.length?<div className="notifications-empty">{view==='unread'&&!needle&&category==='all'?<CheckCheck size={29}/>:<Bell size={29}/>}<h2>{filtered?view==='unread'&&!needle&&category==='all'?query.unread>0?'No unread updates loaded':'You’re all caught up':'No matching updates':'No notifications yet'}</h2><p>{view==='unread'&&!needle&&category==='all'&&query.unread>0?'Load older notifications to find more unread updates.':filtered?'Try another view, category or search.':'Assignments, quality reviews and other factory updates will appear here.'}</p>{filtered&&<button onClick={reset}>Show all updates</button>}</div>:<div className="notifications-groups">{groups.map(group=><section className="notifications-group" key={group.label}><h2>{group.label}<span>{group.items.length}</span></h2><ul>{group.items.map(item=>{const Icon=icons[item.category]||Bell,to=destination(item.href);return <li className={`notification-row ${item.read?'notification-read':'notification-unread'}`} key={item.id}><span className="notification-icon"><Icon size={17}/></span><div className="notification-content"><div className="notification-meta"><span>{PORTAL_NOTIFICATION_CATEGORY_LABEL[item.category]||'Update'}</span>{!item.read&&<small>Unread</small>}<time dateTime={item.at} title={when(item.at)}>{when(item.at)}</time></div><button className="notification-open" disabled={!!busy} onClick={()=>void open(item)}><strong>{item.title}</strong><p>{item.body}</p>{to&&<span>View update<ChevronRight size={12}/></span>}</button></div><div className="notification-actions">{!item.read&&<button aria-label={`Mark ${item.title} as read`} title="Mark as read" disabled={!!busy} onClick={()=>void run(item.id,()=>query.markRead(item.id))}><Check size={14}/></button>}<button aria-label={`Delete ${item.title}`} title="Delete notification" disabled={!!busy} onClick={()=>{setError('');setConfirmation(item);}}><Trash2 size={14}/></button>{busy===item.id&&<small role="status">Saving…</small>}</div></li>;})}</ul></section>)}</div>}
+  {query.hasMore&&<div className="notifications-more"><p>Search and filters apply to loaded updates. Load older notifications to see more.</p><button disabled={query.loading||!!busy} onClick={query.loadMore}>{query.loading?'Loading…':'Load older notifications'}</button></div>}
+ </>}
+ <Dialog open={!!confirmation} onOpenChange={value=>{if(!value&&!lock.current)setConfirmation(null);}}><DialogContent className="notifications-dialog sm:max-w-md"><DialogHeader><DialogTitle>{confirmation==='all'?'Clear your inbox?':'Delete this notification?'}</DialogTitle><DialogDescription>{confirmation==='all'?'This removes all notifications from this factory inbox, including older updates that are not loaded. Orders, messages and other records remain available.':`“${confirmation?.title||''}” will be removed from your inbox. The related record stays available.`} This cannot be undone.</DialogDescription></DialogHeader>{error&&<p role="alert">{error}</p>}<DialogFooter><button disabled={!!busy} onClick={()=>setConfirmation(null)}>Keep {confirmation==='all'?'notifications':'notification'}</button><button className="notifications-danger" disabled={!!busy} onClick={()=>{const item=confirmation;if(!item)return;void run('delete',()=>item==='all'?query.clearAll():query.remove(item.id),item==='all'?'Inbox cleared':'Notification deleted').then(ok=>{if(ok)setConfirmation(null);});}}>{busy==='delete'?'Deleting…':confirmation==='all'?'Clear inbox':'Delete notification'}</button></DialogFooter></DialogContent></Dialog>
+ </section>;
 }

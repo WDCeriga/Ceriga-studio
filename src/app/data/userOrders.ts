@@ -33,8 +33,9 @@ export type UserOrderStatus =
   | 'ready';
 
 export type OrderPriceOption = {
+  shipping?: import('../lib/freight').FreightContext['approved'];
   currency?: import('../lib/currency').Currency;
-  currencySnapshot?:{originalManufacturerCents:number;originalCurrency:import('../lib/currency').Currency;approvedOriginalCents:number;rate:string;sourceRate?:string;targetRate?:string;rateDate?:string;provider:string;issuedAt:string;expiresAt:string;markupCents:number;shippingCents:number;taxCents:number;feesCents:number};
+  currencySnapshot?:{freight?:{manufacturerSubtotalCents:number};originalManufacturerCents:number;originalCurrency:import('../lib/currency').Currency;approvedOriginalCents:number;rate:string;sourceRate?:string;targetRate?:string;rateDate?:string;provider:string;issuedAt:string;expiresAt:string;markupCents:number;shippingCents:number;taxCents:number;feesCents:number};
   leadTimeDays?: number;
   id: string;
   kind: 'sample' | 'bulk';

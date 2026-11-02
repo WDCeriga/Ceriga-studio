@@ -1,0 +1,78 @@
+.factory-settings{color-scheme:light}
+.factory-settings .settings-heading{padding:8px 0 24px;border-bottom:1px solid #e2e2e2;align-items:center}
+.factory-settings .settings-heading h1{font-size:clamp(28px,2.5vw,36px);font-weight:500;letter-spacing:-1.2px;line-height:1.2;color:#262626;margin-top:12px}
+.settings-heading h1>span{color:#cc2d24}
+.factory-settings .settings-heading p{font-size:11px;color:#8c8c8c;line-height:1.8;margin-top:10px;max-width:650px}
+.factory-settings .settings-heading>div:first-child>div{color:#8c8c8c;font-size:9px;letter-spacing:.13em}
+.factory-settings .settings-heading>div:first-child>div>svg{display:none}
+.factory-settings .settings-heading a{display:inline-flex;align-items:center;border:1px solid #dedede;border-radius:4px;background:white;color:#737373;font-size:11px;min-height:36px;padding:8px 12px}
+.factory-settings .settings-heading a svg{color:#8c8c8c}
+.settings-nav{display:flex;flex-wrap:wrap;gap:8px 20px;padding-bottom:17px;border-bottom:1px solid #e2e2e2}
+.factory-settings .settings-nav>a{font-size:10px;color:#8c8c8c;padding:6px 0}
+.factory-settings .settings-nav>a:hover{color:#262626;text-decoration:underline;text-underline-offset:5px}
+.factory-settings [id]{scroll-margin-top:90px}
+.factory-settings [class*='text-white/']{color:#8c8c8c}
+.factory-settings [class*='text-white']{color:#525252}
+.factory-settings [class*='text-red-']{color:#ad352d}
+.factory-settings [class*='text-amber-']{color:#95631c}
+.factory-settings [class*='text-emerald-']{color:#50836a}
+.factory-settings [class*='text-[#CC2D24]']{color:#8c8c8c}
+.factory-settings [class*='bg-[#111113]']{background:white}
+.factory-settings [class*='bg-black/']{background:#fafafa}
+.factory-settings [class*='border-[#252528]'],.factory-settings [class*='border-white/']{border-color:#e2e2e2}
+.factory-settings .rounded-2xl,.factory-settings .rounded-xl{border-radius:5px}
+.factory-settings h2,.factory-settings h3{font-size:12px;font-weight:500;letter-spacing:-.1px;color:#525252}
+.factory-settings section>p{font-size:10px;line-height:1.8;color:#8c8c8c}
+.factory-settings .settings-summary{padding:20px;border:1px solid #e2e2e2;background:white}
+.factory-settings .settings-summary>div>div:first-child>span{background:#fafafa;border-color:#ededed;border-radius:4px;width:40px;height:44px}
+.factory-settings .settings-summary h2{font-size:16px;letter-spacing:-.3px;margin-top:5px}
+.factory-settings .settings-summary p{font-size:10px;color:#8c8c8c;line-height:1.7}
+.factory-settings .settings-summary div[class*='grid-cols-2']>div{background:#fafafa;border-color:#ededed;border-radius:4px;text-align:left;min-width:90px}
+.settings-profile-fields{padding:0;border:0;margin:0;min-width:0;display:grid;gap:20px}
+.settings-profile-fields[hidden]{display:none}
+.factory-settings .settings-panel{border:1px solid #e2e2e2;border-radius:5px;background:white;padding:24px}
+.factory-settings :is(input,textarea,select){background:white;border:1px solid #dedede;color:#262626;border-radius:4px;font:inherit;font-size:12px;min-height:40px;padding:9px 11px;max-width:100%;box-shadow:none}
+.factory-settings :is(input,textarea)::placeholder{color:#aaa}
+.factory-settings label,.factory-settings legend{font-size:11px;color:#737373;font-weight:400;line-height:1.6}
+.factory-settings input[type=checkbox]{min-height:15px;width:15px;height:15px;padding:0;accent-color:#525252;flex-shrink:0}
+.factory-settings :is(input,textarea,select,button,summary):focus-visible{outline:2px solid #737373;outline-offset:3px;box-shadow:none}
+.factory-settings button{border-radius:4px;font-size:11px}
+.factory-settings button:disabled{cursor:not-allowed;opacity:.45}
+.factory-settings button[class*='bg-[#CC2D24]']{display:inline-flex;justify-content:center;align-items:center;background:#171717;color:white;border:1px solid #171717;min-height:36px;border-radius:4px;padding:8px 14px;font-weight:500;font-size:11px}
+.factory-settings button[class*='bg-[#CC2D24]']:hover{background:#333}
+.factory-settings button[aria-pressed=true]{background:#f2f2f2;border-color:#bdbdbd;color:#262626}
+.factory-settings button[aria-pressed=false]{background:white;border-color:#e2e2e2;color:#8c8c8c}
+.factory-settings button[aria-pressed]{font-size:10px;min-height:34px;font-weight:400}
+.factory-settings [class*='bg-amber-']{background:#fffaf3;border-color:#eee1ce;border-radius:4px}
+.factory-settings [class*='bg-amber-'] p:first-child{font-size:11px;color:#95631c}
+.factory-settings [class*='bg-amber-'] p:last-child{font-size:10px;line-height:1.8;color:#a08964}
+.factory-settings .settings-loading{padding:36px;text-align:center;font-size:12px;color:#8c8c8c;background:white;border:1px dashed #dedede;border-radius:4px}
+.factory-settings>[role=alert]{font-size:11px;line-height:1.8;color:#ad352d;border-color:#edcfcc;background:#fdf5f4;border-radius:4px}
+.factory-settings>[role=alert] button{font-size:11px;color:#ad352d;text-decoration:underline;border:0;background:none}
+.settings-timeline{background:white;border:1px solid #e2e2e2;border-radius:5px;min-width:0}
+.settings-timeline>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;cursor:pointer;font-size:12px;color:#525252;list-style:none}
+.settings-timeline>summary small{display:block;font-size:10px;color:#aaa;margin-top:5px;line-height:1.7}
+.settings-timeline>summary>span:last-child{font-size:10px;color:#8c8c8c;border:1px solid #e2e2e2;border-radius:4px;padding:5px 9px}
+.settings-timeline[open]>summary{border-bottom:1px solid #ededed}
+.settings-timeline>section{border:0;padding:24px;border-radius:0}
+.factory-settings .settings-timeline header p{font-size:11px;line-height:1.8;color:#8c8c8c}
+.factory-settings .settings-timeline article{background:#fafafa;border-color:#e2e2e2}
+.factory-settings .settings-timeline article h3{font-size:12px}
+.factory-settings .settings-timeline [class*='grid-cols-5']{grid-template-columns:repeat(3,minmax(0,1fr))}
+.factory-settings #preferences{background:white;border:1px solid #e2e2e2;border-radius:5px;padding:24px}
+.factory-settings #preferences section{color:#525252}
+.factory-settings #preferences section>p{font-size:10px;line-height:1.8;color:#8c8c8c}
+.factory-settings #preferences select{min-height:38px;font-size:11px;padding:7px 11px;min-width:100px}
+.factory-settings .settings-savebar{background:rgba(255,255,255,.97);border-color:#dedede;border-radius:5px;box-shadow:0 4px 16px #00000008;bottom:16px}
+.factory-settings .settings-savebar>p{font-size:10px;color:#8c8c8c}
+.factory-settings .settings-savebar button:not([class*='bg-[#CC2D24]']){background:white;color:#737373;border-color:#dedede;font-size:11px;min-height:36px}
+.settings-dialog{background:white!important;color:#262626!important;border:1px solid #dedede!important;border-radius:6px!important;color-scheme:light}
+.settings-dialog h2{font-size:18px;font-weight:500;letter-spacing:-.3px;color:#262626;padding-right:24px}
+.settings-dialog [data-slot=dialog-description]{font-size:12px;line-height:1.8;color:#8c8c8c;overflow-wrap:anywhere}
+.settings-dialog>button{color:#737373;min-width:36px;min-height:36px;top:9px;right:9px}
+.settings-dialog [data-slot=dialog-footer]>button{font-size:11px;min-height:38px;border:1px solid #dedede;border-radius:4px;background:white;color:#737373;padding:8px 13px}
+.settings-dialog [data-slot=dialog-footer]>.settings-primary{background:#262626;color:white;border-color:#262626}
+.settings-dialog [data-slot=dialog-footer]>.settings-danger{background:#ad352d;color:white;border-color:#ad352d}
+.settings-dialog button:disabled{opacity:.45;cursor:not-allowed}
+.settings-dialog [role=alert]{font-size:11px;line-height:1.7;color:#ad352d;background:#fdf5f4;border:1px solid #edcfcc;border-radius:4px;padding:10px 12px}
+@media(max-width:767px){.factory-settings .settings-heading{align-items:flex-start}.settings-nav{gap:8px 16px}.factory-settings .settings-panel,.factory-settings #preferences{padding:20px}.settings-timeline>summary{padding:20px;align-items:flex-start}.settings-timeline>section{padding:20px}.factory-settings .settings-summary div[class*='grid-cols-2']{text-align:left;width:100%}.factory-settings :is(input:not([type=checkbox]),textarea,select){min-height:44px}.factory-settings button[aria-pressed]{min-height:40px}.factory-settings .settings-savebar>div{width:100%;justify-content:flex-end}.factory-settings .settings-savebar button{min-height:44px}.factory-settings .settings-timeline [class*='grid-cols-5']{grid-template-columns:minmax(0,1fr)}.settings-dialog [data-slot=dialog-footer]>button{min-height:44px}}

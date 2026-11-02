@@ -1,0 +1,4 @@
+[functions.worker-invitations]
+# The public application key may invoke setup; the single-use invitation is
+# independently validated server-side before any privileged Auth operation.
+verify_jwt = true

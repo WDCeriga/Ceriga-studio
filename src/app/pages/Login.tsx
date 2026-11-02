@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
 import { ArrowLeft } from 'lucide-react';
+import {workerRpc} from '../lib/platformWorkers';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { redeemManufacturerInvite } from '../data/manufacturerInvites';
 import { fetchMyProfileRole } from '../data/manufacturerDb';
@@ -58,6 +59,7 @@ export function Login() {
         }
       }
 
+      if(isSupabaseConfigured){const worker=await workerRpc('platform_worker_context');if(worker.status==='active'||worker.status==='suspended'){navigate('/worker');return;}}
       const role = await fetchMyProfileRole();
       if (role === 'manufacturer') {
         navigate('/manufacturer');

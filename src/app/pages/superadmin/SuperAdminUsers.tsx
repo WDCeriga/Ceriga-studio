@@ -1,3 +1,4 @@
+import './superadmin-users.css';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
@@ -5,7 +6,6 @@ import {
   ArrowRight,
   ArrowUp,
   ArrowUpDown,
-  CheckCircle2,
   Copy,
   Mail,
   Plus,
@@ -20,7 +20,6 @@ import { type SuperAdminUser } from '../../data/superadminMock';
 import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { DeleteRecordButton } from '../../components/DeleteRecordButton';
 import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -66,9 +65,9 @@ const ROLE_LABEL: Record<SuperAdminUser['role'], string> = {
 };
 
 const ROLE_STYLE: Record<SuperAdminUser['role'], string> = {
-  brand: 'border-sky-500/30 bg-sky-500/10 text-sky-200',
-  manufacturer: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
-  worker: 'border-violet-500/30 bg-violet-500/10 text-violet-200',
+  brand: 'border-[#e2e2e2] bg-[#fafafa] text-[#525252]',
+  manufacturer: 'border-[#e2e2e2] bg-[#fafafa] text-[#525252]',
+  worker: 'border-[#e2e2e2] bg-[#fafafa] text-[#525252]',
 };
 
 const ROLE_ORDER: Record<SuperAdminUser['role'], number> = {
@@ -93,7 +92,7 @@ function UserAvatar({ name, className }: { name: string; className?: string }) {
   return (
     <div
       className={cn(
-        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-gradient-to-br from-white/10 to-white/[0.02] text-[11px] font-bold text-white/85',
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#e2e2e2] bg-gradient-to-br from-white/10 to-white/[0.02] text-[11px] font-bold text-[#737373]',
         className,
       )}
     >
@@ -119,13 +118,13 @@ function SortableHeader({
 }) {
   const active = sortField === field;
   return (
-    <th className={className}>
+    <th className={className} aria-sort={active ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'}>
       <button
         type="button"
         onClick={() => onSort(field)}
         className={cn(
-          'inline-flex items-center gap-1.5 font-medium transition hover:text-white',
-          active ? 'text-white' : 'text-white/45',
+          'inline-flex items-center gap-1.5 font-medium transition hover:text-[#262626]',
+          active ? 'text-[#262626]' : 'text-[#737373]',
         )}
       >
         {label}
@@ -146,13 +145,14 @@ function SortableHeader({
 export function SuperAdminUsers() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
   const [listRoleFilter, setListRoleFilter] = useState<RoleFilter>('all');
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [emailOpen, setEmailOpen] = useState(false);
-  const [emailStep, setEmailStep] = useState<'compose' | 'sent'>('compose');
   const [emailRoleFilter, setEmailRoleFilter] = useState<RoleFilter>('all');
   const [emailSelectedIds, setEmailSelectedIds] = useState<Set<string>>(new Set());
   const [customRecipients, setCustomRecipients] = useState<CustomRecipient[]>([]);
@@ -162,7 +162,6 @@ export function SuperAdminUsers() {
   const [emailUserSearch, setEmailUserSearch] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const [sentRecipients, setSentRecipients] = useState<SentRecipient[]>([]);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
   const { users: MOCK_SUPER_USERS, loading: usersLoading, usersError, deleteAccount, refresh } = useSuperadminData();
@@ -220,7 +219,12 @@ export function SuperAdminUsers() {
     return list;
   }, [filteredUsers, sortField, sortDir]);
 
+  const pageCount = Math.max(1, Math.ceil(sortedUsers.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const visibleUsers = sortedUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const toggleSort = (field: SortField) => {
+    setPage(1);
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
       return;
@@ -303,8 +307,6 @@ export function SuperAdminUsers() {
     setShowCustomForm(false);
     setSubject('');
     setBody('');
-    setSentRecipients([]);
-    setEmailStep('compose');
   };
 
   const openEmailComposer = () => {
@@ -312,7 +314,7 @@ export function SuperAdminUsers() {
     const initial =
       selectedIds.size > 0
         ? new Set(selectedIds)
-        : new Set(MOCK_SUPER_USERS.map((u) => u.id));
+        : new Set<string>();
     setEmailSelectedIds(initial);
     setEmailOpen(true);
   };
@@ -386,8 +388,14 @@ export function SuperAdminUsers() {
       ...userRecipients.map((u) => ({ id: u.id, name: u.name, email: u.email })),
       ...customRecipients.map((r) => ({ id: r.id, name: r.name, email: r.email, custom: true })),
     ];
-    setSentRecipients(sent);
-    setEmailStep('sent');
+    const recipients = [...new Set(sent.map(r => r.email.toLowerCase()))];
+    const draft = 'mailto:?bcc=' + encodeURIComponent(recipients.join(',')) + '&subject=' + encodeURIComponent(subject.trim()) + '&body=' + encodeURIComponent(body.trim());
+    if (draft.length > 1800) {
+      toast.error('This draft is too large for an email link. Select fewer recipients or shorten your message.');
+      return;
+    }
+    window.location.href = draft;
+    toast.info('Draft requested in your email app. Review and send it there.');
   };
 
   const rolePills: { id: RoleFilter; label: string; count?: number }[] = [
@@ -398,14 +406,15 @@ export function SuperAdminUsers() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="admin-users space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-            Accounts
+            CERIGA / ACCOUNTS
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Users</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#262626] sm:text-3xl">Users</h1>
+          <p className="users-intro">Find accounts, review profiles, and manage access.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button className="bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90" onClick={openEmailComposer}>
@@ -425,16 +434,16 @@ export function SuperAdminUsers() {
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-2xl border border-[#252528] bg-gradient-to-br from-[#161618] to-[#111113] p-4"
+            className="rounded-md border border-[#e2e2e2] bg-gradient-to-br from-[#161618] to-[#111113] p-4"
           >
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-white/38">{s.label}</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-white">{s.value}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#737373]">{s.label}</div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums text-[#262626]">{usersLoading || usersError ? '—' : s.value}</div>
           </div>
         ))}
       </div>
 
       {usersError ? (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">
+        <div className="rounded-md border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">
           Could not load users: {usersError}
           <button type="button" className="ml-3 underline" disabled={usersLoading} onClick={() => { void refresh(); }}>Retry</button>
         </div>
@@ -443,7 +452,7 @@ export function SuperAdminUsers() {
       {/* Search + role pills */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative max-w-md flex-1">
-          <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-[#737373]" />
           <input
             type="search"
             name="platform-user-filter"
@@ -454,9 +463,10 @@ export function SuperAdminUsers() {
             data-1p-ignore
             data-lpignore="true"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search users"
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by name or email…"
-            className="h-10 w-full border-0 border-b border-white/15 bg-transparent pl-7 pr-2 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-[#CC2D24]/70 focus:ring-0"
+            className="h-10 w-full border-0 border-b border-[#dedede] bg-transparent pl-7 pr-2 text-sm text-[#262626] outline-none transition-colors placeholder:text-[#737373] focus:border-[#CC2D24]/70 focus:ring-0"
           />
         </div>
         <div className="flex flex-wrap gap-2">
@@ -464,17 +474,18 @@ export function SuperAdminUsers() {
             <button
               key={pill.id}
               type="button"
-              onClick={() => setListRoleFilter(pill.id)}
+              aria-pressed={listRoleFilter === pill.id}
+              onClick={() => { setListRoleFilter(pill.id); setPage(1); }}
               className={cn(
-                'rounded-full border px-3.5 py-1.5 text-xs font-medium transition',
+                'rounded-md border px-3.5 py-1.5 text-xs font-medium transition',
                 listRoleFilter === pill.id
-                  ? 'border-[#CC2D24] bg-[#CC2D24]/15 text-white'
-                  : 'border-transparent bg-white/[0.04] text-white/55 hover:bg-white/[0.07] hover:text-white',
+                  ? 'border-[#CC2D24] bg-[#CC2D24]/15 text-[#262626]'
+                  : 'border-transparent bg-[#f7f7f7] text-[#737373] hover:bg-[#f7f7f7] hover:text-[#262626]',
               )}
             >
               {pill.label}
               {pill.count != null ? (
-                <span className="ml-1.5 tabular-nums text-white/40">{pill.count}</span>
+                <span className="ml-1.5 tabular-nums text-[#737373]">{pill.count}</span>
               ) : null}
             </button>
           ))}
@@ -482,10 +493,10 @@ export function SuperAdminUsers() {
       </div>
 
       {selectedIds.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#CC2D24]/30 bg-gradient-to-r from-[#CC2D24]/12 to-transparent px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-[#CC2D24]/30 bg-gradient-to-r from-[#CC2D24]/12 to-transparent px-4 py-3">
           <UsersIcon className="h-5 w-5 text-[#CC2D24]" />
-          <span className="text-sm text-white/85">
-            <strong className="text-white">{selectedIds.size}</strong> user
+          <span className="text-sm text-[#737373]">
+            <strong className="text-[#262626]">{selectedIds.size}</strong> user
             {selectedIds.size === 1 ? '' : 's'} selected
           </span>
           <Button size="sm" className="h-8 bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={openEmailComposer}>
@@ -494,7 +505,7 @@ export function SuperAdminUsers() {
           </Button>
           <button
             type="button"
-            className="ml-auto text-xs text-white/45 hover:text-white"
+            className="ml-auto text-xs text-[#737373] hover:text-[#262626]"
             onClick={() => setSelectedIds(new Set())}
           >
             Clear selection
@@ -502,18 +513,19 @@ export function SuperAdminUsers() {
         </div>
       ) : null}
 
+      <div className="users-results"><span role="status">{usersLoading ? 'Loading accounts…' : usersError ? 'Account data unavailable' : sortedUsers.length + ' matching account' + (sortedUsers.length === 1 ? '' : 's') + ' · ' + selectedIds.size + ' selected across filters'}</span>{(search || listRoleFilter !== 'all') && <button type="button" onClick={() => { setSearch(''); setListRoleFilter('all'); setPage(1); }}>Clear filters</button>}</div>
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="overflow-hidden rounded-md border border-[#e2e2e2] bg-white users-table">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#252528] bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/45">
+              <tr className="border-b border-[#e2e2e2] bg-[#f7f7f7] text-[11px] uppercase tracking-wider text-[#737373]">
                 <th className="w-12 px-4 py-3.5">
                   <Checkbox
                     checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
                     onCheckedChange={toggleAllFiltered}
-                    aria-label="Select all visible users"
-                    className="border-white/25 data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
+                    aria-label="Select all matching users"
+                    className="border-[#dedede] data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
                   />
                 </th>
                 <SortableHeader
@@ -561,15 +573,15 @@ export function SuperAdminUsers() {
             <tbody>
               {usersLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-sm text-white/45">
+                  <td colSpan={6} className="px-4 py-16 text-center text-sm text-[#737373]">
                     Loading users…
                   </td>
                 </tr>
               ) : sortedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-16 text-center">
-                    <UsersIcon className="mx-auto h-8 w-8 text-white/20" />
-                    <p className="mt-3 text-sm text-white/45">
+                    <UsersIcon className="mx-auto h-8 w-8 text-[#737373]" />
+                    <p className="mt-3 text-sm text-[#737373]">
                       {search.trim() || listRoleFilter !== 'all'
                         ? 'No users match your filters.'
                         : usersError
@@ -579,7 +591,7 @@ export function SuperAdminUsers() {
                   </td>
                 </tr>
               ) : (
-                sortedUsers.map((u) => {
+                visibleUsers.map((u) => {
                   const selected = selectedIds.has(u.id);
                   return (
                     <tr
@@ -588,15 +600,15 @@ export function SuperAdminUsers() {
                       tabIndex={0}
                       onClick={() => setActiveUserId(u.id)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
                           e.preventDefault();
                           setActiveUserId(u.id);
                         }
                       }}
                       className={cn(
-                        'group cursor-pointer border-b border-[#252528] transition last:border-0',
-                        selected ? 'bg-[#CC2D24]/[0.08]' : 'hover:bg-white/[0.04]',
-                        activeUserId === u.id && 'bg-white/[0.06]',
+                        'group cursor-pointer border-b border-[#e2e2e2] transition last:border-0',
+                        selected ? 'bg-[#CC2D24]/[0.08]' : 'hover:bg-[#f7f7f7]',
+                        activeUserId === u.id && 'bg-[#f7f7f7]',
                       )}
                     >
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
@@ -604,34 +616,34 @@ export function SuperAdminUsers() {
                           checked={selected}
                           onCheckedChange={() => toggleUser(u.id)}
                           aria-label={`Select ${u.name}`}
-                          className="border-white/25 data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
+                          className="border-[#dedede] data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
                         />
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <UserAvatar name={u.name} />
                           <div className="min-w-0">
-                            <div className="font-medium text-white group-hover:text-[#CC2D24]/90">
+                            <div className="font-medium text-[#262626] group-hover:text-[#CC2D24]/90">
                               {u.name}
                             </div>
-                            <div className="truncate text-xs text-white/45">{u.email}</div>
+                            <div className="truncate text-xs text-[#737373]">{u.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <span
                           className={cn(
-                            'inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                            'inline-flex rounded-md border px-2.5 py-0.5 text-[11px] font-medium',
                             ROLE_STYLE[u.role],
                           )}
                         >
                           {ROLE_LABEL[u.role]}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 tabular-nums font-medium text-white/85">{u.credits}</td>
-                      <td className="px-4 py-3.5 tabular-nums text-white/75">{u.ordersCount}</td>
-                      <td className="px-4 py-3.5 text-white/50">
-                        <span className="inline-flex items-center gap-1 text-xs text-white/35 transition group-hover:text-white/60">
+                      <td className="px-4 py-3.5 tabular-nums font-medium text-[#737373]">{u.credits}</td>
+                      <td className="px-4 py-3.5 tabular-nums text-[#737373]">{u.ordersCount}</td>
+                      <td className="px-4 py-3.5 text-[#737373]">
+                        <span className="inline-flex items-center gap-1 text-xs text-[#737373] transition group-hover:text-[#737373]">
                           {u.lastActive}
                           <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
                         </span>
@@ -652,26 +664,27 @@ export function SuperAdminUsers() {
         </div>
       </div>
 
+      <nav className="users-pagination" aria-label="User list pages"><span>{sortedUsers.length ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, sortedUsers.length)} of {sortedUsers.length}</span><div><button type="button" disabled={usersLoading || currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>Page {currentPage} of {pageCount}</span><button type="button" disabled={usersLoading || currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Next</button></div></nav>
       {/* User preview sheet */}
       <Sheet open={activeUserId != null} onOpenChange={(open) => !open && setActiveUserId(null)}>
         <SheetContent
           side="right"
-          className="w-full border-[#252528] bg-[#111113] p-0 text-white sm:max-w-md"
+          className="admin-users-overlay w-full border-[#e2e2e2] bg-white p-0 text-[#262626] sm:max-w-md"
         >
           {activeUser ? (
             <>
-              <div className="border-b border-[#252528] bg-gradient-to-br from-[#CC2D24]/12 via-transparent to-transparent px-6 pb-6 pt-10">
+              <div className="border-b border-[#e2e2e2] bg-gradient-to-br from-[#CC2D24]/12 via-transparent to-transparent px-6 pb-6 pt-10">
                 <SheetHeader className="space-y-4 p-0 text-left">
                   <div className="flex items-start gap-4">
                     <UserAvatar name={activeUser.name} className="h-14 w-14 text-sm" />
                     <div className="min-w-0 flex-1 pt-1">
-                      <SheetTitle className="text-xl text-white">{activeUser.name}</SheetTitle>
+                      <SheetTitle className="text-xl text-[#262626]">{activeUser.name}</SheetTitle>
                       <SheetDescription asChild>
                         <div className="mt-2 flex items-center gap-2">
-                          <span className="truncate text-sm text-white/55">{activeUser.email}</span>
+                          <span className="truncate text-sm text-[#737373]">{activeUser.email}</span>
                           <button
                             type="button"
-                            className="shrink-0 rounded-md p-1 text-white/40 transition hover:bg-white/10 hover:text-white"
+                            className="shrink-0 rounded-md p-1 text-[#737373] transition hover:bg-[#f7f7f7] hover:text-[#262626]"
                             onClick={() => copyEmail(activeUser.email)}
                             aria-label="Copy email"
                           >
@@ -681,7 +694,7 @@ export function SuperAdminUsers() {
                       </SheetDescription>
                       <span
                         className={cn(
-                          'mt-3 inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                          'mt-3 inline-flex rounded-md border px-2.5 py-0.5 text-[11px] font-medium',
                           ROLE_STYLE[activeUser.role],
                         )}
                       >
@@ -702,12 +715,12 @@ export function SuperAdminUsers() {
                   ].map((stat) => (
                     <div
                       key={stat.label}
-                      className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3"
+                      className="rounded-md border border-[#e2e2e2] bg-[#f7f7f7] px-3 py-3"
                     >
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">
                         {stat.label}
                       </div>
-                      <div className="mt-1 text-lg font-semibold tabular-nums text-white">
+                      <div className="mt-1 text-lg font-semibold tabular-nums text-[#262626]">
                         {stat.value}
                       </div>
                     </div>
@@ -724,7 +737,7 @@ export function SuperAdminUsers() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full border-white/15 bg-white/[0.03] text-white hover:bg-white/10"
+                    className="w-full border-[#dedede] bg-[#f7f7f7] text-[#262626] hover:bg-[#f7f7f7]"
                     onClick={() => {
                       const wasSelected = selectedIds.has(activeUser.id);
                       toggleUser(activeUser.id);
@@ -736,7 +749,7 @@ export function SuperAdminUsers() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full border-white/15 bg-white/[0.03] text-white/80 hover:bg-white/10 hover:text-white"
+                    className="w-full border-[#dedede] bg-[#f7f7f7] text-[#737373] hover:bg-[#f7f7f7] hover:text-[#262626]"
                     onClick={() => {
                       setActiveUserId(null);
                       navigate(`/superadmin/users/${activeUser.id}`);
@@ -754,25 +767,26 @@ export function SuperAdminUsers() {
 
       {/* Email dialog */}
       <Dialog open={emailOpen} onOpenChange={(open) => !open && closeEmailComposer()}>
-        <DialogContent className="flex max-h-[min(92vh,780px)] flex-col overflow-hidden border-[#252528] bg-[#111113] p-0 text-white sm:max-w-2xl">
-          {emailStep === 'compose' ? (
+        <DialogContent className="admin-users-overlay flex max-h-[min(92vh,780px)] flex-col overflow-hidden border-[#e2e2e2] bg-white p-0 text-[#262626] sm:max-w-2xl">
+
             <>
-              <div className="border-b border-[#252528] bg-gradient-to-r from-[#CC2D24]/15 via-[#CC2D24]/5 to-transparent px-6 py-5">
+              <div className="border-b border-[#e2e2e2] bg-gradient-to-r from-[#CC2D24]/15 via-[#CC2D24]/5 to-transparent px-6 py-5">
                 <DialogHeader className="space-y-1 text-left">
-                  <DialogTitle className="flex items-center gap-2 text-lg text-white">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#CC2D24]/20">
+                  <DialogTitle className="flex items-center gap-2 text-lg text-[#262626]">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#CC2D24]/20">
                       <Mail className="h-4 w-4 text-[#CC2D24]" />
                     </span>
-                    Compose email
+                    Prepare email draft
                   </DialogTitle>
                 </DialogHeader>
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                <p className="users-email-note">Choose recipients, then open a draft in your email app. Ceriga does not send this message. Recipients are added as BCC.</p>
                 {/* To bar */}
-                <div className="border-b border-[#252528] px-6 py-4">
+                <div className="border-b border-[#e2e2e2] px-6 py-4">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <Label className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                    <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
                       To · {totalRecipientCount} recipient{totalRecipientCount === 1 ? '' : 's'}
                     </Label>
                     <button
@@ -793,13 +807,13 @@ export function SuperAdminUsers() {
                     {userRecipients.map((u) => (
                       <span
                         key={u.id}
-                        className="inline-flex items-center gap-1 rounded-full border border-[#252528] bg-black/50 pl-1 pr-2 py-0.5 text-[11px] text-white/80"
+                        className="inline-flex items-center gap-1 rounded-md border border-[#e2e2e2] bg-[#f7f7f7] pl-1 pr-2 py-0.5 text-[11px] text-[#737373]"
                       >
                         <UserAvatar name={u.name} className="h-5 w-5 text-[9px]" />
                         {u.email}
                         <button
                           type="button"
-                          className="ml-0.5 rounded-full p-0.5 hover:bg-white/10"
+                          className="ml-0.5 rounded-md p-0.5 hover:bg-[#f7f7f7]"
                           onClick={() => toggleEmailUser(u.id)}
                           aria-label={`Remove ${u.email}`}
                         >
@@ -810,13 +824,13 @@ export function SuperAdminUsers() {
                     {customRecipients.map((r) => (
                       <span
                         key={r.id}
-                        className="inline-flex items-center gap-1 rounded-full border border-[#CC2D24]/30 bg-[#CC2D24]/10 pl-2 pr-1.5 py-0.5 text-[11px] text-white/90"
+                        className="inline-flex items-center gap-1 rounded-md border border-[#CC2D24]/30 bg-[#CC2D24]/10 pl-2 pr-1.5 py-0.5 text-[11px] text-[#737373]"
                       >
                         <UserPlus className="h-3 w-3 text-[#CC2D24]" />
                         {r.name} · {r.email}
                         <button
                           type="button"
-                          className="rounded-full p-0.5 hover:bg-white/10"
+                          className="rounded-md p-0.5 hover:bg-[#f7f7f7]"
                           onClick={() => removeCustomRecipient(r.id)}
                           aria-label={`Remove ${r.email}`}
                         >
@@ -825,14 +839,14 @@ export function SuperAdminUsers() {
                       </span>
                     ))}
                     {totalRecipientCount === 0 ? (
-                      <span className="text-xs text-white/35">No recipients yet</span>
+                      <span className="text-xs text-[#737373]">No recipients yet</span>
                     ) : null}
                   </div>
                 </div>
 
                 <div className="grid gap-0 lg:grid-cols-2 lg:divide-x lg:divide-white/[0.06]">
                   {/* Recipients panel */}
-                  <div className="space-y-4 border-b border-[#252528] p-6 lg:border-b-0">
+                  <div className="space-y-4 border-b border-[#e2e2e2] p-6 lg:border-b-0">
                     <div className="flex flex-wrap gap-2">
                       {rolePills.map((pill) => (
                         <button
@@ -842,8 +856,8 @@ export function SuperAdminUsers() {
                           className={cn(
                             'rounded-lg border px-2.5 py-1 text-[11px] font-medium transition',
                             emailRoleFilter === pill.id
-                              ? 'border-[#CC2D24]/50 bg-[#CC2D24]/12 text-white'
-                              : 'border-[#252528] text-white/50 hover:text-white',
+                              ? 'border-[#CC2D24]/50 bg-[#CC2D24]/12 text-[#262626]'
+                              : 'border-[#e2e2e2] text-[#737373] hover:text-[#262626]',
                           )}
                         >
                           {pill.label}
@@ -852,7 +866,7 @@ export function SuperAdminUsers() {
                     </div>
 
                     <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/35" />
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#737373]" />
                       <input
                         type="search"
                         name="compose-recipient-filter"
@@ -865,13 +879,13 @@ export function SuperAdminUsers() {
                         value={emailUserSearch}
                         onChange={(e) => setEmailUserSearch(e.target.value)}
                         placeholder="Search users by name or email…"
-                        className="h-9 w-full rounded-lg border border-[#252528] bg-black/40 pl-9 pr-8 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/25"
+                        className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#fafafa] pl-9 pr-8 text-sm text-[#262626] outline-none transition placeholder:text-[#737373] focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/25"
                       />
                       {emailUserSearch ? (
                         <button
                           type="button"
                           onClick={() => setEmailUserSearch('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-white/40 hover:bg-white/10 hover:text-white"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#737373] hover:bg-[#f7f7f7] hover:text-[#262626]"
                           aria-label="Clear search"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -879,30 +893,30 @@ export function SuperAdminUsers() {
                       ) : null}
                     </div>
 
-                    <div className="max-h-44 space-y-0.5 overflow-y-auto rounded-xl border border-[#252528] bg-black/40 p-1.5">
+                    <div className="max-h-44 space-y-0.5 overflow-y-auto rounded-md border border-[#e2e2e2] bg-[#fafafa] p-1.5">
                       {searchedEmailPool.length === 0 ? (
                         <div className="px-3 py-8 text-center">
-                          <Search className="mx-auto h-5 w-5 text-white/20" />
-                          <p className="mt-2 text-xs text-white/45">No users match your search.</p>
+                          <Search className="mx-auto h-5 w-5 text-[#737373]" />
+                          <p className="mt-2 text-xs text-[#737373]">No users match your search.</p>
                         </div>
                       ) : (
                         searchedEmailPool.map((u) => (
                         <label
                           key={u.id}
                           className={cn(
-                            'flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-white/[0.04]',
+                            'flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-[#f7f7f7]',
                             emailSelectedIds.has(u.id) && 'bg-[#CC2D24]/[0.07]',
                           )}
                         >
                           <Checkbox
                             checked={emailSelectedIds.has(u.id)}
                             onCheckedChange={() => toggleEmailUser(u.id)}
-                            className="border-white/25 data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
+                            className="border-[#dedede] data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
                           />
                           <UserAvatar name={u.name} className="h-8 w-8 text-[10px]" />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm text-white">{u.name}</div>
-                            <div className="truncate text-[11px] text-white/45">{u.email}</div>
+                            <div className="truncate text-sm text-[#262626]">{u.name}</div>
+                            <div className="truncate text-[11px] text-[#737373]">{u.email}</div>
                           </div>
                         </label>
                         ))
@@ -910,12 +924,12 @@ export function SuperAdminUsers() {
                     </div>
 
                     {/* Custom recipient */}
-                    <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-3">
+                    <div className="rounded-md border border-dashed border-[#dedede] bg-[#f7f7f7] p-3">
                       {!showCustomForm ? (
                         <button
                           type="button"
                           onClick={() => setShowCustomForm(true)}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#252528] bg-black/30 py-2.5 text-sm font-medium text-white/70 transition hover:border-[#CC2D24]/40 hover:text-white"
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e2e2e2] bg-[#fafafa] py-2.5 text-sm font-medium text-[#737373] transition hover:border-[#CC2D24]/40 hover:text-[#262626]"
                         >
                           <Plus className="h-4 w-4 text-[#CC2D24]" />
                           Add custom email
@@ -923,12 +937,12 @@ export function SuperAdminUsers() {
                       ) : (
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold uppercase tracking-wider text-white/45">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-[#737373]">
                               New recipient
                             </span>
                             <button
                               type="button"
-                              className="text-white/40 hover:text-white"
+                              className="text-[#737373] hover:text-[#262626]"
                               onClick={() => {
                                 setShowCustomForm(false);
                                 setCustomName('');
@@ -942,14 +956,14 @@ export function SuperAdminUsers() {
                             value={customName}
                             onChange={(e) => setCustomName(e.target.value)}
                             placeholder="Name (e.g. Partner contact)"
-                            className="h-10 border-white/12 bg-black/40 text-white placeholder:text-white/30"
+                            className="h-10 border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373]"
                           />
                           <Input
                             type="email"
                             value={customEmail}
                             onChange={(e) => setCustomEmail(e.target.value)}
                             placeholder="email@company.com"
-                            className="h-10 border-white/12 bg-black/40 text-white placeholder:text-white/30"
+                            className="h-10 border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373]"
                             onKeyDown={(e) => e.key === 'Enter' && addCustomRecipient()}
                           />
                           <Button
@@ -969,7 +983,7 @@ export function SuperAdminUsers() {
                   {/* Message panel */}
                   <div className="space-y-4 p-6">
                     <div>
-                      <Label htmlFor="email-subject" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                      <Label htmlFor="email-subject" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
                         Subject
                       </Label>
                       <Input
@@ -977,11 +991,11 @@ export function SuperAdminUsers() {
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
                         placeholder="Subject line"
-                        className="h-11 border-white/12 bg-black/40 text-white placeholder:text-white/30"
+                        className="h-11 border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373]"
                       />
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col">
-                      <Label htmlFor="email-body" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-white/40">
+                      <Label htmlFor="email-body" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
                         Message
                       </Label>
                       <Textarea
@@ -989,106 +1003,31 @@ export function SuperAdminUsers() {
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         placeholder="Hi team,&#10;&#10;Write your message here…"
-                        className="min-h-[200px] flex-1 resize-none border-white/12 bg-black/40 text-white placeholder:text-white/30 lg:min-h-[240px]"
+                        className="min-h-[200px] flex-1 resize-none border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373] lg:min-h-[240px]"
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <DialogFooter className="border-t border-[#252528] bg-black/30 px-6 py-4">
+              <DialogFooter className="border-t border-[#e2e2e2] bg-[#fafafa] px-6 py-4">
                 <Button
                   variant="outline"
-                  className="border-white/15 text-white hover:bg-white/10"
+                  className="border-[#dedede] text-[#262626] hover:bg-[#f7f7f7]"
                   onClick={closeEmailComposer}
                 >
                   Cancel
                 </Button>
                 <Button
                   className="min-w-[140px] bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/25 hover:bg-[#CC2D24]/90"
+                  disabled={totalRecipientCount === 0 || !subject.trim() || !body.trim()}
                   onClick={handleSendEmail}
                 >
                   <Send className="mr-2 h-4 w-4" />
-                  Send to {totalRecipientCount || '…'}
+                  Open email app ({totalRecipientCount})
                 </Button>
               </DialogFooter>
             </>
-          ) : (
-            <>
-              <div className="border-b border-emerald-500/20 bg-gradient-to-b from-emerald-500/10 to-transparent px-6 py-10 text-center">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 ring-4 ring-emerald-500/10">
-                  <CheckCircle2 className="h-9 w-9 text-emerald-400" />
-                </div>
-                <h2 className="mt-5 text-2xl font-semibold text-white">Email sent</h2>
-                <p className="mt-2 text-sm text-white/50">
-                  Delivered to{' '}
-                  <strong className="text-white">{sentRecipients.length}</strong> recipient
-                  {sentRecipients.length === 1 ? '' : 's'}
-                </p>
-              </div>
-
-              <div className="space-y-4 overflow-y-auto px-6 py-5">
-                {subject ? (
-                  <div className="rounded-xl border border-[#252528] bg-black/40 px-4 py-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Subject</div>
-                    <div className="mt-1 text-sm font-medium text-white">{subject}</div>
-                  </div>
-                ) : null}
-                {body ? (
-                  <div className="rounded-xl border border-[#252528] bg-black/40 px-4 py-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Message</div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{body}</p>
-                  </div>
-                ) : null}
-                <div className="rounded-xl border border-[#252528] bg-black/40 p-4">
-                  <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                    Recipients
-                  </div>
-                  <ul className="max-h-40 space-y-2 overflow-y-auto">
-                    {sentRecipients.map((r) => (
-                      <li
-                        key={r.id}
-                        className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.03] px-3 py-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          {r.custom ? (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#CC2D24]/15">
-                              <UserPlus className="h-3.5 w-3.5 text-[#CC2D24]" />
-                            </span>
-                          ) : (
-                            <UserAvatar name={r.name} className="h-7 w-7 text-[10px]" />
-                          )}
-                          <span className="truncate text-sm text-white">{r.name}</span>
-                          {r.custom ? (
-                            <Badge variant="outline" className="shrink-0 border-[#CC2D24]/30 text-[10px] text-[#CC2D24]">
-                              Custom
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <span className="shrink-0 truncate text-xs text-white/45">{r.email}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <DialogFooter className="border-t border-[#252528] bg-black/30 px-6 py-4">
-                <Button
-                  variant="outline"
-                  className="border-white/15 text-white hover:bg-white/10"
-                  onClick={() => {
-                    setEmailStep('compose');
-                    setSentRecipients([]);
-                  }}
-                >
-                  Send another
-                </Button>
-                <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={closeEmailComposer}>
-                  Done
-                </Button>
-              </DialogFooter>
-            </>
-          )}
         </DialogContent>
       </Dialog>
     </div>

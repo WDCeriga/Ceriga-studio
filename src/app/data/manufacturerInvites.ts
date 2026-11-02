@@ -138,45 +138,12 @@ export async function createManufacturerInvite(email: string): Promise<string> {
     throw new Error('Please enter a valid email address.');
   }
 
-  // 1. Try Supabase RPC if database is connected
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await getSupabase().rpc('create_manufacturer_invite', {
-        p_email: normalized,
-      });
-      if (!error && typeof data === 'string' && data) {
-        recordLocalInvite(data, normalized);
-        return data;
-      }
-      if (error) {
-        console.warn(
-          '[manufacturerInvites] Supabase RPC create_manufacturer_invite returned error; generating fallback token:',
-          error.message,
-        );
-      }
-    } catch (rpcErr) {
-      console.warn('[manufacturerInvites] Supabase RPC call threw; generating fallback token:', rpcErr);
-    }
-  }
-
-  // 2. Resilient fallback: produce a self-contained, verifiable invitation token
-  const now = Date.now();
-  const expiresAt = now + 7 * 24 * 60 * 60 * 1000;
-  const payload = {
-    email: normalized,
-    exp: expiresAt,
-    iat: now,
-    nonce: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
-  };
-  const jsonStr = JSON.stringify(payload);
-  const base64 = btoa(unescape(encodeURIComponent(jsonStr)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-  const token = `inv_${base64}`;
-
-  recordLocalInvite(token, normalized, expiresAt, now);
-  return token;
+  if(!isSupabaseConfigured)throw new Error('Connect the database to create manufacturer invitations.');
+  const {data,error}=await getSupabase().rpc('create_manufacturer_invite',{p_email:normalized});
+  if(error)throw new Error(error.message);
+  if(typeof data!=='string'||!data)throw new Error('The server did not return an invitation link.');
+  recordLocalInvite(data,normalized);
+  return data;
 }
 
 export async function redeemManufacturerInvite(token: string): Promise<void> {

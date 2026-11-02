@@ -1,7 +1,7 @@
 import type { ManufacturerQuoteTierRow } from './ordersDb';
 import type { OrderPriceOption } from '../data/userOrders';
 import { isCurrency } from './currency';
-export type ApprovedTierPrice = { id: string; cents: number };
+export type ApprovedTierPrice = { id: string; cents: number; feesCents?:number;taxCents?:number;dutiesCents?:number;otherCents?:number };
 export function customerPriceOptions(tiers: ManufacturerQuoteTierRow[], approved: ApprovedTierPrice[]): OrderPriceOption[] {
  if(!tiers.length || approved.length!==tiers.length || new Set(approved.map(row=>row.id)).size!==approved.length) throw new Error('Approve a price for every quotation option');
  return tiers.map(tier=>{

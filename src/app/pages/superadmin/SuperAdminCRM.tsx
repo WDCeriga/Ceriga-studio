@@ -1,155 +1,17 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
-import { Plus, Pencil, Search } from 'lucide-react';
-import {
-  GARMENT_BASES,
-  countEnabledForProduct,
-  garmentBaseById,
-  getCatalogStore,
-  type GarmentBaseId,
-} from '../../data/crmCatalogMock';
-import { Button } from '../../components/ui/button';
-import { productGridClass, productGridStyle } from '../../styles/productGrid';
-import { cn } from '../../components/ui/utils';
-
-export function SuperAdminCRM() {
-  const catalog = getCatalogStore();
-  const [search, setSearch] = useState('');
-  const [baseFilter, setBaseFilter] = useState<GarmentBaseId | 'all'>('all');
-
-  const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return catalog.filter((p) => {
-      if (baseFilter !== 'all' && p.baseId !== baseFilter) return false;
-      if (!q) return true;
-      return (
-        p.name.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q) ||
-        p.baseId.includes(q)
-      );
-    });
-  }, [catalog, search, baseFilter]);
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-            Catalog
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            CRM
-          </h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild className="bg-[#CC2D24] hover:bg-[#CC2D24]/90">
-            <Link to="/superadmin/crm/products/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New product
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setBaseFilter('all')}
-            className={cn(
-              'rounded-lg border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition',
-              baseFilter === 'all'
-                ? 'border-[#CC2D24]/50 bg-[#CC2D24]/15 text-white'
-                : 'border-[#252528] bg-[#111113] text-white/40 hover:border-white/20',
-            )}
-          >
-            All bases
-          </button>
-          {GARMENT_BASES.map((b) => (
-            <span key={b.id} className="inline-flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setBaseFilter(b.id)}
-                className={cn(
-                  'rounded-lg border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition',
-                  baseFilter === b.id
-                    ? 'border-[#CC2D24]/50 bg-[#CC2D24]/15 text-white'
-                    : 'border-[#252528] bg-[#111113] text-white/40 hover:border-white/20',
-                )}
-              >
-                {b.name}
-              </button>
-              <Link
-                to={`/superadmin/crm/bases/${b.id}`}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#252528] bg-[#111113] text-white/35 transition hover:border-white/20 hover:text-white/70"
-                title={`Edit ${b.name} defaults`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Pencil className="h-3 w-3" />
-              </Link>
-            </span>
-          ))}
-        </div>
-        <div className="relative min-w-0 flex-1 sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products…"
-            className="h-9 w-full border-0 border-b border-white/15 bg-transparent pl-7 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#CC2D24]/70"
-          />
-        </div>
-      </div>
-
-      {filteredProducts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
-          <p className="text-sm text-white/45">No products match your search.</p>
-        </div>
-      ) : (
-        <div className={productGridClass} style={productGridStyle}>
-          {filteredProducts.map((p) => {
-            const base = garmentBaseById(p.baseId);
-            return (
-              <Link
-                key={p.id}
-                to={`/superadmin/crm/products/${p.id}`}
-                className="group flex flex-col overflow-hidden rounded-[14px] border border-[#252528] bg-[#111113] transition-all duration-200 hover:border-white/[0.14] hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
-              >
-                <div className="relative aspect-[4/3] overflow-hidden bg-black/40">
-                  <img
-                    src={p.image}
-                    alt=""
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                  />
-                  {!p.published ? (
-                    <span className="absolute left-3 top-3 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-200">
-                      Draft
-                    </span>
-                  ) : null}
-                  <span
-                    className="absolute bottom-3 left-3 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[9px] font-medium text-white/75 backdrop-blur-sm"
-                    style={{ borderColor: `${base.accent}55` }}
-                  >
-                    {base.name}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col p-4">
-                  <h2 className="text-sm font-semibold tracking-tight text-[#F2F0EC] group-hover:text-white">
-                    {p.name}
-                  </h2>
-                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#252528] pt-3">
-                    <span className="font-mono text-[10px] text-white/30">{p.id}</span>
-                    <span className="text-[10px] font-medium text-[#CC2D24]">
-                      {countEnabledForProduct(p)} options
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+import {useMemo,useState} from 'react';
+import {Link} from 'react-router';
+import {ArrowUpRight,Layers,Plus,Search,Shirt} from 'lucide-react';
+import {GARMENT_BASES,countEnabledForProduct,garmentBaseById,getCatalogStore,type GarmentBaseId} from '../../data/crmCatalogMock';
+import './superadmin-crm.css';
+function ProductImage({src,name}:{src:string;name:string}){const [failed,setFailed]=useState(false);return <div className="crm-product-image">{src&&!failed?<img src={src} alt={name} loading="lazy" decoding="async" onError={()=>setFailed(true)}/>:<span><Shirt size={32}/>Image unavailable</span>}</div>;}
+export function SuperAdminCRM(){
+ const catalog=getCatalogStore();const [view,setView]=useState('products'),[search,setSearch]=useState(''),[base,setBase]=useState<GarmentBaseId|'all'>('all'),[status,setStatus]=useState('all'),[sort,setSort]=useState('name'),[page,setPage]=useState(1);
+ const filtered=useMemo(()=>catalog.filter(p=>(base==='all'||p.baseId===base)&&(status==='all'||(status==='published'?p.published:!p.published))&&[p.name,p.id,garmentBaseById(p.baseId).name].join(' ').toLowerCase().includes(search.trim().toLowerCase())).sort((a,b)=>sort==='base'?a.baseId.localeCompare(b.baseId)||a.name.localeCompare(b.name):a.name.localeCompare(b.name)),[catalog,base,status,search,sort]);const pages=Math.max(1,Math.ceil(filtered.length/12)),current=Math.min(page,pages),visible=filtered.slice((current-1)*12,current*12);
+ return <div className="admin-crm"><div className="crm-topline"><span>CERIGA / CATALOGUE</span><span>Products & builder options</span></div><header className="crm-heading"><div><h1>CRM<span>.</span></h1><p>Manage your products and the options customers can customise.</p></div><Link className="crm-primary" to="/superadmin/crm/products/new"><Plus size={14}/>New product</Link></header>
+ <nav className="crm-tabs" aria-label="Catalogue views"><button type="button" aria-pressed={view==='products'} onClick={()=>setView('products')}>Products<span>{catalog.length}</span></button><button type="button" aria-pressed={view==='bases'} onClick={()=>setView('bases')}>Garment bases<span>{GARMENT_BASES.length}</span></button></nav>
+ {view==='products'?<><section className="crm-summary" aria-label="Catalogue overview">{[{key:'all',label:'All products',count:catalog.length},{key:'published',label:'Published',count:catalog.filter(p=>p.published).length},{key:'draft',label:'Drafts',count:catalog.filter(p=>!p.published).length}].map(s=><button type="button" key={s.key} aria-pressed={status===s.key} onClick={()=>{setStatus(s.key);setPage(1);}}><span>{s.label}</span><strong>{s.count}</strong><small>{s.key==='published'?'Visible in the customer catalogue':s.key==='draft'?'Hidden from the customer catalogue':'All catalogue configurations'}</small></button>)}</section>
+ <div className="crm-filters"><label><Search size={15}/><input type="search" aria-label="Search products" placeholder="Search product name or ID" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/></label><select aria-label="Filter garment base" value={base} onChange={e=>{setBase(e.target.value as typeof base);setPage(1);}}><option value="all">All garment bases</option>{GARMENT_BASES.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select><select aria-label="Sort products" value={sort} onChange={e=>{setSort(e.target.value);setPage(1);}}><option value="name">Name A–Z</option><option value="base">Garment base</option></select></div><div className="crm-results"><span role="status">{filtered.length} of {catalog.length} products</span>{(search||base!=='all'||status!=='all')&&<button type="button" onClick={()=>{setSearch('');setBase('all');setStatus('all');setPage(1);}}>Clear filters</button>}</div>
+ {visible.length?<div className="crm-products">{visible.map(p=><Link className="crm-product" key={p.id} to={'/superadmin/crm/products/'+p.id}><ProductImage key={p.image} src={p.image} name={p.name}/><div className="crm-product-body"><div className="crm-product-meta"><span>{garmentBaseById(p.baseId).name}</span><span className={'crm-publication '+(p.published?'crm-published':'')}>{p.published?'Published':'Draft'}</span></div><h2>{p.name}</h2><p>{p.id}</p><footer><span>{countEnabledForProduct(p)} enabled options</span><span>Edit product<ArrowUpRight size={13}/></span></footer></div></Link>)}</div>:<div className="crm-empty"><Shirt size={28}/><h2>{catalog.length?'No matching products':'No catalogue products yet'}</h2><p>{catalog.length?'Try another search, base or publication filter.':'Create a product to configure its builder options.'}</p><Link to="/superadmin/crm/products/new" className="crm-secondary">Create product<Plus size={13}/></Link></div>}
+ <nav className="crm-pagination" aria-label="Product pages"><span>{filtered.length?(current-1)*12+1:0}–{Math.min(current*12,filtered.length)} of {filtered.length}</span><div><button type="button" disabled={current<=1} onClick={()=>setPage(current-1)}>Previous</button><span>{current} / {pages}</span><button type="button" disabled={current>=pages} onClick={()=>setPage(current+1)}>Next</button></div></nav></>:<section className="crm-bases"><header><h2>Garment base defaults</h2><p>Define the components and options available to each garment foundation. Products use these constraints; changing a base can affect the options available to existing products.</p></header><div>{GARMENT_BASES.map(b=><Link key={b.id} to={'/superadmin/crm/bases/'+b.id}><span className="crm-base-icon"><Layers size={22}/></span><h3>{b.name}</h3><p>{b.description}</p><footer><span>{catalog.filter(p=>p.baseId===b.id).length} products</span><span>Edit defaults<ArrowUpRight size={13}/></span></footer></Link>)}</div></section>}
+ </div>;
 }

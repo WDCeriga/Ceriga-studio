@@ -1,0 +1,25 @@
+.admin-home .admin-action-count{display:inline-block;margin-left:6px;padding:0 5px;background:#f2f2f2;border-radius:3px;font-size:10px}
+.admin-home .admin-tasks{max-height:445px;overflow-y:auto;overscroll-behavior:contain}
+.admin-results{margin-top:30px;padding:26px 0;border-top:1px solid #e2e2e2}
+.admin-results h2{font-size:22px;font-weight:500;letter-spacing:-.6px;margin:8px 0}
+.admin-results header>p{color:#737373;font-size:11px}
+.admin-result-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:24px}
+.admin-result-grid>div{border-left:1px solid #e2e2e2;padding-left:18px;min-width:0}
+.admin-result-grid span,.admin-result-grid small{display:block;font-size:11px;color:#737373}
+.admin-result-grid strong{display:block;font-size:25px;font-weight:500;letter-spacing:-.6px;overflow-wrap:anywhere;margin:8px 0}
+.admin-result-grid small{font-size:10px}
+.superadmin-overview-shell{background:#fafafa!important;color:#171717;color-scheme:light}
+.superadmin-overview-shell>aside,.superadmin-overview-shell>header{background:#fff!important;border-color:#e2e2e2}
+.superadmin-overview-shell>aside div{border-color:#e2e2e2}
+.superadmin-overview-shell>aside :is(a,button){color:#737373;border-radius:4px}
+.superadmin-overview-shell>aside :is(a,button):hover{background:#f2f2f2;color:#171717}
+.superadmin-overview-shell>aside a[class*='border-l-2']{background:#f2f2f2;color:#171717;border-left-color:#171717}
+.superadmin-overview-shell>aside button,.superadmin-overview-shell>header :is(button,a){background:#fafafa;border-color:#e2e2e2;color:#525252}
+.superadmin-overview-shell>aside button svg{color:#737373}
+@media(max-width:900px){.admin-home .fh-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.admin-result-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}.admin-home .fh-shortcuts>a{padding:10px;gap:8px}.admin-home .fh-shortcuts>a>svg:first-child{display:none}.admin-home .fh-task-action{min-height:44px}.admin-home .fh-toolbar :is(button,select){min-height:44px}.admin-home .fh-topline{align-items:flex-start}.admin-home .fh-date{text-align:right}}
+
+.admin-trend>svg{display:block;width:calc(100% - 40px);height:140px;margin:0 20px}.admin-trend-key{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:10px 20px 20px;font-size:10px;color:#737373}
+
+
+.superadmin-overview-menu[data-slot="sheet-content"]{background:#fff;color:#262626;border-color:#e2e2e2}.superadmin-overview-menu nav a,.superadmin-overview-menu a,.superadmin-overview-menu button{color:#737373;border-radius:4px}.superadmin-overview-menu a:hover,.superadmin-overview-menu a[class*="border-l-2"]{background:#f2f2f2;color:#171717;border-left-color:#171717}.superadmin-overview-menu div{border-color:#e2e2e2}

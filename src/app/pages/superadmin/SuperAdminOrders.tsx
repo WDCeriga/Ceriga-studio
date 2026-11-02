@@ -1,3 +1,5 @@
+import './superadmin-orders.css';
+import {convertMinor} from '../../lib/currency';
 import { formatAccountTotal,sumConvertedMinor, displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -36,13 +38,6 @@ import {
 import { useSuperadminData } from '../../hooks/useSuperadminData';
 import { DeleteRecordButton } from '../../components/DeleteRecordButton';
 import { Button } from '../../components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -91,10 +86,7 @@ function orderInitials(name: string) {
     .toUpperCase();
 }
 
-function copyText(text: string, label: string) {
-  void navigator.clipboard.writeText(text);
-  toast.success(`Copied ${label}`);
-}
+async function copyText(text: string, label: string) { try { await navigator.clipboard.writeText(text); toast.success(`Copied ${label}`); } catch { toast.error('Could not copy. Please select and copy the text.'); } }
 
 const KIND_LABEL: Record<OrderKind, string> = {
   techpack: 'Tech pack',
@@ -102,8 +94,8 @@ const KIND_LABEL: Record<OrderKind, string> = {
 };
 
 const KIND_STYLE: Record<OrderKind, string> = {
-  techpack: 'border-violet-500/30 bg-violet-500/10 text-violet-200',
-  custom_clothing: 'border-sky-500/30 bg-sky-500/10 text-sky-200',
+  techpack: 'border-violet-500/30 bg-violet-500/10 text-[#737373]',
+  custom_clothing: 'border-sky-500/30 bg-sky-500/10 text-[#737373]',
 };
 
 type KindFilter = 'all' | OrderKind;
@@ -121,13 +113,13 @@ const STAGE_LABELS: Record<OrderStageFilter, string> = {
 function statusTone(status: OrderStatus) {
   if (status === 'pending_review') return 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-200';
   if (status === 'sent_to_brand' || status === 'paid' || status === 'completed')
-    return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200';
+    return 'border-emerald-500/30 bg-emerald-500/10 text-[#737373]';
   if (status === 'assigned' || status === 'in_production')
-    return 'border-amber-500/30 bg-amber-500/10 text-amber-200';
+    return 'border-amber-500/30 bg-amber-500/10 text-[#737373]';
   if (status === 'submitted' || status === 'priced')
-    return 'border-sky-500/30 bg-sky-500/10 text-sky-200';
-  if (status === 'shipped') return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200';
-  return 'border-white/15 bg-white/5 text-white/60';
+    return 'border-sky-500/30 bg-sky-500/10 text-[#737373]';
+  if (status === 'shipped') return 'border-cyan-500/30 bg-cyan-500/10 text-[#737373]';
+  return 'border-[#dedede] bg-[#f7f7f7] text-[#737373]';
 }
 
 function formatDate(iso: string) {
@@ -176,13 +168,13 @@ function SortableHeader({
   const currencyState=useCurrency();
   const active = sortField === field;
   return (
-    <th className={className}>
+    <th className={className} aria-sort={active?sortDir==='asc'?'ascending':'descending':'none'}>
       <button
         type="button"
         onClick={() => onSort(field)}
         className={cn(
-          'inline-flex items-center gap-1.5 font-medium transition hover:text-white',
-          active ? 'text-white' : 'text-white/45',
+          'inline-flex items-center gap-1.5 font-medium transition hover:text-[#262626]',
+          active ? 'text-[#262626]' : 'text-[#737373]',
         )}
       >
         {label}
@@ -203,8 +195,10 @@ function SortableHeader({
 export function SuperAdminOrders() {
   const currencyState=useCurrency();
   const navigate = useNavigate();
-  const { orders: MOCK_SUPER_ORDERS, loading, error, deleteOrder } = useSuperadminData();
+  const { orders: MOCK_SUPER_ORDERS, loading, error, deleteOrder, refresh } = useSuperadminData();
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [stageFilter, setStageFilter] = useState<OrderStageFilter>('all');
   const [sortField, setSortField] = useState<SortField>('date');
@@ -270,19 +264,21 @@ export function SuperAdminOrders() {
         case 'date':
           cmp = a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
           break;
-        case 'price':
-          cmp =
-            (a.finalPriceCents ?? a.calculatedPriceCents ?? -1) -
-              (b.finalPriceCents ?? b.calculatedPriceCents ?? -1) ||
-            a.id.localeCompare(b.id);
-          break;
+        case 'price': {
+ const price=(o:SuperAdminOrder)=>{try{const amount=o.finalPriceCents??o.calculatedPriceCents,source=o.finalPriceCents!=null?o.currency:o.manufacturerCurrency;return amount==null||!source?null:convertMinor(amount,source,currencyState.currency,currencyState.rates);}catch{return null;}};
+ const av=price(a),bv=price(b);if(av===null||bv===null)return av===bv?a.id.localeCompare(b.id):av===null?1:-1;cmp=av-bv||a.id.localeCompare(b.id);break;
+ }
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [filteredOrders, sortField, sortDir]);
+  }, [filteredOrders, sortField, sortDir, currencyState.currency, currencyState.rates]);
 
+  const pageCount=Math.max(1,Math.ceil(sortedOrders.length/pageSize));
+  const currentPage=Math.min(page,pageCount);
+  const visibleOrders=sortedOrders.slice((currentPage-1)*pageSize,currentPage*pageSize);
   const toggleSort = (field: SortField) => {
+    setPage(1);
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
       return;
@@ -294,13 +290,14 @@ export function SuperAdminOrders() {
   const hasFilters = kindFilter !== 'all' || stageFilter !== 'all' || search.trim().length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="admin-orders space-y-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-            Fulfilment
+            CERIGA / OPERATIONS
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Orders</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#262626] sm:text-3xl">Orders</h1>
+          <p className="orders-intro">Every order in view. A clear next step for each.</p>
         </div>
         {stats.awaitingReview > 0 ? (
           <Button
@@ -319,26 +316,27 @@ export function SuperAdminOrders() {
           { label: 'Awaiting review', value: stats.awaitingReview },
           { label: 'At manufacturer', value: stats.atManufacturer },
           {
-            label: 'Order value',
+            label: 'Quoted order value',
             value: formatAccountTotal(stats.totalValue),
           },
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-2xl border border-[#252528] bg-gradient-to-br from-[#161618] to-[#111113] p-4"
+            className="rounded-md border border-[#e2e2e2] bg-gradient-to-br from-[#161618] to-[#111113] p-4"
           >
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-white/38">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
               {s.label}
             </div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums text-white">{s.value}</div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums text-[#262626]">{loading || error ? '—' : s.value}</div>
           </div>
         ))}
       </div>
 
+      <p className="orders-note">Counts cover all orders. Quoted value includes unpaid offers; it is not received revenue. Converted values are indicative.</p>
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="relative min-w-0 flex-1 sm:max-w-md">
-          <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
+          <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-[#737373]" />
           <input
             type="search"
             name="platform-order-filter"
@@ -349,72 +347,51 @@ export function SuperAdminOrders() {
             data-1p-ignore
             data-lpignore="true"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search orders…"
-            className="h-10 w-full border-0 border-b border-white/15 bg-transparent pl-7 pr-2 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-[#CC2D24]/70 focus:ring-0"
+            aria-label="Search orders"
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search order, customer or manufacturer"
+            className="h-10 w-full border-0 border-b border-[#dedede] bg-transparent pl-7 pr-2 text-sm text-[#262626] outline-none transition-colors placeholder:text-[#737373] focus:border-[#CC2D24]/70 focus:ring-0"
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as KindFilter)}>
-            <SelectTrigger className="h-9 w-[150px] border-white/12 bg-[#111113] text-sm text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-[#252528] bg-[#161618] text-white">
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="techpack">Tech pack</SelectItem>
-              <SelectItem value="custom_clothing">Custom clothing</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={stageFilter} onValueChange={(v) => setStageFilter(v as OrderStageFilter)}>
-            <SelectTrigger className="h-9 w-[190px] border-white/12 bg-[#111113] text-sm text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-[#252528] bg-[#161618] text-white">
-              {(Object.keys(STAGE_LABELS) as OrderStageFilter[]).map((key) => (
-                <SelectItem key={key} value={key}>
-                  {STAGE_LABELS[key]}
-                  {key === 'review' && stats.awaitingReview > 0
-                    ? ` (${stats.awaitingReview})`
-                    : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <select aria-label="Order type" value={kindFilter} onChange={e=>{setKindFilter(e.target.value as KindFilter);setPage(1);}}><option value="all">All types</option><option value="techpack">Tech pack</option><option value="custom_clothing">Custom clothing</option></select>
+          <select aria-label="Order stage" value={stageFilter} onChange={e=>{setStageFilter(e.target.value as OrderStageFilter);setPage(1);}}>{Object.entries(STAGE_LABELS).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>
         </div>
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">
-          Could not load orders: {error}
+        <div role="alert" className="rounded-md border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-[#737373]">
+          Could not load orders: {error} <button type="button" disabled={loading} onClick={()=>void refresh()}>Retry</button>
         </div>
       ) : null}
 
       {hasFilters ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[#737373]">
           <span>
-            Showing <strong className="text-white">{sortedOrders.length}</strong> of{' '}
+            Showing <strong className="text-[#262626]">{sortedOrders.length}</strong> of{' '}
             {MOCK_SUPER_ORDERS.length}
           </span>
           <button
             type="button"
             className="text-[#CC2D24] hover:underline"
             onClick={() => {
+              setPage(1);
               setSearch('');
               setKindFilter('all');
               setStageFilter('all');
             }}
           >
-            Clear
+            Clear filters
           </button>
         </div>
       ) : null}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="overflow-hidden rounded-md border border-[#e2e2e2] bg-white orders-table">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#252528] bg-white/[0.02] text-[11px] uppercase tracking-wider text-white/45">
+              <tr className="border-b border-[#e2e2e2] bg-[#f7f7f7] text-[11px] uppercase tracking-wider text-[#737373]">
                 <SortableHeader
                   field="order"
                   label="Order"
@@ -458,20 +435,21 @@ export function SuperAdminOrders() {
                   onSort={toggleSort}
                   className="px-4 py-3.5"
                 />
+                <th className="px-4 py-3.5">Next step</th>
               </tr>
             </thead>
             <tbody>
               {sortedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center">
-                    <Package className="mx-auto h-8 w-8 text-white/20" />
-                    <p className="mt-3 text-sm text-white/45">
-                      {loading ? 'Loading orders…' : 'No orders match your filters.'}
+                  <td colSpan={9} className="px-4 py-16 text-center">
+                    <Package className="mx-auto h-8 w-8 text-[#737373]" />
+                    <p className="mt-3 text-sm text-[#737373]">
+                      {loading ? 'Loading orders…' : error ? 'Orders could not be loaded.' : hasFilters ? 'No orders match your filters.' : 'No orders yet. Submitted orders will appear here.'}
                     </p>
                   </td>
                 </tr>
               ) : (
-                sortedOrders.map((o) => (
+                visibleOrders.map((o) => (
                   <OrderTableRow
                     key={o.id}
                     order={o}
@@ -489,10 +467,12 @@ export function SuperAdminOrders() {
         </div>
       </div>
 
+      <div className="orders-mobile-list">{visibleOrders.map(o=><article key={o.id}><button type="button" className="orders-mobile-preview" onClick={()=>setActiveOrderId(o.id)}><strong>{o.productName}</strong><span>#{o.id.slice(0,8)} · {KIND_LABEL[o.kind]}</span><span>{o.userName} · {fulfilmentLabel(o)}</span><span>{orderStatusLabel(o)} · {displayPrice(o)}</span></button><Link className="orders-next-action" to={'/superadmin/orders/'+o.id}>{SUPERADMIN_REVIEW_STATUSES.includes(o.status)?'Review quote':o.kind==='custom_clothing'&&o.status==='submitted'?'Assign manufacturer':'Open order'}<ArrowRight size={13}/></Link></article>)}{!visibleOrders.length&&<p role="status">{loading?'Loading orders…':error?'Orders could not be loaded.':hasFilters?'No orders match your filters.':'No orders yet.'}</p>}</div>
+      <nav className="orders-pagination" aria-label="Order list pages"><span>{sortedOrders.length?(currentPage-1)*pageSize+1:0}–{Math.min(currentPage*pageSize,sortedOrders.length)} of {sortedOrders.length} orders</span><div><button type="button" disabled={loading||currentPage<=1} onClick={()=>setPage(currentPage-1)}>Previous</button><span>Page {currentPage} of {pageCount}</span><button type="button" disabled={loading||currentPage>=pageCount} onClick={()=>setPage(currentPage+1)}>Next</button></div></nav>
       <Sheet open={activeOrderId != null} onOpenChange={(open) => !open && setActiveOrderId(null)}>
         <SheetContent
           side="right"
-          className="flex w-full flex-col gap-0 border-[#252528] bg-[#111113] p-0 text-white sm:max-w-lg"
+          className="admin-order-preview flex w-full flex-col gap-0 border-[#e2e2e2] bg-white p-0 text-[#262626] sm:max-w-lg"
         >
           {activeOrder ? (
             <OrderPreview
@@ -530,27 +510,27 @@ function OrderTableRow({
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
           onOpen();
         }
       }}
       className={cn(
-        'group cursor-pointer border-b border-[#252528] transition last:border-0',
-        needsReview ? 'bg-[#CC2D24]/[0.06] hover:bg-[#CC2D24]/[0.09]' : 'hover:bg-white/[0.04]',
-        active && 'bg-white/[0.06] ring-1 ring-inset ring-[#CC2D24]/25',
+        'group cursor-pointer border-b border-[#e2e2e2] transition last:border-0',
+        needsReview ? 'bg-[#CC2D24]/[0.06] hover:bg-[#CC2D24]/[0.09]' : 'hover:bg-[#f7f7f7]',
+        active && 'bg-[#f7f7f7] ring-1 ring-inset ring-[#CC2D24]/25',
       )}
     >
       <td className="px-4 py-3.5">
         <div className="font-mono text-[11px] text-[#CC2D24]/80 group-hover:text-[#CC2D24]">
           {order.id}
         </div>
-        <div className="mt-0.5 max-w-[220px] truncate font-medium text-white">{order.productName}</div>
+        <div className="mt-0.5 max-w-[220px] truncate font-medium text-[#262626]">{order.productName}</div>
       </td>
       <td className="px-4 py-3.5">
         <span
           className={cn(
-            'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium',
+            'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium',
             KIND_STYLE[order.kind],
           )}
         >
@@ -564,19 +544,19 @@ function OrderTableRow({
       </td>
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04] text-[10px] font-bold text-white/70">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#e2e2e2] bg-[#f7f7f7] text-[10px] font-bold text-[#737373]">
             {order.userName.slice(0, 2).toUpperCase()}
           </span>
           <div className="min-w-0">
-            <div className="truncate font-medium text-white">{order.userName}</div>
-            <div className="truncate text-[11px] text-white/45">{order.userEmail}</div>
+            <div className="truncate font-medium text-[#262626]">{order.userName}</div>
+            <div className="truncate text-[11px] text-[#737373]">{order.userEmail}</div>
           </div>
         </div>
       </td>
       <td className="px-4 py-3.5">
         <span
           className={cn(
-            'inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium',
+            'inline-flex rounded-md border px-2.5 py-0.5 text-[10px] font-medium',
             statusTone(order.status),
           )}
         >
@@ -584,34 +564,35 @@ function OrderTableRow({
         </span>
       </td>
       <td className="px-4 py-3.5">
-        <span className="inline-flex items-center gap-1.5 text-white/80">
+        <span className="inline-flex items-center gap-1.5 text-[#737373]">
           {order.kind === 'techpack' ? (
-            <Package className="h-3.5 w-3.5 shrink-0 text-violet-300/70" />
+            <Package className="h-3.5 w-3.5 shrink-0 text-[#737373]" />
           ) : (
-            <Factory className="h-3.5 w-3.5 shrink-0 text-white/35" />
+            <Factory className="h-3.5 w-3.5 shrink-0 text-[#737373]" />
           )}
           <span className="truncate">{fulfilmentLabel(order)}</span>
         </span>
       </td>
       <td className="px-4 py-3.5">
-        <span className="inline-flex items-center gap-1 text-xs text-white/55">
-          <MapPin className="h-3 w-3 shrink-0 text-white/30" />
+        <span className="inline-flex items-center gap-1 text-xs text-[#737373]">
+          <MapPin className="h-3 w-3 shrink-0 text-[#737373]" />
           {order.deliveryCity}, {order.deliveryCountry}
         </span>
       </td>
       <td className="px-4 py-3.5">
-        <div className="tabular-nums font-medium text-white/85">{displayPrice(order)}</div>
+        <div className="tabular-nums font-medium text-[#737373]">{displayPrice(order)}</div>
         {needsReview && order.calculatedPriceCents != null ? (
           <div className="text-[10px] text-[#CC2D24]/80">Calculated</div>
         ) : null}
       </td>
       <td className="px-4 py-3.5">
-        <span className="inline-flex items-center gap-1 text-xs text-white/40 transition group-hover:text-white/65">
+        <span className="inline-flex items-center gap-1 text-xs text-[#737373] transition group-hover:text-[#737373]">
           {formatDate(order.createdAt)}
           <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
         </span>
         <DeleteRecordButton label={`order ${order.id}`} description="Permanently delete this order and its related records? This cannot be undone." onDelete={onDelete} />
       </td>
+      <td className="px-4 py-3.5" onClick={e=>e.stopPropagation()}><Link className="orders-next-action" to={'/superadmin/orders/'+order.id}>{needsReview?'Review quote':order.kind==='custom_clothing'&&order.status==='submitted'?'Assign manufacturer':'Open order'}<ArrowRight size={13}/></Link></td>
     </tr>
   );
 }
@@ -631,7 +612,7 @@ function OrderPreview({
   const headerGradient = isTechPack
     ? 'from-violet-500/14 via-violet-500/[0.03] to-transparent'
     : 'from-[#CC2D24]/14 via-[#CC2D24]/[0.02] to-transparent';
-  const accentColor = isTechPack ? 'text-violet-300' : 'text-[#CC2D24]';
+  const accentColor = isTechPack ? 'text-[#737373]' : 'text-[#CC2D24]';
   const accentBg = isTechPack ? 'bg-violet-500/15' : 'bg-[#CC2D24]/15';
   const steps = isTechPack ? TECHPACK_STEPS : CUSTOM_STEPS;
   const currentRank = STATUS_RANK[order.status];
@@ -645,12 +626,12 @@ function OrderPreview({
 
   return (
     <>
-      <div className={cn('shrink-0 border-b border-[#252528] bg-gradient-to-br px-6 pb-5 pt-10', headerGradient)}>
+      <div className={cn('shrink-0 border-b border-[#e2e2e2] bg-gradient-to-br px-6 pb-5 pt-10', headerGradient)}>
         <SheetHeader className="space-y-0 p-0 text-left">
           <div className="flex items-start gap-4">
             <span
               className={cn(
-                'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#252528]',
+                'flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-[#e2e2e2]',
                 accentBg,
                 accentColor,
               )}
@@ -662,19 +643,19 @@ function OrderPreview({
                 <p className={cn('font-mono text-[11px]', accentColor)}>{order.id}</p>
                 <button
                   type="button"
-                  className="rounded-md p-1 text-white/35 transition hover:bg-white/10 hover:text-white"
+                  className="rounded-md p-1 text-[#737373] transition hover:bg-[#f7f7f7] hover:text-[#262626]"
                   onClick={() => copyText(order.id, 'order ID')}
                   aria-label="Copy order ID"
                 >
                   <Copy className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <SheetTitle className="mt-1.5 text-xl leading-snug text-white">{order.productName}</SheetTitle>
+              <SheetTitle className="mt-1.5 text-xl leading-snug text-[#262626]">{order.productName}</SheetTitle>
               <SheetDescription asChild>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      'inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium',
+                      'inline-flex rounded-md border px-2.5 py-0.5 text-[10px] font-medium',
                       statusTone(order.status),
                     )}
                   >
@@ -682,7 +663,7 @@ function OrderPreview({
                   </span>
                   <span
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium',
+                      'inline-flex items-center gap-1 rounded-md border px-2.5 py-0.5 text-[10px] font-medium',
                       KIND_STYLE[order.kind],
                     )}
                   >
@@ -693,18 +674,18 @@ function OrderPreview({
             </div>
           </div>
 
-          <div className="mt-5 flex items-end justify-between gap-4 rounded-xl border border-[#252528] bg-black/25 px-4 py-3.5">
+          <div className="mt-5 flex items-end justify-between gap-4 rounded-md border border-[#e2e2e2] bg-[#fafafa] px-4 py-3.5">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">
                 {isTechPack ? 'Export price' : needsReview ? 'Calculated price' : 'Brand price'}
               </p>
-              <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-white">
+              <p className="mt-0.5 text-2xl font-semibold tabular-nums tracking-tight text-[#262626]">
                 {displayPrice(order)}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Created</p>
-              <p className="mt-0.5 text-sm font-medium text-white/70">{formatDate(order.createdAt)}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">Created</p>
+              <p className="mt-0.5 text-sm font-medium text-[#737373]">{formatDate(order.createdAt)}</p>
             </div>
           </div>
         </SheetHeader>
@@ -714,7 +695,7 @@ function OrderPreview({
         <div className="space-y-5 px-6 py-5">
           {/* Pipeline */}
           <section>
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Progress</h3>
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">Progress</h3>
             <div className="mt-3 flex items-center gap-1">
               {steps.map((step, i) => {
                 const state = stepState(step.status);
@@ -723,15 +704,15 @@ function OrderPreview({
                     <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                       <span
                         className={cn(
-                          'flex h-7 w-7 items-center justify-center rounded-full border transition',
-                          state === 'done' && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+                          'flex h-7 w-7 items-center justify-center rounded-md border transition',
+                          state === 'done' && 'border-emerald-500/40 bg-emerald-500/15 text-[#737373]',
                           state === 'current' &&
                             (needsReview && !isTechPack
                               ? 'border-[#CC2D24]/50 bg-[#CC2D24]/20 text-red-200'
                               : isTechPack
-                                ? 'border-violet-400/50 bg-violet-500/20 text-violet-200'
+                                ? 'border-violet-400/50 bg-violet-500/20 text-[#737373]'
                                 : 'border-[#CC2D24]/50 bg-[#CC2D24]/20 text-red-200'),
-                          state === 'upcoming' && 'border-[#252528] bg-white/[0.03] text-white/25',
+                          state === 'upcoming' && 'border-[#e2e2e2] bg-[#f7f7f7] text-[#737373]',
                         )}
                       >
                         {state === 'done' ? (
@@ -745,7 +726,7 @@ function OrderPreview({
                       <span
                         className={cn(
                           'w-full truncate text-center text-[9px] font-medium leading-tight',
-                          state === 'current' ? 'text-white' : 'text-white/35',
+                          state === 'current' ? 'text-[#262626]' : 'text-[#737373]',
                         )}
                       >
                         {step.label}
@@ -755,7 +736,7 @@ function OrderPreview({
                       <div
                         className={cn(
                           'mb-4 h-px w-full min-w-[6px] flex-1',
-                          currentRank > STATUS_RANK[step.status] ? 'bg-emerald-500/35' : 'bg-white/10',
+                          currentRank > STATUS_RANK[step.status] ? 'bg-emerald-500/35' : 'bg-[#f7f7f7]',
                         )}
                       />
                     ) : null}
@@ -767,46 +748,46 @@ function OrderPreview({
 
           {/* Review callout */}
           {!isTechPack && needsReview && getOrderQuoteTiers(order).length > 0 ? (
-            <div className="rounded-xl border border-[#CC2D24]/30 bg-gradient-to-br from-[#CC2D24]/12 to-transparent p-4">
+            <div className="rounded-md border border-[#CC2D24]/30 bg-gradient-to-br from-[#CC2D24]/12 to-transparent p-4">
               <div className="flex items-center gap-2">
                 <Calculator className="h-4 w-4 text-[#CC2D24]" />
-                <p className="text-xs font-semibold text-white">Ready for your review</p>
+                <p className="text-xs font-semibold text-[#262626]">Ready for your review</p>
               </div>
               <dl className="mt-3 space-y-2 text-sm">
                 {getOrderQuoteTiers(order).map((tier) => (
                   <div key={tier.id} className="flex justify-between gap-4">
-                    <dt className="text-white/45">
+                    <dt className="text-[#737373]">
                       {tier.label}
                       {tier.totalUnits > 0 ? ` · ${tier.totalUnits}u` : ''}
                     </dt>
-                    <dd className="tabular-nums font-medium text-white">
+                    <dd className="tabular-nums font-medium text-[#262626]">
                       {displayMoney(tier.manufacturerQuoteCents,tier.currency)}
                     </dd>
                   </div>
                 ))}
-                <div className="flex justify-between gap-4 border-t border-[#252528] pt-2">
-                  <dt className="text-white/45">Ceriga margin</dt>
-                  <dd className="text-white">{order.cerigaMarginPercent ?? 17.5}%</dd>
+                <div className="flex justify-between gap-4 border-t border-[#e2e2e2] pt-2">
+                  <dt className="text-[#737373]">Ceriga margin</dt>
+                  <dd className="text-[#262626]">{order.cerigaMarginPercent ?? 17.5}%</dd>
                 </div>
               </dl>
             </div>
           ) : null}
 
           {/* Customer */}
-          <section className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Customer</h3>
+          <section className="rounded-md border border-[#e2e2e2] bg-[#f7f7f7] p-4">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">Customer</h3>
             <div className="mt-3 flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04] text-xs font-bold text-white/75">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-[#e2e2e2] bg-[#f7f7f7] text-xs font-bold text-[#737373]">
                 {orderInitials(order.userName)}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-white">{order.userName}</p>
-                <p className="truncate text-xs text-white/45">{order.userEmail}</p>
+                <p className="truncate font-medium text-[#262626]">{order.userName}</p>
+                <p className="truncate text-xs text-[#737373]">{order.userEmail}</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 shrink-0 border-white/15 bg-transparent px-2.5 text-[11px] text-white/70 hover:bg-white/10 hover:text-white"
+                className="h-8 shrink-0 border-[#dedede] bg-transparent px-2.5 text-[11px] text-[#737373] hover:bg-[#f7f7f7] hover:text-[#262626]"
                 asChild
               >
                 <Link to={`/superadmin/users/${order.userId}`} onClick={onClose}>
@@ -817,8 +798,8 @@ function OrderPreview({
           </section>
 
           {/* Details */}
-          <section className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Details</h3>
+          <section className="rounded-md border border-[#e2e2e2] bg-[#f7f7f7] p-4">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">Details</h3>
             <dl className="mt-3 divide-y divide-white/[0.06]">
               {isTechPack ? (
                 <>
@@ -858,15 +839,15 @@ function OrderPreview({
           </section>
 
           {order.notes ? (
-            <section className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
-              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Notes</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/60">{order.notes}</p>
+            <section className="rounded-md border border-[#e2e2e2] bg-[#f7f7f7] p-4">
+              <h3 className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">Notes</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[#737373]">{order.notes}</p>
             </section>
           ) : null}
         </div>
       </ScrollArea>
 
-      <div className="shrink-0 space-y-2 border-t border-[#252528] bg-[#111113] px-6 py-4">
+      <div className="shrink-0 space-y-2 border-t border-[#e2e2e2] bg-white px-6 py-4">
         <Button
           className="w-full bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90"
           onClick={onOpenFull}
@@ -876,7 +857,7 @@ function OrderPreview({
         </Button>
         <Button
           variant="outline"
-          className="w-full border-white/15 bg-white/[0.03] text-white/80 hover:bg-white/10 hover:text-white"
+          className="w-full border-[#dedede] bg-[#f7f7f7] text-[#737373] hover:bg-[#f7f7f7] hover:text-[#262626]"
           asChild
         >
           <Link to={`/superadmin/users/${order.userId}`} onClick={onClose}>
@@ -903,10 +884,10 @@ function DetailRow({
   const currencyState=useCurrency();
   return (
     <div className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/30" />
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#737373]" />
       <div className="min-w-0 flex-1">
-        <dt className="text-[10px] font-medium uppercase tracking-wider text-white/35">{label}</dt>
-        <dd className={cn('mt-0.5 text-sm text-white/85', mono && 'font-mono text-xs')}>{value}</dd>
+        <dt className="text-[10px] font-medium uppercase tracking-wider text-[#737373]">{label}</dt>
+        <dd className={cn('mt-0.5 text-sm text-[#737373]', mono && 'font-mono text-xs')}>{value}</dd>
       </div>
     </div>
   );

@@ -1,9 +1,11 @@
+import {FreightTotalPreview} from '../../components/freight/FreightTotalPreview';
+import {FreightReview} from '../../components/freight/FreightReview';
 import { amountToCents } from '../../lib/currency';
 import { formatMoney as originalMoney } from '../../lib/currency';
 import { displayMoney,useCurrency } from '../../lib/accountCurrency';
 import type { ApprovedTierPrice } from '../../lib/customerQuote';
 import { RejectQuotation } from '../../components/superadmin/RejectQuotation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
   Calculator,
@@ -54,7 +56,7 @@ function PricingReviewForm({
   onRejected,
 }: {
   order: SuperAdminOrder;
-  onSubmit: (prices: ApprovedTierPrice[]) => void;
+  onSubmit: (prices: ApprovedTierPrice[]) => Promise<boolean>;
   onSkip?: () => void;
   onRejected: (action: 'revise' | 'reassign') => void;
 }) {
@@ -66,18 +68,24 @@ function PricingReviewForm({
     [order, marginPercent],
   );
 
+  const saveLock=useRef(false);
+  const [saving,setSaving]=useState(false);
+  const [shippingReady,setShippingReady]=useState(false);
+  const [charges,setCharges]=useState<Record<string,Record<string,string>>>({});
   const [finalByTier, setFinalByTier] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const next: Record<string, string> = {};
     for (const tier of withCalculatedQuoteTiers(getOrderQuoteTiers(order), marginPercent)) {
-      const cents = tier.finalPriceCents ?? tier.calculatedPriceCents;
+      const cents = tier.manufacturingSubtotalCents ?? tier.calculatedPriceCents;
       next[tier.id] = cents != null ? (cents / 100).toFixed(2) : '';
     }
     setFinalByTier(next);
   }, [order.id, marginPercent, order]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if(saveLock.current)return;
+    if(!shippingReady){toast.error('Confirm shipping for every option first.');return;}
     const priced: number[] = [];
     for (const tier of quoteTiers) {
       const n = amountToCents(finalByTier[tier.id]??'');
@@ -92,7 +100,8 @@ function PricingReviewForm({
       return;
     }
 
-    onSubmit(quoteTiers.map((tier,index)=>({id:tier.id,cents:priced[index]})));
+    saveLock.current=true;setSaving(true);
+    try{await onSubmit(quoteTiers.map((tier,index)=>({id:tier.id,cents:priced[index],...Object.fromEntries(['feesCents','taxCents','dutiesCents','otherCents'].map(k=>[k,amountToCents(charges[tier.id]?.[k]||'0')??NaN]))})));}finally{saveLock.current=false;setSaving(false);}
   };
 
   return (
@@ -129,6 +138,8 @@ function PricingReviewForm({
 
       <div className="flex-1 overflow-y-auto p-5 lg:p-6">
         <div className="grid gap-3 sm:grid-cols-2">
+          <FreightReview key={order.id} orderId={order.id} onReady={setShippingReady}/>
+          <FreightTotalPreview orderId={order.id} prices={()=>quoteTiers.map(t=>({id:t.id,cents:amountToCents(finalByTier[t.id]||''),...Object.fromEntries(['feesCents','taxCents','dutiesCents','otherCents'].map(k=>[k,amountToCents(charges[t.id]?.[k]||'0')??NaN]))}))}/>
           {quoteTiers.map((tier) => (
             <div
               key={tier.id}
@@ -173,7 +184,7 @@ function PricingReviewForm({
 
               <div className="mt-3">
                 <Label htmlFor={`queue-final-${tier.id}`} className="text-[11px] text-white/50">
-                  Approved total in original currency ({tier.currency ?? 'needs review'})
+                  Manufacturing subtotal including margin, excluding shipping ({tier.currency ?? 'needs review'})
                 </Label>
                 <Input
                   id={`queue-final-${tier.id}`}
@@ -185,6 +196,7 @@ function PricingReviewForm({
                   placeholder="0.00"
                 />
               </div>
+              <div className="freight-fields">{Object.entries({feesCents:'Shipping service fee',taxCents:'Taxes',dutiesCents:'Known duties',otherCents:'Other charges'}).map(([k,label])=><label key={k}>{label} ({tier.currency})<input type="number" min="0" step="0.01" value={charges[tier.id]?.[k]||''} onChange={e=>setCharges(previous=>({...previous,[tier.id]:{...previous[tier.id],[k]:e.target.value}}))}/></label>)}</div>
             </div>
           ))}
         </div>
@@ -192,9 +204,9 @@ function PricingReviewForm({
 
       <div className="flex flex-wrap items-center gap-2 border-t border-[#252528] px-5 py-4 lg:px-6">
         <RejectQuotation key={order.id} orderId={order.id} onRejected={onRejected} />
-        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={handleSubmit}>
+        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" disabled={saving||!shippingReady} onClick={()=>void handleSubmit()}>
           <Send className="mr-2 h-4 w-4" />
-          Submit all & next
+          {saving?'Sending…':'Submit all & next'}
         </Button>
         {onSkip ? (
           <Button
@@ -238,9 +250,8 @@ export function SuperAdminOrderReviewQueue() {
     }
   }, [remaining.length, doneCount, finished]);
 
-  const handleSubmit = (prices: ApprovedTierPrice[]) => {
-    if (!current) return;
-    void (async () => {
+  const handleSubmit = async (prices: ApprovedTierPrice[]):Promise<boolean> => {
+    if (!current) return false;
       const ok = await patchOrder(current.id, {
         approvedPrices: prices,
         status: 'sent_to_brand',
@@ -248,11 +259,11 @@ export function SuperAdminOrderReviewQueue() {
       });
       if (!ok) {
         toast.error('Could not save pricing — check your connection');
-        return;
+        return false;
       }
       setCompletedIds((prev) => new Set([...prev, current.id]));
       toast.success('Approved quotation sent to the customer');
-    })();
+      return true;
   };
 
   const exitToOrders = () => navigate('/superadmin/orders');

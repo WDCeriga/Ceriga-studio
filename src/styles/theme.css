@@ -206,10 +206,22 @@
   }
 }
 
-/* Site-wide scrollbars: near-black track, medium-grey rounded thumb */
+/* Shared scrollbar palette: dark by default, inherited by native and Radix scrollers. */
+:root {
+  --ceriga-scrollbar-track: #161618;
+  --ceriga-scrollbar-thumb: #4a4a4a;
+  --ceriga-scrollbar-thumb-hover: #5a5a5a;
+}
+html:has(.manufacturer-home-shell, .manufacturer-onboarding-shell, .superadmin-overview-shell) {
+  --ceriga-scrollbar-track: #fafafa;
+  --ceriga-scrollbar-thumb: #bdbdbd;
+  --ceriga-scrollbar-thumb-hover: #999;
+  color-scheme: light;
+}
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: #4a4a4a #161618;
+  scrollbar-color: var(--ceriga-scrollbar-thumb) var(--ceriga-scrollbar-track);
 }
 
 *::-webkit-scrollbar {
@@ -218,23 +230,25 @@
 }
 
 *::-webkit-scrollbar-track {
-  background: #161618;
+  background: var(--ceriga-scrollbar-track);
   border-radius: 9999px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
+  background: var(--ceriga-scrollbar-thumb);
   border-radius: 9999px;
-  border: 2px solid #161618;
+  border: 2px solid var(--ceriga-scrollbar-track);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #5a5a5a;
+  background: var(--ceriga-scrollbar-thumb-hover);
 }
 
 *::-webkit-scrollbar-corner {
-  background: #161618;
+  background: var(--ceriga-scrollbar-track);
 }
+
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 
 /* Builder / horizontal strips: scroll with no visible grey bar (touch still scrolls) */
 .no-scrollbar,

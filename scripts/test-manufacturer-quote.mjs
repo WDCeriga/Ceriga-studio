@@ -1,3 +1,4 @@
+import {shippingFixture,selectTestShipping,verifyTestPayment}from './support/shippingFixture.mjs';
 // Isolated fixtures only; never connects to production.
 // Runtime: npm install --prefix .tmp-workflow-test --no-save --package-lock=false @electric-sql/pglite@0.3.14
 import fs from 'node:fs/promises';
@@ -9,7 +10,7 @@ insert into public.manufacturer_profiles(user_id,factory_name,onboarding_complet
 insert into public.orders(id,user_id,assigned_manufacturer_id,kind,product_name,garment_type,status,status_label)values('55555555-5555-5555-5555-555555555555','11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222','production','Quote test','Hoodies','submitted','Awaiting quote');`);
 await db.exec(`update public.orders set order_quantities='{"mode":"custom_clothing","sample":{"id":"sample","kind":"sample","targetTotal":6,"bySize":{"s":6}},"bulkRuns":[]}'::jsonb;`);
 await db.exec("update public.profiles set preferred_currency='GBP'where id='22222222-2222-2222-2222-222222222222'");
-const quote=JSON.stringify([{id:'sample',kind:'sample',label:'Samples',totalUnits:999,unitPriceCents:2000,manufacturerQuoteCents:1,currency:'GBP',leadTimeDays:14}]);
+const quote=JSON.stringify([{id:'sample',kind:'sample',shipping:shippingFixture,label:'Samples',totalUnits:999,unitPriceCents:2000,manufacturerQuoteCents:1,currency:'GBP',leadTimeDays:14}]);
 const claims=async id=>db.exec(`reset role;select set_config('app.routing_write','',false);select set_config('request.jwt.claims','{"sub":"${id}","email":"test@example.invalid","role":"authenticated"}',false);set role authenticated;`);
 import assert from 'node:assert/strict';
 for(const id of ['11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333']) {

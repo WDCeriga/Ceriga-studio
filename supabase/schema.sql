@@ -4818,3 +4818,1173 @@ create or replace function public.accept_factory_invitation(p_token text)returns
  insert into manufacturer_team_contexts(user_id,manufacturer_id)values(auth.uid(),f)on conflict(user_id)do update set manufacturer_id=f;
  insert into manufacturer_team_audit(manufacturer_id,actor_id,action,subject_id)values(f,auth.uid(),'accept_invitation',i.id);return f;end$$;
 commit;
+
+-- Platform worker invitations, roles and scoped operational access (20261027010000)
+begin;
+-- Platform workers are independent of manufacturer teams and protected Super Admin identities.
+select pg_advisory_xact_lock(7271027001);
+create or replace function public.platform_worker_catalog()returns jsonb language sql immutable set search_path=public as $$select '[{"id":"orders","label":"Orders","description":"Operational notes and existing manufacturer/worker assignments.","scoped":true,"actions":["view","edit","assign","export"]},{"id":"quality","label":"Quality control","description":"Review existing production submissions; factory self-review is blocked.","scoped":true,"actions":["view","edit"]},{"id":"manufacturers","label":"Manufacturers","description":"Operational factory directory; financial and private verification details are excluded.","scoped":true,"actions":["view"]},{"id":"reports","label":"Reports","description":"Order-stage summaries from records you may access.","scoped":true,"actions":["view","export"]},{"id":"workers","label":"Workers","description":"View the staff directory or suspend/reactivate authorised workers.","scoped":false,"actions":["view","edit"]},{"id":"invitations","label":"Invitations","description":"Generate, copy/regenerate and revoke staff invitations.","scoped":false,"actions":["view","create","edit","delete"]},{"id":"roles","label":"Roles & permissions","description":"Maintain role definitions. Assign roles separately.","scoped":false,"actions":["view","create","edit","delete","assign"]}]'::jsonb$$;
+revoke all on function public.platform_worker_catalog()from public,anon;grant execute on function public.platform_worker_catalog()to authenticated;
+create table if not exists public.platform_worker_roles(id uuid primary key default gen_random_uuid(),name text not null check(length(btrim(name))between 1 and 60),description text not null default ''check(length(description)<=1000),permissions jsonb not null default '{}',is_default boolean not null default false,revision integer not null default 1,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),created_by uuid references public.profiles(id)on delete set null,archived_at timestamptz);
+create unique index if not exists platform_worker_role_name_idx on public.platform_worker_roles(lower(btrim(name)))where archived_at is null;
+create table if not exists public.platform_workers(user_id uuid primary key references public.profiles(id)on delete cascade,role_id uuid not null references public.platform_worker_roles(id)on delete restrict,status text not null default 'active'check(status in('active','suspended')),joined_at timestamptz not null default now(),updated_at timestamptz not null default now(),revision integer not null default 1);
+create index if not exists platform_worker_role_idx on public.platform_workers(role_id,status);
+create table if not exists public.platform_worker_invitations(id uuid primary key default gen_random_uuid(),email text not null,role_id uuid not null references public.platform_worker_roles(id)on delete restrict,token_hash text not null unique,token_value text not null,invited_by uuid references public.profiles(id)on delete set null,created_at timestamptz not null default now(),expires_at timestamptz not null default(now()+interval '7 days'),accepted_at timestamptz,accepted_by uuid references public.profiles(id)on delete set null,revoked_at timestamptz,revision integer not null default 1);
+create unique index if not exists platform_worker_pending_email_idx on public.platform_worker_invitations(lower(email))where accepted_at is null and revoked_at is null;
+create index if not exists platform_worker_inviter_idx on public.platform_worker_invitations(invited_by,created_at desc);
+create index if not exists platform_worker_invite_role_idx on public.platform_worker_invitations(role_id);
+create table if not exists public.platform_worker_assignments(order_id uuid not null references public.orders(id)on delete cascade,worker_id uuid not null references public.platform_workers(user_id)on delete cascade,assigned_by uuid references public.profiles(id)on delete set null,created_at timestamptz not null default now(),primary key(order_id,worker_id));
+create index if not exists platform_worker_assignment_user_idx on public.platform_worker_assignments(worker_id,order_id);
+create table if not exists public.platform_worker_audit(id uuid primary key default gen_random_uuid(),actor_id uuid references public.profiles(id)on delete set null,action text not null,subject_id uuid,details jsonb not null default '{}',created_at timestamptz not null default now());
+create index if not exists platform_worker_audit_subject_idx on public.platform_worker_audit(subject_id,created_at desc);
+insert into public.platform_worker_roles(id,name,description,permissions,is_default)values('a0000000-0000-0000-0000-000000000001','Administrator','Manage operations, staff, invitations and assignable roles. No protected system or Super Admin access.','{"orders.view":"all","orders.edit":"all","orders.assign":"all","orders.export":"all","quality.view":"all","quality.edit":"all","manufacturers.view":"all","reports.view":"all","reports.export":"all","workers.view":"all","workers.edit":"all","invitations.view":"all","invitations.create":"all","invitations.edit":"all","invitations.delete":"all","roles.view":"all","roles.create":"all","roles.edit":"all","roles.delete":"all","roles.assign":"all"}',true)on conflict(id)do nothing;
+insert into public.platform_worker_roles(id,name,description,permissions,is_default)values('a0000000-0000-0000-0000-000000000002','Manager','Manage operational records and assignments; view operational reports.','{"orders.view":"all","orders.edit":"all","orders.assign":"all","orders.export":"all","quality.view":"all","quality.edit":"all","manufacturers.view":"all","reports.view":"all","reports.export":"all","workers.view":"all"}',true)on conflict(id)do nothing;
+insert into public.platform_worker_roles(id,name,description,permissions,is_default)values('a0000000-0000-0000-0000-000000000003','Worker','View assigned orders, update operational notes and inspect assigned QC.','{"orders.view":"assigned","orders.edit":"assigned","quality.view":"assigned"}',true)on conflict(id)do nothing;
+insert into public.platform_worker_roles(id,name,description,permissions,is_default)values('a0000000-0000-0000-0000-000000000004','Viewer','Read-only access to assigned orders.','{"orders.view":"assigned"}',true)on conflict(id)do nothing;
+-- Preserve legacy workers with minimum access. An allowlisted identity is never an assignable worker.
+insert into public.platform_workers(user_id,role_id)select p.id,'a0000000-0000-0000-0000-000000000003'from profiles p where p.role='worker'and not exists(select 1 from manufacturer_team_members m where m.user_id=p.id)and not exists(select 1 from superadmin_emails s where lower(s.email)=lower(p.email))on conflict do nothing;
+-- Permissions always resolve from the current database row, never JWT role claims or local storage.
+create or replace function public.platform_worker_authority(p_actor uuid)returns jsonb language sql stable security definer set search_path=public as $$
+ select case when exists(select 1 from auth.users u join superadmin_emails s on lower(s.email)=lower(u.email)where u.id=p_actor)then(select jsonb_object_agg((f->>'id')||'.'||a,'all')from jsonb_array_elements(public.platform_worker_catalog())f cross join lateral jsonb_array_elements_text(f->'actions')a)
+ else coalesce((select r.permissions from platform_workers w join platform_worker_roles r on r.id=w.role_id where w.user_id=p_actor and w.status='active'and r.archived_at is null and public.factory_password_ready(p_actor)),'{}'::jsonb)end
+$$;
+revoke all on function public.platform_worker_authority(uuid)from public,anon,authenticated;
+create or replace function public.platform_worker_can(p_permission text,p_order uuid default null)returns boolean language sql stable security definer set search_path=public as $$
+ select auth.uid()is not null and(public.is_superadmin()or case public.platform_worker_authority(auth.uid())->>p_permission when 'all'then true when 'assigned'then p_order is null or exists(select 1 from platform_worker_assignments where worker_id=auth.uid()and order_id=p_order)else false end)
+$$;
+revoke all on function public.platform_worker_can(text,uuid)from public,anon;grant execute on function public.platform_worker_can(text,uuid)to authenticated;
+create or replace function public.platform_worker_grantable(p_permissions jsonb,p_actor uuid default auth.uid())returns boolean language sql stable security definer set search_path=public as $$
+ select not exists(select 1 from jsonb_each_text(p_permissions)e where coalesce(public.platform_worker_authority(p_actor)->>e.key,'')not in('all',e.value))
+$$;
+revoke all on function public.platform_worker_grantable(jsonb,uuid)from public,anon,authenticated;
+create or replace function public.platform_worker_validate_permissions(p_permissions jsonb)returns void language plpgsql immutable set search_path=public as $$
+declare item record;feature jsonb;area text;action text;v text;begin
+ if p_permissions is null or jsonb_typeof(p_permissions)<>'object'then raise exception 'Choose a valid permission set';end if;
+ for item in select *from jsonb_each_text(p_permissions)loop
+ area:=split_part(item.key,'.',1);action:=split_part(item.key,'.',2);select x into feature from jsonb_array_elements(public.platform_worker_catalog())x where x->>'id'=area;
+ if feature is null or item.key<>area||'.'||action or not(feature->'actions' ? action)or item.value not in('all','assigned')or(item.value='assigned'and not(feature->>'scoped')::boolean)then raise exception 'Unknown or invalid permission: %',item.key;end if;
+ if action<>'view'then v:=p_permissions->>(area||'.view');if v is null or(item.value='all'and v<>'all')then raise exception '% requires View with equal or broader record access',item.key;end if;end if;
+ end loop;
+ if p_permissions ? 'roles.assign'and not(p_permissions ? 'workers.view')then raise exception 'Assign roles also requires View workers';end if;
+ if p_permissions ? 'orders.assign'and not(p_permissions ? 'workers.view')then raise exception 'Assign work also requires View workers';end if;
+ if p_permissions ? 'invitations.create'and not(p_permissions ? 'roles.assign')then raise exception 'Inviting requires separate Assign roles permission';end if;
+end$$;
+revoke all on function public.platform_worker_validate_permissions(jsonb)from public,anon,authenticated;
+create or replace function public.platform_worker_is_administrator(p_permissions jsonb)returns boolean language sql immutable set search_path=public as $$select p_permissions ?&array['workers.edit','roles.edit','roles.assign','invitations.create']$$;
+revoke all on function public.platform_worker_is_administrator(jsonb)from public,anon,authenticated;
+create or replace function public.platform_worker_role_guard()returns trigger language plpgsql security definer set search_path=public as $$begin
+ perform pg_advisory_xact_lock(7271027001);
+ if tg_op<>'DELETE'then perform public.platform_worker_validate_permissions(new.permissions);if lower(regexp_replace(new.name,'[^a-zA-Z]','','g'))='superadmin'then raise exception 'Super Admin is protected and cannot be assigned as a role';end if;end if;
+ if tg_op='DELETE'or(new.archived_at is not null and old.archived_at is null)then
+ if old.is_default then raise exception 'Default roles may be edited but not deleted';end if;
+ if exists(select 1 from platform_workers where role_id=old.id)or exists(select 1 from platform_worker_invitations where role_id=old.id and accepted_at is null and revoked_at is null and expires_at>now())then raise exception 'Reassign workers and pending invitations before deleting this role';end if;
+ end if;
+ if tg_op in('UPDATE','DELETE')and public.platform_worker_is_administrator(old.permissions)and(tg_op='DELETE'or not public.platform_worker_is_administrator(new.permissions))and exists(select 1 from platform_workers where role_id=old.id and status='active')and not exists(select 1 from platform_workers w join platform_worker_roles r on r.id=w.role_id where w.status='active'and r.id<>old.id and r.archived_at is null and public.platform_worker_is_administrator(r.permissions))then raise exception 'Keep at least one active authorised Administrator';end if;
+ return case when tg_op='DELETE'then old else new end;end$$;
+revoke all on function public.platform_worker_role_guard()from public,anon,authenticated;
+drop trigger if exists platform_worker_role_guard on public.platform_worker_roles;
+create trigger platform_worker_role_guard before insert or update or delete on public.platform_worker_roles for each row execute function public.platform_worker_role_guard();
+create or replace function public.platform_worker_member_guard()returns trigger language plpgsql security definer set search_path=public as $$begin
+ perform pg_advisory_xact_lock(7271027001);
+ if tg_op<>'DELETE'and(exists(select 1 from profiles p join superadmin_emails s on lower(s.email)=lower(p.email)where p.id=new.user_id)or not exists(select 1 from platform_worker_roles where id=new.role_id and archived_at is null))then raise exception 'Choose an assignable worker account and active role; Super Admin remains protected';end if;
+ if tg_op in('UPDATE','DELETE')and old.status='active'and exists(select 1 from platform_worker_roles where id=old.role_id and public.platform_worker_is_administrator(permissions))and(tg_op='DELETE'or new.status<>'active'or not exists(select 1 from platform_worker_roles where id=new.role_id and public.platform_worker_is_administrator(permissions)))and not exists(select 1 from platform_workers w join platform_worker_roles r on r.id=w.role_id where w.user_id<>old.user_id and w.status='active'and r.archived_at is null and public.platform_worker_is_administrator(r.permissions))then raise exception 'Keep at least one active authorised Administrator';end if;
+ return case when tg_op='DELETE'then old else new end;end$$;
+revoke all on function public.platform_worker_member_guard()from public,anon,authenticated;
+drop trigger if exists platform_worker_member_guard on public.platform_workers;
+create trigger platform_worker_member_guard before insert or update or delete on public.platform_workers for each row execute function public.platform_worker_member_guard();
+-- Read-only own membership. Management writes go through narrow, revision-checked APIs.
+do $$declare t text;d text;begin
+ select pg_get_functiondef('public.apply_superadmin_access()'::regprocedure)into d;
+ if position('''platform_worker_roles'''in d)=0 then d:=replace(d,'''projects''','''platform_worker_roles'',''platform_workers'',''platform_worker_invitations'',''platform_worker_assignments'',''platform_worker_audit'',''projects''');execute d;end if;
+ foreach t in array array['platform_worker_roles','platform_workers','platform_worker_invitations','platform_worker_assignments','platform_worker_audit']loop execute format('alter table public.%I enable row level security',t);execute format('grant select,insert,update,delete on public.%I to authenticated',t);end loop;
+ perform public.apply_superadmin_access();end$$;
+drop policy if exists platform_worker_self on public.platform_workers;
+create policy platform_worker_self on public.platform_workers for select to authenticated using(user_id=auth.uid());
+drop policy if exists platform_worker_own_assignments on public.platform_worker_assignments;
+create policy platform_worker_own_assignments on public.platform_worker_assignments for select to authenticated using(worker_id=auth.uid()and public.platform_worker_can('orders.view',order_id));
+create or replace function public.platform_worker_context()returns jsonb language plpgsql stable security definer set search_path=public as $$declare result jsonb;begin
+ if auth.uid()is null then raise exception 'Sign in required';end if;
+ select jsonb_build_object('status',w.status,'roleId',r.id,'roleName',r.name,'permissions',case when w.status='active'and r.archived_at is null and public.factory_password_ready(auth.uid())then r.permissions else '{}'::jsonb end,'needsPassword',not public.factory_password_ready(auth.uid()),'name',p.full_name,'email',p.email)into result from platform_workers w join platform_worker_roles r on r.id=w.role_id join profiles p on p.id=w.user_id where w.user_id=auth.uid();
+ return coalesce(result,jsonb_build_object('status','none','permissions','{}'::jsonb))||jsonb_build_object('superadmin',public.is_superadmin())||case when public.is_superadmin()then jsonb_build_object('permissions',public.platform_worker_authority(auth.uid()))else '{}'::jsonb end;end$$;
+revoke all on function public.platform_worker_context()from public,anon;grant execute on function public.platform_worker_context()to authenticated;
+create or replace function public.platform_worker_management()returns jsonb language plpgsql stable security definer set search_path=public as $$begin
+ if not(public.platform_worker_can('workers.view')or public.platform_worker_can('invitations.view')or public.platform_worker_can('roles.view'))then raise exception 'Worker management access denied';end if;
+ return jsonb_build_object('catalog',public.platform_worker_catalog(),'workers',case when public.platform_worker_can('workers.view')then coalesce((select jsonb_agg(to_jsonb(w)||jsonb_build_object('name',p.full_name,'email',p.email,'role_name',r.name)order by p.full_name)from platform_workers w join profiles p on p.id=w.user_id join platform_worker_roles r on r.id=w.role_id),'[]'::jsonb)else '[]'::jsonb end,
+ 'invitations',case when public.platform_worker_can('invitations.view')then coalesce((select jsonb_agg(to_jsonb(i)-array['token_hash','token_value']||jsonb_build_object('role_name',r.name,'state',case when i.accepted_at is not null then 'Accepted'when i.revoked_at is not null then 'Revoked'when i.expires_at<=now()then 'Expired'else 'Invited'end)order by i.created_at desc)from(select *from platform_worker_invitations order by created_at desc limit 200)i join platform_worker_roles r on r.id=i.role_id),'[]'::jsonb)else '[]'::jsonb end,
+ 'roles',case when(public.platform_worker_can('roles.view')or public.platform_worker_can('roles.assign'))then coalesce((select jsonb_agg(to_jsonb(r)||jsonb_build_object('assignable',public.platform_worker_grantable(r.permissions),'worker_count',(select count(*)from platform_workers where role_id=r.id))order by r.is_default desc,r.name)from platform_worker_roles r where archived_at is null),'[]'::jsonb)else '[]'::jsonb end);
+end$$;
+revoke all on function public.platform_worker_management()from public,anon;grant execute on function public.platform_worker_management()to authenticated;
+create or replace function public.platform_worker_manage(p_action text,p_data jsonb default '{}')returns jsonb language plpgsql security definer set search_path=public as $$
+#variable_conflict use_variable
+declare r platform_worker_roles%rowtype;w platform_workers%rowtype;i platform_worker_invitations%rowtype;id uuid;token text;desired jsonb;email text;begin
+ perform pg_advisory_xact_lock(7271027001);
+ if p_data is null or length(p_data::text)>20000 or jsonb_typeof(p_data)<>'object'then raise exception 'Invalid request';end if;
+ if p_action in('save_role','delete_role')then
+ if nullif(p_data->>'id','')is not null then select *into r from platform_worker_roles where platform_worker_roles.id=(p_data->>'id')::uuid and archived_at is null for update;if not found or r.revision is distinct from(p_data->>'revision')::integer then raise exception 'Role changed; refresh and retry';end if;if not public.platform_worker_grantable(r.permissions)then raise exception 'Cannot manage a role with greater authority';end if;end if;
+ if not public.platform_worker_can('roles.'||case when p_action='delete_role'then 'delete'when r.id is null then 'create'else 'edit'end)then raise exception 'Role management permission required';end if;
+ if p_action='delete_role'then if r.id is null then raise exception 'Choose a role';end if;update platform_worker_roles set archived_at=now(),revision=revision+1 where platform_worker_roles.id=r.id;id:=r.id;
+ else desired:=p_data->'permissions';perform public.platform_worker_validate_permissions(desired);if not public.platform_worker_grantable(desired)then raise exception 'Cannot grant permissions beyond your own authority';end if;
+ if r.id is null then insert into platform_worker_roles(name,description,permissions,created_by)values(btrim(p_data->>'name'),coalesce(p_data->>'description',''),desired,auth.uid())returning platform_worker_roles.id into id;
+ else update platform_worker_roles set name=btrim(p_data->>'name'),description=coalesce(p_data->>'description',''),permissions=desired,updated_at=now(),revision=revision+1 where platform_worker_roles.id=r.id returning platform_worker_roles.id into id;end if;end if;
+ elsif p_action in('change_role','suspend','reactivate','rename')then
+ select *into w from platform_workers where user_id=(p_data->>'user_id')::uuid for update;if not found or w.revision is distinct from(p_data->>'revision')::integer then raise exception 'Worker changed; refresh and retry';end if;
+ if not public.platform_worker_grantable((select permissions from platform_worker_roles where platform_worker_roles.id=w.role_id))then raise exception 'Cannot manage a worker with greater authority';end if;
+ if p_action='change_role'then
+ if not(public.platform_worker_can('roles.assign')and public.platform_worker_can('workers.view'))then raise exception 'Assign roles permission required';end if;
+ select *into r from platform_worker_roles where platform_worker_roles.id=(p_data->>'role_id')::uuid and archived_at is null;if not found or not public.platform_worker_grantable(r.permissions)then raise exception 'Role is not assignable';end if;
+ update platform_workers set role_id=r.id,updated_at=now(),revision=revision+1 where user_id=w.user_id;
+ else if not public.platform_worker_can('workers.edit')then raise exception 'Manage workers permission required';end if;if p_action='rename'then if length(btrim(coalesce(p_data->>'name','')))not between 1 and 100 then raise exception 'Enter a name (1–100 characters)';end if;update profiles set full_name=btrim(p_data->>'name')where profiles.id=w.user_id;update platform_workers set revision=revision+1,updated_at=now()where user_id=w.user_id;else update platform_workers set status=case when p_action='suspend'then 'suspended'else 'active'end,updated_at=now(),revision=revision+1 where user_id=w.user_id;end if;end if;id:=w.user_id;
+ elsif p_action in('invite','copy_invite','regenerate','revoke')then
+ if not public.platform_worker_can('invitations.'||case p_action when 'invite'then 'create'when 'revoke'then 'delete'else 'edit'end)then raise exception 'Invitation permission required';end if;
+ if p_action='invite'then
+ if not public.platform_worker_can('roles.assign')then raise exception 'Assign roles permission required';end if;
+ email:=lower(btrim(p_data->>'email'));
+ if email is null or length(email)>254 or email!~'^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'then raise exception 'Enter a valid email address';end if;
+ if exists(select 1 from superadmin_emails where lower(superadmin_emails.email)=email)then raise exception 'Super Admin identities cannot be invited or assigned a worker role';end if;
+ if exists(select 1 from platform_workers w join profiles p on p.id=w.user_id where lower(p.email)=email)then raise exception 'This account is already a worker. Change their role or reactivate them instead';end if;
+ select *into r from platform_worker_roles where platform_worker_roles.id=(p_data->>'role_id')::uuid and archived_at is null;if not found or not public.platform_worker_grantable(r.permissions)then raise exception 'Role is not assignable';end if;
+ update platform_worker_invitations set revoked_at=now(),revision=revision+1 where platform_worker_invitations.email=email and accepted_at is null and revoked_at is null and expires_at<=now();
+ if exists(select 1 from platform_worker_invitations where platform_worker_invitations.email=email and accepted_at is null and revoked_at is null)then raise exception 'A pending invitation exists. Copy or regenerate its link';end if;
+ if(select count(*)from platform_worker_audit where actor_id=auth.uid()and action in('invite','regenerate')and created_at>now()-interval '1 hour')>=30 then raise exception 'Invitation limit reached. Try again later';end if;
+ token:=replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-','');
+ insert into platform_worker_invitations(email,role_id,token_hash,token_value,invited_by)values(email,r.id,encode(sha256(token::bytea),'hex'),token,auth.uid())returning *into i;
+ else
+ select *into i from platform_worker_invitations where platform_worker_invitations.id=(p_data->>'id')::uuid for update;
+ if not found or i.revision is distinct from(p_data->>'revision')::integer then raise exception 'Invitation changed; refresh and retry';end if;
+ if i.accepted_at is not null or i.revoked_at is not null then raise exception 'This invitation was accepted or revoked';end if;
+ select *into r from platform_worker_roles where platform_worker_roles.id=i.role_id and archived_at is null;
+ if not found or not public.platform_worker_grantable(r.permissions)then raise exception 'Cannot manage an invitation with greater authority';end if;
+ if p_action='revoke'then update platform_worker_invitations set revoked_at=now(),revision=revision+1 where platform_worker_invitations.id=i.id;
+ elsif p_action='regenerate'then
+ if not public.platform_worker_can('roles.assign')then raise exception 'Assign roles permission required';end if;
+ if(select count(*)from platform_worker_audit where actor_id=auth.uid()and action in('invite','regenerate')and created_at>now()-interval '1 hour')>=30 then raise exception 'Invitation limit reached. Try again later';end if;
+ token:=replace(gen_random_uuid()::text,'-','')||replace(gen_random_uuid()::text,'-','');update platform_worker_invitations set token_value=token,token_hash=encode(sha256(token::bytea),'hex'),expires_at=now()+interval '7 days',invited_by=auth.uid(),revision=revision+1 where platform_worker_invitations.id=i.id returning *into i;
+ else if i.expires_at<=now()then raise exception 'Invitation expired. Regenerate the link';end if;if not public.platform_worker_can('roles.assign')then raise exception 'Assign roles permission required to copy an invitation';end if;token:=i.token_value;end if;
+ end if;id:=i.id;
+ else raise exception 'Unknown worker management action';end if;
+ insert into platform_worker_audit(actor_id,action,subject_id,details)values(auth.uid(),p_action,id,p_data-array['token','password']);
+ return jsonb_build_object('id',id,'token',token,'expiresAt',i.expires_at);
+end$$;
+revoke all on function public.platform_worker_manage(text,jsonb)from public,anon;grant execute on function public.platform_worker_manage(text,jsonb)to authenticated;
+create or replace function public.platform_worker_invitation_details(p_token text)returns jsonb language plpgsql stable security definer set search_path=public as $$declare i platform_worker_invitations%rowtype;r platform_worker_roles%rowtype;begin
+ if p_token is null or p_token!~'^[a-f0-9]{64}$'then raise exception 'Invalid invitation link';end if;
+ select *into i from platform_worker_invitations where token_hash=encode(sha256(p_token::bytea),'hex');
+ if not found or i.accepted_at is not null or i.revoked_at is not null or i.expires_at<=now()then raise exception 'Invitation expired, revoked or already used. Ask for a new link';end if;
+ if exists(select 1 from superadmin_emails where lower(email)=i.email)then raise exception 'Super Admin identities cannot use worker invitations';end if;
+ select *into r from platform_worker_roles where id=i.role_id and archived_at is null;
+ if not found or i.invited_by is null or not(public.platform_worker_authority(i.invited_by) ?&array['invitations.create','roles.assign'])or not public.platform_worker_grantable(r.permissions,i.invited_by)then raise exception 'Invitation is no longer authorised. Ask an administrator for a new link';end if;
+ return jsonb_build_object('email',i.email,'roleName',r.name,'expiresAt',i.expires_at,'accountExists',exists(select 1 from auth.users where lower(email)=i.email));
+end$$;
+revoke all on function public.platform_worker_invitation_details(text)from public;grant execute on function public.platform_worker_invitation_details(text)to anon,authenticated,service_role;
+create or replace function public.accept_platform_worker_invitation(p_token text)returns uuid language plpgsql security definer set search_path=public as $$
+#variable_conflict use_variable
+declare i platform_worker_invitations%rowtype;email text;begin
+ perform pg_advisory_xact_lock(7271027001);
+ perform public.platform_worker_invitation_details(p_token);
+ if auth.uid()is null then raise exception 'Sign in with the invited email';end if;
+ select lower(u.email)into email from auth.users u where u.id=auth.uid()and u.email_confirmed_at is not null;
+ select *into i from platform_worker_invitations where token_hash=encode(sha256(p_token::bytea),'hex')for update;
+ if email is distinct from i.email then raise exception 'Sign in with the verified invited email address';end if;
+ if exists(select 1 from superadmin_emails s where lower(s.email)=email)then raise exception 'Super Admin identities cannot join through worker invitations';end if;
+ if exists(select 1 from platform_workers where user_id=auth.uid())then raise exception 'This account is already a worker. Ask an administrator to change its role or status';end if;
+ insert into platform_workers(user_id,role_id)values(auth.uid(),i.role_id);
+ -- Do not replace an existing manufacturer's account identity or any account records.
+ update profiles set role='worker'where id=auth.uid()and role='brand';
+ update platform_worker_invitations set accepted_at=now(),accepted_by=auth.uid(),revision=revision+1,token_value=''where id=i.id;
+ insert into platform_worker_audit(actor_id,action,subject_id,details)values(auth.uid(),'accept_invitation',i.id,jsonb_build_object('role_id',i.role_id));return auth.uid();
+end$$;
+revoke all on function public.accept_platform_worker_invitation(text)from public,anon;grant execute on function public.accept_platform_worker_invitation(text)to authenticated;
+-- A worker-safe projection: financial margins, customer contact details and private files are excluded.
+create or replace view public.platform_worker_orders with(security_barrier=true)as
+ select o.id,o.product_name,o.garment_type,o.kind,o.status,o.status_label,o.factory_status,o.assigned_manufacturer_id,o.due_quote_by,(select stage from order_production_updates where order_id=o.id order by version desc limit 1)as production_stage,o.qc_status,o.ops_notes,o.order_quantities,o.specifications,o.created_at,o.updated_at
+ from public.orders o where public.platform_worker_can('orders.view',o.id);
+grant select on public.platform_worker_orders to authenticated;
+create or replace function public.platform_worker_order_json(p_order public.orders)returns jsonb language sql stable security definer set search_path=public as $$
+ select jsonb_build_object('id',p_order.id,'product',p_order.product_name,'garment',p_order.garment_type,'status',p_order.status,'label',p_order.status_label,'factoryStatus',p_order.factory_status,'manufacturerId',p_order.assigned_manufacturer_id,'manufacturer',(select factory_name from manufacturer_profiles where user_id=p_order.assigned_manufacturer_id),'deadline',p_order.due_quote_by,'productionStage',(select stage from order_production_updates where order_id=p_order.id order by version desc limit 1),'qcStatus',p_order.qc_status,'notes',p_order.ops_notes,'quantities',p_order.order_quantities,'specifications',p_order.specifications,'updatedAt',p_order.updated_at,'createdAt',p_order.created_at)
+$$;
+revoke all on function public.platform_worker_order_json(public.orders)from public,anon,authenticated;
+create or replace function public.platform_worker_workspace(p_feature text default 'dashboard',p_search text default '',p_offset integer default 0)returns jsonb language plpgsql stable security definer set search_path=public as $$declare feature text;result jsonb;begin
+ if auth.uid()is null then raise exception 'Sign in required';end if;
+ if not public.is_superadmin()and not exists(select 1 from platform_workers where user_id=auth.uid()and status='active'and public.factory_password_ready(auth.uid()))then raise exception 'Worker access is inactive or password setup is required';end if;
+ if p_offset<0 or p_offset>1000000 or length(p_search)>200 then raise exception 'Invalid search or page';end if;
+ feature:=case when p_feature in('dashboard','orders')then 'orders'when p_feature='quality'then 'quality'when p_feature='reports'then 'reports'else p_feature end;
+ if p_feature='dashboard'and not public.platform_worker_can('orders.view')then return jsonb_build_object('orders','[]'::jsonb,'total',0,'counts','{}'::jsonb);end if;
+ if not public.platform_worker_can(feature||'.view')then raise exception 'This page is not permitted by your role';end if;
+ if feature='manufacturers'then
+ return jsonb_build_object('manufacturers',coalesce((select jsonb_agg(jsonb_build_object('id',m.user_id,'name',m.factory_name,'status',m.status,'country',m.country,'garments',m.garments))from manufacturer_profiles m where public.platform_worker_authority(auth.uid())->>'manufacturers.view'='all'or public.is_superadmin()or exists(select 1 from orders o where o.assigned_manufacturer_id=m.user_id and public.platform_worker_can('manufacturers.view',o.id))),'[]'::jsonb));end if;
+ if feature not in('orders','quality','reports')then raise exception 'Unknown operational page';end if;
+ select jsonb_build_object('orders',coalesce((select jsonb_agg(public.platform_worker_order_json(o))from(select *from orders where public.platform_worker_can(feature||'.view',id)and(product_name ilike '%'||p_search||'%'or id::text ilike '%'||p_search||'%')and(feature<>'quality'or qc_required)order by updated_at desc,id limit 50 offset p_offset)o),'[]'::jsonb),'total',(select count(*)from orders where public.platform_worker_can(feature||'.view',id)and(product_name ilike '%'||p_search||'%'or id::text ilike '%'||p_search||'%')and(feature<>'quality'or qc_required)),
+ 'counts',(select coalesce(jsonb_object_agg(status,n),'{}'::jsonb)from(select status,count(*)n from orders where public.platform_worker_can(feature||'.view',id)group by status)c))into result;
+ if p_feature='dashboard'then result:=result||jsonb_build_object('assignments',(select count(*)from platform_worker_assignments a join orders o on o.id=a.order_id where a.worker_id=auth.uid()and public.platform_worker_can('orders.view',o.id)and o.status not in('completed','cancelled')));end if;
+ return result;
+end$$;
+revoke all on function public.platform_worker_workspace(text,text,integer)from public,anon;grant execute on function public.platform_worker_workspace(text,text,integer)to authenticated;
+create or replace function public.platform_worker_order(p_order uuid,p_feature text default 'orders')returns jsonb language plpgsql stable security definer set search_path=public as $$declare o orders%rowtype;result jsonb;begin
+ if p_feature not in('orders','quality')or not public.platform_worker_can(p_feature||'.view',p_order)then raise exception 'Order access denied';end if;
+ select *into o from orders where id=p_order;if not found then raise exception 'Order not found';end if;
+ result:=jsonb_build_object('order',public.platform_worker_order_json(o),'canEdit',public.platform_worker_can('orders.edit',p_order),'canAssign',public.platform_worker_can('orders.assign',p_order),'canReview',public.platform_worker_can_review(p_order),'assignments',coalesce((select jsonb_agg(jsonb_build_object('id',a.worker_id,'name',p.full_name))from platform_worker_assignments a join profiles p on p.id=a.worker_id where a.order_id=p_order),'[]'::jsonb));
+ if p_feature='quality'then result:=result||jsonb_build_object('reports',coalesce((select jsonb_agg(to_jsonb(q)order by report_version desc)from qc_inspections q where order_id=p_order and workflow_version=2),'[]'::jsonb),'evidence',coalesce((select jsonb_agg(to_jsonb(e))from qc_evidence e where order_id=p_order),'[]'::jsonb));end if;
+ if public.platform_worker_can('orders.assign',p_order)then result:=result||jsonb_build_object('workers',coalesce((select jsonb_agg(jsonb_build_object('id',w.user_id,'name',p.full_name))from platform_workers w join profiles p on p.id=w.user_id where w.status='active'),'[]'::jsonb),'manufacturers',coalesce((select jsonb_agg(jsonb_build_object('id',user_id,'name',factory_name))from manufacturer_profiles where onboarding_complete and status is distinct from 'paused'),'[]'::jsonb));end if;
+ return result;end$$;
+revoke all on function public.platform_worker_order(uuid,text)from public,anon;grant execute on function public.platform_worker_order(uuid,text)to authenticated;
+create or replace function public.platform_worker_order_action(p_order uuid,p_action text,p_data jsonb default '{}')returns uuid language plpgsql security definer set search_path=public as $$declare o orders%rowtype;id uuid;begin
+ perform pg_advisory_xact_lock(7271027001);
+ if p_action='assign'then
+ if not public.platform_worker_can('orders.assign',p_order)then raise exception 'Assign work permission required';end if;
+ select *into o from orders where orders.id=p_order for update;if not found then raise exception 'Order not found';end if;
+ if not exists(select 1 from platform_workers where user_id=(p_data->>'worker_id')::uuid and status='active')then raise exception 'Choose an active worker';end if;
+ if p_data->>'enabled'not in('true','false')or not(p_data ? 'enabled')then raise exception 'Choose whether the assignment is enabled';end if;
+ if(p_data->>'enabled')::boolean then insert into platform_worker_assignments(order_id,worker_id,assigned_by)values(p_order,(p_data->>'worker_id')::uuid,auth.uid())on conflict do nothing;else delete from platform_worker_assignments where order_id=p_order and worker_id=(p_data->>'worker_id')::uuid;end if;
+ elsif p_action='notes'then
+ if not public.platform_worker_can('orders.edit',p_order)then raise exception 'Edit order permission required';end if;
+ select *into o from orders where orders.id=p_order for update;if not found then raise exception 'Order not found';end if;
+ if o.updated_at is distinct from(p_data->>'updatedAt')::timestamptz then raise exception 'Order changed. Refresh before saving';end if;
+ if p_data->>'notes'is null or length(p_data->>'notes')>4000 then raise exception 'Operational notes must be at most 4,000 characters';end if;
+ update orders set ops_notes=p_data->>'notes'where orders.id=p_order;
+ elsif p_action='manufacturer'then
+ if not public.platform_worker_can('orders.assign',p_order)then raise exception 'Assign manufacturer permission required';end if;
+ perform public.assign_order_manufacturer(p_order,(p_data->>'manufacturer_id')::uuid,(p_data->>'deadline')::date);
+ else raise exception 'Unknown order action';end if;
+ insert into platform_worker_audit(actor_id,action,subject_id,details)values(auth.uid(),'order_'||p_action,p_order,p_data);return p_order;
+end$$;
+revoke all on function public.platform_worker_order_action(uuid,text,jsonb)from public,anon;grant execute on function public.platform_worker_order_action(uuid,text,jsonb)to authenticated;
+create or replace function public.platform_worker_export(p_feature text)returns jsonb language plpgsql stable security definer set search_path=public as $$begin
+ if p_feature not in('orders','reports')or not public.platform_worker_can(p_feature||'.export')then raise exception 'Export permission required';end if;
+ if(select count(*)from orders where public.platform_worker_can(p_feature||'.export',id))>10000 then raise exception 'Export is limited to 10,000 records. Narrow the reporting scope';end if;
+ return coalesce((select jsonb_agg(jsonb_build_object('Order',id,'Product',product_name,'Garment',garment_type,'Status',status,'QC',qc_status,'Updated',updated_at))from orders where public.platform_worker_can(p_feature||'.export',id)),'[]'::jsonb);end$$;
+revoke all on function public.platform_worker_export(text)from public,anon;grant execute on function public.platform_worker_export(text)to authenticated;
+-- Reuse the actual manufacturer-assignment and QC-review implementations, preserving validation/history.
+do $$declare d text;begin
+ select pg_get_functiondef('public.assign_order_manufacturer(uuid,uuid,date)'::regprocedure)into d;
+ if position('platform_worker_can'in d)=0 then
+ if position('if not public.is_superadmin()'in d)=0 then raise exception 'Assignment authorisation hook missing';end if;
+ d:=replace(d,'if not public.is_superadmin()','if not(public.is_superadmin()or public.platform_worker_can(''orders.assign'',p_order_id))');execute d;end if;
+end$$;
+-- Retain the direct-write guard; permit only a scoped assignment RPC's marked write.
+do $$declare d text;begin
+ select pg_get_functiondef('public.protect_manual_order_assignment()'::regprocedure)into d;
+ if position('platform_worker_can'in d)=0 then
+ if position('not public.is_superadmin()'in d)=0 then raise exception 'Assignment trigger authorisation hook missing';end if;
+ d:=replace(d,'not public.is_superadmin()','not(public.is_superadmin()or(current_setting(''app.routing_write'',true)=new.id::text and public.platform_worker_can(''orders.assign'',new.id)))');execute d;end if;
+end$$;
+create or replace function public.platform_worker_can_review(p_order uuid)returns boolean language sql stable security definer set search_path=public as $$select public.platform_worker_can('quality.edit',p_order)and not exists(select 1 from orders o where o.id=p_order and(o.assigned_manufacturer_id=auth.uid()or exists(select 1 from manufacturer_team_members m where m.manufacturer_id=o.assigned_manufacturer_id and m.user_id=auth.uid()and m.removed_at is null)))$$;
+revoke all on function public.platform_worker_can_review(uuid)from public,anon;grant execute on function public.platform_worker_can_review(uuid)to authenticated;
+do $$declare d text;begin
+ select pg_get_functiondef('public.team_impl_qc_action(uuid,text,jsonb)'::regprocedure)into d;
+ if position('platform_worker_can_review'in d)=0 then
+ if position('admin:=public.is_superadmin()'in d)=0 then raise exception 'QC authorisation hook missing';end if;
+ d:=replace(d,'admin:=public.is_superadmin()','admin:=public.is_superadmin()or(p_action in(''approve_report'',''request_report_changes'')and public.platform_worker_can_review(p_order))');execute d;end if;
+ if not exists(select 1 from pg_proc where pronamespace='public'::regnamespace and proname='platform_previous_qc_action')then alter function public.qc_action(uuid,text,jsonb)rename to platform_previous_qc_action;end if;
+end$$;
+revoke all on function public.platform_previous_qc_action(uuid,text,jsonb)from public,anon,authenticated;
+create or replace function public.qc_action(p_order uuid,p_action text,p_data jsonb default '{}')returns uuid language plpgsql security definer set search_path=public as $$declare result uuid;begin
+ if not public.is_superadmin()and p_action in('approve_report','request_report_changes')and public.platform_worker_can_review(p_order)then
+ perform pg_advisory_xact_lock(7271027001);
+ if not public.platform_worker_can_review(p_order)then raise exception 'QC review permission revoked';end if;
+ result:=public.team_impl_qc_action(p_order,p_action,p_data);
+ insert into platform_worker_audit(actor_id,action,subject_id,details)values(auth.uid(),'qc_'||p_action,p_order,p_data);return result;end if;
+ return public.platform_previous_qc_action(p_order,p_action,p_data);end$$;
+revoke all on function public.qc_action(uuid,text,jsonb)from public,anon;grant execute on function public.qc_action(uuid,text,jsonb)to authenticated;
+create or replace function public.qc_can_access(p_order uuid)returns boolean language sql stable security definer set search_path=public as $$select auth.uid()is not null and exists(select 1 from orders where id=p_order and(public.is_superadmin()or user_id=auth.uid()or public.factory_order_visible(id)or public.platform_worker_can('quality.view',id)))$$;
+-- Existing QC storage/RLS policies call qc_can_access; signed evidence links remain short-lived.
+commit;
+
+-- Production turnaround timeline and safe estimated scheduling (20261027020000)
+begin;
+select pg_advisory_xact_lock(7271027002);
+create table if not exists public.manufacturer_production_timelines(
+ manufacturer_id uuid primary key references public.manufacturer_profiles(user_id)on delete cascade,
+ config jsonb not null,revision integer not null default 1,updated_at timestamptz not null default now(),updated_by uuid references public.profiles(id)on delete set null);
+create table if not exists public.order_production_timelines(
+ order_id uuid not null references public.orders(id)on delete cascade,manufacturer_id uuid not null references public.manufacturer_profiles(user_id)on delete cascade,
+ config jsonb not null,template_revision integer not null default 0,facts jsonb not null default '{}',blocks jsonb not null default '[]',
+ stage_started_at timestamptz not null,revision integer not null default 1,estimated_stage text,expected_completion timestamptz,
+ schedule jsonb not null default '[]',uncertain boolean not null default false,override_completion timestamptz,
+ updated_at timestamptz not null default now(),legacy_delay text,automation_paused boolean not null default false,primary key(order_id,manufacturer_id),check(jsonb_typeof(config)='object'and jsonb_typeof(facts)='object'and jsonb_typeof(blocks)='array'));
+alter table public.order_production_timelines add column if not exists legacy_delay text;
+alter table public.order_production_timelines add column if not exists automation_paused boolean not null default false;
+create index if not exists production_timeline_due_idx on public.order_production_timelines(expected_completion)where not uncertain;
+create index if not exists production_timeline_factory_idx on public.order_production_timelines(manufacturer_id,updated_at desc);
+create table if not exists public.production_timeline_events(
+ id uuid primary key default gen_random_uuid(),order_id uuid not null,manufacturer_id uuid not null,
+ actor_id uuid references public.profiles(id)on delete set null,kind text not null check(kind in('manual','automatic','schedule','block','resume','undo','rules')),
+ explanation text not null,details jsonb not null default '{}',request_id uuid,request_hash text,dedupe text,created_at timestamptz not null default now(),
+ foreign key(order_id,manufacturer_id)references public.order_production_timelines(order_id,manufacturer_id)on delete cascade,
+ unique(order_id,manufacturer_id,request_id),unique(order_id,manufacturer_id,dedupe));
+create index if not exists production_timeline_history_idx on public.production_timeline_events(order_id,manufacturer_id,created_at desc);
+create or replace function public.production_stages()returns text[]language sql immutable set search_path=public as $$select array['preparation','cutting','sewing','finishing','quality_control']$$;
+create or replace function public.production_default_timeline(p_factory uuid)returns jsonb language sql stable security definer set search_path=public as $$
+ select jsonb_build_object('timezone',m.calendar_timezone,'workdays',to_jsonb(coalesce(m.calendar_workdays,array[1,2,3,4,5])),'workStart','09:00','workEnd','17:00','startEvent','production_approval','factors','[]'::jsonb,
+ 'stages',(select jsonb_agg(jsonb_build_object('id',s,'duration',greatest(1,round(coalesce(m.typical_lead_days,10)*case s when 'preparation'then .1 when 'cutting'then .2 when 'sewing'then .4 when 'finishing'then .2 else .1 end)),'unit','working_days','starts',case when s='preparation'then 'production_approval'else 'previous_stage'end,'automatic',false)order by n)from unnest(public.production_stages())with ordinality x(s,n)))from manufacturer_profiles m where user_id=p_factory
+$$;
+revoke all on function public.production_default_timeline(uuid)from public,anon,authenticated;
+create or replace function public.production_validate_timeline(c jsonb)returns void language plpgsql stable set search_path=public as $$
+declare s jsonb;r jsonb;ids text[];begin
+ if c is null or jsonb_typeof(c)<>'object'or length(c::text)>30000 then raise exception 'Invalid production timeline';end if;
+ if not exists(select 1 from pg_timezone_names where name=c->>'timezone')then raise exception 'Choose a valid timezone';end if;
+ if coalesce(c->>'workStart','')!~'^([01][0-9]|2[0-3]):[0-5][0-9]$'or coalesce(c->>'workEnd','')!~'^([01][0-9]|2[0-3]):[0-5][0-9]$'or(c->>'workEnd')::time<=(c->>'workStart')::time then raise exception 'Choose a daytime working shift (start before end)';end if;
+ if jsonb_typeof(c->'workdays')is distinct from 'array'or jsonb_array_length(c->'workdays')not between 1 and 7 then raise exception 'Select working weekdays';end if;
+ if exists(select 1 from jsonb_array_elements_text(c->'workdays')d where d!~'^[1-7]$')or(select count(distinct value)from jsonb_array_elements_text(c->'workdays'))<>jsonb_array_length(c->'workdays')then raise exception 'Choose distinct weekdays (Monday–Sunday)';end if;
+ if coalesce(c->>'startEvent','')not in('production_approval','materials')then raise exception 'Choose a scheduling start event';end if;
+ if jsonb_typeof(c->'stages')is distinct from 'array'or jsonb_array_length(c->'stages')<>5 then raise exception 'Configure all five existing production stages';end if;
+ select array_agg(value->>'id'order by ordinality)into ids from jsonb_array_elements(c->'stages')with ordinality;
+ if ids is distinct from public.production_stages()then raise exception 'Use the existing stages in order';end if;
+ for s in select value from jsonb_array_elements(c->'stages')loop
+ if coalesce(s->>'duration','')!~'^[0-9]+(\.[0-9]{1,2})?$'or(s->>'duration')::numeric not between .01 and 3650 or coalesce(s->>'unit','')not in('working_days','calendar_days','hours','working_hours')or coalesce(s->>'starts','')not in('production_approval','previous_stage','previous_estimate','materials','sample_approval','customer_approval')or jsonb_typeof(s->'automatic')is distinct from 'boolean'then raise exception 'Choose a duration, unit, start condition and confirmation mode for each stage';end if;
+ end loop;
+ if jsonb_typeof(c->'factors')is distinct from 'array'or jsonb_array_length(c->'factors')>20 then raise exception 'Use at most 20 timing factors';end if;
+ for r in select value from jsonb_array_elements(c->'factors')loop
+ if coalesce(r->>'id','')=''or coalesce(r->>'factor','')not in('quantity','complexity','materials','sample_approval','customer_approval','quality_checks','capacity')or not(r->>'stage'=any(public.production_stages()))or coalesce(r->>'effect','')not in('add_time','pause','confirm')or coalesce(r->>'op','')not in('eq','gte')or not(r?'value')then raise exception 'Complete each structured timing rule';end if;
+ if r->>'factor'in('quantity','capacity')and(coalesce(r->>'value','')!~'^[0-9]+(\.[0-9]{1,2})?$'or(r->>'value')::numeric>1000000000)then raise exception 'Quantity/capacity rules require a numeric threshold';end if;
+ if r->>'factor'in('materials','sample_approval','customer_approval','quality_checks')and(jsonb_typeof(r->'value')<>'boolean'or r->>'op'<>'eq')then raise exception 'Approval/material rules require Yes/No conditions';end if;
+ if r->>'factor'='complexity'and(coalesce(r->>'value','')not in('simple','standard','complex')or r->>'op'<>'eq')then raise exception 'Choose a complexity level';end if;
+ if r->>'effect'='add_time'and(coalesce(r->>'duration','')!~'^[0-9]+(\.[0-9]{1,2})?$'or(r->>'duration')::numeric not between .01 and 3650 or coalesce(r->>'unit','')not in('working_days','calendar_days','hours','working_hours'))then raise exception 'Time additions need a positive duration and unit';end if;
+ if length(coalesce(r->>'notes',''))>1000 then raise exception 'Keep exception notes under 1,000 characters';end if;
+ end loop;
+ if(select count(distinct value->>'id')from jsonb_array_elements(c->'factors'))<>jsonb_array_length(c->'factors')then raise exception 'Timing rule identifiers must be unique';end if;
+end$$;
+revoke all on function public.production_validate_timeline(jsonb)from public,anon,authenticated;
+-- Local-day shifts respect DST. Calendar days keep local wall-clock time; hours use elapsed time.
+-- Working units skip weekends/closures. Explicit order blockers pause every unit type.
+create or replace function public.production_add_time(p_factory uuid,c jsonb,p_start timestamptz,p_duration numeric,p_unit text,p_blocks jsonb default '[]')returns timestamptz language plpgsql stable security definer set search_path=public as $$
+declare cur timestamptz:=p_start;remaining numeric;local_day date;opening timestamptz;closing timestamptz;boundary timestamptz;b jsonb;steps integer:=0;days integer[];begin
+ if p_start is null then return null;end if;
+ select array_agg(value::integer)into days from jsonb_array_elements_text(c->'workdays');
+ remaining:=case p_unit when 'working_days'then p_duration*extract(epoch from((c->>'workEnd')::time-(c->>'workStart')::time))when 'calendar_days'then extract(epoch from((((p_start at time zone(c->>'timezone'))+p_duration*interval '1 day')at time zone(c->>'timezone'))-p_start))else p_duration*3600 end;
+ while remaining>.001 loop
+ steps:=steps+1;if steps>20000 then raise exception 'Timeline exceeds the supported scheduling horizon';end if;
+ if p_unit in('working_days','working_hours')then
+ local_day:=(cur at time zone(c->>'timezone'))::date;
+ if not(extract(isodow from local_day)::integer=any(days))or exists(select 1 from manufacturer_availability where manufacturer_id=p_factory and status='approved'and local_day between starts_on and ends_on)then cur:=((local_day+1)+(c->>'workStart')::time)at time zone(c->>'timezone');continue;end if;
+ opening:=(local_day+(c->>'workStart')::time)at time zone(c->>'timezone');closing:=(local_day+(c->>'workEnd')::time)at time zone(c->>'timezone');cur:=greatest(cur,opening);
+ if cur>=closing then cur:=((local_day+1)+(c->>'workStart')::time)at time zone(c->>'timezone');continue;end if;
+ else closing:=cur+remaining*interval '1 second';end if;
+ select value into b from jsonb_array_elements(p_blocks)where(value->>'start')::timestamptz<=cur and(coalesce((value->>'end')::timestamptz,'infinity')>cur)order by(value->>'start')::timestamptz limit 1;
+ if b is not null then if b->>'end'is null then return null;end if;cur:=(b->>'end')::timestamptz;continue;end if;
+ select min((value->>'start')::timestamptz)into boundary from jsonb_array_elements(p_blocks)where(value->>'start')::timestamptz>cur and(value->>'start')::timestamptz<closing;
+ closing:=least(closing,coalesce(boundary,closing));
+ if remaining<=extract(epoch from(closing-cur))then return cur+remaining*interval '1 second';end if;
+ remaining:=remaining-extract(epoch from(closing-cur));cur:=closing;
+ end loop;return cur;end$$;
+revoke all on function public.production_add_time(uuid,jsonb,timestamptz,numeric,text,jsonb)from public,anon,authenticated;
+create or replace function public.production_fact_values(p_order uuid,p_factory uuid,p_facts jsonb)returns jsonb language sql stable security definer set search_path=public as $$
+ with active as(select case when coalesce(opt.value->>'totalUnits','')~'^[1-9][0-9]*$'then(opt.value->>'totalUnits')::numeric end units from orders x left join lateral(select value from jsonb_array_elements(coalesce(x.price_options,'[]'))where value->>'id'=x.selected_price_option_id limit 1)opt on true where x.assigned_manufacturer_id=p_factory and x.status='processing'and x.production_released_at is not null and x.factory_status='in_production'and coalesce(x.qc_status,'not_submitted')<>'approved')
+ select p_facts||jsonb_build_object('quantity',case when coalesce(selected.value->>'totalUnits','')~'^[1-9][0-9]*$'then(selected.value->>'totalUnits')::numeric end,'capacity',case when m.monthly_capacity>0 and not exists(select 1 from active where units is null)then(select round(100*sum(units)/m.monthly_capacity,2)from active)end)from orders o join manufacturer_profiles m on m.user_id=p_factory left join lateral(select value from jsonb_array_elements(coalesce(o.price_options,'[]'))where value->>'id'=o.selected_price_option_id limit 1)selected on true where o.id=p_order
+$$;
+revoke all on function public.production_fact_values(uuid,uuid,jsonb)from public,anon,authenticated;
+create or replace function public.production_schedule(p_factory uuid,c jsonb,p_start timestamptz,p_stage text,p_facts jsonb,p_blocks jsonb)returns jsonb language plpgsql stable security definer set search_path=public as $$
+declare s jsonb;r jsonb;cursor_at timestamptz:=p_start;ends_at timestamptz;result jsonb:='[]';reason text;v jsonb;matches boolean;blocked boolean;begin
+ for s in select value from jsonb_array_elements(c->'stages')with ordinality where ordinality>=coalesce(array_position(public.production_stages(),p_stage),1)order by ordinality loop
+ reason:=null;blocked:=false;
+ if(c->>'startEvent'='materials'or s->>'starts'='materials')and p_facts->'materials'is distinct from 'true'::jsonb then reason:='Confirm material availability';blocked:=true;end if;
+ if s->>'starts'in('sample_approval','customer_approval')and p_facts->(s->>'starts')is distinct from 'true'::jsonb then reason:='Confirm '||replace(s->>'starts','_',' ');blocked:=true;end if;
+ if cursor_at is not null then
+ if(c->>'startEvent'='materials'or s->>'starts'='materials')and p_facts->'materials'='true'::jsonb then cursor_at:=greatest(cursor_at,(p_facts->>'_materialsAt')::timestamptz);end if;
+ if s->>'starts'in('sample_approval','customer_approval')then cursor_at:=greatest(cursor_at,(p_facts->>('_'||(s->>'starts')||'At'))::timestamptz);end if;end if;
+ ends_at:=public.production_add_time(p_factory,c,cursor_at,(s->>'duration')::numeric,s->>'unit',p_blocks);
+ for r in select value from jsonb_array_elements(c->'factors')where value->>'stage'=s->>'id'loop
+ v:=p_facts->(r->>'factor');matches:=false;
+ if v is null or v='null'::jsonb then reason:='Confirm '||replace(r->>'factor','_',' ');blocked:=true;
+ else matches:=case when r->>'op'='gte'then(v#>>'{}')::numeric>=(r->>'value')::numeric else v=r->'value'end;end if;
+ if matches then
+ if r->>'effect'='add_time'then ends_at:=public.production_add_time(p_factory,c,ends_at,(r->>'duration')::numeric,r->>'unit',p_blocks);
+ elsif r->>'effect'='pause'then reason:='Resolve '||replace(r->>'factor','_',' ');blocked:=true;
+ elsif coalesce(p_facts->'confirmedRules','[]') ? (r->>'id')is not true then reason:='Confirm timing rule: '||replace(r->>'factor','_',' ');blocked:=true;end if;end if;
+ end loop;
+ if blocked then ends_at:=null;end if;
+ if exists(select 1 from jsonb_array_elements(p_blocks)b where b->>'end'is null or(b->>'resolved'is distinct from 'true'and(b->>'end')::timestamptz<=now()))then ends_at:=null;reason:=coalesce(reason,'Production is blocked; completion is uncertain');blocked:=true;end if;
+ result:=result||jsonb_build_array(jsonb_build_object('stage',s->>'id','start',cursor_at,'end',ends_at,'automatic',s->'automatic','starts',s->>'starts','duration',s->'duration','unit',s->>'unit','blocked',blocked,'reason',reason,'ready',ends_at is not null and ends_at<=now()));cursor_at:=ends_at;
+ end loop;return result;end$$;
+revoke all on function public.production_schedule(uuid,jsonb,timestamptz,text,jsonb,jsonb)from public,anon,authenticated;
+create or replace function public.production_ensure_plan(p_order uuid)returns void language plpgsql security definer set search_path=public as $$
+declare o orders%rowtype;c jsonb;rev integer;started timestamptz;legacy_expected date;legacy_reason text;begin
+ select *into o from orders where id=p_order for update;
+ if o.kind<>'production'or o.status<>'processing'or o.production_released_at is null or o.assigned_manufacturer_id is null or o.factory_status<>'in_production'then return;end if;
+ select config,revision into c,rev from manufacturer_production_timelines where manufacturer_id=o.assigned_manufacturer_id;
+ c:=coalesce(c,public.production_default_timeline(o.assigned_manufacturer_id));
+ select created_at,expected_completion,delay_reason into started,legacy_expected,legacy_reason from order_production_updates where order_id=p_order and manufacturer_id=o.assigned_manufacturer_id order by version desc limit 1;
+ insert into order_production_timelines(order_id,manufacturer_id,config,template_revision,stage_started_at,override_completion,legacy_delay)values(p_order,o.assigned_manufacturer_id,c,coalesce(rev,0),coalesce(started,o.production_released_at),case when legacy_expected is not null then(legacy_expected+(c->>'workEnd')::time)at time zone(c->>'timezone')end,nullif(legacy_reason,''))on conflict do nothing;
+end$$;
+revoke all on function public.production_ensure_plan(uuid)from public,anon,authenticated;
+create or replace function public.production_refresh(p_order uuid,p_factory uuid)returns void language plpgsql security definer set search_path=public as $$
+declare p order_production_timelines%rowtype;s jsonb;stage text;due timestamptz;begin
+ select *into p from order_production_timelines where order_id=p_order and manufacturer_id=p_factory for update;
+ if not found then return;end if;
+ select u.stage into stage from order_production_updates u where order_id=p_order and manufacturer_id=p_factory order by version desc limit 1;stage:=coalesce(stage,'preparation');
+ s:=public.production_schedule(p_factory,p.config,p.stage_started_at,stage,public.production_fact_values(p_order,p_factory,p.facts),p.blocks);
+ due:=(s->-1->>'end')::timestamptz;
+ update order_production_timelines set estimated_stage=case when not coalesce((s->0->>'ready')::boolean,false)or coalesce((s->0->>'blocked')::boolean,false)then null else estimated_stage end,schedule=s,expected_completion=case when due is null then null else coalesce(p.override_completion,due)end,uncertain=due is null where order_id=p_order and manufacturer_id=p_factory and(schedule,expected_completion,uncertain)is distinct from(s,case when due is null then null else coalesce(p.override_completion,due)end,due is null);
+ due:=case when due is null then null else coalesce(p.override_completion,due)end;
+ if jsonb_array_length(p.schedule)>0 and current_setting('app.production_action',true)is distinct from p_order::text and(((p.expected_completion is null)<>(due is null))or abs(extract(epoch from(due-p.expected_completion)))>=86400)then
+ insert into production_timeline_events(order_id,manufacturer_id,kind,explanation,details,dedupe)values(p_order,p_factory,'schedule','Expected completion changed using saved working hours and factory closures',jsonb_build_object('previous',p.expected_completion,'revised',due),'recalculation:'||encode(sha256(convert_to(coalesce(p.expected_completion::text,'unknown')||'>'||coalesce(due::text,'unknown'),'UTF8')),'hex'))on conflict do nothing;
+ if found then
+ perform public.notify_superadmin('order','Production completion estimate changed','Working calendar or scheduling prerequisites changed. Review the saved production timeline.','/superadmin/orders/'||p_order,p_order);
+ insert into brand_notifications(user_id,category,title,body,href)select user_id,'order','Production schedule update','Your order completion estimate has changed. Ceriga is reviewing the production timeline.','/orders/'||p_order from orders where id=p_order;
+ end if;end if;
+end$$;
+revoke all on function public.production_refresh(uuid,uuid)from public,anon,authenticated;
+create or replace function public.production_release_plan()returns trigger language plpgsql security definer set search_path=public as $$begin perform public.production_ensure_plan(new.id);if new.assigned_manufacturer_id is not null then perform public.production_refresh(new.id,new.assigned_manufacturer_id);end if;return new;end$$;
+revoke all on function public.production_release_plan()from public,anon,authenticated;
+drop trigger if exists production_release_plan on public.orders;
+create trigger production_release_plan after insert or update of production_released_at,assigned_manufacturer_id,status,factory_status on public.orders for each row execute function public.production_release_plan();
+do $$declare o record;begin for o in select id from orders where kind='production'and status='processing'and production_released_at is not null and assigned_manufacturer_id is not null and factory_status='in_production'loop perform public.production_ensure_plan(o.id);end loop;end$$;
+-- Preserve pre-existing date-only manual estimates when adopting the new schedule projection.
+do $$declare row record;begin
+ for row in select t.order_id,t.manufacturer_id,t.revision,u.expected_completion,u.delay_reason from order_production_timelines t join lateral(select expected_completion,delay_reason from order_production_updates where order_id=t.order_id and manufacturer_id=t.manufacturer_id order by version desc limit 1)u on true where t.template_revision=0 and t.override_completion is null and u.expected_completion is not null and not exists(select 1 from production_timeline_events e where e.order_id=t.order_id and e.manufacturer_id=t.manufacturer_id)loop
+ update order_production_timelines set override_completion=(row.expected_completion+(config->>'workEnd')::time)at time zone(config->>'timezone'),legacy_delay=nullif(row.delay_reason,'')where order_id=row.order_id and manufacturer_id=row.manufacturer_id and revision=row.revision;
+ perform set_config('app.production_action',row.order_id::text,true);perform public.production_refresh(row.order_id,row.manufacturer_id);
+ end loop;end$$;
+-- Migration-only Super Admin full access plus ordinary assigned-factory isolation.
+do $$declare d text;t text;begin
+ select pg_get_functiondef('public.apply_superadmin_access()'::regprocedure)into d;
+ if position('''manufacturer_production_timelines'''in d)=0 then d:=replace(d,'''projects''','''manufacturer_production_timelines'',''order_production_timelines'',''production_timeline_events'',''projects''');execute d;end if;
+ foreach t in array array['manufacturer_production_timelines','order_production_timelines','production_timeline_events']loop execute format('alter table public.%I enable row level security',t);execute format('grant select,insert,update,delete on public.%I to authenticated',t);end loop;perform public.apply_superadmin_access();end$$;
+drop policy if exists production_template_read on public.manufacturer_production_timelines;
+create policy production_template_read on public.manufacturer_production_timelines for select to authenticated using(manufacturer_id=public.current_factory_id()and(public.factory_has_permission(manufacturer_id,'settings')or public.factory_has_permission(manufacturer_id,'production')));
+drop policy if exists production_plan_read on public.order_production_timelines;
+create policy production_plan_read on public.order_production_timelines for select to authenticated using(manufacturer_id=public.current_factory_id()and public.factory_order_visible(order_id));
+drop policy if exists production_event_read on public.production_timeline_events;
+create policy production_event_read on public.production_timeline_events for select to authenticated using(manufacturer_id=public.current_factory_id()and public.factory_order_visible(order_id));
+create or replace function public.production_calendar_defaults_sync()returns trigger language plpgsql security definer set search_path=public as $$begin
+ if(new.calendar_workdays,new.calendar_timezone)is not distinct from(old.calendar_workdays,old.calendar_timezone)then return new;end if;
+ if exists(select 1 from manufacturer_production_timelines where manufacturer_id=new.user_id)then
+ if new.calendar_workdays is null then raise exception 'Keep a confirmed working week while a production timeline is configured. Edit its weekdays in the calendar or turnaround settings';end if;
+ update manufacturer_production_timelines set config=config||jsonb_build_object('workdays',to_jsonb(new.calendar_workdays),'timezone',new.calendar_timezone),revision=revision+1,updated_at=now(),updated_by=public.team_actor()where manufacturer_id=new.user_id and(config->'workdays',config->>'timezone')is distinct from(to_jsonb(new.calendar_workdays),new.calendar_timezone);
+ end if;return new;end$$;
+revoke all on function public.production_calendar_defaults_sync()from public,anon,authenticated;
+drop trigger if exists production_calendar_defaults_sync on public.manufacturer_profiles;
+create trigger production_calendar_defaults_sync after update of calendar_workdays,calendar_timezone on public.manufacturer_profiles for each row execute function public.production_calendar_defaults_sync();
+create or replace function public.production_template(p_config jsonb default null,p_revision integer default null,p_save boolean default false)returns jsonb language plpgsql security definer set search_path=public as $$
+declare f uuid:=public.current_factory_id();c jsonb;rev integer;preview jsonb;begin
+ if f is null or not(public.factory_has_permission(f,'production')or public.factory_has_permission(f,'settings'))then raise exception 'Production or factory settings permission required';end if;
+ select config,revision into c,rev from manufacturer_production_timelines where manufacturer_id=f;
+ if p_config is not null then
+ if not public.factory_has_permission(f,'settings')then raise exception 'Factory settings permission required';end if;
+ if p_config->>'manufacturerId'is not null and p_config->>'manufacturerId'<>f::text then raise exception 'Factory workspace changed. Reload this timeline before saving';end if;
+ perform public.production_validate_timeline(p_config);c:=p_config;
+ if p_save then
+ perform pg_advisory_xact_lock(hashtextextended(f::text,17));
+ perform 1 from manufacturer_profiles where user_id=f for update;
+ if coalesce((select revision from manufacturer_production_timelines where manufacturer_id=f),0)is distinct from coalesce(p_revision,0)then raise exception 'Timeline changed on another device. Reload before saving';end if;
+ insert into manufacturer_production_timelines(manufacturer_id,config,updated_by)values(f,c,public.team_actor())on conflict(manufacturer_id)do update set config=excluded.config,revision=manufacturer_production_timelines.revision+1,updated_at=now(),updated_by=excluded.updated_by returning revision into rev;
+ update manufacturer_profiles set calendar_timezone=c->>'timezone',calendar_workdays=(select array_agg(value::integer)from jsonb_array_elements_text(c->'workdays'))where user_id=f;
+ end if;end if;
+ c:=coalesce(c,public.production_default_timeline(f))||jsonb_build_object('manufacturerId',f);
+ preview:=public.production_schedule(f,c,now(),'preparation','{"materials":true,"sample_approval":true,"customer_approval":true,"quality_checks":true,"complexity":"standard","quantity":100,"capacity":50}','[]');
+ return jsonb_build_object('config',c,'revision',coalesce(rev,0),'saved',coalesce(rev,0)>0,'preview',preview,'canEdit',public.factory_has_permission(f,'settings'));
+end$$;
+revoke all on function public.production_template(jsonb,integer,boolean)from public,anon;grant execute on function public.production_template(jsonb,integer,boolean)to authenticated;
+create or replace function public.production_board(p_order uuid default null)returns jsonb language plpgsql security definer set search_path=public as $$
+declare f uuid:=public.current_factory_id();o record;begin
+ if f is null or not public.factory_has_permission(f,'production')then raise exception 'Production permission required';end if;
+ for o in select x.id from orders x where(p_order is null or x.id=p_order)and x.assigned_manufacturer_id=f and x.status='processing'and x.production_released_at is not null and x.factory_status='in_production'and public.factory_order_visible(x.id)order by x.id loop perform public.production_ensure_plan(o.id);perform public.production_refresh(o.id,f);end loop;
+ return jsonb_build_object('orders',coalesce((select jsonb_agg(jsonb_build_object('id',x.id,'name',x.product_name,'garment',x.garment_type,'quantity',public.production_fact_values(x.id,f,p.facts)->'quantity','qcStatus',x.qc_status,'stage',coalesce(u.stage,'preparation'),'version',coalesce(u.version,0),'plan',to_jsonb(p),'history',(select coalesce(jsonb_agg(to_jsonb(e)order by e.created_at desc),'[]')from(select *from production_timeline_events where order_id=x.id and manufacturer_id=f order by created_at desc limit 30)e),'updates',(select coalesce(jsonb_agg(to_jsonb(h)order by h.version desc),'[]')from(select id,stage,version,note,created_at,delay_reason,expected_completion from order_production_updates where order_id=x.id and manufacturer_id=f order by version desc limit 30)h))order by p.uncertain desc,p.expected_completion nulls first,x.id)
+ from orders x join order_production_timelines p on p.order_id=x.id and p.manufacturer_id=f left join lateral(select *from order_production_updates where order_id=x.id and manufacturer_id=f order by version desc limit 1)u on true
+ where(p_order is null or x.id=p_order)and x.assigned_manufacturer_id=f and x.status='processing'and x.production_released_at is not null and x.factory_status='in_production'and x.qc_status not in('pending_review','approved')and public.factory_order_visible(x.id)),'[]'),'templateRevision',coalesce((select revision from manufacturer_production_timelines where manufacturer_id=f),0));
+end$$;
+revoke all on function public.production_board(uuid)from public,anon;grant execute on function public.production_board(uuid)to authenticated;
+-- All mutations serialize by order, validate factory/team permissions and optimistic revisions.
+create or replace function public.production_action(p_order uuid,p_action text,p_data jsonb,p_revision integer,p_version integer,p_request uuid)returns jsonb language plpgsql security definer set search_path=public as $$
+#variable_conflict use_column
+declare f uuid:=public.current_factory_id();o orders%rowtype;p order_production_timelines%rowtype;u order_production_updates%rowtype;e production_timeline_events%rowtype;
+ target text;old_stage text;new_version integer;reason text:=btrim(coalesce(p_data->>'reason',''));kind text:='schedule';info text;before_state jsonb;c jsonb;rev integer;v_blocks jsonb;v_facts jsonb;block_item jsonb;calc_start timestamptz;due timestamptz;id uuid;event_time timestamptz:=clock_timestamp();req_hash text;begin
+ if f is null or not public.factory_has_permission(f,'production')or not public.factory_order_visible(p_order)then raise exception 'Only authorised production staff for the assigned factory may update this order';end if;
+ if p_request is null or p_data is null or jsonb_typeof(p_data)<>'object'or length(p_data::text)>20000 then raise exception 'Invalid production update';end if;
+ select *into o from orders where orders.id=p_order for update;
+ if not found or o.assigned_manufacturer_id is distinct from f or o.kind<>'production'or o.status<>'processing'or o.production_released_at is null or o.factory_status<>'in_production'or o.qc_status in('pending_review','approved')then raise exception 'Production must be authorised and not awaiting or past QC review';end if;
+ req_hash:=encode(sha256(convert_to(p_action||p_data::text,'UTF8')),'hex');
+ select *into e from production_timeline_events where order_id=p_order and manufacturer_id=f and request_id=p_request;
+ if found then if e.actor_id is distinct from public.team_actor()or e.request_hash is distinct from req_hash then raise exception 'This request identifier has already been used for a different update';end if;return jsonb_build_object('id',e.id,'replayed',true);end if;
+ perform public.production_ensure_plan(p_order);select *into p from order_production_timelines where order_id=p_order and manufacturer_id=f for update;
+ select *into u from order_production_updates where order_id=p_order and manufacturer_id=f order by version desc limit 1;
+ if p.revision is distinct from p_revision or coalesce(u.version,0)is distinct from p_version then raise exception 'Production changed on another device. Refresh before retrying';end if;
+ old_stage:=coalesce(u.stage,'preparation');target:=old_stage;new_version:=coalesce(u.version,0);before_state:=jsonb_build_object('stage',u.stage,'started',p.stage_started_at,'version',new_version,'planRevision',p.revision);
+ perform set_config('app.production_action',p_order::text,true);perform public.production_refresh(p_order,f);select *into p from order_production_timelines where order_id=p_order and manufacturer_id=f;
+ if length(reason)>1000 then raise exception 'Keep reasons under 1,000 characters';end if;
+ if p_action in('advance','stage')then
+ if exists(select 1 from jsonb_array_elements(p.blocks)b where b->>'resolved'is distinct from 'true')or coalesce((p.schedule->0->>'blocked')::boolean,false)then raise exception 'Resolve production blockers and prerequisites first';end if;
+ if p_action='advance'then target:=case when u.id is null then 'preparation'else(public.production_stages())[array_position(public.production_stages(),old_stage)+1]end;else target:=p_data->>'stage';end if;
+ if target is null or not(target=any(public.production_stages()))then raise exception 'Quality Control is the last production stage. Submit the QC report on its existing page';end if;
+ if u.id is not null and target=old_stage then raise exception 'This stage is already current';end if;
+ if array_position(public.production_stages(),target)>array_position(public.production_stages(),old_stage)+(case when u.id is null then 0 else 1 end)then raise exception 'Confirm each prerequisite stage in order; stages cannot be skipped';end if;
+ if p_action='stage'and length(reason)<3 then raise exception 'Explain the status correction and schedule effect';end if;
+ if coalesce((public.production_schedule(f,p.config,event_time,target,public.production_fact_values(p_order,f,p.facts),p.blocks)->0->>'blocked')::boolean,false)then raise exception 'The next stage has unresolved prerequisites. Update its timing factors first';end if;
+ perform set_config('app.production_action',p_order::text,true);
+ -- Actual movement is an explicit manufacturer confirmation, never a timer's assertion.
+ insert into order_production_updates(order_id,manufacturer_id,submitted_by,version,stage,note,expected_completion,delay_reason)values(p_order,f,public.team_actor(),new_version+1,target,case when p_action='advance'then 'Manufacturer confirmed move to '||replace(target,'_',' ')else reason end,null,case when p_action='stage'then reason else ''end)returning id into id;
+ update order_production_timelines set stage_started_at=event_time,estimated_stage=null,override_completion=null,legacy_delay=null where order_id=p_order and manufacturer_id=f;kind:='manual';info:=case when p_action='advance'then 'Manufacturer confirmed '||replace(target,'_',' ')else 'Stage corrected: '||reason end;new_version:=new_version+1;
+ elsif p_action in('block','pause','preview_block','revise_block')then
+ if length(reason)<3 then raise exception 'Explain the production delay or pause';end if;
+ select value into block_item from jsonb_array_elements(p.blocks)where value->>'resolved'is distinct from 'true'limit 1;
+ if block_item is not null and p_action in('block','pause')then raise exception 'Edit or resolve the current blocker before reporting another';end if;
+ if block_item is null and p_action='revise_block'then raise exception 'There is no active blocker to edit';end if;
+ if coalesce(p_data->>'category','other')not in('materials','approval','quality','capacity','maintenance','other')then raise exception 'Choose a delay reason';end if;
+ due:=nullif(p_data->>'until','')::timestamptz;if due is not null and(due<=event_time or due>event_time+interval '3650 days')then raise exception 'Choose a future estimate for resolving this blocker';end if;
+ calc_start:=case when(p.schedule->0->>'end')::timestamptz<event_time then event_time else p.stage_started_at end;
+ v_blocks:=case when block_item is null then p.blocks||jsonb_build_array(jsonb_build_object('id',p_request,'start',event_time,'end',due,'resolved',false,'category',coalesce(p_data->>'category','other'),'reason',reason))else(select jsonb_agg(case when value->>'resolved'is distinct from 'true'then value||jsonb_build_object('end',due,'reason',reason,'category',coalesce(p_data->>'category','other'))else value end)from jsonb_array_elements(p.blocks))end;
+ if p_action='preview_block'then v_blocks:=public.production_schedule(f,p.config,calc_start,old_stage,public.production_fact_values(p_order,f,p.facts),v_blocks);return jsonb_build_object('current',p.expected_completion,'proposed',v_blocks->-1->'end','schedule',v_blocks);end if;
+ if v_blocks=p.blocks then return jsonb_build_object('saved',true,'unchanged',true);end if;
+ update order_production_timelines set blocks=v_blocks,stage_started_at=calc_start,override_completion=null,estimated_stage=null where order_id=p_order and manufacturer_id=f;
+ kind:='block';info:=case when due is null then 'Production blocked; completion estimate is uncertain. 'else 'Production delayed until '||due::text||'. 'end||reason||case when calc_start>p.stage_started_at then ' · Overdue, unconfirmed stage re-estimated from this delay report.'else ''end;
+ elsif p_action='resume'then
+ if not exists(select 1 from jsonb_array_elements(p.blocks)b where b->>'resolved'is distinct from 'true')then raise exception 'Production is not paused or blocked';end if;
+ select coalesce(jsonb_agg(case when value->>'resolved'is distinct from 'true'then value||jsonb_build_object('end',event_time,'resolved',true)else value end),'[]')into v_blocks from jsonb_array_elements(p.blocks);
+ update order_production_timelines set blocks=v_blocks,estimated_stage=null,legacy_delay=null where order_id=p_order and manufacturer_id=f;kind:='resume';info:='Manufacturer confirmed blocker resolved; remaining schedule recalculated';
+ elsif p_action='facts'then
+ v_facts:=p_data->'facts';if jsonb_typeof(v_facts)is distinct from 'object'or v_facts-array['complexity','materials','sample_approval','customer_approval','quality_checks','confirmedRules']<>'{}'then raise exception 'Choose supported order timing factors';end if;
+ if v_facts?'complexity'and v_facts->>'complexity'not in('simple','standard','complex')then raise exception 'Choose product complexity';end if;
+ if exists(select 1 from jsonb_each(v_facts)x where x.key in('materials','sample_approval','customer_approval','quality_checks')and jsonb_typeof(x.value)<>'boolean')then raise exception 'Approval/material factors require Yes/No values';end if;
+ if v_facts?'confirmedRules'and(jsonb_typeof(v_facts->'confirmedRules')<>'array'or exists(select 1 from jsonb_array_elements_text(v_facts->'confirmedRules')r where not exists(select 1 from jsonb_array_elements(p.config->'factors')x where x->>'id'=r and x->>'effect'='confirm')))then raise exception 'Confirm only configured timing rules';end if;
+ v_facts:=v_facts;
+ for target in select unnest(array['materials','sample_approval','customer_approval'])loop
+ if v_facts->target='true'::jsonb then v_facts:=v_facts||jsonb_build_object('_'||target||'At',case when p.facts->target='true'::jsonb then coalesce(p.facts->>('_'||target||'At'),event_time::text)else event_time::text end);end if;end loop;
+ update order_production_timelines set facts=v_facts,estimated_stage=null where order_id=p_order and manufacturer_id=f;info:='Structured timing factors updated; remaining dates recalculated';
+ elsif p_action='automation'then
+ if jsonb_typeof(p_data->'enabled')is distinct from 'boolean'then raise exception 'Choose whether automated estimates are enabled';end if;
+ update order_production_timelines set automation_paused=not(p_data->>'enabled')::boolean,estimated_stage=null where order_id=p_order and manufacturer_id=f;info:=case when(p_data->>'enabled')::boolean then 'Manufacturer resumed automatic estimates'else 'Manufacturer paused automatic estimates; confirmed work and manual updates remain available'end;
+ elsif p_action='estimate'then
+ if length(reason)<3 then raise exception 'Explain the updated completion estimate';end if;due:=nullif(p_data->>'completion','')::timestamptz;
+ if due is not null and(due<=event_time or due>event_time+interval '3650 days')then raise exception 'Choose a valid future estimate';end if;
+ update order_production_timelines set override_completion=due where order_id=p_order and manufacturer_id=f;info:='Completion estimate overridden: '||reason;
+ elsif p_action in('preview_rules','apply_rules')then
+ select config,revision into c,rev from manufacturer_production_timelines where manufacturer_id=f;if not found then raise exception 'Save your factory timeline first';end if;
+ v_blocks:=public.production_schedule(f,c,p.stage_started_at,old_stage,public.production_fact_values(p_order,f,p.facts),p.blocks);
+ if p_action='preview_rules'then return jsonb_build_object('current',p.expected_completion,'proposed',v_blocks->-1->'end','schedule',v_blocks,'templateRevision',rev,'previewHash',encode(sha256(convert_to(v_blocks::text,'UTF8')),'hex'));end if;
+ if p_data->>'previewHash'is distinct from encode(sha256(convert_to(v_blocks::text,'UTF8')),'hex')then raise exception 'The proposed schedule changed after preview. Preview again before applying';end if;
+ if coalesce((p_data->>'templateRevision')::integer,-1)<>rev then raise exception 'Default rules changed after the preview. Preview again';end if;
+ update order_production_timelines set config=c,template_revision=rev,override_completion=null,estimated_stage=null where order_id=p_order and manufacturer_id=f;kind:='rules';info:='Manufacturer explicitly applied timeline revision '||rev||' to remaining production';
+ elsif p_action='undo'then
+ select *into e from production_timeline_events where order_id=p_order and manufacturer_id=f and id=(p_data->>'event')::uuid;
+ if not found or e.kind<>'manual'or e.actor_id is distinct from public.team_actor()or e.created_at<event_time-interval '30 seconds'or coalesce((e.details->>'afterVersion')::integer,-1)<>new_version or coalesce((e.details->>'afterRevision')::integer,-1)<>p.revision or e.details->'before'->>'stage'is null then raise exception 'Undo is no longer safe. Use a reasoned stage correction';end if;
+ target:=e.details->'before'->>'stage';perform set_config('app.production_action',p_order::text,true);
+ insert into order_production_updates(order_id,manufacturer_id,submitted_by,version,stage,note)values(p_order,f,public.team_actor(),new_version+1,target,'Undo of the last manual stage transition');
+ update order_production_timelines set stage_started_at=(e.details->'before'->>'started')::timestamptz,estimated_stage=null where order_id=p_order and manufacturer_id=f;new_version:=new_version+1;kind:='undo';info:='Last manual stage transition undone; history retained';
+ else raise exception 'Unknown production action';end if;
+ update order_production_timelines set revision=revision+1,updated_at=event_time where order_id=p_order and manufacturer_id=f;
+ perform public.production_refresh(p_order,f);
+ insert into production_timeline_events(order_id,manufacturer_id,actor_id,kind,explanation,details,request_id,request_hash)values(p_order,f,public.team_actor(),kind,info,jsonb_build_object('before',before_state,'afterVersion',new_version,'afterRevision',p.revision+1,'data',p_data),p_request,req_hash)returning id into id;
+ if p_action in('block','pause','revise_block','resume','estimate','apply_rules','facts','advance','stage','undo')then
+ select expected_completion into due from order_production_timelines where order_id=p_order and manufacturer_id=f;
+ if p_action in('block','pause','revise_block','resume')or((p.expected_completion is null)<>(due is null))or abs(extract(epoch from(due-p.expected_completion)))>=86400 then
+ perform public.notify_superadmin('order','Production schedule changed',o.product_name||' · '||info,'/superadmin/orders/'||p_order,p_order);
+ insert into brand_notifications(user_id,category,title,body,href)values(o.user_id,'order','Production schedule update',o.product_name||' · '||info,'/orders/'||p_order);
+ end if;end if;
+ return jsonb_build_object('id',id,'version',new_version,'revision',p.revision+1,'undoAvailable',kind='manual'and u.id is not null,'saved',true);
+end$$;
+revoke all on function public.production_action(uuid,text,jsonb,integer,integer,uuid)from public,anon;grant execute on function public.production_action(uuid,text,jsonb,integer,integer,uuid)to authenticated;
+create or replace function public.production_bulk(p_orders jsonb,p_request uuid)returns integer language plpgsql security definer set search_path=public as $$
+declare x jsonb;stage text;current_stage text;n integer:=0;begin
+ if jsonb_typeof(p_orders)is distinct from 'array'or jsonb_array_length(p_orders)not between 1 and 100 or(select count(distinct value->>'id')from jsonb_array_elements(p_orders))<>jsonb_array_length(p_orders)then raise exception 'Select 1–100 distinct production orders';end if;
+ -- Consistent lock order prevents deadlocks. A failed item rolls the entire batch back.
+ for x in select value from jsonb_array_elements(p_orders)order by value->>'id'loop
+ select coalesce((select u.stage from order_production_updates u where u.order_id=(x->>'id')::uuid order by version desc limit 1),'preparation')into current_stage;
+ current_stage:=current_stage||case when(x->>'version')::integer=0 then ':start'else ':next'end;
+ if stage is null then stage:=current_stage;elsif stage<>current_stage then raise exception 'Bulk updates require the same eligible next stage';end if;
+ perform public.production_action((x->>'id')::uuid,'advance','{}',(x->>'revision')::integer,(x->>'version')::integer,p_request);n:=n+1;
+ end loop;return n;end$$;
+revoke all on function public.production_bulk(jsonb,uuid)from public,anon;grant execute on function public.production_bulk(jsonb,uuid)to authenticated;
+-- Protect legacy detail/API updates with the same adjacent-stage and blocker rules.
+create or replace function public.production_update_guard()returns trigger language plpgsql security definer set search_path=public as $$
+declare p order_production_timelines%rowtype;prior order_production_updates%rowtype;begin
+ if public.is_superadmin()then return new;end if;
+ if not public.factory_has_permission(new.manufacturer_id,'production')or not public.factory_order_visible(new.order_id)then raise exception 'Assigned production permission required';end if;
+ select *into p from order_production_timelines where order_id=new.order_id and manufacturer_id=new.manufacturer_id for update;
+ select *into prior from order_production_updates where order_id=new.order_id and manufacturer_id=new.manufacturer_id order by version desc limit 1;
+ if new.stage is distinct from prior.stage then
+ if p.order_id is not null and coalesce((public.production_schedule(new.manufacturer_id,p.config,p.stage_started_at,coalesce(prior.stage,'preparation'),public.production_fact_values(new.order_id,new.manufacturer_id,p.facts),p.blocks)->0->>'blocked')::boolean,false)then raise exception 'Resolve current stage prerequisites before updating production';end if;
+ if p.order_id is not null and coalesce((public.production_schedule(new.manufacturer_id,p.config,now(),new.stage,public.production_fact_values(new.order_id,new.manufacturer_id,p.facts),p.blocks)->0->>'blocked')::boolean,false)then raise exception 'Resolve stage prerequisites before updating production';end if;
+ if exists(select 1 from jsonb_array_elements(coalesce(p.blocks,'[]'))b where b->>'resolved'is distinct from 'true')then raise exception 'Resolve production blockers first';end if;
+ if array_position(public.production_stages(),new.stage)>coalesce(array_position(public.production_stages(),prior.stage),0)+1 then raise exception 'Confirm each prerequisite production stage in order';end if;
+ if prior.id is not null and array_position(public.production_stages(),new.stage)<array_position(public.production_stages(),prior.stage)and length(btrim(new.note))<3 then raise exception 'Explain the backwards stage correction';end if;
+ end if;return new;end$$;
+revoke all on function public.production_update_guard()from public,anon,authenticated;
+drop trigger if exists production_update_guard on public.order_production_updates;
+create trigger production_update_guard before insert on public.order_production_updates for each row execute function public.production_update_guard();
+create or replace function public.production_update_sync()returns trigger language plpgsql security definer set search_path=public as $$begin
+ if current_setting('app.production_action',true)=new.order_id::text then return new;end if;
+ update order_production_timelines set stage_started_at=case when new.stage is distinct from(select stage from order_production_updates where order_id=new.order_id and manufacturer_id=new.manufacturer_id and version<new.version order by version desc limit 1)then new.created_at else stage_started_at end,estimated_stage=null,override_completion=case when new.expected_completion is not null then(new.expected_completion+(config->>'workEnd')::time)at time zone(config->>'timezone')else override_completion end,legacy_delay=nullif(new.delay_reason,''),revision=revision+1,updated_at=now()where order_id=new.order_id and manufacturer_id=new.manufacturer_id;
+ perform public.production_refresh(new.order_id,new.manufacturer_id);return new;end$$;
+revoke all on function public.production_update_sync()from public,anon,authenticated;
+-- The new action owns its revision; only legacy writes use this synchronisation trigger.
+drop trigger if exists production_update_sync on public.order_production_updates;
+create trigger production_update_sync after insert on public.order_production_updates for each row execute function public.production_update_sync();
+create or replace function public.production_scheduler()returns integer language plpgsql security definer set search_path=public as $$
+declare p record;s jsonb;next_info jsonb;next_stage text;actual_stage text;forecast_stage text;remaining jsonb;position integer;n integer:=0;visited boolean;can_advance boolean;explanation text;begin
+ for p in select t.*from order_production_timelines t join orders o on o.id=t.order_id and o.assigned_manufacturer_id=t.manufacturer_id where o.status='processing'and o.factory_status='in_production'and o.production_released_at is not null and o.qc_status not in('pending_review','approved')order by t.updated_at limit 250 for update of o skip locked loop
+ perform public.production_refresh(p.order_id,p.manufacturer_id);
+ select schedule into remaining from order_production_timelines where order_id=p.order_id and manufacturer_id=p.manufacturer_id;
+ actual_stage:=coalesce((select stage from order_production_updates where order_id=p.order_id and manufacturer_id=p.manufacturer_id order by version desc limit 1),'preparation');forecast_stage:=actual_stage;visited:=false;
+ if not p.automation_paused and not exists(select 1 from jsonb_array_elements(p.blocks)b where b->>'resolved'is distinct from 'true')then
+ for position in 0..greatest(0,jsonb_array_length(remaining)-1)loop
+ s:=remaining->position;
+ exit when s is null or not coalesce((s->>'automatic')::boolean,false)or not coalesce((s->>'ready')::boolean,false)or coalesce((s->>'blocked')::boolean,false);
+ next_info:=remaining->(position+1);next_stage:=next_info->>'stage';
+ can_advance:=next_stage is not null and next_info->>'starts'<>'previous_stage'and not coalesce((next_info->>'blocked')::boolean,false);
+ if can_advance then forecast_stage:=next_stage;explanation:='Estimated progress advanced automatically to '||replace(next_stage,'_',' ')||' using the configured '||(s->>'stage')||' duration: '||(s->>'duration')||' '||replace(s->>'unit','_',' ')||'. ';
+ else forecast_stage:=s->>'stage';explanation:='Configured '||replace(s->>'stage','_',' ')||' duration elapsed. Ready for manufacturer confirmation; the next stage or QC review still requires its prerequisites. ';end if;
+ explanation:=explanation||'Physical completion still requires manufacturer confirmation.';
+ insert into production_timeline_events(order_id,manufacturer_id,kind,explanation,details,dedupe)values(p.order_id,p.manufacturer_id,'automatic',explanation,jsonb_build_object('estimatedStage',forecast_stage,'configuredStage',s->>'stage','confirmedStage',actual_stage),'estimate:'||(s->>'stage')||'>'||forecast_stage||':'||p.stage_started_at::text||':'||p.template_revision||':'||(s->>'end'))on conflict do nothing;
+ if found then n:=n+1;end if;visited:=true;
+ exit when not can_advance;
+ end loop;
+ if visited then update order_production_timelines set estimated_stage=forecast_stage where order_id=p.order_id and manufacturer_id=p.manufacturer_id;end if;
+ end if;
+ -- Bounded fair sweeps, safe when jobs run late: every forecast step has its own dedupe key.
+ update order_production_timelines set updated_at=now()where order_id=p.order_id and manufacturer_id=p.manufacturer_id;
+ end loop;return n;end$$;
+revoke all on function public.production_scheduler()from public,anon,authenticated;grant execute on function public.production_scheduler()to service_role;
+
+-- Existing calendar/dashboard projections consume the same saved dates, including uncertainty.
+create or replace function public.production_effective_date(p_order uuid,p_fallback date)returns date language sql stable security definer set search_path=public as $$select case when t.order_id is not null then(t.expected_completion at time zone(t.config->>'timezone'))::date else p_fallback end from orders o left join order_production_timelines t on t.order_id=o.id and t.manufacturer_id=o.assigned_manufacturer_id where o.id=p_order$$;
+revoke all on function public.production_effective_date(uuid,date)from public,anon,authenticated;
+create or replace function public.production_effective_delay(p_order uuid,p_fallback text)returns text language sql stable security definer set search_path=public as $$select case when t.order_id is null then p_fallback else coalesce((select string_agg(b->>'reason','; ')from jsonb_array_elements(t.blocks)b where b->>'resolved'is distinct from 'true'),case when t.uncertain then coalesce(t.schedule->0->>'reason','Completion estimate is uncertain')end,t.legacy_delay)end from orders o left join order_production_timelines t on t.order_id=o.id and t.manufacturer_id=o.assigned_manufacturer_id where o.id=p_order$$;
+revoke all on function public.production_effective_delay(uuid,text)from public,anon,authenticated;
+do $$declare d text;f regprocedure;begin
+ f:='public.calendar_order_facts(uuid)'::regprocedure;select pg_get_functiondef(f)into d;
+ if position('production_effective_date'in d)=0 then d:=replace(d,'first_update.started,p.expected_completion,','first_update.started,public.production_effective_date(o.id,p.expected_completion),');d:=replace(d,'o.status,p.delay_reason,','o.status,public.production_effective_delay(o.id,p.delay_reason),');execute d;end if;
+ f:=coalesce(to_regprocedure('public.team_impl_portal_dashboard(boolean,integer,text,text,text)'),to_regprocedure('public.portal_dashboard(boolean,integer,text,text,text)'));select pg_get_functiondef(f)into d;
+ if position('production_effective_date'in d)=0 then d:=replace(d,'u.stage,u.expected_completion,u.delay_reason,u.created_at','u.stage,public.production_effective_date(o.id,u.expected_completion)as expected_completion,public.production_effective_delay(o.id,u.delay_reason)as delay_reason,u.created_at');execute d;end if;
+end$$;
+select cron.schedule('ceriga-production-timeline','*/5 * * * *','select public.production_scheduler();');
+commit;
+
+-- Factory dashboard membership authorisation (20261027030000)
+begin;
+-- Workspace membership, not a legacy profile label, authorises the factory dashboard.
+-- The public wrapper still enters the factory context and the projection retains record-level filtering.
+do $migration$
+declare definition text;old_guard text:='not p_admin and not exists(select 1 from public.profiles where id=uid and role=''manufacturer'')';new_guard text:='not p_admin and not (exists(select 1 from public.manufacturer_profiles where user_id=uid) and public.factory_has_permission(uid,''view_orders''))';
+begin
+ select pg_get_functiondef('public.team_impl_portal_dashboard(boolean,integer,text,text,text)'::regprocedure) into definition;
+ if position(old_guard in definition)>0 then execute replace(definition,old_guard,new_guard);
+ elsif position(new_guard in definition)=0 then raise exception 'Unrecognised dashboard authorisation guard';end if;
+end $migration$;
+revoke all on function public.team_impl_portal_dashboard(boolean,integer,text,text,text) from public,anon,authenticated;
+notify pgrst,'reload schema';
+commit;
+
+-- Three-stage production (20261028010000)
+begin;
+select pg_advisory_xact_lock(7271028001);
+alter table public.order_production_updates drop constraint if exists order_production_updates_stage_check;
+alter table public.order_production_updates add constraint order_production_updates_stage_check check(stage in('preparation','cutting','sewing','cutting_sewing','finishing','quality_control'));
+alter table public.order_production_updates add column if not exists source text not null default 'manual' check(source in('manual','automatic'));
+alter table public.order_production_timelines add column if not exists original_completion timestamptz;
+alter table public.order_production_timelines add column if not exists stage_delays jsonb not null default '[]' check(jsonb_typeof(stage_delays)='array');
+alter table public.order_production_timelines add column if not exists next_transition timestamptz;
+alter table public.order_production_timelines add column if not exists needs_review text;
+alter table public.order_production_timelines add column if not exists workflow_version integer not null default 1;
+create index if not exists production_automatic_due_idx on public.order_production_timelines(next_transition) where next_transition is not null;
+
+create or replace function public.production_stage_key(s text)returns text language sql immutable set search_path=public as $$select case when s in('cutting','sewing')then 'cutting_sewing'else s end$$;
+create or replace function public.production_stages()returns text[]language sql immutable set search_path=public as $$select array['preparation','cutting_sewing','finishing','quality_control']$$;
+-- Preserve the old configuration alongside the mapped durations. QC remains outside production.
+create or replace function public.production_three_config(c jsonb,active_stage text default null)returns jsonb language plpgsql immutable set search_path=public as $$
+declare result jsonb:=c;stages jsonb:='[]';item jsonb;parts jsonb;old_stage jsonb;auto boolean;factors jsonb;
+begin
+ if c is null then return null;end if;
+ if jsonb_array_length(c->'stages')=3 and c->'stages'->1->>'id'='cutting_sewing' then return c;end if;
+ if jsonb_array_length(c->'stages')<>5 or c->'stages'->0->>'id'<>'preparation' or c->'stages'->1->>'id'<>'cutting' or c->'stages'->2->>'id'<>'sewing' or c->'stages'->3->>'id'<>'finishing' or c->'stages'->4->>'id'<>'quality_control' then raise exception 'Unrecognised legacy timeline; manual scheduling review required';end if;
+ for item in select value from jsonb_array_elements(c->'stages') where value->>'id' in('preparation','cutting','finishing') loop
+  if item->>'id'='cutting' then
+   parts:=jsonb_build_array(item,c->'stages'->2);
+   if active_stage='sewing' then parts:=jsonb_build_array(c->'stages'->2);end if;
+   select bool_and((value->>'automatic')::boolean) into auto from jsonb_array_elements(parts);
+   item:=item||jsonb_build_object('id','cutting_sewing','duration',(select sum((value->>'duration')::numeric)from jsonb_array_elements(parts)),'automatic',auto,'segments',parts);
+  end if;
+  stages:=stages||jsonb_build_array(item);
+ end loop;
+ select coalesce(jsonb_agg(value||jsonb_build_object('stage',public.production_stage_key(value->>'stage'))),'[]')into factors from jsonb_array_elements(c->'factors') where value->>'stage'<>'quality_control';
+ return result||jsonb_build_object('stages',stages,'factors',factors,'legacyTimeline',c,'separateQcTiming',c->'stages'->4,'schemaVersion',2);
+end$$;
+revoke all on function public.production_three_config(jsonb,text)from public,anon,authenticated;
+
+-- Capture commitments before changing any estimates; do not rewrite historical stage events.
+do $$declare t record;begin
+ for t in select *from manufacturer_production_timelines where jsonb_array_length(config->'stages')<>3 loop
+  update manufacturer_production_timelines set config=public.production_three_config(t.config),revision=revision+1,updated_at=now() where manufacturer_id=t.manufacturer_id;
+ end loop;
+ for t in select p.*,(select stage from order_production_updates u where u.order_id=p.order_id and u.manufacturer_id=p.manufacturer_id order by version desc limit 1)old_stage from order_production_timelines p where workflow_version=1 loop
+  begin
+   update order_production_timelines set original_completion=coalesce(original_completion,expected_completion,override_completion),config=public.production_three_config(t.config,t.old_stage),workflow_version=2,estimated_stage=null,revision=revision+1 where order_id=t.order_id and manufacturer_id=t.manufacturer_id;
+   insert into production_timeline_events(order_id,manufacturer_id,kind,explanation,details,dedupe)values(t.order_id,t.manufacturer_id,'rules','Production mapped to Preparations, Cutting & Sewing, and Finishing. Historical updates and the original completion estimate were retained.',jsonb_build_object('legacyStage',t.old_stage,'originalCompletion',t.expected_completion),'three-stage-migration')on conflict do nothing;
+  exception when others then
+   update order_production_timelines set needs_review='Legacy scheduling needs review: '||sqlerrm,automation_paused=true,workflow_version=2 where order_id=t.order_id and manufacturer_id=t.manufacturer_id;
+  end;
+ end loop;
+end$$;
+
+
+create or replace function public.production_default_timeline(p_factory uuid)returns jsonb language sql stable security definer set search_path=public as $$select jsonb_build_object('timezone',m.calendar_timezone,'workdays',to_jsonb(coalesce(m.calendar_workdays,array[1,2,3,4,5])),'workStart','09:00','workEnd','17:00','startEvent','production_approval','schemaVersion',2,'factors','[]'::jsonb,'stages',(select jsonb_agg(jsonb_build_object('id',s,'duration',greatest(1,round(coalesce(m.typical_lead_days,10)*case s when 'preparation'then .2 when 'cutting_sewing'then .6 else .2 end)),'unit','working_days','starts',case when s='preparation'then 'production_approval'else 'previous_stage'end,'automatic',false)order by n)from unnest(array['preparation','cutting_sewing','finishing'])with ordinality x(s,n)))from manufacturer_profiles m where user_id=p_factory$$;
+create or replace function public.production_validate_timeline(c jsonb)returns void language plpgsql stable set search_path=public as $$
+declare s jsonb;r jsonb;ids text[];begin
+ if c is null or jsonb_typeof(c)<>'object'or length(c::text)>30000 then raise exception 'Invalid production timeline';end if;
+ if not exists(select 1 from pg_timezone_names where name=c->>'timezone')then raise exception 'Choose a valid timezone';end if;
+ if coalesce(c->>'workStart','')!~'^([01][0-9]|2[0-3]):[0-5][0-9]$'or coalesce(c->>'workEnd','')!~'^([01][0-9]|2[0-3]):[0-5][0-9]$'or(c->>'workEnd')::time<=(c->>'workStart')::time then raise exception 'Choose a daytime working shift (start before end)';end if;
+ if jsonb_typeof(c->'workdays')is distinct from 'array'or jsonb_array_length(c->'workdays')not between 1 and 7 then raise exception 'Select working weekdays';end if;
+ if exists(select 1 from jsonb_array_elements_text(c->'workdays')d where d!~'^[1-7]$')or(select count(distinct value)from jsonb_array_elements_text(c->'workdays'))<>jsonb_array_length(c->'workdays')then raise exception 'Choose distinct weekdays (Monday–Sunday)';end if;
+ if coalesce(c->>'startEvent','')not in('production_approval','materials')then raise exception 'Choose a scheduling start event';end if;
+ if jsonb_typeof(c->'stages')is distinct from 'array'or jsonb_array_length(c->'stages')<>3 then raise exception 'Configure the three production stages';end if;
+ select array_agg(value->>'id'order by ordinality)into ids from jsonb_array_elements(c->'stages')with ordinality;
+ if ids is distinct from array['preparation','cutting_sewing','finishing']then raise exception 'Use the existing stages in order';end if;
+ for s in select value from jsonb_array_elements(c->'stages')loop
+ if coalesce(s->>'duration','')!~'^[0-9]+(\.[0-9]{1,2})?$'or(s->>'duration')::numeric not between .01 and 3650 or coalesce(s->>'unit','')not in('working_days','calendar_days','hours','working_hours')or coalesce(s->>'starts','')not in('production_approval','previous_stage','previous_estimate','materials','sample_approval','customer_approval')or jsonb_typeof(s->'automatic')is distinct from 'boolean'then raise exception 'Choose a duration, unit, start condition and confirmation mode for each stage';end if;
+ if s?'segments' then
+ if jsonb_typeof(s->'segments')<>'array' or jsonb_array_length(s->'segments')not between 1 and 2 then raise exception 'Invalid preserved stage durations';end if;
+ for r in select value from jsonb_array_elements(s->'segments')loop
+ if coalesce(r->>'duration','')!~'^[0-9]+(\.[0-9]{1,2})?$' or (r->>'duration')::numeric not between .01 and 3650 or coalesce(r->>'unit','')not in('working_days','calendar_days','hours','working_hours')then raise exception 'Invalid preserved duration';end if;
+ end loop;end if;
+ end loop;
+ if jsonb_typeof(c->'factors')is distinct from 'array'or jsonb_array_length(c->'factors')>20 then raise exception 'Use at most 20 timing factors';end if;
+ for r in select value from jsonb_array_elements(c->'factors')loop
+ if coalesce(r->>'id','')=''or coalesce(r->>'factor','')not in('quantity','complexity','materials','sample_approval','customer_approval','quality_checks','capacity')or not(r->>'stage'=any(public.production_stages()))or coalesce(r->>'effect','')not in('add_time','pause','confirm')or coalesce(r->>'op','')not in('eq','gte')or not(r?'value')then raise exception 'Complete each structured timing rule';end if;
+ if r->>'factor'in('quantity','capacity')and(coalesce(r->>'value','')!~'^[0-9]+(\.[0-9]{1,2})?$'or(r->>'value')::numeric>1000000000)then raise exception 'Quantity/capacity rules require a numeric threshold';end if;
+ if r->>'factor'in('materials','sample_approval','customer_approval','quality_checks')and(jsonb_typeof(r->'value')<>'boolean'or r->>'op'<>'eq')then raise exception 'Approval/material rules require Yes/No conditions';end if;
+ if r->>'factor'='complexity'and(coalesce(r->>'value','')not in('simple','standard','complex')or r->>'op'<>'eq')then raise exception 'Choose a complexity level';end if;
+ if r->>'effect'='add_time'and(coalesce(r->>'duration','')!~'^[0-9]+(\.[0-9]{1,2})?$'or(r->>'duration')::numeric not between .01 and 3650 or coalesce(r->>'unit','')not in('working_days','calendar_days','hours','working_hours'))then raise exception 'Time additions need a positive duration and unit';end if;
+ if length(coalesce(r->>'notes',''))>1000 then raise exception 'Keep exception notes under 1,000 characters';end if;
+ end loop;
+ if(select count(distinct value->>'id')from jsonb_array_elements(c->'factors'))<>jsonb_array_length(c->'factors')then raise exception 'Timing rule identifiers must be unique';end if;
+end$$;
+create or replace function public.production_schedule(p_factory uuid,c jsonb,p_start timestamptz,p_stage text,p_facts jsonb,p_blocks jsonb)returns jsonb language plpgsql stable security definer set search_path=public as $$
+declare s jsonb;r jsonb;segment jsonb;delay_item jsonb;cursor_at timestamptz:=p_start;ends_at timestamptz;result jsonb:='[]';reason text;v jsonb;matches boolean;blocked boolean;begin
+ for s in select value from jsonb_array_elements(c->'stages')with ordinality where ordinality>=coalesce(array_position(public.production_stages(),public.production_stage_key(p_stage)),1)order by ordinality loop
+ reason:=null;blocked:=false;
+ if(c->>'startEvent'='materials'or s->>'starts'='materials')and p_facts->'materials'is distinct from 'true'::jsonb then reason:='Confirm material availability';blocked:=true;end if;
+ if s->>'starts'in('sample_approval','customer_approval')and p_facts->(s->>'starts')is distinct from 'true'::jsonb then reason:='Confirm '||replace(s->>'starts','_',' ');blocked:=true;end if;
+ if cursor_at is not null then
+ if(c->>'startEvent'='materials'or s->>'starts'='materials')and p_facts->'materials'='true'::jsonb then cursor_at:=greatest(cursor_at,(p_facts->>'_materialsAt')::timestamptz);end if;
+ if s->>'starts'in('sample_approval','customer_approval')then cursor_at:=greatest(cursor_at,(p_facts->>('_'||(s->>'starts')||'At'))::timestamptz);end if;end if;
+ ends_at:=cursor_at;
+ if s?'segments' then
+ for segment in select value from jsonb_array_elements(s->'segments')loop
+ if segment->>'starts' in('materials','sample_approval','customer_approval') and p_facts->(segment->>'starts')is distinct from 'true'::jsonb then reason:='Confirm '||replace(segment->>'starts','_',' ');blocked:=true;end if;
+ ends_at:=public.production_add_time(p_factory,c,ends_at,(segment->>'duration')::numeric,segment->>'unit',p_blocks);
+ end loop;
+ else ends_at:=public.production_add_time(p_factory,c,cursor_at,(s->>'duration')::numeric,s->>'unit',p_blocks);end if;
+ for r in select value from jsonb_array_elements(c->'factors')where value->>'stage'=s->>'id'loop
+ v:=p_facts->(r->>'factor');matches:=false;
+ if v is null or v='null'::jsonb then reason:='Confirm '||replace(r->>'factor','_',' ');blocked:=true;
+ else matches:=case when r->>'op'='gte'then(v#>>'{}')::numeric>=(r->>'value')::numeric else v=r->'value'end;end if;
+ if matches then
+ if r->>'effect'='add_time'then ends_at:=public.production_add_time(p_factory,c,ends_at,(r->>'duration')::numeric,r->>'unit',p_blocks);
+ elsif r->>'effect'='pause'then reason:='Resolve '||replace(r->>'factor','_',' ');blocked:=true;
+ elsif coalesce(p_facts->'confirmedRules','[]') ? (r->>'id')is not true then reason:='Confirm timing rule: '||replace(r->>'factor','_',' ');blocked:=true;end if;end if;
+ end loop;
+ for delay_item in select value from jsonb_array_elements(coalesce(p_facts->'_stageDelays','[]'))where value->>'stage'=s->>'id' and (value->>'stageStartedAt')::timestamptz=p_start loop
+ ends_at:=public.production_add_time(p_factory,c,ends_at,(delay_item->>'days')::numeric,'calendar_days',p_blocks);
+ end loop;
+ if blocked then ends_at:=null;end if;
+ if exists(select 1 from jsonb_array_elements(p_blocks)b where b->>'end'is null or(b->>'resolved'is distinct from 'true'and(b->>'end')::timestamptz<=now()))then ends_at:=null;reason:=coalesce(reason,'Production is blocked; completion is uncertain');blocked:=true;end if;
+ result:=result||jsonb_build_array(jsonb_build_object('stage',s->>'id','start',cursor_at,'end',ends_at,'automatic',s->'automatic','starts',s->>'starts','duration',s->'duration','unit',s->>'unit','blocked',blocked,'reason',reason,'ready',ends_at is not null and ends_at<=now()));cursor_at:=ends_at;
+ end loop;return result;end$$;
+create or replace function public.production_fact_values(p_order uuid,p_factory uuid,p_facts jsonb)returns jsonb language sql stable security definer set search_path=public as $$
+ with active as(select case when coalesce(opt.value->>'totalUnits','')~'^[1-9][0-9]*$'then(opt.value->>'totalUnits')::numeric end units from orders x left join lateral(select value from jsonb_array_elements(coalesce(x.price_options,'[]'))where value->>'id'=x.selected_price_option_id limit 1)opt on true where x.assigned_manufacturer_id=p_factory and x.status='processing'and x.production_released_at is not null and x.factory_status='in_production'and coalesce(x.qc_status,'not_submitted')<>'approved')
+ select p_facts||jsonb_build_object('_stageDelays',coalesce((select stage_delays from order_production_timelines where order_id=p_order and manufacturer_id=p_factory),'[]'::jsonb),'quantity',case when coalesce(selected.value->>'totalUnits','')~'^[1-9][0-9]*$'then(selected.value->>'totalUnits')::numeric end,'capacity',case when m.monthly_capacity>0 and not exists(select 1 from active where units is null)then(select round(100*sum(units)/m.monthly_capacity,2)from active)end)from orders o join manufacturer_profiles m on m.user_id=p_factory left join lateral(select value from jsonb_array_elements(coalesce(o.price_options,'[]'))where value->>'id'=o.selected_price_option_id limit 1)selected on true where o.id=p_order
+$$;
+create or replace function public.production_refresh(p_order uuid,p_factory uuid)returns void language plpgsql security definer set search_path=public as $$
+declare p order_production_timelines%rowtype;s jsonb;stage text;due timestamptz;begin
+ select *into p from order_production_timelines where order_id=p_order and manufacturer_id=p_factory for update;
+ if not found then return;end if;
+ select u.stage into stage from order_production_updates u where order_id=p_order and manufacturer_id=p_factory order by version desc limit 1;stage:=public.production_stage_key(coalesce(stage,'preparation'));
+ if stage='quality_control'then update order_production_timelines set next_transition=null,schedule='[]'where order_id=p_order and manufacturer_id=p_factory;return;end if;
+ s:=public.production_schedule(p_factory,p.config,p.stage_started_at,stage,public.production_fact_values(p_order,p_factory,p.facts),p.blocks);
+ due:=(s->-1->>'end')::timestamptz;
+ update order_production_timelines set original_completion=coalesce(original_completion,case when p.workflow_version=2 then due end),next_transition=case when not p.automation_paused and p.needs_review is null and (s->0->>'automatic')::boolean and not coalesce((s->0->>'blocked')::boolean,false)and not exists(select 1 from jsonb_array_elements(p.blocks)b where b->>'resolved'is distinct from 'true')then(s->0->>'end')::timestamptz end,estimated_stage=case when not coalesce((s->0->>'ready')::boolean,false)or coalesce((s->0->>'blocked')::boolean,false)then null else estimated_stage end,schedule=s,expected_completion=case when due is null then null else coalesce(p.override_completion,due)end,uncertain=due is null where order_id=p_order and manufacturer_id=p_factory;
+ due:=case when due is null then null else coalesce(p.override_completion,due)end;
+ if jsonb_array_length(p.schedule)>0 and current_setting('app.production_action',true)is distinct from p_order::text and(((p.expected_completion is null)<>(due is null))or abs(extract(epoch from(due-p.expected_completion)))>=86400)then
+ insert into production_timeline_events(order_id,manufacturer_id,kind,explanation,details,dedupe)values(p_order,p_factory,'schedule','Expected completion changed using saved working hours and factory closures',jsonb_build_object('previous',p.expected_completion,'revised',due),'recalculation:'||encode(sha256(convert_to(coalesce(p.expected_completion::text,'unknown')||'>'||coalesce(due::text,'unknown'),'UTF8')),'hex'))on conflict do nothing;
+ if found then
+ perform public.notify_superadmin('order','Production completion estimate changed','Working calendar or scheduling prerequisites changed. Review the saved production timeline.','/superadmin/orders/'||p_order,p_order);
+ insert into brand_notifications(user_id,category,title,body,href)select user_id,'order','Production schedule update','Your order completion estimate has changed. Ceriga is reviewing the production timeline.','/orders/'||p_order from orders where id=p_order;
+ end if;end if;
+end$$;
+create or replace function public.production_ensure_plan(p_order uuid)returns void language plpgsql security definer set search_path=public as $$
+declare o orders%rowtype;c jsonb;rev integer;started timestamptz;legacy_expected date;legacy_reason text;begin
+ select *into o from orders where id=p_order for update;
+ if o.kind<>'production'or o.status<>'processing'or o.production_released_at is null or o.assigned_manufacturer_id is null or o.factory_status<>'in_production'then return;end if;
+ select config,revision into c,rev from manufacturer_production_timelines where manufacturer_id=o.assigned_manufacturer_id;
+ c:=coalesce(c,public.production_default_timeline(o.assigned_manufacturer_id));
+ select created_at,expected_completion,delay_reason into started,legacy_expected,legacy_reason from order_production_updates where order_id=p_order and manufacturer_id=o.assigned_manufacturer_id order by version desc limit 1;
+ insert into order_production_timelines(order_id,manufacturer_id,config,template_revision,stage_started_at,override_completion,legacy_delay,workflow_version)values(p_order,o.assigned_manufacturer_id,c,coalesce(rev,0),coalesce(started,o.production_released_at),case when legacy_expected is not null then(legacy_expected+(c->>'workEnd')::time)at time zone(c->>'timezone')end,nullif(legacy_reason,''),2)on conflict do nothing;
+end$$;
+create or replace function public.production_template(p_config jsonb default null,p_revision integer default null,p_save boolean default false)returns jsonb language plpgsql security definer set search_path=public as $$
+declare f uuid:=public.current_factory_id();c jsonb;rev integer;preview jsonb;begin
+ if f is null or not(public.factory_has_permission(f,'production')or public.factory_has_permission(f,'settings'))then raise exception 'Production or factory settings permission required';end if;
+ select config,revision into c,rev from manufacturer_production_timelines where manufacturer_id=f;
+ if p_config is not null then
+ if not public.factory_has_permission(f,'settings')then raise exception 'Factory settings permission required';end if;
+ if p_config->>'manufacturerId'is not null and p_config->>'manufacturerId'<>f::text then raise exception 'Factory workspace changed. Reload this timeline before saving';end if;
+ c:=public.production_three_config(p_config);perform public.production_validate_timeline(c);
+ if p_save then
+ perform pg_advisory_xact_lock(hashtextextended(f::text,17));
+ perform 1 from manufacturer_profiles where user_id=f for update;
+ if coalesce((select revision from manufacturer_production_timelines where manufacturer_id=f),0)is distinct from coalesce(p_revision,0)then raise exception 'Timeline changed on another device. Reload before saving';end if;
+ insert into manufacturer_production_timelines(manufacturer_id,config,updated_by)values(f,c,public.team_actor())on conflict(manufacturer_id)do update set config=excluded.config,revision=manufacturer_production_timelines.revision+1,updated_at=now(),updated_by=excluded.updated_by returning revision into rev;
+ update manufacturer_profiles set calendar_timezone=c->>'timezone',calendar_workdays=(select array_agg(value::integer)from jsonb_array_elements_text(c->'workdays'))where user_id=f;
+ end if;end if;
+ c:=coalesce(c,public.production_default_timeline(f))||jsonb_build_object('manufacturerId',f);
+ preview:=public.production_schedule(f,c,now(),'preparation','{"materials":true,"sample_approval":true,"customer_approval":true,"quality_checks":true,"complexity":"standard","quantity":100,"capacity":50}','[]');
+ return jsonb_build_object('config',c,'revision',coalesce(rev,0),'saved',coalesce(rev,0)>0,'preview',preview,'canEdit',public.factory_has_permission(f,'settings'));
+end$$;
+create or replace function public.production_board(p_order uuid default null)returns jsonb language plpgsql security definer set search_path=public as $$
+declare f uuid:=public.current_factory_id();o record;begin
+ if f is null or not public.factory_has_permission(f,'production')then raise exception 'Production permission required';end if;
+ for o in select x.id from orders x where(p_order is null or x.id=p_order)and x.assigned_manufacturer_id=f and x.status='processing'and x.production_released_at is not null and x.factory_status='in_production'and public.factory_order_visible(x.id)order by x.id loop perform public.production_ensure_plan(o.id);perform public.production_refresh(o.id,f);end loop;
+ return jsonb_build_object('orders',coalesce((select jsonb_agg(jsonb_build_object('id',x.id,'name',x.product_name,'garment',x.garment_type,'quantity',public.production_fact_values(x.id,f,p.facts)->'quantity','qcStatus',x.qc_status,'stage',public.production_stage_key(coalesce(u.stage,'preparation')),'productionStartedAt',x.production_released_at,'version',coalesce(u.version,0),'plan',to_jsonb(p),'history',(select coalesce(jsonb_agg(to_jsonb(e)order by e.created_at desc),'[]')from(select *from production_timeline_events where order_id=x.id and manufacturer_id=f order by created_at desc limit 30)e),'updates',(select coalesce(jsonb_agg(to_jsonb(h)order by h.version desc),'[]')from(select id,stage,version,note,created_at,delay_reason,expected_completion from order_production_updates where order_id=x.id and manufacturer_id=f order by version desc limit 30)h))order by p.uncertain desc,p.expected_completion nulls first,x.id)
+ from orders x join order_production_timelines p on p.order_id=x.id and p.manufacturer_id=f left join lateral(select *from order_production_updates where order_id=x.id and manufacturer_id=f order by version desc limit 1)u on true
+ where(p_order is null or x.id=p_order)and x.assigned_manufacturer_id=f and x.status='processing'and x.production_released_at is not null and x.factory_status='in_production'and x.qc_status not in('pending_review','approved')and public.factory_order_visible(x.id)),'[]'),'templateRevision',coalesce((select revision from manufacturer_production_timelines where manufacturer_id=f),0));
+end$$;
+create or replace function public.production_action(p_order uuid,p_action text,p_data jsonb,p_revision integer,p_version integer,p_request uuid)returns jsonb language plpgsql security definer set search_path=public as $$
+#variable_conflict use_column
+declare f uuid:=public.current_factory_id();o orders%rowtype;p order_production_timelines%rowtype;u order_production_updates%rowtype;e production_timeline_events%rowtype;
+ target text;old_stage text;new_version integer;reason text:=btrim(coalesce(p_data->>'reason',''));kind text:='schedule';info text;before_state jsonb;c jsonb;rev integer;v_blocks jsonb;v_facts jsonb;block_item jsonb;calc_start timestamptz;due timestamptz;id uuid;event_time timestamptz:=clock_timestamp();req_hash text;begin
+ if f is null or not public.factory_has_permission(f,'production')or not public.factory_order_visible(p_order)then raise exception 'Only authorised production staff for the assigned factory may update this order';end if;
+ if p_request is null or p_data is null or jsonb_typeof(p_data)<>'object'or length(p_data::text)>20000 then raise exception 'Invalid production update';end if;
+ select *into o from orders where orders.id=p_order for update;
+ if not found or o.assigned_manufacturer_id is distinct from f or o.kind<>'production'or o.status<>'processing'or o.production_released_at is null or o.factory_status<>'in_production'or o.qc_status in('pending_review','approved')then raise exception 'Production must be authorised and not awaiting or past QC review';end if;
+ req_hash:=encode(sha256(convert_to(p_action||p_data::text,'UTF8')),'hex');
+ select *into e from production_timeline_events where order_id=p_order and manufacturer_id=f and request_id=p_request;
+ if found then if e.actor_id is distinct from public.team_actor()or e.request_hash is distinct from req_hash then raise exception 'This request identifier has already been used for a different update';end if;return jsonb_build_object('id',e.id,'replayed',true);end if;
+ perform public.production_ensure_plan(p_order);select *into p from order_production_timelines where order_id=p_order and manufacturer_id=f for update;
+ select *into u from order_production_updates where order_id=p_order and manufacturer_id=f order by version desc limit 1;
+ if p.revision is distinct from p_revision or coalesce(u.version,0)is distinct from p_version then raise exception 'Production changed on another device. Refresh before retrying';end if;
+ old_stage:=public.production_stage_key(coalesce(u.stage,'preparation'));if p.needs_review is not null then raise exception 'Scheduling review required: %',p.needs_review;end if;target:=old_stage;new_version:=coalesce(u.version,0);before_state:=jsonb_build_object('stage',u.stage,'started',p.stage_started_at,'version',new_version,'planRevision',p.revision);
+ perform set_config('app.production_action',p_order::text,true);perform public.production_refresh(p_order,f);select *into p from order_production_timelines where order_id=p_order and manufacturer_id=f;
+ if length(reason)>1000 then raise exception 'Keep reasons under 1,000 characters';end if;
+ if p_action in('advance','stage')then
+ if exists(select 1 from jsonb_array_elements(p.blocks)b where b->>'resolved'is distinct from 'true')or coalesce((p.schedule->0->>'blocked')::boolean,false)then raise exception 'Resolve production blockers and prerequisites first';end if;
+ if p_action='advance'then target:=(public.production_stages())[array_position(public.production_stages(),old_stage)+1];else target:=public.production_stage_key(p_data->>'stage');end if;
+ if target is null or not(target=any(public.production_stages()))then raise exception 'Quality Control is the last production stage. Submit the QC report on its existing page';end if;
+ if u.id is not null and target=old_stage then raise exception 'This stage is already current';end if;
+ if array_position(public.production_stages(),target)>array_position(public.production_stages(),old_stage)+1 then raise exception 'Confirm each prerequisite stage in order; stages cannot be skipped';end if;
+ if p_action='stage'and length(reason)<3 then raise exception 'Explain the status correction and schedule effect';end if;
+ if coalesce((public.production_schedule(f,p.config,event_time,target,public.production_fact_values(p_order,f,p.facts),p.blocks)->0->>'blocked')::boolean,false)then raise exception 'The next stage has unresolved prerequisites. Update its timing factors first';end if;
+ perform set_config('app.production_action',p_order::text,true);
+ -- Actual movement is an explicit manufacturer confirmation, never a timer's assertion.
+ insert into order_production_updates(order_id,manufacturer_id,submitted_by,version,stage,note,expected_completion,delay_reason)values(p_order,f,public.team_actor(),new_version+1,target,case when p_action='advance'then 'Completed '||replace(old_stage,'_',' ')||'; '||case when target='quality_control'then 'ready for QC submission'else 'started '||replace(target,'_',' ')end else reason end,null,case when p_action='stage'then reason else ''end)returning id into id;
+ update order_production_timelines set stage_started_at=event_time,estimated_stage=null,override_completion=null,legacy_delay=null where order_id=p_order and manufacturer_id=f;kind:='manual';info:=case when p_action='advance'then 'Manufacturer confirmed '||replace(target,'_',' ')else 'Stage corrected: '||reason end;new_version:=new_version+1;
+ elsif p_action in('delay','preview_delay')then
+ if old_stage='quality_control' then raise exception 'Production is complete; use the QC workflow';end if;
+ if length(reason)<3 then raise exception 'Enter a short reason for the delay';end if;
+ if coalesce(p_data->>'days','')!~'^[1-9][0-9]*$'or(p_data->>'days')::numeric>3650 then raise exception 'Delay days must be a positive whole number, at most 3650';end if;
+ block_item:=jsonb_build_object('id',p_request,'stage',old_stage,'stageStartedAt',p.stage_started_at,'days',(p_data->>'days')::integer,'reason',reason,'actor',public.team_actor(),'at',event_time,'unit','calendar_days');
+ v_facts:=public.production_fact_values(p_order,f,p.facts)||jsonb_build_object('_stageDelays',p.stage_delays||jsonb_build_array(block_item));
+ v_blocks:=public.production_schedule(f,p.config,p.stage_started_at,old_stage,v_facts,p.blocks);
+ due:=(v_blocks->-1->>'end')::timestamptz;
+ if p.override_completion is not null then due:=public.production_add_time(f,p.config,p.override_completion,(p_data->>'days')::numeric,'calendar_days');end if;
+ if p_action='preview_delay'then return jsonb_build_object('current',p.expected_completion,'proposed',due,'stageCompletion',v_blocks->0->'end','schedule',v_blocks);end if;
+ update order_production_timelines set stage_delays=stage_delays||jsonb_build_array(block_item),override_completion=case when override_completion is not null then due end,estimated_stage=null where order_id=p_order and manufacturer_id=f;
+ kind:='block';info:=(p_data->>'days')||' calendar-day delay added to '||replace(old_stage,'_',' ')||': '||reason;
+ elsif p_action in('block','pause','preview_block','revise_block')then
+ if length(reason)<3 then raise exception 'Explain the production delay or pause';end if;
+ select value into block_item from jsonb_array_elements(p.blocks)where value->>'resolved'is distinct from 'true'limit 1;
+ if block_item is not null and p_action in('block','pause')then raise exception 'Edit or resolve the current blocker before reporting another';end if;
+ if block_item is null and p_action='revise_block'then raise exception 'There is no active blocker to edit';end if;
+ if coalesce(p_data->>'category','other')not in('materials','approval','quality','capacity','maintenance','other')then raise exception 'Choose a delay reason';end if;
+ due:=nullif(p_data->>'until','')::timestamptz;if due is not null and(due<=event_time or due>event_time+interval '3650 days')then raise exception 'Choose a future estimate for resolving this blocker';end if;
+ calc_start:=case when(p.schedule->0->>'end')::timestamptz<event_time then event_time else p.stage_started_at end;
+ v_blocks:=case when block_item is null then p.blocks||jsonb_build_array(jsonb_build_object('id',p_request,'start',event_time,'end',due,'resolved',false,'category',coalesce(p_data->>'category','other'),'reason',reason))else(select jsonb_agg(case when value->>'resolved'is distinct from 'true'then value||jsonb_build_object('end',due,'reason',reason,'category',coalesce(p_data->>'category','other'))else value end)from jsonb_array_elements(p.blocks))end;
+ if p_action='preview_block'then v_blocks:=public.production_schedule(f,p.config,calc_start,old_stage,public.production_fact_values(p_order,f,p.facts),v_blocks);return jsonb_build_object('current',p.expected_completion,'proposed',v_blocks->-1->'end','schedule',v_blocks);end if;
+ if v_blocks=p.blocks then return jsonb_build_object('saved',true,'unchanged',true);end if;
+ update order_production_timelines set blocks=v_blocks,stage_started_at=calc_start,override_completion=null,estimated_stage=null where order_id=p_order and manufacturer_id=f;
+ kind:='block';info:=case when due is null then 'Production blocked; completion estimate is uncertain. 'else 'Production delayed until '||due::text||'. 'end||reason||case when calc_start>p.stage_started_at then ' · Overdue, unconfirmed stage re-estimated from this delay report.'else ''end;
+ elsif p_action='resume'then
+ if not exists(select 1 from jsonb_array_elements(p.blocks)b where b->>'resolved'is distinct from 'true')then raise exception 'Production is not paused or blocked';end if;
+ select coalesce(jsonb_agg(case when value->>'resolved'is distinct from 'true'then value||jsonb_build_object('end',event_time,'resolved',true)else value end),'[]')into v_blocks from jsonb_array_elements(p.blocks);
+ update order_production_timelines set blocks=v_blocks,estimated_stage=null,legacy_delay=null where order_id=p_order and manufacturer_id=f;kind:='resume';info:='Manufacturer confirmed blocker resolved; remaining schedule recalculated';
+ elsif p_action='facts'then
+ v_facts:=p_data->'facts';if jsonb_typeof(v_facts)is distinct from 'object'or v_facts-array['complexity','materials','sample_approval','customer_approval','quality_checks','confirmedRules']<>'{}'then raise exception 'Choose supported order timing factors';end if;
+ if v_facts?'complexity'and v_facts->>'complexity'not in('simple','standard','complex')then raise exception 'Choose product complexity';end if;
+ if exists(select 1 from jsonb_each(v_facts)x where x.key in('materials','sample_approval','customer_approval','quality_checks')and jsonb_typeof(x.value)<>'boolean')then raise exception 'Approval/material factors require Yes/No values';end if;
+ if v_facts?'confirmedRules'and(jsonb_typeof(v_facts->'confirmedRules')<>'array'or exists(select 1 from jsonb_array_elements_text(v_facts->'confirmedRules')r where not exists(select 1 from jsonb_array_elements(p.config->'factors')x where x->>'id'=r and x->>'effect'='confirm')))then raise exception 'Confirm only configured timing rules';end if;
+ v_facts:=v_facts;
+ for target in select unnest(array['materials','sample_approval','customer_approval'])loop
+ if v_facts->target='true'::jsonb then v_facts:=v_facts||jsonb_build_object('_'||target||'At',case when p.facts->target='true'::jsonb then coalesce(p.facts->>('_'||target||'At'),event_time::text)else event_time::text end);end if;end loop;
+ update order_production_timelines set facts=v_facts,estimated_stage=null where order_id=p_order and manufacturer_id=f;info:='Structured timing factors updated; remaining dates recalculated';
+ elsif p_action='automation'then
+ if jsonb_typeof(p_data->'enabled')is distinct from 'boolean'then raise exception 'Choose whether automated estimates are enabled';end if;
+ update order_production_timelines set config=case when(p_data->>'enabled')::boolean then jsonb_set(config,'{stages}',(select jsonb_agg(value||jsonb_build_object('automatic',true))from jsonb_array_elements(config->'stages')))else config end,automation_paused=not(p_data->>'enabled')::boolean,estimated_stage=null where order_id=p_order and manufacturer_id=f;info:=case when(p_data->>'enabled')::boolean then 'Manufacturer resumed automatic estimates'else 'Manufacturer paused automatic estimates; confirmed work and manual updates remain available'end;
+ elsif p_action='estimate'then
+ if length(reason)<3 then raise exception 'Explain the updated completion estimate';end if;due:=nullif(p_data->>'completion','')::timestamptz;
+ if due is not null and(due<=event_time or due>event_time+interval '3650 days')then raise exception 'Choose a valid future estimate';end if;
+ update order_production_timelines set override_completion=due where order_id=p_order and manufacturer_id=f;info:='Completion estimate overridden: '||reason;
+ elsif p_action in('preview_rules','apply_rules')then
+ select config,revision into c,rev from manufacturer_production_timelines where manufacturer_id=f;if not found then raise exception 'Save your factory timeline first';end if;
+ v_blocks:=public.production_schedule(f,c,p.stage_started_at,old_stage,public.production_fact_values(p_order,f,p.facts),p.blocks);
+ if p_action='preview_rules'then return jsonb_build_object('current',p.expected_completion,'proposed',v_blocks->-1->'end','schedule',v_blocks,'templateRevision',rev,'previewHash',encode(sha256(convert_to(v_blocks::text,'UTF8')),'hex'));end if;
+ if p_data->>'previewHash'is distinct from encode(sha256(convert_to(v_blocks::text,'UTF8')),'hex')then raise exception 'The proposed schedule changed after preview. Preview again before applying';end if;
+ if coalesce((p_data->>'templateRevision')::integer,-1)<>rev then raise exception 'Default rules changed after the preview. Preview again';end if;
+ update order_production_timelines set config=c,template_revision=rev,override_completion=null,estimated_stage=null where order_id=p_order and manufacturer_id=f;kind:='rules';info:='Manufacturer explicitly applied timeline revision '||rev||' to remaining production';
+ elsif p_action='undo'then
+ select *into e from production_timeline_events where order_id=p_order and manufacturer_id=f and id=(p_data->>'event')::uuid;
+ if not found or e.kind<>'manual'or e.actor_id is distinct from public.team_actor()or e.created_at<event_time-interval '30 seconds'or coalesce((e.details->>'afterVersion')::integer,-1)<>new_version or coalesce((e.details->>'afterRevision')::integer,-1)<>p.revision or e.details->'before'->>'stage'is null then raise exception 'Undo is no longer safe. Use a reasoned stage correction';end if;
+ target:=public.production_stage_key(e.details->'before'->>'stage');perform set_config('app.production_action',p_order::text,true);
+ insert into order_production_updates(order_id,manufacturer_id,submitted_by,version,stage,note)values(p_order,f,public.team_actor(),new_version+1,target,'Undo of the last manual stage transition');
+ update order_production_timelines set stage_started_at=(e.details->'before'->>'started')::timestamptz,estimated_stage=null where order_id=p_order and manufacturer_id=f;new_version:=new_version+1;kind:='undo';info:='Last manual stage transition undone; history retained';
+ else raise exception 'Unknown production action';end if;
+ update order_production_timelines set revision=revision+1,updated_at=event_time where order_id=p_order and manufacturer_id=f;
+ perform public.production_refresh(p_order,f);
+ insert into production_timeline_events(order_id,manufacturer_id,actor_id,kind,explanation,details,request_id,request_hash)values(p_order,f,public.team_actor(),kind,info,jsonb_build_object('completedStage',case when p_action='advance'then old_stage end,'completedAt',case when p_action='advance'then event_time end,'source','manual','before',before_state,'afterVersion',new_version,'afterRevision',p.revision+1,'data',p_data),p_request,req_hash)returning id into id;
+ if p_action in('delay','block','pause','revise_block','resume','estimate','apply_rules','facts','advance','stage','undo')then
+ select expected_completion into due from order_production_timelines where order_id=p_order and manufacturer_id=f;
+ if p_action in('delay','advance','stage','undo','block','pause','revise_block','resume')or((p.expected_completion is null)<>(due is null))or abs(extract(epoch from(due-p.expected_completion)))>=86400 then
+ perform public.notify_superadmin('order','Production schedule changed',o.product_name||' · '||info,'/superadmin/orders/'||p_order,p_order);
+ insert into brand_notifications(user_id,category,title,body,href)values(o.user_id,'order','Production schedule update',o.product_name||' · '||info,'/orders/'||p_order);
+ end if;end if;
+ return jsonb_build_object('id',id,'version',new_version,'revision',p.revision+1,'undoAvailable',kind='manual'and u.id is not null,'saved',true);
+end$$;
+create or replace function public.production_bulk(p_orders jsonb,p_request uuid)returns integer language plpgsql security definer set search_path=public as $$
+declare x jsonb;stage text;current_stage text;n integer:=0;begin
+ if jsonb_typeof(p_orders)is distinct from 'array'or jsonb_array_length(p_orders)not between 1 and 100 or(select count(distinct value->>'id')from jsonb_array_elements(p_orders))<>jsonb_array_length(p_orders)then raise exception 'Select 1–100 distinct production orders';end if;
+ -- Consistent lock order prevents deadlocks. A failed item rolls the entire batch back.
+ for x in select value from jsonb_array_elements(p_orders)order by value->>'id'loop
+ select public.production_stage_key(coalesce((select u.stage from order_production_updates u where u.order_id=(x->>'id')::uuid order by version desc limit 1),'preparation'))into current_stage;
+ current_stage:=current_stage||':next';
+ if stage is null then stage:=current_stage;elsif stage<>current_stage then raise exception 'Bulk updates require the same eligible next stage';end if;
+ perform public.production_action((x->>'id')::uuid,'advance','{}',(x->>'revision')::integer,(x->>'version')::integer,p_request);n:=n+1;
+ end loop;return n;end$$;
+do $$declare d text;begin select pg_get_functiondef('public.team_impl_update_order_production(uuid,text,text,date,text,integer)'::regprocedure)into d;d:=replace(d,'''cutting'',''sewing'',''finishing''','''cutting'',''sewing'',''cutting_sewing'',''finishing''');execute d;end$$;
+create or replace function public.production_update_guard()returns trigger language plpgsql security definer set search_path=public as $$
+declare p order_production_timelines%rowtype;prior order_production_updates%rowtype;begin
+ if current_setting('app.production_automatic',true)=new.order_id::text then return new;end if;
+ if public.is_superadmin()then return new;end if;
+ if not public.factory_has_permission(new.manufacturer_id,'production')or not public.factory_order_visible(new.order_id)then raise exception 'Assigned production permission required';end if;
+ select *into p from order_production_timelines where order_id=new.order_id and manufacturer_id=new.manufacturer_id for update;
+ select *into prior from order_production_updates where order_id=new.order_id and manufacturer_id=new.manufacturer_id order by version desc limit 1;
+ if new.stage is distinct from prior.stage then
+ if p.order_id is not null and coalesce((public.production_schedule(new.manufacturer_id,p.config,p.stage_started_at,coalesce(prior.stage,'preparation'),public.production_fact_values(new.order_id,new.manufacturer_id,p.facts),p.blocks)->0->>'blocked')::boolean,false)then raise exception 'Resolve current stage prerequisites before updating production';end if;
+ if p.order_id is not null and coalesce((public.production_schedule(new.manufacturer_id,p.config,now(),new.stage,public.production_fact_values(new.order_id,new.manufacturer_id,p.facts),p.blocks)->0->>'blocked')::boolean,false)then raise exception 'Resolve stage prerequisites before updating production';end if;
+ if exists(select 1 from jsonb_array_elements(coalesce(p.blocks,'[]'))b where b->>'resolved'is distinct from 'true')then raise exception 'Resolve production blockers first';end if;
+ if array_position(public.production_stages(),public.production_stage_key(new.stage))>coalesce(array_position(public.production_stages(),public.production_stage_key(prior.stage)),case when current_setting('app.production_action',true)=new.order_id::text then 1 else 0 end)+1 then raise exception 'Confirm each prerequisite production stage in order';end if;
+ if prior.id is not null and array_position(public.production_stages(),public.production_stage_key(new.stage))<array_position(public.production_stages(),public.production_stage_key(prior.stage))and length(btrim(new.note))<3 then raise exception 'Explain the backwards stage correction';end if;
+ end if;return new;end$$;
+revoke all on function public.production_stage_key(text)from public,anon;grant execute on function public.production_stage_key(text)to authenticated;
+revoke all on function public.production_schedule(uuid,jsonb,timestamptz,text,jsonb,jsonb),public.production_fact_values(uuid,uuid,jsonb),public.production_validate_timeline(jsonb),public.production_refresh(uuid,uuid),public.production_ensure_plan(uuid),public.production_default_timeline(uuid)from public,anon,authenticated;
+
+create or replace function public.production_scheduler()returns integer language plpgsql security definer set search_path=public as $$
+declare row record;p order_production_timelines%rowtype;u order_production_updates%rowtype;current_stage text;target text;due timestamptz;ver integer;n integer:=0;attempt integer;info text;
+begin
+ for row in select o.id,o.assigned_manufacturer_id from orders o join order_production_timelines t on t.order_id=o.id and t.manufacturer_id=o.assigned_manufacturer_id where o.kind='production'and o.status='processing'and o.factory_status='in_production'and o.production_released_at is not null and o.qc_status not in('pending_review','approved')order by t.updated_at limit 250 for update of o skip locked loop
+  for attempt in 1..3 loop
+   perform set_config('app.production_action',row.id::text,true);
+   perform public.production_refresh(row.id,row.assigned_manufacturer_id);
+   select *into p from order_production_timelines where order_id=row.id and manufacturer_id=row.assigned_manufacturer_id for update;
+   select *into u from order_production_updates where order_id=row.id and manufacturer_id=row.assigned_manufacturer_id order by version desc limit 1;
+   current_stage:=public.production_stage_key(coalesce(u.stage,'preparation'));
+   exit when current_stage='quality_control'or p.needs_review is not null or p.automation_paused or p.next_transition is null or p.next_transition>now();
+   due:=p.next_transition;target:=(public.production_stages())[array_position(public.production_stages(),current_stage)+1];
+   exit when target is null;
+   -- Both current and next-stage dependencies must hold. QC itself is never auto-approved.
+   exit when target<>'quality_control'and coalesce((public.production_schedule(p.manufacturer_id,p.config,due,target,public.production_fact_values(p.order_id,p.manufacturer_id,p.facts),p.blocks)->0->>'blocked')::boolean,false);
+   ver:=coalesce(u.version,0)+1;
+   perform set_config('app.production_automatic',row.id::text,true);
+   info:='Completed '||replace(current_stage,'_',' ')||' automatically using the configured duration. '||case when target='quality_control'then 'Production ready for QC submission; QC approval is still required.'else 'Started '||replace(target,'_',' ')||'.'end;
+   insert into order_production_updates(order_id,manufacturer_id,submitted_by,version,stage,note,created_at,source)values(p.order_id,p.manufacturer_id,p.manufacturer_id,ver,target,info,due,'automatic');
+   update order_production_timelines set stage_started_at=due,estimated_stage=null,override_completion=null,revision=revision+1,updated_at=now()where order_id=p.order_id and manufacturer_id=p.manufacturer_id;
+   insert into production_timeline_events(order_id,manufacturer_id,kind,explanation,details,dedupe)values(p.order_id,p.manufacturer_id,'automatic',info,jsonb_build_object('completedStage',current_stage,'completedAt',due,'startedStage',target,'executedAt',clock_timestamp(),'source','automatic','afterVersion',ver),'transition:'||ver||':'||current_stage||':'||due::text);
+   perform public.production_refresh(p.order_id,p.manufacturer_id);
+   if target='quality_control'then perform public.notify_superadmin('order','Production ready for Quality Control',info,'/superadmin/orders/'||p.order_id,p.order_id);end if;
+   n:=n+1;
+  end loop;
+  update order_production_timelines set updated_at=now()where order_id=row.id and manufacturer_id=row.assigned_manufacturer_id;
+  perform set_config('app.production_automatic','',true);
+  perform set_config('app.production_action','',true);
+ end loop;return n;
+end$$;
+revoke all on function public.production_scheduler()from public,anon,authenticated;grant execute on function public.production_scheduler()to service_role;
+
+create or replace function public.production_effective_delay(p_order uuid,p_fallback text)returns text language sql stable security definer set search_path=public as $$select case when t.order_id is null then p_fallback else coalesce((select string_agg((b->>'days')||' calendar days: '||(b->>'reason'),'; ')from jsonb_array_elements(t.stage_delays)b),(select string_agg(b->>'reason','; ')from jsonb_array_elements(t.blocks)b where b->>'resolved'is distinct from 'true'),case when t.uncertain then coalesce(t.schedule->0->>'reason','Completion estimate is uncertain')end,t.legacy_delay)end from orders o left join order_production_timelines t on t.order_id=o.id and t.manufacturer_id=o.assigned_manufacturer_id where o.id=p_order$$;
+revoke all on function public.production_effective_delay(uuid,text)from public,anon,authenticated;
+
+-- Existing calendars accept the combined stage filter; historical events are left intact.
+do $$declare d text;begin
+ select pg_get_functiondef('public.team_impl_production_calendar(date,date,boolean,uuid,text,text,text,text,text)'::regprocedure)into d;
+ d:=replace(d,'''cutting'',''sewing'',''finishing''','''cutting'',''sewing'',''cutting_sewing'',''finishing''');execute d;
+end$$;
+select public.apply_superadmin_access();
+select cron.schedule('ceriga-production-timeline','*/5 * * * *','select public.production_scheduler();');
+notify pgrst,'reload schema';
+commit;
+
+-- Freight quotation integration (20261101010000)
+-- Freight is approved with each quotation option; existing issued offers remain untouched.
+create table if not exists public.freight_forwarders(
+ id uuid primary key default gen_random_uuid(), company_name text not null check(length(trim(company_name)) between 1 and 200),
+ contact_details text not null default '',countries text not null default '',routes text not null default '',methods text not null default '',
+ typical_delivery text not null default '',terms text not null default '',active boolean not null default true,updated_at timestamptz not null default now()
+);
+create table if not exists public.order_freight_quotes(
+ id uuid primary key default gen_random_uuid(),order_id uuid not null references public.orders(id),option_id text not null,
+ manufacturer_id uuid not null references public.profiles(id),tier_snapshot jsonb not null,
+ forwarder_id uuid references public.freight_forwarders(id),source text not null check(source in('manufacturer','forwarder')),
+ terms jsonb not null,created_by uuid not null references auth.users(id),created_at timestamptz not null default now()
+);
+alter table public.order_freight_quotes add column if not exists manufacturer_quoted_at timestamptz;
+create index if not exists freight_order_option_idx on public.order_freight_quotes(order_id,option_id,created_at desc);
+create index if not exists freight_forwarder_history_idx on public.order_freight_quotes(forwarder_id,created_at desc);
+create table if not exists public.order_freight_selections(
+ order_id uuid not null references public.orders(id),option_id text not null,quote_id uuid not null references public.order_freight_quotes(id),
+ selected_by uuid not null references auth.users(id),selected_at timestamptz not null default now(),primary key(order_id,option_id)
+);
+create table if not exists public.order_logistics_events(
+ id uuid primary key,order_id uuid not null references public.orders(id),status text not null check(status in('collection_scheduled','ready_for_collection','collected','in_transit','customs_clearance','out_for_delivery','delivered','exception')),
+ details jsonb not null,created_by uuid not null references auth.users(id),created_at timestamptz not null default now()
+);
+create index if not exists logistics_order_history_idx on public.order_logistics_events(order_id,created_at desc);
+create table if not exists public.order_shipping_amendments(
+ id uuid primary key default gen_random_uuid(),order_id uuid not null references public.orders(id),quote_id uuid not null references public.order_freight_quotes(id),
+ reason text not null check(length(trim(reason))>=3),approved_by uuid not null references auth.users(id),created_at timestamptz not null default now()
+);
+create index if not exists shipping_amendment_order_idx on public.order_shipping_amendments(order_id,created_at desc);
+do $$declare d text;t text;begin
+ select pg_get_functiondef('public.apply_superadmin_access()'::regprocedure)into d;
+ if position('''freight_forwarders'''in d)=0 then d:=replace(d,'''projects''','''freight_forwarders'',''order_freight_quotes'',''order_freight_selections'',''order_logistics_events'',''order_shipping_amendments'',''projects''');execute d;end if;
+ foreach t in array array['freight_forwarders','order_freight_quotes','order_freight_selections','order_logistics_events','order_shipping_amendments']loop
+ execute format('alter table public.%I enable row level security',t);execute format('grant select,insert,update,delete on public.%I to authenticated',t);
+ end loop;perform public.apply_superadmin_access();end$$;
+revoke all on function public.apply_superadmin_access()from public,anon,authenticated;
+
+create or replace function public.freight_validate(p jsonb)returns jsonb language plpgsql immutable set search_path=public as $$begin
+ if jsonb_typeof(p)is distinct from 'object' or coalesce(p->>'currency','')not in('EUR','USD','GBP')or coalesce(p->>'priceCents','')!~'^[0-9]+$'or(p->>'priceCents')::numeric>100000000000 then raise exception 'Enter a valid shipping amount and currency';end if;
+ if exists(select 1 from unnest(array['provider','method','origin','destination','insurance','services','tradeTerms'])k where length(trim(coalesce(p->>k,'')))not between 1 and 2000)then raise exception 'Complete provider, method, route, insurance, services and duty terms';end if;
+ if coalesce(p->>'transitDays','')!~'^[1-9][0-9]*$'or(p->>'transitDays')::numeric>3650 or coalesce(p->>'cartons','')!~'^[1-9][0-9]*$'or(p->>'cartons')::numeric>1000000 then raise exception 'Enter valid transit days and carton count';end if;
+ if exists(select 1 from unnest(array['weightKg','lengthCm','widthCm','heightCm'])k where coalesce(p->>k,'')!~'^[0-9]+(\.[0-9]{1,3})?$'or(p->>k)::numeric<=0 or(p->>k)::numeric>1000000)then raise exception 'Enter positive shipment weight and carton dimensions';end if;
+ if coalesce(p->>'validUntil','')!~'^\d{4}-\d{2}-\d{2}$'then raise exception 'Enter shipping quote validity';end if;
+ perform(p->>'validUntil')::date;
+ return jsonb_build_object('priceCents',(p->>'priceCents')::bigint,'currency',p->>'currency','provider',p->>'provider','method',p->>'method','origin',p->>'origin','destination',p->>'destination','insurance',p->>'insurance','services',p->>'services','tradeTerms',p->>'tradeTerms','transitDays',(p->>'transitDays')::integer,'cartons',(p->>'cartons')::integer,'weightKg',(p->>'weightKg')::numeric,'lengthCm',(p->>'lengthCm')::numeric,'widthCm',(p->>'widthCm')::numeric,'heightCm',(p->>'heightCm')::numeric,'validUntil',p->>'validUntil');
+end$$;
+revoke all on function public.freight_validate(jsonb)from public,anon,authenticated;
+-- Extend the existing team-authorised quotation implementation, retaining its validation and revisions.
+do $$declare d text;begin
+ select pg_get_functiondef('public.team_impl_submit_manufacturer_quote(uuid,jsonb)'::regprocedure)into d;
+ if position('public.freight_validate'in d)=0 then
+ d:=replace(d,'unit_price := (tier->>''unitPriceCents'')::numeric;', 'perform public.freight_validate(tier->''shipping''); if (tier->''shipping''->>''validUntil'')::date<current_date then raise exception ''Shipping quote has expired'';end if; unit_price := (tier->>''unitPriceCents'')::numeric;');
+ d:=replace(d,'''leadTimeDays'',days)', '''leadTimeDays'',days,''shipping'',public.freight_validate(tier->''shipping''))');execute d;
+ end if;end$$;
+create or replace function public.freight_context(p_order uuid)returns jsonb language plpgsql stable security definer set search_path=public as $$declare o orders%rowtype;opt jsonb;events jsonb;begin
+ select *into o from orders where id=p_order;
+ if not found or not(public.is_superadmin()or o.user_id=auth.uid()or public.factory_order_visible(o.id))then raise exception 'Order access denied';end if;
+ select value->'shipping' into opt from jsonb_array_elements(coalesce(o.price_options,'[]'))where value->>'id'=o.selected_price_option_id;
+ select coalesce(jsonb_agg(jsonb_build_object('id',e.id,'status',e.status,'details',e.details,'created_at',e.created_at)order by e.created_at desc),'[]')into events from order_logistics_events e where order_id=p_order;
+ return jsonb_build_object('approved',case when public.is_superadmin()or o.user_id=auth.uid()then opt else opt-array['priceCents','manufacturingCents','serviceFeeCents','taxCents','dutiesCents','otherCents','roundingCents','totalCents','currency']end,'events',events,'operational',(select q.terms-array['priceCents','currency']from order_freight_selections s join order_freight_quotes q on q.id=s.quote_id where s.order_id=p_order and s.option_id=o.selected_price_option_id),'canManage',public.is_superadmin(),'paid',o.payment_verified_at is not null,'qcApproved',o.qc_status='approved','manufacturerQuotes',case when public.is_superadmin()or(public.factory_order_visible(o.id)and public.factory_has_permission(o.assigned_manufacturer_id,'view_financial'))then o.manufacturer_quote else null end,
+ 'quotes',case when public.is_superadmin()then(select coalesce(jsonb_agg(to_jsonb(q)order by created_at desc),'[]')from order_freight_quotes q where order_id=p_order)else '[]'end,
+ 'selections',case when public.is_superadmin()then(select coalesce(jsonb_agg(to_jsonb(s)),'[]')from order_freight_selections s where order_id=p_order)else '[]'end,
+ 'amendments',case when public.is_superadmin()then(select coalesce(jsonb_agg(to_jsonb(a)order by created_at desc),'[]')from order_shipping_amendments a where order_id=p_order)else '[]'end);
+end$$;
+create or replace function public.freight_add_quote(p_order uuid,p_option text,p_terms jsonb,p_forwarder uuid default null)returns uuid language plpgsql security definer set search_path=public as $$declare o orders%rowtype;t jsonb;validated_terms jsonb;v uuid;begin
+ if not public.is_superadmin()then raise exception 'Superadmin authorization required';end if;
+ select *into o from orders where id=p_order for update;select value into t from jsonb_array_elements(coalesce(o.manufacturer_quote,'[]'))where value->>'id'=p_option;
+ if t is null then raise exception 'Manufacturer quotation option is missing';end if;
+ if p_forwarder is null then validated_terms:=public.freight_validate(t->'shipping');else
+ if not exists(select 1 from freight_forwarders where id=p_forwarder and active)then raise exception 'Select an active forwarder';end if;validated_terms:=public.freight_validate(p_terms);end if;
+ if(validated_terms->>'validUntil')::date<current_date then raise exception 'Shipping quote has expired';end if;
+ select id into v from order_freight_quotes where order_id=p_order and option_id=p_option and tier_snapshot=t and manufacturer_quoted_at=o.quoted_at and terms=validated_terms and forwarder_id is not distinct from p_forwarder order by created_at desc limit 1;
+ if v is not null then return v;end if;
+ insert into order_freight_quotes(order_id,option_id,manufacturer_id,tier_snapshot,manufacturer_quoted_at,forwarder_id,source,terms,created_by)values(p_order,p_option,o.assigned_manufacturer_id,t,o.quoted_at,p_forwarder,case when p_forwarder is null then 'manufacturer'else 'forwarder'end,validated_terms,auth.uid())returning id into v;return v;
+end$$;
+create or replace function public.freight_select(p_order uuid,p_quote uuid,p_amendment_reason text default null)returns uuid language plpgsql security definer set search_path=public as $$declare o orders%rowtype;q order_freight_quotes%rowtype;t jsonb;begin
+ if not public.is_superadmin()then raise exception 'Superadmin authorization required';end if;
+ select *into o from orders where id=p_order for update;select *into q from order_freight_quotes where id=p_quote and order_id=p_order;
+ select value into t from jsonb_array_elements(coalesce(o.manufacturer_quote,'[]'))where value->>'id'=q.option_id;
+ if q.id is null or q.manufacturer_id is distinct from o.assigned_manufacturer_id or q.manufacturer_quoted_at is distinct from o.quoted_at or t is distinct from q.tier_snapshot or(q.terms->>'validUntil')::date<current_date then raise exception 'Shipping quote is expired or belongs to an earlier manufacturer quotation';end if;
+ if o.payment_verified_at is not null then
+ if o.status not in('processing','shipping')then raise exception 'Shipping can only be amended for active paid orders';end if;
+ if q.option_id<>o.selected_price_option_id or length(trim(coalesce(p_amendment_reason,'')))<3 then raise exception 'A paid shipping change requires an admin-approved amendment and reason';end if;
+ -- The customer obligation never changes: Ceriga absorbs any cost difference. A customer price change requires a new approved quote.
+ insert into order_shipping_amendments(order_id,quote_id,reason,approved_by)values(p_order,p_quote,p_amendment_reason,auth.uid());
+ elsif o.status='priced'and o.quote_expires_at>now()then raise exception 'An issued offer is locked; revise or expire it before changing shipping';end if;
+ insert into order_freight_selections(order_id,option_id,quote_id,selected_by)values(p_order,q.option_id,q.id,auth.uid())on conflict(order_id,option_id)do update set quote_id=excluded.quote_id,selected_by=excluded.selected_by,selected_at=now();return q.id;
+end$$;
+-- A wrapper reuses authoritative FX, commission and 30-day immutable quote history.
+do $$begin if to_regprocedure('public.freight_publish_base(uuid,jsonb)')is null then alter function public.publish_order_quote(uuid,jsonb)rename to freight_publish_base;end if;end$$;
+revoke all on function public.freight_publish_base(uuid,jsonb)from public,anon,authenticated;
+-- Enrich the base issuance before its existing immutable snapshot is inserted.
+do $$declare d text;begin
+ select pg_get_functiondef('public.freight_publish_base(uuid,jsonb)'::regprocedure)into d;
+ if position('publicShipping'in d)=0 then
+ d:=replace(d,'''shippingIncludedInManufacturerQuote'',true','''shippingIncludedInManufacturerQuote'',false');
+ d:=replace(d,'perform set_config(''app.routing_write'',p_order_id::text,true);','select jsonb_agg(v||jsonb_build_object(''shipping'',a->''publicShipping'',''currencySnapshot'',(v->''currencySnapshot'')||jsonb_build_object(''freight'',a->''internalFreight'')))into options from jsonb_array_elements(options)v join jsonb_array_elements(p_prices)a on a->>''id''=v->>''id''; perform set_config(''app.routing_write'',p_order_id::text,true);');execute d;
+ end if;end$$;
+create or replace function public.freight_prepare_prices(p_order_id uuid,p_prices jsonb)returns jsonb language plpgsql security definer set search_path=public as $$declare o orders%rowtype;t jsonb;a jsonb;q order_freight_quotes%rowtype;inputs jsonb:='[]';ship bigint;subtotal bigint;fee bigint;tax bigint;duties bigint;other bigint;total bigint;fx jsonb;target text;pub jsonb;components jsonb;k text;v bigint;rounded bigint;begin
+ if not public.is_superadmin()then raise exception 'Superadmin authorization required';end if;
+ select *into o from orders where id=p_order_id for update;select preferred_currency into target from profiles where id=o.user_id for share;perform 1 from currency_rate_cache for share;
+ if jsonb_typeof(p_prices)is distinct from 'array'or jsonb_array_length(p_prices)<>jsonb_array_length(coalesce(o.manufacturer_quote,'[]'))or(select count(distinct value->>'id')from jsonb_array_elements(p_prices))<>jsonb_array_length(p_prices)then raise exception 'Approve every quotation option exactly once';end if;
+ for t in select value from jsonb_array_elements(coalesce(o.manufacturer_quote,'[]'))loop
+ if t->'shipping' is null or t->'shipping'='null'::jsonb then raise exception 'Request a revised manufacturer quote with separate manufacturing and shipping costs before issuing new pricing';end if;
+ select value into a from jsonb_array_elements(p_prices)where value->>'id'=t->>'id';
+ select f.*into q from order_freight_selections s join order_freight_quotes f on f.id=s.quote_id where s.order_id=p_order_id and s.option_id=t->>'id';
+ if q.id is null or q.tier_snapshot is distinct from t or q.manufacturer_id is distinct from o.assigned_manufacturer_id or q.manufacturer_quoted_at is distinct from o.quoted_at or(q.terms->>'validUntil')::date<current_date then raise exception 'Confirm valid shipping for each option before sending the quotation';end if;
+ if a is null or exists(select 1 from unnest(array['cents','feesCents','taxCents','dutiesCents','otherCents'])keys(field) where coalesce(a->>keys.field,case when keys.field='cents'then ''else '0'end)!~'^[0-9]+$')then raise exception 'Enter manufacturing subtotal and non-negative charges in the manufacturing currency';end if;
+ subtotal:=(a->>'cents')::bigint;fee:=coalesce((a->>'feesCents')::bigint,0);tax:=coalesce((a->>'taxCents')::bigint,0);duties:=coalesce((a->>'dutiesCents')::bigint,0);other:=coalesce((a->>'otherCents')::bigint,0);
+ fx:=public.currency_convert_minor((q.terms->>'priceCents')::bigint,q.terms->>'currency',t->>'currency',true);ship:=(fx->>'amount')::bigint;total:=subtotal+ship+fee+tax+duties+other;
+ if subtotal<(t->>'manufacturerQuoteCents')::bigint or total>100000000000 then raise exception 'Manufacturing subtotal must cover the manufacturer cost and total must be within limits';end if;
+ components:=jsonb_build_object('manufacturingCents',subtotal,'priceCents',ship,'serviceFeeCents',fee,'taxCents',tax,'dutiesCents',duties,'otherCents',other);pub:='{}';rounded:=0;
+ foreach k in array array['manufacturingCents','priceCents','serviceFeeCents','taxCents','dutiesCents','otherCents']loop v:=((public.currency_convert_minor((components->>k)::bigint,t->>'currency',target,true))->>'amount')::bigint;pub:=pub||jsonb_build_object(k,v);rounded:=rounded+v;end loop;
+ v:=((public.currency_convert_minor(total,t->>'currency',target,true))->>'amount')::bigint;
+ pub:=pub||jsonb_build_object('roundingCents',v-rounded,'totalCents',v,'provider',q.terms->>'provider','method',q.terms->>'method','transitDays',q.terms->'transitDays','origin',q.terms->>'origin','destination',q.terms->>'destination','insurance',q.terms->>'insurance','services',q.terms->>'services','tradeTerms',q.terms->>'tradeTerms','currency',target,'confirmedAt',now());
+ inputs:=inputs||jsonb_build_array(jsonb_build_object('id',t->>'id','cents',total,'shippingCents',ship,'taxCents',tax+duties,'feesCents',fee+other,'publicShipping',pub,'internalFreight',jsonb_build_object('quoteId',q.id,'originalTerms',q.terms,'conversion',fx,'manufacturerSubtotalCents',subtotal,'costCurrency',t->>'currency')));
+ end loop;
+ return inputs;
+end$$;
+create or replace function public.publish_order_quote(p_order_id uuid,p_prices jsonb)returns uuid language plpgsql security definer set search_path=public as $$begin
+ return public.freight_publish_base(p_order_id,public.freight_prepare_prices(p_order_id,p_prices));end$$;
+-- The existing temporary Submit-without-payment path cannot release freight-backed offers.
+create or replace function public.freight_payment_gate()returns trigger language plpgsql security definer set search_path=public as $$begin
+ if exists(select 1 from jsonb_array_elements(coalesce(new.price_options,'[]'))v where v?'shipping')and new.status in('processing','shipping','completed')and (new.payment_verified_at is null or not exists(select 1 from order_verified_payments p where p.order_id=new.id and p.option_id=new.selected_price_option_id and p.amount_cents=new.paid_amount_cents and p.currency=(select value->>'currency' from jsonb_array_elements(new.price_options)where value->>'id'=new.selected_price_option_id) and p.amount_cents=(select (value->>'priceCents')::bigint from jsonb_array_elements(new.price_options)where value->>'id'=new.selected_price_option_id)))then raise exception 'Verified full quotation payment including shipping is required before production';end if;return new;end$$;
+drop trigger if exists freight_verified_payment on public.orders;
+create trigger freight_verified_payment before update on public.orders for each row execute function public.freight_payment_gate();
+create or replace function public.freight_logistics_update(p_order uuid,p_id uuid,p_status text,p_details jsonb)returns uuid language plpgsql security definer set search_path=public as $$declare o orders%rowtype;last_status text;begin
+ if not public.is_superadmin()then raise exception 'Superadmin authorization required';end if;
+ select *into o from orders where id=p_order for update;
+ if exists(select 1 from order_logistics_events where id=p_id and order_id=p_order)then if exists(select 1 from order_logistics_events where id=p_id and status is distinct from p_status)then raise exception 'This request was already used for a different shipping update';end if;return p_id;end if;
+ if o.kind<>'production'or o.payment_verified_at is null or o.qc_status<>'approved'or o.status not in('processing','shipping')then raise exception 'Paid production and approved QC are required before shipping';end if;
+ if not exists(select 1 from jsonb_array_elements(coalesce(o.price_options,'[]'))v where v->>'id'=o.selected_price_option_id and v?'shipping')then raise exception 'A confirmed shipping arrangement is required';end if;
+ select status into last_status from order_logistics_events where order_id=p_order order by created_at desc limit 1;
+ if p_status not in('collection_scheduled','ready_for_collection','collected','in_transit','customs_clearance','out_for_delivery','delivered','exception')or p_status=last_status then raise exception 'Select a new valid shipping status';end if;
+ if p_status in('collected','in_transit','customs_clearance','out_for_delivery','delivered')and(o.status<>'shipping')then raise exception 'Record the approved QC release handover before advancing tracking';end if;
+ if p_status='delivered'and not exists(select 1 from order_logistics_events where order_id=p_order and status in('in_transit','out_for_delivery','customs_clearance'))then raise exception 'Record transit before delivery';end if;
+ if jsonb_typeof(p_details)is distinct from 'object'or length(coalesce(p_details->>'note',''))>2000 or (p_status='exception'and length(trim(coalesce(p_details->>'note','')))<3)then raise exception 'Enter a short exception reason';end if;
+ if coalesce(p_details->>'proof','')<>''and (p_details->>'proof'!~'^https://[^[:space:]]+$'or length(p_details->>'proof')>2000)then raise exception 'Proof of delivery must be a valid HTTPS document link';end if;
+ if p_status='collection_scheduled'and nullif(p_details->>'collectionAt','')is null then raise exception 'Enter the collection date and time';end if;
+ if nullif(p_details->>'collectionAt','')is not null then perform(p_details->>'collectionAt')::timestamp;end if;
+ if nullif(p_details->>'eta','')is not null then perform(p_details->>'eta')::date;end if;
+ insert into order_logistics_events(id,order_id,status,details,created_by)values(p_id,p_order,p_status,jsonb_build_object('tracking',left(coalesce(p_details->>'tracking',''),200),'carrier',left(coalesce(p_details->>'carrier',''),200),'eta',p_details->>'eta','collectionAt',p_details->>'collectionAt','note',coalesce(p_details->>'note',''),'proof',p_details->>'proof'),auth.uid());
+ if p_status='delivered'then perform public.confirm_order_delivery(p_order,coalesce(p_details->>'note','Delivered by selected shipping provider'));end if;return p_id;
+end$$;
+do $$declare f record;begin for f in select p.oid::regprocedure signature from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in('freight_prepare_prices','freight_context','freight_add_quote','freight_select','freight_logistics_update','publish_order_quote')loop execute format('revoke all on function %s from public,anon',f.signature);execute format('grant execute on function %s to authenticated',f.signature);end loop;end$$;
+revoke all on function public.freight_payment_gate()from public,anon,authenticated;
+-- Factories receive operational shipping instructions, never the customer's payable breakdown.
+do $$declare d text;begin select pg_get_functiondef('public.public_price_options(jsonb,boolean)'::regprocedure)into d;if position('''shipping'''in d)=0 then d:=replace(d,'''shippingQuoteCents'',''taxCents'',''feesCents''','''shippingQuoteCents'',''taxCents'',''feesCents'',''shipping''');execute d;end if;end$$;
+
+do $$declare d text;begin select pg_get_functiondef('public.public_price_options(jsonb,boolean)'::regprocedure)into d;d:=replace(d,'''originalManufacturerCents'',''markupCents'',''shippingIncludedInManufacturerQuote''','''originalManufacturerCents'',''markupCents'',''shippingIncludedInManufacturerQuote'',''freight''');execute d;end$$;
+create or replace function public.freight_history_immutable()returns trigger language plpgsql set search_path=public as $$begin raise exception 'Freight history is immutable; create a new quotation, amendment or tracking event';end$$;
+do $$declare t text;begin foreach t in array array['order_freight_quotes','order_logistics_events','order_shipping_amendments']loop execute format('drop trigger if exists freight_preserve_history on public.%I',t);execute format('create trigger freight_preserve_history before update or delete on public.%I for each row execute function public.freight_history_immutable()',t);end loop;end$$;
+revoke all on function public.freight_history_immutable()from public,anon,authenticated;
+
+-- Freight logistics safety (20261102010000)
+-- Enforce logistics progression even for direct admin table writes. Preserve all previous events.
+create or replace function public.freight_logistics_guard()returns trigger language plpgsql security definer set search_path=public as $$
+declare o orders%rowtype;previous text;latest_status text;allowed text[];
+begin
+ select *into o from orders where id=new.order_id for update;
+ if o.kind is distinct from 'production'or o.payment_verified_at is null or o.qc_status is distinct from 'approved'or o.status not in('processing','shipping')then raise exception 'Paid production and approved QC are required before shipping';end if;
+ select status into previous from order_logistics_events where order_id=new.order_id and status<>'exception'order by created_at desc,id desc limit 1;
+ select status into latest_status from order_logistics_events where order_id=new.order_id order by created_at desc,id desc limit 1;
+ allowed:=case previous
+ when 'collection_scheduled'then array['ready_for_collection','collected','in_transit','exception']
+ when 'ready_for_collection'then array['collection_scheduled','collected','in_transit','exception']
+ when 'collected'then array['in_transit','customs_clearance','out_for_delivery','exception']
+ when 'in_transit'then array['customs_clearance','out_for_delivery','delivered','exception']
+ when 'customs_clearance'then array['in_transit','out_for_delivery','delivered','exception']
+ when 'out_for_delivery'then array['delivered','exception']
+ when 'delivered'then array[]::text[]
+ else array['collection_scheduled','ready_for_collection','collected','in_transit','exception']end;
+ if latest_status='exception'and previous is not null then allowed:=array_prepend(previous,allowed);end if;
+ if not(new.status=any(allowed))then raise exception 'Shipping changed or this transition would move backwards. Refresh and choose the next shipping status';end if;
+ if new.status in('collected','in_transit','customs_clearance','out_for_delivery','delivered')and o.status<>'shipping'then raise exception 'Record the approved QC release handover before advancing tracking';end if;
+ return new;
+end$$;
+revoke all on function public.freight_logistics_guard()from public,anon,authenticated;
+drop trigger if exists freight_logistics_progression_guard on public.order_logistics_events;
+create trigger freight_logistics_progression_guard before insert on public.order_logistics_events for each row execute function public.freight_logistics_guard();

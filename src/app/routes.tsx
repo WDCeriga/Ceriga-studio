@@ -16,6 +16,8 @@ function RedirectPreserveSearch({ to }: { to: string }) {
 
 function LegacyCrmAccessRedirect(){const{audience,userId}=useParams();return <Navigate replace to={audience==='manufacturers'?'/superadmin/manufacturers':userId?(audience==='workers'?'/superadmin/workers/'+userId:'/superadmin/users/'+userId):'/superadmin/workers/roles'}/>;}
 export const router = createBrowserRouter([
+  {path:'/worker-invite',lazy:async()=>{const{WorkerInvitation}=await import('./pages/WorkerInvitation');return{Component:WorkerInvitation};}},
+  ...['/worker','/worker/:page','/worker/orders/:orderId','/worker/quality/:orderId','/worker/workers/roles'].map(path=>({path,lazy:async()=>{const{WorkerWorkspace}=await import('./pages/WorkerWorkspace');return{Component:WorkerWorkspace};}})),
   {path:'/superadmin/workers/roles',lazy:async()=>{const[{SuperAdminLayout},{SuperAdminWorkerRoles}]=await Promise.all([import('./components/superadmin/SuperAdminLayout'),import('./pages/superadmin/SuperAdminWorkers')]);return{element:<SuperAdminLayout><SuperAdminWorkerRoles/></SuperAdminLayout>};}},
   {path:"/team-password",lazy:async()=>{const{TeamPasswordSetup}=await import("./pages/TeamPasswordSetup");return{Component:TeamPasswordSetup};}},
   {path:"/team-invite",lazy:async()=>{const{TeamInvitation}=await import("./pages/TeamInvitation");return{Component:TeamInvitation};}},

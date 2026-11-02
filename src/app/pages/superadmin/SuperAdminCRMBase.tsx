@@ -1,5 +1,6 @@
+import './superadmin-crm.css';
 import { BuilderComponentEditor } from './crm/CrmComponentEditor';
-import { useMemo, useState, type ChangeEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { ArrowLeft, ArrowRight, Layers, Ruler, Shirt } from 'lucide-react';
 import { toast } from 'sonner';
@@ -33,6 +34,7 @@ export function SuperAdminCRMBase() {
     return existing ? { ...existing } : defaultBaseConfig(baseId);
   });
 
+  const [saving,setSaving]=useState(false),[saveError,setSaveError]=useState('');const saveLock=useRef(false);
   const baseComponents = useMemo(() => baseComponentsForBase(baseId), [baseId]);
 
   if (!meta) {
@@ -49,12 +51,13 @@ export function SuperAdminCRMBase() {
   const Icon = BASE_ICONS[baseId];
 
   const save = async () => {
+    if(saveLock.current)return;saveLock.current=true;setSaving(true);setSaveError('');
     try {
     const saved = normalizeBaseConfig(config);
     await upsertBaseConfig(saved);
     setConfig(saved);
     toast.success(`Saved ${meta.name}`);
-    }catch(cause){toast.error(cause instanceof Error?cause.message:"Could not save base");}
+    }catch(cause){const message=cause instanceof Error?cause.message:"Could not save base";setSaveError(message);toast.error(message);}finally{saveLock.current=false;setSaving(false);}
   };
 
   const resetToCodeDefaults = () => {
@@ -63,7 +66,7 @@ export function SuperAdminCRMBase() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="admin-crm-editor space-y-6" aria-busy={saving}><fieldset className="crm-editor-fields" disabled={saving} aria-label="Garment base settings">{saveError&&<p role="alert" className="crm-save-error">{saveError}</p>}
       <Link
         to="/superadmin/crm"
         className="inline-flex items-center gap-2 text-xs font-medium text-white/45 hover:text-white/80"
@@ -91,7 +94,7 @@ export function SuperAdminCRMBase() {
           </div>
         </div>
         <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={save}>
-          Save base
+          {saving?'Saving…':'Save base'}
         </Button>
       </div>
 
@@ -148,6 +151,7 @@ export function SuperAdminCRMBase() {
           />
         </div>
       </div>
+    </fieldset>
     </div>
   );
 }

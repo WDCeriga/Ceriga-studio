@@ -74,6 +74,7 @@ export function OrderCheckout() {
   }
 
   const handlePay = async () => {
+    if(option.shipping){toast.error('Online payment collection is not configured. Verified full payment is required before production.');return;}
     if(offerExpired(order) || (order.kind !== 'production' && !PAYMENTS_ENABLED)){toast.error('This offer is unavailable or has expired.');return;}
     setPaying(true);
     try {
@@ -106,6 +107,7 @@ export function OrderCheckout() {
         </h1>
         <p className="mt-1 text-sm text-white/45">{order.productName}</p>
 
+        {option.shipping&&<p className="mt-4 text-xs text-white/60">{option.shipping.provider} · {option.shipping.method} · Estimated {option.shipping.transitDays} calendar days after collection. {option.shipping.tradeTerms}</p>}
         <div className="mt-6 space-y-4 rounded-xl border border-[#252528] bg-white/[0.03] p-5">
           <div className="flex items-center justify-between text-sm">
             <span className="text-white/55">{option.description}</span>
@@ -122,17 +124,17 @@ export function OrderCheckout() {
             </div>
             <div className="flex items-center gap-2 text-[11px] text-white/40">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-              {order.kind==='production'?'Submit this option to your assigned manufacturer. No payment is collected.':'Payments are not enabled yet.'}
+              {option.shipping?'Verified payment of the full approved amount, including shipping, is required before production. Online payment collection is not configured yet.':order.kind==='production'?'Submit this option to your assigned manufacturer. No payment is collected.':'Payments are not enabled yet.'}
             </div>
           </div>
           <Button
             type="button"
-            disabled={!option.currency || paying || (order.kind!=='production'&&!PAYMENTS_ENABLED) || offerExpired(order)}
+            disabled={Boolean(option.shipping) || !option.currency || paying || (order.kind!=='production'&&!PAYMENTS_ENABLED) || offerExpired(order)}
             className="h-11 w-full bg-[#CC2D24] text-sm font-semibold hover:bg-[#CC2D24]/90 disabled:opacity-50"
             onClick={() => void handlePay()}
           >
             <CreditCard className="mr-2 h-4 w-4" />
-            {paying ? 'Submitting…' : order.kind==='production'?'Submit':`Pay ${(option.currency?formatMoney(option.priceCents,option.currency):'Currency needs review')}`}
+            {paying ? 'Submitting…' : option.shipping?'Payment not yet available':order.kind==='production'?'Submit':`Pay ${(option.currency?formatMoney(option.priceCents,option.currency):'Currency needs review')}`}
           </Button>
         </div>
 

@@ -33,7 +33,7 @@ try {
   assert.deepEqual(legacy.garmentMoqOverrides, {});
   assert.deepEqual(legacy.confirmedGarmentMoqOverrides, []);
   let row;
-  const client = {auth:{getUser:async()=>({data:{user:{id:'moq-tests'}},error:null})},from:()=>({
+  const client = {rpc:async(name,args)=>{if(name==='save_manufacturer_profile')return {data:'moq-tests',error:null};if(name==='save_factory_operational_settings'){row={settings:structuredClone(args.p_settings)};return {data:true,error:null};}if(name==='factory_workspace_profile')return {data:null,error:null};if(name==='factory_operational_settings')return {data:row?.settings||null,error:null};throw Error('Unexpected RPC: '+name);},auth:{getUser:async()=>({data:{user:{id:'moq-tests'}},error:null})},from:()=>({
     upsert:async value => {row=structuredClone(value);return {error:null};},
     select:()=>({eq:()=>({maybeSingle:async()=>({data:row,error:null})})}),
   })};
@@ -44,6 +44,7 @@ try {
   assert.deepEqual(restored.confirmedGarmentMoqOverrides,custom.confirmedGarmentMoqOverrides);
   delete row.settings.generalMoq;delete row.settings.garmentMoqOverrides;delete row.settings.confirmedGarmentMoqOverrides;
   assert.equal(Object.hasOwn(await db.loadCustomisationSettingsFromDb(client),'garmentMoqOverrides'),false);
+  if(process.argv.includes('--unit-only')){console.log('PASS MOQ defaults, intentional overrides, current RPC round-trip, confirmed override provenance and legacy missing fields');}else{
   await server.listen();browser=await chromium.launch({channel:'msedge',headless:true});
   const page=await browser.newPage();const errors=[];page.on('pageerror',error=>errors.push(error.message));
   const key='ceriga_mfg_full_profile_moq_tests';
@@ -79,4 +80,5 @@ try {
   assert.equal(await page.getByRole('button',{name:'Reset to General MOQ'}).count(),0);
   assert.deepEqual(errors,[]);
   console.log('PASS: all garments inherit, intentional overrides persist, reset restores inheritance, new categories inherit, obsolete seeded values inherit without buttons, cloud round trips preserve provenance, capacity fields unchanged.');
+}
 } finally {await browser?.close();await server.close();}

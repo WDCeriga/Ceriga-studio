@@ -61,9 +61,9 @@ export function StepShippingServices({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">5. Shipping</h2>
+        <h2 className="text-xl font-semibold text-white">6. Shipping</h2>
         <p className="mt-1 text-sm text-white/50">
-          Define global delivery destinations, logistics methods, and customs compliance.
+          Choose your shipping destinations, delivery methods and customs services.
         </p>
       </div>
 
@@ -220,7 +220,7 @@ export function StepShippingServices({
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="onboarding-actions flex items-center justify-between pt-2">
         <Button
           type="button"
           variant="outline"
@@ -232,9 +232,9 @@ export function StepShippingServices({
         <Button
           type="button"
           onClick={onNext}
-          className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
+          className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
         >
-          Review & Complete Onboarding
+          Review setup
         </Button>
       </div>
     </div>

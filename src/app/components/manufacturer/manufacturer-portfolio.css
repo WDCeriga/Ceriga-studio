@@ -1,0 +1,103 @@
+.factory-portfolio{color-scheme:light}
+.portfolio-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:8px 0 24px;border-bottom:1px solid #e2e2e2}
+.factory-portfolio .portfolio-heading h1{font-size:clamp(28px,2.5vw,36px);font-weight:500;letter-spacing:-1.2px;line-height:1.2;margin-top:12px}
+.portfolio-heading h1>span{color:#cc2d24}
+.factory-portfolio .portfolio-heading div>p:last-child{color:#737373;font-size:12px;margin-top:10px}
+.portfolio-heading-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.portfolio-icon{display:grid;place-items:center;width:36px;height:36px;border:1px solid #dedede;border-radius:4px;background:white;color:#737373}
+.factory-portfolio .portfolio-primary,.portfolio-dialog .portfolio-primary{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#171717;border:1px solid #171717;border-radius:4px;color:white;font-size:11px;font-weight:500;min-height:36px;padding:8px 13px}
+.factory-portfolio .portfolio-primary:hover,.portfolio-dialog .portfolio-primary:hover{background:#333}
+.portfolio-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:24px 0}
+.portfolio-count{display:flex;align-items:center;gap:7px;color:#8c8c8c;font-size:11px;margin-right:auto}
+.portfolio-count strong{color:#525252;font-weight:500}
+.portfolio-count svg{margin-right:3px}
+.portfolio-search{display:flex;align-items:center;gap:8px;padding:0 10px;height:36px;border:1px solid #dedede;border-radius:4px;background:white;color:#8c8c8c;width:225px}
+.portfolio-search input{border:0;outline:none;min-width:0;width:100%;background:none;font-size:11px}
+.portfolio-search input:focus-visible{outline:none}
+.portfolio-search:focus-within{outline:2px solid #737373;outline-offset:2px}
+.factory-portfolio .portfolio-toolbar select{font-size:11px;max-width:100%;height:36px}
+.portfolio-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.portfolio-card{min-width:0;border:1px solid #e2e2e2;border-radius:5px;overflow:hidden;background:white;display:flex;flex-direction:column}
+.portfolio-cover{position:relative;display:block;width:100%;aspect-ratio:4/3;background:#f2f2f2;border:0;padding:0;overflow:hidden;text-align:left;border-bottom:1px solid #ededed}
+.portfolio-cover>img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .25s ease}
+.portfolio-cover:hover>img{transform:scale(1.025)}
+.portfolio-placeholder{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;width:100%;height:100%;min-height:150px;background:#f7f7f7;color:#aaa;font-size:10px;text-align:center;padding:20px}
+.portfolio-placeholder svg{stroke-width:1.1}
+.portfolio-cover-category,.portfolio-photo-count{position:absolute;bottom:12px;background:rgba(255,255,255,.95);border:1px solid #e8e8e8;border-radius:3px;padding:4px 7px;font-size:9px;color:#525252;max-width:75%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.portfolio-cover-category{left:12px}
+.portfolio-photo-count{right:12px;display:flex;align-items:center;gap:5px}
+.portfolio-card-body{padding:17px 17px 0;display:flex;flex-direction:column;flex:1;min-width:0}
+.factory-portfolio .portfolio-card h2{font-size:13px;font-weight:500;letter-spacing:-.15px;overflow-wrap:anywhere}
+.portfolio-card h2>button{border:0;text-align:left;background:none;padding:0;font:inherit;line-height:1.5}
+.factory-portfolio .portfolio-composition{font-size:10px;color:#8c8c8c;line-height:1.7;margin-top:5px;overflow-wrap:anywhere}
+.factory-portfolio .portfolio-card-description{color:#737373;font-size:11px;line-height:1.7;margin:12px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.portfolio-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:13px;min-width:0}
+.portfolio-tags>span{font-size:9px;color:#737373;border:1px solid #ededed;background:#fafafa;border-radius:3px;padding:2px 6px;max-width:100%;overflow-wrap:anywhere}
+.portfolio-card footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding:16px 0 12px;min-height:62px}
+.portfolio-card footer>button{display:flex;align-items:center;gap:6px;border:0;background:none;padding:5px 0;color:#737373;font-size:10px}
+.portfolio-card footer>div{display:flex;align-items:center;gap:5px}
+.portfolio-card footer>div>button{border:1px solid #ededed;border-radius:4px;background:white;color:#8c8c8c;display:grid;place-items:center;width:30px;height:30px}
+.portfolio-card footer>div>button:last-child:hover{color:#ad352d;background:#fdf5f4;border-color:#edcfcc}
+.portfolio-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:72px 24px;border:1px dashed #dedede;border-radius:5px;gap:12px;min-height:300px;background:white;color:#8c8c8c}
+.factory-portfolio .portfolio-empty h2{font-size:16px;font-weight:500;color:#525252;letter-spacing:-.2px}
+.factory-portfolio .portfolio-empty p{font-size:11px;line-height:1.7;max-width:340px;color:#8c8c8c}
+.portfolio-empty>button{margin-top:7px;border:1px solid #dedede;background:white;color:#525252;padding:8px 12px;border-radius:4px;font-size:11px}
+.portfolio-message{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;line-height:1.7;background:#fffaf3;border:1px solid #eee1ce;color:#95631c;padding:12px 16px;border-radius:4px;margin-top:20px}
+.portfolio-message button{border:0;background:none;text-decoration:underline;flex-shrink:0;font-size:11px}
+.portfolio-load{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:24px;color:#8c8c8c;font-size:10px}
+.portfolio-load>button{border:1px solid #dedede;border-radius:4px;background:white;color:#525252;min-height:36px;padding:8px 16px;font-size:11px}
+.portfolio-dialog{background:white!important;color:#262626!important;color-scheme:light;border:1px solid #dedede!important;border-radius:6px!important;padding:24px;max-height:90dvh;overflow-y:auto;font-size:12px}
+.portfolio-dialog *{box-sizing:border-box}
+.portfolio-dialog h2{font-size:18px;font-weight:500;letter-spacing:-.4px;color:#262626;padding-right:24px;overflow-wrap:anywhere}
+.portfolio-dialog header p,.portfolio-dialog [data-slot=dialog-description]{font-size:11px;line-height:1.7;color:#8c8c8c}
+.portfolio-dialog>div:first-child>p{font-size:11px;line-height:1.7;color:#8c8c8c}
+.portfolio-dialog>button{color:#737373;background:none;min-width:36px;min-height:36px;top:9px;right:9px}
+.portfolio-dialog fieldset{border:0;padding:0;margin:0;min-width:0}
+.portfolio-dialog :is(button,input,textarea,summary):focus-visible{outline:2px solid #737373;outline-offset:3px}
+.portfolio-dialog button{cursor:pointer;font:inherit;font-size:11px;border-radius:4px}
+.portfolio-dialog button:disabled{cursor:not-allowed;opacity:.45}
+.portfolio-dialog fieldset:disabled{opacity:.7}
+.portfolio-dialog form>div:last-child{margin-top:22px;border-top:1px solid #ededed;padding-top:18px;gap:8px}
+.portfolio-dialog form>div:last-child>button,.portfolio-dialog [data-slot=dialog-footer]>button{border:1px solid #dedede;min-height:36px;background:white;color:#525252;padding:8px 13px}
+.portfolio-dialog form>div:last-child>.portfolio-primary{color:white;background:#171717;border-color:#171717}
+.portfolio-dialog .portfolio-danger{background:#ad352d;color:white;border:1px solid #ad352d;min-height:36px;padding:8px 13px}
+.portfolio-dialog [data-slot=dialog-footer]>.portfolio-danger{background:#ad352d;color:white;border-color:#ad352d}
+.portfolio-upload{border:1px dashed #d5d5d5;border-radius:4px;background:#fafafa;margin:4px 0 18px}
+.portfolio-upload>button{display:flex;flex-direction:column;align-items:center;gap:9px;justify-content:center;min-height:140px;background:none;border:0;width:100%;padding:20px;color:#8c8c8c}
+.portfolio-upload strong{font-size:12px;font-weight:500;color:#525252}
+.portfolio-upload span{font-size:10px;color:#8c8c8c;line-height:1.7;text-align:center}
+.portfolio-dragging{border-color:#737373;background:#f2f2f2}
+.portfolio-draft-photos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.portfolio-draft-photos>div{position:relative;aspect-ratio:1;background:#f5f5f5;border:1px solid #ededed;border-radius:4px;overflow:hidden;display:grid;place-items:center;color:#aaa}
+.portfolio-draft-photos img{width:100%;height:100%;object-fit:cover}
+.portfolio-draft-photos button{position:absolute;top:4px;right:4px;width:26px;height:26px;display:grid;place-items:center;border:1px solid #dedede;background:white;color:#737373}
+.portfolio-draft-photos span{position:absolute;bottom:4px;left:4px;background:white;border:1px solid #ededed;border-radius:3px;padding:2px 5px;font-size:9px;color:#737373}
+.portfolio-pending{opacity:.6}
+.portfolio-help{font-size:10px;color:#8c8c8c;line-height:1.7;margin:0 0 18px}
+.portfolio-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}
+.portfolio-fields label{display:block;font-size:11px;color:#525252;min-width:0}
+.portfolio-fields label>span{color:#ad352d}
+.portfolio-fields :is(input,textarea){display:block;margin-top:7px;width:100%;max-width:100%;min-height:40px;background:white;border:1px solid #dedede;border-radius:4px;padding:9px 10px;font:inherit;font-size:12px;color:#262626}
+.portfolio-fields textarea{resize:vertical;line-height:1.7}
+.portfolio-fields small{display:block;margin-top:5px;color:#8c8c8c;font-size:10px}
+.portfolio-fields input::placeholder,.portfolio-fields textarea::placeholder{color:#aaa}
+.portfolio-full{grid-column:1/-1}
+.portfolio-optional{margin-top:20px;padding-top:16px;border-top:1px solid #ededed}
+.portfolio-optional summary{font-size:11px;font-weight:500;cursor:pointer;color:#525252;display:flex;align-items:center;justify-content:space-between;min-height:28px}
+.portfolio-optional summary span{font-size:10px;font-weight:400;color:#aaa}
+.portfolio-optional[open] summary{margin-bottom:18px}
+.portfolio-form-error{border:1px solid #edcfcc;color:#ad352d;font-size:11px;line-height:1.7;background:#fdf5f4;padding:10px 12px;border-radius:4px;margin:16px 0}
+.portfolio-photo-view{height:min(52dvh,520px);overflow:auto;background:#f5f5f5;display:flex;align-items:center;justify-content:center;border:1px solid #ededed;border-radius:4px}
+.portfolio-photo-view>img{display:block;width:100%;height:100%;object-fit:contain}
+.portfolio-photo-view.portfolio-zoomed{display:block}
+.portfolio-zoomed>img{width:200%;max-width:none;height:auto;min-height:100%;object-fit:contain}
+.portfolio-gallery-controls{display:flex;align-items:center;gap:12px;justify-content:center}
+.portfolio-gallery-controls button{display:grid;place-items:center;width:36px;height:36px;border:1px solid #dedede;background:white;color:#737373}
+.portfolio-gallery-controls button:last-child{margin-left:10px}
+.portfolio-gallery-controls span{font-size:10px;color:#8c8c8c;font-variant-numeric:tabular-nums}
+.portfolio-view-description{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;color:#737373;margin:0}
+@media(min-width:1600px){.portfolio-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1100px){.portfolio-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.portfolio-count{width:100%;margin-bottom:5px}.portfolio-search{flex:1}}
+@media(max-width:600px){.portfolio-grid{grid-template-columns:minmax(0,1fr);gap:16px}.portfolio-heading{align-items:flex-start;gap:10px}.portfolio-heading-actions{gap:6px}.portfolio-heading-actions button{min-height:42px}.portfolio-heading-actions .portfolio-primary{font-size:10px;padding:8px 10px}.factory-portfolio .portfolio-heading h1{font-size:29px}.portfolio-toolbar{gap:8px;margin:20px 0}.portfolio-search{width:100%;flex-basis:100%;height:42px}.factory-portfolio .portfolio-toolbar select{flex:1;min-width:0;height:42px}.portfolio-card footer>div>button{width:40px;height:40px}.portfolio-card footer>button{min-height:40px}.portfolio-dialog{padding:20px;max-height:92dvh}.portfolio-fields{grid-template-columns:minmax(0,1fr);gap:14px}.portfolio-fields :is(input,textarea){min-height:44px}.portfolio-draft-photos{grid-template-columns:repeat(3,minmax(0,1fr))}.portfolio-dialog form>div:last-child>button{width:100%;min-height:44px}.portfolio-gallery-controls button{width:44px;height:44px}.portfolio-empty{padding:50px 20px}.portfolio-cover{aspect-ratio:4/3}}
+@media(prefers-reduced-motion:reduce){.portfolio-cover>img{transition:none}}
+@media(max-width:600px){.factory-portfolio .portfolio-heading-actions :is(.portfolio-primary,.portfolio-icon){min-height:44px}.portfolio-dialog [data-slot=dialog-footer]>button{min-height:44px}}

@@ -1,0 +1,46 @@
+.delivery-overview{grid-template-columns:repeat(3,minmax(0,1fr))}
+.factory-delivery .fo-toolbar select{font-size:11px}
+.delivery-tracking{max-width:280px;overflow-wrap:anywhere}
+.delivery-tracking>span{font-size:11px;color:#525252}
+.delivery-tracking>small{display:block;font-size:9px;color:#8c8c8c;margin-top:5px}
+.delivery-hold{display:block;font-size:9px;color:#885f2e!important;margin-top:5px!important}
+.delivery-mobile-tracking{font-size:10px;color:#737373;overflow-wrap:anywhere;margin-top:10px!important}
+.delivery-carriers{border:1px solid #e2e2e2;background:white;border-radius:6px;padding:0;margin-top:24px;color:#525252}
+.delivery-carriers>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 20px;cursor:pointer;font-size:12px;font-weight:500;list-style:revert}
+.delivery-carriers>summary>span{font-size:10px;color:#8c8c8c;font-weight:400}
+.delivery-carriers>summary>.delivery-carrier-label{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:#525252}
+.delivery-carrier-label svg{color:#8c8c8c;transition:transform 150ms}
+.delivery-carriers[open] .delivery-carrier-label svg{transform:rotate(180deg)}
+.delivery-carriers[open]>summary{border-bottom:1px solid #e2e2e2}
+.delivery-carriers>p{font-size:11px;color:#737373;padding:0 20px;margin:16px 0}
+.delivery-carriers>ul{list-style:none;margin:0;padding:0 20px 5px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.delivery-carriers li{border-top:1px solid #ededed;padding:13px 0 16px;min-width:0}
+.delivery-carriers li h3{font-size:12px;font-weight:500;color:#262626}
+.delivery-carriers li p{font-size:10px;line-height:1.7;color:#737373;margin-top:5px}
+.delivery-config-error{color:#a82b25!important}.delivery-config-error button{margin-left:12px;text-decoration:underline;border:0;background:none;padding:5px;font-size:11px}
+.manufacturer-delivery-page>.fh-heading{padding:5px 0 20px;border-bottom:1px solid #e2e2e2}
+.manufacturer-delivery-page>.fh-heading h1{margin-top:8px}
+.manufacturer-delivery-page .delivery-address-section{border:1px solid #e2e2e2;border-radius:5px;background:#fafafa;padding:18px}
+.manufacturer-delivery-page .delivery-address-section>div>p{color:#525252;font-size:12px;line-height:1.7}
+.manufacturer-delivery-page .delivery-address-section p,.manufacturer-delivery-page section[aria-label='Delivery and completion'] p{overflow-wrap:anywhere}
+.manufacturer-delivery-page .delivery-address-section>div>p:first-child{font-weight:500;color:#262626}
+.manufacturer-delivery-page .delivery-dispatch-section{border-top:1px solid #e2e2e2;padding-top:22px}
+.manufacturer-delivery-page .delivery-dispatch-section>h3{color:#262626;font-size:13px;font-weight:500}
+.manufacturer-delivery-page .delivery-dispatch-section>h3 svg{color:#737373}
+.manufacturer-delivery-page .delivery-dispatch-section>div>p{font-size:11px;color:#737373}
+.delivery-tracking-field{display:block;flex:1;min-width:0}
+.delivery-tracking-field>span{display:block;font-size:10px;color:#737373;margin-bottom:7px}
+.manufacturer-delivery-page .delivery-tracking-field>input{width:100%;min-height:42px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;color:#171717;padding:8px 12px;font-size:12px}
+.manufacturer-delivery-page .delivery-tracking-field>input::placeholder{color:#a3a3a3}
+.manufacturer-delivery-page .delivery-dispatch-section>div>div{align-items:flex-end;margin-top:14px}
+.manufacturer-delivery-page .delivery-dispatch-section button{border:1px solid #171717;background:#171717;color:white;border-radius:4px;min-height:42px;font-size:11px;font-weight:500;padding:9px 16px}
+.manufacturer-delivery-page .delivery-dispatch-section button:hover{background:#333}
+.manufacturer-delivery-page .qc-order-workspace>section[aria-label='Delivery and completion']{background:#fafafa;border:1px solid #e2e2e2;border-radius:5px;padding:18px;color:#262626}
+.manufacturer-delivery-page .qc-order-workspace>section[aria-label='Delivery and completion']>h3{font-size:12px;color:#262626}
+.manufacturer-delivery-page .qc-order-workspace>section[aria-label='Delivery and completion']>p{font-size:11px;color:#737373;line-height:1.7}
+.manufacturer-delivery-page .qc-order-workspace>section[aria-label='Delivery and completion']>p:first-of-type{color:#262626}
+.manufacturer-delivery-page .qc-order-workspace>section[aria-label='Delivery and completion']>p[class*='text-amber']{color:#885f2e}
+.manufacturer-delivery-page .qc-order-workspace>section[aria-label='Delivery and completion']>p[class*='text-emerald']{color:#3f6248}
+@media(max-width:800px){.delivery-carriers>ul{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:639px){.delivery-tracking-field{width:100%;flex:initial}.manufacturer-delivery-page .delivery-dispatch-section>div>div{align-items:stretch}.manufacturer-delivery-page .delivery-tracking-field>input,.manufacturer-delivery-page .delivery-dispatch-section button{min-height:44px;width:100%}}
+@media(max-width:600px){.factory-delivery .delivery-overview{grid-template-columns:repeat(3,minmax(0,1fr))}.factory-delivery .delivery-overview>.fh-stat{border-bottom:0;border-right:1px solid #e2e2e2;padding:14px 10px}.factory-delivery .delivery-overview>.fh-stat:last-child{border:0}.delivery-overview .fh-stat-label{font-size:10px;align-items:flex-start}.delivery-overview .fh-stat-label>svg{display:none}.delivery-overview .fh-stat-note{font-size:9px}.delivery-overview .fh-stat-note>svg{display:none}.factory-delivery .fo-toolbar select{min-height:44px;width:100%}.delivery-carriers>summary{padding:16px}.delivery-carriers>p{padding:0 16px}.delivery-carriers>ul{grid-template-columns:1fr;padding:0 16px}.manufacturer-delivery-page .delivery-address-section,.manufacturer-delivery-page .qc-order-workspace>section[aria-label='Delivery and completion']{padding:14px}.manufacturer-delivery-page .delivery-tracking-field>input,.manufacturer-delivery-page .delivery-dispatch-section button{min-height:44px}.manufacturer-delivery-page .delivery-dispatch-section button{width:100%}}

@@ -1,6 +1,7 @@
+import './superadmin-pricing.css';
 import { formatAccountTotal,displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { QuoteCalculatorSection } from "../../components/superadmin/QuoteCalculator";
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router';
 import {
   ArrowRight,
@@ -61,12 +62,15 @@ function MoneyInput({
   onChange: (v: string) => void;
 }) {
   const currencyState=useCurrency();
+  const [draft,setDraft]=useState<string|null>(null);
   return (
     <div className="space-y-1.5">
       <Label className="text-white/55">{label}</Label>
       <Input
-        value={value}
-        onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+        type="text" inputMode="decimal" aria-label={label}
+        value={draft??value}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => {const v=e.target.value.replace(',','.');if(!/^\d*(\.\d{0,2})?$/.test(v))return;const normalized=v===''||v==='.'?'0':v.endsWith('.')?v.slice(0,-1):v.startsWith('.')?'0'+v:v;if(inputToCents(normalized)==null)return;setDraft(v);onChange(normalized);}}
+        onBlur={()=>setDraft(null)}
         className="border-white/15 bg-white/5 text-white tabular-nums"
       />
     </div>
@@ -75,7 +79,7 @@ function MoneyInput({
 
 export function SuperAdminPricing() {
   const currencyState=useCurrency();
-  const { orders, loading: ordersLoading } = useSuperadminData();
+  const { orders, error:ordersError, loading: ordersLoading } = useSuperadminData();
   const [config, setConfig] = useState<PlatformPricingConfig>(() => getDefaultPricingConfig());
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -98,6 +102,9 @@ export function SuperAdminPricing() {
     next: boolean;
   } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [tab,setTab]=useState('rules'),[saveError,setSaveError]=useState(''),[savedConfig,setSavedConfig]=useState(''),[ledgerPage,setLedgerPage]=useState(1);const saveLock=useRef(false),manualLock=useRef(false);
+  const dirty=savedConfig!==JSON.stringify(config);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -109,9 +116,9 @@ export function SuperAdminPricing() {
         if (cancelled) return;
         if (remote) {
           upsertPricingConfig(remote);
-          setConfig(getPricingConfig());
+          const loaded=getPricingConfig();setConfig(loaded);setSavedConfig(JSON.stringify(loaded));
         } else {
-          setConfig(getDefaultPricingConfig());
+          const defaults=getDefaultPricingConfig();setConfig(defaults);setSavedConfig('');
         }
       } catch (err) {
         if (!cancelled) setConfigError((err as { message?: string })?.message || 'Failed to load pricing');
@@ -136,6 +143,7 @@ export function SuperAdminPricing() {
     return ledger.filter((r) => r.source === sourceFilter);
   }, [ledger, sourceFilter]);
 
+  const ledgerPages=Math.max(1,Math.ceil(filteredLedger.length/20)),currentLedgerPage=Math.min(ledgerPage,ledgerPages),visibleLedger=filteredLedger.slice((currentLedgerPage-1)*20,currentLedgerPage*20);
   const previewQuote = 100000;
 
   const updatePlanMargin = (planId: string, platformMarginPercent: number) => {
@@ -151,18 +159,23 @@ export function SuperAdminPricing() {
   };
 
   const saveConfig = async () => {
-    if (saving || configError) return;
+    if (saveLock.current || configError) return;
+    setSaveError('');
+    const money=[config.techPack.pdfCents,config.techPack.bundleCents,...config.chatPlans.map(p=>p.monthlyCents)];
+    if(money.some(n=>!Number.isSafeInteger(n)||n<0)||config.chatPlans.some(p=>!Number.isSafeInteger(p.messageLimit)||p.messageLimit<0)||!Number.isFinite(config.production.estimatedDutiesPercent)||config.production.estimatedDutiesPercent<0||config.production.planMargins.some(p=>!Number.isFinite(p.platformMarginPercent)||p.platformMarginPercent<0)){setSaveError('Enter non-negative prices and whole-number message limits. Markup and estimated tax must be non-negative percentages.');return;}
+    if(!config.production.planMargins.every(p=>{try{return Number.isSafeInteger(applyProductionMargin(100000,p.platformMarginPercent));}catch{return false;}})){setSaveError('Enter a supported markup percentage.');return;}
+    saveLock.current=true;
     setSaving(true);
     try {
       const normalized = normalizePricingConfig(structuredClone(config));
       await setPlatformSetting('pricing', normalized);
       upsertPricingConfig(normalized);
-      setConfig(normalized);
+      setConfig(normalized);setSavedConfig(JSON.stringify(normalized));
       toast.success('Pricing rules saved');
     } catch (err) {
-      toast.error((err as { message?: string })?.message || 'Save failed');
+      const message=(err as { message?: string })?.message || 'Save failed';setSaveError(message);toast.error(message);
     } finally {
-      setSaving(false);
+      saveLock.current=false;setSaving(false);
     }
   };
 
@@ -174,7 +187,7 @@ export function SuperAdminPricing() {
   }, [manualDraft]);
 
   if (ordersLoading || configLoading) {
-    return <PageLoadingFallback />;
+    return <div className="admin-pricing"><h1>Pricing</h1><p role="status" className="pricing-loading">Loading saved pricing rules…</p></div>;
   }
 
   const updateTechPack = (patch: Partial<PlatformPricingConfig['techPack']>) => {
@@ -193,6 +206,7 @@ export function SuperAdminPricing() {
   };
 
   const submitManual = () => {
+    if(manualLock.current)return;
     if (!manualDraft.customerName.trim() || !manualDraft.description.trim()) {
       toast.error('Customer and description are required');
       return;
@@ -202,6 +216,9 @@ export function SuperAdminPricing() {
       toast.error('Enter a valid customer paid amount');
       return;
     }
+    const cost=inputToCents(manualDraft.manufacturerCost),shipping=inputToCents(manualDraft.manufacturerShipping),quantity=Number(manualDraft.quantity);
+    if(revenueCents<0||cost==null||cost<0||shipping==null||shipping<0||!Number.isSafeInteger(quantity)||quantity<=0||!/^\d{4}-\d{2}-\d{2}$/.test(manualDraft.date)||!Number.isFinite(Date.parse(manualDraft.date+'T12:00:00Z'))||new Date(manualDraft.date+'T12:00:00Z').toISOString().slice(0,10)!==manualDraft.date){toast.error('Enter a valid date, positive whole quantity, and non-negative monetary amounts.');return;}
+    manualLock.current=true;
     addManualLedgerRow({
       date: manualDraft.date,
       customerName: manualDraft.customerName.trim(),
@@ -223,11 +240,11 @@ export function SuperAdminPricing() {
       manufacturerCost: '0',
       manufacturerShipping: '0',
     });
-    toast.success('Manual revenue row added');
+    toast.message('Temporary entry added for this session. It is not saved to the database.');
   };
 
   return (
-    <div className="space-y-8">
+    <div className="admin-pricing space-y-8">
       {configError && (
         <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           Could not load saved pricing: {configError}
@@ -238,35 +255,40 @@ export function SuperAdminPricing() {
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <DollarSign className="h-5 w-5" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Billing</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider">CERIGA / PRICING</span>
           </div>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             Pricing
           </h1>
+          <p className="pricing-intro">Clear rules. Transparent estimates. Confident pricing decisions.</p>
         </div>
         <Button
           className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-          disabled={saving || Boolean(configError)}
+          disabled={saving || Boolean(configError)||!dirty}
           onClick={() => void saveConfig()}
-        >          Save all rules
+        >{saving?'Saving…':dirty?'Save pricing rules':'Rules saved'}
         </Button>
       </div>
 
+      <nav className="pricing-tabs" aria-label="Pricing views">{[{id:'rules',label:'Pricing rules'},{id:'calculator',label:'Quote calculator'},{id:'estimates',label:'Order estimates'}].map(t=><button type="button" key={t.id} aria-pressed={tab===t.id} onClick={()=>setTab(t.id)}>{t.label}{t.id==='rules'&&dirty&&<span>Unsaved</span>}</button>)}</nav>
+      {ordersError&&<p role="alert" className="pricing-error">Could not load order estimates: {ordersError}</p>}
+      {saveError&&<p role="alert" className="pricing-error">{saveError}</p>}
+      {tab==='estimates'&&<><p className="pricing-guidance">These are indicative order values and estimated differences, including unpaid quotations. They are not verified received revenue. <Link to="/superadmin/statistics">View verified payment revenue in Statistics.</Link></p>
       {/* Snapshot */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
-            label: 'Tech pack revenue',
+            label: 'Tech pack order value',
             value: formatAccountTotal(summary.techPackRevenueEur),
             icon: FileText,
           },
           {
-            label: 'Production revenue',
+            label: 'Production order value',
             value: formatAccountTotal(summary.productionRevenueGbp),
             icon: Shirt,
           },
           {
-            label: 'Ceriga margin (production)',
+            label: 'Estimated production difference',
             value: formatAccountTotal(summary.productionMarginGbp),
             icon: Calculator,
           },
@@ -309,7 +331,9 @@ export function SuperAdminPricing() {
         })}
       </div>
 
-      <QuoteCalculatorSection />
+      </>}
+      {tab==='calculator'&&<QuoteCalculatorSection />}
+      {tab==='rules'&&<fieldset className="pricing-rule-fields" disabled={saving||!!configError}><p className="pricing-guidance">{dirty?'Changes are not saved yet.':'Saved rules are loaded.'} Tech pack and assistant prices are entered in EUR. Markup examples use an original GBP manufacturer price. Changing your display currency does not rewrite these rules.</p>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
@@ -338,6 +362,7 @@ export function SuperAdminPricing() {
           <h2 className="text-sm font-semibold text-white">Estimated duties / tax (%)</h2>
           <div className="mt-4">
             <Input
+              aria-label="Estimated duties and tax percentage"
               type="number"
               step="0.1"
               min="0"
@@ -411,14 +436,7 @@ export function SuperAdminPricing() {
                     ) : null}
                   </td>
                   <td className="py-3 pr-4">
-                    <Input
-                      value={centsToInput(plan.monthlyCents)}
-                      onChange={(e) => {
-                        const c = inputToCents(e.target.value);
-                        if (c != null) updateChatPlan(plan.id, { monthlyCents: c });
-                      }}
-                      className="h-8 w-24 border-white/12 bg-white/[0.03] text-xs tabular-nums text-white"
-                    />
+                    <MoneyInput label={plan.tier+' monthly price (EUR)'} value={centsToInput(plan.monthlyCents)} onChange={v=>{const c=inputToCents(v);if(c!=null)updateChatPlan(plan.id,{monthlyCents:c});}}/>
                   </td>
                   <td className="py-3 pr-4">
                     <Input
@@ -450,19 +468,21 @@ export function SuperAdminPricing() {
         </div>
       </div>
 
+      </fieldset>}
+      {tab==='estimates'&&<>
       {/* Revenue ledger */}
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-white">Revenue ledger</h2>
+            <h2 className="text-sm font-semibold text-white">Order estimates & session notes</h2>
           </div>
           <Button
             size="sm"
             className="bg-white/10 text-white hover:bg-white/15"
-            onClick={() => setManualOpen(true)}
+            onClick={() => {manualLock.current=false;setManualOpen(true);}}
           >
             <Plus className="mr-2 h-3.5 w-3.5" />
-            Add manual entry
+            Add temporary entry
           </Button>
         </div>
 
@@ -472,7 +492,7 @@ export function SuperAdminPricing() {
               <button
                 key={key}
                 type="button"
-                onClick={() => setSourceFilter(key)}
+                aria-pressed={sourceFilter===key} onClick={() => {setSourceFilter(key);setLedgerPage(1);}}
                 className={cn(
                   'rounded-lg border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition',
                   sourceFilter === key
@@ -488,13 +508,13 @@ export function SuperAdminPricing() {
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/35">GBP revenue</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">Estimated order value ({currencyState.currency})</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-white">
               {formatAccountTotal(summary.totalRevenueGbp)}
             </p>
           </div>
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/35">GBP profit</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">Estimated difference ({currencyState.currency})</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-emerald-300">
               {formatAccountTotal(summary.totalProfitGbp)}
             </p>
@@ -512,9 +532,9 @@ export function SuperAdminPricing() {
                 <th className="py-2 pr-3 font-medium">Date</th>
                 <th className="py-2 pr-3 font-medium">Source</th>
                 <th className="py-2 pr-3 font-medium">Customer</th>
-                <th className="py-2 pr-3 font-medium">Paid</th>
+                <th className="py-2 pr-3 font-medium">Order value</th>
                 <th className="py-2 pr-3 font-medium">Mfg cost</th>
-                <th className="py-2 font-medium">Profit</th>
+                <th className="py-2 font-medium">Est. difference</th>
               </tr>
             </thead>
             <tbody>
@@ -525,7 +545,7 @@ export function SuperAdminPricing() {
                   </td>
                 </tr>
               ) : (
-                filteredLedger.map((row) => (
+                visibleLedger.map((row) => (
                   <LedgerRow key={row.id} row={row} />
                 ))
               )}
@@ -534,11 +554,13 @@ export function SuperAdminPricing() {
         </div>
       </div>
 
+      <nav className="pricing-pagination" aria-label="Order estimate pages"><span>{filteredLedger.length?(currentLedgerPage-1)*20+1:0}–{Math.min(currentLedgerPage*20,filteredLedger.length)} of {filteredLedger.length}</span><div><button type="button" disabled={currentLedgerPage<=1} onClick={()=>setLedgerPage(currentLedgerPage-1)}>Previous</button><span>{currentLedgerPage} / {ledgerPages}</span><button type="button" disabled={currentLedgerPage>=ledgerPages} onClick={()=>setLedgerPage(currentLedgerPage+1)}>Next</button></div></nav></>}
       <Dialog open={manualOpen} onOpenChange={setManualOpen}>
-        <DialogContent className="border-[#252528] bg-[#111113] text-white sm:max-w-md">
+        <DialogContent className="pricing-manual-dialog border-[#252528] bg-[#111113] text-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Manual revenue entry</DialogTitle>
+            <DialogTitle className="text-white">Temporary estimate (GBP)</DialogTitle>
           </DialogHeader>
+          <p className="pricing-guidance">For this browser session only. This is not a saved financial record or payment confirmation.</p>
           <div className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -576,7 +598,7 @@ export function SuperAdminPricing() {
               />
             </div>
             <MoneyInput
-              label="Customer paid (GBP)"
+              label="Estimated order value (GBP)"
               value={manualDraft.revenue}
               onChange={(v) => setManualDraft((d) => ({ ...d, revenue: v }))}
             />
@@ -601,13 +623,13 @@ export function SuperAdminPricing() {
               Cancel
             </Button>
             <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={submitManual}>
-              Add entry
+              Add session estimate
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
+      <ConfirmDialog className="pricing-confirmation"
         open={publishConfirm != null}
         onOpenChange={(open) => {
           if (!open) setPublishConfirm(null);
@@ -619,8 +641,8 @@ export function SuperAdminPricing() {
         }
         description={
           publishConfirm?.next
-            ? 'This plan will appear on the public pricing page for new subscribers.'
-            : 'This plan will be hidden from the public pricing page. Existing subscribers are unaffected.'
+            ? 'This plan will appear on the public pricing page after you save pricing rules.'
+            : 'This plan will be hidden after you save pricing rules. Existing subscribers are unaffected.'
         }
         confirmLabel={publishConfirm?.next ? 'Publish' : 'Unpublish'}
         tone={publishConfirm?.next ? 'default' : 'danger'}
@@ -645,7 +667,7 @@ function ManufacturerPlanMarginCard({
   onMarginChange: (percent: number) => void;
 }) {
   const currencyState=useCurrency();
-  const brandPrice = applyProductionMargin(previewQuote, planMargin.platformMarginPercent);
+  let brandPrice:number|undefined;try{const amount=applyProductionMargin(previewQuote,planMargin.platformMarginPercent);if(Number.isSafeInteger(amount)&&amount>=0)brandPrice=amount;}catch{/* Keep invalid drafts editable without crashing the page. */}
 
   return (
     <div className="rounded-xl border border-[#252528] bg-black/25 p-4">
@@ -659,11 +681,11 @@ function ManufacturerPlanMarginCard({
       </div>
 
       <div className="mt-4 space-y-1.5">
-        <Label className="text-white/55">Platform margin (%)</Label>
+        <Label className="text-white/55">Markup on manufacturer price (%)</Label>
         <Input
           type="number"
           step="0.1"
-          min="0"
+          min="0" aria-label={planMargin.planName+' markup percentage'}
           value={planMargin.platformMarginPercent}
           onChange={(e) => onMarginChange(Number(e.target.value) || 0)}
           className="border-white/15 bg-white/5 text-white"
@@ -671,7 +693,7 @@ function ManufacturerPlanMarginCard({
       </div>
 
       <div className="mt-4 rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2.5 text-xs tabular-nums text-white">
-        {displayMoney(brandPrice,'GBP')}
+        <p className="pricing-example-label">Example: original manufacturer price {displayMoney(previewQuote,'GBP')}</p>{brandPrice===undefined?'Enter a supported markup percentage':displayMoney(brandPrice,'GBP')}
       </div>
     </div>
   );

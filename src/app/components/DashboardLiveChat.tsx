@@ -5,14 +5,15 @@ import { MessageCircle, User } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 import { SupportChatPanel } from "./SupportChatPanel";
 import { cn } from "./ui/utils";
+import "./support-footer.css";
 
-export function DashboardLiveChat() {
+export function DashboardLiveChat({light=false}:{light?:boolean}) {
   const [open, setOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(false);
 
   return (
     <>
-      <div className="flex justify-end border-t border-[#252528] bg-[#09090B] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:px-6" aria-label="Support">
+      <footer className={cn("support-footer flex justify-end border-t border-[#252528] bg-[#09090B] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:px-6",light&&"support-footer-light")} aria-label="Support">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -35,7 +36,7 @@ export function DashboardLiveChat() {
             Chat with us
           </span>
         </button>
-      </div>
+      </footer>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent

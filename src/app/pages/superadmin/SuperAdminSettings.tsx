@@ -1,209 +1,28 @@
-import { getSupabase } from '../../lib/supabaseClient';
-import {CurrencyReviewQueue}from'../../components/superadmin/CurrencyReviewQueue';
-import { AccountCurrencySettings } from '../../components/Money';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { getPlatformSetting, setPlatformSetting } from '../../lib/superadminDb';
-import {
-  getAlibabaConnectionStatus,
-  type AlibabaConnectionStatus,
-} from '../../lib/alibabaChat';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Switch } from '../../components/ui/switch';
-import { PageLoadingFallback } from '../../components/PageLoadingFallback';
-
-type NotificationSettings = {
-  emailNewOrders: boolean;
-  slackWebhook: boolean;
-};
-
-type ApiKeySettings = {
-  sendgridKey: string;
-};
-
-const DEFAULT_NOTIFICATIONS: NotificationSettings = {
-  emailNewOrders: true,
-  slackWebhook: false,
-};
-
-export function SuperAdminSettings() {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationSettings>(DEFAULT_NOTIFICATIONS);
-  const [sendgridKey, setSendgridKey] = useState('');
-  const [hasStoredKey, setHasStoredKey] = useState(false);
-  const [alibabaStatus, setAlibabaStatus] = useState<AlibabaConnectionStatus | null>(null);
-  const [checkingAlibaba, setCheckingAlibaba] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const [notif, keys, alibaba] = await Promise.all([
-          getPlatformSetting<NotificationSettings>('notifications'),
-          getSupabase().rpc('admin_integration_status').then(({data,error})=>{if(error)throw error;return data as {emailConfigured:boolean};}),
-          getAlibabaConnectionStatus(),
-        ]);
-        if (cancelled) return;
-        if (notif) setNotifications({ ...DEFAULT_NOTIFICATIONS, ...notif });
-        if (keys?.emailConfigured) {
-          setHasStoredKey(true);
-          setSendgridKey('');
-        }
-        setAlibabaStatus(alibaba);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to load settings');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const saveNotifications = async () => {
-    setSaving(true);
-    try {
-      await setPlatformSetting('notifications', notifications);
-      toast.success('Notification settings saved');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const refreshAlibaba = async () => {
-    setCheckingAlibaba(true);
-    try {
-      const status = await getAlibabaConnectionStatus();
-      setAlibabaStatus(status);
-      if (status.configured) {
-        toast.success(`Alibaba connected (account ${status.accountId})`);
-      } else {
-        toast.message(status.message || 'Alibaba secrets are not configured yet');
-      }
-    } finally {
-      setCheckingAlibaba(false);
-    }
-  };
-
-  if (loading) {
-    return <PageLoadingFallback />;
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Settings</h1>
-
-      </div>
-
-      <AccountCurrencySettings />
-      <CurrencyReviewQueue />
-
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">Notifications</h2>
-        <div className="mt-4 space-y-4">
-          <label className="flex items-center justify-between gap-4 rounded-lg border border-[#252528] px-3 py-3">
-            <div>
-              <div className="text-sm text-white">Email for new orders</div>
-            </div>
-            <Switch
-              checked={notifications.emailNewOrders}
-              onCheckedChange={(emailNewOrders) =>
-                setNotifications((prev) => ({ ...prev, emailNewOrders }))
-              }
-            />
-          </label>
-          <label className="flex items-center justify-between gap-4 rounded-lg border border-[#252528] px-3 py-3">
-            <div>
-              <div className="text-sm text-white">Slack webhook</div>
-            </div>
-            <Switch
-              checked={notifications.slackWebhook}
-              onCheckedChange={(slackWebhook) =>
-                setNotifications((prev) => ({ ...prev, slackWebhook }))
-              }
-            />
-          </label>
-        </div>
-        <Button
-          className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-          disabled={saving}
-          onClick={() => void saveNotifications()}
-        >
-          Save notifications
-        </Button>
-      </section>
-
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">Server integrations</h2>
-        <p className="mt-3 text-sm text-white/55">Provider credentials are managed in Supabase server secrets. They are never returned to this browser.</p>
-        <p className="mt-2 text-sm text-white/55">Email credential archive: {hasStoredKey ? 'Stored securely on the server' : 'No stored credential'}. Email delivery requires a configured server integration.</p>
-      </section>
-
-      <section className="rounded-2xl border border-orange-500/20 bg-[#111113] p-5 sm:p-6">
-        <h2 className="text-sm font-semibold text-white">Alibaba.com messages</h2>
-        <p className="mt-2 text-sm leading-relaxed text-white/50">
-          Buyer inbox sync uses Alibaba Open Platform IM APIs via Supabase Edge Functions. Do not put
-          App Secret or session tokens in <code className="text-white/70">VITE_*</code> env vars.
-        </p>
-        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-white/55">
-          <li>
-            Create an app at{' '}
-            <a
-              href="https://developer.alibaba.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-orange-300 underline-offset-2 hover:underline"
-            >
-              developer.alibaba.com
-            </a>{' '}
-            and apply for IM message APIs.
-          </li>
-          <li>OAuth-authorize your Alibaba.com buyer account to obtain a session token.</li>
-          <li>
-            Set Edge Function secrets:{' '}
-            <code className="text-white/70">ALIBABA_APP_KEY</code>,{' '}
-            <code className="text-white/70">ALIBABA_APP_SECRET</code>,{' '}
-            <code className="text-white/70">ALIBABA_SESSION</code>,{' '}
-            <code className="text-white/70">ALIBABA_ACCOUNT_ID</code>.
-          </li>
-          <li>
-            Deploy <code className="text-white/70">alibaba-status</code>,{' '}
-            <code className="text-white/70">alibaba-sync</code>, and{' '}
-            <code className="text-white/70">alibaba-send</code>, then sync from Messages.
-          </li>
-        </ol>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${
-              alibabaStatus?.configured
-                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                : 'border-white/15 bg-white/[0.04] text-white/55'
-            }`}
-          >
-            {alibabaStatus?.configured
-              ? `Connected · account ${alibabaStatus.accountId}`
-              : alibabaStatus && 'message' in alibabaStatus && alibabaStatus.message
-                ? alibabaStatus.message
-                : 'Not connected'}
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-orange-500/30 text-orange-100"
-            disabled={checkingAlibaba}
-            onClick={() => void refreshAlibaba()}
-          >
-            {checkingAlibaba ? 'Checking…' : 'Check connection'}
-          </Button>
-        </div>
-      </section>
-    </div>
-  );
+import {useEffect,useRef,useState} from 'react';
+import {Link} from 'react-router';
+import {ArrowUpRight,RefreshCw,Save} from 'lucide-react';
+import {toast} from 'sonner';
+import {getSupabase} from '../../lib/supabaseClient';
+import {getPlatformSetting,setPlatformSetting} from '../../lib/superadminDb';
+import {getAlibabaConnectionStatus,type AlibabaConnectionStatus} from '../../lib/alibabaChat';
+import {AccountCurrencySettings} from '../../components/Money';
+import {CurrencyReviewQueue} from '../../components/superadmin/CurrencyReviewQueue';
+import {Switch} from '../../components/ui/switch';
+import './superadmin-settings.css';
+type NotificationSettings={emailNewOrders:boolean;slackWebhook:boolean};const defaults={emailNewOrders:true,slackWebhook:false};
+export function SuperAdminSettings(){
+ const [tab,setTab]=useState('preferences'),[notifications,setNotifications]=useState<NotificationSettings>(defaults),[saved,setSaved]=useState(''),[notifLoading,setNotifLoading]=useState(true),[notifReady,setNotifReady]=useState(false),[notifError,setNotifError]=useState(''),[saveError,setSaveError]=useState(''),[saving,setSaving]=useState(false),[emailStatus,setEmailStatus]=useState<boolean|null>(null),[emailError,setEmailError]=useState(''),[emailLoading,setEmailLoading]=useState(true),[alibaba,setAlibaba]=useState<AlibabaConnectionStatus|null>(null),[alibabaLoading,setAlibabaLoading]=useState(true),[reviewOpen,setReviewOpen]=useState(false);const saveLock=useRef(false),generation=useRef(0),emailLock=useRef(false),alibabaLock=useRef(false);const dirty=saved!==JSON.stringify(notifications);
+ const readNotifications=async()=>{const g=generation.current;setNotifLoading(true);setNotifError('');try{const value=await getPlatformSetting<Partial<NotificationSettings>>('notifications');if(value!=null&&(typeof value!=='object'||Array.isArray(value)||(['emailNewOrders','slackWebhook'] as const).some(k=>value[k]!==undefined&&typeof value[k]!=='boolean')))throw Error('Saved notification preferences could not be read.');if(g!==generation.current)return;const next={...defaults,...value};setNotifications(next);setSaved(value?JSON.stringify(next):'');setNotifReady(true);}catch(e){if(g===generation.current){setNotifError(e instanceof Error?e.message:'Could not load notification preferences.');setNotifReady(false);}}finally{if(g===generation.current)setNotifLoading(false);}};
+ const readEmail=async()=>{if(emailLock.current)return;emailLock.current=true;const g=generation.current;setEmailLoading(true);setEmailError('');try{const {data,error}=await getSupabase().rpc('admin_integration_status');if(error)throw Error(error.message);if(typeof data?.emailConfigured!=='boolean')throw Error('Email status was not returned.');if(g===generation.current)setEmailStatus(data.emailConfigured);}catch(e){if(g===generation.current){setEmailStatus(null);setEmailError(e instanceof Error?e.message:'Could not check email integration.');}}finally{emailLock.current=false;if(g===generation.current)setEmailLoading(false);}};
+ const readAlibaba=async()=>{if(alibabaLock.current)return;alibabaLock.current=true;const g=generation.current;setAlibabaLoading(true);try{const status=await getAlibabaConnectionStatus();if(g===generation.current)setAlibaba(status);}catch(e){if(g===generation.current)setAlibaba({configured:false,reason:'error',message:e instanceof Error?e.message:'Could not check Alibaba.'});}finally{alibabaLock.current=false;if(g===generation.current)setAlibabaLoading(false);}};
+ useEffect(()=>{void readNotifications();void readEmail();void readAlibaba();return()=>{generation.current++;emailLock.current=false;alibabaLock.current=false;};},[]);
+ const save=async()=>{if(saveLock.current||!notifReady||!dirty)return;saveLock.current=true;setSaving(true);setSaveError('');const snapshot={...notifications};try{await setPlatformSetting('notifications',snapshot);setSaved(JSON.stringify(snapshot));toast.success('Notification preferences saved.');}catch(e){setSaveError(e instanceof Error?e.message:'Could not save notification preferences.');}finally{saveLock.current=false;setSaving(false);}};
+ const alibabaFailed=alibaba&&!alibaba.configured&&alibaba.reason==='error';
+ return <div className="admin-settings"><div className="st-topline"><span>CERIGA / ACCOUNT</span><span>Preferences & integrations</span></div><header className="st-heading"><div><h1>Settings<span>.</span></h1><p>Manage your preferences and check the services behind your workspace.</p></div><Link className="st-secondary" to="/superadmin/workers">Manage team<ArrowUpRight size={13}/></Link></header>
+ <nav className="st-tabs" aria-label="Settings sections"><button type="button" aria-pressed={tab==='preferences'} onClick={()=>setTab('preferences')}>Preferences{notifReady&&dirty&&<span>Unsaved</span>}</button><button type="button" aria-pressed={tab==='integrations'} onClick={()=>setTab('integrations')}>Integrations</button></nav>
+ {tab==='preferences'?<><section className="st-panel"><header><div><h2>Notification preferences</h2><p>Platform-wide preferences for operational updates. Delivery also depends on a configured server integration.</p></div></header>{notifLoading?<p role="status" className="st-loading">Loading saved preferences…</p>:notifError?<div role="alert" className="st-error"><span>{notifError}</span><button type="button" onClick={()=>void readNotifications()}>Retry preferences</button></div>:<><fieldset className="st-preferences" disabled={saving||!notifReady}><div><label htmlFor="admin-email-orders"><strong>Email for new orders</strong><span>Request email updates when new orders arrive.</span></label><Switch id="admin-email-orders" aria-label="Email for new orders" checked={notifications.emailNewOrders} onCheckedChange={v=>setNotifications(p=>({...p,emailNewOrders:v}))}/></div><div><label htmlFor="admin-slack-updates"><strong>Slack notifications</strong><span>Save the notification preference. A server-side webhook must be configured separately.</span></label><Switch id="admin-slack-updates" aria-label="Slack notifications" checked={notifications.slackWebhook} onCheckedChange={v=>setNotifications(p=>({...p,slackWebhook:v}))}/></div></fieldset>{saveError&&<p role="alert" className="st-error">{saveError} Your changes are retained.</p>}<footer className="st-save-row"><span role="status">{saving?'Saving preferences…':dirty?'Changes have not been saved.':'Saved preferences are up to date.'}</span><button type="button" className="st-primary" disabled={saving||!notifReady||!dirty} onClick={()=>void save()}><Save size={13}/>{saving?'Saving…':'Save preferences'}</button></footer></>}</section>
+ <section className="st-panel st-currency"><AccountCurrencySettings embedded/></section>
+ <details className="st-panel st-history" onToggle={e=>setReviewOpen(e.currentTarget.open)}><summary>Historical currency review</summary><p>Review orders with ambiguous historical currency details without changing their original financial records.</p>{reviewOpen&&<CurrencyReviewQueue/>}</details></>:<div className="st-integration-grid"><section className="st-panel"><header><div><h2>Email integration</h2><p>Server-side credential status. No keys or secrets are shown in this browser.</p></div></header>{emailLoading?<p role="status" className="st-loading">Checking email status…</p>:emailError?<p role="alert" className="st-error">{emailError}</p>:<p className="st-status">{emailStatus?'Credential stored on the server':'No archived email credential'}</p>}<p className="st-note">This is a credential-storage check, rather than a successful delivery test. Email delivery requires a configured server integration.</p><button type="button" className="st-secondary" disabled={emailLoading} onClick={()=>void readEmail()}><RefreshCw size={13}/>{emailLoading?'Checking…':'Check status'}</button></section>
+ <section className="st-panel"><header><div><h2>Alibaba messages</h2><p>Check the configured account before syncing buyer conversations.</p></div></header>{alibabaLoading?<p role="status" className="st-loading">Checking Alibaba status…</p>:<p className={'st-status '+(alibabaFailed?'st-status-error':'')} role={alibabaFailed?'alert':undefined}>{alibaba?.configured?'Configured · account '+alibaba.accountId:alibabaFailed?'Status unavailable': 'Not configured'}</p>}{alibaba&&!alibaba.configured&&alibaba.message&&<p className="st-note">{alibaba.message}</p>}<div className="st-integration-actions"><button type="button" className="st-secondary" disabled={alibabaLoading} onClick={()=>void readAlibaba()}><RefreshCw size={13}/>{alibabaLoading?'Checking…':'Check connection'}</button><Link className="st-secondary" to="/superadmin/messages">Open messages<ArrowUpRight size={13}/></Link></div><details className="st-technical"><summary>Technical setup</summary><p>Provider credentials belong in Supabase Edge Function secrets. Never store them in browser-exposed VITE_* variables.</p><ol><li>Create an app at <a href="https://developer.alibaba.com" target="_blank" rel="noopener noreferrer">Alibaba Open Platform</a> and request access to its messaging APIs.</li><li>Authorise the buyer account and configure ALIBABA_APP_KEY, ALIBABA_APP_SECRET, ALIBABA_SESSION and ALIBABA_ACCOUNT_ID on the server.</li><li>Deploy the existing alibaba-status, alibaba-sync and alibaba-send functions. Then sync conversations from Messages.</li></ol></details></section></div>}
+ </div>;
 }

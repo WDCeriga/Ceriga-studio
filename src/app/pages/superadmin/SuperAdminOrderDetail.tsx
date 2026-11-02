@@ -1,10 +1,13 @@
+import './superadmin-order-detail.css';
+import {FreightTotalPreview} from '../../components/freight/FreightTotalPreview';
+import {FreightReview} from '../../components/freight/FreightReview';
 import { ProductionProgress } from '../../components/manufacturer/ProductionProgress';
 import { amountToCents } from '../../lib/currency';
 import { formatMoney as originalMoney } from '../../lib/currency';
 import { displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { RejectQuotation } from '../../components/superadmin/RejectQuotation';
 import { OrderRoutingHistory } from '../../components/superadmin/OrderRoutingHistory';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, useRef, type ReactNode } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft,
@@ -148,9 +151,8 @@ function orderInitials(name: string) {
     .toUpperCase();
 }
 
-function copyText(text: string, label: string) {
-  void navigator.clipboard.writeText(text);
-  toast.success(`Copied ${label}`);
+async function copyText(text: string, label: string) {
+  try{await navigator.clipboard.writeText(text);toast.success('Copied '+label);}catch{toast.error('Could not copy '+label);}
 }
 
 function displayPrice(order: SuperAdminOrder) {
@@ -196,12 +198,12 @@ export function SuperAdminOrderDetail() {
   return (
     <CustomClothingOrderDetail
       order={order}
-      onOpsChange={(patch) => {
-        void patchOrder(order.id, patch);
+      onOpsChange={async(patch) => {
+        const saved=await patchOrder(order.id,patch);if(!saved)throw new Error('Order update was not saved. Please try again.');
       }}
       onOpsSubmitPricing={async (rows) => {
         const ok = await patchOrder(order.id, {
-          approvedPrices: rows.map(row=>({id:row.id,cents:row.cents})),
+          approvedPrices: rows.map(row=>({id:row.id,cents:row.cents,...row.charges})),
           status: 'sent_to_brand',
           statusLabel: 'Quote sent to brand',
         });
@@ -244,17 +246,17 @@ function WorkflowPipeline({
   };
 
   return (
-    <div className="mt-6 border-t border-[#252528] pt-5">
+    <div className="od-workflow mt-6 border-t border-[#252528] pt-5">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Progress</p>
-      <div className="mt-4 flex items-start gap-0.5 overflow-x-auto pb-1">
+      <div className="od-workflow-track mt-4 flex items-start gap-0.5 overflow-x-auto pb-1">
         {steps.map((step, i) => {
           const state = stepState(step.status);
           return (
-            <div key={step.status} className="flex min-w-[52px] flex-1 items-center">
+            <div key={step.status} data-step-state={state} aria-current={state==='current'?'step':undefined} className="flex min-w-[52px] flex-1 items-center">
               <div className="flex w-full flex-col items-center gap-2">
                 <span
                   className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-full border transition',
+                    'od-step-marker flex h-8 w-8 items-center justify-center rounded-full border transition',
                     state === 'done' && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
                     state === 'current' &&
                       (accent === 'violet'
@@ -317,8 +319,8 @@ function OrderHero({
   const steps = isTechPack ? TECHPACK_STEPS : CUSTOM_STEPS;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-      <div className={cn('px-6 py-6 sm:px-8', 'bg-gradient-to-br', gradient)}>
+    <div data-physical={!isTechPack} className="od-hero overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
+      <div className="od-hero-body">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             <span
@@ -369,7 +371,7 @@ function OrderHero({
           <div className="flex shrink-0 flex-wrap items-center gap-2">{children}</div>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="od-hero-facts mt-5 grid gap-3 sm:grid-cols-3">
           {[
             {
               label: 'Customer',
@@ -547,7 +549,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
             </span>
             <div>
               <p className="font-medium text-white">{order.manufacturerName}</p>
-              {order.dueQuoteBy ? (
+              {order.dueQuoteBy && !hasQuote ? (
                 <p className="mt-0.5 text-[11px] text-white/40">
                   Quote due {new Date(order.dueQuoteBy).toLocaleDateString('en-GB', {
                     day: 'numeric',
@@ -568,7 +570,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
             )}
           >
             {hasQuote
-              ? `Quote received · ${tiers.length} tier${tiers.length === 1 ? '' : 's'} (sample + bulk)`
+              ? `Quotation received · ${tiers.length} option${tiers.length === 1 ? '' : 's'}`
               : awaitingQuote
                 ? 'Awaiting pricing submission'
                 : 'Not yet engaged'}
@@ -1011,7 +1013,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
   const price = displayPrice(order);
 
   return (
-    <div className="space-y-6">
+    <div className="admin-order-detail space-y-6">
       <OrderBackLink />
       {order.routingVersion===2 && <OrderRoutingHistory orderId={order.id} />}
       {order.quoteExpiresAt && <p className="rounded-lg border border-amber-500/20 p-3 text-sm text-amber-200">Customer offer expires {new Date(order.quoteExpiresAt).toLocaleString('en-GB')}. Expired offers require a fresh approval.</p>}
@@ -1114,12 +1116,13 @@ function CustomClothingOrderDetail({
   onOpsChange?: (patch: {
     tracking?: string | null;
     opsNotes?: string | null;
-  }) => void;
+  }) => Promise<void>;
   onOpsSubmitPricing?: (rows: {
     id: string;
     label: string;
     cents: number;
     calculated: number | null;
+    charges?: Record<string,number>;
   }[]) => Promise<boolean | void>;
 }) {
   useCurrency();
@@ -1134,13 +1137,18 @@ function CustomClothingOrderDetail({
   const [finalByTier, setFinalByTier] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     for (const tier of withCalculatedQuoteTiers(getOrderQuoteTiers(order), marginPercent)) {
-      const cents = tier.finalPriceCents ?? tier.calculatedPriceCents;
+      const cents = tier.manufacturingSubtotalCents ?? tier.calculatedPriceCents;
       init[tier.id] = cents != null ? (cents / 100).toFixed(2) : '';
     }
     return init;
   });
+  const pricingLock=useRef(false);
+  const [savingPricing,setSavingPricing]=useState(false);
+  const [shippingReady,setShippingReady]=useState(false);
+  const [charges,setCharges]=useState<Record<string,Record<string,string>>>({});
   const [tracking, setTracking] = useState(order.trackingNumber ?? '');
   const [savingTracking, setSavingTracking] = useState(false);
+  const trackingLock=useRef(false);
   const [submitted, setSubmitted] = useState(false);
 
   const canReview = order.status === 'pending_review' && quoteTiers.length > 0;
@@ -1150,7 +1158,7 @@ function CustomClothingOrderDetail({
     : [];
 
   const parseTierFinals = () => {
-    const rows: { id: string; label: string; cents: number; calculated: number | null }[] = [];
+    const rows: { id: string; label: string; cents: number; calculated: number | null; charges:Record<string,number> }[] = [];
     for (const tier of quoteTiers) {
       const n = amountToCents(finalByTier[tier.id]??'');
       if (!Number.isSafeInteger(n) || n==null || n <= 0) return null;
@@ -1159,6 +1167,7 @@ function CustomClothingOrderDetail({
         label: tier.label,
         cents: n!,
         calculated: tier.calculatedPriceCents ?? null,
+        charges:Object.fromEntries(['feesCents','taxCents','dutiesCents','otherCents'].map(k=>[k,amountToCents(charges[tier.id]?.[k]||'0')??NaN])),
       });
     }
     return rows;
@@ -1176,40 +1185,42 @@ function CustomClothingOrderDetail({
   };
 
   const submitToBrand = () => {
+    if(pricingLock.current)return;
+    if(!shippingReady){toast.error('Confirm shipping for every quotation option first.');return;}
     const rows = parseTierFinals();
     if (!rows || rows.length === 0) {
       toast.error('Enter a valid final price for every quote tier');
       return;
     }
-    void (async () => {
+    pricingLock.current=true;setSavingPricing(true);
+    void (async () => { try {
       const ok = await onOpsSubmitPricing?.(rows);
       if (ok === false) {
         toast.error('Could not send pricing to brand');
         return;
       }
       setSubmitted(true);
-      toast.success(
-        `${rows.length} pricing option${rows.length === 1 ? '' : 's'} sent to brand (${rows
-          .map((r) => `${r.label} ${displayMoney(r.cents,quoteTiers.find(t=>t.id===r.id)?.currency)}`)
-          .join(' · ')})`,
-      );
-    })();
+      toast.success('Full approved quotations, including shipping, sent to the customer.');
+    }catch(e){toast.error(e instanceof Error?e.message:'Could not issue quotation');}finally{pricingLock.current=false;setSavingPricing(false);}})();
   };
 
   const navigate=useNavigate();
   const expiredOffer=Boolean(order.quoteExpiresAt && new Date(order.quoteExpiresAt).getTime()<=Date.now());
-  const pricingLocked = !expiredOffer && (
+  const canPrepareQuote=['draft','submitted','assigned','pending_review'].includes(order.status)||(order.status==='sent_to_brand'&&expiredOffer);
+  const fulfilment=['paid','in_production','shipped','completed'].includes(order.status);
+  const deliveryStage=['shipped','completed'].includes(order.status);
+  const pricingLocked = !canPrepareQuote || (!expiredOffer && (
     submitted ||
     (order.status === 'sent_to_brand' && quoteTiers.some(tier=>tier.finalPriceCents!=null)) ||
     quoteTiers.some((t) => t.finalPriceCents != null) ||
-    order.finalPriceCents != null);
+    order.finalPriceCents != null));
 
   return (
-    <div className="space-y-6">
+    <div className="admin-order-detail space-y-6">
       <OrderBackLink />
 
       <OrderHero order={order} isTechPack={false} statusLabel={customStatusLabel(order.status)}>
-        {canReview && !submitted ? (
+        {canReview && !submitted && shippingReady ? (
           <Button
             className="bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90"
             onClick={submitToBrand}
@@ -1234,6 +1245,8 @@ function CustomClothingOrderDetail({
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          {fulfilment&&isSupabaseConfigured&&<div className="od-current-work"><div className="od-stage-heading"><span>ORDER WORKSPACE</span><h2>{deliveryStage?'Shipping & delivery':'Production & quality'}</h2><p>{deliveryStage?'Follow collection, carrier updates and delivery confirmation.':'Review production updates and quality evidence before dispatch.'}</p></div>{!deliveryStage&&<ProductionProgress orderId={order.id}/>}<OrderQualityControl orderId={order.id} view={deliveryStage?'delivery':'quality'}/></div>}
+          <details className="od-pricing" open={canPrepareQuote}><summary>{canPrepareQuote?'Quotation review':'Quotation & approved prices'}<span>{canPrepareQuote?'Review costs and confirm shipping':'View saved quotation details'}</span></summary>
           <section
             className={cn(
               'rounded-2xl border bg-[#111113] p-5 sm:p-6',
@@ -1280,6 +1293,10 @@ function CustomClothingOrderDetail({
               </div>
             ) : null}
 
+            {canPrepareQuote&&<FreightReview orderId={order.id} onReady={setShippingReady}/>}
+            {!canPrepareQuote&&<details className="od-shipping-audit"><summary>Shipping options & amendments</summary><FreightReview orderId={order.id}/></details>}
+            {!pricingLocked&&<FreightTotalPreview orderId={order.id} prices={()=>parseTierFinals()?.map(r=>({id:r.id,cents:r.cents,...r.charges}))||null}/>}
+            {canPrepareQuote&&<p className="text-xs text-white/50">Enter manufacturing subtotals including Ceriga margin below. Approved shipping and separate charges are added before converting and locking the customer total.</p>}
             {quoteTiers.length > 0 ? (
               <div className="mt-5 space-y-3">
                 {quoteTiers.map((tier) => {
@@ -1319,7 +1336,7 @@ function CustomClothingOrderDetail({
                       <div className="mt-3 grid gap-2 sm:grid-cols-3">
                         <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2">
                           <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
-                            Mfg quote
+                            Manufacturing quote
                           </p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
                             {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">Original: {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}</span>{tier.payableCurrency&&tier.payablePriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/60">Customer payable: {originalMoney(tier.payablePriceCents,tier.payableCurrency)} (locked)</span>}
@@ -1327,7 +1344,7 @@ function CustomClothingOrderDetail({
                         </div>
                         <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2">
                           <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
-                            + Margin
+                            Manufacturing + margin
                           </p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
                             {tier.calculatedPriceCents != null
@@ -1340,25 +1357,26 @@ function CustomClothingOrderDetail({
                             htmlFor={`final-${tier.id}`}
                             className="text-[9px] font-semibold uppercase tracking-wider text-white/50"
                           >
-                            Approved total in original currency ({tier.currency ?? 'needs review'})
+                            {pricingLocked?(tier.finalPriceCents!=null?'Approved total':'Manufacturing estimate'):'Manufacturing subtotal incl. margin'} ({tier.currency ?? 'needs review'})
                           </Label>
                           <Input
                             id={`final-${tier.id}`}
-                            value={finalByTier[tier.id] ?? ''}
+                            value={pricingLocked&&tier.finalPriceCents!=null?(tier.finalPriceCents/100).toFixed(2):finalByTier[tier.id] ?? ''}
                             onChange={(e) =>
                               setFinalByTier((prev) => ({ ...prev, [tier.id]: e.target.value }))
                             }
-                            disabled={pricingLocked}
+                            disabled={pricingLocked||savingPricing}
                             className="mt-1 h-8 border-white/12 bg-black/40 text-sm tabular-nums text-white disabled:opacity-50"
                             placeholder="0.00"
                           />
                         </div>
                       </div>
-                      {changed ? (
+                      {changed && !pricingLocked ? (
                         <p className="mt-2 text-[11px] text-amber-200/80">
                           Custom price differs from calculated
                         </p>
                       ) : null}
+                      {!pricingLocked&&<div className="freight-fields">{Object.entries({feesCents:'Shipping service fee',taxCents:'Taxes',dutiesCents:'Known duties',otherCents:'Other known charges'}).map(([k,label])=><label key={k}>{label} ({tier.currency})<input type="number" min="0" step="0.01" value={charges[tier.id]?.[k]||''} placeholder="0.00" onChange={e=>setCharges(previous=>({...previous,[tier.id]:{...previous[tier.id],[k]:e.target.value}}))}/></label>)}</div>}
                     </div>
                   );
                 })}
@@ -1366,9 +1384,9 @@ function CustomClothingOrderDetail({
                 {!pricingLocked && order.factoryQuoteStatus==='quoted' && <RejectQuotation orderId={order.id} onRejected={action=>{toast.success(action==='revise'?'Revised quotation requested from manufacturer':'Quotation rejected — choose another manufacturer');if(action==='reassign')navigate('/superadmin/assignment');}} />}
                 {!pricingLocked ? (
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={submitToBrand}>
+                    <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" disabled={savingPricing||!shippingReady} onClick={submitToBrand}>
                       <Send className="mr-2 h-4 w-4" />
-                      {expiredOffer ? 'Renew 30-day offer' : canReview ? 'Submit all tiers to brand' : 'Send to brand'}
+                      {savingPricing?'Sending…':expiredOffer ? 'Renew 30-day offer' : canReview ? 'Submit all tiers to brand' : 'Send to brand'}
                     </Button>
                     {canReview ? (
                       <Button
@@ -1381,13 +1399,7 @@ function CustomClothingOrderDetail({
                         </Link>
                       </Button>
                     ) : null}
-                    <Button
-                      variant="outline"
-                      className="border-white/15 text-white hover:bg-white/10"
-                      onClick={() => toast.info('Draft prices are kept until you submit')}
-                    >
-                      Save draft
-                    </Button>
+<p className="od-draft-note">Prices are saved when you send the quotation.</p>
                   </div>
                 ) : null}
               </div>
@@ -1406,9 +1418,8 @@ function CustomClothingOrderDetail({
               </div>
             )}
           </section>
-
-          <ProductionSpecCard order={order} />
-          {isSupabaseConfigured && <><ProductionProgress orderId={order.id}/><OrderQualityControl orderId={order.id} /></>}
+          </details>
+          <details className="od-specifications"><summary>Order specifications & tech pack<span>Garments, quantities and original requirements</span></summary><ProductionSpecCard order={order}/></details>
           {!isSupabaseConfigured && <ProductionPulseCard order={order} onOpsChange={onOpsChange} />}
           {!isSupabaseConfigured && <ProductionQcGallery
             orderId={order.id}
@@ -1419,7 +1430,7 @@ function CustomClothingOrderDetail({
         <div className="space-y-6">
           <CustomerCard order={order} />
           <ManufacturerCard order={order} />
-          <DeliveryCard order={order} />
+          {!deliveryStage&&<DeliveryCard order={order} />}
 
           {['paid', 'in_production', 'shipped', 'completed'].includes(order.status) ? (
             <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
@@ -1432,19 +1443,18 @@ function CustomClothingOrderDetail({
                   value={tracking}
                   onChange={(e) => setTracking(e.target.value)}
                   className="border-white/12 bg-black/40 font-mono text-sm text-white"
+                  aria-label="Carrier tracking ID"
                   placeholder="Carrier tracking ID"
                 />
                 <Button
                   variant="outline"
                   className="w-full border-white/15 text-white hover:bg-white/10"
                   disabled={savingTracking}
-                  onClick={() => {
-                    setSavingTracking(true);
-                    onOpsChange?.({ tracking: tracking.trim() || null });
-                    window.setTimeout(() => {
-                      setSavingTracking(false);
-                      toast.success('Tracking saved');
-                    }, 600);
+                  onClick={async() => {
+                    if(trackingLock.current)return;trackingLock.current=true;setSavingTracking(true);
+                    try{if(!onOpsChange)throw new Error('Order updates are unavailable');await onOpsChange({tracking:tracking.trim()||null});toast.success('Tracking saved');}
+                    catch(e){toast.error(e instanceof Error?e.message:'Tracking could not be saved');}
+                    finally{trackingLock.current=false;setSavingTracking(false);}
                   }}
                 >
                   {savingTracking ? 'Saving…' : 'Save tracking'}

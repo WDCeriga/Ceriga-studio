@@ -1,6 +1,7 @@
+import './superadmin-manufacturer-detail.css';
 import { FactoryVerificationPanel } from '../../components/manufacturer/FactoryVerificationPanel';
-import { displayMoney,useCurrency } from '../../lib/accountCurrency';
-import { useEffect, useMemo, useState } from 'react';
+import { displayMoney,useCurrency,sumConvertedMinor,formatAccountTotal } from '../../lib/accountCurrency';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import {
   ArrowLeft,
@@ -57,10 +58,6 @@ type PendingConfirm =
   | { kind: 'remove-page'; pageId: string; pageLabel: string }
   | { kind: 'save-produce' }
   | { kind: 'save-certs' };
-
-function formatMoneyCents(cents: number): string {
-  return displayMoney(cents,undefined);
-}
 
 function defaultManufacturerAccess(userId: string): ProfileAccessConfig {
   return {
@@ -120,6 +117,8 @@ export function SuperAdminManufacturerDetail() {
   const seed = id ? manufacturerList.find((m) => m.userId === id) : undefined;
   const pages = PAGE_ACCESS.manufacturers;
 
+  const saveLock=useRef(false);
+  const [accessError,setAccessError]=useState('');
   const [hydrated, setHydrated] = useState(false);
   const [status, setStatus] = useState<ManufacturerStatus | null>(null);
   const [notes, setNotes] = useState('');
@@ -128,6 +127,7 @@ export function SuperAdminManufacturerDetail() {
   const [specialtyDraft, setSpecialtyDraft] = useState('');
   const [certifications, setCertifications] = useState<string[]>([]);
   const [certDraft, setCertDraft] = useState('');
+  const [savedAccess,setSavedAccess]=useState<ProfileAccessConfig|null>(null);
   const [config, setConfig] = useState<ProfileAccessConfig | null>(null);
   const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
@@ -147,8 +147,9 @@ export function SuperAdminManufacturerDetail() {
       try {
         const remote = await getPlatformSetting<ProfileAccessConfig>(`crm_access_${id}`);
         if (remote?.userId === id) access = remote;
-      } catch {
-        /* use local/default */
+      } catch(cause) {
+        if(!cancelled)setAccessError(cause instanceof Error?cause.message:'Could not load manufacturer settings.');
+        return;
       }
       if (cancelled) return;
       setStatus(seed.status);
@@ -157,6 +158,7 @@ export function SuperAdminManufacturerDetail() {
       setSpecialties([...seed.specialties]);
       setCertifications([...seed.certifications]);
       setConfig(access);
+      setSavedAccess(access);
       setSavedMatching({
         garmentTypes: [...(seed.garmentTypes as GarmentCategory[])],
         specialties: [...seed.specialties],
@@ -187,18 +189,14 @@ export function SuperAdminManufacturerDetail() {
   }, [orders, id]);
 
   const orderStats = useMemo(() => {
-    const totalQuoteCents = manufacturerOrders.reduce(
-      (sum, o) => sum + (o.manufacturerQuoteCents ?? 0),
-      0,
-    );
     return {
       totalOrders: manufacturerOrders.length,
       activeOrders: manufacturerOrders.filter((o) => ACTIVE_ORDER_STATUSES.has(o.status)).length,
       completedOrders: manufacturerOrders.filter((o) => o.status === 'completed').length,
-      totalQuoteCents,
     };
   }, [manufacturerOrders]);
 
+  if(accessError)return <div className="manufacturer-detail md-load-error" role="alert"><h1>Manufacturer settings unavailable</h1><p>{accessError}</p><button onClick={()=>window.location.reload()}>Retry</button></div>;
   if (loading || (seed && !hydrated)) {
     return <PageLoadingFallback />;
   }
@@ -210,12 +208,7 @@ export function SuperAdminManufacturerDetail() {
   const profile = seed;
   const recentOrders = manufacturerOrders.slice(0, 8);
   const margin = resolveMarginForPlan(config.manufacturerPlanId);
-  const capacityLoad = Math.min(
-    100,
-    Math.round(
-      (orderStats.activeOrders / Math.max(profile.capacityUnitsPerMonth / 200, 1)) * 100,
-    ),
-  );
+  const quotedValue=sumConvertedMinor(manufacturerOrders.filter(o=>o.manufacturerQuoteCents!=null).map(o=>({cents:o.manufacturerQuoteCents!,currency:o.manufacturerCurrency})));
 
   const togglePage = (pageId: string, on: boolean) => {
     if (!on) {
@@ -234,12 +227,13 @@ export function SuperAdminManufacturerDetail() {
   };
 
   const persistAccess = async (nextConfig: ProfileAccessConfig) => {
-    upsertProfileAccess(nextConfig);
     await setPlatformSetting(`crm_access_${nextConfig.userId}`, nextConfig);
+    upsertProfileAccess(nextConfig);
+    setSavedAccess(nextConfig);
   };
 
   const runConfirmed = async () => {
-    if (!confirm || !config) return;
+    if (!confirm || !config || saveLock.current) return;
     if (confirm.kind === 'status') {
       setStatus(confirm.next);
       setConfirm(null);
@@ -254,7 +248,7 @@ export function SuperAdminManufacturerDetail() {
       return;
     }
 
-    setSaving(true);
+    saveLock.current=true;setSaving(true);
     try {
       if (confirm.kind === 'save') {
         await commitSave();
@@ -294,7 +288,7 @@ export function SuperAdminManufacturerDetail() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Save failed');
     } finally {
-      setSaving(false);
+      saveLock.current=false;setSaving(false);
       setConfirm(null);
     }
   };
@@ -377,7 +371,7 @@ export function SuperAdminManufacturerDetail() {
     if (!pendingPlanId || !config) return;
     setConfig({ ...config, manufacturerPlanId: pendingPlanId });
     setPendingPlanId(null);
-    toast.message('Plan selected — click Save controls to apply');
+    toast.message('Plan selected — click Save changes to apply');
   };
 
   const pendingPlan = pendingPlanId
@@ -395,8 +389,7 @@ export function SuperAdminManufacturerDetail() {
   };
 
   return (
-    <div className="space-y-6">
-      <FactoryVerificationPanel admin manufacturerId={id}/>
+    <div className="manufacturer-detail space-y-6">
       <Link
         to="/superadmin/manufacturers"
         className="inline-flex items-center gap-2 text-sm text-white/45 transition hover:text-white"
@@ -405,145 +398,18 @@ export function SuperAdminManufacturerDetail() {
         Manufacturers
       </Link>
 
-      {/* Control hero */}
-      <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-        <div className="border-b border-[#252528] bg-gradient-to-br from-amber-500/12 via-[#CC2D24]/5 to-transparent px-6 py-7 sm:px-8">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-500/25 bg-amber-500/10 text-sm font-bold text-amber-100 sm:h-16 sm:w-16 sm:text-base">
-                {initials(profile.name)}
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400">
-                  Partner control
-                </p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                  {profile.name}
-                </h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="truncate text-sm text-white/55">{profile.email}</span>
-                  <button
-                    type="button"
-                    onClick={copyEmail}
-                    className="rounded-md p-1 text-white/40 transition hover:bg-white/10 hover:text-white"
-                    aria-label="Copy email"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                  <span className="text-white/20">·</span>
-                  <span className="text-sm text-white/40">
-                    {profile.location}, {profile.country}
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span
-                    className={cn(
-                      'inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide',
-                      STATUS_STYLE[status],
-                    )}
-                  >
-                    {status}
-                  </span>
-                  <span className="inline-flex rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/55">
-                    Entity {profile.entityId}
-                  </span>
-                  <span className="inline-flex rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/55">
-                    Margin {margin.platformMarginPercent}%
-                  </span>
-                </div>
-              </div>
-            </div>
-            <Button
-              type="button"
-              onClick={save}
-              className="shrink-0 bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90"
-            >
-              Save controls
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-px bg-white/[0.06] sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: 'Orders assigned', value: orderStats.totalOrders, icon: Package },
-            { label: 'In pipeline', value: orderStats.activeOrders, icon: Factory },
-            { label: 'Lead time', value: profile.leadTimeDays ? `${profile.leadTimeDays}d` : '—', icon: Clock },
-            { label: 'Capacity / mo', value: profile.capacityUnitsPerMonth || '—', icon: TrendingUp },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-[#111113] px-5 py-4">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/38">
-                <stat.icon className="h-3.5 w-3.5" />
-                {stat.label}
-              </div>
-              <div className="mt-1 text-xl font-semibold tabular-nums text-white">{stat.value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Factory scorecard */}
-      <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
-              Factory scorecard
-            </p>
-            <h2 className="mt-1 text-base font-semibold text-white">Live order stats</h2>
-            <p className="mt-0.5 text-[11px] text-white/40">
-              Derived from assigned orders in the database.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          {[
-            {
-              label: 'Assigned',
-              value: String(orderStats.totalOrders),
-              hint: 'All time',
-            },
-            {
-              label: 'Active',
-              value: String(orderStats.activeOrders),
-              hint: 'In pipeline',
-            },
-            {
-              label: 'Completed',
-              value: String(orderStats.completedOrders),
-              hint: 'Done',
-            },
-            {
-              label: 'Quoted value (account currency)',
-              value: formatMoneyCents(orderStats.totalQuoteCents),
-              hint: 'Factory quotes',
-            },
-            {
-              label: 'Capacity use',
-              value: `${capacityLoad}%`,
-              hint: 'Booked vs monthly',
-            },
-            {
-              label: 'MOQ',
-              value: String(profile.moq),
-              hint: 'Units',
-            },
-          ].map((m) => (
-            <div
-              key={m.label}
-              className="rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-3"
-            >
-              <div className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
-                {m.label}
-              </div>
-              <div className="mt-0.5 text-xl font-semibold tabular-nums text-white">{m.value}</div>
-              <div className="mt-0.5 text-[10px] text-white/35">{m.hint}</div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-[10px] text-white/30">
-          Last active {formatDate(profile.lastActive)}
-        </p>
-      </section>
+      <header className="md-header">
+        <div className="md-identity"><span className="md-avatar">{initials(profile.name)}</span><div><p className="md-eyebrow">MANUFACTURER / PROFILE</p><h1>{profile.name}</h1><div className="md-contact"><a href={'mailto:'+profile.email}>{profile.email}</a><button type="button" onClick={copyEmail} aria-label="Copy email"><Copy size={14}/></button>{[profile.location,profile.country].filter(v=>v&&v!=='—').length>0&&<span>{[profile.location,profile.country].filter(v=>v&&v!=='—').join(', ')}</span>}</div><div className="md-meta"><span className="md-status">{status.charAt(0).toUpperCase()+status.slice(1)}</span><span>{margin.platformMarginPercent}% Ceriga margin</span><span>Last active {formatDate(profile.lastActive)}</span></div></div></div>
+        <Button type="button" disabled={saving||(!produceDirty&&!certsDirty&&notes.trim()===(profile.internalNotes||'').trim()&&status===profile.status&&JSON.stringify(config)===JSON.stringify(savedAccess))} onClick={save} className="md-save">{saving?'Saving…':'Save changes'}</Button>
+      </header>
+      <section className="md-stats" aria-label="Manufacturer overview">{[
+        {label:'Active orders',value:orderStats.activeOrders,hint:orderStats.totalOrders+' assigned in total'},
+        {label:'Completed orders',value:orderStats.completedOrders,hint:'All time'},
+        {label:'Monthly capacity',value:profile.capacityUnitsPerMonth?.toLocaleString()||'—',hint:'Units · reported by factory'},
+        {label:'Lead time',value:profile.leadTimeDays?profile.leadTimeDays+' days':'—',hint:'Minimum order: '+(profile.moq||'Not provided')},
+      ].map(stat=><div key={stat.label}><span>{stat.label}</span><strong>{stat.value}</strong><small>{stat.hint}</small></div>)}</section>
+      <div className="md-quote-summary"><span>Factory quotation value</span><strong>{quotedValue===undefined?'Unavailable':formatAccountTotal(quotedValue)}</strong><span>{quotedValue===undefined?'Some original currencies or exchange rates need review.':'Indicative total of quoted order values · not revenue or earnings.'}</span></div>
+      <FactoryVerificationPanel admin manufacturerId={id}/>
 
       {/* Order matching — primary control for auto-assign */}
       <section className="rounded-2xl border border-amber-500/20 bg-[#111113] p-4 sm:p-5">
@@ -552,10 +418,9 @@ export function SuperAdminManufacturerDetail() {
             <Link2 className="h-4 w-4 text-amber-300" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-semibold text-white">What they can produce</h2>
+            <h2 className="text-sm font-semibold text-white">Production capabilities</h2>
             <p className="mt-0.5 text-[11px] text-white/40">
-              Used to automatically connect orders to this manufacturer. Toggle product types Ceriga
-              can route here.
+              Select the garment types and specialities used to recommend this manufacturer.
             </p>
           </div>
         </div>
@@ -571,6 +436,8 @@ export function SuperAdminManufacturerDetail() {
                 <button
                   key={g}
                   type="button"
+                  aria-pressed={on}
+                  disabled={saving}
                   onClick={() => toggleGarment(g)}
                   className={cn(
                     'rounded-md border px-2.5 py-1 text-[11px] font-medium transition',
@@ -623,12 +490,15 @@ export function SuperAdminManufacturerDetail() {
                   addSpecialty();
                 }
               }}
+              aria-label="Add speciality"
               placeholder="Add speciality…"
               className="h-9 border-white/15 bg-white/5 text-sm text-white placeholder:text-white/30"
             />
             <Button
               type="button"
               variant="outline"
+              aria-label="Add speciality"
+              disabled={saving}
               onClick={addSpecialty}
               className="h-9 shrink-0 border-white/15 bg-transparent px-3 text-white hover:bg-white/5"
             >
@@ -645,7 +515,7 @@ export function SuperAdminManufacturerDetail() {
           </p>
           <Button
             type="button"
-            disabled={!produceDirty}
+            disabled={saving||!produceDirty}
             className="h-9 bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-40"
             onClick={() => setConfirm({ kind: 'save-produce' })}
           >
@@ -675,6 +545,8 @@ export function SuperAdminManufacturerDetail() {
               <button
                 key={cert}
                 type="button"
+                aria-pressed={on}
+                disabled={saving}
                 onClick={() => toggleCertification(cert)}
                 className={cn(
                   'rounded-md border px-2.5 py-1 text-[11px] font-medium transition',
@@ -712,12 +584,15 @@ export function SuperAdminManufacturerDetail() {
                 addCertification();
               }
             }}
+            aria-label="Add custom certification"
             placeholder="Add custom certification…"
             className="h-9 border-white/15 bg-white/5 text-sm text-white placeholder:text-white/30"
           />
           <Button
             type="button"
             variant="outline"
+            aria-label="Add certification"
+            disabled={saving}
             onClick={addCertification}
             className="h-9 shrink-0 border-white/15 bg-transparent px-3 text-white hover:bg-white/5"
           >
@@ -733,7 +608,7 @@ export function SuperAdminManufacturerDetail() {
           </p>
           <Button
             type="button"
-            disabled={!certsDirty}
+            disabled={saving||!certsDirty}
             className="h-9 bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-40"
             onClick={() => setConfirm({ kind: 'save-certs' })}
           >
@@ -769,7 +644,7 @@ export function SuperAdminManufacturerDetail() {
                 <SelectTrigger className="border-white/15 bg-white/5 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-[#252528] bg-[#161618] text-white">
+                <SelectContent className="md-select-menu border-[#252528] bg-[#161618] text-white">
                   {STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -804,6 +679,7 @@ export function SuperAdminManufacturerDetail() {
                   <button
                     key={plan.id}
                     type="button"
+                    data-plan-state={pending?'pending':active?'active':'idle'}
                     onClick={() => {
                       if (plan.id === config.manufacturerPlanId) {
                         setPendingPlanId(null);
@@ -828,6 +704,7 @@ export function SuperAdminManufacturerDetail() {
                       {plan.commission} commission · {planMargin.platformMarginPercent}% Ceriga
                       margin
                     </p>
+                    {active&&<p className="md-current-plan">Current plan</p>}
                     {pending ? (
                       <p className="mt-1.5 text-[10px] font-medium uppercase tracking-wider text-amber-300">
                         Pending confirmation
@@ -880,22 +757,7 @@ export function SuperAdminManufacturerDetail() {
 
         {/* Access + orders */}
         <div className="space-y-6 lg:col-span-3">
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/15">
-                <Users className="h-4 w-4 text-violet-300" />
-              </span>
-              <div>
-                <h2 className="text-sm font-semibold text-white">Team audit</h2>
-                <p className="mt-0.5 text-[11px] text-white/40">
-                  Factory team roster will appear here once manufacturer portal roles sync to Ceriga.
-                </p>
-              </div>
-            </div>
-            <p className="mt-6 rounded-xl border border-dashed border-white/12 px-4 py-8 text-center text-sm text-white/40">
-              No team members synced yet.
-            </p>
-          </section>
+
 
           <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

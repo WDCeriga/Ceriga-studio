@@ -34,6 +34,7 @@ export type OrderStatus =
 
 /** One priced tier from the manufacturer (sample + up to 3 bulk runs). */
 export type ManufacturerQuoteTier = {
+  manufacturingSubtotalCents?:number;
   payablePriceCents?:number;payableCurrency?:import('../lib/currency').Currency;
   finalCurrency?: import('../lib/currency').Currency;
   currency?: import('../lib/currency').Currency;

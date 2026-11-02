@@ -114,7 +114,7 @@ export function StepProductionCapabilities({
       <div>
         <h2 className="text-xl font-semibold text-white">3. Production Capabilities</h2>
         <p className="mt-1 text-sm text-white/50">
-          Organise your factory techniques into clear production methods. Specify whether each technique is performed in-house or outsourced to an accredited partner.
+          Select the production methods you offer and indicate whether each is in-house or outsourced.
         </p>
       </div>
 
@@ -349,7 +349,7 @@ export function StepProductionCapabilities({
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between pt-2">
+      <div className="onboarding-actions flex items-center justify-between pt-2">
         <Button
           type="button"
           variant="outline"
@@ -361,7 +361,7 @@ export function StepProductionCapabilities({
         <Button
           type="button"
           onClick={onNext}
-          className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
+          className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
         >
           Continue to Capacity & Pricing
         </Button>

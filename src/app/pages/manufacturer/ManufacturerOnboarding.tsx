@@ -1,3 +1,9 @@
+import '../../components/dashboard/manufacturer-dashboard.css';
+import './onboarding/manufacturer-onboarding.css';
+import {Button} from '../../components/ui/button';
+import {ProductionLeadTimes} from './onboarding/ProductionLeadTimes';
+import {ProductionTimelineEditor} from '../../components/manufacturer/ProductionTimelineEditor';
+import {workerRpc as productionRpc} from '../../lib/platformWorkers';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Sparkles, Check, AlertCircle, Loader2 } from 'lucide-react';
@@ -26,6 +32,9 @@ import { StepReviewComplete } from './onboarding/StepReviewComplete';
 
 export function ManufacturerOnboarding() {
   const navigate = useNavigate();
+  const submitLock=useRef(false);
+  const [timelineReady,setTimelineReady]=useState(false);
+  useEffect(()=>{if(isSupabaseConfigured)void productionRpc('production_template').then(v=>setTimelineReady(v.saved)).catch(()=>setTimelineReady(false));},[]);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Load persisted state or bootstrap
@@ -36,7 +45,7 @@ export function ManufacturerOnboarding() {
 
   const initialStepParam = searchParams.has('step')?Number(searchParams.get('step')):NaN;
   const [step, setStep] = useState<number>(
-    !Number.isNaN(initialStepParam) && initialStepParam >= 0 && initialStepParam < 6
+    !Number.isNaN(initialStepParam) && initialStepParam >= 0 && initialStepParam < 7
       ? initialStepParam
       : profile.onboardingStep || 0,
   );
@@ -45,8 +54,9 @@ export function ManufacturerOnboarding() {
     profile.completedSteps?.length ? profile.completedSteps : [0],
   );
 
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'saving' | 'error'>('idle');
   const [submitting, setSubmitting] = useState(false);
+  const [completionError,setCompletionError]=useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const saveSequence = useRef(0);
@@ -87,7 +97,7 @@ export function ManufacturerOnboarding() {
       profileRef.current = merged;
       if (pendingSnapshot.current?.owner === owner) pendingSnapshot.current.profile = merged;
       setProfile(merged);
-      if(!searchParams.has('step')&&merged.onboardingStep!=null)setStep(Math.max(0,Math.min(5,merged.onboardingStep)));
+      if(!searchParams.has('step')&&merged.onboardingStep!=null)setStep(Math.max(0,Math.min(6,merged.onboardingStep)));
       saveCompleteManufacturerProfile(merged);
       const failures = [methodsResult, pricingResult].filter(result => result.status === 'rejected');
       setCustomisationLoadError(failures.map(result => String(result.reason?.message ?? result.reason)).join(' '));
@@ -146,6 +156,7 @@ export function ManufacturerOnboarding() {
   }, []);
 
   const handleProfileChange = (patch: Partial<CompleteManufacturerProfile>) => {
+    setCompletionError('');
     const customisationChanged = ['capabilitiesMap', 'customCapabilities', 'capabilityCatalog', 'customMethodMoqs', 'generalMoq', 'garmentMoqOverrides', 'confirmedGarmentMoqOverrides'].some(key => Object.prototype.hasOwnProperty.call(patch, key));
     const next = { ...profileRef.current, ...patch, ...(patch.pricing ? { pricing: normalizePricing({ ...patch.pricing, updatedAt: new Date().toISOString() }) } : {}), ...(customisationChanged ? { customisationUpdatedAt: new Date().toISOString() } : {}) };
     profileRef.current = next;
@@ -159,7 +170,7 @@ export function ManufacturerOnboarding() {
     const errs: Record<string, string> = {};
     if (!profile.factoryName.trim()) errs.factoryName = 'Facility name is required';
     if (!profile.contactName.trim()) errs.contactName = 'Primary contact person is required';
-    if (!profile.contactEmail.trim() || !profile.contactEmail.includes('@')) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.contactEmail.trim())) {
       errs.contactEmail = 'A valid business email is required';
     }
     if (!profile.contactPhone.trim()) errs.contactPhone = 'Phone number with country code is required';
@@ -216,6 +227,12 @@ export function ManufacturerOnboarding() {
       errs.currentAvailableMonthlyCapacity =
         'Available capacity cannot exceed total monthly capacity';
     }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const validateTimeline = (): boolean => {
+    const errs: Record<string,string> = {};
     if (
       profile.sampleLeadTimeMinDays &&
       profile.sampleLeadTimeMaxDays &&
@@ -238,7 +255,7 @@ export function ManufacturerOnboarding() {
       }
     }
     setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
+    return Object.keys(errs).length === 0 && timelineReady;
   };
 
   const validateStep5 = (): boolean => {
@@ -253,13 +270,15 @@ export function ManufacturerOnboarding() {
     return Object.keys(errs).length === 0;
   };
 
+  useEffect(()=>{if(Object.keys(fieldErrors).length){const notice=document.getElementById('onboarding-validation');notice?.focus();notice?.scrollIntoView({block:'start',behavior:'smooth'});}},[fieldErrors]);
   const handleNext = () => {
     let isValid = true;
     if (step === 0) isValid = validateStep1();
     else if (step === 1) isValid = validateStep2();
     else if (step === 2) isValid = validateStep3();
     else if (step === 3) isValid = validateStep4();
-    else if (step === 4) isValid = validateStep5();
+    else if (step === 4) isValid = validateTimeline();
+    else if (step === 5) isValid = validateStep5();
 
     if (!isValid) {
       toast.error('Please complete the required fields before continuing');
@@ -276,7 +295,7 @@ export function ManufacturerOnboarding() {
     }
 
     setFieldErrors({});
-    goToStep(Math.min(5, step + 1));
+    goToStep(Math.min(6, step + 1));
   };
 
   const handleBack = () => {
@@ -284,9 +303,10 @@ export function ManufacturerOnboarding() {
     goToStep(Math.max(0, step - 1));
   };
 
-  // Step 6 Final Submission
+  // Step 7 final submission
   const getFullValidationErrors = (): string[] => {
     const list: string[] = [];
+    if(isSupabaseConfigured&&!timelineReady)list.push("Save your production turnaround timeline in step 5");
     const pricingError = pricingValidationError(profile.pricing);
     if (pricingError) list.push(pricingError);
     if (!profile.factoryName.trim()) list.push('Facility name is missing');
@@ -326,19 +346,20 @@ export function ManufacturerOnboarding() {
   };
 
   const handleFinishOnboarding = async () => {
+    if(submitLock.current)return;
     const errors = getFullValidationErrors();
     if (errors.length > 0) {
       toast.error('Please resolve the errors highlighted on the review page');
       return;
     }
 
-    setSubmitting(true);
+    setCompletionError('');submitLock.current=true;setSubmitting(true);
     try {
       const completedProfile: CompleteManufacturerProfile = {
         ...profile,
         onboardingComplete: true,
-        completedSteps: [0, 1, 2, 3, 4, 5],
-        onboardingStep: 5,
+        completedSteps: [0, 1, 2, 3, 4, 5, 6],
+        onboardingStep: 6,
       };
 
       // Never report onboarding as complete while method constraints failed to sync.
@@ -350,10 +371,9 @@ export function ManufacturerOnboarding() {
       }
       await saveCustomisationSettingsToDb(completedProfile);
       await saveManufacturerPricingToDb(completedProfile.pricing);
-      saveCompleteManufacturerProfile(completedProfile);
-
       // Persist via existing database bridge for backward-compatibility
       await completeOnboardingInDb(completedProfile);
+      saveCompleteManufacturerProfile(completedProfile);
 
       toast.success('Manufacturer setup complete! Welcome to your factory portal.');
       navigate('/manufacturer', {
@@ -362,14 +382,15 @@ export function ManufacturerOnboarding() {
       });
     } catch (err) {
       console.error('[ManufacturerOnboarding] Final submit failed:', err);
+      setCompletionError(err instanceof Error?err.message:'Could not complete setup. Your draft remains available.');
       toast.error(err instanceof Error ? err.message : 'Failed to complete onboarding');
     } finally {
-      setSubmitting(false);
+      submitLock.current=false;setSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pb-16">
+    <div className="factory-home factory-onboarding space-y-8 max-w-5xl mx-auto pb-16">
       {customisationLoadError && (
         <div role="alert" className="rounded-2xl border border-[#252528] bg-[#111113] p-6 text-sm text-white/70">
           <p>You can continue editing. Your draft is saved on this device, but cloud sync needs attention before final submission.</p>
@@ -378,7 +399,7 @@ export function ManufacturerOnboarding() {
         </div>
       )}
       {/* Top Banner with Auto-Save Indicator */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#252528] pb-6">
+      <div className="onboarding-heading flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#252528] pb-6">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <Sparkles className="h-4 w-4" />
@@ -387,17 +408,17 @@ export function ManufacturerOnboarding() {
             </span>
           </div>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {profile.factoryName ? `Set up ${profile.factoryName}` : 'Set Up Your Factory'}
+            {profile.factoryName ? `Set up ${profile.factoryName}` : 'Set up your factory'}<span>.</span>
           </h1>
           <p className="mt-1 text-sm text-white/45">
-            Configure detailed production specs, capabilities, and capacity to receive matched brand orders.
+            Tell Ceriga what your factory makes and how you work. You can return to saved steps at any time.
           </p>
         </div>
 
         {/* Status Pill & Resume Info */}
         <div className="flex items-center gap-2 self-start sm:self-center">
-          <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/60">
-            {saveStatus === 'saving' ? (
+          <div className="onboarding-save-status flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/60">
+            {saveStatus === 'idle'?<span>Autosave on</span>:saveStatus === 'saving' ? (
               <>
                 <Loader2 className="h-3 w-3 animate-spin text-amber-400" />
                 <span>Saving progress...</span>
@@ -411,7 +432,7 @@ export function ManufacturerOnboarding() {
             ) : (
               <>
                 <Check className="h-3 w-3 text-emerald-400" />
-                <span>All changes autosaved</span>
+                <span>Progress saved</span>
               </>
             )}
           </div>
@@ -430,7 +451,9 @@ export function ManufacturerOnboarding() {
       />
 
       {/* Step Content */}
-      <div className="pt-2">
+      {Object.keys(fieldErrors).length>0&&<div id="onboarding-validation" tabIndex={-1} role="alert" className="onboarding-validation"><h2>Check these details before continuing</h2><ul>{Object.entries(fieldErrors).map(([key,message])=><li key={key}>{message}</li>)}</ul></div>}
+      {completionError&&<div role="alert" className="onboarding-validation"><h2>Setup could not be completed</h2><p>{completionError}</p><p>Your draft remains available. Resolve the issue, then try Complete setup again.</p></div>}
+      <div className="onboarding-step pt-2">
         {step === 0 && (
           <StepFactoryProfile
             profile={profile}
@@ -470,7 +493,7 @@ export function ManufacturerOnboarding() {
           />
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <StepShippingServices
             profile={profile}
             onChange={handleProfileChange}
@@ -480,7 +503,8 @@ export function ManufacturerOnboarding() {
           />
         )}
 
-        {step === 5 && (
+        {step === 4 && (<div className="space-y-8"><div><h2 className="text-xl font-semibold text-white">5. Production turnaround timeline</h2><p className="mt-1 text-sm text-white/50">Set your sample and bulk lead times, then configure the stages and working schedule behind your production estimates.</p></div><ProductionLeadTimes profile={profile} onChange={handleProfileChange} errors={fieldErrors}/><ProductionTimelineEditor onReady={setTimelineReady}/><div className="onboarding-actions flex items-center justify-between gap-3 pt-2"><Button type="button" variant="outline" onClick={handleBack} className="min-h-11 border-white/15 text-white hover:bg-white/5">Back</Button><Button type="button" disabled={!timelineReady} onClick={handleNext} className="onboarding-primary min-h-11 bg-[#CC2D24] px-6 font-semibold text-white hover:bg-[#CC2D24]/90">Continue to Shipping</Button></div></div>)}
+        {step === 6 && (
           <StepReviewComplete
             profile={profile}
             onEditStep={(s) => goToStep(s)}

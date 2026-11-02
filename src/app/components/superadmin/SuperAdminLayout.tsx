@@ -1,3 +1,5 @@
+import './superadmin-sidebar.css';
+import '../dashboard/superadmin-dashboard.css';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
@@ -181,7 +183,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)]">
+    <div className={cn('min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)]', (['/superadmin', '/superadmin/users', '/superadmin/orders', '/superadmin/assignment', '/superadmin/manufacturers', '/superadmin/time-off', '/superadmin/shipping-onboard', '/superadmin/pricing', '/superadmin/messages', '/superadmin/notifications', '/superadmin/settings'].includes(location.pathname.replace(/\/$/,'')) || /^\/superadmin\/(?:workers|quality-control|statistics|crm|manufacturers|orders)(?:\/|$)/.test(location.pathname)) && 'superadmin-overview-shell')}>
       {!isLgUp && (
         <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-[#252528] bg-[#09090B]/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <button
@@ -213,7 +215,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="left"
-          className="w-[min(300px,88vw)] border-[#252528] bg-[#09090B] p-0 text-[#F0EEEE] [&>button]:text-[#A3A3A8]"
+          className={cn('w-[min(300px,88vw)] border-[#252528] bg-[#09090B] p-0 text-[#F0EEEE] [&>button]:text-[#A3A3A8]', (['/superadmin', '/superadmin/users', '/superadmin/orders', '/superadmin/assignment', '/superadmin/manufacturers', '/superadmin/time-off', '/superadmin/shipping-onboard', '/superadmin/pricing', '/superadmin/messages', '/superadmin/notifications', '/superadmin/settings'].includes(location.pathname.replace(/\/$/,'')) || /^\/superadmin\/(?:workers|quality-control|statistics|crm|manufacturers|orders)(?:\/|$)/.test(location.pathname)) && 'superadmin-overview-menu')}
         >
           <SheetTitle className="sr-only">Superadmin navigation</SheetTitle>
           <div className="flex h-full flex-col pt-10">
@@ -227,13 +229,13 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-40 hidden h-dvh flex-col border-r border-[#252528] bg-[#09090B] transition-all duration-300 lg:flex',
+          'ceriga-admin-sidebar fixed left-0 top-0 z-40 hidden h-dvh flex-col border-r border-[#252528] bg-[#09090B] transition-all duration-300 lg:flex',
           collapsed ? 'w-[72px]' : 'w-[220px]',
         )}
       >
         <div
           className={cn(
-            'flex items-center border-b border-[#252528] px-3 py-3',
+            'admin-sidebar-heading flex items-center border-b border-[#252528] px-3 py-3',
             collapsed ? 'justify-center' : 'justify-between',
           )}
         >
@@ -251,11 +253,11 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
             {collapsed ? <ChevronRight className="h-4 w-4 text-[#A3A3A8]" /> : <ChevronLeft className="h-4 w-4 text-[#A3A3A8]" />}
           </button>
         </div>
-        <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed && 'items-center')}>
+        <div className={cn('admin-sidebar-body flex min-h-0 flex-1 flex-col overflow-y-auto', collapsed && 'items-center')}>
           {!collapsed ? (
             <NavBlock />
           ) : (
-            <div className="flex flex-col items-center gap-1 p-2">
+            <div className="admin-sidebar-icons flex flex-col items-center gap-1 p-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path, 'end' in item ? item.end : false);

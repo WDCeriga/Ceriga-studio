@@ -1,277 +1,31 @@
-import { sumConvertedMinor,formatAccountTotal,displayMoney,useCurrency } from '../../lib/accountCurrency';
-import { useEffect, useMemo, useState } from 'react';
-import { Package, Plus, Ship } from 'lucide-react';
-import { toast } from 'sonner';
-import { getPlatformSetting, setPlatformSetting } from '../../lib/superadminDb';
-import { useSuperadminData } from '../../hooks/useSuperadminData';
-import { formatMoney } from '../../data/superadminMock';
-import { PageLoadingFallback } from '../../components/PageLoadingFallback';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { cn } from '../../components/ui/utils';
-
-type TabId = 'overview' | 'carriers';
-
-type ShippingCarrier = {
-  id: string;
-  name: string;
-  modes: string;
-  notes: string;
-};
-
-export function SuperAdminShippingOnboard() {
-  const currencyState=useCurrency();
-  const { orders, manufacturerList, loading: dataLoading } = useSuperadminData();
-  const [tab, setTab] = useState<TabId>('overview');
-  const [carriers, setCarriers] = useState<ShippingCarrier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [draftName, setDraftName] = useState('');
-  const [draftModes, setDraftModes] = useState('Air / Sea');
-  const [draftNotes, setDraftNotes] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const remote = await getPlatformSetting<ShippingCarrier[]>('shipping_carriers');
-        if (!cancelled) setCarriers(Array.isArray(remote) ? remote : []);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to load shipping settings');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const overview = useMemo(() => {
-    const shipped = orders.filter((o) => o.status === 'shipped' || o.status === 'completed');
-    const inTransit = orders.filter((o) => o.status === 'shipped');
-    const value = sumConvertedMinor(shipped.filter(o=>o.finalPriceCents!=null).map(o=>({cents:o.finalPriceCents!,currency:o.currency})));
-    return {
-      factories: manufacturerList.length,
-      carriers: carriers.length,
-      shipments: shipped.length,
-      inTransit: inTransit.length,
-      value,
-    };
-  }, [orders, manufacturerList, carriers,currencyState.currency,currencyState.rates]);
-
-  const persistCarriers = async (next: ShippingCarrier[]) => {
-    setSaving(true);
-    try {
-      await setPlatformSetting('shipping_carriers', next);
-      setCarriers(next);
-      toast.success('Carriers saved');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const addCarrier = async () => {
-    if (!draftName.trim()) {
-      toast.error('Enter a carrier name');
-      return;
-    }
-    const next: ShippingCarrier[] = [
-      ...carriers,
-      {
-        id: crypto.randomUUID(),
-        name: draftName.trim(),
-        modes: draftModes.trim() || '—',
-        notes: draftNotes.trim(),
-      },
-    ];
-    setDraftName('');
-    setDraftModes('Air / Sea');
-    setDraftNotes('');
-    await persistCarriers(next);
-  };
-
-  const removeCarrier = async (id: string) => {
-    await persistCarriers(carriers.filter((c) => c.id !== id));
-  };
-
-  if (dataLoading || loading) {
-    return <PageLoadingFallback />;
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 text-[#CC2D24]">
-          <Ship className="h-5 w-5" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider">Logistics</span>
-        </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          Shipping
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-white/45">
-          Network overview from live orders, plus Ceriga carrier catalog stored in platform settings.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            { id: 'overview', label: 'Overview' },
-            { id: 'carriers', label: 'Carrier catalog' },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              'rounded-lg border px-3 py-1.5 text-[12px] font-medium transition',
-              tab === t.id
-                ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-white'
-                : 'border-[#252528] bg-white/[0.02] text-white/50 hover:text-white/80',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'overview' ? (
-        <div className="space-y-6">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: 'Factories', value: String(overview.factories) },
-              { label: 'Carriers', value: String(overview.carriers) },
-              { label: 'Shipped / done', value: String(overview.shipments) },
-              { label: 'In transit', value: String(overview.inTransit) },
-            ].map((kpi) => (
-              <div
-                key={kpi.label}
-                className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-4"
-              >
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                  {kpi.label}
-                </div>
-                <div className="mt-1 text-2xl font-semibold tabular-nums text-white">{kpi.value}</div>
-              </div>
-            ))}
-          </div>
-
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-            <h2 className="text-sm font-semibold text-white">Shipped order value</h2>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-white">
-              {formatAccountTotal(overview.value)}
-            </p>
-            <p className="mt-2 text-[11px] text-white/40">
-              Sum of final prices on shipped and completed orders. Factory onboarding requests will
-              appear here once the manufacturer portal submits them.
-            </p>
-          </section>
-
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-            <h2 className="text-sm font-semibold text-white">Factory network</h2>
-            {manufacturerList.length === 0 ? (
-              <p className="mt-6 text-center text-sm text-white/40">No manufacturers yet.</p>
-            ) : (
-              <ul className="mt-4 divide-y divide-[#252528]">
-                {manufacturerList.map((m) => (
-                  <li key={m.userId} className="flex items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-white">{m.name}</p>
-                      <p className="text-[11px] text-white/40">
-                        {m.location}, {m.country}
-                      </p>
-                    </div>
-                    <span className="text-[11px] tabular-nums text-white/45">
-                      {m.assignedOrders} orders
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-            <h2 className="text-sm font-semibold text-white">Add carrier</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-white/55">Name</Label>
-                <Input
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  className="border-white/15 bg-white/5 text-white"
-                  placeholder="DHL Express"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-white/55">Modes</Label>
-                <Input
-                  value={draftModes}
-                  onChange={(e) => setDraftModes(e.target.value)}
-                  className="border-white/15 bg-white/5 text-white"
-                />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-white/55">Notes</Label>
-                <Input
-                  value={draftNotes}
-                  onChange={(e) => setDraftNotes(e.target.value)}
-                  className="border-white/15 bg-white/5 text-white"
-                  placeholder="Preferred lanes, account numbers…"
-                />
-              </div>
-            </div>
-            <Button
-              className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-              disabled={saving}
-              onClick={() => void addCarrier()}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add carrier
-            </Button>
-          </section>
-
-          <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-            <h2 className="text-sm font-semibold text-white">Catalog</h2>
-            {carriers.length === 0 ? (
-              <div className="mt-6 rounded-xl border border-dashed border-white/12 px-4 py-12 text-center">
-                <Package className="mx-auto h-8 w-8 text-white/25" />
-                <p className="mt-3 text-sm text-white/45">No carriers saved yet.</p>
-              </div>
-            ) : (
-              <ul className="mt-4 space-y-2">
-                {carriers.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex flex-col gap-3 rounded-xl border border-[#252528] bg-black/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">{c.name}</p>
-                      <p className="text-[11px] text-white/40">{c.modes}</p>
-                      {c.notes ? <p className="mt-1 text-[11px] text-white/35">{c.notes}</p> : null}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-white/15 text-white"
-                      disabled={saving}
-                      onClick={() => void removeCarrier(c.id)}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-      )}
-    </div>
-  );
+import {ForwarderDirectory} from '../../components/freight/ForwarderDirectory';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import {Link} from 'react-router';
+import {ArrowUpRight,Plus,RefreshCw,Search,Truck} from 'lucide-react';
+import {toast} from 'sonner';
+import {getPlatformSetting,setPlatformSetting} from '../../lib/superadminDb';
+import {useSuperadminData} from '../../hooks/useSuperadminData';
+import {sumConvertedMinor,formatAccountTotal,useCurrency} from '../../lib/accountCurrency';
+import {ConfirmDialog} from '../../components/ConfirmDialog';
+import './superadmin-shipping.css';
+type ShippingCarrier={id:string;name:string;modes:string;notes:string};
+const readCarriers=(v:unknown):ShippingCarrier[]=>{if(v==null)return [];if(!Array.isArray(v)||v.some(c=>!c||typeof c.id!=='string'||typeof c.name!=='string'||typeof c.modes!=='string'||typeof c.notes!=='string'))throw new Error('Carrier settings could not be read. Existing records have been preserved.');return v;};
+export function SuperAdminShippingOnboard(){
+ useCurrency();const {orders,loading:dataLoading,error:dataError,refresh}=useSuperadminData();
+ const [tab,setTab]=useState(typeof window!=='undefined'&&window.location.hash==='#forwarders'?'forwarders':'overview'),[carriers,setCarriers]=useState<ShippingCarrier[]>([]),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[reload,setReload]=useState(0),[search,setSearch]=useState(''),[status,setStatus]=useState('all'),[page,setPage]=useState(1),[draft,setDraft]=useState<ShippingCarrier|null>(null),[removing,setRemoving]=useState<ShippingCarrier|null>(null);const lock=useRef(false);
+ useEffect(()=>{let active=true;setLoading(true);setError('');void(async()=>{try{const rows=readCarriers(await getPlatformSetting('shipping_carriers'));if(active)setCarriers(rows);}catch(e){if(active)setError(e instanceof Error?e.message:'Could not load carriers.');}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[reload]);
+ const shipped=useMemo(()=>orders.filter(o=>o.kind==='custom_clothing'&&['shipped','completed'].includes(o.status)),[orders]);
+ const filtered=shipped.filter(o=>(status==='all'||o.status===status)&&[o.id,o.productName,o.userName,o.manufacturerName||'',o.deliveryCity,o.deliveryCountry,o.trackingNumber||''].join(' ').toLowerCase().includes(search.trim().toLowerCase())).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));const pages=Math.max(1,Math.ceil(filtered.length/20)),currentPage=Math.min(page,pages),visible=filtered.slice((currentPage-1)*20,currentPage*20);
+ const save=async(kind:'save'|'remove',record:ShippingCarrier)=>{if(lock.current)return;if(kind==='save'&&!record.name.trim()){setError('Enter a carrier name.');return;}lock.current=true;setSaving(true);setError('');try{const latest=readCarriers(await getPlatformSetting('shipping_carriers'));if(kind==='save'&&latest.some(c=>c.id!==record.id&&c.name.trim().toLowerCase()===record.name.trim().toLowerCase()))throw new Error('A carrier with this name already exists. Edit that carrier instead.');const next=kind==='remove'?latest.filter(c=>c.id!==record.id):latest.some(c=>c.id===record.id)?latest.map(c=>c.id===record.id?{...record,name:record.name.trim(),modes:record.modes.trim(),notes:record.notes.trim()}:c):[...latest,{...record,name:record.name.trim(),modes:record.modes.trim(),notes:record.notes.trim()}];await setPlatformSetting('shipping_carriers',next);setCarriers(next);setDraft(null);setRemoving(null);toast.success(kind==='remove'?'Carrier removed.':'Carrier saved.');}catch(e){setError(e instanceof Error?e.message:'Could not save carrier settings.');}finally{lock.current=false;setSaving(false);}};
+ return <div className="admin-shipping" aria-busy={loading||dataLoading}><div className="sh-topline"><span>CERIGA / LOGISTICS</span><span>{tab==='forwarders'?'Freight partners':'Dispatch & delivery'}</span></div><header className="sh-heading"><div><h1>Shipping<span>.</span></h1><p>{tab==='forwarders'?'Manage freight partners and compare shipping options during quotation review.':'Follow dispatched orders. Keep your carrier directory organised.'}</p></div><div className="sh-toolbar"><button type="button" aria-label="Refresh shipping" className="sh-secondary" disabled={loading||dataLoading||saving} onClick={()=>{setReload(n=>n+1);void refresh();}}><RefreshCw size={15}/></button>{tab!=='forwarders'&&<button type="button" className="sh-primary" disabled={saving||loading||!!error||!!draft} onClick={()=>{setTab('carriers');setDraft({id:crypto.randomUUID(),name:'',modes:'',notes:''});}}><Plus size={14}/>Add carrier</button>}</div></header>
+ <nav className="sh-tabs" aria-label="Shipping views">{[{id:'overview',label:'Shipments'},{id:'carriers',label:'Carrier directory'},{id:'forwarders',label:'Freight forwarders'}].map(t=><button type="button" key={t.id} aria-pressed={tab===t.id} onClick={()=>{setTab(t.id);setSearch('');setPage(1);}}>{t.label}</button>)}</nav>
+ {(error||dataError)&&<div role="alert" className="sh-error"><span>{error||dataError}</span><button type="button" disabled={saving||loading} onClick={()=>{setReload(n=>n+1);void refresh();}}>Try again</button></div>}
+ {tab!=='forwarders'&&<section className="sh-summary" aria-label="Shipping overview">{[{label:'In transit',value:shipped.filter(o=>o.status==='shipped').length,fail:dataLoading||!!dataError},{label:'Completed deliveries',value:shipped.filter(o=>o.status==='completed').length,fail:dataLoading||!!dataError},{label:'Physical shipments',value:shipped.length,fail:dataLoading||!!dataError},{label:'Saved carriers',value:carriers.length,fail:loading||!!error}].map(m=><div key={m.label}><span>{m.label}</span><strong>{m.fail?'—':m.value}</strong></div>)}</section>}
+ {tab==='forwarders'?<ForwarderDirectory/>:tab==='overview'?<section className="sh-panel"><div className="sh-panel-heading"><div><h2>Dispatched orders</h2><p>Physical production orders only. Open an order to manage its delivery details.</p></div><Link to="/superadmin/orders">All orders<ArrowUpRight size={13}/></Link></div><div className="sh-filters"><label><Search size={15}/><input type="search" aria-label="Search shipments" placeholder="Search orders, destination or tracking" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/></label><select aria-label="Shipment status" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="all">All deliveries</option><option value="shipped">In transit</option><option value="completed">Completed</option></select>{(search||status!=='all')&&<button type="button" className="sh-text-button" onClick={()=>{setSearch('');setStatus('all');setPage(1);}}>Clear filters</button>}</div>
+ {dataLoading?<p className="sh-empty" role="status">Loading dispatched orders…</p>:dataError?<p className="sh-empty">Shipment data could not be loaded.</p>:visible.length?<><div className="sh-shipments">{visible.map(o=><article key={o.id}><span className="sh-order-icon"><Truck size={20}/></span><div><h3>{o.productName}</h3><p>#{o.id.slice(0,8)} · {o.userName} · {o.manufacturerName||'Manufacturer not recorded'}</p><p>{[o.deliveryCity,o.deliveryCountry].filter(Boolean).join(', ')||'Destination not recorded'}</p><p>Tracking: {o.trackingNumber||'Not recorded'}</p></div><span className={'sh-status '+(o.status==='completed'?'sh-complete':'')}>{o.status==='completed'?'Completed':'In transit'}</span><Link className="sh-secondary" to={'/superadmin/orders/'+o.id}>View delivery<ArrowUpRight size={13}/></Link></article>)}</div><nav className="sh-pagination" aria-label="Shipment pages"><span>{(currentPage-1)*20+1}–{Math.min(currentPage*20,filtered.length)} of {filtered.length}</span><div><button type="button" disabled={currentPage<=1} onClick={()=>setPage(currentPage-1)}>Previous</button><span>{currentPage} / {pages}</span><button type="button" disabled={currentPage>=pages} onClick={()=>setPage(currentPage+1)}>Next</button></div></nav></>:<div className="sh-empty"><Truck size={25}/><h3>{search||status!=='all'?'No matching shipments':'No dispatched production orders yet'}</h3><p>{search||status!=='all'?'Try another search or status.':'Orders appear here once carrier handover is recorded.'}</p></div>}
+ {!dataLoading&&!dataError&&<details className="sh-value"><summary>Value of dispatched production orders</summary><strong>{formatAccountTotal(sumConvertedMinor(shipped.filter(o=>o.finalPriceCents!=null).map(o=>({cents:o.finalPriceCents!,currency:o.currency}))))}</strong><p>Final order prices for all dispatched and completed production orders, including orders outside the current search. This is order value, rather than shipping charges or received revenue. Currency conversion is indicative.</p></details>}</section>:<section className="sh-panel"><div className="sh-panel-heading"><div><h2>Carrier directory</h2><p>Saved reference details. Adding a carrier does not connect an API, book a shipment, or generate a label.</p></div></div>
+ {draft&&<form className="sh-carrier-form" onSubmit={e=>{e.preventDefault();void save('save',draft);}}><h3>{carriers.some(c=>c.id===draft.id)?'Edit carrier':'Add carrier'}</h3><div><label>Carrier name<input autoFocus required maxLength={120} disabled={saving} aria-label="Carrier name" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="e.g. DHL Express"/></label><label>Transport modes<input maxLength={180} disabled={saving} aria-label="Transport modes" value={draft.modes} onChange={e=>setDraft({...draft,modes:e.target.value})} placeholder="e.g. Air, road, sea"/></label><label className="sh-notes">Notes (optional)<textarea rows={2} maxLength={2000} disabled={saving} aria-label="Carrier notes" value={draft.notes} onChange={e=>setDraft({...draft,notes:e.target.value})} placeholder="Preferred routes or operational notes"/></label></div><div className="sh-form-actions"><button type="submit" className="sh-primary" disabled={saving||!draft.name.trim()}>{saving?'Saving…':'Save carrier'}</button><button type="button" className="sh-secondary" disabled={saving} onClick={()=>setDraft(null)}>Cancel</button></div></form>}
+ {loading?<p role="status" className="sh-empty">Loading carrier directory…</p>:error?<p className="sh-empty">Resolve the settings error before making further changes. Your draft is retained.</p>:carriers.length?<ul className="sh-carriers">{carriers.map(c=><li key={c.id}><div><h3>{c.name}</h3><p>{c.modes||'Transport modes not recorded'}</p>{c.notes&&<p>{c.notes}</p>}</div><div><button type="button" className="sh-secondary" disabled={saving||!!draft} onClick={()=>setDraft({...c})}>Edit</button><button type="button" className="sh-remove" disabled={saving} onClick={()=>setRemoving(c)}>Remove</button></div></li>)}</ul>:<div className="sh-empty"><h3>No carriers saved yet</h3><p>Add your first carrier to keep reference details in one place.</p></div>}</section>}
+ <ConfirmDialog className="shipping-confirmation" open={!!removing} onOpenChange={open=>{if(!open&&!saving)setRemoving(null);}} title="Remove carrier?" description={'Remove '+(removing?.name||'this carrier')+' from the directory? Existing order tracking and shipment records will remain unchanged.'} confirmLabel="Remove carrier" tone="danger" onConfirm={()=>{if(removing)void save('remove',removing);}}/>
+ </div>;
 }

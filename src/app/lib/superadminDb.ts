@@ -103,7 +103,7 @@ function toQuoteTiers(order: UserOrder): ManufacturerQuoteTier[] {
   }));
   if (order.status === 'priced' || order.paidAmountCents != null) {
     // Prices were sent to the brand — surface calculated values as final.
-    return calculated.map(t=>{const option=order.priceOptions?.find(option=>option.id===t.id);return{...t,finalPriceCents:option?.currencySnapshot?.approvedOriginalCents??(option?.currency===t.currency?option?.priceCents:undefined),finalCurrency:t.currency,payablePriceCents:option?.priceCents,payableCurrency:option?.currency};});
+    return calculated.map(t=>{const option=order.priceOptions?.find(option=>option.id===t.id);return{...t,manufacturingSubtotalCents:option?.currencySnapshot?.freight?.manufacturerSubtotalCents,finalPriceCents:option?.currencySnapshot?.approvedOriginalCents??(option?.currency===t.currency?option?.priceCents:undefined),finalCurrency:t.currency,payablePriceCents:option?.priceCents,payableCurrency:option?.currency};});
   }
   return calculated;
 }

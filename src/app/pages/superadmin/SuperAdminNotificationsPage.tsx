@@ -1,211 +1,26 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
-import {
-  CheckCheck,
-  ChevronRight,
-  Trash2,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { Button } from '../../components/ui/button';
-import { usePortalNotifications } from '../../hooks/usePortalNotifications';
-import {
-  PORTAL_NOTIFICATION_CATEGORY_LABEL,
-  type PortalNotificationCategory,
-} from '../../data/portalNotifications';
-import { cn } from '../../components/ui/utils';
-
-type Cat = 'all' | PortalNotificationCategory;
-
-const FILTERS: { key: Cat; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'order', label: 'Orders' },
-  { key: 'pricing', label: 'Pricing' },
-  { key: 'message', label: 'Messages' },
-  { key: 'shipping', label: 'Shipping' },
-  { key: 'capacity', label: 'Capacity' },
-  { key: 'system', label: 'System' },
-];
-
-function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-export function SuperAdminNotificationsPage() {
-  const { items, unread,error,refresh,hasMore,loadMore, markRead, markAllRead, remove, clearAll } =
-    usePortalNotifications('superadmin');
-  const [filter, setFilter] = useState<Cat>('all');
-  const [clearOpen, setClearOpen] = useState(false);
-
-  const list = useMemo(() => {
-    return items.filter((n) => (filter === 'all' ? true : n.category === filter));
-  }, [filter, items]);
-
-  return (
-    <div className="space-y-6">
-      {error&&<p role="alert" className="rounded-lg border border-red-400/25 p-3 text-sm text-red-200">{error} <button onClick={()=>void refresh()} className="ml-2 underline">Retry</button></p>}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-            Inbox
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Notifications
-          </h1>
-          <p className="mt-1 text-sm text-white/45">
-            Assignment, pricing, messages, capacity, and shipping alerts.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {unread > 0 ? (
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#CC2D24]/30 bg-[#CC2D24]/10 px-3 py-1.5 text-xs font-medium text-red-100">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" />
-              {unread} unread
-            </span>
-          ) : null}
-          {unread > 0 ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-white/15 bg-white/[0.03] text-white/80"
-              onClick={() => {
-                markAllRead();
-                toast.success('Marked all as read');
-              }}
-            >
-              <CheckCheck className="mr-1.5 h-3.5 w-3.5" />
-              Mark all read
-            </Button>
-          ) : null}
-          {items.length > 0 ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-              onClick={() => setClearOpen(true)}
-            >
-              Clear all
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              'rounded-lg border px-2.5 py-1 text-[11px] font-medium',
-              filter === f.key
-                ? 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-100'
-                : 'border-[#252528] text-white/45 hover:text-white/75',
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <ul className="space-y-2">
-        {list.length === 0 ? (
-          <li className="rounded-2xl border border-dashed border-white/12 bg-[#111113] px-4 py-12 text-center text-sm text-white/40">
-            {items.length === 0 ? 'No notifications yet.' : 'Nothing in this category.'}
-          </li>
-        ) : (
-          list.map((n) => {
-            const inner = (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {!n.read ? (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" aria-hidden />
-                    ) : null}
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#CC2D24]/90">
-                      {PORTAL_NOTIFICATION_CATEGORY_LABEL[n.category]}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <time className="text-[11px] text-white/40">{formatWhen(n.at)}</time>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        remove(n.id);
-                      }}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-white/35 hover:bg-red-500/15 hover:text-red-300"
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-1 flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-medium text-white">{n.title}</div>
-                    <p className="mt-0.5 text-sm text-white/55">{n.body}</p>
-                  </div>
-                  {n.href ? (
-                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-white/30" />
-                  ) : null}
-                </div>
-              </>
-            );
-
-            return (
-              <li key={n.id}>
-                {n.href ? (
-                  <Link
-                    to={n.href}
-                    onClick={() => markRead(n.id)}
-                    className={cn(
-                      'block rounded-xl border px-4 py-3 transition hover:border-white/15 sm:px-5',
-                      !n.read
-                        ? 'border-[#CC2D24]/25 bg-[#CC2D24]/[0.06]'
-                        : 'border-[#252528] bg-[#111113]',
-                    )}
-                  >
-                    {inner}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => markRead(n.id)}
-                    className={cn(
-                      'w-full rounded-xl border px-4 py-3 text-left transition hover:border-white/15 sm:px-5',
-                      !n.read
-                        ? 'border-[#CC2D24]/25 bg-[#CC2D24]/[0.06]'
-                        : 'border-[#252528] bg-[#111113]',
-                    )}
-                  >
-                    {inner}
-                  </button>
-                )}
-              </li>
-            );
-          })
-        )}
-      </ul>
-
-      {hasMore&&<button className="rounded-lg border border-white/15 px-4 py-2 text-sm text-white" onClick={loadMore}>Load older notifications</button>}
-      <ConfirmDialog
-        open={clearOpen}
-        onOpenChange={setClearOpen}
-        title="Clear all notifications?"
-        description="Removes every item from the owner inbox."
-        confirmLabel="Clear all"
-        tone="danger"
-        onConfirm={() => {
-          void clearAll().then(ok=>{if(ok)toast.success('Notifications cleared');});
-        }}
-      />
-    </div>
-  );
+import {useMemo,useRef,useState} from 'react';
+import {Link} from 'react-router';
+import {ArrowUpRight,Bell,Check,CheckCheck,RefreshCw,Search,Trash2} from 'lucide-react';
+import {toast} from 'sonner';
+import {ConfirmDialog} from '../../components/ConfirmDialog';
+import {usePortalNotifications} from '../../hooks/usePortalNotifications';
+import {PORTAL_NOTIFICATION_CATEGORY_LABEL} from '../../data/portalNotifications';
+import './superadmin-notifications.css';
+const when=(iso:string)=>new Date(iso).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const group=(iso:string)=>{const d=new Date(iso),today=new Date(),yesterday=new Date();yesterday.setDate(today.getDate()-1);return d.toDateString()===today.toDateString()?'Today':d.toDateString()===yesterday.toDateString()?'Yesterday':'Earlier';};
+export function SuperAdminNotificationsPage(){
+ const {items,unread,loading,error,refresh,hasMore,loadMore,markRead,markAllRead,remove,clearAll}=usePortalNotifications('superadmin');
+ const [category,setCategory]=useState('all'),[readFilter,setReadFilter]=useState('all'),[search,setSearch]=useState(''),[busy,setBusy]=useState(''),[actionError,setActionError]=useState(''),[clearOpen,setClearOpen]=useState(false);const lock=useRef(false);
+ const list=useMemo(()=>items.filter(n=>(category==='all'||n.category===category)&&(readFilter==='all'||!n.read)&&[n.title,n.body,PORTAL_NOTIFICATION_CATEGORY_LABEL[n.category]].join(' ').toLowerCase().includes(search.trim().toLowerCase())),[items,category,readFilter,search]);
+ const run=async(key:string,action:()=>unknown|Promise<unknown>,success?:string)=>{if(lock.current)return;lock.current=true;setBusy(key);setActionError('');try{const ok=await action();if(ok===false){setActionError('The change could not be saved. Please try again.');return;}if(success)toast.success(success);}catch(e){setActionError(e instanceof Error?e.message:'Could not update notifications.');}finally{lock.current=false;setBusy('');}};
+ return <div className="admin-notifications" aria-busy={loading}><div className="nt-topline"><span>CERIGA / UPDATES</span><span>Operational inbox</span></div><header className="nt-heading"><div><h1>Notifications<span>.</span></h1><p>Stay on top of orders, reviews, and updates across your network.</p></div><div className="nt-toolbar"><button type="button" className="nt-secondary" aria-label="Refresh notifications" disabled={loading||!!busy} onClick={()=>void refresh()}><RefreshCw size={15}/></button><button type="button" className="nt-primary" disabled={loading||!!busy||unread===0} onClick={()=>void run('all',markAllRead,'All notifications marked as read.')}><CheckCheck size={14}/>{busy==='all'?'Saving…':'Mark all read'}</button></div></header>
+ {(error||actionError)&&<div className="nt-error" role="alert"><span>{error||actionError}</span><button type="button" disabled={!!busy} onClick={()=>{setActionError('');void refresh();}}>Retry</button></div>}
+ <section className="nt-panel"><div className="nt-panel-heading"><div className="nt-tabs" aria-label="Read status"><button type="button" aria-pressed={readFilter==='all'} onClick={()=>setReadFilter('all')}>All updates</button><button type="button" aria-pressed={readFilter==='unread'} onClick={()=>setReadFilter('unread')}>Unread<span>{loading?'—':unread}</span></button></div><button type="button" className="nt-clear-all" disabled={loading||!!busy||items.length===0} onClick={()=>setClearOpen(true)}>Clear inbox</button></div>
+ <div className="nt-filters"><label><Search size={15}/><input type="search" aria-label="Search loaded notifications" placeholder="Search loaded notifications" value={search} onChange={e=>setSearch(e.target.value)}/></label><select aria-label="Notification category" value={category} onChange={e=>setCategory(e.target.value)}><option value="all">All categories</option>{Object.entries(PORTAL_NOTIFICATION_CATEGORY_LABEL).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>{(category!=='all'||readFilter!=='all'||search)&&<button type="button" className="nt-text-button" onClick={()=>{setCategory('all');setReadFilter('all');setSearch('');}}>Clear filters</button>}</div>
+ {loading&&<p role="status" className="nt-loading">Loading notifications…</p>}
+ {!loading&&!(error&&items.length===0)&&<>{list.length?<div className="nt-groups">{['Today','Yesterday','Earlier'].map(label=>{const rows=list.filter(n=>group(n.at)===label);return rows.length?<section key={label} aria-label={label}><h2>{label}</h2><ul>{rows.map(n=><li key={n.id} className={n.read?'nt-read':'nt-unread'}><span className="nt-notification-icon"><Bell size={17}/></span><article><div className="nt-meta"><span>{PORTAL_NOTIFICATION_CATEGORY_LABEL[n.category]}</span>{!n.read&&<span className="nt-unread-label">Unread</span>}<time dateTime={n.at}>{when(n.at)}</time></div>{n.href?<Link className="nt-notification-title" to={n.href} onClick={()=>{if(!n.read)void run(n.id,()=>markRead(n.id));}}>{n.title}<ArrowUpRight size={14}/></Link>:<h3>{n.title}</h3>}<p>{n.body}</p><div className="nt-row-actions">{!n.read&&<button type="button" className="nt-mark-read" disabled={!!busy} aria-label={'Mark '+n.title+' as read'} onClick={()=>void run(n.id,()=>markRead(n.id))}><Check size={12}/>{busy===n.id?'Saving…':'Mark read'}</button>}<button type="button" className="nt-delete" disabled={!!busy} aria-label={'Delete notification: '+n.title} onClick={()=>void run('delete-'+n.id,()=>remove(n.id),'Notification removed.')}><Trash2 size={12}/>{busy==='delete-'+n.id?'Removing…':'Delete'}</button></div></article></li>)}</ul></section>:null;})}</div>:<div className="nt-empty"><CheckCheck size={25}/><h2>{readFilter==='unread'&&!search&&category==='all'?'You’re all caught up':items.length?'No matching updates':'No notifications yet'}</h2><p>{items.length?'Try another category or clear your filters.':'New order, quotation, and production updates will appear here.'}</p>{hasMore&&<p>Older notifications may contain matching updates.</p>}</div>}
+ <footer className="nt-footer"><span>{list.length} matching / {items.length} loaded{hasMore?' · older notifications available':''}</span>{hasMore&&<button type="button" className="nt-secondary" disabled={loading||!!busy} onClick={loadMore}>Load older notifications</button>}</footer></>}
+ </section><p className="nt-guidance">Search and category filters apply to loaded notifications. “Mark all read” and “Clear inbox” apply to the entire Super Admin inbox, including older items.</p>
+ <ConfirmDialog className="notification-confirmation" open={clearOpen} onOpenChange={setClearOpen} title="Clear the entire inbox?" description="This removes all notifications in the Super Admin inbox, including older items that are not currently loaded. Orders, messages, and production records will remain unchanged. This cannot be undone." confirmLabel="Clear inbox" tone="danger" onConfirm={()=>void run('clear',clearAll,'Notification inbox cleared.')}/>
+ </div>;
 }

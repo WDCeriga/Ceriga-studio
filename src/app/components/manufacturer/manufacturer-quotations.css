@@ -1,0 +1,53 @@
+/* The quotation workspace uses the same restrained, light surfaces as the new builders. */
+.quotation-detail{color:#171717;font-size:12px;line-height:1.6;color-scheme:light}
+.quotation-detail>header{padding:5px 0 20px;border-bottom:1px solid #e2e2e2}
+.quotation-detail>header h1{color:#171717;font-size:clamp(26px,2.5vw,34px);font-weight:500;letter-spacing:-.9px}
+.quotation-detail>header p:first-child{color:#737373;font-size:10px;font-weight:500;letter-spacing:.12em}
+.quotation-detail>header>span{background:#f2f2f2;border:1px solid #e2e2e2;border-radius:4px;color:#525252;font-size:11px;padding:5px 9px}
+.quotation-detail>header p:last-child{color:#909090;font-size:10px}
+.quotation-detail>a:first-child{color:#737373;font-size:11px;min-height:32px;align-items:center}
+.quotation-detail>a:first-child:hover{color:#171717}
+.quotation-detail section{border-color:#e2e2e2;background:white;border-radius:6px;padding:22px}
+.quotation-detail section h2{font-size:12px;font-weight:600;color:#171717}
+.quotation-detail section h3{font-size:12px;font-weight:500;color:#262626}
+.quotation-detail p,.quotation-detail dt{color:#737373;font-size:11px}
+.quotation-detail dd{color:#262626;font-size:12px}
+.quotation-detail dl{gap:20px}
+.quotation-detail table{color:#525252}
+.quotation-detail th{color:#737373;font-weight:400;font-size:10px;background:#fafafa}
+.quotation-detail td{color:#262626;font-size:11px}
+.quotation-detail div[class*='border-white'],.quotation-detail fieldset,.quotation-detail section div[class*='rounded-lg']{border-color:#e2e2e2;border-radius:4px}
+.quotation-detail section button{color:#525252;border-color:#e2e2e2;border-radius:4px;font-size:11px}
+.quotation-detail section button:hover{background:#f2f2f2}
+.quotation-detail :is(button,a,input,select,textarea):focus-visible{outline:2px solid #737373;outline-offset:3px}
+.quotation-detail span[class*='text-white/60']{color:#737373}
+.quotation-detail>.grid{gap:18px}
+.quotation-form-light{border:1px solid #e2e2e2;border-radius:6px;background:#fff;padding:24px}
+.quotation-form-light>h2{font-size:15px!important;font-weight:500!important;letter-spacing:-.2px}
+.quotation-form-light>p{max-width:740px;line-height:1.7}
+.quotation-form-light label{color:#525252;font-size:11px}
+.quotation-form-light fieldset{gap:16px}
+.quotation-form-light .quotation-option{background:#fafafa;border:1px solid #e2e2e2!important;border-radius:5px!important;padding:18px}
+.quotation-form-light .quotation-option input,.quotation-form-light textarea{min-height:42px;background:white;border:1px solid #d9d9d9;color:#171717;border-radius:4px;font-size:12px;box-shadow:none}
+.quotation-form-light .quotation-option input::placeholder{color:#a3a3a3}
+.quotation-form-light .quotation-option>div>div{color:#737373}
+.quotation-form-light .quotation-option>div>div>p{color:#171717;font-size:15px;font-weight:500}
+.quotation-form-light [data-quote-total]{padding-top:12px;border-top:1px solid #e2e2e2;color:#262626;background:none;font-size:11px}
+.quotation-detail .quotation-form-light button[type='submit']{background:#171717;color:white;border:1px solid #171717;border-radius:4px;min-height:42px;padding:9px 18px;font-size:11px;font-weight:500;transition:background 150ms}
+.quotation-detail .quotation-form-light button[type='submit']:hover{background:#333}
+.quotation-detail .quotation-form-light button:disabled{opacity:.45;cursor:not-allowed}
+.quotation-form-light>div:last-child{border-color:#e2e2e2}
+.quotation-detail .quotation-form-light>div:last-child>button{color:#a82b25;font-size:11px;text-decoration:none;min-height:36px}
+.quotation-detail .quotation-form-light [role='alert']{color:#a82b25;background:#fdf5f4;border:1px solid #efcfcc;padding:10px 12px;border-radius:4px}
+.quotation-detail .quotation-form-light [role='status']{color:#3f6248;background:#f5f8f5;padding:10px 12px;border-radius:4px}
+.quotation-form-light p[class*='text-emerald']{color:#3f6248}
+.quotation-form-light p[class*='text-amber']{color:#885f2e;border-color:#e9ddcc;background:#fdfaf5}
+.quotation-form-light p[class*='text-red']{color:#a82b25}
+.quotation-detail .quotation-form-light>div:last-child>div>button{color:#a82b25;border:1px solid #efcfcc;background:#fdf5f4}
+.quotation-specifications{border:1px solid #e2e2e2;border-radius:6px;background:white}
+.quotation-specifications>summary{padding:17px 22px;color:#525252;font-size:12px;font-weight:500;cursor:pointer}
+.quotation-specifications[open]>summary{border-bottom:1px solid #e2e2e2;margin-bottom:18px}
+.quotation-specifications>.grid{gap:18px;padding:0 18px 18px}
+.quotation-specifications section{background:#fafafa}
+@media(min-width:1024px){.quotation-detail>.quotation-form-light{margin-top:24px}.quotation-detail>section[aria-label='Order overview']{padding-top:16px;padding-bottom:16px}}
+@media(max-width:600px){.quotation-detail section{padding:16px}.quotation-detail>.grid{gap:14px}.quotation-form-light .quotation-option{padding:14px}.quotation-detail .quotation-form-light button[type='submit']{width:100%;min-height:44px}.quotation-detail section button{min-height:44px}.quotation-detail h1{line-height:1.25}.quotation-detail>header{gap:12px}}

@@ -1,7 +1,9 @@
+import {OrderShipping} from '../freight/OrderShipping';
 import { OrderCompletion } from './OrderCompletion';
 import { transactionMoney,displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { offerExpiresAt, offerExpired } from '../../lib/orderOffer';
 import { submitOrderToManufacturer } from '../../lib/manufacturerSubmission';
+import {formatMoney as originalMoney} from '../../lib/currency';
 import { formatMoney } from '../../lib/currency';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -183,7 +185,7 @@ function PriceOptionCard({
         </div>
         {paid ? (
           <Badge className="bg-emerald-500/20 text-emerald-300">Paid</Badge>
-        ) : paymentPlaceholder ? (
+        ) : paymentPlaceholder && !option.shipping ? (
           <Button type="button" disabled={expired || submitting || submitted} onClick={() => void submit()} className="h-10 bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"><Send className="mr-2 h-3.5 w-3.5" />{expired ? 'Offer expired' : submitting ? 'Submitting…' : submitted ? 'Submitted' : 'Submit'}</Button>
         ) : (
           <Button
@@ -197,6 +199,7 @@ function PriceOptionCard({
           </Button>
         )}
       </div>
+      {option.shipping&&<div className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60"><p>{option.shipping.method} · Estimated {option.shipping.transitDays} calendar days after collection · {option.shipping.provider}</p><p>Manufacturing: {originalMoney(option.shipping.manufacturingCents,option.shipping.currency)} · Shipping: {originalMoney(option.shipping.priceCents,option.shipping.currency)} · Shipping service fee: {originalMoney(option.shipping.serviceFeeCents,option.shipping.currency)} · Taxes / known duties: {originalMoney(option.shipping.taxCents+option.shipping.dutiesCents,option.shipping.currency)} · Other: {originalMoney(option.shipping.otherCents,option.shipping.currency)}</p><p>{option.shipping.tradeTerms}</p><p className="mt-1">Payable amount and currency are locked: {originalMoney(option.priceCents,option.currency!)}.</p></div>}
     </div>
   );
 }
@@ -280,7 +283,7 @@ export function ProductionPriced({ order }: { order: UserOrder }) {
         <p className="text-sm leading-relaxed text-white/70">
           {isPod
             ? 'Your print-on-demand quote is ready. Submit your selected option to the manufacturer.'
-            : (options.length ? 'Your approved quote is ready. Submit your selected sample or bulk option to the manufacturer.' : 'Ceriga is finalising your quotation. Approved pricing will appear here shortly.')}
+            : (options.length ? 'Your approved quote is ready. Review the selected sample or bulk option and its shipping terms before proceeding.' : 'Ceriga is finalising your quotation. Approved pricing will appear here shortly.')}
         </p>
         {options.length > 0 && <div className="mt-3">
           <PriceValidityNotice pricedAt={order.pricedAt} expiresAt={order.quoteExpiresAt} />
@@ -347,6 +350,7 @@ export function ProductionPaidOrFulfilment({ order }: { order: UserOrder }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <OrderShipping orderId={order.id}/>
       <Panel>
         <p className="text-sm text-white/70">
           {order.status === 'completed'

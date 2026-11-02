@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getCurrencyState,setAccountCurrency,displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { Coins } from 'lucide-react';
 import { Input } from '../ui/input';
@@ -8,10 +9,21 @@ import { formatPriceRange, normalizePricing, PRICE_GARMENTS, pricingValidationEr
 
 export function MoneyInput({ label, cents, currency, onChange }: { label: string; cents?: number; currency: Currency; onChange: (value: number | undefined) => void }) {
   useCurrency();
+  const [draft, setDraft] = useState<string | null>(null);
+  const formatted = cents === undefined || !Number.isSafeInteger(cents) ? '' : (cents / 100).toFixed(2);
   return <label className="block text-[11px] text-white/60">{label}
-    <span className="mt-1 flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-2">
+    <span className="money-input-control mt-1 flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-2">
       <span aria-hidden="true">{currencySymbol(currency)}</span>
-      <Input type="number" min="0" step="0.01" aria-label={`${label} (${currency})`} value={cents === undefined ? '' : cents / 100} onChange={event => onChange(amountToCents(event.target.value))} placeholder={`0.00 ${currency}`} className="h-8 min-w-0 border-0 bg-transparent px-0 text-xs text-white shadow-none" />
+      <Input type="text" inputMode="decimal" autoComplete="off" aria-label={`${label} (${currency})`} value={draft ?? formatted} onChange={event => {
+        const value = event.target.value.replace(',', '.');
+        if (!/^\d*(\.\d{0,2})?$/.test(value)) return;
+        const normalized = value === '.' ? '0' : value.endsWith('.') ? value.slice(0, -1) : value.startsWith('.') ? `0${value}` : value;
+        const amount = amountToCents(normalized);
+        if (amount !== undefined && !Number.isSafeInteger(amount)) return;
+        setDraft(value);
+        onChange(amount);
+      }} onBlur={() => setDraft(null)} placeholder="0.00" className="h-8 min-w-0 border-0 bg-transparent px-0 text-xs text-white shadow-none" />
+      <span className="money-input-currency" aria-hidden="true">{currency}</span>
     </span>
   </label>;
 }
@@ -24,11 +36,14 @@ export function CurrencyChoice({ currency, onChange }: { currency: Currency; onC
     </button>)}</div>;
 }
 
-export function IndicativePricingGuidance({ value, onChange }: { value: PricingStructure; onChange: (pricing: PricingStructure) => void }) {
+export function IndicativePricingGuidance({ value, onChange, selectedGarments }: { value: PricingStructure; selectedGarments: readonly string[]; onChange: (pricing: PricingStructure) => void }) {
   const account=useCurrency();
   const pricing = normalizePricing({...value,preferredCurrency:account.ready?account.currency:value.preferredCurrency}), currency = pricing.preferredCurrency, book = pricing.priceBooks?.[currency] ?? {};
   const update = (patch: Partial<PricingStructure>) => onChange({ ...pricing, ...patch });
   const error = pricingValidationError(pricing);
+  const selected=new Set(selectedGarments);
+  const categories:Record<string,string>={hoodie:'Hoodies',tshirt:'T-shirts',sweatshirt:'Sweatshirts',jogger:'Joggers'};
+  const garments=PRICE_GARMENTS.filter(({key})=>selected.has(categories[key]));
   return <section aria-label="Indicative Pricing Guidance" className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-6">
     <div className="flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-sm font-semibold text-white"><Coins className="h-4 w-4 text-[#CC2D24]" />Indicative Pricing Guidance</h3><span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] text-white/40">Optional / Non-binding</span></div>
     <p className="text-xs text-white/40">Provides brands with ballpark estimates. Every order receives a formal quotation based on final tech pack specs.</p>
@@ -43,7 +58,7 @@ export function IndicativePricingGuidance({ value, onChange }: { value: PricingS
     {pricing.samplePricingApproach === 'flat_fee' && SUPPORTED_CURRENCIES.filter(other => other !== currency && pricing.flatSampleFeeByCurrency?.[other] !== undefined).map(other => <p key={other} className="text-[11px] text-white/40">Saved flat sample fee: {formatMoney(pricing.flatSampleFeeByCurrency![other]!,other)} (original) · Indicative: {displayMoney(pricing.flatSampleFeeByCurrency![other]!,other)}</p>)}
     {pricing.samplePricingApproach === 'custom_quote' && <p className="text-xs text-white/50">Provide a custom sample quotation in {currency} for each order.</p>}
     <div><h4 className="text-xs font-medium text-white/70">Typical Unit Price Ranges ({currency})</h4>
-      <div className="mt-3 grid gap-4 sm:grid-cols-2">{PRICE_GARMENTS.map(({ key, label }) => {
+      <div className="mt-3 grid gap-4 sm:grid-cols-2">{garments.map(({ key, label }) => {
         const range = book[key], sample = samplePriceRange(pricing, key);
         const others = SUPPORTED_CURRENCIES.filter(other => other !== currency && pricing.priceBooks?.[other]?.[key]);
         const setBound = (bound: 'minCents' | 'maxCents', amount: number | undefined) => update({ priceBooks: { ...pricing.priceBooks, [currency]: { ...book, [key]: { ...range, currency, [bound]: amount } } } });
@@ -53,7 +68,7 @@ export function IndicativePricingGuidance({ value, onChange }: { value: PricingS
           {others.map(other => <p key={other} className="text-[11px] text-white/40">Saved {other}: {formatPriceRange(pricing.priceBooks![other]![key]!)} (original). Indicative: {displayMoney(pricing.priceBooks![other]![key]!.minCents??NaN,other)} – {displayMoney(pricing.priceBooks![other]![key]!.maxCents??NaN,other)}</p>)}
           {pricing.indicativePriceRanges?.[key] && !Object.values(pricing.priceBooks ?? {}).some(otherBook => otherBook?.[key]) && <p className="text-[11px] text-amber-300">Previous price retained: {pricing.indicativePriceRanges[key]}. Enter a structured range when ready.</p>}
         </fieldset>;
-      })}</div>
+      })}</div>{!garments.length&&<p className="mt-3 text-xs text-white/40">{selectedGarments.length?'Your selected garments are priced through individual quotations.':'Select your garments in Products & Garments to set unit price ranges.'}</p>}
     </div>
     {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
   </section>;

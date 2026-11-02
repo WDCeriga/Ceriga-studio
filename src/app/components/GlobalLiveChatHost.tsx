@@ -20,5 +20,8 @@ export function GlobalLiveChatHost({ router }: { router: AppDataRouter }) {
   }, [router]);
 
   if (HIDE_ON.has(pathname)) return null;
-  return <DashboardLiveChat />;
+  const lightFooter = ['/manufacturer', '/superadmin'].some(
+    root => pathname === root || pathname.startsWith(`${root}/`),
+  );
+  return <DashboardLiveChat light={lightFooter} />;
 }

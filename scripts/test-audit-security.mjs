@@ -1,3 +1,4 @@
+import {shippingFixture,selectTestShipping,verifyTestPayment}from './support/shippingFixture.mjs';
 import assert from 'node:assert/strict';import fs from 'node:fs/promises';import{testDatabase,asAccount}from './support/testDatabase.mjs';
 const db=await testDatabase();
 const buyer='11111111-1111-1111-1111-111111111111',factory='22222222-2222-2222-2222-222222222222',other='33333333-3333-3333-3333-333333333333',admin='44444444-4444-4444-4444-444444444444';
@@ -7,10 +8,10 @@ try{
  const input={kind:'production',product_name:'Private quote',garment_type:'T-shirts',order_quantities:{sample:{id:'sample',kind:'sample',targetTotal:2,bySize:{m:2}},bulkRuns:[]}};
  const oid=(await db.query('select public.create_customer_order($1::jsonb) o',[JSON.stringify(input)])).rows[0].o.id;
  await asAccount(db,admin,'owner@ceriga.io');await db.query('select public.assign_order_manufacturer($1,$2,current_date+3)',[oid,factory]);
- await asAccount(db,factory);await db.query('select public.submit_manufacturer_quote($1,$2::jsonb)',[oid,JSON.stringify([{id:'sample',kind:'sample',unitPriceCents:1000,currency:'EUR',leadTimeDays:14}])]);
+ await asAccount(db,factory);await db.query('select public.submit_manufacturer_quote($1,$2::jsonb)',[oid,JSON.stringify([{id:'sample',kind:'sample',shipping:shippingFixture,unitPriceCents:1000,currency:'EUR',leadTimeDays:14}])]);
  await assert.rejects(db.query("update public.orders set tracking='FORGED'where id=$1",[oid]),/authorised/);
  await assert.rejects(db.query("update public.manufacturer_profiles set status='paused'where user_id=$1",[factory]),/Only Ceriga/);
- await asAccount(db,admin,'owner@ceriga.io');await db.query('select public.publish_order_quote($1,$2::jsonb)',[oid,JSON.stringify([{id:'sample',cents:3000}])]);
+ await asAccount(db,admin,'owner@ceriga.io');await selectTestShipping(db,oid);await db.query('select public.publish_order_quote($1,$2::jsonb)',[oid,JSON.stringify([{id:'sample',cents:3000}])]);
  const adminView=(await db.query('select *from public.account_orders where id=$1',[oid])).rows[0];assert.equal(adminView.price_options[0].currencySnapshot.markupCents,1000);
  await asAccount(db,factory);await assert.rejects(db.query('select price_options from public.orders where id=$1',[oid]),/permission denied/);let row=(await db.query('select *from public.account_orders where id=$1',[oid])).rows[0];assert.equal(row.price_options[0].priceCents,undefined);assert.equal(row.price_options[0].currencySnapshot,undefined);assert.equal(row.manufacturer_quote[0].manufacturerQuoteCents,2000);
  await asAccount(db,buyer);row=(await db.query('select *from public.account_orders where id=$1',[oid])).rows[0];assert.equal(row.price_options[0].priceCents,3000);assert.equal(row.manufacturer_quote,null);assert.equal(row.price_options[0].currencySnapshot.markupCents,undefined);assert.equal(row.price_options[0].currencySnapshot.originalManufacturerCents,undefined);

@@ -1,0 +1,11 @@
+export const productionStages=['preparation','cutting_sewing','finishing'] as const;
+export const stageLabel=(s:string)=>({preparation:'Preparations',cutting_sewing:'Cutting & Sewing',cutting:'Cutting',sewing:'Sewing',finishing:'Finishing',quality_control:'Quality Control'}[s]||s);
+export type TimingRule={id:string;factor:string;stage:string;op:'eq'|'gte';value:string|number|boolean;effect:'add_time'|'pause'|'confirm';duration:number;unit:string;notes:string};
+export type TimelineConfig={timezone:string;workdays:number[];workStart:string;workEnd:string;startEvent:string;stages:{id:string;duration:number;unit:string;starts:string;automatic:boolean;segments?:{duration:number;unit:string;id:string}[]}[];factors:TimingRule[]};
+export const timingLabels:Record<string,string>={quantity:'Order quantity (units)',complexity:'Product complexity',materials:'Materials available',sample_approval:'Sample approved',customer_approval:'Customer approved',quality_checks:'Quality checks confirmed',capacity:'Factory workload (% of monthly capacity)'};
+export const durationUnits=[['working_days','Working days'],['calendar_days','Calendar days'],['hours','Elapsed hours'],['working_hours','Working hours']] as const;
+export const displayProductionStage=(stage:string)=>['cutting','sewing'].includes(stage)?'cutting_sewing':stage;
+export function legacyProductionTimeline(order:any){return order.plan?.config?.stages?.some((s:any)=>s.id==='sewing')??false;}
+export function nextStage(order:{stage:string;version:number;plan?:any}){const legacy=legacyProductionTimeline(order);const stages=legacy?['preparation','cutting','sewing','finishing','quality_control']:[...productionStages,'quality_control'];if(legacy&&order.version===0)return 'preparation';const current=legacy?order.stage:displayProductionStage(order.stage),index=stages.indexOf(current);return index<0?null:stages[index+1]||null;}
+export function productionBlocked(order:any){return !!order.plan.needs_review||order.plan.blocks.some((b:any)=>!b.resolved)||!!order.plan.schedule[0]?.blocked||!!order.plan.schedule.find((s:any)=>s.stage===nextStage(order))?.blocked;}
+export function productionDate(value:string|null,timezone?:string){return value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short',timeZone:timezone}).format(new Date(value)):'Uncertain — resolve blockers';}

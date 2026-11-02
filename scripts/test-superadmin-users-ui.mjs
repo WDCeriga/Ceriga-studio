@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {transformWithEsbuild} from 'vite';
+import * as React from 'react';
+import * as Icons from 'lucide-react';
+import {renderToStaticMarkup} from 'react-dom/server';
+const users=Array.from({length:30},(_,i)=>({id:String(i),name:'Account '+String(i).padStart(2,'0'),email:`account${i}@example.test`,role:i%2?'manufacturer':'brand',credits:i,ordersCount:i,createdAt:'2026-10-01',lastActive:'2026-10-30'}));
+let index=0,overrides={},changes=[],loading=false,error='',sourceUsers=users;
+const element=tag=>({children,...props})=>React.createElement(tag,Object.fromEntries(Object.entries(props).filter(([k])=>['className','type','disabled','aria-label','aria-pressed','value'].includes(k))),children);
+const ui={Button:element('button'),Checkbox:element('button'),Input:element('input'),Label:element('label'),Textarea:element('textarea')};
+const imports={react:{...React,useState:initial=>{const i=index++;return [i in overrides?overrides[i]:initial,v=>changes.push([i,v])];},useMemo:fn=>fn()},'react-router':{useNavigate:()=>()=>{}},'lucide-react':Icons,sonner:{toast:{success:()=>{},error:()=>{},info:()=>{}}},'../../hooks/useSuperadminData':{useSuperadminData:()=>({users:sourceUsers,loading,usersError:error,deleteAccount:async()=>{},refresh:async()=>{}})},'../../components/DeleteRecordButton':{DeleteRecordButton:()=>null},'../../components/ui/utils':{cn:(...v)=>v.filter(Boolean).join(' ')},'../../components/ui/dialog':{Dialog:({open,children})=>open?children:null,DialogContent:element('div'),DialogFooter:element('footer'),DialogHeader:element('header'),DialogTitle:element('h2')},'../../components/ui/sheet':{Sheet:({open,children})=>open?children:null,SheetContent:element('div'),SheetDescription:element('div'),SheetHeader:element('header'),SheetTitle:element('h2')}};
+for(const name of ['button','checkbox','input','label','textarea'])imports['../../components/ui/'+name]=ui;
+const mod={exports:{}};const code=(await transformWithEsbuild(await readFile('src/app/pages/superadmin/SuperAdminUsers.tsx','utf8'),'users.tsx',{format:'cjs'})).code;new Function('React','require','module','exports',code)(React,n=>n.endsWith('.css')?{}:imports[n],mod,mod.exports);
+const tree=()=>{index=0;return mod.exports.SuperAdminUsers();};const render=()=>renderToStaticMarkup(tree());const flatten=n=>!n||typeof n!=='object'?[]:[n,...React.Children.toArray(n.props?.children).flatMap(flatten)];
+let html=render();assert.match(html,/30 matching accounts/);assert.equal((html.match(/role="button"/g)||[]).length,25);assert.match(html,/Page 1 of 2/);
+overrides={1:2};html=render();assert.equal((html.match(/role="button"/g)||[]).length,5);assert.match(html,/Page 2 of 2/);
+overrides={0:'account1@'};html=render();assert.match(html,/1 matching account/);assert.match(html,/account1@example.test/);
+overrides={2:'manufacturer'};html=render();assert.equal((html.match(/role="button"/g)||[]).length,15);
+overrides={};sourceUsers=[];assert.match(render(),/No profiles in the database yet/);sourceUsers=users;loading=true;assert.match(render(),/Loading users/);loading=false;error='Database unavailable';assert.match(render(),/Could not load users: Database unavailable/);error='';
+changes=[];const nodes=flatten(tree());nodes.find(n=>n.props?.['aria-label']==='Search users').props.onChange({target:{value:'hello'}});assert.deepEqual(changes,[[0,'hello'],[1,1]]);
+const row=nodes.find(n=>n.props?.role==='button');changes=[];const child={};row.props.onKeyDown({target:child,currentTarget:{},key:'Enter',preventDefault:()=>{throw Error('Child keyboard event intercepted');}});assert.equal(changes.length,0);
+const src=await readFile('src/app/pages/superadmin/SuperAdminUsers.tsx','utf8');assert.doesNotMatch(src,/Email sent|setEmailStep|setSentRecipients/);assert.match(src,/mailto:\?bcc=/);assert.match(src,/draft.length > 1800/);assert.match(src,/e.target === e.currentTarget/);
+console.log('PASS users: 25-row pagination, next page, search, role filter, empty/loading/database-error states, search resets page, nested keyboard isolation, honest BCC draft flow without false delivery claims.');
+
+globalThis.window={location:{href:''}};overrides={6:true,8:new Set(['0']),14:'A subject',15:'A message'};const draftNodes=flatten(tree());const send=draftNodes.find(n=>n.props?.onClick?.name==='handleSendEmail');assert.ok(send);send.props.onClick();assert.match(window.location.href,/^mailto:\?bcc=account0%40example.test&subject=A%20subject&body=A%20message$/);window.location.href='';overrides[15]='x'.repeat(2000);flatten(tree()).find(n=>n.props?.onClick?.name==='handleSendEmail').props.onClick();assert.equal(window.location.href,'');console.log('PASS actual email-draft handler encodes BCC, subject and body; oversized links are blocked.');

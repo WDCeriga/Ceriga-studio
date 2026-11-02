@@ -20,6 +20,7 @@ export type ConfirmDialogProps = {
   /** Use for destructive / irreversible actions */
   tone?: 'default' | 'danger';
   onConfirm: () => void;
+  className?: string;
 };
 
 /**
@@ -35,10 +36,11 @@ export function ConfirmDialog({
   cancelLabel = 'Cancel',
   tone = 'default',
   onConfirm,
+  className,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="border-[#252528] bg-[#161618] text-[#F0EEEE] shadow-2xl shadow-black/50">
+      <AlertDialogContent className={cn('border-[#252528] bg-[#161618] text-[#F0EEEE] shadow-2xl shadow-black/50', className)}>
         <AlertDialogHeader>
           <AlertDialogTitle className="text-[#F0EEEE]">{title}</AlertDialogTitle>
           <AlertDialogDescription className="text-[#8A8A90]">{description}</AlertDialogDescription>

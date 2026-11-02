@@ -1,5 +1,2 @@
-import { MemberMessages } from "../../components/MemberMessages";
-
-export function ManufacturerMessages() {
-  return <MemberMessages />;
-}
+import {ManufacturerMessagesView} from '../../components/manufacturer/ManufacturerMessagesView';
+export function ManufacturerMessages(){return <ManufacturerMessagesView/>;}

@@ -10,6 +10,7 @@ import type { OrderQuantityPlan } from '../data/orderQuantities';
 import type { OrderDeliveryInfo } from '../data/orderDelivery';
 
 export type ManufacturerQuoteTierRow = {
+  shipping?: import('./freight').ShippingTerms;
   unitPriceCents?: number;
   currency?: import('./currency').Currency;
   shippingCurrency?: import('./currency').Currency;

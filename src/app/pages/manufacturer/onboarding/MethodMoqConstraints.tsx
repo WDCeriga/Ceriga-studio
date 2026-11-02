@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import './method-moq-picker.css';
 import { ChevronsUpDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -49,16 +50,16 @@ export function MethodMoqConstraints({ profile, onChange }: Props) {
           <PopoverTrigger type="button" role="combobox" aria-label="Customisation method" aria-expanded={open} className="inline-flex h-9 w-full items-center justify-between gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs text-white hover:border-[#CC2D24]/60 focus-visible:outline focus-visible:outline-[#CC2D24] sm:w-80">
               <span className="truncate">{selected?.name ?? 'Select a customisation method...'}</span><ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 text-white/50" />
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-[min(360px,90vw)] border-[#252528] bg-[#111113] p-0 text-white">
-            <Command className="bg-transparent text-white">
+          <PopoverContent align="start" sideOffset={6} className="method-moq-picker">
+            <Command>
               <CommandInput placeholder="Search selected methods..." aria-label="Search selected methods" />
               <CommandList>
                 <CommandEmpty>{!methods.length ? 'No methods selected in Production Capabilities.' : !options.length ? 'All selected methods already have an MOQ.' : 'No selected methods match your search.'}</CommandEmpty>
                 {METHOD_CATEGORIES.map(category => {
                   const items = options.filter(method => method.category === category.id);
                   return items.length ? <CommandGroup key={category.id} heading={category.label}>
-                    {items.map(method => <CommandItem key={method.id} value={method.id} keywords={[method.name, category.label]} onSelect={() => { setSelectedId(method.id); setOpen(false); setError(''); }} className="text-xs text-white/80 data-[selected=true]:bg-[#CC2D24]/20 data-[selected=true]:text-white">
-                      {method.name}{method.custom && <span className="ml-auto text-[10px] text-white/40">Custom</span>}
+                    {items.map(method => <CommandItem key={method.id} value={method.id} keywords={[method.name, category.label]} onSelect={() => { setSelectedId(method.id); setOpen(false); setError(''); }}>
+                      {method.name}{method.custom && <span className="method-moq-custom">Custom</span>}
                     </CommandItem>)}
                   </CommandGroup> : null;
                 })}

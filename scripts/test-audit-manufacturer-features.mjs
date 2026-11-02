@@ -26,5 +26,6 @@ try{
  const leave=(await db.query("select public.request_factory_availability('time_off',current_date+3,current_date+4,'Holiday') id")).rows[0].id;
  await assert.rejects(db.query('select public.review_factory_availability($1,true)',[leave]),/admin/i);
  assert.equal((await db.query('select status from public.manufacturer_availability where id=$1',[leave])).rows[0].status,'approved');await asAccount(db,admin,'owner@ceriga.io');await assert.rejects(db.query('select public.review_factory_availability($1,true)',[leave]),/pending/);
+ await asAccount(db,factory);await db.query('select public.remove_portfolio_item($1,2)',[id]);assert.equal((await db.query('select *from public.manufacturer_portfolio_items')).rows.length,0);await assert.rejects(db.query('select public.remove_portfolio_item($1,2)',[id]),/unavailable/);
  console.log('PASS: profile persistence/validation, private files, portfolio concurrency/isolation, verification review/resubmission/history, immediate self-managed availability and withdrawal.');
 }finally{await db.close();}

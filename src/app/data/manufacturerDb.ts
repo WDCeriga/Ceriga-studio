@@ -271,7 +271,7 @@ function rowToMaterial(row: MaterialRow): FactoryMaterial {
     supplier: row.supplier ?? undefined,
     location: row.location ?? undefined,
     notes: row.notes ?? undefined,
-    updatedAt: row.updated_at.slice(0, 10),
+    updatedAt: row.updated_at,
   };
 }
 
@@ -288,6 +288,7 @@ export async function fetchFactoryMaterials(): Promise<FactoryMaterial[]> {
 
 export async function insertFactoryMaterial(
   input: Omit<FactoryMaterial, 'id' | 'updatedAt'>,
+  expectedFactoryId?: string,
 ): Promise<FactoryMaterial> {
   requireConfigured();
   const supabase = getSupabase();
@@ -295,10 +296,12 @@ export async function insertFactoryMaterial(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('You must be signed in');
+  const factoryId = await currentFactoryId();
+  if (expectedFactoryId && factoryId !== expectedFactoryId) throw new Error('Factory workspace changed. Reopen the material before saving.');
   const { data, error } = await supabase
     .from('factory_materials')
     .insert({
-      user_id: await currentFactoryId(),
+      user_id: factoryId,
       name: input.name,
       kind: input.kind,
       colour: input.colour ?? null,
@@ -319,6 +322,7 @@ export async function insertFactoryMaterial(
 export async function patchFactoryMaterial(
   id: string,
   patch: Partial<Omit<FactoryMaterial, 'id'>>,
+  guard?: {factoryId: string; updatedAt: string},
 ): Promise<void> {
   requireConfigured();
   const supabase = getSupabase();
@@ -326,21 +330,27 @@ export async function patchFactoryMaterial(
   if (patch.name !== undefined) payload.name = patch.name;
   if (patch.kind !== undefined) payload.kind = patch.kind;
   if (patch.colour !== undefined) payload.colour = patch.colour ?? null;
-  if (patch.gsm !== undefined) payload.gsm = patch.gsm ?? null;
+  if ('gsm' in patch) payload.gsm = patch.gsm ?? null;
   if (patch.quantity !== undefined) payload.quantity = patch.quantity;
   if (patch.unit !== undefined) payload.unit = patch.unit;
   if (patch.reorderAt !== undefined) payload.reorder_at = patch.reorderAt;
   if (patch.supplier !== undefined) payload.supplier = patch.supplier ?? null;
   if (patch.location !== undefined) payload.location = patch.location ?? null;
   if (patch.notes !== undefined) payload.notes = patch.notes ?? null;
-  const { data, error } = await supabase.from('factory_materials').update(payload).eq('id', id).select('id').single();
+  let query = supabase.from('factory_materials').update(payload).eq('id', id);
+  if (guard) query = query.eq('user_id', guard.factoryId).eq('updated_at', guard.updatedAt);
+  const { data, error } = await query.select('id').single();
+  if (error?.code === 'PGRST116' && guard) throw new Error('This material changed or is no longer available. Refresh inventory before trying again.');
   if (error) throw error;
 }
 
-export async function deleteFactoryMaterial(id: string): Promise<void> {
+export async function deleteFactoryMaterial(id: string, guard?: {factoryId: string; updatedAt: string}): Promise<void> {
   requireConfigured();
   const supabase = getSupabase();
-  const { data, error } = await supabase.from('factory_materials').delete().eq('id', id).select('id').single();
+  let query = supabase.from('factory_materials').delete().eq('id', id);
+  if (guard) query = query.eq('user_id', guard.factoryId).eq('updated_at', guard.updatedAt);
+  const { data, error } = await query.select('id').single();
+  if (error?.code === 'PGRST116' && guard) throw new Error('This material changed or is no longer available. Refresh inventory before trying again.');
   if (error) throw error;
 }
 
