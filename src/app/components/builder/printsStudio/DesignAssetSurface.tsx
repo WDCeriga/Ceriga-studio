@@ -1,3 +1,4 @@
+import {surfaceArtworkClip} from '../../../lib/surfaceClipping';
 import {ArtworkSurfaceContext} from './ArtworkSurfaceContext';
 import {mapShapePath} from '../../../lib/artworkPathOperations';
 import {shapePathData} from '../../../lib/shapeGeometry';
@@ -35,11 +36,12 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
   cropOverlay?: ReactNode;
 }) {
   const artworkSurface=useContext(ArtworkSurfaceContext);
-  const surfaceMask=useMemo(()=>{if(!artworkSurface?.surface.clip)return undefined;const a=-element.rotation*Math.PI/180,c=Math.cos(a),sn=Math.sin(a),local=mapShapePath(artworkSurface.surface.outline,p=>{const x=p.x-(position?.x??element.x),y=p.y-(position?.y??element.y);return{x:x*c-y*sn+element.width/2,y:x*sn+y*c+element.height/2}});const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${element.width} ${element.height}" preserveAspectRatio="none"><path d="${shapePathData(local)}" fill="white" fill-rule="evenodd"/></svg>`;return{maskImage:`url("data:image/svg+xml,${encodeURIComponent(svg)}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'};},[artworkSurface?.surface,element.rotation,element.x,element.y,element.width,element.height,position?.x,position?.y]);
+  const sourceCut=Boolean(element.locked&&element.svgPrecision&&!element.svgPrecision.owner);
+  const surfaceMask=useMemo(()=>sourceCut?undefined:surfaceArtworkClip(artworkSurface?.surface,element,position),[sourceCut,artworkSurface?.surface,element.rotation,element.x,element.y,element.width,element.height,position?.x,position?.y]);
   const printTexture=useContext(GarmentPrintTextureContext);
   const patternTexture=useContext(GarmentPatternReliefContext);
   const pattern=element.type==='pattern'||Boolean(element.customAreaPattern);
-  const texture=pattern?patternTexture:printTexture;
+  const texture=artworkSurface?undefined:pattern?patternTexture:printTexture;
   const [printMask,setPrintMask]=useState<{url:string;width:number;height:number;padding:number;key:string}|null>(null);
   const surface = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -83,10 +85,19 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
     const hitPaths=unpainted?Array.from(content.current?.querySelectorAll<SVGPathElement>('[data-editable-ink]')??[]).map(node=>({node,path:new Path2D(node.getAttribute('d')??'')})):[];
     return registerArtworkHitTest(root, client => {
       if ((element.type === 'drawing' || element.patternTarget) && garmentMask === null) return false;
+      // Imported font metrics can extend past their original frame after fonts load.
+      if (artworkSurface && element.type === 'text') {
+        for (const glyph of content.current?.querySelectorAll('svg text') ?? []) {
+          const box = glyph.getBoundingClientRect();
+          if (client.x >= box.left - 3 && client.x <= box.right + 3 && client.y >= box.top - 3 && client.y <= box.bottom + 3) return true;
+        }
+      }
       const rect = root.getBoundingClientRect();
       const angle = element.rotation * Math.PI / 180;
       const cos = Math.cos(angle), sin = Math.sin(angle);
-      const w = root.offsetWidth, h = root.offsetHeight;
+      // Preserve fractional millimetre frames when testing enlarged physical surfaces.
+      const css = getComputedStyle(root);
+      const w = parseFloat(css.width) || root.offsetWidth, h = parseFloat(css.height) || root.offsetHeight;
       const pixelScale = rect.width / (Math.abs(cos) * w + Math.abs(sin) * h);
       if (!pixelScale || !w || !h) return false;
       const dx = (client.x - (rect.left + rect.width / 2)) / pixelScale;
@@ -111,7 +122,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
       return local.x >= bounds.x && local.x <= bounds.x + bounds.width
         && local.y >= bounds.y && local.y <= bounds.y + bounds.height;
     });
-  }, [element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live, bounds,unpainted,selected,element.shapePath]);
+  }, [artworkSurface,element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live, bounds,unpainted,selected,element.shapePath]);
 
   useEffect(() => {
     const node = content.current;
@@ -203,7 +214,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
   const projected=(live??element.perspective)?.some((point,index)=>Math.abs(point.x-UNIT_QUAD[index].x)>1e-8||Math.abs(point.y-UNIT_QUAD[index].y)>1e-8);
   const projectionTransform=projected?map.css(width,actualHeight):undefined;
   return <ArtworkInteractionContext.Provider value={interacting}><ArtworkResolutionContext.Provider value={scale}>
-    <div ref={surface} data-pattern-clip={element.patternTarget} data-drawing-clip={element.type === 'drawing' && garmentMask !== undefined ? '' : undefined} className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', ...((element.type === 'drawing' || element.patternTarget || garmentMask) && garmentMask !== undefined ? {
+    <div ref={surface} data-pattern-clip={element.patternTarget} data-drawing-clip={element.type === 'drawing' && garmentMask !== undefined ? '' : undefined} className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', ...(!artworkSurface && (element.type === 'drawing' || element.patternTarget || garmentMask) && garmentMask !== undefined ? {
       visibility: garmentMask ? undefined : 'hidden',
       maskImage: garmentMask ? drawingMaskCss(garmentMask, width, actualHeight, position?.x ?? element.x, position?.y ?? element.y, element.rotation) : undefined,
       maskSize: '100% 100%', maskRepeat: 'no-repeat',

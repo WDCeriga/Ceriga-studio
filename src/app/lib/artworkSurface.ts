@@ -7,7 +7,7 @@ export interface Surface {id:string;kind:SurfaceKind;units:SurfaceUnits;width:nu
 export interface SurfaceFrame {leaderId?:string;id:string;name:string;x:number;y:number;width:number;height:number;padding:number;fill:string;clip:boolean;layout:'stacked'|'free';artworks:string[];sourceKey?:string}
 export interface SvgSceneNode {tag:string;attrs:Record<string,string>;children?:SvgSceneNode[];text?:string;artworkId?:string}
 /** SVG precision data preserves legacy baselines/clip coordinates, never a bitmap of text. */
-export interface SvgPrecision {node:SvgSceneNode;parents:SvgSceneNode[];matrix:Matrix;definitions:string;base:Partial<DesignElement>;owner?:string}
+export interface SvgPrecision {fontScale?:number;trackingScale?:number;node:SvgSceneNode;parents:SvgSceneNode[];matrix:Matrix;definitions:string;base:Partial<DesignElement>;owner?:string}
 export interface ArtworkDocument {schemaVersion:2;id:string;surfaceId:string;elements:DesignElement[];frames:SurfaceFrame[];scene:SvgSceneNode[];definitions:string;sourceFingerprint:string;revision:number;readOnly?:boolean;deletedSourceKeys?:string[]}
 export interface SurfaceArtwork {surface:Surface;document:ArtworkDocument}
 export const IDENTITY:Matrix=[1,0,0,1,0,0];

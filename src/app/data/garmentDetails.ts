@@ -131,7 +131,7 @@ export interface GarmentDetail {
   patch?: PatchSettings;
 }
 
-export interface DetailBounds { minX: number; minY: number; maxX: number; maxY: number; necklineY?: number; openingGeometry?: OpeningGeometry }
+export interface DetailBounds { minX: number; minY: number; maxX: number; maxY: number; necklineY?: number; polo?: boolean; openingGeometry?: OpeningGeometry }
 
 export function createGarmentDetail(type: GarmentDetailType, details: GarmentDetail[], fill: string, variant?: GarmentDetailVariant): GarmentDetail {
   const asset = GARMENT_DETAIL_ASSETS[type];

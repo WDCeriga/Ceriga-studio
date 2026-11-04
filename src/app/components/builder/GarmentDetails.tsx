@@ -146,9 +146,7 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
   const selectClass = 'mt-1 w-full min-w-0 rounded border border-white/15 bg-[#171717] p-2 text-xs text-white';
   return <section aria-label="Patch construction" className="space-y-3 border-y border-white/15 py-3">
     <div className="grid grid-cols-2 gap-3 text-[11px] text-white/60">
-      <label>Patch type<MaterialSelect aria-label="Patch type" className={selectClass} value={settings.material} onChange={event => update({ material: event.target.value as PatchSettings['material'], application: undefined, edgeStyle: undefined, depth: undefined })}>
-        {Object.entries(PATCH_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </MaterialSelect></label>
+      <fieldset className="patch-material-choices"><legend>Patch construction</legend>{Object.entries(PATCH_TYPES).map(([value,label])=><button type="button" key={value} aria-pressed={settings.material===value} onClick={()=>update({material:value as PatchSettings['material'],application:undefined,edgeStyle:undefined,depth:undefined})}><i className={'patch-material-sample patch-material-'+value}/><span>{label.replace(' patch','')}<small>{({embroidered:'Raised stitched thread',woven:'Fine interlaced detail',chenille:'Soft looped pile',pvc:'Moulded relief',leather:'Stamped or printed hide',printed:'Smooth printed fabric',twill:'Woven ground with stitching'} as Record<string,string>)[value]}</small></span></button>)}</fieldset>
       <label>Shape<MaterialSelect aria-label="Patch shape" className={selectClass} value={settings.shape} onChange={event => update({ shape: event.target.value as PatchSettings['shape'] })}>
         {Object.entries(PATCH_SHAPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </MaterialSelect></label>

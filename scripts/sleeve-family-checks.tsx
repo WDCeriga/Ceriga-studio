@@ -40,8 +40,10 @@ export function SleeveFamilyChecks(){const [result,setResult]=useState(''),[runn
       const xs=under.map(p=>left?p.x:2048-p.x),inner=Math.max(...xs),lowerBody=torso.filter(p=>p.y>Math.min(...under.map(p=>p.y))&&p.x<1024);
       if(Math.min(...lowerBody.map(p=>p.x))-inner<25)throw Error(label+': insufficient under-sleeve clearance');
       const outer=Math.min(...xs),bottom=Math.max(...under.map(p=>p.y)),topAt=(x:number)=>Math.min(...under.filter((_,i)=>Math.abs(xs[i]-x)<.1).map(p=>p.y));
-      const straight=polygon([{x:outer,y:topAt(outer)},{x:inner,y:topAt(inner)},{x:inner,y:bottom},{x:outer,y:bottom}]),normalized=polygon(under.map((p,i)=>({x:xs[i],y:p.y})));
-      if(area(polygonClipping.xor(straight,normalized))>1)throw Error(label+': under-sleeve has an underarm bulge');
+      // A fitted underlayer now tapers toward the wrist; it is intentionally not a rectangle.
+      const top=Math.max(topAt(outer),topAt(inner))+3;let previousWidth=Infinity;
+      for(let sample=0;sample<25;sample++){const y=top+(bottom-top-1)*sample/24,hits:number[]=[];for(let i=0;i<under.length;i++){const a=under[i],b=under[(i+1)%under.length];if((a.y<=y&&b.y>y)||(b.y<=y&&a.y>y))hits.push(a.x+(b.x-a.x)*(y-a.y)/(b.y-a.y));}if(hits.length<2)throw Error(label+': broken under-sleeve silhouette');const width=Math.max(...hits)-Math.min(...hits);if(width>previousWidth+.3)throw Error(label+': under-sleeve widens into a bulge');previousWidth=width;}
+
      }
      if(fit==='regular'){
       const reflected=polygon(torso.map(p=>({x:2048-p.x,y:p.y}))),window:MultiPolygon=[[[[700,0],[1348,0],[1348,900],[700,900]]]];

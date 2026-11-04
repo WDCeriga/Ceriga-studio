@@ -10,7 +10,7 @@
 .effect-intensity-editor{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:end;margin:14px 0 18px}.effect-intensity-editor .effect-strength-presets{margin:0}.studio-clean .effect-strength-presets>button,.studio-clean .effect-choice-options>button,.studio-clean .advanced-tool-pair>button,.studio-clean .effect-library-actions>button{font-size:11px;font-weight:400}.effect-option-field>span{display:block;font-size:11px;color:#737373;margin-bottom:7px}.studio-clean .advanced-number-grid .studio-number,.studio-clean .effect-controls-grid .studio-number{font-size:11px;font-weight:400}.studio-clean .shape-geometry-reset{font-size:11px}
 
 /* Only the settings body scrolls; focusing a control must not scroll the hidden outer rail. */
-@media(min-width:768px){.ceriga-builder-shell .builder-inspector:has(.studio-inspector-v2){overflow:clip}}
+@media(min-width:768px){.ceriga-builder-shell .builder-inspector:has(>.builder-inspector-content>.studio-inspector-v2){overflow:clip}}
 
 .print-method-help{font-size:11px;line-height:1.6;color:#737373;margin:0 0 10px}.studio-clean .advanced-finish-grid button{min-height:52px;border-radius:4px}.studio-clean .advanced-finish-grid strong{font-size:11px;font-weight:500}
 

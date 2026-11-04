@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {surfaceRuntime} from './surface-test-runtime.mjs';
+const {api}=await surfaceRuntime(`export * from './src/app/lib/artworkHitTesting';`);
+globalThis.getComputedStyle=node=>({zIndex:node.z??'1',display:'block',visibility:'visible',opacity:'1'});
+const layer=(type,z=1,disabled=false)=>({dataset:{artworkType:type},z,hasAttribute:name=>disabled&&name==='data-artwork-hit-disabled'});
+const text=layer('text'),shape=layer('shape',15),construction=layer('shape',20,true);
+for(const node of [text,shape,construction])api.registerArtworkHitTest(node,()=>true);
+const zone=physical=>({closest:()=>physical?{}:null,querySelectorAll:()=>[text,shape,construction]});
+assert.equal(api.artworkAtPoint(zone(true),10,10),text,'Text remains reachable over selected shapes and locked construction');
+assert.equal(api.artworkAtPoint(zone(false),10,10),shape,'Garment stacking order stays unchanged');
+api.registerArtworkHitTest(text,()=>false);
+assert.equal(api.artworkAtPoint(zone(true),90,90),shape,'Shapes remain selectable outside words');
+console.log('PASS: physical surface text priority, background exclusion, shape selection and unchanged garment stacking');

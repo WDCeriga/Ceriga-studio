@@ -340,7 +340,7 @@
      scale, no animated pseudo-elements — those cause per-frame repaints.
   */
   .canvas-element-drag {
-    @apply will-change-transform;
+    will-change: auto;
   }
   .canvas-element-held {
     cursor: grabbing !important;

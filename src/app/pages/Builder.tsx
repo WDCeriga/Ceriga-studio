@@ -223,7 +223,7 @@ import { cn } from '../components/ui/utils';
 import type { MeasurementUnit } from '../lib/measurements';
 import { TSHIRT_HEM_OPTIONS, applyHemRegionColours, availableHemRegions, resolveHemSettings, type TshirtHemStyles } from '../data/tshirtHemStyles';
 import { HemCuffsPanel } from '../components/builder/HemCuffsPanel';
-import type { StitchRegion, TshirtStitching } from '../data/tshirtStitching';
+import {updateStitchSettings, type StitchSettings, type StitchRegion, type TshirtStitching } from '../data/tshirtStitching';
 import { NECK_FINISH_OPTIONS, type NeckFinish } from '../data/tshirtNeckFinish';
 import { TshirtStitchingPanel } from '../components/builder/TshirtStitching';
 import { copyDetailToOpposite, createGarmentDetail, type GarmentDetail, type DetailBounds } from '../data/garmentDetails';
@@ -938,7 +938,7 @@ function BuilderContent() {
   useEffect(() => {
     if (currentStep === 8) { setStitchCloseUp(false); setStitchRegion('neckline'); }
   }, [currentStep]);
-  const stitchEditor = { region: stitchRegion, closeUp: stitchCloseUp, onSelect: setStitchRegion };
+  const stitchEditor = { region: stitchRegion, closeUp: stitchCloseUp, onSelect: setStitchRegion, onApply:(region:StitchRegion,settings:StitchSettings)=>setState(prev=>({...prev,tshirtStitching:updateStitchSettings(prev.tshirtStitching??{},settings,region,false)})) };
   const [hemRegion, setHemRegion] = useState('bodyHem');
   const [hemCloseUp, setHemCloseUp] = useState(false);
   const garmentWash = useMemo(() => state.garmentWash ?? defaultGarmentWash(), [state.garmentWash]);

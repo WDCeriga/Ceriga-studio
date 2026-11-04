@@ -1,3 +1,5 @@
+import {shapePathData,type ShapePath} from '../lib/shapeGeometry';
+import {mapShapePath} from '../lib/artworkPathOperations';
 export interface LabelMask {pixels:Uint8ClampedArray;size:number}
 const cache=new WeakMap<LabelMask,Partial<Record<'Left'|'Right',{x:number;y:number;angle:number}|null>>>();
 /** Sleeve files can contain both mirrored sleeves. Never anchor in their empty centre. */
@@ -24,8 +26,9 @@ export function labelCameraScale(frame:{width:number;height:number},category?:st
  const tag=category==='tag';
  return Math.min(tag?6.5:18,2048 * (tag ? 2.6 : hasContext ? .8 : .68 * .8)/Math.max(1,frame.width,frame.height));
 }
-export function labelEdgeGeometry(label:{widthMm:number;heightMm:number;shape:string;cut?:string;fold:string}){
+export function labelEdgeGeometry(label:{widthMm:number;heightMm:number;shape:string;cut?:string;fold:string;customOutline?:ShapePath}){
  const width=label.widthMm,height=label.heightMm;
+ if(label.customOutline)return {kind:'path' as const,d:shapePathData(mapShapePath(label.customOutline,p=>({x:p.x*width/100,y:p.y*height/100})))};
  if(['circle','oval'].includes(label.shape))return {kind:'ellipse' as const,cx:width/2,cy:height/2,rx:width/2,ry:height/2};
  const cut=label.cut??(label.shape==='rounded'?'rounded':label.fold==='die'?'angled':'straight');
  if(cut==='angled'){const c=Math.min(3,width/5,height/5);return {kind:'path' as const,d:`M${c} 0H${width-c}L${width} ${c}V${height-c}L${width-c} ${height}H${c}L0 ${height-c}V${c}Z`}}

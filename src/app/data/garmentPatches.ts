@@ -85,7 +85,8 @@ export async function readPatchArtwork(file: File): Promise<Pick<PatchSettings, 
     const ring = polygons.map(polygon => polygon[0]).sort((first, second) => area(second) - area(first))[0];
     const step = ring ? Math.max(1, Math.ceil(ring.length / 180)) : 1;
     const contour = transparent && ring ? ring.filter((_, index) => index % step === 0).map(point => [Math.max(0, Math.min(1, (point[0] - 3) / 122)), Math.max(0, Math.min(1, (point[1] - 3) / 122))]) : undefined;
-    return { artwork: cropped.toDataURL('image/png'), artworkName: file.name, artworkRatio: cropped.width / cropped.height, contour };
+    const full=document.createElement('canvas');full.width=Math.max(1,Math.round(cropped.width/scale));full.height=Math.max(1,Math.round(cropped.height/scale));full.getContext('2d')!.drawImage(image,left/scale,top/scale,cropped.width/scale,cropped.height/scale,0,0,full.width,full.height);
+    return { artwork: full.toDataURL('image/png'), artworkName: file.name, artworkRatio: full.width / full.height, contour };
   } finally { URL.revokeObjectURL(url); }
 }
 
@@ -137,9 +138,10 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
         append('path', { d: 'M-1 .2C-2-1.8 1.8-2.2 1 .2', fill: 'none', stroke: '#fff', 'stroke-width': .7, opacity: .34, 'stroke-linecap': 'round' }, loop);
       }
     } else {
-      const path = kind === 'woven' || kind === 'printed' ? `M0 .5H${size}M.5 0V${size}` : 'M-1 1L1-1M0 4L4 0M3 5L5 3';
+      const path = kind === 'twill' ? 'M-4 4L4-4M0 8L8 0M4 12L12 4' : kind === 'woven' || kind === 'printed' ? `M0 .5H${size}M.5 0V${size}` : 'M-1 1L1-1M0 4L4 0M3 5L5 3';
       append('path', { d: path, fill: 'none', stroke: '#000', 'stroke-width': kind === 'embroidered' ? 1 : .5, opacity: kind === 'printed' ? .08 : .28 }, pattern);
       append('path', { d: path, transform: 'translate(.6 .6)', fill: 'none', stroke: '#fff', 'stroke-width': .45, opacity: kind === 'printed' ? .07 : .32 }, pattern);
+      if (kind === 'twill') append('path',{d:'M0 1H4M1 0V4',stroke:'#fff','stroke-width':.3,opacity:.2},pattern);
       if (kind === 'embroidered') append('path', { d: 'M1 3L2 2', stroke: '#fff', 'stroke-width': .65, opacity: .22 }, pattern);
     }
     return `url(#${prefix}-${name})`;

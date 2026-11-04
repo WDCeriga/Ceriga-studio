@@ -1,0 +1,2 @@
+import {createRoot} from 'react-dom/client';import {SleeveFamilyChecks,NecklineChecks} from '../../scripts/sleeve-family-checks';const reviewRoot=createRoot(document.getElementById('root')!);reviewRoot.render(<main style={{fontFamily:'Arial',padding:24,color:'#262626'}}><h1>Live sleeve and neckline regression</h1><section><SleeveFamilyChecks/></section><section><NecklineChecks/></section></main>);
+if(import.meta.hot)import.meta.hot.dispose(()=>reviewRoot.unmount());

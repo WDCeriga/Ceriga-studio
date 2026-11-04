@@ -9,8 +9,11 @@ export function registerArtworkHitTest(root: HTMLElement, test: (point: Point) =
 
 /** Test each layer's visible selection bounds in stacking order. */
 export function artworkAtPoint(zone: HTMLElement, clientX: number, clientY: number): HTMLElement | null {
+  const physicalSurface = Boolean(zone.closest('[data-shared-surface-editor]'));
   const layers = Array.from(zone.querySelectorAll<HTMLElement>('[data-print-id]'));
-  layers.sort((a, b) => (Number(getComputedStyle(a).zIndex) || 0) - (Number(getComputedStyle(b).zIndex) || 0));
+  layers.sort((a, b) => physicalSurface && a.dataset.artworkType !== b.dataset.artworkType && (a.dataset.artworkType === 'text' || b.dataset.artworkType === 'text')
+    ? (a.dataset.artworkType === 'text' ? 1 : -1)
+    : (Number(getComputedStyle(a).zIndex) || 0) - (Number(getComputedStyle(b).zIndex) || 0));
   for (const layer of layers.reverse()) {
     const style = getComputedStyle(layer);
     if (layer.hasAttribute('data-tracing-reference') || layer.hasAttribute('data-artwork-hit-disabled') || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) continue;

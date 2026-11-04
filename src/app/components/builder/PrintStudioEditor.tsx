@@ -1,3 +1,5 @@
+import {ArtworkCanvasMenu} from './shell/ArtworkCanvasMenu';
+import {ArtworkSurfaceContext} from './printsStudio/ArtworkSurfaceContext';
 import {GarmentArtworkCameraLayer} from './printsStudio/GarmentArtworkCameraLayer';
 import {nativeArtworkSource} from '../../lib/nativeArtworkSource';
 import {ARTWORK_UPLOAD_DRAG_MIME} from './printsStudio/studioAssets';
@@ -32,7 +34,7 @@ import {ArtworkDocumentContext} from './printsStudio/ArtworkDocumentContext';
 import {mergeNativeLayers} from '../../lib/designGroups';
 import {ArtworkPrintMethod} from './shell/ArtworkPrintMethod';
 import {DrawingAdvancedEditor} from './shell/DrawingAdvancedEditor';
-import {artworkViewBounds} from '../../lib/artworkViewBounds';
+import {artworkViewBounds,artworkViewScale} from '../../lib/artworkViewBounds';
 import {CLOTHING_FONT_NAMES} from '../../lib/displayFonts';
 import {artworkSceneScale} from '../../lib/garmentCanvasFrame';
 import {garmentPatternReference} from '../../lib/patternGeometry';
@@ -51,7 +53,7 @@ import { artworkResizeCursor, ARTWORK_ROTATE_CURSOR } from '../../lib/artworkCur
 import {ShapeAdvancedEditor} from './shell/ShapeAdvancedEditor';
 import { studioShapeDefaults } from '../../lib/studioShapePresets';
 import { SliderValueInput } from './SliderValueInput';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ComponentProps } from 'react';
+import { useContext, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type ComponentProps } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { textCurveRadius, updateTextCurve, type TextCurvePatch } from '../../lib/textCurveControls';
 import { cn } from '../ui/utils';
@@ -771,12 +773,12 @@ export function PrintTransformOverlay({
       ? undefined
       : ({ transform: `scale(${inv})`, transformOrigin: '50% 50%' } as const);
 
-  if(shapeChrome){const scale=uiInverseScale>0?uiInverseScale:1;return <div data-handles data-editor-chrome data-shape-transform className="shape-transform-guide pointer-events-none absolute inset-0 z-50">
-    {!hideBounds&&<div className="shape-transform-bounds"/>}
-    {(['nw','n','ne','e','se','s','sw','w'] as ResizeHandle[]).map(handle=>{const x=handle.includes('w')?0:handle.includes('e')?100:50,y=handle.includes('n')?0:handle.includes('s')?100:50;return <button key={handle} aria-label={`Resize ${handle.toUpperCase()}`} className="shape-transform-handle" style={{left:x+'%',top:y+'%',transform:`translate(-50%,-50%) scale(${scale})`,cursor:artworkResizeCursor(handle,rotation)}} onPointerDown={event=>{if(event.button===0)onResizePointerDown(event,handle);}}/>;})}
+  if(shapeChrome||tight){const scale=uiInverseScale>0?uiInverseScale:1;return <div data-handles data-editor-chrome data-shape-transform className="shape-transform-guide pointer-events-none absolute inset-0 z-50">
+    {!hideBounds&&<svg className="shape-transform-bounds" width="100%" height="100%" style={{border:0,boxShadow:'none',overflow:'visible'}} aria-hidden="true"><rect width="100%" height="100%" fill="none" stroke="#737373" strokeWidth={scale} vectorEffect="non-scaling-stroke"/></svg>}
+    {(['nw','n','ne','e','se','s','sw','w'] as ResizeHandle[]).map(handle=>{const x=handle.includes('w')?0:handle.includes('e')?100:50,y=handle.includes('n')?0:handle.includes('s')?100:50;return <button key={handle} aria-label={`Resize ${handle.toUpperCase()}`} className="shape-transform-handle" style={{width:comfortableTouch||compactHandles||phoneTextMinimal?24:16,height:comfortableTouch||compactHandles||phoneTextMinimal?24:16,left:x+'%',top:y+'%',transform:`translate(-50%,-50%) scale(${scale})`,cursor:artworkResizeCursor(handle,rotation)}} onPointerDown={event=>{if(event.button===0)onResizePointerDown(event,handle);}}/>;})}
     {(['nw','ne','se','sw'] as const).map(corner=><button key={'rotate-'+corner} aria-label={`Rotate from ${corner.toUpperCase()} corner`} className="shape-corner-rotate" style={{left:corner.includes('w')?`${-16*scale}px`:`calc(100% + ${16*scale}px)`,top:corner.includes('n')?`${-16*scale}px`:`calc(100% + ${16*scale}px)`,transform:`translate(-50%,-50%) scale(${scale})`,cursor:ARTWORK_ROTATE_CURSOR}} onPointerDown={event=>{if(event.button===0)onRotatePointerDown(event);}}/>)}
     <span className="shape-transform-pivot" style={{transform:`translate(-50%,-50%) scale(${scale})`}}/>
-    <span className="shape-rotation-stem" style={{height:10*scale}}/><button aria-label="Rotate" className="shape-rotation-handle" style={{top:`calc(100% + ${22*scale}px)`,transform:`translate(-50%,-50%) scale(${scale})`,cursor:ARTWORK_ROTATE_CURSOR}} onPointerDown={onRotatePointerDown}><RotateCw size={12}/></button>
+    <span className="shape-rotation-stem" style={{height:10*scale,width:scale}}/><button aria-label="Rotate" className="shape-rotation-handle" style={{top:`calc(100% + ${22*scale}px)`,transform:`translate(-50%,-50%) scale(${scale})`,cursor:ARTWORK_ROTATE_CURSOR}} onPointerDown={onRotatePointerDown}><RotateCw size={12}/></button>
     {transformLabel&&<span className="shape-transform-readout" style={{top:`calc(100% + ${43*scale}px)`,transform:`translateX(-50%) scale(${scale})`,transformOrigin:'top center'}}>{transformLabel}</span>}
   </div>;}
 
@@ -1571,7 +1573,7 @@ export function PrintsDesignStep({
   return (
     <ArtworkDocumentContext.Provider value={{elements,onChange,onSelect:setSelectedId,side:garmentSide}}><div className="print-imported-editor space-y-3.5">
       <div data-pen-controls-host />
-      <div data-print-panel="library">{renderTools ? renderTools({garmentPatterns:sideElements.filter(element=>element.type==='pattern'),garmentImages:sideElements.filter(element=>element.type==='image'),onSelectArtwork:setSelectedId,onPlaceAsset:placeStudioAsset,onUpload:handleUploadImage,previousUploads,onReuseUpload:reuseUpload,textInput,onTextInput:setTextInput,onAddText:handleAddText,onAddTextPreset:addTextPreset,onClearSelection:()=>setSelectedId(null),onImportFont:importFontFile,fontLibrary:importedFontFamilies,selectedElement:selected,onUpdateSelected:updateSelected,onStartCustomArea:startCustomArea,patternDocumentKey:`${assetWorkspace?.project?.id ?? 'garment'}:${garmentSide}`,patternLayers:[...(studio.selectionIds.length>1?[{id:'@selection',name:`Selected artwork (${studio.selectionIds.length})`}]:[]),...sideElements.filter(element=>canMergeLayer(element)&&element.type!=='pattern').map(element=>({id:element.id,name:element.layerName??element.type}))],onCapturePatternLayer:capturePatternLayer}) : <PrintsStudioToolbar
+      <div data-print-panel="library" hidden={Boolean(renderSelection&&selected)}>{renderTools ? renderTools({garmentPatterns:sideElements.filter(element=>element.type==='pattern'),garmentImages:sideElements.filter(element=>element.type==='image'),onSelectArtwork:setSelectedId,onPlaceAsset:placeStudioAsset,onUpload:handleUploadImage,previousUploads,onReuseUpload:reuseUpload,textInput,onTextInput:setTextInput,onAddText:handleAddText,onAddTextPreset:addTextPreset,onClearSelection:()=>setSelectedId(null),onImportFont:importFontFile,fontLibrary:importedFontFamilies,selectedElement:selected,onUpdateSelected:updateSelected,onStartCustomArea:startCustomArea,patternDocumentKey:`${assetWorkspace?.project?.id ?? 'garment'}:${garmentSide}`,patternLayers:[...(studio.selectionIds.length>1?[{id:'@selection',name:`Selected artwork (${studio.selectionIds.length})`}]:[]),...sideElements.filter(element=>canMergeLayer(element)&&element.type!=='pattern').map(element=>({id:element.id,name:element.layerName??element.type}))],onCapturePatternLayer:capturePatternLayer}) : <PrintsStudioToolbar
         compact={usePhoneStrips}
         layout="workspace"
         onPlaceAsset={placeStudioAsset}
@@ -1592,7 +1594,7 @@ export function PrintsDesignStep({
       />}</div>
 
       {selected ? (
-        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}{!(renderSelection&&(selected.type==='text'||selected.type==='image'||selected.type==='pattern'||selected.logoTrace))&&<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary><span>{selected.type==='text'?'Effects & reshape':selected.type==='image'?'Image adjustments':selected.type==='shape'||selected.type==='customArea'?'Effects & reshape':'Effects & advanced editing'}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m6 9 6 6 6-6"/></svg></summary>{advancedSelectionOpen&&(renderSelection&&selected.type==='drawing'?<DrawingAdvancedEditor element={selected} update={updateSelected}/>:renderSelection&&(selected.type==='text'||selected.type==='shape'||selected.type==='customArea')?<ShapeAdvancedEditor element={selected} update={updateSelected} assetMode={assetMode} images={[...elements.filter(item=>item.type==='image').map(item=>({name:item.layerName??'Uploaded image',src:item.content})),...previousUploads.map(item=>({name:item.name,src:item.dataUrl})),...(assetWorkspace?.library??[]).map(item=>({name:item.name,src:item.preview}))]}/>:<PrintPanel title="Selected element">
+        <div data-print-selection-content>{renderSelection?.(selected, updateSelected, allFontOptions)}{!renderSelection&&<details className="studio-deep-controls" open={advancedSelectionOpen} onToggle={event=>{if(event.currentTarget.open!==advancedSelectionOpen)setAdvancedSelectionOpen(event.currentTarget.open)}}><summary><span>{selected.type==='text'?'Effects & reshape':selected.type==='image'?'Image adjustments':selected.type==='shape'||selected.type==='customArea'?'Effects & reshape':'Effects & advanced editing'}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m6 9 6 6 6-6"/></svg></summary>{advancedSelectionOpen&&(renderSelection&&selected.type==='drawing'?<DrawingAdvancedEditor element={selected} update={updateSelected}/>:renderSelection&&(selected.type==='text'||selected.type==='shape'||selected.type==='customArea')?<ShapeAdvancedEditor element={selected} update={updateSelected} assetMode={assetMode} images={[...elements.filter(item=>item.type==='image').map(item=>({name:item.layerName??'Uploaded image',src:item.content})),...previousUploads.map(item=>({name:item.name,src:item.dataUrl})),...(assetWorkspace?.library??[]).map(item=>({name:item.name,src:item.preview}))]}/>:<PrintPanel title="Selected element">
           <div className="mb-4 flex items-center justify-between gap-2">
             <span className="text-[10px] text-[#737373]">
               {selected.type === 'image'
@@ -2776,6 +2778,7 @@ export function PrintsDesignPreview({
   artworkView = false,
   referenceWidthCm=50,
 }: PrintsDesignPreviewProps) {
+  const surfaceContext=useContext(ArtworkSurfaceContext);
   const elements=useMemo(()=>orderDesignLayers(sourceElements),[sourceElements]);
   const studio = usePrintsStudio();
   const [contextImageId,setContextImageId]=useState<string|null>(null);
@@ -2801,7 +2804,7 @@ export function PrintsDesignPreview({
   // Fit that square, not the board's empty horizontal margin, just as the
   // measurement/material views do. Asset workspaces still fit the full board.
   const sceneScale = validCanvasSize && frameSize.width > 0 && frameSize.height > 0
-    ? artworkSceneScale(frameSize,validCanvasSize,assetMode) : 1;
+    ? artworkSceneScale(frameSize,validCanvasSize,assetMode) * (surfaceContext ? .72 : 1) : 1;
   const [importedFontFamilies, setImportedFontFamilies] = useState<string[]>([]);
   useEffect(() => {
     void hydrateFontLibrary().then((names) => {
@@ -3206,7 +3209,7 @@ export function PrintsDesignPreview({
     if (!editable) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (t?.closest('input, textarea, [contenteditable="true"], select,[role="listbox"],[role="combobox"],[role="menu"],[role="dialog"]')) return;
+      if (t?.closest('input, textarea, [contenteditable="true"], select,[role="listbox"],[role="combobox"],[role="menu"]')) return;
       if(editingTextId)return;
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='h'){const refs=elementsRef.current.filter(el=>el.tracingReference);if(refs.length){e.preventDefault();const hide=refs.some(el=>!el.referenceHidden);onChangeRef.current?.(elementsRef.current.map(el=>el.tracingReference?{...el,referenceHidden:hide}:el));}return;}
       if(!e.ctrlKey&&!e.metaKey&&!e.altKey){const key=e.key.toLowerCase();
@@ -3219,10 +3222,10 @@ export function PrintsDesignPreview({
           if(key==='m'||key==='l'){e.preventDefault();studio.setPanel('shapes');studio.setLiveShape(key==='m'?'rect':'ellipse');studio.setPathEditingId(null);setSelectedId(null);studio.setTool('shapeLive');return;}
         }
       }
-      if (studio.pathEditingId || studio.tool === 'shapePolygon'||studio.tool==='shapePencil'||studio.tool==='shapeLive') return;
+      if (!((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a') && (studio.pathEditingId || studio.tool === 'shapePolygon'||studio.tool==='shapePencil'||studio.tool==='shapeLive')) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
-        e.preventDefault(); studio.setTool('select');studio.setSelectionAdditive(false);
+        e.preventDefault(); studio.setTool('select');studio.setPathEditingId(null);studio.setPenTargetId(null);studio.setSelectionAdditive(false);
         const ids=elementsRef.current.filter(el=>designElementSide(el)===garmentSideRef.current&&canGroupLayer(el)).map(el=>el.id);
         studio.setSelectionIds(ids);setSelectedId(ids[0]??null);return;
       }
@@ -3414,7 +3417,7 @@ export function PrintsDesignPreview({
         zone.offsetHeight,
         draggingId,
         snapBoxes,
-        PREVIEW_SNAP_CENTER_NUDGE,
+        {...(assetMode?{}:PREVIEW_SNAP_CENTER_NUDGE),tolerance:8*zone.offsetWidth/Math.max(1,zone.getBoundingClientRect().width)},
       );
 
       /* Skip setAlignmentGuides when the guide lines haven't actually changed —
@@ -3569,14 +3572,14 @@ export function PrintsDesignPreview({
     const bounds=artworkView&&!assetMode?artworkViewBounds(elementsRef.current,garmentSide):null;
     setFocusArtwork(bounds?{...bounds,x:bounds.x+(zoneEl?.offsetLeft??0),y:bounds.y+(zoneEl?.offsetTop??0)}:null);
   },[artworkView,assetMode,garmentSide,zoneEl]);
-  const focusScale=focusArtwork?Math.min(8,Math.max(.1,Math.min(frameSize.width/(focusArtwork.width+100),frameSize.height/(focusArtwork.height+100)))):null;
+  const focusScale=focusArtwork?artworkViewScale(frameSize,focusArtwork,liveCanvasScaleProp):null;
   const liveCanvasS = focusScale??((liveCanvasScaleProp && liveCanvasScaleProp > 0 ? liveCanvasScaleProp : 1) * sceneScale);
   const uiInvRaw = 1 / liveCanvasS;
   /** On phone, avoid over-scaling handles when the preview is zoomed out. */
   const uiInv = narrowViewport ? Math.min(uiInvRaw, 2.25) : uiInvRaw;
 
   return (
-    <ArtworkContextMenu.Root><ArtworkContextMenu.Trigger asChild><div onContextMenu={event=>{if(!editable||!zoneRef.current){event.preventDefault();return;}const hit=artworkAtPoint(zoneRef.current,event.clientX,event.clientY),image=elementsRef.current.find(element=>element.id===hit?.dataset.printId&&element.type==='image');if(image){setContextImageId(image.id);setSelectedId(image.id);}else{setContextImageId(null);event.preventDefault();}}}
+    <ArtworkContextMenu.Root><ArtworkContextMenu.Trigger asChild><div onContextMenu={event=>{if(!editable||!zoneRef.current){event.preventDefault();return;}const hit=artworkAtPoint(zoneRef.current,event.clientX,event.clientY),target=elementsRef.current.find(element=>element.id===hit?.dataset.printId);setContextImageId(target?.id??'canvas');if(target&&!studio.selectionIds.includes(target.id)){studio.setSelectionIds([target.id]);setSelectedId(target.id);}}}
       className={cn(
         'relative mx-auto flex h-full max-h-full w-full max-w-full flex-col items-center justify-center',
         className,
@@ -3761,7 +3764,7 @@ export function PrintsDesignPreview({
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ backgroundColor: assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: assetWorkspace?.project?.background ? 'none' : 'conic-gradient(#f5f5f5 25%, transparent 0 50%, #f5f5f5 0 75%, transparent 0)', backgroundSize: '16px 16px' }} /> : (
+          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ borderWidth:surfaceContext?0:undefined,backgroundColor: surfaceContext?'transparent':assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: surfaceContext||assetWorkspace?.project?.background ? 'none' : 'conic-gradient(#f5f5f5 25%, transparent 0 50%, #f5f5f5 0 75%, transparent 0)', backgroundSize: '16px 16px' }} /> : (
           <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: focusArtwork?'none':garmentInteractive ? 'auto' : 'none',visibility:focusArtwork?'hidden':undefined }} data-print-garment-preview>
             {typeof garmentPreview === 'function' ? garmentPreview(sceneScale) : garmentPreview}
           </div>
@@ -3881,7 +3884,7 @@ export function PrintsDesignPreview({
             </div>;
           })()}
           {editable&&studio.booleanPreview.map(preview=><div key={preview.id} data-editor-chrome aria-hidden="true" className="pointer-events-none absolute" style={{left:preview.x,top:preview.y,width:preview.width,height:preview.height,transform:`translate(-50%,-50%) rotate(${preview.rotation}deg)`,opacity:.4,zIndex:95}}><StudioGraphic element={{...preview,shapeFilled:true,shapeFillColor:preview.shapeFillColor??preview.color??'#737373',borderWidth:0,shapeEffects:undefined}}/></div>)}
-          {editable&&marquee&&<div data-editor-chrome data-artwork-marquee className="artwork-marquee" style={{left:marquee.x,top:marquee.y,width:marquee.width,height:marquee.height}}/>}
+          {editable&&marquee&&<div data-editor-chrome data-artwork-marquee className="artwork-marquee" style={{left:marquee.x,top:marquee.y,width:marquee.width,height:marquee.height,border:0,boxShadow:"inset 0 0 0 "+uiInv+"px #525252",outlineWidth:0,background:'#7373730d'}}/>}
           {editable && alignmentGuides && <ArtworkAlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} inverseScale={uiInv}/>}
           {editable && (studio.tool === 'brush' || studio.tool === 'eraser') && elements
             .filter(element => element.id === DRAWING_LAYER_ID && designElementSide(element) === garmentSide)
@@ -3908,7 +3911,7 @@ export function PrintsDesignPreview({
           {editable&&studio.referenceTask&&elements.find(e=>e.id===studio.referenceTask?.id)&&<ReferenceTraceOverlay element={elements.find(e=>e.id===studio.referenceTask?.id)!} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onChange={patch=>updateElement(studio.referenceTask!.id,patch)} onAdd={shape=>{onChange?.([...elements,shape],shape.id);setSelectedId(shape.id);}}/>}
           {editable&&studio.tool==='textTracking'&&selectedElement?.type==='text'&&<TrackingDrag key={selectedElement.textSpacingDrag??'letterSpacing'} property={selectedElement.textSpacingDrag??'letterSpacing'} element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onCancel={()=>studio.setTool('select')} onComplete={value=>{const property=selectedElement.textSpacingDrag??'letterSpacing',index=studio.textSelection?.id===selectedElement.id?studio.textSelection.start:0;updateElement(selectedElement.id,property==='textKerning'&&index>0?{textKerningPairs:[...(selectedElement.textKerningPairs??[]).filter(pair=>pair.index!==index),{index,offset:value}]}:{[property]:value});studio.setTool('select');}}/>}
           {editable&&studio.tool==='shapeLive'&&<LiveShapeDraft key={studio.liveShape} kind={studio.liveShape} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} unitsPerCm={studio.unitsPerCm} color={studio.color} side={garmentSide} onCancel={()=>studio.setTool('select')} onComplete={shape=>{onChange?.([...elements,shape],shape.id);setSelectedId(shape.id);studio.setTool('select');}}/>}
-          {editable&&studio.tool==='shapePencil'&&<ShapePencilDraft width={zoneEl?.clientWidth??1} height={zoneEl?.clientHeight??1} onCancel={()=>studio.setTool('select')} onComplete={path=>{const next=createPenArtwork(path,studio.color,garmentSide);onChange?.([...elements,next],next.id);setSelectedId(next.id);studio.setTool('select');}}/>}
+          {editable&&studio.tool==='shapePencil'&&<ShapePencilDraft width={zoneEl?.clientWidth??1} height={zoneEl?.clientHeight??1} onCancel={()=>studio.setTool('select')} onComplete={path=>{const next=createPenArtwork(path,studio.color,garmentSide,crypto.randomUUID(),surfaceContext?.surface.units==='mm'?.15:2);onChange?.([...elements,next],next.id);setSelectedId(next.id);studio.setTool('select');}}/>}
           {editable && studio.tool === 'shapePolygon' && <PenPathDraft key={garmentSide + (studio.penTargetId ?? '')}
             width={zoneEl?.clientWidth ?? 1} height={zoneEl?.clientHeight ?? 1} color={studio.color}
             tracingElements={elements.filter(el=>(el.side??'front')===garmentSide&&el.id!==studio.penTargetId)}
@@ -3922,7 +3925,7 @@ export function PrintsDesignPreview({
               const target=elements.find(element=>element.id===studio.penTargetId);
               try {
                 if(target){const next=studio.penOperation==='continue'?{...target,...fitPenPath(path,Math.max(1,(target.borderWidth??2)/2+1)),shapeGeometry:'bounds' as const,rotation:0,flipHorizontal:false,flipVertical:false}:cutOrAddPenPath(target,path,studio.penOperation);onChange?.(elements.map(element=>element.id===target.id?next:element));setSelectedId(target.id);}
-                else {const next=createPenArtwork(path,studio.color,garmentSide);onChange?.([...elements,next]);setSelectedId(next.id);if(path.closed)studio.setPathEditingId(next.id);}
+                else {const next=createPenArtwork(path,studio.color,garmentSide,crypto.randomUUID(),surfaceContext?.surface.units==='mm'?.15:2);onChange?.([...elements,next]);setSelectedId(next.id);if(path.closed)studio.setPathEditingId(next.id);}
                 studio.setTool('select');studio.setPenTargetId(null);setPenResumeStartId(null);setPenError('');
               } catch(error){setPenError(error instanceof Error?error.message:'Could not apply this path.');}
             }} />}
@@ -3993,12 +3996,12 @@ export function PrintsDesignPreview({
             return (
               <div
                 key={element.id}
-                data-print-id={element.id} data-tracing-reference={element.tracingReference?true:undefined}
+                data-print-id={element.id} data-artwork-type={element.type} data-tracing-reference={element.tracingReference?true:undefined}
                 data-pattern-part-mask={patternPart?drawingMaskCss(patternPart,visualElement.width,visualElement.height,visualElement.x,visualElement.y,0):undefined}
                 data-pattern-reference-size={visualElement.patternReferenceSize}
                 data-pattern-part-label={patternPart?.label}
                 data-pattern-part-bounds={patternPart?JSON.stringify(patternPart.bounds):undefined}
-                data-artwork-hit-disabled={element.id === DRAWING_LAYER_ID ? '' : undefined}
+                data-artwork-hit-disabled={element.id === DRAWING_LAYER_ID || (surfaceContext && element.locked && element.svgPrecision && !element.svgPrecision.owner) ? '' : undefined}
                 className={cn(
                   'absolute canvas-element-drag',
                   draggingId === element.id && 'z-[15]',
@@ -4008,6 +4011,7 @@ export function PrintsDesignPreview({
                   editable && !isEditingText && 'select-none touch-none',
                 )}
                 style={{
+                  ...({'--artwork-ui-inverse':uiInv} as React.CSSProperties),
                   visibility:studio.tool==='shapePolygon'&&studio.penOperation==='continue'&&studio.penTargetId===element.id?'hidden':undefined,
                   zIndex:isBackgroundPattern(element)?0:isHeld?15:1,
                   left: liveX,
@@ -4031,7 +4035,7 @@ export function PrintsDesignPreview({
                     <span role="status" className="absolute left-2 top-1/2 -translate-y-1/2 rounded bg-emerald-950 px-2 py-1 text-[10px] font-semibold text-emerald-200" style={{ scale: uiInv }}>0°</span>
                   </div>
                 )}
-                {editable&&studio.selectionIds.length>1&&studio.selectionIds.includes(element.id)&&<div data-editor-chrome className="pointer-events-none absolute inset-0 border border-dashed border-[#737373]"/>}
+                {editable&&studio.selectionIds.length>1&&studio.selectionIds.includes(element.id)&&<div data-editor-chrome data-artwork-multi-selection className="pointer-events-none absolute inset-0" style={{border:0,boxShadow:'inset 0 0 0 '+uiInv+'px #737373',background:'#73737308'}}/>}
                 {editable && selected && !locked && studio.pathEditingId === element.id && element.type==='shape' && !element.booleanOperation && <ShapePathEditor
                   key={element.id} tracingElements={elements.filter(other=>other.id!==element.id&&(other.side??'front')===garmentSide)} element={{...visualElement,shapePath:shapeToEditablePath(visualElement)}} scale={1 / uiInv}
                   onContinue={fromStart=>{setPenResumeStartId(fromStart?element.id:null);studio.setPathEditingId(null);studio.setPenTargetId(element.id);studio.setPenOperation('continue');studio.setTool('shapePolygon');}}
@@ -4222,7 +4226,7 @@ export function PrintsDesignPreview({
         </div></GarmentPatternReliefContext.Provider></GarmentPrintTextureContext.Provider></GarmentWearHostContext.Provider>
       </div>
 
-    </div></ArtworkContextMenu.Trigger>{contextImageId&&<ArtworkContextMenu.Portal><ArtworkContextMenu.Content className="layer-actions-menu"><ArtworkContextMenu.Item onSelect={()=>{setSelectedId(contextImageId);studio.requestOutline(contextImageId)}}>Outline logo</ArtworkContextMenu.Item></ArtworkContextMenu.Content></ArtworkContextMenu.Portal>}</ArtworkContextMenu.Root>
+    </div></ArtworkContextMenu.Trigger>{editable&&contextImageId&&<ArtworkCanvasMenu elements={elements.filter(e=>(e.side??'front')===garmentSide)} ids={studio.selectionIds.length?studio.selectionIds:selectedId?[selectedId]:[]} onChange={(next,id)=>onChange?.([...elements.filter(e=>(e.side??'front')!==garmentSide),...next],id)} onSelect={setSelectedId} onSelection={studio.setSelectionIds} onOutline={id=>studio.requestOutline(id)}/>}</ArtworkContextMenu.Root>
   );
 }
 

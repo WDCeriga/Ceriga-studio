@@ -97,6 +97,16 @@
 .grading-matrix{container-type:inline-size}
 .grading-matrix .grade-row-detail{width:calc(100cqw - 8px);position:sticky;left:0;box-sizing:border-box}
 
-.ceriga-builder-shell[data-size-compare=true] [data-print-garment-backdrop]{visibility:hidden}
+.ceriga-builder-shell[data-size-compare=true]:has([data-comparison-ready=true]) [data-print-garment-backdrop]{visibility:hidden}
 .ceriga-builder-shell[data-size-compare=true] .size-comparison-overlay{visibility:visible}
 .ceriga-builder-shell[data-size-compare=true] .new-measurement-overlay{visibility:visible}
+/* Comparison uses only the two measured silhouettes; keep live geometry mounted for sampling. */
+[data-measurement-preview][data-size-comparison=true]:has([data-comparison-ready=true]) :is([data-tshirt-preview],.canvas-element-drag){visibility:hidden!important}
+[data-measurement-preview][data-size-comparison=true] :is(.size-comparison-overlay,.new-measurement-overlay){visibility:visible!important}
+.size-comparison-legend span:first-child i{border-color:#404040;background:#e5e5e5;height:8px}
+.size-comparison-legend span+span i{border-color:#657585;background:#c2cbd2;height:8px}
+
+.size-comparison-overlay[data-comparison-ready=true],.size-comparison-overlay[data-comparison-ready=true] *{visibility:visible!important}
+.size-comparison-legend{font-size:11px;gap:16px;padding:7px 10px;border:1px solid #e2e2e2;background:#fff}
+.size-comparison-legend span:first-child i{border-top:2px solid #343a40;background:#b9bec3;width:20px;height:9px}
+.size-comparison-legend span+span i{border-top:2px dashed #8796a3;background:#e9edf0;width:20px;height:9px}

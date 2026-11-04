@@ -66,3 +66,10 @@ for(const mirror of [false,true]){
  assert(inset.slice(1).every((p,i)=>Math.hypot(p.x-inset[i].x,p.y-inset[i].y)<9),'Armhole thread has no sideways jump');
 }
 console.log('Left/right armhole thread stays on one owning side through ambiguous shoulder overlap.');
+
+const stepped=[{x:400,y:200},{x:406,y:200},{x:406,y:194},{x:600,y:100},{x:800,y:200},{x:900,y:600},{x:850,y:1400},{x:350,y:1400},{x:300,y:600}];
+const clean=api.roundedShoulderRing(stepped,550,650,500);
+assert(!clean.some(p=>p.x===406&&p.y===200),'A tracing-scale shoulder step must not survive exterior smoothing');
+assert(clean.some(p=>p.x===600&&p.y===100),'Keep collar registration');
+assert(clean.some(p=>p.x===350&&p.y===1400),'Keep hem registration');
+console.log('Shoulder steps: six-unit tracing offsets are removed while collar and hem registration stay fixed.');

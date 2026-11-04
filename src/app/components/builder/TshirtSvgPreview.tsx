@@ -1,3 +1,4 @@
+import {fabricRings} from '../../data/regularConstruction';
 import {withDistressedHem} from '../../data/distressedHem';
 import {withTorsoCrop} from '../../data/torsoCrop';
 import {withRoundedShoulderCaps} from '../../data/tshirtShoulderGeometry';
@@ -36,7 +37,7 @@ import { GARMENT_PREVIEW_CANVAS_CLASS, GARMENT_PREVIEW_CONTAINER_CLASS } from '.
 import { garmentPreviewBounds, garmentPreviewLayerBounds } from './garmentPreviewBounds';
 import { detailPlacement, detailRotation, zipHardwareGeometry, detailAsset, type GarmentDetail, type DetailBounds } from '../../data/garmentDetails';
 import { GarmentDetailsOverlay, type DetailEditorState } from './GarmentDetails';
-import { compileOpeningGeometry, constructOpenings, openingLayerClip, openingPolygonPath, type OpeningSource } from '../../data/garmentOpenings';
+import { reanchorOpening, compileOpeningGeometry, constructOpenings, openingLayerClip, openingPolygonPath, type OpeningSource } from '../../data/garmentOpenings';
 import { OpeningConstruction } from './OpeningConstruction';
 import { GarmentLabelOverlay } from './GarmentLabelOverlay';
 import type { GarmentLabel } from '../../data/garmentLabels';
@@ -1481,6 +1482,7 @@ export function TshirtSvgPreview({
   };
   const openingGeometry = useMemo(() => {
     const sources: OpeningSource[] = [];
+    let poloOpeningY:number|undefined;
     for (const layout of layerLayouts) {
       const { sourceLayer, bbox } = layout;
       if (!bbox || sourceLayer.kind !== 'solid') continue;
@@ -1491,8 +1493,12 @@ export function TshirtSvgPreview({
       const matrix = new DOMMatrix().translate(bbox.centerX + transform.x * 2048 / canvasSize, bbox.centerY + transform.y * 2048 / canvasSize)
         .rotate(transform.rotation).scale(scale.scaleX, scale.scaleY).translate((layout.alignOffset?.x ?? 0) - bbox.centerX, (layout.alignOffset?.y ?? 0) - bbox.centerY);
       sources.push({ id: layout.id, raw: sourceLayer.panellingClipSvgRaw ?? sourceLayer.svgRaw, role, matrix });
+      if(role==='neck'&&/polo/i.test(sourceLayer.displayName)){
+        const rings=fabricRings(sourceLayer.svgRaw).sort((a,b)=>{const area=(r:{x:number;y:number}[])=>Math.abs(r.reduce((n,p,i)=>{const q=r[(i+1)%r.length];return n+p.x*q.y-q.x*p.y},0));return area(b)-area(a)});
+        if(rings[1]?.length)poloOpeningY=Math.max(...rings[1].map(point=>matrix.transformPoint(point).y));
+      }
     }
-    return compileOpeningGeometry(sources);
+    return {...compileOpeningGeometry(sources),poloOpeningY};
   }, [layerLayouts, resolveLayerDisplayTransform, canvasSize]);
   const detailBounds: DetailBounds | undefined = (() => {
     if (customAssetState?.importedGarment) {
@@ -1502,13 +1508,20 @@ export function TshirtSvgPreview({
     }
     const body = displayBounds('base');
     if (!body) return undefined;
-    return { ...body, maxY: Math.max(body.maxY, displayBounds('bodyHem')?.maxY ?? body.maxY), necklineY: displayBounds('neck')?.maxY, openingGeometry };
+    return { ...body, maxY: Math.max(body.maxY, displayBounds('bodyHem')?.maxY ?? body.maxY), necklineY: displayBounds('neck')?.maxY, polo: /polo/i.test(layers.find(layer => layer.id === 'neck')?.displayName ?? ''), openingGeometry };
   })();
   useEffect(() => { onDetailBoundsChange?.(detailBounds); }, [onDetailBoundsChange, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY, detailBounds?.necklineY, openingGeometry]);
   const liveDetails = useMemo(() => decorationsForView(garmentDetails, detailView).map(detail => {
     const draft = openingDraft ?? detailEditor?.draft;
-    return draft?.id === detail.id ? draft : detail;
-  }), [garmentDetails, detailView, openingDraft, detailEditor?.draft]);
+    const current=draft?.id === detail.id ? draft : detail;
+    return detailBounds&&draft?.id!==detail.id?reanchorOpening(current,detailBounds):current;
+  }), [garmentDetails, detailView, openingDraft, detailEditor?.draft,detailBounds?.minX,detailBounds?.maxX,detailBounds?.minY,detailBounds?.necklineY,openingGeometry]);
+  useEffect(()=>{
+    if(!detailBounds||!onDetailsChange||openingDraft||detailEditor?.draft)return;
+    let changed=false;
+    const next=garmentDetails.map(detail=>{if((detail.view??'front')!==detailView)return detail;const anchored=reanchorOpening(detail,detailBounds);if(anchored!==detail)changed=true;return anchored;});
+    if(changed)onDetailsChange(next);
+  },[garmentDetails,detailView,detailBounds?.minX,detailBounds?.maxX,detailBounds?.minY,detailBounds?.necklineY,openingDraft,detailEditor?.draft,onDetailsChange,openingGeometry]);
   const openingStage = detailEditor?.openingStage ?? 'final';
   const openingCutsVisible = openingStage === 'construction' || openingStage === 'final';
   const visibleDetailHardware = useMemo(() => openingStage === 'final' ? liveDetails : liveDetails.filter(detail => !detail.opening), [liveDetails, openingStage]);

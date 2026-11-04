@@ -2,7 +2,7 @@ import {applyConstructedHemStyles} from './tshirtLiveHems';
 import type {TshirtHemStyles} from './tshirtHemStyles';
 import type {NeckFinish} from './tshirtNeckFinish';
 import {cleanNecklineFabric,necklineBoundary,poloJoinBoundary,neckRibbing} from './tshirtNecklineQuality';
-import {constructSleeveFamily,straightenOversizedShoulders} from './tshirtSleeveConstruction';
+import {constructSleeveFamily,straightenOversizedShoulders,symmetricOuterTorso} from './tshirtSleeveConstruction';
 import svgpath from 'svgpath';
 import type {ResolvedGarmentLayer} from './garmentSvgCatalog';
 import {fabricRings} from './regularConstruction';
@@ -55,12 +55,17 @@ function cleanBodyFabric(layer:ResolvedGarmentLayer):ResolvedGarmentLayer{
  return {...layer,svgRaw:remember(bodyCache,layer.svgRaw,new XMLSerializer().serializeToString(root)),panellingClipSvgRaw:undefined};
 }
 /** Shared garment outlines and bounded smoothing of the existing non-polo collar contours. */
+const preparedCache=new Map<string,ResolvedGarmentLayer[]>();
 export function withTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:string,finish:NeckFinish='ribbed',view:'front'|'back'='front',hems?:TshirtHemStyles):ResolvedGarmentLayer[]{
+ const key=JSON.stringify([layers,fit,finish,view,hems]),cached=preparedCache.get(key);if(cached)return cached;
+ const result=prepareTshirtSurfaceQuality(layers,fit,finish,view,hems);if(preparedCache.size>=24)preparedCache.delete(preparedCache.keys().next().value!);preparedCache.set(key,result);return result;
+}
+function prepareTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:string,finish:NeckFinish='ribbed',view:'front'|'back'='front',hems?:TshirtHemStyles):ResolvedGarmentLayer[]{
 
- if(layers.some(l=>l.svgRaw.includes('data-shoulder-construction="true"')))return layers;
+ if(layers.some(l=>l.svgRaw.includes('data-shoulder-construction="true"')||l.svgRaw.includes('data-surface-quality="true"')))return layers;
  // Raster neck parts are already final traced construction. Keep their paths intact.
  if(layers.some(l=>l.svgRaw.includes('data-raster-neck="true"'))){
-  const cleaned=applyConstructedHemStyles(straightenOversizedShoulders(constructSleeveFamily(layers.map(l=>{const parent=l.id.startsWith('underlayerHem')?layers.find(p=>p.id===l.id.replace('underlayerHem','underSleeve')):undefined,ring=parent?fabricRings(parent.svgRaw)[0]:undefined;return cleanBodyFabric(cleanSleeveFabric(l,8,ring?{minX:Math.min(...ring.map(p=>p.x)),maxX:Math.max(...ring.map(p=>p.x))}:undefined));}),fit),fit),hems);
+  const cleaned=applyConstructedHemStyles(straightenOversizedShoulders(constructSleeveFamily(layers.map(l=>{const parent=l.id.startsWith('underlayerHem')?layers.find(p=>p.id===l.id.replace('underlayerHem','underSleeve')):undefined,ring=parent?fabricRings(parent.svgRaw)[0]:undefined;return cleanBodyFabric(cleanSleeveFabric(l,8,ring?{minX:Math.min(...ring.map(p=>p.x)),maxX:Math.max(...ring.map(p=>p.x))}:undefined));}),fit),fit).map(l=>l.id==='base'?{...l,svgRaw:symmetricOuterTorso(l.svgRaw),panellingClipSvgRaw:undefined}:l),hems);
   const outline=cleaned.find(l=>l.id==='outline');
   const support=outline?new DOMParser().parseFromString(outline.svgRaw,'image/svg+xml').querySelector('[data-ink-preserve]'):null;
   // Reuse the traced footprint as backing fabric; collar and inner-back layers sit above it.
@@ -73,7 +78,7 @@ export function withTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:stri
 
  }
  const smoothed=layers.map(l=>{const parent=l.id.startsWith('underlayerHem')?layers.find(p=>p.id===l.id.replace('underlayerHem','underSleeve')):undefined,ring=parent?fabricRings(parent.svgRaw).sort((a,b)=>Math.abs(signedArea(b))-Math.abs(signedArea(a)))[0]:undefined;const underBounds=ring?{minX:Math.min(...ring.map(p=>p.x)),maxX:Math.max(...ring.map(p=>p.x))}:undefined;return cleanNecklineFabric(cleanBodyFabric(cleanSleeveFabric(l,8,underBounds)),view);});
- let cleaned=straightenOversizedShoulders(constructSleeveFamily(smoothed,fit),fit);
+ let cleaned=straightenOversizedShoulders(constructSleeveFamily(smoothed,fit),fit).map(l=>l.id==='base'?{...l,svgRaw:symmetricOuterTorso(l.svgRaw),panellingClipSvgRaw:undefined}:l);
  const oldNeck=layers.find(l=>l.id==='neck');
  if(view==='front'&&oldNeck&&/v-?neck|thin crew/i.test(oldNeck.displayName)&&!/deep/i.test(oldNeck.displayName)){const sourceRing=fabricRings(oldNeck.svgRaw).sort((a,b)=>Math.abs(signedArea(b))-Math.abs(signedArea(a)))[0];if(sourceRing){const backing='<g transform="matrix(1 0 0 1 0 0)" fill="#000000" data-neck-support="true"><path d="'+path(sourceRing)+'"/></g>';cleaned=cleaned.map(l=>l.id==='base'?{...l,svgRaw:l.svgRaw.replace('</svg>',backing+'</svg>'),panellingClipSvgRaw:undefined}:l);}}
 
@@ -93,6 +98,6 @@ export function withTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:stri
   const poloInk=polo?source.replace(/(<svg)([^>]*>)/,'$1 data-tech-ink-boldness="0"$2'):source;
   const raw=poloInk.replace(/data-ink-repair="true"/g,'data-old-ink-repair="true"').replace(/(<svg[^>]*>)/,'$1'+mask+'<g mask="url(#'+keepId+')">').replace(/<\/svg>\s*$/,'</g><path data-ink-preserve="true" fill="none" d="'+preserve+'"/><path data-ink-repair="true" fill="none" d="M0 0H2048V2048H0Z"/></svg>');
   const markers=(neckInk?'<path data-neckline-boundary="true" fill="none" d="'+neckInk+'"/>':'')+(ribs.lines?'<path data-technical-neck-ribs="true" fill="none" d="'+ribs.lines+'"/><path data-technical-neck-rib-clip="true" fill="none" d="'+ribs.clip+'"/>':'');
-  return {...layer,svgRaw:raw.replace('</svg>',markers+'</svg>')};
+  return {...layer,svgRaw:raw.replace('<svg ','<svg data-surface-quality="true" ').replace('</svg>',markers+'</svg>')};
  });
 }

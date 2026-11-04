@@ -8,6 +8,7 @@ export type SnapBox = { id: string; x: number; y: number; width: number; height:
  * Returns line positions in zone coordinates (0…zoneW / 0…zoneH) for drawing guides.
  */
 export type SnapDragOptions = {
+  tolerance?: number;
   /** Shift snap “canvas centre” as a fraction of zone width (e.g. -0.01 ≈ 1% left). */
   centerNudgeFractionX?: number;
   /** Shift snap “canvas centre” as a fraction of zone height. */
@@ -27,7 +28,7 @@ export function snapDragInZone(
   boxes: SnapBox[],
   options?: SnapDragOptions,
 ): { x: number; y: number; verticalLines: number[]; horizontalLines: number[] } {
-  const SNAP = SNAP_GUIDE_PX;
+  const SNAP = options?.tolerance ?? SNAP_GUIDE_PX;
   const others = boxes.filter((b) => b.id !== movingId);
   const nxFrac = options?.centerNudgeFractionX ?? 0;
   const nyFrac = options?.centerNudgeFractionY ?? 0;

@@ -36,7 +36,7 @@ export function FilteredImage({ source, settings, alt, className, style, tint, t
     }
   }, [active, displayed, result, settings?.intensity,tint]);
   if (!active) return <img src={source} alt={alt} className={className} style={style} />;
-  return <span ref={host} className={className} style={{ display: 'block', position: 'relative', ...style }} data-image-filter={settings!.id} data-image-filter-pending={!ready && !error ? 'true' : 'false'} data-image-filter-error={error || undefined}>
+  return <span ref={host} className={className} style={{ display: 'block', position: 'relative', ...style }} data-image-filter={settings?.id??'tint'} data-image-filter-pending={!ready && !error ? 'true' : 'false'} data-image-filter-error={error || undefined}>
     <img src={source} alt={alt} className="h-full w-full object-fill" style={{ opacity: displayed ? 0 : 1, objectFit: thumbnail ? 'contain' : 'fill' }} />
     <canvas ref={canvas} aria-hidden className="absolute inset-0 h-full w-full" style={{ opacity: displayed ? 1 : 0, objectFit: thumbnail ? 'contain' : 'fill' }} />
     {error && <span data-editor-chrome role={thumbnail ? undefined : 'alert'} title={error} className="absolute inset-x-0 bottom-0 bg-[#fafafa] p-1 text-[10px] text-red-200">{thumbnail ? 'Unavailable' : <>Filter unavailable. <button type="button" className="underline" onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); setResult(undefined); setAttempt(value => value + 1); }}>Retry filter</button> or choose Original.</>}</span>}

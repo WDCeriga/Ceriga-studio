@@ -6,7 +6,6 @@ import {StudioArtworkPreview} from './StudioArtworkPreview';
 import type {DesignElement as StudioDesignElement} from './PrintStudioEditor';
 import {useStudioWorkflow} from './shell/StudioWorkflow';
 import {CanvasZoom} from './shell/CanvasZoom';
-import {LabelArtworkEditor} from './LabelArtworkEditor';
 import {labelCameraFrame,labelCameraScale} from '../../data/labelGeometry';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Maximize, Minus, Plus, RotateCcw } from 'lucide-react';
@@ -161,7 +160,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
         <StudioArtworkPreview onArtworkSelect={onArtworkSelect} elements={artwork} view={view} interactive garment={<TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
           onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />}/>
       </div>}
-      {selected && (handSelected || mode==='only') && (studio?<EmbeddedSurfaceArtworkEditor key={selected.id+':'+(selected.artworkFace??'front')} title="Label artwork" value={selectedSurface!} controlsHost={workflow.controlsHost} onSelection={workflow.setSelection} onCommit={value=>onChange(labels.map(label=>label.id===selected.id?saveLabelSurface(label,value):label))}/>:<svg data-isolated-label="" viewBox={`0 0 ${selected.widthMm} ${selected.heightMm}`} className="absolute h-[85%] w-[85%]"><LabelArtwork label={selected}/></svg>)}
+      {selected && (handSelected || mode==='only') && (studio?<EmbeddedSurfaceArtworkEditor key={selected.id+':'+(selected.artworkFace??'front')} title="Label artwork" value={selectedSurface!} selectedId={workflow.selection} controlsHost={workflow.controlsHost} onSelection={workflow.setSelection} onCommit={value=>onChange(labels.map(label=>label.id===selected.id?saveLabelSurface(label,value):label))}/>:<svg data-isolated-label="" viewBox={`0 0 ${selected.widthMm} ${selected.heightMm}`} className="absolute h-[85%] w-[85%]"><LabelArtwork label={selected}/></svg>)}
       {!selected && <p role="status" className="pointer-events-none absolute bottom-5 z-10 max-w-sm rounded border border-black/10 bg-white/95 px-4 py-2 text-center text-xs text-[#737373]">{labels.length ? 'Select a saved label or use Add label in the panel. No label is selected for this view.' : 'No labels added. Choose any label category and use Add label in the panel when you are ready.'}</p>}
       {unplaced && <p role="status" className="pointer-events-none absolute bottom-4 z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#171717]">Click the garment to position your label. No attachment location is assumed.</p>}
     </div>

@@ -1,3 +1,5 @@
+import {useContext as useComparisonContext} from 'react';
+import {SizeComparisonContext} from './shell/SizeComparisonOverlay';
 import {StudioArtworkPreview} from './StudioArtworkPreview';
 import type {DesignElement as StudioDesignElement} from './PrintStudioEditor';
 import {type MeasurementGrading} from '../../lib/measurementGrading';
@@ -425,8 +427,9 @@ export function MeasurementPreview({
     return getDefaultTshirtSelection();
   }, [svgPack, selection, fit]);
 
+  const sizeComparison=useComparisonContext(SizeComparisonContext);
   return (
-    <div data-measurement-preview data-view={detailView??'front'} className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
+    <div data-size-comparison={sizeComparison.enabled?true:undefined} data-measurement-preview data-view={detailView??'front'} className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
       {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
         <MeasurementArtwork onArtworkSelect={onArtworkSelect} studioArtwork={studioArtwork} prints={prints} view={detailView??'front'}>
           <TshirtSvgPreview

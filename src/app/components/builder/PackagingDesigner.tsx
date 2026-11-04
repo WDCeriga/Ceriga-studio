@@ -4,7 +4,7 @@ import {MaterialSelect} from './shell/MaterialSelect';
 import {AdvancedColorPopover} from './PrintStudioColorPopover';
 import {CanvasZoom} from './shell/CanvasZoom';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AlignCenter, AlignLeft, AlignRight, Check, ArrowDownToLine, ArrowUpToLine, BetweenHorizontalStart, Copy, ImagePlus, Maximize, Minus, Plus, RotateCcw, Save, Trash2, Type, Upload } from 'lucide-react';
+import { ChevronLeft, AlignCenter, AlignLeft, AlignRight, Check, ArrowDownToLine, ArrowUpToLine, BetweenHorizontalStart, Copy, ImagePlus, Maximize, Minus, Plus, RotateCcw, Save, Trash2, Type, Upload } from 'lucide-react';
 import { PackagingArtwork } from './PackagingArtwork';
 import { PACKAGING_CATEGORIES, PACKAGING_TEMPLATES, PANEL_NAMES, packagingTemplate, panelSize,packagingElementRegion, createPackagingDesign, switchPackaging, normalizePackagingDesign, placePackagingText, packagingDimensionError, packagingWarnings, constrainPackagingElement, fitPackagingElement, printRegion, rotatedExtents, type PackagingCategory, type PackagingState, type PackagingDesign, type PackagingElement, type PackagingPanel, type PackagingView } from '../../data/packaging';
 import './packaging.css';
@@ -165,7 +165,7 @@ export function PackagingDesigner({ value, onChange, selectedId, onSelect, onBou
       </details></section>
       {selected && <section className="pkg-layer-editor" data-packaging-layer-controls data-pkg-tool="Design" key={selected.id}>
         <header className="pkg-edit-heading">
-          <button type="button" className="pkg-back-link" onClick={()=>onSelect(null)}>← All layers</button>
+          <button type="button" className="pkg-back-link studio-icon-back" aria-label="Back to layers" title="Back to layers" onClick={()=>onSelect(null)}><ChevronLeft size={16}/></button>
           <span className="pkg-type-badge">{selected.kind==='section'?'Colour section':selected.kind==='text'?'Text':'Image'}</span>
         </header>
         <div className="pkg-selected-artwork">

@@ -66,16 +66,42 @@ function alignTorsoHem(raw:string,top:number,low:number[],high:number[]){
  const rings=parts.map(d=>flattenPathContours(svgpath(d).matrix([m.a,m.b,m.c,m.d,m.e,m.f]).toString(),1)[0]??[]),idx=rings.reduce((n,r,i)=>Math.abs(signedArea(r))>Math.abs(signedArea(rings[n]))?i:n,0),points=rings[idx].map(q=>{if(q.y<top-58)return q;const t=(q.y-(top-8))/50;if(q.x<low[0]+18)return {x:low[0]+(low[0]-high[0])*t,y:q.y};if(q.x>low[1]-18)return {x:low[1]+(low[1]-high[1])*t,y:q.y};return q;});
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();parts[idx]=svgpath('M'+points.map(pt).join('L')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.join(''));return new XMLSerializer().serializeToString(doc.documentElement);
 }
+/** Rebuild one torso from the live shared armholes, rather than retaining old sleeve wedges. */
+function torsoFromAttachments(raw:string,attachment:string,fit?:string){
+ const source=ring(raw),join=flattenPathContours(attachment,1.5)[0];if(source.length<3||!join?.length)return raw;
+ const a=join[0],u=join.at(-1)!,rightA={x:2048-a.x,y:a.y};
+ const i=near(source,rightA),j=near(source,a),one=walk(source,i,j),two=walk(source,j,i).reverse(),mean=(ps:P[])=>ps.reduce((sum,p)=>sum+p.y,0)/ps.length;
+ const top=(mean(one)<mean(two)?one:two).slice(1,-1).filter(p=>p.x>=a.x-1&&p.x<=rightA.x+1);
+ const bottom=Math.max(...source.map(p=>p.y)),hem=source.filter(p=>p.y>bottom-4&&p.x<1024),hemX=fit==='slim'&&hem.length?Math.min(...hem.map(p=>p.x)):u.x;
+ const side=Array.from({length:33},(_,i)=>{const t=i/32;return{x:u.x+(hemX-u.x)*t+(fit==='slim'?16*Math.sin(Math.PI*t)**2:0),y:u.y+(bottom-u.y)*t}});
+ const mirror=(p:P)=>({x:2048-p.x,y:p.y});
+ const points=[...join,...side.slice(1),...side.slice().reverse().map(mirror),...join.slice().reverse().map(mirror).slice(1),...top];
+ return wrap('M'+points.map(pt).join('L')+'Z').replace('<svg ',fit==='slim'?'<svg data-constructed-slim-torso="true" ':'<svg ');
+}
+/** A clean, mirrored side seam; keep fit shaping continuous below the armhole. */
+function cleanTorsoSides(raw:string,join:P,fit?:string){
+ const doc=new DOMParser().parseFromString(raw,'image/svg+xml'),g=[...doc.querySelectorAll('g[transform]')].find(e=>!e.closest('defs')) as SVGGraphicsElement|undefined,p=g?.querySelector('path'),m=g?.transform.baseVal.consolidate()?.matrix;
+ if(!p||!m)return raw;
+ const parts=(p.getAttribute('d')??'').match(/M[^M]*/g);if(!parts)return raw;
+ const rings=parts.map(d=>flattenPathContours(svgpath(d).matrix([m.a,m.b,m.c,m.d,m.e,m.f]).toString(),2)[0]??[]),index=rings.reduce((n,r,i)=>Math.abs(signedArea(r))>Math.abs(signedArea(rings[n]))?i:n,0),points=rings[index],bottom=Math.max(...points.map(q=>q.y));
+ const hemPoints=points.filter(q=>q.y>bottom-4&&q.x<1024),hemX=hemPoints.length?Math.min(...hemPoints.map(q=>q.x)):join.x;
+ const side=(y:number)=>{const t=Math.max(0,Math.min(1,(y-join.y)/(bottom-join.y)));return join.x+(hemX-join.x)*t+(fit==='slim'?16*Math.sin(Math.PI*t)**2:0)};
+ const clean=points.map(q=>q.y>=join.y&&q.x<1024?{x:side(q.y),y:q.y}:q.y>=join.y&&q.x>1024?{x:2048-side(q.y),y:q.y}:q);
+ const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();parts[index]=svgpath('M'+clean.map(pt).join('L')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.join(''));
+ for(const group of doc.querySelectorAll('g[mask]'))if(/sleeve-torso/.test(group.getAttribute('mask')??''))group.removeAttribute('mask');
+ return new XMLSerializer().serializeToString(doc.documentElement);
+}
 /** Copy the left construction outside the traced neck window to the right shoulder. */
-function symmetricOuterTorso(raw:string){
+export function symmetricOuterTorso(raw:string){
  const doc=new DOMParser().parseFromString(raw,'image/svg+xml'),g=[...doc.querySelectorAll('g[transform]')].find(e=>!e.closest('defs')) as SVGGraphicsElement|undefined,p=g?.querySelector('path'),m=g?.transform.baseVal.consolidate()?.matrix;
  if(!p||!m)return raw;
  const parts=(p.getAttribute('d')??'').match(/M[^M]*/g);if(!parts)return raw;
  const rings=parts.map(d=>flattenPathContours(svgpath(d).matrix([m.a,m.b,m.c,m.d,m.e,m.f]).toString(),2)[0]??[]),index=rings.reduce((n,r,i)=>Math.abs(signedArea(r))>Math.abs(signedArea(rings[n]))?i:n,0);
  const original:[[number,number][][]]=[[rings[index].map(q=>[q.x,q.y])]],left=polygonClipping.intersection(original,[[[[0,0],[1024,0],[1024,2048],[0,2048]]]]);
  const reflected=left.map(poly=>poly.map(loop=>loop.map(([x,y])=>[2048-x,y] as [number,number]).reverse()));
- const neck:[[number,number][][]]=[[[[700,0],[1348,0],[1348,900],[700,900]]]];
- const symmetric=polygonClipping.union(polygonClipping.difference(polygonClipping.union(left,reflected),neck),polygonClipping.intersection(original,neck));
+ // The collar is a separate, unchanged layer. Keeping a rectangular piece of
+ // the old torso across the shoulder left a step at the window's right edge.
+ const symmetric=polygonClipping.union(left,reflected);
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
  parts[index]=svgpath(symmetric.map(poly=>poly.map(loop=>'M'+loop.map(([x,y])=>pt({x,y})).join('L')+'Z').join('')).join('')).matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();
  p.setAttribute('d',parts.join(''));return new XMLSerializer().serializeToString(doc.documentElement);
@@ -85,7 +111,7 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const left=layers.find(l=>l.id==='sleeveLeft'),hem=layers.find(l=>l.id==='sleeveHemLeft');if(!left||!hem)return layers;
  const key=[fit,left.assetId,left.svgRaw,hem.svgRaw,layers.find(l=>l.id==='base')?.svgRaw,...layers.filter(l=>/^(underSleeve|underlayerHem)/.test(l.id)).map(l=>l.id+':'+l.svgRaw)].join('|'),cached=familyCache.get(key);if(cached)return apply(layers,cached);
  const r=ring(left.svgRaw),h=ring(hem.svgRaw);if(r.length<3||h.length<3)return layers;
- const long=/:long(?::|$)/.test(left.assetId);let a=fit==='oversized'?{x:545.333,y:540}:r.reduce((p,q)=>q.y<p.y?q:p,r[0]);
+ const long=/:long(?::|$)/.test(left.assetId),cap=/:cap(?::|$)/.test(left.assetId);let a=r.reduce((p,q)=>q.y<p.y?q:p,r[0]);
  // Register the slim cap to the torso shoulder, rather than joining two near-but-different corners.
  const originalBody=layers.find(l=>l.id==='base'),bodyRing=originalBody?ring(originalBody.svgRaw):[];
  if(fit==='slim'&&bodyRing.length){const cap=bodyRing[near(bodyRing,a)];if(distance(cap,a)<70)a=cap;}
@@ -95,6 +121,7 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
   // Taper the extended short sleeve toward the body instead of flaring the cuff.
   outer.x+=65;inner.x+=65;hemInner.x+=65;
  }
+ let outerBottom=corner(lo,low);
  const maxX=Math.max(...r.map(p=>p.x)),candidates=r.filter(p=>p.x>maxX-4&&p.y>a.y&&p.y<a.y+650);
  const t={x:maxX,y:Math.min(...candidates.map(p=>p.y))},u={x:maxX,y:Math.max(...candidates.map(p=>p.y))};
  if(!Number.isFinite(t.y)||!Number.isFinite(u.y))return layers;
@@ -102,10 +129,17 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const short=!long&&!longerShort,closedUnderarm=short||longerShort;
  if(closedUnderarm){inner.x=maxX;hemInner.x=maxX;u.y=longerShort?inner.y:Math.min(u.y,inner.y);}
  else if(long){u.y=Math.min(inner.y-90,u.y+75);}
+ if(cap){
+  outerBottom=r.reduce((best,p)=>p.x<best.x?p:best,r[0]);
+  hemInner.x=u.x;hemInner.y=u.y;
+  const edgeLength=Math.max(1,distance(a,outerBottom)),inset=Math.min(24,edgeLength*.12),ratio=Math.max(0,1-inset/edgeLength);
+  outer.x=a.x+(outerBottom.x-a.x)*ratio;outer.y=a.y+(outerBottom.y-a.y)*ratio;
+  inner.x=u.x;inner.y=u.y-inset;
+ }
  const curve=cubic(sideArc(r,a,t,true),a,t,true)+'L'+pt(u);
  const innerCurve=long?cubic(sideArc(r,u,inner,true),u,inner):'L'+pt(inner);
  const outerCurve=long?cubic(sideArc(r,outer,a,false),outer,a):'L'+pt(a);
- const d='M'+pt(a)+curve+innerCurve+'L'+pt(outer)+outerCurve+'Z';
+ const d=cap?'M'+pt(a)+curve+'L'+pt(outerBottom)+'L'+pt(a)+'Z':'M'+pt(a)+curve+innerCurve+'L'+pt(outer)+outerCurve+'Z';
  let body=layers.find(l=>l.id==='base')?.svgRaw;
  if(body){const end=closedUnderarm?hemInner:u,attachment=curve+(closedUnderarm?'L'+pt(hemInner):'');body=replaceBodyArc(body,a,end,attachment,fit!=='slim');const mirrored=svgpath('M'+pt(a)+attachment).matrix([-1,0,0,1,2048,0]).toString();body=replaceBodyArc(body,{x:2048-a.x,y:a.y},{x:2048-end.x,y:end.y},mirrored.replace(/^M[^C]*C/,'C'),fit!=='slim');}
  // The reconstructed slim torso already follows the shared sleeve attachment.
@@ -123,9 +157,13 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const seam='M'+pt(a)+curve+(closedUnderarm?'L'+pt(hemInner):'');
  const rightSeam=svgpath(seam).matrix([-1,0,0,1,2048,0]).toString();
  const right=wrap(svgpath(d).matrix([-1,0,0,1,2048,0]).toString()).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+rightSeam+'"/></svg>'),leftSvg=wrap(d).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+seam+'"/></svg>');
- const outerBottom=corner(lo,low);if(fit==='oversized'&&/longer-short/.test(left.assetId))outerBottom.x+=65;
- const band='M'+pt(outer)+'L'+pt(inner)+'L'+pt(hemInner)+'L'+pt(outerBottom)+'Z',opening='M'+pt(outerBottom)+'L'+pt(hemInner),layered=layers.some(l=>l.id==='underSleeveLeft');
+ if(fit==='oversized'&&/longer-short/.test(left.assetId))outerBottom.x+=65;
+ if(!long&&!cap&&Math.abs(outer.y-a.y)>1){outerBottom.x=a.x+(outer.x-a.x)*(outerBottom.y-a.y)/(outer.y-a.y);}
+ let band='M'+pt(outer)+'L'+pt(inner)+'L'+pt(hemInner)+'L'+pt(outerBottom)+'Z';
+ if(cap){const toPolygon=(ps:P[])=>[[[...ps,ps[0]].map(p=>[p.x,p.y] as [number,number])]];const clipped=polygonClipping.intersection(toPolygon(ring(wrap(d))),toPolygon([outer,inner,hemInner,outerBottom]));if(clipped.length)band=clipped.map(poly=>poly.map(loop=>'M'+loop.map(([x,y])=>pt({x,y})).join('L')+'Z').join('')).join('');}
+ const opening='M'+pt(outerBottom)+'L'+pt(hemInner),layered=layers.some(l=>l.id==='underSleeveLeft');
  const hemSvg=(mirrored:boolean)=>{const matrix=mirrored?[-1,0,0,1,2048,0]:[1,0,0,1,0,0];return wrap(svgpath(band).matrix(matrix).toString()).replace('</svg>',layered?'<path data-sleeve-opening="true" fill="none" d="'+svgpath(opening).matrix(matrix).toString()+'"/></svg>':'</svg>');};
+ if(originalBody)body=torsoFromAttachments(originalBody.svgRaw,seam,fit);
  const bodyHem=layers.find(l=>l.id==='bodyHem'),bodyHemRing=bodyHem?ring(bodyHem.svgRaw):[],bodyHemYs=bodyHemRing.map(p=>p.y);
  let slimHem:string|undefined;
  if(fit==='slim'&&body){
@@ -137,7 +175,7 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  }
 
 
- if(body&&fit==='regular')body=symmetricOuterTorso(body);
+ if(body){body=cleanTorsoSides(body,closedUnderarm?hemInner:u,fit);body=symmetricOuterTorso(body);}
 
  // The neck variants have different body lengths. Derive the hem from this torso,
  // rather than reusing a default neck's bottom height.
@@ -155,13 +193,22 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  if(layered)for(const id of ['underSleeveLeft','underSleeveRight']){
   const layer=layers.find(l=>l.id===id);if(!layer)continue;
   const points=ring(layer.svgRaw),xs=points.map(p=>p.x),ys=points.map(p=>p.y),x0=Math.min(...xs),x1=Math.max(...xs),y1=Math.max(...ys),right=id==='underSleeveRight';
-  const openingY=(x:number)=>{const leftX=right?2048-x:x;return outerBottom.y+(leftX-outerBottom.x)*(hemInner.y-outerBottom.y)/(hemInner.x-outerBottom.x)-18;};
-  // A straight under-sleeve ends behind the upper hem; it must never hook into the torso.
-  const torso=body?ring(body):[],lower=torso.filter(p=>p.y>Math.min(openingY(x0),openingY(x1))&&p.x<1024);
-  const bodyEdge=lower.length?Math.min(...lower.map(p=>p.x)):1024;
-  const leftInner=Math.min(hemInner.x-3,bodyEdge-8),innerX=right?2048-leftInner:leftInner,leftOuter=outerBottom.x+3,outerX=right?2048-leftOuter:leftOuter;
-  const bottomLeftInner=Math.min(right?2048-x0:x1,bodyEdge-8),bottomInner=right?2048-bottomLeftInner:bottomLeftInner,bottomOuter=right?x1:x0;
-  under[id]=wrap('M'+outerX+','+openingY(outerX)+'L'+innerX+','+openingY(innerX)+'L'+bottomInner+','+y1+'H'+bottomOuter+'Z');
+  // Seat the underlayer behind the complete short-sleeve opening, then taper
+  // toward the wrist. Both attachment corners overlap the outer cuff.
+  const openingWidth=Math.max(12,hemInner.x-outerBottom.x);
+  const inset=fit==='slim'?.16:.09;
+  const leftOuter=outerBottom.x+openingWidth*inset;
+  const torsoBelow=body?ring(body).filter(p=>p.y>=Math.min(outerBottom.y,hemInner.y)&&p.x<1024):[];
+  const bodyClearance=torsoBelow.length?Math.min(...torsoBelow.map(p=>p.x))-28:hemInner.x;
+  const leftInner=Math.max(leftOuter+40,Math.min(hemInner.x-openingWidth*inset,bodyClearance));
+  const outerX=right?2048-leftOuter:leftOuter,innerX=right?2048-leftInner:leftInner;
+  const openingY=(x:number)=>{const leftX=right?2048-x:x;return outerBottom.y+(leftX-outerBottom.x)*(hemInner.y-outerBottom.y)/openingWidth-24;};
+  const wristWidth=Math.min(Math.abs(x1-x0),openingWidth*(fit==='slim'?.52:.65));
+  const wristCenter=(leftOuter+leftInner)/2-openingWidth*.06;
+  const wristOuter=wristCenter-wristWidth/2,wristInner=wristCenter+wristWidth/2;
+  const bottomOuter=right?2048-wristOuter:wristOuter,bottomInner=right?2048-wristInner:wristInner;
+  const topOuter=openingY(outerX),topInner=openingY(innerX),length=y1-Math.max(topOuter,topInner);
+  under[id]=wrap('M'+outerX+','+topOuter+'L'+innerX+','+topInner+'C'+innerX+','+(topInner+length*.35)+' '+bottomInner+','+(y1-length*.3)+' '+bottomInner+','+y1+'H'+bottomOuter+'C'+bottomOuter+','+(y1-length*.3)+' '+outerX+','+(topOuter+length*.35)+' '+outerX+','+topOuter+'Z');
   const cuffId=id.replace('underSleeve','underlayerHem'),cuff=layers.find(l=>l.id===cuffId),cuffRing=cuff?ring(cuff.svgRaw):[];
   if(cuffRing.length){const top=Math.min(...cuffRing.map(p=>p.y)),bottom=Math.max(...cuffRing.map(p=>p.y));under[cuffId]=wrap('M'+bottomOuter+','+top+'H'+bottomInner+'V'+bottom+'H'+bottomOuter+'Z');}
  }

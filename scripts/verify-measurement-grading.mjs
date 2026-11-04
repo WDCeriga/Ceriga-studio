@@ -33,3 +33,9 @@ check('Decreasing or irregular size progression is warned, not blocked',()=>{con
 check('Negative generated values produce consistency warnings',()=>{const next=g.applyGrade({measurements:{}},presets,'chestWidth',{stepCm:'30'});assert.ok(g.checkGrading(next,presets,['chestWidth']).some(issue=>issue.kind==='invalid'))});
 check('Rules and values round trip through project serialization',()=>assert.deepEqual(JSON.parse(JSON.stringify(state)),state));
 console.log(`${checks} grading checks passed.`);
+const imported={measurements:{chestWidth:{xs:'48',s:'50',m:'52',l:'54',xl:'56',xxl:'58'}}};
+const activated=g.applyGrade(imported,presets,'chestWidth',{stepCm:'3',overrides:{}});
+assert.equal(activated.measurements.chestWidth.m,'52');assert.equal(activated.measurements.chestWidth.l,'55');assert.equal(activated.measurements.chestWidth.xl,'58');
+const manual=g.editGradedMeasurement(activated,presets,'chestWidth','xl','61'),regenerated=g.applyGrade(manual,presets,'chestWidth',{overrides:{}});
+assert.equal(regenerated.measurements.chestWidth.xl,'58');assert.equal(imported.measurements.chestWidth.l,'54');
+console.log('PASS First rule activation and explicit regeneration update non-base sizes without mutating imported measurements');

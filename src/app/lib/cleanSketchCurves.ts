@@ -95,10 +95,13 @@ export function cleanSketchCurve(raw:P[],closed:boolean,detail:number,width:numb
 }
 
 /** Fit an already designed contour without smoothing or moving its corners. */
-export function fitVectorContour(points:P[],closed:boolean,tolerance=.05,cornerAngle=.55):ShapePath{
+export function fitVectorContour(points:P[],closed:boolean,tolerance=.05,cornerAngle=.55,straightSpan=Infinity):ShapePath{
  if(points.length<3)return{closed,nodes:points};
  const n=points.length,corners:number[]=[];for(let i=closed?0:1;i<(closed?n:n-1);i++){const a=unit(sub(points[i],points[(i-1+n)%n])),b=unit(sub(points[(i+1)%n],points[i]));if(Math.acos(Math.max(-1,Math.min(1,dot(a,b))))>cornerAngle)corners.push(i);}
- const stops=closed?(corners.length?corners:[0,Math.floor(n/2)]):[0,...corners,n-1],nodes:ShapePathNode[]=[];
+ // A long simplified straight run must not inherit a tangent from a nearby notch.
+ for(let i=0;i<n-(closed?0:1);i++)if(dist(points[i],points[(i+1)%n])>=straightSpan){corners.push(i,(i+1)%n);}
+ const ordered=[...new Set(corners)].sort((a,b)=>a-b);
+ const stops=closed?(ordered.length?ordered:[0,Math.floor(n/2)]):[...new Set([0,...ordered,n-1])],nodes:ShapePathNode[]=[];
  for(let segment=0;segment<stops.length-(closed?0:1);segment++){const a=stops[segment],b=stops[(segment+1)%stops.length],row:P[]=[points[a]];let i=(a+1)%n;while(i!==b){row.push(points[i]);i=(i+1)%n;if(row.length>n)break;}row.push(points[b]);if(row.length<2)continue;const curves=fit(row,unit(sub(row[1],row[0])),unit(sub(row.at(-2)!,row.at(-1)!)),tolerance);for(const curve of curves){let last=nodes.at(-1);if(!last||dist(last,curve[0])>1e-7){last={...curve[0]};nodes.push(last);}last.out=curve[1];nodes.push({...curve[3],in:curve[2]});}}
  if(closed&&nodes.length>1&&dist(nodes[0],nodes.at(-1)!)<1e-6){nodes[0].in=nodes.at(-1)!.in;nodes.pop();}return{closed,nodes};
 }

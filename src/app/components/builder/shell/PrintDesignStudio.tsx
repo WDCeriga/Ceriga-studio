@@ -1,3 +1,7 @@
+import {StudioDisclosureScope} from './StudioControls';
+import {ArtworkSelectionPanel} from './ArtworkSelectionPanel';
+import {useContext} from 'react';
+import {ArtworkSurfaceContext} from '../printsStudio/ArtworkSurfaceContext';
 import {AddArtworkMenu,UnifiedArtworkTools} from './UnifiedArtworkTools';
 import {FontDropDialog} from './FontUploadControls';
 import {useArtworkNavigation} from './useArtworkNavigation';
@@ -25,6 +29,7 @@ import { StudioObjectPanel } from './StudioObjectPanel';
 import { StudioLayerDock } from './StudioLayerDock';
 import './print-design-studio.css';
 
+const inspectorScrollMemory=new Map<string,number>();
 export const PRINT_TOOL_GROUPS = [
  {id:'shapes',label:'Shapes & paths',hint:'Geometry and paths',icon:Shapes,group:'CREATE'},
  {id:'text',label:'Typography',hint:'Text and lettering',icon:Type,group:'CREATE'},
@@ -42,15 +47,15 @@ export function PrintDesignNavigation({onActivate}:{onActivate?:()=>void}){
 
 type EditorProps = { elements: DesignElement[]; onChange: (elements: DesignElement[], selectedId?: string,options?:{transient?:boolean}) => void; selectedId: string | null; onSelect: (id: string | null) => void; side: 'front' | 'back' };
 export function PrintDesignInspector(props: EditorProps & {hemWear?:HemWearBinding}) {
- const studio=usePrintsStudio(),workspace=useAssetWorkspaceContext();
+ const studio=usePrintsStudio(),workspace=useAssetWorkspaceContext(),surface=useContext(ArtworkSurfaceContext);
  props=workspace?.project?{...props,elements:workspace.project.elements,onChange:workspace.change,selectedId:workspace.selectedId,onSelect:workspace.select,side:'front'}:props;
  const ordered=useMemo(()=>orderDesignLayers(props.elements),[props.elements]);
  const write=props.onChange;props={...props,elements:ordered,onChange:(elements,id,options)=>write(orderDesignLayers(elements),id,options)};
- const inspectorScroll=useRef<HTMLDivElement>(null);
- const [mode,setMode]=useState<'create'|'edit'>('create');const family=PRINT_TOOL_GROUPS.find(item=>item.id===studio.panel)??PRINT_TOOL_GROUPS[0];const selected=props.elements.find(el=>el.id===props.selectedId);
- useLayoutEffect(()=>setMode('create'),[studio.panel,studio.panelRequest]);useLayoutEffect(()=>setMode(props.selectedId?'edit':'create'),[props.selectedId]);
- useLayoutEffect(()=>{const main=inspectorScroll.current;if(main)main.scrollTop=0},[props.selectedId,studio.panel,mode,studio.pathEditingId,studio.logoRegionEditing?.regionId,studio.tool==='shapePolygon']);
- return <HemWearContext.Provider value={workspace?.project?null:props.hemWear??null}><div className="studio-inspector-v2 studio-clean" data-mode={mode} data-family={studio.panel}>{<InspectorHeading className="studio-inspector-header" eyebrow={mode==='create'?'ARTWORK STUDIO':undefined} title={mode==='edit'&&selected?selected.logoTrace?(selected.logoTrace.selectedRegion?'Shape':'Logo'):selected.type==='text'?'Text':selected.type==='image'?'Artwork':selected.type==='customArea'?'Custom shape':selected.type==='distress'?'Wear mark':selected.type.charAt(0).toUpperCase()+selected.type.slice(1):family.label} description={mode==='create'?(studio.panel==='text'?'Create type that belongs on your garment.':studio.panel==='shapes'?'Start with a shape or draw your own.':studio.panel==='library'?'Reuse and organise your artwork.':studio.panel==='upload'?'Upload, outline or trace a reference.':studio.panel==='patterns'?'Build a repeat that belongs on fabric.':studio.panel==='distress'?'Set the finish. Add character and texture.':'Choose a brush. Make it yours.'):undefined} leading={mode==='edit'?<button className="studio-back" title="Back to tools" aria-label="Back to tools" onClick={()=>setMode('create')}><ChevronLeft size={15}/><span>Tools</span></button>:undefined}/>}<div className="studio-inspector-main" ref={inspectorScroll}><PrintsDesignStep elements={props.elements} onChange={props.onChange} selectedLayerId={props.selectedId} onSelectedLayerIdChange={props.onSelect} garmentSide={props.side} renderTools={api=><StudioCreationPanel api={api}/>} renderSelection={(element,update,fonts)=><StudioObjectPanel element={element} update={update} fonts={fonts}/>}/></div><StudioLayerDock {...props} onSelect={id=>{props.onSelect(id);if(id)setMode('edit')}}/></div></HemWearContext.Provider>;
+ const inspectorScroll=useRef<HTMLDivElement>(null),scrollPositions=useRef(inspectorScrollMemory);const inspectorKey=props.selectedId??studio.panel;
+ const mode=props.selectedId?'edit':'create';const family=PRINT_TOOL_GROUPS.find(item=>item.id===studio.panel)??PRINT_TOOL_GROUPS[0];const selected=props.elements.find(el=>el.id===props.selectedId);
+
+ useLayoutEffect(()=>{const main=inspectorScroll.current;if(main)main.scrollTop=scrollPositions.current.get(inspectorKey)??0},[props.selectedId,studio.panel]);
+ return <HemWearContext.Provider value={workspace?.project?null:props.hemWear??null}><div className="studio-inspector-v2 studio-clean" data-mode={mode} data-family={studio.panel}>{<InspectorHeading className="studio-inspector-header" eyebrow={mode==='create'?(surface?'DESIGN TOOLS':'ARTWORK STUDIO'):undefined} title={mode==='edit'&&selected?selected.logoTrace?(selected.logoTrace.selectedRegion?'Shape':'Logo'):selected.type==='text'?'Text':selected.type==='image'?'Artwork':selected.type==='customArea'?'Custom shape':selected.type==='distress'?'Wear mark':selected.type.charAt(0).toUpperCase()+selected.type.slice(1):family.label} description={mode==='create'?(surface?'Create artwork for this surface.':studio.panel==='text'?'Create type that belongs on your garment.':studio.panel==='shapes'?'Start with a shape or draw your own.':studio.panel==='library'?'Reuse and organise your artwork.':studio.panel==='upload'?'Upload, outline or trace a reference.':studio.panel==='patterns'?'Build a repeat that belongs on fabric.':studio.panel==='distress'?'Set the finish. Add character and texture.':'Choose a brush. Make it yours.'):undefined} leading={mode==='edit'||surface?<button className="studio-back" title="Back to tools" aria-label="Back to tools" onClick={()=>{studio.setTool('select');studio.setSelectionIds([]);props.onSelect(null)}}><ChevronLeft size={16}/></button>:undefined}/>}<StudioDisclosureScope scope={props.selectedId??studio.panel}><div className="studio-inspector-main" ref={inspectorScroll} onScroll={event=>scrollPositions.current.set(inspectorKey,event.currentTarget.scrollTop)}>{studio.selectionIds.length>1?<ArtworkSelectionPanel {...props} ids={studio.selectionIds} onSelection={studio.setSelectionIds}/>:<PrintsDesignStep elements={props.elements} onChange={props.onChange} selectedLayerId={props.selectedId} onSelectedLayerIdChange={props.onSelect} garmentSide={props.side} renderTools={api=><StudioCreationPanel key={studio.panel} api={api}/>} renderSelection={(element,update,fonts)=><StudioObjectPanel key={element.id} element={element} update={update} fonts={fonts}/>}/>}</div></StudioDisclosureScope><StudioLayerDock {...props} onSelect={id=>{props.onSelect(id);}}/></div></HemWearContext.Provider>;
 }
 export function PrintDesignCanvas({ garment, side, onSide, zoom, onZoom, onFit, history,drawingBounds,referenceWidthCm, ...props }: EditorProps & { garment: ReactNode; side: 'front' | 'back'; onSide:(side:'front'|'back')=>void; zoom:number; onZoom:(n:number)=>void; onFit:()=>void; history?:DrawHistory;drawingBounds?:GarmentDrawingBounds;referenceWidthCm?:number }) {
   const studio = usePrintsStudio();

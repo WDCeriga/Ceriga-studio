@@ -15,7 +15,7 @@ import { TrimColorFamilyPicker } from './TrimColorFamilyPicker';
 import hemGeometry from '../../../assets/studio-tshirt/hem-styles.json';
 import { stitchVariant } from '../../data/tshirtStitching';
 
-export type StitchEditor = { region: StitchRegion; closeUp: boolean; onSelect: (region: StitchRegion) => void };
+export type StitchEditor = { region: StitchRegion; closeUp: boolean; onSelect: (region: StitchRegion) => void; onApply?: (region:StitchRegion,settings:StitchSettings)=>void };
 
 export function useStitchGeometry(layers: ResolvedGarmentLayer[], fit: string, enabled = true, preferVector = false) {
   const technical=useTechnicalDrawing(),regular=useRegularConstruction()||technical||preferVector||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
@@ -62,6 +62,9 @@ export function StitchRegionOverlay({ geometry, hems, editor }: {
       <path d={stitchRegionPath(geometry, region)} fill="none" stroke="transparent" strokeWidth="18"
         vectorEffect="non-scaling-stroke" pointerEvents="stroke" className="cursor-pointer"
         role="button" tabIndex={0} aria-label={`Select ${TSHIRT_STITCH_REGIONS[region]}`} aria-pressed={editor.region === region}
+        onDragOver={event=>{if(event.dataTransfer.types.includes("application/x-ceriga-stitch")){event.preventDefault();event.currentTarget.style.stroke="rgba(38,38,38,.3)"}}}
+        onDragLeave={event=>{event.currentTarget.style.stroke="transparent"}}
+        onDrop={event=>{event.preventDefault();event.stopPropagation();event.currentTarget.style.stroke="transparent";try{const value=JSON.parse(event.dataTransfer.getData("application/x-ceriga-stitch"));if(TSHIRT_STITCH_OPTIONS.some(option=>option.value===value.style)){editor.onApply?.(region,value);editor.onSelect(region)}}catch{}}}
         onPointerDown={event => event.stopPropagation()}
         onClick={event => { event.stopPropagation(); editor.onSelect(region); }}
         onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); editor.onSelect(region); } }}>

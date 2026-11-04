@@ -1,3 +1,6 @@
+import {ArtworkObjectIdentity,ArtworkTransformFields} from './ArtworkObjectControls';
+import {ShapeAdvancedEditor} from './ShapeAdvancedEditor';
+import {DrawingAdvancedEditor} from './DrawingAdvancedEditor';
 import {SurfaceColourLinks} from './SurfaceColourLinks';
 import {GroupSourceControls} from './GroupSourceControls';
 import {SharedArtworkObjectPanel} from './SharedArtworkObjectPanel';
@@ -36,8 +39,8 @@ function ObjectEditor({element:el,update,fonts=[],toolsOnly=false}:{element:Desi
  if(el.type==='pattern')return <PatternObjectEditor key={el.id} element={el} update={update} toolsOnly={toolsOnly}/>;
  if(el.type==='image')return <ArtworkImageEditor key={el.id} element={el} update={update} toolsOnly={toolsOnly}/>;
  if(el.type==='text')return <TypographyEditor key={el.id} element={el} update={update} fonts={fonts}/>;
- if(el.type==='shape'||el.type==='customArea')return <ShapeObjectEditor element={el} update={update} toolsOnly={toolsOnly}/>;
- if(toolsOnly)return <><DrawingRefinementControls element={el} update={update}/>{el.children&&<GroupSourceControls element={el} update={update}/>}</>;
+ if(el.type==='shape'||el.type==='customArea')return <><ShapeObjectEditor element={el} update={update} toolsOnly={toolsOnly}/>{toolsOnly&&<ShapeAdvancedEditor element={el} update={update} images={(document?.elements??[]).filter(e=>e.type==='image').map(e=>({name:e.layerName??'Uploaded image',src:e.content}))}/>}</>;
+ if(toolsOnly)return <>{el.type==='drawing'&&<DrawingAdvancedEditor element={el} update={update}/>}<DrawingRefinementControls element={el} update={update}/>{el.children&&<GroupSourceControls element={el} update={update}/>}</>;
  const sizeText=(size:number)=>{const ratio=size/(el.fontSize??30);update({fontSize:size,width:el.width*ratio,height:el.height*ratio})};
  return <div className="studio-object-panel"><div className="studio-object-identity"><StudioLayerThumb element={el}/><div><strong>{el.layerName??(el.type==='text'?el.content.slice(0,24):el.type==='image'?'Uploaded artwork':el.type)}</strong><small>{el.type==='image'?'Image':el.type.charAt(0).toUpperCase()+el.type.slice(1)} · {(el.side??'front')==='front'?'Front':'Back'}</small></div><button aria-label={el.locked?'Unlock artwork':'Lock artwork'} onClick={()=>update({locked:!el.locked})}>{el.locked?<Lock size={16}/>:<Unlock size={16}/>}</button></div>
  <DrawingRefinementControls element={el} update={update}/>{el.type==='group'&&el.children?.every(child=>child.type==='shape')&&<StudioFold title="Corner radius" hint="Round all vector regions"><StudioNumber label="Corner radius" unit="mm" min={0} max={200} value={(el.children[0]?.shapeCornerRadius??0)*10/studio.unitsPerCm} onChange={value=>update({children:el.children!.map(child=>({...child,shapeCornerRadius:value*studio.unitsPerCm/10}))})}/></StudioFold>}<label className="studio-field">Layer name<input aria-label="Artwork layer name" value={el.layerName??''} onChange={e=>update({layerName:e.target.value||undefined})}/></label><fieldset disabled={el.locked} className="studio-object-fields">
@@ -53,4 +56,4 @@ function ObjectEditor({element:el,update,fonts=[],toolsOnly=false}:{element:Desi
  <ArtworkPrintMethod element={el} update={update}/></fieldset></div>;
 }
 
-export function StudioObjectPanel(props:{element:DesignElement;fonts?:string[];update:(patch:Partial<DesignElement>)=>void}){if(props.element.type==='text')return <><SurfaceColourLinks element={props.element} update={props.update}/><ObjectEditor {...props}/></>;return <><SurfaceColourLinks element={props.element} update={props.update}/><SharedArtworkObjectPanel element={props.element} update={props.update}><ObjectEditor {...props} toolsOnly/></SharedArtworkObjectPanel></>;}
+export function StudioObjectPanel(props:{element:DesignElement;fonts?:string[];update:(patch:Partial<DesignElement>)=>void}){if(props.element.type==='drawing')return <div className="studio-object-panel"><ArtworkObjectIdentity element={props.element} update={props.update}/><ArtworkPrintMethod element={props.element} update={props.update} initiallyOpen/><DrawingRefinementControls element={props.element} update={props.update}/><DrawingAdvancedEditor element={props.element} update={props.update}/><ArtworkTransformFields element={props.element} update={props.update}/></div>;if(props.element.type==='image')return <ArtworkImageEditor key={props.element.id} element={props.element} update={props.update}/>;if(props.element.type==='text')return <><ObjectEditor {...props}/><SurfaceColourLinks element={props.element} update={props.update}/></>;return <><SurfaceColourLinks element={props.element} update={props.update}/><SharedArtworkObjectPanel element={props.element} update={props.update}><ObjectEditor {...props} toolsOnly/></SharedArtworkObjectPanel></>;}
