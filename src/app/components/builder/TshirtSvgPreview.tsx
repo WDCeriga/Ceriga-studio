@@ -1495,7 +1495,13 @@ export function TshirtSvgPreview({
       sources.push({ id: layout.id, raw: sourceLayer.panellingClipSvgRaw ?? sourceLayer.svgRaw, role, matrix });
       if(role==='neck'&&/polo/i.test(sourceLayer.displayName)){
         const rings=fabricRings(sourceLayer.svgRaw).sort((a,b)=>{const area=(r:{x:number;y:number}[])=>Math.abs(r.reduce((n,p,i)=>{const q=r[(i+1)%r.length];return n+p.x*q.y-q.x*p.y},0));return area(b)-area(a)});
-        if(rings[1]?.length)poloOpeningY=Math.max(...rings[1].map(point=>matrix.transformPoint(point).y));
+        if(rings[1]?.length){
+          const throat=rings[1].map(point=>matrix.transformPoint(point));
+          const center=(Math.min(...throat.map(p=>p.x))+Math.max(...throat.map(p=>p.x)))/2;
+          // Stop at the collar opening, before the narrow V-shaped button-placket tail.
+          const sides=throat.filter(point=>Math.abs(Math.abs(point.x-center)-40)<4);
+          poloOpeningY=Math.max(...(sides.length?sides:throat).map(point=>point.y));
+        }
       }
     }
     return {...compileOpeningGeometry(sources),poloOpeningY};
@@ -1692,7 +1698,7 @@ export function TshirtSvgPreview({
               fabricAssignments={fabricAssignments}
               fabricTextureIntensity={fabricTextureIntensity}
               interior={material?.interior}
-              openingCut={id === 'outline' ? openings?.inkCut : openingGeometry.panels.some(panel => panel.id === id) ? openings?.removed : undefined}
+              openingCut={id === 'outline' ? openings?.inkCut : id === 'neck' ? openings?.collarCut : openingGeometry.panels.some(panel => panel.id === id) ? openings?.removed : undefined}
               layer={sourceLayer}
               layers={layers}
               garmentWash={showWash ? washDraft ?? garmentWash : undefined}
@@ -1710,6 +1716,7 @@ export function TshirtSvgPreview({
           );
         })}
 
+        {!!openings?.placketFill.length&&<div className="pointer-events-none absolute inset-0" data-polo-placket-fill="true" style={{zIndex:90}}><InlineSvg raw={'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="#000000" fill-rule="evenodd" d="'+openingPolygonPath(openings.placketFill)+'"/></svg>'} fill={partColors?.base??bodyColor} fabricColor={bodyColor} fabric={fabricParts.get('base')?resolvePartMaterial(fabricAssignments,fabricParts.get('base')!,[...fabricParts.values()])?.fabric:undefined} textureIntensity={partTextureIntensity(fabricTextureIntensity,'base')}/></div>}
         {garmentType==='tshirt'&&(technical||['regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework completeOutline={!customAssetState?.importedGarment} visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
         {canvasOverlay}
         {savedPanelling?.seams.length? <PanellingReadOnlyOverlay {...savedPanelling}/>:null}

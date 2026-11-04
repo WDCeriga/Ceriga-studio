@@ -29,6 +29,8 @@ export interface OpeningGeometry {
 export interface OpeningConstructionGeometry {
   removed: MultiPolygon;
   inkCut: MultiPolygon;
+  collarCut: MultiPolygon;
+  placketFill: MultiPolygon;
   remaining: MultiPolygon;
   facing: MultiPolygon;
   panels: Record<string, MultiPolygon>;
@@ -294,8 +296,8 @@ export function reanchorOpening(detail:GarmentDetail,bounds:DetailBounds):Garmen
  if(!opening||!['neckline','full-front'].includes(opening.attachment))return detail;
  const anchor={x:(bounds.minX+bounds.maxX)/2,y:openingAnchorY(bounds)??bounds.minY};
  const previous=opening.garmentAnchor;
- if(!previous)return {...detail,opening:{...opening,garmentAnchor:anchor}};
- const dx=anchor.x-previous.x,dy=anchor.y-previous.y;
+ if(!previous&&!bounds.polo)return {...detail,opening:{...opening,garmentAnchor:anchor}};
+ const dx=anchor.x-(previous?.x??opening.start.x),dy=anchor.y-(previous?.y??opening.start.y);
  if(Math.abs(dx)<.01&&Math.abs(dy)<.01)return detail;
  const translate=(point:OpeningPoint)=>({x:point.x+dx,y:point.y+dy});
  return sync({...detail,opening:{...opening,start:translate(opening.start),end:translate(opening.end),defaults:{...opening.defaults,start:translate(opening.defaults.start),end:translate(opening.defaults.end)},garmentAnchor:anchor}},bounds);
@@ -358,7 +360,7 @@ export function constructOpenings(details: GarmentDetail[], bounds: DetailBounds
   const cached = geometry && single ? constructionCache.get(geometry)?.get(single) : undefined;
   if (cached?.signature === signature) return cached.result;
   const active = candidates.filter(detail => validateOpening(detail, bounds).status !== 'Invalid');
-  let removed: MultiPolygon = [], facing: MultiPolygon = [], inkCut: MultiPolygon = [];
+  let removed: MultiPolygon = [], facing: MultiPolygon = [], inkCut: MultiPolygon = [], placketCut: MultiPolygon = [];
   for (const detail of active) {
     const opening = detail.opening!;
     const reach = openingNecklineReach(detail, bounds);
@@ -376,9 +378,10 @@ export function constructOpenings(details: GarmentDetail[], bounds: DetailBounds
     // collar fabric or the collar's own outline.
     if (bounds.polo && opening.attachment === 'neckline') {
       const {x, y} = opening.start;
-      const half = opening.width / 2 + 18;
-      const local: MultiPolygon = [[[[x-half,y+2],[x+half,y+2],[x+half,Math.max(y+150,bounds.necklineY??y)],[x-half,Math.max(y+150,bounds.necklineY??y)],[x-half,y+2]]]];
+      const half = opening.width / 2 + 65;
+      const local: MultiPolygon = [[[[x-half,y+2],[x+half,y+2],[x+opening.width/2+18,Math.max(y+150,bounds.necklineY??y)],[x-opening.width/2-18,Math.max(y+150,bounds.necklineY??y)],[x-half,y+2]]]];
       ink = polygonClipping.union(ink, local);
+      placketCut = placketCut.length ? polygonClipping.union(placketCut,local) : local;
     }
     inkCut = inkCut.length ? polygonClipping.union(inkCut, ink) : ink;
     const band = polygonClipping.intersection(fabric, openingGap(detail, opening.width / 2 + 9, reach));
@@ -387,7 +390,7 @@ export function constructOpenings(details: GarmentDetail[], bounds: DetailBounds
   let remaining: MultiPolygon | undefined;
   let panels: Record<string, MultiPolygon> | undefined;
   // The live renderer clips original layers with `removed`; only exports/tests need full panel reconstruction.
-  const result: OpeningConstructionGeometry = { active, removed, inkCut, facing: facing.length ? polygonClipping.difference(facing, removed) : [],
+  const result: OpeningConstructionGeometry = { active, removed, inkCut, placketFill: placketCut.length ? polygonClipping.difference(placketCut,removed) : [], collarCut: placketCut.length ? polygonClipping.union(removed,placketCut) : removed, facing: facing.length ? polygonClipping.difference(facing, removed) : [],
     get remaining() { return remaining ??= removed.length ? polygonClipping.difference(fabric, removed) : fabric; },
     get panels() { return panels ??= Object.fromEntries((geometry?.panels ?? []).map(panel => [panel.id, removed.length ? polygonClipping.difference(panel.polygons, removed) : panel.polygons])); } };
   if (geometry && single) {
