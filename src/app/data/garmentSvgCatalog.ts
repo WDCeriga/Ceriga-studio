@@ -1,3 +1,6 @@
+import {withRegularConstruction} from './regularConstruction';
+import {withTshirtSurfaceQuality} from './tshirtSurfaceQuality';
+import {withOversizedReference} from './oversizedReference';
 import {withShoulderConstruction} from './shoulderConstruction';
 import type { GarmentType } from './builderSteps';
 import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
@@ -206,6 +209,7 @@ function virtualCustomAsset(
 }
 
 export interface ResolvedGarmentLayer {
+  necklinePaintMask?:string;
   measurementShoulder?:{x:number;y:number};
   fabricRegion?: {
     role: string; group?: string; interior?: boolean; defaultFromId?: string; parentId?: string;
@@ -1325,6 +1329,14 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   // Neck assets are swapped in before the sleeve variants so long/cap sleeve masks apply to them.
   const packed = input.garmentType === 'tshirt' ? withTshirtNeckPack(layers, fit, view, neckFinish) : undefined;
   const sourceLayers = packed ?? layers;
+  if(input.garmentType==='tshirt'&&fit==='oversized'){
+    const regular=getDefaultGarmentSelection('tshirt','regular'),match=getGarmentAssetsForFit('tshirt','Sleeve length','regular').find(a=>garmentChoiceLabel(a.displayName)===garmentChoiceLabel(sleeveChoice?.displayName??''));
+    const selectedNeck=layers.find(l=>l.id==='neck'),nativeNeck=getGarmentAssetsForFit('tshirt','Neck','regular').find(a=>garmentChoiceLabel(a.displayName)===garmentChoiceLabel(selectedNeck?.displayName??''));
+    const sharedSelection=applyGarmentSelectionLinks('tshirt',{...regular,...(match?{'Sleeve length':match.id}:{}),...(nativeNeck?{Neck:nativeNeck.id}:{})},'regular');
+    const native=withTshirtSurfaceQuality(withRegularConstruction(resolveGarmentLayers({...input,fit:'regular',selection:sharedSelection,customAssetState:{...input.customAssetState,shoulderConstruction:'set-in'}})),'regular',neckFinish,view,input.tshirtHemStyles);
+    const reference=withOversizedReference(packed??layers,view,input.customAssetState?.shoulderConstruction,layered?'layered-long':sleeveVariant??'short',native);
+    if(reference.some(l=>l.svgRaw.includes('data-oversized-reference')))return withCustomAssets(reference,input.customAssetState??{},input.garmentType,fit,view,input.tshirtHemStyles).sort((a,b)=>a.zIndex-b.zIndex);
+  }
   let resolved = input.garmentType === 'tshirt' && layered
     ? withLayeredLongSleeves(sourceLayers, fit, input.partColors)
     : input.garmentType === 'tshirt' && sleeveVariant

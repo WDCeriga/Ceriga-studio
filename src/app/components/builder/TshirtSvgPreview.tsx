@@ -1,3 +1,5 @@
+import {withGarmentOutlineOwnership} from '../../data/garmentOutlineOwnership';
+import {withCleanSleeveOpenings} from '../../data/cleanSleeveOpenings';
 import {fabricRings} from '../../data/regularConstruction';
 import {withDistressedHem} from '../../data/distressedHem';
 import {withTorsoCrop} from '../../data/torsoCrop';
@@ -442,6 +444,7 @@ function resolveLayerFill(
 }
 
 function InlineSvg({
+  paintMask,
   raw,
   fill,
   fabricColor,
@@ -456,6 +459,7 @@ function InlineSvg({
   interior?: boolean;
   textureIntensity?: number;
   raw: string;
+  paintMask?: string;
   fill: string;
   fabricColor?: string;
   linework?: boolean;
@@ -478,7 +482,7 @@ function InlineSvg({
     <div
       className="pointer-events-none absolute inset-0 [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
       aria-hidden
-      dangerouslySetInnerHTML={{ __html: technical&&!raw.includes('data-hem-fray')?normalizeTechnicalSvg(markup,1,linework?'outline':'construction',linework):markup }}
+      dangerouslySetInnerHTML={{ __html: (()=>{const painted=technical&&!raw.includes('data-hem-fray')?normalizeTechnicalSvg(markup,1,linework?'outline':'construction',linework):markup;if(!paintMask)return painted;const maskId=new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg">'+paintMask+'</svg>','image/svg+xml').querySelector('mask')?.id;return maskId?painted.replace(/(<svg[^>]*>)/,'$1'+paintMask+'<g mask="url(#'+maskId+')">').replace(/<\/svg>\s*$/,'</g></svg>'):painted;})() }}
     />
   );
 }
@@ -749,8 +753,9 @@ function PreviewLayer({
         style={clipSide ? sleeveSideClipStyle(clipSide) : undefined}
       >
         <InlineSvg
-          raw={layer.svgRaw}
-          edgeSealWidth={technicalDrawing&&layer.id!=='outline'&&!layer.svgRaw.includes('data-distressed-hem')?36:0}
+          paintMask={layer.necklinePaintMask}
+          raw={['neck','innerBackNeck'].includes(layer.id)?layer.svgRaw.replace('<svg ','<svg data-no-fabric-edge-seal="true" '):layer.svgRaw}
+          edgeSealWidth={technicalDrawing&&!['outline','neck','innerBackNeck'].includes(layer.id)&&!layer.svgRaw.includes('data-distressed-hem')?36:0}
           fabric={fabric}
           interior={interior}
           textureIntensity={textureIntensity}
@@ -1086,9 +1091,10 @@ export function TshirtSvgPreview({
     const awaitsTrace=garmentType==='tshirt'&&!customAssetState?.importedGarment&&tshirtNeckPackKind(selectedNeck?.displayName??sourceResolvedLayers.find(l=>l.id==='neck')?.displayName??'')&&!sourceResolvedLayers.some(l=>l.svgRaw.includes('data-raster-neck="true"'));
     // Keep the last complete traced drawing on screen until all new neck parts are ready.
     // Never publish the legacy fallback between the selection change and the async asset load.
-    if(awaitsTrace)return lastReadyDrawing.current;
-    const ready=garmentType==='tshirt'&&!customAssetState?.importedGarment?withoutBodyHemFoldInk(withDistressedHem(withTorsoCrop(withRoundedShoulderCaps(preparedLayers),customAssetState?.torsoCrop),tshirtHemStyles),tshirtHemStyles):preparedLayers;
-    lastReadyDrawing.current=ready;return ready;
+    if(awaitsTrace||(garmentType==='tshirt'&&fit==='oversized'&&!customAssetState?.importedGarment&&!sourceResolvedLayers.some(l=>l.svgRaw.includes('data-oversized-reference'))))return lastReadyDrawing.current;
+    const ready=garmentType==='tshirt'&&!customAssetState?.importedGarment?withoutBodyHemFoldInk(withDistressedHem(withTorsoCrop(withCleanSleeveOpenings(withRoundedShoulderCaps(preparedLayers)),customAssetState?.torsoCrop),tshirtHemStyles),tshirtHemStyles):preparedLayers;
+    const owned=garmentType==='tshirt'&&!customAssetState?.importedGarment&&(technical||['slim','regular','boxy','oversized'].includes(fit??''))?withGarmentOutlineOwnership(ready):ready;
+    lastReadyDrawing.current=owned;return owned;
   },[technical,garmentType,customAssetState?.importedGarment,preparedLayers,sourceResolvedLayers,fit,neckFinish,detailView,selection,tshirtHemStyles,customAssetState?.torsoCrop]);
   useEffect(() => {
     let active = true;
@@ -1116,7 +1122,7 @@ export function TshirtSvgPreview({
       }
       return prepared;
     })().then(prepared => {
-      if (active && prepared) {
+      if (active && (prepared || (garmentType==='tshirt'&&fit==='oversized'&&!sourceResolvedLayers.some(l=>l.svgRaw.includes('data-oversized-reference'))))) {
         setCollarContourError(false);
         setCollarContourRevision(revision => revision + 1);
       }
@@ -1717,7 +1723,7 @@ export function TshirtSvgPreview({
         })}
 
         {!!openings?.placketFill.length&&<div className="pointer-events-none absolute inset-0" data-polo-placket-fill="true" style={{zIndex:90}}><InlineSvg raw={'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="#000000" fill-rule="evenodd" d="'+openingPolygonPath(openings.placketFill)+'"/></svg>'} fill={partColors?.base??bodyColor} fabricColor={bodyColor} fabric={fabricParts.get('base')?resolvePartMaterial(fabricAssignments,fabricParts.get('base')!,[...fabricParts.values()])?.fabric:undefined} textureIntensity={partTextureIntensity(fabricTextureIntensity,'base')}/></div>}
-        {garmentType==='tshirt'&&(technical||['regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework completeOutline={!customAssetState?.importedGarment} visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
+        {garmentType==='tshirt'&&(technical||['slim','regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework completeOutline={!customAssetState?.importedGarment} visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
         {canvasOverlay}
         {savedPanelling?.seams.length? <PanellingReadOnlyOverlay {...savedPanelling}/>:null}
         {renderPanellingOverlay?.(panellingGeometry)}
@@ -1787,11 +1793,11 @@ export function TshirtSvgPreview({
             details={visibleDetailHardware} bounds={bodyBounds}
             selectedId={selectedDetailId} onSelect={onDetailSelect}
             editor={detailEditor}
-            onChange={onDetailsChange ? details => onDetailsChange(garmentDetails.flatMap(detail => {
+            onChange={onDetailsChange ? details => onDetailsChange([...garmentDetails.flatMap(detail => {
               if ((detail.view ?? 'front') !== detailView || (openingStage !== 'final' && detail.opening)) return [detail];
               const next = details.find(candidate => candidate.id === detail.id);
               return next ? [next] : [];
-            })) : undefined} /> : null;
+            }), ...details.filter(candidate => !garmentDetails.some(detail => detail.id === candidate.id)).map(detail => ({...detail,view:detailView}))]) : undefined} /> : null;
         })()}
         {detailBounds && openingStage !== 'before' && liveDetails.some(detail => detail.opening) && <OpeningConstruction stage={openingStage} details={liveDetails} bounds={detailBounds} selectedId={selectedDetailId}
           onSelect={onDetailSelect} stitching={tshirtStitching}

@@ -1,0 +1,32 @@
+/* Selected artwork shares one quiet header and one consistent list of properties. */
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-inspector-header{min-height:50px;padding:0 0 14px;column-gap:10px;border:0}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-inspector-header>.studio-back{width:32px;min-width:32px;height:32px;margin:0;padding:0;border:1px solid #e5e5e5;border-radius:6px;background:white;color:#737373}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-inspector-header>h2{font-size:20px;font-weight:600;line-height:1.35;letter-spacing:-.4px;padding:0;border:0;margin:0;color:#262626}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-inspector-main{padding:0 0 20px;scrollbar-width:none}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-inspector-main::-webkit-scrollbar{display:none}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .print-imported-editor{margin:0;padding:0;border:0}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .print-imported-editor>:empty{display:none}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] [data-print-selection-content]{margin:0;padding:0;border:0}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-object-identity{gap:12px;margin:0 0 6px;padding:12px 0 18px;border-top:0;border-bottom:1px solid #e8e8e8}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-object-identity .studio-layer-thumb{width:44px;height:44px;border-radius:6px;border:1px solid #e8e8e8;background:#fafafa;padding:4px}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-object-identity input{width:100%;min-width:0;background:transparent;border:0;outline:0;padding:3px 0;font-size:13px;font-weight:500;color:#262626}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-object-identity input::placeholder{color:#737373;font-weight:400}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-object-identity small{font-size:11px;color:#8a8a8a;margin-top:2px}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-object-identity>button{width:30px;height:32px;padding:7px;border:0;border-radius:5px;color:#737373;background:transparent}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-object-identity>button:hover{background:#f5f5f5;color:#262626}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] :is(.studio-fold,.studio-effects-panel,.studio-deep-controls){margin:0!important;padding:0!important;border:0!important;border-bottom:1px solid #e8e8e8!important;border-radius:0!important;background:white!important}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] :is(.studio-fold,.studio-effects-panel,.studio-deep-controls)>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px!important;height:auto!important;padding:16px 0!important;margin:0;font-size:13px;font-weight:400;line-height:22px;color:#333;list-style:none;box-sizing:border-box}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] :is(.studio-fold,.studio-effects-panel,.studio-deep-controls)>summary small{display:none}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] :is(.studio-fold,.studio-effects-panel,.studio-deep-controls)>summary>svg{width:14px;height:14px;flex-shrink:0;color:#8a8a8a}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-effects-panel>summary:after{display:none}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-effects-panel>summary>span{font-size:13px;font-weight:400;color:#333;margin:0}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-fold>summary>span+span{font-size:11px!important;color:#8a8a8a;max-width:48%!important}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-fold>div{padding:2px 0 18px}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-fold .studio-fold{border-bottom:0!important;border-top:1px solid #eee!important}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-fold .studio-fold>summary{min-height:44px!important;padding:11px 0!important;font-size:12px;color:#666}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] :is(.studio-object-tools,.shape-advanced-editor,.shape-object-editor,.studio-object-tools>.studio-object-panel){margin:0;padding:0;border:0}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .artwork-combine-panel{margin:0;padding:0;border:0}
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-layer-dock{border-top:1px solid #e8e8e8;margin-top:0}
+@media(max-width:767px){.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-inspector-header{min-height:44px;padding-bottom:10px}.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-inspector-header>h2{font-size:18px}.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] :is(.studio-fold,.studio-effects-panel,.studio-deep-controls)>summary{min-height:48px!important;padding:13px 0!important}}
+
+.ceriga-builder-shell[data-section] .studio-inspector-v2.studio-clean[data-mode=edit] .studio-fold>summary>span+span{margin:0 0 0 auto!important;line-height:22px!important;padding:0!important}

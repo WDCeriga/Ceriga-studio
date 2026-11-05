@@ -81,7 +81,7 @@
 
 .details-trims-editor .detail-workbench{display:flex;flex-direction:column;gap:14px;min-width:0}
 .details-trims-editor .detail-workbench>*{margin-top:0!important;margin-bottom:0!important}
-.details-trims-editor .detail-mode-tabs{position:sticky;top:0;z-index:15;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--builder-ui-soft);border-radius:7px;box-shadow:0 0 0 7px white}
+.details-trims-editor .detail-mode-tabs{position:static;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--builder-ui-soft);border-radius:7px}
 .details-trims-editor .detail-mode-tabs button{display:flex;justify-content:center;align-items:center;gap:7px;min-height:38px;padding:7px 5px;border:0;border-radius:4px;font-size:11px;color:var(--builder-ui-muted)}
 .details-trims-editor .detail-mode-tabs button[aria-pressed=true]{background:white;color:var(--builder-ui-text);box-shadow:0 1px 4px #26262618}
 .details-trims-editor .detail-mode-tabs button:disabled{opacity:.45;cursor:not-allowed}
@@ -128,7 +128,7 @@
  .mobile-tool-content .details-trims-editor{padding:0 0 12px}
  .mobile-tool-content .details-trims-editor>header{display:none}
  .details-trims-editor .detail-workbench{gap:12px}
- .details-trims-editor .detail-mode-tabs{top:-10px;padding:4px;box-shadow:0 -12px 0 8px white,0 7px 0 7px white}
+ .details-trims-editor .detail-mode-tabs{padding:4px}
  .details-trims-editor .detail-mode-tabs button{min-height:44px;font-size:12px}
  .details-trims-editor [aria-label="Detail category"]{padding:3px;margin:2px 0 12px}
  .details-trims-editor [aria-label="Detail category"] button{min-height:42px;font-size:12px}
@@ -197,3 +197,44 @@
 .trim-colour-field{position:relative;min-width:0}.trim-colour-trigger{width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:10px;border:1px solid var(--builder-ui-line,#e5e5e5);border-radius:6px;background:#fff;color:#404040}.trim-colour-trigger>i{width:27px;height:29px;border:1px solid #00000012;border-radius:4px;flex-shrink:0}.trim-colour-trigger span{font-size:11px;line-height:1.4}.trim-colour-trigger small{display:block;font-size:10px;color:#737373;margin-top:3px}.trim-colour-reset{font-size:10px;color:#737373;margin:4px 0 0 2px}.trim-colour-trigger:hover{border-color:#a3a3a3}.trim-colour-trigger:focus-visible{outline:2px solid #737373;outline-offset:2px}
 
 .patch-material-choices{grid-column:1/-1;border:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.patch-material-choices legend{font-size:11px;margin-bottom:10px}.patch-material-choices button{display:flex;align-items:center;gap:9px;text-align:left;padding:10px;border:1px solid #e5e5e5;border-radius:6px;background:#fff;color:#404040}.patch-material-choices button[aria-pressed=true]{border-color:#737373;background:#f5f5f5}.patch-material-choices span{font-size:11px}.patch-material-choices small{display:block;color:#737373;font-size:10px;margin-top:4px;line-height:1.4}.patch-material-sample{width:30px;height:30px;border:2px solid #737373;border-radius:6px;background:#b3ada1;flex-shrink:0}.patch-material-embroidered{background:repeating-linear-gradient(35deg,#b3ada1 0 1px,#ded8cc 1px 2px);box-shadow:inset 0 0 0 2px #8b857b}.patch-material-woven,.patch-material-twill{background:repeating-linear-gradient(0deg,#b3ada1 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,#c6c0b4 0 1px,#e5dfd3 1px 3px)}.patch-material-chenille{background:radial-gradient(circle,#e5dfd3 1px,#aaa497 2px,#ccc6b9 3px);background-size:5px 5px;box-shadow:0 1px 2px #0003}.patch-material-pvc{box-shadow:inset 0 2px 2px #fff8,inset 0 -3px 2px #0003}.patch-material-leather{background:#8d6c50;box-shadow:inset 0 0 0 2px #b08d6b}.patch-material-printed{background:linear-gradient(135deg,#c6c0b4,#eee8dc)}
+
+/* Patch studio: compact controls that share the construction inspector rhythm. */
+.patch-editor{border:0;padding:0;color:#404040}
+.patch-mode{display:flex;padding:4px;background:#f3f3f3;border-radius:8px;gap:4px}
+.patch-mode button{flex:1;padding:10px 8px;border:0;border-radius:5px;background:transparent;font-size:12px;color:#737373}
+.patch-mode button[aria-pressed=true]{background:#fff;color:#262626;box-shadow:0 1px 3px #00000012}
+.patch-options{border-top:1px solid #e5e5e5;padding:0}
+.patch-options summary{padding:18px 0;font-size:13px;cursor:pointer;color:#262626}
+.patch-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 0 16px}
+.patch-fields label{font-size:12px;color:#666;min-width:0}
+.patch-wide{grid-column:1/-1}
+.patch-editor input:not([type=checkbox]):not([type=file]),.patch-editor select{width:100%;min-height:38px;border:1px solid #e5e5e5;border-radius:6px;padding:8px 10px;background:#fff;color:#262626;margin-top:6px;font-size:12px}
+.patch-note{font-size:12px;line-height:1.6;color:#737373;margin:8px 0 16px}
+.patch-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;padding:12px 0;color:#525252}
+.patch-switch input{accent-color:#262626;width:15px;height:15px}
+.patch-plating{display:flex;flex-wrap:wrap;gap:8px}
+.patch-plating button{display:flex;align-items:center;gap:6px;border:1px solid #e5e5e5;border-radius:6px;padding:8px;background:#fff;font-size:11px;color:#525252}
+.patch-plating button[aria-pressed=true]{border-color:#525252;background:#f5f5f5}
+.patch-plating i{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1px #0002}
+.patch-material-metal{background:linear-gradient(135deg,#737b83,#edf0f2 35%,#a7afb5 50%,#eef0f2 65%,#777f88)}
+.patch-material-fauxLeather{background:#af8866;box-shadow:inset 0 0 0 2px #c6a886}
+.patch-material-silicone{background:#c4b6a2;box-shadow:inset 0 2px 2px #fff8,inset 0 -2px 2px #0002}
+
+.detail-colour-field{position:relative;min-width:0}
+.detail-colour-field>.detail-colour-chip{width:100%;height:100%;min-height:64px}
+.detail-colour-field>.detail-colour-reset{position:absolute;right:8px;bottom:4px;font-size:9px;color:#737373;padding:2px;border:0;background:transparent;text-decoration:none;opacity:0}
+.detail-colour-field:hover>.detail-colour-reset,.detail-colour-field:focus-within>.detail-colour-reset{opacity:1}
+@media(pointer:coarse){.detail-colour-field>.detail-colour-reset{opacity:1}}
+
+.patch-word-actions{display:flex;gap:8px;flex-wrap:wrap}
+.patch-word-actions button{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border:1px solid #e5e5e5;background:white;border-radius:6px;font-size:11px;color:#525252}
+.patch-wording-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;outline:none}
+.patch-word-hit{pointer-events:all;cursor:move;touch-action:none}
+.patch-word-handle{pointer-events:all;cursor:nwse-resize;touch-action:none}
+.patch-wording-overlay circle.patch-word-handle{cursor:grab}
+.patch-fields .clothing-font-trigger{width:100%}
+
+/* A canvas hit target must never paint a rectangular button background over the garment. */
+.ceriga-builder-shell [data-garment-details] .garment-detail-hit,.ceriga-builder-shell [data-garment-details] .garment-detail-hit:is(:hover,:focus,:focus-visible,:active,[aria-pressed=true]){background:transparent!important;background-image:none!important;box-shadow:none!important}
+
+.patch-name-field{display:block;font-size:12px;color:#737373;margin-bottom:16px}

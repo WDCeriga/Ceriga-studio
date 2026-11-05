@@ -7,7 +7,7 @@ export function sleeveHemStitchRow(ring:Point[]):Point[]{
  const angle=.5*Math.atan2(2*xy,xx-yy),ux=Math.cos(angle),uy=Math.sin(angle),nx=-uy,ny=ux;
  const local=ring.map(p=>({t:p.x*ux+p.y*uy,n:p.x*nx+p.y*ny}));
  const top=Math.min(...local.map(p=>p.n)),bottom=Math.max(...local.map(p=>p.n));
- const n=top+Math.min(6,(bottom-top)*.2),hits:number[]=[];
+ const n=top+Math.max(3,Math.min(6,(bottom-top)*.2)),hits:number[]=[];
  for(let i=0;i<local.length;i++){const a=local[i],b=local[(i+1)%local.length];if((a.n>n)!==(b.n>n))hits.push(a.t+(n-a.n)*(b.t-a.t)/(b.n-a.n));}
  hits.sort((a,b)=>a-b);let lo=0,hi=0;
  for(let i=0;i+1<hits.length;i+=2)if(hits[i+1]-hits[i]>hi-lo){lo=hits[i];hi=hits[i+1];}

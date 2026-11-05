@@ -1,0 +1,21 @@
+{
+  "source": "master-front-back.png",
+  "contrast": 1.35,
+  "white": 246,
+  "black": 120,
+  "upsample": 3,
+  "threshold": 128,
+  "constructorInversionCorrected": true,
+  "turdsize": 4,
+  "turnpolicy": "minority",
+  "alphamax": 1.0,
+  "opticurve": true,
+  "fillRule": "evenodd",
+  "viewBox": [
+    0,
+    0,
+    1536,
+    1024
+  ],
+  "inkSubpaths": 394
+}

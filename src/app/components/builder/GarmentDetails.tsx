@@ -1,4 +1,3 @@
-import * as TrimPopover from '@radix-ui/react-popover';
 import * as DetailMenu from '@radix-ui/react-dropdown-menu';
 import {MoreHorizontal} from 'lucide-react';
 import {useResponsiveBuilder,useBuilderWidth} from './shell/responsiveBuilder';
@@ -11,11 +10,18 @@ import { createOpening, openingNecklineReach } from '../../data/garmentOpenings'
 import { OpeningControls } from './OpeningControls';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
   type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
-import {MaterialColourBrowser} from './shell/MaterialColourBrowser';
-function TrimColorFamilyPicker({label,value,onChange,onClear}:{label:string;value?:string;onChange:(hex:string)=>void;onClear?:()=>void}){return <TrimPopover.Root><TrimPopover.Trigger asChild><button type="button" className="detail-colour-chip" aria-label={label}><i style={{background:value??'#ffffff'}}/><span>{label.replace(/ colour$/, '')}<small>{value??'Inherited'}</small></span></button></TrimPopover.Trigger><TrimPopover.Portal><TrimPopover.Content className="detail-colour-popover" side="left" align="center" sideOffset={8} collisionPadding={12}><div className="detail-colour-popover-heading"><strong>{label}</strong><TrimPopover.Close aria-label="Close colour picker">×</TrimPopover.Close></div><MaterialColourBrowser value={value??'#FFFFFF'} onChange={onChange} onReference={()=>{}}/>{onClear&&<button type="button" className="detail-colour-reset" onClick={onClear}>Reset colour</button>}</TrimPopover.Content></TrimPopover.Portal></TrimPopover.Root>}
+import { ClothingFontPicker } from './shell/ClothingFontPicker';
+import { ensureStudioFont } from '../../lib/studioFontCatalog';
+import { PatchWordingOverlay } from './PatchWordingOverlay';
+import { AdvancedColorPopover } from './PrintStudioColorPopover';
+function TrimColorFamilyPicker({label,value,onChange,onClear}:{label:string;value?:string;onChange:(hex:string)=>void;onClear?:()=>void}) {
+  return <div className="detail-colour-field"><AdvancedColorPopover value={value ?? '#FFFFFF'} onChange={onChange} colourLibrary={false}>
+    <button type="button" className="detail-colour-chip" aria-label={label}><i style={{background:value ?? '#FFFFFF'}}/><span>{label.replace(/ colour$/, '')}<small>{value ?? 'Inherited'}</small></span></button>
+  </AdvancedColorPopover>{onClear && <button type="button" className="detail-colour-reset" aria-label={`Reset ${label.toLowerCase()}`} onClick={onClear}>Reset</button>}</div>;
+}
 
 import { formatMeasurementDisplay, parseMeasurementInput, type MeasurementUnit } from '../../lib/measurements';
-import { patchSettings, PATCH_TYPES, PATCH_SHAPES, PATCH_FINISHES, PATCH_EDGES, PATCH_DEPTHS, PATCH_APPLICATIONS, PATCH_MATERIAL_APPLICATIONS, readPatchArtwork, type PatchSettings } from '../../data/garmentPatches';
+import { patchSettings, patchAttachments, patchTextMethods, PATCH_TEXT_METHODS, PATCH_TYPES, PATCH_SHAPES, PATCH_FINISHES, PATCH_EDGES, PATCH_DEPTHS, PATCH_APPLICATIONS, PATCH_MATERIAL_APPLICATIONS, readPatchArtwork, type PatchSettings } from '../../data/garmentPatches';
 
 interface DetailEditorProps {
   details: GarmentDetail[];
@@ -125,10 +131,12 @@ function ZipPullMeasurements({ detail, bounds, onChange, referenceWidthCm, unit 
 
 function DetailArtwork({ detail, ratio, joinedNeckline,garmentWidth }: { detail: GarmentDetail; ratio: number; joinedNeckline: boolean;garmentWidth:number }) {
   const technical=useTechnicalDrawing();
+  const [fontRevision, setFontRevision] = useState(0);
+  useEffect(() => { const font = detail.patch?.textFont; let alive = true; if (font) void ensureStudioFont(font)?.then(() => {if (alive) setFontRevision(v => v + 1)}).catch(() => {}); return () => {alive = false}; }, [detail.patch?.textFont]);
   const sourceWidth=Number(new DOMParser().parseFromString(detailAsset(detail).svg,'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2])||48;
   const normalize=(raw:string)=>technical?normalizeTechnicalSvg(raw,garmentWidth/sourceWidth):raw;
   const body = useMemo(() => detailSvg(detail, ratio, 'body', joinedNeckline), [ratio, joinedNeckline, detail.type, detail.variant, detail.scaleX, detail.scaleY,
-    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.opening, detail.id]);
+    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.opening, detail.id, fontRevision]);
   return <><span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(body) }} />
     {detail.type === 'zip' && !detail.customAsset && <span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(detailSvg(detail, ratio, 'pull')) }} />}</>;
 }
@@ -144,13 +152,16 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const update = (patch: Partial<PatchSettings>) => onChange({ patch: { ...settings, ...patch } });
   const selectClass = 'mt-1 w-full min-w-0 rounded border border-white/15 bg-[#171717] p-2 text-xs text-white';
-  return <section aria-label="Patch construction" className="space-y-3 border-y border-white/15 py-3">
+  return <section aria-label="Patch construction" className="patch-editor space-y-3">
+    <label className="patch-name-field">Patch name<input aria-label="Patch name" maxLength={100} value={detail.name} onChange={event=>onChange({name:event.target.value})} onBlur={event=>{if(!event.target.value.trim())onChange({name:'Untitled patch'})}} /></label>
+    <div className="patch-mode" role="group" aria-label="Patch design mode">{([ ['backed', 'Artwork on patch'], ['logo', 'Logo itself'] ] as const).map(([mode, label]) => <button key={mode} type="button" aria-pressed={settings.designMode === mode} onClick={() => update({ designMode: mode })}>{label}</button>)}</div>
     <div className="grid grid-cols-2 gap-3 text-[11px] text-white/60">
-      <fieldset className="patch-material-choices"><legend>Patch construction</legend>{Object.entries(PATCH_TYPES).map(([value,label])=><button type="button" key={value} aria-pressed={settings.material===value} onClick={()=>update({material:value as PatchSettings['material'],application:undefined,edgeStyle:undefined,depth:undefined})}><i className={'patch-material-sample patch-material-'+value}/><span>{label.replace(' patch','')}<small>{({embroidered:'Raised stitched thread',woven:'Fine interlaced detail',chenille:'Soft looped pile',pvc:'Moulded relief',leather:'Stamped or printed hide',printed:'Smooth printed fabric',twill:'Woven ground with stitching'} as Record<string,string>)[value]}</small></span></button>)}</fieldset>
-      <label>Shape<MaterialSelect aria-label="Patch shape" className={selectClass} value={settings.shape} onChange={event => update({ shape: event.target.value as PatchSettings['shape'] })}>
+      <fieldset className="patch-material-choices"><legend>Material</legend>{Object.entries(PATCH_TYPES).map(([value,label])=><button type="button" key={value} aria-pressed={settings.material===value} onClick={()=>onChange({patch:{...settings,material:value as PatchSettings['material'],application:undefined,edgeStyle:undefined,depth:undefined,finish:undefined,preserveColours:undefined},...(value === 'metal' ? {fill:'#B8BDC4'} : {})})}><i className={'patch-material-sample patch-material-'+value}/><span>{label.replace(' patch','')}<small>{({embroidered:'Raised stitched thread',woven:'Fine interlaced detail',chenille:'Soft looped pile',pvc:'Moulded relief',metal:'Plated or enamelled hardware',fauxLeather:'Animal-free stamped surface',silicone:'Flexible raised rubber',leather:'Stamped or printed hide',printed:'Smooth printed fabric',twill:'Woven ground with stitching'} as Record<string,string>)[value]}</small></span></button>)}</fieldset>
+      {settings.designMode !== 'logo' && <label>Shape<MaterialSelect aria-label="Patch shape" className={selectClass} value={settings.shape} onChange={event => update({ shape: event.target.value as PatchSettings['shape'] })}>
         {Object.entries(PATCH_SHAPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </MaterialSelect></label>
+      </MaterialSelect></label>}
     </div>
+
     <input ref={input} type="file" accept=".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml" aria-label="Patch artwork file" className="hidden" onChange={async event => {
       const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
       if (!file) return;
@@ -166,28 +177,46 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
       {settings.artwork && <button type="button" title="Remove patch artwork" aria-label="Remove patch artwork" className="p-2 text-white/60" onClick={() => update({ artwork: undefined, artworkName: undefined, contour: undefined, artworkRatio: undefined })}><Trash2 size={14} /></button>}
     </div>
     {settings.artworkName && <div className="break-words text-[10px] text-white/50">{settings.artworkName}</div>}
+    {settings.designMode === 'logo' && <p className="patch-note">The artwork is the cut shape. Transparent areas stay open. Use a transparent PNG or SVG for a shaped emblem.</p>}
+    <details className="patch-options" open><summary>Wording</summary><div className="patch-fields">
+      <label className="patch-wide">Text<input aria-label="Patch wording" maxLength={80} placeholder="Your brand or message" value={settings.text || ''} onChange={event => update({ text: event.target.value })} /></label>
+      {settings.text && <><div className="patch-wide"><ClothingFontPicker label="Patch wording font" sample={settings.text} value={settings.textFont === 'serif' ? 'Georgia' : settings.textFont === 'mono' ? 'monospace' : settings.textFont === 'sans' ? 'Arial' : settings.textFont || 'Inter'} onChange={textFont => { void ensureStudioFont(textFont)?.catch(() => {}); update({ textFont }); }} /></div>
+      <label className="patch-wide">Lettering method<MaterialSelect aria-label="Patch lettering method" value={settings.textMethod} onChange={event => update({ textMethod: event.target.value as PatchSettings['textMethod'] })}>{patchTextMethods(settings.material).map(method => <option key={method} value={method}>{PATCH_TEXT_METHODS[method]}</option>)}</MaterialSelect></label>
+      <label>Text size (%)<DetailNumberInput label="Patch text size" value={settings.textSize} min={5} max={70} onChange={value => update({ textSize: value })} /></label>
+      <label>Position<MaterialSelect aria-label="Patch text position" value={settings.textPosition} onChange={event => update({ textPosition: event.target.value as PatchSettings['textPosition'], textX: .5, textY: event.target.value === 'bottom' ? .8 : .5 })}><option value="centre">Centre</option><option value="bottom">Below logo</option></MaterialSelect></label>
+      <label>Letter spacing<DetailNumberInput label="Patch wording spacing" value={settings.textTracking ?? 0} min={-3} max={12} step={.1} onChange={textTracking => update({ textTracking })} /></label>
+      <label>Rotation (°)<DetailNumberInput label="Patch wording rotation" value={settings.textRotation ?? 0} min={-180} max={180} onChange={textRotation => update({ textRotation })} /></label>
+      {['engraved','debossed','embossed','cast','moulded'].includes(settings.textMethod) ? <label>Relief strength<DetailNumberInput label="Lettering relief strength" value={settings.textDepth} min={.15} max={2} step={.1} onChange={textDepth => update({ textDepth })} /></label> : <TrimColorFamilyPicker label="Wording colour" value={settings.textColour} onChange={textColour => update({ textColour })} onClear={() => update({ textColour: '#FFFFFF' })} />}
+      <div className="patch-wide patch-word-actions"><button type="button" onClick={() => window.dispatchEvent(new CustomEvent('ceriga-select-patch-wording', {detail: detail.id}))}>Edit wording on patch</button><button type="button" aria-label="Delete patch wording" onClick={() => update({ text: '' })}><Trash2 size={13}/>Delete wording</button></div></>}
+    </div></details>
+    {settings.material === 'metal' && <details className="patch-options" open><summary>Metal finish</summary><div className="patch-fields">
+      <div className="patch-plating patch-wide" role="group" aria-label="Metal plating">{[['Silver','#B8BDC4'],['Gold','#C6A450'],['Gunmetal','#555B63'],['Copper','#B67954'],['Black','#26292D']].map(([label,fill]) => <button key={label} type="button" aria-label={label + ' plating'} aria-pressed={detail.fill === fill} onClick={() => onChange({ fill })}><i style={{background:fill}} />{label}</button>)}</div>
+      <label className="patch-wide">Surface<MaterialSelect aria-label="Metal surface finish" value={settings.surfaceFinish} onChange={event => update({ surfaceFinish: event.target.value as PatchSettings['surfaceFinish'] })}>{['polished','brushed','matte','antique'].map(value => <option key={value} value={value}>{value[0].toUpperCase()+value.slice(1)}</option>)}</MaterialSelect></label>
+    </div></details>}
+    {settings.artwork && settings.designMode === 'logo' && <label className="patch-switch"><span>Keep original artwork colours</span><input type="checkbox" checked={settings.preserveColours} onChange={event => update({ preserveColours: event.target.checked })} /></label>}
     {error && <p role="alert" className="text-xs text-amber-300">{error}</p>}
-    {settings.shape === 'auto' && !settings.contour && <p role="status" className="text-[11px] text-amber-300">No transparent outline detected. Rounded rectangle used.</p>}
-    <div className="grid grid-cols-2 gap-3 text-[11px] text-white/60">
-      <label>Border thickness (%)<DetailNumberInput label="Patch border thickness (%)" value={settings.borderThickness} min={0} max={12} onChange={value => update({ borderThickness: Math.max(0, Math.min(12, value)) })} /></label>
+    {settings.designMode !== 'logo' && settings.shape === 'auto' && !settings.contour && <p role="status" className="text-[11px] text-amber-300">No transparent outline detected. Rounded rectangle used.</p>}
+    <details className="patch-options"><summary>Construction & placement</summary><div className="patch-fields">
+      {settings.designMode !== 'logo' && <><label>Border thickness (%)<DetailNumberInput label="Patch border thickness (%)" value={settings.borderThickness} min={0} max={12} onChange={value => update({ borderThickness: Math.max(0, Math.min(12, value)) })} /></label>
       <label>Artwork scale (%)<DetailNumberInput label="Patch artwork scale (%)" value={settings.artworkScale} min={10} max={120} step={1} onChange={value => update({ artworkScale: Math.max(10, Math.min(120, value)) })} /></label>
       <label>Artwork padding (%)<DetailNumberInput label="Patch artwork padding (%)" value={settings.padding} min={0} max={35} onChange={value => update({ padding: Math.max(0, Math.min(35, value)) })} /></label>
       {(settings.shape === 'rounded' || settings.shape === 'auto' && !settings.contour) && <label>Corner radius (%)<DetailNumberInput label="Patch corner radius (%)" value={settings.cornerRadius} min={0} max={50} onChange={value => update({ cornerRadius: Math.max(0, Math.min(50, value)) })} /></label>}
-      <label>Attachment finish<MaterialSelect aria-label="Patch attachment finish" className={selectClass} value={settings.finish} onChange={event => update({ finish: event.target.value as PatchSettings['finish'] })}>
-        {Object.entries(PATCH_FINISHES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </>}<label>Attachment finish<MaterialSelect aria-label="Patch attachment finish" className={selectClass} value={settings.finish} onChange={event => update({ finish: event.target.value as PatchSettings['finish'] })}>
+        {patchAttachments(settings.material).map(value => <option key={value} value={value}>{PATCH_FINISHES[value]}</option>)}
       </MaterialSelect></label>
-      <label>Edge style<MaterialSelect aria-label="Patch edge style" className={selectClass} value={settings.edgeStyle} onChange={event => update({ edgeStyle: event.target.value as PatchSettings['edgeStyle'] })}>
+      {settings.designMode !== 'logo' && <label>Edge style<MaterialSelect aria-label="Patch edge style" className={selectClass} value={settings.edgeStyle} onChange={event => update({ edgeStyle: event.target.value as PatchSettings['edgeStyle'] })}>
         {Object.entries(PATCH_EDGES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </MaterialSelect></label>
-      <label>Artwork application<MaterialSelect aria-label="Patch artwork application" className={selectClass} value={settings.application} onChange={event => update({ application: event.target.value as PatchSettings['application'] })}>
+      }<label>Artwork application<MaterialSelect aria-label="Patch artwork application" className={selectClass} value={settings.application} onChange={event => update({ application: event.target.value as PatchSettings['application'] })}>
         {PATCH_MATERIAL_APPLICATIONS[settings.material].map(value => <option key={value} value={value}>{PATCH_APPLICATIONS[value]}</option>)}
       </MaterialSelect></label>
-      {['leather', 'pvc', 'chenille'].includes(settings.material) && <label>Depth<MaterialSelect aria-label="Patch depth" className={selectClass} value={settings.depth} onChange={event => update({ depth: event.target.value as PatchSettings['depth'] })}>
+      {['leather', 'fauxLeather', 'metal', 'silicone', 'pvc', 'chenille'].includes(settings.material) && <label>Depth<MaterialSelect aria-label="Patch depth" className={selectClass} value={settings.depth} onChange={event => update({ depth: event.target.value as PatchSettings['depth'] })}>
         {Object.entries(PATCH_DEPTHS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </MaterialSelect></label>}
     </div>
-    {settings.material === 'pvc' && settings.application === 'moulded' && <label className="block text-[11px] text-white/60">Artwork relief<MaterialSelect aria-label="PVC artwork relief" className={selectClass} value={settings.relief} onChange={event => update({ relief: event.target.value as PatchSettings['relief'] })}><option value="raised">Raised</option><option value="recessed">Recessed</option></MaterialSelect></label>}
-    {(settings.finish === 'stitched' || settings.finish === 'sewOn') && <label className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={settings.stitchedEdge} onChange={event => update({ stitchedEdge: event.target.checked })} />Visible perimeter stitching</label>}
+    </details>
+    {['pvc', 'silicone'].includes(settings.material) && settings.application === 'moulded' && <label className="block text-[11px] text-white/60">Artwork relief<MaterialSelect aria-label="PVC artwork relief" className={selectClass} value={settings.relief} onChange={event => update({ relief: event.target.value as PatchSettings['relief'] })}><option value="raised">Raised</option><option value="recessed">Recessed</option></MaterialSelect></label>}
+    {settings.designMode !== 'logo' && (settings.finish === 'stitched' || settings.finish === 'sewOn') && <label className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={settings.stitchedEdge} onChange={event => update({ stitchedEdge: event.target.checked })} />Visible perimeter stitching</label>}
 
   </section>;
 }
@@ -310,9 +339,9 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         </div>
       </div>}
       <section className="detail-colours-first" aria-label="Colours"><h4>Colours</h4>
-      {selected.type==='patch'&&!selected.customAsset&&<div className="detail-colour-grid">    <TrimColorFamilyPicker label="Patch background colour" value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: '#D4D4D4' })} />
-    <TrimColorFamilyPicker label="Patch border colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />
-    {patchSettings(selected).stitchedEdge && (patchSettings(selected).finish === 'stitched' || patchSettings(selected).finish === 'sewOn') && <TrimColorFamilyPicker label="Patch thread colour" value={selected.stitch} onChange={stitch => update({ stitch })} onClear={() => update({ stitch: '#707070' })} />}</div>}
+      {selected.type==='patch'&&!selected.customAsset&&<div className="detail-colour-grid">    <TrimColorFamilyPicker label={patchSettings(selected.patch).designMode === 'logo' ? 'Patch material colour' : 'Patch background colour'} value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: '#D4D4D4' })} />
+    {patchSettings(selected.patch).designMode !== 'logo' && <TrimColorFamilyPicker label="Patch border colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />}
+    {patchSettings(selected.patch).designMode !== 'logo' && patchSettings(selected.patch).stitchedEdge && (patchSettings(selected.patch).finish === 'stitched' || patchSettings(selected.patch).finish === 'sewOn') && <TrimColorFamilyPicker label="Patch thread colour" value={selected.stitch} onChange={stitch => update({ stitch })} onClear={() => update({ stitch: '#707070' })} />}</div>}
       {(selected.type !== 'patch' || selected.customAsset) && <section aria-label={selected.type === 'zip' ? 'Zip colours' : 'Detail colours'} className="detail-colour-grid">
 
       {(selected.type !== 'zip' || editor?.part !== 'pull') && <>
@@ -332,7 +361,8 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {selected.type==='patch'&&!selected.customAsset&&<details open className="detail-construction-fold"><summary>Patch construction</summary><PatchControls key={selected.id} detail={selected} onChange={update}/></details>}
 
       {selected.type==='zip'&&!selected.customAsset&&<details className="detail-construction-fold"><summary>Opening construction</summary><OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor}/></details>}
-      {selected.type === 'zip' && !selected.customAsset && <div className="space-y-3 border-y border-white/15 py-3">
+      {selected.type === 'zip' && !selected.customAsset && <div className="patch-editor space-y-3">
+    <label className="patch-name-field">Patch name<input aria-label="Patch name" maxLength={100} value={detail.name} onChange={event=>onChange({name:event.target.value})} onBlur={event=>{if(!event.target.value.trim())onChange({name:'Untitled patch'})}} /></label>
 
         {editor?.part !== 'pull' && <>
         <label className="flex items-center justify-between gap-2 text-xs text-white/60">Zip length
@@ -390,6 +420,10 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
   editor?: DetailEditorState;
   onSelect?: (id: string | null) => void; onChange?: (details: GarmentDetail[]) => void;
 }) {
+  const [wordSelection, setWordSelection] = useState<string|null>(null);
+  const copiedDetail = useRef<GarmentDetail|null>(null);
+  useEffect(() => { const select = (event: Event) => { const id = (event as CustomEvent<string>).detail; if (!details.some(d => d.id === id)) return; onSelect?.(id); setWordSelection(id); requestAnimationFrame(() => document.querySelector<SVGSVGElement>(`[data-detail-id="${id}"] .patch-wording-overlay`)?.focus()); }; window.addEventListener('ceriga-select-patch-wording', select); return () => window.removeEventListener('ceriga-select-patch-wording', select); }, [details, onSelect]);
+  useEffect(() => { if (wordSelection && wordSelection !== selectedId) setWordSelection(null); }, [selectedId]);
   const rootRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<{ pointerId: number; startX: number; startY: number; origin: GarmentDetail;
     canvasScale: number; corner?: { x: number; y: number }; pullAction?: 'move' | 'resize'; rotationCenter?: { x: number; y: number }; startAngle?: number } | null>(null);
@@ -436,7 +470,7 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
   };
   const start = (event: PointerEvent<HTMLElement | SVGElement>, detail: GarmentDetail, corner?: { x: number; y: number }, pullAction?: 'move' | 'resize', rotate = false) => {
     if (!editable || event.button !== 0) return;
-    event.preventDefault(); event.stopPropagation(); onSelect?.(detail.id);
+    event.preventDefault(); event.stopPropagation(); (event.currentTarget as HTMLElement).focus?.(); setWordSelection(null); onSelect?.(detail.id);
     editor?.onPartChange(pullAction ? 'pull' : 'zip');
     const placement = detailPlacement(detail, bounds);
     const canvas = rootRef.current!.getBoundingClientRect();
@@ -449,7 +483,20 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const cancel = () => { clearQueuedMove(); gesture.current = null; draftRef.current = null; setDraft(null); setGuides([]); editor?.onDraftChange?.(null); };
-  return <div ref={rootRef} className="pointer-events-none absolute inset-0" style={{ zIndex: 240 }} data-garment-details={view}>
+  return <div ref={rootRef} tabIndex={-1} className="pointer-events-none absolute inset-0" style={{ zIndex: 240 }} data-garment-details={view} onKeyDown={event => {
+    if (!editable || event.defaultPrevented || (event.target as Element).closest('input,textarea,[contenteditable=true]')) return;
+    if (event.key === 'Escape') { setWordSelection(null); return; }
+    const command = event.ctrlKey || event.metaKey, key = event.key.toLowerCase(), selected = details.find(d => d.id === selectedId);
+    if (!command || !['c','x','v','d'].includes(key)) return;
+    if ((key === 'c' || key === 'x') && selected) {
+      event.preventDefault(); event.stopPropagation(); copiedDetail.current = structuredClone(selected);
+      if (key === 'x') { onChange?.(details.filter(d => d.id !== selected.id)); onSelect?.(null); rootRef.current?.focus(); }
+    } else if ((key === 'v' && copiedDetail.current) || (key === 'd' && selected)) {
+      event.preventDefault(); event.stopPropagation(); const source = key === 'd' ? selected! : copiedDetail.current!, identity = createGarmentDetail(source.type, details, source.fill);
+      const copy = {...source, id:identity.id, name:identity.name, sourceLayerId:undefined, x:source.x+.025, y:source.y+.025, selected:true};
+      onChange?.([...details.map(d => ({...d,selected:false})),copy]); onSelect?.(copy.id); setWordSelection(null);
+    }
+  }}>
     {guides.length > 0 && <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 5 }} aria-hidden="true" data-detail-guides="">
       {guides.map(guide => <line key={`${guide.axis}:${guide.value}`} x1={guide.axis === 'x' ? guide.value : bounds.minX} x2={guide.axis === 'x' ? guide.value : bounds.maxX}
         y1={guide.axis === 'y' ? guide.value : bounds.minY} y2={guide.axis === 'y' ? guide.value : bounds.maxY} stroke="#A76556" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />)}
@@ -484,10 +531,10 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
         onPointerCancel={cancel}
         onLostPointerCapture={event => { if (gesture.current?.pointerId === event.pointerId) cancel(); }}>
         <button type="button" aria-label={`${detail.name} on garment`} aria-pressed={editable ? selected : undefined} tabIndex={editable ? 0 : -1}
-        className={`absolute inset-0 h-full w-full touch-none bg-transparent p-0 ${editable ? 'pointer-events-auto cursor-move' : 'pointer-events-none'}`}
-        style={{ outline: selected && !pullSelected ? '1px dashed #CC2D24' : undefined, outlineOffset: 6 }}
+        className={`garment-detail-hit absolute inset-0 h-full w-full touch-none bg-transparent p-0 ${editable ? 'pointer-events-auto cursor-move' : 'pointer-events-none'}`}
+        style={{ outline: selected && !pullSelected && wordSelection !== detail.id ? '1px dashed #CC2D24' : undefined, outlineOffset: 6 }}
         onPointerDown={event => start(event, detail)}
-        onClick={event => { event.stopPropagation(); if (editable) { onSelect?.(detail.id); editor?.onPartChange('zip'); } }}
+        onClick={event => { event.stopPropagation(); if (editable) { setWordSelection(null); onSelect?.(detail.id); editor?.onPartChange('zip'); } }}
         onKeyDown={event => {
           if (editable && (event.key === 'Delete' || event.key === 'Backspace')) {
             event.preventDefault(); event.stopPropagation(); onChange?.(detail.sourceLayerId ? details.map(item => item.id === detail.id ? { ...item, hidden: true, selected: false } : item) : details.filter(item => item.id !== detail.id)); onSelect?.(null); return;
@@ -504,6 +551,10 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
         {editable && detail.type === 'zip' && <span aria-hidden="true" className="absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: 'max(100%, 24px)' }} />}
         <DetailArtwork garmentWidth={placement.width} detail={current} ratio={placement.width / placement.height} joinedNeckline={openingNecklineReach(current, bounds) > 0} />
         </button>
+        {editable && detail.type === 'patch' && !detail.customAsset && <PatchWordingOverlay detail={current} ratio={placement.width / placement.height} selected={selected && wordSelection === detail.id}
+          onSelect={() => {onSelect?.(detail.id);setWordSelection(detail.id)}}
+          onPreview={next => {setDraft(next);draftRef.current=next;editor?.onDraftChange?.(next)}}
+          onCommit={next => onChange?.(details.map(item => item.id === next.id ? next : item))} />}
         {editable && detail.type === 'zip' && !detail.customAsset && editor && <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${sourceWidth} ${sourceHeight}`}>
           <g transform={`translate(${current.flipX ? sourceWidth : 0} ${current.flipY ? sourceHeight : 0}) scale(${current.flipX ? -1 : 1} ${current.flipY ? -1 : 1})`}>
             <g transform={`translate(${hardware.center} ${hardware.pullY}) rotate(${current.zipPullSide === 'left' ? 18 : current.zipPullSide === 'right' ? -18 : 0}) scale(${pullScale})`}>
@@ -522,12 +573,12 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
             </g>
           </g>
         </svg>}
-        {selected && !pullSelected && <button type="button" aria-label={`Rotate ${detail.name}`} title={`Rotate ${detail.name}`} className="pointer-events-auto absolute flex h-8 w-8 touch-none items-center justify-center rounded-full border border-[#CC2D24] bg-white text-[#CC2D24]"
+        {selected && !pullSelected && wordSelection !== detail.id && <button type="button" aria-label={`Rotate ${detail.name}`} title={`Rotate ${detail.name}`} className="pointer-events-auto absolute flex h-8 w-8 touch-none items-center justify-center rounded-full border border-[#CC2D24] bg-white text-[#CC2D24]"
                   style={{ left: '50%', top: -50, transform: 'translateX(-50%)' }} onPointerDown={event => start(event, detail, undefined, undefined, true)}
           onKeyDown={event => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return; event.preventDefault(); event.stopPropagation();
             const next = setDetailTransform(detail, bounds, { rotation: detailRotation(detail) + (['ArrowLeft', 'ArrowDown'].includes(event.key) ? -1 : 1) * (event.shiftKey ? 15 : 1) });
             onChange?.(details.map(item => item.id === detail.id ? next : item)); }}><RotateCw size={12} /></button>}
-        {selected && !pullSelected && [
+        {selected && !pullSelected && wordSelection !== detail.id && [
           { name: 'top left', x: -1, y: -1 }, { name: 'top right', x: 1, y: -1 },
           { name: 'bottom left', x: -1, y: 1 }, { name: 'bottom right', x: 1, y: 1 },
           { name: 'top center', x: 0, y: -1 }, { name: 'bottom center', x: 0, y: 1 },

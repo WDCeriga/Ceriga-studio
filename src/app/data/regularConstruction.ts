@@ -23,8 +23,8 @@ export function regularStitchRows(layers:ResolvedGarmentLayer[]):StitchGeometry[
 
 /** Hem stitch rows stay straight and follow the opening, with a small endpoint allowance. */
 export function straightSleeveStitches(layers:ResolvedGarmentLayer[],rows:StitchGeometry['rows']):StitchGeometry['rows']{
- if(layers.some(l=>l.id==='sleeveLeft'&&/:cap(?::|$)/.test(l.assetId))&&!layers.some(l=>l.svgRaw.includes('data-live-hem-finish')))return rows;
- const row=(id:string):P[]|undefined=>{const layer=layers.find(l=>l.id===id);if(!layer)return;const r=largest(layer.svgRaw);if(r.length<3)return;
+ if(layers.some(l=>l.id==='sleeveLeft'&&/:cap(?::|$)/.test(l.assetId))&&!layers.some(l=>l.svgRaw.includes('data-live-hem-finish')||l.svgRaw.includes('data-cuff-stitch-row')))return rows;
+ const row=(id:string):P[]|undefined=>{const layer=layers.find(l=>l.id===id);if(!layer)return;const marker=new DOMParser().parseFromString(layer.svgRaw,'image/svg+xml').querySelector('[data-cuff-stitch-row]');if(marker){const points=flattenPathContours(marker.getAttribute('d')??'',2,true)[0];if(points?.length>1)return points;}const r=largest(layer.svgRaw);if(r.length<3)return;
  return sleeveHemStitchRow(r);};
  const sleeve=['sleeveHemLeft','sleeveHemRight'].map(row).filter((p):p is P[]=>!!p),under=['underlayerHemLeft','underlayerHemRight'].map(row).filter((p):p is P[]=>!!p);return {...rows,sleeve:sleeve.length?sleeve:rows.sleeve,undersleeve:under.length?under:rows.undersleeve};
 }

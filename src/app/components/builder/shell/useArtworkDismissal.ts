@@ -9,9 +9,10 @@ export function useArtworkDismissal(active:boolean){useEffect(()=>{
   const outside=(event:MouseEvent)=>{
     const target=event.target,origin=event.detail>0?pointerPath:[],floating=event.detail>0&&pointerFloating;cancel();
     if(!(target instanceof Element)||floating||isArtworkFloatingControl(target))return;
+    // Inspector disclosures are persistent editing state. Only explicitly temporary menus dismiss.
     // Radix can move focus or retarget the click before it reaches the document.
     // The original pointerdown still identifies the section that owns the control.
-    const clickedPath=event.composedPath(),opened=Array.from(document.querySelectorAll<HTMLDetailsElement>('.ceriga-builder-shell details[open]')).filter(details=>!origin.includes(details)&&!clickedPath.includes(details)&&!details.contains(target));
+    const clickedPath=event.composedPath(),opened=Array.from(document.querySelectorAll<HTMLDetailsElement>('.ceriga-builder-shell details[data-dismiss-on-outside][open]')).filter(details=>!origin.includes(details)&&!clickedPath.includes(details)&&!details.contains(target));
     const frame=requestAnimationFrame(()=>{frames.delete(frame);for(const details of opened)if(details.isConnected)details.open=false;});frames.add(frame);
   };
   document.addEventListener('pointerdown',down,true);document.addEventListener('pointercancel',cancel,true);document.addEventListener('click',outside,true);

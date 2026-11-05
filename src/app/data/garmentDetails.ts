@@ -164,7 +164,7 @@ export function detailPlacement(detail: GarmentDetail, bounds: DetailBounds) {
       width, height, left: centerX - width / 2, top: centerY - height / 2 };
   }
   const asset = detailAsset(detail);
-  const limits = detail.placementArea === 'canvas' ? { minX: 0, minY: 0, maxX: 2048, maxY: 2048 } : bounds;
+  const limits = (detail.type === 'patch' || detail.placementArea === 'canvas') ? { minX: 0, minY: 0, maxX: 2048, maxY: 2048 } : bounds;
   const availableWidth = limits.maxX - limits.minX;
   const availableHeight = limits.maxY - limits.minY;
   const bodyWidth = bounds.maxX - bounds.minX;
@@ -197,7 +197,7 @@ export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds,
       x: placement.x + (cosine * cornerX * (width - placement.width) - sine * cornerY * (height - placement.height)) / 2 / (bounds.maxX - bounds.minX),
       y: placement.y + (sine * cornerX * (width - placement.width) + cosine * cornerY * (height - placement.height)) / 2 / (bounds.maxY - bounds.minY) });
   }
-  const limits = detail.placementArea === 'canvas' ? { minX: 0, minY: 0, maxX: 2048, maxY: 2048 } : bounds;
+  const limits = (detail.type === 'patch' || detail.placementArea === 'canvas') ? { minX: 0, minY: 0, maxX: 2048, maxY: 2048 } : bounds;
   const placement = detailPlacement(detail, bounds);
   const bodyWidth = bounds.maxX - bounds.minX;
   const bodyHeight = bounds.maxY - bounds.minY;

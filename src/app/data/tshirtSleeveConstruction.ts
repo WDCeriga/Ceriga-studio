@@ -67,12 +67,12 @@ function alignTorsoHem(raw:string,top:number,low:number[],high:number[]){
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();parts[idx]=svgpath('M'+points.map(pt).join('L')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.join(''));return new XMLSerializer().serializeToString(doc.documentElement);
 }
 /** Rebuild one torso from the live shared armholes, rather than retaining old sleeve wedges. */
-function torsoFromAttachments(raw:string,attachment:string,fit?:string){
- const source=ring(raw),join=flattenPathContours(attachment,1.5)[0];if(source.length<3||!join?.length)return raw;
+function torsoFromAttachments(raw:string,attachment:string,fit?:string,rebuildOpen=false){
+ const source=ring(raw),join=flattenPathContours(attachment,1.5,rebuildOpen)[0];if(source.length<3||!join?.length)return raw;
  const a=join[0],u=join.at(-1)!,rightA={x:2048-a.x,y:a.y};
  const i=near(source,rightA),j=near(source,a),one=walk(source,i,j),two=walk(source,j,i).reverse(),mean=(ps:P[])=>ps.reduce((sum,p)=>sum+p.y,0)/ps.length;
  const top=(mean(one)<mean(two)?one:two).slice(1,-1).filter(p=>p.x>=a.x-1&&p.x<=rightA.x+1);
- const bottom=Math.max(...source.map(p=>p.y)),hem=source.filter(p=>p.y>bottom-4&&p.x<1024),hemX=fit==='slim'&&hem.length?Math.min(...hem.map(p=>p.x)):u.x;
+ const bottom=Math.max(...source.map(p=>p.y)),hem=source.filter(p=>p.y>bottom-80&&p.x<1024),hemX=fit==='slim'&&hem.length?Math.min(...hem.map(p=>p.x)):u.x;
  const side=Array.from({length:33},(_,i)=>{const t=i/32;return{x:u.x+(hemX-u.x)*t+(fit==='slim'?16*Math.sin(Math.PI*t)**2:0),y:u.y+(bottom-u.y)*t}});
  const mirror=(p:P)=>({x:2048-p.x,y:p.y});
  const points=[...join,...side.slice(1),...side.slice().reverse().map(mirror),...join.slice().reverse().map(mirror).slice(1),...top];
@@ -123,7 +123,11 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  }
  let outerBottom=corner(lo,low);
  const maxX=Math.max(...r.map(p=>p.x)),candidates=r.filter(p=>p.x>maxX-4&&p.y>a.y&&p.y<a.y+650);
- const t={x:maxX,y:Math.min(...candidates.map(p=>p.y))},u={x:maxX,y:Math.max(...candidates.map(p=>p.y))};
+ // A cap has a curved/tapered armhole, not the vertical inner edge assumed
+ // for a short sleeve. Derive its endpoint from the contour even when that
+ // vertical-edge candidate set is empty (notably traced collar packs).
+ const capEnd=cap?r.reduce((best,p)=>p.y>best.y?p:best,r[0]):null;
+ const t={x:maxX,y:cap?a.y+(capEnd!.y-a.y)*.82:Math.min(...candidates.map(p=>p.y))},u={x:maxX,y:cap?capEnd!.y:Math.max(...candidates.map(p=>p.y))};
  if(!Number.isFinite(t.y)||!Number.isFinite(u.y))return layers;
  const longerShort=/longer-short/.test(left.assetId);
  const short=!long&&!longerShort,closedUnderarm=short||longerShort;
@@ -136,10 +140,14 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
   outer.x=a.x+(outerBottom.x-a.x)*ratio;outer.y=a.y+(outerBottom.y-a.y)*ratio;
   inner.x=u.x;inner.y=u.y-inset;
  }
+ if(long&&bodyRing.length){
+  const bottom=Math.max(...bodyRing.map(p=>p.y)),depth=Math.max(14,Math.min(48,outerBottom.y-outer.y));
+  hemInner.y=bottom;outerBottom.y=bottom;inner.y=bottom-depth;outer.y=bottom-depth;
+ }
  const curve=cubic(sideArc(r,a,t,true),a,t,true)+'L'+pt(u);
- const innerCurve=long?cubic(sideArc(r,u,inner,true),u,inner):'L'+pt(inner);
- const outerCurve=long?cubic(sideArc(r,outer,a,false),outer,a):'L'+pt(a);
- const d=cap?'M'+pt(a)+curve+'L'+pt(outerBottom)+'L'+pt(a)+'Z':'M'+pt(a)+curve+innerCurve+'L'+pt(outer)+outerCurve+'Z';
+ const innerCurve=long?'C'+pt({x:u.x,y:u.y+(hemInner.y-u.y)*.32})+' '+pt({x:hemInner.x,y:hemInner.y-(hemInner.y-u.y)*.28})+' '+pt(hemInner):'L'+pt(closedUnderarm?hemInner:inner);
+ const outerCurve=long?'C'+pt({x:outerBottom.x,y:outerBottom.y-(outerBottom.y-a.y)*.44})+' '+pt({x:a.x+(outerBottom.x-a.x)*.72,y:a.y+(outerBottom.y-a.y)*.24})+' '+pt(a):'L'+pt(a);
+ const d=cap?'M'+pt(a)+curve+'L'+pt(outerBottom)+'L'+pt(a)+'Z':'M'+pt(a)+curve+innerCurve+'L'+pt(long||closedUnderarm?outerBottom:outer)+outerCurve+'Z';
  let body=layers.find(l=>l.id==='base')?.svgRaw;
  if(body){const end=closedUnderarm?hemInner:u,attachment=curve+(closedUnderarm?'L'+pt(hemInner):'');body=replaceBodyArc(body,a,end,attachment,fit!=='slim');const mirrored=svgpath('M'+pt(a)+attachment).matrix([-1,0,0,1,2048,0]).toString();body=replaceBodyArc(body,{x:2048-a.x,y:a.y},{x:2048-end.x,y:end.y},mirrored.replace(/^M[^C]*C/,'C'),fit!=='slim');}
  // The reconstructed slim torso already follows the shared sleeve attachment.
@@ -163,7 +171,7 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  if(cap){const toPolygon=(ps:P[])=>[[[...ps,ps[0]].map(p=>[p.x,p.y] as [number,number])]];const clipped=polygonClipping.intersection(toPolygon(ring(wrap(d))),toPolygon([outer,inner,hemInner,outerBottom]));if(clipped.length)band=clipped.map(poly=>poly.map(loop=>'M'+loop.map(([x,y])=>pt({x,y})).join('L')+'Z').join('')).join('');}
  const opening='M'+pt(outerBottom)+'L'+pt(hemInner),layered=layers.some(l=>l.id==='underSleeveLeft');
  const hemSvg=(mirrored:boolean)=>{const matrix=mirrored?[-1,0,0,1,2048,0]:[1,0,0,1,0,0];return wrap(svgpath(band).matrix(matrix).toString()).replace('</svg>',layered?'<path data-sleeve-opening="true" fill="none" d="'+svgpath(opening).matrix(matrix).toString()+'"/></svg>':'</svg>');};
- if(originalBody)body=torsoFromAttachments(originalBody.svgRaw,seam,fit);
+ if(originalBody)body=torsoFromAttachments(originalBody.svgRaw,seam,fit,true);
  const bodyHem=layers.find(l=>l.id==='bodyHem'),bodyHemRing=bodyHem?ring(bodyHem.svgRaw):[],bodyHemYs=bodyHemRing.map(p=>p.y);
  let slimHem:string|undefined;
  if(fit==='slim'&&body){
@@ -212,5 +220,6 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
   const cuffId=id.replace('underSleeve','underlayerHem'),cuff=layers.find(l=>l.id===cuffId),cuffRing=cuff?ring(cuff.svgRaw):[];
   if(cuffRing.length){const top=Math.min(...cuffRing.map(p=>p.y)),bottom=Math.max(...cuffRing.map(p=>p.y));under[cuffId]=wrap('M'+bottomOuter+','+top+'H'+bottomInner+'V'+bottom+'H'+bottomOuter+'Z');}
  }
- const raw:Record<string,string>={...under,...(alignedBodyHem?{bodyHem:alignedBodyHem}:{}),sleeveLeft:leftSvg,sleeveRight:right,sleeveHemLeft:hemSvg(false),sleeveHemRight:hemSvg(true),...(body?{base:body}:{})};if(familyCache.size>24)familyCache.delete(familyCache.keys().next().value!);familyCache.set(key,raw);return apply(layers,raw);
+ const raw:Record<string,string>={...under,...(alignedBodyHem?{bodyHem:alignedBodyHem}:{}),sleeveLeft:leftSvg,sleeveRight:right,sleeveHemLeft:hemSvg(false),sleeveHemRight:hemSvg(true),...(body?{base:body}:{})};
+ if(familyCache.size>24)familyCache.delete(familyCache.keys().next().value!);familyCache.set(key,raw);return apply(layers,raw);
 }

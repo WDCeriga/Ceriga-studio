@@ -1,4 +1,4 @@
-import {stablePolygonUnion} from '../lib/stablePolygonUnion';
+import {stablePolygonUnion,stablePolygonIntersection} from '../lib/stablePolygonUnion';
 import polygonClipping,{type MultiPolygon,type Pair} from 'polygon-clipping';
 import simplify from 'simplify-js';
 import svgpath from 'svgpath';
@@ -31,6 +31,7 @@ export function roundedShoulderRing(ring:P[],neckLeft:number,neckRight:number,li
 }
 const cache=new Map<string,ResolvedGarmentLayer[]>();
 export function withRoundedShoulderCaps(layers:ResolvedGarmentLayer[]):ResolvedGarmentLayer[]{
+ if(layers.some(l=>l.svgRaw.includes('data-oversized-reference')))return layers;
  const key=JSON.stringify(layers);const hit=cache.get(key);if(hit)return hit;
  const ids=['base','sleeveLeft','sleeveRight'],parts=layers.filter(l=>ids.includes(l.id));
  const geometries=parts.map(l=>shoulderFabricGeometry(l.svgRaw)).filter(g=>g.length);
@@ -44,7 +45,7 @@ export function withRoundedShoulderCaps(layers:ResolvedGarmentLayer[]):ResolvedG
  const rounded=all.map(p=>p.map((r,i)=>i?r:[...roundedShoulderRing(r.slice(0,-1).map(([x,y])=>({x,y})),left,right,shoulderLimit)].map(p=>[Number(p.x.toFixed(3)),Number(p.y.toFixed(3))] as Pair)));
  const result=layers.map(layer=>{
   if(!ids.includes(layer.id))return layer;
-  const clipped=polygonClipping.intersection(shoulderFabricGeometry(layer.svgRaw),rounded);
+  const clipped=stablePolygonIntersection(shoulderFabricGeometry(layer.svgRaw),rounded);
   const doc=new DOMParser().parseFromString(layer.svgRaw,'image/svg+xml'),root=doc.documentElement;
   const group=Array.from(root.querySelectorAll('g[transform]')).find(g=>!g.closest('defs')) as SVGGraphicsElement|undefined;
   const paths=Array.from(group?.querySelectorAll('path')??[]).filter(p=>!p.closest('defs')),matrix=group?.transform.baseVal.consolidate()?.matrix;

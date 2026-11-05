@@ -312,7 +312,8 @@ export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: Stitc
       if (part.hem?.finish === 'none') return '';
       const partStyle=part.hem?.stitchStyle??style;
       if(partStyle==='none')return '';
-      const partPath=geometry.rows[region].map(row=>stitchPatternPath(row,partStyle,resolved.density,resolved.spacingMm)).join('');
+      const rows=geometry.rows[region].filter(row=>!/(Left|Right)$/.test(part.id)||!row.length||((row.reduce((n,p)=>n+p.x,0)/row.length<1024)===part.id.endsWith('Left')));
+      const partPath=rows.map(row=>stitchPatternPath(row,partStyle,resolved.density,resolved.spacingMm)).join('');
       const partWidth=part.hem?.stitchThread?{fine:2.1,regular:2.7,heavy:3.4}[part.hem.stitchThread]:width;
       const selectedColor = colorValue(part.hem?.stitchColor || resolved.color || source.tint);
       const fabric = fabricColors?.[part.id] ?? fabricColors?.[region] ?? fabricColors?.base;

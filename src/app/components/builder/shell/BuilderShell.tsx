@@ -116,6 +116,23 @@ export function BuilderInspector({
   onResizeKey:(direction:number)=>void; collapsed:boolean; onCollapse:()=>void; onResize:(event:ReactPointerEvent<HTMLDivElement>)=>void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    const panel=ref.current;if(!panel)return;
+    const wheel=(event:WheelEvent)=>{
+      if(event.ctrlKey||event.metaKey||Math.abs(event.deltaX)>Math.abs(event.deltaY))return;
+      let node=event.target instanceof Element?event.target as HTMLElement:null;
+      const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?panel.clientHeight:1);
+      while(node&&panel.contains(node)){
+        if(node.scrollHeight>node.clientHeight+1&&['auto','scroll'].includes(getComputedStyle(node).overflowY)&&((delta<0&&node.scrollTop>0)||(delta>0&&node.scrollTop+node.clientHeight<node.scrollHeight-1))){
+          event.preventDefault();event.stopPropagation();node.scrollTop+=delta;return;
+        }
+        if(node===panel)break;node=node.parentElement;
+      }
+    };
+    panel.addEventListener('wheel',wheel,{capture:true,passive:false});
+    return()=>panel.removeEventListener('wheel',wheel,true);
+  },[]);
+
   useEffect(() => {
     ref.current?.scrollTo({
       top: 0,

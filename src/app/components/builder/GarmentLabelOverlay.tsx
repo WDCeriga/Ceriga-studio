@@ -258,7 +258,7 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
         {onChange && selectedId === label.id && <g data-label-handle="" style={{ pointerEvents: 'auto', touchAction: 'none', cursor: 'nwse-resize' }} onPointerDown={event => start(event, label, placement, true)}>
           <title>Resize label</title>
           <rect x={placement.width / 2 - 7} y={placement.height - 7} width="14" height="14" fill="transparent" />
-          <rect x={placement.width / 2 - 1.4} y={placement.height - 1.4} width="2.8" height="2.8" rx=".4" fill="white" stroke="#8f5551" strokeWidth=".8" vectorEffect="non-scaling-stroke" />
+          <rect x={placement.width / 2 - 1.4} y={placement.height - 1.4} width="2.8" height="2.8" fill="white" stroke="#CC2D24" strokeWidth=".8" vectorEffect="non-scaling-stroke" />
         </g>}
       </g>;
     })}

@@ -19,7 +19,7 @@ export type StitchEditor = { region: StitchRegion; closeUp: boolean; onSelect: (
 
 export function useStitchGeometry(layers: ResolvedGarmentLayer[], fit: string, enabled = true, preferVector = false) {
   const technical=useTechnicalDrawing(),regular=useRegularConstruction()||technical||preferVector||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
-  const vector=useMemo(()=>regular&&enabled?{rows:constructionStitchRows(layers),clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips']}:undefined,[regular,enabled,layers]);
+  const vector=useMemo(()=>regular&&enabled?{rows:straightSleeveStitches(layers,constructionStitchRows(layers)),clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips']}:undefined,[regular,enabled,layers]);
   const [result, setResult] = useState<{ layers: ResolvedGarmentLayer[]; geometry: StitchGeometry }>();
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -47,7 +47,7 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor 
   const colors = fabricColor ? Object.fromEntries(layers.filter(layer => layer.kind === 'solid').map(layer => [layer.id, layer.tint ?? fabricColor])) : undefined;
   if (colors) colors.neckline = colors.neck ?? colors.base;
   const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips'],hemClips:Object.fromEntries(layers.filter(l=>/^(bodyHem|sleeveHem(?:Left|Right)|underlayerHem(?:Left|Right))$/.test(l.id)).map(({id})=>{const layer=layers.find(l=>l.id===id),rings=layer?fabricRings(layer.svgRaw):[];return [id,{stitchCut:rings.map(r=>'M'+r.map(p=>(p.x*.75).toFixed(3)+','+(p.y*.75).toFixed(3)).join('L')+'Z').join('')}]}))}:geometry&&{...geometry,hemClips};
-  const stitchGeometry=technical&&vectorGeometry?{...vectorGeometry,rows:straightSleeveStitches(layers,vectorGeometry.rows)}:vectorGeometry;
+  const stitchGeometry=vectorGeometry?{...vectorGeometry,rows:straightSleeveStitches(layers,vectorGeometry.rows)}:vectorGeometry;
   const markup = source && stitchGeometry ? renderStitchStyles(source, stitchGeometry, settings, hems, colors, prefix) : '';
   return <div data-layer-id="stitching" data-stitch-ready={Boolean(vectorGeometry)} data-stitch-error={!regular&&failed || undefined}
     className="pointer-events-none absolute inset-0 [&_*]:pointer-events-none [&>svg]:h-full [&>svg]:w-full" aria-hidden="true"

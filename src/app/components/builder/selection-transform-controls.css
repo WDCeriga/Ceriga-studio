@@ -1,0 +1,11 @@
+.studio-selection-controls{position:absolute;inset:0;z-index:50;pointer-events:none}
+.studio-selection-frame{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.studio-selection-handle{position:absolute;display:grid;place-items:center;padding:0;border:0;background:transparent;pointer-events:auto;touch-action:none}
+.studio-selection-handle:after{content:'';width:7px;height:7px;background:#fff;border:1px solid #CC2D24;border-radius:0}
+.studio-selection-rotate{position:absolute;left:50%;width:32px;height:32px;display:grid;place-items:center;padding:0;background:#fff;color:#CC2D24;border:1px solid #CC2D24;border-radius:50%;pointer-events:auto;touch-action:none;cursor:grab}
+.studio-selection-handle:focus-visible,.studio-selection-rotate:focus-visible{outline:2px solid #CC2D24;outline-offset:2px}
+.studio-selection-readout{position:absolute;left:50%;padding:4px 7px;background:#fff;border:1px solid #eee;border-radius:4px;color:#525252;font-size:10px;white-space:nowrap;transform-origin:top center}
+[data-logo-selection]>rect:not([aria-label]),[data-glyph-box]>rect:first-child{stroke:#CC2D24;stroke-dasharray:3 3}
+[data-logo-selection]>rect[aria-label],[data-logo-selection]>ellipse,[data-glyph-box]>rect[aria-label]:not(:first-child),[data-glyph-box]>circle{stroke:#CC2D24;fill:white}
+[data-artwork-multi-selection]{box-shadow:none!important;border:1px dashed #CC2D24!important;background:transparent!important}
+[data-label-handle] rect:last-child{stroke:#CC2D24;rx:0}

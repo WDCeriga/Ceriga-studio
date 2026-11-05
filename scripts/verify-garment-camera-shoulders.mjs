@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
-const compiled=await build({stdin:{contents:"export {registeredTorsoSide} from './src/app/data/tshirtSleeveConstruction';export * from './src/app/lib/garmentArtworkCamera';export {roundedShoulderRing} from './src/app/data/tshirtShoulderGeometry';export {flattenConstructionSeam,insetConstructionRow} from './src/app/data/constructionStitchRows';export {shoulderSeam,partitionShoulderFabric,completeShoulderJoin} from './src/app/data/shoulderConstruction';",resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'assets',setup(b){b.onResolve({filter:/\.(svg|png)(\?raw)?$/},a=>({path:a.path,namespace:'asset'}));b.onLoad({filter:/.*/,namespace:'asset'},()=>({contents:'export default ""'}))}}]});
+const compiled=await build({stdin:{contents:"export {sleeveHemStitchRow} from './src/app/data/hemStitchGeometry';export {flattenPathContours} from './src/app/features/panelling/panellingGeometry';export {registeredTorsoSide} from './src/app/data/tshirtSleeveConstruction';export * from './src/app/lib/garmentArtworkCamera';export {roundedShoulderRing} from './src/app/data/tshirtShoulderGeometry';export {flattenConstructionSeam,insetConstructionRow} from './src/app/data/constructionStitchRows';export {shoulderSeam,partitionShoulderFabric,completeShoulderJoin} from './src/app/data/shoulderConstruction';",resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false,plugins:[{name:'assets',setup(b){b.onResolve({filter:/\.(svg|png)(\?raw)?$/},a=>({path:a.path,namespace:'asset'}));b.onLoad({filter:/.*/,namespace:'asset'},()=>({contents:'export default ""'}))}}]});
 const api=await import('data:text/javascript;base64,'+Buffer.from(compiled.outputFiles[0].text).toString('base64'));
 for(const unit of [.5,1,2])for(const scale of [1,1.8,3.4])for(const camera of [{x:1024,y:1024},{x:1024,y:430},{x:700,y:1800}]){
  const root={x:80,y:45},zone={x:40,y:42},side=700*unit,left=50*unit,top=0;
@@ -73,3 +73,17 @@ assert(!clean.some(p=>p.x===406&&p.y===200),'A tracing-scale shoulder step must 
 assert(clean.some(p=>p.x===600&&p.y===100),'Keep collar registration');
 assert(clean.some(p=>p.x===350&&p.y===1400),'Keep hem registration');
 console.log('Shoulder steps: six-unit tracing offsets are removed while collar and hem registration stay fixed.');
+
+const openCap='M550 330C580 420 645 600 640 710';
+assert.deepEqual(api.flattenPathContours(openCap),[],'Fill extraction must continue ignoring open contours');
+const attachment=api.flattenPathContours(openCap,1.5,true)[0];
+assert(attachment.length>30,'Cap reconstruction must retain its open armhole');
+assert.deepEqual(attachment[0],{x:550,y:330});assert.deepEqual(attachment.at(-1),{x:640,y:710});
+console.log('Cap sleeve: open armholes retain both endpoints without adding a closing edge.');
+
+for(const mirror of [false,true]){
+ const band=[{x:400,y:700},{x:650,y:800},{x:650,y:820},{x:400,y:720}].map(p=>({x:mirror?2048-p.x:p.x,y:p.y}));
+ const row=api.sleeveHemStitchRow(band);assert.equal(row.length,2);
+ for(const p of row){const x=mirror?2048-p.x:p.x,edge=700+(x-400)*.4;assert(p.y>edge+2&&p.y<edge+8,'Thread follows the upper fold inside a thin angled hem');}
+}
+console.log('Sleeve hem stitching stays inside thin angled bands on both sleeves.');

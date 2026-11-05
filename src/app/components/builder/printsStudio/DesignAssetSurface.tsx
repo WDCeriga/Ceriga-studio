@@ -67,7 +67,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
   useLayoutEffect(() => {
     const node = content.current;
     if (!node) return;
-    const measure = () => setHeight(node.offsetHeight || element.height);
+    const measure = () => setHeight(parseFloat(getComputedStyle(node).height) || element.height);
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(node);

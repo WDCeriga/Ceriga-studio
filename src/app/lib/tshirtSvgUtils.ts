@@ -34,7 +34,7 @@ export function renderFabricSvg(raw: string, fill: string): string {
     const stroke = element.getAttribute('stroke')!;
     if (/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(stroke)) element.setAttribute('stroke', constructionColor(fill, stroke));
   }
-  if (fabric && isDarkNeutralFabric(fill) && fabricLuminance(fill) < .06 && parsed.documentElement.getAttribute('data-neck-finish') !== 'raw') {
+  if (fabric && !parsed.documentElement.hasAttribute('data-no-fabric-edge-seal') && isDarkNeutralFabric(fill) && fabricLuminance(fill) < .06 && parsed.documentElement.getAttribute('data-neck-finish') !== 'raw') {
     fabric.setAttribute('stroke', '#505050');
     fabric.setAttribute('stroke-width', '12');
     fabric.setAttribute('stroke-linejoin', 'round');
@@ -112,6 +112,28 @@ export function tintPotraceSvg(
         /(<g transform="[^"]+")[^>]*>/,
         `$1 fill="none" stroke="${fill}" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">`,
       );
+  }
+
+  // Parse solid paint by ownership, not attribute order. Transformed construction
+  // can contain several fabric allowance groups; every one must follow the fabric.
+  if (typeof DOMParser !== 'undefined') {
+    const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+    if (!doc.querySelector('parsererror')) {
+      const groups = Array.from(doc.querySelectorAll('g[transform]')).filter(g => !g.closest('defs,mask,clipPath'));
+      const primary = groups.find(g => /^(#000000|#000|black)$/i.test(g.getAttribute('fill') ?? '')) ?? groups[0];
+      const owned = new Set<Element>([...(primary ? [primary] : []), ...Array.from(doc.querySelectorAll('[data-shared-fabric="true"]'))]);
+      for (const group of owned) {
+        group.setAttribute('fill', fill);
+        group.setAttribute('stroke', edgeSealWidth > 0 ? fill : 'none');
+        if (edgeSealWidth > 0) { group.setAttribute('stroke-width', String(edgeSealWidth)); group.setAttribute('stroke-linejoin', 'round'); }
+        for (const path of group.querySelectorAll('path')) {
+          if (path.closest('defs,mask,clipPath')) continue;
+          if (/^(#000000|#000|black)$/i.test(path.getAttribute('fill') ?? '')) path.setAttribute('fill', fill);
+        }
+      }
+      if (interactive) doc.querySelectorAll('path').forEach(p => p.setAttribute('pointer-events', 'all'));
+      if (owned.size) return new XMLSerializer().serializeToString(doc.documentElement);
+    }
   }
 
   // Only the first (fabric) group is tinted. Construction ink stays #141414.

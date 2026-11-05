@@ -1,3 +1,4 @@
+import { preloadOversizedReference } from './oversizedReference';
 import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
 import type { NeckFinish } from './tshirtNeckFinish';
 
@@ -54,6 +55,8 @@ function find(fit: string, kind: NeckPackKind, view: View, finish: Finish, part:
 export async function preloadTshirtNeckPack(
   fit: string, neckName: string, view: View, finish: Finish = 'ribbed',
 ): Promise<boolean> {
+  const referenceChanged = fit === 'oversized' ? await preloadOversizedReference(view,neckName) : false;
+  if(fit==='oversized')await preloadTshirtNeckPack('regular',neckName,view,finish);
   const kind = tshirtNeckPackKind(neckName);
   if (!kind) return false;
   const keys = needed(view, finish).flatMap(part => {
@@ -68,7 +71,7 @@ export async function preloadTshirtNeckPack(
     }
     return task;
   }));
-  return keys.length > 0;
+  return keys.length > 0 || referenceChanged;
 }
 
 /** Returns the layers with the pre-built neck assets applied, or undefined until they have loaded. */

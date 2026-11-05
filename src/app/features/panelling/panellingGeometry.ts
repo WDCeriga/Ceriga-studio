@@ -137,7 +137,7 @@ export function flattenAbsolutePath(d: string, step: number): PanellingPoint[] |
 }
 
 /** Keep SVG subpaths separate. Only an explicit Z supplies a closing boundary. */
-export function flattenPathContours(d: string, step = 2): PanellingPoint[][] {
+export function flattenPathContours(d: string, step = 2, includeOpen = false): PanellingPoint[][] {
   const contours: PanellingPoint[][] = [];
   let points: PanellingPoint[] = [], current = { x: 0, y: 0 };
   const line = (end: PanellingPoint) => {
@@ -172,6 +172,7 @@ export function flattenPathContours(d: string, step = 2): PanellingPoint[][] {
     }
     return undefined;
   });
+  if(includeOpen&&points.length>=2)contours.push(points);
   return contours;
 }
 

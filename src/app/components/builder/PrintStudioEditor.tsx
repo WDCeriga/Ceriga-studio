@@ -1,3 +1,4 @@
+import { SelectionTransformControls } from './SelectionTransformControls';
 import {ArtworkCanvasMenu} from './shell/ArtworkCanvasMenu';
 import {ArtworkSurfaceContext} from './printsStudio/ArtworkSurfaceContext';
 import {GarmentArtworkCameraLayer} from './printsStudio/GarmentArtworkCameraLayer';
@@ -413,6 +414,7 @@ interface PrintsDesignStepProps {
 export type PrintsCanvasSize = { width: number; height: number };
 
 interface PrintsDesignPreviewProps {
+  artboardBackground?: ReactNode;
   canvasToolbar?: boolean;
   assetMode?: boolean;
   canvasSize?: PrintsCanvasSize;
@@ -728,6 +730,8 @@ export type PrintManip =
   | {
       kind: 'resize';
       id: string;
+      startElement: DesignElement;
+      screenScale: number;
       handle: ResizeHandle;
       startX: number;
       startY: number;
@@ -767,195 +771,7 @@ export function PrintTransformOverlay({
   rotation?: number;
   transformLabel?:string;
 }) {
-  const inv = !tight && uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
-  const invStyle =
-    inv === 1
-      ? undefined
-      : ({ transform: `scale(${inv})`, transformOrigin: '50% 50%' } as const);
-
-  if(shapeChrome||tight){const scale=uiInverseScale>0?uiInverseScale:1;return <div data-handles data-editor-chrome data-shape-transform className="shape-transform-guide pointer-events-none absolute inset-0 z-50">
-    {!hideBounds&&<svg className="shape-transform-bounds" width="100%" height="100%" style={{border:0,boxShadow:'none',overflow:'visible'}} aria-hidden="true"><rect width="100%" height="100%" fill="none" stroke="#737373" strokeWidth={scale} vectorEffect="non-scaling-stroke"/></svg>}
-    {(['nw','n','ne','e','se','s','sw','w'] as ResizeHandle[]).map(handle=>{const x=handle.includes('w')?0:handle.includes('e')?100:50,y=handle.includes('n')?0:handle.includes('s')?100:50;return <button key={handle} aria-label={`Resize ${handle.toUpperCase()}`} className="shape-transform-handle" style={{width:comfortableTouch||compactHandles||phoneTextMinimal?24:16,height:comfortableTouch||compactHandles||phoneTextMinimal?24:16,left:x+'%',top:y+'%',transform:`translate(-50%,-50%) scale(${scale})`,cursor:artworkResizeCursor(handle,rotation)}} onPointerDown={event=>{if(event.button===0)onResizePointerDown(event,handle);}}/>;})}
-    {(['nw','ne','se','sw'] as const).map(corner=><button key={'rotate-'+corner} aria-label={`Rotate from ${corner.toUpperCase()} corner`} className="shape-corner-rotate" style={{left:corner.includes('w')?`${-16*scale}px`:`calc(100% + ${16*scale}px)`,top:corner.includes('n')?`${-16*scale}px`:`calc(100% + ${16*scale}px)`,transform:`translate(-50%,-50%) scale(${scale})`,cursor:ARTWORK_ROTATE_CURSOR}} onPointerDown={event=>{if(event.button===0)onRotatePointerDown(event);}}/>)}
-    <span className="shape-transform-pivot" style={{transform:`translate(-50%,-50%) scale(${scale})`}}/>
-    <span className="shape-rotation-stem" style={{height:10*scale,width:scale}}/><button aria-label="Rotate" className="shape-rotation-handle" style={{top:`calc(100% + ${22*scale}px)`,transform:`translate(-50%,-50%) scale(${scale})`,cursor:ARTWORK_ROTATE_CURSOR}} onPointerDown={onRotatePointerDown}><RotateCw size={12}/></button>
-    {transformLabel&&<span className="shape-transform-readout" style={{top:`calc(100% + ${43*scale}px)`,transform:`translateX(-50%) scale(${scale})`,transformOrigin:'top center'}}>{transformLabel}</span>}
-  </div>;}
-
-
-  if (phoneTextMinimal) {
-    return (
-      <div
-        data-handles
-        className="pointer-events-none absolute inset-0 z-50"
-        style={invStyle}
-      >
-        <div
-          className="pointer-events-none absolute rounded-md border-2 bg-gradient-to-b from-[#262626]/10 to-transparent"
-          style={{ borderColor: `${HANDLE_RED}cc`, inset: tight ? 0 : '-1px', borderRadius: tight ? 0 : undefined }}
-        />
-        <button
-          type="button"
-          aria-label="Scale from corner"
-          className="pointer-events-auto absolute -left-1.5 -top-1.5 z-[60] h-3 w-3 touch-none rounded-full before:absolute before:inset-0.5 before:rounded-full before:border before:border-zinc-300/95 before:bg-white before:shadow-sm active:scale-95"
-          style={{cursor:artworkResizeCursor('nw',rotation)}}
-          onPointerDown={(e) => onResizePointerDown(e, 'nw')}
-        />
-        <button
-          type="button"
-          aria-label="Stretch width"
-          className="pointer-events-auto absolute -right-1 top-1/2 z-[60] h-7 w-2 -translate-y-1/2 touch-none rounded-full border-2 border-zinc-300/95 bg-white shadow-sm active:scale-95"
-          style={{cursor:artworkResizeCursor('e',rotation)}}
-          onPointerDown={(e) => onResizePointerDown(e, 'e')}
-        />
-      </div>
-    );
-  }
-
-  const large = comfortableTouch && !compactHandles;
-  const dot = cn(
-    /** `pointer-events-auto`: parent `data-handles` uses `pointer-events-none` so handles stay above the inline toolbar without stealing clicks from the pill. */
-    'pointer-events-auto absolute z-[60] flex touch-none items-center justify-center rounded-full before:absolute before:rounded-full before:border before:border-[#262626] before:bg-white active:scale-95',
-    compactHandles ? 'h-2.5 w-2.5 before:inset-0.5' : large ? 'h-5 w-5 before:inset-1' : 'h-3.5 w-3.5 before:inset-[3px]',
-  );
-  /** Single red ring (border only) — avoid border + box-shadow or duplicate rings on mobile. */
-  const dotStyle = compactHandles ? undefined : { borderColor: HANDLE_RED };
-  const off = compactHandles
-    ? { box: 'inset-[-4px]', rot: '-bottom-7 h-6 w-6', rotIcon: 'h-3 w-3' as const }
-    : large
-      ? { box: 'inset-[-9px]', rot: '-bottom-12 h-11 w-11', rotIcon: 'h-5 w-5' as const }
-      : { box: 'inset-[-7px]', rot: '-bottom-11 h-9 w-9', rotIcon: 'h-4 w-4' as const };
-  return (
-    <div
-      data-handles
-      className="pointer-events-none absolute inset-0 z-50"
-      style={invStyle}
-    >
-      <div
-        className={cn(
-          'pointer-events-none absolute rounded-2xl border bg-gradient-to-b from-[#262626]/12 to-transparent',
-          off.box,
-        )}
-        style={{ borderColor: `${HANDLE_RED}aa`, inset: tight ? 0 : undefined, borderRadius: tight ? 0 : undefined }}
-      />
-      <button
-        type="button"
-        aria-label="Resize NW — scale"
-        className={cn(
-          dot,
-          compactHandles ? '-left-1.5 -top-1.5' : large ? '-left-2.5 -top-2.5' : '-left-2 -top-2',
-          'cursor-nwse-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('nw',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 'nw')}
-      />
-      <button
-        type="button"
-        aria-label="Resize NE — scale"
-        className={cn(
-          dot,
-          compactHandles ? '-right-1.5 -top-1.5' : large ? '-right-2.5 -top-2.5' : '-right-2 -top-2',
-          'cursor-nesw-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('ne',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 'ne')}
-      />
-      <button
-        type="button"
-        aria-label="Resize SW — scale"
-        className={cn(
-          dot,
-          compactHandles ? '-bottom-1.5 -left-1.5' : large ? '-bottom-2.5 -left-2.5' : '-bottom-2 -left-2',
-          'cursor-nesw-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('sw',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 'sw')}
-      />
-      <button
-        type="button"
-        aria-label="Resize SE — scale"
-        className={cn(
-          dot,
-          compactHandles ? '-bottom-1.5 -right-1.5' : large ? '-bottom-2.5 -right-2.5' : '-bottom-2 -right-2',
-          'cursor-nwse-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('se',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 'se')}
-      />
-      <button
-        type="button"
-        aria-label="Stretch width — east"
-        className={cn(
-          dot,
-          compactHandles
-            ? '-right-1.5 top-1/2 -translate-y-1/2'
-            : large
-              ? '-right-2.5 top-1/2 -translate-y-1/2'
-              : '-right-2 top-1/2 -translate-y-1/2',
-          'cursor-ew-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('e',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 'e')}
-      />
-      <button
-        type="button"
-        aria-label="Stretch width — west"
-        className={cn(
-          dot,
-          compactHandles
-            ? '-left-1.5 top-1/2 -translate-y-1/2'
-            : large
-              ? '-left-2.5 top-1/2 -translate-y-1/2'
-              : '-left-2 top-1/2 -translate-y-1/2',
-          'cursor-ew-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('w',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 'w')}
-      />
-      <button
-        type="button"
-        aria-label="Stretch height — north"
-        className={cn(
-          dot,
-          compactHandles
-            ? '-top-1.5 left-1/2 -translate-x-1/2'
-            : large
-              ? '-top-2.5 left-1/2 -translate-x-1/2'
-              : '-top-2 left-1/2 -translate-x-1/2',
-          'cursor-ns-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('n',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 'n')}
-      />
-      <button
-        type="button"
-        aria-label="Stretch height — south"
-        className={cn(
-          dot,
-          compactHandles
-            ? '-bottom-1.5 left-1/2 -translate-x-1/2'
-            : large
-              ? '-bottom-2.5 left-1/2 -translate-x-1/2'
-              : '-bottom-2 left-1/2 -translate-x-1/2',
-          'cursor-ns-resize',
-        )}
-        style={{...dotStyle,cursor:artworkResizeCursor('s',rotation)}}
-        onPointerDown={(e) => onResizePointerDown(e, 's')}
-      />
-      <button
-        type="button"
-        aria-label="Rotate"
-        className={cn(
-          'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-white text-[#262626] shadow-lg active:scale-95',
-          off.rot,
-        )}
-        style={{ borderColor: HANDLE_RED,cursor:ARTWORK_ROTATE_CURSOR }}
-        onPointerDown={onRotatePointerDown}
-      >
-        <RotateCw className={off.rotIcon} />
-      </button>
-    </div>
-  );
+  return <SelectionTransformControls onResizePointerDown={onResizePointerDown} onRotatePointerDown={onRotatePointerDown} uiInverseScale={uiInverseScale} comfortableTouch={comfortableTouch} hideBounds={hideBounds} rotation={rotation} transformLabel={transformLabel}/>;
 }
 
 export function PrintPanel({
@@ -2757,6 +2573,7 @@ export function PrintsDesignStep({
 }
 
 export function PrintsDesignPreview({
+  artboardBackground,
   canvasToolbar = true,
   assetMode = false,
   canvasSize,
@@ -3312,7 +3129,7 @@ export function PrintsDesignPreview({
         previewUpdate(manip.id, { rotation: next });
         return;
       }
-      const zone=zoneRef.current,s=zone?zoneScaleFactor(zone):1,source=elementsRef.current.find(element=>element.id===manip.id);if(!source)return;
+      const s=manip.screenScale,source=manip.startElement;
       previewUpdate(manip.id,resizeArtwork({...source,width:manip.startW,height:manip.startH,fontSize:manip.startFontSize},manip.handle,{x:(e.clientX-manip.startX)/s,y:(e.clientY-manip.startY)/s},{fromCenter:e.altKey,constrain:e.shiftKey||(manip.handle.length===2&&manip.aspectLocked)}));
     };
 
@@ -3681,8 +3498,9 @@ export function PrintsDesignPreview({
             }}
             onPointerLeave={()=>{hoveredArtworkRef.current?.removeAttribute('data-artwork-hover');hoveredArtworkRef.current=null;}}
             onPointerDownCapture={(e) => {
-              if((e.target as Element).closest('[data-space-pan]'))return;
+              if((e.target as Element).closest('[data-space-pan],[data-pan-tool=true]'))return;
               if((e.target as Element).closest('[data-measurement-guide]'))return;
+              if((e.target as Element).closest('[data-garment-details]'))return;
               if(!editable&&onArtworkSelect&&zoneRef.current){
                 const root=artworkAtPoint(zoneRef.current,e.clientX,e.clientY);
                 if(root?.dataset.printId){e.stopPropagation();e.preventDefault();onArtworkSelect(root.dataset.printId)}
@@ -3764,7 +3582,7 @@ export function PrintsDesignPreview({
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-          {assetMode ? <div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ borderWidth:surfaceContext?0:undefined,backgroundColor: surfaceContext?'transparent':assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: surfaceContext||assetWorkspace?.project?.background ? 'none' : 'conic-gradient(#f5f5f5 25%, transparent 0 50%, #f5f5f5 0 75%, transparent 0)', backgroundSize: '16px 16px' }} /> : (
+          {assetMode ? <><div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ borderWidth:surfaceContext?0:undefined,backgroundColor: surfaceContext?'transparent':assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: surfaceContext||assetWorkspace?.project?.background ? 'none' : 'conic-gradient(#f5f5f5 25%, transparent 0 50%, #f5f5f5 0 75%, transparent 0)', backgroundSize: '16px 16px' }} />{artboardBackground&&<div className="pointer-events-none absolute inset-0" data-surface-substrate>{artboardBackground}</div>}</> : (
           <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: focusArtwork?'none':garmentInteractive ? 'auto' : 'none',visibility:focusArtwork?'hidden':undefined }} data-print-garment-preview>
             {typeof garmentPreview === 'function' ? garmentPreview(sceneScale) : garmentPreview}
           </div>
@@ -4018,12 +3836,12 @@ export function PrintsDesignPreview({
                   top: liveY,
                   // Text: design `width` is the wrap width; with `autoHeight` the box grows with lines.
                   width: visualElement.width,
-                  maxWidth: element.type === 'text' ? element.width : undefined,
+                  maxWidth: element.type === 'text' ? visualElement.width : undefined,
                   minWidth: element.type === 'text' ? 0 : undefined,
                   height: isArtwork
                       ? visualElement.height
                       : element.autoHeight === false
-                        ? element.height
+                        ? visualElement.height
                         : undefined,
                   opacity: studio.pathEditingId&&studio.pathEditingId!==element.id?op*.3:op,
                   pointerEvents: 'none',
@@ -4070,9 +3888,10 @@ export function PrintsDesignPreview({
                     onResizePointerDown={(event, handle) => {
                       event.stopPropagation(); event.preventDefault(); setDraggingId(null);
                       const root = (event.currentTarget as HTMLElement).closest('[data-print-id]');
-                      const content = root?.querySelector('[data-asset-content]') as HTMLElement | null;
-                      setManip({ kind: 'resize', id: element.id, handle, startX: event.clientX, startY: event.clientY,
-                        startW: element.width, startH: content?.offsetHeight || element.height, startFontSize: element.fontSize ?? 30,
+                      const renderedHeight=root instanceof HTMLElement?parseFloat(getComputedStyle(root).height):element.height;
+                      const startH=element.autoHeight===false?element.height:Number.isFinite(renderedHeight)&&renderedHeight>0?renderedHeight:element.height;
+                      setManip({ kind: 'resize', id: element.id, startElement:{...element,height:startH},screenScale:zoneRef.current?zoneScaleFactor(zoneRef.current):1, handle, startX: event.clientX, startY: event.clientY,
+                        startW: element.width, startH, startFontSize: element.fontSize ?? 30,
                         isImage: element.type !== 'text', aspectLocked: element.aspectLocked ?? true });
                     }} />}
                 >

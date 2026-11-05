@@ -453,4 +453,4 @@ export function PackagingArtwork(props: ArtworkProps) {
     })() : <PackagingBox {...props} view={view} />}
   </svg>;
 }
-export function PackagingSurface(props:ArtworkProps&{panel:PackagingPanel}){const native=props.design.artworkSurfaces?.[props.panel];return native?<ArtworkSurfaceSvg surface={native.surface} document={native.document} quality={(props.design as PackagingDesign&{surfaceGesture?:boolean}).surfaceGesture?'gesture':'full'}/>:<LegacyPackagingSurface {...props}/>;}
+export function PackagingSurface(props:ArtworkProps&{panel:PackagingPanel}){const native=props.design.artworkSurfaces?.[props.panel];return native?<g data-packaging-surface={props.panel} onPointerDown={event=>{const target=(event.target as Element).closest('[data-native-artwork]');if(target&&props.onSelect){event.stopPropagation();props.onSelect(target.getAttribute('data-native-artwork')!);}}}><ArtworkSurfaceSvg surface={native.surface} document={native.document} quality={(props.design as PackagingDesign&{surfaceGesture?:boolean}).surfaceGesture?'gesture':'full'}/></g>:<LegacyPackagingSurface {...props}/>;}

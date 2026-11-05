@@ -1,19 +1,33 @@
 import { contours } from 'd3-contour';
 import type { GarmentDetail } from './garmentDetails';
 
-export const PATCH_TYPES = { embroidered: 'Embroidered patch', woven: 'Woven patch', chenille: 'Chenille patch', pvc: 'PVC / Rubber patch', leather: 'Leather patch', printed: 'Printed fabric patch', twill: 'Twill patch' } as const;
+export const PATCH_TYPES = { embroidered: 'Embroidered patch', woven: 'Woven patch', chenille: 'Chenille patch', pvc: 'PVC / Rubber patch', leather: 'Leather patch', fauxLeather: 'Faux leather patch', metal: 'Metal emblem', silicone: 'Silicone patch', printed: 'Printed fabric patch', twill: 'Twill patch' } as const;
 export const PATCH_SHAPES = { rectangle: 'Rectangle', rounded: 'Rounded rectangle', square: 'Square', circle: 'Circle', oval: 'Oval', shield: 'Shield', arch: 'Arch', banner: 'Banner', auto: 'Auto contour' } as const;
-export const PATCH_FINISHES = { stitched: 'Stitched', heatPress: 'Heat press', velcro: 'Velcro', sewOn: 'Sew-on', ironOn: 'Iron-on' } as const;
+export const PATCH_FINISHES = { stitched: 'Stitched', heatPress: 'Heat press', velcro: 'Velcro', sewOn: 'Sew-on', ironOn: 'Iron-on', prongs: 'Hidden prongs', rivets: 'Rivets', sewingHoles: 'Sewing holes' } as const;
 export const PATCH_EDGES = { merrow: 'Merrow edge', laser: 'Laser cut', folded: 'Folded edge', raw: 'Raw edge' } as const;
 export const PATCH_DEPTHS = { flat: 'Flat', low: 'Low raise', medium: 'Medium raise', high: 'High raise' } as const;
-export const PATCH_APPLICATIONS = { embroidered: 'Embroidered', woven: 'Woven', printed: 'Printed', embossed: 'Embossed', debossed: 'Debossed', moulded: 'Moulded', chenille: 'Loop pile' } as const;
+export const PATCH_APPLICATIONS = { embroidered: 'Embroidered', woven: 'Woven', printed: 'Printed', embossed: 'Embossed', debossed: 'Debossed', moulded: 'Moulded', chenille: 'Loop pile', engraved: 'Engraved', enamel: 'Enamel colour', cast: 'Cast relief' } as const;
 export const PATCH_MATERIAL_APPLICATIONS = {
   embroidered: ['embroidered', 'printed'], woven: ['woven', 'printed'], chenille: ['chenille', 'embroidered'],
-  pvc: ['moulded', 'printed'], leather: ['embossed', 'debossed', 'printed'], printed: ['printed'], twill: ['embroidered', 'printed'],
+  metal: ['cast', 'engraved', 'enamel'], silicone: ['moulded', 'printed'], fauxLeather: ['embossed', 'debossed', 'printed'], pvc: ['moulded', 'printed'], leather: ['embossed', 'debossed', 'printed'], printed: ['printed'], twill: ['embroidered', 'printed'],
 } as const;
 export interface PatchSettings {
   material: keyof typeof PATCH_TYPES;
   shape: keyof typeof PATCH_SHAPES;
+  designMode?: 'backed' | 'logo';
+  preserveColours?: boolean;
+  surfaceFinish?: 'polished' | 'brushed' | 'matte' | 'antique';
+  text?: string;
+  textColour?: string;
+  textFont?: string;
+  textX?: number;
+  textY?: number;
+  textRotation?: number;
+  textTracking?: number;
+  textMethod?: 'embroidered' | 'woven' | 'printed' | 'embossed' | 'debossed' | 'engraved' | 'moulded' | 'chenille' | 'cast' | 'enamel' | 'foil';
+  textDepth?: number;
+  textSize?: number;
+  textPosition?: 'centre' | 'bottom';
   artwork?: string;
   artworkName?: string;
   artworkRatio?: number;
@@ -33,13 +47,41 @@ export interface PatchSettings {
 }
 export const DEFAULT_PATCH: PatchSettings = { material: 'embroidered', shape: 'rounded', borderThickness: 3, artworkScale: 85, borderStyle: 'merrow', relief: 'raised', leatherFinish: 'embossed', stitchedEdge: true };
 
+export function patchAttachments(material: PatchSettings['material']) {
+  return material === 'metal' ? ['prongs', 'rivets', 'sewingHoles'] as const
+    : material === 'leather' || material === 'fauxLeather' ? ['sewOn', 'velcro'] as const
+    : ['sewOn', 'stitched', 'heatPress', 'velcro', 'ironOn'] as const;
+}
+
+export function patchTextMethods(material: PatchSettings['material']): readonly NonNullable<PatchSettings['textMethod']>[] {
+  if (material === 'metal') return ['engraved', 'cast', 'enamel', 'printed'];
+  if (material === 'leather' || material === 'fauxLeather') return ['debossed', 'embossed', 'engraved', 'foil', 'printed'];
+  return PATCH_MATERIAL_APPLICATIONS[material];
+}
+export const PATCH_TEXT_METHODS = { ...PATCH_APPLICATIONS, engraved: 'Laser engraved', foil: 'Foil stamped', cast: 'Raised metal', enamel: 'Enamel filled' } as const;
+export function patchTextGeometry(settings: PatchSettings, width = 200, height = 160) {
+  const shorter = Math.min(width, height), size = shorter * (settings.textSize ?? 20) / 100;
+  const family = settings.textFont === 'serif' ? 'Georgia' : settings.textFont === 'mono' ? 'monospace' : settings.textFont === 'sans' ? 'Arial' : settings.textFont || 'Inter';
+  const context = document.createElement('canvas').getContext('2d');
+  if (context) context.font = `${size}px "${family}"`;
+  const natural = (context?.measureText(settings.text || '').width ?? (settings.text?.length || 1) * size * .6) + Math.max(0, (settings.text?.length || 1) - 1) * (settings.textTracking ?? 0);
+  return { x: (settings.textX ?? .5) * width, y: (settings.textY ?? (settings.textPosition === 'bottom' ? .8 : .5)) * height,
+    width: Math.max(1, Math.min(width * .9, natural)), height: size * 1.15, size, family, rotation: settings.textRotation ?? 0 };
+}
+
 export function patchSettings(patch?: PatchSettings) {
   const settings = { ...DEFAULT_PATCH, ...patch };
+  const attachments: readonly (keyof typeof PATCH_FINISHES)[] = patchAttachments(settings.material);
   const applications: readonly string[] = PATCH_MATERIAL_APPLICATIONS[settings.material];
   const legacyApplication = settings.material === 'leather' ? settings.leatherFinish : PATCH_MATERIAL_APPLICATIONS[settings.material][0];
+  const textMethods = patchTextMethods(settings.material);
   return { ...settings,
-    finish: settings.finish ?? 'sewOn',
-    edgeStyle: settings.edgeStyle ?? (settings.material === 'leather' || settings.material === 'pvc' || settings.borderStyle === 'plain' ? 'laser' : 'merrow'),
+    textMethod: settings.textMethod && textMethods.includes(settings.textMethod) ? settings.textMethod : textMethods[0], textDepth: settings.textDepth ?? .7,
+    finish: settings.finish && attachments.includes(settings.finish) ? settings.finish : attachments[0],
+    designMode: settings.designMode ?? 'backed', preserveColours: settings.preserveColours ?? !['metal', 'leather', 'fauxLeather'].includes(settings.material),
+    surfaceFinish: settings.surfaceFinish ?? 'brushed', textSize: settings.textSize ?? 20,
+    textFont: settings.textFont ?? 'sans', textColour: settings.textColour ?? '#FFFFFF', textPosition: settings.textPosition ?? 'centre',
+    edgeStyle: settings.edgeStyle ?? (['leather', 'fauxLeather', 'metal', 'silicone', 'pvc'].includes(settings.material) || settings.borderStyle === 'plain' ? 'laser' : 'merrow'),
     depth: settings.depth ?? (settings.material === 'chenille' ? 'high' : 'low'),
     application: settings.application && applications.includes(settings.application) ? settings.application : legacyApplication,
     padding: settings.padding ?? 5,
@@ -98,7 +140,7 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
   const edgeWidth = settings.edgeStyle === 'merrow' ? border * 1.7 : settings.edgeStyle === 'folded' ? border * 1.3 : border;
   const inset = edgeWidth / 2;
   const innerWidth = width - inset * 2, innerHeight = height - inset * 2;
-  const raised = ['leather', 'pvc', 'chenille'].includes(settings.material);
+  const raised = ['leather', 'fauxLeather', 'metal', 'silicone', 'pvc', 'chenille'].includes(settings.material);
   const depth = raised ? { flat: 0, low: .65, medium: 1.25, high: 2.1 }[settings.depth] : settings.material === 'woven' || settings.material === 'printed' ? .25 : .65;
   const document = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg"/>', 'image/svg+xml');
   const svg = document.documentElement;
@@ -129,7 +171,7 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
   append('feDistantLight', { azimuth: 225, elevation: 48 }, lighting);
   append('feComposite', { in: 'light', in2: 'SourceGraphic', operator: 'in' }, grain);
   const texturePattern = (name: string, kind: string) => {
-    const size = kind === 'chenille' ? 9 : kind === 'woven' ? 2 : 4;
+    const size = kind === 'chenille' ? 9 : kind === 'woven' ? 2 : 2.5;
     const pattern = append('pattern', { id: `${prefix}-${name}`, width: size, height: size, patternUnits: 'userSpaceOnUse' }, defs);
     if (kind === 'chenille') {
       for (const [centerX, centerY, angle] of [[2, 2, 25], [6.6, 1.8, -35], [4.5, 5.5, 85], [.5, 7, 15], [8.4, 7.5, 55]]) {
@@ -139,8 +181,8 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
       }
     } else {
       const path = kind === 'twill' ? 'M-4 4L4-4M0 8L8 0M4 12L12 4' : kind === 'woven' || kind === 'printed' ? `M0 .5H${size}M.5 0V${size}` : 'M-1 1L1-1M0 4L4 0M3 5L5 3';
-      append('path', { d: path, fill: 'none', stroke: '#000', 'stroke-width': kind === 'embroidered' ? 1 : .5, opacity: kind === 'printed' ? .08 : .28 }, pattern);
-      append('path', { d: path, transform: 'translate(.6 .6)', fill: 'none', stroke: '#fff', 'stroke-width': .45, opacity: kind === 'printed' ? .07 : .32 }, pattern);
+      append('path', { d: path, fill: 'none', stroke: '#000', 'stroke-width': kind === 'embroidered' ? .45 : .5, opacity: kind === 'printed' ? .08 : .15 }, pattern);
+      append('path', { d: path, transform: 'translate(.6 .6)', fill: 'none', stroke: '#fff', 'stroke-width': .45, opacity: kind === 'printed' ? .07 : .18 }, pattern);
       if (kind === 'twill') append('path',{d:'M0 1H4M1 0V4',stroke:'#fff','stroke-width':.3,opacity:.2},pattern);
       if (kind === 'embroidered') append('path', { d: 'M1 3L2 2', stroke: '#fff', 'stroke-width': .65, opacity: .22 }, pattern);
     }
@@ -148,6 +190,64 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
   };
   const baseTexture = texturePattern('base-texture', settings.material);
   const artTexture = texturePattern('art-texture', settings.application);
+  const metal = append('linearGradient', { id: `${prefix}-metal`, x1: 0, y1: 0, x2: .85, y2: 1 }, defs);
+  for (const [offset, colour, opacity] of [[0, '#fff', .7], [.2, detail.fill, 1], [.43, '#fff', .6], [.5, detail.fill, 1], [1, '#000', .5]] as const) {
+    append('stop', { offset, 'stop-color': colour, 'stop-opacity': settings.surfaceFinish === 'antique' ? opacity * .4 : opacity }, metal);
+  }
+  const metalBrush = append('pattern', { id: `${prefix}-brush`, width: 3, height: 1.3, patternUnits: 'userSpaceOnUse' }, defs);
+  append('path', { d: 'M0 .4H3', stroke: '#fff', 'stroke-width': .18, opacity: .2 }, metalBrush);
+  const addText = (parent: Element, colour: string, logo = false) => {
+    const geometry = patchTextGeometry(settings, width, height);
+    const physical = ['engraved', 'debossed', 'embossed', 'cast', 'moulded'].includes(settings.textMethod);
+    const recessed = settings.textMethod === 'engraved' || settings.textMethod === 'debossed';
+    const text = append('text', { x: geometry.x, y: geometry.y, transform: `rotate(${geometry.rotation} ${geometry.x} ${geometry.y})`,
+      'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': geometry.family, 'font-weight': 400,
+      'font-size': geometry.size, fill: logo ? '#fff' : physical ? detail.fill : colour, 'data-patch-wording': '',
+      textLength: geometry.width, lengthAdjust: 'spacingAndGlyphs' }, parent);
+    text.textContent = settings.text || '';
+    if (!logo) {
+      const textFilter = filter('wording');
+      if (physical) {
+        const strength = Math.max(.15, Math.min(2, settings.textDepth));
+        // Opposing light/dark edges read as a recess or raised lettering, without adding a printed stroke.
+        append('feDropShadow', { dx: recessed ? -.5 : .5, dy: recessed ? -strength : strength, stdDeviation: .15, 'flood-color': '#000', 'flood-opacity': .8 }, textFilter);
+        append('feDropShadow', { dx: recessed ? .4 : -.4, dy: recessed ? strength * .65 : -strength * .65, stdDeviation: .1, 'flood-color': '#fff', 'flood-opacity': .7 }, textFilter);
+        text.setAttribute('filter', `url(#${prefix}-wording)`);
+      } else if (settings.textMethod === 'embroidered' || settings.textMethod === 'woven' || settings.textMethod === 'chenille') {
+        append('feDropShadow', { dx: 0, dy: .35, stdDeviation: .2, 'flood-opacity': .35 }, textFilter);
+        text.setAttribute('filter', `url(#${prefix}-wording)`);
+      }
+      text.setAttribute('data-patch-wording-method', settings.textMethod);
+    }
+    return text;
+  };
+  // A die-cut emblem uses the source alpha, including holes and disconnected islands.
+  // No backing shape or contour approximation is added in this mode.
+  if (settings.designMode === 'logo' && (settings.artwork || settings.text?.trim())) {
+    const mask = append('mask', { id: `${prefix}-logo`, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width, height, style: 'mask-type:alpha' }, defs);
+    const attributes = { href: settings.artwork || '', x: 3, y: 3, width: width - 6, height: height - 6, preserveAspectRatio: 'xMidYMid meet' };
+    if (settings.artwork) append('image', attributes, mask);
+    else addText(mask, '#fff', true);
+    const emblem = append('g', { 'data-patch-design': 'logo', transform: `translate(${detail.flipX ? width : 0} ${detail.flipY ? height : 0}) scale(${detail.flipX ? -1 : 1} ${detail.flipY ? -1 : 1})`, filter: `url(#${prefix}-attachment)` });
+    const surface = append('g', { mask: `url(#${prefix}-logo)` }, emblem);
+    append('rect', { width, height, fill: detail.fill }, surface);
+    if (settings.artwork && (settings.preserveColours || settings.application === 'enamel')) append('image', attributes, surface);
+    if (settings.material === 'metal' && settings.surfaceFinish !== 'matte') {
+      append('rect', { width, height, fill: `url(#${prefix}-metal)`, opacity: settings.preserveColours || settings.application === 'enamel' ? .18 : settings.surfaceFinish === 'antique' ? .75 : .9 }, surface);
+      if (settings.surfaceFinish === 'brushed') append('rect', { width, height, fill: `url(#${prefix}-brush)` }, surface);
+    } else if (['leather', 'fauxLeather'].includes(settings.material)) append('rect', { width, height, fill: detail.fill, filter: `url(#${prefix}-grain)`, opacity: .2 }, surface);
+    else if (!['pvc', 'silicone'].includes(settings.material)) append('rect', { width, height, fill: baseTexture }, surface);
+    if (settings.artwork && !settings.preserveColours && settings.application !== 'enamel') {
+      const relief = filter('logo-relief');
+      append('feColorMatrix', { type: 'saturate', values: 0 }, relief);
+      const transfer = append('feComponentTransfer', {}, relief);
+      for (const channel of ['R', 'G', 'B']) append(`feFunc${channel}`, { type: 'linear', slope: .55, intercept: .45 }, transfer);
+      append('image', { ...attributes, filter: `url(#${prefix}-logo-relief)`, opacity: settings.application === 'engraved' || settings.application === 'debossed' ? .65 : .35, style: 'mix-blend-mode:multiply' }, surface);
+    }
+    append('rect', { width, height, fill: `url(#${prefix}-sheen)`, opacity: .3 }, surface);
+    if (settings.artwork && settings.text?.trim()) addText(surface, settings.textColour);
+    return new XMLSerializer().serializeToString(svg);
+  }
   let shape: Element;
   if (settings.shape === 'circle' || settings.shape === 'oval') {
     const radius = Math.min(innerWidth, innerHeight) / 2;
@@ -164,13 +264,16 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
     shape = append('rect', { x: inset, y: inset, width: innerWidth, height: innerHeight, rx: settings.shape === 'rectangle' || settings.shape === 'square' ? 0 : shorter * Math.max(0, Math.min(50, settings.cornerRadius)) / 100 });
   }
   shape.setAttribute('id', `${prefix}-shape`);
-  shape.remove(); defs.appendChild(shape);
+  shape.parentNode?.removeChild(shape); defs.appendChild(shape);
   const clip = append('clipPath', { id: `${prefix}-clip` }, defs);
   append('use', { href: `#${prefix}-shape` }, clip);
   const body = append('g', { transform: `translate(${detail.flipX ? width : 0} ${detail.flipY ? height : 0}) scale(${detail.flipX ? -1 : 1} ${detail.flipY ? -1 : 1})` });
   append('use', { href: `#${prefix}-shape`, fill: detail.fill, stroke: detail.outline, 'stroke-width': edgeWidth, 'stroke-linejoin': 'round', filter: `url(#${prefix}-attachment)` }, body);
-  if (settings.material === 'leather') append('use', { href: `#${prefix}-shape`, fill: detail.fill, filter: `url(#${prefix}-grain)`, opacity: .32 }, body);
-  else if (settings.material !== 'pvc') append('use', { href: `#${prefix}-shape`, fill: baseTexture }, body);
+  if (settings.material === 'metal') {
+    if (settings.surfaceFinish !== 'matte') append('use', { href: `#${prefix}-shape`, fill: `url(#${prefix}-metal)` }, body);
+    if (settings.surfaceFinish === 'brushed') append('use', { href: `#${prefix}-shape`, fill: `url(#${prefix}-brush)` }, body);
+  } else if (['leather', 'fauxLeather'].includes(settings.material)) append('use', { href: `#${prefix}-shape`, fill: detail.fill, filter: `url(#${prefix}-grain)`, opacity: .32 }, body);
+  else if (!['pvc', 'silicone'].includes(settings.material)) append('use', { href: `#${prefix}-shape`, fill: baseTexture }, body);
   append('use', { href: `#${prefix}-shape`, fill: `url(#${prefix}-sheen)`, opacity: settings.material === 'pvc' || settings.material === 'leather' ? .7 : .3 }, body);
   const artwork = append('g', { 'clip-path': `url(#${prefix}-clip)` }, body);
   if (settings.artwork?.startsWith('data:image/png;base64,')) {
@@ -180,7 +283,7 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
     const imageAttributes = { href: settings.artwork, x: (width - imageWidth) / 2, y: (height - imageHeight) / 2, width: imageWidth, height: imageHeight, preserveAspectRatio: 'xMidYMid meet' };
     const image = append('image', { ...imageAttributes, 'data-patch-artwork': '' }, artwork);
     const artFilter = filter('artwork');
-    const embossed = settings.application === 'embossed' || settings.application === 'debossed';
+    const embossed = ['embossed', 'debossed', 'engraved', 'cast'].includes(settings.application);
     const moulded = settings.application === 'moulded';
     if (embossed) {
       append('feColorMatrix', { in: 'SourceGraphic', type: 'matrix', values: '0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -.2126 -.7152 -.0722 1 0', result: 'imprint' }, artFilter);
@@ -190,7 +293,7 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
       const transfer = append('feComponentTransfer', { in: 'SourceGraphic', result: 'surface' }, artFilter);
       for (const channel of ['R', 'G', 'B']) append(`feFunc${channel}`, { type: 'discrete', tableValues: '0 .18 .36 .54 .72 .9 1' }, transfer);
     }
-    const recessed = settings.application === 'debossed' || moulded && settings.relief === 'recessed';
+    const recessed = settings.application === 'debossed' || settings.application === 'engraved' || moulded && settings.relief === 'recessed';
     const artDepth = settings.application === 'printed' || settings.application === 'woven' ? 0 : depth;
     append('feDropShadow', { dx: .35 * artDepth, dy: (recessed ? -1 : 1) * artDepth, stdDeviation: .35 + artDepth * .15, 'flood-color': '#000', 'flood-opacity': artDepth ? .7 : 0 }, artFilter);
     append('feDropShadow', { dx: -.25 * artDepth, dy: (recessed ? 1 : -1) * artDepth * .55, stdDeviation: .2, 'flood-color': '#fff', 'flood-opacity': artDepth ? .45 : 0 }, artFilter);
@@ -201,6 +304,7 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
       append('rect', { width, height, fill: artTexture, mask: `url(#${prefix}-art-mask)`, 'data-patch-artwork-texture': settings.application }, artwork);
     }
   }
+  if (settings.text?.trim()) addText(artwork, settings.textColour);
   const edge = append('g', { 'data-patch-edge': settings.edgeStyle }, body);
   const rim = (attributes: Record<string, string | number>) => append('use', { href: `#${prefix}-shape`, fill: 'none', 'stroke-linejoin': 'round', ...attributes }, edge);
   if (edgeWidth > 0) {
@@ -216,6 +320,9 @@ export function patchSvg(detail: GarmentDetail, ratio = 1.25) {
     } else if (settings.material === 'pvc' || settings.material === 'leather') {
       rim({ stroke: '#fff', 'stroke-width': .6, opacity: .35 });
     }
+  }
+  if (settings.finish === 'rivets' || settings.finish === 'sewingHoles') {
+    for (const cx of [inset + 5, width - inset - 5]) append('circle', { cx, cy: height / 2, r: settings.finish === 'rivets' ? 2.5 : 1.6, fill: settings.finish === 'rivets' ? detail.fill : '#292929', stroke: '#fff', 'stroke-width': .5 }, body);
   }
   const sewn = settings.finish === 'stitched' || settings.finish === 'sewOn';
   if (sewn && settings.stitchedEdge) {

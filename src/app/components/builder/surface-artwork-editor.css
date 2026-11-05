@@ -26,3 +26,8 @@
 
 /* Physical boards are magnified from mm coordinates; avoid low-resolution compositor tiles. */
 [data-shared-surface-editor] .canvas-element-drag{will-change:auto}
+
+[data-shared-surface-editor]{overflow:hidden}
+.surface-editor-zoom{position:absolute;bottom:16px;left:16px;z-index:65;background:white;border-radius:5px}
+.surface-artwork-editor-board>.surface-editor-zoom{bottom:0;left:0}
+@media(max-width:767px){.surface-editor-zoom{left:12px;bottom:12px}}
