@@ -9,3 +9,8 @@
 [data-logo-selection]>rect[aria-label],[data-logo-selection]>ellipse,[data-glyph-box]>rect[aria-label]:not(:first-child),[data-glyph-box]>circle{stroke:#CC2D24;fill:white}
 [data-artwork-multi-selection]{box-shadow:none!important;border:1px dashed #CC2D24!important;background:transparent!important}
 [data-label-handle] rect:last-child{stroke:#CC2D24;rx:0}
+
+/* Inspector button rules must not paint or stretch canvas handle hit areas. */
+.ceriga-builder-shell .studio-selection-controls button.studio-selection-handle{min-width:0!important;min-height:0!important;width:16px!important;height:16px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.ceriga-builder-shell .studio-selection-controls button.studio-selection-handle:after{width:5px;height:5px;min-width:5px;min-height:5px;background:white;border:1px solid #CC2D24;box-shadow:none}
+.ceriga-builder-shell .studio-selection-controls button.studio-selection-rotate{min-width:0!important;min-height:0!important;width:23px!important;height:23px!important;padding:0!important;background:white!important}

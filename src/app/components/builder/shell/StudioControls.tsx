@@ -18,8 +18,8 @@ export function StudioFold({title,hint,children,open=false,value,rowHeight}:{tit
 }
 export function StudioPaint({label,value,onChange,allowGradients=true,colourLibrary=true,onReference}:{label:string;value:string;onChange:(s:string)=>void;allowGradients?:boolean;colourLibrary?:boolean;onReference?:(reference:string,hex?:string)=>void}) {return <div className="studio-paint"><PaintInput colourLibrary={colourLibrary} onReference={onReference} value={value} allowGradients={allowGradients} onChange={event=>onChange(event.target.value)} className="studio-paint-swatch"/><span>{label}<small>{value.startsWith('#')?value.toUpperCase():'Gradient'}</small></span></div>}
 export function StudioNumber({label,value,onChange,min=0,max=2000,unit='px',step=.1,disabled=false}:{label:string;value:number;onChange:(n:number)=>void;min?:number;max?:number;unit?:string;step?:number;disabled?:boolean}) {
- const format=(n:number)=>String(Number(n.toFixed(Math.min(6,String(step).split('.')[1]?.length??0))));
- const cancelled=useRef(false);const [draft,setDraft]=useState(format(value));useEffect(()=>setDraft(format(value)),[value,step]);
- const commit=()=>{if(cancelled.current){cancelled.current=false;return}const n=Number(draft);if(draft.trim()&&Number.isFinite(n)){const next=Math.max(min,Math.min(max,n));setDraft(String(next));if(next!==value)onChange(next)}else setDraft(format(value))};
+ const format=(n:number)=>String(Number(n.toFixed(['mm','cm','in'].includes(unit)?1:Math.min(6,String(step).split('.')[1]?.length??0))));
+ const cancelled=useRef(false);const [draft,setDraft]=useState(format(value));useEffect(()=>setDraft(format(value)),[value,step,unit]);
+ const commit=()=>{if(cancelled.current){cancelled.current=false;return}const n=Number(draft);if(draft.trim()&&Number.isFinite(n)){const next=Math.max(min,Math.min(max,n));setDraft(format(next));if(next!==value)onChange(next)}else setDraft(format(value))};
  return <label className="studio-number"><span>{label}</span><div><input disabled={disabled} aria-label={label} type="number" min={min} max={max} step={step} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur();if(e.key==='Escape'){cancelled.current=true;setDraft(format(value));e.currentTarget.blur()}}}/><small>{unit}</small></div></label>;
 }

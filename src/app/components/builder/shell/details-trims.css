@@ -238,3 +238,17 @@
 .ceriga-builder-shell [data-garment-details] .garment-detail-hit,.ceriga-builder-shell [data-garment-details] .garment-detail-hit:is(:hover,:focus,:focus-visible,:active,[aria-pressed=true]){background:transparent!important;background-image:none!important;box-shadow:none!important}
 
 .patch-name-field{display:block;font-size:12px;color:#737373;margin-bottom:16px}
+
+.detail-name-field{display:grid;gap:7px;font-size:11px;color:var(--builder-ui-muted,#737373)}
+.detail-name-field input{width:100%;min-width:0;height:36px;padding:8px 10px;border:1px solid var(--builder-ui-line,#dedede);border-radius:5px;background:white;color:var(--builder-ui-text,#262626);font:inherit;font-size:12px}
+.detail-name-field input:focus{outline:1px solid var(--builder-ui-text,#262626);outline-offset:1px}
+
+/* Zip path controls share the compact neutral construction language. */
+.ceriga-builder-shell .opening-controls{border:0;padding:0;color:#404040;font-size:12px;line-height:1.5}
+.ceriga-builder-shell .opening-controls h3{display:none}.ceriga-builder-shell .opening-controls :is(label,p,output,strong){color:inherit}.ceriga-builder-shell .opening-controls p{font-size:11px;color:#737373;line-height:1.55}
+.ceriga-builder-shell .opening-controls input:not([type=checkbox]):not([type=range]){background:#fff;color:#262626;border:1px solid #ddd;height:35px;border-radius:5px;font-size:12px;padding:7px 9px}
+.ceriga-builder-shell .opening-controls button{border-color:#ddd;background:white;color:#404040;border-radius:5px;font-size:11px;min-height:34px}.ceriga-builder-shell .opening-controls button[aria-pressed=true]{background:#f2f2f2;border-color:#525252}
+.zip-curve-editor{padding:14px 0;border-top:1px solid #e5e5e5;border-bottom:1px solid #e5e5e5}.zip-curve-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.zip-curve-heading strong{font-size:12px;font-weight:500}.zip-curve-heading span{font-size:10px;color:#737373}
+.zip-curve-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.ceriga-builder-shell .zip-curve-presets button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 4px}.zip-curve-presets svg{width:40px;height:32px}.zip-curve-presets span{font-size:10px;white-space:nowrap}.zip-curve-editor>p{margin:10px 0 0}.zip-path-handle{pointer-events:none}.zip-path-handle circle[role=button]{pointer-events:auto}.zip-path-handle:focus-within circle:not([role=button]){stroke:#171717;stroke-width:2}
+
+.ceriga-builder-shell .detail-remove-zip{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px solid #e5e5e5;border-radius:5px;background:white;color:#525252;font-size:12px}.detail-remove-zip small{margin-left:auto;font-size:10px;color:#737373}.ceriga-builder-shell .detail-remove-zip:hover{border-color:#b91c1c;color:#b91c1c;background:#fffafa}

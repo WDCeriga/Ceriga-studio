@@ -1,3 +1,5 @@
+import {zipRoute} from '../lib/zipCurve';
+import {warpZipSvg} from '../lib/warpZipSvg';
 import pocketSvg from '../../assets/garment-details/patch-pocket.svg?raw';
 import zipSvg from '../../assets/garment-details/short-front-zip.svg?raw';
 import buttonSvg from '../../assets/garment-details/four-hole-button.svg?raw';
@@ -504,7 +506,9 @@ export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: '
     const height = Math.max(12, sourceWidth / ratio);
     svg.setAttribute('viewBox', `0 0 ${sourceWidth} ${height}`);
     svg.setAttribute('overflow', 'visible');
-    renderZipParts(svg, detail, sourceWidth, height);
+    const curveHeight=detail.opening?.curve?.length?zipRoute(detail.opening).length/detail.opening.width*sourceWidth:height;
+    renderZipParts(svg, detail, sourceWidth, curveHeight);
+    if(detail.opening?.curve?.length)warpZipSvg(svg,detail.opening,sourceWidth,curveHeight,height);
     if (joinedNeckline && detail.opening) svg.querySelectorAll('[data-zip-top-stop]').forEach(stop => stop.remove());
     if (part === 'body') svg.querySelector('[data-zip-pull]')?.remove();
     if (part === 'pull') Array.from(svg.children).filter(child => !child.hasAttribute('data-zip-pull')).forEach(child => child.remove());
@@ -532,6 +536,7 @@ export function adjustZipPull(detail: GarmentDetail, bounds: DetailBounds, dx: n
   const radians = detailRotation(detail) * Math.PI / 180;
   const localX = (dx * Math.cos(radians) + dy * Math.sin(radians)) * (detail.flipX ? -1 : 1) * sourceWidth / placement.width;
   const localY = (-dx * Math.sin(radians) + dy * Math.cos(radians)) * (detail.flipY ? -1 : 1) * sourceWidth / placement.width;
+  if(action==='move'&&detail.opening?.curve?.length){const route=zipRoute(detail.opening),position=openingOpenAmount(detail),p=route.at(route.length*position),q=route.at(route.length*position+1),tx=q.x-p.x,ty=q.y-p.y,len=Math.hypot(tx,ty)||1;return {...detail,zipSliderPosition:Math.max(0,Math.min(1,position+(dx*tx+dy*ty)/len/route.length))};}
   if (action === 'move') return { ...detail, zipSliderPosition: Math.max(0, Math.min(1, (detail.zipSliderPosition ?? (detail.variant === 'zip-05' ? .34 : 0)) + localY / hardware.travel)) };
   const angle = (detail.zipPullSide === 'left' ? 18 : detail.zipPullSide === 'right' ? -18 : 0) * Math.PI / 180;
   const length = zipPullStyle(detail).id === 'short' ? 22 : 50;

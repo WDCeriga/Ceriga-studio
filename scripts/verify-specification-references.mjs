@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {surfaceRuntime} from './surface-test-runtime.mjs';
+const {api}=await surfaceRuntime(`export {groupReferences,removePageReference} from './src/app/data/pageReferences';`);
+const legacy={id:'legacy',title:'Zip',points:['Match finish'],referenceId:'a'};
+assert.deepEqual(api.groupReferences(legacy),[{referenceId:'a',notes:''}]);
+const group={...legacy,referenceId:undefined,references:[{referenceId:'a',notes:'Use this pull shape'},{referenceId:'b',notes:'Match the stitch placement'}]};
+const entry={title:'Details & trims',files:[{id:'a',name:'Pull.jpg'},{id:'b',name:'Stitch.jpg'}],notes:'',specification:'',groups:[group],confirmed:true};
+const saved=JSON.parse(JSON.stringify(entry));assert.deepEqual(saved.groups[0].references,group.references);
+const removed=api.removePageReference(saved,'a');assert.deepEqual(removed.groups[0].references,[{referenceId:'b',notes:'Match the stitch placement'}]);assert.equal(removed.confirmed,false);assert.equal(saved.files.length,2);
+assert.deepEqual(api.groupReferences(api.removePageReference({...entry,groups:[legacy]},'a').groups[0]),[]);
+console.log('PASS multiple reference notes survive save/refresh; old links remain readable; removal preserves other uploads and instructions.');

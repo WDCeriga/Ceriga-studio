@@ -1,3 +1,4 @@
+import {bendZip,zipRoute} from '../../lib/zipCurve';
 import {MaterialSelect} from './shell/MaterialSelect';
 import { useState } from 'react';
 import type { DetailBounds, GarmentDetail } from '../../data/garmentDetails';
@@ -32,7 +33,7 @@ export function OpeningControls({ detail, bounds, onChange, editor }: {
   const opening = detail.opening;
   const openingPercent = Math.round(Math.max(0, Math.min(1, detail.zipSliderPosition ?? (detail.variant === 'zip-05' ? .34 : 0))) * 100);
   const validation = bounds && opening ? validateOpening(detail, bounds) : undefined;
-  return <section aria-label="Opening construction" className="space-y-3 border-y border-white/15 py-3">
+  return <section aria-label="Opening construction" className="opening-controls space-y-3">
     <h3 className="text-xs font-semibold text-white">Opening construction</h3>
     {!opening && <p className="text-[11px] leading-relaxed text-white/60">This saved zip is an overlay. Its garment stays unchanged until you explicitly convert it.</p>}
     <label className="block text-[11px] text-white/60">Placement preset
@@ -69,6 +70,7 @@ export function OpeningControls({ detail, bounds, onChange, editor }: {
         </div>
         <p className="text-[11px] text-white/50">Drag the pull or use this slider to separate the teeth and fabric. Inspect the result in Final zip; this is a flat preview, not a cloth simulation.</p>
       </div>
+      <div className="zip-curve-editor"><div className="zip-curve-heading"><strong>Zip path</strong><span>{opening.curve?.length?'Curved':'Straight'}</span></div><div className="zip-curve-presets" role="group" aria-label="Zip path shape">{(['straight','arc-left','arc-right','s-curve'] as const).map(shape=><button key={shape} onClick={()=>{const length=zipRoute(opening).length;const curve=shape==='straight'?undefined:bendZip(opening,(shape==='arc-left'?-1:1)*length*.25);if(shape==='s-curve'&&curve){const a=curve[0],b=curve[1];if(b.incoming)b.incoming={x:2*(b.x-(b.x-a.x)/3)-b.incoming.x,y:2*(b.y-(b.y-a.y)/3)-b.incoming.y};}onChange({...detail,opening:{...opening,curve}})}}><svg viewBox="0 0 40 32" aria-hidden="true"><path d={shape==='straight'?'M20 3V29':shape==='arc-left'?'M25 3Q1 16 25 29':shape==='arc-right'?'M15 3Q39 16 15 29':'M20 3C0 5 40 27 20 29'} fill="none" stroke="currentColor" strokeWidth="1.5"/></svg><span>{shape==='straight'?'Straight':shape==='arc-left'?'Arc left':shape==='arc-right'?'Arc right':'S-curve'}</span></button>)}</div><p>Choose a starting shape, then drag the curve handles on the garment. The tapes, teeth, pull and fabric opening follow the path.</p></div>
       <div className="grid grid-cols-2 gap-3">
         {(['start', 'end'] as const).flatMap(endpoint => (['x', 'y'] as const).map(axis => <CoordinateInput key={`${detail.id}-${endpoint}-${axis}`}
           label={`Opening ${endpoint} ${axis}`} value={opening[endpoint][axis]} min={0} max={2048}

@@ -1,3 +1,4 @@
+import {zipRoute} from '../../lib/zipCurve';
 import * as DetailMenu from '@radix-ui/react-dropdown-menu';
 import {MoreHorizontal} from 'lucide-react';
 import {useResponsiveBuilder,useBuilderWidth} from './shell/responsiveBuilder';
@@ -48,8 +49,8 @@ export interface DetailEditorState {
 
 function DetailNumberInput({ value, onChange, label, step = .1, min, max }: { value: number; onChange: (value: number) => void; label: string; step?: number; min?: number; max?: number }) {
   const [text, setText] = useState<string | null>(null);
-  return <input type="number" step={step} min={min} max={max} aria-label={label} value={text ?? Number(value.toFixed(3))}
-    onFocus={() => setText(String(Number(value.toFixed(3))))} onBlur={() => setText(null)}
+  return <input type="number" step={step} min={min} max={max} aria-label={label} value={text ?? Number(value.toFixed(1))}
+    onFocus={() => setText(String(Number(value.toFixed(1))))} onBlur={() => setText(null)}
     onChange={event => { setText(event.target.value); if (Number.isFinite(event.target.valueAsNumber)) onChange(event.target.valueAsNumber); }}
     className="mt-1 w-full min-w-0 rounded border border-white/15 bg-white/5 p-2 text-white" />;
 }
@@ -153,7 +154,6 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
   const update = (patch: Partial<PatchSettings>) => onChange({ patch: { ...settings, ...patch } });
   const selectClass = 'mt-1 w-full min-w-0 rounded border border-white/15 bg-[#171717] p-2 text-xs text-white';
   return <section aria-label="Patch construction" className="patch-editor space-y-3">
-    <label className="patch-name-field">Patch name<input aria-label="Patch name" maxLength={100} value={detail.name} onChange={event=>onChange({name:event.target.value})} onBlur={event=>{if(!event.target.value.trim())onChange({name:'Untitled patch'})}} /></label>
     <div className="patch-mode" role="group" aria-label="Patch design mode">{([ ['backed', 'Artwork on patch'], ['logo', 'Logo itself'] ] as const).map(([mode, label]) => <button key={mode} type="button" aria-pressed={settings.designMode === mode} onClick={() => update({ designMode: mode })}>{label}</button>)}</div>
     <div className="grid grid-cols-2 gap-3 text-[11px] text-white/60">
       <fieldset className="patch-material-choices"><legend>Material</legend>{Object.entries(PATCH_TYPES).map(([value,label])=><button type="button" key={value} aria-pressed={settings.material===value} onClick={()=>onChange({patch:{...settings,material:value as PatchSettings['material'],application:undefined,edgeStyle:undefined,depth:undefined,finish:undefined,preserveColours:undefined},...(value === 'metal' ? {fill:'#B8BDC4'} : {})})}><i className={'patch-material-sample patch-material-'+value}/><span>{label.replace(' patch','')}<small>{({embroidered:'Raised stitched thread',woven:'Fine interlaced detail',chenille:'Soft looped pile',pvc:'Moulded relief',metal:'Plated or enamelled hardware',fauxLeather:'Animal-free stamped surface',silicone:'Flexible raised rubber',leather:'Stamped or printed hide',printed:'Smooth printed fabric',twill:'Woven ground with stitching'} as Record<string,string>)[value]}</small></span></button>)}</fieldset>
@@ -324,6 +324,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
     </div>
     {!libraryOpen && selected && asset && <div className="detail-selected-editor space-y-4">
       <div className="detail-selected-heading"><img alt="" src={`data:image/svg+xml,${encodeURIComponent(asset.svg)}`}/><div><small>EDITING DETAIL</small><h3>{selected.name}</h3><p>{asset.label} · {view}</p></div></div>
+      <label className="detail-name-field">Name<input aria-label="Detail name" type="text" maxLength={100} value={selected.name} placeholder={asset.label} onChange={event=>update({name:event.target.value})} onBlur={event=>{const name=event.target.value.trim();if(name!==selected.name)update({name:name||asset.label})}} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur()}}}/></label>
       {selected.type === 'patch' && onMoveToView && <div role="group" aria-label="Patch side" className="flex gap-1">
         {(['front', 'back'] as const).map(side => <button key={side} type="button" aria-pressed={view === side} onClick={() => onMoveToView(selected, side)} className={`flex-1 rounded border border-white/15 py-2 text-xs capitalize text-white ${view === side ? 'bg-white/20' : ''}`}>{side}</button>)}
       </div>}
@@ -338,6 +339,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
               className={`flex h-9 w-9 items-center justify-center rounded border border-white/15 text-white ${editor.closeUp === closeUp ? 'bg-white/20' : ''}`}><Icon size={16} /><span>{label}</span></button>)}
         </div>
       </div>}
+      {selected.type==='zip'&&<button type="button" className="detail-remove-zip" onClick={removeSelected}><Trash2 size={14}/><span>Remove zip</span><small>Restore the fabric underneath</small></button>}
       <section className="detail-colours-first" aria-label="Colours"><h4>Colours</h4>
       {selected.type==='patch'&&!selected.customAsset&&<div className="detail-colour-grid">    <TrimColorFamilyPicker label={patchSettings(selected.patch).designMode === 'logo' ? 'Patch material colour' : 'Patch background colour'} value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: '#D4D4D4' })} />
     {patchSettings(selected.patch).designMode !== 'logo' && <TrimColorFamilyPicker label="Patch border colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />}
@@ -362,7 +364,6 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
 
       {selected.type==='zip'&&!selected.customAsset&&<details className="detail-construction-fold"><summary>Opening construction</summary><OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor}/></details>}
       {selected.type === 'zip' && !selected.customAsset && <div className="patch-editor space-y-3">
-    <label className="patch-name-field">Patch name<input aria-label="Patch name" maxLength={100} value={detail.name} onChange={event=>onChange({name:event.target.value})} onBlur={event=>{if(!event.target.value.trim())onChange({name:'Untitled patch'})}} /></label>
 
         {editor?.part !== 'pull' && <>
         <label className="flex items-center justify-between gap-2 text-xs text-white/60">Zip length
@@ -508,10 +509,13 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
       const pullSelected = selected && detail.type === 'zip' && !detail.customAsset && editor?.part === 'pull';
       const sourceWidth = Number(new DOMParser().parseFromString(detailAsset(current).svg, 'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2]) || 48;
       const sourceHeight = sourceWidth * placement.height / placement.width;
-      const hardware = zipHardwareGeometry(current, sourceWidth, sourceHeight);
+      const curveRoute=current.opening?.curve?.length?zipRoute(current.opening):undefined;
+      const hardwareHeight=curveRoute?curveRoute.length/current.opening!.width*sourceWidth:sourceHeight;
+      const hardware = zipHardwareGeometry(current, sourceWidth, hardwareHeight);
+      const curvedPull=curveRoute?(()=>{const o=current.opening!,scale=placement.width/sourceWidth,dy=o.end.y-o.start.y,dx=o.end.x-o.start.x,len=Math.hypot(dx,dy)||1,at=hardware.pullY*scale,p=curveRoute.at(at),q=curveRoute.at(at+1),rx=p.x-o.start.x,ry=p.y-o.start.y;return{x:sourceWidth/2+(rx*dy/len-ry*dx/len)/scale,y:(rx*dx/len+ry*dy/len)/scale,angle:(Math.atan2(q.y-p.y,q.x-p.x)-Math.atan2(dy,dx))*180/Math.PI}})():undefined;
       const pullScale = hardware.hardwareScale * zipPullScale(current);
       const sideways = detailRotation(current) % 180 !== 0;
-      return <div key={detail.id} data-detail-id={detail.id} data-detail-variant={detail.variant} data-detail-scale={detailScale(current.scale)}
+      return <div key={detail.id} data-detail-id={detail.id} data-pattern-trim-kind={detail.type} data-pattern-trim-id={detail.id} data-pattern-trim-name={detail.name} data-detail-variant={detail.variant} data-detail-scale={detailScale(current.scale)}
         data-detail-scale-x={detailAxisScale(current, 'x')} data-detail-scale-y={detailAxisScale(current, 'y')}
         className="pointer-events-none absolute"
         style={{ left: `${placement.left / 2048 * 100}%`, top: `${placement.top / 2048 * 100}%`, width: `${placement.width / 2048 * 100}%`, height: `${placement.height / 2048 * 100}%`,
@@ -557,7 +561,7 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
           onCommit={next => onChange?.(details.map(item => item.id === next.id ? next : item))} />}
         {editable && detail.type === 'zip' && !detail.customAsset && editor && <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox={`0 0 ${sourceWidth} ${sourceHeight}`}>
           <g transform={`translate(${current.flipX ? sourceWidth : 0} ${current.flipY ? sourceHeight : 0}) scale(${current.flipX ? -1 : 1} ${current.flipY ? -1 : 1})`}>
-            <g transform={`translate(${hardware.center} ${hardware.pullY}) rotate(${current.zipPullSide === 'left' ? 18 : current.zipPullSide === 'right' ? -18 : 0}) scale(${pullScale})`}>
+            <g transform={`translate(${curvedPull?.x??hardware.center} ${curvedPull?.y??hardware.pullY}) rotate(${curvedPull?.angle??0}) rotate(${current.zipPullSide === 'left' ? 18 : current.zipPullSide === 'right' ? -18 : 0}) scale(${pullScale})`}>
               <rect role="button" tabIndex={0} aria-label={`Select ${detail.name} pull`} aria-pressed={pullSelected} x="-14" y="0" width="28" height={zipPullStyle(current).id === 'short' ? 22 : 50}
                 fill="transparent" stroke={pullSelected ? '#CC2D24' : 'none'} strokeWidth=".6" strokeDasharray="2 2" className="pointer-events-auto touch-none cursor-move"
                 onPointerDown={event => start(event, detail, undefined, 'move')} onClick={event => { event.stopPropagation(); onSelect?.(detail.id); editor.onPartChange('pull'); }}

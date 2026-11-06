@@ -11,3 +11,18 @@
 .stitch-text-button{display:flex;align-items:center;gap:7px;color:var(--builder-ui-muted);font-size:10px;padding:10px 0}.stitch-copy{display:grid;gap:10px;background:var(--builder-ui-soft);border:1px solid var(--builder-ui-line);padding:12px;border-radius:5px;font-size:10px}.stitch-copy label{display:flex;gap:8px;align-items:center}.stitch-copy button{background:var(--builder-ui-secondary);color:white;border-radius:4px;padding:8px}.stitch-copy button:disabled{opacity:.4}.stitch-inspector input[type=checkbox]{accent-color:var(--builder-ui-secondary)}.stitch-colour-dot{width:12px;height:12px;border:1px solid var(--builder-ui-line);border-radius:3px}.stitch-colour-button{width:100%;display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--builder-ui-line);border-radius:5px;font-size:11px}.stitch-colour-button i{width:25px;height:25px;border-radius:4px;border:1px solid var(--builder-ui-line)}.stitch-colour-button span{margin-left:auto;color:var(--builder-ui-muted);font-size:10px}.stitch-section textarea{background:var(--builder-ui-surface);border:1px solid var(--builder-ui-line);border-radius:5px;resize:vertical;min-height:90px;padding:11px;font-size:11px;line-height:1.7;width:100%;color:var(--builder-ui-secondary)}.stitch-inspector button:focus-visible,.detail-workbench button:focus-visible{outline:2px solid var(--builder-ui-muted);outline-offset:2px}
 
 .stitch-other-types{font-size:10px;color:var(--builder-ui-muted);margin:12px 0}.stitch-other-types summary{cursor:pointer;margin-bottom:8px}.stitch-other-types .material-select-trigger{width:100%}
+
+/* Keep compact checkbox rows independent of the inspector's field layout. */
+.stitch-inspector .stitch-copy{display:grid;gap:12px;margin-top:4px;padding:12px;background:#fff;border:1px solid var(--builder-ui-line,#e5e5e5);border-radius:7px}
+.stitch-inspector .stitch-copy-caption{margin:0;font-size:11px;line-height:1.5;color:var(--builder-ui-muted,#737373)}
+.stitch-inspector .stitch-copy-options{display:grid;gap:4px}
+.stitch-inspector .stitch-copy-option{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;margin:0;padding:9px 10px;min-height:36px;border:1px solid transparent;border-radius:5px;background:transparent;cursor:pointer;color:var(--builder-ui-secondary,#404040);font-size:12px;line-height:1.4}
+.stitch-inspector .stitch-copy-option:hover{background:#fafafa}
+.stitch-inspector .stitch-copy-option[data-selected=true]{background:#f5f5f5;border-color:#dedede;color:#262626}
+.stitch-inspector .stitch-copy-option>input[type=checkbox]{display:block;flex:0 0 15px;width:15px!important;height:15px!important;min-width:15px;min-height:15px;margin:0;padding:0;accent-color:#262626;cursor:pointer}
+.stitch-inspector .stitch-copy-option>span{display:block;flex:1;font-size:12px;text-align:left}
+.stitch-inspector .stitch-copy-option:focus-within{outline:1px solid #737373;outline-offset:1px}
+.stitch-inspector .stitch-copy-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--builder-ui-line,#e5e5e5);padding-top:12px}
+.stitch-inspector .stitch-copy-footer>span{font-size:11px;color:var(--builder-ui-muted,#737373)}
+.stitch-inspector .stitch-copy-footer>button{display:inline-flex;align-items:center;justify-content:center;gap:7px;width:auto;min-height:34px;padding:8px 12px;border:1px solid #262626;border-radius:5px;background:#262626;color:#fff;font-size:11px;font-weight:500}
+.stitch-inspector .stitch-copy-footer>button:disabled{background:#f5f5f5;border-color:#e5e5e5;color:#a3a3a3;opacity:1;cursor:not-allowed}

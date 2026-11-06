@@ -10,7 +10,7 @@ export function useGarmentPrintTexture(zone: HTMLDivElement | null, side: 'front
     if(source.current?.zone!==zone||source.current?.side!==side||source.current?.artboard!==artboard)setMask(null);
     source.current={zone,side,artboard};
     if(artboard||!enabled)return;
-    const preview = zone?.parentElement?.querySelector<HTMLElement>('[data-print-garment-preview]');
+    const preview = zone?.closest('[data-design-canvas]')?.querySelector<HTMLElement>('[data-print-garment-preview]');
     if (!zone || !preview) return;
     let generation = 0;
     let frame = 0;
@@ -31,6 +31,7 @@ export function useGarmentPrintTexture(zone: HTMLDivElement | null, side: 'front
       root.setAttribute('height', String(canvas.height));
       root.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
       for (const svg of preview.querySelectorAll<SVGSVGElement>('svg')) {
+        if(svg.closest('[data-artwork-camera-layer]'))continue;
         if (svg.parentElement?.closest('svg') || getComputedStyle(svg).visibility === 'hidden') continue;
         if(mode==='artwork'&&!svg.querySelector('[data-fabric-base]'))continue;
         if(mode==='pattern'&&!svg.closest('[data-layer-id]')&&!svg.hasAttribute('data-technical-linework'))continue;
@@ -97,6 +98,8 @@ export function useGarmentPrintTexture(zone: HTMLDivElement | null, side: 'front
       frame = requestAnimationFrame(() => { void rebuild(); });
     };
     const observer = new MutationObserver(records=>{
+      records=records.filter(record=>record.target===zone||!(record.target instanceof Element)||!record.target.closest('[data-artwork-camera-layer]'));
+      if(!records.length)return;
       // Geometry stays in garment coordinates during zoom. Refresh its raster once
       // the camera settles instead of encoding a new full-size mask every frame.
       if(records.every(record=>record.target===zone)){window.clearTimeout(cameraTimer);cameraTimer=window.setTimeout(schedule,120);}

@@ -3,7 +3,7 @@ import {createPortal} from 'react-dom';
 
 type Registration={canvas:HTMLElement;side:number;left:number;top:number;width:number;height:number};
 /** Paint inside the garment camera itself: CSS animates garment and artwork in the same frame. */
-export function GarmentArtworkCameraLayer({zone,enabled,insets,children}:{zone:HTMLDivElement|null;enabled:boolean;insets:{left:number;right:number;top:number;bottom:number};children:ReactElement<{style?:CSSProperties}>}){
+export function GarmentArtworkCameraLayer({zone,enabled,insets,interactive=false,children}:{interactive?:boolean;zone:HTMLDivElement|null;enabled:boolean;insets:{left:number;right:number;top:number;bottom:number};children:ReactElement<{style?:CSSProperties}>}){
  const [registration,setRegistration]=useState<Registration|null>(null);
  const root=zone?.closest<HTMLElement>('[data-design-canvas]')??null;
  useLayoutEffect(()=>{
@@ -24,5 +24,5 @@ export function GarmentArtworkCameraLayer({zone,enabled,insets,children}:{zone:H
  },[root,enabled,insets.left,insets.right,insets.top,insets.bottom]);
  if(!enabled||!registration||!registration.canvas.isConnected)return children;
  const {canvas,side,left,top,width,height}=registration;
- return createPortal(<svg data-artwork-camera-layer viewBox={`0 0 ${side} ${side}`} width="100%" height="100%" preserveAspectRatio="none" overflow="visible" style={{position:'absolute',inset:0,zIndex:90,pointerEvents:'none'}}><foreignObject width={side} height={side} overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" style={{position:'relative',width:side,height:side}}>{cloneElement(children,{style:{...children.props.style,transform:undefined,left,top,right:'auto',bottom:'auto',width,height}})}</div></foreignObject></svg>,canvas);
+ return createPortal(<div data-artwork-camera-layer style={{position:'absolute',inset:0,width:side,height:side,pointerEvents:'none'}}>{cloneElement(children,{style:{...children.props.style,zIndex:'auto',transform:undefined,left,top,right:'auto',bottom:'auto',width,height,pointerEvents:interactive?'auto':'none'}})}</div>,canvas);
 }

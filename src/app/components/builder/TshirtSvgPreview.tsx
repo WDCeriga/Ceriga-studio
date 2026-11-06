@@ -1,3 +1,4 @@
+import {poloRepairPanel} from '../../lib/poloPanelRepair';
 import {withGarmentOutlineOwnership} from '../../data/garmentOutlineOwnership';
 import {withCleanSleeveOpenings} from '../../data/cleanSleeveOpenings';
 import {fabricRings} from '../../data/regularConstruction';
@@ -1722,7 +1723,24 @@ export function TshirtSvgPreview({
           );
         })}
 
-        {!!openings?.placketFill.length&&<div className="pointer-events-none absolute inset-0" data-polo-placket-fill="true" style={{zIndex:90}}><InlineSvg raw={'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="#000000" fill-rule="evenodd" d="'+openingPolygonPath(openings.placketFill)+'"/></svg>'} fill={partColors?.base??bodyColor} fabricColor={bodyColor} fabric={fabricParts.get('base')?resolvePartMaterial(fabricAssignments,fabricParts.get('base')!,[...fabricParts.values()])?.fabric:undefined} textureIntensity={partTextureIntensity(fabricTextureIntensity,'base')}/></div>}
+        {!!openings?.placketFill.length&&(()=>{
+          const repair='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="white" fill-rule="evenodd" d="'+openingPolygonPath(openings.placketFill)+'"/></svg>';
+          const mask='url("data:image/svg+xml,'+encodeURIComponent(repair)+'")';
+          const bodyPart=fabricParts.get('base'),bodyMaterial=bodyPart?resolvePartMaterial(fabricAssignments,bodyPart,[...fabricParts.values()]):undefined;
+          const panelFill=(id:string,raw:string,fallback:string)=>{const part=fabricParts.get(id),material=part?resolvePartMaterial(fabricAssignments,part,[...fabricParts.values()]):undefined;return <InlineSvg key={id} raw={raw} fill={partColors?.[id]??fallback} fabricColor={bodyColor} fabric={material?.fabric??bodyMaterial?.fabric} interior={material?.interior??bodyMaterial?.interior} textureIntensity={partTextureIntensity(fabricTextureIntensity,id)}/>};
+          return <div className="pointer-events-none absolute inset-0" data-polo-placket-fill="true" style={{zIndex:90,maskImage:mask,WebkitMaskImage:mask,maskSize:'100% 100%',WebkitMaskSize:'100% 100%',maskRepeat:'no-repeat',WebkitMaskRepeat:'no-repeat'}}>
+            {panelFill('base',repair.replace('fill="white"','fill="#000000"'),bodyColor)}
+            {([-1,1] as const).map(side=>{
+              const points=openings.placketFill.flat(2),center=detailBounds?(detailBounds.minX+detailBounds.maxX)/2:1024,top=Math.min(...points.map(point=>point[1]));
+              const panel=poloRepairPanel(semanticPanels??[],{x:center+side*110,y:top+60});if(!panel)return null;
+              const half='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><rect x="'+(side<0?0:center)+'" y="0" width="'+(side<0?center:2048-center)+'" height="2048" fill="#000000"/></svg>';
+              return <div key={'adjacent-'+side} className="absolute inset-0" data-polo-adjacent-panel={panel.id}>{panelFill(panel.id,half,panel.fillOverride??partColors?.base??bodyColor)}</div>;
+            })}
+            {semanticPanels?.filter(panel=>panel.parentId==='base'&&(panel.seamIds.length>0||panel.fillOverride)).map(panel=><div key={panel.id} className="absolute inset-0" data-polo-panel-repair={panel.id}>{panelFill(panel.id,'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048"><path fill="#000000" fill-rule="evenodd" d="'+panel.path+'"/></svg>',panel.fillOverride??partColors?.base??bodyColor)}</div>)}
+            {layers.find(layer=>layer.id==='base')?.colourPanels?.map(panel=><div key={panel.id} className="absolute inset-0">{panelFill(panel.id,panel.svgRaw,panel.tint??partColors?.base??bodyColor)}</div>)}
+          </div>;
+        })()}
+
         {garmentType==='tshirt'&&(technical||['slim','regular','boxy','oversized'].includes(fit??''))&&<TechnicalLinework completeOutline={!customAssetState?.importedGarment} visibleClip={stitchOpeningClip} onSurfacesChange={receiveVisibleSurfaces} repairOnly geometryMarkup={panellingGeometry} colour={constructionColor(bodyColor)} stitchOnlyHems={['sleeveHemLeft','sleeveHemRight','bodyHem','underlayerHemLeft','underlayerHemRight'].join(',')}/>}
         {canvasOverlay}
         {savedPanelling?.seams.length? <PanellingReadOnlyOverlay {...savedPanelling}/>:null}

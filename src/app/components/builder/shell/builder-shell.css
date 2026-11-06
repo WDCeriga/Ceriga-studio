@@ -1106,3 +1106,7 @@
 
 /* All builder pages share a plain white drawing canvas. */
 .ceriga-builder-shell .builder-workspace,.ceriga-builder-shell .new-builder-canvas,.ceriga-builder-shell .new-canvas-area,.ceriga-builder-shell .label-preview-studio,.ceriga-builder-shell .label-direct-editor,.ceriga-builder-shell .label-direct-stage{background-color:#fff!important;background-image:none!important}
+
+/* Pointer navigation keeps the selected fill; only keyboard navigation gets a ring. */
+.ceriga-builder-shell .builder-sidebar button:focus:not(:focus-visible){outline:none!important;box-shadow:none!important}
+.ceriga-builder-shell .builder-sidebar button:focus-visible{outline:1px solid #737373!important;outline-offset:-3px!important}
