@@ -1,3 +1,4 @@
+import {SeamFinish} from './SeamFinish';
 import {useTechnicalDrawing,TECH_OUTLINE_WIDTH,TECH_TRACE_INK_BOLDNESS} from '../../lib/technicalDrawing';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useId, useRef, useState, type ForwardedRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { closestBoundaryPoint, distance, flattenSeam, pointInSurface, sampleSvgBoundaries, sampleGarmentSurfaces, seamPath } from './panellingGeometry';
@@ -13,6 +14,7 @@ type Drag = SelectedAnchor & {
   pointerId: number;
   mode: 'anchor' | 'handle' | 'segment';
   mirrored?:boolean;
+  independent?:boolean;
   segmentIndex?:number;segmentT?:number;grabPoint?:PanellingPoint;curvePoint?:PanellingPoint;
   handle?: 'incoming' | 'outgoing';
   initialSeams: PanellingSeam[];
@@ -247,10 +249,9 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
       if (event.key === 'Escape') cancel();
       if(event.key==='Enter'&&active.length>1){event.preventDefault();finish();}
       if((event.key==='Delete'||event.key==='Backspace')&&tool==='select'&&selected){event.preventDefault();removeSelectedPoint();}
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && active.length) {
         event.preventDefault();
-        if (active.length) setActive(current => current.slice(0, -1));
-        else onSeamsChange(seams.slice(0, -1));
+        setActive(current => current.slice(0, -1));
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -268,7 +269,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     if (drag.mode === 'anchor') return moveSeamAnchor(seam, drag.anchorId, point);
     return { ...seam, anchors: seam.anchors.map(anchor => {
       if (anchor.id !== drag.anchorId || !drag.handle) return anchor;
-      if (anchor.handleMode === 'independent') return { ...anchor, [drag.handle]: point };
+      if (anchor.handleMode === 'independent'||drag.independent) return { ...anchor, handleMode:'independent' as const, [drag.handle]: point };
       const opposite = drag.handle === 'incoming' ? 'outgoing' : 'incoming';
       const oldOpposite = anchor[opposite], length = oldOpposite ? distance(anchor, oldOpposite) : distance(anchor, point);
       const dx = point.x - anchor.x, dy = point.y - anchor.y, magnitude = Math.hypot(dx, dy) || 1;
@@ -334,39 +335,45 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     return snapAnchor(source,boundaries,drag.initialSeams.filter(seam=>seam.id!==drag.seamId));
   };
 
-  const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const point = pointFromEvent(event), snapped = snapAnchor(point, boundaries, seams);
-    if(tool==='pen'){setCursor(snapped);setSnapFeedback(distance(point,snapped)>.5?snapped:null);}else setSnapFeedback(null);
+  const pointerFrame=useRef<number|undefined>(undefined);
+  const pendingPointer=useRef<{point:PanellingPoint;pointerId:number;altKey:boolean}|null>(null);
+  useEffect(()=>()=>{if(pointerFrame.current!==undefined)cancelAnimationFrame(pointerFrame.current)},[]);
+  const processPointerMove = ({point,pointerId,altKey}:{point:PanellingPoint;pointerId:number;altKey:boolean}) => {
+    if(tool==='pen'){const snapped=snapAnchor(point,boundaries,seams,hitRadius);setCursor(snapped);setSnapFeedback(distance(point,snapped)>.5?snapped:null);}else setSnapFeedback(null);
     const drawing = drawingRef.current;
-    if (drawing?.pointerId === event.pointerId) {
+    if (drawing?.pointerId === pointerId) {
       if (distance(drawing.start, point) > 8 * VIEW_SIZE / canvasWidth) drawing.dragged = true;
       setDrawingPreview({ start: drawing.start, current: point, dragged: drawing.dragged });
     }
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const nextPoint=dragPoint(drag,point,event.altKey);
+    if (!drag || drag.pointerId !== pointerId) return;
+    drag.independent=altKey;
+    const nextPoint=dragPoint(drag,point,altKey);
     if(drag.mode==='segment'&&!drag.latestPoint&&distance(nextPoint,drag.grabPoint!)<2*VIEW_SIZE/canvasWidth)return;
     drag.latestPoint = nextPoint;
-    if (drag.frameId !== undefined) return;
-    drag.frameId = requestAnimationFrame(() => {
-      drag.frameId = undefined;
-      if (dragRef.current !== drag || !drag.latestPoint) return;
-      dragPreviewRef.current = moveDraggedSeam(drag, drag.latestPoint);
-      setDragPreviewSeams(dragPreviewRef.current);
-    });
+    // Pointer work is already animation-frame scheduled; do not add a second frame of latency.
+    dragPreviewRef.current = moveDraggedSeam(drag, nextPoint);
+    setDragPreviewSeams(dragPreviewRef.current);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    event.preventDefault();event.stopPropagation();
+    pendingPointer.current={point:pointFromEvent(event),pointerId:event.pointerId,altKey:event.altKey};
+    if(pointerFrame.current!==undefined)return;
+    pointerFrame.current=requestAnimationFrame(()=>{pointerFrame.current=undefined;const pending=pendingPointer.current;pendingPointer.current=null;if(pending)processPointerMove(pending)});
   };
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    if(pointerFrame.current!==undefined){cancelAnimationFrame(pointerFrame.current);pointerFrame.current=undefined;pendingPointer.current=null;}
     const drawing = drawingRef.current;
     if (drawing?.pointerId === event.pointerId) {
-      const end = pointFromEvent(event), anchor = snapAnchor(drawing.start, boundaries, seams);
+      let end = pointFromEvent(event); const anchor = snapAnchor(drawing.start, boundaries, seams,hitRadius);
+      if(event.shiftKey){const a=Math.round(Math.atan2(end.y-anchor.y,end.x-anchor.x)/(Math.PI/12))*Math.PI/12,r=distance(anchor,end);end={x:anchor.x+Math.cos(a)*r,y:anchor.y+Math.sin(a)*r};}
       if (drawing.dragged) {
         const handle = end;
-        setActive(points => [...points, { ...anchor, handleMode: 'smooth', outgoing: handle, incoming: { x: 2 * anchor.x - handle.x, y: 2 * anchor.y - handle.y } }]);
+        setActive(points => [...points, { ...anchor, outgoing: handle, incoming: event.altKey ? undefined : { x: 2 * anchor.x - handle.x, y: 2 * anchor.y - handle.y }, handleMode:event.altKey?'independent':'smooth' }]);
       } else setActive(points => [...points, { ...anchor, handleMode: 'corner' }]);
       drawingRef.current = null;
       setDrawingPreview(null);
@@ -374,6 +381,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     const drag = dragRef.current;
     if (drag?.pointerId === event.pointerId) {
       if (drag.frameId !== undefined) cancelAnimationFrame(drag.frameId);
+      drag.independent=event.altKey;
       const finalPoint = dragPoint(drag,pointFromEvent(event),event.altKey);
       const finalSeams = moveDraggedSeam(drag, finalPoint);
       if (dragPreviewRef.current || drag.latestPoint){onSeamsChange(finalSeams);updateSelection(selected,finalSeams);}
@@ -406,8 +414,8 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
       <g clipPath={`url(#${clipId})`}>
         {panels.map(panel => <path key={panel.id} data-panel-id={panel.id} data-surface-id={panel.parentId} d={panel.path} fill={overlayOnly ? 'transparent' : panel.fillOverride ?? 'transparent'} fillRule="evenodd" fillOpacity={1} stroke="none" onClick={event => { event.stopPropagation(); onPanelSelect(panel.id); }} />)}
         {visibleSeams.map(seam => <g key={seam.id}>
-          <path d={seamPath(seam.anchors)} fill="none" stroke="transparent" strokeWidth={hitRadius * 2} vectorEffect="non-scaling-stroke" pointerEvents={tool === 'select' ? 'stroke' : 'none'} data-seam-id={seam.id} />
-          <path d={seamPath(seam.anchors)} fill="none" className="panelling-finished-seam" data-construction-seam="" data-tech-role={technical?'outline':undefined} stroke="#141414" strokeWidth="1.25" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={seamPath(seam.anchors)} fill="none" stroke="transparent" strokeWidth={hitRadius * 2} pointerEvents={tool === 'select' ? 'stroke' : 'none'} data-seam-id={seam.id} />
+          <SeamFinish seam={seam} colour={seamColour}/>
         </g>)}
         {active.length > 1 && <path className="panelling-drawn-segment" d={seamPath(active)} fill="none" stroke="#141414" strokeWidth="1.25" vectorEffect="non-scaling-stroke" strokeLinecap="round" />}
         {pendingPath.length > 0 && <g className="panelling-preview-guide" pointerEvents="none"><path className="panelling-guide-halo" d={seamPath(pendingPath)} fill="none" stroke="#fff" strokeWidth="3.5" strokeOpacity="0.8" vectorEffect="non-scaling-stroke"/><path d={seamPath(pendingPath)} fill="none" stroke="#657d90" strokeWidth="1.25" strokeDasharray="4 5" strokeLinecap="round" vectorEffect="non-scaling-stroke" /></g>}

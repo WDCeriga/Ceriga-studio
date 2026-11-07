@@ -28,7 +28,7 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
   useEffect(() => {
     if(source.current?.zone!==zone||source.current?.side!==side)setTargets([]);
     source.current={zone,side};
-    const preview = zone?.parentElement?.querySelector<HTMLElement>('[data-print-garment-preview]');
+    const preview = zone?.closest('[data-design-canvas]')?.querySelector<HTMLElement>('[data-print-garment-preview]');
     if (disabled || !zone || !preview) {setTargets([]);return;}
     let generation = 0;
     let frame = 0;
@@ -43,10 +43,10 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
       const pixelHeight = Math.max(1, Math.round(height * resolution));
       const sx = pixelWidth / rect.width;
       const sy = pixelHeight / rect.height;
-      const layers = Array.from(preview.querySelectorAll<HTMLElement>('[data-layer-id]'))
+      const layers = Array.from(preview.querySelectorAll<HTMLElement>('[data-layer-id], [data-pattern-trim-id]'))
         .filter(layer => !['outline','stitching','construction','stitch'].includes(layer.dataset.layerId??''))
         .filter(layer => getComputedStyle(layer).visibility !== 'hidden' && getComputedStyle(layer).display !== 'none')
-        .sort((a, b) => (Number(getComputedStyle(a).zIndex) || 0) - (Number(getComputedStyle(b).zIndex) || 0));
+        .sort((a, b) => (a.dataset.patternTrimId?1000:Number(getComputedStyle(a).zIndex)||0) - (b.dataset.patternTrimId?1000:Number(getComputedStyle(b).zIndex)||0));
       const rasters = await Promise.all(layers.map(async layer => {
         const svg = layer.querySelector<SVGSVGElement>('svg');
         const matrix = svg?.getScreenCTM();
@@ -58,11 +58,35 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
         const group = document.createElementNS(root.namespaceURI, 'g');
         group.setAttribute('transform', `matrix(${matrix.a * sx} ${matrix.b * sy} ${matrix.c * sx} ${matrix.d * sy} ${(matrix.e - rect.left) * sx} ${(matrix.f - rect.top) * sy})`);
         for (const child of svg.childNodes) group.appendChild(child.cloneNode(true));
+        let coverageRoot:SVGSVGElement|undefined;
+        if(layer.dataset.patternTrimKind==='zip'&&group.querySelector('[data-opening-tape]')){
+          // Only the textile tapes can be printed. Cut hardware out of the mask,
+          // including a slider or pull that overlaps the fabric.
+          coverageRoot=root.cloneNode(false) as SVGSVGElement;coverageRoot.appendChild(group.cloneNode(true));
+          const hardware=group.cloneNode(true) as SVGGElement;
+          hardware.removeAttribute('transform');
+          const hardwareSelector='[data-zip-teeth],[data-zip-slider],[data-zip-pull],[data-zip-stops],[data-zip-joined]';
+          for(const shape of hardware.querySelectorAll<SVGElement>('path,rect,circle,ellipse,polygon,polyline,line,text,image,use')){
+            if(shape.closest('defs'))continue;
+            if(!shape.closest(hardwareSelector)){shape.remove();continue}
+            shape.setAttribute('fill','#000');shape.setAttribute('stroke','#000');shape.style.fill='#000';shape.style.stroke='#000';
+          }
+          const mask=document.createElementNS(root.namespaceURI,'mask'),maskId='trim-tape-'+layer.dataset.patternTrimId;
+          mask.setAttribute('id',maskId);mask.setAttribute('maskUnits','userSpaceOnUse');mask.setAttribute('x','-4096');mask.setAttribute('y','-4096');mask.setAttribute('width','8192');mask.setAttribute('height','8192');mask.setAttribute('style','mask-type:luminance');
+          const backdrop=document.createElementNS(root.namespaceURI,'rect');for(const [key,value] of Object.entries({x:'-4096',y:'-4096',width:'8192',height:'8192',fill:'white'}))backdrop.setAttribute(key,value);mask.append(backdrop,hardware);
+          for(const shape of group.querySelectorAll<SVGElement>('path,rect,circle,ellipse,polygon,polyline,line,text,image,use')){
+            if(shape.closest('defs'))continue;
+            if(!shape.hasAttribute('data-opening-tape')){shape.remove();continue}
+            shape.setAttribute('stroke','none');shape.style.stroke='none';
+          }
+          const tape=document.createElementNS(root.namespaceURI,'g');tape.setAttribute('mask','url(#'+maskId+')');while(group.firstChild)tape.appendChild(group.firstChild);
+          const defs=document.createElementNS(root.namespaceURI,'defs');defs.appendChild(mask);group.append(defs,tape);
+        }
         // Part targeting uses the closed fabric geometry, not the alpha of a
         // fabric scan/texture tile. Preserve construction masks and their images.
         for(const pattern of group.querySelectorAll('pattern'))pattern.remove();
         for(const shape of group.querySelectorAll<SVGElement>('path,rect,circle,ellipse,polygon,polyline')){
-          if(shape.getAttribute('fill')!=='none'){shape.setAttribute('fill','#fff');shape.style.fill='#fff'}
+          if(!shape.closest('defs,mask,clipPath')&&shape.getAttribute('fill')!=='none'){shape.setAttribute('fill','#fff');shape.style.fill='#fff'}
         }
         let clip = 'none';
         for (let parent = svg.parentElement; parent && parent !== layer; parent = parent.parentElement) {
@@ -95,7 +119,12 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
           const context = canvas.getContext('2d', { willReadFrequently: true });
           if (!context) return null;
           context.drawImage(image, 0, 0);
-          return { id: layer.dataset.layerId!, label: names[layer.dataset.layerId!] ?? layer.dataset.asset ?? layer.dataset.layerId!, canvas };
+          let coverage:HTMLCanvasElement|undefined;
+          if(coverageRoot){
+            const coverageUrl=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(coverageRoot)],{type:'image/svg+xml'}));
+            try{const full=new Image();full.src=coverageUrl;await full.decode();coverage=document.createElement('canvas');coverage.width=pixelWidth;coverage.height=pixelHeight;coverage.getContext('2d')?.drawImage(full,0,0)}finally{URL.revokeObjectURL(coverageUrl)}
+          }
+          return { id: layer.dataset.patternTrimId?'trim:'+layer.dataset.patternTrimId:layer.dataset.layerId!, label: layer.dataset.patternTrimName ?? names[layer.dataset.layerId!] ?? layer.dataset.asset ?? layer.dataset.layerId!, canvas, coverage };
         } finally { URL.revokeObjectURL(url); }
       }));
       if (version !== generation) return;
@@ -108,7 +137,7 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
         const context = canvas.getContext('2d', { willReadFrequently: true })!;
         context.drawImage(layer.canvas, 0, 0);
         context.globalCompositeOperation = 'destination-out'; context.drawImage(occlusion, 0, 0);
-        cover.drawImage(layer.canvas, 0, 0);
+        cover.drawImage(layer.coverage??layer.canvas, 0, 0);
         const alpha = context.getImageData(0, 0, pixelWidth, pixelHeight).data;
         let minX = pixelWidth, minY = pixelHeight, maxX = -1, maxY = -1;
         for (let y = 0; y < pixelHeight; y++) for (let x = 0; x < pixelWidth; x++) {
@@ -129,6 +158,8 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
       frame = requestAnimationFrame(() => { void rebuild(version).catch(() => { if (version === generation) setTargets([]); }); });
     };
     const observer = new MutationObserver(records=>{
+      records=records.filter(record=>record.target===zone||!(record.target instanceof Element)||!record.target.closest('[data-artwork-camera-layer]'));
+      if(!records.length)return;
       // Geometry stays in garment coordinates during zoom. Refresh its raster once
       // the camera settles instead of encoding a new full-size mask every frame.
       if(records.every(record=>record.target===zone)){window.clearTimeout(cameraTimer);cameraTimer=window.setTimeout(schedule,120);}

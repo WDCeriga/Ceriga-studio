@@ -24,7 +24,7 @@ function AssetNumberInput({ label, value, update, positive = false }: {
   const [draft, setDraft] = useState<string>();
   return <label className="min-w-0 space-y-1 text-[11px] text-white/65">
     <span>{label}</span><input aria-label={`Custom asset ${label}`} type="number" step="any" min={positive ? .01 : undefined}
-      value={draft ?? Number(value.toFixed(2))} onBlur={() => setDraft(undefined)}
+      value={draft ?? Number(value.toFixed(1))} onBlur={() => setDraft(undefined)}
       onChange={event => {
         setDraft(event.currentTarget.value);
         const next = event.currentTarget.valueAsNumber;

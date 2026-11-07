@@ -20,9 +20,7 @@ export function formatMeasurementDisplay(cmStored: string, unit: MeasurementUnit
   if (raw === '') return '';
   const cm = parseFloat(raw);
   if (Number.isNaN(cm)) return String(cmStored);
-  if (unit === 'cm') return formatCmForStorage(cm);
-  const inches = cm / CM_PER_IN;
-  return formatCmForStorage(inches);
+  return String(Number((unit === 'cm' ? cm : cm / CM_PER_IN).toFixed(1)));
 }
 
 /** Parse a cell input in the current display unit to canonical cm string. */

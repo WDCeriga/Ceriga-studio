@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {surfaceRuntime} from './surface-test-runtime.mjs';
+const {api}=await surfaceRuntime(`export {arrangeArtwork} from './src/app/lib/artworkArrange';`);
+const print={id:'print',type:'image',content:'art.svg',side:'front',x:100,y:100,width:80,height:80,rotation:0};
+const other={...print,id:'other',side:'back'};
+const original=[other,print];const behind=api.arrangeArtwork(original,['print'],'back');
+assert.equal(behind.find(e=>e.id==='print').side,'front');assert.equal(behind.find(e=>e.id==='print').behindTrims,true);assert.equal(print.behindTrims,undefined);assert.equal(behind.find(e=>e.id==='other'),other);
+const restored=JSON.parse(JSON.stringify(behind));assert.equal(restored.find(e=>e.id==='print').behindTrims,true);
+const above=api.arrangeArtwork(restored,['print'],'front');assert.equal(above.find(e=>e.id==='print').behindTrims,false);assert.equal(above.find(e=>e.id==='print').side,'front');
+console.log('PASS trim depth is opt-in, survives save/refresh, restores above trims and never changes the garment side.');

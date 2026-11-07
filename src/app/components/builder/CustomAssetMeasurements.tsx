@@ -292,7 +292,7 @@ function AssetDimensionInput({ asset, field, label, unit, onEdit }: { asset: Ass
   };
   return <label className="min-w-0 text-[10px] text-white/50">{label}{field !== 'count' && ` (${suffix})`}
     <Input type="number" min={field === 'rotation' ? undefined : field === 'left' || field === 'top' ? 0 : field === 'count' ? 1 : .001} max={field === 'count' ? 12 : undefined} step={field === 'count' || field === 'rotation' ? 1 : .01}
-      aria-label={`${asset.name} ${label} (${field === 'count' ? 'count' : suffix})`} value={draft ?? Number((value / factor).toFixed(4))}
+      aria-label={`${asset.name} ${label} (${field === 'count' ? 'count' : suffix})`} value={draft ?? Number((value / factor).toFixed(1))}
       onChange={event => setDraft(event.target.value)} onBlur={commit} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { setDraft(null); setError(''); } }}
       className="mt-1 h-8 border-white/15 bg-white/5 text-[11px] text-white" />
     {error && <span role="status" className="mt-1 block text-amber-300">{error}</span>}
@@ -303,7 +303,7 @@ export function CustomAssetMeasurements({ assets, unit, selectedId, onSelect, on
   assets: AssetMeasurement[]; unit: MeasurementUnit; selectedId: string | null; onSelect: (id: string | null) => void;
   onEdit: (asset: AssetMeasurement, field: AssetDimension, value: number) => string | undefined; view: 'front' | 'back';
 }) {
-  const display = (value: number | undefined) => value === undefined ? 'Not available' : `${(unit === 'in' ? value / 2.54 : value).toFixed(2)} ${unit}`;
+  const display = (value: number | undefined) => value === undefined ? 'Not available' : `${(unit === 'in' ? value / 2.54 : value).toFixed(1)} ${unit}`;
   if (!assets.length) return null;
   return <section aria-label="Custom asset measurements" className="space-y-3 border-t border-white/10 pt-4">
     <h3 className="text-[10px] font-medium tracking-wider text-white/60">CUSTOM ASSET MEASUREMENTS</h3>

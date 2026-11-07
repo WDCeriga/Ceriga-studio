@@ -1,3 +1,4 @@
+import {zipRoute,zipPolyline} from '../../lib/zipCurve';
 import { useId, useMemo, useRef, type PointerEvent } from 'react';
 import polygonClipping from 'polygon-clipping';
 import { constructOpenings, openingGap, openingGapProfile, openingNecklineReach, openingPolygonPath, setOpeningEndpoint, validateOpening, type OpeningPoint } from '../../data/garmentOpenings';
@@ -14,15 +15,18 @@ export function OpeningConstruction({ details, bounds, selectedId, onSelect, onC
   const prefix = useId().replace(/:/g, '');
   const root = useRef<SVGSVGElement>(null);
   const combined = useMemo(() => stage === 'path' ? undefined : constructOpenings(details, bounds), [details, bounds.openingGeometry, stage]);
-  const gesture = useRef<{ id: number; origin: GarmentDetail; endpoint: 'start' | 'end'; pointer: OpeningPoint; inverse: DOMMatrix; draft?: GarmentDetail } | null>(null);
+  const gesture = useRef<{ id: number; origin: GarmentDetail; endpoint: 'start' | 'end' | 'curve'; anchorIndex?:number;handle?:'incoming'|'outgoing'; pointer: OpeningPoint; inverse: DOMMatrix; draft?: GarmentDetail } | null>(null);
   const move = (event: PointerEvent<SVGSVGElement>) => {
     const current = gesture.current;
     if (!current || current.id !== event.pointerId) return;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(current.inverse);
-    const origin = current.origin.opening![current.endpoint];
+    if(current.endpoint==='curve'){
+      const opening=current.origin.opening!,curve=opening.curve?.map((a,i)=>{if(i!==current.anchorIndex||!current.handle)return a;const h=a[current.handle];if(!h)return a;return {...a,[current.handle]:{x:h.x+point.x-current.pointer.x,y:h.y+point.y-current.pointer.y}}});
+      current.draft={...current.origin,opening:{...opening,curve}};
+    }else{const origin = current.origin.opening![current.endpoint];
     current.draft = setOpeningEndpoint(current.origin, bounds, current.endpoint, {
       x: origin.x + point.x - current.pointer.x, y: origin.y + point.y - current.pointer.y,
-    });
+    });}
     onDraftChange?.(current.draft);
   };
   const cancel = () => { gesture.current = null; onDraftChange?.(null); };
@@ -42,13 +46,14 @@ export function OpeningConstruction({ details, bounds, selectedId, onSelect, onC
       const geometry = { facing: combined && combined.active.length > 1 && combined.removed.length && facing.length ? polygonClipping.difference(facing, combined.removed) : facing };
       const color = /^#[\da-f]{6}$/i.test(opening.facingColor) ? opening.facingColor : '#777777';
       const ink = constructionColor(color, detail.outline);
-      const length = Math.hypot(opening.end.x - opening.start.x, opening.end.y - opening.start.y);
+      const route=zipRoute(opening);
+      const length = route.length;
       const normal = { x: -(opening.end.y - opening.start.y) / length, y: (opening.end.x - opening.start.x) / length };
       const stitch = resolveStitchSettings(stitching ?? {}, opening.attachment === 'hem' ? 'bottom' : opening.attachment === 'shoulder' ? 'shoulder' : opening.attachment === 'side-seam' ? 'side' : 'neckline');
       const profile = openingGapProfile(detail, opening.width, length);
       const reach = openingNecklineReach(detail, bounds);
       const stations = reach ? [-reach, ...profile.stations] : profile.stations;
-      const point = (x: number, y: number): [number, number] => [opening.start.x - normal.x * x + normal.y * y, opening.start.y - normal.y * x - normal.x * y];
+      const point = (x: number, y: number): [number, number] => {const p=route.at(y,-x);return[p.x,p.y]};
       const extension = reach && bounds.openingGeometry?.fabric.length ? polygonClipping.intersection(
         polygonClipping.difference(openingGap(detail, opening.width * .45, reach), openingGap(detail, 0, reach)),
         bounds.openingGeometry.fabric,
@@ -65,15 +70,12 @@ export function OpeningConstruction({ details, bounds, selectedId, onSelect, onC
         const top = localExtension.filter(p => Math.abs(p.x - edge) < .1).reduce((y, p) => Math.min(y, p.y), 0);
         return { side, top, edge };
       });
-      const rows = [-1, 1].map(side => stations.map(y => ({
-        x: opening.start.x + normal.y * y + normal.x * side * (profile.halfGap(y) + opening.width / 2 + 5),
-        y: opening.start.y - normal.x * y + normal.y * side * (profile.halfGap(y) + opening.width / 2 + 5),
-      })));
+      const rows = [-1, 1].map(side => Array.from({length:97},(_,i)=>{const y=length*i/96;return route.at(y,side*(profile.halfGap(y)+opening.width/2+5))}));
       const clip = `${prefix}-facing-${index}`;
       return <g key={detail.id} data-opening-id={detail.id} data-opening-status={validation.status}>
-        {stage === 'path' && <g data-opening-path="" fill="none" stroke={validation.status === 'Invalid' ? '#dc2626' : '#b45309'}>
-          <path d={`M${opening.start.x},${opening.start.y}L${opening.end.x},${opening.end.y}`} strokeWidth={opening.width} strokeOpacity=".2" />
-          <path d={`M${opening.start.x},${opening.start.y}L${opening.end.x},${opening.end.y}`} strokeWidth="3" strokeDasharray="10 7" />
+        {stage === 'path' && <g data-opening-path="" fill="none" stroke={validation.status === 'Invalid' ? '#dc2626' : '#404040'}>
+          <path d={route.points.map((p,i)=>(i?'L':'M')+p.x+','+p.y).join(' ')} strokeWidth={opening.width} strokeOpacity=".2" />
+          <path d={route.points.map((p,i)=>(i?'L':'M')+p.x+','+p.y).join(' ')} strokeWidth="3" strokeDasharray="10 7" />
         </g>}
         {stage !== 'path' && geometry.facing.length > 0 && <>
           <defs><clipPath id={clip}><path d={openingPolygonPath(geometry.facing)} clipRule="evenodd" /></clipPath></defs>
@@ -102,10 +104,11 @@ export function OpeningConstruction({ details, bounds, selectedId, onSelect, onC
             {stops.map(({ side, top, edge }) => <path key={side} data-neckline-zip-stop="" d={`M${point(edge, top + 2 * unit)}L${point(edge + side * 3 * unit, top + 2 * unit)}`} stroke={detail.hardware} strokeWidth={3 * unit} />)}
           </g>}
         </g>}
+        {onChange&&selectedId===detail.id&&opening.curve?.map((anchor,anchorIndex)=>(['incoming','outgoing'] as const).map(handle=>{const h=anchor[handle];if(!h)return null;return <g key={anchorIndex+handle} className="zip-path-handle"><line x1={anchor.x} y1={anchor.y} x2={h.x} y2={h.y} stroke="#737373" strokeWidth="1" vectorEffect="non-scaling-stroke"/><circle cx={h.x} cy={h.y} r="7" fill="white" stroke="#404040" strokeWidth="1" vectorEffect="non-scaling-stroke"/><circle cx={h.x} cy={h.y} r="25" fill="transparent" role="button" tabIndex={0} aria-label={'Adjust zip curve '+(anchorIndex+1)+' '+handle} className="pointer-events-auto cursor-move touch-none" onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();const inverse=root.current?.getScreenCTM()?.inverse();if(!inverse)return;gesture.current={id:event.pointerId,origin:detail,endpoint:'curve',anchorIndex,handle,pointer:new DOMPoint(event.clientX,event.clientY).matrixTransform(inverse),inverse};event.currentTarget.setPointerCapture(event.pointerId)}} onKeyDown={event=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();const step=event.shiftKey?10:1;onChange({...detail,opening:{...opening,curve:opening.curve!.map((a,i)=>i!==anchorIndex?a:{...a,[handle]:{x:h.x+(event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0),y:h.y+(event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0)}})}})}}/></g>}))}
         {onChange && selectedId === detail.id && (['start', 'end'] as const).map(endpoint => {
           const point: OpeningPoint = opening[endpoint];
           return <g key={endpoint}>
-            <circle cx={point.x} cy={point.y} r="13" fill="white" stroke={validation.status === 'Invalid' ? '#dc2626' : '#b45309'} strokeWidth="2" />
+            <circle cx={point.x} cy={point.y} r="8" fill="white" stroke={validation.status === 'Invalid' ? '#dc2626' : '#404040'} strokeWidth="2" />
             <circle cx={point.x} cy={point.y} r="36" fill="transparent"
               role="button" tabIndex={0} aria-label={`Drag ${detail.name} opening ${endpoint}`} className="pointer-events-auto cursor-crosshair touch-none"
               onPointerDown={event => {

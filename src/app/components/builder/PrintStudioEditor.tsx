@@ -176,6 +176,7 @@ import { CustomAreaPathControls } from './printsStudio/CustomAreaPathControls';
 import { CustomAreaAppearanceControls } from './printsStudio/CustomAreaAppearanceControls';
 
 export interface DesignElement extends ImageAdjustmentValues {
+  behindTrims?: boolean;
   svgPrecision?:import('../../lib/artworkSurface').SvgPrecision;
   frameId?:string;
   artworkUnitsPerCm?:number;
@@ -1307,7 +1308,8 @@ export function PrintsDesignStep({
     const arr = [...elements];
     const idx = arr.findIndex((item) => item.id === selectedId);
     if (idx < 0) return;
-    const [item] = arr.splice(idx, 1);
+    const [source] = arr.splice(idx, 1);
+    const item={...source,behindTrims:dir==='back'};
     if (dir === 'front') arr.push(item);
     else arr.unshift(item);
     onChange(arr);
@@ -3589,7 +3591,7 @@ export function PrintsDesignPreview({
           </div>
           )}
 
-          <GarmentArtworkCameraLayer zone={zoneEl} enabled={!editable&&!assetMode} insets={PREVIEW_ZONE}><div
+          <GarmentArtworkCameraLayer zone={zoneEl} enabled={!assetMode&&!focusArtwork} interactive={editable} insets={PREVIEW_ZONE}><div
             ref={bindZone}
             data-print-design-zone
             data-asset-artboard={assetMode ? '' : undefined}
@@ -3694,8 +3696,8 @@ export function PrintsDesignPreview({
             const part = patternHover.kind === 'part' ? patternTargets.find(target => target.id === patternHover.id) : undefined;
             const area = patternHover.kind === 'area' ? elements.find(element => element.id === patternHover.id) : undefined;
             const artwork=patternHover.kind==='artwork'?elements.find(element=>element.id===patternHover.id):undefined;
-            return <div className="pointer-events-none absolute inset-0 z-[30]" data-pattern-drop-target={patternHover.id} style={{zIndex:0}}>
-              {part && dragPattern ? <div className="absolute inset-0" style={{maskImage:`url("${part.url}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'}}><div style={{position:'absolute',left:part.bounds.x,top:part.bounds.y,width:part.bounds.width,height:part.bounds.height,transform:'translate(-50%,-50%)',opacity:(dragPattern.settings?.opacity??100)/100}}><PatternGraphic fabricPreview element={{id:'drag-preview',type:'pattern',content:dragPattern.id,...part.bounds,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></div></div> : null}
+            return <div className="pointer-events-none absolute inset-0 z-[30]" data-pattern-drop-target={patternHover.id} style={{zIndex:250,mixBlendMode:patternHover.id.startsWith('trim:')?'multiply':undefined}}>
+              {part && dragPattern ? <div className="absolute inset-0" style={{maskImage:`url("${part.url}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'}}><div style={{position:'absolute',left:part.bounds.x,top:part.bounds.y,width:part.bounds.width,height:part.bounds.height,transform:'translate(-50%,-50%)',opacity:(dragPattern.settings?.opacity??100)/100}}><PatternGraphic fabricPreview element={{id:'drag-preview',type:'pattern',content:dragPattern.id,...part.bounds,rotation:0,patternCount:defaultPatternCount(dragPattern.id),...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></div></div> : null}
               {area ? <svg className="absolute overflow-visible" viewBox={`0 0 ${area.width} ${area.height}`} style={{ left: area.x, top: area.y, width: area.width, height: area.height, transform: `translate(-50%, -50%) rotate(${area.rotation}deg)`, maskImage: drawingMask ? drawingMaskCss(drawingMask, area.width, area.height, area.x, area.y, area.rotation) : undefined }}>
                 <defs><clipPath id="pattern-hover-area"><path d={customAreaTransformedPath(area)}/></clipPath></defs>{dragPattern&&<g clipPath="url(#pattern-hover-area)"><PatternGraphic fabricPreview element={{...area,type:'pattern',content:dragPattern.id,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></g>}<path d={customAreaTransformedPath(area)} fill="none" stroke="#737373" strokeWidth="1"/>
               </svg> : null}
@@ -3846,8 +3848,9 @@ export function PrintsDesignPreview({
                 )}
                 style={{
                   ...({'--artwork-ui-inverse':uiInv} as React.CSSProperties),
+                  mixBlendMode:element.patternTarget?.startsWith('trim:')?'multiply':undefined,
                   visibility:studio.tool==='shapePolygon'&&studio.penOperation==='continue'&&studio.penTargetId===element.id?'hidden':undefined,
-                  zIndex:isBackgroundPattern(element)?0:isHeld?15:1,
+                  zIndex:assetMode?(isBackgroundPattern(element)?0:isHeld?15:1):(element.behindTrims?100:isHeld?260:250),
                   left: liveX,
                   top: liveY,
                   // Text: design `width` is the wrap width; with `autoHeight` the box grows with lines.

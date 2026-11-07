@@ -75,7 +75,10 @@ function cubicPoint(a: PanellingPoint, b: PanellingPoint, c: PanellingPoint, d: 
   };
 }
 
+const flattenedSeams = new WeakMap<PanellingSeam, Map<number, PanellingPoint[]>>();
 export function flattenSeam(seam: PanellingSeam, curveSteps = 48) {
+  const cached = flattenedSeams.get(seam)?.get(curveSteps);
+  if (cached) return cached;
   const result: PanellingPoint[] = [];
   for (let index = 0; index < seam.anchors.length - 1; index++) {
     const start = seam.anchors[index], end = seam.anchors[index + 1];
@@ -85,6 +88,8 @@ export function flattenSeam(seam: PanellingSeam, curveSteps = 48) {
       for (let step = 1; step <= curveSteps; step++) result.push(cubicPoint(start, control1, control2, end, step / curveSteps));
     } else result.push({ x: end.x, y: end.y });
   }
+  const entries = flattenedSeams.get(seam) ?? new Map();
+  entries.set(curveSteps, result); flattenedSeams.set(seam, entries);
   return result;
 }
 

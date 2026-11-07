@@ -1,3 +1,4 @@
+import {zipRoute,mapZipCurve,type ZipAnchor} from '../lib/zipCurve';
 import polygonClipping, { type MultiPolygon, type Ring } from 'polygon-clipping';
 import svgpath from 'svgpath';
 import { detailPlacement, detailRotation, type DetailBounds, type GarmentDetail } from './garmentDetails';
@@ -5,9 +6,12 @@ import { detailPlacement, detailRotation, type DetailBounds, type GarmentDetail 
 export type OpeningPlacement = 'neckline' | 'shoulder' | 'side-seam' | 'hem' | 'full-front' | 'free';
 export type OpeningPoint = { x: number; y: number };
 export interface OpeningDefaults {
+  curve?: ZipAnchor[];
   start: OpeningPoint; end: OpeningPoint; width: number; attachment: OpeningPlacement; facingColor: string;
 }
 export interface GarmentOpening extends OpeningDefaults {
+  sizingVersion?:1;
+  sourceSeamId?:string;
   version: 1;
   closure: 'zip';
   defaults: OpeningDefaults;
@@ -166,7 +170,9 @@ export function openingGapProfile(detail: GarmentDetail, width: number, height: 
 }
 
 function strip(opening: OpeningDefaults, width = opening.width, extend = true): MultiPolygon {
-  const length = distance(opening.start, opening.end);
+  const route=zipRoute(opening);
+  const length = route.length;
+  if(opening.curve?.length){const sides=[-1,1].map(side=>route.points.map((_,i)=>{const at=route.points.slice(1,i+1).reduce((n,p,j)=>n+distance(p,route.points[j]),0);const p=route.at(at,side*width/2);return [p.x,p.y] as [number,number]}));const ring=[...sides[0],...sides[1].reverse()];return [[ [...ring,ring[0]] ]];}
   if (!length || !Number.isFinite(length) || !Number.isFinite(width) || width <= 0) return [];
   const dx = (opening.end.x - opening.start.x) / length, dy = (opening.end.y - opening.start.y) / length;
   const before = extend ? 2 : 0;
@@ -220,17 +226,13 @@ export function openingNecklineReach(detail: GarmentDetail, bounds: DetailBounds
 }
 
 export function openingGap(detail: GarmentDetail, padding = 0, reach = 2): MultiPolygon {
-  const opening = detail.opening!;
-  const height = distance(opening.start, opening.end);
-  const profile = openingGapProfile(detail, opening.width, height);
-  const dx = (opening.end.x - opening.start.x) / height, dy = (opening.end.y - opening.start.y) / height;
-  const point = (y: number, side: number): [number, number] => [
-    opening.start.x + dx * y - dy * side * (profile.halfGap(y) + padding),
-    opening.start.y + dy * y + dx * side * (profile.halfGap(y) + padding),
-  ];
-  const stations = [-Math.max(2, reach), ...profile.stations, height + 2];
-  const ring = [...stations.map(y => point(y, -1)), ...stations.slice().reverse().map(y => point(y, 1))];
-  return [[ [...ring, ring[0]] ]];
+ const opening=detail.opening!,route=zipRoute(opening),height=route.length;
+ if(height<.001)return [];
+ const profile=openingGapProfile(detail,opening.width,height);
+ const stations=[-Math.max(2,reach),...Array.from({length:97},(_,i)=>height*i/96),...profile.stations,height+2].sort((a,b)=>a-b);
+ const point=(y:number,side:number):[number,number]=>{const p=route.at(y,side*(profile.halfGap(y)+padding));return[p.x,p.y]};
+ const ring=[...stations.map(y=>point(y,-1)),...stations.slice().reverse().map(y=>point(y,1))];
+ return [[ [...ring,ring[0]] ]];
 }
 function sync(detail: GarmentDetail, bounds: DetailBounds): GarmentDetail {
   const opening = detail.opening!;
@@ -300,11 +302,12 @@ export function reanchorOpening(detail:GarmentDetail,bounds:DetailBounds):Garmen
  const dx=anchor.x-(previous?.x??opening.start.x),dy=anchor.y-(previous?.y??opening.start.y);
  if(Math.abs(dx)<.01&&Math.abs(dy)<.01)return detail;
  const translate=(point:OpeningPoint)=>({x:point.x+dx,y:point.y+dy});
- return sync({...detail,opening:{...opening,start:translate(opening.start),end:translate(opening.end),defaults:{...opening.defaults,start:translate(opening.defaults.start),end:translate(opening.defaults.end)},garmentAnchor:anchor}},bounds);
+ return sync({...detail,opening:{...opening,start:translate(opening.start),end:translate(opening.end),curve:mapZipCurve(opening,translate),defaults:{...opening.defaults,start:translate(opening.defaults.start),end:translate(opening.defaults.end),curve:mapZipCurve(opening.defaults,translate)},garmentAnchor:anchor}},bounds);
 }
 export function setOpeningEndpoint(detail: GarmentDetail, bounds: DetailBounds, endpoint: 'start' | 'end', point: OpeningPoint): GarmentDetail {
   if (!detail.opening || !finite(point)) return detail;
-  return sync({ ...detail, opening: { ...detail.opening, [endpoint]: { x: point.x, y: point.y } } }, bounds);
+  const original=detail.opening[endpoint],dx=point.x-original.x,dy=point.y-original.y;const curve=detail.opening.curve?.map((a,i,all)=>i===(endpoint==='start'?0:all.length-1)?{...a,x:point.x,y:point.y,incoming:a.incoming?{x:a.incoming.x+dx,y:a.incoming.y+dy}:undefined,outgoing:a.outgoing?{x:a.outgoing.x+dx,y:a.outgoing.y+dy}:undefined}:a);
+  return sync({ ...detail, opening: { ...detail.opening, curve, [endpoint]: { x: point.x, y: point.y } } }, bounds);
 }
 export function resetOpening(detail: GarmentDetail): GarmentDetail {
   if (!detail.opening) return detail;
@@ -319,7 +322,7 @@ export function resetOpening(detail: GarmentDetail): GarmentDetail {
   const attachment = placements.includes(saved.attachment!) ? saved.attachment! : placements.includes(current.attachment) ? current.attachment : 'free';
   const facingColor = [saved.facingColor, current.facingColor, detail.fill].find(color => typeof color === 'string' && /^#[\da-f]{6}$/i.test(color)) ?? '#777777';
   // Older saved defaults may be partial; never replace complete endpoints with partial objects.
-  const defaults: OpeningDefaults = { start, end, width: usableWidth(saved.width) ? saved.width! : usableWidth(current.width) ? current.width : 32, attachment, facingColor };
+  const defaults: OpeningDefaults = { curve:saved.curve, start, end, width: usableWidth(saved.width) ? saved.width! : usableWidth(current.width) ? current.width : 32, attachment, facingColor };
   const opening: GarmentOpening = { ...current, ...defaults, defaults: structuredClone(defaults) };
   return { ...detail, opening, rotation: (Math.atan2(opening.end.y - opening.start.y, opening.end.x - opening.start.x) * 180 / Math.PI - 90 + 360) % 360 };
 }
@@ -331,19 +334,22 @@ export function transformOpening(detail: GarmentDetail, bounds: DetailBounds, pa
   const angle = (patch.rotation ?? detailRotation(detail)) * Math.PI / 180;
   const x = bounds.minX + (patch.x ?? current.x) * (bounds.maxX - bounds.minX);
   const y = bounds.minY + (patch.y ?? current.y) * (bounds.maxY - bounds.minY);
-  return sync({ ...detail, opening: { ...detail.opening, width,
+  const old=detail.opening,oldAngle=Math.atan2(old.end.y-old.start.y,old.end.x-old.start.x),oldLength=distance(old.start,old.end)||1;
+  const curve=mapZipCurve(old,p=>{const rx=p.x-(old.start.x+old.end.x)/2,ry=p.y-(old.start.y+old.end.y)/2;const along=(rx*Math.cos(oldAngle)+ry*Math.sin(oldAngle))*height/oldLength,cross=(-rx*Math.sin(oldAngle)+ry*Math.cos(oldAngle))*width/old.width;return{x:x-Math.sin(angle)*along-Math.cos(angle)*cross,y:y+Math.cos(angle)*along-Math.sin(angle)*cross}});
+  return sync({ ...detail, opening: { ...detail.opening, width, curve,
     start: { x: x + Math.sin(angle) * height / 2, y: y - Math.cos(angle) * height / 2 },
     end: { x: x - Math.sin(angle) * height / 2, y: y + Math.cos(angle) * height / 2 } } }, bounds);
 }
 export function validateOpening(detail: GarmentDetail, bounds: DetailBounds): { status: 'Valid' | 'Needs Review' | 'Invalid'; reasons: string[] } {
   const opening = detail.opening;
   if (!opening) return { status: 'Needs Review', reasons: ['Overlay zip: convert explicitly to cut the garment.'] };
+  if(opening.curve?.some(a=>!finite(a)||(a.incoming&&!finite(a.incoming))||(a.outgoing&&!finite(a.outgoing))))return {status:'Invalid',reasons:['Curve coordinates must be finite.']};
   if (opening.version !== 1 || opening.closure !== 'zip' || !finite(opening.start) || !finite(opening.end) || !Number.isFinite(opening.width) || opening.width < 2 || opening.width > 600 || distance(opening.start, opening.end) < Math.max(8, opening.width * 1.2)) return { status: 'Invalid', reasons: ['The opening needs finite, distinct endpoints and a usable width smaller than its length.'] };
   const fabric = bounds.openingGeometry?.fabric;
   if (!fabric?.length) return { status: 'Needs Review', reasons: [bounds.openingGeometry?.unavailableReason ?? 'Actual garment contour geometry is not available; no fabric cut is applied.'] };
   try {
     const cut = polygonClipping.intersection(fabric, strip(opening, opening.width, false));
-    const coverage = openingArea(cut) / (opening.width * distance(opening.start, opening.end));
+    const coverage = openingArea(cut) / (opening.width * zipRoute(opening).length);
     if (coverage < .12) return { status: 'Invalid', reasons: ['The opening does not intersect enough garment fabric.'] };
     const reasons: string[] = [];
     if (coverage < .8) reasons.push('The opening crosses an existing aperture or extends outside the fabric.');

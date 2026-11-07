@@ -16,6 +16,11 @@ export interface PanellingSeam {
   fit?: string;
   anchors: SeamAnchor[];
   construction: 'standard';
+  finish?: 'plain' | 'topstitch' | 'double' | 'flatlock' | 'exposed' | 'piping' | 'overlock' | 'binding' | 'raw' | 'taped' | 'hidden' | 'zigzag' | 'chain' | 'lapped' | 'coverstitch' | 'mesh';
+  seamColour?:string;
+  threadColour?: string;
+  finishWidth?: number;
+  stitchLength?: number;
   mirrorGroupId?: string;
   mirrorLinked?: boolean;
 }

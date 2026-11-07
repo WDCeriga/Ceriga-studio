@@ -1,3 +1,4 @@
+import {SeamFinish} from '../../../features/panelling/SeamFinish';
 import {useId} from 'react';
 import {seamPath} from '../../../features/panelling/panellingGeometry';
 import {linkedMirrorSeams} from '../../../features/panelling/panellingMirroring';
@@ -9,6 +10,6 @@ export function PanellingReadOnlyOverlay({seams,mirror,colour='#141414',boundari
  const boundaryPath=boundaries.map(boundary=>'M'+boundary.points.map(point=>point.x+','+point.y).join('L')+'Z').join(' ');
  return <svg viewBox="0 0 2048 2048" className="absolute inset-0 h-full w-full pointer-events-none" style={{zIndex:90}} aria-label="Saved garment seams">
   {boundaryPath&&<defs><clipPath id={clipId}><path d={boundaryPath} fillRule="nonzero" clipRule="nonzero"/></clipPath></defs>}
-  <g clipPath={boundaryPath?`url(#${clipId})`:undefined}>{linkedMirrorSeams(seams,1024,mirror).map(seam=><path key={seam.id} data-construction-seam="" d={seamPath(seam.anchors)} fill="none" stroke={colour} strokeWidth="1.25" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round"/>)}</g>
+  <g clipPath={boundaryPath?`url(#${clipId})`:undefined}>{linkedMirrorSeams(seams,1024,mirror).map(seam=><SeamFinish key={seam.id} seam={seam} colour={colour}/>)}</g>
  </svg>;
 }

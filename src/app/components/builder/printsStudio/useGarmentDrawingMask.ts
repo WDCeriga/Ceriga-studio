@@ -54,6 +54,7 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
       root.setAttribute('height', String(canvas.height));
       root.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
       for (const svg of preview.querySelectorAll<SVGSVGElement>('svg')) {
+        if(svg.closest('[data-artwork-camera-layer]'))continue;
         if (svg.parentElement?.closest('svg') || svg.closest('[data-garment-label-overlay],[data-editor-chrome],[data-print-id]') || getComputedStyle(svg).visibility === 'hidden') continue;
         const matrix = svg.getScreenCTM();
         if (!matrix || !svg.getBoundingClientRect().width) continue;
@@ -95,6 +96,8 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
       frame = requestAnimationFrame(() => { void rebuild(); });
     };
     const observer = new MutationObserver(records=>{
+      records=records.filter(record=>record.target===zone||!(record.target instanceof Element)||!record.target.closest('[data-artwork-camera-layer]'));
+      if(!records.length)return;
       // Geometry stays in garment coordinates during zoom. Refresh its raster once
       // the camera settles instead of encoding a new full-size mask every frame.
       if(records.every(record=>record.target===zone)){window.clearTimeout(cameraTimer);cameraTimer=window.setTimeout(schedule,120);}
