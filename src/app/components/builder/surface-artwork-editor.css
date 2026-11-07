@@ -22,7 +22,7 @@
  [data-shared-surface-editor]>.artwork-canvas-tools .artwork-rail-history{grid-template-columns:repeat(2,1fr)}
 }
 
-[data-shared-surface-editor] [data-print-id][data-artwork-hover] [data-visible-bounds]:after{border:0;box-shadow:0 0 0 calc(1px * var(--artwork-ui-inverse,1)) #73737380}
+[data-shared-surface-editor] [data-print-id][data-artwork-hover] [data-visible-bounds]:after{border:calc(1px * var(--artwork-ui-inverse,1)) solid #cc2d2466;box-shadow:none}
 
 /* Physical boards are magnified from mm coordinates; avoid low-resolution compositor tiles. */
 [data-shared-surface-editor] .canvas-element-drag{will-change:auto}

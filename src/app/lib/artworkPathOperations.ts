@@ -113,3 +113,24 @@ export function reframeEditedPath(element:DesignElement,path:ShapePath):Partial<
   const dx=(fitted.x-element.width/2)*(element.flipHorizontal?-1:1),dy=(fitted.y-element.height/2)*(element.flipVertical?-1:1),angle=element.rotation*Math.PI/180;
   return {...fitted,x:element.x+dx*Math.cos(angle)-dy*Math.sin(angle),y:element.y+dx*Math.sin(angle)+dy*Math.cos(angle)};
 }
+
+/** Split off a closed region, or an edge-to-edge open cut, as independent artwork. */
+export function splitArtworkRegion(element:DesignElement, cut:ShapePath):DesignElement[] {
+ const body=pathPolygons(shapeWorldPath(element));
+ let region=cut;
+ if(!cut.closed){
+  const ring=body[0]?.[0];
+  if(!ring||cut.nodes.length<2)throw new Error('Draw a line from one edge of the shape to another.');
+  const nearest=(p:Point)=>{let best={x:0,y:0,index:0,d:Infinity};for(let i=0;i<ring.length-1;i++){const a=ring[i],b=ring[i+1],dx=b[0]-a[0],dy=b[1]-a[1],t=Math.max(0,Math.min(1,((p.x-a[0])*dx+(p.y-a[1])*dy)/(dx*dx+dy*dy||1))),x=a[0]+dx*t,y=a[1]+dy*t,d=Math.hypot(p.x-x,p.y-y);if(d<best.d)best={x,y,index:i,d};}return best;};
+  const start=nearest(cut.nodes[0]),end=nearest(cut.nodes.at(-1)!);
+  const tolerance=Math.max(element.width,element.height)*.12;
+  if(start.d>tolerance||end.d>tolerance)throw new Error('Start and finish near the shape edge, or close the region inside the shape.');
+  const nodes=[{x:start.x,y:start.y},...cut.nodes,{x:end.x,y:end.y}];
+  let i=(end.index+1)%(ring.length-1),limit=0;
+  while(i!==(start.index+1)%(ring.length-1)&&limit++<ring.length){nodes.push({x:ring[i][0],y:ring[i][1]});i=(i+1)%(ring.length-1);}
+  region={closed:true,nodes};
+ }
+ const mask=pathPolygons(region),inside=clipping.intersection(body,mask),outside=clipping.difference(body,mask);
+ if(!inside.length||!outside.length)throw new Error('The line must divide the shape into two visible regions.');
+ return [outside,inside].map((polygons,index)=>{const paths=polygons.flatMap(poly=>poly.map(ring=>({closed:true,nodes:ring.slice(0,-1).map(([x,y])=>({x,y}))} as ShapePath)));return {...element,...fitPenPath({...paths[0],subpaths:paths.slice(1)}),id:index?crypto.randomUUID():element.id,type:'shape',content:'custom-path',rotation:0,flipHorizontal:false,flipVertical:false,shapeGeometry:'bounds',shapeFillRule:'evenodd',shapeFilled:true,shapePath:fitPenPath({...paths[0],subpaths:paths.slice(1)}).shapePath,svgPrecision:undefined,children:undefined,booleanOperation:undefined,shapeOperationSources:undefined,layerName:index?'New region':element.layerName} as DesignElement;});
+}

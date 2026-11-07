@@ -81,8 +81,8 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
   useLayoutEffect(() => {
     const root = surface.current?.parentElement;
     if (!root?.matches('[data-print-id]')) return;
-    const vectorContext=unpainted?document.createElement('canvas').getContext('2d'):null;
-    const hitPaths=unpainted?Array.from(content.current?.querySelectorAll<SVGPathElement>('[data-editable-ink]')??[]).map(node=>({node,path:new Path2D(node.getAttribute('d')??'')})):[];
+    const vectorContext=element.type==='shape'?document.createElement('canvas').getContext('2d'):null;
+    const hitPaths=element.type==='shape'?Array.from(content.current?.querySelectorAll<SVGPathElement>('[data-editable-ink]')??[]).map(node=>({node,path:new Path2D(node.getAttribute('d')??'')})):[];
     return registerArtworkHitTest(root, client => {
       if ((element.type === 'drawing' || element.patternTarget) && garmentMask === null) return false;
       // Imported font metrics can extend past their original frame after fonts load.
@@ -113,6 +113,9 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
             !garmentMask.canvas.getContext('2d')?.getImageData(x, y, 1, 1).data[3]) return false;
         }
       }
+      if(element.type==='shape'&&element.shapeFilled&&!element.warp&&!element.perspective&&vectorContext&&hitPaths.length){
+        return hitPaths.some(({node,path})=>{const matrix=node.getScreenCTM();if(!matrix)return false;vectorContext.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);return vectorContext.isPointInPath(path,client.x,client.y,element.shapeFillRule??'evenodd');});
+      }
       if(unpainted&&!selected){
         if(local.x<-.1||local.x>1.1||local.y<-.1||local.y>1.1||!vectorContext)return false;
         return hitPaths.some(({node,path})=>{const matrix=node.getScreenCTM();if(!matrix)return false;vectorContext.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);vectorContext.lineWidth=12/Math.max(.01,Math.sqrt(Math.abs(matrix.a*matrix.d-matrix.b*matrix.c)));return vectorContext.isPointInStroke(path,client.x,client.y);});
@@ -122,7 +125,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
       return local.x >= bounds.x && local.x <= bounds.x + bounds.width
         && local.y >= bounds.y && local.y <= bounds.y + bounds.height;
     });
-  }, [artworkSurface,element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live, bounds,unpainted,selected,element.shapePath]);
+  }, [artworkSurface,element.rotation, element.perspective, element.type, element.patternTarget, garmentMask, live, bounds,unpainted,selected,element.shapePath,element.shapeFilled,renderSignature]);
 
   useEffect(() => {
     const node = content.current;
@@ -145,7 +148,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
         const measured = image && alphaBounds(image);
         if (current()) {
           setPrintMask(image?{url:canvas.toDataURL('image/png'),width:captureWidth,height:captureHeight,padding,key:printMaskKey}:null);
-          setBounds(measured ? { x: (measured.x * captureWidth - padding) / width, y: (measured.y * captureHeight - padding) / actualHeight, width: measured.width * captureWidth / width, height: measured.height * captureHeight / actualHeight } : { x: 0, y: 0, width: 0, height: 0 });
+          setBounds(measured ? { x: (measured.x * captureWidth - padding) / width, y: (measured.y * captureHeight - padding) / actualHeight, width: measured.width * captureWidth / width, height: measured.height * captureHeight / actualHeight } : { x: 0, y: 0, width: 1, height: 1 });
         }
       } catch (error) {
         console.warn('Could not prepare artwork pixel hit area.',error);

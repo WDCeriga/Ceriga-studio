@@ -110,8 +110,8 @@ interface PrintsStudioContextValue extends PrintsStudioState {
   setSelectionIds: (ids: string[] | ((previous: string[]) => string[])) => void;
   penTargetId: string | null;
   setPenTargetId: (id: string | null) => void;
-  penOperation: 'subtract' | 'join' | 'continue';
-  setPenOperation: (operation: 'subtract' | 'join' | 'continue') => void;
+  penOperation: 'subtract' | 'join' | 'continue' | 'split';
+  setPenOperation: (operation: 'subtract' | 'join' | 'continue' | 'split') => void;
   outlineRequest:{id:string;serial:number}|null;requestOutline:(id:string)=>void;
   logoRegionEditing:{rootId:string;regionId:string}|null;setLogoRegionEditing:(value:{rootId:string;regionId:string}|null)=>void;
   penCurvature:boolean;setPenCurvature:(value:boolean|((previous:boolean)=>boolean))=>void;
@@ -167,7 +167,7 @@ function PrintsStudioDocumentProvider({ children, initialState, onStateChange }:
   const [selectionIds, setSelectionIds] = useState<string[]>([]);
   useEffect(()=>setBooleanPreview([]),[state.tool,selectionIds.join('|')]);
   const [penTargetId, setPenTargetId] = useState<string | null>(null);
-  const [penOperation, setPenOperation] = useState<'subtract' | 'join' | 'continue'>('subtract');
+  const [penOperation, setPenOperation] = useState<'subtract' | 'join' | 'continue' | 'split'>('subtract');
   useEffect(() => {
     if (state.tool !== 'select' || cropEditingId || warpEditingId || distortEditingId) setPathEditingId(null);
   }, [state.tool, cropEditingId, warpEditingId, distortEditingId]);

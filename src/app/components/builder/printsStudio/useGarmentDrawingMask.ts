@@ -33,7 +33,7 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
       resize.observe(zone);
       return () => resize.disconnect();
     }
-    const preview = zone?.parentElement?.querySelector<HTMLElement>('[data-print-garment-preview]');
+    const preview = zone?.closest('[data-design-canvas]')?.querySelector<HTMLElement>('[data-print-garment-preview]');
     if (!zone || !preview) return;
     let generation = 0;
     let frame = 0;
@@ -54,7 +54,7 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
       root.setAttribute('height', String(canvas.height));
       root.setAttribute('viewBox', `0 0 ${canvas.width} ${canvas.height}`);
       for (const svg of preview.querySelectorAll<SVGSVGElement>('svg')) {
-        if (svg.parentElement?.closest('svg') || getComputedStyle(svg).visibility === 'hidden') continue;
+        if (svg.parentElement?.closest('svg') || svg.closest('[data-garment-label-overlay],[data-editor-chrome],[data-print-id]') || getComputedStyle(svg).visibility === 'hidden') continue;
         const matrix = svg.getScreenCTM();
         if (!matrix || !svg.getBoundingClientRect().width) continue;
         const group = document.createElementNS(root.namespaceURI, 'g');
@@ -69,7 +69,8 @@ export function useGarmentDrawingMask(zone: HTMLDivElement | null, side: 'front'
         ? (matrix.a * (viewBox.x + viewBox.width / 2) + matrix.c * (viewBox.y + viewBox.height / 2) + matrix.e - bounds.left) / bounds.width * zone.clientWidth
         : zone.clientWidth / 2;
       // Keep the clipping silhouette as SVG for replay at any future drawing size.
-      for(const pattern of root.querySelectorAll('pattern'))pattern.remove();
+      for(const decoration of root.querySelectorAll('pattern,image,foreignObject,filter'))decoration.remove();
+      for(const node of root.querySelectorAll<SVGElement>('*')){node.removeAttribute('filter');node.style.filter='none';}
       for(const shape of root.querySelectorAll<SVGElement>('path,rect,circle,ellipse,polygon,polyline')){
         if(shape.getAttribute('fill')!=='none'){shape.setAttribute('fill','#fff');shape.style.fill='#fff'}
       }

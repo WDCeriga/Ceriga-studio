@@ -18,7 +18,7 @@
 
 .print-design-canvas[data-space-pan] .print-garment-stage,.print-design-canvas[data-space-pan] .print-garment-stage *{cursor:grab!important}.print-design-canvas[data-space-pan] .print-garment-stage:active{cursor:grabbing!important}
 
-[data-print-id][data-artwork-hover] [data-visible-bounds]:after{content:'';position:absolute;inset:0;border:1px solid #73737380;box-shadow:0 0 0 1px #ffffffa0;pointer-events:none}
+[data-print-id][data-artwork-hover] [data-visible-bounds]:after{content:'';position:absolute;inset:calc(-2px * var(--artwork-ui-inverse,1));border:calc(1px * var(--artwork-ui-inverse,1)) solid #cc2d2466;border-radius:calc(2px * var(--artwork-ui-inverse,1));box-shadow:none;background:transparent;pointer-events:none}
 
 .shape-transform-bounds{border-color:#404040!important;box-shadow:0 0 0 1px #ffffffb3}.shape-transform-handle:after{width:7px!important;height:7px!important;border-radius:1px!important;border-color:#404040!important;box-shadow:0 0 0 1px #ffffffb3}.shape-corner-rotate{position:absolute;pointer-events:auto;touch-action:none;width:20px;height:20px;padding:0;border:0;background:transparent}.shape-corner-rotate:focus-visible{outline:1px solid #737373;outline-offset:1px}.shape-transform-pivot{position:absolute;left:50%;top:50%;width:5px;height:5px;background:white;border:1px solid #737373;border-radius:50%;pointer-events:none}.shape-transform-readout{position:absolute;left:50%;font-size:10px;line-height:1.4;color:#525252;padding:4px 7px;background:#ffffffed;border:1px solid #e2e2e2;border-radius:4px;white-space:nowrap;pointer-events:none}
 

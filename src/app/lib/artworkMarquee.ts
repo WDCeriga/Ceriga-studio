@@ -10,3 +10,12 @@ export function marqueeArtworkIds(elements:DesignElement[],side:'front'|'back',b
     return e.x+w>=box.x&&e.x-w<=box.x+box.width&&e.y+h>=box.y&&e.y-h<=box.y+box.height;
   }).map(e=>e.id);
 }
+
+/** Use the rendered ink bounds rather than a source artboard's transparent padding. */
+export function renderedMarqueeArtworkIds(elements:DesignElement[],side:'front'|'back',box:MarqueeBox,zone:HTMLElement){
+ const zr=zone.getBoundingClientRect(),sx=zr.width/zone.clientWidth,sy=zr.height/zone.clientHeight;
+ if(!sx||!sy)return [];
+ const selection={left:zr.left+box.x*sx,top:zr.top+box.y*sy,right:zr.left+(box.x+box.width)*sx,bottom:zr.top+(box.y+box.height)*sy};
+ const roots=new Map(Array.from(zone.querySelectorAll<HTMLElement>('[data-print-id]')).map(root=>[root.dataset.printId,root]));
+ return elements.filter(e=>{if((e.side??'front')!==side||!canGroupLayer(e))return false;const root=roots.get(e.id),bounds=root?.querySelector<HTMLElement>('[data-visible-bounds]');if(!bounds)return false;const rect=bounds.getBoundingClientRect();return rect.width>0&&rect.height>0&&rect.right>=selection.left&&rect.left<=selection.right&&rect.bottom>=selection.top&&rect.top<=selection.bottom;}).map(e=>e.id);
+}
