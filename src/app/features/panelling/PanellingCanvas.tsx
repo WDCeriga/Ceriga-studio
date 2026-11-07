@@ -1,7 +1,7 @@
 import {SeamFinish} from './SeamFinish';
 import {useTechnicalDrawing,TECH_OUTLINE_WIDTH,TECH_TRACE_INK_BOLDNESS} from '../../lib/technicalDrawing';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useId, useRef, useState, type ForwardedRef, type PointerEvent as ReactPointerEvent } from 'react';
-import { closestBoundaryPoint, distance, flattenSeam, pointInSurface, sampleSvgBoundaries, sampleGarmentSurfaces, seamPath } from './panellingGeometry';
+import { closestBoundaryPoint, distance, flattenSeam, mirrorSeam, pointInSurface, sampleSvgBoundaries, sampleGarmentSurfaces, seamPath } from './panellingGeometry';
 import { constructionInk, measureGarmentOutline } from './panellingPresentation';
 import { linkedMirrorSeams } from './panellingMirroring';
 import { bendSeamSegment,closestSeamLocation,pointOnCurve,straightenSeamSegment,removeSeamAnchor,convertSeamToCurve, insertSeamAnchor, moveSeamAnchor, setAnchorMode, snapAnchor } from './panellingSeams';
@@ -56,6 +56,7 @@ interface PanellingCanvasProps {
   seams: PanellingSeam[];
   panels: PanelRegion[];
   mirror: boolean;
+  legacyMirror?: boolean;
   tool: Tool;
   editAction?:PanellingEditAction;
   onToolChange?:(tool:Tool)=>void;
@@ -97,7 +98,7 @@ function nearestSeam(seams:PanellingSeam[],point:PanellingPoint,radius:number){
 
 const boundaryCache = new Map<string, ReturnType<typeof sampleSvgBoundaries>>();
 
-function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = false, seamColour = '#1d2424', garmentMarkup, parentSurfaceId, parentLabel, parentFill, boundaries, symmetryAxis, seams, panels, mirror, tool, editAction='reshape', onToolChange, selectedPanelId, onSeamsChange, onPanelSelect, onBoundariesChange, onDrawingStateChange, onSelectionChange }: PanellingCanvasProps, ref: ForwardedRef<PanellingCanvasHandle>) {
+function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = false, seamColour = '#1d2424', garmentMarkup, parentSurfaceId, parentLabel, parentFill, boundaries, symmetryAxis, seams, panels, mirror, legacyMirror = false, tool, editAction='reshape', onToolChange, selectedPanelId, onSeamsChange, onPanelSelect, onBoundariesChange, onDrawingStateChange, onSelectionChange }: PanellingCanvasProps, ref: ForwardedRef<PanellingCanvasHandle>) {
   const technical=useTechnicalDrawing();
   const clipId = `panelling-${useId().replaceAll(':', '')}`;
   const frameRef = useRef<HTMLDivElement>(null);
@@ -117,7 +118,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
   const [constructionWidth, setConstructionWidth] = useState(TECH_OUTLINE_WIDTH);
   const ink = useMemo(() => constructionInk(garmentMarkup), [garmentMarkup]);
   const hitRadius = 14 * VIEW_SIZE / canvasWidth;
-  const visibleSeams = linkedMirrorSeams(dragPreviewSeams ?? seams, symmetryAxis, mirror);
+  const visibleSeams = linkedMirrorSeams(dragPreviewSeams ?? seams, symmetryAxis, legacyMirror);
 
   useEffect(() => {
     const element = frameRef.current;
@@ -173,7 +174,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     } else {
       const id = crypto.randomUUID();
       const startSurface = boundaries.find(loop => loop.role === 'outer' && pointInSurface(active[0], boundaries.filter(other => other.surfaceId === loop.surfaceId)))?.surfaceId ?? parentSurfaceId;
-      finished={ id, label: `${parentLabel} seam ${seams.length + 1}`, parentSurfaceId: startSurface, anchors: active, construction: 'standard', ...(mirror ? { mirrorGroupId: id, mirrorLinked: true } : {}) };
+      finished={ id, label: `${parentLabel} seam ${seams.length + 1}`, parentSurfaceId: startSurface, anchors: active, construction: 'standard', mirrorLinked: mirror, ...(mirror ? { mirrorGroupId: id } : {}) };
       onSeamsChange([...seams,finished]);
     }
     continuationRef.current = null;
@@ -289,7 +290,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     event.stopPropagation();
     const point = pointFromEvent(event), edge = closestBoundaryPoint(point,boundaries);
     if(tool==='select'){
-      const editableSeams=linkedMirrorSeams(seams,symmetryAxis,mirror);
+      const editableSeams=linkedMirrorSeams(seams,symmetryAxis,legacyMirror);
       const sourceFor=(id:string)=>{const seam=seams.find(seam=>seam.id===id)??seams.find(seam=>seam.id===id.replace(/:mirror$/,''));return {seam,mirrored:!seams.some(seam=>seam.id===id)};};
       const handle=editAction==='reshape'?nearestHandle(editableSeams.filter(seam=>seam.id===selected?.seamId||seam.id===selected?.seamId+':mirror'),point,hitRadius*.65):undefined;
       if(handle){const {seam,mirrored}=sourceFor(handle.seamId);if(!seam)return;const id=mirrored?handle.anchor.id.replace(/:mirror$/,''):handle.anchor.id;
@@ -400,8 +401,11 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
   })() : null;
   const activePreview = !drawingPreview && active.length && cursor ? [...active.slice(-1), { ...cursor, id: 'cursor' }] : [];
   const pendingPath = pending ? [...active.slice(-1), pending] : [];
-  const mirroredPreview = mirror && activePreview.length
-    ? linkedMirrorSeams([{ id: 'active', label: 'Preview', anchors: activePreview, construction: 'standard' }], symmetryAxis, true)[1]?.anchors ?? []
+  const continuedSeam = seams.find(seam => seam.id === continuationRef.current?.seamId);
+  const mirrorDraft = continuedSeam ? (continuedSeam.mirrorLinked ?? legacyMirror) : mirror;
+  const draftPreview = [...active, ...(pendingPath.length ? pendingPath.slice(-1) : activePreview.slice(-1))];
+  const mirroredPreview = mirrorDraft && draftPreview.length > 1
+    ? mirrorSeam({ id: 'active', label: 'Preview', anchors: draftPreview, construction: 'standard' }, symmetryAxis).anchors
     : [];
 
   return <div className={`panelling-canvas-frame ${className ?? ''}`} ref={frameRef}>

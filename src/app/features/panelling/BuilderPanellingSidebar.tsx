@@ -42,7 +42,7 @@ export function BuilderPanellingSidebar({
         </div>
       </div>
       <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/80">
-        Mirror seam
+        Mirror new seam
         <input type="checkbox" checked={mirror} onChange={event => onMirrorChange(event.target.checked)} />
       </label>
       <div className="grid grid-cols-2 gap-2">

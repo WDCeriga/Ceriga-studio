@@ -31,7 +31,7 @@ export function PanellingToolbar({ tool, mirror, active, selectedPanel, panelCol
     </div>
     <div className="toolbar-section">
       <div className="section-label">Options</div>
-      <button type="button" role="switch" aria-checked={mirror} className="mirror-switch" onClick={() => onMirrorChange(!mirror)}><span>Mirror construction</span><span className={mirror ? 'switch-state on' : 'switch-state'}>{mirror ? 'On' : 'Off'}<i /></span></button>
+      <button type="button" role="switch" aria-checked={mirror} className="mirror-switch" onClick={() => onMirrorChange(!mirror)}><span>Mirror new seam</span><span className={mirror ? 'switch-state on' : 'switch-state'}>{mirror ? 'On' : 'Off'}<i /></span></button>
       <div className="toolbar-actions">
         <button type="button" className="action-primary" disabled={!active} onClick={onFinish}><Check size={15} />Finish Path</button>
         <button type="button" className="action-secondary" disabled={!active} onClick={onCancel}><X size={15} />Cancel</button>

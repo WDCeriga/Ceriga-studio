@@ -35,7 +35,21 @@ export type MaterialsState=ColourState&{studioArtwork?:import('../PrintStudioEdi
 
 export const captureColourway=(s:ColourState):ColourState=>JSON.parse(JSON.stringify({artworkSlotOverrides:s.artworkSlotOverrides,colors:s.colors,partColors:s.partColors??{},colourDefaults:s.colourDefaults,tshirtHemStyles:s.tshirtHemStyles,neckTrimColor:s.neckTrimColor,sleeveTrimColor:s.sleeveTrimColor,cuffTrimColor:s.cuffTrimColor,pocketTrimColor:s.pocketTrimColor,stitchingColor:s.stitchingColor}));
 
-const palettes=[
+const trendCollections = {
+  'fashion-2026-27': {
+    label: '2026–2027',
+  },
+} as const;
+
+type TrendCollectionId = keyof typeof trendCollections;
+type MaterialPalette = {
+  name: string;
+  family: string;
+  colours: string[];
+  collection?: TrendCollectionId;
+};
+
+const palettes: MaterialPalette[] = [
 
  {name:'Ink & oat',family:'Neutrals',colours:['#242B32','#E9E2D5','#9B9B91','#F7F4ED']},
 
@@ -61,6 +75,36 @@ const palettes=[
 
  {name:'Black & white',family:'Greys',colours:['#202124','#F4F2ED','#8D9095','#D5D6D6']},
 
+ ...[
+   {name:'Espresso & linen',family:'Neutrals',colours:['#40302B','#E9DFCF','#9D8070','#F6F0E6']},
+   {name:'Canvas & putty',family:'Neutrals',colours:['#E5DCCD','#978D7E','#C7B9A4','#514840']},
+   {name:'Midnight & bone',family:'Neutrals',colours:['#252C3A','#EAE5D9','#78818E','#B8A893']},
+   {name:'Mushroom & chalk',family:'Neutrals',colours:['#8C7E74','#F1ECE3','#C4B7A9','#4C4440']},
+   {name:'Cocoa & shell',family:'Neutrals',colours:['#654C45','#EBDAD4','#A78376','#F7EFE7']},
+
+   {name:'Coal & ash',family:'Greys',colours:['#252626','#929491','#BDBFBA','#F2F1ED']},
+   {name:'Pewter & frost',family:'Greys',colours:['#676E76','#D9E0E3','#A4ADB6','#373E46']},
+   {name:'Cement & charcoal',family:'Greys',colours:['#A8A49D','#3F3D3B','#D5D1C9','#7F7B75']},
+   {name:'Silver & smoke',family:'Greys',colours:['#D0D2D3','#55595E','#93989D','#F2F3F2']},
+
+   {name:'Washed denim',family:'Tonal',colours:['#456384','#9BB6CC','#6F8EAD','#DDE9F0']},
+   {name:'Juniper mist',family:'Tonal',colours:['#3D5C57','#8EABA0','#63877B','#D8E5DB']},
+   {name:'Dusty rose',family:'Tonal',colours:['#995F6E','#D5A7B0','#B98291','#F2DDE0']},
+   {name:'Deep plum',family:'Tonal',colours:['#453047','#9E7996','#704F70','#E1CFDF']},
+   {name:'Butter & honey',family:'Tonal',colours:['#EFE0A2','#A98236','#D5B763','#F8EFCE']},
+
+   {name:'Olive & flax',family:'Earth',colours:['#555B37','#DED2AC','#96986D','#3A3D2D']},
+   {name:'Brick & tobacco',family:'Earth',colours:['#8B493D','#B58B61','#DDC4A3','#50382E']},
+   {name:'Dune & moss',family:'Earth',colours:['#C5AB87','#646A49','#EADCC4','#807052']},
+   {name:'Ochre & umber',family:'Earth',colours:['#B48A44','#594437','#DFC9A1','#F2E6D3']},
+   {name:'Terracotta & shale',family:'Earth',colours:['#A96855','#52615B','#DDB49B','#E5DFCF']},
+
+   {name:'Track red & navy',family:'Contrast',colours:['#263450','#B33E3D','#EDE8DA','#7B8DA3']},
+   {name:'Cobalt & citron',family:'Contrast',colours:['#304DAC','#D7DB78','#E9EEF7','#202B52']},
+   {name:'Aubergine & mint',family:'Contrast',colours:['#4F354F','#AFD1BB','#EAE0E9','#796A8C']},
+   {name:'Petrol & tangerine',family:'Contrast',colours:['#254F59','#DD8950','#EDE4D1','#6F9A9B']},
+   {name:'Berry & butter',family:'Contrast',colours:['#963F60','#F0D887','#DDB0BA','#553448']},
+ ].map((palette): MaterialPalette => ({ ...palette, collection: 'fashion-2026-27' })),
 ];
 
 const swatches=['#F4F1EA','#D8C8AE','#B8B5AE','#777C82','#252A30','#1F3B50','#5E80B2','#8DA8B0','#3D5747','#9CA57E','#C79357','#AD5947','#743C4E','#AA91AE','#D9B3B3','#E8C65F'];
@@ -138,7 +182,7 @@ export function MaterialsInspector({activeView='front',deletablePartIds=[],onDel
 
  {tool==='Part materials'&&<><section className="material-mix-guide"><strong>Build a balanced fabric mix</strong><p>{main.category==='Woven'||main.category==='Technical'?'Use woven or technical panels with similar weight. Add stretch trims only where the construction allows.':'Jersey, terry and fleece can pair with rib for a stretchy neck or cuff. Keep adjoining body panels similar in weight and stretch.'}</p><small>Check stretch, shrinkage and care compatibility with your supplier before production.</small></section><p className="material-caption">Keep the body soft, add rib to a neck or cuff, or choose a different lining. Linked pairs change together.</p><div className="material-part-list">{targets.filter(t=>t.partIds.length>1||!parts.find(p=>p.id===t.id)?.group).map(t=>{const p=parts.find(p=>p.id===t.partIds[0])!,f=resolvePartFabric(assignments,p,parts)??main,linked=Boolean(p.group&&!assignments.unlinkedGroups.includes(p.group));return <details className="material-part-card" key={t.id} open={t.partIds.includes(selectedId??'')}><summary data-material-map-hit={p.id} onClick={()=>{onSelect(p.id);setTarget(t.id)}}><FabricSwatch fabricId={f.id}/><span>{t.label}<small>{f.name}{linked?' · Linked':''}</small></span><i style={{background:state.partColors?.[p.id]??body}}/>{deletablePartIds.includes(p.id)&&onDeletePart&&<button className="material-delete-panel" aria-label={'Delete '+p.label} title="Remove panel seams and merge adjoining fabric" onClick={event=>{event.preventDefault();event.stopPropagation();onDeletePart(p.id)}}><Trash2 size={14}/></button>}</summary><div className="material-group-editor">{(linked?[p]:parts.filter(p=>t.partIds.includes(p.id))).map(member=><div key={member.id}><label>{linked?'Paired fabric':member.label}<MaterialSelect aria-label={`Fabric for ${member.label}`} value={resolvePartFabric(assignments,member,parts)?.id??main.id} onChange={e=>onApply(member.id,{kind:'fabric',fabricId:e.target.value},linked)}>{FABRIC_LIBRARY.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</MaterialSelect></label><input type="color" aria-label={`Colour for ${member.label}`} value={state.partColors?.[member.id]??body} onChange={e=>onApply(member.id,{kind:'colour',colour:e.target.value},linked)}/><button aria-label={`Reset ${member.label} fabric`} onClick={()=>onChange({fabricAssignments:resetPartFabric(assignments,parts,member.id)})}><RotateCcw size={13}/></button></div>)}{p.group&&<button className="material-wide-button" onClick={()=>pairParts(p,!linked)}>{linked?<Link2 size={13}/>:<Unlink size={13}/>} {linked?'Unlink left & right':'Pair left & right'}</button>}</div></details>})}</div><button className="material-wide-button material-rib-toggle" aria-pressed={ribPresetActive} onClick={toggleRibPreset}>{ribPresetActive&&<Check size={13}/>}Use rib on neck & cuffs{ribPresetActive&&<span>On · click to undo</span>}</button></>}
 
- {tool==='Colourways'&&<><ArtworkColourwayMatrix state={state} onChange={onChange}/><details open className="material-saved material-section-disclosure"><summary>Your colourways</summary><div className="material-section-title"><span>{saved.length} / 3</span></div><div className="material-saved-grid">{saved.map(c=><div key={c.id} data-active={state.activeColourwayId===c.id}><button aria-label={`Load ${c.name}`} onClick={()=>onChange({artworkSlotOverrides:undefined,colourDefaults:undefined,tshirtHemStyles:undefined,neckTrimColor:undefined,sleeveTrimColor:undefined,cuffTrimColor:undefined,pocketTrimColor:undefined,stitchingColor:undefined,...c.design,activeColourwayId:c.id})}><span className="material-palette-strip">{[...new Set([c.design.colors[0]?.hex,...Object.values(c.design.partColors??{})])].filter(Boolean).slice(0,4).map((colour,i)=><i key={i} style={{background:colour}}/>)}</span></button><input aria-label={`Name ${c.name}`} value={c.name} onChange={e=>onChange({savedColourways:saved.map(s=>s.id===c.id?{...s,name:e.target.value}:s)})}/><button aria-label={`Delete ${c.name}`} onClick={()=>onChange({savedColourways:saved.filter(s=>s.id!==c.id),activeColourwayId:state.activeColourwayId===c.id?undefined:state.activeColourwayId})}><Trash2 size={13}/></button></div>)}{saved.length<3&&<button className="material-save-new" onClick={save}><Plus size={19}/><span>Save current</span></button>}</div>{state.activeColourwayId&&saved.some(c=>c.id===state.activeColourwayId&&JSON.stringify(c.design)!==colourKey)&&<button className="material-wide-button" onClick={()=>{onChange({savedColourways:saved.map(c=>c.id===state.activeColourwayId?{...c,design:captureColourway(state)}:c)});setNotice('Saved colourway updated')}}>Update selected colourway</button>}<p className="material-caption">Each slot saves one complete combination. Load a slot to compare, or save the current preview.</p></details><details open className="material-section-disclosure"><summary>Palette library</summary><p className="material-caption">Curated for clothing</p><div className="material-filter">{['All','Neutrals','Tonal','Greys','Earth','Contrast'].map(f=><button key={f} aria-pressed={family===f} onClick={()=>setFamily(f)}>{f}</button>)}</div><div className="material-palette-settings"><label>Colours<MaterialSelect aria-label="Number of palette colours" value={count} onChange={e=>setCount(Number(e.target.value))}>{[1,2,3,4].map(n=><option key={n}>{n}</option>)}</MaterialSelect></label><label>Placement<MaterialSelect aria-label="Palette placement" value={placement} onChange={e=>setPlacement(e.target.value)}>{['Sleeves & neck','Hems & neck','Asymmetric'].map(p=><option key={p}>{p}</option>)}</MaterialSelect></label></div><div className="material-palette-list">{palettes.filter(p=>family==='All'||p.family===family).map(p=><article key={p.name}><button aria-label={`Apply ${p.name} palette`} onClick={()=>applyPalette(p.colours)}><span className="material-palette-strip">{p.colours.slice(0,count).map(c=><i key={c} style={{background:c}}/>)}</span><span><strong>{p.name}</strong><small>{p.family}</small><ArrowRight size={14}/></span></button><div className="material-palette-drag">{p.colours.slice(0,count).map(c=><button key={c} aria-label={`Drag or apply ${c}`} title={c} style={{background:c}} draggable={false} onPointerDown={e=>beginMaterialDrag(e,{kind:'colour',colour:c})} onClick={()=>applyColour(c)}/>)}</div></article>)}</div></details></>}
+ {tool==='Colourways'&&<><ArtworkColourwayMatrix state={state} onChange={onChange}/><details open className="material-saved material-section-disclosure"><summary>Your colourways</summary><div className="material-section-title"><span>{saved.length} / 3</span></div><div className="material-saved-grid">{saved.map(c=><div key={c.id} data-active={state.activeColourwayId===c.id}><button aria-label={`Load ${c.name}`} onClick={()=>onChange({artworkSlotOverrides:undefined,colourDefaults:undefined,tshirtHemStyles:undefined,neckTrimColor:undefined,sleeveTrimColor:undefined,cuffTrimColor:undefined,pocketTrimColor:undefined,stitchingColor:undefined,...c.design,activeColourwayId:c.id})}><span className="material-palette-strip">{[...new Set([c.design.colors[0]?.hex,...Object.values(c.design.partColors??{})])].filter(Boolean).slice(0,4).map((colour,i)=><i key={i} style={{background:colour}}/>)}</span></button><input aria-label={`Name ${c.name}`} value={c.name} onChange={e=>onChange({savedColourways:saved.map(s=>s.id===c.id?{...s,name:e.target.value}:s)})}/><button aria-label={`Delete ${c.name}`} onClick={()=>onChange({savedColourways:saved.filter(s=>s.id!==c.id),activeColourwayId:state.activeColourwayId===c.id?undefined:state.activeColourwayId})}><Trash2 size={13}/></button></div>)}{saved.length<3&&<button className="material-save-new" onClick={save}><Plus size={19}/><span>Save current</span></button>}</div>{state.activeColourwayId&&saved.some(c=>c.id===state.activeColourwayId&&JSON.stringify(c.design)!==colourKey)&&<button className="material-wide-button" onClick={()=>{onChange({savedColourways:saved.map(c=>c.id===state.activeColourwayId?{...c,design:captureColourway(state)}:c)});setNotice('Saved colourway updated')}}>Update selected colourway</button>}<p className="material-caption">Each slot saves one complete combination. Load a slot to compare, or save the current preview.</p></details><details open className="material-section-disclosure"><summary>Palette library</summary><div className="material-filter">{['All','Neutrals','Tonal','Greys','Earth','Contrast'].map(f=><button key={f} aria-pressed={family===f} onClick={()=>setFamily(f)}>{f}</button>)}</div><div className="material-palette-settings"><label>Colours<MaterialSelect aria-label="Number of palette colours" value={count} onChange={e=>setCount(Number(e.target.value))}>{[1,2,3,4].map(n=><option key={n}>{n}</option>)}</MaterialSelect></label><label>Placement<MaterialSelect aria-label="Palette placement" value={placement} onChange={e=>setPlacement(e.target.value)}>{['Sleeves & neck','Hems & neck','Asymmetric'].map(p=><option key={p}>{p}</option>)}</MaterialSelect></label></div><div className="material-palette-list">{palettes.filter(p=>family==='All'||p.family===family).map(p=><article key={p.name}><button aria-label={`Apply ${p.name} palette`} onClick={()=>applyPalette(p.colours)}><span className="material-palette-strip">{p.colours.slice(0,count).map(c=><i key={c} style={{background:c}}/>)}</span><span><strong>{p.name}</strong><small>{p.family}</small><ArrowRight size={14}/></span></button><div className="material-palette-drag">{p.colours.slice(0,count).map(c=><button key={c} aria-label={`Drag or apply ${c}`} title={c} style={{background:c}} draggable={false} onPointerDown={e=>beginMaterialDrag(e,{kind:'colour',colour:c})} onClick={()=>applyColour(c)}/>)}</div>{p.collection && <span className="material-trend-tag"><span>Trend edit</span> {trendCollections[p.collection].label}</span>}</article>)}</div></details></>}
 
  {tool==='Part materials'&&<InteriorMaterialEditor assignments={assignments} mainId={main.id} body={body} onChange={next=>onChange({fabricAssignments:next})}/>}
 

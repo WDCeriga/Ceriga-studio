@@ -70,3 +70,23 @@ body[data-material-dragging=colour] *, .new-builder-canvas[data-material-brush=c
 .material-part-map{grid-template-columns:1fr 1fr;align-items:center}.material-part-map .material-map-drawing{grid-column:1;grid-row:2;height:140px;max-width:160px}.material-part-map .material-map-selection{grid-column:2;grid-row:2;align-self:center;margin:0;min-width:0}.material-part-map .material-map-selection strong{font-size:11px;line-height:1.5}.material-part-map .material-map-hint{grid-column:1/-1;grid-row:3;margin:8px 0 12px;line-height:1.5}.material-part-map .material-map-targets{grid-column:1/-1;grid-row:4}.material-part-map .material-map-link{grid-column:1/-1}.material-part-map .material-map-header button[aria-pressed=true]{background:var(--builder-ui-soft);color:var(--builder-ui-secondary);border-color:var(--builder-ui-muted)}.material-map-targets .material-map-parts button{font-size:10px;padding:6px 9px;min-height:30px}.material-seam-parts button{flex:0 1 auto;white-space:nowrap}.material-part-map .material-map-group-label{font-size:10px;font-weight:500}
 
 .material-part-diagram path[data-material-drag-hover=true]{fill:var(--builder-ui-line);stroke:var(--builder-ui-text);stroke-width:2}.material-map-targets button[data-material-drag-hover=true]{background:var(--builder-ui-soft);border-color:var(--builder-ui-focus);color:var(--builder-ui-text)}
+
+.material-trend-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 4px 3px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #eeefec;
+  color: #40473d;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.material-trend-tag > span {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}

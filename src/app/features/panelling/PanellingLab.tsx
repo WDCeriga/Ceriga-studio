@@ -101,7 +101,7 @@ function PanellingLabApp() {
   const boundaries = boundariesBySurface[parentSurfaceId] ?? [];
   const seams = seamsBySurface[parentSurfaceId] ?? [];
   const symmetryAxis = REGISTERED_TSHIRT_SYMMETRY_AXIS;
-  const graphSeams = useMemo(() => linkedMirrorSeams(seams, symmetryAxis, mirror), [seams, symmetryAxis, mirror]);
+  const graphSeams = useMemo(() => linkedMirrorSeams(seams, symmetryAxis), [seams, symmetryAxis]);
   const topology = useMemo(() => recomputePanellingTopology(boundaries, graphSeams, parentSurfaceId), [boundaries, graphSeams, parentSurfaceId]);
   const panels = useMemo(() => topology.panels.map(panel => ({ ...panel, fillOverride: panelColours[panel.id] })), [topology.panels, panelColours]);
   const selectedPanel = panels.find(panel => panel.id === selectedPanelId);

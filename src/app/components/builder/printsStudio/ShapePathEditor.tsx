@@ -59,7 +59,7 @@ export function ShapePathEditor({ element, tracingElements=[], scale, onChange, 
       if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'){event.preventDefault();event.stopImmediatePropagation();setSelection(state.activePath.nodes.map((_,i)=>i));return;}
       if(!event.ctrlKey&&!event.metaKey&&!event.altKey){const next=event.key==='+'||event.key==='='?'add':event.key==='-'?'remove':event.key.toLowerCase()==='c'?'convert':event.key.toLowerCase()==='a'?'move':event.key.toLowerCase()==='p'?'pen':null;if(next){event.preventDefault();event.stopImmediatePropagation();setMode(next);return;}}
       if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); cancelDrag.current?.(); state.onDone(); }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
+      if ((event.key === 'Delete' || event.key === 'Backspace') && state.selection.length) {
         event.preventDefault(); event.stopImmediatePropagation();
         store(deleteShapePoints(state.activePath, state.selection)); setSelection([]);
       }
