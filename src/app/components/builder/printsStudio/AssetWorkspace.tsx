@@ -1,4 +1,4 @@
-import {Plus,Pencil,ArrowLeft,ChevronDown,Check,Layers} from 'lucide-react';
+import {Plus,Pencil,ArrowLeft,ChevronDown,Check,Layers,FileClock,ArrowRight} from 'lucide-react';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import './asset-workspace.css';
 import {AdvancedColorPopover} from '../PrintStudioColorPopover';
@@ -55,7 +55,16 @@ export function AssetLibraryPanel({query='',showCreate=true,showHeading=true,rec
   if (!workspace) return null;
   return <section data-studio-assets className="space-y-3 pb-4">
     {showCreate&&<button className="asset-create-action" disabled={!!workspace.project || workspace.busy || !workspace.authReady || !!workspace.recovery} onClick={() => workspace.enter()}>+ Create Asset</button>}
-    {workspace.recovery && !workspace.project && <div className="space-y-2 rounded border border-amber-300/30 p-2 text-xs text-[#737373]"><p>An unfinished asset is saved on this device.</p><button className={button} onClick={workspace.resume}>Resume asset draft</button></div>}
+    {workspace.recovery && !workspace.project && (
+      <button type="button" className="asset-library-draft" disabled={workspace.busy || !workspace.authReady} onClick={workspace.resume}>
+        <span className="asset-action-icon"><FileClock size={16} aria-hidden="true" /></span>
+        <span className="asset-action-copy">
+          <strong>Resume asset draft</strong>
+          <small>Saved on this device</small>
+        </span>
+        <ArrowRight className="asset-action-arrow" size={15} aria-hidden="true" />
+      </button>
+    )}
     {showHeading&&<h3 className="artwork-section-title">Saved assets</h3>}
     {workspace.libraryError && <p role="alert" className="text-xs text-amber-200">{workspace.libraryError}</p>}
     {!workspace.project && workspace.error && <p role="alert" className="text-xs text-red-300">{workspace.error}</p>}

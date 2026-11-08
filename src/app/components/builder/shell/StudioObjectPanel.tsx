@@ -1,4 +1,4 @@
-import {ArtworkObjectIdentity,ArtworkTransformFields} from './ArtworkObjectControls';
+import {ArtworkObjectIdentity,ArtworkTransformFields,ArtworkOrientationControls} from './ArtworkObjectControls';
 import {ShapeAdvancedEditor} from './ShapeAdvancedEditor';
 import {DrawingAdvancedEditor} from './DrawingAdvancedEditor';
 import {SurfaceColourLinks} from './SurfaceColourLinks';
@@ -22,7 +22,7 @@ import {ArtworkImageEditor} from './ArtworkImageEditor';
 import {TypographyEditor} from './TypographyStudio';
 import {ArtworkPrintMethod} from './ArtworkPrintMethod';
 import { ShapeObjectEditor } from './ShapesStudio';
-import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, FlipHorizontal2, Copy, Trash2, Image, Type, Shapes, Brush, Layers, Lock, Unlock } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Bold, Italic,  Copy, Trash2, Image, Type, Shapes, Brush, Layers, Lock, Unlock } from 'lucide-react';
 import type { DesignElement } from '../PrintStudioEditor';
 import { StudioGraphic } from '../printsStudio/StudioGraphic';
 import { ImageFiltersPanel } from '../printsStudio/ImageFiltersPanel';
@@ -35,7 +35,7 @@ function ObjectEditor({element:el,update,fonts=[],toolsOnly=false}:{element:Desi
  useEffect(()=>{if(!document||!isEditableLogoGroup(el)||!el.logoTrace?.selectedRegion||wasLogoLayerSplit(el))return;const selected=editableLogoParts(el).find(part=>part.regionKey===el.logoTrace!.selectedRegion);if(!selected)return;const source=el.children?.find(region=>region.logoTraceRegion?.key===selected.regionKey),keepPoints=studio.logoRegionEditing?.rootId===el.id&&studio.logoRegionEditing?.regionId===source?.id;studio.setLogoRegionEditing(null);studio.setPathEditingId(null);studio.setSelectionIds([]);studio.setPenTargetId(null);studio.setTool('select');const next=splitEditableLogoLayers(document.elements,el.id);document.onChange(next,selected.element.id);document.onSelect(selected.element.id);if(keepPoints)studio.setPathEditingId(selected.element.id);},[el.id,el.logoTrace?.selectedRegion,el.children]);
 
  if(el.type==='group'&&el.logoTrace){const region=el.children?.find(child=>child.logoTraceRegion?.key===el.logoTrace?.selectedRegion);return region?<LogoPieceInspector key={region.id} root={el} region={region} update={update}/>:<OutlineLogoControls element={el} update={update}/>;}
- if(el.type==='distress')return <WearMarkEditor key={el.id} element={el} update={update}/>;
+ if(el.type==='distress')return <WearMarkEditor key={el.id} element={el} update={update} toolsOnly={toolsOnly}/>;
  if(el.type==='pattern')return <PatternObjectEditor key={el.id} element={el} update={update} toolsOnly={toolsOnly}/>;
  if(el.type==='image')return <ArtworkImageEditor key={el.id} element={el} update={update} toolsOnly={toolsOnly}/>;
  if(el.type==='text')return <TypographyEditor key={el.id} element={el} update={update} fonts={fonts}/>;
@@ -50,7 +50,7 @@ function ObjectEditor({element:el,update,fonts=[],toolsOnly=false}:{element:Desi
  {el.type==='text'&&<><StudioFold title="Type layout" hint="Spacing, line height & curved type"><StudioRange label="Letter spacing" value={el.letterSpacing??0} min={-10} max={30} unit="px" onChange={letterSpacing=>update({letterSpacing})}/><StudioRange label="Line height" value={el.lineSpacing??115} min={60} max={200} onChange={lineSpacing=>update({lineSpacing})}/></StudioFold><StudioFold title="Text effects" hint="Visual treatments & finishes"><TextEffectsPanel defaultOpen element={el} onChange={update}/></StudioFold></>}
  {el.type==='image'&&<StudioFold title="Image look" hint={el.imageFilter?.id??'Original'}><div className="studio-image-filters"><ImageFiltersPanel element={el} onChange={update}/></div></StudioFold>}
  {el.type==='pattern'&&<StudioFold title="Repeat & colour" hint="Scale, spacing & palette" open><div className="studio-configured-repeat" draggable={!el.locked} onDragStart={event=>beginPatternDrag(event.dataTransfer,el.content,el)} role="img" aria-label="Drag this configured repeat to another garment part"><StudioGraphic element={el}/></div><p className="studio-repeat-help">Drag this swatch to copy the repeat onto another part.</p><PatternControls element={el} onChange={update}/></StudioFold>}
- <StudioFold title="Position & size" hint="Placement, scale & rotation"><div className="studio-two-columns"><StudioNumber label="Width" value={el.width} min={1} onChange={width=>update({width,...(el.aspectLocked?{height:el.height*width/el.width}:{})})}/><StudioNumber label="Height" value={el.height} min={1} onChange={height=>update({height,...(el.aspectLocked?{width:el.width*height/el.height}:{})})}/><StudioNumber label="Position X" value={el.x} min={-800} onChange={x=>update({x})}/><StudioNumber label="Position Y" value={el.y} min={-700} onChange={y=>update({y})}/><StudioNumber label="Rotation" value={el.rotation} min={-360} max={360} unit="°" onChange={rotation=>update({rotation})}/><button className="studio-outline-action" aria-pressed={el.flipHorizontal??false} onClick={()=>update({flipHorizontal:!el.flipHorizontal})}><FlipHorizontal2 size={15}/>Flip</button></div><label className="studio-switch"><span>Keep proportions</span><input type="checkbox" checked={el.aspectLocked??false} onChange={e=>update({aspectLocked:e.target.checked})}/></label></StudioFold>
+ <StudioFold title="Position & size" hint="Placement, scale & rotation"><div className="studio-two-columns"><StudioNumber label="Width" value={el.width} min={1} onChange={width=>update({width,...(el.aspectLocked?{height:el.height*width/el.width}:{})})}/><StudioNumber label="Height" value={el.height} min={1} onChange={height=>update({height,...(el.aspectLocked?{width:el.width*height/el.height}:{})})}/><StudioNumber label="Position X" value={el.x} min={-800} onChange={x=>update({x})}/><StudioNumber label="Position Y" value={el.y} min={-700} onChange={y=>update({y})}/></div><ArtworkOrientationControls element={el} update={update}/><label className="studio-switch"><span>Keep proportions</span><input type="checkbox" checked={el.aspectLocked??false} onChange={e=>update({aspectLocked:e.target.checked})}/></label></StudioFold>
  <StudioRange label="Opacity" value={el.opacity??100} onChange={opacity=>update({opacity})}/>
 
  <ArtworkPrintMethod element={el} update={update}/></fieldset></div>;

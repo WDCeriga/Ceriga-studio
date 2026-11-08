@@ -24,6 +24,7 @@ interface PrintsDrawLayerProps {
   garmentMask: GarmentDrawingMask | null;
   elements: DesignElement[];
   onChange?: (elements: DesignElement[]) => void;
+  onErasePreview: (elements: DesignElement[] | null) => void;
   editable: boolean;
   adjustFilter?: string;
   displayScale?:number;
@@ -91,6 +92,11 @@ function isPaintElement(el: DesignElement) {
 
 function isEraseTool(tool: PrintsStudioTool) {
   return tool === 'eraser' || tool === 'distressEraser';
+}
+
+function eraseRadius(canvas: HTMLCanvasElement, tool: PrintsStudioTool, size: number) {
+  const width = tool === 'eraser' ? canvas.getBoundingClientRect().width : canvas.clientWidth;
+  return size / 2 * canvas.width / Math.max(1, width);
 }
 
 function isErasable(el: DesignElement, tool: PrintsStudioTool) {
@@ -171,6 +177,7 @@ export function PrintsDrawLayer({
   garmentMask,
   elements,
   onChange,
+  onErasePreview,
   editable,
   adjustFilter,
   garmentSide = 'front',
@@ -201,13 +208,14 @@ export function PrintsDrawLayer({
   useEffect(()=>{for(const element of elements){if(!drawingRef.current&&eraseSourcesRef.current.get(element.id)!==element)eraseBuffersRef.current.delete(element.id);eraseSourcesRef.current.set(element.id,element)}},[elements]);
   const lastErasePtRef = useRef<Pt | null>(null);
   const eraseFlushRef = useRef<number | null>(null);
+  const eraseCursorRef = useRef<SVGSVGElement>(null);
+  const eraseGestureRef = useRef<{source: DesignElement[]; changed: boolean; ending: boolean; warming: boolean; warmed: boolean} | null>(null);
   const smoothTipRef = useRef<Pt | null>(null);
   const stabilizerRef = useRef<ReturnType<typeof createBrushStabilizer> | null>(null);
   const lastDistressStampRef = useRef<(Pt & { t: number }) | null>(null);
   const distressStampsRef = useRef<DistressMark[]>([]);
   const distressCursorRef = useRef<Pt | null>(null);
   const eraseQueueRef = useRef<Pt[]>([]);
-  const eraseWarmRef = useRef(false);
   const sessionRef = useRef<{ element: DesignElement; canvas: HTMLCanvasElement } | null>(null);
   const distressSessionsRef = useRef(new Map<string, { element: DesignElement; canvas: HTMLCanvasElement }>());
   const mirrorLayerRef = useRef<HTMLCanvasElement | null>(null);
@@ -221,7 +229,7 @@ export function PrintsDrawLayer({
     studioRef.current = studio;
   }, [studio]);
   useEffect(() => {
-    if (drawingRef.current && isEraseTool(studioRef.current.tool)) return;
+    if (eraseGestureRef.current) return;
     elementsRef.current = elements;
   }, [elements]);
   useEffect(() => {
@@ -335,6 +343,22 @@ export function PrintsDrawLayer({
     paintStroke(strokeRef.current, 'distress');
   };
 
+  const paintEraseCursor = (canvas: HTMLCanvasElement, point: Pt) => {
+    const cursor = eraseCursorRef.current;
+    if (!cursor) return;
+    const scaleX = canvas.clientWidth / canvas.width;
+    const scaleY = canvas.clientHeight / canvas.height;
+    const diameter = 2 * eraseRadius(canvas, studioRef.current.tool, studioRef.current.eraserSize);
+    const screenDiameter = diameter * canvas.getBoundingClientRect().width / canvas.width;
+    cursor.style.left = `${point.x * scaleX}px`;
+    cursor.style.top = `${point.y * scaleY}px`;
+    cursor.style.width = `${diameter * scaleX}px`;
+    cursor.style.height = `${diameter * scaleY}px`;
+    cursor.firstElementChild?.setAttribute('stroke-width', String(6 / screenDiameter));
+    cursor.lastElementChild?.setAttribute('stroke-width', String(2 / screenDiameter));
+    cursor.style.visibility = 'visible';
+  };
+
   const paintStroke = (points: Pt[], tool: PrintsStudioTool) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -362,36 +386,8 @@ export function PrintsDrawLayer({
     sctx.lineCap = 'round';
     sctx.lineJoin = 'round';
     sctx.globalAlpha = 1;
-    const erase = isEraseTool(tool);
     const strokeAlpha = Math.max(0.04, Math.min(1, s.opacity / 100));
     const cssToCanvas = canvas.width / Math.max(1, canvas.clientWidth || 1);
-
-    const sizeFor = (pt: Pt) => {
-      const base = erase || tool === 'distress' ? s.eraserSize : s.brushSize;
-      let size = base * cssToCanvas;
-      if (s.pressure) size *= 0.35 + 0.65 * pt.p;
-      if (s.pencil.tiltShading && pt.tilt > 0.15) size *= 1 + pt.tilt * 1.4;
-      return Math.max(1.2, size);
-    };
-
-    if (erase) {
-      const pt = points[points.length - 1];
-      const r = (s.eraserSize / 2) * cssToCanvas;
-      const ring = Math.max(1, cssToCanvas);
-      sctx.beginPath();
-      sctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
-      sctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      sctx.lineWidth = ring * 2.25;
-      sctx.stroke();
-      sctx.beginPath();
-      sctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
-      sctx.strokeStyle = 'rgba(255,255,255,0.95)';
-      sctx.lineWidth = ring;
-      sctx.stroke();
-      sctx.restore();
-      ctx.drawImage(strokeLayer, 0, 0);
-      return;
-    }
 
     sctx.strokeStyle = canvasPaint(sctx, s.color, strokeLayer.width, strokeLayer.height);
     sctx.fillStyle = sctx.strokeStyle;
@@ -577,13 +573,9 @@ export function PrintsDrawLayer({
     [zone],
   );
 
-  const flushErase = useCallback(() => {
-    eraseFlushRef.current = null;
-    onChangeRef.current?.(elementsRef.current);
-  }, []);
-
   const rasterizeDistress = useCallback(
     async (el: DesignElement) => {
+      const gesture = eraseGestureRef.current;
       const existing = eraseBuffersRef.current.get(el.id);
       if (existing) return existing;
       const fromImg = el.wear?null:ensureEraseBuffer(el);
@@ -594,7 +586,7 @@ export function PrintsDrawLayer({
       const w = Math.max(2, Math.round(root.clientWidth * 2) || Math.round(el.width * 2));
       const h = Math.max(2, Math.round(root.clientHeight * 2) || Math.round(el.height * 2));
       const buf = await svgToCanvas(svg, w, h);
-      if (!buf) return null;
+      if (!buf || gesture !== eraseGestureRef.current) return null;
       eraseBuffersRef.current.set(el.id, buf);
       return buf;
     },
@@ -602,9 +594,11 @@ export function PrintsDrawLayer({
   );
 
   const warmEraseBuffers = useCallback(async () => {
+    const gesture = eraseGestureRef.current;
     const side = sideRef.current;
     const tool = studioRef.current.tool;
     for(const el of elementsRef.current) {
+      if (gesture !== eraseGestureRef.current) break;
       if(isErasable(el,tool)&&!el.drawing&&!el.wear&&!(el.type==='shape'&&el.shapeGeometry==='bounds')&&(el.side??'front')===side)await rasterizeDistress(el);
     }
   }, [rasterizeDistress]);
@@ -617,9 +611,9 @@ export function PrintsDrawLayer({
       const cssW = Math.max(1, host.clientWidth);
       const dprX = canvas.width / cssW;
       const dprY = canvas.height / Math.max(1, host.clientHeight);
-      const radiusCss = studioRef.current.eraserSize / 2;
       const side = sideRef.current;
       const tool = studioRef.current.tool;
+      const radiusCss = eraseRadius(canvas, tool, studioRef.current.eraserSize) / dprX;
       let changed = false;
       const next = elementsRef.current.map((el) => {
         if (!isErasable(el, tool) || (el.side ?? 'front') !== side) return el;
@@ -652,26 +646,44 @@ export function PrintsDrawLayer({
           octx.fill();
         }
         octx.restore();
-        const cuts=el.drawing?points.map(pt=>Array.from({length:64},(_,i)=>{const a=i*Math.PI/32,p=zoneToAsset({x:pt.x/dprX+Math.cos(a)*radiusCss,y:pt.y/dprY+Math.sin(a)*radiusCss},el);return{x:p.x*el.drawing!.width,y:p.y*el.drawing!.height}})):undefined;
         const url = buf.toDataURL('image/png');
-        const img = host.querySelector(`[data-print-id="${el.id}"] img`) as HTMLImageElement | null;
-        if (img) img.src = url;
         changed = true;
         return el.type === 'shape'
           ? { ...el, type: 'drawing' as const, shapeGeometry: undefined, borderWidth: 0, color: undefined, content: url }
-          : { ...el,drawing:el.drawing?{...el.drawing,cuts:[...(el.drawing.cuts??[]),...(cuts??[])]}:undefined,wear:undefined,wearDetail:undefined,wearRasterTinted:Boolean(el.wear)||el.wearRasterTinted, content: url };
+          : { ...el,wear:undefined,wearDetail:undefined,wearRasterTinted:el.wearRasterTinted, content: url };
       });
-      if (!changed) return;
-      elementsRef.current = next;
-      if (eraseFlushRef.current == null) {
-        eraseFlushRef.current = requestAnimationFrame(flushErase);
-      }
+      if (changed) elementsRef.current = next;
+      return changed;
     },
-    [ensureEraseBuffer, flushErase, zone],
+    [ensureEraseBuffer, zone],
   );
 
-  const punchEraser = useCallback(
-    (points: Pt[]) => {
+  const commitEraser = () => {
+    const gesture = eraseGestureRef.current;
+    eraseGestureRef.current = null;
+    onErasePreview(null);
+    if (!gesture?.changed) return;
+    const next = elementsRef.current.filter(element => {
+      const buffer = eraseBuffersRef.current.get(element.id);
+      return !buffer || gesture.source.find(source => source.id === element.id) === element || canvasHasInk(buffer);
+    });
+    elementsRef.current = next;
+    onChangeRef.current?.(next);
+  };
+
+  const flushEraser = () => {
+    eraseFlushRef.current = null;
+    const gesture = eraseGestureRef.current;
+    if (!gesture || gesture.warming) return;
+    const apply = () => {
+      const points = eraseQueueRef.current;
+      eraseQueueRef.current = [];
+      const changed = punchEraserNow(points);
+      if (changed) gesture.changed = true;
+      if (gesture.ending) commitEraser();
+      else if (changed) onErasePreview(elementsRef.current);
+    };
+    if (eraseQueueRef.current.length && !gesture.warmed) {
       const tool = studioRef.current.tool;
       const needsWarm = elementsRef.current.some(
           (el) =>
@@ -681,45 +693,49 @@ export function PrintsDrawLayer({
             !eraseBuffersRef.current.has(el.id) &&
             (el.type==='distress'||!el.content.startsWith('data:')),
         );
-      if (!needsWarm) {
-        punchEraserNow(points);
+      gesture.warmed = true;
+      if (needsWarm) {
+        gesture.warming = true;
+        void warmEraseBuffers().catch(() => {}).then(() => {
+          if (eraseGestureRef.current !== gesture) return;
+          gesture.warming = false;
+          apply();
+        });
         return;
       }
-      eraseQueueRef.current.push(...points);
-      if (eraseWarmRef.current) return;
-      eraseWarmRef.current = true;
-      void warmEraseBuffers().then(() => {
-        eraseWarmRef.current = false;
-        const queued = eraseQueueRef.current;
-        eraseQueueRef.current = [];
-        if (queued.length) punchEraserNow(queued);
-      });
-    },
-    [punchEraserNow, warmEraseBuffers],
-  );
+    }
+    apply();
+  };
 
-  const finishEraser = useCallback(() => {
+  const cancelEraser = useCallback(() => {
     if (eraseFlushRef.current != null) {
       cancelAnimationFrame(eraseFlushRef.current);
       eraseFlushRef.current = null;
     }
-    const side = sideRef.current;
-    const next = elementsRef.current.filter((el) => {
-      if (!isErasable(el, studioRef.current.tool) || (el.side ?? 'front') !== side) return true;
-      const buf = eraseBuffersRef.current.get(el.id);
-      if (!buf) return true;
-      return canvasHasInk(buf);
-    });
-    for (const id of [...eraseBuffersRef.current.keys()]) {
-      if (!next.some((el) => el.id === id)) eraseBuffersRef.current.delete(id);
+    const gesture = eraseGestureRef.current;
+    if (!gesture) return;
+    eraseGestureRef.current = null;
+    eraseQueueRef.current = [];
+    eraseBuffersRef.current.clear();
+    elementsRef.current = gesture.source;
+    onErasePreview(null);
+  }, [onErasePreview]);
+
+  const addErasePoint = (point: Pt, canvas: HTMLCanvasElement) => {
+    const previous = lastErasePtRef.current;
+    const spacing = Math.max(2, eraseRadius(canvas, studioRef.current.tool, studioRef.current.eraserSize) * .45);
+    if (previous?.x === point.x && previous.y === point.y) return;
+    eraseQueueRef.current.push(...(previous ? pointsAlong(previous, point, spacing) : [point]));
+    lastErasePtRef.current = point;
+    if (eraseFlushRef.current === null && !eraseGestureRef.current?.warming) {
+      eraseFlushRef.current = requestAnimationFrame(flushEraser);
     }
-    elementsRef.current = next;
-    onChangeRef.current?.(next);
-  }, []);
+  };
 
   const active = editable && studio.drawing;
 
   useEffect(() => () => {
+    cancelEraser();
     if (shapeTimerRef.current) clearTimeout(shapeTimerRef.current);
     if (holdTimerRef.current) clearInterval(holdTimerRef.current);
     drawingRef.current = false;
@@ -727,7 +743,7 @@ export function PrintsDrawLayer({
     shapeStrokeRef.current = [];
     const canvas = canvasRef.current;
     if (canvas) canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
-  }, [studio.tool, garmentSide, editable]);
+  }, [studio.tool, garmentSide, editable, cancelEraser]);
 
   const scheduleShape = (point: Pt) => {
     if (shapeTimerRef.current) clearTimeout(shapeTimerRef.current);
@@ -788,7 +804,7 @@ export function PrintsDrawLayer({
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!active || drawingRef.current || e.button !== 0) return;
+    if (!active || drawingRef.current || eraseGestureRef.current || e.button !== 0) return;
     const s = studioRef.current;
     if (s.pencil.pencilOnly && e.pointerType !== 'pen') return;
     e.preventDefault();
@@ -831,12 +847,13 @@ export function PrintsDrawLayer({
         if (!drawingRef.current || !tip) return;
         tryStampDistress(tip, 'hold');
       }, DISTRESS_HOLD_MS);
+    } else if (isEraseTool(tool)) {
+      eraseGestureRef.current = {source: elementsRef.current, changed: false, ending: false, warming: false, warmed: false};
+      lastErasePtRef.current = null;
+      paintEraseCursor(canvas, pt);
+      addErasePoint(pt, canvas);
     } else {
       paintStroke(strokeRef.current, tool);
-    }
-    if (isEraseTool(tool)) {
-      lastErasePtRef.current = pt;
-      punchEraser([pt]);
     }
     try {
       canvas.setPointerCapture(e.pointerId);
@@ -847,13 +864,17 @@ export function PrintsDrawLayer({
 
   const appendPointerSample = (sample: PointerEvent, canvas: HTMLCanvasElement, tool: PrintsStudioTool) => {
     const raw = eventPoint(sample, canvas);
+    if (isEraseTool(tool)) {
+      addErasePoint(raw, canvas);
+      return;
+    }
     const anchor = holdPointRef.current;
     const holdTolerance = 4 * canvas.width / Math.max(1, canvas.clientWidth);
     if (anchor && Math.hypot(raw.x - anchor.x, raw.y - anchor.y) < holdTolerance && shapeRef.current) return;
     if (tool === 'brush') shapeStrokeRef.current.push(raw);
     if (!anchor || Math.hypot(raw.x - anchor.x, raw.y - anchor.y) >= holdTolerance) scheduleShape(raw);
     const amount = studioRef.current.stabilization / 100;
-    const pt = isEraseTool(tool) ? raw : stabilizerRef.current?.(raw, amount, sample.timeStamp) ?? raw;
+    const pt = stabilizerRef.current?.(raw, amount, sample.timeStamp) ?? raw;
     smoothTipRef.current = pt;
     if (tool === 'distress') {
       tryStampDistress(pt, 'move');
@@ -862,19 +883,13 @@ export function PrintsDrawLayer({
     const last = strokeRef.current[strokeRef.current.length - 1];
     const moved = last ? Math.hypot(pt.x - last.x, pt.y - last.y) : 999;
     const scale = canvas.width / Math.max(1, canvas.getBoundingClientRect().width);
-    if (!isEraseTool(tool) && amount > 0 && moved < 0.2 * scale) {
+    if (amount > 0 && moved < 0.2 * scale) {
       return;
     }
     if (last && moved > 2.2) {
       strokeRef.current.push(...pointsAlong(last, pt, 2));
     } else {
       strokeRef.current.push(pt);
-    }
-    if (isEraseTool(tool)) {
-      const prev = lastErasePtRef.current;
-      const spacing = (studioRef.current.eraserSize / 2) * (canvas.width / Math.max(1, canvas.clientWidth));
-      punchEraser(prev ? pointsAlong(prev, pt, Math.max(2, spacing * 0.45)) : [pt]);
-      lastErasePtRef.current = pt;
     }
   };
 
@@ -885,7 +900,7 @@ export function PrintsDrawLayer({
     if (drawingRef.current && pointerIdRef.current !== e.pointerId) return;
     const tool = studioRef.current.tool;
     if (!drawingRef.current) {
-      if (isEraseTool(tool)) paintStroke([eventPoint(e, canvas)], tool);
+      if (isEraseTool(tool)) paintEraseCursor(canvas, eventPoint(e, canvas));
       else if (tool === 'distress' && garmentMask) {
         const point = eventPoint(e, canvas);
         distressCursorRef.current = point;
@@ -897,12 +912,14 @@ export function PrintsDrawLayer({
     for (const sample of samples.length ? samples : [e.nativeEvent]) {
       appendPointerSample(sample, canvas, tool);
     }
-    if (tool !== 'distress' && !shapeRef.current) paintStroke(strokeRef.current, tool);
+    if (isEraseTool(tool)) paintEraseCursor(canvas, lastErasePtRef.current ?? eventPoint(e, canvas));
+    else if (tool !== 'distress' && !shapeRef.current) paintStroke(strokeRef.current, tool);
   };
 
   const onPointerLeave = () => {
     if (drawingRef.current) return;
     distressCursorRef.current = null;
+    if (eraseCursorRef.current) eraseCursorRef.current.style.visibility = 'hidden';
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -923,6 +940,9 @@ export function PrintsDrawLayer({
     }
     const tool = studioRef.current.tool;
     const canvas = canvasRef.current;
+    if (isEraseTool(tool) && event.type !== 'pointercancel' && canvas) {
+      addErasePoint(eventPoint(event, canvas), canvas);
+    }
     if (canvas && tool === 'brush' && !heldShape && event.type !== 'pointercancel') {
       const settings = studioRef.current;
       const raw = eventPoint(event, canvas);
@@ -946,6 +966,7 @@ export function PrintsDrawLayer({
     const ctx = canvas?.getContext('2d');
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (event.type === 'pointercancel') {
+      cancelEraser();
       distressStampsRef.current = [];
       return;
     }
@@ -953,7 +974,12 @@ export function PrintsDrawLayer({
       finishDrawingRef.current?.(finishTap.id);return;
     }
     if (isEraseTool(tool)) {
-      finishEraser();
+      if (eraseCursorRef.current) eraseCursorRef.current.style.visibility = 'hidden';
+      const gesture = eraseGestureRef.current;
+      if (!gesture) return;
+      gesture.ending = true;
+      if (eraseFlushRef.current !== null) cancelAnimationFrame(eraseFlushRef.current);
+      flushEraser();
       return;
     }
     commitStroke();
@@ -961,6 +987,7 @@ export function PrintsDrawLayer({
   };
 
   return (
+    <>
     <canvas
       ref={canvasRef}
       data-print-draw-layer
@@ -979,5 +1006,18 @@ export function PrintsDrawLayer({
       aria-hidden={!active}
       style={adjustFilter ? { filter: adjustFilter } : undefined}
     />
+    {active && isEraseTool(studio.tool) && <svg
+      ref={eraseCursorRef}
+      data-eraser-cursor
+      aria-hidden="true"
+      className="pointer-events-none absolute z-[30] -translate-x-1/2 -translate-y-1/2 overflow-visible"
+      style={{visibility:'hidden'}}
+      viewBox="-1 -1 2 2"
+      preserveAspectRatio="none"
+    >
+      <circle r="1" fill="none" stroke="#171717"/>
+      <circle r="1" fill="none" stroke="#fff"/>
+    </svg>}
+    </>
   );
 }

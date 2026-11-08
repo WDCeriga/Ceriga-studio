@@ -120,3 +120,15 @@
 .builder-context .print-family-navigation button.asset-workspace-launch>svg:last-child{color:var(--builder-ui-muted)}
 .builder-context .print-family-navigation button.asset-workspace-launch:hover:enabled{background:var(--builder-ui-soft);border-color:#c7c7c7}
 .builder-context .print-family-navigation button.asset-workspace-launch:disabled{opacity:.4;cursor:default}
+
+.print-family-navigation > .asset-workspace-nav {
+  white-space: nowrap;
+}
+.print-family-navigation > .asset-workspace-nav:hover:enabled {
+  background: var(--builder-ui-soft);
+  color: var(--builder-ui-text);
+}
+.print-family-navigation > .asset-workspace-nav:disabled { opacity: .45; }
+@media (prefers-reduced-motion: no-preference) {
+  .print-family-navigation > .asset-workspace-nav { transition: background-color 150ms ease, color 150ms ease; }
+}

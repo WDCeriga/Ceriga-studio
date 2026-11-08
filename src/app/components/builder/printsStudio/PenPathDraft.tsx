@@ -14,7 +14,39 @@ import {nearestPenSegment,constrainPenPoint,copyPenPoint,dragPenHandle,offsetPen
 import '../shell/artwork-path-tools.css';
 type Gesture={pointer:number;index:number;kind:'place'|'move'|'handle'|'close';handle?:'in'|'out';before:ShapePathNode[];base:ShapePathNode[];start:Point;last:Point;dragged:boolean;cornerClick?:boolean};
 const clone=(nodes:ShapePathNode[])=>nodes.map(n=>({...copyPenPoint(n),in:n.in?copyPenPoint(n.in):undefined,out:n.out?copyPenPoint(n.out):undefined}));
-export function PenPathDraft({width,height,color,mirrorAxis,tracingElements=[],cutting=false,operation='subtract',error,initialPath,snapTargets=[],openPaths=[],onContinue,onComplete,onCancel}:{width:number;height:number;color:string;mirrorAxis?:number;tracingElements?:DesignElement[];cutting?:boolean;operation?:'subtract'|'join'|'continue'|'split';error?:string;initialPath?:ShapePath;snapTargets?:Point[];openPaths?:{id:string;path:ShapePath}[];onContinue?:(id:string,fromStart:boolean)=>void;onComplete:(path:ShapePath)=>void;onCancel:()=>void}){
+// Ignore Bézier edges: matching their endpoint distance would misreport the drawn length.
+function findEqualLengthGuide(preview: ShapePathNode[], tolerance: number) {
+  const start = preview.at(-2);
+  const end = preview.at(-1);
+  if (!start || !end || start.out || end.in) return null;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (length <= tolerance * 2) return null;
+
+  let match: { from: Point; to: Point; difference: number } | null = null;
+  for (let index = 0; index < preview.length - 2; index++) {
+    const from = preview[index];
+    const to = preview[index + 1];
+    if (from.out || to.in) continue;
+    const difference = Math.abs(Math.hypot(to.x - from.x, to.y - from.y) - length);
+    if (difference <= tolerance && (!match || difference < match.difference)) {
+      match = { from, to, difference };
+    }
+  }
+  return match && { ...match, start, end };
+}
+
+function lengthTick(from: Point, to: Point, size: number) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  const x = (from.x + to.x) / 2;
+  const y = (from.y + to.y) / 2;
+  const offsetX = -dy * size / length;
+  const offsetY = dx * size / length;
+  return 'M' + (x - offsetX) + ',' + (y - offsetY) + 'L' + (x + offsetX) + ',' + (y + offsetY);
+}
+
+export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxis,tracingElements=[],cutting=false,operation='subtract',error,initialPath,snapTargets=[],openPaths=[],onContinue,onComplete,onCancel}:{width:number;height:number;color:string;emphasizeStroke?:boolean;mirrorAxis?:number;tracingElements?:DesignElement[];cutting?:boolean;operation?:'subtract'|'join'|'continue'|'split';error?:string;initialPath?:ShapePath;snapTargets?:Point[];openPaths?:{id:string;path:ShapePath}[];onContinue?:(id:string,fromStart:boolean)=>void;onComplete:(path:ShapePath)=>void;onCancel:()=>void}){
  const studio=usePrintsStudio(),[snapEdges,setSnapEdges]=useState(false),[fitEnabled,setFitEnabled]=useState(false),[fitIndex,setFitIndex]=useState(0),[otherRoute,setOtherRoute]=useState(false),[fitError,setFitError]=useState(''),edges=useTraceEdges(tracingElements,snapEdges||fitEnabled,studio.layerRenderer.current);
  const curvature=studio.penCurvature,setCurvature=studio.setPenCurvature;
  const controlsHost=usePenControlsHost(),[nodes,setNodes]=useState<ShapePathNode[]>(()=>clone(initialPath?.nodes??[])),[cursor,setCursor]=useState<Point|null>(null),[selected,setSelected]=useState<number|null>(null),[dragging,setDragging]=useState(false),[editMode,setEditMode]=useState(false),[preview,setPreview]=useState(true),[snapping,setSnapping]=useState(true),[grid,setGrid]=useState(false),[independent,setIndependent]=useState(false),[guides,setGuides]=useState<{vertical?:number;horizontal?:number}>({}),[revision,setRevision]=useState(0);
@@ -96,27 +128,42 @@ export function PenPathDraft({width,height,color,mirrorAxis,tracingElements=[],c
  const paint=/^#[0-9a-f]{3,8}$/i.test(color)?color:'#262626',active=nodes[selected??nodes.length-1],canClose=nodes.length>=3,closing=canClose&&cursor&&Math.hypot(cursor.x-nodes[0].x,cursor.y-nodes[0].y)<radius*3&&!editMode;
  const rawPreviewNodes=[...nodes,...(!dragging&&preview&&cursor&&!editMode?[closing?nodes[0]:cursor]:[])];
  const previewNodes=curvature?autoCurve(rawPreviewNodes,corners.current):rawPreviewNodes;
+ const equalLength = previewNodes.length > nodes.length ? findEqualLengthGuide(previewNodes, radius) : null;
+ const lengthTicks = equalLength ? lengthTick(equalLength.from, equalLength.to, radius * 1.6)
+   + lengthTick(equalLength.start, equalLength.end, radius * 1.6) : '';
+ const guideOnLeft = Boolean(equalLength && cursor && cursor.x > width * .6);
+ const previewPath = nodes.length ? shapePathData({closed:gesture.current?.kind==='close',nodes:previewNodes}) : '';
+ const guideStroke = radius / 3;
  return <div data-pen-path-draft data-editor-chrome data-history-revision={revision} className="absolute inset-0 z-[60] pointer-events-auto" style={{touchAction:'none',cursor:closing?'alias':editMode?'default':'crosshair'}}>
   {controlsHost&&createPortal(<div className="pen-inspector-controls pen-draft-controls" data-editor-chrome>
    <div className="pen-controls-heading"><strong>{cutting?'Draw a region':'Pen tool'}</strong><span>{nodes.length} points</span></div><p className="pen-controls-hint">{operation==='split'&&!dragging?'Draw edge to edge and finish the path, or close a shape inside to separate it.':dragging?'Drag for a curve. Hold Alt to move one handle.':nodes.length===1?'Add a second point to create a path.':nodes.length===2?'Add a third point for a shape, or finish this line.':nodes.length?'Click the first point to close, or finish an open path.':curvature?'Click to follow a curve. Alt-click makes a corner.':'Click for a corner. Drag for a curve.'}</p><div className="pen-draft-actions"><button disabled={!canClose} onClick={()=>finish(true)}>{cutting?(operation==='split'?'Separate region':operation==='subtract'?'Cut region':'Unite region'):'Close shape'}</button><button disabled={nodes.length<2||(cutting&&operation!=='split')} onClick={()=>finish(false)}>Finish path <kbd>↵</kbd></button></div>
    {error&&<p role="alert" className="pen-inline-error">{error}</p>}
    <label className="studio-switch">Snap to artwork edges<input type="checkbox" checked={snapEdges} onChange={event=>setSnapEdges(event.target.checked)}/></label>{snapEdges&&<p className="path-workflow-help">{edges.loading?'Finding edges…':edges.error||`${edges.count.toLocaleString()} edge samples ready. Snaps within 8 screen pixels.`}</p>}<details className="pen-precision-options" onToggle={event=>setFitEnabled(event.currentTarget.open)}><summary>Fit edges to reference</summary><p className="path-workflow-help">Place rough points around the reference, then fit each edge. The reference stays unchanged.</p><StudioNumber label="Edge to fit" value={Math.min(fitIndex+1,Math.max(1,nodes.length-1))} min={1} max={Math.max(1,nodes.length-1)} step={1} unit="" onChange={value=>setFitIndex(value-1)}/><label className="studio-switch">Take the other route<input type="checkbox" checked={otherRoute} onChange={event=>setOtherRoute(event.target.checked)}/></label><div className="pen-draft-actions"><button disabled={edges.loading||!edges.contours.length||nodes.length<2} onClick={()=>fitEdge(Math.min(fitIndex,nodes.length-2))}>{edges.loading?'Reading outline…':'Fit selected edge'}</button><button disabled={edges.loading||!edges.contours.length||nodes.length<2} onClick={()=>fitAll(false)}>Fit all placed edges</button></div>{nodes.length>=3&&<button className="studio-outline-action" disabled={edges.loading||!edges.contours.length} onClick={()=>fitAll(true)}>Fit and close outline</button>}<p className="path-workflow-help">Click an edge on the canvas while this section is open to fit it. Use the other route if the reference has two possible ways around the shape.</p>{fitError&&<p role="alert" className="pen-inline-error">{fitError}</p>}</details><label className="studio-switch">Curvature drawing<input type="checkbox" checked={curvature} onChange={event=>{setCurvature(event.target.checked);if(event.target.checked)write(autoCurve(draft.current,corners.current));}}/></label><details className="pen-precision-options"><summary>Precision & shortcuts</summary><label><input type="checkbox" checked={snapping} onChange={e=>{setSnapping(e.target.checked);setGuides({});}}/> Snap to points & alignment</label><label><input type="checkbox" checked={grid} onChange={e=>setGrid(e.target.checked)}/> Snap to 10 px grid</label><label><input type="checkbox" checked={preview} onChange={e=>setPreview(e.target.checked)}/> Preview next segment</label><label><input type="checkbox" checked={independent} onChange={e=>setIndependent(e.target.checked)}/> Independent handles</label><p>Click for corners; drag for curves. Shift constrains angles. Alt separates handles or converts points. Space repositions a point while dragging. Ctrl/Cmd temporarily moves anchors. Enter, Escape or double-click finishes a line. Click the first point to close. Backspace removes the last point; Ctrl/Cmd+Z undoes a gesture.</p></details>
   </div>,controlsHost)}
-  <svg strokeWidth={radius/3} ref={svg} tabIndex={-1} style={{outline:'none'}} viewBox={`0 0 ${Math.max(1,width)} ${Math.max(1,height)}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-label="Pen drawing canvas" onDoubleClick={event=>{event.preventDefault();event.stopPropagation();if(curving.current){const p=point(event as unknown as ReactPointerEvent),index=draft.current.findIndex(n=>Math.hypot(n.x-p.x,n.y-p.y)<radius*3);if(index>=0){if(corners.current.has(index))corners.current.delete(index);else corners.current.add(index);change(autoCurve(draft.current,corners.current));}return;}if(!cutting){const current=draft.current;if(current.length>2&&Math.hypot(current.at(-1)!.x-current.at(-2)!.x,current.at(-1)!.y-current.at(-2)!.y)<radius){write(current.slice(0,-1));}finish(false)}}} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{const g=gesture.current;if(g)write(clone(g.before));gesture.current=null;setDragging(false);setGuides({});}}>
+  <svg strokeWidth={radius/3} ref={svg} tabIndex={-1} style={{outline:'none'}} viewBox={`0 0 ${Math.max(1,width)} ${Math.max(1,height)}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-label="Pen drawing canvas" onDoubleClick={event=>{event.preventDefault();event.stopPropagation();if(curving.current){const p=point(event as unknown as ReactPointerEvent),index=draft.current.findIndex(n=>Math.hypot(n.x-p.x,n.y-p.y)<radius*3);if(index>=0){if(corners.current.has(index))corners.current.delete(index);else corners.current.add(index);change(autoCurve(draft.current,corners.current));}return;}if(!cutting){const current=draft.current;if(current.length>2&&Math.hypot(current.at(-1)!.x-current.at(-2)!.x,current.at(-1)!.y-current.at(-2)!.y)<radius){write(current.slice(0,-1));}finish(false)}}} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerLeave={() => {
+   if (gesture.current) return;
+   moveQueue.current?.cancel();
+   setCursor(null);
+   setGuides({});
+  }} onPointerCancel={()=>{const g=gesture.current;if(g)write(clone(g.before));gesture.current=null;setDragging(false);setGuides({});}}>
    {guides.vertical!==undefined&&!dragging&&<line x1={guides.vertical} y1={0} x2={guides.vertical} y2={height} stroke="#737373" strokeOpacity=".35" strokeDasharray="3 5" />}{guides.horizontal!==undefined&&!dragging&&<line x1={0} y1={guides.horizontal} x2={width} y2={guides.horizontal} stroke="#737373" strokeOpacity=".35" strokeDasharray="3 5" />}
    {mirrorAxis !== undefined && <g pointerEvents="none" stroke="#737373" strokeOpacity=".65" fill="none">
      <line x1={mirrorAxis} x2={mirrorAxis} y1={0} y2={height} strokeDasharray="3 5" vectorEffect="non-scaling-stroke"/>
      {previewNodes.length > 1 && <path d={shapePathData({closed:gesture.current?.kind==='close',nodes:previewNodes})}
        transform={`translate(${2 * mirrorAxis} 0) scale(-1 1)`} vectorEffect="non-scaling-stroke"/>}
    </g>}
-   {previewNodes.length>=3&&<path d={shapePathData({closed:true,nodes:previewNodes})} fill={cutting?'#737373':paint} fillOpacity={.12} stroke="none" pointerEvents="none"/>}
-   <path data-pen-preview-underlay d={nodes.length?shapePathData({closed:gesture.current?.kind==='close',nodes:previewNodes}):''} fill="none" stroke="white" strokeWidth={3*radius/3} strokeLinecap="round" strokeLinejoin="round"  pointerEvents="none"/>
-   <path data-pen-preview-guide d={nodes.length?shapePathData({closed:gesture.current?.kind==='close',nodes:previewNodes}):''} fill="none" stroke="#404040" strokeWidth={1*radius/3} strokeLinecap="round" strokeLinejoin="round"  pointerEvents="none"/>
+   {previewNodes.length>=3&&<path d={shapePathData({closed:true,nodes:previewNodes})} fill={cutting?'#737373':paint} fillOpacity={emphasizeStroke ? .22 : .12} stroke="none" pointerEvents="none"/>}
+   <path data-pen-preview-underlay d={previewPath} fill="none" stroke="white" strokeWidth={guideStroke * (emphasizeStroke ? 4 : 3)} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none"/>
+   <path data-pen-preview-guide d={previewPath} fill="none" stroke={emphasizeStroke ? '#171717' : '#404040'} strokeWidth={guideStroke * (emphasizeStroke ? 2 : 1)} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none"/>
+   {equalLength && <g data-pen-equal-length pointerEvents="none" aria-hidden="true" fill="none" strokeLinecap="round">
+     <path d={lengthTicks} stroke="white" strokeWidth={radius} />
+     <path d={lengthTicks} stroke="#404040" strokeWidth={radius / 3} />
+   </g>}
    {nodes.slice(0,-1).map((node,index)=><path key={'segment-'+index} d={shapePathData({closed:false,nodes:[node,nodes[index+1]]})} fill="none" stroke="transparent" strokeWidth={12*radius/3}  style={{cursor:'copy'}} aria-label={`Add pen point on segment ${index+1}`} onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();if(fitEnabled){fitEdge(index);return;}const before=clone(draft.current),nearest=nearestPenSegment({closed:false,nodes:before},point(event));const next=splitShapeSegment({closed:false,nodes:before},nearest.index,nearest.t).nodes;write(next);setSelected(nearest.index+1);begin(event,{index:nearest.index+1,kind:'move',before,base:clone(next),start:point(event)});}}/>)}
    {active&&(['in','out'] as const).map(handle=>active[handle]&&<g key={handle}><line x1={active.x} y1={active.y} x2={active[handle]!.x} y2={active[handle]!.y} stroke="#737373" /><circle aria-label={`Draft ${handle} handle`} cx={active[handle]!.x} cy={active[handle]!.y} r={radius*3.2} fill="transparent" onPointerDown={event=>{const index=selected??nodes.length-1,before=clone(nodes);begin(event,{index,kind:'handle',handle,before,base:before,start:point(event)});}}/><circle data-pen-node-visual cx={active[handle]!.x} cy={active[handle]!.y} r={radius*.75} fill="#404040" stroke="white" strokeWidth={.7*radius/3}  pointerEvents="none"/></g>)}
    {nodes.map((n,i)=><g key={i}><rect x={n.x-radius*3.2} y={n.y-radius*3.2} width={radius*6.4} height={radius*6.4} fill="transparent" aria-label={i===0?'Close pen path':`Pen point ${i+1}`} style={{cursor:i===0&&nodes.length>=3||i===nodes.length-1?'alias':'not-allowed'}} onPointerDown={event=>anchor(event,i)}/><rect data-pen-node-visual x={n.x-radius} y={n.y-radius} width={radius*(i===0&&closing?2.6:2)} height={radius*(i===0&&closing?2.6:2)} rx={radius*.2} fill={selected===i?'#404040':'white'} stroke="#404040" strokeWidth={.9*radius/3}  pointerEvents="none"/></g>)}
    {snapEdges&&cursor&&reference&&radius<1.5&&<g pointerEvents="none"><defs><clipPath id="pen-trace-loupe"><circle cx={cursor.x+loupeSize} cy={cursor.y-loupeSize} r={loupeSize*.7}/></clipPath></defs><g clipPath="url(#pen-trace-loupe)"><rect x={cursor.x+loupeSize*.3} y={cursor.y-loupeSize*1.7} width={loupeSize*1.4} height={loupeSize*1.4} fill="white"/><g transform={`translate(${cursor.x+loupeSize} ${cursor.y-loupeSize}) scale(3) translate(${-cursor.x} ${-cursor.y})`}><g transform={`translate(${reference.x} ${reference.y}) rotate(${reference.rotation})`}><image href={reference.imageTrace?.sourceImage??reference.content} x={-reference.width/2} y={-reference.height/2} width={reference.width} height={reference.height}/></g></g></g><circle cx={cursor.x+loupeSize} cy={cursor.y-loupeSize} r={loupeSize*.7} fill="none" stroke="#737373" /><path d={`M${cursor.x+loupeSize-radius*2},${cursor.y-loupeSize}h${radius*4}M${cursor.x+loupeSize},${cursor.y-loupeSize-radius*2}v${radius*4}`} stroke="#b14343" /></g>}
-   {cursor&&nodes.length>0&&!dragging&&<text x={cursor.x+radius*5} y={cursor.y-radius*4} fontSize={11*radius/3} fill="#404040" stroke="white" strokeWidth={2*radius/3} paintOrder="stroke" pointerEvents="none">{(Math.hypot(cursor.x-nodes.at(-1)!.x,cursor.y-nodes.at(-1)!.y)/studio.unitsPerCm).toFixed(2)} cm · {Math.round(Math.atan2(cursor.y-nodes.at(-1)!.y,cursor.x-nodes.at(-1)!.x)*180/Math.PI)}°</text>}
+   {cursor&&nodes.length>0&&!dragging&&<text x={cursor.x+(guideOnLeft?-1:1)*radius*5} textAnchor={guideOnLeft?"end":"start"} y={cursor.y-radius*4} fontSize={11*radius/3} fill="#404040" stroke="white" strokeWidth={2*radius/3} paintOrder="stroke" pointerEvents="none">{(Math.hypot(cursor.x-nodes.at(-1)!.x,cursor.y-nodes.at(-1)!.y)/studio.unitsPerCm).toFixed(2)} cm · {Math.round(Math.atan2(cursor.y-nodes.at(-1)!.y,cursor.x-nodes.at(-1)!.x)*180/Math.PI)}°{equalLength && (equalLength.difference <= radius / 6 ? " · Same length" : " · Nearly equal")}</text>}
   </svg>
  </div>;
 }

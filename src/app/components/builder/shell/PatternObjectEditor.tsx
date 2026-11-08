@@ -8,6 +8,7 @@ import {beginPatternDrag} from '../printsStudio/studioAssets';
 import {patternDefinition} from '../../../lib/patternCatalog';
 import {ArtworkPrintMethod} from './ArtworkPrintMethod';
 import {StudioFold,StudioNumber} from './StudioControls';
+import {ArtworkOrientationControls} from './ArtworkObjectControls';
 import './patterns-studio.css';
 
 export function PatternObjectEditor({element,update,toolsOnly=false}:{element:DesignElement;update:(patch:Partial<DesignElement>)=>void;toolsOnly?:boolean}) {
@@ -27,6 +28,6 @@ export function PatternObjectEditor({element,update,toolsOnly=false}:{element:De
   <RepeatSizeControls element={previewElement} update={update}/>
   <PatternControls element={previewElement} onChange={update}/>
   <ArtworkPrintMethod element={element} update={update} initiallyOpen={false}/>
-  {!toolsOnly&&!element.patternTarget&&<fieldset disabled={element.locked}><StudioFold title="Artwork position & size" hint="Move or resize this pattern layer"><div className="pattern-size-grid">{(['width','height','x','y'] as const).map(key=><StudioNumber key={key} label={{width:'Width',height:'Height',x:'Position X',y:'Position Y'}[key]} value={element[key]} min={key==='width'||key==='height'?1:-2000} onChange={value=>update({[key]:value})}/>)}</div><StudioNumber label="Layer rotation" value={element.rotation} min={-360} max={360} unit="°" onChange={rotation=>update({rotation})}/></StudioFold></fieldset>}
+  {!toolsOnly&&!element.patternTarget&&<fieldset disabled={element.locked}><StudioFold title="Artwork position & size" hint="Move or resize this pattern layer"><div className="pattern-size-grid">{(['width','height','x','y'] as const).map(key=><StudioNumber key={key} label={{width:'Width',height:'Height',x:'Position X',y:'Position Y'}[key]} value={element[key]} min={key==='width'||key==='height'?1:-2000} onChange={value=>update({[key]:value})}/>)}</div><ArtworkOrientationControls element={element} update={update}/></StudioFold></fieldset>}
  </div>;
 }

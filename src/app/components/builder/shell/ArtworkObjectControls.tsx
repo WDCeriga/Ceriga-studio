@@ -1,12 +1,13 @@
 import {useContext} from 'react';
 import {ArtworkSurfaceContext} from '../printsStudio/ArtworkSurfaceContext';
 import {isFabricArtwork} from '../../../lib/artworkProduction';
-import {Eye,EyeOff,Lock,Unlock,FlipHorizontal2,FlipVertical2} from 'lucide-react';
+import {Eye,EyeOff,Lock,Unlock,FlipHorizontal2,RotateCcw,RotateCw,RotateCwSquare,Undo2} from 'lucide-react';
 import type {DesignElement} from '../PrintStudioEditor';
 import {ArtworkThumbnail} from '../printsStudio/ArtworkThumbnail';
 import {useArtwork} from '../printsStudio/ArtworkContext';
 import {useAssetWorkspaceContext} from '../printsStudio/AssetWorkspace';
 import {usePrintsStudio} from '../printsStudio/PrintsStudioContext';
+import {FlipControls} from '../printsStudio/FlipControls';
 import type {ArtworkFinish} from '../../../lib/artworkGeometry';
 import {artworkSlotKey} from '../../../lib/artworkColourSlots';
 import {StudioFold,StudioNumber,StudioPaint,StudioRange} from './StudioControls';
@@ -15,13 +16,47 @@ import {PrintWearControls} from './PrintWearControls';
 import {TextileInkControls} from './TextileInkControls';
 
 type Props={element:DesignElement;update:(patch:Partial<DesignElement>)=>void};
+function wrapRotation(angle: number) {
+  const wrapped = ((angle % 360) + 360) % 360;
+  return wrapped > 180 ? wrapped - 360 : wrapped;
+}
+
+export function ArtworkOrientationControls({element, update}: Props) {
+  const rotate = (degrees: number) => update({rotation: wrapRotation(element.rotation + degrees)});
+  // A canvas-diagonal reflection reverses the current angle before the local flip.
+  const flipDiagonal = (angle: number) => update({
+    rotation: wrapRotation(angle - element.rotation),
+    flipVertical: !element.flipVertical,
+  });
+
+  return <fieldset disabled={element.locked}>
+    <StudioNumber label="Rotation" unit="°" min={-360} max={360} value={element.rotation} onChange={rotation=>update({rotation})}/>
+    <div className="path-workflow-actions" role="group" aria-label="Rotate artwork">
+      <button type="button" onClick={() => rotate(-90)}><RotateCcw size={14}/>90° left</button>
+      <button type="button" onClick={() => rotate(90)}><RotateCw size={14}/>90° right</button>
+      <button type="button" onClick={() => rotate(180)}><RotateCwSquare size={14}/>Turn 180°</button>
+      <button type="button" disabled={!element.rotation && !element.flipHorizontal && !element.flipVertical}
+        onClick={() => update({rotation: 0, flipHorizontal: false, flipVertical: false})}><Undo2 size={14}/>Reset orientation</button>
+    </div>
+    <div className="path-workflow-actions" role="group" aria-label="Flip artwork">
+      <FlipControls element={element} onChange={update}/>
+      <button type="button" onClick={() => flipDiagonal(90)} title="Mirror across the top-left to bottom-right diagonal">
+        <FlipHorizontal2 size={14} style={{transform: 'rotate(-45deg)'}}/>Flip diagonal ↘
+      </button>
+      <button type="button" onClick={() => flipDiagonal(-90)} title="Mirror across the bottom-left to top-right diagonal">
+        <FlipHorizontal2 size={14} style={{transform: 'rotate(45deg)'}}/>Flip diagonal ↗
+      </button>
+    </div>
+  </fieldset>;
+}
+
 export function ArtworkObjectIdentity({element,update}:Props){return <div className="studio-object-identity"><span className="studio-layer-thumb"><ArtworkThumbnail element={element}/></span><div style={{flex:1,minWidth:0}}><input aria-label="Artwork layer name" placeholder={element.type==='text'?element.content:'Name this artwork'} value={element.layerName??''} onChange={event=>update({layerName:event.target.value||undefined})}/><small>{element.type==='drawing'?(element.sketchOnly?'Sketch':'Drawing'):element.logoTrace?'Trace':element.type==='customArea'?'Path':element.type.charAt(0).toUpperCase()+element.type.slice(1)}</small></div><button aria-label={element.hidden?'Show artwork':'Hide artwork'} onClick={()=>update({hidden:!element.hidden})}>{element.hidden?<EyeOff size={15}/>:<Eye size={15}/>}</button><button aria-label={element.locked?'Unlock artwork':'Lock artwork'} onClick={()=>update({locked:!element.locked})}>{element.locked?<Lock size={16}/>:<Unlock size={16}/>}</button></div>;}
 export function ArtworkTransformFields({element,update}:Props){
  const surface=useContext(ArtworkSurfaceContext),studio=usePrintsStudio(),unit=surface?.surface.units??'cm',units=unit==='mm'?studio.unitsPerCm/10:studio.unitsPerCm,origin=surface?{x:0,y:0}:{x:studio.printArea.x+studio.printArea.width/2,y:studio.printArea.y};
  return <StudioFold title="Position & size" rowHeight={40}><fieldset disabled={element.locked}>
  <div className="studio-two-columns">{(['x','y','width','height'] as const).map(key=><StudioNumber key={key} label={{x:'X',y:'Y',width:'Width',height:'Height'}[key]} unit={unit} min={key==='width'||key==='height'?.01:-200} max={200} step={.01} value={(element[key]-(key==='x'?origin.x:key==='y'?origin.y:0))/units} onChange={value=>update({[key]:value*units+(key==='x'?origin.x:key==='y'?origin.y:0),...(element.aspectLocked&&key==='width'?{height:element.height*value*units/element.width}:element.aspectLocked&&key==='height'?{width:element.width*value*units/element.height}:{})})}/>)}</div>
- <StudioNumber label="Rotation" unit="°" min={-360} max={360} value={element.rotation} onChange={rotation=>update({rotation})}/><label className="studio-switch">Lock ratio<input type="checkbox" checked={element.aspectLocked??false} onChange={event=>update({aspectLocked:event.target.checked})}/></label>
- <div className="path-workflow-actions"><button onClick={()=>update({flipHorizontal:!element.flipHorizontal})}><FlipHorizontal2 size={14}/>Flip H</button><button onClick={()=>update({flipVertical:!element.flipVertical})}><FlipVertical2 size={14}/>Flip V</button></div>
+ <label className="studio-switch">Lock ratio<input type="checkbox" checked={element.aspectLocked??false} onChange={event=>update({aspectLocked:event.target.checked})}/></label>
+ <ArtworkOrientationControls element={element} update={update}/>
  </fieldset></StudioFold>;
 }
 export function ArtworkColourSlots({element,update}:Props){

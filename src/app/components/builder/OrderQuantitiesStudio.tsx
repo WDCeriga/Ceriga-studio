@@ -21,8 +21,22 @@ export function OrderQuantitiesStudio({ plan, garment, name, colour = '#262626',
       <section className="order-canvas-breakdown" aria-label="Size breakdown">
         <span className="order-run-caption">{line.kind === 'sample' ? 'Samples' : `Bulk quote ${plan.bulkRuns.findIndex(run => run.id === line.id)+1}`}</span>
         <div className="order-total"><strong>{total.toLocaleString()} <small>{total === 1 ? 'unit' : 'units'}</small></strong></div>
-        <div className="order-curve" role="img" aria-label={ORDER_SIZE_KEYS.map(size => `${size.toUpperCase()}: ${line.bySize[size]} units`).join(', ')}>
-          <svg viewBox="0 0 460 190" aria-hidden="true"><line x1="30" x2="430" y1="146" y2="146" stroke="#e5e5e5"/><polyline points={points.map(point=>`${point.x},${point.y}`).join(' ')} fill="none" stroke="#a3a3a3" strokeWidth="1.5" strokeLinejoin="round"/>{points.map(({x,y,size})=><g key={size}><circle cx={x} cy={y} r="4" fill="#525252" stroke="white" strokeWidth="1.5"/><text x={x} y={y-14} textAnchor="middle" fill="#525252" fontSize="11">{line.bySize[size]}</text><text x={x} y="178" textAnchor="middle" fill="#888" fontSize="10">{size.toUpperCase()}</text></g>)}</svg>
+        <div className="order-curve">
+          <svg viewBox="0 0 460 190" role="group" aria-label="Quantity by size">
+            <line x1="30" x2="430" y1="146" y2="146" stroke="#e5e5e5" />
+            <polyline points={points.map(({ x, y }) => x + ',' + y).join(' ')} fill="none" stroke="#a3a3a3" strokeWidth="1.5" strokeLinejoin="round" />
+            {points.map(({ x, y, size }) => {
+              const count = line.bySize[size];
+              return <g key={size} className="order-chart-point" tabIndex={0} role="img"
+                aria-label={size.toUpperCase() + ': ' + count + (count === 1 ? ' unit' : ' units')}>
+                <circle cx={x} cy={y} r="14" fill="transparent" />
+                <circle className="order-chart-halo" cx={x} cy={y} r="8" fill="#262626" />
+                <circle cx={x} cy={y} r="4" fill="#525252" stroke="white" strokeWidth="1.5" />
+                <text x={x} y={y - 14} textAnchor="middle" fill="#525252" fontSize="11">{count}</text>
+                <text x={x} y="178" textAnchor="middle" fill="#888" fontSize="10">{size.toUpperCase()}</text>
+              </g>;
+            })}
+          </svg>
         </div>
       </section>
     </div>
