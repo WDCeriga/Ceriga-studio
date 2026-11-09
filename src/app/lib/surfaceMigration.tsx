@@ -1,3 +1,5 @@
+import {arrangeLabelSections} from './labelColourSections';
+import {directPrintArtwork} from './directPrintArtwork';
 import {normaliseSurfaceTextUnits} from './surfaceTextUnits';
 import {resolvedLabelSections} from './labelSectionFrames';
 import {rebaseSurfaceArtwork} from './rebaseSurfaceDocument';
@@ -9,6 +11,10 @@ export function labelSurfaceKey(label:GarmentLabel){return ['tag','hand'].includ
 export function withoutNative<T extends object>(source:T){const {schemaVersion,artworkSurfaces,...rest}=source as T&{schemaVersion?:number;artworkSurfaces?:unknown};return rest as Omit<T,'schemaVersion'|'artworkSurfaces'>}
 function rectangle(w:number,h:number,r=0){return editableSvgPath(r?`M${r} 0H${w-r}A${r} ${r} 0 0 1 ${w} ${r}V${h-r}A${r} ${r} 0 0 1 ${w-r} ${h}H${r}A${r} ${r} 0 0 1 0 ${h-r}V${r}A${r} ${r} 0 0 1 ${r} 0Z`:`M0 0H${w}V${h}H0Z`)}
 export function readLabelSurface(label:GarmentLabel,options:{readOnly?:boolean}={}):SurfaceArtwork{
+ const value=readLabelSurfaceSource(label,options);
+ return label.construction==='printed'?directPrintArtwork(value):arrangeLabelSections(value);
+}
+function readLabelSurfaceSource(label:GarmentLabel,options:{readOnly?:boolean}={}):SurfaceArtwork{
  const key=labelSurfaceKey(label),saved=label.artworkSurfaces?.[key];if(saved&&saved.document.sourceFingerprint===surfaceFingerprint(withoutNative(label)))return{surface:withoutLabelSafeInset(saved.surface),document:normaliseSurfaceTextUnits(options.readOnly?{...saved.document,readOnly:true}:saved.document)};
  const source=structuredClone(withoutNative(label)) as GarmentLabel,edge=labelEdgeGeometry(source),outline=edge.kind==='path'?editableSvgPath(edge.d):edge.kind==='ellipse'?editableSvgPath(`M${edge.cx-edge.rx} ${edge.cy}A${edge.rx} ${edge.ry} 0 1 0 ${edge.cx+edge.rx} ${edge.cy}A${edge.rx} ${edge.ry} 0 1 0 ${edge.cx-edge.rx} ${edge.cy}Z`):rectangle(edge.width,edge.height,edge.rx);
  const surface:Surface={id:`label-${label.id}-${key}`,kind:key==='label'?'label':'tagFace',units:'mm',width:source.widthMm,height:source.heightMm,outline,clip:true,background:source.background,colours:{label:{name:'Label',hex:source.background,reference:source.colourReferences?.label},text:{name:'Text',hex:source.foreground,reference:source.colourReferences?.text},border:{name:'Outline',hex:source.border,reference:source.colourReferences?.border}},bleed:0};

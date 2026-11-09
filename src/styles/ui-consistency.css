@@ -34,3 +34,10 @@
  transition-property:border-color,box-shadow,transform,opacity!important;
  -webkit-tap-highlight-color:transparent;
 }
+
+/* Pointer actions and canvas deletion must not leave a navigation ring on controls. */
+html[data-focus-origin="pointer"] body :is(button, a, summary, [role="button"], [role="tab"], [role="menuitem"], [role="checkbox"], [role="switch"]):not([data-keep-focus-ring]):focus {
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+}

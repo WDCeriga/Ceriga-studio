@@ -1,3 +1,4 @@
+import {addLabelColourSection} from '../../../lib/labelColourSections';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import {Plus} from 'lucide-react';
 import {useRef,useState} from 'react';
@@ -10,6 +11,7 @@ export function SurfaceAddMenu({value,onCommit,onSelect}:{value:SurfaceArtwork;o
  const packaging=value.surface.kind==='packagingPanel';
  const studio=usePrintsStudio(),upload=useRef<HTMLInputElement>(null),[error,setError]=useState('');
  const add=(kind:'section'|'image'|'data'|'text',image?:{source:string;aspect:number;name:string})=>{
+  if(kind==='section'&&!packaging){const added=addLabelColourSection(value);onCommit(added.value);onSelect(added.id);studio.setTool('select');return;}
   const id=crypto.randomUUID(),w=value.surface.width*.7,h=kind==='image'?Math.min(value.surface.height*.7,w/(image?.aspect??1)):value.surface.height*.3;
   const element:DesignElement={id,type:kind==='section'?'shape':kind==='image'?'image':'text',content:kind==='section'?'rect':kind==='image'?image!.source:kind==='text'?'Your brand':'[SIZE]',x:value.surface.width/2,y:value.surface.height/2,width:w,height:h,rotation:0,layerName:kind==='section'?'Section':kind==='image'?image!.name:kind==='text'?'Text':'Size',shapeGeometry:'bounds',shapeFilled:kind==='section',shapeFillColor:'#e5e5e5',borderWidth:0,fontSize:Math.min(packaging?12:3,value.surface.height*.2),fontFamily:'Inter',color:'#171717',side:'front',...(kind==='section'?{frameId:id,surfaceRole:'frame' as const,surfaceColourLinks:value.surface.colours?.label?{fill:'label'}:undefined}:{})};
   const document={...value.document,revision:value.document.revision+1,elements:[...value.document.elements.filter(e=>e.surfaceRole!=='border'),element,...value.document.elements.filter(e=>e.surfaceRole==='border')],frames:kind==='section'?[...value.document.frames,{id,name:'Section',x:element.x-w/2,y:element.y-h/2,width:w,height:h,padding:0,fill:'#e5e5e5',clip:true,layout:'free' as const,artworks:[id],leaderId:id}]:value.document.frames};

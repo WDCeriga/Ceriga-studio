@@ -163,8 +163,11 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
   body=new XMLSerializer().serializeToString(doc.documentElement);
  }
  const seam='M'+pt(a)+curve+(closedUnderarm?'L'+pt(hemInner):'');
- const rightSeam=svgpath(seam).matrix([-1,0,0,1,2048,0]).toString();
- const right=wrap(svgpath(d).matrix([-1,0,0,1,2048,0]).toString()).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+rightSeam+'"/></svg>'),leftSvg=wrap(d).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+seam+'"/></svg>');
+ // Overlap the sleeve seam with the side outline at the sharp long-sleeve join.
+ // Independent contour simplification can otherwise leave a tiny uninked endpoint.
+ const seamInk=fit==='slim'&&long?seam+'L'+pt({x:u.x,y:u.y+6}):seam;
+ const rightSeam=svgpath(seamInk).matrix([-1,0,0,1,2048,0]).toString();
+ const right=wrap(svgpath(d).matrix([-1,0,0,1,2048,0]).toString()).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+rightSeam+'"/></svg>'),leftSvg=wrap(d).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+seamInk+'"/></svg>');
  if(fit==='oversized'&&/longer-short/.test(left.assetId))outerBottom.x+=65;
  if(!long&&!cap&&Math.abs(outer.y-a.y)>1){outerBottom.x=a.x+(outer.x-a.x)*(outerBottom.y-a.y)/(outer.y-a.y);}
  let band='M'+pt(outer)+'L'+pt(inner)+'L'+pt(hemInner)+'L'+pt(outerBottom)+'Z';

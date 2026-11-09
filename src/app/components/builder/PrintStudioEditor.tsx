@@ -180,6 +180,7 @@ export interface DesignElement extends ImageAdjustmentValues {
   behindTrims?: boolean;
   svgPrecision?:import('../../lib/artworkSurface').SvgPrecision;
   frameId?:string;
+  followSection?:boolean;
   artworkUnitsPerCm?:number;
   patternTileCm?:{width:number;height:number};
   patternSeamCheck?:{status:'pass'|'risk';message:string;sourceKey:string;checkedAt:string};
@@ -2864,7 +2865,9 @@ export function PrintsDesignPreview({
     const ta = editAreaRef.current;
     if (!ta || !editingTextId) return;
     const el = elementsRef.current.find((item) => item.id === editingTextId);
-    const floor = el && el.autoHeight === false ? el.height : 0;
+    const fontSize = el?.fontSize ?? 30;
+    const density = surfaceContext ? Math.max(1, 32 / Math.max(.01, fontSize)) : 1;
+    const floor = el && el.autoHeight === false ? el.height * density : 0;
     ta.style.height = '0px';
     const contentH = ta.scrollHeight;
     ta.style.height = `${Math.max(contentH, floor)}px`;
@@ -3267,7 +3270,7 @@ export function PrintsDesignPreview({
         zone.offsetHeight,
         draggingId,
         snapBoxes,
-        {...(assetMode?{}:PREVIEW_SNAP_CENTER_NUDGE),tolerance:8*zone.offsetWidth/Math.max(1,zone.getBoundingClientRect().width)},
+        {...(assetMode?{}:PREVIEW_SNAP_CENTER_NUDGE),tolerance:6*zone.offsetWidth/Math.max(1,zone.getBoundingClientRect().width)},
       );
 
       /* Skip setAlignmentGuides when the guide lines haven't actually changed —
@@ -3739,7 +3742,7 @@ export function PrintsDesignPreview({
             data-print-design-zone
             tabIndex={editable ? -1 : undefined}
             data-asset-artboard={assetMode ? '' : undefined}
-            className={cn('absolute z-10', assetMode ? 'overflow-hidden' : 'overflow-visible', editable && 'touch-none', editable && studio.tool === 'customArea' && 'cursor-crosshair')}
+            className={cn('absolute z-10 outline-none focus:outline-none focus-visible:outline-none', assetMode ? 'overflow-hidden' : 'overflow-visible', editable && 'touch-none', editable && studio.tool === 'customArea' && 'cursor-crosshair')}
             onPointerDown={handleCustomAreaPointerDown}
             onPointerMove={(event) => {
               if (studio.tool === 'customArea' && zoneRef.current) setCustomAreaCursor(clientToZonePoint(zoneRef.current, event.clientX, event.clientY));
@@ -3939,17 +3942,22 @@ export function PrintsDesignPreview({
             const displayFont = element.fontSize ?? 30;
             /** iOS zooms the page on focus if input font is under 16px — avoid while editing. */
             const editFontSize = narrowViewport && !surfaceContext ? Math.max(16, displayFont) : displayFont;
-            const preciseText = Boolean(element.svgPrecision && element.textFrameMode !== 'area');
+            const preciseText = Boolean(element.svgPrecision);
+            const editorDensity = surfaceContext ? Math.max(1, 32 / Math.max(.01, editFontSize)) : 1;
+            const precision = element.svgPrecision;
+            const editScaleX = precision ? (precision.trackingScale ?? 1) / Math.max(.00001, precision.fontScale ?? 1) : 1;
             let editWidth = element.width, editOffsetX = 0, editOffsetY = 0;
             if (isEditingText && preciseText) {
               const context = document.createElement('canvas').getContext('2d');
               if (context) {
                 context.font = `${element.fontStyle ?? 'normal'} ${element.fontWeight === 'bold' ? 700 : element.fontWeight === 'normal' ? 400 : element.fontWeight ?? 600} ${editFontSize}px "${element.fontFamily ?? 'Inter'}"`;
-                const metrics = context.measureText(element.content.split('\n')[0]);
+                const lines = editDraft.split('\n');
+                const metrics = context.measureText(lines[0] || ' ');
+                const lineWidth = Math.max(...lines.map(line => context.measureText(line).width + Math.max(0, line.length - 1) * (element.letterSpacing ?? 0)));
                 const ascent = metrics.fontBoundingBoxAscent ?? metrics.actualBoundingBoxAscent, descent = metrics.fontBoundingBoxDescent ?? metrics.actualBoundingBoxDescent;
                 editOffsetX = metrics.actualBoundingBoxLeft;
                 editOffsetY = -((editFontSize * (element.lineSpacing ?? 115) / 100 - ascent - descent) / 2 + ascent - metrics.actualBoundingBoxAscent);
-                editWidth = Math.max(element.width, metrics.width + Math.max(0,element.content.length-1)*(element.letterSpacing??0) + .1);
+                editWidth = Math.max(element.width / editScaleX, lineWidth + .1);
               }
             }
 
@@ -4163,23 +4171,24 @@ export function PrintsDesignPreview({
                     style={{
                       color: solidPaint(element.color),
                       fontFamily: element.fontFamily ?? 'Inter',
-                      fontSize: editFontSize,
+                      fontSize: editFontSize * editorDensity,
                       fontWeight: element.fontWeight === 'bold' ? 700 : element.fontWeight === 'normal' ? 400 : element.fontWeight ?? 600,
                       lineHeight: `${element.lineSpacing ?? 115}%`,
-                      width: preciseText ? editWidth : '100%',
-                      maxWidth: preciseText ? 'none' : '100%',
+                      width: preciseText ? editWidth * editorDensity : surfaceContext ? element.width * editorDensity : '100%',
+                      maxWidth: preciseText || surfaceContext ? 'none' : '100%',
                       padding: 0, border: 0, borderRadius: 0, boxSizing: 'border-box', minWidth: 0,
                       whiteSpace: preciseText ? 'pre' : 'pre-wrap', overflowWrap: preciseText ? 'normal' : 'anywhere', wordBreak: 'normal',
-                      transform: preciseText ? `translate(${editOffsetX}px, ${editOffsetY}px)` : undefined,
-                      minHeight: element.autoHeight === false ? element.height : undefined,
+                      transform: preciseText ? `translate(${editOffsetX}px, ${editOffsetY}px) scale(${editScaleX / editorDensity}, ${1 / editorDensity})` : surfaceContext ? `scale(${1 / editorDensity})` : undefined,
+                      transformOrigin: '0 0',
+                      minHeight: surfaceContext ? 0 : element.autoHeight === false ? element.height : undefined,
                       textAlign: preciseText ? 'left' : element.textAlign ?? 'center',
                       fontStyle: element.fontStyle ?? 'normal',
                       textTransform: element.textTransform ?? 'none',
                       writingMode: element.verticalText ? 'vertical-rl' : undefined,
                       textOrientation: element.verticalText ? 'upright' : undefined,
                       letterSpacing:
-                        element.letterSpacing != null ? `${element.letterSpacing}px` : undefined,
-                      outline: '1px solid rgba(255, 59, 48, 0.55)',
+                        element.letterSpacing != null ? `${element.letterSpacing * editorDensity}px` : undefined,
+                      outline: 'none',
                       outlineOffset: '2px',
                     }}
                   />

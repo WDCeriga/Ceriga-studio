@@ -8,8 +8,20 @@
 @media(max-width:767px){.mobile-tool-content .order-request .builder-inspector-heading{display:none}.order-request .order-run-picker{margin:0 0 16px}.order-request-footer p{display:none}.order-request-footer{padding-top:8px}.order-request .order-editor-section{margin-bottom:20px}}
 
 .order-chart-halo { opacity: 0; pointer-events: none; }
+.order-chart-size-pill { opacity: 0; }
+.order-chart-point { outline: none; }
+.order-chart-point:hover .order-chart-size-pill,
+.order-chart-point:focus-visible .order-chart-size-pill { opacity: 1; }
+.order-chart-dot { transform-box: fill-box; transform-origin: center; }
+.order-chart-point:hover .order-chart-dot,
+.order-chart-point:focus-visible .order-chart-dot { transform: scale(1.3); }
 .order-chart-point:hover .order-chart-halo { opacity: .12; }
 .order-chart-point:focus-visible .order-chart-halo { opacity: .28; }
 @media (prefers-reduced-motion: no-preference) {
   .order-chart-halo { transition: opacity 140ms ease; }
+  .order-chart-size-pill { transition: opacity 160ms ease; }
+  .order-chart-dot { transition: transform 260ms cubic-bezier(.34,1.56,.64,1); }
+  .order-chart-count { transition: transform 200ms ease; }
+  .order-chart-point:hover .order-chart-count,
+  .order-chart-point:focus-visible .order-chart-count { transform: translateY(-3px); }
 }

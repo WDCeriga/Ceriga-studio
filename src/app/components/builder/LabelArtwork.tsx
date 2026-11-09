@@ -1,3 +1,4 @@
+import {directPrintArtwork} from '../../lib/directPrintArtwork';
 import {resolveLabelColours,labelBorderPath} from '../../lib/labelSurfaceRules';
 import {surfaceShapePath} from '../../lib/surfaceDesign';
 import {labelBlockFrame,resolvedLabelSections} from '../../lib/labelSectionFrames';
@@ -219,6 +220,20 @@ function CareSymbol({ category, value }: { category: CareCategory; value: string
   </g>;
 }
 
+function labelStitchPath(label: GarmentLabel, width: number, height: number) {
+  const inset = label.stitchingInsetMm ?? 1.2;
+  const right = width - inset, bottom = height - inset;
+  const topEdge = `M${inset} ${inset}H${right}`;
+  const bottomEdge = `M${inset} ${bottom}H${right}`;
+  switch (label.stitchingPlacement) {
+    case 'top': return topEdge;
+    case 'bottom': return bottomEdge;
+    case 'top-bottom': return topEdge + bottomEdge;
+    case 'sides': return `M${inset} ${inset}V${bottom}M${right} ${inset}V${bottom}`;
+    default: return '';
+  }
+}
+
 export function LegacyLabelArtwork({ label:sourceLabel, guide = false, layout: suppliedLayout }: { label: GarmentLabel; guide?: boolean; layout?: ReturnType<typeof labelLayout> }) {
   const label=useMemo(()=>resolveLabelColours(sourceLabel),[sourceLabel]);
   const fontKey=JSON.stringify([label,...(label.blocks??[]),...(label.designSections??[])].map(item=>[item.font,item.fontData,item.fontWeight,'fontStyle' in item?item.fontStyle:undefined]));
@@ -249,7 +264,7 @@ export function LegacyLabelArtwork({ label:sourceLabel, guide = false, layout: s
     </defs>
     {label.fontData && <style>{`@font-face{font-family:"${label.font.replace(/["\\<>]/g, '')}";src:url("${label.fontData}")}`}</style>}
     {label.blocks?.filter(block => block.fontData).map(block => <style key={block.key}>{`@font-face{font-family:"${block.font.replace(/["\\<>]/g, '')}";src:url("${block.fontData}")}`}</style>)}
-    {!physical&&label.borderVersion===2&&<g fill={label.background}>{edgeShape}</g>}
+
     {physical && <g data-label-fabric="" fill={label.background} stroke={label.borderVersion===2?'none':label.borderEnabled ? label.border : '#888888'} strokeWidth=".15">
       {['centre', 'manhattan'].includes(label.fold) && <path d={`M1 1H${width - 1}V${height - 1}L2 ${height - 2}Z`} transform="translate(.8 .7)" fill={label.background} />}
       {label.fold === 'loop' && <path d={`M0 0H${width}V${height - 3}Q${width / 2} ${height + 2} 0 ${height - 2}Z`} transform="translate(.5 .7)" />}
@@ -265,7 +280,7 @@ export function LegacyLabelArtwork({ label:sourceLabel, guide = false, layout: s
     </g>}
     <g clipPath={`url(#${clip})`}>{resolvedLabelSections(label).map(section=><g key={section.id} data-surface-frame={section.id}><SurfaceDecoration x={section.x} y={section.y} width={section.width} height={section.height} fill={section.background} appearance={section.appearance}/></g>)}</g>
     <g clipPath={`url(#${clip})`}><g clipPath={`url(#${label.borderVersion===2||label.edgeToEdge||label.blocks?.some(b=>b.fullWidth||b.frameMm||b.sectionId)?clip:safe})`}>
-      {label.borderEnabled && label.borderVersion!==2 && <rect data-label-border="legacy" x={layout.insetX + .1} y={layout.insetY + .1} width={Math.max(0, layout.usableWidth - .2)} height={Math.max(0, layout.usableHeight - .2)} fill="none" stroke={label.border} strokeWidth=".2" />}
+      {physical && label.borderEnabled && label.borderVersion!==2 && <rect data-label-border="legacy" x={layout.insetX + .1} y={layout.insetY + .1} width={Math.max(0, layout.usableWidth - .2)} height={Math.max(0, layout.usableHeight - .2)} fill="none" stroke={label.border} strokeWidth=".2" />}
       {label.preset === 'framed' && layout.zones.slice(1).map(zone => <path key={zone.key} d={`M${zone.x} ${zone.y}H${zone.x + zone.width}`} stroke={label.foreground} strokeWidth=".2" opacity=".45" />)}
       {layout.zones.map(zone => <g key={zone.key} data-surface-frame={zone.key} clipPath={label.blocks ? `url(#${safe}-${zone.key})` : undefined}>{label.blocks?.find(block=>block.key===zone.key)?.background && <SurfaceDecoration x={zone.x} y={zone.y} width={zone.width} height={zone.height} fill={label.blocks.find(block=>block.key===zone.key)!.background!} appearance={{...label.blocks.find(block=>block.key===zone.key)?.appearance,edgeToEdge:true}}/>}<g data-label-region={zone.key} transform={zone.transform} color={zone.color}>
         {zone.hasLogo && label.logo && <image data-label-logo="" href={label.logo.data} x={-layout.logoWidth / 2} y={-layout.logoHeight / 2} width={layout.logoWidth} height={layout.logoHeight} preserveAspectRatio="xMidYMid meet" />}
@@ -276,11 +291,14 @@ export function LegacyLabelArtwork({ label:sourceLabel, guide = false, layout: s
       </g></g>)}
     </g></g>
     <g clipPath={`url(#${clip})`}>{resolvedLabelSections(label).map(section=><svg key={section.id} data-surface-frame={section.id} x={section.x} y={section.y} width={section.width} height={section.height} viewBox={`0 0 ${section.width} ${section.height}`} overflow="hidden"><g clipPath={label.borderVersion===2?`url(#${clip}-section-${section.id})`:undefined}><SurfaceText text={section.text} x={section.align==='left'?1:section.align==='right'?section.width-1:section.width/2} y={section.height/2} size={section.fontSizeMm} font={section.font} weight={section.fontWeight} color={section.color} align={section.align} options={section.textOptions}/></g></svg>)}</g>
-    {label.stitchingPlacement&&label.stitchingPlacement!=='none'&&<g data-surface-decoration="border" data-label-stitching={label.stitchingPlacement} fill="none" stroke={label.stitchingColour??'#555555'} strokeWidth={.18} strokeDasharray=".65 .5"><path d={label.stitchingPlacement==='top'?`M${label.stitchingInsetMm??1.2} ${label.stitchingInsetMm??1.2}H${width-(label.stitchingInsetMm??1.2)}`:`M${label.stitchingInsetMm??1.2} ${label.stitchingInsetMm??1.2}V${height-(label.stitchingInsetMm??1.2)}M${width-(label.stitchingInsetMm??1.2)} ${label.stitchingInsetMm??1.2}V${height-(label.stitchingInsetMm??1.2)}`}/></g>}
-    {label.borderVersion===2&&label.borderEnabled&&<g data-surface-decoration="border" fill="none" stroke={label.border} strokeWidth={label.borderWidthMm??.2}><path d={labelBorderPath(label)} strokeDasharray={label.borderStyle==='solid'?undefined:`${(label.borderWidthMm??.2)*3} ${(label.borderWidthMm??.2)*3}`}/></g>}
+    {physical && label.stitchingPlacement && label.stitchingPlacement !== 'none' && <g
+      data-surface-decoration="border" data-label-stitching={label.stitchingPlacement}
+      fill="none" stroke={label.stitchingColour ?? '#555555'} strokeWidth={.18} strokeDasharray=".65 .5"
+    ><path d={labelStitchPath(label, width, height)} /></g>}
+    {physical&&label.borderVersion===2&&label.borderEnabled&&<g data-surface-decoration="border" fill="none" stroke={label.border} strokeWidth={label.borderWidthMm??.2}><path d={labelBorderPath(label)} strokeDasharray={label.borderStyle==='solid'?undefined:`${(label.borderWidthMm??.2)*3} ${(label.borderWidthMm??.2)*3}`}/></g>}
     {guide && <rect data-label-guide="" x="0" y="0" width={width} height={height} fill="none" stroke="#CC2D24" strokeWidth="1" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />}
   </g>;
 }
 import {LabelStyledText} from './LabelStyledText';
 
-export function LabelArtwork(props:Parameters<typeof LegacyLabelArtwork>[0]){const label=props.label,face=['tag','hand'].includes(label.category)?label.artworkFace??label.exteriorView??'front':'label',native=label.artworkSurfaces?.[face];return native?<ArtworkSurfaceSvg surface={native.surface} document={native.document}/>:<LegacyLabelArtwork {...props}/>;}
+export function LabelArtwork(props:Parameters<typeof LegacyLabelArtwork>[0]){const label=props.label,face=['tag','hand'].includes(label.category)?label.artworkFace??label.exteriorView??'front':'label',saved=label.artworkSurfaces?.[face],native=saved&&label.construction==='printed'?directPrintArtwork(saved):saved;return native?<ArtworkSurfaceSvg surface={native.surface} document={native.document}/>:<LegacyLabelArtwork {...props}/>;}

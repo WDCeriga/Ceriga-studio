@@ -57,6 +57,160 @@
 @media(min-width:768px){.ceriga-builder-shell .builder-inspector-rail:has(.labels-studio){display:flex;flex-direction:column;height:100%;max-height:100%;min-height:0}.ceriga-builder-shell .builder-inspector-rail:has(.labels-studio)>.builder-inspector{flex:1 1 0;height:0;min-height:0;overflow-y:auto!important}.ceriga-builder-shell .builder-inspector-content:has(>.labels-studio){height:auto!important;min-height:0}}
 
 .labels-studio .label-context-controls .studio-inspector-main{overflow:visible!important;overscroll-behavior:auto!important}.labels-studio .label-context-controls .studio-inspector-v2{overflow:visible!important}
-.label-edge-controls{padding:18px 0;border-top:1px solid #e2e2e2}.label-edge-controls h3{font-size:13px;font-weight:500;margin:0 0 14px}.label-edge-toggle{display:flex;align-items:center;justify-content:space-between;font-size:12px;gap:12px}.label-edge-toggle small{display:block;font-size:11px;color:#777;margin-top:4px}.label-edge-toggle input{accent-color:#262626}.label-edge-caption{font-size:11px;color:#737373;margin:18px 0 8px}.label-stitch-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.label-stitch-choices button{border:1px solid #dedede;border-radius:6px;background:white;padding:8px;font-size:11px;color:#525252}.label-stitch-choices button[aria-pressed=true]{border-color:#333;background:#f5f5f5;color:#171717}.label-stitch-choices svg{width:64px;height:36px;max-width:100%;display:block;margin:0 auto 5px}.label-edge-colour{display:flex;align-items:center;gap:9px;width:100%;margin-top:12px;border:1px solid #dedede;border-radius:6px;padding:10px;font-size:12px;background:white}.label-edge-colour i{width:22px;height:22px;border:1px solid #dedede;border-radius:4px}.label-edge-colour span{margin-left:auto;font-size:10px;color:#737373}
+.label-edge-controls {
+  margin-top: 20px;
+  padding: 20px 0 4px;
+  border-top: 1px solid var(--builder-ui-line, #e2e2e2);
+}
+.label-edge-controls h3 {
+  margin: 0 0 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.labels-studio .label-edge-controls .label-edge-toggle {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  margin: 0;
+  min-height: 42px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.label-edge-toggle > span { flex: 1; min-width: 0; }
+.label-edge-toggle small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--builder-ui-muted, #737373);
+}
+.labels-studio .label-edge-controls .label-edge-toggle > input[type=checkbox] {
+  appearance: none;
+  position: relative;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 18px;
+  min-height: 0;
+  max-width: 30px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #dedede;
+  cursor: pointer;
+  transition: background-color .15s;
+}
+.label-edge-toggle > input[type=checkbox]::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px #1717171a;
+  transition: transform .15s;
+}
+.labels-studio .label-edge-controls .label-edge-toggle > input[type=checkbox]:checked { background: #262626; }
+.label-edge-toggle > input[type=checkbox]:checked::after { transform: translateX(12px); }
+.label-edge-caption {
+  margin: 22px 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--builder-ui-text, #262626);
+}
+.label-stitch-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.labels-studio :is(.label-shape-choices, .label-cut-choices, .label-stitch-choices) > button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 74px;
+  padding: 10px 7px;
+  border: 1px solid var(--builder-ui-line, #e2e2e2);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--builder-ui-muted, #737373);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: center;
+  transition: border-color .15s, background-color .15s, color .15s;
+}
+.labels-studio :is(.label-shape-choices, .label-cut-choices, .label-stitch-choices) > button:hover {
+  border-color: #aaa;
+  background: #fafafa;
+  color: #262626;
+}
+.labels-studio :is(.label-shape-choices, .label-cut-choices, .label-stitch-choices) > button[aria-pressed=true] {
+  border-color: #525252;
+  background: #f5f5f5;
+  color: #171717;
+}
+.labels-studio :is(.label-shape-choices, .label-cut-choices) > button > svg:first-child,
+.label-stitch-choices svg {
+  display: block;
+  width: 64px !important;
+  height: 34px !important;
+  max-width: 100%;
+  margin: 0;
+  flex: 0 0 34px;
+}
+.labels-studio :is(.label-shape-choices, .label-cut-choices) > button > svg:first-child :is(path, rect, ellipse, circle) {
+  stroke: #737373;
+}
+.labels-studio :is(.label-shape-choices, .label-cut-choices) > button[aria-pressed=true] > svg:first-child :is(path, rect, ellipse, circle) {
+  stroke: #262626;
+}
+.labels-studio .label-control-title { margin: 22px 0 10px; font-size: 12px; font-weight: 500; }
+.label-edge-colour {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--builder-ui-line, #e2e2e2);
+  border-radius: 6px;
+  background: #fff;
+  color: #262626;
+  font-size: 12px;
+  text-align: left;
+  transition: background-color .15s, border-color .15s;
+}
+.label-edge-colour:hover { border-color: #aaa; background: #fafafa; }
+.label-edge-colour i { width: 24px; height: 24px; flex: 0 0 24px; border: 1px solid #17171714; border-radius: 4px; }
+.label-edge-colour span { margin-left: auto; font-size: 10px; color: #737373; }
+.labels-studio .label-edge-controls .label-collar-attachment {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--builder-ui-line, #e2e2e2);
+}
+.label-edge-controls :is(button, input):focus-visible { outline: 2px solid #737373; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .label-edge-controls *, .label-edge-controls *::after { transition: none !important; }
+}
 .label-section-controls{padding:14px 0;border-bottom:1px solid #e2e2e2;margin-bottom:16px}.label-section-add{display:flex;gap:8px}.label-section-add button{display:flex;align-items:center;gap:7px;padding:9px 12px;background:#fff;border:1px solid #dedede;border-radius:6px;font-size:12px}.label-section-colour-row{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:9px 11px;background:#fafafa;border:1px solid #e5e5e5;border-radius:6px;font-size:12px}.label-section-swatch{width:26px;height:26px;border:1px solid #d4d4d4;border-radius:4px}
 .label-object-panel{font-size:12px}.label-object-panel .studio-object-fields{border:0;padding:0;margin:0;min-width:0;display:flex;flex-direction:column;gap:14px}.label-object-panel .studio-field{margin:0}.label-text-align{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #dedede;border-radius:6px;overflow:hidden}.label-text-align button{padding:9px;background:white;font-size:12px;border-right:1px solid #dedede}.label-text-align button:last-child{border-right:0}.label-text-align button[aria-pressed=true]{background:#f1f1f1;color:#171717}.label-object-actions{display:flex;justify-content:space-between;gap:10px;padding:16px 0;border-top:1px solid #e5e5e5;margin-top:16px}.label-section>.label-edge-controls{border-top:0;padding-top:0}.label-section>.label-edge-controls>h3{display:none}
+
+.label-section-positions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.label-section-positions>button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:8px;border:1px solid var(--builder-ui-line,#e2e2e2);border-radius:5px;background:#fff;color:#525252;font-size:11px}
+.label-section-positions>button:hover{background:#f5f5f5;border-color:#aaa}
+.label-section-positions [data-section-position]{display:block;width:20px;height:16px;border:1px solid #aaa;border-radius:2px;background:linear-gradient(#737373 0 33%,transparent 33%)}
+.label-section-positions [data-section-position=middle]{background:linear-gradient(transparent 0 33%,#737373 33% 66%,transparent 66%)}
+.label-section-positions [data-section-position=bottom]{background:linear-gradient(transparent 0 66%,#737373 66%)}

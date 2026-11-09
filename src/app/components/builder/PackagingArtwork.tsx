@@ -1,3 +1,4 @@
+import {usePackagingPanelPreview} from './PackagingPanelPreviewContext';
 import {ArtworkSurfaceSvg} from './ArtworkSurfaceSvg';
 import {SurfaceDecoration,SurfaceText} from './SurfaceDesign';
 import {createPortal} from 'react-dom';
@@ -453,4 +454,4 @@ export function PackagingArtwork(props: ArtworkProps) {
     })() : <PackagingBox {...props} view={view} />}
   </svg>;
 }
-export function PackagingSurface(props:ArtworkProps&{panel:PackagingPanel}){const native=props.design.artworkSurfaces?.[props.panel];return native?<g data-packaging-surface={props.panel} onPointerDown={event=>{const target=(event.target as Element).closest('[data-native-artwork]');if(target&&props.onSelect){event.stopPropagation();props.onSelect(target.getAttribute('data-native-artwork')!);}}}><ArtworkSurfaceSvg surface={native.surface} document={native.document} quality={(props.design as PackagingDesign&{surfaceGesture?:boolean}).surfaceGesture?'gesture':'full'}/></g>:<LegacyPackagingSurface {...props}/>;}
+export function PackagingSurface(props:ArtworkProps&{panel:PackagingPanel}){const hover=usePackagingPanelPreview(),native=props.design.artworkSurfaces?.[props.panel];const content=native?<g data-packaging-surface={props.panel} onPointerDown={event=>{const target=(event.target as Element).closest('[data-native-artwork]');if(target&&props.onSelect){event.stopPropagation();props.onSelect(target.getAttribute('data-native-artwork')!);}}}><ArtworkSurfaceSvg surface={native.surface} document={native.document} quality={(props.design as PackagingDesign&{surfaceGesture?:boolean}).surfaceGesture?'gesture':'full'}/></g>:<LegacyPackagingSurface {...props}/>;if(hover.panel!==props.panel)return content;const size=panelSize(props.design,props.panel);return <>{content}<rect data-packaging-face-highlight width={size.width} height={size.height} fill="#ffffff" fillOpacity={.22} stroke="#404040" strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none"/></>;}

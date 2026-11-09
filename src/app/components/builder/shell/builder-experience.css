@@ -1,0 +1,123 @@
+/* Builder chrome only: never style text, paths or handles inside the artwork. */
+.ceriga-builder-shell {
+  --builder-ui-control-height: 36px;
+  --builder-ui-card-radius: 6px;
+  --builder-ui-line: #e5e5e5;
+  --builder-ui-text: #262626;
+  --builder-ui-muted: #737373;
+  --builder-ui-soft: #f5f5f5;
+}
+.ceriga-builder-shell .builder-inspector :is(.material-section-disclosure,.studio-fold,.label-section) {
+  border-top: 1px solid var(--builder-ui-line);
+  margin-block: 0;
+}
+.ceriga-builder-shell .builder-inspector :is(.material-section-disclosure,.studio-fold,.label-section)>summary {
+  min-height: 44px !important;
+  height: auto !important;
+  padding-block: 10px !important;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #404040;
+  gap: 10px;
+}
+.ceriga-builder-shell .builder-inspector :is(.material-section-disclosure,.studio-fold,.label-section)[open] {
+  padding-bottom: 20px;
+}
+.ceriga-builder-shell .builder-inspector :is(.studio-field,.surface-field,.studio-number,.label-field) {
+  font-size: 11px;
+  line-height: 1.5;
+  gap: 7px;
+}
+.ceriga-builder-shell .builder-inspector :is(.studio-field,.surface-field,.studio-number,.label-field) input:not([type=range]):not([type=checkbox]):not([type=color]):not([type=file]),
+.ceriga-builder-shell .builder-inspector :is(.material-select-trigger,.builder-select-trigger) {
+  min-height: 36px;
+  border-radius: 5px;
+  border-color: var(--builder-ui-line);
+  color: #262626;
+  font-size: 12px;
+}
+.ceriga-builder-shell .builder-inspector :is(.studio-field,.surface-field,.studio-number,.label-field) input:disabled { color: #a3a3a3; background: #fafafa; }
+.ceriga-builder-shell .builder-inspector :is(.material-fabric-card,.neck-shape-grid>button,.neck-finish-grid>button,.hem-style-grid>button,.label-type-list>button,.label-templates>button,.pkg-template-grid>button,.draw-brush-grid>button,.shape-choice-grid>button,.advanced-finish-grid>button,.panelling-edit-modes>button)[aria-pressed=true] {
+  background: #f5f5f5;
+  border-color: #525252;
+  color: #262626;
+  box-shadow: inset 0 0 0 .5px #525252;
+}
+.ceriga-builder-shell :is(.studio-layer-empty,.studio-no-results,.builder-empty-state,.artwork-library-empty,.label-design-empty,.draw-empty,.shape-empty,.detail-empty) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  margin: 12px 0;
+  border: 1px dashed #dedede;
+  border-radius: 6px;
+  background: #fafafa;
+  text-align: center;
+  color: #737373;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.builder-empty-state strong { color: #404040; font-size: 12px; font-weight: 500; }
+.builder-empty-state p { margin: 0; max-width: 28ch; }
+.builder-empty-state>svg { color: #a3a3a3; }
+.ceriga-builder-shell .new-builder-canvas[data-hover-preview=true]::after,
+.builder-preview-badge {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 45; padding: 6px 10px; border: 1px solid #e5e5e5; border-radius: 20px;
+  background: #ffffffed; color: #525252; font-size: 10px; line-height: 1.4;
+  pointer-events: none; white-space: nowrap;
+}
+.ceriga-builder-shell .new-builder-canvas[data-hover-preview=true]::after { content: 'Preview · click an option to apply'; }
+.packaging-panel-picker { display:flex; gap:8px; overflow-x:auto; padding:2px 1px 10px; margin-bottom:12px; scrollbar-width:thin; }
+.packaging-panel-picker>button { flex:0 0 76px; display:grid; place-items:center; gap:4px; padding:7px 5px; border:1px solid #e5e5e5; border-radius:6px; background:white; color:#737373; font-size:10px; }
+.packaging-panel-picker>button>svg { width:52px; height:40px; }
+.packaging-panel-picker>button[aria-pressed=true] { background:#f5f5f5; border-color:#525252; color:#262626; }
+.packaging-panel-picker>button:is(:hover,:focus-visible) { border-color:#737373; }
+.packaging-panel-picker { display:flex; gap:8px; overflow-x:auto; padding:2px 1px 10px; margin-bottom:12px; scrollbar-width:thin; }
+.packaging-panel-picker>button { flex:0 0 76px; display:grid; place-items:center; gap:4px; padding:7px 5px; border:1px solid #e5e5e5; border-radius:6px; background:white; color:#737373; font-size:10px; }
+.packaging-panel-picker>button>svg { width:52px; height:40px; }
+.packaging-panel-picker>button[aria-pressed=true] { background:#f5f5f5; border-color:#525252; color:#262626; }
+.packaging-panel-picker>button:is(:hover,:focus-visible) { border-color:#737373; }
+.label-preview-tabs { display:flex; gap:4px; padding:3px; background:#f5f5f5; border-radius:5px; margin-bottom:12px; }
+.label-preview-tabs>button { flex:1; min-height:30px; border-radius:3px; font-size:11px; color:#737373; }
+.label-preview-tabs>button[aria-pressed=true] { background:white; color:#262626; box-shadow:0 1px 3px #0000000a; }
+.label-finish-art { display:flex; align-items:center; justify-content:center; height:150px; padding:16px; background:#fafafa; border:1px solid #eee; border-radius:6px; overflow:hidden; }
+.label-finish-art>svg { max-width:100%; max-height:100%; width:100%; height:100%; }
+.artwork-quick-actions { display:flex; gap:5px; padding:0 0 16px; }
+.artwork-quick-actions>button { display:flex; align-items:center; justify-content:center; gap:5px; min-height:32px; padding:6px 9px; border:1px solid #e5e5e5; border-radius:5px; color:#525252; background:white; font-size:10px; }
+.artwork-quick-actions>button:last-child { margin-left:auto; }
+.artwork-quick-actions>button:disabled { opacity:.35; }
+.artwork-quick-actions>button:hover:enabled { background:#f5f5f5; }
+.ceriga-builder-shell .panelling-guide { padding: 12px; gap: 12px; border-radius: 6px; background: #fafafa; }
+.ceriga-builder-shell .panelling-finish-grid>button { border-radius: 6px; }
+.ceriga-builder-shell .panelling-finish-grid>button[aria-pressed=true] { border-color: #525252; background: #f5f5f5; }
+.ceriga-builder-shell .packaging-editor-view>button[aria-pressed=true] { background: #262626; color: white; }
+.builder-save[data-save-complete=true] { color: #262626; }
+.builder-save[data-save-complete=true]::before { content: '✓'; display: inline-block; margin-right: 5px; }
+@media (hover:hover) and (pointer:fine) {
+  .ceriga-builder-shell .builder-inspector :is(.material-fabric-card,.neck-shape-grid>button,.neck-finish-grid>button,.hem-style-grid>button,.label-templates>button,.pkg-template-grid>button,.draw-brush-grid>button,.shape-choice-grid>button):hover:enabled {
+    border-color: #a3a3a3;
+    background-color: #fafafa;
+  }
+  .ceriga-builder-shell .builder-inspector :is(.neck-shape-grid,.neck-finish-grid,.hem-style-grid,.label-templates,.pkg-template-grid,.shape-choice-grid)>button:hover:enabled>svg,
+  .ceriga-builder-shell .material-fabric-card:hover:enabled>svg { transform: translateY(-2px); }
+  .ceriga-builder-shell .studio-layer-row:hover .studio-layer-thumb { transform: scale(1.04); }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .ceriga-builder-shell .builder-inspector :is(button,input,textarea) { transition: background-color 140ms ease,border-color 140ms ease,box-shadow 140ms ease; }
+  .ceriga-builder-shell .builder-inspector :is(.neck-shape-grid,.neck-finish-grid,.hem-style-grid,.label-templates,.pkg-template-grid,.shape-choice-grid)>button>svg,
+  .ceriga-builder-shell .studio-layer-thumb { transition: transform 180ms ease; }
+  .builder-save[data-save-complete=true]::before { animation: builder-confirm 240ms ease-out; }
+  .builder-tool-hint { animation: builder-hint-in 130ms ease-out; }
+  .ceriga-builder-shell .studio-fold[open]>div { animation: builder-hint-in 140ms ease-out; }
+  .ceriga-builder-shell [data-artwork-alignment-guides]>div { animation: builder-hint-in 100ms ease-out; }
+  .ceriga-builder-shell .material-notice[role=status] { animation: builder-confirm 180ms ease-out; }
+}
+@keyframes builder-confirm { from { opacity: 0; transform: scale(.65); } to { opacity: 1; transform: scale(1); } }
+@keyframes builder-hint-in { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width:767px) {
+  .ceriga-builder-shell .builder-inspector :is(.studio-field,.surface-field,.studio-number,.label-field) input:not([type=range]):not([type=checkbox]):not([type=color]):not([type=file]),
+  .ceriga-builder-shell .builder-inspector :is(.material-select-trigger,.builder-select-trigger) { min-height: 44px; font-size: 16px; }
+}

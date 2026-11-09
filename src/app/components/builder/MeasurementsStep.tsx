@@ -39,6 +39,7 @@ import {
 } from './measurementGuides';
 
 interface MeasurementsStepProps {
+  onFitPreview?:(fit:string|null)=>void;
   shoulderControls?:ReactNode;
   guidesVisible?:boolean; onGuidesVisibleChange?:(value:boolean)=>void;
   grading?:MeasurementGrading;sizingActions?:SizingActions;
@@ -172,6 +173,7 @@ export const fitMeasurements: Record<string, Record<string, Record<string, strin
 };
 
 export function MeasurementsStep({
+  onFitPreview,
   shoulderControls,
   guidesVisible=true,onGuidesVisibleChange,
   appearance,tool,measurementTolerances,onToleranceChange,notes,onNotesChange,grading,sizingActions,
@@ -195,7 +197,7 @@ export function MeasurementsStep({
   const setHighlightedMeasurementId =
     onHighlightedMeasurementIdChange ?? setLocalHighlightedMeasurementId;
 
-  if(appearance==='shell') return <FitMeasurementsInspector shoulderControls={shoulderControls} guidesVisible={guidesVisible} onGuidesVisibleChange={onGuidesVisibleChange} grading={grading} sizingActions={sizingActions} notes={notes} onNotesChange={onNotesChange} measurementTolerances={measurementTolerances} onToleranceChange={onToleranceChange} advanced={tool==='Advanced sizing'} fit={fit} fitChoices={fitChoices} presets={currentMeasurements} measurements={measurements} onFitChange={onFitChange} onMeasurementChange={onMeasurementChange} measurementUnit={measurementUnit} onMeasurementUnitChange={onMeasurementUnitChange} highlightedMeasurementId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId}/>;
+  if(appearance==='shell') return <FitMeasurementsInspector onFitPreview={onFitPreview} shoulderControls={shoulderControls} guidesVisible={guidesVisible} onGuidesVisibleChange={onGuidesVisibleChange} grading={grading} sizingActions={sizingActions} notes={notes} onNotesChange={onNotesChange} measurementTolerances={measurementTolerances} onToleranceChange={onToleranceChange} advanced={tool==='Advanced sizing'} fit={fit} fitChoices={fitChoices} presets={currentMeasurements} measurements={measurements} onFitChange={onFitChange} onMeasurementChange={onMeasurementChange} measurementUnit={measurementUnit} onMeasurementUnitChange={onMeasurementUnitChange} highlightedMeasurementId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId}/>;
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Fit Selector */}

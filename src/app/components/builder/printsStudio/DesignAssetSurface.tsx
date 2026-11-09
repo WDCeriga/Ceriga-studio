@@ -139,6 +139,32 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
         await waitForImageFilters(node);
         await waitForDrawingReplay(node);
         if (!current()) return;
+        if (artworkSurface && element.type === 'text' && element.svgPrecision && !element.warp && !element.perspective) {
+          const svg = node.querySelector<SVGSVGElement>('[data-surface-precision] svg');
+          const textNodes = svg?.querySelectorAll<SVGGraphicsElement>('text');
+          const viewport = svg?.getScreenCTM();
+          if (viewport && textNodes?.length) {
+            const points = Array.from(textNodes).flatMap(text => {
+              const matrix = text.getScreenCTM();
+              if (!matrix) return [];
+              const box = text.getBBox();
+              const local = viewport.inverse().multiply(matrix);
+              return [[box.x, box.y], [box.x + box.width, box.y],
+                [box.x, box.y + box.height], [box.x + box.width, box.y + box.height]]
+                .map(([x, y]) => new DOMPoint(x, y).matrixTransform(local));
+            });
+            if (points.length && current()) {
+              const left = Math.min(...points.map(point => point.x));
+              const top = Math.min(...points.map(point => point.y));
+              setBounds({
+                x: left / width, y: top / actualHeight,
+                width: (Math.max(...points.map(point => point.x)) - left) / width,
+                height: (Math.max(...points.map(point => point.y)) - top) / actualHeight,
+              });
+              return;
+            }
+          }
+        }
         const padding = artworkEffectPadding(element);
         const captureWidth = width + padding * 2;
         const captureHeight = actualHeight + padding * 2;

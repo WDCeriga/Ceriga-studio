@@ -14,6 +14,9 @@ export function OrderQuantitiesStudio({ plan, garment, name, colour = '#262626',
   const total = sumBreakdown(line.bySize);
   const maximum = Math.max(1, ...Object.values(line.bySize));
   const points = ORDER_SIZE_KEYS.map((size, index) => ({ x: 30 + index * 80, y: 146 - line.bySize[size] / maximum * 96, size }));
+  const curve = points.reduce((path, point, index) => index === 0
+    ? `M ${point.x} ${point.y}`
+    : `${path} C ${points[index - 1].x + 40} ${points[index - 1].y}, ${point.x - 40} ${point.y}, ${point.x} ${point.y}`, '');
   return <div className="order-studio">
     <div className="order-canvas-caption"><span className="order-design-swatch" style={{background:colour}}/>{name}<span>Front</span></div>
     <div className="order-production-layout">
@@ -23,17 +26,22 @@ export function OrderQuantitiesStudio({ plan, garment, name, colour = '#262626',
         <div className="order-total"><strong>{total.toLocaleString()} <small>{total === 1 ? 'unit' : 'units'}</small></strong></div>
         <div className="order-curve">
           <svg viewBox="0 0 460 190" role="group" aria-label="Quantity by size">
-            <line x1="30" x2="430" y1="146" y2="146" stroke="#e5e5e5" />
-            <polyline points={points.map(({ x, y }) => x + ',' + y).join(' ')} fill="none" stroke="#a3a3a3" strokeWidth="1.5" strokeLinejoin="round" />
+            <line x1="30" x2="430" y1="146" y2="146" stroke="#e8e8e8" />
+            <path d={curve} fill="none" stroke="#737373" strokeWidth="2" strokeLinecap="round" />
             {points.map(({ x, y, size }) => {
               const count = line.bySize[size];
               return <g key={size} className="order-chart-point" tabIndex={0} role="img"
                 aria-label={size.toUpperCase() + ': ' + count + (count === 1 ? ' unit' : ' units')}>
                 <circle cx={x} cy={y} r="14" fill="transparent" />
                 <circle className="order-chart-halo" cx={x} cy={y} r="8" fill="#262626" />
-                <circle cx={x} cy={y} r="4" fill="#525252" stroke="white" strokeWidth="1.5" />
-                <text x={x} y={y - 14} textAnchor="middle" fill="#525252" fontSize="11">{count}</text>
-                <text x={x} y="178" textAnchor="middle" fill="#888" fontSize="10">{size.toUpperCase()}</text>
+                {count > 0 && <circle cx={x} cy={y} r="7" fill="#ededed" />}
+                <circle className="order-chart-dot" cx={x} cy={y} r={count > 0 ? 5 : 3.5} fill={count > 0 ? '#262626' : '#8c8c8c'} stroke="white" strokeWidth="2" />
+                <g className="order-chart-count">
+                  {count > 0 && <rect x={x - Math.max(13, String(count).length * 3.5 + 7)} y={y - 34} width={Math.max(26, String(count).length * 7 + 14)} height="22" rx="11" fill="#262626" />}
+                  <text x={x} y={y - 19} textAnchor="middle" fill={count > 0 ? 'white' : '#999'} fontSize="11" fontWeight={count > 0 ? 500 : 400}>{count}</text>
+                </g>
+                <rect className="order-chart-size-pill" x={x - 19} y="163" width="38" height="24" rx="12" fill="#f0f0f0" />
+                <text x={x} y="178" textAnchor="middle" fill={count > 0 ? '#404040' : '#888'} fontSize="10" fontWeight={count > 0 ? 500 : 400}>{size.toUpperCase()}</text>
               </g>;
             })}
           </svg>

@@ -52,59 +52,22 @@ export function snapDragInZone(
   const verticalLines: number[] = [];
   const horizontalLines: number[] = [];
 
-  let bestCx: { lx: number; d: number } | null = null;
-  for (const lx of centerXTargets) {
-    const d = Math.abs(nx - lx);
-    if (d <= SNAP && (!bestCx || d < bestCx.d)) bestCx = { lx, d };
-  }
-  if (bestCx) {
-    sx = bestCx.lx;
-    verticalLines.push(bestCx.lx);
-  } else {
-    for (const lx of edgeXTargets) {
-      if (Math.abs(nx - halfW - lx) <= SNAP) {
-        sx = lx + halfW;
-        verticalLines.push(lx);
-        break;
-      }
-    }
-    if (verticalLines.length === 0) {
-      for (const lx of edgeXTargets) {
-        if (Math.abs(nx + halfW - lx) <= SNAP) {
-          sx = lx - halfW;
-          verticalLines.push(lx);
-          break;
-        }
-      }
-    }
-  }
-
-  let bestCy: { ly: number; d: number } | null = null;
-  for (const ly of centerYTargets) {
-    const d = Math.abs(ny - ly);
-    if (d <= SNAP && (!bestCy || d < bestCy.d)) bestCy = { ly, d };
-  }
-  if (bestCy) {
-    sy = bestCy.ly;
-    horizontalLines.push(bestCy.ly);
-  } else {
-    for (const ly of edgeYTargets) {
-      if (Math.abs(ny - halfH - ly) <= SNAP) {
-        sy = ly + halfH;
-        horizontalLines.push(ly);
-        break;
-      }
-    }
-    if (horizontalLines.length === 0) {
-      for (const ly of edgeYTargets) {
-        if (Math.abs(ny + halfH - ly) <= SNAP) {
-          sy = ly - halfH;
-          horizontalLines.push(ly);
-          break;
-        }
-      }
-    }
-  }
+  // Pick the nearest actual alignment, rather than allowing a distant centre
+  // or the first item in layer order to win over a nearby edge.
+  const nearest = (position: number, half: number, centres: number[], edges: number[]) => {
+    let best: {position:number;line:number;distance:number}|null = null;
+    const consider = (target:number, offset:number) => {
+      const distance=Math.abs(position+offset-target);
+      if(distance<=SNAP&&(!best||distance<best.distance))best={position:target-offset,line:target,distance};
+    };
+    for(const target of centres)consider(target,0);
+    for(const target of edges){consider(target,-half);consider(target,half);}
+    return best as {position:number;line:number;distance:number}|null;
+  };
+  const horizontalSnap=nearest(nx,halfW,centerXTargets,edgeXTargets);
+  const verticalSnap=nearest(ny,halfH,centerYTargets,edgeYTargets);
+  if(horizontalSnap){sx=horizontalSnap.position;verticalLines.push(horizontalSnap.line);}
+  if(verticalSnap){sy=verticalSnap.position;horizontalLines.push(verticalSnap.line);}
 
   const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
   const inset = Math.max(0, options?.edgeInsetPx ?? 0);

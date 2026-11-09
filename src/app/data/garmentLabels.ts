@@ -54,7 +54,7 @@ export type TagFaceDesign = Pick<GarmentLabel, 'brand' | 'logo' | 'logoWidth' | 
 const TAG_FACE_FIELDS = ['brand', 'logo', 'logoWidth', 'logoX', 'logoY', 'size', 'composition', 'careText', 'careConfirmed', 'care', 'origin', 'business', 'additional', 'background', 'foreground', 'border', 'borderEnabled', 'font', 'fontData', 'fontWeight', 'fontSizeMm', 'letterSpacingMm', 'textAlign', 'sizePosition', 'sizeVertical', 'sizeFontSizeMm', 'sizeScale', 'regions', 'blocks', 'hierarchy', 'preset', 'editingMode', 'sectionLayout', 'designSections', 'edgeToEdge', 'layoutMode', 'extendIntoFolds', 'borderVersion', 'borderInsetMm', 'borderWidthMm', 'borderStyle', 'colourReferences', 'stitchingPlacement', 'stitchingColour', 'stitchingInsetMm'] as const;
 export interface LabelDesignSection {colourLink?:LabelColourLink;backgroundLink?:LabelColourLink;autoTextColour?:boolean;sectionId?:string;paddingMm?:number;appearance?:import('../lib/surfaceDesign').SurfaceAppearance;textOptions?:import('../lib/surfaceDesign').SurfaceTextOptions;align?:'left'|'center'|'right';id:string;x:number;y:number;width:number;height:number;background:string;color:string;text:string;font:string;fontSizeMm:number;fontWeight:number}
 export interface GarmentLabel {
-  edgeToEdge?:boolean;layoutMode?:'stacked'|'free';extendIntoFolds?:boolean;borderVersion?:2;borderInsetMm?:number;borderWidthMm?:number;borderStyle?:'solid'|'stitched';stitchingPlacement?:'none'|'top'|'sides';stitchingColour?:string;stitchingInsetMm?:number;
+  edgeToEdge?:boolean;layoutMode?:'stacked'|'free';extendIntoFolds?:boolean;borderVersion?:2;borderInsetMm?:number;borderWidthMm?:number;borderStyle?:'solid'|'stitched';stitchingPlacement?:'none'|'top'|'bottom'|'top-bottom'|'sides';stitchingColour?:string;stitchingInsetMm?:number;
   colourReferences?:Partial<Record<'label'|'text'|'border',string>>;
   customOutline?:import('../lib/shapeGeometry').ShapePath;
 
@@ -98,6 +98,7 @@ export interface GarmentLabel {
   sleeveLayer?: 'outer' | 'under';
   offsetXmm: number;
   offsetYmm: number;
+  attachToCollarSeam?: boolean;
   rotation: number;
   size: string;
   composition: string;
@@ -273,6 +274,11 @@ export function unfoldedLabelSize(label: GarmentLabel) {
   return { width, height: height * 2 + (label.fold === 'manhattan' ? fold * 2 : 0) };
 }
 
+export function canAttachLabelToCollar(label: GarmentLabel) {
+  return label.category === 'neck' && label.construction === 'physical' &&
+    label.manualPosition === undefined && label.position !== 'neck-outside';
+}
+
 export function isInteriorLabel(label: GarmentLabel) {
   if (label.manualPosition !== undefined) return false;
   return label.position !== 'neck-outside' && (label.position.startsWith('neck-') || label.position.startsWith('care-'));
@@ -327,7 +333,7 @@ export function labelWarnings(label: GarmentLabel) {
 
 export function labelSpecification(label: GarmentLabel) {
   if (label.category === 'hand') label = { ...normalizeLabel(label), faces: Object.fromEntries(labelExportFaces(label).map(face => [face.artworkFace ?? face.exteriorView, captureTagFace(face)])) };
-  return { ...label, ...(['tag', 'hand'].includes(label.category) && label.faces ? { faces: { ...label.faces, [label.artworkFace ?? (label.category === 'hand' ? label.exteriorView : 'front')]: captureTagFace(label) } } : {}), categoryName: LABEL_CATEGORIES[label.category], manufacturingMethod: LABEL_METHODS[label.method], shapeName: LABEL_SHAPES[label.shape], foldName: LABEL_FOLDS[label.fold], cutName: label.construction === 'printed' ? 'Not applicable' : LABEL_CUTS[label.cut ?? (label.shape === 'rounded' ? 'rounded' : label.fold === 'die' ? 'angled' : 'straight')], attachment: label.category === 'hand' ? 'Standalone hand tag' : label.manualPosition !== undefined ? label.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[label.position],
+  return { ...label, ...(['tag', 'hand'].includes(label.category) && label.faces ? { faces: { ...label.faces, [label.artworkFace ?? (label.category === 'hand' ? label.exteriorView : 'front')]: captureTagFace(label) } } : {}), categoryName: LABEL_CATEGORIES[label.category], manufacturingMethod: LABEL_METHODS[label.method], shapeName: LABEL_SHAPES[label.shape], foldName: LABEL_FOLDS[label.fold], cutName: label.construction === 'printed' ? 'Not applicable' : LABEL_CUTS[label.cut ?? (label.shape === 'rounded' ? 'rounded' : label.fold === 'die' ? 'angled' : 'straight')], attachment: label.category === 'hand' ? 'Standalone hand tag' : label.manualPosition !== undefined ? label.manualPosition ? 'Manual garment position' : 'Not positioned' : label.attachToCollarSeam && canAttachLabelToCollar(label) ? 'Sewn into the back collar seam' : LABEL_POSITIONS[label.position],
     careResponsibility: label.careConfirmed ? 'confirmed by user' : 'awaiting manufacturer confirmation',
     finishedMm: { width: label.widthMm, height: label.heightMm }, unfoldedMm: unfoldedLabelSize(label),
     incomplete: labelWarnings(label), productionNote: 'Confirm fold allowances, care instructions, artwork and attachment with the manufacturer before production.' };

@@ -39,3 +39,14 @@
 .surface-editor-zoom{position:absolute;bottom:16px;left:16px;z-index:65;background:white;border-radius:5px}
 .surface-artwork-editor-board>.surface-editor-zoom{bottom:0;left:0}
 @media(max-width:767px){.surface-editor-zoom{left:12px;bottom:12px}}
+
+/* The physical artboard receives programmatic focus for selection and Delete.
+   Browser focus rings would be magnified by its millimetre-to-screen transform. */
+[data-print-design-zone]:focus,
+[data-print-design-zone]:focus-visible,
+[data-surface-pan-viewport]:focus,
+[data-surface-pan-viewport]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+}
