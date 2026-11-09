@@ -2604,7 +2604,6 @@ export function PrintsDesignPreview({
   const surfaceContext=useContext(ArtworkSurfaceContext);
   const isPackagingSurface = surfaceContext?.surface.kind === 'packagingPanel';
   const elements=useMemo(()=>orderDesignLayers(sourceElements),[sourceElements]);
-  const [erasePreview, setErasePreview] = useState<DesignElement[] | null>(null);
   const studio = usePrintsStudio();
   const [contextImageId,setContextImageId]=useState<string|null>(null);
   const assetWorkspace = useAssetWorkspaceContext();
@@ -2823,8 +2822,8 @@ export function PrintsDesignPreview({
   }, [garmentSide]);
 
   const visibleElements = useMemo(
-    () => (erasePreview ?? elements).filter((item) => designElementSide(item) === garmentSide && !item.hidden && !item.referenceHidden && !item.customAreaOpen),
-    [erasePreview, elements, garmentSide],
+    () => elements.filter((item) => designElementSide(item) === garmentSide && !item.hidden && !item.referenceHidden && !item.customAreaOpen),
+    [elements, garmentSide],
   );
 
   useEffect(() => {
@@ -3864,7 +3863,6 @@ export function PrintsDesignPreview({
               displayScale={liveCanvasS}
               elements={elements}
               onChange={onChange}
-              onErasePreview={setErasePreview}
               editable={editable}
               garmentSide={garmentSide}
               adjustFilter={getArtworkAdjustFilter(
@@ -4037,7 +4035,7 @@ export function PrintsDesignPreview({
                   onPreview={points => setLiveCustomAreaPoints(points ? { id: element.id, points } : null)} />}
                 {editable&&selected&&element.type==='shape'&&!element.shapeFilled&&!(element.borderWidth??0)&&studio.pathEditingId!==element.id&&<div data-editor-chrome className="pointer-events-none absolute inset-0"><StudioGraphic element={{...visualElement,shapeFilled:false,borderWidth:uiInv,shapeStrokeColor:'#737373',shapeEffects:undefined}}/></div>}
                 {editable&&selected&&!locked&&element.content==='rect'&&!element.shapePath&&studio.tool==='select'&&<LiveCornerHandle element={visualElement} scale={1/uiInv} onPreview={shapeParameters=>setLiveTransform(shapeParameters?{id:element.id,patch:{shapeParameters}}:null)} onChange={shapeParameters=>updateElement(element.id,{shapeParameters})}/>}
-                <DesignAssetSurface clipStyle={artworkClipStyle(visualElement,elements)} interacting={erasePreview!==null||manip?.id===element.id||draggingId===element.id} editingPath={studio.pathEditingId===element.id||studio.logoRegionEditing?.rootId===element.id} element={visualElement} selected={selected && studio.logoRegionEditing?.rootId!==element.id && (studio.selectionIds.length<2||Boolean(marquee)) && studio.tool!=='shapePolygon' && studio.tool!=='shapePencil' && editable && !locked && !isEditingText && !cropEditingId && studio.pathEditingId !== element.id && !(element.type === 'customArea' && (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint')) && !patternPart}
+                <DesignAssetSurface clipStyle={artworkClipStyle(visualElement,elements)} interacting={manip?.id===element.id||draggingId===element.id} editingPath={studio.pathEditingId===element.id||studio.logoRegionEditing?.rootId===element.id} element={visualElement} selected={selected && studio.logoRegionEditing?.rootId!==element.id && (studio.selectionIds.length<2||Boolean(marquee)) && studio.tool!=='shapePolygon' && studio.tool!=='shapePencil' && editable && !locked && !isEditingText && !cropEditingId && studio.pathEditingId !== element.id && !(element.type === 'customArea' && (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint')) && !patternPart}
                   cropping={editable && cropEditingId === element.id}
                   cropOverlay={<InteractiveCropOverlay element={cropDraft} onChange={setCropDraft} width={visualElement.width} height={visualElement.height} />}
                   garmentMask={patternPart ?? (assetMode || focusArtwork ? undefined : element.patternKeepNeckPlain ? collarSafePatternMask : drawingMask)} position={{ x: liveX, y: liveY }}

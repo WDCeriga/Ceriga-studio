@@ -1,3 +1,4 @@
+import {canDetectArtworkRegions,insertArtworkRegionLayers} from '../../../lib/artworkFillRegions';
 import {useState} from 'react';
 import {simplifyArtwork,outlineArtworkStroke,offsetArtwork} from '../../../lib/artworkPathCommands';
 import {flattenBoolean} from '../../../lib/booleanArtwork';
@@ -19,9 +20,21 @@ export function PathWorkflowControls({element,update}:{element:DesignElement;upd
   const sources=document?.elements.filter(e=>e.id!==element.id&&e.type==='shape'&&!e.hidden&&(e.side??'front')===(element.side??'front'))??[];
   const prepare=()=>{if(element.booleanOperation)update(flattenBoolean(element));else if(!element.shapePath)update({shapePath:shapeToEditablePath(element)});studio.setSelectionIds([]);studio.setCropEditingId(null);studio.setWarpEditingId(null);studio.setDistortEditingId(null);};
   const draw=(operation:'subtract'|'join'|'continue'|'split')=>{prepare();studio.setPenTargetId(element.id);studio.setPenOperation(operation);studio.setPathEditingId(null);studio.setTool('shapePolygon');};
+  const fillRegions=()=>{
+    if(!document)return;
+    try {
+      const result=insertArtworkRegionLayers(document.elements,[element]);
+      document.onChange(result.elements,result.firstId);
+      studio.setPathEditingId(null);
+      studio.setSelectionIds([result.firstId]);
+      document.onSelect(result.firstId);
+      setError('');
+    } catch(e) {setError(e instanceof Error?e.message:'Could not detect fillable regions.');}
+  };
   if(element.booleanOperation)return null;
   return <StudioFold title="Edit with pen" hint="Points, curves & cutouts" open={element.content==='custom-path'||Boolean(element.letteringSource)}>
     <div className="path-paint-choices" role="group" aria-label="Path paint"><button disabled={element.locked} aria-pressed={Boolean(element.shapeFilled)} onClick={()=>update(shapePaintPatch(element,'fill',!element.shapeFilled))}><span className="path-paint-swatch" data-paint={Boolean(element.shapeFilled)}/>{element.shapeFilled?'Remove fill':'Add fill'}</button><button disabled={element.locked} aria-pressed={(element.borderWidth??0)>0} onClick={()=>update(shapePaintPatch(element,'outline',!(element.borderWidth??0)))}><span className="path-paint-swatch" data-outline data-paint={(element.borderWidth??0)>0}/>{(element.borderWidth??0)>0?'Remove outline':'Add outline'}</button></div>
+    {document&&canDetectArtworkRegions(element)&&<button type="button" className="studio-outline-action" onClick={fillRegions}>Make fillable regions</button>}
     {!element.shapeFilled&&!(element.borderWidth??0)&&<p className="path-workflow-help">Unpainted vector path. Choose fill or outline when you are ready. Editing guides are not part of the artwork.</p>}
     <p className="path-workflow-help">Move points and handles to reshape this design. Draw a closed region to cut a hole or add to its silhouette.</p>
     <div className="path-workflow-actions"><button disabled={element.locked} aria-pressed={studio.pathEditingId===element.id} onClick={()=>{prepare();studio.setTool('select');studio.setPathEditingId(studio.pathEditingId===element.id?null:element.id);}}>Edit points</button><button disabled={element.locked||!element.shapeFilled||!!element.shapeBrush||!!element.warp||!!element.perspective||!!element.eraseContours?.length||!!element.paintStain} onClick={()=>draw('subtract')}>Draw cutout</button><button disabled={element.locked||!element.shapeFilled||!!element.shapeBrush||!!element.warp||!!element.perspective||!!element.eraseContours?.length||!!element.paintStain} onClick={()=>draw('join')}>Add a region</button><button disabled={element.locked||!element.shapeFilled||!!element.warp||!!element.perspective} onClick={()=>draw('split')}>Split into regions</button>{element.shapePath&&!element.shapePath.closed&&!element.shapePath.subpaths?.length&&<button disabled={element.locked||!!element.shapeBrush||!!element.warp||!!element.perspective||!!element.eraseContours?.length} onClick={()=>draw('continue')}>Continue path</button>}{element.shapeOperationSources?.length?<button disabled={element.locked||!!element.warp||!!element.perspective||!!element.flipHorizontal||!!element.flipVertical} onClick={()=>{studio.setPathEditingId(null);update(restorePathSources(element));}}>Restore source shapes</button>:null}</div>
