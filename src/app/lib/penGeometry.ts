@@ -40,3 +40,15 @@ export function bendPenSegment(path:ShapePath,index:number,t:number,delta:PenPoi
  const a=path.nodes[index],b=path.nodes[next],u=Math.max(.02,Math.min(.98,t)),w1=3*(1-u)**2*u,w2=3*(1-u)*u*u,den=w1*w1+w2*w2;
  return {...path,nodes:path.nodes.map((n,i)=>({...n,...(i===index?{out:{x:(a.out??a).x+delta.x*w1/den,y:(a.out??a).y+delta.y*w1/den}}:{}),...(i===next?{in:{x:(b.in??b).x+delta.x*w2/den,y:(b.in??b).y+delta.y*w2/den}}:{})}))};
 }
+
+/** Join the drawn half to its reflection, preserving curves and joining axis endpoints. */
+export function closeMirroredPenPath(path:ShapePath,axis:number):ShapePath {
+ const reflect=(p:PenPoint):PenPoint=>({x:2*axis-p.x,y:p.y});
+ const nodes=path.nodes.map(n=>({...n,in:n.in?copyPenPoint(n.in):undefined,out:n.out?copyPenPoint(n.out):undefined}));
+ const reflected=reversePenPath(path).nodes.map(n=>({...reflect(n),in:n.in?reflect(n.in):undefined,out:n.out?reflect(n.out):undefined}));
+ const same=(a:PenPoint,b:PenPoint)=>Math.hypot(a.x-b.x,a.y-b.y)<.001;
+ if(nodes.length&&reflected.length&&same(nodes.at(-1)!,reflected[0])) {nodes[nodes.length-1].out=reflected.shift()!.out;}
+ nodes.push(...reflected);
+ if(nodes.length>2&&same(nodes[0],nodes.at(-1)!))nodes[0].in=nodes.pop()!.in;
+ return {closed:true,nodes};
+}

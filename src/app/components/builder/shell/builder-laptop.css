@@ -1,0 +1,39 @@
+/* Reserve real space for workspace commands instead of overlaying the tool rail. */
+.ceriga-builder-shell .print-design-canvas[data-asset-workspace=true] .asset-workspace-settings {
+  position:relative;inset:auto;min-height:38px!important;padding:3px 18px!important;
+  border-top:1px solid #efefed!important;border-radius:0;box-shadow:none;
+}
+.ceriga-builder-shell .print-design-canvas[data-asset-workspace=true] .studio-canvas-heading {display:none}
+@media(min-width:768px) {
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools {
+    top:88px;bottom:auto;transform:none;height:max-content;max-height:calc(100% - 164px);overflow-y:auto;
+    overscroll-behavior:contain;flex-shrink:0;
+  }
+  .ceriga-builder-shell .print-design-canvas[data-asset-workspace=true]>.artwork-canvas-tools {top:108px;max-height:calc(100% - 184px)}
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools>button {flex-shrink:0}
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools>.shape-tool-paint,
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools>.artwork-rail-history {flex-shrink:0}
+  .ceriga-builder-shell .asset-workspace-topline {min-width:0}
+  .ceriga-builder-shell .asset-workspace-identity {min-width:0}
+  .ceriga-builder-shell .asset-workspace-save {flex-shrink:0}
+}
+@media(min-width:768px) and (max-width:1440px) {
+  .ceriga-builder-shell[data-section]:not([data-inspector-collapsed=true]) .builder-shell-grid {
+    grid-template-columns:var(--builder-nav-width) minmax(0,1fr) min(var(--builder-inspector-width),32vw,360px);
+  }
+  .ceriga-builder-shell[data-nav-collapsed=false] {--builder-nav-width:176px}
+  .ceriga-builder-shell[data-asset-editing=true][data-nav-collapsed=false] {--builder-nav-width:176px}
+  .ceriga-builder-shell .builder-inspector {padding-inline:16px}
+  .ceriga-builder-shell .asset-workspace-save>[role=status] {display:none}
+  .ceriga-builder-shell .asset-workspace-topline {gap:10px;padding-inline:14px}
+}
+@media(min-width:768px) and (max-height:850px) {
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools {gap:1px;padding:3px}
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools>button {height:34px;min-height:34px;gap:2px;font-size:9px}
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools>button>svg {width:16px;height:16px}
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools>i {margin:2px 0}
+  .ceriga-builder-shell .print-design-canvas>.artwork-canvas-tools .artwork-rail-history button {min-height:28px;height:28px}
+}
+@media(max-width:767px) {
+  .ceriga-builder-shell .print-design-canvas[data-asset-workspace=true] .asset-workspace-settings {padding-inline:12px!important}
+}

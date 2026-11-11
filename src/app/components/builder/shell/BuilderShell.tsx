@@ -19,6 +19,7 @@ import './builder-responsive.css';
 import './builder-canvas-first.css';
 import './artwork-usability.css';
 import './builder-experience.css';
+import './builder-laptop.css';
 import {PackagingPanelPreviewProvider} from '../PackagingPanelPreviewContext';
 import {useInspectorMemory} from './useInspectorMemory';
 export const BUILDER_SECTIONS = ['Fit & Measurements', 'Materials & Colour', 'Construction', 'Artwork & Graphics', 'Labels & Branding', 'Packaging', 'Order & quantities'] as const;

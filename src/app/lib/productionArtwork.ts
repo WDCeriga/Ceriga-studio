@@ -1,3 +1,4 @@
+import {vectorEffectFilter} from './vectorEffects';
 import {expandShapeAppearance} from './shapeAppearance';
 import {artworkClipPaths} from './artworkClipping';
 import {expandTextAppearance} from './textAppearance';
@@ -34,7 +35,7 @@ export async function productionArtworkSvg(elements:DesignElement[],width:number
   const crop=normalizeCrop(element),radius=Math.max(0,Math.min(50,element.cornerRadius??0));
   if(Object.values(crop).some(Boolean)||radius){const left=crop.cropLeft*w/100,top=crop.cropTop*h/100;definitions.push(`<clipPath id="${id}-crop"><rect x="${left}" y="${top}" width="${w*(1-(crop.cropLeft+crop.cropRight)/100)}" height="${h*(1-(crop.cropTop+crop.cropBottom)/100)}" rx="${radius}"/></clipPath>`);content=`<g clip-path="url(#${id}-crop)">${content}</g>`;}
   if(element.eraseContours?.length){definitions.push(`<mask id="${id}-eraser" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="white"/>${element.eraseContours.map(points=>`<path d="M ${points.map(p=>`${p.x*w} ${p.y*h}`).join(' L ')} Z" fill="black"/>`).join('')}</mask>`);content=`<g mask="url(#${id}-eraser)">${content}</g>`;}
-  return `<g id="${id}" data-fill-reference="${esc(element.shapeFillReference)}" data-stroke-reference="${esc(element.shapeStrokeReference)}" data-layer-name="${esc(element.layerName??element.type)}" transform="${transform}" opacity="${(element.opacity??100)/100}">${content}</g>`;
+  return `<g id="${id}" data-fill-reference="${esc(element.shapeFillReference)}" data-stroke-reference="${esc(element.shapeStrokeReference)}" data-layer-name="${esc(element.layerName??element.type)}" transform="${transform}" opacity="${(element.opacity??100)/100}"${vectorEffectFilter(element.vectorEffects)?` style="filter:${esc(vectorEffectFilter(element.vectorEffects))}"`:''}>${content}</g>`;
  };
  const body=(await Promise.all(prepared.map(render))).join(''),size=options.unitsPerCm?`width="${width/options.unitsPerCm}cm" height="${height/options.unitsPerCm}cm"`:`width="${width}" height="${height}"`;
  return `<svg xmlns="http://www.w3.org/2000/svg" ${size} viewBox="0 0 ${width} ${height}"><defs>${definitions.join('')}</defs>${body}</svg>`;

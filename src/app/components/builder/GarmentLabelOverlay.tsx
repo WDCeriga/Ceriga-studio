@@ -1,3 +1,5 @@
+import {resizeLabelDimensions} from '../../lib/labelResize';
+import {flushSync} from 'react-dom';
 import {sleeveLabelAnchor} from '../../data/labelGeometry';
 import { useEffect, useId, useRef, useState, type PointerEvent } from 'react';
 import { canAttachLabelToCollar, isInteriorLabel, labelVisible, normalizeLabel, type GarmentLabel } from '../../data/garmentLabels';
@@ -183,6 +185,8 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
   const draftRef = useRef<GarmentLabel | null>(null);
   const gesture = useRef<{ label: GarmentLabel; pointer: number; start: DOMPoint; inverse: DOMMatrix; unit: number; resize: boolean } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const draftFrame=useRef(0);
+  useEffect(()=>()=>{if(draftFrame.current)cancelAnimationFrame(draftFrame.current)},[]);
   const clipPrefix = useId();
   const layerKey = layers.map(layer => layer.svgRaw).join('|');
   useEffect(() => {
@@ -238,8 +242,14 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
       x: active.label.manualPosition.x + (dx * Math.cos(angle) - dy * Math.sin(angle)) * active.unit / (manualBounds.maxX - manualBounds.minX),
       y: active.label.manualPosition.y + (dx * Math.sin(angle) + dy * Math.cos(angle)) * active.unit / (manualBounds.maxY - manualBounds.minY),
     } } : { offsetXmm: snap(active.label.offsetXmm + dx), offsetYmm: active.label.attachToCollarSeam && canAttachLabelToCollar(active.label) ? active.label.offsetYmm : snap(active.label.offsetYmm + dy) };
-    draftRef.current = constrainNeckLabel(normalizeLabel({ ...active.label, ...(active.resize ? { widthMm: snap(active.label.widthMm + dx * 2), heightMm: snap(active.label.heightMm + dy) } : manualOffset) }), layers, referenceWidthMm, maskById);
-    setDraft(draftRef.current);
+    const size=active.resize?resizeLabelDimensions({width:active.label.widthMm,height:active.label.heightMm},{x:dx,y:dy},(widthMm,heightMm)=>{
+      const candidate=place(constrainNeckLabel(normalizeLabel({...active.label,widthMm,heightMm}),layers,referenceWidthMm,maskById));
+      if(!candidate)return{x:widthMm/2,y:heightMm};
+      const screen=candidate.matrix.transformPoint(new DOMPoint(candidate.width/2,candidate.height)).matrixTransform(svgRef.current!.getScreenCTM()!);
+      const local=active.inverse.transformPoint(screen);return{x:local.x/active.unit,y:local.y/active.unit};
+    }):null;
+    draftRef.current = constrainNeckLabel(normalizeLabel({ ...active.label, ...(size ? {widthMm:size.width,heightMm:size.height} : manualOffset) }), layers, referenceWidthMm, maskById);
+    if(!draftFrame.current)draftFrame.current=requestAnimationFrame(()=>{draftFrame.current=0;setDraft(draftRef.current)});
   };
   const awaitingPlacement = selected && selected.category !== 'hand' && (manualPlacement || selected.manualPosition === null) && !selected.manualPosition && selected.exteriorView === view;
   const positionSelected = (x: number, y: number) => {
@@ -251,9 +261,9 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
   };
   return <svg ref={svgRef} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 250 }} data-garment-label-overlay="" onPointerMove={move} onPointerUp={event => {
     if (gesture.current?.pointer !== event.pointerId) return;
+    if(draftFrame.current){cancelAnimationFrame(draftFrame.current);draftFrame.current=0;}
     const committed = draftRef.current;
-    if (committed) onChange?.(labels.map(label => label.id === committed.id ? committed : label));
-    gesture.current = null; draftRef.current = null; setDraft(null);
+    flushSync(()=>{if (committed) onChange?.(labels.map(label => label.id === committed.id ? committed : label));gesture.current = null; draftRef.current = null; setDraft(null);});
   }} onPointerCancel={() => { gesture.current = null; draftRef.current = null; setDraft(null); }} onLostPointerCapture={() => { gesture.current = null; draftRef.current = null; setDraft(null); }}>
     {awaitingPlacement && manualBounds && onChange && <rect data-label-placement-target="" data-label-guide="" x={manualBounds.minX} y={manualBounds.minY} width={manualBounds.maxX - manualBounds.minX} height={manualBounds.maxY - manualBounds.minY} fill="transparent" style={{ pointerEvents: 'auto', cursor: 'crosshair' }} role="button" tabIndex={0} aria-label="Position selected label on garment; press Enter to place at center" onPointerDown={event => {
       if (event.button !== 0) return;

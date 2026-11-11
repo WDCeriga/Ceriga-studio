@@ -16,3 +16,9 @@
 .studio-artwork-thumbnail{position:absolute;inset:3px;pointer-events:none;overflow:hidden}
 .studio-artwork-thumbnail>svg{display:block;width:100%!important;height:100%!important;max-width:none;max-height:none}
 .studio-artwork-thumbnail foreignObject{overflow:hidden}
+.studio-layers-v2 .studio-layer-row{position:relative}
+.studio-layers-v2 .studio-layer-row[data-drop-edge]::after{content:'';position:absolute;left:5px;right:5px;height:2px;border-radius:1px;background:#cc2d24;pointer-events:none}
+.studio-layers-v2 .studio-layer-row[data-drop-edge=above]::after{top:-3px}
+.studio-layers-v2 .studio-layer-row[data-drop-edge=below]::after{bottom:-3px}
+.studio-layers-v2 .studio-layer-row[data-dragging=true]{opacity:.45}
+.studio-layers-v2 .layer-drag-grip{cursor:grab;opacity:.55;touch-action:none}

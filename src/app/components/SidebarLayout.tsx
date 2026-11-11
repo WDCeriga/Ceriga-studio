@@ -219,6 +219,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       </aside>
 
       <main
+        data-page-notifications={isLgUp && location.pathname !== '/dashboard'}
         className="ceriga-workspace-content min-h-dvh overflow-x-hidden transition-all duration-300 lg:pt-0"
         style={{
           marginLeft: isLgUp ? sidebarWidth : 0,

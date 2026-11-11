@@ -15,3 +15,11 @@ assert.deepEqual(p.reversePenPath(reversed).nodes,path.nodes.map(n=>({...n,in:n.
 console.log('Pen precision: DOM-point coordinates, independent/linked handles, repositioning, angle constraints, alignment/grid snapping, path reversal and add/remove-anchor curve preservation passed.');
 
 const openEnds={closed:false,nodes:[{x:0,y:0},{x:30,y:60},{x:90,y:60}]},smoothed=p.smoothShapePoints(openEnds,[0,2],true);assert.deepEqual(smoothed.nodes[0].out,{x:10,y:20});assert.equal(smoothed.nodes[0].in,undefined);assert.deepEqual(smoothed.nodes[2].in,{x:70,y:60});assert.equal(smoothed.nodes[2].out,undefined);console.log('Open endpoint smoothing follows the adjacent segment, without wrapping across the path.');
+
+const half={closed:false,nodes:[{x:10,y:10,out:{x:12,y:20}},{x:30,y:40,in:{x:20,y:30}},{x:50,y:80,in:{x:45,y:70}}]};
+const joined=p.closeMirroredPenPath(half,50);
+assert.equal(joined.closed,true);assert.equal(joined.nodes.length,5);assert.deepEqual(joined.nodes.map(n=>[n.x,n.y]),[[10,10],[30,40],[50,80],[70,40],[90,10]]);
+assert.deepEqual(joined.nodes[2].out,{x:55,y:70});assert.deepEqual(joined.nodes[3].out,{x:80,y:30});assert.equal(half.nodes[2].out,undefined);
+const bothAxis=p.closeMirroredPenPath({closed:false,nodes:[{x:50,y:0},{x:10,y:40},{x:50,y:80}]},50);assert.equal(bothAxis.nodes.length,4);
+const resumed=p.reversePenPath(half);assert.deepEqual(resumed.nodes.at(-1).in,half.nodes[0].out);assert.deepEqual(resumed.nodes[0].out,half.nodes[2].in);
+console.log('Mirrored closure joins at the axis without duplicate endpoints or a centre seam; continuing from the first end preserves curves.');

@@ -1,3 +1,5 @@
+import {artworkTransformPreview} from '../../lib/artworkTransformPreview';
+import {shapePathData} from '../../lib/shapeGeometry';
 import {MultiArtworkTransform} from './printsStudio/MultiArtworkTransform';
 import { SelectionTransformControls } from './SelectionTransformControls';
 import {ArtworkCanvasMenu} from './shell/ArtworkCanvasMenu';
@@ -7,7 +9,7 @@ import {nativeArtworkSource} from '../../lib/nativeArtworkSource';
 import {ARTWORK_UPLOAD_DRAG_MIME} from './printsStudio/studioAssets';
 import {GroupPathOverlay} from './printsStudio/GroupPathOverlay';
 import {isEditableLogoGroup,logoPartAtPoint,splitEditableLogoLayers} from '../../lib/editableLogoLayers';
-import {artworkClipStyle} from '../../lib/artworkClipping';
+import {artworkClipStyle,artworkClipPaths} from '../../lib/artworkClipping';
 import {artworkImagePlacement} from '../../lib/artworkImagePlacement';
 import * as ArtworkContextMenu from '@radix-ui/react-context-menu';
 import {LogoTraceRegionOverlay} from './printsStudio/LogoTraceRegionOverlay';
@@ -204,6 +206,8 @@ export interface DesignElement extends ImageAdjustmentValues {
   textGlyphTransforms?:Record<string,{x:number;y:number;rotation:number;scaleX:number;scaleY:number}>;
   vectorTextEffects?:{id:string;type:'arc'|'arch'|'bulge'|'flag'|'wave'|'rise'|'perspective';enabled:boolean;bend:number;horizontal:number;vertical:number}[];
   logoTrace?:import('../../lib/logoOutlineTypes').LogoTraceState;
+  vectorEffects?:import('../../lib/vectorEffects').VectorEffects;
+  layerOrderExplicit?:boolean;
   clipToArtworkId?:string;clipToArtworkIds?:string[];clipToRegionKey?:string;artworkClipPaths?:import('../../lib/shapeGeometry').ShapePath[];
   logoTraceRegion?:{key:string;colourKey:string;detached:boolean;visibilityOverride?:boolean};
   imageTrace?:import('../../lib/imageTracing').TraceState;
@@ -745,6 +749,7 @@ export type PrintManip =
       startFontSize: number;
       isImage: boolean;
       aspectLocked: boolean;
+      visibleBounds?:{x:number;y:number;width:number;height:number};
     };
 
 export function PrintTransformOverlay({
@@ -2749,15 +2754,22 @@ export function PrintsDesignPreview({
   const [patternHover, setPatternHover] = useState<{ kind: 'part' | 'area' | 'artwork'; id: string } | null>(null);
   const [dragPattern,setDragPattern]=useState<ReturnType<typeof getActivePatternDrag>>(null);
   useEffect(()=>{const clear=()=>{setPatternHover(null);setDragPattern(null);};window.addEventListener('dragend',clear);return()=>window.removeEventListener('dragend',clear);},[]);
+  const patternHitContext=useMemo(()=>document.createElement('canvas').getContext('2d'),[]);
   const findPatternTarget = (clientX: number, clientY: number) => {
     const zone = zoneRef.current;
     if (!zone) return null;
     const point = clientToZonePoint(zone, clientX, clientY);
     for(const item of [...elements].reverse()) {
-      if(!['shape','text'].includes(item.type)||item.hidden||item.locked||designElementSide(item)!==garmentSide)continue;
+      if(!['shape','text','group'].includes(item.type)||item.hidden||item.locked||designElementSide(item)!==garmentSide)continue;
       const angle=-item.rotation*Math.PI/180,dx=point.x-item.x,dy=point.y-item.y;
       const x=dx*Math.cos(angle)-dy*Math.sin(angle),y=dx*Math.sin(angle)+dy*Math.cos(angle);
-      if(Math.abs(x)<=item.width/2&&Math.abs(y)<=item.height/2)return {kind:'artwork' as const,id:item.id};
+      if(Math.abs(x)<=item.width/2&&Math.abs(y)<=item.height/2){
+        if(item.type!=='text'&&patternHitContext){
+          const paths=artworkClipPaths({...item,id:'pattern-hit-test',x:0,y:0,width:0,height:0,rotation:0,clipToArtworkId:item.id,clipToArtworkIds:undefined},elements);
+          if(!paths.some(path=>patternHitContext.isPointInPath(new Path2D(shapePathData(path)),point.x,point.y,path.fillRule??'evenodd')))continue;
+        }
+        return {kind:'artwork' as const,id:item.id};
+      }
     }
     if(assetMode && !elements.some(e=>e.type==='customArea'))return null;
     for (const area of [...elements].reverse()) {
@@ -3145,15 +3157,20 @@ export function PrintsDesignPreview({
 
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
 
+  const previewGarmentMask=(element:DesignElement)=>{const mask=element.patternTarget?patternTargets.find(part=>part.id===element.patternTarget):assetMode||focusArtwork?undefined:element.patternKeepNeckPlain?collarSafePatternMask:drawingMask;return mask?drawingMaskCss(mask,element.width,element.height,element.x,element.y,element.rotation):undefined;};
+
   useEffect(() => {
     if (!manip || !editable) return;
 
     let frame = 0;
     let pending: PointerEvent | null = null;
     let patch: Partial<DesignElement> | null = null;
+    const source=elementsRef.current.find(element=>element.id===manip.id);
+    const root=zoneRef.current?.querySelector<HTMLElement>('[data-print-id="'+manip.id+'"]');
+    const preview=source&&root?artworkTransformPreview(root,manip.kind==='resize'?manip.startElement:source,elementsRef.current,previewGarmentMask):null;
     const previewUpdate = (id: string, next: Partial<DesignElement>) => {
       patch = {...patch,...next};
-      setLiveTransform({id,patch});
+      if(preview&&source)preview.update({...source,...patch});else flushSync(()=>setLiveTransform({id,patch}));
     };
     const applyMove = (e: PointerEvent) => {
       if (manip.kind === 'rotate') {
@@ -3166,7 +3183,7 @@ export function PrintsDesignPreview({
         return;
       }
       const s=manip.screenScale,source=manip.startElement;
-      previewUpdate(manip.id,resizeArtwork({...source,width:manip.startW,height:manip.startH,fontSize:manip.startFontSize},manip.handle,{x:(e.clientX-manip.startX)/s,y:(e.clientY-manip.startY)/s},{fromCenter:e.altKey,constrain:e.shiftKey||(manip.handle.length===2&&manip.aspectLocked)}));
+      previewUpdate(manip.id,resizeArtwork({...source,width:manip.startW,height:manip.startH,fontSize:manip.startFontSize},manip.handle,{x:(e.clientX-manip.startX)/s,y:(e.clientY-manip.startY)/s},{fromCenter:e.altKey,constrain:e.shiftKey||(manip.handle.length===2&&manip.aspectLocked),visibleBounds:manip.visibleBounds}));
     };
 
     const flush = () => {frame=0;if(pending){const event=pending;pending=null;applyMove(event)}};
@@ -3174,11 +3191,9 @@ export function PrintsDesignPreview({
     const onUp = () => {
       if(frame)cancelAnimationFrame(frame);
       flush();
-      if(patch)onChangeRef.current?.(elementsRef.current.map(element=>element.id===manip.id?{...element,...patch}:element));
-      setLiveTransform(null);
-      setManip(null);
+      flushSync(()=>{preview?.restore();if(patch)onChangeRef.current?.(elementsRef.current.map(element=>element.id===manip.id?{...element,...patch}:element));setLiveTransform(null);setManip(null);});
     };
-    const onCancel = () => {if(frame)cancelAnimationFrame(frame);pending=null;setLiveTransform(null);setManip(null)};
+    const onCancel = () => {if(frame)cancelAnimationFrame(frame);pending=null;preview?.restore();setLiveTransform(null);setManip(null)};
     const onKey = (event:KeyboardEvent) => {if(event.key==='Escape'){event.preventDefault();event.stopPropagation();onCancel()}};
 
     window.addEventListener('pointermove', onMove, { passive: true });
@@ -3186,6 +3201,7 @@ export function PrintsDesignPreview({
     window.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey, true);
     return () => {
+      preview?.restore();
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
@@ -3790,7 +3806,20 @@ export function PrintsDesignPreview({
               const appearance = payload.kind === 'pattern' ? { ...initialPatternSettings(payload.id, studio.color), ...patternAppearance(payload.settings) } : {};
               if (payload.kind === 'pattern' && payload.id === 'custom' && !appearance.patternSource) return;
               if(target?.kind==='artwork' && payload.kind==='pattern'){
-                onChange(elements.map(element=>{if(element.id!==target.id)return element;const key=element.type==='text'?'textEffects':'shapeEffects';return {...element,...(element.type==='shape'?{shapeFilled:true}:{}),[key]:[textileInkEffect(payload.id,appearance.patternColors??[studio.color,'#f1eee2','#a94747','#344357'],4),...(element[key]??[]).filter(e=>e.id!=='textile-ink')]}}));setSelectedId(target.id);studio.setTool('select');return;
+                const source=elements.find(element=>element.id===target.id);
+                if(!source)return;
+                if(source.type==='text'){
+                  onChange(elements.map(element=>element.id!==source.id?element:{...element,textEffects:[textileInkEffect(payload.id,appearance.patternColors??[studio.color,'#f1eee2','#a94747','#344357'],4),...(element.textEffects??[]).filter(effect=>effect.id!=='textile-ink')]}));setSelectedId(source.id);
+                }else{
+                  const angle=source.rotation*Math.PI/180;
+                  const pattern:DesignElement={...appearance,id:crypto.randomUUID(),type:'pattern',content:payload.id,
+                    layerName:`${source.layerName??'Shape'} · pattern`,x:source.x,y:source.y,
+                    width:Math.max(1,Math.abs(Math.cos(angle))*source.width+Math.abs(Math.sin(angle))*source.height),
+                    height:Math.max(1,Math.abs(Math.sin(angle))*source.width+Math.abs(Math.cos(angle))*source.height),
+                    rotation:0,side:garmentSide,clipToArtworkId:source.id,layerOrderExplicit:true,patternSeed:appearance.patternSeed??Date.now()};
+                  onChange([...elements,pattern],pattern.id);setSelectedId(pattern.id);
+                }
+                studio.setTool('select');return;
               }
               if (target?.kind === 'area') {
                 onChange(elements.map(element => element.id === target.id ? {
@@ -3844,6 +3873,10 @@ export function PrintsDesignPreview({
             const area = patternHover.kind === 'area' ? elements.find(element => element.id === patternHover.id) : undefined;
             const artwork=patternHover.kind==='artwork'?elements.find(element=>element.id===patternHover.id):undefined;
             return <div className="pointer-events-none absolute inset-0 z-[30]" data-pattern-drop-target={patternHover.id} style={{zIndex:250,mixBlendMode:patternHover.id.startsWith('trim:')?'multiply':undefined}}>
+              {artwork&&artwork.type!=='text'&&dragPattern&&(()=>{
+                const angle=artwork.rotation*Math.PI/180,preview={...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,id:'pattern-drop-preview',type:'pattern' as const,content:dragPattern.id,x:artwork.x,y:artwork.y,width:Math.max(1,Math.abs(Math.cos(angle))*artwork.width+Math.abs(Math.sin(angle))*artwork.height),height:Math.max(1,Math.abs(Math.sin(angle))*artwork.width+Math.abs(Math.cos(angle))*artwork.height),rotation:0,clipToArtworkId:artwork.id};
+                return <div style={{position:'absolute',left:preview.x-preview.width/2,top:preview.y-preview.height/2,width:preview.width,height:preview.height,...artworkClipStyle(preview,elements)}}><PatternGraphic element={preview}/></div>;
+              })()}
               {part && dragPattern ? <div className="absolute inset-0" style={{maskImage:`url("${part.url}")`,maskSize:'100% 100%',maskRepeat:'no-repeat'}}><div style={{position:'absolute',left:part.bounds.x,top:part.bounds.y,width:part.bounds.width,height:part.bounds.height,transform:'translate(-50%,-50%)',opacity:(dragPattern.settings?.opacity??100)/100}}><PatternGraphic fabricPreview element={{id:'drag-preview',type:'pattern',content:dragPattern.id,...part.bounds,rotation:0,patternCount:defaultPatternCount(dragPattern.id),...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></div></div> : null}
               {area ? <svg className="absolute overflow-visible" viewBox={`0 0 ${area.width} ${area.height}`} style={{ left: area.x, top: area.y, width: area.width, height: area.height, transform: `translate(-50%, -50%) rotate(${area.rotation}deg)`, maskImage: drawingMask ? drawingMaskCss(drawingMask, area.width, area.height, area.x, area.y, area.rotation) : undefined }}>
                 <defs><clipPath id="pattern-hover-area"><path d={customAreaTransformedPath(area)}/></clipPath></defs>{dragPattern&&<g clipPath="url(#pattern-hover-area)"><PatternGraphic fabricPreview element={{...area,type:'pattern',content:dragPattern.id,rotation:0,...initialPatternSettings(dragPattern.id,studio.color),...dragPattern.settings,patternReferenceSize:garmentPatternReference(zoneEl?.clientWidth??800,zoneEl?.clientHeight??700)} as DesignElement}/></g>}<path d={customAreaTransformedPath(area)} fill="none" stroke="#737373" strokeWidth="1"/>
@@ -3851,7 +3884,7 @@ export function PrintsDesignPreview({
               <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-[#fafafa] px-3 py-1 text-xs text-[#262626]" role="status">Fill {artwork?.layerName??(artwork?.type==='text'?'Text':artwork?.content)??part?.label ?? area?.customAreaName ?? 'Custom Area'}</span>
             </div>;
           })()}
-          {editable&&!marquee&&studio.selectionIds.length>1&&<MultiArtworkTransform elements={elements.filter(e=>(e.side??'front')===garmentSide)} ids={studio.selectionIds} scale={zoneEl?zoneScaleFactor(zoneEl):1} onChange={next=>onChange?.([...elements.filter(e=>(e.side??'front')!==garmentSide),...next])}/>}
+          {editable&&!marquee&&studio.selectionIds.length>1&&<MultiArtworkTransform previewMask={previewGarmentMask} elements={elements.filter(e=>(e.side??'front')===garmentSide)} ids={studio.selectionIds} scale={zoneEl?zoneScaleFactor(zoneEl):1} onChange={next=>onChange?.([...elements.filter(e=>(e.side??'front')!==garmentSide),...next])}/>}
           {editable&&studio.booleanPreview.map(preview=><div key={preview.id} data-editor-chrome aria-hidden="true" className="pointer-events-none absolute" style={{left:preview.x,top:preview.y,width:preview.width,height:preview.height,transform:`translate(-50%,-50%) rotate(${preview.rotation}deg)`,opacity:.4,zIndex:95}}><StudioGraphic element={{...preview,shapeFilled:true,shapeFillColor:preview.shapeFillColor??preview.color??'#737373',borderWidth:0,shapeEffects:undefined}}/></div>)}
           {!surfaceContext && marqueeOverlay}
           {editable && alignmentGuides && <ArtworkAlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} inverseScale={uiInv}/>}
@@ -3892,7 +3925,7 @@ export function PrintsDesignPreview({
             onContinue={(id,fromStart)=>{setPenResumeStartId(fromStart?id:null);setSelectedId(id);studio.setPenTargetId(id);studio.setPenOperation('continue');}}
             snapTargets={elements.filter(el=>(el.side??'front')===garmentSide&&!el.hidden&&el.id!==studio.penTargetId&&!el.patternTarget).flatMap(el=>{const a=el.rotation*Math.PI/180;return [[-.5,-.5],[0,-.5],[.5,-.5],[.5,0],[.5,.5],[0,.5],[-.5,.5],[-.5,0],[0,0]].map(([u,v])=>({x:el.x+u*el.width*Math.cos(a)-v*el.height*Math.sin(a),y:el.y+u*el.width*Math.sin(a)+v*el.height*Math.cos(a)}));})}
             onCancel={() => {studio.setTool('select');studio.setPenTargetId(null);setPenResumeStartId(null);setPenError('');}}
-            onComplete={path => {
+            onComplete={(path,mirrored) => {
               const target=elements.find(element=>element.id===studio.penTargetId);
               try {
                 if(target&&studio.penOperation==='split'){const pieces=splitArtworkRegion(target,path);onChange?.(elements.flatMap(element=>element.id===target.id?pieces:[element]));setSelectedId(pieces[1].id);}
@@ -3900,7 +3933,7 @@ export function PrintsDesignPreview({
                 else {
                   const strokeWidth = surfaceContext?.surface.units === 'mm' ? (isPackagingSurface ? 0.8 : 0.15) : 2;
                   const next = createPenArtwork(path, studio.color, garmentSide, crypto.randomUUID(), strokeWidth);
-                  addDrawnShape(next);
+                  if(mirrored){onChange?.([...elements,next],next.id);setSelectedId(next.id);}else addDrawnShape(next);
                   if (path.closed) studio.setPathEditingId(next.id);
                 }
                 studio.setTool('select');studio.setPenTargetId(null);setPenResumeStartId(null);setPenError('');
@@ -4054,6 +4087,7 @@ export function PrintsDesignPreview({
                   overlay={<PrintTransformOverlay transformLabel={manip?.id===element.id?(manip.kind==='rotate'?`${Math.round(visualElement.rotation)}°`:`${visualElement.width.toFixed(1)} × ${visualElement.height.toFixed(1)} px`):undefined} tight hideBounds={element.type==='shape'&&Boolean(element.shapePath)&&!element.shapePath?.closed} rotation={visualElement.rotation} shapeChrome={element.type==='shape'||element.type==='customArea'} compactHandles={narrowViewport && element.type !== 'text'}
                     phoneTextMinimal={narrowViewport && element.type === 'text'} uiInverseScale={uiInv}
                     onRotatePointerDown={event => {
+                      event.currentTarget.setPointerCapture(event.pointerId);
                       event.stopPropagation(); event.preventDefault();
                       const zone = zoneRef.current;
                       if (!zone) return;
@@ -4063,11 +4097,14 @@ export function PrintsDesignPreview({
                         startAngle: Math.atan2(event.clientY - center.y, event.clientX - center.x) });
                     }}
                     onResizePointerDown={(event, handle) => {
+                      event.currentTarget.setPointerCapture(event.pointerId);
                       event.stopPropagation(); event.preventDefault(); setDraggingId(null);
                       const root = (event.currentTarget as HTMLElement).closest('[data-print-id]');
                       const renderedHeight=root instanceof HTMLElement?parseFloat(getComputedStyle(root).height):element.height;
                       const startH=element.autoHeight===false?element.height:Number.isFinite(renderedHeight)&&renderedHeight>0?renderedHeight:element.height;
-                      setManip({ kind: 'resize', id: element.id, startElement:{...element,height:startH},screenScale:zoneRef.current?zoneScaleFactor(zoneRef.current):1, handle, startX: event.clientX, startY: event.clientY,
+                      const bounds=root?.querySelector<HTMLElement>('[data-visible-bounds]'),boundsStyle=bounds?getComputedStyle(bounds):null;
+                      const visibleBounds=boundsStyle?{x:(parseFloat(boundsStyle.left)||0)/element.width,y:(parseFloat(boundsStyle.top)||0)/startH,width:(parseFloat(boundsStyle.width)||element.width)/element.width,height:(parseFloat(boundsStyle.height)||startH)/startH}:undefined;
+                      setManip({ kind: 'resize', visibleBounds,id: element.id, startElement:{...element,height:startH},screenScale:zoneRef.current?zoneScaleFactor(zoneRef.current):1, handle, startX: event.clientX, startY: event.clientY,
                         startW: element.width, startH, startFontSize: element.fontSize ?? 30,
                         isImage: element.type !== 'text', aspectLocked: element.aspectLocked ?? true });
                     }} />}

@@ -1,0 +1,54 @@
+/* Page layouts shrink with their available content width, including beside navigation. */
+.ceriga-workspace-content {min-width:0;container-type:inline-size}
+.ceriga-workspace-content>.ceriga-page,.ceriga-workspace-page {min-width:0}
+.ceriga-workspace-content :is(.grid,.flex)>:is(section,article,form,fieldset) {min-width:0}
+.ceriga-workspace-content :is(input,textarea,select) {max-width:100%}
+.studio-workflow-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px}
+/* Keep fixed notifications clear of page titles and actions. */
+@media(min-width:1024px) {
+ .ceriga-workspace-content[data-page-notifications=true]>.ceriga-page>div:first-child {padding-right:56px}
+}
+/* Long dialogs remain reachable on short laptop displays. */
+[data-slot=dialog-content] {max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain}
+.site-navigation>div {gap:20px;min-width:0}
+.site-navigation a {white-space:nowrap}
+@media(max-width:1000px) {
+ .site-navigation>div {flex-wrap:wrap;padding:16px 20px;gap:14px 20px}
+ .site-navigation>div>div:first-of-type {order:3;flex-basis:100%;justify-content:center;gap:24px}
+ .site-navigation>div>div:last-child {margin-left:auto;gap:8px}
+}
+@media(max-width:480px) {
+ .site-navigation>div {padding-inline:12px;gap:12px}
+ .site-navigation>div>a>div {font-size:14px}
+ .site-navigation>div>div:last-child button {padding-inline:10px;font-size:10px}
+ .site-navigation>div>div:first-of-type {gap:18px}
+ .site-navigation>div>div:first-of-type>a {font-size:11px}
+}
+@container(max-width:900px) {
+ .ceriga-workspace-content>.ceriga-page {padding-inline:20px}
+}
+
+/* Compact, consistent spacing for shared editor chrome. Canvas artwork is excluded. */
+.ceriga-builder-shell[data-section] .builder-inspector :is(.pen-inspector-controls,.pen-draft-controls) {gap:14px}
+.ceriga-builder-shell[data-section] .builder-inspector .pen-point-options>div {display:flex;flex-direction:column;gap:8px;padding:10px 0 14px}
+.ceriga-builder-shell[data-section] .builder-inspector .pen-point-options>div>button {
+ min-height:36px;padding:8px 11px;border:1px solid #e5e5e5;border-radius:5px;background:#fff;line-height:1.45;
+}
+.ceriga-builder-shell[data-section] .builder-inspector .pen-point-options>div>button:hover:enabled {background:#f5f5f5;border-color:#cfcfcf}
+.ceriga-builder-shell[data-section] .builder-inspector :is(.pen-draft-actions,.path-workflow-actions,.path-paint-choices,.logo-piece-actions) {gap:8px}
+.ceriga-builder-shell[data-section] .builder-inspector .pen-draft-actions {flex-wrap:wrap}
+.ceriga-builder-shell[data-section] .builder-inspector .pen-draft-actions>button {flex-basis:130px;padding:8px 10px;line-height:1.4}
+.ceriga-builder-shell[data-section] .builder-inspector .pen-precision-options>p {margin-block:10px}
+.ceriga-builder-shell[data-section] .builder-inspector :is(.studio-two-columns,.surface-two,.label-two,.pkg-section-actions) {gap:12px}
+.ceriga-builder-shell[data-section] .builder-inspector :is(.studio-field,.surface-field,.label-field) {row-gap:7px}
+.ceriga-builder-shell[data-section] .builder-inspector :is(.pen-point-options,.pen-precision-options)>summary {min-height:40px;padding-block:10px}
+@media(min-width:768px) {
+ .ceriga-builder-shell[data-section] .print-design-canvas>.artwork-canvas-tools {width:52px;padding:6px;gap:4px}
+ .ceriga-builder-shell[data-section] .print-design-canvas>.artwork-canvas-tools>i {margin:4px 0;flex-shrink:0}
+ .ceriga-builder-shell[data-section] .print-design-canvas>.artwork-canvas-tools>.artwork-rail-history {gap:4px}
+}
+.vector-effect-controls{display:grid;gap:14px;min-width:0;border:0;padding:0;margin:0}
+.vector-look-grid{gap:8px;max-height:320px;overflow-y:auto;padding:1px}
+.vector-look-preview{position:relative;height:72px;background:repeating-conic-gradient(#f5f5f5 0 25%,#fff 0 50%) 0/12px 12px;overflow:hidden}
+.vector-look-preview .studio-artwork-thumbnail{inset:8px}
+.vector-look-grid>button>span{display:flex;justify-content:space-between;align-items:center;gap:4px;padding:8px;font-size:11px;line-height:1.4}

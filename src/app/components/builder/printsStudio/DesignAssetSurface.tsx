@@ -1,3 +1,4 @@
+import {vectorEffectFilter} from '../../../lib/vectorEffects';
 import {surfaceArtworkClip} from '../../../lib/surfaceClipping';
 import {ArtworkSurfaceContext} from './ArtworkSurfaceContext';
 import {mapShapePath} from '../../../lib/artworkPathOperations';
@@ -250,7 +251,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
     } : {}) }}>
     <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: projectionTransform }}>
       <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }),maskImage:eraseMask,maskSize:'100% 100%',maskRepeat:'no-repeat' }}>
-        <div style={surfaceMask} className="h-full w-full"><ArtworkSurfaceContext.Provider value={null}><div data-artwork-clipped={clipStyle?true:undefined} style={clipStyle} className="h-full w-full"><ArtworkFinishPreview element={element}>{element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}</ArtworkFinishPreview></div></ArtworkSurfaceContext.Provider></div>
+        <div style={surfaceMask} className="h-full w-full"><ArtworkSurfaceContext.Provider value={null}><div data-artwork-clipped={clipStyle?true:undefined} style={{...clipStyle,filter:vectorEffectFilter(element.vectorEffects)}} className="h-full w-full"><ArtworkFinishPreview element={element}>{element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}</ArtworkFinishPreview></div></ArtworkSurfaceContext.Provider></div>
       </div>
       {!interacting&&!editingPath&&texture&&printMask&&printMask.key===printMaskKey&&element.type!=='distress'&&element.type!=='drawing'&&<div data-print-fabric-relief data-pattern-fabric-relief={pattern?'':undefined} data-editor-chrome className="pointer-events-none absolute inset-0" style={{mixBlendMode:'multiply',backgroundImage:drawingMaskCss(texture,width,actualHeight,position?.x??element.x,position?.y??element.y,element.rotation,true),backgroundSize:'100% 100%',maskImage:`url("${printMask.url}")`,maskSize:`${printMask.width}px ${printMask.height}px`,maskPosition:`${-printMask.padding}px ${-printMask.padding}px`,maskRepeat:'no-repeat'}}/>}
     </div>

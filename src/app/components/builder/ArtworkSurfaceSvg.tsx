@@ -1,3 +1,4 @@
+import {vectorEffectFilter} from '../../lib/vectorEffects';
 import {DesignGroupArtwork} from './printsStudio/DesignGroupArtwork';
 import {resolveSurfaceColours} from '../../lib/surfaceColourLinks';
 import React,{createContext,useContext,type ReactElement,type ReactNode}from'react';import{renderToStaticMarkup}from'react-dom/server';
@@ -12,11 +13,11 @@ const attrs=(values:Record<string,string>,scope:string)=>Object.fromEntries(Obje
 function NativeSurfaceObject({element,quality}:{element:DesignElement;quality:SurfaceRenderQuality}){
  const prepared=useContext(SurfacePreparedSvgContext),resolution=useContext(ArtworkResolutionContext);
  let e=quality==='gesture'?{...element,textEffects:undefined,shapeEffects:undefined,imageFilter:undefined,warp:undefined}:element;
- if(e.svgPrecision&&!precisionGeometryChanged(e))return <g data-native-artwork={e.id} transform={`matrix(${elementMatrix(e).join(' ')})`} dangerouslySetInnerHTML={{__html:scopeSvgMarkup(precisionMarkup(e,true),e.id)}}/>;
+ if(e.svgPrecision&&!precisionGeometryChanged(e))return <g data-native-artwork={e.id} style={{filter:vectorEffectFilter(e.vectorEffects)}} transform={`matrix(${elementMatrix(e).join(' ')})`} dangerouslySetInnerHTML={{__html:scopeSvgMarkup(precisionMarkup(e,true),e.id)}}/>;
  const transform=elementMatrix(e);if(prepared[e.id])return <g data-native-artwork={e.id} transform={`matrix(${transform.join(' ')})`} opacity={(e.opacity??100)/100} dangerouslySetInnerHTML={{__html:prepared[e.id]}}/>;return <g data-native-artwork={e.id} transform={`matrix(${transform.join(' ')})`} opacity={(e.opacity??100)/100}><foreignObject width={Math.max(.01,e.width)} height={Math.max(.01,e.height)} overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" style={{width:e.width,height:e.height,position:'relative'}}><DesignAssetSurface element={{...e,svgPrecision:undefined}} selected={false} scale={resolution} interacting={quality==='gesture'} onChange={()=>{}} overlay={null}>{e.type==='group'?<DesignGroupArtwork element={e}/>:e.type==='text'?<TextArtwork element={{...e,svgPrecision:undefined}} fontSize={e.fontSize??12}/>:<StudioGraphic element={{...e,svgPrecision:undefined}}/>}</DesignAssetSurface></div></foreignObject></g>;
 }
 function Scene({nodes,elements,scope,quality}:{nodes:SvgSceneNode[];elements:Map<string,DesignElement>;scope:string;quality:SurfaceRenderQuality}):ReactElement{
- return <>{nodes.map((node,i)=>{if(node.artworkId){const e=elements.get(node.artworkId);if(!e||e.hidden)return null;if(e.svgPrecision&&!precisionGeometryChanged(e))return <g key={node.artworkId} data-native-artwork={e.id} dangerouslySetInnerHTML={{__html:scopeSvgMarkup(precisionMarkup(e),scope)}}/>;const matrix=e.svgPrecision?inverse(e.svgPrecision.matrix):[1,0,0,1,0,0];return <g key={node.artworkId} transform={`matrix(${matrix.join(' ')})`}><NativeSurfaceObject element={e} quality={quality}/></g>}
+ return <>{nodes.map((node,i)=>{if(node.artworkId){const e=elements.get(node.artworkId);if(!e||e.hidden)return null;if(e.svgPrecision&&!precisionGeometryChanged(e))return <g key={node.artworkId} data-native-artwork={e.id} style={{filter:vectorEffectFilter(e.vectorEffects)}} dangerouslySetInnerHTML={{__html:scopeSvgMarkup(precisionMarkup(e),scope)}}/>;const matrix=e.svgPrecision?inverse(e.svgPrecision.matrix):[1,0,0,1,0,0];return <g key={node.artworkId} transform={`matrix(${matrix.join(' ')})`}><NativeSurfaceObject element={e} quality={quality}/></g>}
  const children=node.children?<Scene nodes={node.children} elements={elements} scope={scope} quality={quality}/>:node.text;return React.createElement(node.tag,{...attrs(node.attrs,scope),key:i},children);})}</>;
 }
 /** The same SVG scene is used in Flat, folded labels, garment overlays and projected box faces. */

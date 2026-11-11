@@ -125,7 +125,7 @@ export function sourceSignature(element: DesignElement) {
     element.cropBottom, element.cropLeft, element.flipHorizontal, element.flipVertical, element.filterBlur, element.filterBrightness,
     element.filterContrast, element.filterSaturate, element.filterExposure, element.filterTemperature,
     element.filterTint, element.filterHighlights, element.filterHue, element.filterNoise, element.filterGrain,
-    element.filterSharpen, JSON.stringify(element.imageFilter), element.customAreaName, element.customAreaPattern,
+    element.filterSharpen, JSON.stringify(element.imageFilter), JSON.stringify(element.vectorEffects), element.customAreaName, element.customAreaPattern,
     JSON.stringify(element.customAreaPoints), element.customAreaViewWidth, element.customAreaViewHeight,
     JSON.stringify(element.customAreaOutline), JSON.stringify(element.customAreaFillTransform), element.customAreaTexture,
     element.customAreaImage ? `${element.customAreaImage.length}:${element.customAreaImage.slice(0, 48)}:${element.customAreaImage.slice(-24)}` : ''].join('|');

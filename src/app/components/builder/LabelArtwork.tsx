@@ -5,7 +5,7 @@ import {labelBlockFrame,resolvedLabelSections} from '../../lib/labelSectionFrame
 import {ArtworkSurfaceSvg} from './ArtworkSurfaceSvg';
 import {SurfaceDecoration,SurfaceText} from './SurfaceDesign';
 import {labelEdgeGeometry} from '../../data/labelGeometry';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { memo, useEffect, useId, useMemo, useState } from 'react';
 import { CARE_OPTIONS, PREVIEW_CARE, DEFAULT_REGION_TRANSFORM, labelTextSections, type CareCategory, type GarmentLabel, type LabelRegion } from '../../data/garmentLabels';
 
 const loadedFonts = new Map<string, Promise<FontFace>>();
@@ -301,4 +301,5 @@ export function LegacyLabelArtwork({ label:sourceLabel, guide = false, layout: s
 }
 import {LabelStyledText} from './LabelStyledText';
 
-export function LabelArtwork(props:Parameters<typeof LegacyLabelArtwork>[0]){const label=props.label,face=['tag','hand'].includes(label.category)?label.artworkFace??label.exteriorView??'front':'label',saved=label.artworkSurfaces?.[face],native=saved&&label.construction==='printed'?directPrintArtwork(saved):saved;return native?<ArtworkSurfaceSvg surface={native.surface} document={native.document}/>:<LegacyLabelArtwork {...props}/>;}
+const LabelSurfaceDrawing=memo(ArtworkSurfaceSvg);
+export function LabelArtwork(props:Parameters<typeof LegacyLabelArtwork>[0]){const label=props.label,face=['tag','hand'].includes(label.category)?label.artworkFace??label.exteriorView??'front':'label',saved=label.artworkSurfaces?.[face],native=saved&&label.construction==='printed'?directPrintArtwork(saved):saved;return native?<g transform={`scale(${label.widthMm/native.surface.width} ${label.heightMm/native.surface.height})`}><LabelSurfaceDrawing surface={native.surface} document={native.document}/></g>:<LegacyLabelArtwork {...props}/>;}

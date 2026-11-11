@@ -122,7 +122,12 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const closeup = Boolean(selected) && !unplaced && (mode !== 'garment' || handSelected) && (!manual || mode === 'closeup' && !entryPending);
   const careCloseup = !manual && closeup && selected?.category === 'care';
   const cameraFocus = !unplaced && selected && focus?.id === selected.id && focus?.width && focus?.height ? focus : null;
-  const framing = cameraFocus?labelCameraFrame(cameraFocus,selected?.category):null;
+  const cameraSnapshot=useRef<{key:string;focus:LabelFocus}|null>(null);
+  const cameraKey=[selectedId,selected?.position,mode,closeUpRequest].join(':');
+  if(closeup&&cameraFocus&&cameraSnapshot.current?.key!==cameraKey)cameraSnapshot.current={key:cameraKey,focus:cameraFocus};
+  if(!closeup)cameraSnapshot.current=null;
+  const stableFocus=closeup&&cameraSnapshot.current?.key===cameraKey?cameraSnapshot.current.focus:cameraFocus;
+  const framing = stableFocus?labelCameraFrame(stableFocus,selected?.category):null;
   const scale = closeup && framing ? labelCameraScale(framing,selected?.category,Boolean(cameraFocus?.context)) * zoom : zoom;
   const point = closeup && framing ? framing : { x: 1024, y: 1024 };
   const contextVisible = mode !== 'only' && (!closeup || showGarment);
@@ -140,7 +145,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   };
   return <div ref={rootRef} className="relative flex h-full min-h-0 w-full flex-col" data-label-editing-surface="" onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
     {studio&&selected?.category==='tag'&&<GarmentViewSwitch label="Sleeve and hem tag garment side" value={selected.exteriorView} onChange={side=>{onChange(labels.map(label=>label.id===selected.id?normalizeLabel({...label,exteriorView:side}):label));onTagViewChange?.(side);workflow.setTool('Placement');setMode('garment');setEntryPending(false);setAnimatedTarget(null);setZoom(1);setPan({x:0,y:0})}}/>}
-    {studio?(!handSelected&&<div className="label-studio-toolbar"><div role="group" aria-label="Label preview mode">{(['garment','closeup','only'] as const).map((value,i)=><button key={value} disabled={!current&&value!=='garment'} aria-pressed={mode===value} onClick={()=>{setEntryPending(false);setMode(value);if(value!=='only')workflow.setSelection(null);setZoom(1);setPan({x:0,y:0})}}>{['On garment','Close-up','Artwork'][i]}</button>)}</div></div>):<div className="z-10 flex shrink-0 flex-wrap items-center justify-center gap-1 border-b border-white/10 bg-[#171717] p-1.5">
+    {studio?(!handSelected&&<div className="label-studio-toolbar"><div role="group" aria-label="Label preview mode">{(['garment','closeup','only'] as const).map((value,i)=><button key={value} disabled={!current&&value!=='garment'} aria-pressed={mode===value} onClick={()=>{cameraSnapshot.current=null;setEntryPending(false);setMode(value);if(value!=='only')workflow.setSelection(null);setZoom(1);setPan({x:0,y:0})}}>{['On garment','Close-up','Artwork'][i]}</button>)}</div></div>):<div className="z-10 flex shrink-0 flex-wrap items-center justify-center gap-1 border-b border-white/10 bg-[#171717] p-1.5">
       {!handSelected && current && <>
         <div role="group" aria-label="Label preview mode"><button type="button" className={controlClass} aria-pressed={mode==='garment'} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('garment'); setZoom(1); }}>Garment</button><button type="button" className={controlClass} aria-pressed={mode==='closeup'} disabled={!selected} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('closeup'); setZoom(1); }}>Label close-up</button><button type="button" className={controlClass} aria-pressed={mode==='only'} disabled={!selected} onClick={()=>{setEntryPending(false);setMode('only');setZoom(1);setPan({x:0,y:0})}}>Label only</button></div>
         {tagEditing && <div role="group" aria-label="Tag garment side">{(['front', 'back'] as const).map(side => <button key={side} type="button" className={controlClass} aria-pressed={view === side} onClick={() => { onTagViewChange?.(side); const next = labels.find(label => label.category === 'tag' && label.exteriorView === side); if (next) onSelect(next.id); }}>{side === 'front' ? 'Front' : 'Back'}</button>)}</div>}
@@ -164,7 +169,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
       {!selected && <p role="status" className="pointer-events-none absolute bottom-5 z-10 max-w-sm rounded border border-black/10 bg-white/95 px-4 py-2 text-center text-xs text-[#737373]">{labels.length ? 'Select a saved label or use Add label in the panel. No label is selected for this view.' : 'No labels added. Choose any label category and use Add label in the panel when you are ready.'}</p>}
       {unplaced && <p role="status" className="pointer-events-none absolute bottom-4 z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#171717]">Click the garment to position your label. No attachment location is assumed.</p>}
     </div>
-    {studio&&!(selected&&(handSelected||mode==='only'))&&<CanvasZoom className="label-studio-zoom" value={zoom*100} min={50} max={300} step={25} onChange={n=>setZoom(n/100)} onFit={()=>{setZoom(1);setPan({x:0,y:0})}}/>}
+    {studio&&!(selected&&(handSelected||mode==='only'))&&<CanvasZoom className="label-studio-zoom" value={zoom*100} min={50} max={300} step={25} onChange={n=>setZoom(n/100)} onFit={()=>{cameraSnapshot.current=null;setZoom(1);setPan({x:0,y:0})}}/>}
     {!studio&&<div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/10 bg-[#171717] px-2 py-2 text-[10px] text-white/65">
       {selected ? <><span>{selected.widthMm} x {selected.heightMm} mm</span><span>{handSelected ? `Standalone hand tag — ${selected.exteriorView}` : manual ? selected.manualPosition ? 'Manual garment position' : 'Not positioned' : LABEL_POSITIONS[selected.position]}</span></> : <span>No label selected</span>}
       {selected && <span>{handSelected ? 'Hand tag' : interior || neckSelected ? 'Interior attachment' : `${view === 'back' ? 'Back' : 'Front'} exterior`}</span>}
