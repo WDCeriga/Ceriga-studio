@@ -1,6 +1,6 @@
 import {getSupabase} from './supabaseClient';
 import type {Currency} from './currency';
-export type ShippingTerms={priceCents:number;currency:Currency;provider:string;method:string;origin:string;destination:string;transitDays:number;weightKg:number;lengthCm:number;widthCm:number;heightCm:number;cartons:number;insurance:string;services:string;tradeTerms:string;validUntil:string};
+export type ShippingTerms={priceCents:number;currency:Currency;provider:string;method:string;origin:string;destination:string;transitDays?:number;weightKg?:number;lengthCm?:number;widthCm?:number;heightCm?:number;cartons?:number;insurance?:string;services?:string;tradeTerms?:string;validUntil?:string};
 export type Forwarder={id:string;company_name:string;contact_details:string;countries:string;routes:string;methods:string;typical_delivery:string;terms:string;active:boolean};
 export type FreightQuote={id:string;option_id:string;source:string;forwarder_id:string|null;terms:ShippingTerms;created_at:string};
 export type FreightContext={operational?:Omit<ShippingTerms,'priceCents'|'currency'>;approved:(ShippingTerms&{manufacturingCents:number;serviceFeeCents:number;taxCents:number;dutiesCents:number;otherCents:number;roundingCents:number;totalCents:number})|null;events:{id:string;status:string;details:Record<string,string>;created_at:string}[];canManage:boolean;paid:boolean;qcApproved:boolean;manufacturerQuotes:{id:string;label:string;shipping?:ShippingTerms;currency:Currency}[]|null;quotes:FreightQuote[];selections:{option_id:string;quote_id:string}[];amendments:unknown[]};

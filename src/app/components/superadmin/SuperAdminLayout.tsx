@@ -1,3 +1,4 @@
+import '../portal-navigation.css';
 import './superadmin-sidebar.css';
 import '../dashboard/superadmin-dashboard.css';
 import { ReactNode, useEffect, useState } from 'react';
@@ -34,10 +35,9 @@ const RED = '#CC2D24';
 const navItems = [
   { path: '/superadmin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { path: '/superadmin/users', label: 'Users', icon: Users },
-  { path: '/superadmin/workers', label: 'Workers', icon: Briefcase },
+  { path: '/superadmin/workers', label: 'Team & roles', icon: Briefcase },
   { path: '/superadmin/orders', label: 'Orders', icon: Package },
-  { path: '/superadmin/quality-control', label: 'Quality control', icon: ShieldCheck },
-  { path: '/superadmin/assignment', label: 'Assignment', icon: Route },
+  { path: '/superadmin/assignment', label: 'Production review', icon: ShieldCheck },
   { path: '/superadmin/statistics', label: 'Statistics', icon: BarChart3 },
   { path: '/superadmin/manufacturers', label: 'Manufacturers', icon: Factory },
   { path: '/superadmin/time-off', label: 'Production calendar', icon: CalendarOff },
@@ -95,6 +95,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   }
 
   const isActive = (path: string, end?: boolean) => {
+    if (path === '/superadmin/assignment' && location.pathname.startsWith('/superadmin/quality-control')) return true;
     if (end) return location.pathname === path;
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
@@ -107,9 +108,10 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
     setSheetOpen(false);
   };
 
+  const lightPortal = (['/superadmin', '/superadmin/users', '/superadmin/orders', '/superadmin/assignment', '/superadmin/manufacturers', '/superadmin/time-off', '/superadmin/shipping-onboard', '/superadmin/pricing', '/superadmin/messages', '/superadmin/notifications', '/superadmin/settings'].includes(location.pathname.replace(/\/$/,'')) || /^\/superadmin\/(?:workers|quality-control|statistics|crm|manufacturers|orders|assignment)(?:\/|$)/.test(location.pathname));
   const NavBlock = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <nav className="flex-1 space-y-1 p-2">
+      <nav aria-label="Workspace" className="flex-1 space-y-1 p-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path, 'end' in item ? item.end : false);
@@ -117,6 +119,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
             <Link
               key={item.path}
               to={item.path}
+              aria-current={active ? "page" : undefined}
               onClick={onNavigate}
               className={cn(
                 'flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors',
@@ -132,6 +135,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
       <div className="border-t border-[#252528] p-2">
         <Link
           to="/superadmin/notifications"
+          aria-current={isActive("/superadmin/notifications") ? "page" : undefined}
           onClick={onNavigate}
           className={cn(
             'mb-1 flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors',
@@ -152,6 +156,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
         </Link>
         <Link
           to="/superadmin/settings"
+          aria-current={isActive("/superadmin/settings") ? "page" : undefined}
           onClick={onNavigate}
           className={cn(
             'mb-1 flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors',
@@ -183,12 +188,14 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className={cn('min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)]', (['/superadmin', '/superadmin/users', '/superadmin/orders', '/superadmin/assignment', '/superadmin/manufacturers', '/superadmin/time-off', '/superadmin/shipping-onboard', '/superadmin/pricing', '/superadmin/messages', '/superadmin/notifications', '/superadmin/settings'].includes(location.pathname.replace(/\/$/,'')) || /^\/superadmin\/(?:workers|quality-control|statistics|crm|manufacturers|orders)(?:\/|$)/.test(location.pathname)) && 'superadmin-overview-shell')}>
+    <div className={cn('min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)]', lightPortal && 'superadmin-overview-shell')}>
       {!isLgUp && (
         <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-[#252528] bg-[#09090B]/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
+            aria-expanded={sheetOpen}
+            aria-haspopup="dialog"
             className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
             aria-label="Open menu"
           >
@@ -199,6 +206,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
           </span>
           <Link
             to="/superadmin/notifications"
+            aria-current={isActive("/superadmin/notifications") ? "page" : undefined}
             className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
             aria-label={`Notifications${notifUnread ? `, ${notifUnread} unread` : ''}`}
           >
@@ -215,11 +223,12 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="left"
-          className={cn('w-[min(300px,88vw)] border-[#252528] bg-[#09090B] p-0 text-[#F0EEEE] [&>button]:text-[#A3A3A8]', (['/superadmin', '/superadmin/users', '/superadmin/orders', '/superadmin/assignment', '/superadmin/manufacturers', '/superadmin/time-off', '/superadmin/shipping-onboard', '/superadmin/pricing', '/superadmin/messages', '/superadmin/notifications', '/superadmin/settings'].includes(location.pathname.replace(/\/$/,'')) || /^\/superadmin\/(?:workers|quality-control|statistics|crm|manufacturers|orders)(?:\/|$)/.test(location.pathname)) && 'superadmin-overview-menu')}
+          aria-describedby={undefined}
+          className={cn("portal-mobile-menu w-[min(320px,88vw)] p-0", lightPortal && "portal-mobile-menu-light")}
         >
           <SheetTitle className="sr-only">Superadmin navigation</SheetTitle>
-          <div className="flex h-full flex-col pt-10">
-            <div className="border-b border-[#252528] px-4 py-3">
+          <div className="portal-mobile-menu-body">
+            <div className="portal-mobile-menu-heading">
               <span className="text-sm font-extrabold uppercase tracking-wide text-[#F0EEEE]">Ceriga — Owner</span>
             </div>
             <NavBlock onNavigate={() => setSheetOpen(false)} />
@@ -265,6 +274,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
                   <Link
                     key={item.path}
                     to={item.path}
+                    aria-current={active ? "page" : undefined}
                     title={item.label}
                     className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
@@ -277,6 +287,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
               })}
               <Link
                 to="/superadmin/notifications"
+                aria-current={isActive("/superadmin/notifications") ? "page" : undefined}
                 className={cn(
                   'relative flex h-10 w-10 items-center justify-center rounded-xl',
                   isActive('/superadmin/notifications') ? 'border-l-2 border-[#CC2D24] bg-[#1C0F0F] text-[#E5534A]' : 'text-[#8A8A90] hover:bg-[#1C1C1E]',
@@ -289,6 +300,7 @@ export function SuperAdminLayout({ children }: { children: ReactNode }) {
               </Link>
               <Link
                 to="/superadmin/settings"
+                aria-current={isActive("/superadmin/settings") ? "page" : undefined}
                 className={cn(
                   'flex h-10 w-10 items-center justify-center rounded-xl',
                   isActive('/superadmin/settings') ? 'border-l-2 border-[#CC2D24] bg-[#1C0F0F] text-[#E5534A]' : 'text-[#8A8A90] hover:bg-[#1C1C1E]',

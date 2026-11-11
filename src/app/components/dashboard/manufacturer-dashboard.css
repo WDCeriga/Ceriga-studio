@@ -6,7 +6,7 @@
 .manufacturer-home-shell>aside a,.manufacturer-home-shell>aside button{color:#737373;border-radius:4px}
 .manufacturer-home-shell>aside a:hover{background:#f2f2f2;color:#171717}
 .manufacturer-home-shell>aside a[class*='border-l-2']{background:#f2f2f2;color:#171717;border-left-color:#171717}
-.manufacturer-home-shell>aside a[href='/manufacturer']{color:#171717;background:#f2f2f2;border-left-color:#171717;font-size:12px;font-weight:500}
+.manufacturer-home-shell>aside a[href='/manufacturer'][aria-current='page']{color:#171717;background:#f2f2f2;border-left-color:#171717;font-size:12px;font-weight:500}
 .manufacturer-home-shell>aside>div:first-child a{background:none;font-size:12px;font-weight:600;letter-spacing:.05em}
 .manufacturer-home-shell>aside button{background:#fafafa;border-color:#e2e2e2}
 .manufacturer-home-shell>aside button svg{color:#737373}

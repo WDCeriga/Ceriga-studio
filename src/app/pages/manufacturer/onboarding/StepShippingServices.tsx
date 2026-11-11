@@ -33,6 +33,8 @@ export function StepShippingServices({
   errors,
 }: Props) {
   const [destSearch, setDestSearch] = useState('');
+  const [openMethod, setOpenMethod] = useState<ShippingMethod>();
+  const visibleMethod = openMethod ?? profile.shippingMethods[0];
 
   const filteredDestinations = useMemo(() => {
     if (!destSearch.trim()) return REGIONS_AND_DESTINATIONS;
@@ -49,12 +51,24 @@ export function StepShippingServices({
     onChange({ shippingDestinations: next });
   };
 
-  const toggleMethod = (method: ShippingMethod) => {
-    const existing = profile.shippingMethods || [];
-    const next = existing.includes(method)
-      ? existing.filter((m) => m !== method)
-      : [...existing, method];
-    onChange({ shippingMethods: next });
+  const updateShippingDetails = (
+    method: ShippingMethod,
+    patch: Pick<Partial<CompleteManufacturerProfile>, 'shippingProvidersByMethod' | 'shippingTransitDaysByMethod'>,
+  ) => {
+    const next = { ...profile, ...patch };
+    const provider = next.shippingProvidersByMethod?.[method]
+      ?? (profile.shippingMethods.includes(method) ? profile.shippingProvider : '');
+    const days = next.shippingTransitDaysByMethod?.[method];
+    const hasDetails = !!provider?.trim() || (typeof days === 'number' && Number.isInteger(days) && days >= 0);
+    onChange({
+      ...patch,
+      // Persist the displayed provider so enabling a time-only method cannot
+      // cause an old account-wide provider to appear in the empty field.
+      shippingProvidersByMethod: { ...next.shippingProvidersByMethod, [method]: provider ?? '' },
+      shippingMethods: hasDetails
+        ? [...new Set([...profile.shippingMethods, method])]
+        : profile.shippingMethods.filter(item => item !== method),
+    });
   };
 
   return (
@@ -130,7 +144,7 @@ export function StepShippingServices({
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-6">
         <div className="flex items-center gap-2 text-white">
           <Truck className="h-4 w-4 text-[#CC2D24]" />
-          <h3 className="text-sm font-semibold">Shipping Modes & Handling</h3>
+          <h3 className="text-sm font-semibold">Shipping methods & provider</h3>
           <span className="text-xs text-[#CC2D24] font-medium">* Required</span>
         </div>
 
@@ -144,19 +158,57 @@ export function StepShippingServices({
               <button
                 key={method}
                 type="button"
-                onClick={() => toggleMethod(method)}
+                onClick={() => setOpenMethod(method)}
+                aria-pressed={visibleMethod === method}
                 className={cn(
                   'p-3 rounded-xl border text-left transition',
-                  on
+                  visibleMethod === method
                     ? 'border-[#CC2D24] bg-[#CC2D24]/15 text-white ring-1 ring-[#CC2D24]/40'
-                    : 'border-[#252528] bg-white/[0.02] text-white/60 hover:border-white/20 hover:text-white',
+                    : cn('border-[#252528] bg-white/[0.02] hover:border-white/20 hover:text-white',
+                      on ? 'text-white' : 'text-white/60'),
                 )}
               >
                 <span className="text-xs font-semibold">{method}</span>
+                {on && <Check className="ml-1 inline h-3 w-3" aria-label="Enabled" />}
               </button>
             );
           })}
         </div>
+
+        {visibleMethod && <div className="space-y-3">
+          <p className="text-xs text-white/60">Add a provider or shipping time to offer this method on quotes. Use 0 days for same-day delivery.</p>
+          <fieldset key={visibleMethod} className="grid gap-3 rounded-lg border border-white/15 p-3 sm:grid-cols-2">
+            <legend className="px-1 text-sm font-medium">{visibleMethod}</legend>
+            <label className="block text-sm font-medium">
+              Provider
+              <Input className="mt-2 min-h-11" maxLength={200} placeholder="e.g. DHL"
+                value={profile.shippingProvidersByMethod?.[visibleMethod]
+                  ?? (profile.shippingMethods.includes(visibleMethod) ? profile.shippingProvider ?? '' : '')}
+                onChange={event => updateShippingDetails(visibleMethod, {
+                  shippingProvidersByMethod: {
+                    ...profile.shippingProvidersByMethod,
+                    [visibleMethod]: event.target.value,
+                  },
+                })}/>
+            </label>
+            <label className="block text-sm font-medium">
+              Estimated shipping time (calendar days)
+              <Input className="mt-2 min-h-11" inputMode="numeric" maxLength={3}
+                placeholder="Optional"
+                value={profile.shippingTransitDaysByMethod?.[visibleMethod] ?? ''}
+                onChange={event => {
+                  const value = event.target.value;
+                  if (!/^\d{0,3}$/.test(value)) return;
+                  updateShippingDetails(visibleMethod, {
+                    shippingTransitDaysByMethod: {
+                      ...profile.shippingTransitDaysByMethod,
+                      [visibleMethod]: value === '' ? undefined : Number(value),
+                    },
+                  });
+                }}/>
+            </label>
+          </fieldset>
+        </div>}
 
         {/* Additional Logistics Flags */}
         <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-[#252528]">

@@ -1,8 +1,63 @@
 import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {transformWithEsbuild} from 'vite';import * as React from 'react';import * as Icons from 'lucide-react';import {renderToStaticMarkup} from 'react-dom/server';
-let hook=0,overrides={},updates=[],messages=[],saveMode='ok',calls=0,refreshes=0,resolveSave;const factory={userId:'factory',factoryName:'Factory One',onboardingComplete:true,status:'active'},bad={...factory,userId:'bad',factoryName:'Incompatible factory'};let loading=false,error='';const orders=Array.from({length:23},(_,i)=>({id:'order-'+i,kind:'custom_clothing',status:'submitted',productName:'Cotton shirt '+i,userName:'Brand One',manufacturerId:null}));const props={orders,manufacturers:[factory,bad],loading:false,error:'',patchOrder:async()=>{},refresh:async()=>{}};
+let hook=0,overrides={},updates=[],messages=[],saveMode='ok',calls=0,refreshes=0,resolveSave;const factory={userId:'factory',factoryName:'Factory One',onboardingComplete:true,status:'active'},bad={...factory,userId:'bad',factoryName:'Incompatible factory'};let loading=false,error='';const orders=Array.from({length:23},(_,i)=>({id:'order-'+i,kind:'custom_clothing',status:'submitted',productName:'Cotton shirt '+i,userName:'Brand One',manufacturerId:null}));const props={orders,manufacturers:[bad,factory],loading:false,error:'',patchOrder:async()=>{},refresh:async()=>{}};
 const wrap=tag=>({children,...p})=>React.createElement(tag,Object.fromEntries(Object.entries(p).filter(([k])=>['className','type','value','disabled','aria-label','min','onChange'].includes(k))),children);const imports={react:{...React,useEffect:()=>{},useRef:()=>({current:false}),useState:initial=>{const i=hook++;return [i in overrides?overrides[i]:initial,v=>updates.push([i,v])];}},'react-router':{Link:({to,children,...p})=>React.createElement('a',{...p,href:to},children)},'lucide-react':Icons,sonner:{toast:{error:v=>messages.push(['error',v]),success:v=>messages.push(['success',v])}},'../../lib/accountCurrency':{useCurrency:()=>{},displayMoney:()=>''},'../../data/assignmentRecommendation':{checkManufacturerProduction:(_o,m)=>({eligible:m.userId!=='bad',failures:m.userId==='bad'?['Unsupported garment']:[],warnings:['Availability not confirmed']}),recommendManufacturers:()=>[{factory,reasons:['Supports garment'],warning:'Confirm scheduling'}]},'../../hooks/useSuperadminData':{useSuperadminData:()=>({...props,loading,error,patchOrder:async()=>{calls++;if(saveMode==='throw')throw Error('Database write failed');if(saveMode==='false')return false;if(saveMode==='wait')return new Promise(r=>{resolveSave=r;});return true;},refresh:async()=>{refreshes++;}})},'../../data/superadminMock':{STATUS_LABELS:{submitted:'Submitted'},formatMoney:()=>''},'../../components/ui/button':{Button:wrap('button')},'../../components/ui/input':{Input:wrap('input')},'../../components/ui/dialog':{Dialog:({children})=>children,DialogContent:wrap('div'),DialogTitle:wrap('h2'),DialogDescription:wrap('p')},'../../components/ui/utils':{cn:(...v)=>v.filter(Boolean).join(' ')}};const m={exports:{}};new Function('React','require','module','exports',(await transformWithEsbuild(await readFile('src/app/pages/superadmin/SuperAdminAssignmentConsole.tsx','utf8'),'assign.tsx',{format:'cjs'})).code)(React,n=>n.endsWith('.css')?{}:imports[n],m,m.exports);const tree=()=>{hook=0;return m.exports.SuperAdminAssignmentConsole();};const flat=n=>!n||typeof n!=='object'?[]:[n,...React.Children.toArray(n.props?.children).flatMap(flat)];const html=()=>renderToStaticMarkup(tree());const visible=()=>flat(tree()).find(n=>n.type==='tbody').props.children;
 assert.match(html(),/1–20 of 23/);overrides={6:2};assert.match(html(),/21–23 of 23/);overrides={5:'no match'};assert.match(html(),/No requests match your filters/);overrides={};loading=true;assert.match(html(),/—/);loading=false;error='Database unavailable';assert.match(html(),/Could not load assignments: Database unavailable/);error='';
-const future='2099-01-01';overrides={1:{orderId:'order-0',productName:'Cotton shirt',mode:'assign'},2:'factory',3:future};let nodes=flat(tree());assert.match(html(),/Suggested manufacturers/);assert.match(html(),/Primary recommendation/);assert.match(html(),/Confirm scheduling/);const picker=nodes.find(n=>n.props?.['aria-label']==='Manufacturer');assert.equal(React.Children.toArray(picker.props.children)[2].props.disabled,true);
+const future='2099-01-01';overrides={1:{orderId:'order-0',productName:'Cotton shirt',mode:'assign'},2:'factory',3:future};let nodes=flat(tree());assert.match(html(),/Recommended/);assert.match(html(),/Confirm scheduling/);const picker=nodes.find(n=>n.props?.type==='radio'&&n.props.value===factory.userId);assert.ok(picker.props.checked);assert.ok(!nodes.some(n=>n.props?.type==='radio'&&n.props.value==='bad'));assert.match(html(),/Requirements not met/);assert.match(html(),/Unsupported garment/);updates=[];picker.props.onChange();assert.ok(updates.some(([i,v])=>i===2&&v==='factory'));assert.ok(updates.some(([i,v])=>i===7&&v===''));overrides[8]='no matching factory';assert.match(html(),/No suitable manufacturers match your search/);delete overrides[8];
+
 const commit=()=>flat(tree()).find(n=>n.props?.onClick?.name==='commit').props.onClick();saveMode='wait';calls=0;messages=[];updates=[];const action=flat(tree()).find(n=>n.props?.onClick?.name==='commit').props.onClick;const waiting=action();await action();assert.equal(calls,1);assert.equal(messages.length,0);resolveSave(true);await waiting;assert.ok(messages.some(([k])=>k==='success'));assert.equal(refreshes,1);assert.ok(updates.some(([i,v])=>i===1&&v===null));
 saveMode='throw';updates=[];messages=[];await commit();assert.ok(updates.some(([i,v])=>i===7&&v==='Database write failed'));assert.ok(!updates.some(([i,v])=>i===1&&v===null));assert.equal(messages.length,0);saveMode='false';updates=[];await commit();assert.ok(updates.some(([i,v])=>i===7&&v.includes('Could not save')));overrides[3]='2000-01-01';calls=0;await commit();assert.equal(calls,0);overrides[3]=future;overrides[2]='bad';calls=0;await commit();assert.equal(calls,0);
 console.log('PASS assignment UX: pagination/search, loading/errors, recommendations and incompatible options, persistence before success, duplicate-save lock, thrown/false writes keep dialog, invalid deadline and incompatible manufacturer blocked.');
+
+overrides={};
+updates=[];
+flat(tree()).find(node=>node.props?.children?.[0]==='Review assignments (').props.onClick();
+const firstReview=updates.find(([index])=>index===1)[1];
+assert.equal(firstReview.orderId,'order-0');
+assert.equal(firstReview.review.orderIds.length,23);
+
+overrides={1:firstReview,2:'factory',3:future};
+updates=[];
+calls=0;
+assert.match(html(),/Assignment 1 of 23/);
+flat(tree()).find(node=>node.props?.children==='Skip for now').props.onClick();
+assert.equal(calls,0);
+assert.equal(updates.find(([index])=>index===1)[1].orderId,'order-1');
+
+saveMode='ok';
+updates=[];
+await commit();
+assert.equal(calls,1);
+assert.equal(updates.find(([index])=>index===1)[1].orderId,'order-1');
+
+saveMode='throw';
+updates=[];
+await commit();
+assert.ok(!updates.some(([index])=>index===1));
+console.log('PASS assignment review: start, skip without saving, advance after save, and stay on failed save.');
+
+Object.assign(orders[22], { manufacturerId: factory.userId, manufacturerName: 'Zebra', status: 'assigned', dueQuoteBy: future });
+Object.assign(orders[21], { manufacturerId: bad.userId, manufacturerName: 'Alpha', status: 'assigned', dueQuoteBy: '2000-01-01' });
+
+const clickHeader = label => {
+  updates = [];
+  flat(tree()).find(node => node.props?.['aria-label'] === label).props.onClick();
+  for (const [index, value] of updates) overrides[index] = value;
+};
+const firstRows = () => visible().slice(0, 2).map(row => row.key);
+overrides = { 6: 2 };
+clickHeader('Sort by manufacturer A to Z');
+assert.deepEqual(firstRows(), ['order-21', 'order-22']);
+assert.equal(overrides[6], 1);
+clickHeader('Sort by manufacturer Z to A');
+assert.deepEqual(firstRows(), ['order-22', 'order-21']);
+clickHeader('Sort by time remaining, overdue first');
+assert.deepEqual(firstRows(), ['order-21', 'order-22']);
+clickHeader('Show overdue requests');
+assert.match(html(), /1–1 of 1 requests/);
+clickHeader('Show just submitted requests');
+assert.match(html(), /1–20 of 21 requests/);
+clickHeader('Show all statuses');
+assert.match(html(), /1–20 of 23 requests/);
+assert.match(html(), />Just submitted</);
+assert.doesNotMatch(html(), /assignment-column-popover/);
+console.log('PASS direct assignment header sorting and status cycling.');

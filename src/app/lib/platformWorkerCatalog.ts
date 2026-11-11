@@ -31,6 +31,13 @@ export const workerFeatures=[
     ]
   },
   {
+    "id": "manufacturer_teams",
+    "label": "Manufacturer teams",
+    "description": "View factory staff and manage factory access.",
+    "scoped": false,
+    "actions": ["view", "edit"]
+  },
+  {
     "id": "reports",
     "label": "Reports",
     "description": "Order-stage summaries from records you may access.",
@@ -53,7 +60,7 @@ export const workerFeatures=[
   {
     "id": "invitations",
     "label": "Invitations",
-    "description": "Generate, copy/regenerate and revoke staff invitations.",
+    "description": "Send, resend and cancel staff invitations.",
     "scoped": false,
     "actions": [
       "view",

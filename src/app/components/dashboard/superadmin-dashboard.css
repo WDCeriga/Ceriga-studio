@@ -20,6 +20,3 @@
 @media(max-width:600px){.admin-result-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}.admin-home .fh-shortcuts>a{padding:10px;gap:8px}.admin-home .fh-shortcuts>a>svg:first-child{display:none}.admin-home .fh-task-action{min-height:44px}.admin-home .fh-toolbar :is(button,select){min-height:44px}.admin-home .fh-topline{align-items:flex-start}.admin-home .fh-date{text-align:right}}
 
 .admin-trend>svg{display:block;width:calc(100% - 40px);height:140px;margin:0 20px}.admin-trend-key{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:10px 20px 20px;font-size:10px;color:#737373}
-
-
-.superadmin-overview-menu[data-slot="sheet-content"]{background:#fff;color:#262626;border-color:#e2e2e2}.superadmin-overview-menu nav a,.superadmin-overview-menu a,.superadmin-overview-menu button{color:#737373;border-radius:4px}.superadmin-overview-menu a:hover,.superadmin-overview-menu a[class*="border-l-2"]{background:#f2f2f2;color:#171717;border-left-color:#171717}.superadmin-overview-menu div{border-color:#e2e2e2}

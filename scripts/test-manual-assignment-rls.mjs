@@ -6,8 +6,8 @@ const {testDatabase}=await import('./support/testDatabase.mjs');
 const db=await testDatabase();
 await db.exec(`insert into auth.users(id,email)values('11111111-1111-1111-1111-111111111111','buyer@example.invalid'),('22222222-2222-2222-2222-222222222222','factory-a@example.invalid'),('33333333-3333-3333-3333-333333333333','factory-b@example.invalid'),('44444444-4444-4444-4444-444444444444','owner@ceriga.io');
 insert into public.manufacturer_profiles(user_id,factory_name,onboarding_complete,status)values('22222222-2222-2222-2222-222222222222','Factory A',true,'active'),('33333333-3333-3333-3333-333333333333','Factory B',true,'active');
-insert into public.orders(id,user_id,kind,product_name,garment_type,status,status_label,quote_request)values('55555555-5555-5555-5555-555555555555','11111111-1111-1111-1111-111111111111','production','Manual assignment test','Hoodies','submitted','Awaiting quote','{"storagePaths":["11111111-1111-1111-1111-111111111111/test/file.pdf"]}');
-insert into storage.objects(bucket_id,name)values('order-uploads','11111111-1111-1111-1111-111111111111/test/file.pdf');
+insert into public.orders(id,user_id,kind,product_name,garment_type,status,status_label,quote_request)values('55555555-5555-5555-5555-555555555555','11111111-1111-1111-1111-111111111111','production','Manual assignment test','Hoodies','submitted','Awaiting quote','{"storagePaths":["11111111-1111-1111-1111-111111111111/55555555-5555-5555-5555-555555555555/file.pdf"]}');
+insert into storage.objects(bucket_id,name)values('order-uploads','11111111-1111-1111-1111-111111111111/55555555-5555-5555-5555-555555555555/file.pdf');
 begin;set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"11111111-1111-1111-1111-111111111111","email":"buyer@example.invalid","role":"authenticated"}',true);
 do $$declare denied boolean:=false;begin
@@ -17,10 +17,11 @@ do $$declare denied boolean:=false;begin
 end $$;
 select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","email":"owner@ceriga.io","role":"authenticated"}',true);
 select public.assign_order_manufacturer('55555555-5555-5555-5555-555555555555','22222222-2222-2222-2222-222222222222',current_date+3);
+select public.admin_share_factory_order_document('55555555-5555-5555-5555-555555555555',0,'quotation');
 select set_config('request.jwt.claims','{"sub":"22222222-2222-2222-2222-222222222222","email":"factory-a@example.invalid","role":"authenticated"}',true);
-do $$begin if(select count(*)from public.account_orders)<>1 then raise exception 'Assigned factory cannot see the order';end if;if(select count(*)from storage.objects)<>1 then raise exception 'Assigned factory cannot read supporting files';end if;end $$;
+do $$begin if(select count(*)from public.account_orders)<>1 then raise exception 'Assigned factory cannot see the order';end if;if exists(select 1 from storage.objects) then raise exception 'Assigned factory can see raw file paths';end if;if jsonb_array_length(public.factory_order_documents_list('55555555-5555-5555-5555-555555555555'))<>1 then raise exception 'Assigned factory cannot see approved file';end if;end $$;
 select set_config('request.jwt.claims','{"sub":"33333333-3333-3333-3333-333333333333","email":"factory-b@example.invalid","role":"authenticated"}',true);
 do $$begin if exists(select 1 from public.account_orders)or exists(select 1 from storage.objects)then raise exception 'Unassigned factory can see private order/files';end if;end $$;
 rollback;`);
-console.log('PASS: new orders remain unassigned, customer cannot self-assign, exact-email admin assigns, selected manufacturer sees order/files, other manufacturers isolated');
+console.log('PASS: new orders remain unassigned, customer cannot self-assign, exact-email admin assigns, selected manufacturer sees order and approved file metadata, other manufacturers isolated');
 await db.close();

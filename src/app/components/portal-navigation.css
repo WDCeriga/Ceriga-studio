@@ -1,0 +1,74 @@
+.portal-mobile-menu {
+  --menu-border: #252528;
+  --menu-muted: #a3a3a8;
+  --menu-active: #1c1c1e;
+  --menu-ink: #f0eeee;
+  background: #09090b;
+  color: var(--menu-ink);
+  border-color: var(--menu-border);
+  height: 100dvh;
+}
+.portal-mobile-menu-light {
+  --menu-border: #e2e2e2;
+  --menu-muted: #525252;
+  --menu-active: #f2f2f2;
+  --menu-ink: #171717;
+  --ceriga-scrollbar-track: #fafafa;
+  --ceriga-scrollbar-thumb: #bdbdbd;
+  --ceriga-scrollbar-thumb-hover: #999;
+  background: white;
+  color-scheme: light;
+}
+.portal-mobile-menu-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+.portal-mobile-menu-heading {
+  display: flex;
+  align-items: center;
+  min-height: 62px;
+  padding: 12px 64px 12px 16px;
+  border-bottom: 1px solid var(--menu-border);
+  overflow-wrap: anywhere;
+}
+.portal-mobile-menu-heading > span { color: var(--menu-ink); }
+.portal-mobile-menu-body > nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.portal-mobile-menu-body > nav + div {
+  flex-shrink: 0;
+  border-color: var(--menu-border);
+}
+.portal-mobile-menu-body :is(a, button) {
+  min-height: 44px;
+  color: var(--menu-muted);
+  border-radius: 5px;
+}
+.portal-mobile-menu-body :is(a, button):hover,
+.portal-mobile-menu-body a[aria-current="page"] {
+  background: var(--menu-active);
+  color: var(--menu-ink);
+}
+.portal-mobile-menu-body a[aria-current="page"] { border-left-color: var(--menu-ink); }
+.portal-mobile-menu > button {
+  top: calc(9px + env(safe-area-inset-top));
+  right: 9px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--menu-ink);
+  border-radius: 5px;
+}
+.portal-mobile-menu-light > button { background: var(--menu-active); }
+.portal-mobile-menu :is(a, button):focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+
+@media (max-height: 420px) {
+  .portal-mobile-menu-body { overflow-y: auto; overscroll-behavior: contain; }
+  .portal-mobile-menu-body > nav { flex: none; overflow: visible; }
+}

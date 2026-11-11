@@ -9,3 +9,15 @@
 
 .orders-mobile-list{display:none}@media(max-width:640px){.admin-orders .orders-table{display:none}.orders-mobile-list{display:block;border:1px solid #e2e2e2;border-radius:6px;background:#fff}.orders-mobile-list article{padding:16px;border-bottom:1px solid #ededed}.orders-mobile-list article:last-child{border:0}.orders-mobile-preview{display:flex;flex-direction:column;gap:5px;align-items:flex-start;text-align:left;width:100%;background:none;border:0;padding:0 0 12px;color:#262626}.orders-mobile-preview strong{font-size:13px;font-weight:500}.orders-mobile-preview span{font-size:11px;color:#737373;overflow-wrap:anywhere}.orders-mobile-list>p{padding:24px 16px;color:#737373;font-size:12px}}
 
+
+/* Consistent headers and compact order identity. */
+.admin-orders .orders-table thead th{padding:14px 18px;font-size:11px;font-weight:500;line-height:18px;white-space:nowrap;color:#737373}
+.admin-orders .orders-table thead th>button{font-family:inherit;font-size:inherit;font-weight:inherit;line-height:inherit;letter-spacing:inherit;padding:0;min-height:24px;background:transparent;border:0;cursor:pointer}
+.admin-orders .orders-table thead th>button svg{width:12px;height:12px}
+.admin-orders .orders-table td{padding:18px;max-width:240px}
+.admin-orders .orders-table .orders-product-name{font-family:inherit;font-size:13px;font-weight:500;color:#262626;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-orders .orders-order-meta{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:5px;font-size:10px;line-height:16px;color:#737373}
+.admin-orders .orders-order-meta>span:first-child{font-variant-numeric:tabular-nums}
+.admin-orders .orders-table th:nth-last-child(2),.admin-orders .orders-table td:nth-last-child(2){text-align:right;white-space:nowrap}
+.admin-orders .orders-action-cell{white-space:nowrap}
+.admin-orders .orders-action-cell>button{margin-left:8px}

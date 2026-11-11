@@ -1,3 +1,4 @@
+import '../portal-navigation.css';
 import './manufacturer-sidebar.css';
 import {ManufacturerOnboardingShell} from './ManufacturerOnboardingShell';
 import { ReactNode, useEffect, useState } from 'react';
@@ -21,8 +22,6 @@ import {
   ClipboardList,
   Ship,
   CalendarDays,
-  ImagePlus,
-  ShieldCheck,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { getFactoryWorkspace } from '../../data/manufacturerPortalMock';
@@ -30,7 +29,7 @@ import { usePortalNotifications } from '../../hooks/usePortalNotifications';
 import { cn } from '../ui/utils';
 import { useManufacturerPricing } from '../../data/manufacturerPricing';
 
-import{FactoryAccessProvider,useFactoryAccess,factoryPagePermission}from '../../contexts/FactoryAccessContext';
+import{FactoryAccessProvider,useFactoryAccess,factoryPageAllowed}from '../../contexts/FactoryAccessContext';
 import{teamRpc}from '../../lib/factoryTeam';
 
 const RED = '#CC2D24';
@@ -38,14 +37,9 @@ const RED = '#CC2D24';
 const navItems = [
   { path: '/manufacturer', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { path: '/manufacturer/orders', label: 'Orders', icon: Package },
-  { path: '/manufacturer/quotations', label: 'Quotations', icon: ClipboardList },
-  { path: '/manufacturer/production', label: 'Production', icon: ClipboardList },
-  { path: '/manufacturer/quality', label: 'Quality control', icon: ShieldCheck },
-  { path: '/manufacturer/shipping', label: 'Delivery', icon: Ship },
+  { path: '/manufacturer/fulfilment', label: 'Fulfilment', icon: ClipboardList },
   { path: '/manufacturer/materials', label: 'Materials', icon: Boxes },
   { path: '/manufacturer/capacity', label: 'Production calendar', icon: CalendarDays },
-  { path: '/manufacturer/portfolio', label: 'Portfolio', icon: ImagePlus },
-  { path: '/manufacturer/verification', label: 'Verification', icon: ShieldCheck },
   { path: '/manufacturer/statistics', label: 'Statistics', icon: BarChart3 },
   { path: '/manufacturer/team', label: 'Team & roles', icon: Users },
   { path: '/manufacturer/messages', label: 'Messages', icon: MessageCircle },
@@ -164,7 +158,9 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
     return <Navigate to="/manufacturer/onboarding" replace />;
   }
 
+  const inClientHistory = location.pathname.startsWith('/manufacturer/clients/');
   const isActive = (path: string, end?: boolean) => {
+    if (path === '/manufacturer/orders' && (inClientHistory || /^\/manufacturer\/quotations(?:\/|$)/.test(location.pathname))) return true;
     if (end) return location.pathname === path;
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
@@ -177,10 +173,11 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
     setSheetOpen(false);
   };
 
-  const visibleNavItems=navItems.filter(item=>!isSupabaseConfigured||access?.permissions.includes(factoryPagePermission(item.path)));
+  const visibleNavItems=navItems.filter(item=>!isSupabaseConfigured||factoryPageAllowed(item.path,access?.permissions||[]));
+  const lightPortal = (inClientHistory||['/manufacturer','/manufacturer/orders','/manufacturer/quotations'].includes(location.pathname.replace(/\/$/,''))||location.pathname.startsWith('/manufacturer/orders/')||location.pathname.startsWith('/manufacturer/quotations/')||location.pathname==='/manufacturer/fulfilment'||location.pathname.startsWith('/manufacturer/fulfilment/')||location.pathname==='/manufacturer/production'||location.pathname.startsWith('/manufacturer/production/')||location.pathname==='/manufacturer/quality'||location.pathname.startsWith('/manufacturer/quality/')||location.pathname==='/manufacturer/shipping'||location.pathname.startsWith('/manufacturer/shipping/')||location.pathname==='/manufacturer/materials'||location.pathname==='/manufacturer/capacity'||location.pathname==='/manufacturer/portfolio'||location.pathname==='/manufacturer/verification'||location.pathname==='/manufacturer/statistics'||location.pathname==='/manufacturer/team'||location.pathname==='/manufacturer/messages'||(location.pathname==='/manufacturer/settings'||location.pathname.startsWith('/manufacturer/settings/'))||location.pathname==='/manufacturer/notifications'||location.pathname==='/manufacturer/onboarding');
   const NavBlock = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <nav className="flex-1 space-y-1 p-2">
+      <nav aria-label="Workspace" className="flex-1 space-y-1 p-2">
         {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path, 'end' in item ? item.end : false);
@@ -188,6 +185,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
             <Link
               key={item.path}
               to={item.path}
+              aria-current={active ? "page" : undefined}
               onClick={onNavigate}
               className={cn(
                 'flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors',
@@ -205,6 +203,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
       <div className="border-t border-[#252528] p-2">
         <Link
           to="/manufacturer/notifications"
+          aria-current={isActive("/manufacturer/notifications") ? "page" : undefined}
           onClick={onNavigate}
           className={cn(
             'mb-1 flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors',
@@ -238,18 +237,20 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
   if (onOnboarding) {
     return (
       <ManufacturerOnboardingShell>
-        <div className="manufacturer-onboarding-access">{isSupabaseConfigured&&accessError?<p role="alert" className="text-red-200">{accessError}</p>:isSupabaseConfigured&&!accessReady?<p role="status" className="text-white/60">Checking factory permissions…</p>:isSupabaseConfigured&&((!access?.factoryId&&!onOnboarding)||(access?.factoryId&&!access.permissions.includes(factoryPagePermission(location.pathname))))?<p role="alert" className="text-white/60">Your role does not have permission to access this page. Ask a factory owner to update your access.</p>:<div key={access?.factoryId}>{access?.organisations&&access.organisations.length>1&&<label className="mb-6 block text-xs text-white/60">Factory workspace<select aria-label="Switch factory organisation" className="ml-3 rounded-lg border border-white/20 bg-[#111113] p-2" value={access.factoryId||''} onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}>{access.organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}{children}</div>}</div>
+        <div className="manufacturer-onboarding-access">{isSupabaseConfigured&&accessError?<p role="alert" className="text-red-200">{accessError}</p>:isSupabaseConfigured&&!accessReady?<p role="status" className="text-white/60">Checking factory permissions…</p>:isSupabaseConfigured&&((!access?.factoryId&&!onOnboarding)||(access?.factoryId&&!factoryPageAllowed(location.pathname,access.permissions)))?<p role="alert" className="text-white/60">Your role does not have permission to access this page. Ask a factory owner to update your access.</p>:<div key={access?.factoryId}>{access?.organisations&&access.organisations.length>1&&<label className="mb-6 block text-xs text-white/60">Factory workspace<select aria-label="Switch factory organisation" className="ml-3 rounded-lg border border-white/20 bg-[#111113] p-2" value={access.factoryId||''} onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}>{access.organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}{children}</div>}</div>
       </ManufacturerOnboardingShell>
     );
   }
 
   return (
-    <div className={cn("min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)] text-[#F0EEEE]",(['/manufacturer','/manufacturer/orders','/manufacturer/quotations'].includes(location.pathname.replace(/\/$/,''))||location.pathname.startsWith('/manufacturer/quotations/')||location.pathname==='/manufacturer/production'||location.pathname.startsWith('/manufacturer/production/')||location.pathname==='/manufacturer/quality'||location.pathname.startsWith('/manufacturer/quality/')||location.pathname==='/manufacturer/shipping'||location.pathname.startsWith('/manufacturer/shipping/')||location.pathname==='/manufacturer/materials'||location.pathname==='/manufacturer/capacity'||location.pathname==='/manufacturer/portfolio'||location.pathname==='/manufacturer/verification'||location.pathname==='/manufacturer/statistics'||location.pathname==='/manufacturer/team'||location.pathname==='/manufacturer/messages'||location.pathname==='/manufacturer/settings'||location.pathname==='/manufacturer/notifications'||location.pathname==='/manufacturer/onboarding')&&'manufacturer-home-shell')}>
+    <div className={cn("min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)] text-[#F0EEEE]",lightPortal&&'manufacturer-home-shell')}>
       {!isLgUp && (
         <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-[#252528] bg-[#09090B]/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
+            aria-expanded={sheetOpen}
+            aria-haspopup="dialog"
             className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
             aria-label="Open menu"
           >
@@ -263,6 +264,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
           </span>
           <Link
             to="/manufacturer/notifications"
+            aria-current={isActive("/manufacturer/notifications") ? "page" : undefined}
             className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
             aria-label={`Notifications${notifUnread ? `, ${notifUnread} unread` : ''}`}
           >
@@ -279,11 +281,12 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent
           side="left"
-          className="w-[min(300px,88vw)] border-[#252528] bg-[#09090B] p-0 text-[#F0EEEE] [&>button]:text-[#A3A3A8]"
+          aria-describedby={undefined}
+          className={cn("portal-mobile-menu w-[min(320px,88vw)] p-0", lightPortal && "portal-mobile-menu-light")}
         >
           <SheetTitle className="sr-only">Factory navigation</SheetTitle>
-          <div className="flex h-full flex-col pt-10">
-            <div className="border-b border-[#252528] px-4 py-3">
+          <div className="portal-mobile-menu-body">
+            <div className="portal-mobile-menu-heading">
               <span className="text-sm font-extrabold uppercase tracking-wide text-[#F0EEEE]">
                 {factoryName}
               </span>
@@ -335,6 +338,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
                   <Link
                     key={item.path}
                     to={item.path}
+                    aria-current={active ? "page" : undefined}
                     title={item.label}
                     className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
@@ -349,6 +353,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
               })}
               <Link
                 to="/manufacturer/notifications"
+                aria-current={isActive("/manufacturer/notifications") ? "page" : undefined}
                 title="Notifications"
                 className={cn(
                   'relative flex h-10 w-10 items-center justify-center rounded-xl',

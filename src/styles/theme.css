@@ -219,6 +219,14 @@ html:has(.manufacturer-home-shell, .manufacturer-onboarding-shell, .superadmin-o
   color-scheme: light;
 }
 
+/* Let the document scroll and keep the canvas light beyond the portal shell. */
+html:has(.manufacturer-home-shell, .superadmin-overview-shell),
+html:has(.manufacturer-home-shell, .superadmin-overview-shell) body,
+#root:has(.manufacturer-home-shell, .superadmin-overview-shell) {
+  height: auto;
+  background-color: #fafafa;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--ceriga-scrollbar-thumb) var(--ceriga-scrollbar-track);

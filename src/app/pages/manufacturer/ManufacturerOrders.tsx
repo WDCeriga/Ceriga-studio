@@ -1,4 +1,4 @@
-import { AssignedOrdersInbox } from '../../components/manufacturer/AssignedOrdersInbox';
+import { FactoryHistoryOrders } from '../../components/manufacturer/FactoryHistoryOrders';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -82,7 +82,7 @@ function totalUnits(order: ReturnType<typeof listFactoryOrders>[number]) {
   return sample + bulk;
 }
 
-export function ManufacturerOrders(){return isSupabaseConfigured?<AssignedOrdersInbox/>:<ManufacturerOrdersPreview/>;}
+export function ManufacturerOrders(){return isSupabaseConfigured?<FactoryHistoryOrders/>:<ManufacturerOrdersPreview/>;}
 function ManufacturerOrdersPreview() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);

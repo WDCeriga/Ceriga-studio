@@ -1,3 +1,4 @@
+import './superadmin-quotation-review.css';
 import {FreightTotalPreview} from '../../components/freight/FreightTotalPreview';
 import {FreightReview} from '../../components/freight/FreightReview';
 import { amountToCents } from '../../lib/currency';
@@ -81,8 +82,9 @@ function PricingReviewForm({
       next[tier.id] = cents != null ? (cents / 100).toFixed(2) : '';
     }
     setFinalByTier(next);
-  }, [order.id, marginPercent, order]);
+  }, [order.id, marginPercent]);
 
+  const buildPrices=()=>quoteTiers.map(t=>({id:t.id,cents:amountToCents(finalByTier[t.id]||''),...Object.fromEntries(['feesCents','taxCents','dutiesCents','otherCents'].map(k=>[k,amountToCents(charges[t.id]?.[k]||'0')??NaN]))}));
   const handleSubmit = async () => {
     if(saveLock.current)return;
     if(!shippingReady){toast.error('Confirm shipping for every option first.');return;}
@@ -101,12 +103,12 @@ function PricingReviewForm({
     }
 
     saveLock.current=true;setSaving(true);
-    try{await onSubmit(quoteTiers.map((tier,index)=>({id:tier.id,cents:priced[index],...Object.fromEntries(['feesCents','taxCents','dutiesCents','otherCents'].map(k=>[k,amountToCents(charges[tier.id]?.[k]||'0')??NaN]))})));}finally{saveLock.current=false;setSaving(false);}
+    try{await onSubmit(buildPrices() as ApprovedTierPrice[]);}catch(e){toast.error(e instanceof Error?e.message:'Could not send quotation. Your prices are still here.');}finally{saveLock.current=false;setSaving(false);}
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#252528] px-5 py-4 lg:px-6">
+    <div className="qr-workspace">
+      <div className="qr-workspace-heading flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#CC2D24]/15">
             <Calculator className="h-4 w-4 text-[#CC2D24]" />
@@ -114,7 +116,7 @@ function PricingReviewForm({
           <div>
             <h2 className="text-sm font-semibold text-white">Review pricing</h2>
             <p className="text-[11px] text-white/40">
-              {marginPercent}% Ceriga margin · {resolved.planName} plan · {quoteTiers.length} tiers
+              {marginPercent}% Ceriga margin · {resolved.planName} plan · {quoteTiers.length} {quoteTiers.length===1?'option':'options'}
             </p>
           </div>
         </div>
@@ -132,18 +134,17 @@ function PricingReviewForm({
             setFinalByTier(next);
           }}
         >
-          Use calculated for all
+          Reset to calculated prices
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 lg:p-6">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FreightReview key={order.id} orderId={order.id} onReady={setShippingReady}/>
-          <FreightTotalPreview orderId={order.id} prices={()=>quoteTiers.map(t=>({id:t.id,cents:amountToCents(finalByTier[t.id]||''),...Object.fromEntries(['feesCents','taxCents','dutiesCents','otherCents'].map(k=>[k,amountToCents(charges[t.id]?.[k]||'0')??NaN]))}))}/>
+      <div className="qr-workspace-body">
+        <div className="qr-review-stages">
+          <div className="qr-stage-title"><span>01</span><div><h3>Manufacturing & charges</h3><p>Review each quantity option. All inputs use the quotation’s original currency.</p></div></div>
           {quoteTiers.map((tier) => (
             <div
               key={tier.id}
-              className="rounded-xl border border-[#252528] bg-black/25 p-4"
+              className="qr-price-option"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -169,15 +170,16 @@ function PricingReviewForm({
                 <div className="rounded-lg bg-white/[0.03] px-2.5 py-2">
                   <p className="text-white/35">Factory</p>
                   <p className="mt-0.5 font-medium tabular-nums text-white/80">
-                    {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">Original: {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}</span>
+                    {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}<span className="mt-1 block text-[11px] font-normal text-white/45">Account estimate: {displayMoney(tier.manufacturerQuoteCents,tier.currency)}</span>
                   </p>
                 </div>
                 <div className="rounded-lg bg-white/[0.03] px-2.5 py-2">
                   <p className="text-white/35">Calculated</p>
                   <p className="mt-0.5 font-medium tabular-nums text-white/80">
                     {tier.calculatedPriceCents != null
-                      ? displayMoney(tier.calculatedPriceCents,tier.currency)
+                      ? (tier.currency?originalMoney(tier.calculatedPriceCents,tier.currency):'Currency needs review')
                       : '—'}
+                    {tier.calculatedPriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/45">Account estimate: {displayMoney(tier.calculatedPriceCents,tier.currency)}</span>}
                   </p>
                 </div>
               </div>
@@ -188,6 +190,8 @@ function PricingReviewForm({
                 </Label>
                 <Input
                   id={`queue-final-${tier.id}`}
+                  disabled={saving}
+                  inputMode="decimal"
                   value={finalByTier[tier.id] ?? ''}
                   onChange={(e) =>
                     setFinalByTier((prev) => ({ ...prev, [tier.id]: e.target.value }))
@@ -196,22 +200,27 @@ function PricingReviewForm({
                   placeholder="0.00"
                 />
               </div>
-              <div className="freight-fields">{Object.entries({feesCents:'Shipping service fee',taxCents:'Taxes',dutiesCents:'Known duties',otherCents:'Other charges'}).map(([k,label])=><label key={k}>{label} ({tier.currency})<input type="number" min="0" step="0.01" value={charges[tier.id]?.[k]||''} onChange={e=>setCharges(previous=>({...previous,[tier.id]:{...previous[tier.id],[k]:e.target.value}}))}/></label>)}</div>
+              <details className="qr-charge-details"><summary>Additional charges<span>Shipping service fee, taxes, duties and other fees</span></summary><div className="freight-fields">{Object.entries({feesCents:'Shipping service fee',taxCents:'Taxes',dutiesCents:'Known duties',otherCents:'Other charges'}).map(([k,label])=><label key={k}>{label} ({tier.currency})<input type="number" disabled={saving} min="0" step="0.01" placeholder="0.00" value={charges[tier.id]?.[k]||''} onChange={e=>setCharges(previous=>({...previous,[tier.id]:{...previous[tier.id],[k]:e.target.value}}))}/></label>)}</div></details>
             </div>
           ))}
+          <div className="qr-stage-title"><span>02</span><div><h3>Confirm shipping</h3><p>Keep the manufacturer’s offer or select a freight forwarder.</p></div></div>
+          <FreightReview key={order.id} orderId={order.id} onReady={setShippingReady}/>
+          <div className="qr-stage-title"><span>03</span><div><h3>Customer total</h3><p>Check manufacturing, shipping and charges before sending.</p></div></div>
+          <FreightTotalPreview orderId={order.id} prices={buildPrices} disabled={!shippingReady} revisionKey={JSON.stringify({finalByTier,charges,shippingReady})}/>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-[#252528] px-5 py-4 lg:px-6">
+      <div className="qr-action-bar">
         <RejectQuotation key={order.id} orderId={order.id} onRejected={onRejected} />
-        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" disabled={saving||!shippingReady} onClick={()=>void handleSubmit()}>
+        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" title={!shippingReady?'Confirm shipping for every option first':'Send the approved quotation'} disabled={saving||!shippingReady} onClick={()=>void handleSubmit()}>
           <Send className="mr-2 h-4 w-4" />
-          {saving?'Sending…':'Submit all & next'}
+          {saving?'Sending…':'Send quotation & continue'}
         </Button>
         {onSkip ? (
           <Button
             variant="outline"
             className="border-white/15 text-white hover:bg-white/10"
+            disabled={saving}
             onClick={onSkip}
           >
             Skip for now
@@ -238,8 +247,8 @@ export function SuperAdminOrderReviewQueue() {
 
   const remaining = reviewQueue.filter((o) => !completedIds.has(o.id));
   const current = remaining[0] ?? null;
-  const totalCount = reviewQueue.length;
   const doneCount = completedIds.size;
+  const totalCount = doneCount+remaining.length;
   const progress = totalCount > 0 ? (doneCount / totalCount) * 100 : 100;
 
 
@@ -268,9 +277,9 @@ export function SuperAdminOrderReviewQueue() {
 
   const exitToOrders = () => navigate('/superadmin/orders');
 
-  if (reviewQueue.length === 0) {
+  if (reviewQueue.length === 0 && doneCount===0) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+      <div className="quotation-review qr-empty flex min-h-[50vh] flex-col items-center justify-center text-center">
         <CheckCircle2 className="h-12 w-12 text-emerald-400/80" />
         <h1 className="mt-4 text-xl font-semibold text-white">
           {loading ? 'Loading queue…' : 'Nothing to review'}
@@ -286,12 +295,12 @@ export function SuperAdminOrderReviewQueue() {
 
   if (finished) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
+      <div className="quotation-review qr-empty flex min-h-[50vh] flex-col items-center justify-center text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 ring-4 ring-emerald-500/10">
           <CheckCircle2 className="h-9 w-9 text-emerald-400" />
         </div>
         <h1 className="mt-6 text-2xl font-semibold text-white">Review complete</h1>
-        <p className="mt-2 text-sm text-white/45">{doneCount} order{doneCount === 1 ? '' : 's'} priced</p>
+        <p className="mt-2 text-sm text-white/45">{doneCount} order{doneCount === 1 ? '' : 's'} handled this session</p>
         <Button className="mt-8 bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={exitToOrders}>
           Back to orders
         </Button>
@@ -307,8 +316,8 @@ export function SuperAdminOrderReviewQueue() {
     : [];
 
   return (
-    <div className="flex min-h-[calc(100vh-6rem)] flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="quotation-review">
+      <div className="qr-topbar flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
           onClick={exitToOrders}
@@ -322,22 +331,22 @@ export function SuperAdminOrderReviewQueue() {
             Price review queue
           </span>
           <span className="text-xs tabular-nums text-white/45">
-            {queueIndex} of {totalCount} · {doneCount} done · {remaining.length} left
+            {queueIndex} of {totalCount} · {doneCount} handled · {remaining.length} left
           </span>
         </div>
       </div>
 
-      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+      <div className="qr-progress h-1.5 overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-[#CC2D24] transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.35fr)]">
+      <div className="qr-layout">
         {/* Left: context */}
-        <aside className="flex min-h-0 flex-col gap-4">
-          <div className="overflow-hidden rounded-2xl border border-[#CC2D24]/25 bg-[#111113]">
+        <aside className="qr-context flex min-h-0 flex-col gap-4">
+          <div className="qr-order-summary">
             <div className="border-b border-[#252528] bg-gradient-to-br from-[#CC2D24]/14 via-transparent to-transparent px-5 py-5">
               <p className="font-mono text-xs text-[#CC2D24]">{current.id}</p>
               <h1 className="mt-1 text-xl font-semibold leading-snug text-white sm:text-2xl">
@@ -358,7 +367,7 @@ export function SuperAdminOrderReviewQueue() {
               </div>
             </div>
 
-            <div className="grid gap-px bg-white/[0.06] sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="qr-order-facts">
               {[
                 { label: 'Customer', value: current.userName, sub: current.userEmail },
                 {
@@ -432,7 +441,7 @@ export function SuperAdminOrderReviewQueue() {
         </aside>
 
         {/* Right: pricing workspace */}
-        <section className="min-h-[420px] overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] xl:min-h-0">
+        <section className="qr-review-panel">
           <PricingReviewForm
             key={current.id}
             order={current}

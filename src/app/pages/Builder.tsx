@@ -474,6 +474,8 @@ export function Builder() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const repeatOrder = (location.state as { repeatOrder?: { id: string; name: string; specifications?: import('../data/userOrders').UserOrder['specifications'] } } | null)?.repeatOrder;
+  const priorSpecifications = repeatOrder?.specifications;
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated, usingSupabase } = useAuth();
   const techpackSpecFlow =
@@ -498,7 +500,7 @@ export function Builder() {
   );
   const [showFront, setShowFront] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [projectName, setProjectName] = useState(product?.name || 'Untitled Project');
+  const [projectName, setProjectName] = useState(repeatOrder?.name || product?.name || 'Untitled Project');
   const [isEditingName, setIsEditingName] = useState(false);
   const [showExtraDetails, setShowExtraDetails] = useState(false);
   const [previewBackground, setPreviewBackground] = useState<'black' | 'white' | 'transparent'>('black');
@@ -571,10 +573,15 @@ export function Builder() {
   const [state, _setStateRaw] = useState<BuilderState>({
     productId: productId || '',
     garmentType: product?.garmentType || 'tshirt',
-    fit: 'regular',
+    fit: priorSpecifications?.fit ?? 'regular',
     measurementUnit: 'cm',
-    measurements: {},
-    colors: [],
+    measurements: priorSpecifications?.measurements ?? {},
+    colors: priorSpecifications?.colours ?? [],
+    fabricType: priorSpecifications?.fabricType,
+    gsm: priorSpecifications?.gsm?.toString(),
+    neckType: priorSpecifications?.neckType,
+    sleeveType: priorSpecifications?.sleeveType,
+    sleeveLength: priorSpecifications?.sleeveLength,
     extraDetails: {},
     referenceUploadFileNames: undefined,
     prints: [],
@@ -1437,17 +1444,67 @@ export function Builder() {
     setVisitedSteps((prev) => Array.from(new Set([...prev, ...visibleUpTo, stepId])));
   };
 
+  const orderSpecifications = () => ({
+    fit: state.fit,
+    fabricType: state.fabricType,
+    gsm: Number(state.gsm) || undefined,
+    color: state.colors[0]?.hex,
+    colorName: state.colors[0]?.pantone,
+    colours: state.colors,
+    measurements: state.measurements,
+    neckType: state.neckType,
+    sleeveType: state.sleeveType,
+    sleeveLength: state.sleeveLength,
+    constructionDetails: [
+      state.hemType && state.hemType + ' hem', state.cuffType && state.cuffType + ' cuffs',
+      state.pocketType && state.pocketType !== 'none' ? state.pocketType + ' pocket' : undefined,
+      state.zipType && state.zipType !== 'none' ? state.zipType + ' zip' : undefined,
+      state.fadingType, state.stitchingType,
+    ].filter((value): value is string => Boolean(value) && value !== 'none'),
+    requiredCapabilities: [...new Set(state.prints.map(layer => layer.printMethod ?? DEFAULT_PRINT_METHOD).filter((value): value is string => Boolean(value)))],
+    decoration: state.prints.map(({type,printMethod,width,height,rotation}) => ({type,method:printMethod,width,height,rotation})),
+  });
+
+  const continueToOrderDelivery = async () => {
+    const artwork = [state.prints, state.labels, state.packaging];
+    let artworkFingerprint: string | undefined;
+    if (window.crypto.subtle && artwork.flat().every(layer => layer.type === 'text' || layer.content.startsWith('data:'))) {
+      const encoded = new TextEncoder().encode(JSON.stringify(artwork.map(layers => layers.map(layer =>
+        Object.entries(layer).filter(([key]) => key !== 'id' && key !== 'locked').sort(([a],[b]) => a.localeCompare(b))
+      ))));
+      try {
+        const digest = await window.crypto.subtle.digest('SHA-256', encoded);
+        artworkFingerprint = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+      } catch { /* The comparison will require manual review. */ }
+    }
+    let mockup: Blob | undefined;
+    if (state.orderQuantities.mode !== 'techpack') {
+      try {
+        const { renderPrintFrontPng } = await import('../lib/techPackRasterize');
+        const png = await renderPrintFrontPng({ ...state, baseColor: primaryColor }, 480);
+        if (png) mockup = await (await fetch(png)).blob();
+      } catch {
+        toast.error('Could not prepare the order mockup. Try again before continuing.');
+        return;
+      }
+    }
+    navigate('/delivery', {
+      state: {
+        sourceOrderId: repeatOrder?.id,
+        mockup,
+        productId,
+        productName: repeatOrder?.name ?? product?.name ?? 'Studio project',
+        garmentType: state.garmentType,
+        specifications: { ...orderSpecifications(), artworkFingerprint },
+        orderQuantities: state.orderQuantities,
+        from: 'builder',
+      },
+    });
+  };
+
   const handleNext = () => {
     if (currentStep === 13) {
-      navigate('/delivery', {
-        state: {
-          productId,
-          productName: product?.name ?? 'Studio project',
-          garmentType: state.garmentType,
-          specifications: {fit:state.fit,fabricType:state.fabricType,gsm:Number(state.gsm)||undefined,neckType:state.neckType,sleeveType:state.sleeveType,sleeveLength:state.sleeveLength,constructionDetails:[state.hemType&&`${state.hemType} hem`,state.cuffType&&`${state.cuffType} cuffs`,state.pocketType&&state.pocketType!=='none'?`${state.pocketType} pocket`:undefined,state.zipType&&state.zipType!=='none'?`${state.zipType} zip`:undefined,state.fadingType,state.stitchingType].filter((value):value is string=>Boolean(value)&&value!=='none'),requiredCapabilities:[...new Set(state.prints.map(layer=>layer.printMethod ?? DEFAULT_PRINT_METHOD).filter((value):value is string=>Boolean(value)))]},
-          orderQuantities: state.orderQuantities,
-        },
-      });
+      void continueToOrderDelivery();
       return;
     }
 
@@ -2809,18 +2866,7 @@ export function Builder() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() =>
-                    navigate('/delivery', {
-                      state: {
-                        productId,
-                        productName: product?.name ?? 'Studio project',
-                        garmentType: state.garmentType,
-                        specifications: {fit:state.fit,fabricType:state.fabricType,gsm:Number(state.gsm)||undefined,neckType:state.neckType,sleeveType:state.sleeveType,sleeveLength:state.sleeveLength,constructionDetails:[state.hemType&&`${state.hemType} hem`,state.cuffType&&`${state.cuffType} cuffs`,state.pocketType&&state.pocketType!=='none'?`${state.pocketType} pocket`:undefined,state.zipType&&state.zipType!=='none'?`${state.zipType} zip`:undefined,state.fadingType,state.stitchingType].filter((value):value is string=>Boolean(value)&&value!=='none'),requiredCapabilities:[...new Set(state.prints.map(layer=>layer.printMethod ?? DEFAULT_PRINT_METHOD).filter((value):value is string=>Boolean(value)))]},
-                        orderQuantities: state.orderQuantities,
-                        from: 'builder',
-                      },
-                    })
-                  }
+                  onClick={() => void continueToOrderDelivery()}
                   className="h-11 w-full bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"
                 >
                   <Factory className="mr-1.5 h-3.5 w-3.5" />

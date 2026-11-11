@@ -1,4 +1,6 @@
+import { AdminFactoryTeam } from '../../components/superadmin/AdminFactoryTeam';
 import './superadmin-manufacturer-detail.css';
+import { FactoryOnboardingChecklist } from './FactoryOnboardingChecklist';
 import { FactoryVerificationPanel } from '../../components/manufacturer/FactoryVerificationPanel';
 import { displayMoney,useCurrency,sumConvertedMinor,formatAccountTotal } from '../../lib/accountCurrency';
 import { useEffect, useMemo, useState, useRef } from 'react';
@@ -402,6 +404,7 @@ export function SuperAdminManufacturerDetail() {
         <div className="md-identity"><span className="md-avatar">{initials(profile.name)}</span><div><p className="md-eyebrow">MANUFACTURER / PROFILE</p><h1>{profile.name}</h1><div className="md-contact"><a href={'mailto:'+profile.email}>{profile.email}</a><button type="button" onClick={copyEmail} aria-label="Copy email"><Copy size={14}/></button>{[profile.location,profile.country].filter(v=>v&&v!=='—').length>0&&<span>{[profile.location,profile.country].filter(v=>v&&v!=='—').join(', ')}</span>}</div><div className="md-meta"><span className="md-status">{status.charAt(0).toUpperCase()+status.slice(1)}</span><span>{margin.platformMarginPercent}% Ceriga margin</span><span>Last active {formatDate(profile.lastActive)}</span></div></div></div>
         <Button type="button" disabled={saving||(!produceDirty&&!certsDirty&&notes.trim()===(profile.internalNotes||'').trim()&&status===profile.status&&JSON.stringify(config)===JSON.stringify(savedAccess))} onClick={save} className="md-save">{saving?'Saving…':'Save changes'}</Button>
       </header>
+      {profile.status === 'onboarding' && <FactoryOnboardingChecklist key={id} manufacturerId={id} />}
       <section className="md-stats" aria-label="Manufacturer overview">{[
         {label:'Active orders',value:orderStats.activeOrders,hint:orderStats.totalOrders+' assigned in total'},
         {label:'Completed orders',value:orderStats.completedOrders,hint:'All time'},
@@ -410,6 +413,7 @@ export function SuperAdminManufacturerDetail() {
       ].map(stat=><div key={stat.label}><span>{stat.label}</span><strong>{stat.value}</strong><small>{stat.hint}</small></div>)}</section>
       <div className="md-quote-summary"><span>Factory quotation value</span><strong>{quotedValue===undefined?'Unavailable':formatAccountTotal(quotedValue)}</strong><span>{quotedValue===undefined?'Some original currencies or exchange rates need review.':'Indicative total of quoted order values · not revenue or earnings.'}</span></div>
       <FactoryVerificationPanel admin manufacturerId={id}/>
+      {id && <AdminFactoryTeam key={id} factoryId={id} />}
 
       {/* Order matching — primary control for auto-assign */}
       <section className="rounded-2xl border border-amber-500/20 bg-[#111113] p-4 sm:p-5">

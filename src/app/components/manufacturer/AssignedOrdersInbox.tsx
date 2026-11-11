@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchAssignedOrders } from '../../data/manufacturerDb';
 import type { UserOrder } from '../../data/userOrders';
 
-export function AssignedOrdersInbox({quotationOnly=false}:{quotationOnly?:boolean}={}) {
+export function useAssignedOrders(quotationOnly = false) {
   const{access,ready}=useFactoryAccess();
   const loadedFactory=useRef(access?.factoryId);
   const [orders, setOrders] = useState<UserOrder[]>([]);
@@ -39,5 +39,16 @@ export function AssignedOrdersInbox({quotationOnly=false}:{quotationOnly?:boolea
     return () => { current = false; window.clearInterval(timer); window.removeEventListener('focus', refresh);window.removeEventListener('ceriga-orders-updated',refresh); };
   }, [retry,quotationOnly,access?.factoryId,ready]);
 
-  return <ManufacturerOrdersView quotationOnly={quotationOnly} orders={loadedFactory.current===access?.factoryId?orders:[]} loading={loading||loadedFactory.current!==access?.factoryId} error={error} permissions={access?.permissions||[]} onRefresh={()=>{setLoading(true);setRetry(value=>value+1);}}/>;
+  return {
+    orders: loadedFactory.current === access?.factoryId ? orders : [],
+    loading: loading || (!error && loadedFactory.current !== access?.factoryId),
+    error,
+    permissions: access?.permissions || [],
+    onRefresh: () => { setLoading(true); setRetry(value => value + 1); },
+  };
+}
+
+export function AssignedOrdersInbox({quotationOnly=false}:{quotationOnly?:boolean}={}) {
+  const inbox = useAssignedOrders(quotationOnly);
+  return <ManufacturerOrdersView quotationOnly={quotationOnly} {...inbox}/>;
 }

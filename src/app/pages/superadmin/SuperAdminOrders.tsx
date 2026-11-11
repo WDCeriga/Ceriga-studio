@@ -111,7 +111,7 @@ const STAGE_LABELS: Record<OrderStageFilter, string> = {
 };
 
 function statusTone(status: OrderStatus) {
-  if (status === 'pending_review') return 'border-[#CC2D24]/40 bg-[#CC2D24]/15 text-red-200';
+  if (status === 'pending_review') return 'border-[#CC2D24]/40 bg-[#CC2D24]/[0.06] text-[#9f2923]';
   if (status === 'sent_to_brand' || status === 'paid' || status === 'completed')
     return 'border-emerald-500/30 bg-emerald-500/10 text-[#737373]';
   if (status === 'assigned' || status === 'in_production')
@@ -168,7 +168,7 @@ function SortableHeader({
   const currencyState=useCurrency();
   const active = sortField === field;
   return (
-    <th className={className} aria-sort={active?sortDir==='asc'?'ascending':'descending':'none'}>
+    <th scope="col" className={className} aria-sort={active?sortDir==='asc'?'ascending':'descending':'none'}>
       <button
         type="button"
         onClick={() => onSort(field)}
@@ -389,7 +389,7 @@ export function SuperAdminOrders() {
       {/* Table */}
       <div className="overflow-hidden rounded-md border border-[#e2e2e2] bg-white orders-table">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-left text-sm">
+          <table className="w-full min-w-[880px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#e2e2e2] bg-[#f7f7f7] text-[11px] uppercase tracking-wider text-[#737373]">
                 <SortableHeader
@@ -400,7 +400,7 @@ export function SuperAdminOrders() {
                   onSort={toggleSort}
                   className="px-4 py-3.5"
                 />
-                <th className="px-4 py-3.5 font-medium">Type</th>
+                
                 <SortableHeader
                   field="customer"
                   label="Customer"
@@ -411,25 +411,17 @@ export function SuperAdminOrders() {
                 />
                 <SortableHeader
                   field="status"
-                  label="Stage"
+                  label="Status"
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
                   className="px-4 py-3.5"
                 />
-                <th className="px-4 py-3.5 font-medium">Fulfilment</th>
-                <th className="px-4 py-3.5 font-medium">Delivery</th>
+                <th scope="col" className="px-4 py-3.5 font-medium">Manufacturer</th>
+                
                 <SortableHeader
                   field="price"
-                  label="Price"
-                  sortField={sortField}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                  className="px-4 py-3.5"
-                />
-                <SortableHeader
-                  field="date"
-                  label="Created"
+                  label="Total"
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
@@ -441,7 +433,7 @@ export function SuperAdminOrders() {
             <tbody>
               {sortedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
+                  <td colSpan={6} className="px-4 py-16 text-center">
                     <Package className="mx-auto h-8 w-8 text-[#737373]" />
                     <p className="mt-3 text-sm text-[#737373]">
                       {loading ? 'Loading orders…' : error ? 'Orders could not be loaded.' : hasFilters ? 'No orders match your filters.' : 'No orders yet. Submitted orders will appear here.'}
@@ -521,26 +513,9 @@ function OrderTableRow({
         active && 'bg-[#f7f7f7] ring-1 ring-inset ring-[#CC2D24]/25',
       )}
     >
-      <td className="px-4 py-3.5">
-        <div className="font-mono text-[11px] text-[#CC2D24]/80 group-hover:text-[#CC2D24]">
-          {order.id}
-        </div>
-        <div className="mt-0.5 max-w-[220px] truncate font-medium text-[#262626]">{order.productName}</div>
-      </td>
-      <td className="px-4 py-3.5">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium',
-            KIND_STYLE[order.kind],
-          )}
-        >
-          {order.kind === 'techpack' ? (
-            <Package className="h-3 w-3" />
-          ) : (
-            <Shirt className="h-3 w-3" />
-          )}
-          {KIND_LABEL[order.kind]}
-        </span>
+      <td className="px-4 py-3.5 orders-order-cell">
+        <div className="orders-product-name" title={order.productName}>{order.productName}</div>
+        <div className="orders-order-meta"><span title={order.id}>#{order.id.slice(0,8)}</span><span>{KIND_LABEL[order.kind]}</span><time dateTime={order.createdAt}>{formatDate(order.createdAt)}</time></div>
       </td>
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-2">
@@ -574,25 +549,12 @@ function OrderTableRow({
         </span>
       </td>
       <td className="px-4 py-3.5">
-        <span className="inline-flex items-center gap-1 text-xs text-[#737373]">
-          <MapPin className="h-3 w-3 shrink-0 text-[#737373]" />
-          {order.deliveryCity}, {order.deliveryCountry}
-        </span>
-      </td>
-      <td className="px-4 py-3.5">
         <div className="tabular-nums font-medium text-[#737373]">{displayPrice(order)}</div>
         {needsReview && order.calculatedPriceCents != null ? (
           <div className="text-[10px] text-[#CC2D24]/80">Calculated</div>
         ) : null}
       </td>
-      <td className="px-4 py-3.5">
-        <span className="inline-flex items-center gap-1 text-xs text-[#737373] transition group-hover:text-[#737373]">
-          {formatDate(order.createdAt)}
-          <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
-        </span>
-        <DeleteRecordButton label={`order ${order.id}`} description="Permanently delete this order and its related records? This cannot be undone." onDelete={onDelete} />
-      </td>
-      <td className="px-4 py-3.5" onClick={e=>e.stopPropagation()}><Link className="orders-next-action" to={'/superadmin/orders/'+order.id}>{needsReview?'Review quote':order.kind==='custom_clothing'&&order.status==='submitted'?'Assign manufacturer':'Open order'}<ArrowRight size={13}/></Link></td>
+      <td className="px-4 py-3.5 orders-action-cell" onClick={e=>e.stopPropagation()}><Link className="orders-next-action" to={'/superadmin/orders/'+order.id}>{needsReview?'Review quote':order.kind==='custom_clothing'&&order.status==='submitted'?'Assign manufacturer':'Open order'}<ArrowRight size={13}/></Link><DeleteRecordButton label={`order ${order.id}`} description="Permanently delete this order and its related records? This cannot be undone." onDelete={onDelete} /></td>
     </tr>
   );
 }
@@ -892,3 +854,4 @@ function DetailRow({
     </div>
   );
 }
+

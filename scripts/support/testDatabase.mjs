@@ -22,3 +22,15 @@ export async function testDatabase({dataDir}={}){
 export async function asAccount(db,id,email='account@example.invalid'){
  await db.exec('reset role');await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:id,email,role:'authenticated'})]);await db.exec('set role authenticated');
 }
+
+/** Run the invitation email service's database step under its real database role. */
+export async function issueTestWorkspaceInvitation(db, { internal = false, email, role, resend, revision }) {
+ const {rows:[{actor}]} = await db.query('select auth.uid() as actor');
+ await db.exec('reset role;set role service_role');
+ try {
+   return (await db.query('select public.issue_workspace_invitation($1,$2,$3,$4,$5,$6,$7,$8) as result',
+     [actor,internal,email??null,'Fixture staff member',role??null,null,resend??null,revision??null])).rows[0].result;
+ } finally {
+   await db.exec('reset role;set role authenticated');
+ }
+}

@@ -32,7 +32,7 @@ export function formatDeliveryLines(d: OrderDeliveryInfo): string[] {
   return [
     d.address1,
     d.address2,
-    `${d.city}${d.postcode ? ` ${d.postcode}` : ''}`.trim(),
+    `${d.city ?? ''}${d.postcode ? ` ${d.postcode}` : ''}`.trim(),
     d.country,
   ].filter((x): x is string => Boolean(x && String(x).trim()));
 }

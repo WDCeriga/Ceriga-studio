@@ -1,3 +1,4 @@
+import { AdminFactoryDocuments } from '../../components/superadmin/AdminFactoryDocuments';
 import './superadmin-order-detail.css';
 import {FreightTotalPreview} from '../../components/freight/FreightTotalPreview';
 import {FreightReview} from '../../components/freight/FreightReview';

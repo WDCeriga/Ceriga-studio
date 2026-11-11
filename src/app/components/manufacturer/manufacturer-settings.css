@@ -76,3 +76,20 @@
 .settings-dialog button:disabled{opacity:.45;cursor:not-allowed}
 .settings-dialog [role=alert]{font-size:11px;line-height:1.7;color:#ad352d;background:#fdf5f4;border:1px solid #edcfcc;border-radius:4px;padding:10px 12px}
 @media(max-width:767px){.factory-settings .settings-heading{align-items:flex-start}.settings-nav{gap:8px 16px}.factory-settings .settings-panel,.factory-settings #preferences{padding:20px}.settings-timeline>summary{padding:20px;align-items:flex-start}.settings-timeline>section{padding:20px}.factory-settings .settings-summary div[class*='grid-cols-2']{text-align:left;width:100%}.factory-settings :is(input:not([type=checkbox]),textarea,select){min-height:44px}.factory-settings button[aria-pressed]{min-height:40px}.factory-settings .settings-savebar>div{width:100%;justify-content:flex-end}.factory-settings .settings-savebar button{min-height:44px}.factory-settings .settings-timeline [class*='grid-cols-5']{grid-template-columns:minmax(0,1fr)}.settings-dialog [data-slot=dialog-footer]>button{min-height:44px}}
+.settings-workspace{color-scheme:light}
+.settings-workspace-heading{padding:8px 0 22px}
+.settings-workspace-heading>span{font-size:10px;letter-spacing:.13em;color:#737373}
+.settings-workspace-heading h1{font-size:clamp(28px,2.5vw,36px);font-weight:500;line-height:1.2;letter-spacing:-1px;margin:10px 0}
+.settings-workspace-heading p{font-size:12px;color:#737373;line-height:1.7}
+.settings-page-nav{display:flex;gap:8px 24px;flex-wrap:wrap;border-bottom:1px solid #e2e2e2;margin-bottom:24px}
+.settings-page-nav>a{display:flex;align-items:center;min-height:44px;padding:0 0 10px;border-bottom:2px solid transparent;margin-bottom:-1px;color:#737373;font-size:12px;font-weight:500}
+.settings-page-nav>a[aria-current=page]{color:#262626;border-color:#262626}
+.settings-page-nav>a:hover{color:#262626}
+.settings-workspace a:focus-visible{outline:2px solid #737373;outline-offset:3px}
+.settings-workspace .factory-settings[hidden]{display:none}
+.settings-editor-actions{display:flex;justify-content:flex-end}
+.settings-editor-actions>a{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:8px 12px;border:1px solid #dedede;border-radius:4px;background:white;color:#525252;font-size:11px}
+.settings-workspace>.settings-preferences{padding:24px;border:1px solid #e2e2e2;background:white;border-radius:5px}
+.settings-workspace>.manufacturer-factory-profile .factory-profile-views{margin-bottom:18px}
+.settings-workspace>.factory-settings:has(.settings-savebar){margin-top:20px}
+@media(max-width:640px){.settings-page-nav{gap:4px 16px}.settings-page-nav>a{font-size:11px}}

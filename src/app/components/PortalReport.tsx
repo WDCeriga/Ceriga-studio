@@ -5,7 +5,10 @@ import {Link} from 'react-router';
 import {getSupabase,isSupabaseConfigured} from '../lib/supabaseClient';
 import {useCurrency,sumConvertedMinor,formatAccountTotal,displayMoney} from '../lib/accountCurrency';
 import type {Currency}from '../lib/currency';
-export type Report={admin:boolean;orders:number;production:number;completed:number;quotesSubmitted:number;quoteDeadlineSamples:number;quotesOnTime:number;awaitingAssignment:number;pendingQc:number;changesRequired:number;users:number;manufacturers:number;unreadNotifications:number;pipeline:{status:string;n:number}[];monthlyOrders:{month:string;orders:number}[];verifiedRevenue:{currency:Currency;cents:string;payments:number}[];generatedAt:string};
+type RevenueRow = {currency:Currency;cents:string;payments:number};
+export type StatisticsTrend = {date:string;orders:number;previousOrders:number;quotes:number;previousQuotes:number;completed:number;previousCompleted:number};
+export type StatisticsComparison = {orders:number;completed:number;quoteDeadlineSamples:number;quotesOnTime:number;verifiedRevenue:RevenueRow[]};
+export type Report={admin:boolean;orders:number;production:number;completed:number;quotesSubmitted:number;quoteDeadlineSamples:number;quotesOnTime:number;awaitingAssignment:number;pendingQc:number;changesRequired:number;users:number;manufacturers:number;unreadNotifications:number;pipeline:{status:string;n:number}[];monthlyOrders:{month:string;orders:number}[];verifiedRevenue:{currency:Currency;cents:string;payments:number}[];generatedAt:string;comparison?:StatisticsComparison;trend?:StatisticsTrend[];grain?:'day'|'week'|'month'|'year'};
 export function PortalReport({admin=false,dashboard=false}:{admin?:boolean;dashboard?:boolean}){
  useCurrency();const {user,authReady}=useAuth();const [days,setDays]=useState(30),[loaded,setLoaded]=useState<{key:string;report:Report}|null>(null),[error,setError]=useState(''),[refresh,setRefresh]=useState(0);const base=admin?'/superadmin':'/manufacturer';
  const key=(user?.id||'')+':'+admin+':'+days,report=loaded?.key===key?loaded.report:null;
@@ -13,7 +16,7 @@ export function PortalReport({admin=false,dashboard=false}:{admin?:boolean;dashb
   if(!authReady)return;
   if(!isSupabaseConfigured){setError('Connect the database to load statistics.');return;}
   if(!user?.id){setError('Sign in to load statistics.');return;}
-  void(async()=>{try{const {data,error}=await getSupabase().rpc('portal_report',{p_days:days});if(!active)return;if(error)throw new Error(error.message);if(!data)throw new Error('Reporting data was not returned');if(data.admin!==admin)throw new Error('Reporting access does not match this account');setLoaded({key,report:data as Report});}catch(e){if(active)setError(e instanceof Error?e.message:'Could not load statistics.');}})();return()=>{active=false;};
+  void(async()=>{try{const {data,error}=await getSupabase().rpc(admin ? 'admin_statistics_insights' : 'portal_report',{p_days:days});if(!active)return;if(error)throw new Error(error.message);if(!data)throw new Error('Reporting data was not returned');if(data.admin!==admin)throw new Error('Reporting access does not match this account');setLoaded({key,report:data as Report});}catch(e){if(active)setError(e instanceof Error?e.message:'Could not load statistics.');}})();return()=>{active=false;};
  },[days,refresh,admin,user?.id,authReady]);
  if(admin)return <SuperAdminStatisticsView report={report} days={days} loading={!report&&!error} error={error} onDays={setDays} onRefresh={()=>setRefresh(n=>n+1)}/>;
  const cards=report?[['Orders',report.orders,base+'/orders'],['In production',report.production,admin?base+'/orders':base+'/production'],['Completed',report.completed,base+'/orders'],['QC awaiting review',report.pendingQc,base+'/quality-control'],['QC changes required',report.changesRequired,base+'/quality-control'],['Unread notifications',report.unreadNotifications,base+'/notifications'],...(admin?[['Unassigned orders',report.awaitingAssignment,base+'/assignment'],['Manufacturer accounts',report.manufacturers,base+'/manufacturers'],['New accounts',report.users,base+'/users']]:[])]:[];

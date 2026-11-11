@@ -12,7 +12,6 @@ import {
   Mail,
   MapPin,
   Phone,
-  Settings,
   ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -33,8 +32,10 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { cn } from '../../components/ui/utils';
-import { Link } from 'react-router';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router';
+import { useFactoryAccess } from '../../contexts/FactoryAccessContext';
+import { ManufacturerFactoryProfile } from './ManufacturerFactoryProfile';
+import { Sparkles } from 'lucide-react';
 import { ManufacturerCurrencySettings } from '../../components/manufacturer/ManufacturerCurrencySettings';
 
 type ProfileDraft = {
@@ -118,7 +119,51 @@ function describeChanges(before: ProfileDraft, after: ProfileDraft): string[] {
   return lines;
 }
 
+const settingsPages = [
+  { id: 'identity', label: 'Identity & contact' },
+  { id: 'products', label: 'Products & capabilities' },
+  { id: 'logistics', label: 'Capacity & logistics' },
+  { id: 'production-timeline', label: 'Turnaround timeline' },
+  { id: 'preferences', label: 'Preferences' },
+  { id: 'profile', label: 'Factory profile' },
+] as const;
+
+type ProfileSection = 'identity' | 'products' | 'logistics';
+
 export function ManufacturerSettings() {
+  const { section } = useParams();
+  const { hash } = useLocation();
+  const { access } = useFactoryAccess();
+  const permissions = access?.permissions ?? [];
+  const canManageSettings = !isSupabaseConfigured || permissions.includes('settings');
+  const canViewProfile = !isSupabaseConfigured || permissions.includes('portfolio') || permissions.includes('verification');
+  const availablePages = settingsPages.filter(page => page.id === 'profile' ? canViewProfile : canManageSettings);
+  const selected = availablePages.find(page => page.id === (section ?? hash.slice(1))) ?? availablePages[0];
+  if (!selected) return <p role="alert">Your role does not have access to factory settings.</p>;
+
+  const active = selected.id;
+  const profileSection = active === 'identity' || active === 'products' || active === 'logistics' ? active : undefined;
+  return (
+    <div className="factory-home settings-workspace">
+      <header className="settings-workspace-heading">
+        <span>YOUR FACTORY</span>
+        <h1>Settings</h1>
+        <p>Manage your factory details, production preferences and credentials.</p>
+      </header>
+      <nav className="settings-page-nav" aria-label="Settings sections">
+        {availablePages.map(page => (
+          <Link key={page.id} to={'/manufacturer/settings/' + page.id} aria-current={page.id === active ? 'page' : undefined}>{page.label}</Link>
+        ))}
+      </nav>
+      {active === 'profile' && <ManufacturerFactoryProfile embedded />}
+      {active === 'production-timeline' && <div className="factory-settings settings-timeline"><ProductionTimelineEditor /></div>}
+      {active === 'preferences' && <section className="factory-settings settings-panel settings-preferences" aria-label="Account preferences"><ManufacturerCurrencySettings embedded /></section>}
+      {canManageSettings && <ManufacturerSettingsEditor section={profileSection} />}
+    </div>
+  );
+}
+
+export function ManufacturerSettingsEditor({ section }: { section?: ProfileSection }) {
   const edited=useRef(false),saveLock=useRef(false);
   const [saving,setSaving]=useState(false),[loading,setLoading]=useState(isSupabaseConfigured),[saveError,setSaveError]=useState(''),[loadFailed,setLoadFailed]=useState(false),[reload,setReload]=useState(0);
   useEffect(()=>{let current=true;if(!isSupabaseConfigured){setLoadFailed(true);setSaveError('Connect to the database to load factory settings.');setLoading(false);return;}setLoading(true);setLoadFailed(false);void (async()=>{try{const {data:{user},error:authError}=await getSupabase().auth.getUser();if(authError||!user)throw Error(authError?.message||'Sign in to load your factory profile');const {data,error}=await getSupabase().rpc('factory_workspace_profile');if(error)throw Error(error.message);if(!data)throw Error('Your factory profile was not returned.');const timings=await loadCustomisationSettingsFromDb();if(current)setSaveError('');if(current&&data&&!edited.current){const next=draftFromWorkspace({...getFactoryWorkspace(),factoryName:data.factory_name,contactName:data.contact_name||'',contactEmail:data.contact_email||user.email||'',contactPhone:data.contact_phone,website:data.website,addressLine:data.address_line,garments:data.garments||[],capabilities:data.capabilities||[],shippingRegions:data.shipping_regions||[],moq:data.moq,monthlyCapacity:data.monthly_capacity,typicalLeadDays:data.typical_lead_days,internalNotes:data.internal_notes||''});for(const field of ['sampleLeadTimeMinDays','sampleLeadTimeMaxDays','bulkLeadTimeMinDays','bulkLeadTimeMaxDays'] as const){if(timings?.[field]!=null)next[field]=String(timings[field]);}setDraft(next);setBaseline(next);}}catch(cause){if(current){setSaveError((cause as Error).message);setLoadFailed(true);};}finally{if(current)setLoading(false);}})();return()=>{current=false;};},[reload]);
@@ -264,38 +309,16 @@ export function ManufacturerSettings() {
   };
 
   return (
-    <div className="factory-home factory-settings space-y-6">
+    <div className="factory-settings space-y-6" hidden={!section && !dirty}>
 
-      {saveError&&<div role='alert' className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300'>Factory profile: {saveError}. {loadFailed?<button onClick={()=>setReload(v=>v+1)}>Reload saved profile</button>:'Your edits remain available. If a save partly completed, retry to finish.'}</div>}
+      {saveError&&(section||dirty)&&<div role='alert' className='rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300'>Factory profile: {saveError}. {loadFailed?<button onClick={()=>setReload(v=>v+1)}>Reload saved profile</button>:'Your edits remain available. If a save partly completed, retry to finish.'}</div>}
       {saving&&<p role='status' className='text-sm text-white/60'>Saving factory profile…</p>}
-      <div className="settings-heading flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-[#CC2D24]">
-            <Settings className="h-5 w-5" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">Account</span>
-          </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Settings<span>.</span>
-          </h1>
-          <p className="mt-1 text-sm text-white/45">
-            Manage your account preferences and factory profile. Currency saves automatically; profile edits use Save profile.
-          </p>
+      {section === 'identity' && (
+        <div className="settings-editor-actions">
+          <Link to="/manufacturer/onboarding"><Sparkles size={14} aria-hidden /> Edit onboarding</Link>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" className="border-white/15 text-white hover:bg-white/5">
-            <Link to="/manufacturer/onboarding">
-              <Sparkles className="mr-1.5 h-4 w-4 text-[#CC2D24]" />
-              Edit onboarding
-            </Link>
-          </Button>
-
-        </div>
-      </div>
-
-
-
-<nav className="settings-nav" aria-label="Settings sections"><a href="#identity">Identity & contact</a><a href="#products">Products & capabilities</a><a href="#logistics">Capacity & logistics</a><a href="#production-timeline">Turnaround timeline</a><a href="#preferences">Account preferences</a></nav>
-      {loading&&<p role="status" className="settings-loading">Loading saved factory settings…</p>}
+      )}
+      {section&&loading&&<p role="status" className="settings-loading">Loading saved factory settings…</p>}
       {dirty ? (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
@@ -310,7 +333,7 @@ export function ManufacturerSettings() {
         </div>
       ) : null}
 
-      <section className="settings-summary rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6" hidden={loading||loadFailed}>
+      {section === 'identity' && <section className="settings-summary rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6" hidden={loading||loadFailed}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#CC2D24]/25 bg-[#CC2D24]/10">
@@ -339,9 +362,10 @@ export function ManufacturerSettings() {
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
-      <fieldset className="settings-profile-fields" disabled={loading||saving||loadFailed} hidden={loading||loadFailed}><section id="identity" className="settings-panel rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      <fieldset className="settings-profile-fields" disabled={loading||saving||loadFailed} hidden={!section||loading||loadFailed}>
+      {section === 'identity' && <section id="identity" className="settings-panel rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-[#CC2D24]" />
           <h2 className="text-sm font-semibold text-white">Identity & contact</h2>
@@ -417,8 +441,9 @@ export function ManufacturerSettings() {
             />
           </div>
         </div>
-      </section>
+      </section>}
 
+      {section === 'products' && <>
       <section id="products" className="settings-panel rounded-2xl border border-[#CC2D24]/20 bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Clothes you produce</h2>
         <p className="mt-1 text-[11px] text-white/40">
@@ -473,9 +498,9 @@ export function ManufacturerSettings() {
             );
           })}
         </div>
-      </section>
+      </section></>}
 
-      <section id="logistics" className="settings-panel rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
+      {section === 'logistics' && <section id="logistics" className="settings-panel rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <h2 className="text-sm font-semibold text-white">Capacity & logistics</h2>
         <p className="mt-1 text-[11px] text-white/40">
           Used for routing and capacity planning. Changes apply only after you save.
@@ -548,12 +573,8 @@ export function ManufacturerSettings() {
             Saved as internal factory notes.
           </p>
         </div>
-      </section>
-
-      </fieldset><details id="production-timeline" className="settings-timeline"><summary><span>Production turnaround timeline<small>Stage durations, automation and timing factors · Saved separately</small></span><span>Configure</span></summary><ProductionTimelineEditor/></details>
-        <section id="preferences" aria-label="Account preferences" className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-        <ManufacturerCurrencySettings embedded />
-      </section>
+      </section>}
+      </fieldset>
 
       {dirty&&<div className="settings-savebar sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#252528] bg-black/90 px-4 py-3 backdrop-blur-md">
         <p className="text-[12px] text-white/45">

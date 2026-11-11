@@ -1,3 +1,4 @@
+import { MessageImagePreview } from '../../components/MessageImagePreview';
 import './superadmin-messages.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import {
@@ -135,18 +136,12 @@ function AttachmentPreview({
 }) {
   if (attachment.kind === 'image') {
     return (
-      <a
-        href={attachment.url}
-        target="_blank"
-        rel="noopener noreferrer"
+      <MessageImagePreview
+        url={attachment.url}
+        name={attachment.name}
         className="block overflow-hidden rounded-lg border border-white/15"
-      >
-        <img
-          src={attachment.url}
-          alt={attachment.name}
-          className="max-h-52 w-full max-w-[16rem] object-cover"
-        />
-      </a>
+        imageClassName="max-h-52 w-full max-w-[16rem] object-cover"
+      />
     );
   }
 

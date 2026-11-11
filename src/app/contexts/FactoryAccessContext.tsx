@@ -10,4 +10,15 @@ export function FactoryAccessProvider({children}:{children:ReactNode}){const{use
  useEffect(()=>{let active=true;revision.current++;setActiveFactoryCacheId(null);setAccess(null);setReady(false);const load=()=>{if(active&&document.visibilityState==='visible')void refresh();};load();const timer=setInterval(load,30000);window.addEventListener('ceriga-team-updated',load);window.addEventListener('focus',load);return()=>{active=false;revision.current++;setActiveFactoryCacheId(null);clearInterval(timer);window.removeEventListener('ceriga-team-updated',load);window.removeEventListener('focus',load);};},[user?.id]);
  return <Context.Provider value={{access,ready,error,refresh}}>{children}</Context.Provider>;}
 export const useFactoryAccess=()=>useContext(Context);
-export function factoryPagePermission(path:string){const section=path.split('/')[2]||'';return({quotations:'quote',production:'production',quality:'view_orders',shipping:'shipping',materials:'inventory',capacity:'calendar',portfolio:'portfolio',verification:'verification',statistics:'analytics',team:'team',settings:'settings',messages:'messages',onboarding:'settings'}as Record<string,string>)[section]||'view_orders';}
+export function factoryPagePermission(path:string){const section=path.split('/')[2]||'';return({fulfilment:'view_orders',quotations:'quote',production:'production',quality:'view_orders',shipping:'shipping',materials:'inventory',capacity:'calendar',portfolio:'portfolio',verification:'verification',statistics:'analytics',team:'team',settings:'settings',messages:'messages',onboarding:'settings'}as Record<string,string>)[section]||'view_orders';}
+
+// Settings is also the entry point for team members with profile-only access.
+export function factoryPageAllowed(path: string, permissions: string[]) {
+  const page = path.replace(/\/$/, '');
+  const canViewProfile = permissions.includes('portfolio') || permissions.includes('verification');
+  if (['/manufacturer/settings/profile', '/manufacturer/portfolio', '/manufacturer/verification'].includes(page)) {
+    return canViewProfile;
+  }
+  if (page === '/manufacturer/settings') return permissions.includes('settings') || canViewProfile;
+  return permissions.includes(factoryPagePermission(page));
+}

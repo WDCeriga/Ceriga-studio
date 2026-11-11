@@ -4,12 +4,12 @@ import { ArrowLeft, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { QualityControlQueue } from '../../components/quality/QualityControlQueue';
 import { OrderQualityControl } from '../../components/quality/OrderQualityControl';
 
-export function SuperAdminQualityControl() {
+export function SuperAdminQualityControl({ embedded = false }: { embedded?: boolean } = {}) {
   const { orderId } = useParams();
 
   return (
     <div className="admin-qc-page space-y-6">
-      <header className="space-y-3">
+      {!embedded && <header className="space-y-3">
         {orderId && (
           <Link to="/superadmin/quality-control" className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white">
             <ArrowLeft className="h-4 w-4" />All production reports
@@ -30,11 +30,11 @@ export function SuperAdminQualityControl() {
             </Link>
           )}
         </div>
-      </header>
+      </header>}
       {orderId ? (
         <OrderQualityControl key={orderId} orderId={orderId} view="quality" />
       ) : (
-        <QualityControlQueue admin title="Production reports" reviewBasePath="/superadmin/quality-control" />
+        <QualityControlQueue admin title="Production reports" reviewBasePath="/superadmin/assignment/quality" />
       )}
     </div>
   );

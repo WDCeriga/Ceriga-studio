@@ -185,8 +185,8 @@ function PriceOptionCard({
         </div>
         {paid ? (
           <Badge className="bg-emerald-500/20 text-emerald-300">Paid</Badge>
-        ) : paymentPlaceholder && !option.shipping ? (
-          <Button type="button" disabled={expired || submitting || submitted} onClick={() => void submit()} className="h-10 bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"><Send className="mr-2 h-3.5 w-3.5" />{expired ? 'Offer expired' : submitting ? 'Submitting…' : submitted ? 'Submitted' : 'Submit'}</Button>
+        ) : paymentPlaceholder ? (
+          <Button type="button" disabled={expired || submitting || submitted} onClick={() => void submit()} className="h-10 bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"><Send className="mr-2 h-3.5 w-3.5" />{expired ? 'Offer expired' : submitting ? 'Submitting…' : submitted ? 'Submitted' : 'Submit to manufacturer'}</Button>
         ) : (
           <Button
             asChild
@@ -199,7 +199,7 @@ function PriceOptionCard({
           </Button>
         )}
       </div>
-      {option.shipping&&<div className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60"><p>{option.shipping.method} · Estimated {option.shipping.transitDays} calendar days after collection · {option.shipping.provider}</p><p>Manufacturing: {originalMoney(option.shipping.manufacturingCents,option.shipping.currency)} · Shipping: {originalMoney(option.shipping.priceCents,option.shipping.currency)} · Shipping service fee: {originalMoney(option.shipping.serviceFeeCents,option.shipping.currency)} · Taxes / known duties: {originalMoney(option.shipping.taxCents+option.shipping.dutiesCents,option.shipping.currency)} · Other: {originalMoney(option.shipping.otherCents,option.shipping.currency)}</p><p>{option.shipping.tradeTerms}</p><p className="mt-1">Payable amount and currency are locked: {originalMoney(option.priceCents,option.currency!)}.</p></div>}
+      {option.shipping&&<div className="mt-4 border-t border-white/10 pt-3 text-xs text-white/60"><p>{option.shipping.method}{option.shipping.transitDays ? ` · Estimated ${option.shipping.transitDays} calendar days after collection` : ''} · {option.shipping.provider}</p><p>Manufacturing: {originalMoney(option.shipping.manufacturingCents,option.shipping.currency)} · Shipping: {originalMoney(option.shipping.priceCents,option.shipping.currency)} · Shipping service fee: {originalMoney(option.shipping.serviceFeeCents,option.shipping.currency)} · Taxes / known duties: {originalMoney(option.shipping.taxCents+option.shipping.dutiesCents,option.shipping.currency)} · Other: {originalMoney(option.shipping.otherCents,option.shipping.currency)}</p><p>{option.shipping.tradeTerms}</p><p className="mt-1">Payable amount and currency are locked: {originalMoney(option.priceCents,option.currency!)}.</p></div>}
     </div>
   );
 }

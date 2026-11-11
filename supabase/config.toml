@@ -2,3 +2,7 @@
 # The public application key may invoke setup; the single-use invitation is
 # independently validated server-side before any privileged Auth operation.
 verify_jwt = true
+
+[functions.factory-order-document]
+# The function verifies the bearer with Auth before checking order access.
+verify_jwt = false

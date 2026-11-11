@@ -445,6 +445,14 @@ async function loadfetchManufacturerList(): Promise<ManufacturerListItem[]> {
     if (ordersError) throw ordersError;
     if (factoriesError) throw factoriesError;
 
+    // A saved factory remains a directory entry when its owner's account role changes.
+    const profileRows = [...(data ?? [])];
+    const missingOwners = (factoryRows ?? []).map(factory => factory.user_id).filter(id => !profileRows.some(profile => profile.id === id));
+    if (missingOwners.length) {
+      const { data: owners, error: ownersError } = await supabase.from('profiles').select('*').in('id', missingOwners);
+      if (ownersError) throw ownersError;
+      profileRows.push(...(owners ?? []));
+    }
     const assigned = new Map<string, number>();
     for (const row of (orderRows ?? []) as { assigned_manufacturer_id: string }[]) {
       assigned.set(
@@ -453,8 +461,9 @@ async function loadfetchManufacturerList(): Promise<ManufacturerListItem[]> {
       );
     }
 
-    const remoteList = ((data ?? []) as {
+    const remoteList = (profileRows as {
       id: string;
+      role: string;
       email: string;
       created_at: string;
       updated_at: string;
@@ -477,7 +486,7 @@ async function loadfetchManufacturerList(): Promise<ManufacturerListItem[]> {
             updated_at: string;
           }[]
         | null;
-    }[]).map((row) => {
+    }[]).filter(row => row.role === 'manufacturer' || (factoryRows || []).some(factory => factory.user_id === row.id)).map((row) => {
       const mp = (factoryRows || []).find((factory) => factory.user_id === row.id) as
         NonNullable<typeof row.manufacturer_profiles>[number] | undefined;
       const status =

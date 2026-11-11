@@ -30,6 +30,7 @@ export type OrderRow = {
   routing_version?: number;
   quote_expires_at?: string|null;
   production_released_at?: string|null;
+  payment_verified_at?: string|null;
   fully_dispatched_at?: string | null;
   completion_due_at?: string | null;
   completion_on_hold?: boolean | null;
@@ -99,6 +100,7 @@ export function rowToUserOrder(row: OrderRow): UserOrder {
     routingVersion: row.routing_version,
     quoteExpiresAt: row.quote_expires_at ?? undefined,
     productionReleasedAt: row.production_released_at ?? undefined,
+    paymentVerifiedAt: row.payment_verified_at ?? undefined,
     fullyDispatchedAt: row.fully_dispatched_at ?? undefined,
     completionDueAt: row.completion_due_at ?? undefined,
     completionOnHold: row.completion_on_hold ?? undefined,
@@ -145,6 +147,8 @@ export function rowToUserOrder(row: OrderRow): UserOrder {
 }
 
 export type CreateOrderDbInput = {
+  sourceOrderId?: string;
+  useApprovedSample?: boolean;
   kind: UserOrderKind;
   productName: string;
   garmentType: string;
@@ -246,7 +250,9 @@ export async function insertOrder(input: CreateOrderDbInput): Promise<UserOrder>
     delivery_address: input.delivery ?? null,
   };
 
-  const { data, error } = await supabase.rpc('create_customer_order',{p_input:payload});
+  const { data, error } = input.sourceOrderId
+    ? await supabase.rpc('customer_create_linked_order', { p_input: payload, p_source: input.sourceOrderId, p_use_approved_sample: Boolean(input.useApprovedSample) })
+    : await supabase.rpc('create_customer_order', { p_input: payload });
   if (error) throw new Error(requestMessage(error, 'Could not create order. Please try again.'));
   return rowToUserOrder(data as OrderRow);
 }

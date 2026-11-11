@@ -393,6 +393,9 @@ export type CompleteManufacturerProfile = {
   // Step 5: Shipping & Services
   shippingDestinations: string[]; // countries, regions, or 'Worldwide'
   shippingMethods: ShippingMethod[];
+  shippingProvider?: string;
+  shippingProvidersByMethod?: Partial<Record<ShippingMethod, string>>;
+  shippingTransitDaysByMethod?: Partial<Record<ShippingMethod, number>>;
   internationalShippingAvailable: boolean;
   customsDocumentationSupport: boolean;
   trackingAvailability: boolean;

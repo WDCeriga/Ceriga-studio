@@ -63,6 +63,7 @@ export type UserOrder = {
   routingVersion?: number;
   quoteExpiresAt?: string;
   productionReleasedAt?: string;
+  paymentVerifiedAt?: string;
   fullyDispatchedAt?: string;
   completionDueAt?: string;
   completionOnHold?: boolean;
@@ -111,6 +112,10 @@ export type UserOrder = {
   };
   specifications?: {
     requiredCapabilities?: string[];
+    measurements?: Record<string, Record<string, string>>;
+    artworkFingerprint?: string;
+    colours?: { hex: string; pantone: string }[];
+    decoration?: { type: string; method?: string; width: number; height: number; rotation: number }[];
     constructionDetails?: string[];
     fit?: string;
     color?: string;
@@ -361,6 +366,8 @@ export async function updateUserOrder(
 }
 
 export async function createOrderFromSubmit(input: {
+  sourceOrderId?: string;
+  useApprovedSample?: boolean;
   productId?: string;
   productName?: string;
   garmentType?: string;

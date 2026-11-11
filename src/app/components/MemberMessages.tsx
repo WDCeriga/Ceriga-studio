@@ -6,6 +6,7 @@ import { messageContacts, sharedThreads, sharedMessages, startSharedChat, sendSh
 import type { ChatAttachment } from '../data/superadminMock';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { MessageImagePreview } from './MessageImagePreview';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 const errorText = (error: unknown) => (error as { message?: string })?.message || 'Unable to load messages';
@@ -101,7 +102,9 @@ export function MemberMessages() {
               {messages.map(message => <div key={message.id} className={`max-w-[85%] rounded-xl p-3 text-sm text-white ${message.sender_user_id === user?.id ? 'ml-auto bg-[#CC2D24]' : 'mr-auto bg-white/10'}`}>
                 <p className="mb-1 text-[10px] text-white/60">{message.sender_user_id === user?.id ? 'You' : message.sender === 'admin' ? 'Ceriga' : 'Member'}</p>
                 {message.body && <p className="whitespace-pre-wrap break-words">{message.body}</p>}
-                {message.attachments.map((file, index) => <a key={index} href={file.url} target="_blank" rel="noreferrer" className="mt-2 block underline">{file.kind === 'image' && <img src={file.url} alt={file.name} className="mb-1 max-h-48 rounded" />}{file.name}</a>)}
+                {message.attachments.map((file, index) => file.kind === 'image'
+                  ? <MessageImagePreview key={index} url={file.url} name={file.name} className="mt-2 block max-w-full" imageClassName="max-h-48 rounded object-contain" />
+                  : <a key={index} href={file.url} target="_blank" rel="noreferrer" className="mt-2 block underline">{file.name}</a>)}
                 <time className="mt-1 block text-[10px] text-white/50">{new Date(message.created_at).toLocaleString()}</time>
               </div>)}<div ref={bottom} />
             </div>

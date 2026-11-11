@@ -1,3 +1,4 @@
+import { CustomerRepeatOrder } from '../components/orders/CustomerRepeatOrder';
 import { Link, useParams } from 'react-router';
 import { Package } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -38,6 +39,7 @@ export function OrderDetail() {
     <OrderDetailShell order={order}>
       {error && <p role="alert" className="mx-auto mb-4 max-w-3xl rounded-xl border border-red-500/30 p-3 text-sm text-red-300">{error}</p>}
       <OrderDetailContent order={order} />
+      <CustomerRepeatOrder key={order.id} order={order}/>
     </OrderDetailShell>
   );
 }

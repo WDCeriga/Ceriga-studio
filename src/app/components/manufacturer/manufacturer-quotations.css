@@ -22,32 +22,103 @@
 .quotation-detail :is(button,a,input,select,textarea):focus-visible{outline:2px solid #737373;outline-offset:3px}
 .quotation-detail span[class*='text-white/60']{color:#737373}
 .quotation-detail>.grid{gap:18px}
-.quotation-form-light{border:1px solid #e2e2e2;border-radius:6px;background:#fff;padding:24px}
-.quotation-form-light>h2{font-size:15px!important;font-weight:500!important;letter-spacing:-.2px}
-.quotation-form-light>p{max-width:740px;line-height:1.7}
-.quotation-form-light label{color:#525252;font-size:11px}
-.quotation-form-light fieldset{gap:16px}
-.quotation-form-light .quotation-option{background:#fafafa;border:1px solid #e2e2e2!important;border-radius:5px!important;padding:18px}
-.quotation-form-light .quotation-option input,.quotation-form-light textarea{min-height:42px;background:white;border:1px solid #d9d9d9;color:#171717;border-radius:4px;font-size:12px;box-shadow:none}
-.quotation-form-light .quotation-option input::placeholder{color:#a3a3a3}
-.quotation-form-light .quotation-option>div>div{color:#737373}
-.quotation-form-light .quotation-option>div>div>p{color:#171717;font-size:15px;font-weight:500}
-.quotation-form-light [data-quote-total]{padding-top:12px;border-top:1px solid #e2e2e2;color:#262626;background:none;font-size:11px}
-.quotation-detail .quotation-form-light button[type='submit']{background:#171717;color:white;border:1px solid #171717;border-radius:4px;min-height:42px;padding:9px 18px;font-size:11px;font-weight:500;transition:background 150ms}
-.quotation-detail .quotation-form-light button[type='submit']:hover{background:#333}
-.quotation-detail .quotation-form-light button:disabled{opacity:.45;cursor:not-allowed}
-.quotation-form-light>div:last-child{border-color:#e2e2e2}
-.quotation-detail .quotation-form-light>div:last-child>button{color:#a82b25;font-size:11px;text-decoration:none;min-height:36px}
-.quotation-detail .quotation-form-light [role='alert']{color:#a82b25;background:#fdf5f4;border:1px solid #efcfcc;padding:10px 12px;border-radius:4px}
-.quotation-detail .quotation-form-light [role='status']{color:#3f6248;background:#f5f8f5;padding:10px 12px;border-radius:4px}
-.quotation-form-light p[class*='text-emerald']{color:#3f6248}
-.quotation-form-light p[class*='text-amber']{color:#885f2e;border-color:#e9ddcc;background:#fdfaf5}
-.quotation-form-light p[class*='text-red']{color:#a82b25}
-.quotation-detail .quotation-form-light>div:last-child>div>button{color:#a82b25;border:1px solid #efcfcc;background:#fdf5f4}
-.quotation-specifications{border:1px solid #e2e2e2;border-radius:6px;background:white}
-.quotation-specifications>summary{padding:17px 22px;color:#525252;font-size:12px;font-weight:500;cursor:pointer}
-.quotation-specifications[open]>summary{border-bottom:1px solid #e2e2e2;margin-bottom:18px}
-.quotation-specifications>.grid{gap:18px;padding:0 18px 18px}
-.quotation-specifications section{background:#fafafa}
-@media(min-width:1024px){.quotation-detail>.quotation-form-light{margin-top:24px}.quotation-detail>section[aria-label='Order overview']{padding-top:16px;padding-bottom:16px}}
-@media(max-width:600px){.quotation-detail section{padding:16px}.quotation-detail>.grid{gap:14px}.quotation-form-light .quotation-option{padding:14px}.quotation-detail .quotation-form-light button[type='submit']{width:100%;min-height:44px}.quotation-detail section button{min-height:44px}.quotation-detail h1{line-height:1.25}.quotation-detail>header{gap:12px}}
+.assigned-order-detail .assigned-order-action {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 16px;
+  border-radius: 5px;
+  background: #222;
+  color: white;
+  font-weight: 600;
+}
+.assigned-order-detail .assigned-order-action:hover { background: #414141; }
+.assigned-order-detail section > h2 { font-size: 14px; }
+.assigned-order-detail header p:last-child { color: #686868; }
+
+.manufacturer-quote-detail {
+  --quote-border: #e2e2e2;
+  --quote-muted: #555;
+  --quote-accent: #a12822;
+  color: #171717;
+  color-scheme: light;
+}
+.quote-navigation,
+.quote-order-heading,
+.quote-option-heading,
+.quotation-form-light [data-quote-total] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.quote-navigation { color: var(--quote-muted); font-size: 13px; }
+.quote-navigation a { display: inline-flex; align-items: center; min-height: 44px; }
+.quote-navigation a:hover, .quote-client a:hover { text-decoration: underline; }
+.quote-order-heading { flex-wrap: wrap; padding: 10px 0 22px; }
+.quote-order-heading h1 {
+  font-size: clamp(1.65rem, 3.5vw, 2.35rem);
+  font-weight: 650;
+  letter-spacing: -.035em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.quote-reference-number { margin-bottom: 5px; color: var(--quote-muted); font-size: 12px; }
+.quote-order-status { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--quote-muted); }
+.quote-order-status > span:first-child { border-radius: 5px; background: #ededed; padding: 4px 8px; color: #333; }
+.quote-overdue { color: var(--quote-accent); }
+.quote-feedback, .quote-message { margin-block: 8px; font-size: 13px; }
+.quote-feedback { color: #35543a; }
+.quote-columns { display: grid; gap: 16px; align-items: start; }
+.quote-columns > * { min-width: 0; }
+@media (min-width: 1120px) {
+  .quote-columns { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+}
+.quotation-form-light, .quote-reference {
+  border: 1px solid var(--quote-border);
+  border-radius: 10px;
+  background: white;
+  padding: clamp(15px, 2vw, 24px);
+}
+.quotation-form-light > h2 { font-size: 18px; font-weight: 650; }
+.quotation-form-light > p, .quote-reference p { color: var(--quote-muted); font-size: 13px; }
+.quote-reference h2 { margin-bottom: 8px; font-size: 15px; font-weight: 650; }
+.quote-client { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 9px; margin-bottom: 8px; }
+.quote-client a { color: var(--quote-accent); font-weight: 600; overflow-wrap: anywhere; }
+.quote-disclosure { border-top: 1px solid #ededed; }
+.quote-disclosure summary { padding-block: 12px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.quote-disclosure[open] { padding-bottom: 12px; }
+.quote-specs { display: grid; gap: 9px; padding-bottom: 4px; }
+.quote-specs dt { color: var(--quote-muted); }
+.quote-specs dd { color: #222; margin-top: 2px; }
+.quote-history .history-detail-grid { grid-template-columns: minmax(0, 1fr); }
+.quote-history a { text-decoration: underline; text-underline-offset: 2px; }
+.quote-history .history-comparison { overflow: auto; }
+.quote-history .history-comparison table { min-width: 340px; }
+.quotation-form-light label { color: #444; font-size: 13px; }
+.quotation-form-light .quotation-option { border: 1px solid var(--quote-border); border-radius: 8px; background: #fafafa; }
+.quote-option-heading { margin-bottom: 5px; }
+.quote-option-heading h3 { font-size: 14px; font-weight: 650; }
+.quote-option-heading span { color: var(--quote-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.quotation-form-light input, .quotation-form-light select, .quotation-form-light textarea {
+  border: 1px solid #d6d6d6;
+  border-radius: 6px;
+  background: white;
+  color: #171717;
+  font-size: 14px;
+}
+.quotation-form-light input::placeholder { color: #747474; }
+.quotation-form-light [data-quote-total] { border-top: 1px solid var(--quote-border); padding-top: 10px; color: #262626; }
+.quotation-form-light [role='alert'] { color: var(--quote-accent); padding: 9px 11px; border: 1px solid #efcfcc; border-radius: 6px; background: #fff6f5; }
+.quotation-form-light [role='status'] { color: #35543a; }
+.quotation-form-light p[class*='text-amber'] { color: #75501e; }
+.manufacturer-quote-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.manufacturer-quote-actions button { min-height: 44px; }
+.manufacturer-quote-actions button[type='submit'] { background: #222; color: white; border-radius: 6px; }
+.manufacturer-quote-actions button[type='submit']:hover:enabled { background: #383838; }
+.manufacturer-quote-skip { padding: 8px 14px; border: 1px solid var(--quote-border); border-radius: 6px; background: white; font-size: 13px; }
+.quotation-form-light button:disabled { opacity: .5; }
+.quotation-form-light > div:last-child { border-color: var(--quote-border); }
+.quotation-form-light > div:last-child button { color: var(--quote-accent); }
+.manufacturer-quote-detail :is(button, a, summary, input, select, textarea):focus-visible { outline: 2px solid #606060; outline-offset: 2px; }

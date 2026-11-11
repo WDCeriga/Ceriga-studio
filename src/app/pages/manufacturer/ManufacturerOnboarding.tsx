@@ -15,6 +15,7 @@ import {
   getProfileStorageKey,
 } from '../../data/manufacturerOnboardingStore';
 import type { CompleteManufacturerProfile } from '../../data/manufacturerOnboardingTypes';
+
 import { garmentReviewError, isGarmentConfirmed } from '../../data/manufacturerGarmentDefaults';
 import { completeOnboardingInDb } from '../../data/manufacturerOnboarding';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
@@ -30,6 +31,15 @@ import { StepCapacityPricing } from './onboarding/StepCapacityPricing';
 import { StepShippingServices } from './onboarding/StepShippingServices';
 import { StepReviewComplete } from './onboarding/StepReviewComplete';
 
+function withConfiguredShippingMethods(profile: CompleteManufacturerProfile): CompleteManufacturerProfile {
+  const shippingMethods = (profile.shippingMethods ?? []).filter(method => {
+    const provider = profile.shippingProvidersByMethod?.[method] ?? profile.shippingProvider;
+    const days = profile.shippingTransitDaysByMethod?.[method];
+    return !!provider?.trim() || (typeof days === 'number' && Number.isInteger(days) && days >= 0);
+  });
+  return { ...profile, shippingMethods };
+}
+
 export function ManufacturerOnboarding() {
   const navigate = useNavigate();
   const submitLock=useRef(false);
@@ -39,7 +49,7 @@ export function ManufacturerOnboarding() {
 
   // Load persisted state or bootstrap
   const [profile, setProfile] = useState<CompleteManufacturerProfile>(() =>
-    loadCompleteManufacturerProfile(),
+    withConfiguredShippingMethods(loadCompleteManufacturerProfile()),
   );
   const profileRef = useRef(profile);
 
@@ -94,6 +104,7 @@ export function ManufacturerOnboarding() {
       let merged = remote && (!local.customisationUpdatedAt || remote.customisationUpdatedAt! > local.customisationUpdatedAt)
         ? { ...profileBase, ...remote } : profileBase;
       if (remotePricing) merged = { ...merged, pricing: remotePricing };
+      merged = withConfiguredShippingMethods(merged);
       profileRef.current = merged;
       if (pendingSnapshot.current?.owner === owner) pendingSnapshot.current.profile = merged;
       setProfile(merged);
@@ -159,10 +170,10 @@ export function ManufacturerOnboarding() {
     setCompletionError('');
     const customisationChanged = ['capabilitiesMap', 'customCapabilities', 'capabilityCatalog', 'customMethodMoqs', 'generalMoq', 'garmentMoqOverrides', 'confirmedGarmentMoqOverrides'].some(key => Object.prototype.hasOwnProperty.call(patch, key));
     const next = { ...profileRef.current, ...patch, ...(patch.pricing ? { pricing: normalizePricing({ ...patch.pricing, updatedAt: new Date().toISOString() }) } : {}), ...(customisationChanged ? { customisationUpdatedAt: new Date().toISOString() } : {}) };
-    profileRef.current = next;
-    setProfile(next);
-    saveCompleteManufacturerProfile(next);
-    persistChanges(next);
+    const saved = saveCompleteManufacturerProfile(withConfiguredShippingMethods(next));
+    profileRef.current = saved;
+    setProfile(saved);
+    persistChanges(saved);
   };
 
   // Validation functions per step
@@ -503,7 +514,7 @@ export function ManufacturerOnboarding() {
           />
         )}
 
-        {step === 4 && (<div className="space-y-8"><div><h2 className="text-xl font-semibold text-white">5. Production turnaround timeline</h2><p className="mt-1 text-sm text-white/50">Set your sample and bulk lead times, then configure the stages and working schedule behind your production estimates.</p></div><ProductionLeadTimes profile={profile} onChange={handleProfileChange} errors={fieldErrors}/><ProductionTimelineEditor onReady={setTimelineReady}/><div className="onboarding-actions flex items-center justify-between gap-3 pt-2"><Button type="button" variant="outline" onClick={handleBack} className="min-h-11 border-white/15 text-white hover:bg-white/5">Back</Button><Button type="button" disabled={!timelineReady} onClick={handleNext} className="onboarding-primary min-h-11 bg-[#CC2D24] px-6 font-semibold text-white hover:bg-[#CC2D24]/90">Continue to Shipping</Button></div></div>)}
+        {step === 4 && (<div className="space-y-8"><div><h2 className="text-xl font-semibold text-white">5. Production turnaround timeline</h2><p className="mt-1 text-sm text-white/50">Set your sample and bulk lead times, then configure each production stage. Orders start in Preparation once payment is verified and production is authorised.</p></div><ProductionLeadTimes profile={profile} onChange={handleProfileChange} errors={fieldErrors}/><ProductionTimelineEditor onReady={setTimelineReady}/><div className="onboarding-actions flex items-center justify-between gap-3 pt-2"><Button type="button" variant="outline" onClick={handleBack} className="min-h-11 border-white/15 text-white hover:bg-white/5">Back</Button><Button type="button" disabled={!timelineReady} onClick={handleNext} className="onboarding-primary min-h-11 bg-[#CC2D24] px-6 font-semibold text-white hover:bg-[#CC2D24]/90">Continue to Shipping</Button></div></div>)}
         {step === 6 && (
           <StepReviewComplete
             profile={profile}

@@ -105,6 +105,9 @@ export default function Delivery() {
     () =>
       location.state as
         | {
+            sourceOrderId?: string;
+            mockup?: Blob;
+            useApprovedSample?: boolean;
             productId?: string;
             productName?: string;
             garmentType?: string;
@@ -118,6 +121,10 @@ export default function Delivery() {
 
   const handleBack = () => {
     const productId = st?.productId;
+    if (st?.sourceOrderId) {
+      navigate('/orders/' + st.sourceOrderId);
+      return;
+    }
     if (st?.from === 'manufacturer') {
       navigate(
         productId
@@ -163,12 +170,15 @@ export default function Delivery() {
     setSubmitting(true);
     try {
       const order = await createOrderFromSubmit({
+        sourceOrderId: st?.sourceOrderId,
+        useApprovedSample: st?.useApprovedSample,
         productId: st?.productId,
         productName: st?.productName ?? (isPackaging ? 'Packaging order' : undefined),
         garmentType: st?.garmentType ?? (isPackaging ? 'Packaging' : undefined),
         kind: isTechPackExport ? 'tech-pack' : 'production',
         orderQuantities: st?.orderQuantities,
         specifications: st?.specifications,
+        files: st?.mockup ? [new File([st.mockup], 'submitted-mockup.png', { type: 'image/png' })] : undefined,
         contactName: `${delivery.firstName} ${delivery.lastName}`.trim(),
         contactEmail: delivery.email,
         contactPhone: delivery.phone,

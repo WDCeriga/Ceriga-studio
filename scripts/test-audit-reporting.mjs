@@ -11,6 +11,21 @@ try{
  await asAccount(db,buyer);assert.equal((await db.query('select *from public.order_production_updates where order_id=$1',[oid])).rows.length,3);await assert.rejects(db.query('select public.portal_report(30)'),/Portal access|Permission denied/);
  await db.exec('reset role');await db.query("insert into public.order_verified_payments(order_id,provider_event_id,option_id,amount_cents,currency,provider_paid_at)values($1,'test-only-payment','sample',12345,'GBP',now())",[oid]);
  await asAccount(db,admin,'owner@ceriga.io');const report=(await db.query('select public.portal_report(30) r')).rows[0].r;assert.equal(report.orders,1);assert.equal(report.verifiedRevenue[0].cents,'12345');assert.equal(report.verifiedRevenue[0].currency,'GBP');await assert.rejects(db.query('select public.portal_report(0)'),/reporting period/);
- await asAccount(db,factory);const own=(await db.query('select public.portal_report(30) r')).rows[0].r;assert.deepEqual(own.verifiedRevenue,[]);assert.equal(own.production,1);await assert.rejects(db.query("update public.portal_notifications set audience='superadmin'where user_id=$1",[factory]),/read state/);
+ await db.exec('reset role');
+ const old = (await db.query("insert into public.orders(user_id,kind,product_name,garment_type,status,status_label,created_at)values($1,'production','Previous period','T-shirt','submitted','Submitted',now()-interval '40 days')returning id",[buyer])).rows[0].id;
+ await db.query("insert into public.order_verified_payments(order_id,provider_event_id,option_id,amount_cents,currency,provider_paid_at)values($1,'test-previous-payment','sample',6789,'GBP',now()-interval '40 days')",[old]);
+ await asAccount(db,admin,'owner@ceriga.io');
+ const insights = (await db.query('select public.admin_statistics_insights(30) r')).rows[0].r;
+ assert.equal(insights.orders,1);
+ assert.equal(insights.comparison.orders,1);
+ assert.equal(insights.comparison.verifiedRevenue[0].cents,'6789');
+ assert.equal(insights.grain,'day');
+ assert.equal(insights.trend.reduce((n,r)=>n+r.orders,0),1);
+ assert.equal(insights.trend.reduce((n,r)=>n+r.previousOrders,0),1);
+ assert.ok(insights.trend.some(r=>r.orders===0 && r.previousOrders===0));
+ await assert.rejects(db.query('select public.admin_statistics_insights(0)'),/reporting period/);
+ await asAccount(db,factory);
+ await assert.rejects(db.query('select public.admin_statistics_insights(30)'),/Superadmin access required/);
+ const own=(await db.query('select public.portal_report(30) r')).rows[0].r;assert.deepEqual(own.verifiedRevenue,[]);assert.equal(own.production,1);await assert.rejects(db.query("update public.portal_notifications set audience='superadmin'where user_id=$1",[factory]),/read state/);
  console.log('PASS: authorised production only, delay explanation, concurrency, immutable history, brand read access, reporting period validation, verified-only revenue and manufacturer financial isolation.');
 }finally{await db.close();}

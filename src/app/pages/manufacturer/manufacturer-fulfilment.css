@@ -1,0 +1,348 @@
+.fulfilment {
+  max-width:1440px;
+  margin:auto;
+}
+.ful-secondary {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:40px;
+  padding:8px 12px;
+  border:1px solid #dedede;
+  border-radius:5px;
+  background:white;
+  color:#525252;
+  font-size:12px;
+}
+.ful-secondary:disabled {
+  opacity:.45;
+}
+.ful-tracker {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  border:1px solid #e2e2e2;
+  border-radius:6px;
+  background:#fff;
+  margin-bottom:24px;
+  overflow:hidden;
+}
+.ful-tracker button {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:18px;
+  text-align:left;
+  border-right:1px solid #ededed;
+  color:#737373;
+}
+.ful-tracker button:last-child {
+  border-right:0;
+}
+.ful-tracker button>span {
+  display:grid;
+  place-items:center;
+  flex-shrink:0;
+  width:28px;
+  height:28px;
+  border:1px solid #dedede;
+  border-radius:50%;
+  font-size:12px;
+}
+.ful-tracker button[aria-current=step] {
+  background:#fafafa;
+  color:#171717;
+}
+.ful-tracker button[aria-current=step]>span {
+  background:#262626;
+  color:#fff;
+  border-color:#262626;
+}
+.ful-tracker strong,.ful-tracker small {
+  display:block;
+}
+.ful-tracker strong {
+  font-size:12px;
+  font-weight:600;
+}
+.ful-tracker small {
+  font-size:11px;
+  margin-top:5px;
+}
+.ful-tracker button:disabled {
+  opacity:.6;
+  cursor:default;
+}
+.ful-tabs {
+  display:flex;
+  gap:20px;
+  overflow-x:auto;
+  border-bottom:1px solid #e2e2e2;
+  margin-bottom:18px;
+}
+.ful-tabs button {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  white-space:nowrap;
+  min-height:44px;
+  border-bottom:2px solid transparent;
+  color:#737373;
+  font-size:12px;
+}
+.ful-tabs button[aria-pressed=true] {
+  border-bottom-color:#262626;
+  color:#171717;
+}
+.ful-tabs span {
+  font-size:10px;
+  padding:1px 5px;
+  background:#f1f1f1;
+  border-radius:3px;
+}
+.ful-search {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  max-width:420px;
+  min-height:44px;
+  padding:0 12px;
+  background:#fff;
+  border:1px solid #dedede;
+  border-radius:5px;
+  color:#737373;
+  margin-bottom:18px;
+}
+.ful-search input {
+  width:100%;
+  min-width:0;
+  background:none;
+  border:0;
+  outline:none;
+  font:inherit;
+}
+.ful-search:focus-within {
+  outline:2px solid #737373;
+  outline-offset:2px;
+}
+.ful-list {
+  border:1px solid #e2e2e2;
+  border-radius:6px;
+  background:#fff;
+}
+.ful-order {
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:20px;
+  border-bottom:1px solid #ededed;
+  color:#262626;
+}
+.ful-order:last-child {
+  border-bottom:0;
+}
+.ful-order:hover {
+  background:#fafafa;
+}
+.ful-order-title {
+  flex:1;
+  min-width:0;
+}
+.ful-order strong {
+  display:block;
+  font-size:13px;
+  font-weight:500;
+  overflow-wrap:anywhere;
+}
+.ful-order small {
+  display:block;
+  font-size:11px;
+  color:#737373;
+  margin-top:6px;
+}
+.ful-order-icon {
+  display:grid;
+  place-items:center;
+  flex-shrink:0;
+  width:42px;
+  height:46px;
+  background:#fafafa;
+  border:1px solid #ededed;
+  border-radius:5px;
+  color:#737373;
+}
+.ful-order-stage {
+  width:250px;
+  max-width:40%;
+}
+.ful-empty {
+  padding:32px;
+  background:#fff;
+  border:1px solid #e2e2e2;
+  border-radius:6px;
+  color:#737373;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  text-align:center;
+}
+.ful-empty h2 {
+  font-size:14px;
+  color:#525252;
+}
+.ful-hint {
+  font-size:12px;
+  color:#525252;
+  margin-bottom:16px;
+}
+.ful-warning {
+  padding:14px;
+  background:#fffaf3;
+  color:#856122;
+  border:1px solid #eee3cf;
+  border-radius:5px;
+  margin-bottom:16px;
+}
+.ful-order-reference {
+  margin-top:20px;
+  border:1px solid #e2e2e2;
+  border-radius:5px;
+  padding:16px;
+  background:white;
+}
+.ful-order-reference summary {
+  cursor:pointer;
+  font-weight:500;
+}
+.ful-order-reference a {
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  margin-top:16px;
+  color:#525252;
+}
+.ful-pagination {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:20px;
+}
+.ful-pagination span {
+  margin-right:auto;
+  color:#737373;
+}
+.fulfilment :is(button,a,summary):focus-visible {
+  outline:2px solid #737373;
+  outline-offset:2px;
+}
+.fulfilment .fp-card {
+  margin:0;
+}
+.fulfilment .fp-card-heading {
+  display:none;
+}
+.ful-stage-comment {
+  padding-top:14px;
+}
+.ful-stage-comment label {
+  display:block;
+  font-size:12px;
+  color:#525252;
+}
+.ful-stage-comment textarea {
+  display:block;
+  width:100%;
+  margin:8px 0;
+  min-height:70px;
+  resize:vertical;
+  border:1px solid #dedede;
+  border-radius:5px;
+  padding:10px;
+  background:#fff;
+  color:#262626;
+}
+.ful-stage-comment p {
+  font-size:11px;
+  color:#737373;
+}
+@media(max-width:640px) {
+  .ful-tracker button {
+    padding:12px 8px;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:8px;
+  }
+  .ful-tracker small {
+    font-size:10px;
+  }
+  .ful-tracker strong {
+    font-size:11px;
+  }
+  .ful-tabs {
+    gap:16px;
+  }
+  .ful-order {
+    flex-wrap:wrap;
+    padding:16px;
+    gap:12px;
+  }
+  .ful-order-title {
+    flex-basis:calc(100% - 60px);
+  }
+  .ful-order-stage {
+    width:auto;
+    max-width:none;
+    flex:1;
+    margin-left:54px;
+  }
+  .ful-order>svg {
+    flex-shrink:0;
+  }
+  .ful-search {
+    max-width:none;
+  }
+}
+.ful-production-history {
+  padding:20px;
+  border:1px solid #e2e2e2;
+  border-radius:6px;
+  background:#fff;
+}
+.ful-production-history h2 {
+  font-size:15px;
+  font-weight:600;
+}
+.ful-production-history > p,.ful-production-history time {
+  color:#737373;
+  font-size:11px;
+}
+.ful-production-history li {
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid #ededed;
+}
+.ful-production-history li p {
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  margin-top:4px;
+}
+.ful-stage-comment summary {
+  cursor:pointer;
+  margin-bottom:10px;
+  font-weight:500;
+}
+.ful-stage-comment summary span {
+  color:#737373;
+  font-weight:400;
+}
+.ful-stage-comment button {
+  margin-top:10px;
+}
+.ful-toolbar {
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+}

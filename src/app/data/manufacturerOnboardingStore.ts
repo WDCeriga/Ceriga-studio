@@ -104,7 +104,10 @@ export function createDefaultCompleteProfile(
 
     // Step 5: Shipping & Services
     shippingDestinations: seed?.shippingDestinations || (ws.shippingRegions?.length ? ws.shippingRegions : ['UK', 'EU', 'US']),
-    shippingMethods: seed?.shippingMethods || ['Standard shipping', 'Express shipping', 'Courier shipping'],
+    shippingProvider: seed?.shippingProvider ?? '',
+    shippingProvidersByMethod: seed?.shippingProvidersByMethod ?? {},
+    shippingTransitDaysByMethod: seed?.shippingTransitDaysByMethod ?? {},
+    shippingMethods: seed?.shippingMethods ?? [],
     internationalShippingAvailable: seed?.internationalShippingAvailable ?? true,
     customsDocumentationSupport: seed?.customsDocumentationSupport ?? true,
     trackingAvailability: seed?.trackingAvailability ?? true,

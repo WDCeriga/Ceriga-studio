@@ -1,2 +1,1 @@
-import {ManufacturerVerificationView} from '../../components/manufacturer/ManufacturerVerificationView';
-export function ManufacturerVerification(){return <ManufacturerVerificationView/>;}
+export { ManufacturerFactoryProfile as ManufacturerVerification } from './ManufacturerFactoryProfile';
