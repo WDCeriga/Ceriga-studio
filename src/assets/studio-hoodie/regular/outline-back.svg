@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" data-no-fabric-edge-seal="true">
+  <g fill="none" stroke="#202020" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 717 431 Q 695 406 711 374 L 753 262 Q 760 224 809 215 C 922 191 1126 191 1239 215 Q 1288 224 1295 262 L 1337 374 Q 1353 406 1331 431 C 1249 457 1137 490 1024 490 C 911 490 799 457 717 431 Z"/>
+    <path d="M 1024 197 L 1024 490"/>
+  </g>
+</svg>

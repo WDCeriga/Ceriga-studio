@@ -756,7 +756,7 @@ function PreviewLayer({
         <InlineSvg
           paintMask={layer.necklinePaintMask}
           raw={['neck','innerBackNeck'].includes(layer.id)?layer.svgRaw.replace('<svg ','<svg data-no-fabric-edge-seal="true" '):layer.svgRaw}
-          edgeSealWidth={technicalDrawing&&!['outline','neck','innerBackNeck'].includes(layer.id)&&!layer.svgRaw.includes('data-distressed-hem')?36:0}
+          edgeSealWidth={technicalDrawing&&!['outline','neck','innerBackNeck'].includes(layer.id)&&!layer.svgRaw.includes('data-distressed-hem')&&!layer.svgRaw.includes('data-no-fabric-edge-seal')?36:0}
           fabric={fabric}
           interior={interior}
           textureIntensity={textureIntensity}

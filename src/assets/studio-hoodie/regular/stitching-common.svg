@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" data-no-fabric-edge-seal="true">
+  <g fill="none" stroke="#666666" stroke-width="4" stroke-dasharray="9 7" stroke-linecap="round">
+    <path d="M 563 635 Q 605 627 628 666 C 605 934 539 1286 567 1504"/>
+    <path d="M 1485 635 Q 1443 627 1420 666 C 1443 934 1509 1286 1481 1504"/>
+    <path d="M 261 1674 Q 351 1674 448 1737 M 1787 1674 Q 1697 1674 1600 1737"/>
+    <path d="M 599 1622 Q 1024 1608 1449 1622"/>
+  </g>
+</svg>

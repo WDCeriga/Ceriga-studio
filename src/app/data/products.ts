@@ -50,7 +50,7 @@ export const products: Product[] = [
   {
     id: 'hd-001',
     name: 'Classic Pullover Hoodie',
-    description: 'Versatile hoodie with multiple hood and closure options',
+    description: 'Regular-fit pullover with a lined hood, rib cuffs and a kangaroo pocket',
     categories: ['Tops', 'Outerwear', 'All'],
     garmentType: 'hoodie',
     image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800&h=600&fit=crop',
