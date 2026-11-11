@@ -58,7 +58,7 @@ interface MeasurementsStepProps {
   highlightedMeasurementId?: string | null;
   onHighlightedMeasurementIdChange?: (id: string | null) => void;
   /** When set, only these fits are offered (e.g. Slim / Boxy on the test pack). */
-  fits?: readonly { id: string; name: string }[];
+  fits?: readonly { id: string; name: string; thumbnail?: string }[];
 }
 
 function MeasurementUnitToggle({
@@ -423,7 +423,7 @@ export function MeasurementPreview({
     if (svgPack && selection) {
       return applyGarmentFitAndLinks(svgPack, selection, fit);
     }
-    if (svgPack === 'tshirt' || svgPack === 'tshirtTest') {
+    if (svgPack) {
       return getDefaultGarmentSelection(svgPack, fit);
     }
     return getDefaultTshirtSelection();
@@ -432,7 +432,7 @@ export function MeasurementPreview({
   const sizeComparison=useComparisonContext(SizeComparisonContext);
   return (
     <div data-size-comparison={sizeComparison.enabled?true:undefined} data-measurement-preview data-view={detailView??'front'} className={cn(GARMENT_PREVIEW_CONTAINER_CLASS, 'mx-auto max-w-full flex-1')}>
-      {svgPack === 'tshirt' || svgPack === 'tshirtTest' ? (
+      {svgPack ? (
         <MeasurementArtwork onArtworkSelect={onArtworkSelect} studioArtwork={studioArtwork} prints={prints} view={detailView??'front'}>
           <TshirtSvgPreview
             {...sharedGarmentProps}

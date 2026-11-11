@@ -1,3 +1,4 @@
+import { REGULAR_HOODIE_PRESET, regularHoodieLayers } from './regularHoodie';
 import {withRegularConstruction} from './regularConstruction';
 import {withTshirtSurfaceQuality} from './tshirtSurfaceQuality';
 import {withOversizedReference} from './oversizedReference';
@@ -1061,6 +1062,7 @@ export function getDefaultGarmentSelection(
   garmentType: GarmentSvgGarmentType,
   fit?: string,
 ): GarmentAssetSelection {
+  if (garmentType === 'hoodie') return { base: REGULAR_HOODIE_PRESET };
   const config = GARMENT_CONFIGS[garmentType];
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   const selection: GarmentAssetSelection = {};
@@ -1144,6 +1146,7 @@ export function applyGarmentFitAndLinks(
   selection: GarmentAssetSelection,
   fit?: string,
 ): GarmentAssetSelection {
+  if (garmentType === 'hoodie' && selection.base === REGULAR_HOODIE_PRESET) return { ...selection };
   const config = GARMENT_CONFIGS[garmentType];
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   let next = { ...selection };
@@ -1280,6 +1283,15 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   if (input.customAssetState?.importedGarment) {
     return importedGarmentLayers(input.customAssetState.importedGarment, input.view ?? 'front', input.partColors, input.customAssetState.garmentDetails)
       .sort((first, second) => first.zIndex - second.zIndex);
+  }
+  if (input.garmentType === 'hoodie' && input.selection.base === REGULAR_HOODIE_PRESET) {
+    const view = input.view ?? 'front';
+    return withCustomAssets(
+      regularHoodieLayers(
+        view, input.partColors, input.stitchingColor, input.selection,
+      ),
+      input.customAssetState ?? {}, 'hoodie', 'regular', view,
+    ).sort((first, second) => first.zIndex - second.zIndex);
   }
   const config = GARMENT_CONFIGS[input.garmentType];
   const selection = applyGarmentSelectionLinks(
