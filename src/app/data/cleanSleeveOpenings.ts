@@ -32,7 +32,9 @@ export function withCleanSleeveOpenings(layers:ResolvedGarmentLayer[]):ResolvedG
   if(depth<1||depth>180)continue;
   const sleevePoints=sg.flat(2),cut=(openingPoint?openingPoint.x*nx+openingPoint.y*ny:Math.max(...sleevePoints.map(([x,y])=>x*nx+y*ny)))-1.5;
   if(prefix==='sleeve')outerCuffs.set(side,{nx,ny,cut});
-  const ux=ny,uy=-nx,ts=sleevePoints.map(([x,y])=>x*ux+y*uy),a=Math.min(...ts)-10,b=Math.max(...ts)+10,bandDepth=Math.max(14,Math.min(64,depth));
+  const authoredDepth = hem.svgRaw.includes('data-live-hem-finish=');
+  const ux=ny,uy=-nx,ts=sleevePoints.map(([x,y])=>x*ux+y*uy),a=Math.min(...ts)-10,b=Math.max(...ts)+10;
+  const bandDepth = authoredDepth ? depth : Math.max(14, Math.min(64, depth));
   const point=(t:number,n:number):[number,number]=>[t*ux+n*nx,t*uy+n*ny];
   const strip:MultiPolygon=[[[point(a,cut-bandDepth),point(b,cut-bandDepth),point(b,cut),point(a,cut),point(a,cut-bandDepth)]]];
   const clean=(g:MultiPolygon):MultiPolygon=>g.map(poly=>poly.map(r=>r.map(([x,y])=>{const d=x*nx+y*ny-cut;return d>0?[x-d*nx,y-d*ny]:[x,y]})));
@@ -54,12 +56,26 @@ export function withCleanSleeveOpenings(layers:ResolvedGarmentLayer[]):ResolvedG
   const paths=group?Array.from(group.querySelectorAll('path')).filter(p=>!p.closest('defs')):[],m=group?.transform.baseVal.consolidate()?.matrix;
   if(!paths.length||!m)return layer;
   const inverse=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
-  paths[0].setAttribute('d',svgpath(shoulderGeometryPath(geometry)).matrix([inverse.a,inverse.b,inverse.c,inverse.d,inverse.e,inverse.f]).toString());
+  const boundary = shoulderGeometryPath(geometry);
+  paths[0].setAttribute('d',svgpath(boundary).matrix([inverse.a,inverse.b,inverse.c,inverse.d,inverse.e,inverse.f]).toString());
   paths[0].setAttribute('fill-rule','evenodd');
   // Preserve the authored shared seam marker, not obsolete extra fabric fragments.
   paths.slice(1).filter(p=>!p.hasAttribute('data-sleeve-join')&&!p.hasAttribute('data-sleeve-opening')).forEach(p=>p.remove());
   const row=stitchRows.get(layer.id);doc.querySelectorAll('[data-cuff-stitch-row]').forEach(p=>p.remove());if(row){const marker=doc.createElementNS('http://www.w3.org/2000/svg','path');marker.setAttribute('data-cuff-stitch-row','true');marker.setAttribute('fill','none');marker.setAttribute('d',row);const definitions=doc.createElementNS('http://www.w3.org/2000/svg','defs');definitions.appendChild(marker);doc.documentElement.appendChild(definitions);}
-  const opening=openingRows.get(layer.id);if(opening)doc.querySelectorAll('[data-sleeve-opening]').forEach(p=>{p.removeAttribute('transform');p.setAttribute('d',opening);doc.documentElement.appendChild(p);});
+  const opening=openingRows.get(layer.id);
+  if(opening){
+   doc.querySelectorAll('[data-sleeve-opening]').forEach(p=>{p.removeAttribute('transform');p.setAttribute('d',opening);doc.documentElement.appendChild(p);});
+   const marker=doc.createElementNS('http://www.w3.org/2000/svg','path');
+   marker.setAttribute('data-terminal-opening','true');
+   marker.setAttribute('fill','none');
+   marker.setAttribute('d',opening);
+   doc.documentElement.appendChild(marker);
+  }
+  for (const marker of doc.querySelectorAll('[data-hem-clearance],[data-hem-rib-clip]')) {
+    marker.removeAttribute('transform');
+    marker.setAttribute('d', boundary);
+    doc.documentElement.appendChild(marker);
+  }
   doc.querySelectorAll('[data-hem-top-seam],[data-hem-edge]').forEach(p=>p.remove());
   doc.documentElement.setAttribute('data-clean-sleeve-opening','true');
   return {...layer,svgRaw:new XMLSerializer().serializeToString(doc.documentElement),panellingClipSvgRaw:undefined};

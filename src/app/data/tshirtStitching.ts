@@ -32,7 +32,7 @@ export function updateStitchSettings(settings: TshirtStitching, patch: StitchSet
 }
 type Point = { x: number; y: number };
 type Mark = Point & { tangent: Point };
-export type StitchGeometry = { clips: Record<StitchRegion, string>; rows: Record<StitchRegion, Point[][]>; hemClips?: Record<string, { stitchCut: string }> };
+export type StitchGeometry = { clips: Record<StitchRegion, string>; rows: Record<StitchRegion, Point[][]>; hemClips?: Record<string, { stitchCut: string }>; foldRows?: Record<string, Point[][]> };
 const cache = new Map<string, Promise<StitchGeometry>>();
 const namespace = 'http://www.w3.org/2000/svg';
 const regions = Object.keys(TSHIRT_STITCH_REGIONS) as StitchRegion[];
@@ -253,12 +253,17 @@ export function stitchPatternPath(points: Point[], style: StitchStyle, density =
   curve.setAttribute('d', curvePath(points));
   const length = curve.getTotalLength();
   if (length < .1) return '';
-  const at = (along: number, offset: number) => {
+  const pointAt = (along: number, offset: number): Point => {
     const position = curve.getPointAtLength(Math.max(0, Math.min(length, along)));
     const before = curve.getPointAtLength(Math.max(0, along - .5));
     const after = curve.getPointAtLength(Math.min(length, along + .5));
     const magnitude = Math.hypot(after.x - before.x, after.y - before.y) || 1;
-    return `${(position.x - (after.y - before.y) / magnitude * offset).toFixed(2)},${(position.y + (after.x - before.x) / magnitude * offset).toFixed(2)}`;
+    return { x: position.x - (after.y - before.y) / magnitude * offset,
+      y: position.y + (after.x - before.x) / magnitude * offset };
+  };
+  const at = (along: number, offset: number) => {
+    const point = pointAt(along, offset);
+    return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
   };
   const dash=9*10/Math.max(4,Math.min(14,density));
   const rowGap=Math.max(3,Math.min(10,spacingMm))/6;
@@ -271,9 +276,10 @@ export function stitchPatternPath(points: Point[], style: StitchStyle, density =
     for (let index = 0; index < count; index++) {
       const along = margin + index * (dashLength + dash);
       const end = along + dashLength;
-      path += `M${at(along, offset)}`;
-      for (let step = along + 2; step < end; step += 2) path += `L${at(step, offset)}`;
-      path += `L${at(end, offset)}`;
+      const thread = [pointAt(along, offset)];
+      for (let step = along + 3; step < end; step += 3) thread.push(pointAt(step, offset));
+      thread.push(pointAt(end, offset));
+      path += curvePath(thread);
     }
     return path;
   };
@@ -298,9 +304,11 @@ export function stitchPatternPath(points: Point[], style: StitchStyle, density =
   return path;
 }
 
-export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: StitchGeometry, settings: TshirtStitching, hems?: TshirtHemStyles, fabricColors?: Record<string, string>, prefix = ''): string {
+export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: StitchGeometry, settings: TshirtStitching, hems?: TshirtHemStyles, fabricColors?: Record<string, string>, prefix = '', previewInk = false): string {
   const groups = regions.map(region => {
     if (!hemGroupEnabled(hems, region)) return '';
+    const bottomConstruction = region === 'bottom' ? resolveHemSettings(hems, 'bodyHem').construction : undefined;
+    if (bottomConstruction === 'elasticated' || bottomConstruction === 'adjustable') return '';
     const resolved = resolveStitchSettings(settings, region);
     const style = resolved.style ?? 'standard';
     const width = { fine: 2.1, regular: 2.7, heavy: 3.4 }[resolved.thread ?? 'regular'];
@@ -310,16 +318,20 @@ export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: Stitc
       : [{ id: region, clip: geometry.clips[region], hem: undefined }];
     return parts.map(part => {
       if (part.hem?.finish === 'none') return '';
-      const partStyle=part.hem?.stitchStyle??style;
+      const foldRows = geometry.foldRows?.[part.id];
+      const chosenStyle = part.hem?.stitchStyle ?? style;
+      const partStyle = foldRows?.length && chosenStyle === 'double' ? 'standard' : chosenStyle;
       if(partStyle==='none')return '';
-      const rows=geometry.rows[region].filter(row=>!/(Left|Right)$/.test(part.id)||!row.length||((row.reduce((n,p)=>n+p.x,0)/row.length<1024)===part.id.endsWith('Left')));
-      const partPath=rows.map(row=>stitchPatternPath(row,partStyle,resolved.density,resolved.spacingMm)).join('');
+      const rows=foldRows?.length ? foldRows : geometry.rows[region].filter(row=>!/(Left|Right)$/.test(part.id)||!row.length||((row.reduce((n,p)=>n+p.x,0)/row.length<1024)===part.id.endsWith('Left')));
+      const nativeDash = previewInk && partStyle === 'standard';
+      const dash = nativeDash ? 90 / Math.max(4, Math.min(14, resolved.density ?? 10)) : 0;
+      const partPath=rows.filter(row=>row.length>1).map(row=>nativeDash ? curvePath(row) : stitchPatternPath(row,partStyle,resolved.density,resolved.spacingMm)).join('');
       const partWidth=part.hem?.stitchThread?{fine:2.1,regular:2.7,heavy:3.4}[part.hem.stitchThread]:width;
-      const selectedColor = colorValue(part.hem?.stitchColor || resolved.color || source.tint);
       const fabric = fabricColors?.[part.id] ?? fabricColors?.[region] ?? fabricColors?.base;
+      const selectedColor = colorValue(part.hem?.stitchColor || resolved.color || source.tint);
       const color = fabric ? constructionColor(fabric, selectedColor) : selectedColor;
       const clipId = `${prefix}stitch-region-${part.id}`;
-      const content = `<path data-stitch-weight="${partWidth/2.7}" d="${partPath}" fill="none" stroke="${color}" stroke-width="${partWidth}" stroke-linecap="round" stroke-linejoin="round"/>`;
+      const content = `<path data-stitch-weight="${partWidth/2.7}" d="${partPath}" fill="none" stroke="${color}" stroke-width="${partWidth}"${nativeDash ? ` stroke-dasharray="${dash} ${dash * 7 / 9}"` : ''} stroke-linecap="round" stroke-linejoin="round"/>`;
       return `<defs><clipPath id="${clipId}"><path transform="scale(1.333333333333)" clip-rule="evenodd" d="${part.clip}"/></clipPath></defs><g data-stitch-region="${region}" data-hem-stitch="${part.id}" data-stitch-style="${partStyle}" data-stitch-density="${resolved.density??10}" data-stitch-spacing="${resolved.spacingMm??6}" clip-path="url(#${clipId})">${content}</g>`;
     }).join('');
   }).join('');

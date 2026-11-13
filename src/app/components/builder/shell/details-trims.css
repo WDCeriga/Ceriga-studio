@@ -12,8 +12,52 @@
 .details-trims-editor button:hover{background:var(--builder-ui-soft)}
 .details-trims-editor button[aria-pressed=true]{border-color:var(--builder-ui-muted);background:var(--builder-ui-soft);color:var(--builder-ui-text)}
 .details-trims-editor input{accent-color:var(--builder-ui-text)}
-.details-trims-editor [aria-label="Detail category"]{display:flex;gap:5px;border:0;margin-bottom:15px}
-.details-trims-editor [aria-label="Detail category"] button{flex:1;border:1px solid var(--builder-ui-line);border-radius:5px;padding:10px 4px}
+.details-trims-editor .detail-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 94px), 1fr));
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--builder-ui-soft);
+}
+.details-trims-editor .detail-category-grid > button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.details-trims-editor .detail-category-grid > button[aria-pressed=true] {
+  background: white;
+  box-shadow: 0 1px 4px #26262612;
+}
+.details-trims-editor .detail-subcategory-grid,
+.details-trims-editor .detail-zip-length-grid {
+  padding: 0;
+  background: transparent;
+}
+.details-trims-editor .detail-subcategory-grid > button,
+.details-trims-editor .detail-zip-length-grid > button {
+  border-color: var(--builder-ui-line);
+}
+.details-trims-editor .detail-subcategory-grid > button[aria-pressed=true] {
+  border-color: var(--builder-ui-muted);
+  background: var(--builder-ui-soft);
+}
+.details-trims-editor .detail-zip-length-grid > button { text-transform: capitalize; }
+.details-trims-editor .detail-zip-length-grid > button:disabled { opacity: .45; }
+.detail-zip-length-field { display: grid; gap: 6px; width: 100%; font-size: 12px; }
+.detail-zip-length-field > .detail-zip-length-select { width: 100%; max-width: none; }
+.detail-zip-length-field > .detail-zip-length-select > span:nth-last-child(2) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .details-trims-editor [aria-label$=" options"]{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .details-trims-editor [aria-label$=" options"] button{padding:12px 8px;background:white;min-height:119px;font-size:11px;border-radius:6px}
 .details-trims-editor [aria-label$=" options"] img{height:74px}
@@ -34,9 +78,6 @@
 .details-trims-editor .detail-library>summary>span{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--builder-ui-text)}
 .details-trims-editor .detail-library>summary>small{font-size:10px;color:var(--builder-ui-muted)}
 .details-trims-editor .detail-library-content{padding:12px}
-.details-trims-editor [aria-label="Detail category"]{background:var(--builder-ui-soft);padding:3px;border-radius:5px;gap:2px;margin-bottom:12px}
-.details-trims-editor [aria-label="Detail category"] button{border:0;font-size:10px;padding:8px 2px;background:transparent;border-radius:3px}
-.details-trims-editor [aria-label="Detail category"] button[aria-pressed=true]{background:white;box-shadow:0 1px 4px #26262612;color:var(--builder-ui-text)}
 .details-trims-editor [aria-label$=" options"] button{position:relative;border-color:var(--builder-ui-line);padding:0;overflow:hidden;gap:0;min-height:130px;text-align:left}
 .details-trims-editor [aria-label$=" options"] button:hover{border-color:var(--builder-ui-muted);box-shadow:0 3px 12px #2626260a;transform:translateY(-1px)}
 .details-trims-editor [aria-label$=" options"] img{height:95px;background:linear-gradient(135deg,var(--builder-ui-surface),var(--builder-ui-soft));padding:15px}
@@ -130,8 +171,6 @@
  .details-trims-editor .detail-workbench{gap:12px}
  .details-trims-editor .detail-mode-tabs{padding:4px}
  .details-trims-editor .detail-mode-tabs button{min-height:44px;font-size:12px}
- .details-trims-editor [aria-label="Detail category"]{padding:3px;margin:2px 0 12px}
- .details-trims-editor [aria-label="Detail category"] button{min-height:42px;font-size:12px}
  .details-trims-editor [aria-label$=" options"]{gap:9px}
  .details-trims-editor [aria-label$=" options"] button{min-height:118px}
  .details-trims-editor [aria-label$=" options"] img{height:78px;padding:11px}

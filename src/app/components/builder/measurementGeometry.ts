@@ -3,8 +3,8 @@ import type { LabelAttachmentLayer } from './GarmentLabelOverlay';
 import { flattenAbsolutePath } from '../../features/panelling/panellingGeometry';
 
 export interface MeasurementPoint { x: number; y: number }
-export interface MeasurementShape { id: string; contours: MeasurementPoint[][]; shoulderPoint?:MeasurementPoint }
-export type MeasurementSource = LabelAttachmentLayer & { assetName?: string; shoulderPoint?:MeasurementPoint };
+export interface MeasurementShape { id: string; contours: MeasurementPoint[][]; shoulderPoint?:MeasurementPoint; underarmPoint?:MeasurementPoint }
+export type MeasurementSource = LabelAttachmentLayer & { assetName?: string; shoulderPoint?:MeasurementPoint; underarmPoint?:MeasurementPoint };
 
 const contourCache = new Map<string, MeasurementPoint[][]>();
 const pendingContours = new Map<string, Promise<MeasurementPoint[][]>>();
@@ -85,8 +85,13 @@ export async function sampleMeasurementShapes(sources: MeasurementSource[]): Pro
   for (const source of [...sources, ...cutout].filter(source => !['outline', 'stitching'].includes(source.id))) {
     const contours = await sampleSourceContours(source, yieldForPaint);
     const matrix = new DOMMatrix(source.matrix);
-    const shoulder=source.shoulderPoint?matrix.transformPoint(source.shoulderPoint):undefined;
-    shapes.push({ id: source.id,shoulderPoint:shoulder?{x:shoulder.x*1000/2048,y:shoulder.y*1000/2048}:undefined, contours: contours.map(contour => contour.map(point => {
+    const mapPoint = (point?: MeasurementPoint) => {
+      if (!point) return undefined;
+      const mapped = matrix.transformPoint(point);
+      return { x: mapped.x * 1000 / 2048, y: mapped.y * 1000 / 2048 };
+    };
+    shapes.push({ id: source.id, shoulderPoint: mapPoint(source.shoulderPoint),
+      underarmPoint: mapPoint(source.underarmPoint), contours: contours.map(contour => contour.map(point => {
       const mapped = matrix.transformPoint(point);
       return { x: mapped.x * 1000 / 2048, y: mapped.y * 1000 / 2048 };
     })) });
@@ -226,4 +231,50 @@ export function buildBuilderGeometryGuides(shapes:MeasurementShape[]):Measuremen
  const cuff=largest(contours('underlayerHemLeft'))[0]??largest(contours('sleeveHemLeft'))[0]??sleeve;
  const opening=openingEdge(cuff,shoulder).sort((a,b)=>a.x-b.x);
  return guides.map(guide=>guide.id==='sleeveLength'?{...guide,x1:shoulder.x,y1:shoulder.y,x2:opening[0].x,y2:opening[0].y}:guide.id==='sleeveOpening'?{...guide,x1:opening[0].x,y1:opening[0].y,x2:opening[1].x,y2:opening[1].y}:guide);
+}
+
+export function buildHoodieGeometryGuides(shapes: MeasurementShape[], style: string): MeasurementGuideDef[] {
+  const body = largest(shapes.find(shape => shape.id === 'base')?.contours ?? [])[0];
+  const leftSleeve = shapes.find(shape => shape.id === 'sleeveLeft');
+  const rightSleeve = shapes.find(shape => shape.id === 'sleeveRight');
+  const shoulder = leftSleeve?.shoulderPoint;
+  const oppositeShoulder = rightSleeve?.shoulderPoint;
+  const underarm = leftSleeve?.underarmPoint;
+  const neck = shapes.find(shape => shape.id === (style === 'crewneck' ? 'neck' : 'hood'));
+  const neckLeft = neck?.shoulderPoint;
+  const neckRight = neck?.underarmPoint;
+  if (!body?.length || !shoulder || !oppositeShoulder || !underarm || !neckLeft || !neckRight) {
+    return buildBuilderGeometryGuides(shapes);
+  }
+  const center = (neckLeft.x + neckRight.x) / 2;
+  const hemY = measurementHemAt(shapes, center) ?? extent(body).bottom;
+  const chestY = Math.min(extent(body).bottom - 1, underarm.y + 22);
+  const chest = scan([body], chestY);
+  const neckPoints = neck?.contours.flat() ?? [];
+  const neckBounds = extent(neckPoints);
+  const neckBottom = measurementHemAt([{ id: 'base', contours: neck?.contours ?? [] }], center) ?? neckBounds.bottom;
+  const cuff = largest(shapes.find(shape => shape.id === 'sleeveHemLeft')?.contours ?? leftSleeve?.contours ?? [])[0];
+  if (!cuff?.length) return buildBuilderGeometryGuides(shapes);
+  const cuffBottom = extent(cuff).bottom;
+  const cuffOpening = cuff.filter(point => point.y >= cuffBottom - 9).sort((a, b) => a.x - b.x);
+  const [outerCuff, innerCuff] = cuffOpening.length >= 2
+    ? [cuffOpening[0], cuffOpening[cuffOpening.length - 1]]
+    : openingEdge(cuff, shoulder).sort((a, b) => a.x - b.x);
+  const guide = (id: MeasurementGuideDef['id'], label: string, start: MeasurementPoint, end: MeasurementPoint): MeasurementGuideDef => ({
+    id, label, x1: start.x, y1: start.y, x2: end.x, y2: end.y,
+    labelX: (start.x + end.x) / 2, labelY: (start.y + end.y) / 2 - 20, labelAlign: 'center',
+  });
+  const dimensions = buildBuilderGeometryGuides(shapes).filter(item => item.id === 'bottomWidth');
+  dimensions.push(
+    guide('chestWidth', 'Chest width', { x: chest[0] ?? extent(body).left, y: chestY }, { x: chest.at(-1) ?? extent(body).right, y: chestY }),
+    guide('halfLength', 'Body length', neckLeft, { x: neckLeft.x, y: measurementHemAt(shapes, neckLeft.x) ?? hemY }),
+    guide('shoulderWidth', 'Shoulder width', shoulder, oppositeShoulder),
+    guide('sleeveLength', 'Sleeve length', shoulder, outerCuff),
+    guide('armhole', 'Armhole', shoulder, underarm),
+    guide('sleeveOpening', 'Cuff opening', outerCuff, innerCuff),
+    guide('neckOpening', 'Neck opening', neckLeft, neckRight),
+    guide('neckDrop', 'Neck drop', { x: center, y: Math.min(neckLeft.y, neckRight.y) }, { x: center, y: neckBottom }),
+  );
+  if (style !== 'crewneck') dimensions.push(guide('hoodHeight', 'Hood height', { x: center, y: neckBounds.top }, { x: center, y: neckBottom }));
+  return dimensions;
 }

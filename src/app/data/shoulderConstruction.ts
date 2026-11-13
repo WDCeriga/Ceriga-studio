@@ -15,16 +15,32 @@ const sourceCache=new Map<string,{original:MultiPolygon;ls:MultiPolygon;rs:Multi
 const wrap=(body:string)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" data-shoulder-construction="true" data-tech-ink-boldness="0">${body}</svg>`;
 function geometryPath(geometry:MultiPolygon){return geometry.map(p=>p.map(r=>'M'+r.map(p=>p.map(n=>Number(n.toFixed(2))).join(',')).join('L')+'Z').join('')).join('')}
 /** Curved neck-to-underarm raglan; saddle retains a shoulder strip, drop moves the armscye out. */
-export function shoulderSeam(kind:ShoulderConstruction,start:Pair,end:Pair):Pair[]{
- const dx=start[0]-end[0],dy=end[1]-start[1];
- if(kind==='saddle'){
- const bend:Pair=[end[0]-Math.abs(dx)*.04,start[1]+dy*.35];
- const cubic=(a:Pair,b:Pair,c:Pair,d:Pair)=>Array.from({length:25},(_,i)=>{const t=i/24,u=1-t;return [u*u*u*a[0]+3*u*u*t*b[0]+3*u*t*t*c[0]+t*t*t*d[0],u*u*u*a[1]+3*u*u*t*b[1]+3*u*t*t*c[1]+t*t*t*d[1]] as Pair});
- return [...cubic(start,[start[0]-dx*.45,start[1]+dy*.10],[bend[0],start[1]+dy*.20],bend),...cubic(bend,[bend[0],start[1]+dy*.53],[end[0],end[1]-dy*.22],end).slice(1)];
- }
- const c1:Pair=kind==='drop'?[start[0]-dx*.34,start[1]+dy*.34]:[start[0]-dx*.32,start[1]+dy*.28];
- const c2:Pair=kind==='drop'?[end[0]+dx*.22,end[1]-dy*.25]:[end[0],end[1]-dy*.20];
- return Array.from({length:49},(_,i)=>{const t=i/48,u=1-t;return[u*u*u*start[0]+3*u*u*t*c1[0]+3*u*t*t*c2[0]+t*t*t*end[0],u*u*u*start[1]+3*u*u*t*c1[1]+3*u*t*t*c2[1]+t*t*t*end[1]] as Pair});
+export function shoulderSeamCurves(kind: ShoulderConstruction, start: Pair, end: Pair): [Pair, Pair, Pair, Pair][] {
+  const dx = start[0] - end[0];
+  const dy = end[1] - start[1];
+  if (kind === 'saddle') {
+    const bend: Pair = [end[0] - Math.abs(dx) * .04, start[1] + dy * .35];
+    return [
+      [start, [start[0] - dx * .45, start[1] + dy * .10], [bend[0], start[1] + dy * .20], bend],
+      [bend, [bend[0], start[1] + dy * .53], [end[0], end[1] - dy * .22], end],
+    ];
+  }
+  if (kind === 'drop') {
+    return [[start, [start[0] - dx * .34, start[1] + dy * .34], [end[0] + dx * .22, end[1] - dy * .25], end]];
+  }
+  return [[start, [start[0] - dx * .32, start[1] + dy * .28], [end[0], end[1] - dy * .20], end]];
+}
+
+export function shoulderSeam(kind: ShoulderConstruction, start: Pair, end: Pair): Pair[] {
+  const curves = shoulderSeamCurves(kind, start, end);
+  const steps = 48 / curves.length;
+  return curves.flatMap(([a, b, c, d], index) =>
+    Array.from({ length: steps + 1 - index }, (_, i) => {
+      const t = (i + index) / steps;
+      const u = 1 - t;
+      return a.map((v, axis) => u * u * u * v + 3 * u * u * t * b[axis]
+        + 3 * u * t * t * c[axis] + t * t * t * d[axis]) as Pair;
+    }));
 }
 /** Close the underarm only as far as the original sleeve attachment allows. */
 export function completeShoulderJoin(seam:Pair[],endpoint?:Pair):Pair[]{

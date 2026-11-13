@@ -2,7 +2,7 @@ import type { ResolvedGarmentLayer } from '../../data/garmentSvgCatalog';
 
 interface LiveLayer { id: string; source: ResolvedGarmentLayer; side?: 'left'|'right'; matrix: string }
 /** Geometry only: appearance is always rendered by TshirtSvgPreview itself. */
-export function livePanellingMarkup(layers: LiveLayer[]): string {
+export function livePanellingMarkup(layers: LiveLayer[], cuts: Record<string, string> = {}): string {
   const serialize = (raw: string) => {
     const svg = new DOMParser().parseFromString(raw,'image/svg+xml').documentElement;
     svg.setAttribute('width','2048'); svg.setAttribute('height','2048');
@@ -24,5 +24,6 @@ export function livePanellingMarkup(layers: LiveLayer[]): string {
     const ink=id==='outline'||source.kind==='detail';
     const raw=ink?source.svgRaw:(source.panellingClipSvgRaw??source.svgRaw);
     return '<g data-panelling-parent="'+id+'" data-technical-ink="'+ink+'"'+(!ink?' data-fabric-only="true"':'')+(side?' data-panelling-side="'+side+'"':'')+' transform="'+matrix+'">'+serialize(raw)+'</g>';
-  }).join('')+'</svg>';
+  }).join('') + Object.entries(cuts).map(([id, d]) =>
+    `<path data-panelling-cut="${id}" d="${d}" fill="none"/>`).join('') + '</svg>';
 }

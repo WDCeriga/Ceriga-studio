@@ -63,6 +63,7 @@ export interface FabricPart {
   materialCategory?: FabricCategory;
   surface?: FabricSurface;
   exteriorPartId?: string;
+  hoodieColour?: 'hood-shell' | 'hood-inside';
 }
 export interface FabricTarget { id: string; label: string; partIds: string[]; group?: string }
 
@@ -261,6 +262,7 @@ export function initializeFabricDefaults(garmentType: string, current?: FabricAs
   const categories: Partial<Record<FabricCategory, string>> = {
     ...(!woven ? { ...(garmentType !== 'tshirt' ? { neck: 'rib-1x1' } : {}), cuffs: 'rib-1x1', waistband: 'rib-1x1' } : {}),
     ...(sweatshirt ? { hem: 'rib-1x1' } : {}),
+    ...(garmentType === 'hoodie' ? { lining: 'single-jersey' } : {}),
     ...next.categoryDefaults,
   };
   return { ...next, garmentDefault: next.garmentDefault ?? (sweatshirt ? 'french-terry' : woven ? 'cotton-twill' : 'single-jersey'),

@@ -30,7 +30,7 @@ function neckFinishContext(layers: ResolvedGarmentLayer[], finish?: NeckFinish) 
 }
 
 function applyNeckFinish(layers: ResolvedGarmentLayer[], result: NonNullable<ReturnType<typeof cache.get>>, raw: boolean) {
-  return layers.filter(layer => !raw || layer.id !== 'neck').map(layer => layer.id === 'neck' ? { ...layer, svgRaw: result.neck }
+  return layers.filter(layer => !raw || !['neck', 'innerBackNeck'].includes(layer.id)).map(layer => layer.id === 'neck' ? { ...layer, svgRaw: result.neck }
     : layer.id === 'outline' ? { ...layer, svgRaw: result.outline }
     : layer.id === 'stitching' && result.stitching ? { ...layer, svgRaw: result.stitching }
     : layer.id === 'innerBackNeck' ? layer

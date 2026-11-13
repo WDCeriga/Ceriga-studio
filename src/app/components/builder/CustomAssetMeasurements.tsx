@@ -16,7 +16,7 @@ import { cn } from '../ui/utils';
 import type { DesignElement } from './PrintsDesignStep';
 import { constrainNeckLabel, labelAttachmentMask, labelPlacement } from './GarmentLabelOverlay';
 import { MeasurementGuideOverlay, type MeasurementGuideDef } from './measurementGuides';
-import { buildBuilderGeometryGuides, buildGeometryGuides, measurementExtent, measurementHemAt, measurementSideClearance, sampleMeasurementShapes, type MeasurementPoint, type MeasurementShape, type MeasurementSource } from './measurementGeometry';
+import { buildBuilderGeometryGuides, buildHoodieGeometryGuides, buildGeometryGuides, measurementExtent, measurementHemAt, measurementSideClearance, sampleMeasurementShapes, type MeasurementPoint, type MeasurementShape, type MeasurementSource } from './measurementGeometry';
 
 export interface AssetMeasurement {
   id: string;
@@ -80,11 +80,11 @@ export function editAssetDimension(state: AssetState, asset: AssetMeasurement, f
     const members = field === 'diameter' && detail.arrangementId ? details.filter(item => item.arrangementId === detail.arrangementId && (item.view ?? 'front') === asset.view) : [detail];
     const replacements = new Map<string, GarmentDetail>();
     for (const member of members) {
-      const unlocked = { ...member, lockProportions: false };
+      const unlocked = { ...member, freeResize: true };
       const units = value / asset.cmPerUnit;
       const next = setDetailTransform(unlocked, asset.bounds, field === 'diameter' ? { width: units, height: units } : { [field]: units });
       if (next === unlocked) return invalid;
-      replacements.set(member.id, { ...next, lockProportions: member.lockProportions });
+      replacements.set(member.id, { ...next, freeResize: member.freeResize });
     }
     return { changes: { garmentDetails: details.map(item => replacements.get(item.id) ?? item) } };
   }
@@ -160,9 +160,9 @@ export function printMeasurements(elements: DesignElement[], root: HTMLElement, 
   });
 }
 
-export function CustomAssetMeasurementLayer({ panels=[],panelSeams=[],panelMirror=false,showGuides=true, presentation, onDrawingBounds, onGuideSelect, sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
+export function CustomAssetMeasurementLayer({ hoodieStyle, panels=[],panelSeams=[],panelMirror=false,showGuides=true, presentation, onDrawingBounds, onGuideSelect, sources: incomingSources, bounds, details = [], labels = [], prints = [], referenceWidthCm = 50, unit = 'cm', view, selectedId, highlightedId, onSelect, onMeasurementsChange }: {
   panels?:PanelRegion[];panelSeams?:PanellingSeam[];panelMirror?:boolean;
-  showGuides?: boolean; presentation?: 'redesign'; onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void; onGuideSelect?: (id:string)=>void; sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
+  hoodieStyle?: string; showGuides?: boolean; presentation?: 'redesign'; onDrawingBounds?:(bounds:{left:number;right:number;top:number;bottom:number})=>void; onGuideSelect?: (id:string)=>void; sources: MeasurementSource[]; bounds?: DetailBounds; details?: GarmentDetail[]; labels?: GarmentLabel[]; prints?: DesignElement[];
   referenceWidthCm?: number; unit?: MeasurementUnit; view: 'front' | 'back'; selectedId?: string | null; highlightedId?: string | null;
   onSelect?: (id: string | null) => void; onMeasurementsChange?: (snapshot: AssetMeasurementSnapshot) => void;
 }) {
@@ -173,7 +173,9 @@ export function CustomAssetMeasurementLayer({ panels=[],panelSeams=[],panelMirro
   const previousSources = stableSources.current;
   if (previousSources !== incomingSources && !(previousSources.length === incomingSources.length
     && incomingSources.every((source, index) => source.id === previousSources[index].id
-      && source.matrix === previousSources[index].matrix && source.svgRaw === previousSources[index].svgRaw))) {
+      && source.matrix === previousSources[index].matrix && source.svgRaw === previousSources[index].svgRaw
+      && source.shoulderPoint?.x === previousSources[index].shoulderPoint?.x && source.shoulderPoint?.y === previousSources[index].shoulderPoint?.y
+      && source.underarmPoint?.x === previousSources[index].underarmPoint?.x && source.underarmPoint?.y === previousSources[index].underarmPoint?.y))) {
     stableSources.current = incomingSources;
   }
   const sources = stableSources.current;
@@ -185,12 +187,18 @@ export function CustomAssetMeasurementLayer({ panels=[],panelSeams=[],panelMirro
   const [sampledShapes, setSampledShapes] = useState<{ sources: MeasurementSource[]; shapes: MeasurementShape[] }>();
   const [shapeError, setShapeError] = useState(false);
   const hasCurrentShapes = sampledShapes?.sources === sources;
+  const [waitingSources, setWaitingSources] = useState<MeasurementSource[]>();
+  useEffect(() => {
+    if (!showGuides || hasCurrentShapes || shapeError) return;
+    const timer = window.setTimeout(() => setWaitingSources(sources), 500);
+    return () => window.clearTimeout(timer);
+  }, [sources, showGuides, hasCurrentShapes, shapeError]);
   const shapes = hasCurrentShapes ? sampledShapes.shapes : [];
   const comparison=useContext(SizeComparisonContext);const compare=comparison.grading?.compare;
   const firstRatio=comparisonRatios({measurements:comparison.measurements,measurementGrading:comparison.grading},comparison.presets,compare?.first??'m');
   const secondRatio=comparisonRatios({measurements:comparison.measurements,measurementGrading:comparison.grading},comparison.presets,compare?.second??'xl');
   const comparisonTransform=comparison.enabled&&shapes.length?sizeDrawingTransform(shapes,firstRatio):undefined;
-  const guides = useMemo(() => presentation==='redesign'?buildBuilderGeometryGuides(shapes):buildGeometryGuides(shapes), [shapes,presentation]);
+  const guides = useMemo(() => hoodieStyle ? buildHoodieGeometryGuides(shapes, hoodieStyle) : presentation==='redesign'?buildBuilderGeometryGuides(shapes):buildGeometryGuides(shapes), [shapes,presentation,hoodieStyle,view]);
   useEffect(()=>{if(!shapes.length)return;const b=measurementExtent(shapes.flatMap(shape=>shape.contours.flat()));if(!comparison.enabled){onDrawingBounds?.(b);return}const w=Math.max(firstRatio.width,secondRatio.width),h=Math.max(firstRatio.height,secondRatio.height),cx=(b.left+b.right)/2;onDrawingBounds?.({left:cx-(b.right-b.left)*w/2,right:cx+(b.right-b.left)*w/2,top:b.top,bottom:b.top+(b.bottom-b.top)*h});},[shapes,onDrawingBounds,comparison.enabled,firstRatio.width,firstRatio.height,secondRatio.width,secondRatio.height]);
   useEffect(() => {
     let active = true;
@@ -258,7 +266,7 @@ export function CustomAssetMeasurementLayer({ panels=[],panelSeams=[],panelMirro
   ].map(guide => ({ ...guide, x1: guide.x1 * 1000 / 2048, y1: guide.y1 * 1000 / 2048, x2: guide.x2 * 1000 / 2048, y2: guide.y2 * 1000 / 2048,
     labelX: Math.max(95, Math.min(905, guide.labelX * 1000 / 2048)), labelY: Math.max(20, Math.min(980, guide.labelY * 1000 / 2048)) })) as MeasurementGuideDef[] : [];
   const overlay = <>
-    {showGuides && !hasCurrentShapes && !shapeError && <p role="status" className="absolute left-2 top-2 z-[270] rounded bg-black/70 px-2 py-1 text-xs text-white/80">
+    {showGuides && !hasCurrentShapes && !shapeError && waitingSources === sources && <p role="status" className="absolute left-2 top-2 z-[270] rounded bg-black/70 px-2 py-1 text-xs text-white/80">
       Preparing measurement guides…
     </p>}
     {showGuides && shapeError && <p role="alert" className="absolute left-2 top-2 z-[270] rounded bg-red-950/90 px-2 py-1 text-xs text-red-100">

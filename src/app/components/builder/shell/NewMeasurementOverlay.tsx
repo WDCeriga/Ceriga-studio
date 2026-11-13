@@ -32,6 +32,13 @@ export const NEW_MEASUREMENT_LABELS = [{
   id: 'armhole',
   label: 'I. Armhole'
 }] as const;
+export function measurementLabelsForPresets(presets: Record<string, Record<string, string>>) {
+  return [
+    ...NEW_MEASUREMENT_LABELS,
+    ...(presets.hoodHeight ? [{ id: 'hoodHeight', label: 'J. Hood height' } as const] : []),
+    ...(presets.zipLength ? [{ id: 'zipLength', label: 'K. Zipper length' } as const] : []),
+  ];
+}
 type Point={x:number;y:number};
 /** Readonly layout offsets: garment anchors remain the actual sampled measurement points. */
 export function layoutMeasurementDimension(g:MeasurementGuideDef,guides:MeasurementGuideDef[]){
@@ -59,9 +66,8 @@ export function NewMeasurementOverlay({guides=[],highlightedId,onSelect,drawingT
  const revision=useContext(MeasurementMotionContext);const prefix=useId().replace(/:/g,'');
  return <svg className="new-measurement-overlay" viewBox="0 0 1000 1000" aria-label="Garment measurement guides"><defs>{['normal','selected'].map(state=><marker key={state} id={`${prefix}-${state}`} markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0 0L8 4L0 8Z" fill={state==='selected'?'#ed2629':'#7c879d'}/></marker>)}</defs><g transform={drawingTransform}>{guides.map(g=>{
   const selected=highlightedId===g.id,color=selected?'#ed2629':'#7c879d',layout=layoutMeasurementDimension(g,guides),{start,end,label}=layout;
-  const value=values.measurements[g.id]?.[size];const labelText=NEW_MEASUREMENT_LABELS.find(m=>m.id===g.id)?.label.split('. ')[1];
+  const value=values.measurements[g.id]?.[size];const [letter, labelText]=measurementLabelsForPresets(values.measurements).find(m=>m.id===g.id)?.label.split('. ') ?? ['', g.label];
   const select=()=>{onSelect?.(g.id);window.dispatchEvent(new Event('ceriga-measure-selected'))};
-  const letter=NEW_MEASUREMENT_LABELS.find(m=>m.id===g.id)?.label.split('.')[0];
   return <g className="measurement-focus-group" data-active={selected} data-dimmed={Boolean(highlightedId)&&!selected} key={g.id} data-measurement-guide={g.id} aria-pressed={selected} role="button" tabIndex={0} aria-label={`${labelText}${value?', '+formatMeasurementDisplay(value,values.unit)+' '+(values.unit==='cm'?'centimetres':'inches'):''}`} onClick={select} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select()}}} style={{color,pointerEvents:'auto',cursor:'pointer'}}>
    <path d={`M${g.x1} ${g.y1}L${start.x} ${start.y}M${g.x2} ${g.y2}L${end.x} ${end.y}`} fill="none" stroke="currentColor" strokeWidth=".7" opacity=".5"/>
    <path d={layout.ticks} fill="none" stroke="currentColor" strokeWidth=".9" opacity=".75"/>

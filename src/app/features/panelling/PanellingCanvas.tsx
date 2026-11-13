@@ -1,4 +1,5 @@
 import {SeamFinish} from './SeamFinish';
+import * as ContextMenu from '@radix-ui/react-context-menu';
 import {useTechnicalDrawing,TECH_OUTLINE_WIDTH,TECH_TRACE_INK_BOLDNESS} from '../../lib/technicalDrawing';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useId, useRef, useState, type ForwardedRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { closestBoundaryPoint, distance, flattenSeam, mirrorSeam, pointInSurface, sampleSvgBoundaries, sampleGarmentSurfaces, seamPath } from './panellingGeometry';
@@ -259,7 +260,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [active, seams, onSeamsChange,selected,tool]);
 
-  const pointFromEvent = (event: ReactPointerEvent<SVGSVGElement>): PanellingPoint => {
+  const pointFromEvent = (event: Pick<ReactPointerEvent<SVGSVGElement>, 'currentTarget' | 'clientX' | 'clientY'>): PanellingPoint => {
     const bounds = event.currentTarget.getBoundingClientRect();
     return { x: (event.clientX - bounds.left) * VIEW_SIZE / bounds.width, y: (event.clientY - bounds.top) * VIEW_SIZE / bounds.height };
   };
@@ -407,13 +408,45 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
   const mirroredPreview = mirrorDraft && draftPreview.length > 1
     ? mirrorSeam({ id: 'active', label: 'Preview', anchors: draftPreview, construction: 'standard' }, symmetryAxis).anchors
     : [];
+  const selectedSeam = seams.find(seam => seam.id === selected?.seamId);
+  const contextActions = tool === 'pen' ? [
+    { label: 'Finish seam', action: finish, disabled: active.length < 2 },
+    { label: 'Undo last point', action: () => setActive(points => points.slice(0, -1)), disabled: !active.length },
+    { label: 'Cancel seam', action: cancel, disabled: !active.length },
+  ] : [
+    { label: 'Curve segment', action: convertSelectedToCurve, disabled: !selectedSeam },
+    { label: 'Straighten segment', action: straightenSelectedSegment, disabled: !selectedSeam },
+    { label: 'Insert midpoint', action: insertSelectedPoint, disabled: !selectedSeam },
+    { label: 'Smooth point', action: () => setSelectedAnchorMode('smooth'), disabled: !selectedSeam || selected?.segmentIndex !== undefined },
+    { label: 'Make corner', action: () => setSelectedAnchorMode('corner'), disabled: !selectedSeam || selected?.segmentIndex !== undefined },
+    { label: 'Remove point', action: removeSelectedPoint, disabled: (selectedSeam?.anchors.length ?? 0) <= 2 || selected?.segmentIndex !== undefined },
+    { label: 'Delete seam', action: () => {
+      if (!selectedSeam) return;
+      onSeamsChange(seams.filter(seam => seam.id !== selectedSeam.id));
+      updateSelection(null);
+    }, disabled: !selectedSeam },
+  ];
 
   return <div className={`panelling-canvas-frame ${className ?? ''}`} ref={frameRef}>
     {boundaryError && <p role="alert" className="absolute left-2 top-2 z-10 rounded bg-red-950/90 px-2 py-1 text-xs text-red-100">
       Could not calculate garment boundaries. Existing panelling data was preserved.
     </p>}
     <div className="panelling-body" style={overlayOnly ? { visibility: 'hidden' } : undefined} aria-hidden={overlayOnly || undefined} ref={garmentRef} dangerouslySetInnerHTML={{ __html: garmentMarkup }} />
-    <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className={`panelling-overlay ${tool === 'pen' ? 'pen-mode' : 'select-mode'} edit-${editAction}`} role="application" aria-label={`T-shirt ${parentLabel} seam drawing canvas`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancel} onPointerLeave={()=>{if(!drawingRef.current&&!dragRef.current){setCursor(null);setSnapFeedback(null)}}}>
+    <ContextMenu.Root>
+    <ContextMenu.Trigger asChild>
+    <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className={`panelling-overlay ${tool === 'pen' ? 'pen-mode' : 'select-mode'} edit-${editAction}`} role="application" aria-label={`T-shirt ${parentLabel} seam drawing canvas`} tabIndex={0}
+      onContextMenu={event => {
+        if (tool !== 'select' || event.clientX === 0 && event.clientY === 0) return;
+        const point = pointFromEvent(event);
+        const anchor = nearestAnchor(visibleSeams, point, hitRadius);
+        const segment = anchor ? undefined : nearestSeam(visibleSeams, point, hitRadius);
+        const hitId = anchor?.seamId ?? segment?.seam.id;
+        const source = seams.find(seam => seam.id === hitId || seam.id + ':mirror' === hitId);
+        if (source && anchor) updateSelection({ seamId: source.id, anchorId: hitId === source.id ? anchor.anchor.id : anchor.anchor.id.replace(/:mirror$/, '') });
+        else if (source && segment) updateSelection({ seamId: source.id, anchorId: source.anchors[segment.segmentIndex].id, segmentIndex: segment.segmentIndex });
+        else updateSelection(null);
+      }}
+      onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancel} onPointerLeave={()=>{if(!drawingRef.current&&!dragRef.current){setCursor(null);setSnapFeedback(null)}}}>
       <defs><clipPath id={clipId}><path d={boundariesPath(boundaries)} fillRule="nonzero" clipRule="nonzero" /></clipPath></defs>
       <g clipPath={`url(#${clipId})`}>
         {panels.map(panel => <path key={panel.id} data-panel-id={panel.id} data-surface-id={panel.parentId} d={panel.path} fill={overlayOnly ? 'transparent' : panel.fillOverride ?? 'transparent'} fillRule="evenodd" fillOpacity={1} stroke="none" onClick={event => { event.stopPropagation(); onPanelSelect(panel.id); }} />)}
@@ -446,6 +479,14 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
         {snapFeedback && <circle className="panelling-snap-ring" cx={snapFeedback.x} cy={snapFeedback.y} r={6.5 * VIEW_SIZE / canvasWidth} fill="none" stroke="#8192a8" strokeWidth="1.25" vectorEffect="non-scaling-stroke" />}
       </g>
     </svg>
+    </ContextMenu.Trigger>
+    <ContextMenu.Portal>
+      <ContextMenu.Content aria-label="Panelling actions" className="z-[10000] min-w-40 rounded-md border border-neutral-200 bg-white p-1 text-sm text-neutral-800 shadow-lg">
+        {contextActions.map(({ label, action, disabled }) => <ContextMenu.Item key={label} disabled={disabled}
+          onSelect={action} className="cursor-default rounded px-3 py-2 outline-none data-[disabled]:opacity-40 data-[highlighted]:bg-neutral-100">{label}</ContextMenu.Item>)}
+      </ContextMenu.Content>
+    </ContextMenu.Portal>
+    </ContextMenu.Root>
 
   </div>;
 }

@@ -39,6 +39,38 @@ function replaceBodyArc(raw:string,a:P,b:P,curve:string,straightSide=false){
  const inv=new DOMMatrix([m.a,m.b,m.c,m.d,m.e,m.f]).inverse();
  parts[index]=svgpath('M'+pt(a)+curve+(rest.length>2?'L'+registeredTorsoSide(rest.slice(1,-1),b).map(q=>straightSide&&q.y>b.y&&(b.x<1024?q.x<700:q.x>1348)?{x:b.x,y:q.y}:q).map(pt).join('L'):'')+'Z').matrix([inv.a,inv.b,inv.c,inv.d,inv.e,inv.f]).toString();p.setAttribute('d',parts.filter((_,k)=>k===index||rings[k].every(q=>q.x>700&&q.x<1348&&q.y<900)).join(''));return new XMLSerializer().serializeToString(doc.documentElement);
 }
+
+/** Cut the armhole inward from the sleeve cap while keeping the side seam. */
+export function cutSleevelessTshirtBody(layers: ResolvedGarmentLayer[]): ResolvedGarmentLayer[] {
+  const body = layers.find(layer => layer.id === 'base');
+  const sleeve = layers.find(layer => layer.id === 'sleeveLeft');
+  if (!body || !sleeve) return layers;
+  const torso = ring(body.svgRaw);
+  const sleevePoints = ring(sleeve.svgRaw);
+  if (!torso.length || !sleevePoints.length) return layers;
+  const cap = sleevePoints.reduce((top, point) => point.y < top.y ? point : top);
+  const innerX = Math.max(...sleevePoints.map(point => point.x));
+  const inner = sleevePoints.filter(point => point.x >= innerX - 8)
+    .reduce((bottom, point) => point.y > bottom.y ? point : bottom);
+  const underarm = torso[near(torso, inner)];
+  const shoulderX = cap.x + (1024 - cap.x) * .04;
+  const shoulderPoints = torso.filter(point => Math.abs(point.x - shoulderX) < 16 && point.y <= cap.y + 20);
+  if (!shoulderPoints.length) return layers;
+  const shoulder = shoulderPoints.reduce((best, point) =>
+    Math.abs(point.x - shoulderX) < Math.abs(best.x - shoulderX) ? point : best);
+  const depth = underarm.y - shoulder.y;
+  if (depth <= 60) return layers;
+  const first = { x: Math.max(shoulder.x, underarm.x) + 32, y: shoulder.y + depth * .28 };
+  const second = { x: underarm.x, y: shoulder.y + depth * .77 };
+  const curve = 'C' + pt(first) + ' ' + pt(second) + ' ' + pt(underarm);
+  const raw = replaceBodyArc(body.svgRaw, shoulder, underarm, curve);
+  const leftArmhole = 'M' + pt(shoulder) + curve;
+  const rightArmhole = svgpath(leftArmhole).matrix([-1, 0, 0, 1, 2048, 0]).toString();
+  const armholes = [leftArmhole, rightArmhole].map(d => `<path data-armhole-edge="true" fill="none" d="${d}"/>`).join('');
+  return layers.map(layer => layer.id === 'base' ? {
+    ...layer, svgRaw: symmetricOuterTorso(raw).replace('</svg>', armholes + '</svg>'), panellingClipSvgRaw: undefined,
+  } : layer);
+}
 /** Keep the neck-to-cap shoulder line smooth for every fit, without changing the collar. */
 export function straightenOversizedShoulders(layers:ResolvedGarmentLayer[],fit?:string):ResolvedGarmentLayer[]{
 
@@ -117,10 +149,6 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  if(fit==='slim'&&bodyRing.length){const cap=bodyRing[near(bodyRing,a)];if(distance(cap,a)<70)a=cap;}
  const cx=h.reduce((n,p)=>n+p.x,0)/h.length,cy=h.reduce((n,p)=>n+p.y,0)/h.length,xx=h.reduce((n,p)=>n+(p.x-cx)**2,0),yy=h.reduce((n,p)=>n+(p.y-cy)**2,0),xy=h.reduce((n,p)=>n+(p.x-cx)*(p.y-cy),0),angle=.5*Math.atan2(2*xy,xx-yy),ux=Math.cos(angle),uy=Math.sin(angle),nx=-uy,ny=ux;
  const ts=h.map(p=>p.x*ux+p.y*uy),top=Math.min(...h.map(p=>p.x*nx+p.y*ny)),low=Math.max(...h.map(p=>p.x*nx+p.y*ny)),lo=Math.min(...ts),hi=Math.max(...ts),corner=(t:number,n:number)=>({x:t*ux+n*nx,y:t*uy+n*ny}),outer=corner(lo,top),inner=corner(hi,top),hemInner=corner(hi,low);
- if(fit==='oversized'&&/longer-short/.test(left.assetId)){
-  // Taper the extended short sleeve toward the body instead of flaring the cuff.
-  outer.x+=65;inner.x+=65;hemInner.x+=65;
- }
  let outerBottom=corner(lo,low);
  const maxX=Math.max(...r.map(p=>p.x)),candidates=r.filter(p=>p.x>maxX-4&&p.y>a.y&&p.y<a.y+650);
  // A cap has a curved/tapered armhole, not the vertical inner edge assumed
@@ -130,6 +158,15 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const t={x:maxX,y:cap?a.y+(capEnd!.y-a.y)*.82:Math.min(...candidates.map(p=>p.y))},u={x:maxX,y:cap?capEnd!.y:Math.max(...candidates.map(p=>p.y))};
  if(!Number.isFinite(t.y)||!Number.isFinite(u.y))return layers;
  const longerShort=/longer-short/.test(left.assetId);
+ if(longerShort){
+  // Size the opening against this fit's torso and keep the shoulder fixed.
+  const openingRatio=fit==='slim'?.66:fit==='oversized'?.78:.72;
+  const openingWidth=Math.min((maxX-outerBottom.x)*.84,(1024-maxX)*openingRatio);
+  outerBottom.x=maxX-openingWidth;
+  for(const point of [outer,inner,hemInner,outerBottom])point.y=a.y+(point.y-a.y)*.92;
+  // Keep the band on the same straight outside edge as the sleeve fabric.
+  outer.x=a.x+(outerBottom.x-a.x)*(outer.y-a.y)/(outerBottom.y-a.y);
+ }
  const short=!long&&!longerShort,closedUnderarm=short||longerShort;
  if(closedUnderarm){inner.x=maxX;hemInner.x=maxX;u.y=longerShort?inner.y:Math.min(u.y,inner.y);}
  else if(long){u.y=Math.min(inner.y-90,u.y+75);}
@@ -168,8 +205,7 @@ export function constructSleeveFamily(layers:ResolvedGarmentLayer[],fit?:string)
  const seamInk=fit==='slim'&&long?seam+'L'+pt({x:u.x,y:u.y+6}):seam;
  const rightSeam=svgpath(seamInk).matrix([-1,0,0,1,2048,0]).toString();
  const right=wrap(svgpath(d).matrix([-1,0,0,1,2048,0]).toString()).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+rightSeam+'"/></svg>'),leftSvg=wrap(d).replace('</svg>','<path data-sleeve-join="true" fill="none" d="'+seamInk+'"/></svg>');
- if(fit==='oversized'&&/longer-short/.test(left.assetId))outerBottom.x+=65;
- if(!long&&!cap&&Math.abs(outer.y-a.y)>1){outerBottom.x=a.x+(outer.x-a.x)*(outerBottom.y-a.y)/(outer.y-a.y);}
+ if(!long&&!cap&&!longerShort&&Math.abs(outer.y-a.y)>1){outerBottom.x=a.x+(outer.x-a.x)*(outerBottom.y-a.y)/(outer.y-a.y);}
  let band='M'+pt(outer)+'L'+pt(inner)+'L'+pt(hemInner)+'L'+pt(outerBottom)+'Z';
  if(cap){const toPolygon=(ps:P[])=>[[[...ps,ps[0]].map(p=>[p.x,p.y] as [number,number])]];const clipped=polygonClipping.intersection(toPolygon(ring(wrap(d))),toPolygon([outer,inner,hemInner,outerBottom]));if(clipped.length)band=clipped.map(poly=>poly.map(loop=>'M'+loop.map(([x,y])=>pt({x,y})).join('L')+'Z').join('')).join('');}
  const opening='M'+pt(outerBottom)+'L'+pt(hemInner),layered=layers.some(l=>l.id==='underSleeveLeft');

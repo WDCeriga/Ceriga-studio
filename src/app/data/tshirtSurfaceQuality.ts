@@ -70,7 +70,7 @@ function prepareTshirtSurfaceQuality(layers:ResolvedGarmentLayer[],fit?:string,f
   const support=outline?new DOMParser().parseFromString(outline.svgRaw,'image/svg+xml').querySelector('[data-ink-preserve]'):null;
   // Reuse the traced footprint as backing fabric; collar and inner-back layers sit above it.
   // This seals registration joins without inventing or morphing any neck path data.
-  const backing=support?'<g fill="#000000" data-neck-support="true"><path fill-rule="evenodd" transform="'+(support.getAttribute('transform')??'')+'" d="'+support.getAttribute('d')+'"/></g>':'';
+  const backing=support && finish !== 'raw'?'<g fill="#000000" data-neck-support="true"><path fill-rule="evenodd" transform="'+(support.getAttribute('transform')??'')+'" d="'+support.getAttribute('d')+'"/></g>':'';
   const collarMask='raster-collar-ink-'+fit+'-'+view+'-'+Array.from(support?.getAttribute('d')??'').reduce((n,c)=>(Math.imul(n,31)+c.charCodeAt(0))>>>0,0).toString(36);
   const keep=support?'<defs><mask id="'+collarMask+'" maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><path fill="white" transform="'+(support.getAttribute('transform')??'')+'" d="'+support.getAttribute('d')+'"/></mask></defs>':'';
   return cleaned.map(l=>l.id==='base'&&backing?{...l,svgRaw:l.svgRaw.replace('</svg>',backing+'</svg>')}:l.id==='outline'?{...l,svgRaw:l.svgRaw.replace(/(<svg[^>]*>)/,'$1'+keep+'<g mask="url(#'+collarMask+')">').replace('</svg>','</g><path data-ink-repair="true" fill="none" d="M0 0H2048V2048H0Z"/></svg>')}:l);

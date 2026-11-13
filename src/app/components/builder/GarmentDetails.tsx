@@ -2,14 +2,15 @@ import {zipRoute} from '../../lib/zipCurve';
 import * as DetailMenu from '@radix-ui/react-dropdown-menu';
 import {MoreHorizontal} from 'lucide-react';
 import {useResponsiveBuilder,useBuilderWidth} from './shell/responsiveBuilder';
+import { EYELET_STYLES, TIP_STYLES, type HoodieTrimSettings } from '../../data/hoodieTrimAssets';
 import {MaterialSelect} from './shell/MaterialSelect';
-import {useTechnicalDrawing,normalizeTechnicalSvg} from '../../lib/technicalDrawing';
+import {useTechnicalDrawing,normalizeTechnicalSvg,useTshirtPreviewInk} from '../../lib/technicalDrawing';
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { Copy, CopyPlus, Plus, Upload, Trash2, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw, ArrowDownToLine, Maximize, ZoomIn, AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, AlignStartVertical, AlignEndVertical } from 'lucide-react';
 import type { GarmentView } from '../../data/garmentView';
 import { createOpening, openingNecklineReach } from '../../data/garmentOpenings';
 import { OpeningControls } from './OpeningControls';
-import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
+import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, anchorHoodTrim, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailLocksProportions, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
   type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
 import { ClothingFontPicker } from './shell/ClothingFontPicker';
 import { ensureStudioFont } from '../../lib/studioFontCatalog';
@@ -130,14 +131,18 @@ function ZipPullMeasurements({ detail, bounds, onChange, referenceWidthCm, unit 
   </details>;
 }
 
-function DetailArtwork({ detail, ratio, joinedNeckline,garmentWidth }: { detail: GarmentDetail; ratio: number; joinedNeckline: boolean;garmentWidth:number }) {
+function DetailArtwork({ detail, ratio, joinedNeckline, garmentWidth, integratedPlacket }: {
+  detail: GarmentDetail; ratio: number; joinedNeckline: boolean; garmentWidth: number; integratedPlacket: boolean;
+}) {
   const technical=useTechnicalDrawing();
+  const previewInk = useTshirtPreviewInk();
   const [fontRevision, setFontRevision] = useState(0);
   useEffect(() => { const font = detail.patch?.textFont; let alive = true; if (font) void ensureStudioFont(font)?.then(() => {if (alive) setFontRevision(v => v + 1)}).catch(() => {}); return () => {alive = false}; }, [detail.patch?.textFont]);
   const sourceWidth=Number(new DOMParser().parseFromString(detailAsset(detail).svg,'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2])||48;
-  const normalize=(raw:string)=>technical?normalizeTechnicalSvg(raw,garmentWidth/sourceWidth):raw;
-  const body = useMemo(() => detailSvg(detail, ratio, 'body', joinedNeckline), [ratio, joinedNeckline, detail.type, detail.variant, detail.scaleX, detail.scaleY,
-    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.opening, detail.id, fontRevision]);
+  const normalize=(raw:string)=>technical && !(previewInk && detail.type === 'zip')
+    ? normalizeTechnicalSvg(raw,garmentWidth/sourceWidth,'outline',false,previewInk) : raw;
+  const body = useMemo(() => detailSvg(detail, ratio, 'body', joinedNeckline, integratedPlacket, true), [ratio, joinedNeckline, integratedPlacket, detail.type, detail.variant, detail.scaleX, detail.scaleY,
+    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipBottomOpening, detail.zipPullStyle, detail.zipPullScale, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.hoodieTrim, detail.splitPocketGap, detail.opening, detail.id, fontRevision]);
   return <><span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(body) }} />
     {detail.type === 'zip' && !detail.customAsset && <span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(detailSvg(detail, ratio, 'pull')) }} />}</>;
 }
@@ -221,7 +226,74 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
   </section>;
 }
 
-export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload }: DetailEditorProps & {
+const detailCategoryLabels: Partial<Record<GarmentDetailType, string>> = {
+  zip: 'Zips', patch: 'Patches', eyelet: 'Eyelets / grommets', aglet: 'Aglets / tips', toggle: 'Cord locks',
+};
+const categoryLabel = (type: GarmentDetailType) => detailCategoryLabels[type] ?? `${GARMENT_DETAIL_ASSETS[type].label}s`;
+const primaryDetailCategories = ['pocket', 'zip', 'button', 'patch'] as const;
+const hoodTrimCategories = ['drawstring', 'eyelet', 'aglet', 'toggle', 'hoodDetail'] as const;
+const canCopyToOtherSide = (detail: GarmentDetail) => !detail.opening && !['drawstring', 'hoodDetail'].includes(detail.type) && !detail.variant?.startsWith('hoodie-');
+const thumbnail = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg.replace(
+  /var\(--detail-(fill|outline|stitch|hardware), (?:none|black)\)/g,
+  (_, channel: 'fill' | 'outline' | 'stitch' | 'hardware') => ({ fill: '#B7BDC6', outline: '#25282C', stitch: '#FFFFFF', hardware: '#E1E4E8' }[channel]),
+))}`;
+
+function HoodieTrimControls({ detail, onChange, bounds }: {
+  detail: GarmentDetail; onChange: (patch: Partial<GarmentDetail>) => void; bounds?: DetailBounds;
+}) {
+  const settings = detail.hoodieTrim ?? {};
+  const update = (patch: Partial<HoodieTrimSettings>) => onChange({ hoodieTrim: { ...settings, ...patch } });
+  const materialOptions = detail.type === 'pocket' ? ['Main fabric', 'Contrast fabric', 'Ripstop']
+    : detail.type === 'drawstring' ? ['Cotton', 'Polyester', 'Nylon', 'Elastic'] : ['Metal', 'Plastic', 'Rubber', 'Thread'];
+  const positions = [
+    ['Centre chest', .5, .35], ['Left chest', .73, .35], ['Right chest', .27, .35],
+    ['Lower front', .5, .79], ['Lower left', .75, .79], ['Lower right', .25, .79],
+    ['Side seam', .95, .69], ['Upper back', .5, .29], ['Centre back', .5, .49],
+    ['Upper sleeve', -.10, .31], ['Bicep', -.16, .42], ['Elbow', -.18, .57],
+    ['Forearm', -.22, .77], ['Cuff', -.24, .95], ['Bottom hem', .5, .97],
+    ['Left hem', .8, .95], ['Right hem', .2, .95], ['Adjustable hem', .83, .93],
+  ] as const;
+  const hoodOnly = detail.type === 'drawstring' || detail.type === 'hoodDetail';
+  return <details open className="detail-construction-fold">
+    <summary>Trim construction</summary>
+    <div className="patch-editor space-y-3">
+      <label>Material<MaterialSelect aria-label="Trim material" value={settings.material ?? ''} onChange={event => update({ material: event.target.value })}>
+        <option value="">Preset material</option>{materialOptions.map(value => <option key={value}>{value}</option>)}
+      </MaterialSelect></label>
+      <label>Finish<MaterialSelect aria-label="Trim finish" value={settings.finish ?? ''} onChange={event => update({ finish: event.target.value })}>
+        <option value="">Preset finish</option><option>Matte</option><option>Satin</option><option>Polished</option>
+      </MaterialSelect></label>
+      {bounds && <label>Placement<MaterialSelect aria-label="Hoodie trim placement" value="" onChange={event => {
+        const position = positions.find(([label]) => label === event.target.value);
+        if (position) onChange({ x: position[1], y: position[2], placementArea: 'canvas', hoodAnchor: null });
+        else if (bounds.hoodOpeningY !== undefined && event.target.value.startsWith('Hood')) {
+          const anchor = (bounds.hoodOpeningY - bounds.minY) / (bounds.maxY - bounds.minY);
+          const offset = event.target.value === 'Hood opening' ? 0 : event.target.value === 'Hood centre seam' ? -.13 : .045;
+          onChange({ x: event.target.value === 'Hood side' ? .71 : .5, y: anchor + offset, placementArea: 'canvas', hoodAnchor: anchor });
+        }
+      }}>
+        <option value="">Choose a placement</option>
+        {!hoodOnly && positions.filter(([label]) => detail.view === 'back' ? !['chest','front'].some(word => label.toLowerCase().includes(word)) : !label.includes('back')).map(([label]) => <option key={label}>{label}</option>)}
+        {bounds.hoodOpeningY !== undefined && ['Hood front', 'Hood opening', 'Hood side', 'Hood base', 'Hood centre seam'].map(label => <option key={label}>{label}</option>)}
+      </MaterialSelect></label>}
+      {detail.type === 'drawstring' && <>
+        <label>Eyelet<MaterialSelect aria-label="Drawstring eyelet" value={settings.eyelet ?? 'stitched'} onChange={event => update({ eyelet: event.target.value as HoodieTrimSettings['eyelet'] })}>
+          {EYELET_STYLES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        </MaterialSelect></label>
+        {detail.variant !== 'cord-elastic' && <label>Aglet<MaterialSelect aria-label="Drawstring aglet" value={settings.tip ?? 'cylinder'} onChange={event => update({ tip: event.target.value as HoodieTrimSettings['tip'] })}>
+          {TIP_STYLES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        </MaterialSelect></label>}
+        {([['spacing', 'Cord spacing', .55, 1.45], ['thickness', 'Cord thickness', .65, 1.6], ['visibleLength', 'Visible cord length', .45, 1], ['eyeletSize', 'Eyelet ring size', .7, 1.3], ['eyeletBore', 'Eyelet opening', .45, .75],
+          ...(detail.variant === 'cord-elastic' ? [] : [['tipLength', 'Aglet length', .6, 1.25], ['tipWidth', 'Aglet width', .6, 1.45]] as const)] as const)
+          .map(([key, label, min, max]) => <label key={key}>{label}<input type="range" aria-label={label} min={min} max={max} step=".05"
+            value={settings[key] ?? (key === 'eyeletBore' ? .57 : 1)} onChange={event => update({ [key]: event.currentTarget.valueAsNumber })} /></label>)}
+      </>}
+    </div>
+  </details>;
+}
+
+export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload, hoodie = false }: DetailEditorProps & {
+  hoodie?: boolean;
   customUpload?: ReactNode; color: string; view?: GarmentView; onDuplicateToOtherView?: (detail: GarmentDetail) => void; bounds?: DetailBounds; copiedIds?: string[];
   onMoveToView?: (detail: GarmentDetail, view: GarmentView) => void;
   builtins?: GarmentDetail[];
@@ -230,9 +302,15 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
 }) {
   const responsive=useResponsiveBuilder(),phone=useBuilderWidth()<768,workbenchRef=useRef<HTMLDivElement>(null);
   const [category, setCategory] = useState<GarmentDetailType>('pocket');
+  const [hoodTrimCategory, setHoodTrimCategory] = useState<GarmentDetailType>('drawstring');
+  const categories: GarmentDetailType[] = hoodie ? [...primaryDetailCategories, ...hoodTrimCategories] : [...primaryDetailCategories];
+  const activeCategory = categories.includes(category) ? category : 'pocket';
+  const hoodTrimsActive = hoodTrimCategories.some(type => type === activeCategory);
+  const hoodOnly = activeCategory === 'drawstring' || activeCategory === 'hoodDetail';
+  const selectedHoodTrim = selectedId && details.find(detail => detail.id === selectedId)?.type === 'drawstring';
   const [builtinError, setBuiltinError] = useState('');
   const [localLibraryOpen,setLocalLibraryOpen]=useState(!selectedId);
-  const libraryOpen=responsive.detailMode?responsive.detailMode==='add':localLibraryOpen;
+  const libraryOpen=!details.some(detail=>!detail.hidden)||(responsive.detailMode?responsive.detailMode==='add':localLibraryOpen);
   const setLibraryOpen=(open:boolean)=>{setLocalLibraryOpen(open);responsive.setDetailMode(open?'add':'edit')};
   const previousSelection=useRef(selectedId);
   const selected = editor?.draft && editor.draft.id === selectedId ? editor.draft : details.find(detail => detail.id === selectedId);
@@ -246,16 +324,24 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   const duplicateSelected=()=>{if(!selected)return;const identity=createGarmentDetail(selected.type,details,selected.fill);const copy={...selected,id:identity.id,name:identity.name,sourceLayerId:undefined,arrangementId:undefined,selected:true,scale:detailScale(selected.scale)};const next=bounds?setDetailTransform(copy,bounds,{x:selected.x+.04,y:selected.y+.04}):copy;onChange([...details,next]);editDetail(next.id)};
   const removeSelected=()=>{if(!selected)return;const remaining=selected.sourceLayerId?details.map(d=>d.id===selected.id?{...d,hidden:true,selected:false}:d):details.filter(d=>d.id!==selected.id);onChange(remaining);const next=remaining.find(d=>!d.hidden);onSelect(next?.id??null);if(!next)showLibrary()};
   const update = (patch: Partial<GarmentDetail>) => onChange(details.map(detail => detail.id === selectedId ? { ...detail, ...patch } : detail));
-  const add = (type: GarmentDetailType, variant?: GarmentDetailVariant) => {
-    const overlay = { ...createGarmentDetail(type, details, type === 'patch' ? '#D4D4D4' : color, variant), view };
-    const detail = type === 'zip' && bounds ? createOpening(overlay, bounds, 'neckline') : overlay;
+  const add = (type: GarmentDetailType, variant?: GarmentDetailVariant, length?: 'quarter' | 'half' | 'full') => {
+    const fill = type === 'patch' ? '#D4D4D4' : type === 'drawstring' ? '#DDD6C7' : color;
+    const overlay = { ...createGarmentDetail(type, details, fill, variant), view,
+      ...(hoodie && type === 'pocket' && variant?.startsWith('hoodie-') ? { stitch: '#B0B0B0' } : {}) };
+    let detail = type === 'zip' && bounds ? createOpening(overlay, bounds, 'neckline') : overlay;
+    if (view === 'front' && bounds && (variant === 'zip-06' || variant === 'zip-07')) {
+      detail = alignGarmentZip(detail, bounds, 'full');
+      if (variant === 'zip-06') detail = { ...detail, zipBottomOpening: .22, zipSliderPosition: .34 };
+    }
+    if (length && bounds) detail = alignGarmentZip(detail, bounds, length);
+    if (bounds) detail = anchorHoodTrim(detail, bounds);
     editor?.onOpeningStageChange?.('final');
     onChange([...details, detail]);
     editDetail(detail.id);
   };
   return <div ref={workbenchRef} className="detail-workbench space-y-5" data-mode={libraryOpen?'add':'edit'}>
     <div className="detail-mode-tabs" role="group" aria-label="Detail workspace"><button type="button" aria-pressed={!libraryOpen} disabled={!visibleDetails.length} onClick={()=>setLibraryOpen(false)}>Edit details <span>{visibleDetails.length}</span></button><button type="button" aria-pressed={libraryOpen} onClick={showLibrary}><Plus size={14}/>Add a detail</button></div>
-    {!libraryOpen&&selected&&<div className="detail-switcher"><div className="detail-picker-caption"><label className="detail-field-caption">Editing · {view}</label>{phone&&<button type="button" className="detail-expand-editor" onClick={()=>responsive.setInspectorSnap(responsive.inspectorSnap==='full'?'half':'full')}>{responsive.inspectorSnap==='full'?'Show garment ↗':'Expand editor ↗'}</button>}</div><div><MaterialSelect aria-label="Choose detail to edit" value={selected.id} onChange={e=>editDetail(e.target.value)}>{visibleDetails.map(d=><option key={d.id} value={d.id}>{d.name} · {detailAsset(d).label}</option>)}</MaterialSelect><DetailMenu.Root><DetailMenu.Trigger className="detail-actions-trigger" aria-label="Detail actions"><MoreHorizontal size={19}/><span>Actions</span></DetailMenu.Trigger><DetailMenu.Portal><DetailMenu.Content className="detail-actions-menu" sideOffset={6} align="end" collisionPadding={12}><DetailMenu.Label>{selected.name}</DetailMenu.Label><DetailMenu.Item onSelect={duplicateSelected}><Copy size={15}/>Duplicate detail</DetailMenu.Item>{onDuplicateToOtherView&&!selected.opening&&<DetailMenu.Item disabled={copiedIds.includes(selected.id)} onSelect={()=>onDuplicateToOtherView(selected)}><CopyPlus size={15}/>Copy to {view==='front'?'back':'front'}</DetailMenu.Item>}<DetailMenu.Separator/><DetailMenu.Item className="detail-remove-action" onSelect={removeSelected}><Trash2 size={15}/>Remove detail</DetailMenu.Item></DetailMenu.Content></DetailMenu.Portal></DetailMenu.Root></div></div>}
+    {!libraryOpen&&selected&&<div className="detail-switcher"><div className="detail-picker-caption"><label className="detail-field-caption">Editing · {view}</label>{phone&&<button type="button" className="detail-expand-editor" onClick={()=>responsive.setInspectorSnap(responsive.inspectorSnap==='full'?'half':'full')}>{responsive.inspectorSnap==='full'?'Show garment ↗':'Expand editor ↗'}</button>}</div><div><MaterialSelect aria-label="Choose detail to edit" value={selected.id} onChange={e=>editDetail(e.target.value)}>{visibleDetails.map(d=><option key={d.id} value={d.id}>{d.name} · {detailAsset(d).label}</option>)}</MaterialSelect><DetailMenu.Root><DetailMenu.Trigger className="detail-actions-trigger" aria-label="Detail actions"><MoreHorizontal size={19}/><span>Actions</span></DetailMenu.Trigger><DetailMenu.Portal><DetailMenu.Content className="detail-actions-menu" sideOffset={6} align="end" collisionPadding={12}><DetailMenu.Label>{selected.name}</DetailMenu.Label><DetailMenu.Item onSelect={duplicateSelected}><Copy size={15}/>Duplicate detail</DetailMenu.Item>{onDuplicateToOtherView&&canCopyToOtherSide(selected)&&<DetailMenu.Item disabled={copiedIds.includes(selected.id)} onSelect={()=>onDuplicateToOtherView(selected)}><CopyPlus size={15}/>Copy to {view==='front'?'back':'front'}</DetailMenu.Item>}<DetailMenu.Separator/><DetailMenu.Item className="detail-remove-action" onSelect={removeSelected}><Trash2 size={15}/>Remove detail</DetailMenu.Item></DetailMenu.Content></DetailMenu.Portal></DetailMenu.Root></div></div>}
 
     {editor?.onSnapChange && <label title="Aligns nearby centres and edges while dragging. Hold Alt to move freely." className="flex items-center gap-2 text-xs text-white/70"><input type="checkbox" aria-label="Snap to alignment guides" checked={editor.snap ?? true}
       onChange={event => editor.onSnapChange?.(event.target.checked)} />Snap to alignment guides</label>}
@@ -278,36 +364,47 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {builtinError && <p role="status" className="text-xs text-amber-300">{builtinError}</p>}
     </div>}
     <section className="detail-library" hidden={!libraryOpen}><div className="detail-library-content">
-      <div role="group" aria-label="Detail category" className="grid grid-cols-4 border-b border-white/15">
-        {(['pocket', 'zip', 'button', 'patch'] as const).map(type => <button key={type} type="button"
-          aria-pressed={category === type} onClick={() => setCategory(type)}
-          className={`min-w-0 border-b-2 px-1 py-2 text-xs ${category === type ? 'border-[#CC2D24] text-white' : 'border-transparent text-white/50 hover:text-white'}`}>
-          {type === 'zip' ? 'Zips' : type === 'patch' ? 'Patches' : `${GARMENT_DETAIL_ASSETS[type].label}s`}
+      <div role="group" aria-label="Detail category" className="detail-category-grid">
+        {primaryDetailCategories.map(type => <button key={type} type="button"
+          aria-pressed={activeCategory === type} onClick={() => setCategory(type)}>
+          {type === 'zip' ? 'Zips & pulls' : categoryLabel(type)}
         </button>)}
+        {hoodie && <button type="button" aria-pressed={hoodTrimsActive} onClick={() => setCategory(hoodTrimCategory)}>Hood trims</button>}
       </div>
-      <div role="group" aria-label={`${GARMENT_DETAIL_ASSETS[category].label} options`} className="grid grid-cols-3 gap-2">
-        {GARMENT_DETAIL_OPTIONS[category].map(option => <button key={option.id} type="button"
-          aria-label={`Add ${GARMENT_DETAIL_ASSETS[category].label} ${option.id.slice(-2)}: ${option.label}`}
-          title={option.label} disabled={category === 'zip' && !bounds} onClick={() => add(category, option.id)}
+      {hoodTrimsActive && <div role="group" aria-label="Hood trim category" className="detail-category-grid detail-subcategory-grid">
+        {hoodTrimCategories.map(type => <button key={type} type="button" aria-pressed={activeCategory === type}
+          onClick={() => { setHoodTrimCategory(type); setCategory(type); }}>
+          {type === 'eyelet' ? 'Eyelets' : type === 'aglet' ? 'Aglets' : categoryLabel(type)}
+        </button>)}
+      </div>}
+      {activeCategory === 'zip' && view === 'front' && <div role="group" aria-label="Front zip lengths" className="detail-category-grid detail-zip-length-grid">
+        {(['full','half','quarter'] as const).map(length => <button type="button" key={length} disabled={!bounds}
+          onClick={() => add('zip', 'zip-01', length)}>{length} front zip</button>)}
+      </div>}
+      <div role="group" aria-label={`${GARMENT_DETAIL_ASSETS[activeCategory].label} options`} className="grid grid-cols-3 gap-2">
+        {GARMENT_DETAIL_OPTIONS[activeCategory].filter(option => !option.id.startsWith('hoodie-') || hoodie && view === 'front').map(option => <button key={option.id} type="button"
+          aria-label={'svg' in option ? `Add ${option.label}` : `Add ${GARMENT_DETAIL_ASSETS[activeCategory].label} ${option.id.slice(-2)}: ${option.label}`}
+          title={option.label} disabled={activeCategory === 'zip' && !bounds || hoodOnly && (view !== 'front' || bounds?.hoodOpeningY === undefined)} onClick={() => add(activeCategory, option.id)}
           className="flex min-w-0 flex-col items-center gap-2 rounded-md border border-white/15 bg-white/5 p-2 text-[10px] leading-tight text-white hover:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#CC2D24]">
-          <img alt="" src={`data:image/svg+xml,${encodeURIComponent(detailAsset({ type: category, variant: option.id }).svg)}`} className="h-16 w-full bg-white object-contain p-1.5" />
+          <img alt="" src={thumbnail(detailAsset({ type: activeCategory, variant: option.id }).svg)} className="h-16 w-full bg-white object-contain p-1.5" />
           <span className="detail-option-label"><Plus size={12} className="shrink-0" /><span className="break-words">{option.label}</span></span>
         </button>)}
-        {category==='patch'&&<button type="button" className="detail-add-patch" onClick={()=>add('patch')}><img alt="" src={`data:image/svg+xml,${encodeURIComponent(GARMENT_DETAIL_ASSETS.patch.svg)}`}/><span className="detail-option-label"><Plus size={12}/>Customise a patch</span></button>}
+        {activeCategory==='patch'&&<button type="button" className="detail-add-patch" onClick={()=>add('patch')}><img alt="" src={`data:image/svg+xml,${encodeURIComponent(GARMENT_DETAIL_ASSETS.patch.svg)}`}/><span className="detail-option-label"><Plus size={12}/>Customise a patch</span></button>}
       </div>
-      {customUpload}<p className="detail-library-hint">{category==='pocket'?'A considered detail. Choose a shape, then make it yours.':category==='zip'?'Choose an opening, then refine its construction and placement.':category==='button'?'Small details, finished your way.':'Add a patch and customise its shape, material and artwork.'}</p>
+      {hoodOnly && (view !== 'front' || bounds?.hoodOpeningY === undefined) && <p className="detail-library-hint">Switch to the front of a hooded garment to place this detail.</p>}
+      {customUpload}
     </div></section>
     <div className="detail-placed" role="group" aria-label="Added details"><div className="detail-section-title"><span>On your garment</span><small>{details.filter(d=>!d.hidden).length} {details.filter(d=>!d.hidden).length===1?'detail':'details'} · {view}</small></div>
       {details.length === 0 && <div className="detail-empty"><Plus size={20}/><strong>Make room for the details</strong><p>Choose from the library or create a drawing from your photo.</p></div>}
-      {(['pocket', 'zip', 'button', 'patch'] as const).map(type => {
+      {categories.map(type => {
         const items = details.filter(detail => !detail.hidden && detail.type === type);
-        const heading = type === 'patch' ? 'Patches' : `${GARMENT_DETAIL_ASSETS[type].label}s`;
+        const heading = categoryLabel(type);
         return items.length > 0 && <section key={type} aria-label={`Added ${heading.toLowerCase()}`} className="space-y-1 pt-2">
           <h3 className="text-xs font-semibold text-white">{heading}</h3>
           {items.map(detail => <div key={detail.id} className="detail-placed-row" data-selected={detail.id===selectedId}>
         <button type="button" aria-pressed={detail.id === selectedId} onClick={() => { if (type !== 'patch') setCategory(type); onSelect(detail.id); setLibraryOpen(false); }}
           className={`min-w-0 flex-1 rounded px-2 py-2 text-left text-xs ${detail.id === selectedId ? 'bg-white/10 text-white' : 'text-white/60'}`}>
-          <img className="detail-row-thumbnail" alt="" src={`data:image/svg+xml,${encodeURIComponent(detailAsset(detail).svg)}`}/>{detail.name}{detail.variant && <span className="mt-0.5 block text-[10px] text-white/45">{detailAsset(detail).label}</span>}</button>
+          <img className="detail-row-thumbnail" alt="" src={thumbnail(detailAsset(detail).svg)}/>{detail.name}{detail.variant && <span className="mt-0.5 block text-[10px] text-white/45">{detailAsset(detail).label}</span>}</button>
         <button type="button" title={`Duplicate ${detail.name}`} aria-label={`Duplicate ${detail.name}`} className="p-2 text-white/60 hover:text-white"
           onClick={() => { const identity = createGarmentDetail(detail.type, details, detail.fill);
             const copy = { ...detail, id: identity.id, name: identity.name, sourceLayerId: undefined, arrangementId: undefined, selected: true, scale: detailScale(detail.scale) };
@@ -315,7 +412,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
             onChange([...details, next]); onSelect(next.id); }}><Copy size={14} /></button>
         <button type="button" title={`Remove ${detail.name}`} aria-label={`Remove ${detail.name}`} className="p-2 text-white/60 hover:text-red-400"
           onClick={() => { onChange(detail.sourceLayerId ? details.map(item => item.id === detail.id ? { ...item, hidden: true, selected: false } : item) : details.filter(item => item.id !== detail.id)); if (selectedId === detail.id) onSelect(null); }}><Trash2 size={14} /></button>
-        {onDuplicateToOtherView && !detail.opening && <button type="button" title={copiedIds.includes(detail.id) ? 'Opposite-side copy already exists' : `Copy ${detail.name} to opposite side (${view === 'front' ? 'back' : 'front'})`}
+        {onDuplicateToOtherView && canCopyToOtherSide(detail) && <button type="button" title={copiedIds.includes(detail.id) ? 'Opposite-side copy already exists' : `Copy ${detail.name} to opposite side (${view === 'front' ? 'back' : 'front'})`}
           aria-label={`Copy ${detail.name} to opposite side`} disabled={copiedIds.includes(detail.id)} className="p-2 text-white/60 hover:text-white disabled:opacity-30"
           onClick={() => onDuplicateToOtherView(detail)}><CopyPlus size={14} /></button>}
       </div>)}
@@ -323,7 +420,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       })}
     </div>
     {!libraryOpen && selected && asset && <div className="detail-selected-editor space-y-4">
-      <div className="detail-selected-heading"><img alt="" src={`data:image/svg+xml,${encodeURIComponent(asset.svg)}`}/><div><small>EDITING DETAIL</small><h3>{selected.name}</h3><p>{asset.label} · {view}</p></div></div>
+      <div className="detail-selected-heading"><img alt="" src={thumbnail(asset.svg)}/><div><small>EDITING DETAIL</small><h3>{selected.name}</h3><p>{asset.label} · {view}</p></div></div>
       <label className="detail-name-field">Name<input aria-label="Detail name" type="text" maxLength={100} value={selected.name} placeholder={asset.label} onChange={event=>update({name:event.target.value})} onBlur={event=>{const name=event.target.value.trim();if(name!==selected.name)update({name:name||asset.label})}} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur()}}}/></label>
       {selected.type === 'patch' && onMoveToView && <div role="group" aria-label="Patch side" className="flex gap-1">
         {(['front', 'back'] as const).map(side => <button key={side} type="button" aria-pressed={view === side} onClick={() => onMoveToView(selected, side)} className={`flex-1 rounded border border-white/15 py-2 text-xs capitalize text-white ${view === side ? 'bg-white/20' : ''}`}>{side}</button>)}
@@ -361,15 +458,16 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       </>}
       </section>}</section>
       {selected.type==='patch'&&!selected.customAsset&&<details open className="detail-construction-fold"><summary>Patch construction</summary><PatchControls key={selected.id} detail={selected} onChange={update}/></details>}
+      {hoodie && (selectedHoodTrim || selected.variant?.startsWith('hoodie-') || ['aglet', 'eyelet', 'toggle', 'hoodDetail'].includes(selected.type)) && <HoodieTrimControls detail={selected} onChange={update} bounds={bounds} />}
 
       {selected.type==='zip'&&!selected.customAsset&&<details className="detail-construction-fold"><summary>Opening construction</summary><OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor}/></details>}
       {selected.type === 'zip' && !selected.customAsset && <div className="patch-editor space-y-3">
 
         {editor?.part !== 'pull' && <>
-        <label className="flex items-center justify-between gap-2 text-xs text-white/60">Zip length
+        <label className="detail-zip-length-field">Zip length
           <MaterialSelect aria-label="Zip length preset" value="" disabled={!bounds}
             onChange={event => { if (bounds && event.target.value) update(alignGarmentZip(selected, bounds, event.target.value as 'chest' | 'quarter' | 'half' | 'full')); }}
-            className="min-w-0 max-w-[65%] rounded border border-white/15 bg-[#171717] p-2 text-white">
+            className="detail-zip-length-select">
             <option value="">Custom</option><option value="chest">Short chest</option><option value="quarter">Long quarter</option><option value="half">Half length</option><option value="full">Full-body / centre-front</option>
           </MaterialSelect>
         </label>
@@ -391,6 +489,12 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
             value={Math.round((selected.zipSliderPosition ?? (selected.variant === 'zip-05' ? .34 : 0)) * 100)}
             onChange={event => update({ zipSliderPosition: event.currentTarget.valueAsNumber / 100 })} />
         </label>}
+        {view === 'front' && selected.variant === 'zip-06' && selected.opening && <label className="flex items-center gap-3 text-xs text-white/60">
+          Bottom opening
+          <input className="min-w-0 flex-1" type="range" min="0" max={Math.max(0, Math.round((.9 - (selected.zipSliderPosition ?? .34)) * 100))}
+            value={Math.min(Math.round((selected.zipBottomOpening ?? 0) * 100), Math.max(0, Math.round((.9 - (selected.zipSliderPosition ?? .34)) * 100)))}
+            onChange={event => update({ zipBottomOpening: event.currentTarget.valueAsNumber / 100 })} />
+        </label>}
         <label className="flex items-center justify-between gap-3 text-xs text-white/60">Pull orientation
           <MaterialSelect aria-label="Zip pull orientation" value={selected.zipPullSide ?? 'center'} onChange={event => update({ zipPullSide: event.target.value as GarmentDetail['zipPullSide'] })}
             className="rounded border border-white/15 bg-[#171717] p-2 text-white"><option value="left">Left</option><option value="center">Centre</option><option value="right">Right</option></MaterialSelect>
@@ -406,10 +510,10 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {bounds && Number.isFinite(referenceWidthCm) && referenceWidthCm! > 0
         ? <DetailPositionControls detail={selected} bounds={bounds} onChange={update} referenceWidthCm={referenceWidthCm!} unit={unit} view={view} />
         : <p role="status" className="text-xs text-amber-300">Set a positive size M chest width in Measurements to use physical trim dimensions.</p>}
-      <label className="flex items-center gap-2 text-xs text-white/60">
-        <input type="checkbox" checked={selected.lockProportions ?? false} onChange={event => update({ lockProportions: event.target.checked })} />
+      {!selected.opening && <label className="flex items-center gap-2 text-xs text-white/60">
+        <input type="checkbox" checked={detailLocksProportions(selected)} onChange={event => update({ freeResize: !event.target.checked })} />
         Lock proportions
-      </label>
+      </label>}
       </>}
     </div>}
   </div>;
@@ -553,7 +657,8 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
           onChange?.(details.map(item => item.id === detail.id ? next : item));
         }}>
         {editable && detail.type === 'zip' && <span aria-hidden="true" className="absolute inset-y-0 left-1/2 -translate-x-1/2" style={{ width: 'max(100%, 24px)' }} />}
-        <DetailArtwork garmentWidth={placement.width} detail={current} ratio={placement.width / placement.height} joinedNeckline={openingNecklineReach(current, bounds) > 0} />
+        <DetailArtwork garmentWidth={placement.width} detail={current} ratio={placement.width / placement.height}
+          integratedPlacket={false} joinedNeckline={openingNecklineReach(current, bounds) > 0} />
         </button>
         {editable && detail.type === 'patch' && !detail.customAsset && <PatchWordingOverlay detail={current} ratio={placement.width / placement.height} selected={selected && wordSelection === detail.id}
           onSelect={() => {onSelect?.(detail.id);setWordSelection(detail.id)}}

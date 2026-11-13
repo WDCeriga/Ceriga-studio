@@ -20,6 +20,19 @@ const layeredLongParts = import.meta.glob('../../assets/studio-tshirt/layered-lo
 const loadedParts = new Map<string, string>();
 const pendingParts = new Map<string, Promise<string>>();
 let sleeveAssetRevision = 0;
+type SleeveVariant = 'long' | 'longer-short' | 'cap' | 'layered-long';
+const readySleevePacks = new Set<string>();
+
+export function tshirtSleeveVariant(name: string): SleeveVariant | undefined {
+  if (name.startsWith('Layered Long Sleeve')) return 'layered-long';
+  if (name.startsWith('Cap Sleeve')) return 'cap';
+  if (name.startsWith('Longer short sleeve')) return 'longer-short';
+  if (name.startsWith('Long sleeve')) return 'long';
+}
+
+export function tshirtSleeveAssetsReady(fit: string, variant?: SleeveVariant): boolean {
+  return !variant || readySleevePacks.has(`${fit}:${variant}`);
+}
 
 export function getTshirtSleeveAssetRevision(): number {
   return sleeveAssetRevision;
@@ -52,9 +65,9 @@ async function preloadParts(
 
 export async function preloadTshirtSleeveAssets(
   fit: string,
-  variant?: 'long' | 'longer-short' | 'cap' | 'layered-long',
+  variant?: SleeveVariant,
 ): Promise<void> {
-  if (!variant) return;
+  if (!variant || tshirtSleeveAssetsReady(fit, variant)) return;
   if (variant === 'layered-long') {
     await preloadParts(layeredLongParts, [
       `layered-long-sleeves/${fit}-outline`,
@@ -64,6 +77,7 @@ export async function preloadTshirtSleeveAssets(
         `layered-long-sleeves/${fit}-${side}-hem`,
       ]),
     ]);
+    readySleevePacks.add(`${fit}:${variant}`);
     return;
   }
   const directory = variant === 'long' ? 'long-sleeves'
@@ -73,6 +87,7 @@ export async function preloadTshirtSleeveAssets(
     ...['keep', 'outline', 'stitch', 'left', 'right', 'left-cuff', 'right-cuff']
       .map(name => `${directory}/${fit}-${name}`),
   ]);
+  readySleevePacks.add(`${fit}:${variant}`);
 }
 
 function loadedPart(path: string): string | undefined {

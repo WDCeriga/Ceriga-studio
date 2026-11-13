@@ -252,6 +252,15 @@ export function sampleSvgBoundaries(svg: SVGSVGElement, parentSurfaceId?: string
       loops = geometryBoundaries(polygonClipping.intersection(boundaryGeometry(loops), [[clip]]), parentSurfaceId ?? 'garment');
     }
   }
+  if (parentSurfaceId) {
+    const cut = [...svg.querySelectorAll('[data-panelling-cut]')]
+      .find(path => path.getAttribute('data-panelling-cut') === parentSurfaceId);
+    if (cut) {
+      const cutContours = flattenPathContours(cut.getAttribute('d') ?? '', 2);
+      const cutGeometry = boundaryGeometry(contourBoundaries(cutContours, 'opening'));
+      loops = geometryBoundaries(stablePolygonDifference(boundaryGeometry(loops), cutGeometry), parentSurfaceId);
+    }
+  }
   return loops;
 }
 

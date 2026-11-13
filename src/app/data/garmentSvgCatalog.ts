@@ -3,6 +3,7 @@ import {withRegularConstruction} from './regularConstruction';
 import {withTshirtSurfaceQuality} from './tshirtSurfaceQuality';
 import {withOversizedReference} from './oversizedReference';
 import {withShoulderConstruction} from './shoulderConstruction';
+import { cutSleevelessTshirtBody } from './tshirtSleeveConstruction';
 import type { GarmentType } from './builderSteps';
 import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
 import { withTshirtHemStyles, type TshirtHemStyles } from './tshirtHemStyles';
@@ -212,11 +213,13 @@ function virtualCustomAsset(
 export interface ResolvedGarmentLayer {
   necklinePaintMask?:string;
   measurementShoulder?:{x:number;y:number};
+  measurementUnderarm?:{x:number;y:number};
   fabricRegion?: {
     role: string; group?: string; interior?: boolean; defaultFromId?: string; parentId?: string;
     materialCategory?: import('./garmentFabrics').FabricCategory;
     surface?: import('./garmentFabrics').FabricSurface;
     exteriorPartId?: string;
+    hoodieColour?: 'hood-shell' | 'hood-inside';
   };
   colourPanels?: { id: string; svgRaw: string; tint: string; parentPartId?: string; name?: string; materialCategory?: 'panels' }[];
   /** Original part surface used for clipping semantic cut panels. */
@@ -828,12 +831,19 @@ export function notifyGarmentSvgAssetsLoaded(): void {
   garmentAssetRevision += 1;
 }
 
+const sleevelessTshirtSources = new Map<string, string>();
+
+export function isTshirtSleeveless(assetId?: string): boolean {
+  return Boolean(assetId && sleevelessTshirtSources.has(assetId));
+}
+
 export function getGarmentAssetSvgRaw(assetId: string): string | undefined {
+  assetId = sleevelessTshirtSources.get(assetId) ?? assetId;
   return loadedSvgByAssetId.get(assetId) ?? getGarmentAsset(assetId)?.svgRaw;
 }
 
 export async function preloadGarmentSvgAssets(assetIds: readonly string[]): Promise<void> {
-  await Promise.all([...new Set(assetIds)].map(async assetId => {
+  await Promise.all([...new Set(assetIds.map(id => sleevelessTshirtSources.get(id) ?? id))].map(async assetId => {
     const loader = svgLoadersByAssetId.get(assetId);
     if (!loader || loadedSvgByAssetId.has(assetId)) return;
     let pending = pendingSvgByAssetId.get(assetId);
@@ -890,6 +900,13 @@ const ALL_ASSETS: GarmentAsset[] = (Object.keys(GARMENT_CONFIGS) as GarmentSvgGa
 );
 
 const assetsByGarmentAndCategory = new Map<string, GarmentAsset[]>();
+for (const source of ALL_ASSETS.filter(asset => asset.garmentType === 'tshirt' &&
+  asset.category === 'Sleeve length' && asset.displayName.startsWith('Short sleeve'))) {
+  const displayName = source.displayName.replace(/^Short sleeve/, 'Sleeveless');
+  const id = `tshirt/Sleeve length/${displayName}`;
+  sleevelessTshirtSources.set(id, source.id);
+  ALL_ASSETS.push({ ...source, id, displayName });
+}
 for (const garmentType of Object.keys(GARMENT_CONFIGS) as GarmentSvgGarmentType[]) {
   for (const category of GARMENT_CONFIGS[garmentType].categoryOrder) {
     assetsByGarmentAndCategory.set(`${garmentType}:${category}`, []);
@@ -1284,11 +1301,29 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
     return importedGarmentLayers(input.customAssetState.importedGarment, input.view ?? 'front', input.partColors, input.customAssetState.garmentDetails)
       .sort((first, second) => first.zIndex - second.zIndex);
   }
+  const sleevelessSource = input.garmentType === 'tshirt'
+    ? sleevelessTshirtSources.get(input.selection['Sleeve length']) : undefined;
+  if (sleevelessSource) {
+    // Prepare the drop-shoulder body before removing its sleeves so its armholes use
+    // the same boundaries as the finished T-shirt block.
+    const fit = resolveGarmentPackFit('tshirt', input.fit);
+    const source = resolveGarmentLayers({
+      ...input,
+      selection: { ...input.selection, 'Sleeve length': sleevelessSource },
+      customAssetState: { ...input.customAssetState, shoulderConstruction: 'drop' },
+    });
+    const prepared = typeof document === 'undefined' ? source : withTshirtSurfaceQuality(
+      fit === 'regular' ? withRegularConstruction(source) : source,
+      fit, input.neckFinish, input.view, input.tshirtHemStyles,
+    );
+    const cut = typeof document === 'undefined' ? prepared : cutSleevelessTshirtBody(prepared);
+    return cut.filter(layer => !/^(?:sleeve|underSleeve|underlayerHem)/i.test(layer.id));
+  }
   if (input.garmentType === 'hoodie' && input.selection.base === REGULAR_HOODIE_PRESET) {
     const view = input.view ?? 'front';
     return withCustomAssets(
       regularHoodieLayers(
-        view, input.partColors, input.stitchingColor, input.selection,
+        view, input.partColors, input.stitchingColor, input.selection, input.customAssetState?.torsoCrop, input.tshirtHemStyles, input.neckFinish,
       ),
       input.customAssetState ?? {}, 'hoodie', 'regular', view,
     ).sort((first, second) => first.zIndex - second.zIndex);

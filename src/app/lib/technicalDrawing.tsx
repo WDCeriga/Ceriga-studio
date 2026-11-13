@@ -5,6 +5,10 @@ export const TECH_OUTLINE_WIDTH=4.8;
 export const TECH_CONSTRUCTION_WIDTH=3.6;
 export const TECH_TRACE_INK_BOLDNESS=TECH_OUTLINE_WIDTH-3.2;
 export const TECH_STITCH_WIDTH=2.4;
+// Match the native hoodie flat's construction ink in its 2048-unit viewBox.
+export const TSHIRT_PREVIEW_OUTLINE_WIDTH = 5;
+export const TSHIRT_PREVIEW_CONSTRUCTION_WIDTH = TSHIRT_PREVIEW_OUTLINE_WIDTH;
+export const TSHIRT_PREVIEW_STITCH_WIDTH = 4;
 export const TECH_TEXTURE_WIDTH=1;
 export const TECH_CURVE_TOLERANCE=3.2;
 export const RegularConstructionContext=createContext(false);
@@ -13,6 +17,9 @@ export const TECH_STITCH_DASH=9;
 export const TECH_STITCH_GAP=9;
 export const TechnicalDrawingContext=createContext<boolean|null>(null);
 export const useTechnicalDrawing=()=>useContext(TechnicalDrawingContext);
+export const TshirtPreviewInkContext = createContext(false);
+export const useTshirtPreviewInk = () => useContext(TshirtPreviewInkContext);
+const tshirtPreviewWidths = { outline: TSHIRT_PREVIEW_OUTLINE_WIDTH, construction: TSHIRT_PREVIEW_CONSTRUCTION_WIDTH, stitch: TSHIRT_PREVIEW_STITCH_WIDTH, texture: TECH_TEXTURE_WIDTH };
 export type TechnicalRole='outline'|'construction'|'stitch'|'texture';
 export const TECH_WIDTHS={outline:TECH_OUTLINE_WIDTH,construction:TECH_CONSTRUCTION_WIDTH,stitch:TECH_STITCH_WIDTH,texture:TECH_TEXTURE_WIDTH};
 export function technicalLocalWidth(role:TechnicalRole, garmentUnitsPerLocalUnit=1){return TECH_WIDTHS[role]/Math.max(1e-8,garmentUnitsPerLocalUnit);}
@@ -36,7 +43,7 @@ function sourceTransform(value:string){
 
 /** Stroke-only normalization: never edit path data, viewBoxes or placement transforms.
  * filledInk adds only the 1.6-unit boldness increment to original traced ink. */
-export function normalizeTechnicalSvg(raw:string, garmentUnitsPerRootUnit=1, defaultRole:TechnicalRole='outline',filledInk=false):string{
+export function normalizeTechnicalSvg(raw:string, garmentUnitsPerRootUnit=1, defaultRole:TechnicalRole='outline',filledInk=false, previewInk=false):string{
   const doc=new DOMParser().parseFromString(raw,'image/svg+xml'),root=doc.documentElement;
   for(const el of root.querySelectorAll('path,line,polyline,polygon,rect,circle,ellipse')){
     if(el.closest('defs,clipPath,mask'))continue;
@@ -56,12 +63,13 @@ export function normalizeTechnicalSvg(raw:string, garmentUnitsPerRootUnit=1, def
     const role:TechnicalRole=el.closest('[data-zip-teeth],[data-texture],[data-rear-ribs]')?'texture'
       :dash&&dash!=='none'?'stitch':hardware?'construction':defaultRole;
     const units=garmentUnitsPerRootUnit*localScale;
-    el.setAttribute('stroke-width',String(filled?(root.getAttribute('data-tech-ink-boldness')==='0'?0:TECH_TRACE_INK_BOLDNESS)/units:technicalLocalWidth(role,units)*(role==='stitch'?Number(inherited('data-stitch-weight')??1):1)));
-    if(role==='stitch'&&dash&&dash!=='none')el.setAttribute('stroke-dasharray',`${TECH_STITCH_DASH/units} ${TECH_STITCH_GAP/units}`);
+    const width = previewInk ? tshirtPreviewWidths[role] / units : technicalLocalWidth(role,units);
+    el.setAttribute('stroke-width',String(filled?(root.getAttribute('data-tech-ink-boldness')==='0'?0:TECH_TRACE_INK_BOLDNESS)/units:width*(role==='stitch'?Number(inherited('data-stitch-weight')??1):1)));
+    if(role==='stitch'&&dash&&dash!=='none'&&!previewInk)el.setAttribute('stroke-dasharray',`${TECH_STITCH_DASH/units} ${TECH_STITCH_GAP/units}`);
     else if(dash==='none')el.setAttribute('stroke-dasharray','none');
     for(const name of ['stroke-width','stroke-dasharray','stroke-opacity','stroke-linecap','stroke-linejoin','vector-effect'])(el as SVGElement).style?.removeProperty(name);
     el.removeAttribute('vector-effect');el.setAttribute('stroke-linejoin','round');el.setAttribute('stroke-linecap','round');
-    el.setAttribute('stroke-opacity',role==='stitch'?'.85':role==='texture'?'.35':'1');el.setAttribute('data-tech-role',role);
+    el.setAttribute('stroke-opacity',role==='stitch'&&!previewInk?'.85':role==='texture'?'.35':'1');el.setAttribute('data-tech-role',role);
   }
   root.setAttribute('shape-rendering','geometricPrecision');root.setAttribute('data-technical-drawing','normalized');
   return new XMLSerializer().serializeToString(root);

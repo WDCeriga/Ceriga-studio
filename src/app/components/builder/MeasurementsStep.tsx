@@ -39,6 +39,7 @@ import {
 } from './measurementGuides';
 
 interface MeasurementsStepProps {
+  measurementPresets?: Record<string, Record<string, string>>;
   onFitPreview?:(fit:string|null)=>void;
   shoulderControls?:ReactNode;
   guidesVisible?:boolean; onGuidesVisibleChange?:(value:boolean)=>void;
@@ -173,6 +174,7 @@ export const fitMeasurements: Record<string, Record<string, Record<string, strin
 };
 
 export function MeasurementsStep({
+  measurementPresets,
   onFitPreview,
   shoulderControls,
   guidesVisible=true,onGuidesVisibleChange,
@@ -188,7 +190,7 @@ export function MeasurementsStep({
   onHighlightedMeasurementIdChange,
   fits,
 }: MeasurementsStepProps) {
-  const currentMeasurements = fit && fitMeasurements[fit] ? fitMeasurements[fit] : fitMeasurements.regular;
+  const currentMeasurements = measurementPresets ?? fitMeasurements[fit] ?? fitMeasurements.regular;
   const fitChoices = fits?.length ? fits : fitOptions;
   const [localHighlightedMeasurementId, setLocalHighlightedMeasurementId] =
     useState<MeasurementGuideId | null>(null);
@@ -197,7 +199,7 @@ export function MeasurementsStep({
   const setHighlightedMeasurementId =
     onHighlightedMeasurementIdChange ?? setLocalHighlightedMeasurementId;
 
-  if(appearance==='shell') return <FitMeasurementsInspector onFitPreview={onFitPreview} shoulderControls={shoulderControls} guidesVisible={guidesVisible} onGuidesVisibleChange={onGuidesVisibleChange} grading={grading} sizingActions={sizingActions} notes={notes} onNotesChange={onNotesChange} measurementTolerances={measurementTolerances} onToleranceChange={onToleranceChange} advanced={tool==='Advanced sizing'} fit={fit} fitChoices={fitChoices} presets={currentMeasurements} measurements={measurements} onFitChange={onFitChange} onMeasurementChange={onMeasurementChange} measurementUnit={measurementUnit} onMeasurementUnitChange={onMeasurementUnitChange} highlightedMeasurementId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId}/>;
+  if(appearance==='shell') return <FitMeasurementsInspector hoodie={garmentType === 'hoodie'} onFitPreview={onFitPreview} shoulderControls={shoulderControls} guidesVisible={guidesVisible} onGuidesVisibleChange={onGuidesVisibleChange} grading={grading} sizingActions={sizingActions} notes={notes} onNotesChange={onNotesChange} measurementTolerances={measurementTolerances} onToleranceChange={onToleranceChange} advanced={tool==='Advanced sizing'} fit={fit} fitChoices={fitChoices} presets={currentMeasurements} measurements={measurements} onFitChange={onFitChange} onMeasurementChange={onMeasurementChange} measurementUnit={measurementUnit} onMeasurementUnitChange={onMeasurementUnitChange} highlightedMeasurementId={activeHighlightedMeasurementId} onHighlight={setHighlightedMeasurementId}/>;
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Fit Selector */}
@@ -313,7 +315,7 @@ export function MeasurementsStep({
                 </tr>
               </thead>
               <tbody>
-                {MEASUREMENT_GUIDE_LABELS.map((measurement) => (
+                {MEASUREMENT_GUIDE_LABELS.filter(({ id }) => currentMeasurements[id]).map((measurement) => (
                   <tr
                     key={measurement.id}
                     className={cn(
@@ -448,7 +450,7 @@ export function MeasurementPreview({
             garmentDetails={garmentDetails}
             detailView={detailView}
             labelEditor={sharedGarmentProps?.onSelectedLayerChange?undefined:{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
-            renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer showGuides={showGuides} onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
+            renderMeasurements={overlay ? undefined : (sources, bounds) => <CustomAssetMeasurementLayer hoodieStyle={svgPack === 'hoodie' && !sharedGarmentProps?.customAssetState?.importedGarment ? resolvedSelection.hoodieStyle ?? 'pullover' : undefined} showGuides={showGuides} onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
               panels={sharedGarmentProps?.semanticPanels} panelSeams={sharedGarmentProps?.savedPanelling?.seams} panelMirror={sharedGarmentProps?.savedPanelling?.mirror} details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
               referenceWidthCm={sharedGarmentProps?.labelReferenceWidthMm ? sharedGarmentProps.labelReferenceWidthMm / 10 : 50}
               unit={measurementUnit} selectedId={selectedAssetId} highlightedId={highlightedMeasurementId} onSelect={onAssetSelect} onMeasurementsChange={onAssetMeasurementsChange} />}

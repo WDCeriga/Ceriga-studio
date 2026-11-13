@@ -12,6 +12,8 @@ export const MEASUREMENT_GUIDE_LABELS = [
   { id: 'neckOpening', label: 'G. Neck Opening' },
   { id: 'neckDrop', label: 'H. Neck Drop' },
   { id: 'shoulderWidth', label: 'I. Shoulder to Shoulder' },
+  { id: 'hoodHeight', label: 'J. Hood height' },
+  { id: 'zipLength', label: 'K. Zipper length' },
 ] as const;
 
 export type MeasurementGuideId = (typeof MEASUREMENT_GUIDE_LABELS)[number]['id'];

@@ -8,19 +8,26 @@ import { getGarmentAsset, getGarmentAssetSvgRaw } from './garmentSvgCatalog';
 import { tintPotraceSvg } from '../lib/tshirtSvgUtils';
 import { DEFAULT_PATCH, patchSvg, type PatchSettings } from './garmentPatches';
 import type { CustomAssetDefinition } from './customAssets';
-import { createOpening, openingGapProfile, openingOpenAmount, setOpeningEndpoint, transformOpening, type GarmentOpening, type OpeningGeometry } from './garmentOpenings';
+import { centerTorsoSpan, createOpening, openingGapProfile, openingOpenAmount, setOpeningEndpoint, ZIP_TAPE, transformOpening, type GarmentOpening, type OpeningGeometry } from './garmentOpenings';
+import { HOODIE_HARDWARE, HOODIE_POCKETS, hoodieCordSvg, splitHoodiePocketSvg, type HoodieTrimSettings } from './hoodieTrimAssets';
 
 export const GARMENT_DETAIL_ASSETS = {
   pocket: { label: 'Pocket', svg: pocketSvg, width: .2, ratio: 200 / 220, x: .72, y: .4, stitch: true, hardware: false },
   zip: { label: 'Zip', svg: zipSvg, width: .055, ratio: 48 / 240, x: .5, y: .31, stitch: true, hardware: true },
   button: { label: 'Button', svg: buttonSvg, width: .06, ratio: 1, x: .5, y: .43, stitch: false, hardware: false },
   patch: { label: 'Patch', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160"><rect x="5" y="5" width="190" height="150" rx="12" fill="#DDD" stroke="#555" stroke-width="5" stroke-dasharray="3 2"/></svg>', width: .2, ratio: 1.25, x: .35, y: .4, stitch: true, hardware: false },
+  drawstring: { ...HOODIE_HARDWARE.drawstring[0], label: 'Drawstring', width: .24, ratio: .8, x: .5, y: .19 },
+  eyelet: { ...HOODIE_HARDWARE.eyelet[0], label: 'Eyelet', width: .022, ratio: 1, x: .42, y: .13 },
+  aglet: { ...HOODIE_HARDWARE.aglet[0], label: 'Aglet', width: .018, ratio: 12/18, x: .42, y: .24 },
+  toggle: { ...HOODIE_HARDWARE.toggle[0], label: 'Cord lock', width: .045, ratio: 1.2, x: .42, y: .87 },
+  hoodDetail: { ...HOODIE_HARDWARE.hoodDetail[0], label: 'Hood detail', width: .07, ratio: 1.25, x: .5, y: .16 },
 } as const;
 
 export type GarmentDetailType = keyof typeof GARMENT_DETAIL_ASSETS;
 
 const variantSvgs = import.meta.glob<string>('../../assets/garment-details/*/*.svg', { eager: true, query: '?raw', import: 'default' });
 export const GARMENT_DETAIL_OPTIONS = {
+  ...HOODIE_HARDWARE,
   patch: [],
   button: [
     { id: 'button-01', label: 'Two-hole rim', stitch: false, hardware: false },
@@ -35,6 +42,8 @@ export const GARMENT_DETAIL_OPTIONS = {
     { id: 'zip-03', label: 'Ring pull', stitch: true, hardware: true },
     { id: 'zip-04', label: 'Framed welt', stitch: true, hardware: true, width: .0825, ratio: 72 / 240 },
     { id: 'zip-05', label: 'Open zip', stitch: true, hardware: true, width: .0733333333, ratio: 64 / 240 },
+    { id: 'zip-06', label: 'Double zip', stitch: true, hardware: true, width: .0733333333, ratio: 64 / 240 },
+    { id: 'zip-07', label: 'Hidden placket zip', stitch: true, hardware: true, width: .0825, ratio: 72 / 240 },
   ],
   pocket: [
     { id: 'pocket-01', label: 'Rounded pocket', stitch: true, hardware: false },
@@ -42,6 +51,7 @@ export const GARMENT_DETAIL_OPTIONS = {
     { id: 'pocket-03', label: 'Pointed pocket', stitch: true, hardware: false },
     { id: 'pocket-04', label: 'Flap pocket', stitch: true, hardware: true },
     { id: 'pocket-05', label: 'Divided pocket', stitch: true, hardware: true },
+    ...HOODIE_POCKETS,
   ],
 } as const;
 
@@ -73,10 +83,10 @@ export function zipPullThumbnail(style: ZipPullStyle) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -5 44 60"><path d="${shape.path}" fill="#D4D4D4" fill-rule="evenodd" stroke="#141414" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
 }
 
-export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset' | 'patch' | 'customAsset'>) {
+export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset' | 'patch' | 'customAsset' | 'hoodieTrim' | 'splitPocketGap'>) {
   if (detail.customAsset) {
     const asset = detail.customAsset;
-    return { ...GARMENT_DETAIL_ASSETS[asset.detailType ?? 'pocket'], label: asset.name, svg: asset.svg,
+    return { ...GARMENT_DETAIL_ASSETS[asset.detailType ?? detail.type], label: asset.name, svg: asset.svg,
       width: asset.registration.width ?? .2, ratio: asset.registration.ratio ?? 1, stitch: false, hardware: false };
   }
   if (detail.catalogueAsset) {
@@ -88,6 +98,9 @@ export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'ca
   if (detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) return { ...base, ratio: 1 };
   const option = GARMENT_DETAIL_OPTIONS[detail.type].find(option => option.id === detail.variant);
   if (!option) return base;
+  if (detail.type === 'drawstring') return { ...base, ...option, svg: hoodieCordSvg(option.id.slice(5), detail.hoodieTrim) };
+  if (detail.variant === 'hoodie-split' && detail.splitPocketGap) return { ...base, ...option, svg: splitHoodiePocketSvg(detail.splitPocketGap) };
+  if ('svg' in option) return { ...base, ...option };
   const svg = variantSvgs[`../../assets/garment-details/${detail.type}s/${option.id}.svg`];
   return { ...base, ...option, svg: svg ?? base.svg };
 }
@@ -104,8 +117,10 @@ export interface GarmentDetail {
   scaleX?: number;
   scaleY?: number;
   lockProportions?: boolean;
+  freeResize?: boolean;
   opening?: GarmentOpening;
   zipSliderPosition?: number;
+  zipBottomOpening?: number;
   zipPullSide?: 'left' | 'center' | 'right';
   zipPullStyle?: ZipPullStyle;
   zipPullColor?: string;
@@ -131,16 +146,38 @@ export interface GarmentDetail {
   stitch: string;
   hardware: string;
   patch?: PatchSettings;
+  hoodieTrim?: HoodieTrimSettings;
+  hoodAnchor?: number | null;
+  splitPocketGap?: number;
 }
 
-export interface DetailBounds { minX: number; minY: number; maxX: number; maxY: number; necklineY?: number; polo?: boolean; openingGeometry?: OpeningGeometry }
+export interface DetailBounds { minX: number; minY: number; maxX: number; maxY: number; necklineY?: number; frontNeckCenterX?: number; hoodOpeningY?: number; hoodZipY?: number; polo?: boolean; tshirtFront?: boolean; openingGeometry?: OpeningGeometry }
 
 export function createGarmentDetail(type: GarmentDetailType, details: GarmentDetail[], fill: string, variant?: GarmentDetailVariant): GarmentDetail {
-  const asset = GARMENT_DETAIL_ASSETS[type];
+  const asset = detailAsset({ type, variant });
+  const label = variant?.startsWith('hoodie-') ? asset.label : GARMENT_DETAIL_ASSETS[type].label;
   let number = 1;
-  while (details.some(detail => detail.name === `${asset.label} ${number}`)) number++;
-  return { id: crypto.randomUUID(), type, variant, name: `${asset.label} ${number}`, x: asset.x, y: asset.y,
-    scale: 1, lockProportions: type === 'button', selected: true, fill, outline: '#141414', stitch: '#707070', hardware: '#D4D4D4', ...(type === 'patch' ? { patch: { ...DEFAULT_PATCH } } : {}) };
+  while (details.some(detail => detail.name === `${label} ${number}`)) number++;
+  return { id: crypto.randomUUID(), type, variant, name: `${label} ${number}`, x: asset.x, y: asset.y,
+    scale: 1, selected: true, fill, outline: '#141414', stitch: '#707070', hardware: '#D4D4D4', ...(type === 'patch' ? { patch: { ...DEFAULT_PATCH } } : {}) };
+}
+
+export function detailLocksProportions(detail: GarmentDetail) {
+  return !detail.opening && !detail.freeResize;
+}
+export function anchorHoodTrim(detail: GarmentDetail, bounds: DetailBounds) {
+  if (detail.hoodAnchor === null || bounds.hoodOpeningY === undefined ||
+    (detail.hoodAnchor === undefined && !['drawstring', 'eyelet', 'aglet', 'hoodDetail'].includes(detail.type))) return detail;
+  const bodyHeight = bounds.maxY - bounds.minY;
+  const anchor = (bounds.hoodOpeningY - bounds.minY) / bodyHeight;
+  if (detail.hoodAnchor === anchor) return detail;
+  const asset = detailAsset(detail);
+  const cordOffset = (bounds.maxX - bounds.minX) * asset.width / asset.ratio * .4 / bodyHeight;
+  const offset = detail.type === 'eyelet' ? 0 : detail.type === 'aglet' ? .15 : detail.type === 'hoodDetail' ? -.065 : cordOffset;
+  return {
+    ...detail, placementArea: 'canvas' as const, hoodAnchor: anchor,
+    y: anchor + (detail.hoodAnchor === undefined ? offset : detail.y - detail.hoodAnchor),
+  };
 }
 
 export function detailScale(scale = 1) {
@@ -157,6 +194,16 @@ export function detailRotation(detail: GarmentDetail) {
   return Number.isFinite(detail.rotation) ? ((detail.rotation! % 360) + 360) % 360 : 0;
 }
 
+function detailBaseWidth(detail: GarmentDetail, bounds: DetailBounds, proportion: number) {
+  const width = bounds.maxX - bounds.minX;
+  if (detail.variant !== 'hoodie-side-seam') return width * proportion;
+  const center = (bounds.minX + bounds.maxX) / 2;
+  const spans = [.62, .73, .84].map(fraction =>
+    centerTorsoSpan(bounds.openingGeometry, center, bounds.minY + (bounds.maxY - bounds.minY) * fraction));
+  const torsoWidth = Math.min(width, ...spans.flatMap(span => span === undefined ? [] : [span]));
+  return torsoWidth * proportion;
+}
+
 export function detailPlacement(detail: GarmentDetail, bounds: DetailBounds) {
   if (detail.opening) {
     const { start, end, width } = detail.opening;
@@ -171,7 +218,7 @@ export function detailPlacement(detail: GarmentDetail, bounds: DetailBounds) {
   const availableHeight = limits.maxY - limits.minY;
   const bodyWidth = bounds.maxX - bounds.minX;
   const bodyHeight = bounds.maxY - bounds.minY;
-  const baseWidth = bodyWidth * asset.width;
+  const baseWidth = detailBaseWidth(detail, bounds, asset.width);
   const radians = detailRotation(detail) * Math.PI / 180;
   const cosine = Math.abs(Math.cos(radians));
   const sine = Math.abs(Math.sin(radians));
@@ -193,8 +240,9 @@ export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds,
   if (detail.opening) {
     const placement = detailPlacement(detail, bounds);
     const angle = detailRotation(detail) * Math.PI / 180, cosine = Math.cos(angle), sine = Math.sin(angle);
-    const width = Math.max(2, placement.width + cornerX * (dx * cosine + dy * sine));
-    const height = Math.max(8, placement.height + cornerY * (-dx * sine + dy * cosine));
+    const height = Math.min(4096, Math.max(8, placement.height + cornerY * (-dx * sine + dy * cosine)));
+    const width = Math.min(600, height / 1.2, Math.max(2, placement.width + cornerX * (dx * cosine + dy * sine)));
+    if (detail.opening.frontNeckJoin) return transformOpening(detail, bounds, { width, height });
     return transformOpening(detail, bounds, { width, height,
       x: placement.x + (cosine * cornerX * (width - placement.width) - sine * cornerY * (height - placement.height)) / 2 / (bounds.maxX - bounds.minX),
       y: placement.y + (sine * cornerX * (width - placement.width) + cosine * cornerY * (height - placement.height)) / 2 / (bounds.maxY - bounds.minY) });
@@ -204,7 +252,7 @@ export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds,
   const bodyWidth = bounds.maxX - bounds.minX;
   const bodyHeight = bounds.maxY - bounds.minY;
   const asset = detailAsset(detail);
-  const baseWidth = bodyWidth * asset.width;
+  const baseWidth = detailBaseWidth(detail, bounds, asset.width);
   const baseHeight = baseWidth / asset.ratio;
   const centerX = placement.left + placement.width / 2;
   const centerY = placement.top + placement.height / 2;
@@ -228,7 +276,7 @@ export function resizeGarmentDetail(detail: GarmentDetail, bounds: DetailBounds,
   const minHeight = Math.min(maxHeight, Math.max(12, baseHeight * .2));
   let width = cornerX ? Math.max(minWidth, Math.min(maxWidth, placement.width + cornerX * localDx)) : placement.width;
   let height = cornerY ? Math.max(minHeight, Math.min(maxHeight, placement.height + cornerY * localDy)) : placement.height;
-  if (detail.lockProportions || detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) {
+  if (detailLocksProportions(detail) || detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) {
     const diagonalX = cornerX * placement.width;
     const diagonalY = cornerY * placement.height;
     const desired = 1 + (localDx * diagonalX + localDy * diagonalY) / (diagonalX ** 2 + diagonalY ** 2);
@@ -272,14 +320,14 @@ export function setDetailTransform(detail: GarmentDetail, bounds: DetailBounds, 
   const original = detailPlacement(detail, bounds);
   const bodyWidth = bounds.maxX - bounds.minX;
   const bodyHeight = bounds.maxY - bounds.minY;
-  const baseWidth = bodyWidth * detailAsset(detail).width;
+  const baseWidth = detailBaseWidth(detail, bounds, detailAsset(detail).width);
   const baseHeight = baseWidth / detailAsset(detail).ratio;
   let width = patch.width ?? original.width;
   let height = patch.height ?? original.height;
   if (detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) {
     width = patch.width ?? patch.height ?? original.width;
     height = width;
-  } else if (detail.lockProportions) {
+  } else if (detailLocksProportions(detail)) {
     if (patch.width !== undefined) height = original.height * width / original.width;
     else if (patch.height !== undefined) width = original.width * height / original.height;
   }
@@ -374,7 +422,7 @@ export function alignGarmentZip(detail: GarmentDetail, bounds: DetailBounds, mod
     const placement = detailPlacement(detail, bounds);
     const sourceWidth = Number(new DOMParser().parseFromString(detailAsset(detail).svg, 'image/svg+xml').documentElement.getAttribute('viewBox')?.split(/\s+/)[2]) || 48;
     const hardwareScale = zipHardwareGeometry(detail, sourceWidth, sourceWidth * placement.height / placement.width).hardwareScale;
-    return { ...resizeGarmentDetail({ ...detail, lockProportions: false }, bounds, 0, direction, -sine * direction * increase, cosine * direction * increase), lockProportions: detail.lockProportions, zipHardwareScale: hardwareScale };
+    return { ...resizeGarmentDetail({ ...detail, freeResize: true }, bounds, 0, direction, -sine * direction * increase, cosine * direction * increase), freeResize: detail.freeResize, zipHardwareScale: hardwareScale };
   }
   const original = detailPlacement({ ...detail, rotation: 0 }, bounds);
   const bodyWidth = bounds.maxX - bounds.minX;
@@ -401,7 +449,7 @@ export function zipHardwareGeometry(detail: GarmentDetail, width: number, height
   return { center: width / 2, hardwareScale, sliderY, travel, pullY: sliderY + 14 * hardwareScale };
 }
 
-function renderZipParts(svg: Element, detail: GarmentDetail, width: number, height: number) {
+function renderZipParts(svg: Element, detail: GarmentDetail, width: number, height: number, integratedPlacket = false, showShirtZipStyle = false) {
   svg.replaceChildren();
   const append = (tag: string, attributes: Record<string, string | number>, parent = svg) => {
     const element = svg.ownerDocument.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -415,28 +463,56 @@ function renderZipParts(svg: Element, detail: GarmentDetail, width: number, heig
   const stitch = 'var(--detail-stitch, black)';
   const { center, hardwareScale, sliderY, pullY } = zipHardwareGeometry(detail, width, height);
   if (detail.opening) {
-    const { amount, tip, halfGap, stations } = openingGapProfile(detail, width, height);
+    const { amount, tip, bottomTip, halfGap, stations } = openingGapProfile(detail, width, height);
+    const style = showShirtZipStyle ? detail.variant : undefined;
+    const stitchInset = style === 'zip-02' ? .26 : style === 'zip-03' ? .35 : ZIP_TAPE - 3 / width;
+    const toothWidth = style === 'zip-02' ? 3 : style === 'zip-03' ? 6 : style === 'zip-04' ? 7 : style === 'zip-01' ? 5 : 3;
+    // The Ring card ends in a point. Keep that shape on the fitted tape.
+    const tapeBottom = (offset: number) => style === 'zip-03' ? height - Math.abs(offset) * .45 : height;
     const track = append('g', { 'data-zip-track': '', 'data-opening-amount': amount, 'stroke-linejoin': 'round' });
     const joinedY = amount > 0 ? tip : 0;
-    append('rect', { 'data-zip-joined': '', x: center - halfGap(height), y: joinedY,
-      width: halfGap(height) * 2, height: height - joinedY, fill: hardware }, track);
+    append('rect', { 'data-zip-joined': '', x: center - width * .025, y: joinedY,
+      width: width * .05, height: Math.max(0, bottomTip - joinedY), fill: hardware }, track);
     const teeth = append('g', { 'data-zip-teeth': '', stroke: 'var(--detail-teeth, black)', 'stroke-width': 1.4 });
     for (const side of [-1, 1]) {
       const edge = (y: number) => center + side * halfGap(y);
-      const outside = (y: number) => edge(y) + side * width * .45;
-      const innerPath = stations.map(y => `${edge(y)} ${y}`).join('L');
-      const outerPath = [...stations].reverse().map(y => `${outside(y)} ${y}`).join('L');
-      append('path', { 'data-opening-tape': side, d: `M${innerPath}L${outerPath}Z`, fill, stroke: outline, 'stroke-width': 1 }, track);
-      append('path', { d: `M${stations.map(y => `${outside(y) - side * 3} ${y}`).join('L')}`, stroke: stitch, 'stroke-width': 1, 'stroke-dasharray': '4 4', fill: 'none' }, track);
+      const outside = (y: number) => edge(y) + side * width * ZIP_TAPE;
+      const innerPath = stations.map(y => `${edge(y)} ${y === height ? tapeBottom(halfGap(y)) : y}`).join('L');
+      const outerPath = [...stations].reverse().map(y => `${outside(y)} ${y === height ? tapeBottom(outside(y) - center) : y}`).join('L');
+      append('path', { 'data-opening-tape': side, d: `M${innerPath}L${outerPath}Z`, fill,
+        stroke: integratedPlacket ? 'none' : outline, 'stroke-width': 1 }, track);
+      if (integratedPlacket) {
+        append('path', { 'data-placket-seam': side, d: `M${outerPath}`, fill: 'none', stroke: outline, 'stroke-width': 1, 'stroke-linecap': 'round' }, track);
+      }
+      append('path', { d: `M${stations.map(y => `${edge(y) + side * width * stitchInset} ${y}`).join('L')}`, stroke: stitch,
+        'stroke-width': style === 'zip-03' ? 1.6 : 1, 'stroke-dasharray': style === 'zip-02' ? '2 3' : '4 4', fill: 'none' }, track);
+      if (style === 'zip-04') {
+        const weltEdge = (y: number) => edge(y) + side * width * .16;
+        append('path', { 'data-zip-welt': side,
+          d: `M${edge(0)} 0L${stations.map(y => `${weltEdge(y)} ${y}`).join('L')}L${edge(height)} ${height}`,
+          fill: 'none', stroke: outline, 'stroke-width': 1.5 }, track);
+      }
       const segments: string[] = [];
       for (let y = 8; y < height - 5; y += 8) {
         const x = edge(y);
-        segments.push(`M${x} ${y}h${side * 3}`);
+        segments.push(`M${x} ${y}h${side * toothWidth}`);
       }
-      append('path', { d: segments.join('') }, teeth);
+      append('path', { d: segments.join(''), fill: 'none' }, teeth);
       append('rect', { 'data-zip-stops': '', 'data-zip-top-stop': '', x: edge(0) + (side < 0 ? -3 : 0), y: 0, width: 3, height: 3, fill: hardware, stroke: outline, 'stroke-width': .7 });
     }
-    append('rect', { 'data-zip-stops': '', x: center - 3, y: height - 3, width: 6, height: 3, fill: hardware, stroke: outline, 'stroke-width': .7 });
+    if (integratedPlacket && detail.opening.attachment === 'neckline') {
+      const stopY = Math.max(0, height - 6);
+      append('path', { 'data-placket-bartack': '', d: `M${center - width * .22} ${height - 1.5}h${width * .44}`,
+        stroke: stitch, 'stroke-width': 1.4, 'stroke-linecap': 'round' });
+      append('rect', { 'data-zip-stops': '', x: center - 3, y: stopY, width: 6, height: 3, rx: 1,
+        fill: hardware, stroke: outline, 'stroke-width': .7 });
+    } else if (detail.variant === 'zip-06') {
+      for (const side of [-1, 1]) append('rect', { 'data-zip-stops': '',
+        x: center + side * (halfGap(height) + 2) - 1.5, y: height - 6,
+        width: 3, height: 6, fill: hardware, stroke: outline, 'stroke-width': .7 });
+    } else {
+      append('rect', { 'data-zip-stops': '', x: center - 3, y: height - 3, width: 6, height: 3, fill: hardware, stroke: outline, 'stroke-width': .7 });
+    }
   } else {
   const open = detail.variant === 'zip-05';
   const track = append('g', { 'data-zip-track': '', 'stroke-linejoin': 'round' });
@@ -464,7 +540,7 @@ function renderZipParts(svg: Element, detail: GarmentDetail, width: number, heig
       segments.push(`M${railLeft - spread - 2} ${toothY}h4M${railRight + spread - 2} ${toothY}h4`);
     } else segments.push(`M${railLeft} ${toothY}H${railRight}`);
   }
-  append('path', { d: segments.join('') }, teeth);
+  append('path', { d: segments.join(''), fill: 'none' }, teeth);
   const stops = append('g', { 'data-zip-stops': '', fill: hardware, stroke: outline, 'stroke-width': 1.4 });
   append('rect', { x: railLeft - 1, y: 1, width: 12, height: 3 }, stops);
   append('rect', { x: railLeft - 1, y: height - 4, width: 12, height: 3 }, stops);
@@ -477,9 +553,25 @@ function renderZipParts(svg: Element, detail: GarmentDetail, width: number, heig
   const tab = append('g', { 'data-zip-pull-tab': '', transform: `rotate(${angle})` }, pull);
   append('path', { d: zipPullStyle(detail).path, transform: `scale(${zipPullScale(detail)})`, fill: 'var(--detail-pull, none)',
     'fill-rule': 'evenodd', stroke: outline, 'stroke-width': 1.6, 'stroke-linejoin': 'round' }, tab);
+  if (detail.opening && detail.variant === 'zip-06') {
+    const { bottomTip } = openingGapProfile(detail, width, height);
+    const lower = append('g', { 'data-zip-lower-slider': '', transform: `translate(${center} ${bottomTip}) scale(${hardwareScale} ${-hardwareScale})` });
+    append('path', { d: 'M-8 0H8V16L4 22H-4L-8 16Z', fill: 'var(--detail-slider, none)', stroke: outline, 'stroke-width': 1.6 }, lower);
+    append('path', { d: zipPullStyle(detail).path, transform: `translate(0 14) scale(${zipPullScale(detail)})`,
+      fill: 'var(--detail-pull, none)', 'fill-rule': 'evenodd', stroke: outline, 'stroke-width': 1.6 }, lower);
+  }
+  if (detail.opening && detail.variant === 'zip-07') {
+    const { halfGap, stations } = openingGapProfile(detail, width, height);
+    const fold = (y: number) => center - halfGap(y);
+    const coverEdge = (y: number) => fold(y) + width * .36;
+    const seam = (y: number) => fold(y) - width * ZIP_TAPE;
+    const trace = (edge: (y: number) => number, rows: number[]) => rows.map(y => `${edge(y)} ${y}`).join('L');
+    append('path', { 'data-zip-placket-cover': '', d: `M${trace(coverEdge, stations)}L${trace(seam, [...stations].reverse())}Z`,
+      fill, stroke: outline, 'stroke-width': 1.2 });
+  }
 }
 
-export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: 'body' | 'pull', joinedNeckline = false) {
+export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: 'body' | 'pull', joinedNeckline = false, integratedPlacket = false, showShirtZipStyle = false) {
   if (detail.type === 'patch' && !detail.customAsset) return patchSvg(detail, displayRatio ?? detailAsset(detail).ratio * detailAxisScale(detail, 'x') / detailAxisScale(detail, 'y'));
   const asset = detailAsset(detail);
   const raw = detail.catalogueAsset || detail.customAsset ? tintPotraceSvg(asset.svg, /^#[\da-f]{6}$/i.test(detail.fill) ? detail.fill : '#141414') : asset.svg;
@@ -507,11 +599,11 @@ export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: '
     svg.setAttribute('viewBox', `0 0 ${sourceWidth} ${height}`);
     svg.setAttribute('overflow', 'visible');
     const curveHeight=detail.opening?.curve?.length?zipRoute(detail.opening).length/detail.opening.width*sourceWidth:height;
-    renderZipParts(svg, detail, sourceWidth, curveHeight);
+    renderZipParts(svg, detail, sourceWidth, curveHeight, integratedPlacket, showShirtZipStyle);
     if(detail.opening?.curve?.length)warpZipSvg(svg,detail.opening,sourceWidth,curveHeight,height);
     if (joinedNeckline && detail.opening) svg.querySelectorAll('[data-zip-top-stop]').forEach(stop => stop.remove());
     if (part === 'body') svg.querySelector('[data-zip-pull]')?.remove();
-    if (part === 'pull') Array.from(svg.children).filter(child => !child.hasAttribute('data-zip-pull')).forEach(child => child.remove());
+    if (part === 'pull') Array.from(svg.children).filter(child => !child.hasAttribute('data-zip-pull') || (detail.variant === 'zip-07' && detail.opening && !openingOpenAmount(detail))).forEach(child => child.remove());
   }
   if (detail.flipX || detail.flipY) {
     const [, , width, height] = svg.getAttribute('viewBox')!.split(/\s+/).map(Number);

@@ -12,7 +12,7 @@ for(const variant of api.GARMENT_DETAIL_OPTIONS.zip){
  assert(!html.includes('aria-label="Patch name"'),variant.id+' does not render a stray patch field');
 }
 
-console.log('PASS all five selected zip variants render without undefined detail references.');
+console.log(`PASS all ${api.GARMENT_DETAIL_OPTIONS.zip.length} selected zip variants render without undefined detail references.`);
 
 for(const type of ['pocket','zip','button','patch']){
  const detail={...api.createGarmentDetail(type,[],'#5C7FB6'),name:'Custom '+type};

@@ -1,3 +1,48 @@
 .neck-selected-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px;border:1px solid var(--builder-ui-line);background:var(--builder-ui-soft);border-radius:7px}.neck-selected-summary>span{display:grid;gap:6px}.neck-selected-summary small{font-size:8px;letter-spacing:1px;color:var(--builder-ui-muted)}.neck-selected-summary strong{font-size:13px;font-weight:500;color:var(--builder-ui-text)}.neck-selected-summary>button{display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid var(--builder-ui-line);border-radius:5px;background:white;font-size:9px;color:var(--builder-ui-muted)}.neck-selected-summary>button[aria-pressed=true]{background:var(--builder-ui-secondary);border-color:var(--builder-ui-secondary);color:#fff}.neck-shape-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.neck-shape-grid>button{position:relative;min-width:0;padding:8px 5px;border:1px solid var(--builder-ui-line);border-radius:6px;background:#fff;text-align:center;color:var(--builder-ui-secondary);transition:background 140ms,border-color 140ms,transform 140ms}.neck-shape-grid>button:hover{background:var(--builder-ui-surface);transform:translateY(-1px)}.neck-shape-grid>button[aria-pressed=true]{border-color:var(--builder-ui-muted);background:var(--builder-ui-soft);color:var(--builder-ui-text);box-shadow:0 0 0 1px #73737310}.neck-shape-grid svg{width:100%;height:45px;margin-bottom:5px}.neck-shape-grid>button>span{font-size:10px;line-height:1.4;display:block}.neck-shape-grid .neck-choice-check{position:absolute;right:4px;top:4px;width:12px;height:12px}.neck-custom-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px;margin-top:9px;padding:10px;border:1px dashed var(--builder-ui-line);border-radius:5px;font-size:10px;color:var(--builder-ui-muted);background:var(--builder-ui-surface)}.neck-custom-toggle>span:last-child{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--builder-ui-muted)}.neck-custom-controls{margin-top:12px;padding:10px;border:1px solid var(--builder-ui-line);border-radius:6px;background:var(--builder-ui-surface)}.neck-custom-controls [class*="text-white"]{color:var(--builder-ui-secondary)!important}.neck-custom-controls [class*="border-white"]{border-color:var(--builder-ui-line)!important}.neck-custom-controls button{font-size:10px!important;color:var(--builder-ui-secondary)!important;border-color:var(--builder-ui-line)!important;background:#fff!important}.neck-custom-controls input{color:var(--builder-ui-secondary)!important}.neck-finish-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.neck-finish-grid>button{display:grid;gap:6px;padding:9px 5px;border:1px solid var(--builder-ui-line);background:white;border-radius:5px;text-align:center}.neck-finish-grid>button[aria-pressed=true]{background:var(--builder-ui-soft);border-color:var(--builder-ui-muted)}.neck-finish-grid strong{font-size:10px;font-weight:500;color:var(--builder-ui-secondary)}.neck-finish-grid small{font-size:8px;color:var(--builder-ui-muted)}.neck-finish-sample{display:block;width:38px;height:17px;margin:1px auto 3px;border-radius:3px;background:var(--builder-ui-line);border:1px solid var(--builder-ui-line)}.neck-finish-ribbed{background:repeating-linear-gradient(90deg,var(--builder-ui-line) 0 1px,var(--builder-ui-line) 1px 3px)}.neck-finish-clean{border-bottom:2px solid var(--builder-ui-line)}.neck-finish-raw{height:3px;margin-top:8px;margin-bottom:10px;border:0;border-bottom:1px dashed var(--builder-ui-muted);background:none}.neck-measurement-heading{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--builder-ui-muted);margin-bottom:10px}.neck-measurement-heading>button{display:flex;align-items:center;gap:4px;margin-left:auto;color:var(--builder-ui-muted);font-size:9px}.neck-measurement-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.neck-measurement-grid>div{display:grid;gap:8px;padding:12px;border:1px solid var(--builder-ui-line);border-radius:5px;background:var(--builder-ui-surface)}.neck-measurement-grid>div>span{font-size:10px;color:var(--builder-ui-muted)}.neck-measurement-grid strong{font-size:20px;font-weight:500;letter-spacing:-.4px;color:var(--builder-ui-secondary)}.neck-measurement-grid small{font-size:10px;font-weight:400;letter-spacing:0;color:var(--builder-ui-muted);margin-left:5px}.neck-material-link{display:flex;align-items:center;gap:9px;width:100%;padding:11px;border:1px solid var(--builder-ui-line);border-radius:6px;text-align:left;background:var(--builder-ui-surface);color:var(--builder-ui-muted)}.neck-material-link>.material-select-texture{width:38px;height:38px}.neck-material-link>span:not(.material-select-texture){display:grid;gap:5px;flex:1}.neck-material-link strong{font-size:11px;font-weight:500;color:var(--builder-ui-secondary)}.neck-material-link small{font-size:9px;color:var(--builder-ui-muted)}.neck-material-link>i{width:19px;height:19px;border:1px solid #0001;border-radius:50%}.neck-construction-editor textarea{min-height:90px;resize:vertical}.neck-construction-editor .material-section-disclosure{margin-bottom:12px}@media(max-width:767px){.neck-shape-grid>button{min-height:78px}.neck-selected-summary>button{min-height:38px}.neck-finish-grid>button{min-height:74px}}
 
 .neck-construction-editor .neck-selected-summary>button[aria-pressed=true]{background:var(--builder-ui-secondary)!important;color:#fff!important;border-color:var(--builder-ui-secondary)}
+
+.neck-shape-grid .hoodie-neck-choice-art {
+  width: 100%;
+  height: 56px;
+  object-fit: contain;
+}
+.hoodie-construction-choice,
+.hoodie-construction-toggle {
+  padding: 10px 0;
+  color: var(--builder-ui-text);
+  font-size: 13px;
+}
+
+.hoodie-construction-choice > div {
+  margin-top: 8px;
+}
+
+.hoodie-construction-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-inline: 12px;
+  border: 0;
+  border-radius: 14px;
+  background: #f7f6f9;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hoodie-construction-toggle[aria-checked=true] .guides-switch-track {
+  background: #514362;
+}
+
+.hoodie-construction-toggle[aria-checked=true] .guides-switch-track > span {
+  transform: translateX(12px);
+}
+
+.hoodie-construction-choice button:focus-visible,
+.hoodie-construction-toggle:focus-visible {
+  outline: 2px solid var(--builder-ui-secondary);
+  outline-offset: 2px;
+}

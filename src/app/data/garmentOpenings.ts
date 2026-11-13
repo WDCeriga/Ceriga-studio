@@ -16,6 +16,7 @@ export interface GarmentOpening extends OpeningDefaults {
   closure: 'zip';
   defaults: OpeningDefaults;
   garmentAnchor?: {x:number;y:number};
+  frontNeckJoin?: true;
 }
 export interface OpeningSource {
   id: string;
@@ -34,6 +35,7 @@ export interface OpeningConstructionGeometry {
   removed: MultiPolygon;
   inkCut: MultiPolygon;
   collarCut: MultiPolygon;
+  collarInkCut: MultiPolygon;
   placketFill: MultiPolygon;
   remaining: MultiPolygon;
   facing: MultiPolygon;
@@ -154,19 +156,25 @@ export function openingPolygonPath(polygons: MultiPolygon): string {
 }
 /** The saved slider position is also the construction's open amount; no second state can drift. */
 export function openingOpenAmount(detail: GarmentDetail): number {
-  const value = detail.zipSliderPosition ?? (detail.variant === 'zip-05' ? .34 : 0);
+  const value = detail.zipSliderPosition ?? (detail.variant === 'zip-05' || detail.variant === 'zip-06' ? .34 : 0);
   return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 }
 
 /** Shared local coordinates for fabric separation, zipper tapes, teeth and slider. */
 export function openingGapProfile(detail: GarmentDetail, width: number, height: number) {
   const amount = openingOpenAmount(detail);
+  const bottomAmount = detail.variant === 'zip-06' && Number.isFinite(detail.zipBottomOpening)
+    ? Math.max(0, Math.min(Math.max(0, .9 - amount), detail.zipBottomOpening!)) : 0;
   const tip = Math.max(height * .04, height * amount);
+  const bottomTip = height * (1 - bottomAmount);
   // Opening travel controls depth; tape width caps separation even on full-length zips.
   const spread = Math.min(width * .65, height * .045) * amount;
-  const halfGap = (y: number) => width * .025 + spread * Math.pow(Math.max(0, 1 - Math.max(0, y) / tip), 1.25);
-  const stations = [...Array.from({ length: 17 }, (_, index) => tip * index / 16), height];
-  return { amount, tip, halfGap, stations };
+  const bottomSpread = Math.min(width * .65, height * .045) * bottomAmount;
+  const halfGap = (y: number) => width * .025 + spread * Math.pow(Math.max(0, 1 - Math.max(0, y) / tip), 1.25) +
+    (bottomAmount ? bottomSpread * Math.pow(Math.max(0, 1 - Math.max(0, height - y) / (height * bottomAmount)), 1.25) : 0);
+  const stations = [...Array.from({ length: 17 }, (_, index) => tip * index / 16),
+    ...Array.from({ length: bottomAmount ? 16 : 0 }, (_, index) => bottomTip + (height - bottomTip) * index / 16), height];
+  return { amount, tip, bottomTip, halfGap, stations };
 }
 
 function strip(opening: OpeningDefaults, width = opening.width, extend = true): MultiPolygon {
@@ -192,11 +200,76 @@ function intersections(polygons: MultiPolygon, value: number, axis: 'x' | 'y'): 
   }
   return result.sort((a, b) => a - b);
 }
+
+export function centerTorsoSpan(geometry: OpeningGeometry | undefined, center: number, y: number) {
+  const body = geometry?.panels.find(panel => panel.id === 'base');
+  if (!body) return undefined;
+  const edges = intersections(body.polygons, y, 'y');
+  for (let i = 0; i + 1 < edges.length; i += 2) {
+    if (edges[i] < center && edges[i + 1] > center) return 2 * Math.min(center - edges[i], edges[i + 1] - center);
+  }
+  return undefined;
+}
+
+const centerFrontX = (bounds: DetailBounds) => bounds.frontNeckCenterX ?? (bounds.minX + bounds.maxX) / 2;
+
+function isCenterFrontOpening(opening: OpeningDefaults, bounds: DetailBounds) {
+  return ['neckline', 'full-front'].includes(opening.attachment) &&
+    Math.abs(opening.start.x - centerFrontX(bounds)) <= 12 &&
+    Math.abs(opening.start.x - opening.end.x) <= 12 && opening.end.y > opening.start.y && !opening.curve?.length;
+}
+
+export function isIntegratedFrontZip(detail: GarmentDetail, bounds: DetailBounds) {
+  const opening = detail.opening;
+  return Boolean(bounds.tshirtFront && opening && isCenterFrontOpening(opening, bounds));
+}
+
+export const ZIP_TAPE = .45;
+
+export function zipTapeMouth(detail: GarmentDetail, tape = ZIP_TAPE) {
+  const opening = detail.opening;
+  if (!opening) return undefined;
+  const route = zipRoute(opening);
+  const edge = openingGapProfile(detail, opening.width, route.length).halfGap(0) + opening.width * tape;
+  const [left, right] = [route.at(0, -edge), route.at(0, edge)].sort((a, b) => a.x - b.x);
+  return { left, right };
+}
+
+/** Sample the front collar band beside the tape, ignoring the rear band above it. */
+function tshirtFrontThroat(bounds: DetailBounds, width: number, detail?: GarmentDetail) {
+  if (!bounds.tshirtFront) return undefined;
+  const neck = bounds.openingGeometry?.panels.find(panel => panel.id === 'neck')?.polygons;
+  if (!neck?.length) {
+    const body = bounds.openingGeometry?.panels.find(panel => panel.id === 'base')?.polygons;
+    // The rear neck edge can be a separate island at centre front.
+    // Use the start of the torso interval, which continues to the bottom.
+    return bounds.necklineY ?? (body?.length ? intersections(body, centerFrontX(bounds), 'x').at(-2) : undefined);
+  }
+
+  const x = centerFrontX(bounds);
+  const tapeEdge = width * (ZIP_TAPE + .025);
+  const mouth = detail && zipTapeMouth(detail, ZIP_TAPE);
+  const halfWidth = mouth ? (mouth.right.x - mouth.left.x) / 2 : tapeEdge;
+  const throats = [x - halfWidth, x, x + halfWidth].flatMap(probe => {
+    const edges = intersections(neck, probe, 'x');
+    const front = edges.at(-2);
+    return front !== undefined && (edges.length >= 4 || (bounds.necklineY ?? front) - front < 90) ? [front] : [];
+  });
+  if (bounds.polo) {
+    const throat = openingAnchorY(bounds);
+    if (throat !== undefined) return throat;
+  }
+  return throats.length ? Math.min(...throats) : bounds.necklineY;
+}
 /** Extend the insertion to the actual neck edge across the tape width, not a flat cap at its centre. */
 export function openingNecklineReach(detail: GarmentDetail, bounds: DetailBounds): number {
   const opening = detail.opening;
   const geometry = bounds.openingGeometry;
   if (!opening || !geometry) return 0;
+  if (bounds.tshirtFront && isCenterFrontOpening(opening, bounds) && (opening.frontNeckJoin || bounds.polo)) return 0;
+  // Hood lining is drawn over the shell. The top of that shell is the crown,
+  // whereas a centre-front zip starts at the measured lower face opening.
+  if (bounds.hoodOpeningY !== undefined && ['neckline', 'full-front'].includes(opening.attachment)) return 0;
   const neck = geometry.panels.filter(panel => panel.role === 'neck').flatMap(panel => panel.polygons);
   if (!neck.length && !['neckline', 'full-front'].includes(opening.attachment)) return 0;
   const length = distance(opening.start, opening.end);
@@ -225,14 +298,22 @@ export function openingNecklineReach(detail: GarmentDetail, bounds: DetailBounds
   return Math.max(0, -top) + 2;
 }
 
-export function openingGap(detail: GarmentDetail, padding = 0, reach = 2): MultiPolygon {
+export function openingGap(detail: GarmentDetail, padding = 0, reach = 2, tail = 2): MultiPolygon {
  const opening=detail.opening!,route=zipRoute(opening),height=route.length;
  if(height<.001)return [];
  const profile=openingGapProfile(detail,opening.width,height);
- const stations=[-Math.max(2,reach),...Array.from({length:97},(_,i)=>height*i/96),...profile.stations,height+2].sort((a,b)=>a-b);
+ const stations=[-Math.max(2,reach),...Array.from({length:97},(_,i)=>height*i/96),...profile.stations,height+tail].sort((a,b)=>a-b);
  const point=(y:number,side:number):[number,number]=>{const p=route.at(y,side*(profile.halfGap(y)+padding));return[p.x,p.y]};
  const ring=[...stations.map(y=>point(y,-1)),...stations.slice().reverse().map(y=>point(y,1))];
  return [[ [...ring,ring[0]] ]];
+}
+
+/** Close the topology cut through seam allowances hidden above and below a separating zip. */
+export function panellingFullZipCut(details: GarmentDetail[], bounds: DetailBounds) {
+  const full = details.find(detail => detail.opening?.attachment === 'full-front' && isCenterFrontOpening(detail.opening, bounds));
+  if (!full?.opening) return '';
+  const tape = ZIP_TAPE;
+  return openingPolygonPath(openingGap(full, full.opening.width * tape, 2048, 2048));
 }
 function sync(detail: GarmentDetail, bounds: DetailBounds): GarmentDetail {
   const opening = detail.opening!;
@@ -243,6 +324,7 @@ function sync(detail: GarmentDetail, bounds: DetailBounds): GarmentDetail {
 /** The inner collar contour ends at the real throat opening. The outer
  * polo contour also contains the old button placket, which is not an anchor. */
 export function openingAnchorY(bounds:DetailBounds):number|undefined {
+  if (bounds.hoodZipY !== undefined) return bounds.hoodZipY;
   if(bounds.polo){
     if(Number.isFinite(bounds.openingGeometry?.poloOpeningY))return bounds.openingGeometry!.poloOpeningY;
     const holes=bounds.openingGeometry?.panels.filter(panel=>panel.role==='neck').flatMap(panel=>panel.polygons.flatMap(polygon=>polygon.slice(1)))??[];
@@ -256,7 +338,7 @@ export function createOpening(detail: GarmentDetail, bounds: DetailBounds, place
   const geometry = bounds.openingGeometry;
   const fabric = geometry?.fabric ?? [];
   const body = geometry?.panels.find(panel => panel.role === 'body')?.polygons ?? fabric;
-  const center = (bounds.minX + bounds.maxX) / 2;
+  const center = ['neckline', 'full-front'].includes(placement) ? centerFrontX(bounds) : (bounds.minX + bounds.maxX) / 2;
   const vertical = intersections(fabric, center, 'x');
   const bottom = vertical.at(-1) ?? bounds.maxY;
   // Ignore rear-band islands and merge sampling-scale joins between neck/body/hem.
@@ -267,9 +349,12 @@ export function createOpening(detail: GarmentDetail, bounds: DetailBounds, place
     else intervals.push([vertical[i], vertical[i + 1]]);
   }
   const torso = intervals.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]))[0];
-  const top = (bounds.polo ? openingAnchorY(bounds) : undefined) ?? torso?.[0] ?? bounds.necklineY ?? bounds.minY;
-  const height = bottom - top;
   const original = detailPlacement(detail, bounds);
+  const nominalWidth = detail.opening?.width ?? original.width;
+  const width = Math.max(12, Math.min(nominalWidth, 80));
+  const frontThroat = ['neckline', 'full-front'].includes(placement) ? tshirtFrontThroat(bounds, detail.opening?.width ?? width) : undefined;
+  const top = frontThroat ?? bounds.hoodZipY ?? bounds.hoodOpeningY ?? (bounds.polo ? openingAnchorY(bounds) : undefined) ?? torso?.[0] ?? bounds.necklineY ?? bounds.minY;
+  const height = bottom - top;
   let start = { x: center, y: top }, end = { x: center, y: top + height * .32 };
   if (placement === 'full-front') end.y = bottom;
   if (placement === 'hem') { start.y = bottom; end.y = bottom - height * .27; }
@@ -289,20 +374,48 @@ export function createOpening(detail: GarmentDetail, bounds: DetailBounds, place
     start = { x: cx + Math.sin(radians) * original.height / 2, y: cy - Math.cos(radians) * original.height / 2 };
     end = { x: cx - Math.sin(radians) * original.height / 2, y: cy + Math.cos(radians) * original.height / 2 };
   }
-  const defaults: OpeningDefaults = { start, end, width: Math.max(12, Math.min(original.width, 80)), attachment: placement, facingColor: detail.fill };
-  return sync({ ...detail, lockProportions: false, opening: { ...defaults, version: 1, closure: 'zip', defaults: structuredClone(defaults), garmentAnchor:{x:center,y:openingAnchorY(bounds)??top} } }, bounds);
+  const defaults: OpeningDefaults = { start, end, width, attachment: placement, facingColor: detail.fill };
+  const frontNeckJoin = frontThroat !== undefined && isCenterFrontOpening(defaults, bounds) ? true : undefined;
+  return sync({ ...detail, lockProportions: false, opening: { ...defaults, version: 1, closure: 'zip', defaults: structuredClone(defaults),
+    frontNeckJoin, garmentAnchor:{x:center,y:frontNeckJoin ? frontThroat! : openingAnchorY(bounds)??top} } }, bounds);
 }
 /** Move attached hardware with a new fit without resetting its chosen length or width. */
 export function reanchorOpening(detail:GarmentDetail,bounds:DetailBounds):GarmentDetail{
- const opening=detail.opening;
+ let opening=detail.opening;
  if(!opening||!['neckline','full-front'].includes(opening.attachment))return detail;
- const anchor={x:(bounds.minX+bounds.maxX)/2,y:openingAnchorY(bounds)??bounds.minY};
+ if (detail.variant === 'zip-05' && detail.zipBottomOpening !== undefined) detail = { ...detail, variant: 'zip-06' };
  const previous=opening.garmentAnchor;
- if(!previous&&!bounds.polo)return {...detail,opening:{...opening,garmentAnchor:anchor}};
+ const storedCenter = previous?.x ?? (bounds.minX + bounds.maxX) / 2;
+ const followsCenter = Math.abs(opening.start.x - storedCenter) <= 12 && Math.abs(opening.start.x - opening.end.x) <= 12 && !opening.curve?.length;
+ if (bounds.tshirtFront && followsCenter && opening.width === opening.defaults.width) {
+   const span = centerTorsoSpan(bounds.openingGeometry, centerFrontX(bounds), bounds.minY + (bounds.maxY - bounds.minY) * .55);
+   const width = Math.max(12, Math.min(detailPlacement({ ...detail, opening: undefined }, bounds).width, 80));
+   if (span !== undefined && width > opening.width && Math.abs(opening.width - Math.max(12, span * .055)) < .1) {
+     opening = { ...opening, width, defaults: { ...opening.defaults, width } };
+     detail = sync({ ...detail, opening }, bounds);
+   }
+ }
+ const frontThroat = isCenterFrontOpening(opening, bounds) || followsCenter ? tshirtFrontThroat(bounds, opening.width, detail) : undefined;
+ const anchor={x:frontThroat === undefined ? (bounds.minX+bounds.maxX)/2 : centerFrontX(bounds),y:frontThroat??openingAnchorY(bounds)??bounds.minY};
+ // A saved opening can already carry the join flag while its start still
+ // sits above the current collar (for example after changing necklines).
+ if (frontThroat !== undefined && (!opening.frontNeckJoin || (bounds.tshirtFront && bounds.polo && opening.start.y < frontThroat - .5))) {
+   const endY = opening.attachment === 'full-front' ? (intersections(bounds.openingGeometry!.fabric, anchor.x, 'x').at(-1) ?? opening.end.y)
+     : Math.max(opening.end.y, frontThroat + 20);
+   return sync({...detail, opening:{...opening, frontNeckJoin:true, start:anchor, end:{x:anchor.x,y:endY},
+     defaults:{...opening.defaults,start:anchor}, garmentAnchor:anchor}},bounds);
+ }
+ if(!previous&&!bounds.polo&&bounds.hoodZipY===undefined)return {...detail,opening:{...opening,garmentAnchor:anchor}};
  const dx=anchor.x-(previous?.x??opening.start.x),dy=anchor.y-(previous?.y??opening.start.y);
  if(Math.abs(dx)<.01&&Math.abs(dy)<.01)return detail;
  const translate=(point:OpeningPoint)=>({x:point.x+dx,y:point.y+dy});
- return sync({...detail,opening:{...opening,start:translate(opening.start),end:translate(opening.end),curve:mapZipCurve(opening,translate),defaults:{...opening.defaults,start:translate(opening.defaults.start),end:translate(opening.defaults.end),curve:mapZipCurve(opening.defaults,translate)},garmentAnchor:anchor}},bounds);
+ const end = translate(opening.end);
+ if (frontThroat !== undefined && opening.end.y - (opening.start.y + dy) >= Math.max(8, opening.width * 1.2)) {
+   end.y = opening.end.y;
+ }
+ if ((bounds.hoodZipY !== undefined || frontThroat !== undefined) && opening.attachment === 'full-front' &&
+     Math.abs(opening.end.y - bounds.maxY) < opening.width + 12) end.y = bounds.maxY;
+ return sync({...detail,opening:{...opening,start:translate(opening.start),end,curve:mapZipCurve(opening,translate),defaults:{...opening.defaults,start:translate(opening.defaults.start),end:translate(opening.defaults.end),curve:mapZipCurve(opening.defaults,translate)},garmentAnchor:anchor}},bounds);
 }
 export function setOpeningEndpoint(detail: GarmentDetail, bounds: DetailBounds, endpoint: 'start' | 'end', point: OpeningPoint): GarmentDetail {
   if (!detail.opening || !finite(point)) return detail;
@@ -332,8 +445,11 @@ export function transformOpening(detail: GarmentDetail, bounds: DetailBounds, pa
   const width = patch.width ?? current.width, height = patch.height ?? current.height;
   if (width < 2 || height < 2 || width > 600 || height > 4096) return detail;
   const angle = (patch.rotation ?? detailRotation(detail)) * Math.PI / 180;
-  const x = bounds.minX + (patch.x ?? current.x) * (bounds.maxX - bounds.minX);
-  const y = bounds.minY + (patch.y ?? current.y) * (bounds.maxY - bounds.minY);
+  const keepNeckJoin = detail.opening.frontNeckJoin && patch.x === undefined && patch.y === undefined && patch.rotation === undefined;
+  if (keepNeckJoin && height < Math.max(8, width * 1.2)) return detail;
+  const lengthChange = keepNeckJoin ? (height - current.height) / 2 : 0;
+  const x = bounds.minX + (patch.x ?? current.x) * (bounds.maxX - bounds.minX) - Math.sin(angle) * lengthChange;
+  const y = bounds.minY + (patch.y ?? current.y) * (bounds.maxY - bounds.minY) + Math.cos(angle) * lengthChange;
   const old=detail.opening,oldAngle=Math.atan2(old.end.y-old.start.y,old.end.x-old.start.x),oldLength=distance(old.start,old.end)||1;
   const curve=mapZipCurve(old,p=>{const rx=p.x-(old.start.x+old.end.x)/2,ry=p.y-(old.start.y+old.end.y)/2;const along=(rx*Math.cos(oldAngle)+ry*Math.sin(oldAngle))*height/oldLength,cross=(-rx*Math.sin(oldAngle)+ry*Math.cos(oldAngle))*width/old.width;return{x:x-Math.sin(angle)*along-Math.cos(angle)*cross,y:y+Math.cos(angle)*along-Math.sin(angle)*cross}});
   return sync({ ...detail, opening: { ...detail.opening, width, curve,
@@ -362,15 +478,25 @@ export function constructOpenings(details: GarmentDetail[], bounds: DetailBounds
   const fabric = geometry?.fabric ?? [];
   const candidates = details.filter(detail => !detail.hidden && detail.opening && fabric.length);
   const single = candidates.length === 1 ? candidates[0] : undefined;
-  const signature = single ? JSON.stringify([single.opening, openingOpenAmount(single), bounds.polo]) : '';
+  const signature = single ? JSON.stringify([single.opening, openingOpenAmount(single), single.zipBottomOpening, bounds.polo, bounds.hoodZipY, bounds.tshirtFront]) : '';
   const cached = geometry && single ? constructionCache.get(geometry)?.get(single) : undefined;
   if (cached?.signature === signature) return cached.result;
   const active = candidates.filter(detail => validateOpening(detail, bounds).status !== 'Invalid');
-  let removed: MultiPolygon = [], facing: MultiPolygon = [], inkCut: MultiPolygon = [], placketCut: MultiPolygon = [];
+  let removed: MultiPolygon = [], facing: MultiPolygon = [], inkCut: MultiPolygon = [], placketCut: MultiPolygon = [], frontBandCut: MultiPolygon = [];
+  let poloJoinInk: MultiPolygon = [];
   for (const detail of active) {
     const opening = detail.opening!;
     const reach = openingNecklineReach(detail, bounds);
-    let cut = polygonClipping.intersection(fabric, openingGap(detail, 0, reach));
+    const shirtJoin = bounds.tshirtFront && opening.frontNeckJoin && isCenterFrontOpening(opening, bounds);
+    // A separating hood zip uses the full tape opening. The shirt uses that
+    // construction for its attached front zips at every length.
+    const hoodFullZip = bounds.hoodZipY !== undefined && opening.attachment === 'full-front' &&
+      Math.abs(opening.start.x - (bounds.minX + bounds.maxX) / 2) <= 12 &&
+      Math.abs(opening.start.x - opening.end.x) <= 12 && !opening.curve?.length &&
+      Math.abs(opening.start.y - bounds.hoodZipY) < opening.width;
+    const integratedPlacket = isIntegratedFrontZip(detail, bounds);
+    const cutPadding = integratedPlacket || hoodFullZip ? opening.width * ZIP_TAPE : 0;
+    let cut = polygonClipping.intersection(fabric, openingGap(detail, cutPadding, reach));
     if (reach > 0) {
       const neck = geometry!.panels.filter(panel => panel.role === 'neck').flatMap(panel => panel.polygons);
       const insertion = polygonClipping.intersection(neck, openingGap(detail, opening.width * .45, reach));
@@ -378,25 +504,97 @@ export function constructOpenings(details: GarmentDetail[], bounds: DetailBounds
     }
     removed = removed.length ? polygonClipping.union(removed, cut) : cut;
     // Ink extends beyond filled contours; clear the entire tape footprint, not only removed fabric.
-    let ink = openingGap(detail, opening.width * .45 + 1, reach);
-    // A polo's stock placket has two short diagonal tails outside the zip tape.
-    // Clear ink only immediately beside an attached neckline zip; never erase
-    // collar fabric or the collar's own outline.
-    if (bounds.polo && opening.attachment === 'neckline') {
-      const {x, y} = opening.start;
-      const half = opening.width / 2 + 65;
-      const local: MultiPolygon = [[[[x-half,y+2],[x+half,y+2],[x+opening.width/2+18,Math.max(y+150,bounds.necklineY??y)],[x-opening.width/2-18,Math.max(y+150,bounds.necklineY??y)],[x-half,y+2]]]];
-      ink = polygonClipping.union(ink, local);
-      placketCut = placketCut.length ? polygonClipping.union(placketCut,local) : local;
+    let ink = openingGap(detail, opening.width * ZIP_TAPE + 1, reach);
+    if (shirtJoin && !bounds.polo) {
+      // Let the cut reach above the stops so a traced band cannot bridge the
+      // mouth. Only the collar uses this extension; the body ends at the tape.
+      const collarReach = bounds.polo ? 2 : Math.max(2, opening.width * .18);
+      frontBandCut = polygonClipping.union(frontBandCut, openingGap(detail, cutPadding, collarReach));
     }
     inkCut = inkCut.length ? polygonClipping.union(inkCut, ink) : ink;
-    const band = polygonClipping.intersection(fabric, openingGap(detail, opening.width / 2 + 9, reach));
+    const band = polygonClipping.intersection(fabric, openingGap(detail, integratedPlacket ? cutPadding : opening.width / 2 + 9, reach));
     facing = facing.length ? polygonClipping.union(facing, band) : band;
+  }
+  // Retire the stock polo placket at its original throat, independently of
+  // the replacement zip's position, width or opening amount.
+  const poloThroat = bounds.polo ? openingAnchorY(bounds) : undefined;
+  if (poloThroat !== undefined && candidates.some(({opening}) => opening &&
+    (opening.attachment === 'neckline' || opening.attachment === 'full-front' || isCenterFrontOpening(opening, bounds)))) {
+      const x = centerFrontX(bounds), y = poloThroat;
+      const half = 105;
+      const bottom = Math.max(y + 150, bounds.necklineY ?? y);
+      const lowerHalf = 58;
+      const local: MultiPolygon = [[[[x-half,y],[x+half,y],[x+lowerHalf,bottom],[x-lowerHalf,bottom],[x-half,y]]]];
+      // The original placket's topstitch can sit just above the fabric seam.
+      // Clear that ink separately so the repair fabric never climbs into the collar.
+      const topstitch: MultiPolygon = [[[[x-half,y-12],[x+half,y-12],[x+half,y+3],[x-half,y+3],[x-half,y-12]]]];
+      const left = x - 76, right = x + 76;
+      const join: MultiPolygon = [[[[left,y],[right,y],[right,y+32],[left,y+32],[left,y]]]];
+      poloJoinInk = join;
+      inkCut = polygonClipping.union(inkCut, local, topstitch, join);
+      placketCut = polygonClipping.union(local, [[[
+        [x - 52, y - 7], [x + 52, y - 7], [x + 64, y + 1],
+        [x - 64, y + 1], [x - 52, y - 7],
+      ]]]);
   }
   let remaining: MultiPolygon | undefined;
   let panels: Record<string, MultiPolygon> | undefined;
   // The live renderer clips original layers with `removed`; only exports/tests need full panel reconstruction.
-  const result: OpeningConstructionGeometry = { active, removed, inkCut, placketFill: placketCut.length ? polygonClipping.difference(placketCut,removed) : [], collarCut: placketCut.length ? polygonClipping.union(removed,placketCut) : removed, facing: facing.length ? polygonClipping.difference(facing, removed) : [],
+  const poloCollar = placketCut.length ? geometry?.panels.find(panel => panel.id === 'neck')?.polygons : undefined;
+  let collarCut = frontBandCut.length ? polygonClipping.union(removed, frontBandCut) : removed;
+  // The traced outline also contains the old button placket. Retire only
+  // its narrow tails below the collar-to-placket junction.
+  let collarInkCut = inkCut;
+  if (poloCollar?.length) {
+    const legacyInk = polygonClipping.union(
+      placketCut.map(polygon => polygon.map(ring =>
+        ring.map(([x, y]) => [x, Math.max(y, ring[0][1] + 13)] as [number, number]))),
+      poloJoinInk,
+    );
+    // The traced stroke extends beyond the collar fill. Protect both the
+    // collar footprint and the small amount of ink outside its perimeter.
+    const strokeAllowance = 3;
+    const protectedEdges = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]].map(([dx, dy]) =>
+      poloCollar.map(polygon => polygon.map(ring => ring.map(([x, y]) =>
+        [x + dx * strokeAllowance, y + dy * strokeAllowance] as [number, number]))));
+    // The stock asset includes the button-placket tails in its fill as well.
+    // Protect the collar near the throat only, where its edges meet the zip.
+    const collarLimit = poloThroat! - 7;
+    const center = centerFrontX(bounds);
+    // The pointed leaves slope below the throat on either side. The stock
+    // button-placket tails occupy the narrow centre below that same line.
+    const collarZone: MultiPolygon = [[[
+      [0, 0], [2048, 0], [2048, collarLimit + 80],
+      [center + 180, collarLimit + 90], [center + 52, collarLimit],
+      [center - 52, collarLimit], [center - 180, collarLimit + 90],
+      [0, collarLimit + 80], [0, 0],
+    ]]];
+    const collarProtection = polygonClipping.intersection(polygonClipping.union(...protectedEdges), collarZone);
+    // The traced button placket contains collar-coloured fabric as well as
+    // ink. Remove both below the leaves and let the body repair show through.
+    let retiredPlacket = polygonClipping.difference(placketCut, collarProtection);
+    if (bounds.tshirtFront) {
+      // The shirt trace includes two short button-placket returns immediately
+      // below the throat. They sit inside the collar protection envelope.
+      const y = poloThroat!;
+      const returns: MultiPolygon = [[[
+        [center - 120, y + 12], [center - 67, y - 16],
+        [center + 67, y - 16], [center + 120, y + 12],
+        [center + 120, y + 42], [center - 120, y + 42],
+        [center - 120, y + 12],
+      ]]];
+      retiredPlacket = polygonClipping.union(retiredPlacket, returns);
+      placketCut = polygonClipping.union(placketCut, returns);
+    }
+    collarCut = retiredPlacket;
+    collarInkCut = polygonClipping.union(retiredPlacket, polygonClipping.difference(legacyInk, collarProtection));
+  }
+  // Transfer the old placket footprint to the body fabric before cutting the
+  // zip slit. This includes the stock collar tails that extend past the torso
+  // contour, so removing those tails cannot expose white triangles.
+  const placketFill = placketCut.length
+    ? polygonClipping.difference(polygonClipping.intersection(placketCut, fabric), removed) : [];
+  const result: OpeningConstructionGeometry = { active, removed, inkCut, collarInkCut, placketFill, collarCut, facing: facing.length ? polygonClipping.difference(facing, removed) : [],
     get remaining() { return remaining ??= removed.length ? polygonClipping.difference(fabric, removed) : fabric; },
     get panels() { return panels ??= Object.fromEntries((geometry?.panels ?? []).map(panel => [panel.id, removed.length ? polygonClipping.difference(panel.polygons, removed) : panel.polygons])); } };
   if (geometry && single) {

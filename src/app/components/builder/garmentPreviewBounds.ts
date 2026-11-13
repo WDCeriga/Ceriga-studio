@@ -1,8 +1,8 @@
-import { getPotraceSvgBBox, isValidBBox, type PotraceSvgBBox } from '../../lib/tshirtSvgUtils';
+import { getPotraceSvgBBox, getPotraceSvgBBoxFast, isValidBBox, type PotraceSvgBBox } from '../../lib/tshirtSvgUtils';
 import type { ImportedGarment } from '../../data/importedGarment';
 import type { ResolvedGarmentLayer } from '../../data/garmentSvgCatalog';
 
-export function garmentPreviewLayerBounds(layer: Pick<ResolvedGarmentLayer, 'id' | 'svgRaw'>, importedGarment?: ImportedGarment): PotraceSvgBBox | null {
+export function garmentPreviewLayerBounds(layer: Pick<ResolvedGarmentLayer, 'id' | 'svgRaw' | 'assetId'>, importedGarment?: ImportedGarment): PotraceSvgBBox | null {
   const part = importedGarment?.parts.find(part => part.id === layer.id);
   if (part) {
     // Imported polygons/paths need not contain the transformed group required by the Potrace measurer.
@@ -15,6 +15,12 @@ export function garmentPreviewLayerBounds(layer: Pick<ResolvedGarmentLayer, 'id'
       const [minX, minY, maxX, maxY] = bounds.map(value => value * 2048);
       if (maxX > minX && maxY > minY) return { minX, minY, maxX, maxY, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 };
     }
+  }
+  if (layer.assetId?.startsWith('studio-hoodie:')) {
+    // These editable paths carry their own transforms instead of a Potrace group transform.
+    const markup = layer.svgRaw.replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>)/,
+      '$1<g transform="scale(1 1)">$2</g>$3');
+    return getPotraceSvgBBoxFast(markup);
   }
   return getPotraceSvgBBox(layer.svgRaw);
 }

@@ -44,6 +44,37 @@ export function renderFabricSvg(raw: string, fill: string): string {
   return new XMLSerializer().serializeToString(parsed.documentElement);
 }
 
+/** Paint trusted garment keep masks as SVG vectors at the current zoom. */
+export function inlineTshirtKeepMasks(markup: string): string {
+  if (!markup.includes('data:image/svg+xml;base64,') || typeof DOMParser === 'undefined') return markup;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(markup, 'image/svg+xml');
+  let changed = false;
+  for (const source of doc.querySelectorAll('mask > image')) {
+    const id = source.parentElement?.id ?? '';
+    if (!/^(?:oversized-armhole-colour-|(?:long|longer-short|cap)-sleeve-torso-|rear-|hem-|regular-shoulder-clean$)/.test(id)) continue;
+    const href = source.getAttribute('href') ?? '';
+    const prefix = 'data:image/svg+xml;base64,';
+    if (!href.startsWith(prefix)) continue;
+    try {
+      const vector = parser.parseFromString(atob(href.slice(prefix.length)), 'image/svg+xml').documentElement;
+      const elements = [vector, ...vector.querySelectorAll('*')];
+      if (vector.localName !== 'svg' || elements.some(el =>
+        !/^(?:svg|g|path|rect|title|desc)$/.test(el.localName)
+        || [...el.attributes].some(attr => !/^(?:xmlns|viewBox|width|height|x|y|d|transform|fill|stroke|stroke-width|fill-rule|clip-rule|opacity)$/.test(attr.name) || /url\(/i.test(attr.value)))) continue;
+      for (const name of ['x', 'y', 'width', 'height', 'transform']) {
+        const value = source.getAttribute(name);
+        if (value !== null) vector.setAttribute(name, value);
+      }
+      source.replaceWith(doc.importNode(vector, true));
+      changed = true;
+    } catch {
+      // The embedded image remains the fallback for an unreadable mask.
+    }
+  }
+  return changed ? new XMLSerializer().serializeToString(doc.documentElement) : markup;
+}
+
 export function renderConstructionSvg(
   raw: string, fabric: string, preferred: string, id: string,
   regions: { raw: string; color: string }[] = [],

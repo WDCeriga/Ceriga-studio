@@ -1,10 +1,10 @@
 import {stablePolygonUnion} from '../../lib/stablePolygonUnion';
 import svgpath from 'svgpath';
-import {useEffect,useId,useRef,useState} from 'react';
+import {useId,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import polygonClipping,{type MultiPolygon,type Pair} from 'polygon-clipping';
 import simplify from 'simplify-js';
 import {sampleGarmentSurfaces,flattenPathContours,pointInLoop,projectToSegment,distance,signedArea} from './panellingGeometry';
-import {TECH_OUTLINE_WIDTH,TECH_CONSTRUCTION_WIDTH,TECH_CURVE_TOLERANCE} from '../../lib/technicalDrawing';
+import {TECH_OUTLINE_WIDTH,TECH_CONSTRUCTION_WIDTH,TECH_CURVE_TOLERANCE,TSHIRT_PREVIEW_OUTLINE_WIDTH,TSHIRT_PREVIEW_CONSTRUCTION_WIDTH} from '../../lib/technicalDrawing';
 import type {BoundaryLoop,PanellingPoint} from './panellingTypes';
 const polygon=(loops:BoundaryLoop[]):MultiPolygon=>loops.filter(l=>l.role==='outer').map(outer=>{
  const ring=(points:PanellingPoint[]):Pair[]=>[...points,points[0]].map(p=>[p.x,p.y]);
@@ -30,6 +30,36 @@ export function technicalContourPath(points:PanellingPoint[],closed=false,tolera
  for(let j=1;j<=corners.length-(closed?0:1);j++){const c=corners[j%corners.length];path+='L'+point(c.a);if(c.smooth)path+='Q'+point(c.p)+' '+point(c.b);}
  return path+(closed?'Z':'');
 }
+
+// Fit the visible outline with cubic curves while keeping corners and
+// neckline joins at their existing fabric boundary coordinates.
+export function garmentOutlineCurve(points: PanellingPoint[], closed: boolean) {
+ const ring = closed
+  ? [...simplify(points, .4, true)]
+  : simplify(points, .4, true);
+ if (ring.length < 3) return technicalContourPath(points, closed, .4);
+ const format = ({x,y}: PanellingPoint) => `${x.toFixed(3)},${y.toFixed(3)}`;
+ const neighbor = (i: number) => ring[closed ? (i + ring.length) % ring.length : Math.max(0, Math.min(ring.length - 1, i))];
+ const handle = (i: number, toward: PanellingPoint, sign: number) => {
+  const p = neighbor(i), before = neighbor(i - 1), after = neighbor(i + 1);
+  const a = distance(before, p), b = distance(p, after);
+  const cosine = a && b ? ((p.x-before.x)*(after.x-p.x)+(p.y-before.y)*(after.y-p.y))/(a*b) : 0;
+  if (cosine < .88) return p;
+  const length = distance(p, toward);
+  const span = distance(before, after);
+  const tx = (after.x-before.x)/span*sign, ty = (after.y-before.y)/span*sign;
+  const cross = Math.abs(tx*(toward.y-p.y)-ty*(toward.x-p.x))/length;
+  const reach = Math.min(length/3, Math.min(a,b)/2, 1.6/Math.max(cross,.001));
+  return { x:p.x+tx*reach, y:p.y+ty*reach };
+ };
+ let path = 'M'+format(ring[0]);
+ for (let i = 0; i < ring.length - (closed ? 0 : 1); i++) {
+  const a = neighbor(i), b = neighbor(i+1);
+  if (distance(a,b) < .001) continue;
+  path += 'C'+format(handle(i,b,1))+' '+format(handle(i+1,a,-1))+' '+format(b);
+ }
+ return path + (closed ? 'Z' : '');
+}
 export function technicalBoundaryPaths(boundaries:BoundaryLoop[],stitchOnlyHems:string[]=[],explicitAttachments=false,explicitOpenings=false,neckFootprints:PanellingPoint[][]=[]){
  boundaries=boundaries.filter(b=>Math.abs(signedArea(b.points))>TECH_OUTLINE_WIDTH**2*4).map(b=>({...b,points:b.points.map(p=>({x:Math.round(p.x*1000)/1000,y:Math.round(p.y*1000)/1000}))}));
  const layered=boundaries.some(b=>b.surfaceId==='underSleeveLeft');
@@ -54,7 +84,35 @@ export function technicalBoundaryPaths(boundaries:BoundaryLoop[],stitchOnlyHems:
   for(const parent of parents)for(let i=0;i<parent.points.length;i++){const candidate=projectToSegment(point,parent.points[i],parent.points[(i+1)%parent.points.length]).point,gap=distance(point,candidate);if(gap<nearest){best=candidate;nearest=gap;}}
   return best;
  })});
- const parts=originalIds.map(id=>polygon(joined.filter(l=>l.surfaceId===id))).filter(p=>p.length);const merged=stablePolygonUnion(parts[0],...parts.slice(1));return merged.flatMap((p,i)=>p.map((r,j)=>({id:surfaceId+i+':'+j,surfaceId,role:j?'hole' as const:'outer' as const,points:r.slice(0,-1).map(([x,y])=>({x,y}))})));});
+ const parts=originalIds.map(id=>polygon(joined.filter(l=>l.surfaceId===id))).filter(p=>p.length);
+ let merged=stablePolygonUnion(...parts);
+ if(surfaceId==='base'){
+  // The visible panels can land a fraction apart after their display transforms.
+  // Close the join before drawing the perimeter so neither panel gets its own edge.
+  const body=parents.filter(loop=>loop.role==='outer');
+  const hem=joined.filter(loop=>loop.surfaceId==='bodyHem'&&loop.role==='outer');
+  const bodyBottom=Math.max(...body.flatMap(loop=>loop.points.map(p=>p.y)));
+  const hemTop=Math.min(...hem.flatMap(loop=>loop.points.map(p=>p.y)));
+  const hemBottom=Math.max(...hem.flatMap(loop=>loop.points.map(p=>p.y)));
+  // Sample clear of the traced join, where one side of a slit can still
+  // connect the two panels and make the apparent panel bounds misleading.
+  const above=Math.min(bodyBottom,hemTop)-24,below=(hemTop+hemBottom)/2;
+  const span=(loops:BoundaryLoop[],y:number)=>{
+   const xs=loops.flatMap(({points})=>points.flatMap((a,i)=>{
+    const b=points[(i+1)%points.length];
+    return (a.y>y)!==(b.y>y)?[a.x+(b.x-a.x)*(y-a.y)/(b.y-a.y)]:[];
+   }));
+   return xs.length>=2?[Math.min(...xs),Math.max(...xs)]:undefined;
+  };
+  if(below>above&&hemTop-bodyBottom<=30){
+   const top=span(body,above),bottom=span(hem,below);
+   if(top&&bottom&&top[0]<bottom[1]&&bottom[0]<top[1]){
+    const bridge:MultiPolygon=[[[[top[0],above],[top[1],above],[bottom[1],below],[bottom[0],below],[top[0],above]]]];
+    merged=stablePolygonUnion(merged,bridge);
+   }
+  }
+ }
+ return merged.flatMap((p,i)=>p.map((r,j)=>({id:surfaceId+i+':'+j,surfaceId,role:j?'hole' as const:'outer' as const,points:r.slice(0,-1).map(([x,y])=>({x,y}))})));});
  const ids=[...new Set(boundaries.map(b=>b.surfaceId))];
  const geometries=ids.map(id=>polygon(boundaries.filter(b=>b.surfaceId===id))).filter(g=>g.length);
  if(!geometries.length)return {fabric:'',outline:'',construction:'',maxDeviation:TECH_CURVE_TOLERANCE+TECH_OUTLINE_WIDTH/2};
@@ -80,12 +138,12 @@ export function technicalBoundaryPaths(boundaries:BoundaryLoop[],stitchOnlyHems:
  // rather than enlarging a mask, which would cut gaps into adjoining shoulders.
  const collarOwns=(p:PanellingPoint)=>neckFootprints.some(r=>pointInLoop(p,r)||r.some((a,i)=>distance(p,projectToSegment(p,a,r[(i+1)%r.length]).point)<1));
  const outline=exterior.map(r=>{
-  if(!neckFootprints.length)return technicalContourPath(r,true,.4);
+  if(!neckFootprints.length)return garmentOutlineCurve(r,true);
   const visible=r.map((a,i)=>!collarOwns({x:(a.x+r[(i+1)%r.length].x)/2,y:(a.y+r[(i+1)%r.length].y)/2}));
-  if(visible.every(Boolean))return technicalContourPath(r,true,.4);
+  if(visible.every(Boolean))return garmentOutlineCurve(r,true);
   const start=visible.findIndex(v=>!v);let run:PanellingPoint[]=[],d='';
-  for(let j=1;j<=r.length;j++){const i=(start+j)%r.length;if(visible[i]){if(!run.length)run.push(r[i]);run.push(r[(i+1)%r.length]);}else if(run.length){d+=technicalContourPath(run,false,.4);run=[];}}
-  if(run.length)d+=technicalContourPath(run,false,.4);return d;
+  for(let j=1;j<=r.length;j++){const i=(start+j)%r.length;if(visible[i]){if(!run.length)run.push(r[i]);run.push(r[(i+1)%r.length]);}else if(run.length){d+=garmentOutlineCurve(run,false);run=[];}}
+  if(run.length)d+=garmentOutlineCurve(run,false);return d;
  }).join('')+openingLines;
  const outerSegments=exterior.flatMap(r=>r.map((a,i)=>({a,b:r[(i+1)%r.length]})));
  const key=(p:PanellingPoint)=>p.x.toFixed(4)+','+p.y.toFixed(4);
@@ -123,24 +181,72 @@ export function repairClipPaths(geometryMarkup:string){
  // these disposable shapes so no invalid group can hide the replacement ink.
  return Array.from(repairClip).map(el=>{const transforms:string[]=[];for(let node:Element|null=el;node&&node.tagName.toLowerCase()!=='svg';node=node.parentElement)if(node.hasAttribute('transform'))transforms.unshift(node.getAttribute('transform')!);return '<path fill="black" stroke="none" d="'+svgpath(el.getAttribute('d')??'').transform(transforms.join(' ')).toString()+'"/>';}).join('');
 }
-export function TechnicalLinework({geometryMarkup,colour='#141414',stitchOnlyHems='',visibleClip='',repairOnly=true,completeOutline=false,onSurfacesChange}:{geometryMarkup:string;colour?:string;stitchOnlyHems?:string;visibleClip?:string;repairOnly?:boolean;completeOutline?:boolean;onSurfacesChange?:(surfaces:BoundaryLoop[])=>void}){
- const ref=useRef<HTMLDivElement>(null),id='technical-'+useId().replace(/:/g,'');const[paths,setPaths]=useState({fabric:'',outline:'',construction:'',maxDeviation:0});const[error,setError]=useState('');const[hemOmissions,setHemOmissions]=useState('');
- useEffect(()=>{const svg=ref.current?.querySelector('svg');if(!svg)return;try{const surfaces=sampleGarmentSurfaces(svg);setHemOmissions(Array.from(svg.querySelectorAll('[data-hem-clearance]')).map(p=>p.getAttribute('d')??'').join('')||surfaces.filter(s=>s.surfaceId==='bodyHem').map(s=>{const xs=s.points.map(p=>p.x),ys=s.points.map(p=>p.y),a=Math.min(...xs)-6,b=Math.min(...ys)-6,c=Math.max(...xs)+6,d=Math.max(...ys)+6;return 'M'+a+','+b+'H'+c+'V'+d+'H'+a+'Z';}).join(''));setPaths(technicalBoundaryPaths(surfaces,stitchOnlyHems.split(','),geometryMarkup.includes('data-sleeve-join'),geometryMarkup.includes('data-sleeve-opening'),completeOutline?surfaces.filter(s=>['neck','innerBackNeck'].includes(s.surfaceId??'')&&s.role==='outer').map(s=>s.points):Array.from(svg.querySelectorAll('[data-ink-preserve][transform]')).flatMap(el=>flattenPathContours(svgpath(el.getAttribute('d')??'').transform(el.getAttribute('transform')??'').toString(),4))));onSurfacesChange?.(surfaces);setError('');}catch(e){console.warn('Technical contour preparation failed',e);setError(String(e));}},[geometryMarkup,stitchOnlyHems,onSurfacesChange,completeOutline]);
+const emptyPaths = {fabric:'', outline:'', construction:'', maxDeviation:0};
+type PreparedLinework = {paths: ReturnType<typeof technicalBoundaryPaths>; surfaces: BoundaryLoop[]; hemOmissions: string};
+const lineworkCache = new Map<string, PreparedLinework>();
+
+function prepareLinework(svg: SVGSVGElement, stitchOnlyHems: string, completeOutline: boolean): PreparedLinework {
+ const surfaces = sampleGarmentSurfaces(svg);
+ const hemOmissions = Array.from(svg.querySelectorAll('[data-hem-clearance]')).map(path => path.getAttribute('d') ?? '').join('')
+   || surfaces.filter(surface => surface.surfaceId === 'bodyHem').map(({points}) => {
+     const xs = points.map(p => p.x), ys = points.map(p => p.y);
+     const left = Math.min(...xs) - 6, top = Math.min(...ys) - 6;
+     return `M${left},${top}H${Math.max(...xs) + 6}V${Math.max(...ys) + 6}H${left}Z`;
+   }).join('');
+ const neckFootprints = completeOutline
+   ? surfaces.filter(surface => ['neck', 'innerBackNeck'].includes(surface.surfaceId ?? '') && surface.role === 'outer').map(surface => surface.points)
+   : Array.from(svg.querySelectorAll('[data-ink-preserve][transform]')).flatMap(path =>
+     flattenPathContours(svgpath(path.getAttribute('d') ?? '').transform(path.getAttribute('transform') ?? '').toString(), 4));
+ const paths = technicalBoundaryPaths(surfaces, stitchOnlyHems.split(','), Boolean(svg.querySelector('[data-sleeve-join]')),
+   Boolean(svg.querySelector('[data-sleeve-opening]')), neckFootprints);
+ return { paths, surfaces, hemOmissions };
+}
+
+export function TechnicalLinework({geometryMarkup,colour='#141414',stitchOnlyHems='',visibleClip='',repairOnly=true,completeOutline=false,previewInk=false,onSurfacesChange}:{geometryMarkup:string;colour?:string;stitchOnlyHems?:string;visibleClip?:string;repairOnly?:boolean;completeOutline?:boolean;previewInk?:boolean;onSurfacesChange?:(surfaces:BoundaryLoop[])=>void}){
+ const ref = useRef<HTMLDivElement>(null), id = 'technical-' + useId().replace(/:/g, '');
+ const [prepared, setPrepared] = useState<{key: string; result: PreparedLinework}>();
+ const [error, setError] = useState('');
+ const key = `${completeOutline}:${stitchOnlyHems}:${geometryMarkup}`;
+ const current = lineworkCache.get(key) ?? (prepared?.key === key ? prepared.result : undefined);
+ const paths = current?.paths ?? emptyPaths;
+ const hemOmissions = current?.hemOmissions ?? '';
+ // Sample the committed SVG before the browser paints the replacement fabric.
+ useLayoutEffect(() => {
+   const svg = ref.current?.querySelector('svg');
+   if (!svg) return;
+   try {
+     let result = lineworkCache.get(key);
+     if (!result) {
+       result = prepareLinework(svg, stitchOnlyHems, completeOutline);
+       lineworkCache.set(key, result);
+       if (lineworkCache.size > 16) lineworkCache.delete(lineworkCache.keys().next().value!);
+     }
+     setPrepared(previous => previous?.key === key ? previous : {key, result});
+     onSurfacesChange?.(result.surfaces);
+     setError('');
+   } catch (failure) {
+     console.warn('Technical contour preparation failed', failure);
+     setError(String(failure));
+   }
+ }, [key, stitchOnlyHems, completeOutline, onSurfacesChange]);
+ const geometryDocument = useMemo(() => geometryMarkup ? new DOMParser().parseFromString(geometryMarkup, 'image/svg+xml') : undefined, [geometryMarkup]);
  const clips=repairOnly&&geometryMarkup?repairClipPaths(geometryMarkup):'';
- const joins=geometryMarkup?Array.from(new DOMParser().parseFromString(geometryMarkup,'image/svg+xml').querySelectorAll('[data-sleeve-join]')).map(el=>{const transforms:string[]=[];for(let node:Element|null=el;node&&node.tagName.toLowerCase()!=='svg';node=node.parentElement)if(node.hasAttribute('transform'))transforms.unshift(node.getAttribute('transform')!);return svgpath(el.getAttribute('d')??'').transform(transforms.join(' ')).toString();}).join(''):'';
- const openingInk=geometryMarkup?Array.from(new DOMParser().parseFromString(geometryMarkup,'image/svg+xml').querySelectorAll('[data-sleeve-opening]')).map(el=>{const transforms:string[]=[];for(let node:Element|null=el;node&&node.tagName.toLowerCase()!=='svg';node=node.parentElement)if(node.hasAttribute('transform'))transforms.unshift(node.getAttribute('transform')!);return svgpath(el.getAttribute('d')??'').transform(transforms.join(' ')).toString();}).join(''):'';
- const necklines=geometryMarkup?Array.from(new DOMParser().parseFromString(geometryMarkup,'image/svg+xml').querySelectorAll('[data-neckline-boundary]')).map(el=>el.getAttribute('d')).join(''):'';
- const ribDoc=geometryMarkup?new DOMParser().parseFromString(geometryMarkup,'image/svg+xml'):undefined,ribs=ribDoc?.querySelector('path[data-technical-neck-ribs][d]')?.getAttribute('d')??'',ribClip=ribDoc?.querySelector('path[data-technical-neck-rib-clip][d]')?.getAttribute('d')??'';
- const hemDoc=geometryMarkup?new DOMParser().parseFromString(geometryMarkup,'image/svg+xml'):undefined;
+  const joins=geometryDocument?Array.from(geometryDocument.querySelectorAll('[data-sleeve-join]')).map(el=>{const transforms:string[]=[];for(let node:Element|null=el;node&&node.tagName.toLowerCase()!=='svg';node=node.parentElement)if(node.hasAttribute('transform'))transforms.unshift(node.getAttribute('transform')!);const d=svgpath(el.getAttribute('d')??'').transform(transforms.join(' ')).toString();return flattenPathContours(d, 2, true).map(points=>garmentOutlineCurve(points,false)).join('')||d;}).join(''):'';
+ const openingInk=geometryDocument?Array.from(geometryDocument.querySelectorAll('[data-sleeve-opening]')).map(el=>{const transforms:string[]=[];for(let node:Element|null=el;node&&node.tagName.toLowerCase()!=='svg';node=node.parentElement)if(node.hasAttribute('transform'))transforms.unshift(node.getAttribute('transform')!);return svgpath(el.getAttribute('d')??'').transform(transforms.join(' ')).toString();}).join(''):'';
+ const necklines=geometryDocument?Array.from(geometryDocument.querySelectorAll('[data-neckline-boundary]')).map(el=>el.getAttribute('d')).join(''):'';
+ const ribDoc=geometryDocument,ribs=ribDoc?.querySelector('path[data-technical-neck-ribs][d]')?.getAttribute('d')??'',ribClip=ribDoc?.querySelector('path[data-technical-neck-rib-clip][d]')?.getAttribute('d')??'';
+ const hemDoc=geometryDocument;
  const world=(el:Element)=>{const transforms:string[]=[];for(let n:Element|null=el;n&&n.tagName.toLowerCase()!=='svg';n=n.parentElement)if(n.hasAttribute('transform'))transforms.unshift(n.getAttribute('transform')!);return svgpath(el.getAttribute('d')??'').transform(transforms.join(' ')).toString();};
  const hemRibs=Array.from(hemDoc?.querySelectorAll('[data-hem-ribs]')??[]).map((el,i)=>{const key=el.getAttribute('data-hem-ribs'),clip=Array.from(hemDoc!.querySelectorAll('[data-hem-rib-clip]')).find(p=>p.getAttribute('data-hem-rib-clip')===key),seam=Array.from(hemDoc!.querySelectorAll('[data-hem-top-seam]')).find(p=>p.getAttribute('data-hem-top-seam')===key);return {id:id+'-hem-rib-'+i,d:world(el),clip:clip?world(clip):'',seam:seam?world(seam):'',width:Number(el.getAttribute('data-rib-weight')??.8)};});
  const omittedFold=Array.from(hemDoc?.querySelectorAll('[data-omit-body-fold]')??[]).map(world).join('');
  const wornHem=Array.from(hemDoc?.querySelectorAll('[data-worn-hem-clearance]')??[]).map(world).join('');
  // Folded hems are defined by stitching, not an extra structural outline.
+ const outlineWidth = previewInk ? TSHIRT_PREVIEW_OUTLINE_WIDTH : TECH_OUTLINE_WIDTH;
+ const constructionWidth = previewInk ? TSHIRT_PREVIEW_CONSTRUCTION_WIDTH : TECH_CONSTRUCTION_WIDTH;
 
- const preserved=geometryMarkup?Array.from(new DOMParser().parseFromString(geometryMarkup,'image/svg+xml').querySelectorAll('[data-ink-preserve]')).map(el=>'<path fill="black" stroke="black" stroke-width="'+(el.hasAttribute('transform')?0:6)+'" stroke-linejoin="round" d="'+svgpath(el.getAttribute('d')??'').transform(el.getAttribute('transform')??'').toString()+'"/>').join(''):'';
+ const preserved=geometryDocument?Array.from(geometryDocument.querySelectorAll('[data-ink-preserve]')).map(el=>'<path fill="black" stroke="black" stroke-width="'+(el.hasAttribute('transform')?0:6)+'" stroke-linejoin="round" d="'+svgpath(el.getAttribute('d')??'').transform(el.getAttribute('transform')??'').toString()+'"/>').join(''):'';
  return <><div ref={ref} className="pointer-events-none absolute inset-0 invisible [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{__html:geometryMarkup}}/>
  <svg data-technical-linework={id} data-geometry-tolerance={paths.maxDeviation} viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{zIndex:110}} shapeRendering="geometricPrecision" fill="none" stroke={colour} strokeLinejoin="round" strokeLinecap="round">
  <defs>{wornHem&&<mask id={id+'-worn-hem'} maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><rect width="2048" height="2048" fill="white"/><path d={wornHem} fill="none" stroke="black" strokeWidth="12"/></mask>}<clipPath id={id+'-fabric'}><path d={paths.fabric} clipRule="evenodd"/></clipPath>{omittedFold&&<mask id={id+'-fold-clearance'} maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><rect width="2048" height="2048" fill="white"/><path d={omittedFold} fill="none" stroke="black" strokeWidth="10"/></mask>}{hemRibs.map(h=><clipPath key={h.id} id={h.id} clipPathUnits="userSpaceOnUse"><path d={h.clip} clipRule="evenodd"/></clipPath>)}<clipPath id={id+'-opening-clip'} clipPathUnits="userSpaceOnUse"><path d={visibleClip} clipRule="evenodd"/></clipPath><clipPath id={id+'-rib-clip'} clipPathUnits="userSpaceOnUse"><path d={ribClip} clipRule="evenodd"/></clipPath><mask id={id+'-hem-clearance'} maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><rect width="2048" height="2048" fill="white"/><path d={hemOmissions} fill="black"/></mask><mask id={id+'-preserve'} maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><rect width="2048" height="2048" fill="white"/><g dangerouslySetInnerHTML={{__html:preserved}}/></mask><mask id={id+'-construction-preserve'} maskUnits="userSpaceOnUse" x="0" y="0" width="2048" height="2048"><rect width="2048" height="2048" fill="white"/><g dangerouslySetInnerHTML={{__html:preserved.replace(/stroke-width="0"/g,'stroke-width="8"')}}/></mask><clipPath id={id+'-repair'} clipPathUnits="userSpaceOnUse" dangerouslySetInnerHTML={{__html:clips}}/></defs><g clipPath={visibleClip?'url(#'+id+'-opening-clip)':undefined}><g mask={preserved?'url(#'+id+'-preserve)':undefined} clipPath={repairOnly&&!geometryMarkup.includes('data-sleeve-join')?'url(#'+id+'-repair)':undefined}>
- <g mask={hemOmissions?'url(#'+id+'-hem-clearance)':undefined}><g mask={omittedFold?'url(#'+id+'-fold-clearance)':undefined}><g mask={wornHem?'url(#'+id+'-worn-hem)':undefined}><path mask={preserved?'url(#'+id+'-construction-preserve)':undefined} data-tech-role="construction" d={paths.construction} strokeWidth={TECH_CONSTRUCTION_WIDTH}/></g></g></g>{!completeOutline&&<path mask={omittedFold?'url(#'+id+'-fold-clearance)':undefined} data-tech-role="outline" d={paths.outline+openingInk} strokeWidth={TECH_OUTLINE_WIDTH}/>}</g>{completeOutline&&<g mask={wornHem?'url(#'+id+'-worn-hem)':undefined}><path mask={omittedFold?'url(#'+id+'-fold-clearance)':undefined} data-tech-role="outline" d={paths.outline+openingInk} strokeWidth={TECH_OUTLINE_WIDTH}/></g>}<path clipPath={paths.fabric?'url(#'+id+'-fabric)':undefined} data-tech-role="sleeve-attachment" d={joins} strokeWidth={TECH_CONSTRUCTION_WIDTH}/>{hemRibs.map(h=><g key={h.id} clipPath={'url(#'+h.id+')'}><path data-tech-role="hem-ribbing" d={h.d} strokeWidth={h.width} opacity={.4}/></g>)}<path data-tech-role="texture" d={ribs} clipPath={'url(#'+id+'-rib-clip)'} strokeWidth={1.2} opacity={.5}/><path data-tech-role="neckline" d={necklines} strokeWidth={TECH_OUTLINE_WIDTH}/></g></svg>{error&&<p role="alert" className="sr-only">Technical proof preparation failed: {error}</p>}</>;
+ <g mask={hemOmissions?'url(#'+id+'-hem-clearance)':undefined}><g mask={omittedFold?'url(#'+id+'-fold-clearance)':undefined}><g mask={wornHem?'url(#'+id+'-worn-hem)':undefined}><path mask={preserved?'url(#'+id+'-construction-preserve)':undefined} data-tech-role="construction" d={paths.construction} strokeWidth={constructionWidth}/></g></g></g>{!completeOutline&&<path mask={omittedFold?'url(#'+id+'-fold-clearance)':undefined} data-tech-role="outline" d={paths.outline+openingInk} strokeWidth={outlineWidth}/>}</g>{completeOutline&&<g mask={wornHem?'url(#'+id+'-worn-hem)':undefined}><path mask={omittedFold?'url(#'+id+'-fold-clearance)':undefined} data-tech-role="outline" d={paths.outline+openingInk} strokeWidth={outlineWidth}/></g>}<path clipPath={paths.fabric?'url(#'+id+'-fabric)':undefined} data-tech-role="sleeve-attachment" d={joins} strokeWidth={constructionWidth}/>{hemRibs.map(h=><g key={h.id} clipPath={'url(#'+h.id+')'}><path data-tech-role="hem-ribbing" d={h.d} strokeWidth={h.width} opacity={.4}/></g>)}<path data-tech-role="texture" d={ribs} clipPath={'url(#'+id+'-rib-clip)'} strokeWidth={1.2} opacity={.5}/><path data-tech-role="neckline" d={necklines} strokeWidth={outlineWidth}/></g></svg>{error&&<p role="alert" className="sr-only">Technical proof preparation failed: {error}</p>}</>;
 }

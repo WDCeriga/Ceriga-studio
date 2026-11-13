@@ -1,3 +1,4 @@
+import { hoodiePartColour } from './interiorColour';
 import { fabricCategoryForPart, type FabricPart } from './garmentFabrics';
 
 export interface GarmentColourDefaults {
@@ -24,7 +25,15 @@ export function resolveGarmentColours(
     if (visited.has(part.id)) return mainColour;
     const seen = new Set(visited).add(part.id);
     const fallback = part.fallbackFromId ? byId.get(part.fallbackFromId) : undefined;
-    return explicit(part) ?? defaults?.categoryDefaults?.[fabricCategoryForPart(part)]
+    const partColour = explicit(part) ?? defaults?.categoryDefaults?.[fabricCategoryForPart(part)];
+    if (part.hoodieColour && !partColour) {
+      const body = byId.get('base');
+      const hoodColour = overrides.hood ?? overrides.neck;
+      if (hoodColour) return part.hoodieColour === 'hood-shell'
+        ? hoodColour : hoodiePartColour(hoodColour, 'hood-inside');
+      return hoodiePartColour(body ? resolve(body, seen) : mainColour, part.hoodieColour);
+    }
+    return partColour
       ?? (fallback ? resolve(fallback, seen) : mainColour);
   };
   for (const part of parts) result[part.id] = resolve(part);

@@ -1,13 +1,18 @@
 import {memo} from 'react';
 import {flattenSeam,seamPath} from './panellingGeometry';
 import type {PanellingSeam} from './panellingTypes';
+import { TSHIRT_PREVIEW_CONSTRUCTION_WIDTH, useTshirtPreviewInk } from '../../lib/technicalDrawing';
 /** Shared construction preview: never changes panel topology or fabric assignment. */
 export const SeamFinish=memo(function SeamFinish({seam,colour='#141414'}:{seam:PanellingSeam;colour?:string}) {
+ const previewInk = useTshirtPreviewInk();
  const d=seamPath(seam.anchors),finish=seam.finish??'plain',ink=seam.threadColour??colour;
  const width=Math.max(.5,Math.min(8,seam.finishWidth??2)),stitch=Math.max(1,Math.min(12,seam.stitchLength??3));
  const line=flattenSeam(seam),offset=width*2;
  const shifted=(side:number)=>line.map((p,i)=>{const a=line[Math.max(0,i-1)],b=line[Math.min(line.length-1,i+1)],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1;return{x:p.x-dy/len*side,y:p.y+dx/len*side}});
- const path=(value:string,stroke:string,size:number,dash?:string)=><path d={value} fill="none" stroke={stroke} strokeWidth={size} strokeDasharray={dash} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>;
+ const path=(value:string,stroke:string,size:number,dash?:string)=>{
+  const drafted = previewInk && finish === 'plain';
+  return <path d={value} fill="none" stroke={stroke} strokeWidth={drafted ? TSHIRT_PREVIEW_CONSTRUCTION_WIDTH : size} strokeDasharray={dash} strokeLinecap="round" strokeLinejoin="round" vectorEffect={drafted ? undefined : 'non-scaling-stroke'}/>;
+ };
  const poly=(points:{x:number;y:number}[])=>points.map((p,i)=>(i?'L':'M')+p.x+','+p.y).join(' ');
  // Sample by arc length so stitches stay evenly spaced through tight curves.
  const stations:{x:number;y:number;nx:number;ny:number}[]=[];let travelled=0,next=0;

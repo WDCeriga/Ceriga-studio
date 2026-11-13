@@ -1,6 +1,9 @@
 import { preloadOversizedReference } from './oversizedReference';
 import type { ResolvedGarmentLayer } from './garmentSvgCatalog';
 import type { NeckFinish } from './tshirtNeckFinish';
+import svgpath from 'svgpath';
+import { garmentOutlineCurve } from '../features/panelling/TechnicalLinework';
+import { flattenPathContours, signedArea } from '../features/panelling/panellingGeometry';
 
 /**
  * Neck assets traced from the reference flats (scripts/collar/trace_clean_neck_masters.py).
@@ -23,6 +26,31 @@ for (const path of Object.keys(modules)) {
 }
 const loaded = new Map<string, string>();
 const pending = new Map<string, Promise<void>>();
+
+/** Refit traced edges at garment scale, retaining narrow details and fill topology. */
+function refineTracedNeckSvg(raw: string): string {
+  if (typeof DOMParser === 'undefined') return raw;
+  const doc = new DOMParser().parseFromString(raw, 'image/svg+xml');
+  if (doc.querySelector('parsererror')) return raw;
+  for (const path of doc.querySelectorAll('g[transform="scale(1.0)"] > path[d]')) {
+    if (path.closest('defs, mask, clipPath') || path.getAttribute('fill') === 'none') continue;
+    const d = path.getAttribute('d')!;
+    const sections = svgpath(d).abs().toString().match(/M[^M]+/g);
+    if (!sections) continue;
+    let changed = false;
+    const curves = sections.map(section => {
+      if (!/[zZ]$/.test(section)) return section;
+      const ring = flattenPathContours(section, 2)[0];
+      if (!ring || ring.length < 16 || Math.abs(signedArea(ring)) < 150) return section;
+      const curve = garmentOutlineCurve(ring, true);
+      if (!curve || curve.includes('NaN')) return section;
+      changed = true;
+      return curve;
+    });
+    if (changed) path.setAttribute('d', curves.join(''));
+  }
+  return new XMLSerializer().serializeToString(doc.documentElement);
+}
 
 export function tshirtNeckPackKind(displayName: string): NeckPackKind | undefined {
   const name = displayName.toLowerCase();
@@ -52,6 +80,17 @@ function find(fit: string, kind: NeckPackKind, view: View, finish: Finish, part:
   return undefined;
 }
 
+/** The regular T-shirt neckline pieces also serve as the hoodie collar master. */
+export function tshirtNeckMaster(neckName: string, view: View, finish: Finish) {
+  const kind = tshirtNeckPackKind(neckName);
+  if (!kind) return undefined;
+  const part = (id: Part) => find('regular', kind, view, finish, id);
+  const outline = part('outline');
+  const body = part('body');
+  if (!outline || !body) return undefined;
+  return { outline, body, neck: part('neck'), inside: view === 'front' ? part('inner') : undefined };
+}
+
 export async function preloadTshirtNeckPack(
   fit: string, neckName: string, view: View, finish: Finish = 'ribbed',
 ): Promise<boolean> {
@@ -66,7 +105,9 @@ export async function preloadTshirtNeckPack(
   await Promise.all(keys.map(key => {
     let task = pending.get(key);
     if (!task) {
-      task = loaders.get(key)!().then(svg => { loaded.set(key, svg); }).finally(() => pending.delete(key));
+      task = loaders.get(key)!().then(svg => {
+        loaded.set(key, /\.(neck|inner|outline)$/.test(key) ? refineTracedNeckSvg(svg) : svg);
+      }).finally(() => pending.delete(key));
       pending.set(key, task);
     }
     return task;

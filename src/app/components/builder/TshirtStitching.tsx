@@ -1,4 +1,4 @@
-import {constructionStitchRows,clipConstructionStitches} from '../../data/constructionStitchRows';
+import {constructionStitchRows,clipConstructionStitches,flattenConstructionSeam} from '../../data/constructionStitchRows';
 import {clipPoloStitching} from '../../data/tshirtNecklineQuality';
 import {regularStitchRows,straightSleeveStitches,fabricRings} from '../../data/regularConstruction';
 import {useTechnicalDrawing,normalizeTechnicalSvg,useRegularConstruction} from '../../lib/technicalDrawing';
@@ -34,8 +34,8 @@ export function useStitchGeometry(layers: ResolvedGarmentLayer[], fit: string, e
   return { geometry: vector ?? (result?.layers === layers ? result.geometry : undefined), failed: regular?false:failed };
 }
 
-export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor }: {
-  layers: ResolvedGarmentLayer[]; fit: string; settings: TshirtStitching; hems?: TshirtHemStyles; fabricColor?: string;
+export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor, previewInk = false }: {
+  layers: ResolvedGarmentLayer[]; fit: string; settings: TshirtStitching; hems?: TshirtHemStyles; fabricColor?: string; previewInk?: boolean;
 }) {
   const technical=useTechnicalDrawing();
   const regular=useRegularConstruction()||technical||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
@@ -47,11 +47,16 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor 
   const colors = fabricColor ? Object.fromEntries(layers.filter(layer => layer.kind === 'solid').map(layer => [layer.id, layer.tint ?? fabricColor])) : undefined;
   if (colors) colors.neckline = colors.neck ?? colors.base;
   const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips'],hemClips:Object.fromEntries(layers.filter(l=>/^(bodyHem|sleeveHem(?:Left|Right)|underlayerHem(?:Left|Right))$/.test(l.id)).map(({id})=>{const layer=layers.find(l=>l.id===id),rings=layer?fabricRings(layer.svgRaw):[];return [id,{stitchCut:rings.map(r=>'M'+r.map(p=>(p.x*.75).toFixed(3)+','+(p.y*.75).toFixed(3)).join('L')+'Z').join('')}]}))}:geometry&&{...geometry,hemClips};
-  const stitchGeometry=vectorGeometry?{...vectorGeometry,rows:straightSleeveStitches(layers,vectorGeometry.rows)}:vectorGeometry;
-  const markup = source && stitchGeometry ? renderStitchStyles(source, stitchGeometry, settings, hems, colors, prefix) : '';
+  const foldRows = useMemo(() => Object.fromEntries(layers.filter(layer => layer.svgRaw.includes('data-double-fold-row')).map(layer => {
+    const doc = new DOMParser().parseFromString(layer.svgRaw, 'image/svg+xml');
+    return [layer.id, Array.from(doc.querySelectorAll('[data-double-fold-row]'), path =>
+      flattenConstructionSeam(path.getAttribute('d') ?? ''))];
+  })), [layers]);
+  const stitchGeometry=vectorGeometry?{...vectorGeometry,rows:straightSleeveStitches(layers,vectorGeometry.rows),foldRows}:vectorGeometry;
+  const markup = source && stitchGeometry ? renderStitchStyles(source, stitchGeometry, settings, hems, colors, prefix, previewInk) : '';
   return <div data-layer-id="stitching" data-stitch-ready={Boolean(vectorGeometry)} data-stitch-error={!regular&&failed || undefined}
     className="pointer-events-none absolute inset-0 [&_*]:pointer-events-none [&>svg]:h-full [&>svg]:w-full" aria-hidden="true"
-    style={{ zIndex: Math.min(source?.zIndex ?? 80,90) }} dangerouslySetInnerHTML={{ __html: clipConstructionStitches(clipPoloStitching(technical&&markup?normalizeTechnicalSvg(markup,1,'stitch'):markup,layers,prefix+'-polo-clearance'),layers,prefix) }} />;
+    style={{ zIndex: Math.min(source?.zIndex ?? 80,90) }} dangerouslySetInnerHTML={{ __html: clipConstructionStitches(clipPoloStitching((technical||previewInk)&&markup?normalizeTechnicalSvg(markup,1,'stitch',false,previewInk):markup,layers,prefix+'-polo-clearance'),layers,prefix) }} />;
 }
 
 export function StitchRegionOverlay({ geometry, hems, editor }: {
