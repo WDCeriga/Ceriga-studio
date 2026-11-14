@@ -842,6 +842,13 @@ export function getGarmentAssetSvgRaw(assetId: string): string | undefined {
   return loadedSvgByAssetId.get(assetId) ?? getGarmentAsset(assetId)?.svgRaw;
 }
 
+export function garmentSvgAssetsReady(assetIds: readonly string[]): boolean {
+  return assetIds.every(id => {
+    const source = sleevelessTshirtSources.get(id) ?? id;
+    return !svgLoadersByAssetId.has(source) || Boolean(getGarmentAssetSvgRaw(source));
+  });
+}
+
 export async function preloadGarmentSvgAssets(assetIds: readonly string[]): Promise<void> {
   await Promise.all([...new Set(assetIds.map(id => sleevelessTshirtSources.get(id) ?? id))].map(async assetId => {
     const loader = svgLoadersByAssetId.get(assetId);

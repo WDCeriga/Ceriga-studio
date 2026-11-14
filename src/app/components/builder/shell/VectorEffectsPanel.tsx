@@ -4,13 +4,29 @@ import type {DesignElement} from '../PrintStudioEditor';
 import {ArtworkThumbnail} from '../printsStudio/ArtworkThumbnail';
 import {VECTOR_LOOKS,type VectorEffects} from '../../../lib/vectorEffects';
 import {StudioFold,StudioRange} from './StudioControls';
+import {artworkColours} from '../../../lib/artworkColourSlots';
+
+const isNeutralInk=(ink:string)=>{
+ const hex=ink.replace('#','');
+ const channels=hex.length<=4?[...hex.slice(0,3)]:hex.slice(0,6).match(/../g)??[];
+ return channels.length===3&&channels.every(channel=>channel===channels[0]);
+};
+const isBlackOrWhite=(ink:string)=>/^#(?:0+|f+)$/i.test(ink.slice(0,ink.length<=5?4:7));
 export function VectorEffectsPanel({element,update}:{element:DesignElement;update:(patch:Partial<DesignElement>)=>void}){
  const settings=element.vectorEffects,preset=settings?.preset??'none';
+ const inks=artworkColours(element);
+ const flatInk=['text','shape'].includes(element.type)&&!element.shapeEffects?.length&&!element.textEffects?.length;
+ const neutral=flatInk&&inks.length>0&&inks.every(isNeutralInk);
+ const blackOrWhite=neutral&&inks.every(isBlackOrWhite);
+ const looks=VECTOR_LOOKS.filter(look=>{
+  if(look.id===preset||!neutral)return true;
+  return !['grayscale','muted'].includes(look.id)&&!(blackOrWhite&&['bw','vibrant'].includes(look.id));
+ });
  const change=(patch:Partial<VectorEffects>)=>update({vectorEffects:{preset,...settings,...patch}});
  return <StudioFold title="Artwork effects" value={VECTOR_LOOKS.find(look=>look.id===preset)?.label??'Original'}>
   <fieldset disabled={element.locked} className="vector-effect-controls">
    <div className="artwork-look-grid vector-look-grid" role="group" aria-label="Artwork effect presets">
-    {VECTOR_LOOKS.map(look=><button key={look.id} type="button" aria-label={`Apply ${look.label} artwork effect`} aria-pressed={preset===look.id} onClick={()=>change({preset:look.id})}>
+    {looks.map(look=><button key={look.id} type="button" aria-label={`Apply ${look.label} artwork effect`} aria-pressed={preset===look.id} onClick={()=>look.id==='none'?update({vectorEffects:undefined}):change({preset:look.id,strength:settings?.strength||100})}>
      <div className="vector-look-preview"><ArtworkInteractionContext.Provider value={true}><ArtworkThumbnail element={{...element,vectorEffects:{preset:look.id,strength:100}}}/></ArtworkInteractionContext.Provider></div>
      <span>{look.label}{preset===look.id&&<Check size={11}/>}</span>
     </button>)}

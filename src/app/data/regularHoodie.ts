@@ -633,7 +633,7 @@ export function regularHoodieLayers(
   const compoundPanel = (paths: string[]) => paths.filter(Boolean).length > 1
     ? panel(continuousHoodieFinish(paths)) : panel(paths[0]);
   const thread = stitchingColour ?? '#ffffff';
-  const finishRows: { id: string; markup: string; settings: HemSettings }[] = [];
+  const finishRows: { id: string; markup: string; settings: HemSettings; rows: { x: number; y: number }[][] }[] = [];
   const wornPanels = new Map<string, string>();
   const addFinish = (id: string, parent: string, original: string, paths: string[], edge: number[], settings: HemSettings | undefined, right = false, control?: [number, number]) => {
     const cuff = parent !== 'base';
@@ -678,7 +678,7 @@ export function regularHoodieLayers(
     }
     if (result && settings && !(!cuff && cut.waistChannel)) {
       const rows = right ? result.stitches.map(row => row.map(p => ({ x: 2048 - p.x, y: p.y }))) : result.stitches;
-      finishRows.push({ id, markup: hoodieFinishStitchMarkup(rows, settings), settings });
+      finishRows.push({ id, markup: hoodieFinishStitchMarkup(rows, settings, cuff), settings, rows });
     }
   };
   const sleeveless = selection.hoodieSleeve === 'sleeveless';
@@ -724,9 +724,13 @@ export function regularHoodieLayers(
     add('hoodieHemCord', 'Adjustable hem drawcord', svg(adjustableHemHardware(left, right, bottom)), 31);
   }
   add('hoodieBodyLinework', 'Body seams', seam(`${cut.sideLines} ${mirror(rightCut.sideLines)} ${cut.waistOutline}`, 5), 28, undefined, '#202020');
-  const originalStitches = [!bodyFinish && cut.waistStitch, !leftFinish && cut.cuffStitch, !rightFinish && mirror(rightCut.cuffStitch)].filter(Boolean).join(' ');
+  const originalCuffs = [!leftFinish && cut.cuffStitch, !rightFinish && mirror(rightCut.cuffStitch)].filter(Boolean).join(' ');
   add('bodyStitching', 'Body, sleeve and hem stitching',
-    svg(stitchPath(cut.seamStitches) + (originalStitches ? stitchPath(originalStitches) : '')), 30, undefined, thread);
+    svg(stitchPath(cut.seamStitches).replace('<path ', '<path data-hoodie-stitch-region="armhole" ') +
+      (!bodyFinish && cut.waistStitch ? stitchPath(cut.waistStitch).replace('<path ', '<path data-hoodie-stitch-region="bottom" ') : '') +
+      (originalCuffs ? stitchPath(originalCuffs, 2.8).replace('<path ', '<path data-hoodie-stitch-region="sleeve" ') : '') +
+      '<defs>' + finishRows.flatMap(({ id, rows }) => rows.filter(row => row.length > 1).map(row =>
+        `<path data-hoodie-stitch-region="${id === 'bodyHem' ? 'bottom' : 'sleeve'}" d="M${row.map(({ x, y }) => `${x} ${y}`).join('L')}"/>`)).join('') + '</defs>'), 30, undefined, thread);
   for (const { id, markup, settings } of finishRows) if (markup) {
     add(id + 'Stitching', 'Edge stitching', svg(markup), 30, undefined, settings.stitchColor || thread);
   }

@@ -1,6 +1,6 @@
 import {useState,useEffect,useRef} from 'react';
 import {Check,Copy,Focus,RotateCcw} from 'lucide-react';
-import {regularStitchRows} from '../../../data/regularConstruction';
+import {constructionStitchRows} from '../../../data/constructionStitchRows';
 import {stitchRegionsWithInk,chooseStitchFocusRegion,resolveStitchSettings,updateStitchSettings,TSHIRT_STITCH_REGIONS,type StitchRegion,type StitchSettings,type StitchStyle,type TshirtStitching} from '../../../data/tshirtStitching';
 import type {ResolvedGarmentLayer} from '../../../data/garmentSvgCatalog';
 import type {TshirtHemStyles} from '../../../data/tshirtHemStyles';
@@ -27,7 +27,7 @@ export function StitchingInspector({layers,settings={},hems,region,onRegion,clos
  const [scope,setScope]=useState<'garment'|'part'|'seam'>('garment'),[part,setPart]=useState('body'),[copyOpen,setCopyOpen]=useState(false),[copies,setCopies]=useState<StitchRegion[]>([]);
  const previousRegion=useRef(region);
  useEffect(()=>{if(previousRegion.current!==region){setScope('seam');previousRegion.current=region;}},[region]);
- const rows=regularStitchRows(layers),available=(Object.keys(TSHIRT_STITCH_REGIONS) as StitchRegion[]).filter(r=>rows[r].length&&hemGroupEnabled(hems,r));
+ const rows=constructionStitchRows(layers),available=(Object.keys(TSHIRT_STITCH_REGIONS) as StitchRegion[]).filter(r=>rows[r].length&&hemGroupEnabled(hems,r));
  useEffect(()=>{if(available.length&&!available.includes(region))onRegion(available[0])},[available.join(','),region,onRegion]);
  const visibleInk=stitchRegionsWithInk({rows,clips:{} as any},settings,hems);
  const focusRegion=chooseStitchFocusRegion(visibleInk,region,scope==='garment');

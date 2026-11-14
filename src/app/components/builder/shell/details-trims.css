@@ -291,3 +291,9 @@
 .zip-curve-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.ceriga-builder-shell .zip-curve-presets button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 4px}.zip-curve-presets svg{width:40px;height:32px}.zip-curve-presets span{font-size:10px;white-space:nowrap}.zip-curve-editor>p{margin:10px 0 0}.zip-path-handle{pointer-events:none}.zip-path-handle circle[role=button]{pointer-events:auto}.zip-path-handle:focus-within circle:not([role=button]){stroke:#171717;stroke-width:2}
 
 .ceriga-builder-shell .detail-remove-zip{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:1px solid #e5e5e5;border-radius:5px;background:white;color:#525252;font-size:12px}.detail-remove-zip small{margin-left:auto;font-size:10px;color:#737373}.ceriga-builder-shell .detail-remove-zip:hover{border-color:#b91c1c;color:#b91c1c;background:#fffafa}
+[data-placket-flap] { transform: translateX(0); transition: transform 180ms ease-in-out; }
+[data-placket-preview="open"] [data-placket-flap] { transform: translateX(var(--placket-travel)); }
+[data-placket-preview="closed"] :is([data-zip-teeth], [data-zip-slider], [data-zip-stops], [data-zip-joined]) { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  [data-placket-flap] { transition: none; }
+}

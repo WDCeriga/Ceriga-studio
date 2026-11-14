@@ -20,7 +20,7 @@ export const GARMENT_DETAIL_ASSETS = {
   eyelet: { ...HOODIE_HARDWARE.eyelet[0], label: 'Eyelet', width: .022, ratio: 1, x: .42, y: .13 },
   aglet: { ...HOODIE_HARDWARE.aglet[0], label: 'Aglet', width: .018, ratio: 12/18, x: .42, y: .24 },
   toggle: { ...HOODIE_HARDWARE.toggle[0], label: 'Cord lock', width: .045, ratio: 1.2, x: .42, y: .87 },
-  hoodDetail: { ...HOODIE_HARDWARE.hoodDetail[0], label: 'Hood detail', width: .07, ratio: 1.25, x: .5, y: .16 },
+  hoodDetail: { ...HOODIE_HARDWARE.hoodDetail[0], label: 'Hood detail', width: .045, ratio: 1.25, x: .5, y: .16 },
 } as const;
 
 export type GarmentDetailType = keyof typeof GARMENT_DETAIL_ASSETS;
@@ -83,7 +83,7 @@ export function zipPullThumbnail(style: ZipPullStyle) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -5 44 60"><path d="${shape.path}" fill="#D4D4D4" fill-rule="evenodd" stroke="#141414" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
 }
 
-export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset' | 'patch' | 'customAsset' | 'hoodieTrim' | 'splitPocketGap'>) {
+export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset' | 'patch' | 'customAsset' | 'hoodieTrim' | 'splitPocketGap' | 'integratedCordLock'>) {
   if (detail.customAsset) {
     const asset = detail.customAsset;
     return { ...GARMENT_DETAIL_ASSETS[asset.detailType ?? detail.type], label: asset.name, svg: asset.svg,
@@ -98,7 +98,7 @@ export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'ca
   if (detail.type === 'patch' && ['circle', 'square'].includes(detail.patch?.shape ?? '')) return { ...base, ratio: 1 };
   const option = GARMENT_DETAIL_OPTIONS[detail.type].find(option => option.id === detail.variant);
   if (!option) return base;
-  if (detail.type === 'drawstring') return { ...base, ...option, svg: hoodieCordSvg(option.id.slice(5), detail.hoodieTrim) };
+  if (detail.type === 'drawstring') return { ...base, ...option, svg: hoodieCordSvg(option.id.slice(5), detail.hoodieTrim, detail.integratedCordLock) };
   if (detail.variant === 'hoodie-split' && detail.splitPocketGap) return { ...base, ...option, svg: splitHoodiePocketSvg(detail.splitPocketGap) };
   if ('svg' in option) return { ...base, ...option };
   const svg = variantSvgs[`../../assets/garment-details/${detail.type}s/${option.id}.svg`];
@@ -120,6 +120,8 @@ export interface GarmentDetail {
   freeResize?: boolean;
   opening?: GarmentOpening;
   zipSliderPosition?: number;
+  integratedCordLock?: Parameters<typeof hoodieCordSvg>[2];
+  placketPreviewOpen?: boolean;
   zipBottomOpening?: number;
   zipPullSide?: 'left' | 'center' | 'right';
   zipPullStyle?: ZipPullStyle;
@@ -563,11 +565,15 @@ function renderZipParts(svg: Element, detail: GarmentDetail, width: number, heig
   if (detail.opening && detail.variant === 'zip-07') {
     const { halfGap, stations } = openingGapProfile(detail, width, height);
     const fold = (y: number) => center - halfGap(y);
-    const coverEdge = (y: number) => fold(y) + width * .36;
+    const coverEdge = (y: number) => fold(y) + width * (ZIP_TAPE + .05);
     const seam = (y: number) => fold(y) - width * ZIP_TAPE;
     const trace = (edge: (y: number) => number, rows: number[]) => rows.map(y => `${edge(y)} ${y}`).join('L');
+    const flap = append('g', { 'data-placket-flap': '',
+      style: `--placket-travel:${-width * (ZIP_TAPE * 2 + .05)}px` });
     append('path', { 'data-zip-placket-cover': '', d: `M${trace(coverEdge, stations)}L${trace(seam, [...stations].reverse())}Z`,
-      fill, stroke: outline, 'stroke-width': 1.2 });
+      fill, stroke: outline, 'stroke-width': 1.2 }, flap);
+    append('path', { 'data-zip-placket-stitch': '', d: `M${trace(y => coverEdge(y) - width * .07, stations)}`,
+      fill: 'none', stroke: stitch, 'stroke-width': 1, 'stroke-dasharray': '4 4' }, flap);
   }
 }
 
@@ -603,7 +609,7 @@ export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: '
     if(detail.opening?.curve?.length)warpZipSvg(svg,detail.opening,sourceWidth,curveHeight,height);
     if (joinedNeckline && detail.opening) svg.querySelectorAll('[data-zip-top-stop]').forEach(stop => stop.remove());
     if (part === 'body') svg.querySelector('[data-zip-pull]')?.remove();
-    if (part === 'pull') Array.from(svg.children).filter(child => !child.hasAttribute('data-zip-pull') || (detail.variant === 'zip-07' && detail.opening && !openingOpenAmount(detail))).forEach(child => child.remove());
+    if (part === 'pull') Array.from(svg.children).filter(child => !child.hasAttribute('data-zip-pull') || (detail.variant === 'zip-07' && detail.opening && !detail.placketPreviewOpen)).forEach(child => child.remove());
   }
   if (detail.flipX || detail.flipY) {
     const [, , width, height] = svg.getAttribute('viewBox')!.split(/\s+/).map(Number);

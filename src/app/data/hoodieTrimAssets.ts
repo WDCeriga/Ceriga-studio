@@ -100,7 +100,7 @@ function toggle(style: string) {
 
 export const cordWidths: Readonly<Record<string, number>> = { round: 3.5, flat: 6, wide: 8, braided: 5, elastic: 2.4, contrast: 4 };
 
-export function hoodieCordSvg(style: string, settings: HoodieTrimSettings = {}) {
+export function hoodieCordSvg(style: string, settings: HoodieTrimSettings = {}, lock?: { style: string; fill: string; outline: string; hardware: string; paired: boolean }) {
   const thick = Math.max(.65, Math.min(1.6, settings.thickness ?? 1));
   const width = cordWidths[style] ?? cordWidths.round;
   const stroke = width * thick;
@@ -110,19 +110,25 @@ export function hoodieCordSvg(style: string, settings: HoodieTrimSettings = {}) 
   const length = Math.max(.45, Math.min(1, settings.visibleLength ?? 1));
   const y = (value: number) => 10 + (value - 10) * length;
   const end = settings.tip ?? 'cylinder';
+  const lockY = y(62);
+  const lockX = lock?.paired ? [-halfGap, halfGap] : [0];
   return svg(80, 100, [-1, 1].map(side => {
     const x = 40 + side * halfGap;
-    const drift = side * 4;
-    const cord = style === 'elastic'
+    const drift = lock ? 0 : side * 4;
+    const feed = lock?.paired ? 0 : side * (lock?.style === 'dual' ? 3.12 : 2) - side * halfGap;
+    const tailX = lock ? feed : drift;
+    const cord = lock
+      ? `M0 10 C0 ${y(31)} ${feed} ${y(43)} ${feed} ${lockY} V${y(82)}`
+      : style === 'elastic'
       ? `M0 10Q${drift} ${y(44)} 0 ${y(70)}Q${drift * 3} ${y(91)} 0 ${y(92)}Q${-drift * 2} ${y(92)} 0 ${y(70)}`
       : `M0 10Q${drift} ${y(44)} ${drift} ${y(82)}`;
     return `<g transform="translate(${x} 0)"><g transform="translate(0 10)">${eyelet(settings.eyelet ?? 'stitched', hole, settings.eyeletBore)}</g>
       <path d="${cord}" fill="none" stroke="${ink}" stroke-width="${stroke + 1.25}"/>
       <path d="${cord}" fill="none" stroke="${fill}" stroke-width="${stroke}"/>
       ${style === 'braided' || style === 'contrast' ? `<path d="${cord}" fill="none" stroke="${thread}" stroke-width="${stroke * .52}" stroke-dasharray="${style === 'braided' ? '1 2' : '4 3'}"/>` : ''}
-      ${style === 'elastic' ? `<g transform="translate(-6 ${y(63)}) scale(.5)">${toggle('barrel')}</g>`
-        : `<g transform="translate(${drift} ${y(81)}) scale(${settings.tipWidth ?? 1} ${settings.tipLength ?? 1})">${tip(end)}</g>`}</g>`;
-  }).join(''));
+      ${style === 'elastic' && !lock ? `<g transform="translate(-6 ${y(63)}) scale(.5)">${toggle('barrel')}</g>`
+        : `<g transform="translate(${tailX} ${y(81)}) scale(${settings.tipWidth ?? 1} ${settings.tipLength ?? 1})">${tip(end)}</g>`}</g>`;
+  }).join('') + (lock ? lockX.map(x => `<g data-integrated-cord-lock="" transform="translate(${40 + x} ${lockY}) scale(.78) translate(-12 -10)" style="--detail-fill:${lock.fill};--detail-outline:${lock.outline};--detail-hardware:${lock.hardware}">${toggle(lock.style)}</g>`).join('') : ''));
 }
 
 export const HOODIE_HARDWARE = {
@@ -130,5 +136,5 @@ export const HOODIE_HARDWARE = {
   eyelet: EYELET_STYLES.filter(([id]) => id !== 'none').map(([id, label]) => ({ id: `eyelet-${id}`, label, svg: svg(20, 20, `<g transform="translate(10 10)">${eyelet(id, 8)}</g>`), hardware: true, stitch: true })),
   aglet: TIP_STYLES.map(([id, label]) => ({ id: `tip-${id}`, label, svg: svg(12, 18, `<g transform="translate(6 1)">${tip(id)}</g>`), hardware: true, stitch: true })),
   toggle: TOGGLE_STYLES.map(([id, label]) => ({ id: `toggle-${id}`, label, svg: svg(24, 20, toggle(id)), hardware: true, stitch: false })),
-  hoodDetail: [{ id: 'hood-tab', label: 'Hood hanging loop', svg: svg(30, 24, fabric('M3 22V12Q3 2 15 2T27 12V22H21V12Q21 8 15 8T9 12V22Z')), hardware: false, stitch: false }],
+  hoodDetail: [{ id: 'hood-tab', label: 'Hood hanging loop', svg: svg(30, 24, fabric('M3 2H9V10Q9 16 15 16T21 10V2H27V10Q27 22 15 22T3 10Z') + seam('M4 3L8 7M8 3L4 7M22 3L26 7M26 3L22 7')), hardware: false, stitch: false }],
 };

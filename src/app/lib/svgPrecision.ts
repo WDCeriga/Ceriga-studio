@@ -16,6 +16,11 @@ export function precisionMarkup(el:DesignElement,local=false):string{
  if(!local)return leaf;for(const parent of [...p.parents].reverse()){const attrs={...parent.attrs};if(el.type==='text'&&(precisionLayoutChanged(el)||precisionTextChanged(el))){delete attrs['clip-path'];if(parent.tag==='svg')attrs.overflow='visible';}leaf=sceneMarkup({...parent,attrs,children:undefined,text:'SURFACE_LEAF'}).replace('SURFACE_LEAF',leaf);}
  const toLocal=inverse(elementMatrix(el));return `<svg xmlns="http://www.w3.org/2000/svg" width="${el.width}" height="${el.height}" viewBox="0 0 ${el.width} ${el.height}" overflow="visible"><defs>${p.definitions}</defs><g transform="matrix(${toLocal.join(' ')})">${leaf}</g></svg>`;
 }
-export function precisionGeometryChanged(el:DesignElement){const p=el.svgPrecision;if(!p)return false;return JSON.stringify(el.shapePath)!==JSON.stringify(p.base.shapePath)||JSON.stringify(el.shapeParameters)!==JSON.stringify(p.base.shapeParameters)||JSON.stringify(el.textAppearance)!==JSON.stringify(p.base.textAppearance)||JSON.stringify(el.artworkAppearance)!==JSON.stringify(p.base.artworkAppearance)||JSON.stringify(el.textEffects)!==JSON.stringify(p.base.textEffects)||JSON.stringify(el.shapeEffects)!==JSON.stringify(p.base.shapeEffects)||!!el.warp||!!el.imageFilter||!!el.eraseContours?.length;}
+export function precisionGeometryChanged(el:DesignElement){
+ const p=el.svgPrecision;if(!p)return false;
+ const shapedText = el.type === 'text' && Boolean(el.textBadge || el.textStackFit || el.textPath ||
+  (el.textCurveAmount ?? 0) > 0 || el.vectorTextEffects?.some(effect => effect.enabled));
+ return shapedText||JSON.stringify(el.shapePath)!==JSON.stringify(p.base.shapePath)||JSON.stringify(el.shapeParameters)!==JSON.stringify(p.base.shapeParameters)||JSON.stringify(el.textAppearance)!==JSON.stringify(p.base.textAppearance)||JSON.stringify(el.artworkAppearance)!==JSON.stringify(p.base.artworkAppearance)||JSON.stringify(el.textEffects)!==JSON.stringify(p.base.textEffects)||JSON.stringify(el.shapeEffects)!==JSON.stringify(p.base.shapeEffects)||!!el.warp||!!el.imageFilter||!!el.eraseContours?.length;
+}
 
 export function scopeSvgMarkup(markup:string,scope:string){const prefix=scope.replace(/[^a-zA-Z0-9_-]/g,'_')+'-';return markup.replace(/id="([^"]+)"/g,(_m,id)=>`id="${prefix}${id}"`).replace(/url\(#([^)]*)\)/g,(_m,id)=>`url(#${prefix}${id})`).replace(/href="#([^"]+)"/g,(_m,id)=>`href="#${prefix}${id}"`)}

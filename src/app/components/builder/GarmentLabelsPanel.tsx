@@ -195,8 +195,8 @@ export function GarmentLabelsPanel({ labels, selectedId, onSelect, onChange, lay
       </button>)}</div>}
       <fieldset className={sectionClass}><legend className={legendClass}>Construction & size</legend>
         {select('method', direct ? 'Print method' : 'Manufacturing method', Object.fromEntries(Object.entries(LABEL_METHODS).filter(([key]) => direct ? ['heat', 'dtf', 'dtg', 'screen'].includes(key) : ['woven', 'fabric'].includes(key))))}
-        {!direct && <div className="grid grid-cols-2 gap-3">{select('fold', 'Construction', LABEL_FOLDS)}{select('shape', 'Shape', LABEL_SHAPES)}</div>}
-        <div className="grid grid-cols-2 gap-3">{number('widthMm', 'Finished width (mm)', 8, 150)}{number('heightMm', 'Finished height (mm)', 8, 250)}{custom && number('marginMm', 'Content padding (mm)', .5, 25)}{custom && !direct && !['straight', 'die'].includes(selected.fold) && number('foldMm', 'Fold allowance (mm)', 2, 15)}</div>
+        {!direct && <div className="grid grid-cols-2 gap-3">{select('fold', 'Construction', LABEL_FOLDS)}{select('shape', 'Shape', Object.fromEntries(Object.entries(LABEL_SHAPES).filter(([shape]) => shape !== 'vertical')))}</div>}
+        <div className="grid grid-cols-2 gap-3">{number('widthMm', selected.shape === 'circle' ? 'Diameter (mm)' : selected.shape === 'square' ? 'Side length (mm)' : 'Finished width (mm)', 8, 150)}{!['circle', 'square'].includes(selected.shape) && number('heightMm', 'Finished height (mm)', 8, 250)}{custom && number('marginMm', 'Content padding (mm)', .5, 25)}{custom && !direct && !['straight', 'die'].includes(selected.fold) && number('foldMm', 'Fold allowance (mm)', 2, 15)}</div>
       </fieldset>
       <fieldset className={sectionClass}><legend className={legendClass}>Content & hierarchy</legend>
         <Field title="Layout hierarchy"><select className={fieldClass} value={selected.hierarchy ?? 'brand-first'} onChange={event => update(applyLabelHierarchy(selected, event.target.value as NonNullable<GarmentLabel['hierarchy']>))}>{Object.entries(LABEL_HIERARCHIES).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</select></Field>

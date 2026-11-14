@@ -192,9 +192,9 @@ export function rawEdgeTreatment(edge: number[], seed: number, control?: Pair, d
     <path d="${threads}" stroke="#fff" stroke-width="1.1" opacity=".7"/>${wear}`;
 }
 
-export function hoodieFinishStitchMarkup(rows: { x: number; y: number }[][], settings: HemSettings) {
+export function hoodieFinishStitchMarkup(rows: { x: number; y: number }[][], settings: HemSettings, cuff = false) {
   const style = settings.stitchStyle ?? 'standard';
-  const width = { fine: 3, regular: 4, heavy: 5 }[settings.stitchThread ?? 'regular'];
+  const width = { fine: 3, regular: 4, heavy: 5 }[settings.stitchThread ?? 'regular'] * (cuff ? .7 : 1);
   return rows.map(row => {
     const native = style === 'standard' || typeof document === 'undefined';
     const d = native ? 'M' + row.map(({ x, y }) => x + ' ' + y).join(' L ') : stitchPatternPath(row, style);

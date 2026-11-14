@@ -48,6 +48,16 @@ const corners = ['Top left', 'Top right', 'Bottom right', 'Bottom left'].map((la
 
 export function shapeControls(content: string): ShapeControl[] {
   switch (content) {
+    case 'ellipse': case 'circle': return [
+      { key: 'ellipseMode', label: 'Ellipse shape', min: 0, max: 0, step: 1, default: 'full', options: [
+        { value: 'full', label: 'Full ellipse' }, { value: 'arc', label: 'Open arc' },
+        { value: 'pie', label: 'Pie' }, { value: 'inverse-pie', label: 'Inverted pie' },
+        { value: 'crescent', label: 'Crescent' },
+      ] },
+      control('startAngle', 'Start angle', -180, 180, -90),
+      control('sweep', 'Sweep', 1, 359, 90),
+      control('cutOffset', 'Crescent width', 2, 95, 32),
+    ];
     case 'star': return [control('points', 'Points', 3, 32, 5), control('innerRadius', 'Inner radius', 1, 48, 22), control('outerRadius', 'Outer radius', 2, 48, 44), control('sharpness', 'Sharpness', 0, 100, 100), roundness];
     case 'polygon': case 'custom-polygon': return [control('sides', 'Sides', 3, 32, 6), roundness];
     case 'triangle': case 'diamond': return [roundness];
@@ -72,6 +82,16 @@ export function shapeParameterValue(element: ShapeGeometryElement, item: ShapeCo
   const value = raw === undefined ? Number(item.default) : Number(raw);
   if (!Number.isFinite(value)) return item.default;
   return Math.min(item.max, Math.max(item.min, value));
+}
+
+export function visibleShapeControls(element: ShapeGeometryElement): ShapeControl[] {
+  const mode = element.shapeParameters?.ellipseMode ?? 'full';
+  return shapeControls(element.content).filter(({ key }) => {
+    if (element.content !== 'circle' && element.content !== 'ellipse') return true;
+    if (key === 'ellipseMode') return true;
+    if (key === 'cutOffset') return mode === 'crescent';
+    return mode === 'arc' || mode === 'pie' || mode === 'inverse-pie';
+  });
 }
 
 function parameter(element: ShapeGeometryElement, key: string, fallback: number, min = 0, max = 100) {
@@ -114,6 +134,29 @@ function ellipseArc(cx: number, cy: number, rx: number, ry: number, start: numbe
   return { closed: false, nodes };
 }
 
+function liveEllipse(element: ShapeGeometryElement, rx: number, ry: number): ShapePath {
+  const mode = element.shapeParameters?.ellipseMode;
+  const start = parameter(element, 'startAngle', -90, -180, 180);
+  const sweep = parameter(element, 'sweep', 90, 1, 359);
+  if (mode === 'arc') return ellipseArc(50, 50, rx, ry, start, sweep);
+  if (mode === 'pie' || mode === 'inverse-pie') {
+    const arc = mode === 'pie'
+      ? ellipseArc(50, 50, rx, ry, start, sweep)
+      : ellipseArc(50, 50, rx, ry, start + sweep, 360 - sweep);
+    return { closed: true, nodes: [...arc.nodes, node(50, 50)] };
+  }
+  if (mode === 'crescent') {
+    const offset = parameter(element, 'cutOffset', 32, 2, 95) / 100;
+    const angle = Math.acos(offset / 2) * 180 / Math.PI;
+    const outside = ellipseArc(50, 50, rx, ry, angle, 360 - 2 * angle).nodes;
+    const inside = ellipseArc(50 + offset * rx, 50, rx, ry, 180 + angle, -2 * angle).nodes;
+    outside.at(-1)!.out = inside[0].out;
+    outside[0].in = inside.at(-1)!.in;
+    return { closed: true, nodes: [...outside, ...inside.slice(1, -1)] };
+  }
+  return ellipseArc(50, 50, rx, ry, 0, 360);
+}
+
 function rectangle(x: number, y: number, width: number, height: number, radii: number[], aspect = 1): ShapePath {
   // SVG rect corners are circular in the geometry's own viewBox, including quick-draw bounds.
   const r = radii.map(value => Math.max(0, value));
@@ -146,12 +189,19 @@ function rawShapeToEditablePath(element: ShapeGeometryElement): ShapePath {
   const p = (key: string, fallback: number, min = 0, max = 100) => parameter(element, key, fallback, min, max);
   const rounding = p('roundness', 0);
   const poly = (values: number[][]) => polygon(points(values), rounding);
+  const liveEllipseMode = (content === 'circle' || content === 'ellipse') &&
+    ['arc', 'pie', 'inverse-pie', 'crescent'].includes(String(element.shapeParameters?.ellipseMode));
+  if (liveEllipseMode && element.shapeParameters?.studioRevision === 2) {
+    const stroke = element.borderWidth ?? 2;
+    return liveEllipse(element, 50 - stroke / Math.max(1, stroke, element.width ?? 140) * 50,
+      50 - stroke / Math.max(1, stroke, element.height ?? 140) * 50);
+  }
   if (element.shapeGeometry === 'bounds') {
     const sw = Math.max(0, element.borderWidth ?? 4);
     const width = Math.max(sw, element.width ?? 100);
     const height = Math.max(sw, element.height ?? 100);
     const x = sw / width * 50, y = sw / height * 50;
-    if (content === 'ellipse' || content === 'circle') return ellipseArc(50, 50, 50 - x, 50 - y, 0, 360);
+    if (content === 'ellipse' || content === 'circle') return liveEllipse(element, 50 - x, 50 - y);
     if (content === 'semicircle-open' || content === 'semicircle-closed') return { ...ellipseArc(50, 100 - y, 50 - x, 100 - 2 * y, 180, 180), closed: content === 'semicircle-closed' };
     if (content === 'rect') return rectangle(x, y, 100 - 2 * x, 100 - 2 * y, corners.map(item => p(item.key, 0) * 100 / width), width / height);
     if (content === 'line') return { closed: false, nodes: points([[x, 50], [100 - x, 50]]) };
@@ -164,8 +214,8 @@ function rawShapeToEditablePath(element: ShapeGeometryElement): ShapePath {
     if(content==='cross')return poly([[37,4],[63,4],[63,37],[96,37],[96,63],[63,63],[63,96],[37,96],[37,63],[4,63],[4,37],[37,37]]);
   }
   switch (content) {
-    case 'ellipse': return ellipseArc(50, 50, 42, 32, 0, 360);
-    case 'circle': return ellipseArc(50, 50, 42, 42, 0, 360);
+    case 'ellipse': return liveEllipse(element, 42, 32);
+    case 'circle': return liveEllipse(element, 42, 42);
     case 'rect': case 'rounded-rect': return rectangle(12, 18, 76, 64, corners.map(item => p(item.key, content === 'rect' ? 4 : 14, 0, 32)));
     case 'line': return { closed: false, nodes: points([[8, 50], [92, 50]]) };
     case 'triangle': return poly([[50, 12], [90, 86], [10, 86]]);
@@ -312,6 +362,8 @@ export function shapeIsClosed(element: ShapeGeometryElement): boolean {
 /** Fit new studio shapes to their real cubic bounds, keeping stroke inside the selection box. */
 function fittedShapeToEditablePath(element:ShapeGeometryElement):ShapePath{
  const path=rawShapeToEditablePath(element);if(element.shapeParameters?.studioRevision!==2||element.shapePath||!path.nodes.length)return path;
+ if ((element.content === 'ellipse' || element.content === 'circle') &&
+     ['arc', 'pie', 'inverse-pie', 'crescent'].includes(String(element.shapeParameters.ellipseMode))) return path;
  const xs:number[]=[],ys:number[]=[];
  const cubic=(a:number,b:number,c:number,d:number,t:number)=>(1-t)**3*a+3*(1-t)**2*t*b+3*(1-t)*t*t*c+t**3*d;
  const extrema=(a:number,b:number,c:number,d:number)=>{const A=-a+3*b-3*c+d,B=2*(a-2*b+c),C=b-a;if(Math.abs(A)<1e-10)return Math.abs(B)<1e-10?[]:[-C/B];const D=B*B-4*A*C;return D<0?[]:[(-B+Math.sqrt(D))/(2*A),(-B-Math.sqrt(D))/(2*A)]};

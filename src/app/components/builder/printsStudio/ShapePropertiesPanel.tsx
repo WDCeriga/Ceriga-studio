@@ -1,15 +1,15 @@
 import {PaintInput} from '../PrintStudioColorPopover';
 import { SliderValueInput } from '../SliderValueInput';
 import type { DesignElement } from '../PrintStudioEditor';
-import { shapeControls, shapeParameterValue } from '../../../lib/shapeGeometry';
+import { visibleShapeControls, shapeParameterValue } from '../../../lib/shapeGeometry';
 import { solidPaint } from '../../../lib/studioPaint';
 import { canFillShape } from './studioAssets';
 
 export function ShapePropertiesPanel({ element, onChange }: { element: DesignElement; onChange: (patch: Partial<DesignElement>) => void }) {
   if (element.type !== 'shape') return null;
-  const controls = element.shapePath ? [] : shapeControls(element.content).map(item => element.shapeGeometry === 'bounds' && element.content === 'rect' ? { ...item, default: 0 } : item);
+  const controls = element.shapePath ? [] : visibleShapeControls(element).map(item => element.shapeGeometry === 'bounds' && element.content === 'rect' ? { ...item, default: 0 } : item);
   const corners = controls.filter(item => item.key.startsWith('corner'));
-  const update = (key: string, value: number | string) => onChange({ shapeParameters: { ...element.shapeParameters, [key]: value } });
+  const update = (key: string, value: number | string) => onChange({ shapeParameters: { ...element.shapeParameters, [key]: value }, ...(key === "ellipseMode" && value === "arc" && !element.borderWidth ? {borderWidth: 2} : {}) });
   const colors = [
     { key: 'shapeStrokeColor' as const, label: 'Outline colour', value: element.shapeStrokeColor ?? element.color ?? '#FFFFFF' },
     ...(canFillShape(element) ? [{ key: 'shapeFillColor' as const, label: 'Fill colour', value: element.shapeFillColor ?? element.color ?? '#FFFFFF' }] : []),

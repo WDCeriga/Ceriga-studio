@@ -12,6 +12,20 @@ export interface StudioAsset {
 }
 
 export const SHAPE_ASSETS: StudioAsset[] = [
+  { id: 'circle', label: 'Circle', kind: 'shape' },
+  { id: 'shield', label: 'Shield badge', kind: 'shape' },
+  { id: 'shield-frame', label: 'Shield frame', kind: 'shape' },
+  { id: 'swallowtail-ribbon', label: 'Swallowtail ribbon', kind: 'shape' },
+  { id: 'arch-ribbon', label: 'Arch ribbon', kind: 'shape' },
+  { id: 'hangtag', label: 'Hangtag', kind: 'shape' },
+  { id: 'ticket-tag', label: 'Ticket tag', kind: 'shape' },
+  { id: 'neck-label', label: 'Neck label', kind: 'shape' },
+  { id: 'pennant', label: 'Pennant', kind: 'shape' },
+  { id: 'racing-plate', label: 'Racing plate', kind: 'shape' },
+  { id: 'speed-stripe', label: 'Speed stripes', kind: 'shape' },
+  { id: 'utility-patch', label: 'Utility patch frame', kind: 'shape' },
+  { id: 'measurement-tag', label: 'Measurement tag frame', kind: 'shape' },
+  { id: 'location-pin', label: 'Location pin', kind: 'shape' },
   {id:'party-silhouette',label:'Party silhouette',kind:'shape'},
   {id:'tribal-sigil',label:'Tribal sigil',kind:'shape'},
   { id: 'ellipse', label: 'Ellipse', kind: 'shape' },

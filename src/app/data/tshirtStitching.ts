@@ -326,7 +326,8 @@ export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: Stitc
       const nativeDash = previewInk && partStyle === 'standard';
       const dash = nativeDash ? 90 / Math.max(4, Math.min(14, resolved.density ?? 10)) : 0;
       const partPath=rows.filter(row=>row.length>1).map(row=>nativeDash ? curvePath(row) : stitchPatternPath(row,partStyle,resolved.density,resolved.spacingMm)).join('');
-      const partWidth=part.hem?.stitchThread?{fine:2.1,regular:2.7,heavy:3.4}[part.hem.stitchThread]:width;
+      const threadWidth=part.hem?.stitchThread?{fine:2.1,regular:2.7,heavy:3.4}[part.hem.stitchThread]:width;
+      const partWidth = source.id === 'bodyStitching' && region === 'sleeve' ? threadWidth * .8 : threadWidth;
       const fabric = fabricColors?.[part.id] ?? fabricColors?.[region] ?? fabricColors?.base;
       const selectedColor = colorValue(part.hem?.stitchColor || resolved.color || source.tint);
       const color = fabric ? constructionColor(fabric, selectedColor) : selectedColor;

@@ -409,11 +409,18 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     ? mirrorSeam({ id: 'active', label: 'Preview', anchors: draftPreview, construction: 'standard' }, symmetryAxis).anchors
     : [];
   const selectedSeam = seams.find(seam => seam.id === selected?.seamId);
+  const selectedSeamMirrored = selectedSeam?.mirrorLinked ?? legacyMirror;
   const contextActions = tool === 'pen' ? [
     { label: 'Finish seam', action: finish, disabled: active.length < 2 },
     { label: 'Undo last point', action: () => setActive(points => points.slice(0, -1)), disabled: !active.length },
     { label: 'Cancel seam', action: cancel, disabled: !active.length },
   ] : [
+    { label: selectedSeam && selectedSeamMirrored ? 'Remove seam mirror' : 'Mirror seam', disabled: !selectedSeam, action: () => {
+      if (!selectedSeam) return;
+      onSeamsChange(seams.map(seam => seam.id === selectedSeam.id
+        ? { ...seam, mirrorLinked: !selectedSeamMirrored, mirrorGroupId: selectedSeamMirrored ? undefined : seam.id }
+        : seam));
+    } },
     { label: 'Curve segment', action: convertSelectedToCurve, disabled: !selectedSeam },
     { label: 'Straighten segment', action: straightenSelectedSegment, disabled: !selectedSeam },
     { label: 'Insert midpoint', action: insertSelectedPoint, disabled: !selectedSeam },
@@ -432,7 +439,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
       Could not calculate garment boundaries. Existing panelling data was preserved.
     </p>}
     <div className="panelling-body" style={overlayOnly ? { visibility: 'hidden' } : undefined} aria-hidden={overlayOnly || undefined} ref={garmentRef} dangerouslySetInnerHTML={{ __html: garmentMarkup }} />
-    <ContextMenu.Root>
+    <ContextMenu.Root modal={false}>
     <ContextMenu.Trigger asChild>
     <svg viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`} className={`panelling-overlay ${tool === 'pen' ? 'pen-mode' : 'select-mode'} edit-${editAction}`} role="application" aria-label={`T-shirt ${parentLabel} seam drawing canvas`} tabIndex={0}
       onContextMenu={event => {
@@ -481,7 +488,9 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     </svg>
     </ContextMenu.Trigger>
     <ContextMenu.Portal>
-      <ContextMenu.Content aria-label="Panelling actions" className="z-[10000] min-w-40 rounded-md border border-neutral-200 bg-white p-1 text-sm text-neutral-800 shadow-lg">
+      <ContextMenu.Content aria-label="Panelling actions"
+        onPointerDown={event => event.stopPropagation()}
+        className="z-[10000] min-w-40 rounded-md border border-neutral-200 bg-white p-1 text-sm text-neutral-800 shadow-lg">
         {contextActions.map(({ label, action, disabled }) => <ContextMenu.Item key={label} disabled={disabled}
           onSelect={action} className="cursor-default rounded px-3 py-2 outline-none data-[disabled]:opacity-40 data-[highlighted]:bg-neutral-100">{label}</ContextMenu.Item>)}
       </ContextMenu.Content>

@@ -3655,7 +3655,7 @@ export function PrintsDesignPreview({
             onPointerDownCapture={(e) => {
               if((e.target as Element).closest('[data-space-pan],[data-pan-tool=true]'))return;
               if((e.target as Element).closest('[data-measurement-guide]'))return;
-              if((e.target as Element).closest('[data-garment-details]'))return;
+              if((e.target as Element).closest('[data-garment-details],[data-live-shape-handles]'))return;
               if(!editable&&onArtworkSelect&&zoneRef.current){
                 const root=artworkAtPoint(zoneRef.current,e.clientX,e.clientY);
                 if(root?.dataset.printId){e.stopPropagation();e.preventDefault();onArtworkSelect(root.dataset.printId)}
@@ -3887,7 +3887,7 @@ export function PrintsDesignPreview({
           {editable&&!marquee&&studio.selectionIds.length>1&&<MultiArtworkTransform previewMask={previewGarmentMask} elements={elements.filter(e=>(e.side??'front')===garmentSide)} ids={studio.selectionIds} scale={zoneEl?zoneScaleFactor(zoneEl):1} onChange={next=>onChange?.([...elements.filter(e=>(e.side??'front')!==garmentSide),...next])}/>}
           {editable&&studio.booleanPreview.map(preview=><div key={preview.id} data-editor-chrome aria-hidden="true" className="pointer-events-none absolute" style={{left:preview.x,top:preview.y,width:preview.width,height:preview.height,transform:`translate(-50%,-50%) rotate(${preview.rotation}deg)`,opacity:.4,zIndex:95}}><StudioGraphic element={{...preview,shapeFilled:true,shapeFillColor:preview.shapeFillColor??preview.color??'#737373',borderWidth:0,shapeEffects:undefined}}/></div>)}
           {!surfaceContext && marqueeOverlay}
-          {editable && alignmentGuides && <ArtworkAlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} inverseScale={uiInv}/>}
+          {editable && alignmentGuides && <ArtworkAlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} inverseScale={uiInv} hairline={Boolean(surfaceContext && !isPackagingSurface)}/>}
           {editable && (studio.tool === 'brush' || studio.tool === 'eraser') && elements
             .filter(element => element.id === DRAWING_LAYER_ID && designElementSide(element) === garmentSide)
             .map(element => <ImageAdjustmentDefs key={element.id} element={element} />)}
@@ -4075,7 +4075,7 @@ export function PrintsDesignPreview({
                   onChange={points => updateElement(element.id, customAreaGeometryPatch(points, element))}
                   onPreview={points => setLiveCustomAreaPoints(points ? { id: element.id, points } : null)} />}
                 {editable&&selected&&element.type==='shape'&&!element.shapeFilled&&!(element.borderWidth??0)&&studio.pathEditingId!==element.id&&<div data-editor-chrome className="pointer-events-none absolute inset-0"><StudioGraphic element={{...visualElement,shapeFilled:false,borderWidth:uiInv,shapeStrokeColor:'#737373',shapeEffects:undefined}}/></div>}
-                {editable&&selected&&!locked&&element.content==='rect'&&!element.shapePath&&studio.tool==='select'&&<LiveCornerHandle element={visualElement} scale={1/uiInv} onPreview={shapeParameters=>setLiveTransform(shapeParameters?{id:element.id,patch:{shapeParameters}}:null)} onChange={shapeParameters=>updateElement(element.id,{shapeParameters})}/>}
+                {editable&&selected&&!locked&&(['rect','ellipse','circle'].includes(element.content)||(element.content==='rounded-rect'&&element.shapeParameters?.studioRevision===2))&&!element.shapePath&&studio.pathEditingId!==element.id&&studio.tool==='select'&&<LiveCornerHandle element={visualElement} scale={1/uiInv} onPreview={shapeParameters=>setLiveTransform(shapeParameters?{id:element.id,patch:{shapeParameters}}:null)} onChange={shapeParameters=>updateElement(element.id,{shapeParameters})}/>}
                 <DesignAssetSurface clipStyle={artworkClipStyle(visualElement,elements)} interacting={manip?.id===element.id||draggingId===element.id} editingPath={studio.pathEditingId===element.id||studio.logoRegionEditing?.rootId===element.id} element={visualElement} selected={selected && studio.logoRegionEditing?.rootId!==element.id && (studio.selectionIds.length<2||Boolean(marquee)) && studio.tool!=='shapePolygon' && studio.tool!=='shapePencil' && editable && !locked && !isEditingText && !cropEditingId && studio.pathEditingId !== element.id && !(element.type === 'customArea' && (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint')) && !patternPart}
                   cropping={editable && cropEditingId === element.id}
                   cropOverlay={<InteractiveCropOverlay element={cropDraft} onChange={setCropDraft} width={visualElement.width} height={visualElement.height} />}

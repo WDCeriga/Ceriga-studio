@@ -156,6 +156,7 @@ export function openingPolygonPath(polygons: MultiPolygon): string {
 }
 /** The saved slider position is also the construction's open amount; no second state can drift. */
 export function openingOpenAmount(detail: GarmentDetail): number {
+  if (detail.variant === 'zip-07' && detail.opening) return 0;
   const value = detail.zipSliderPosition ?? (detail.variant === 'zip-05' || detail.variant === 'zip-06' ? .34 : 0);
   return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 }

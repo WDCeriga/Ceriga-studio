@@ -159,11 +159,22 @@ async function buildLettering(element:DesignElement,imports:{family:string;dataU
 
 const outlineCache=new Map<string,Promise<Partial<DesignElement>>>();
 async function badgeLettering(element:DesignElement,imports:{family:string;dataUrl:string}[]):Promise<Partial<DesignElement>>{
- const badge=element.textBadge!,r=badge.radius/element.width*100,k=.5522847498307936,parts:ShapePath[]=[],labels:{key:string;label:string}[]=[],font=await fontFor(element,imports);let effective=element.fontSize??30;
- for(const [name,text] of Object.entries({top:badge.top,bottom:badge.bottom,centre:badge.centre})){if(!text.trim())continue;const sign=name==='bottom'?1:-1,path:ShapePath={closed:false,nodes:[{x:50-r,y:50,out:{x:50-r,y:50+sign*k*r}},{x:50,y:50+sign*r,in:{x:50-k*r,y:50+sign*r},out:{x:50+k*r,y:50+sign*r}},{x:50+r,y:50,in:{x:50+r,y:50+sign*k*r}}]};
-  const original=element.fontSize??30,natural=advanceFor(font,text,original,element.letterSpacing??0),available=name==='centre'?badge.radius*1.6:Math.PI*badge.radius*.9,fontSize=Math.min(original,original*available/Math.max(1,natural));effective=Math.min(effective,fontSize);
-  const copy={...element,fontSize,letterSpacing:(element.letterSpacing??0)*fontSize/original,textBadge:undefined,textShapeMode:'none' as const,textCurveAmount:0,vectorTextEffects:undefined,textPath:name==='centre'?undefined:{path,offset:0},content:text,autoWidth:false,autoHeight:false,textAlign:'center' as const},patch=await buildLettering(copy,imports),shape={...copy,...patch,...(name==='centre'?{x:element.x,y:element.y}:{})},world=shapeWorldPath(shape),prefix=(part:ShapePath):ShapePath=>({...part,letterKey:part.letterKey?name+'-'+part.letterKey:undefined,subpaths:part.subpaths?.map(prefix)}),p=prefix(world);parts.push({...p,subpaths:undefined},...(p.subpaths??[]));labels.push(...(patch.letteringParts??[]).map(part=>({...part,key:name+'-'+part.key})));
+ const badge=element.textBadge!,original=element.fontSize??30,font=await fontFor(element,imports);
+ const rows={top:badge.top,bottom:badge.bottom,centre:badge.centre};
+ // Fit the path to the lettering. A small badge radius should not silently
+ // turn the selected font size into a much smaller one.
+ const capHeight = (font.capHeight || font.ascender * .8) * original / font.unitsPerEm;
+ const radius=Math.max(original, badge.radius,...Object.entries(rows).map(([name,text])=>
+  advanceFor(font,text,original,element.letterSpacing??0)/(name==='centre'?1.6:Math.PI*.9) + (name==='top'?capHeight/2:0)));
+ const size=Math.max(element.width,element.height,2*(radius+original));
+ const k=.5522847498307936,parts:ShapePath[]=[],labels:{key:string;label:string}[]=[];
+ for(const [name,text] of Object.entries(rows)){if(!text.trim())continue;
+  // Both paths run left to right. The bottom line faces inward, so its
+  // baseline sits farther out to place the visible caps on the same ring.
+  const sign=name==='bottom'?1:-1,r=(radius+sign*capHeight/2)/size*100;
+  const path:ShapePath={closed:false,nodes:[{x:50-r,y:50,out:{x:50-r,y:50+sign*k*r}},{x:50,y:50+sign*r,in:{x:50-k*r,y:50+sign*r},out:{x:50+k*r,y:50+sign*r}},{x:50+r,y:50,in:{x:50+r,y:50+sign*k*r}}]};
+  const copy={...element,width:size,height:size,textBadge:undefined,textShapeMode:'none' as const,textCurveAmount:0,vectorTextEffects:undefined,textPath:name==='centre'?undefined:{path,offset:0},content:text,autoWidth:false,autoHeight:false,textAlign:'center' as const},patch=await buildLettering(copy,imports),shape={...copy,...patch,...(name==='centre'?{x:element.x,y:element.y}:{})},world=shapeWorldPath(shape),prefix=(part:ShapePath):ShapePath=>({...part,letterKey:part.letterKey?name+'-'+part.letterKey:undefined,subpaths:part.subpaths?.map(prefix)}),p=prefix(world);parts.push({...p,subpaths:undefined},...(p.subpaths??[]));labels.push(...(patch.letteringParts??[]).map(part=>({...part,key:name+'-'+part.key})));
  }
- if(!parts.length)throw new Error('Add some badge text.');const fit=fitPenPath({...parts[0],subpaths:parts.slice(1)});return{...fit,type:'shape',content:'custom-lettering',shapeGeometry:'bounds',shapeFilled:true,shapeFillRule:'nonzero',shapeFillColor:element.color,borderWidth:0,letteringParts:labels,letteringSource:structuredClone(element),textEffectiveFontSize:effective};
+ if(!parts.length)throw new Error('Add some badge text.');const fit=fitPenPath({...parts[0],subpaths:parts.slice(1)});return{...fit,type:'shape',content:'custom-lettering',shapeGeometry:'bounds',shapeFilled:true,shapeFillRule:'nonzero',shapeFillColor:element.color,borderWidth:0,letteringParts:labels,letteringSource:structuredClone(element),textEffectiveFontSize:original};
 }
 export async function outlineLettering(element:DesignElement,imports:{family:string;dataUrl:string}[]=[]):Promise<Partial<DesignElement>>{const key=JSON.stringify([{...element,vectorTextEffects:undefined},imports.map(f=>[f.family,f.dataUrl.length,f.dataUrl.slice(-60)])]);let result=outlineCache.get(key);if(!result){result=element.textBadge?badgeLettering(element,imports):buildLettering(element,imports);outlineCache.set(key,result);if(outlineCache.size>80)outlineCache.delete(outlineCache.keys().next().value!);result.catch(()=>outlineCache.delete(key));}const patch=structuredClone(await result);if(element.vectorTextEffects?.some(e=>e.enabled)&&patch.shapePath)patch.shapePath=applyVectorTextEffects(patch.shapePath,element.vectorTextEffects,patch.width!,patch.height!);return patch;}

@@ -68,7 +68,7 @@ export function DetailPositionControls({ detail, bounds, onChange, referenceWidt
   return <details open className="border-y border-white/15 py-3">
     <summary className="cursor-pointer text-xs font-semibold text-white">Position &amp; size</summary>
     <p className="mt-2 text-[10px] leading-relaxed text-white/50">Size M · {formatMeasurementDisplay(String(referenceWidthCm), unit)} {unit} chest. Position is measured to the detail centre.</p>
-    {detail.type==='pocket'&&<div className="detail-quick-placement" role="group" aria-label="Quick pocket placement">{[{label:'Left chest',x:view==='front'?.72:.28},{label:'Centre',x:.5},{label:'Right chest',x:view==='front'?.28:.72}].map(p=><button type="button" key={p.label} onClick={()=>onChange(setDetailTransform(detail,bounds,{x:p.x,y:.32}))}>{p.label}</button>)}</div>}
+    {detail.type==='pocket'&&<div className="detail-quick-placement" role="group" aria-label="Quick pocket placement">{[{label:'Left chest',x:view==='front'?.72:.28,y:.32},{label:'Centre',x:.5,y:.32},{label:'Right chest',x:view==='front'?.28:.72,y:.29}].map(p=><button type="button" key={p.label} onClick={()=>onChange(setDetailTransform(detail,bounds,{x:p.x,y:p.y}))}>{p.label}</button>)}</div>}
     <div className="mt-3 grid grid-cols-2 gap-3">
       {(['x', 'y', 'width', 'height', 'rotation'] as const).map(field => <label key={field} className="min-w-0 text-[11px] capitalize text-white/60">
         {labels[field]} ({field === 'rotation' ? 'deg' : unit})
@@ -120,8 +120,8 @@ function ZipPullMeasurements({ detail, bounds, onChange, referenceWidthCm, unit 
     <div className="mt-3 grid grid-cols-2 gap-3 text-[11px] text-white/60">
       {(['width', 'height'] as const).map(axis => <label key={axis} className="capitalize">{axis === 'height' ? 'Length' : 'Width'} ({unit})<DetailNumberInput key={`${detail.id}-${unit}`} label={`Zip pull ${axis === 'height' ? 'length' : 'width'} (${unit})`} value={axis === 'width' ? width : height}
         onChange={value => onChange({ ...detail, zipPullScale: zipPullScale({ zipPullScale: zipPullScale(detail) * value / (axis === 'width' ? width : height) }) })} /></label>)}
-      <label>Travel from top ({unit})<DetailNumberInput key={`${detail.id}-${unit}`} label={`Zip pull travel (${unit})`} value={(detail.zipSliderPosition ?? (detail.variant === 'zip-05' ? .34 : 0)) * trackLength} min={0} max={trackLength}
-        onChange={value => onChange({ ...detail, zipSliderPosition: trackLength > 0 ? Math.max(0, Math.min(1, value / trackLength)) : 0 })} /></label>
+      {detail.variant !== 'zip-07' && <label>Travel from top ({unit})<DetailNumberInput key={`${detail.id}-${unit}`} label={`Zip pull travel (${unit})`} value={(detail.zipSliderPosition ?? (detail.variant === 'zip-05' ? .34 : 0)) * trackLength} min={0} max={trackLength}
+        onChange={value => onChange({ ...detail, zipSliderPosition: trackLength > 0 ? Math.max(0, Math.min(1, value / trackLength)) : 0 })} /></label>}
       {(['width', 'length'] as const).map(axis => {
         const dimension = display((axis === 'width' ? 16 : 22) * sliderFactor);
         return <label key={axis}>Slider {axis} ({unit})<DetailNumberInput key={`${detail.id}-${unit}`} label={`Zip slider ${axis} (${unit})`} value={dimension}
@@ -142,8 +142,8 @@ function DetailArtwork({ detail, ratio, joinedNeckline, garmentWidth, integrated
   const normalize=(raw:string)=>technical && !(previewInk && detail.type === 'zip')
     ? normalizeTechnicalSvg(raw,garmentWidth/sourceWidth,'outline',false,previewInk) : raw;
   const body = useMemo(() => detailSvg(detail, ratio, 'body', joinedNeckline, integratedPlacket, true), [ratio, joinedNeckline, integratedPlacket, detail.type, detail.variant, detail.scaleX, detail.scaleY,
-    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipBottomOpening, detail.zipPullStyle, detail.zipPullScale, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.hoodieTrim, detail.splitPocketGap, detail.opening, detail.id, fontRevision]);
-  return <><span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(body) }} />
+    detail.fill, detail.outline, detail.stitch, detail.hardware, detail.zipSliderColor, detail.zipSliderScale, detail.zipTeethColor, detail.zipSliderPosition, detail.zipBottomOpening, detail.zipPullStyle, detail.zipPullScale, detail.zipHardwareScale, detail.flipX, detail.flipY, detail.catalogueAsset, detail.customAsset, detail.patch, detail.hoodieTrim, detail.integratedCordLock, detail.splitPocketGap, detail.opening, detail.id, fontRevision]);
+  return <><span data-placket-preview={detail.variant === 'zip-07' ? detail.placketPreviewOpen ? 'open' : 'closed' : undefined} className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(body) }} />
     {detail.type === 'zip' && !detail.customAsset && <span className="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: normalize(detailSvg(detail, ratio, 'pull')) }} />}</>;
 }
 
@@ -231,7 +231,7 @@ const detailCategoryLabels: Partial<Record<GarmentDetailType, string>> = {
 };
 const categoryLabel = (type: GarmentDetailType) => detailCategoryLabels[type] ?? `${GARMENT_DETAIL_ASSETS[type].label}s`;
 const primaryDetailCategories = ['pocket', 'zip', 'button', 'patch'] as const;
-const hoodTrimCategories = ['drawstring', 'eyelet', 'aglet', 'toggle', 'hoodDetail'] as const;
+const hoodTrimCategories = ['drawstring', 'toggle', 'hoodDetail'] as const;
 const canCopyToOtherSide = (detail: GarmentDetail) => !detail.opening && !['drawstring', 'hoodDetail'].includes(detail.type) && !detail.variant?.startsWith('hoodie-');
 const thumbnail = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg.replace(
   /var\(--detail-(fill|outline|stitch|hardware), (?:none|black)\)/g,
@@ -263,9 +263,9 @@ function HoodieTrimControls({ detail, onChange, bounds }: {
       <label>Finish<MaterialSelect aria-label="Trim finish" value={settings.finish ?? ''} onChange={event => update({ finish: event.target.value })}>
         <option value="">Preset finish</option><option>Matte</option><option>Satin</option><option>Polished</option>
       </MaterialSelect></label>
-      {bounds && <label>Placement<MaterialSelect aria-label="Hoodie trim placement" value="" onChange={event => {
+      {bounds && !['drawstring', 'toggle', 'hoodDetail'].includes(detail.type) && <label>Placement<MaterialSelect aria-label="Hoodie trim placement" value="" onChange={event => {
         const position = positions.find(([label]) => label === event.target.value);
-        if (position) onChange({ x: position[1], y: position[2], placementArea: 'canvas', hoodAnchor: null });
+        if (position) onChange({ x: position[1], y: detail.type === 'pocket' && position[0] === 'Right chest' ? .32 : position[2], placementArea: 'canvas', hoodAnchor: null });
         else if (bounds.hoodOpeningY !== undefined && event.target.value.startsWith('Hood')) {
           const anchor = (bounds.hoodOpeningY - bounds.minY) / (bounds.maxY - bounds.minY);
           const offset = event.target.value === 'Hood opening' ? 0 : event.target.value === 'Hood centre seam' ? -.13 : .045;
@@ -283,12 +283,17 @@ function HoodieTrimControls({ detail, onChange, bounds }: {
         {detail.variant !== 'cord-elastic' && <label>Aglet<MaterialSelect aria-label="Drawstring aglet" value={settings.tip ?? 'cylinder'} onChange={event => update({ tip: event.target.value as HoodieTrimSettings['tip'] })}>
           {TIP_STYLES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </MaterialSelect></label>}
+      </>}
+    </div>
+    {detail.type === 'drawstring' && <details className="detail-construction-fold">
+      <summary>Dimensions</summary>
+      <div className="patch-editor space-y-3">
         {([['spacing', 'Cord spacing', .55, 1.45], ['thickness', 'Cord thickness', .65, 1.6], ['visibleLength', 'Visible cord length', .45, 1], ['eyeletSize', 'Eyelet ring size', .7, 1.3], ['eyeletBore', 'Eyelet opening', .45, .75],
           ...(detail.variant === 'cord-elastic' ? [] : [['tipLength', 'Aglet length', .6, 1.25], ['tipWidth', 'Aglet width', .6, 1.45]] as const)] as const)
           .map(([key, label, min, max]) => <label key={key}>{label}<input type="range" aria-label={label} min={min} max={max} step=".05"
             value={settings[key] ?? (key === 'eyeletBore' ? .57 : 1)} onChange={event => update({ [key]: event.currentTarget.valueAsNumber })} /></label>)}
-      </>}
-    </div>
+      </div>
+    </details>}
   </details>;
 }
 
@@ -306,7 +311,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   const categories: GarmentDetailType[] = hoodie ? [...primaryDetailCategories, ...hoodTrimCategories] : [...primaryDetailCategories];
   const activeCategory = categories.includes(category) ? category : 'pocket';
   const hoodTrimsActive = hoodTrimCategories.some(type => type === activeCategory);
-  const hoodOnly = activeCategory === 'drawstring' || activeCategory === 'hoodDetail';
+  const hoodOnly = activeCategory === 'drawstring' || activeCategory === 'toggle';
   const selectedHoodTrim = selectedId && details.find(detail => detail.id === selectedId)?.type === 'drawstring';
   const [builtinError, setBuiltinError] = useState('');
   const [localLibraryOpen,setLocalLibraryOpen]=useState(!selectedId);
@@ -318,6 +323,15 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   const visibleDetails=details.filter(d=>!d.hidden);
   const showLibrary=()=>{setLibraryOpen(true);if(phone)responsive.setInspectorSnap('full')};
   const editDetail=(id:string)=>{onSelect(id);setLibraryOpen(false);if(phone)responsive.setInspectorSnap('half')};
+  useEffect(() => {
+    const editLoop = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (!details.some(detail => detail.id === id && detail.type === 'hoodDetail' && !detail.hidden)) return;
+      editDetail(id);
+    };
+    window.addEventListener('ceriga-edit-hanging-loop', editLoop);
+    return () => window.removeEventListener('ceriga-edit-hanging-loop', editLoop);
+  }, [details, editDetail]);
   useEffect(()=>{if(selectedId&&selectedId!==previousSelection.current)setLibraryOpen(false);previousSelection.current=selectedId},[selectedId]);
   useEffect(()=>{if(responsive.detailAddRequest){showLibrary();responsive.onDetailAddHandled()}},[responsive.detailAddRequest]);
   useEffect(()=>{workbenchRef.current?.closest('.responsive-sheet-content,.builder-inspector')?.scrollTo({top:0,behavior:'smooth'})},[libraryOpen,selectedId]);
@@ -336,8 +350,13 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
     if (length && bounds) detail = alignGarmentZip(detail, bounds, length);
     if (bounds) detail = anchorHoodTrim(detail, bounds);
     editor?.onOpeningStageChange?.('final');
-    onChange([...details, detail]);
+    const nextDetails = hoodie && type === 'toggle' && !details.some(item => item.type === 'drawstring' && !item.hidden && (item.view ?? 'front') === 'front')
+      ? [...details, { ...createGarmentDetail('drawstring', details, '#DDD6C7', 'cord-round'), view: 'front' as const, selected: false }]
+      : details;
+    const retained = nextDetails.filter(item => !(hoodie && (type === 'toggle' || type === 'hoodDetail') && item.type === type));
+    onChange([...retained.map(item => item.selected ? { ...item, selected: false } : item), detail]);
     editDetail(detail.id);
+    if (hoodie && type === 'hoodDetail') editor?.onCloseUpChange(true);
   };
   return <div ref={workbenchRef} className="detail-workbench space-y-5" data-mode={libraryOpen?'add':'edit'}>
     <div className="detail-mode-tabs" role="group" aria-label="Detail workspace"><button type="button" aria-pressed={!libraryOpen} disabled={!visibleDetails.length} onClick={()=>setLibraryOpen(false)}>Edit details <span>{visibleDetails.length}</span></button><button type="button" aria-pressed={libraryOpen} onClick={showLibrary}><Plus size={14}/>Add a detail</button></div>
@@ -374,7 +393,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {hoodTrimsActive && <div role="group" aria-label="Hood trim category" className="detail-category-grid detail-subcategory-grid">
         {hoodTrimCategories.map(type => <button key={type} type="button" aria-pressed={activeCategory === type}
           onClick={() => { setHoodTrimCategory(type); setCategory(type); }}>
-          {type === 'eyelet' ? 'Eyelets' : type === 'aglet' ? 'Aglets' : categoryLabel(type)}
+          {categoryLabel(type)}
         </button>)}
       </div>}
       {activeCategory === 'zip' && view === 'front' && <div role="group" aria-label="Front zip lengths" className="detail-category-grid detail-zip-length-grid">
@@ -438,13 +457,17 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       </div>}
       {selected.type==='zip'&&<button type="button" className="detail-remove-zip" onClick={removeSelected}><Trash2 size={14}/><span>Remove zip</span><small>Restore the fabric underneath</small></button>}
       <section className="detail-colours-first" aria-label="Colours"><h4>Colours</h4>
+      {selected.variant === 'zip-07' && selected.opening && <div role="group" aria-label="Hidden placket preview" className="detail-category-grid">
+        <button type="button" aria-pressed={!selected.placketPreviewOpen} onClick={() => update({ placketPreviewOpen: false })}>Closed</button>
+        <button type="button" aria-pressed={Boolean(selected.placketPreviewOpen)} onClick={() => update({ placketPreviewOpen: true })}>Open</button>
+      </div>}
       {selected.type==='patch'&&!selected.customAsset&&<div className="detail-colour-grid">    <TrimColorFamilyPicker label={patchSettings(selected.patch).designMode === 'logo' ? 'Patch material colour' : 'Patch background colour'} value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: '#D4D4D4' })} />
     {patchSettings(selected.patch).designMode !== 'logo' && <TrimColorFamilyPicker label="Patch border colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />}
     {patchSettings(selected.patch).designMode !== 'logo' && patchSettings(selected.patch).stitchedEdge && (patchSettings(selected.patch).finish === 'stitched' || patchSettings(selected.patch).finish === 'sewOn') && <TrimColorFamilyPicker label="Patch thread colour" value={selected.stitch} onChange={stitch => update({ stitch })} onClear={() => update({ stitch: '#707070' })} />}</div>}
       {(selected.type !== 'patch' || selected.customAsset) && <section aria-label={selected.type === 'zip' ? 'Zip colours' : 'Detail colours'} className="detail-colour-grid">
 
-      {(selected.type !== 'zip' || editor?.part !== 'pull') && <>
-      <TrimColorFamilyPicker label={selected.type === 'zip' ? 'Tape colour' : `${selected.name} colour`} value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: color })} />
+      {(selected.type !== 'zip' || editor?.part !== 'pull' || selected.variant === 'zip-07') && <>
+      <TrimColorFamilyPicker label={selected.variant === 'zip-07' && selected.opening ? 'Placket colour' : selected.type === 'zip' ? 'Tape colour' : `${selected.name} colour`} value={selected.fill} onChange={fill => update({ fill })} onClear={() => update({ fill: color })} />
       <TrimColorFamilyPicker label="Outline colour" value={selected.outline} onChange={outline => update({ outline })} onClear={() => update({ outline: '#141414' })} />
       {asset.stitch && <TrimColorFamilyPicker label="Stitch colour" value={selected.stitch} onChange={stitch => update({ stitch })} onClear={() => update({ stitch: '#707070' })} />}
       {asset.hardware && <TrimColorFamilyPicker label={selected.type === 'zip' ? 'Rails & stops colour' : 'Hardware colour'} value={selected.hardware}
@@ -539,6 +562,22 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
   type MovePoint = Pick<PointerEvent<HTMLElement>, 'pointerId' | 'clientX' | 'clientY' | 'altKey'>;
   const pendingMove = useRef<MovePoint | null>(null);
   const editable = Boolean(onChange);
+  useEffect(() => {
+    const selected = details.find(detail => detail.id === selectedId && !detail.hidden && (detail.view ?? 'front') === view);
+    if (!selected || !onChange) return;
+    const deleteSelected = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey ||
+        (event.key !== 'Backspace' && event.key !== 'Delete')) return;
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"], [role="menu"]')) return;
+      event.preventDefault();
+      onChange(selected.sourceLayerId
+        ? details.map(detail => detail.id === selected.id ? { ...detail, hidden: true, selected: false } : detail)
+        : details.filter(detail => detail.id !== selected.id));
+      onSelect?.(null);
+    };
+    window.addEventListener('keydown', deleteSelected);
+    return () => window.removeEventListener('keydown', deleteSelected);
+  }, [details, selectedId, view, onChange, onSelect]);
   const move = (event: MovePoint) => {
     const active = gesture.current;
     if (!active || active.pointerId !== event.pointerId) return;
@@ -644,9 +683,6 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
         onPointerDown={event => start(event, detail)}
         onClick={event => { event.stopPropagation(); if (editable) { setWordSelection(null); onSelect?.(detail.id); editor?.onPartChange('zip'); } }}
         onKeyDown={event => {
-          if (editable && (event.key === 'Delete' || event.key === 'Backspace')) {
-            event.preventDefault(); event.stopPropagation(); onChange?.(detail.sourceLayerId ? details.map(item => item.id === detail.id ? { ...item, hidden: true, selected: false } : item) : details.filter(item => item.id !== detail.id)); onSelect?.(null); return;
-          }
           if (!editable || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
           event.preventDefault(); event.stopPropagation();
           const increment = event.shiftKey ? 10 : 1;

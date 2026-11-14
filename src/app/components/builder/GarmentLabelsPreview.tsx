@@ -59,7 +59,8 @@ export function labelPlacementSheet(root: HTMLElement, labels: GarmentLabel[], s
   return new XMLSerializer().serializeToString(output);
 }
 
-export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, garmentProps, animateEntry = false, tagView = 'front', onTagViewChange, studio = false,closeUpRequest=0,artwork=[],onArtworkSelect }: {
+export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, garmentProps, animateEntry = false, tagView = 'front', onTagViewChange, studio = false,closeUpRequest=0,artwork=[],onArtworkSelect, onGarmentFrameStyle }: {
+  onGarmentFrameStyle?: (zoom: number) => React.CSSProperties;
   studio?: boolean;closeUpRequest?:number;artwork?:StudioDesignElement[];onArtworkSelect?:(id:string)=>void;
   labels: GarmentLabel[]; selectedId: string | null; onSelect: (id: string | null) => void;
   onChange: (labels: GarmentLabel[]) => void; garmentProps: TshirtSvgPreviewProps;
@@ -128,8 +129,10 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   if(!closeup)cameraSnapshot.current=null;
   const stableFocus=closeup&&cameraSnapshot.current?.key===cameraKey?cameraSnapshot.current.focus:cameraFocus;
   const framing = stableFocus?labelCameraFrame(stableFocus,selected?.category):null;
-  const scale = closeup && framing ? labelCameraScale(framing,selected?.category,Boolean(cameraFocus?.context)) * zoom : zoom;
-  const point = closeup && framing ? framing : { x: 1024, y: 1024 };
+  const hoodieNeckCloseUp = closeup && showGarment && neckSelected && selected?.position !== 'neck-outside' && garmentProps.garmentType === 'hoodie' &&
+    garmentProps.selection.hoodieStyle !== 'crewneck' && !imported;
+  const scale = closeup && framing && !hoodieNeckCloseUp ? labelCameraScale(framing,selected?.category,Boolean(cameraFocus?.context)) * zoom : zoom;
+  const point = closeup && framing && !hoodieNeckCloseUp ? framing : { x: 1024, y: 1024 };
   const contextVisible = mode !== 'only' && (!closeup || showGarment);
   const controlClass = 'rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/10 aria-pressed:bg-white/15 aria-pressed:text-white';
   const interior = Boolean(!manual && selected && !neckSelected && isInteriorLabel(selected));
@@ -161,9 +164,11 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
       onPointerMove={event => { const gesture = panGesture.current; if (gesture?.pointer === event.pointerId) setPan({ x: gesture.origin.x + event.clientX - gesture.x, y: gesture.origin.y + event.clientY - gesture.y }); }}
       onPointerUp={() => { panGesture.current = null; }} onPointerCancel={() => { panGesture.current = null; }} onLostPointerCapture={() => { panGesture.current = null; }}
       className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden [container-type:size]" style={{ touchAction: careCloseup ? 'none' : undefined, cursor: careCloseup ? 'grab' : undefined, backgroundColor: '#ffffff', backgroundImage: 'none', backgroundSize: '16px 16px' }}>
-      {!handSelected && mode!=='only' && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible' : ''}`} style={{ transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
+      {!handSelected && mode!=='only' && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible' : ''}`} style={mode === 'garment' && onGarmentFrameStyle
+        ? { ...onGarmentFrameStyle(zoom), position: 'absolute', left: '50%', top: '50%' }
+        : { transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
         <StudioArtworkPreview onArtworkSelect={onArtworkSelect} elements={artwork} view={view} interactive garment={<TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
-          onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />}/>
+          onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, hoodieNeckCloseUp, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />}/>
       </div>}
       {selected && (handSelected || mode==='only') && (studio?<EmbeddedSurfaceArtworkEditor key={selected.id+':'+(selected.artworkFace??'front')} title="Label artwork" value={selectedSurface!} selectedId={workflow.selection} controlsHost={workflow.controlsHost} onSelection={workflow.setSelection} onCommit={value=>onChange(labels.map(label=>label.id===selected.id?saveLabelSurface(label,value):label))}/>:<svg data-isolated-label="" viewBox={`0 0 ${selected.widthMm} ${selected.heightMm}`} className="absolute h-[85%] w-[85%]"><LabelArtwork label={selected}/></svg>)}
       {!selected && <p role="status" className="pointer-events-none absolute bottom-5 z-10 max-w-sm rounded border border-black/10 bg-white/95 px-4 py-2 text-center text-xs text-[#737373]">{labels.length ? 'Select a saved label or use Add label in the panel. No label is selected for this view.' : 'No labels added. Choose any label category and use Add label in the panel when you are ready.'}</p>}

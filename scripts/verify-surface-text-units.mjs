@@ -3,3 +3,11 @@ const{api}=await surfaceRuntime(`export * from './src/app/lib/importSurfaceSvg';
 const surface={id:'units',kind:'label',units:'mm',width:50,height:25,outline:api.editableSvgPath('M0 0H50V25H0Z'),clip:true,background:'#fff',bleed:0},document=api.importSurfaceSvg('<svg xmlns="http://www.w3.org/2000/svg"><g transform="scale(.1)"><text data-label-text-section="brand" font-size="20" x="100" y="100">BRAND</text></g></svg>',surface),text=document.elements[0];assert.equal(text.fontSize,2);assert.equal(text.autoHeight,false);assert.equal(text.textFrameMode,'area');assert(api.precisionMarkup({...text,fontSize:4}).includes('font-size="40"'),'Edited size must be converted back to source coordinates');
 const old=structuredClone(document);old.elements[0].fontSize=20;old.elements[0].svgPrecision.base.fontSize=20;delete old.elements[0].svgPrecision.fontScale;delete old.elements[0].svgPrecision.trackingScale;const snapshot=JSON.stringify(old),fixed=api.normaliseSurfaceTextUnits(old);assert.equal(fixed.elements[0].fontSize,2);assert.equal(JSON.stringify(old),snapshot);assert.equal(api.precisionMarkup(fixed.elements[0]),api.precisionMarkup(text));
 const {renderToStaticMarkup}=await import('react-dom/server'),{createElement}=await import('react');const chrome=renderToStaticMarkup(createElement(api.PrintTransformOverlay,{tight:true,uiInverseScale:.04,onResizePointerDown:()=>{},onRotatePointerDown:()=>{}}));assert(chrome.includes('data-shape-transform'));assert(chrome.includes('scale(0.04)'));console.log('PASS: canonical mm typography, immutable old-document repair, identical SVG and zoom-compensated text selection handles');
+assert.equal(api.precisionGeometryChanged(text), false);
+for (const shape of [
+ {textBadge:{top:'BRAND',bottom:'',centre:'',radius:8}},
+ {textCurveAmount:30},
+ {textStackFit:true},
+ {textPath:{path:{closed:false,nodes:[{x:0,y:50},{x:100,y:50}]},offset:0}},
+ {vectorTextEffects:[{enabled:true,type:'arch',bend:30}]},
+]) assert.equal(api.precisionGeometryChanged({...text,...shape}), true);

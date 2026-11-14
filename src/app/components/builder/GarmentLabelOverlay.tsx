@@ -247,7 +247,7 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
       if(!candidate)return{x:widthMm/2,y:heightMm};
       const screen=candidate.matrix.transformPoint(new DOMPoint(candidate.width/2,candidate.height)).matrixTransform(svgRef.current!.getScreenCTM()!);
       const local=active.inverse.transformPoint(screen);return{x:local.x/active.unit,y:local.y/active.unit};
-    }):null;
+    }, active.label.shape === 'circle' || active.label.shape === 'square'):null;
     draftRef.current = constrainNeckLabel(normalizeLabel({ ...active.label, ...(size ? {widthMm:size.width,heightMm:size.height} : manualOffset) }), layers, referenceWidthMm, maskById);
     if(!draftFrame.current)draftFrame.current=requestAnimationFrame(()=>{draftFrame.current=0;setDraft(draftRef.current)});
   };

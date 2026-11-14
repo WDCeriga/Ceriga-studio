@@ -18,7 +18,7 @@ import { stitchVariant } from '../../data/tshirtStitching';
 export type StitchEditor = { region: StitchRegion; closeUp: boolean; onSelect: (region: StitchRegion) => void; onApply?: (region:StitchRegion,settings:StitchSettings)=>void };
 
 export function useStitchGeometry(layers: ResolvedGarmentLayer[], fit: string, enabled = true, preferVector = false) {
-  const technical=useTechnicalDrawing(),regular=useRegularConstruction()||technical||preferVector||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
+  const technical=useTechnicalDrawing(),regular=useRegularConstruction()||technical||preferVector||layers.some(l=>l.id==='bodyStitching'||l.svgRaw.includes('data-live-hem-finish'));
   const vector=useMemo(()=>regular&&enabled?{rows:straightSleeveStitches(layers,constructionStitchRows(layers)),clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips']}:undefined,[regular,enabled,layers]);
   const [result, setResult] = useState<{ layers: ResolvedGarmentLayer[]; geometry: StitchGeometry }>();
   const [failed, setFailed] = useState(false);
@@ -38,15 +38,24 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor,
   layers: ResolvedGarmentLayer[]; fit: string; settings: TshirtStitching; hems?: TshirtHemStyles; fabricColor?: string; previewInk?: boolean;
 }) {
   const technical=useTechnicalDrawing();
-  const regular=useRegularConstruction()||technical||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
+  const hoodie = layers.some(layer => layer.id === 'bodyStitching' && layer.svgRaw.includes('data-hoodie-stitch-region'));
+  const regularConstruction = useRegularConstruction();
+  const regular=hoodie||regularConstruction||technical||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
   const prefix = useId().replace(/:/g, '');
   const { geometry, failed } = useStitchGeometry(layers, fit, !regular);
   const regularRows=useMemo(()=>regular?constructionStitchRows(layers):undefined,[regular,layers]);
-  const source = layers.find(layer => layer.id === 'stitching');
+  const source = layers.find(layer => layer.id === (hoodie ? 'bodyStitching' : 'stitching'));
   const hemClips = (hemGeometry as Record<string, Record<string, { stitchCut: string }>>)[`${fit}:${stitchVariant(layers)}`];
   const colors = fabricColor ? Object.fromEntries(layers.filter(layer => layer.kind === 'solid').map(layer => [layer.id, layer.tint ?? fabricColor])) : undefined;
   if (colors) colors.neckline = colors.neck ?? colors.base;
-  const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips'],hemClips:Object.fromEntries(layers.filter(l=>/^(bodyHem|sleeveHem(?:Left|Right)|underlayerHem(?:Left|Right))$/.test(l.id)).map(({id})=>{const layer=layers.find(l=>l.id===id),rings=layer?fabricRings(layer.svgRaw):[];return [id,{stitchCut:rings.map(r=>'M'+r.map(p=>(p.x*.75).toFixed(3)+','+(p.y*.75).toFixed(3)).join('L')+'Z').join('')}]}))}:geometry&&{...geometry,hemClips};
+  const fullClip = 'M0,0H1536V1536H0Z';
+  const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,fullClip])) as StitchGeometry['clips'],hemClips:Object.fromEntries(layers.filter(l=>/^(bodyHem|sleeveHem(?:Left|Right)|underlayerHem(?:Left|Right))$/.test(l.id)).map(layer=>{
+    // Hoodie cuff stitching straddles the join. Clipping it to the cuff alone
+    // cuts away any part of the stitch that falls on the sleeve fabric.
+    const stitchCut = hoodie && /^sleeveHem/.test(layer.id) ? fullClip : fabricRings(layer.svgRaw)
+      .map(r=>'M'+r.map(p=>(p.x*.75).toFixed(3)+','+(p.y*.75).toFixed(3)).join('L')+'Z').join('');
+    return [layer.id,{stitchCut}];
+  }))}:geometry&&{...geometry,hemClips};
   const foldRows = useMemo(() => Object.fromEntries(layers.filter(layer => layer.svgRaw.includes('data-double-fold-row')).map(layer => {
     const doc = new DOMParser().parseFromString(layer.svgRaw, 'image/svg+xml');
     return [layer.id, Array.from(doc.querySelectorAll('[data-double-fold-row]'), path =>
