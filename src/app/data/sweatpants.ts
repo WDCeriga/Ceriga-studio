@@ -1,3 +1,4 @@
+import {constructionDepth} from '../lib/constructionDepth';
 import {hoodieCordSvg} from './hoodieTrimAssets';
 import type {GarmentAssetSelection,ResolvedGarmentLayer} from './garmentSvgCatalog';
 import {GARMENT_SIZES} from '../lib/measurementGrading';
@@ -33,7 +34,7 @@ export const SWEATPANTS_OPTIONS={
  pantsLength:{label:'Length',options:[['full','Full length'],['shorts','Shorts']]},
  pantsLeg:{label:'Leg shape',options:[['tapered','Tapered'],['straight','Straight'],['wide','Wide leg'],['flared','Flared'],['baggy','Baggy / Oversized']]},
  pantsWaist:{label:'Waist construction',options:[['elastic','Elastic waistband'],['rib','Rib waistband'],['folded','Folded waistband'],['flat','Flat waistband'],['drawstring','Drawstring waistband']]},
- pantsHem:{label:'Hem / cuff',options:[['rib','Rib cuff'],['elastic','Elastic cuff'],['open','Open hem'],['turned','Turned hem'],['raw','Raw hem']]},
+ pantsHem:{label:'Hem / cuff',options:[['rib','Rib cuff'],['elastic','Elastic cuff'],['open','Open hem'],['turned','Turned hem'],['raw','Raw hem'],['adjustable','Adjustable hem']]},
 } as const;
 export function sweatpantsLength(value?:string){
  return ['shorts','above-knee','knee'].includes(value??'')?'shorts':'full';
@@ -50,7 +51,7 @@ export function sweatpantsLengthAdjustment(selection:GarmentAssetSelection){
 export function sweatpantsBlock(selection:GarmentAssetSelection,fit='regular'){
  const block=SWEATPANTS_FITS.find(item=>item.id===fit)??SWEATPANTS_FITS[1];
  const length=sweatpantsLength(selection.pantsLength),short=length==='shorts';
- const fullLeg=selection.pantsLeg==='jogger'?'tapered':selection.pantsLeg??'tapered';
+ const fullLeg=selection.pantsLeg==='jogger'?'tapered':selection.pantsLeg??'straight';
  const legacyShortLeg=({tapered:'slim',straight:'straight',flared:'wide',wide:'wide',baggy:'baggy'} as Record<string,string>)[fullLeg];
  const shortLeg=SWEATPANTS_SHORT_LEGS.find(([id])=>id===(selection.pantsShortLeg??(selection.pantsLeg?legacyShortLeg:'straight')))?.[0]??'straight';
  const shortProfile=short?shortLegProfiles[shortLeg]:undefined;
@@ -64,10 +65,13 @@ export function sweatpantsBlock(selection:GarmentAssetSelection,fit='regular'){
   flared:{knee:block.hip*.72,opening:block.hip*1.10},
   baggy:{knee:block.hip*1.12,opening:block.hip*.97},
  };
- const profile=widths[leg]??widths.tapered;
+ const profile=widths[leg]??widths.straight;
+ const hem=selection.pantsHem??(short||leg!=='tapered'?'turned':'rib');
+ const naturalOpening=shortProfile?block.hip*shortProfile.opening:profile.opening;
+ const opening=naturalOpening;
  return {...block,rise,knee:profile.knee,length:(lengths[length]??block.length)+sweatpantsLengthAdjustment(selection)*10,
-  opening:shortProfile?block.hip*shortProfile.opening:profile.opening,short,shortProfile,
-  hem:selection.pantsHem??(short||leg!=='tapered'?'turned':'rib'),waist:selection.pantsWaist??'elastic',leg};
+  opening,short,shortProfile,
+  hem,waist:selection.pantsWaist??'elastic',leg};
 }
 export function trouserInnerOpening(block:ReturnType<typeof sweatpantsBlock>,hip:number){
  return block.shortProfile?1024-hip*block.shortProfile.gap:block.leg==='tapered'?1024-hip*.17:1015;
@@ -85,14 +89,14 @@ export function sweatpantsMeasurementPresets(selection:GarmentAssetSelection,fit
 export function sweatpantsDrawingLength(length:number,rise:number,short:boolean){
  return rise+(length-rise)*(short?1.25:1.14);
 }
-export function sweatpantsLayers(selection:GarmentAssetSelection,fit='regular',back=false,measurements?:Record<string,Record<string,string>>,size='m'):ResolvedGarmentLayer[]{
+export function sweatpantsLayers(selection:GarmentAssetSelection,fit='regular',back=false,measurements?:Record<string,Record<string,string>>,size='m',flyColour?:string):ResolvedGarmentLayer[]{
  const b=sweatpantsBlock(selection,fit),defaults=sweatpantsMeasurementPresets(selection,fit);
  const value=(id:string,fallback:number)=>{const n=Number(measurements?.[id]?.[size]);return Number.isFinite(n)&&n>0?n:fallback};
  const ratio=(id:string)=>defaults[id]?value(id,Number(defaults[id]?.[size]))/Number(defaults[id]?.[size]):1;
  const hip=b.hip*ratio('hip'),thigh=b.thigh*ratio('thigh'),opening=b.opening*ratio('legOpening');
- const top=350,band=value('waistbandHeight',4)*11,rise=b.rise*ratio(back?'backRise':'frontRise');
+ const top=350,band=constructionDepth(value('waistbandHeight',4),4,12)*11,rise=b.rise*ratio(back?'backRise':'frontRise');
  const measuredLength=measurements?.inseam?.[size]?rise+value('inseam',(b.length-b.rise)/10)*10:b.length*ratio('outseam');
- const end=top+sweatpantsDrawingLength(measuredLength,rise,b.short),crotch=top+rise+(b.shortProfile?.rise??0),hemHeight=['rib','elastic'].includes(b.hem)?48:0;
+ const end=top+sweatpantsDrawingLength(measuredLength,rise,b.short),crotch=top+rise+(b.shortProfile?.rise??0),hemHeight=['rib','elastic'].includes(b.hem)?constructionDepth(selection.pantsHemDepth,4.8,12)*10:0;
  const waist=hip*.92*ratio('waist');
  const waistTop=waist-9;
  const waistLeft=1024-waist;
@@ -109,41 +113,50 @@ export function sweatpantsLayers(selection:GarmentAssetSelection,fit='regular',b
  const kneeWidth=b.knee*ratio('knee');
  const innerEnd=trouserInnerOpening(b,hip);
  const outerEnd=innerEnd-opening,center=(innerEnd+outerEnd)/2;
+ const gathered=hemHeight>0||b.hem==='adjustable';
+ const preserveTaper=b.leg==='tapered'&&!b.short&&gathered;
+ const hemInset=gathered&&!preserveTaper?Math.min(18,opening*.065):0;
+ const joinOuter=outerEnd+hemInset,joinInner=innerEnd-hemInset;
+ const gatherDepth=gathered&&!preserveTaper?Math.min(62,(hemY-crotch)*.2):0;
+ const profileEnd=hemY-gatherDepth;
  const kneeInner=b.leg==='tapered'?1024-hip*.105:b.leg==='flared'?1024-hip*.075:1012;
  const kneeOuter=kneeInner-kneeWidth;
  const thighOffset=thigh-b.thigh;
  const upperLeg=`M${waistLeft} ${waistJoin} ${hipSide(crotch)}`;
  const innerJoin=`Q1024 ${crotch-5} 1024 ${crotch-15} L1024 ${waistJoin+waistDip/2} Q${1024-waist/2} ${waistJoin+waistDip/2} ${waistLeft} ${waistJoin}Z`;
  const upperOuter=`C${left-thighOffset*.9} ${crotch+78} ${kneeOuter} ${kneeY-64} ${kneeOuter} ${kneeY}`;
- const stacked=b.leg==='baggy'&&!b.short&&!hemHeight;
+ const stacked=b.leg==='baggy'&&!b.short&&!gathered;
  const stackY=hemY-94;
  const lowerOuter=stacked
    ? `C${kneeOuter-4} ${kneeY+85} ${outerEnd-39} ${stackY-53} ${outerEnd-17} ${stackY}
       q16 25 2 43q-13 17 6 27q12 10 9 24`
-   : b.leg==='tapered'
-     ? `C${kneeOuter+5} ${kneeY+100} ${outerEnd-29} ${hemY-39} ${outerEnd} ${hemY}`
-     : `C${kneeOuter} ${kneeY+75} ${outerEnd+(b.leg==='flared'?19:0)} ${hemY-85} ${outerEnd} ${hemY}`;
+   : (b.leg==='tapered'
+     ? `C${kneeOuter+5} ${kneeY+100} ${outerEnd-29} ${profileEnd-39} ${outerEnd} ${profileEnd}`
+     : `C${kneeOuter} ${kneeY+75} ${outerEnd+(b.leg==='flared'?19:0)} ${profileEnd-85} ${outerEnd} ${profileEnd}`)
+     +(gathered&&!preserveTaper?`Q${outerEnd} ${hemY-13} ${joinOuter} ${hemY}`:'');
  const lowerInner=stacked
    ? `q-14 -14 -7 -30q10 -14 -3 -26q-14 -11 -6 -38
       C${innerEnd-11} ${stackY-55} ${kneeInner} ${kneeY+65} ${kneeInner} ${kneeY}`
-   : b.leg==='tapered'
-     ? `C${innerEnd+17} ${hemY-33} ${kneeInner-7} ${kneeY+91} ${kneeInner} ${kneeY}`
-     : `C${innerEnd-2} ${hemY-85} ${kneeInner} ${kneeY+66} ${kneeInner} ${kneeY}`;
+   : (gathered&&!preserveTaper?`Q${innerEnd} ${hemY-13} ${innerEnd} ${profileEnd}`:'')
+     +(b.leg==='tapered'
+     ? `C${innerEnd+17} ${profileEnd-33} ${kneeInner-7} ${kneeY+91} ${kneeInner} ${kneeY}`
+     : `C${innerEnd-2} ${profileEnd-85} ${kneeInner} ${kneeY+66} ${kneeInner} ${kneeY}`);
  const hemCurveOffset=stacked?-36:hemHeight?4:b.short?17:22;
- const hemCurve=`Q${center} ${hemY+hemCurveOffset} ${innerEnd} ${hemY}`;
+ const hemCurve=`Q${center} ${hemY+hemCurveOffset} ${joinInner} ${hemY}`;
  const shortSide=b.shortProfile?(()=>{
-  const depth=Math.max(28,hemY-crotch);
+  const depth=Math.max(28,profileEnd-crotch);
   const hipY=crotch-24;
   const outerHip=1024-hip*b.shortProfile.upper-thighOffset*.45;
   const upper=`M${waistLeft} ${waistJoin} ${hipSide(hipY,outerHip)}`;
   const sweep=b.shortProfile.sweep;
   return b.leg==='baggy'
-   ? `${upper} C${outerHip} ${hipY+depth*.5} ${outerEnd-22} ${hemY-53} ${outerEnd-17} ${hemY-23} Q${outerEnd-20} ${hemY-8} ${outerEnd} ${hemY}`
-   : `${upper} C${outerHip} ${hipY+depth*sweep} ${outerEnd} ${hemY-depth*.25} ${outerEnd} ${hemY}`;
+   ? `${upper} C${outerHip} ${hipY+depth*.5} ${outerEnd-22} ${profileEnd-53} ${outerEnd-17} ${profileEnd-23} Q${outerEnd-20} ${profileEnd-8} ${outerEnd} ${profileEnd}${gathered?`Q${outerEnd} ${hemY-10} ${joinOuter} ${hemY}`:''}`
+   : `${upper} C${outerHip} ${hipY+depth*sweep} ${outerEnd} ${profileEnd-depth*.25} ${outerEnd} ${profileEnd}${gathered?`Q${outerEnd} ${hemY-10} ${joinOuter} ${hemY}`:''}`;
  })():undefined;
  const leg=b.short
    ? `${shortSide} ${hemCurve}
-      C${innerEnd+5} ${hemY-(hemY-crotch)*.4} 1017 ${crotch+26} 1019 ${crotch+10} ${innerJoin}`
+      ${gathered?`Q${innerEnd} ${hemY-10} ${innerEnd} ${profileEnd}`:''}
+      C${innerEnd+5} ${profileEnd-(profileEnd-crotch)*.4} 1017 ${crotch+26} 1019 ${crotch+10} ${innerJoin}`
    : `${upperLeg} ${upperOuter} ${lowerOuter} ${hemCurve} ${lowerInner}
       C${kneeInner} ${kneeY-65} 1012 ${crotch+72} 1012 ${crotch+30} ${innerJoin}`;
  const mirror=(d:string)=>`<path d="${d}" transform="translate(2048 0) scale(-1 1)"/>`;
@@ -159,19 +172,36 @@ export function sweatpantsLayers(selection:GarmentAssetSelection,fit='regular',b
   Q${1024+waistTop+6} ${top+18} ${1024+waist} ${waistJoin}
   Q1024 ${waistJoin+waistDip} ${waistLeft} ${waistJoin}Z`;
  add('waistband','Waistband',`<path fill="#000000" d="${bandPath}"/>`,true,{role:'waistband',materialCategory:'waistband'});
- const cuff=`M${outerEnd} ${end-hemHeight} H${innerEnd} L${center+(opening-10)*ratio('cuffOpening')/2} ${end} Q${center} ${end+5} ${center-(opening-10)*ratio('cuffOpening')/2} ${end}Z`;
+ const cuffWidth=(opening-2*hemInset-(preserveTaper?10:8))*ratio('cuffOpening');
+ const cuff=`M${joinOuter} ${end-hemHeight} Q${center} ${end-hemHeight+4} ${joinInner} ${end-hemHeight} L${center+cuffWidth/2} ${end} Q${center} ${end+5} ${center-cuffWidth/2} ${end}Z`;
  if(hemHeight){
  add('bodyHem','Left leg cuff',`<path fill="#000000" d="${cuff}"/>`,true,{role:'cuff',group:'leg-cuffs',materialCategory:'cuffs'});
  add('trouserCuffRight','Right leg cuff',`<g fill="#000000">${mirror(cuff)}</g>`,true,{role:'cuff',group:'leg-cuffs',materialCategory:'cuffs'});
  }
  add('outline','Sweatpants outline',`<g fill="none" stroke="#202020" stroke-width="3.5" stroke-linejoin="round"><path d="${leg}"/>${mirror(leg)}<path d="${bandPath}"/>${hemHeight?`<path d="${cuff}"/>${mirror(cuff)}`:''}</g>`);
+ if(b.hem==='adjustable'){
+  const channelDepth=constructionDepth(selection.pantsHemDepth,2.2,5)*10;
+  const casing=`M${joinOuter+3} ${hemY-channelDepth}Q${center} ${hemY-channelDepth+hemCurveOffset} ${joinInner-3} ${hemY-channelDepth}`;
+  const exitX=joinOuter+11,exitY=hemY-12;
+  const cord=`M${exitX} ${exitY-3}C${exitX-8} ${exitY-7} ${exitX-16} ${exitY+1} ${exitX-17} ${exitY+9}
+   C${exitX-23} ${exitY+23} ${exitX-9} ${exitY+25} ${exitX-7} ${exitY+11}L${exitX+2} ${exitY+3}`;
+  const hardware=`<ellipse cx="${exitX}" cy="${exitY}" rx="3" ry="4" fill="#555" stroke="#222" stroke-width="1.4"/>
+   <path d="${cord}" fill="none" stroke="#d8d5c8" stroke-width="2.2" stroke-linecap="round"/>
+   <g transform="translate(${exitX-18} ${exitY+4}) rotate(18)">
+    <rect x="-4" y="-3" width="9" height="5" rx="1.5" fill="#666" stroke="#222" stroke-width="1.2"/>
+    <rect x="-6" width="13" height="10" rx="3" fill="#777" stroke="#222" stroke-width="1.4"/>
+    <path d="M-3 4H4" stroke="#ccc" stroke-width="1"/>
+   </g>`;
+  add('hemCasing','Drawcord hem channel',`<g fill="none" stroke="#202020" stroke-opacity=".45" stroke-width="1.3"><path d="${casing}"/>${mirror(casing)}</g>`);
+  add('hemDrawcord','Hem drawcord and locks',`<g data-trouser-hem-hardware="" data-fixed-ink="">${hardware}<g transform="translate(2048 0) scale(-1 1)">${hardware}</g></g>`);
+ }
  const pocketType=selection.pantsFrontPocket??'side-seam';
  const pocketScale=(side:keyof typeof TROUSER_POCKET_DIMENSIONS,index:number)=>{
   const [key,,min,max]=TROUSER_POCKET_DIMENSIONS[side][index];
   return trouserPocketDimension(selection,key,min,max)/100;
  };
  const inseamPocket=pocketType==='side-seam';
- const showPockets=pocketType!=='none'&&(!back||inseamPocket);
+ const showPockets=pocketType!=='none'&&!back;
  const slashPocket=pocketType==='slant';
  const pocketStart=waistLeft+(inseamPocket?8:slashPocket?66:44)*pocketScale('front',1);
  const pocketEnd=left-hip*((b.shortProfile?.upper??1)-1)*.74+(inseamPocket?15:slashPocket?24:31)*pocketScale('front',1);
@@ -213,19 +243,21 @@ export function sweatpantsLayers(selection:GarmentAssetSelection,fit='regular',b
  const pocketRow=slashPocket
   ? `M${pocketStart+12} ${pocketTop+5}Q${pocketControl+12} ${pocketMiddle} ${pocketEnd+12} ${pocketBottom-4}`
   : pocketType==='zip'? `M${pocketStart+10} ${pocketTop+5}L${pocketEnd+10} ${pocketBottom-5}`:'';
- const stitchY=hemHeight?end-hemHeight+5:end-12;
- const bottom=`M${outerEnd+6} ${stitchY} Q${center} ${stitchY+(stacked?-30:hemHeight?0:b.short?16:20)} ${innerEnd-5} ${stitchY}`;
+ const stitchY=hemHeight?end-hemHeight+5:end-constructionDepth(selection.pantsHemDepth,1.2,5)*10;
+ const bottom=`M${joinOuter+6} ${stitchY} Q${center} ${stitchY+(stacked?-30:hemHeight?0:b.short?16:20)} ${joinInner-5} ${stitchY}`;
  const waistRow=`M${1024-waistTop+7} ${top+8} Q1024 ${top+20} ${1024+waistTop-7} ${top+8}
   M${waistLeft+7} ${waistJoin-7} Q1024 ${waistJoin+waistDip-7} ${1024+waist-7} ${waistJoin-7}`;
- if(!back){
-  const flyY=top+Math.min(233,rise-38);
-  add('frontRiseSeam','Faux fly seam',`<path fill="none" stroke="#202020" opacity=".75" stroke-width="2.1" d="M1054 ${waistJoin+14}V${flyY-31}Q1054 ${flyY} 1025 ${flyY}"/>`);
+ if(!back&&selection.pantsFly!=='none'){
+  const flyDepth=constructionDepth(selection.pantsFlyLength,12,18)*10;
+  const flyY=Math.min(crotch-12,waistJoin+14+flyDepth);
+  const customInk=flyColour && /^#[\da-f]{6}$/i.test(flyColour) ? flyColour : undefined;
+  add('frontRiseSeam','Faux fly seam',`<path ${customInk?'data-fixed-ink=""':''} fill="none" stroke="${customInk??'#202020'}" opacity="${customInk?1:.75}" stroke-width="2.1" d="M1054 ${waistJoin+14}V${flyY-Math.min(31,flyDepth*.3)}Q1054 ${flyY} 1025 ${flyY}"/>`);
  }
  const sideRow=shortSide??`${upperLeg} ${upperOuter} ${lowerOuter}`;
- if(b.leg==='tapered'&&!b.short&&hemHeight){
-  const gathers=`M${outerEnd+14} ${hemY-4}q-12 -9 -18 -26
-    M${outerEnd+29} ${hemY-4}q-9 -8 -10 -16
-    M${innerEnd-12} ${hemY-4}q8 -8 10 -21`;
+ if(hemHeight){
+  const gathers=`M${joinOuter+14} ${hemY-4}q-8 -9 -12 -22
+    M${joinOuter+29} ${hemY-4}q-6 -8 -7 -16
+    M${joinInner-12} ${hemY-4}q6 -8 8 -19`;
   add('legFolds','Cuff gathers',`<g fill="none" stroke="#202020" stroke-opacity=".5" stroke-width="1.8"><path d="${gathers}"/>${mirror(gathers)}</g>`);
  }
  if(stacked){
@@ -279,7 +311,12 @@ export function sweatpantsLayers(selection:GarmentAssetSelection,fit='regular',b
    add('pocketStitch','Back pocket stitching',`<path fill="none" stroke="#eee" stroke-width="2" stroke-dasharray="6 4" d="${pocketShape(5)}"/>`);
   }
  }
- if(b.waist==='rib'||b.hem==='rib'){let ink='';for(let x=1024-waist+5;x<1024+waist;x+=7)if(b.waist==='rib')ink+=`M${x} ${top+4}v${band-8}`;for(let x=outerEnd+8;x<innerEnd-8;x+=6)if(b.hem==='rib')ink+=`M${x} ${end-hemHeight+5}v${hemHeight-8} M${2048-x} ${end-hemHeight+5}v${hemHeight-8}`;add('ribbing','Rib lines',`<path fill="none" stroke="#444" stroke-width="1" d="${ink}"/>`)}
+ if(b.waist==='rib'||b.hem==='rib'){
+  let waistInk='',cuffInk='';
+  if(b.waist==='rib')for(let x=1024-waist+5;x<1024+waist;x+=7)waistInk+=`M${x} ${top+4}v${band-8}`;
+  if(b.hem==='rib')for(let x=Math.min(joinOuter,center-cuffWidth/2)+5;x<Math.max(joinInner,center+cuffWidth/2)-5;x+=6)cuffInk+=`M${x} ${end-hemHeight+5}v${hemHeight-9} M${2048-x} ${end-hemHeight+5}v${hemHeight-9}`;
+  add('ribbing','Rib lines',`<defs><clipPath id="trouser-rib-waist"><path d="${bandPath}"/></clipPath><clipPath id="trouser-rib-cuffs"><path d="${cuff}"/>${mirror(cuff)}</clipPath></defs><g fill="none" stroke="#444" stroke-width="1"><path clip-path="url(#trouser-rib-waist)" d="${waistInk}"/><path clip-path="url(#trouser-rib-cuffs)" d="${cuffInk}"/></g>`);
+ }
  return layers;
 }
 

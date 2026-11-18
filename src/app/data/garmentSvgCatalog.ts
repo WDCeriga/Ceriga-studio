@@ -1,3 +1,4 @@
+import {TANK_PRESET,TANK_OPTIONS,TANK_DEFAULTS,TANK_ARMHOLE_FINISHES,tankLayers} from './tankTop';
 import {SWEATPANTS_PRESET,sweatpantsLayers} from './sweatpants';
 import { REGULAR_HOODIE_PRESET, regularHoodieLayers } from './regularHoodie';
 import {withRegularConstruction} from './regularConstruction';
@@ -10,6 +11,7 @@ import { withLayeredLongSleeves, withLongSleeves } from './tshirtLongSleeves';
 import { withTshirtHemStyles, type TshirtHemStyles } from './tshirtHemStyles';
 import { withTshirtBackView } from './tshirtBackView';
 import { withTshirtNeckPack } from './tshirtNeckPack';
+export { preloadTshirtNeckPack } from './tshirtNeckPack';
 import { withTshirtCollarContours } from './tshirtCollarContours';
 import { withTshirtNeckFinish, type NeckFinish } from './tshirtNeckFinish';
 import type { GarmentView } from './garmentView';
@@ -1173,6 +1175,7 @@ export function applyGarmentFitAndLinks(
   selection: GarmentAssetSelection,
   fit?: string,
 ): GarmentAssetSelection {
+  if (selection.base===TANK_PRESET)return {...selection};
   if ((garmentType === 'hoodie' && selection.base === REGULAR_HOODIE_PRESET)||(garmentType==='trousers'&&selection.base===SWEATPANTS_PRESET)) return { ...selection };
   const config = GARMENT_CONFIGS[garmentType];
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
@@ -1278,6 +1281,10 @@ export function getGarmentSpecRows(
   garmentType: GarmentSvgGarmentType,
   selection: GarmentAssetSelection,
 ): Array<{ label: string; value: string }> {
+  if(selection.base===TANK_PRESET)return [
+    ...Object.entries(TANK_OPTIONS).map(([key,group])=>({label:group.label,value:group.options.find(option=>option[0]===(selection[key]??TANK_DEFAULTS[key]))?.[1]??''})),
+    ...['tankNeckFinish','tankLeftFinish','tankRightFinish'].map((key,index)=>({label:['Neck finish','Left armhole finish','Right armhole finish'][index],value:TANK_ARMHOLE_FINISHES.find(option=>option[0]===(selection[key]??TANK_DEFAULTS[key]))?.[1]??''})),
+  ];
   const config = GARMENT_CONFIGS[garmentType];
   const hidden = config.hiddenCategories ?? [];
   return config.categoryOrder
@@ -1307,6 +1314,10 @@ function trimForCategory(
 }
 
 export function resolveGarmentLayers(input: ResolveGarmentLayersInput): ResolvedGarmentLayer[] {
+  if(input.selection.base===TANK_PRESET&&!input.customAssetState?.importedGarment){
+    const state=input.customAssetState as typeof input.customAssetState & {measurements?:Record<string,Record<string,string>>;measurementGrading?:{baseSize?:string}};
+    return tankLayers(input.selection,input.fit,input.view==='back',state?.measurements,state?.measurementGrading?.baseSize);
+  }
   if (input.customAssetState?.importedGarment) {
     return importedGarmentLayers(input.customAssetState.importedGarment, input.view ?? 'front', input.partColors, input.customAssetState.garmentDetails)
       .sort((first, second) => first.zIndex - second.zIndex);
@@ -1314,7 +1325,7 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   if(input.garmentType==='trousers'&&input.selection.base===SWEATPANTS_PRESET){
     const state=input.customAssetState as typeof input.customAssetState & {measurements?:Record<string,Record<string,string>>;measurementGrading?:{baseSize?:string}};
     const cord=state?.garmentDetails?.find(detail=>detail.type==='drawstring'&&!detail.hidden);
-    return sweatpantsLayers({...input.selection,...(cord?{pantsDrawstring:'custom'}:{})},input.fit,input.view==='back',state?.measurements,state?.measurementGrading?.baseSize);
+    return sweatpantsLayers({...input.selection,...(cord?{pantsDrawstring:'custom'}:{})},input.fit,input.view==='back',state?.measurements,state?.measurementGrading?.baseSize,input.partColors?.frontRiseSeam);
   }
   const sleevelessSource = input.garmentType === 'tshirt'
     ? sleevelessTshirtSources.get(input.selection['Sleeve length']) : undefined;

@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { CatalogGridSkeleton } from '../components/CatalogGridSkeleton';
 import { cn } from '../components/ui/utils';
 
-const categories = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Dresses'];
+const categories = ['All', 'Tops', 'Bottoms'];
 
 export function Catalog() {
   const location = useLocation();
@@ -112,7 +112,7 @@ function ProductCard({
     ? '/packaging'
     : techpackSpecFlow
       ? `/builder/${product.id}?flow=techpack-spec`
-      : `/builder/${product.id}`;
+      : `/builder/${product.id}${product.id === 'tk-001' ? '?builder=redesign' : ''}`;
 
   const linkState = packagingOnly
     ? { builderFlow: 'packaging-only' }
@@ -133,7 +133,7 @@ function ProductCard({
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#111113]/70" />
         <span className="ceriga-mono absolute bottom-2.5 left-2.5 rounded-[3px] border border-[#252528] bg-[#09090B] px-2 py-[3px] text-[9px] uppercase tracking-[0.08em] text-[#A3A3A8]">
-          {product.garmentType}
+          {product.id === 'tk-001' ? 'Tank top' : product.garmentType}
         </span>
       </div>
 

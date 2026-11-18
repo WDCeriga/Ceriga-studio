@@ -1,3 +1,4 @@
+import {tankThumbnail} from './tankTop';
 import type { GarmentSvgGarmentType } from './garmentSvgCatalog';
 
 export interface Product {
@@ -22,6 +23,10 @@ export interface Product {
 export const DEFAULT_TECHPACK_SPEC_PRODUCT_ID = 'hd-001';
 
 export const products: Product[] = [
+  {
+    id:'tk-001',name:'Singlet / Tank Top',description:'Sleeveless tanks with coordinated fits, neckline and armhole finishes',
+    categories:['Tops','All'],garmentType:'tshirt',image:tankThumbnail(),moq:50,startingPrice:12.99,leadTime:'4-6 weeks',origin:'Made to order'
+  },
   {
     id: 'ts-001',
     name: 'Premium Cotton T-Shirt',
@@ -138,6 +143,7 @@ export const getProductById = (id: string): Product | undefined => {
 };
 
 export const getProductsByCategory = (category: string): Product[] => {
-  if (category === 'All') return products;
-  return products.filter(p => p.categories.includes(category));
+  const catalogue=['ts-001','hd-001','tr-001','tk-001'].map(id=>products.find(product=>product.id===id)!);
+  if (category === 'All') return catalogue;
+  return catalogue.filter(p => p.categories.includes(category));
 };

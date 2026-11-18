@@ -81,7 +81,7 @@ export function renderConstructionSvg(
 ): string {
   const ink = constructionColor(fabric, preferred);
   // Trouser pockets already specify authored ink. Their mirrored groups are not fabric fills.
-  const tinted = raw.includes('data-trouser-pocket=') ? raw : tintPotraceSvg(raw, ink);
+  const tinted = raw.includes('data-tank-top=') || raw.includes('data-trouser-pocket=') || raw.includes('data-trouser-hem-hardware=') ? raw : tintPotraceSvg(raw, ink);
   if (typeof DOMParser === 'undefined') return tinted;
   const parsed = new DOMParser().parseFromString(tinted, 'image/svg+xml');
   const root = parsed.documentElement;

@@ -121,3 +121,5 @@
 .sweatpants-length-reset:disabled {
   opacity: .5;
 }
+
+.tank-controls .studio-field{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;margin:14px 0;color:#555}.tank-controls .studio-field select{max-width:62%;border:1px solid #ddd;border-radius:6px;padding:10px;background:white;color:#333}.tank-controls .studio-field:has(input){justify-content:flex-start}.tank-controls .sweatpants-leg-art{height:106px!important}

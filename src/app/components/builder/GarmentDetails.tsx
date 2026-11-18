@@ -1,3 +1,4 @@
+import {TankDetailsLibrary} from './TankDetailsLibrary';
 import {TrouserDetailsLibrary,type TrouserDetailConstruction} from './TrouserDetailsLibrary';
 import {zipRoute} from '../../lib/zipCurve';
 import * as DetailMenu from '@radix-ui/react-dropdown-menu';
@@ -298,8 +299,9 @@ function HoodieTrimControls({ detail, onChange, bounds }: {
   </details>;
 }
 
-export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload, hoodie = false, trousers }: DetailEditorProps & {
+export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload, hoodie = false, trousers, tankTop=false, onTankFinish }: DetailEditorProps & {
   hoodie?: boolean;
+  tankTop?: boolean; onTankFinish?:(finish:string)=>void;
   trousers?:TrouserDetailConstruction;
   customUpload?: ReactNode; color: string; view?: GarmentView; onDuplicateToOtherView?: (detail: GarmentDetail) => void; bounds?: DetailBounds; copiedIds?: string[];
   onMoveToView?: (detail: GarmentDetail, view: GarmentView) => void;
@@ -393,7 +395,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {builtinError && <p role="status" className="text-xs text-amber-300">{builtinError}</p>}
     </div>}
     <section className="detail-library" hidden={!libraryOpen}><div className="detail-library-content">
-      {trousers?<TrouserDetailsLibrary construction={trousers} details={details} onChange={onChange} onSelect={editDetail} add={add} bounds={bounds} view={view}/>:<>
+      {tankTop?<TankDetailsLibrary add={add} onFinish={onTankFinish}/>:trousers?<TrouserDetailsLibrary construction={trousers} details={details} onChange={onChange} onSelect={editDetail} add={add} bounds={bounds} view={view}/>:<>
       <div role="group" aria-label="Detail category" className="detail-category-grid">
         {primaryDetailCategories.map(type => <button key={type} type="button"
           aria-pressed={activeCategory === type} onClick={() => setCategory(type)}>

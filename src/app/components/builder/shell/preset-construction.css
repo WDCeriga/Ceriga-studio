@@ -1,0 +1,86 @@
+.preset-construction-editor .tank-controls {
+  margin-top: 16px;
+}
+
+.preset-construction-editor .tank-shape-grid .sweatpants-leg-art {
+  display: block;
+  width: 100%;
+  height: 62px;
+  object-fit: contain;
+  margin-bottom: 6px;
+}
+
+.preset-construction-field,
+.preset-construction-toggle,
+.preset-construction-colour {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 9px;
+  font-size: 13px;
+  color: var(--builder-ui-text);
+}
+
+.preset-construction-field select {
+  width: min(57%, 220px);
+}
+
+.preset-construction-toggle input {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  accent-color: var(--builder-ui-secondary);
+}
+
+.preset-construction-colour span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--builder-ui-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.preset-construction-colour input {
+  width: 36px;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid var(--builder-ui-line);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.preset-construction-notes {
+  width: 100%;
+  min-height: 84px;
+  padding: 10px;
+  border: 1px solid var(--builder-ui-line);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  resize: vertical;
+}
+
+.preset-construction-dimensions .hem-depth-slider {
+  margin-inline: 10px;
+}
+
+.preset-construction-dimensions .hem-text-action {
+  display: flex;
+  margin-top: 10px;
+}
+
+.preset-construction-dimensions input:focus-visible,
+.preset-construction-colour input:focus-visible,
+.preset-construction-toggle input:focus-visible,
+.preset-construction-notes:focus-visible {
+  outline: 2px solid var(--builder-ui-secondary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .preset-construction-dimensions .hem-depth-tick:nth-child(odd) span {
+    visibility: hidden;
+  }
+}

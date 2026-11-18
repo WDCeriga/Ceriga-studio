@@ -16,7 +16,8 @@ for(const fit of api.SWEATPANTS_FITS)for(const rise of ['low','mid','high'])for(
 const normal=api.sweatpantsLayers({},'regular',false);
 for(const id of Object.keys(api.sweatpantsMeasurementPresets({},'regular'))){
  const n=Number(api.sweatpantsMeasurementPresets({},'regular')[id].m);
- const changed=api.sweatpantsLayers({},'regular',id==='backRise',{[id]:{m:String(n+3)}});
- assert.notDeepEqual(changed,api.sweatpantsLayers({},'regular',id==='backRise'),id+' affects geometry');
+ const selection=id==='cuffOpening'?{pantsHem:'rib'}:{};
+ const changed=api.sweatpantsLayers(selection,'regular',id==='backRise',{[id]:{m:String(n+3)}});
+ assert.notDeepEqual(changed,api.sweatpantsLayers(selection,'regular',id==='backRise'),id+' affects geometry');
 }
 console.log('PASS '+count+' fit/rise/length/leg/view combinations, persistence and all 11 measurement edits');

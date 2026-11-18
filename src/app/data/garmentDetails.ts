@@ -1,4 +1,5 @@
 import {TROUSER_UTILITIES,TROUSER_POCKETS,TROUSER_TABS} from './trouserTrimAssets';
+import {TANK_TRIMS} from './tankTrims';
 import {zipRoute} from '../lib/zipCurve';
 import {warpZipSvg} from '../lib/warpZipSvg';
 import pocketSvg from '../../assets/garment-details/patch-pocket.svg?raw';
@@ -30,7 +31,7 @@ export type GarmentDetailType = keyof typeof GARMENT_DETAIL_ASSETS;
 const variantSvgs = import.meta.glob<string>('../../assets/garment-details/*/*.svg', { eager: true, query: '?raw', import: 'default' });
 export const GARMENT_DETAIL_OPTIONS = {
   ...HOODIE_HARDWARE,
-  utility:[...TROUSER_UTILITIES,...TROUSER_TABS],
+  utility:[...TROUSER_UTILITIES,...TROUSER_TABS,...TANK_TRIMS],
   patch: [],
   button: [
     { id: 'button-01', label: 'Two-hole rim', stitch: false, hardware: false },

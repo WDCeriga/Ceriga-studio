@@ -26,6 +26,10 @@ export function tshirtDrawingFrameForFit(fit?: string): GarmentDrawingBounds {
  return drawingFrameForFit(tshirtDrawingFrame, fit);
 }
 
+export function tankDrawingFrame(): GarmentDrawingBounds {
+ return { ...tshirtDrawingFrame, scale: 1.38, top: tshirtDrawingFrame.top - 100, bottom: tshirtDrawingFrame.bottom - 100 };
+}
+
 export function hoodieDrawingFrameForFit(fit?: string, hoodless = false): GarmentDrawingBounds {
  return drawingFrameForFit(hoodless ? HOODLESS_DRAWING_FRAME : HOODIE_DRAWING_FRAME, fit);
 }

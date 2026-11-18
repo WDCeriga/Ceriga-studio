@@ -65,12 +65,18 @@ function HemPreview({ finish }: { finish: string }) {
       {finish === 'rib' && Array.from({ length: 12 }, (_, i) => (
         <path key={i} d={`M${20 + i * 5} 55v11`} stroke="#999" strokeWidth=".7" />
       ))}
+      {finish === 'adjustable' && <g stroke="#555" strokeWidth="1.2">
+        <path d="M17 49Q50 57 83 49" strokeDasharray="3 2"/>
+        <circle cx="21" cy="62" r="1.8"/>
+        <path d="M21 61Q9 60 9 68Q8 75 13 73L22 64"/>
+        <rect x="9" y="64" width="8" height="5" rx="1.5" fill="#aaa" transform="rotate(18 13 66)"/>
+      </g>}
     </svg>
   );
 }
 
 const defaults: Record<string, string> = {
-  pantsRise: 'mid', pantsLength: 'full', pantsLeg: 'tapered', pantsWaist: 'elastic',
+  pantsRise: 'mid', pantsLength: 'full', pantsLeg: 'straight', pantsWaist: 'elastic',
 };
 const sectionOptions = { fit: ['pantsRise', 'pantsLength'], waist: ['pantsWaist'], leg: ['pantsLeg'], hem: ['pantsHem'] };
 
