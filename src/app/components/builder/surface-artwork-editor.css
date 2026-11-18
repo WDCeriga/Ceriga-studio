@@ -28,6 +28,7 @@
 [data-shared-surface-editor] .canvas-element-drag{will-change:auto}
 
 [data-shared-surface-editor]{overflow:hidden}
+[data-surface-substrate]:has(> [data-label-preview-outline]){z-index:100}
 [data-surface-pan-viewport]{overflow:clip}
 [data-surface-pan-viewport]:is([data-pan-tool=true],[data-space-pan]){
  touch-action:none;

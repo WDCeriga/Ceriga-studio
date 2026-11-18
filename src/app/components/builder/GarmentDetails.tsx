@@ -1,3 +1,4 @@
+import {TrouserDetailsLibrary,type TrouserDetailConstruction} from './TrouserDetailsLibrary';
 import {zipRoute} from '../../lib/zipCurve';
 import * as DetailMenu from '@radix-ui/react-dropdown-menu';
 import {MoreHorizontal} from 'lucide-react';
@@ -11,7 +12,7 @@ import type { GarmentView } from '../../data/garmentView';
 import { createOpening, openingNecklineReach } from '../../data/garmentOpenings';
 import { OpeningControls } from './OpeningControls';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, anchorHoodTrim, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailLocksProportions, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
-  type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
+  placeTrouserUtility, type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
 import { ClothingFontPicker } from './shell/ClothingFontPicker';
 import { ensureStudioFont } from '../../lib/studioFontCatalog';
 import { PatchWordingOverlay } from './PatchWordingOverlay';
@@ -67,8 +68,8 @@ export function DetailPositionControls({ detail, bounds, onChange, referenceWidt
   const labels = { x: 'Centre from left', y: 'Centre from top', width: 'Width', height: detail.type === 'patch' ? 'Height' : 'Length', rotation: 'Rotation' };
   return <details open className="border-y border-white/15 py-3">
     <summary className="cursor-pointer text-xs font-semibold text-white">Position &amp; size</summary>
-    <p className="mt-2 text-[10px] leading-relaxed text-white/50">Size M · {formatMeasurementDisplay(String(referenceWidthCm), unit)} {unit} chest. Position is measured to the detail centre.</p>
-    {detail.type==='pocket'&&<div className="detail-quick-placement" role="group" aria-label="Quick pocket placement">{[{label:'Left chest',x:view==='front'?.72:.28,y:.32},{label:'Centre',x:.5,y:.32},{label:'Right chest',x:view==='front'?.28:.72,y:.29}].map(p=><button type="button" key={p.label} onClick={()=>onChange(setDetailTransform(detail,bounds,{x:p.x,y:p.y}))}>{p.label}</button>)}</div>}
+    <p className="mt-2 text-[10px] leading-relaxed text-white/50">Size M · {formatMeasurementDisplay(String(referenceWidthCm), unit)} {unit} {bounds.trousers?'hip width':'chest'}. Position is measured to the detail centre.</p>
+    {detail.type==='pocket'&&<div className="detail-quick-placement" role="group" aria-label="Quick pocket placement">{(bounds.trousers?[{label:'Left hip',x:.14,y:.17},{label:'Right hip',x:.86,y:.17},{label:'Left thigh',x:.25,y:.42},{label:'Right thigh',x:.75,y:.42}]:[{label:'Left chest',x:view==='front'?.72:.28,y:.32},{label:'Centre',x:.5,y:.32},{label:'Right chest',x:view==='front'?.28:.72,y:.29}]).map(p=><button type="button" key={p.label} onClick={()=>onChange(setDetailTransform(detail,bounds,{x:p.x,y:p.y}))}>{p.label}</button>)}</div>}
     <div className="mt-3 grid grid-cols-2 gap-3">
       {(['x', 'y', 'width', 'height', 'rotation'] as const).map(field => <label key={field} className="min-w-0 text-[11px] capitalize text-white/60">
         {labels[field]} ({field === 'rotation' ? 'deg' : unit})
@@ -227,7 +228,7 @@ function PatchControls({ detail, onChange }: { detail: GarmentDetail; onChange: 
 }
 
 const detailCategoryLabels: Partial<Record<GarmentDetailType, string>> = {
-  zip: 'Zips', patch: 'Patches', eyelet: 'Eyelets / grommets', aglet: 'Aglets / tips', toggle: 'Cord locks',
+  utility:'Utility details', zip: 'Zips', patch: 'Patches', eyelet: 'Eyelets / grommets', aglet: 'Aglets / tips', toggle: 'Cord locks',
 };
 const categoryLabel = (type: GarmentDetailType) => detailCategoryLabels[type] ?? `${GARMENT_DETAIL_ASSETS[type].label}s`;
 const primaryDetailCategories = ['pocket', 'zip', 'button', 'patch'] as const;
@@ -297,8 +298,9 @@ function HoodieTrimControls({ detail, onChange, bounds }: {
   </details>;
 }
 
-export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload, hoodie = false }: DetailEditorProps & {
+export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload, hoodie = false, trousers }: DetailEditorProps & {
   hoodie?: boolean;
+  trousers?:TrouserDetailConstruction;
   customUpload?: ReactNode; color: string; view?: GarmentView; onDuplicateToOtherView?: (detail: GarmentDetail) => void; bounds?: DetailBounds; copiedIds?: string[];
   onMoveToView?: (detail: GarmentDetail, view: GarmentView) => void;
   builtins?: GarmentDetail[];
@@ -308,7 +310,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   const responsive=useResponsiveBuilder(),phone=useBuilderWidth()<768,workbenchRef=useRef<HTMLDivElement>(null);
   const [category, setCategory] = useState<GarmentDetailType>('pocket');
   const [hoodTrimCategory, setHoodTrimCategory] = useState<GarmentDetailType>('drawstring');
-  const categories: GarmentDetailType[] = hoodie ? [...primaryDetailCategories, ...hoodTrimCategories] : [...primaryDetailCategories];
+  const categories: GarmentDetailType[] = trousers?['pocket','drawstring','toggle','zip','utility','patch']:hoodie ? [...primaryDetailCategories, ...hoodTrimCategories] : [...primaryDetailCategories];
   const activeCategory = categories.includes(category) ? category : 'pocket';
   const hoodTrimsActive = hoodTrimCategories.some(type => type === activeCategory);
   const hoodOnly = activeCategory === 'drawstring' || activeCategory === 'toggle';
@@ -338,22 +340,23 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   const duplicateSelected=()=>{if(!selected)return;const identity=createGarmentDetail(selected.type,details,selected.fill);const copy={...selected,id:identity.id,name:identity.name,sourceLayerId:undefined,arrangementId:undefined,selected:true,scale:detailScale(selected.scale)};const next=bounds?setDetailTransform(copy,bounds,{x:selected.x+.04,y:selected.y+.04}):copy;onChange([...details,next]);editDetail(next.id)};
   const removeSelected=()=>{if(!selected)return;const remaining=selected.sourceLayerId?details.map(d=>d.id===selected.id?{...d,hidden:true,selected:false}:d):details.filter(d=>d.id!==selected.id);onChange(remaining);const next=remaining.find(d=>!d.hidden);onSelect(next?.id??null);if(!next)showLibrary()};
   const update = (patch: Partial<GarmentDetail>) => onChange(details.map(detail => detail.id === selectedId ? { ...detail, ...patch } : detail));
-  const add = (type: GarmentDetailType, variant?: GarmentDetailVariant, length?: 'quarter' | 'half' | 'full') => {
+  const add = (type: GarmentDetailType, variant?: GarmentDetailVariant, length?: 'quarter' | 'half' | 'full', overrides:Partial<GarmentDetail>={}) => {
     const fill = type === 'patch' ? '#D4D4D4' : type === 'drawstring' ? '#DDD6C7' : color;
-    const overlay = { ...createGarmentDetail(type, details, fill, variant), view,
+    const overlay = { ...createGarmentDetail(type, details, fill, variant), view,...Object.fromEntries(Object.entries(overrides).filter(([,value])=>value!==undefined)),
       ...(hoodie && type === 'pocket' && variant?.startsWith('hoodie-') ? { stitch: '#B0B0B0' } : {}) };
-    let detail = type === 'zip' && bounds ? createOpening(overlay, bounds, 'neckline') : overlay;
-    if (view === 'front' && bounds && (variant === 'zip-06' || variant === 'zip-07')) {
+    let detail = type === 'zip' && bounds ? createOpening(overlay, bounds, trousers?'free':'neckline') : overlay;
+    if (!trousers && view === 'front' && bounds && (variant === 'zip-06' || variant === 'zip-07')) {
       detail = alignGarmentZip(detail, bounds, 'full');
       if (variant === 'zip-06') detail = { ...detail, zipBottomOpening: .22, zipSliderPosition: .34 };
     }
     if (length && bounds) detail = alignGarmentZip(detail, bounds, length);
     if (bounds) detail = anchorHoodTrim(detail, bounds);
+    if (bounds && trousers && type === 'utility') detail = placeTrouserUtility(detail, bounds);
     editor?.onOpeningStageChange?.('final');
-    const nextDetails = hoodie && type === 'toggle' && !details.some(item => item.type === 'drawstring' && !item.hidden && (item.view ?? 'front') === 'front')
-      ? [...details, { ...createGarmentDetail('drawstring', details, '#DDD6C7', 'cord-round'), view: 'front' as const, selected: false }]
+    const nextDetails = (hoodie||trousers) && type === 'toggle' && !details.some(item => item.type === 'drawstring' && !item.hidden && (item.view ?? 'front') === 'front')
+      ? [...details, { ...createGarmentDetail('drawstring', details, '#DDD6C7', 'cord-round'), view: 'front' as const, selected: false,...(trousers?{trouserAnchor:'waist' as const,drawstringPosition:'external' as const}:{}) }]
       : details;
-    const retained = nextDetails.filter(item => !(hoodie && (type === 'toggle' || type === 'hoodDetail') && item.type === type));
+    const retained = nextDetails.filter(item => !((hoodie && (type === 'toggle' || type === 'hoodDetail')||trousers&&['drawstring','toggle'].includes(type)) && item.type === type));
     onChange([...retained.map(item => item.selected ? { ...item, selected: false } : item), detail]);
     editDetail(detail.id);
     if (hoodie && type === 'hoodDetail') editor?.onCloseUpChange(true);
@@ -367,7 +370,14 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
     {builtins.length > 0 && <div className="space-y-2"><h3 className="text-xs font-semibold text-white">Built-in trims</h3>
       {builtins.map(detail => <button key={detail.id} type="button" className="block w-full border-b border-white/15 py-2 text-left text-xs text-white/70"
         onClick={() => {
-          if (!bounds || !detail.catalogueAsset) return;
+          if (!bounds) return;
+          if (detail.draftedPocket) {
+            const next = { ...detail, id: crypto.randomUUID(), selected: true };
+            onChange([...details.filter(item => item.sourceLayerId !== detail.sourceLayerId), next]);
+            editDetail(next.id);
+            return;
+          }
+          if (!detail.catalogueAsset) return;
           const placed = detailPlacement(detail, bounds);
           const crop = detail.catalogueAsset.crop;
           if (Math.abs(placed.x - detail.x) > .00001 || Math.abs(placed.y - detail.y) > .00001 ||
@@ -383,6 +393,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {builtinError && <p role="status" className="text-xs text-amber-300">{builtinError}</p>}
     </div>}
     <section className="detail-library" hidden={!libraryOpen}><div className="detail-library-content">
+      {trousers?<TrouserDetailsLibrary construction={trousers} details={details} onChange={onChange} onSelect={editDetail} add={add} bounds={bounds} view={view}/>:<>
       <div role="group" aria-label="Detail category" className="detail-category-grid">
         {primaryDetailCategories.map(type => <button key={type} type="button"
           aria-pressed={activeCategory === type} onClick={() => setCategory(type)}>
@@ -401,7 +412,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
           onClick={() => add('zip', 'zip-01', length)}>{length} front zip</button>)}
       </div>}
       <div role="group" aria-label={`${GARMENT_DETAIL_ASSETS[activeCategory].label} options`} className="grid grid-cols-3 gap-2">
-        {GARMENT_DETAIL_OPTIONS[activeCategory].filter(option => !option.id.startsWith('hoodie-') || hoodie && view === 'front').map(option => <button key={option.id} type="button"
+        {GARMENT_DETAIL_OPTIONS[activeCategory].filter(option => !option.id.startsWith('trouser-')&&(!option.id.startsWith('hoodie-') || hoodie && view === 'front')).map(option => <button key={option.id} type="button"
           aria-label={'svg' in option ? `Add ${option.label}` : `Add ${GARMENT_DETAIL_ASSETS[activeCategory].label} ${option.id.slice(-2)}: ${option.label}`}
           title={option.label} disabled={activeCategory === 'zip' && !bounds || hoodOnly && (view !== 'front' || bounds?.hoodOpeningY === undefined)} onClick={() => add(activeCategory, option.id)}
           className="flex min-w-0 flex-col items-center gap-2 rounded-md border border-white/15 bg-white/5 p-2 text-[10px] leading-tight text-white hover:border-white/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#CC2D24]">
@@ -411,6 +422,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
         {activeCategory==='patch'&&<button type="button" className="detail-add-patch" onClick={()=>add('patch')}><img alt="" src={`data:image/svg+xml,${encodeURIComponent(GARMENT_DETAIL_ASSETS.patch.svg)}`}/><span className="detail-option-label"><Plus size={12}/>Customise a patch</span></button>}
       </div>
       {hoodOnly && (view !== 'front' || bounds?.hoodOpeningY === undefined) && <p className="detail-library-hint">Switch to the front of a hooded garment to place this detail.</p>}
+      </>}
       {customUpload}
     </div></section>
     <div className="detail-placed" role="group" aria-label="Added details"><div className="detail-section-title"><span>On your garment</span><small>{details.filter(d=>!d.hidden).length} {details.filter(d=>!d.hidden).length===1?'detail':'details'} · {view}</small></div>
@@ -481,12 +493,13 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       </>}
       </section>}</section>
       {selected.type==='patch'&&!selected.customAsset&&<details open className="detail-construction-fold"><summary>Patch construction</summary><PatchControls key={selected.id} detail={selected} onChange={update}/></details>}
-      {hoodie && (selectedHoodTrim || selected.variant?.startsWith('hoodie-') || ['aglet', 'eyelet', 'toggle', 'hoodDetail'].includes(selected.type)) && <HoodieTrimControls detail={selected} onChange={update} bounds={bounds} />}
+      {(hoodie||trousers) && (selectedHoodTrim || selected.variant?.startsWith('hoodie-') || ['aglet', 'eyelet', 'toggle', 'hoodDetail'].includes(selected.type)) && <HoodieTrimControls detail={selected} onChange={update} bounds={bounds} />}
+      {trousers&&selected.type==='drawstring'&&<label className="studio-field">Drawstring position<MaterialSelect aria-label="Drawstring position" value={selected.drawstringPosition??'external'} onChange={event=>update({drawstringPosition:event.target.value as 'internal'|'external'})}><option value="external">External</option><option value="internal">Internal</option></MaterialSelect></label>}
 
       {selected.type==='zip'&&!selected.customAsset&&<details className="detail-construction-fold"><summary>Opening construction</summary><OpeningControls key={selected.id} detail={selected} bounds={bounds} onChange={update} editor={editor}/></details>}
       {selected.type === 'zip' && !selected.customAsset && <div className="patch-editor space-y-3">
 
-        {editor?.part !== 'pull' && <>
+        {editor?.part !== 'pull' && !trousers && <>
         <label className="detail-zip-length-field">Zip length
           <MaterialSelect aria-label="Zip length preset" value="" disabled={!bounds}
             onChange={event => { if (bounds && event.target.value) update(alignGarmentZip(selected, bounds, event.target.value as 'chest' | 'quarter' | 'half' | 'full')); }}

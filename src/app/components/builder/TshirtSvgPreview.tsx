@@ -3,7 +3,7 @@ import {poloRepairPanel} from '../../lib/poloPanelRepair';
 import {withGarmentOutlineOwnership} from '../../data/garmentOutlineOwnership';
 import {withCleanSleeveOpenings} from '../../data/cleanSleeveOpenings';
 import {fabricRings} from '../../data/regularConstruction';
-import { frontRawNeckEdge, rawNeckBoundary, rawNeckEdgeInk } from '../../data/rawNeckEdge';
+import { rawNeckBoundary, rawNeckEdgeInk } from '../../data/rawNeckEdge';
 import { flattenPathContours } from '../../features/panelling/panellingGeometry';
 import svgpath from 'svgpath';
 import {withDistressedHem} from '../../data/distressedHem';
@@ -1088,7 +1088,7 @@ export function TshirtSvgPreview({
   const highlightDragTarget = useCallback((id: string, active: boolean) => {
     setDragHighlightId(current => active ? id : current === id ? null : current);
   }, []);
-  const hoodieMaterialSelection = garmentType === 'hoodie' && Boolean(onMaterialDrop);
+  const hoodieMaterialSelection = (garmentType === 'hoodie' || garmentType === 'trousers' && selection?.base === 'studio-sweatpants:performance') && Boolean(onMaterialDrop);
 
   const [visibleSurfaces,setVisibleSurfaces]=useState<BoundaryLoop[]>([]);
   const receiveVisibleSurfaces=useCallback((next:BoundaryLoop[])=>setVisibleSurfaces(previous=>JSON.stringify(previous)===JSON.stringify(next)?previous:next),[]);
@@ -1180,7 +1180,10 @@ export function TshirtSvgPreview({
       }
     }
     const rawOpening = neckFinish === 'raw' && !ready.some(layer => layer.id === 'neck');
-    const owned=garmentType==='tshirt'&&!rawOpening&&!customAssetState?.importedGarment&&(technical||['slim','regular','boxy','oversized'].includes(fit??''))?withGarmentOutlineOwnership(ready):ready;
+    const neckKind=tshirtNeckPackKind(ready.find(layer=>layer.id==='neck')?.displayName??'');
+    const cleanUpperNeck=detailView==='front'&&((fit==='slim'&&neckKind==='thincrew')||
+      ((fit==='regular'||fit==='oversized')&&(neckKind==='scoop'||neckKind==='polo')));
+    const owned=garmentType==='tshirt'&&!rawOpening&&!customAssetState?.importedGarment&&(technical||['slim','regular','boxy','oversized'].includes(fit??''))?withGarmentOutlineOwnership(ready,cleanUpperNeck):ready;
     return owned;
   },[catalogueReady,technical,garmentType,nativeTshirt,sleevePackFit,sleevePackVariant,customAssetState?.importedGarment,preparedLayers,sourceResolvedLayers,fit,neckFinish,detailView,selection,tshirtHemStyles,customAssetState?.torsoCrop,bodyColor]);
   useLayoutEffect(() => {
@@ -1589,7 +1592,7 @@ export function TshirtSvgPreview({
     for (const layout of layerLayouts) {
       const { sourceLayer, bbox } = layout;
       if (!bbox || sourceLayer.kind !== 'solid') continue;
-      const role = layout.id === 'base' || layout.id === 'sleeves' ? 'body' : layout.id === 'neck' || layout.id === 'hood' && detailView === 'front' ? 'neck' : layout.id === 'bodyHem' ? 'hem' : undefined;
+      const role = layout.id === 'base' || layout.id === 'sleeves' || garmentType==='trousers'&&sourceLayer.fabricRegion?.role==='body' ? 'body' : layout.id === 'neck' || layout.id === 'hood' && detailView === 'front' ? 'neck' : layout.id === 'bodyHem' ? 'hem' : undefined;
       if (!role) continue;
       const transform = resolveLayerDisplayTransform(layout.id, layout.transform, bbox);
       const scale = resolveLayerScale(transform);
@@ -1612,19 +1615,22 @@ export function TshirtSvgPreview({
   const rawNeckEdge = useMemo(() => {
     if (neckFinish !== 'raw' || customAssetState?.importedGarment) return [];
     if (garmentType === 'hoodie' && selection?.hoodieStyle === 'crewneck') {
-      const layout = layerLayouts.find(item => item.id === 'neck' && item.sourceLayer.kind === 'detail');
+      const layout = layerLayouts.find(item => item.id === 'neck' && item.sourceLayer.svgRaw.includes('data-raw-hoodless-neck'));
       if (!layout) return [];
+      const d = layout.sourceLayer.svgRaw.match(/<path\b[^>]*\sd="([^"]+)"/)?.[1];
+      const points = d ? flattenPathContours(d, 2, true)[0] ?? [] : [];
+      if (points.length > 1 && points[0].x > points.at(-1)!.x) points.reverse();
       const matrix = layerDisplayMatrix(layout);
-      return fabricRings(layout.sourceLayer.svgRaw).flat().map(point => matrix.transformPoint(point));
+      return points.map(point => matrix.transformPoint(point));
     }
     if (garmentType !== 'tshirt' || layerLayouts.some(item => item.id === 'neck')) return [];
     const outline = layerLayouts.find(item => item.id === 'outline');
     const edge = outline?.sourceLayer.svgRaw.match(/<path\b[^>]*(?:data-ink-preserve|data-shoulder-neck-boundary)="true"[^>]*\/>/)?.[0];
     if (!outline || !edge) return [];
     const matrix = layerDisplayMatrix(outline);
-    return frontRawNeckEdge(fabricRings(`<svg xmlns="http://www.w3.org/2000/svg">${edge}</svg>`))
+    return rawNeckBoundary(fabricRings(`<svg xmlns="http://www.w3.org/2000/svg">${edge}</svg>`), detailView)
       .map(point => matrix.transformPoint(point));
-  }, [neckFinish, customAssetState?.importedGarment, garmentType, selection?.hoodieStyle, layerLayouts, resolveLayerDisplayTransform, canvasSize]);
+  }, [neckFinish, customAssetState?.importedGarment, garmentType, detailView, selection?.hoodieStyle, layerLayouts, resolveLayerDisplayTransform, canvasSize]);
   const rawBackLip = useMemo(() => {
     if (detailView !== 'front' || rawNeckEdge.length < 2) return [];
     const back = layerLayouts.find(item => item.id === 'innerBackNeck');
@@ -1641,6 +1647,14 @@ export function TshirtSvgPreview({
       return bounds.length ? { minX: Math.min(...bounds.map(bound => bound!.minX)), minY: Math.min(...bounds.map(bound => bound!.minY)),
         maxX: Math.max(...bounds.map(bound => bound!.maxX)), maxY: Math.max(...bounds.map(bound => bound!.maxY)) } : undefined;
     }
+    if(garmentType==='trousers'&&selection?.base==='studio-sweatpants:performance'){
+      const bounds=['base','trouserLegRight','waistband','bodyHem','trouserCuffRight'].map(displayBounds).filter(Boolean);
+      if(!bounds.length)return undefined;
+      const waist=displayBounds('waistband');
+      const pocket=displayBounds(detailView==='back'?'pocketFacingRight':'pocketFacingLeft');
+      const pocketEnd=pocket?{x:detailView==='back'?pocket.maxX-4:pocket.minX+4,y:pocket.maxY-3}:undefined;
+      return {minX:Math.min(...bounds.map(b=>b!.minX)),maxX:Math.max(...bounds.map(b=>b!.maxX)),minY:Math.min(...bounds.map(b=>b!.minY)),maxY:Math.max(...bounds.map(b=>b!.maxY)),trousers:true,pocketEnd,waistbandY:waist?.minY,waistbandHeight:waist?waist.maxY-waist.minY:56,shorts:['shorts','above-knee','knee'].includes(selection.pantsLength),openingGeometry};
+    }
     const body = displayBounds('base');
     if (!body) return undefined;
     const hoodOpeningY = garmentType === 'hoodie' && detailView === 'front'
@@ -1656,7 +1670,7 @@ export function TshirtSvgPreview({
         : garmentType === 'tshirt' && detailView === 'front' && neckFinish === 'raw' ? 1024 : undefined,
       polo: /polo/i.test(layers.find(layer => layer.id === 'neck')?.displayName ?? ''), openingGeometry };
   })();
-  useEffect(() => { onDetailBoundsChange?.(detailBounds); }, [onDetailBoundsChange, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY, detailBounds?.necklineY, openingGeometry]);
+  useEffect(() => { onDetailBoundsChange?.(detailBounds); }, [onDetailBoundsChange, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY, detailBounds?.necklineY, detailBounds?.pocketEnd?.x, detailBounds?.pocketEnd?.y, openingGeometry]);
   const liveDetails = useMemo(() => decorationsForView(garmentType === 'hoodie' ? garmentDetails.map(detail =>
     detail.type === 'hoodDetail' ? { ...detail, view: 'back' as const } : detail) : garmentDetails, detailView).map(detail => {
     const draft = openingDraft ?? detailEditor?.draft;
@@ -1710,9 +1724,10 @@ export function TshirtSvgPreview({
   const fullFrontZip = centerFrontZip?.opening && (centerFrontZip.opening.attachment === 'full-front' ||
     centerFrontZip.opening.end.y >= (detailBounds?.maxY ?? Infinity) - 15) ? centerFrontZip.opening : undefined;
   const hoodPocket = hoodieFront && liveDetails.some(detail => !detail.hidden && detail.type === 'pocket' && detail.variant?.startsWith('hoodie-'));
-  const hoodCord = hoodieFront && liveDetails.find(detail => !detail.hidden && detail.type === 'drawstring');
+  const trouserFront=garmentType==='trousers'&&detailView==='front';
+  const hoodCord = (hoodieFront||trouserFront) && liveDetails.find(detail => !detail.hidden && detail.type === 'drawstring');
   const addedHoodCord = Boolean(hoodCord);
-  const cordLock = hoodieFront && liveDetails.find(detail => !detail.hidden && detail.type === 'toggle');
+  const cordLock = (hoodieFront||trouserFront) && liveDetails.find(detail => !detail.hidden && detail.type === 'toggle');
   const loopSeam = garmentType === 'hoodie'
     ? displayBounds('hood')?.maxY ?? displayBounds('neck')?.maxY : undefined;
   const insideLoop = loopSeam !== undefined && detailEditor?.closeUp
@@ -1728,7 +1743,8 @@ export function TshirtSvgPreview({
     return { id: 'innerBackNeck', svgRaw, bbox, matrix: new DOMMatrix().toString() };
   })() : undefined;
   const visibleDetailHardware = liveDetails.filter(detail => (openingStage === 'final' || !detail.opening) &&
-    (garmentType !== 'hoodie' || (detail.type !== 'toggle' && detail.type !== 'hoodDetail')) &&
+    (!['hoodie','trousers'].includes(garmentType) || (detail.type !== 'toggle' && detail.type !== 'hoodDetail')) &&
+    (garmentType!=='trousers'||detail.type!=='drawstring'||detail.drawstringPosition!=='internal') &&
     (detail.type !== 'drawstring' || !hoodieFront || detailBounds?.hoodOpeningY !== undefined)).map(detail => {
       if (hoodCord && detail.id === hoodCord.id && cordLock) return { ...detail, integratedCordLock: {
         style: cordLock.variant?.replace('toggle-', '') ?? 'round', fill: cordLock.fill,
@@ -1749,12 +1765,48 @@ export function TshirtSvgPreview({
     ? resolveLayerFill(backNeckLayer, fabricColor, bodyColor)
     : bodyColor;
 
+  const trouserPockets = useMemo(() => {
+    if (garmentType !== 'trousers' || !onBuiltinDetailsChange || !detailBounds) return [];
+    const bodyWidth = detailBounds.maxX - detailBounds.minX;
+    const bodyHeight = detailBounds.maxY - detailBounds.minY;
+    const names: Record<string, string> = {
+      pocketFacingLeft: 'Left side pocket', pocketFacingRight: 'Right side pocket', backPocket: 'Back pocket',
+    };
+    return layerLayouts.flatMap(({id, bbox, sourceLayer}) => {
+      if (!names[id] || !bbox) return [];
+      const crop = { x: bbox.minX - 16, y: bbox.minY - 8, width: bbox.maxX - bbox.minX + 32, height: bbox.maxY - bbox.minY + 16 };
+      const fragments = (ids: string[], colour: string) => layers.filter(layer => ids.includes(layer.id)).map(layer => {
+        const root = new DOMParser().parseFromString(layer.svgRaw, 'image/svg+xml').documentElement;
+        const markup = id === 'backPocket' && ['pocket','pocketStitch'].includes(layer.id) ? root.innerHTML
+          : root.querySelector(`[data-trouser-pocket="${id}"]`)?.outerHTML ?? '';
+        return markup.replace(/(fill|stroke)="(?!none")[^"]+"/g, '$1="var(--detail-' + colour + ', black)"');
+      }).join('');
+      const facing = new DOMParser().parseFromString(sourceLayer.svgRaw, 'image/svg+xml').documentElement.innerHTML
+        .replaceAll('#000000', 'var(--detail-fill, none)');
+      const outline = fragments(['pocketEdges','pocket'], 'outline');
+      const stitch = fragments(['stitching','pocketStitch'], 'stitch');
+      const hardware = fragments(['pocketZipTeeth'], 'hardware');
+      const draft: GarmentDetail = {
+        id: `builtin-${detailView}-${id}`, type: 'pocket', name: names[id], view: detailView,
+        x: (bbox.centerX - detailBounds.minX) / bodyWidth, y: (bbox.centerY - detailBounds.minY) / bodyHeight,
+        scale: 1, fill: partColors?.[id] ?? bodyColor, outline: '#202020', stitch: stitchingColor ?? '#eeeeea',
+        hardware: '#d8d5c8', selected: false, sourceLayerId: id,
+        draftedPocket: {
+          svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${crop.width} ${crop.height}"><g transform="translate(${-crop.x} ${-crop.y})">${facing}<g fill="none" stroke="var(--detail-outline, black)" stroke-width="2.6">${outline}</g><g fill="none" stroke="var(--detail-stitch, black)" stroke-width="2.4" stroke-dasharray="7 5">${stitch}</g>${hardware}</g></svg>`,
+          width: crop.width / bodyWidth, ratio: crop.width / crop.height,
+          stitch: Boolean(stitch), hardware: Boolean(hardware),
+        },
+      };
+      return [draft];
+    });
+  }, [garmentType, onBuiltinDetailsChange, detailBounds, layerLayouts, layers, detailView, partColors, bodyColor, stitchingColor]);
+
   useEffect(() => {
     if (!onBuiltinDetailsChange || !detailBounds) return;
     const bodyWidth = detailBounds.maxX - detailBounds.minX;
     const bodyHeight = detailBounds.maxY - detailBounds.minY;
     const categories = getGarmentSvgConfig(garmentType).stepCategories[6] ?? [];
-    const candidates: GarmentDetail[] = [];
+    const candidates: GarmentDetail[] = [...trouserPockets];
     for (const layout of layerLayouts) {
       if (!layout.bbox || !categories.includes(layout.sourceLayer.category)) continue;
       const { bbox, transform, sourceLayer } = layout;
@@ -1770,8 +1822,20 @@ export function TshirtSvgPreview({
         sourceLayerId: layout.id, catalogueAsset: { id: sourceLayer.assetId, crop: bbox, width: (bbox.maxX - bbox.minX) / bodyWidth, ratio: (bbox.maxX - bbox.minX) / (bbox.maxY - bbox.minY) } });
     }
     onBuiltinDetailsChange(candidates);
-  }, [onBuiltinDetailsChange, layerLayouts, canvasSize, garmentType, detailView, fabricColor, bodyColor, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY]);
+  }, [onBuiltinDetailsChange, layerLayouts, canvasSize, garmentType, detailView, fabricColor, bodyColor, detailBounds?.minX, detailBounds?.minY, detailBounds?.maxX, detailBounds?.maxY, trouserPockets]);
   const overriddenTrimIds = new Set(decorationsForView(garmentDetails, detailView).map(detail => detail.sourceLayerId).filter(Boolean));
+  const trouserPocketLayers = useMemo(() => {
+    const ids = decorationsForView(garmentDetails, detailView).filter(detail => detail.draftedPocket && detail.sourceLayerId).map(detail => detail.sourceLayerId);
+    if (garmentType !== 'trousers' || !ids.length) return layers;
+    return layers.map(layer => {
+      if (!layer.svgRaw.includes('data-trouser-pocket=')) return layer;
+      const root = new DOMParser().parseFromString(layer.svgRaw, 'image/svg+xml').documentElement;
+      root.querySelectorAll('[data-trouser-pocket]').forEach(node => {
+        if (ids.includes(node.getAttribute('data-trouser-pocket') ?? '')) node.remove();
+      });
+      return { ...layer, svgRaw: new XMLSerializer().serializeToString(root) };
+    });
+  }, [garmentType, garmentDetails, detailView, layers]);
 
   const { geometry: stitchGeometry } = useStitchGeometry(layers, fit ?? 'slim', Boolean(stitchEditor),technical);
   const styledHoodieStitches = garmentType === 'hoodie' && Boolean(tshirtStitching &&
@@ -1857,7 +1921,7 @@ export function TshirtSvgPreview({
         className,
       )}
       data-tshirt-preview=""
-      data-fold-geometry={JSON.stringify(layerLayouts.filter(layout=>layout.bbox&&['neck','base'].includes(layout.id)).map(layout=>{const box=layout.bbox!,t=resolveLayerDisplayTransform(layout.id,layout.transform,box),scale=resolveLayerScale(t);const matrix=new DOMMatrix().translate(box.centerX+t.x*2048/canvasSize,box.centerY+t.y*2048/canvasSize).rotate(t.rotation).scale(scale.scaleX,scale.scaleY).translate((layout.alignOffset?.x??0)-box.centerX,(layout.alignOffset?.y??0)-box.centerY);const points=[[box.minX,box.minY],[box.maxX,box.minY],[box.minX,box.maxY],[box.maxX,box.maxY]].map(([x,y])=>new DOMPoint(x,y).matrixTransform(matrix));return {id:layout.id,left:Math.min(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),right:Math.max(...points.map(p=>p.x)),bottom:Math.max(...points.map(p=>p.y))}}))}
+      data-fold-geometry={JSON.stringify(layerLayouts.filter(layout=>layout.bbox&&['neck','base','waistband'].includes(layout.id)).map(layout=>{const box=layout.bbox!,t=resolveLayerDisplayTransform(layout.id,layout.transform,box),scale=resolveLayerScale(t);const matrix=new DOMMatrix().translate(box.centerX+t.x*2048/canvasSize,box.centerY+t.y*2048/canvasSize).rotate(t.rotation).scale(scale.scaleX,scale.scaleY).translate((layout.alignOffset?.x??0)-box.centerX,(layout.alignOffset?.y??0)-box.centerY);const points=[[box.minX,box.minY],[box.maxX,box.minY],[box.minX,box.maxY],[box.maxX,box.maxY]].map(([x,y])=>new DOMPoint(x,y).matrixTransform(matrix));return {id:layout.id,left:Math.min(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),right:Math.max(...points.map(p=>p.x)),bottom:Math.max(...points.map(p=>p.y))}}))}
       data-preview-instance={previewInstance}
       onPointerDown={editable ? handleBackgroundPointerDown : undefined}
       onPointerLeave={() => setHoveredLayerId(null)}
@@ -1885,19 +1949,24 @@ export function TshirtSvgPreview({
           <path data-opening-interior="" d={openingPolygonPath(openings.removed)} fill={openingInteriorColor} fillRule="evenodd" />
         </svg>}
         {layerLayouts.map(layout => {
-          const { id, sourceLayer, side, transform, alignOffset, bbox } = layout;
+          const { id, side, transform, alignOffset, bbox } = layout;
+          const sourceLayer = trouserPocketLayers === layers ? layout.sourceLayer
+            : trouserPocketLayers.find(layer => layer.id === layout.sourceLayer.id) ?? layout.sourceLayer;
           if (overriddenTrimIds.has(id)) return null;
+          if (garmentType === 'trousers' && labelEditor?.interior &&
+              ['pocketFacingLeft','pocketFacingRight','pocketEdges','pocketZipTeeth','backPocket','pocket','pocketStitch','drawstring','eyelets','frontRiseSeam'].includes(id)) return null;
+          if (garmentType === 'trousers' && overriddenTrimIds.has('backPocket') && ['pocket','pocketStitch'].includes(id)) return null;
           if (styledHoodieStitches && sourceLayer.displayName === 'Edge stitching' &&
               /^(bodyHem|sleeveHemLeft|sleeveHemRight)Stitching$/.test(id)) return null;
           if (id === 'stitchingHoodFacing' && !hoodZipMouth) return null;
           if (hoodieFront && ((hoodPocket || fullFrontZip) && ['pocket', 'hoodiePocketOutline', 'hoodiePocketStitching'].includes(id) ||
             addedHoodCord && id === 'drawstring' || hoodZipMouth && ['hoodOverlap', 'hoodFaceSeams'].includes(id))) return null;
-          if (sourceLayer.id === 'stitching' && garmentType === 'tshirt' ||
+          if (sourceLayer.id === 'stitching' && (garmentType === 'tshirt'||garmentType==='trousers'&&selection.base==='studio-sweatpants:performance') ||
               sourceLayer.id === 'bodyStitching' && styledHoodieStitches) {
             return <React.Fragment key="stitching">
               {stitchOpeningClip && <svg className="absolute h-0 w-0" aria-hidden><defs><clipPath id={`${openingClipPrefix}-stitch`} clipPathUnits="objectBoundingBox"><path d={stitchOpeningClip} transform="scale(0.00048828125)" clipRule="evenodd" /></clipPath></defs></svg>}
               <div className="pointer-events-none absolute inset-0" style={{ clipPath: stitchOpeningClip ? `url(#${openingClipPrefix}-stitch)` : undefined, zIndex: Math.min(sourceLayer.zIndex,90) }}>
-                <TshirtStitchingLayer previewInk={!technicalView && !customAssetState?.importedGarment} layers={layers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} fabricColor={fabricColor} />
+                <TshirtStitchingLayer previewInk={!technicalView && !customAssetState?.importedGarment} layers={trouserPocketLayers} fit={fit ?? 'slim'} settings={tshirtStitching ?? {}} hems={tshirtHemStyles} fabricColor={fabricColor} />
               </div>
             </React.Fragment>;
           }
@@ -2103,7 +2172,24 @@ export function TshirtSvgPreview({
                 }}/>}
           </g>
         </svg>}
-        {garmentDetails.length > 0 && (() => {
+        {detailBounds && onDetailsChange && trouserPockets.length > 0 &&
+          <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 h-full w-full" style={{ zIndex: 140 }}>
+            {trouserPockets.filter(detail => !overriddenTrimIds.has(detail.sourceLayerId)).map(detail => {
+              const width = detail.draftedPocket!.width * (detailBounds.maxX - detailBounds.minX);
+              const height = width / detail.draftedPocket!.ratio;
+              const edit = () => {
+                const placed = { ...detail, id: crypto.randomUUID(), selected: true };
+                onDetailsChange([...garmentDetails.map(item => item.selected ? { ...item, selected: false } : item), placed]);
+                onDetailSelect?.(placed.id);
+              };
+              return <rect key={detail.id} x={detailBounds.minX + detail.x * (detailBounds.maxX - detailBounds.minX) - width / 2}
+                y={detailBounds.minY + detail.y * (detailBounds.maxY - detailBounds.minY) - height / 2} width={width} height={height}
+                fill="transparent" className="pointer-events-auto cursor-pointer" role="button" tabIndex={0} aria-label={`Select ${detail.name}`}
+                onPointerDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); edit(); }}
+                onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); edit(); } }}/>;
+            })}
+          </svg>}
+        {garmentDetails.length > 0 && !(garmentType === 'trousers' && labelEditor?.interior) && (() => {
           const bodyBounds = detailBounds;
           return bodyBounds ? <GarmentDetailsOverlay key={detailView} view={detailView}
             details={visibleDetailHardware} bounds={bodyBounds}
@@ -2120,7 +2206,7 @@ export function TshirtSvgPreview({
           onSelect={onDetailSelect} stitching={tshirtStitching}
           onDraftChange={draft => { setOpeningDraft(draft); detailEditor?.onDraftChange?.(draft); }}
           onChange={onDetailsChange ? next => onDetailsChange(garmentDetails.map(detail => detail.id === next.id ? next : detail)) : undefined} />}
-        {(garmentType === 'tshirt' || garmentType === 'hoodie' && selection.hoodieStyle === 'crewneck' || customAssetState?.importedGarment || insideNeckLabelLayer) && garmentLabels.length > 0 && <GarmentLabelOverlay
+        {(garmentType === 'tshirt' || garmentType === 'hoodie' || garmentType === 'trousers' || customAssetState?.importedGarment) && garmentLabels.length > 0 && <GarmentLabelOverlay
           labels={insideNeckLabelLayer ? garmentLabels.filter(label => label.category === 'neck' || label.position.startsWith('neck-')) : garmentLabels} view={insideNeckLabelLayer ? 'front' : detailView} referenceWidthMm={labelReferenceWidthMm}
           manualPlacement={Boolean(customAssetState?.importedGarment)} manualBounds={detailBounds}
           interior={labelEditor?.interior} selectedId={labelEditor?.selectedId}

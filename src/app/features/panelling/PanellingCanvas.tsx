@@ -249,15 +249,15 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     const onKeyDown = (event: KeyboardEvent) => {
       if(event.defaultPrevented||(event.target as Element)?.closest('input,textarea,select,[contenteditable="true"]'))return;
       if (event.key === 'Escape') cancel();
-      if(event.key==='Enter'&&active.length>1){event.preventDefault();finish();}
+      if(event.key==='Enter'&&active.length>1&&!event.isComposing&&!event.repeat){event.preventDefault();event.stopImmediatePropagation();finish();}
       if((event.key==='Delete'||event.key==='Backspace')&&tool==='select'&&selected){event.preventDefault();removeSelectedPoint();}
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && active.length) {
         event.preventDefault();
         setActive(current => current.slice(0, -1));
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [active, seams, onSeamsChange,selected,tool]);
 
   const pointFromEvent = (event: Pick<ReactPointerEvent<SVGSVGElement>, 'currentTarget' | 'clientX' | 'clientY'>): PanellingPoint => {

@@ -1,3 +1,4 @@
+import {shapePathData} from '../../lib/shapeGeometry';
 import {EmbeddedSurfaceArtworkEditor} from './SurfaceArtworkEditor';
 import {readLabelSurface,saveLabelSurface} from '../../lib/surfaceMigration';
 import {useResponsiveBuilder} from './shell/responsiveBuilder';
@@ -75,6 +76,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const selected = current;
   const selectedSurface=useMemo(()=>selected?readLabelSurface(selected):null,[selected]);
   const imported = Boolean(garmentProps.customAssetState?.importedGarment);
+  const trousers = garmentProps.garmentType === 'trousers' && !imported;
   const manual = selected?.category !== 'hand' && (imported || selected?.manualPosition !== undefined);
   const unplaced = manual && selected && !selected.manualPosition;
   const [mode, setMode] = useState<'garment' | 'closeup' | 'only'>('garment');
@@ -120,23 +122,39 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
     return () => window.clearTimeout(timer);
   }, [animatedTarget, mode]);
   useEffect(()=>{if(studio&&canvasFocus){setMode('garment');setZoom(1);setPan({x:0,y:0});setShowGarment(true);setEntryPending(false)}},[studio,canvasFocus]);
+  useEffect(()=>{
+    const autoCloseUp = trousers ? selected && selected.category !== 'hand' : garmentProps.garmentType === 'hoodie' && selected?.category === 'care';
+    if (!studio || !autoCloseUp || unplaced) return;
+    setMode('closeup');
+    setShowGarment(true);
+    setEntryPending(false);
+    setZoom(1);
+    setPan({x:0,y:0});
+  },[studio,trousers,garmentProps.garmentType,selected?.id,Boolean(unplaced)]);
   const closeup = Boolean(selected) && !unplaced && (mode !== 'garment' || handSelected) && (!manual || mode === 'closeup' && !entryPending);
   const careCloseup = !manual && closeup && selected?.category === 'care';
   const cameraFocus = !unplaced && selected && focus?.id === selected.id && focus?.width && focus?.height ? focus : null;
   const cameraSnapshot=useRef<{key:string;focus:LabelFocus}|null>(null);
-  const cameraKey=[selectedId,selected?.position,mode,closeUpRequest].join(':');
+  const cameraKey=[selectedId,selected?.position,selected?.exteriorView,mode,closeUpRequest].join(':');
   if(closeup&&cameraFocus&&cameraSnapshot.current?.key!==cameraKey)cameraSnapshot.current={key:cameraKey,focus:cameraFocus};
   if(!closeup)cameraSnapshot.current=null;
   const stableFocus=closeup&&cameraSnapshot.current?.key===cameraKey?cameraSnapshot.current.focus:cameraFocus;
-  const framing = stableFocus?labelCameraFrame(stableFocus,selected?.category):null;
+  const cameraCategory = trousers ? undefined : selected?.category;
+  const framing = stableFocus?labelCameraFrame(stableFocus,cameraCategory):null;
   const hoodieNeckCloseUp = closeup && showGarment && neckSelected && selected?.position !== 'neck-outside' && garmentProps.garmentType === 'hoodie' &&
     garmentProps.selection.hoodieStyle !== 'crewneck' && !imported;
-  const scale = closeup && framing && !hoodieNeckCloseUp ? labelCameraScale(framing,selected?.category,Boolean(cameraFocus?.context)) * zoom : zoom;
+  const scale = closeup && framing && !hoodieNeckCloseUp ? labelCameraScale(framing,cameraCategory,Boolean(cameraFocus?.context)) * zoom : zoom;
   const point = closeup && framing && !hoodieNeckCloseUp ? framing : { x: 1024, y: 1024 };
   const contextVisible = mode !== 'only' && (!closeup || showGarment);
+  const isolatedLabel = selectedSurface?.surface;
+  const labelOutline = isolatedLabel?.outline && (handSelected || selected?.category === 'care')
+    ? <svg data-label-preview-outline="" aria-hidden="true" viewBox={`0 0 ${isolatedLabel.width} ${isolatedLabel.height}`} className="h-full w-full overflow-visible">
+        <path d={shapePathData({...isolatedLabel.outline, closed:true})} fill="none" stroke="#a3a3a3" strokeWidth=".25" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>
+      </svg>
+    : undefined;
   const controlClass = 'rounded px-2 py-1.5 text-[11px] text-white/70 hover:bg-white/10 aria-pressed:bg-white/15 aria-pressed:text-white';
-  const interior = Boolean(!manual && selected && !neckSelected && isInteriorLabel(selected));
-  const view = tagEditing ? current?.exteriorView ?? tagView : manual ? selected?.exteriorView ?? garmentProps.detailView ?? 'front' : selected?.category==='tag'?selected.exteriorView:'front';
+  const interior = Boolean(!manual && selected && (trousers || !neckSelected) && isInteriorLabel(selected));
+  const view = trousers && interior ? 'back' : tagEditing ? current?.exteriorView ?? tagView : manual ? selected?.exteriorView ?? garmentProps.detailView ?? 'front' : 'front';
   const downloadPlacement = async () => {
     try {
       await document.fonts.ready;
@@ -147,7 +165,7 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
     } catch { setExportError('Placement export failed'); }
   };
   return <div ref={rootRef} className="relative flex h-full min-h-0 w-full flex-col" data-label-editing-surface="" onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}>
-    {studio&&selected?.category==='tag'&&<GarmentViewSwitch label="Sleeve and hem tag garment side" value={selected.exteriorView} onChange={side=>{onChange(labels.map(label=>label.id===selected.id?normalizeLabel({...label,exteriorView:side}):label));onTagViewChange?.(side);workflow.setTool('Placement');setMode('garment');setEntryPending(false);setAnimatedTarget(null);setZoom(1);setPan({x:0,y:0})}}/>}
+    {studio&&selected?.category==='tag'&&<GarmentViewSwitch label={trousers?'Trouser tag garment side':'Sleeve and hem tag garment side'} value={selected.exteriorView} onChange={side=>{onChange(labels.map(label=>label.id===selected.id?normalizeLabel({...label,exteriorView:side}):label));onTagViewChange?.(side);workflow.setTool('Placement');setMode(trousers&&mode==='closeup'?'closeup':'garment');setEntryPending(false);setAnimatedTarget(null);setZoom(1);setPan({x:0,y:0})}}/>}
     {studio?(!handSelected&&<div className="label-studio-toolbar"><div role="group" aria-label="Label preview mode">{(['garment','closeup','only'] as const).map((value,i)=><button key={value} disabled={!current&&value!=='garment'} aria-pressed={mode===value} onClick={()=>{cameraSnapshot.current=null;setEntryPending(false);setMode(value);if(value!=='only')workflow.setSelection(null);setZoom(1);setPan({x:0,y:0})}}>{['On garment','Close-up','Artwork'][i]}</button>)}</div></div>):<div className="z-10 flex shrink-0 flex-wrap items-center justify-center gap-1 border-b border-white/10 bg-[#171717] p-1.5">
       {!handSelected && current && <>
         <div role="group" aria-label="Label preview mode"><button type="button" className={controlClass} aria-pressed={mode==='garment'} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('garment'); setZoom(1); }}>Garment</button><button type="button" className={controlClass} aria-pressed={mode==='closeup'} disabled={!selected} onClick={() => { setEntryPending(false); setAnimatedTarget(targetKey); setMode('closeup'); setZoom(1); }}>Label close-up</button><button type="button" className={controlClass} aria-pressed={mode==='only'} disabled={!selected} onClick={()=>{setEntryPending(false);setMode('only');setZoom(1);setPan({x:0,y:0})}}>Label only</button></div>
@@ -163,14 +181,14 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
       onPointerDown={event => { if (!careCloseup || event.button !== 0 || (event.target as Element).closest('[data-garment-label]')) return; panGesture.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY, origin: pan }; event.currentTarget.setPointerCapture(event.pointerId); }}
       onPointerMove={event => { const gesture = panGesture.current; if (gesture?.pointer === event.pointerId) setPan({ x: gesture.origin.x + event.clientX - gesture.x, y: gesture.origin.y + event.clientY - gesture.y }); }}
       onPointerUp={() => { panGesture.current = null; }} onPointerCancel={() => { panGesture.current = null; }} onLostPointerCapture={() => { panGesture.current = null; }}
-      className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden [container-type:size]" style={{ touchAction: careCloseup ? 'none' : undefined, cursor: careCloseup ? 'grab' : undefined, backgroundColor: '#ffffff', backgroundImage: 'none', backgroundSize: '16px 16px' }}>
+      className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden [container-type:size]" style={{ touchAction: careCloseup ? 'none' : undefined, cursor: careCloseup ? 'grab' : undefined, backgroundColor: '#ffffff' }}>
       {!handSelected && mode!=='only' && <div data-label-camera="" className={`relative h-[min(100cqh,100cqw)] w-[min(100cqh,100cqw)] shrink-0 ${animatedTarget === targetKey ? 'transition-transform duration-[1800ms] ease-in-out motion-reduce:transition-none' : 'transition-none'} ${!contextVisible ? 'invisible [&_[data-garment-label-overlay]]:visible' : ''}`} style={mode === 'garment' && onGarmentFrameStyle
         ? { ...onGarmentFrameStyle(zoom), position: 'absolute', left: '50%', top: '50%' }
         : { transform: `translate(${careCloseup ? pan.x : 0}px, ${careCloseup ? pan.y : 0}px) scale(${scale}) translate(${(1024 - point.x) / 2048 * 100}%, ${(1024 - point.y) / 2048 * 100}%)` }}>
-        <StudioArtworkPreview onArtworkSelect={onArtworkSelect} elements={artwork} view={view} interactive garment={<TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
+        <StudioArtworkPreview onArtworkSelect={onArtworkSelect} elements={trousers&&interior?[]:artwork} view={view} interactive garment={<TshirtSvgPreview {...garmentProps} detailView={view} garmentLabels={labels} onLayerTransformChange={undefined} onSelectedLayerChange={undefined} selectedLayerId={null}
           onDetailsChange={undefined} onDetailSelect={undefined} selectedDetailId={null} labelEditor={{ interior, hoodieNeckCloseUp, selectedId: selected?.id ?? null, onSelect, onChange, onFocus: setFocus }} />}/>
       </div>}
-      {selected && (handSelected || mode==='only') && (studio?<EmbeddedSurfaceArtworkEditor key={selected.id+':'+(selected.artworkFace??'front')} title="Label artwork" value={selectedSurface!} selectedId={workflow.selection} controlsHost={workflow.controlsHost} onSelection={workflow.setSelection} onCommit={value=>onChange(labels.map(label=>label.id===selected.id?saveLabelSurface(label,value):label))}/>:<svg data-isolated-label="" viewBox={`0 0 ${selected.widthMm} ${selected.heightMm}`} className="absolute h-[85%] w-[85%]"><LabelArtwork label={selected}/></svg>)}
+      {selected && (handSelected || mode==='only') && (studio?<EmbeddedSurfaceArtworkEditor key={selected.id+':'+(selected.artworkFace??'front')} title="Label artwork" artboardBackground={labelOutline} value={selectedSurface!} selectedId={workflow.selection} controlsHost={workflow.controlsHost} onSelection={workflow.setSelection} onCommit={value=>onChange(labels.map(label=>label.id===selected.id?saveLabelSurface(label,value):label))}/>:<svg data-isolated-label="" viewBox={`0 0 ${selected.widthMm} ${selected.heightMm}`} className="absolute h-[85%] w-[85%]"><LabelArtwork label={selected}/></svg>)}
       {!selected && <p role="status" className="pointer-events-none absolute bottom-5 z-10 max-w-sm rounded border border-black/10 bg-white/95 px-4 py-2 text-center text-xs text-[#737373]">{labels.length ? 'Select a saved label or use Add label in the panel. No label is selected for this view.' : 'No labels added. Choose any label category and use Add label in the panel when you are ready.'}</p>}
       {unplaced && <p role="status" className="pointer-events-none absolute bottom-4 z-10 max-w-sm rounded border border-black/20 bg-white/95 px-4 py-3 text-center text-sm text-[#171717]">Click the garment to position your label. No attachment location is assumed.</p>}
     </div>

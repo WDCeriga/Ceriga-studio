@@ -33,6 +33,7 @@ export const NEW_MEASUREMENT_LABELS = [{
   label: 'I. Armhole'
 }] as const;
 export function measurementLabelsForPresets(presets: Record<string, Record<string, string>>) {
+  if(presets.frontRise)return Object.keys(presets).map((id,index)=>({id,label:String.fromCharCode(65+index)+'. '+({waist:'Waist',hip:'Hip',frontRise:'Front rise',backRise:'Back rise',thigh:'Thigh',knee:'Knee',legOpening:'Leg opening',inseam:'Inseam',outseam:'Outseam',cuffOpening:'Cuff opening',waistbandHeight:'Waistband height'} as Record<string,string>)[id]})) as unknown as typeof NEW_MEASUREMENT_LABELS[number][];
   return [
     ...NEW_MEASUREMENT_LABELS,
     ...(presets.hoodHeight ? [{ id: 'hoodHeight', label: 'J. Hood height' } as const] : []),

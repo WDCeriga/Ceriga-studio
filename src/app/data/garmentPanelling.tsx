@@ -239,6 +239,16 @@ export function GarmentPanelOverlay({ panels, view, parentPartId, sourceSvgRaw, 
     handledFinishRequest.current = editor.finishRequest;
     if (editor.tool === 'pen') complete(draft);
   }, [editor?.finishRequest]);
+  useEffect(()=>{
+    if(!editor?.enabled||editor.tool!=='pen'||editor.targetPartId!==parentPartId||draft.length<3)return;
+    const finish=(event:KeyboardEvent)=>{
+      if(event.key!=='Enter'||event.isComposing||event.repeat||
+        (event.target as Element)?.closest('input,textarea,select,[contenteditable="true"]'))return;
+      event.preventDefault();event.stopImmediatePropagation();complete(draft);
+    };
+    window.addEventListener('keydown',finish,true);
+    return()=>window.removeEventListener('keydown',finish,true);
+  },[editor?.enabled,editor?.tool,editor?.targetPartId,parentPartId,draft]);
   const edgeDistance = (point: GarmentPanelPoint, start: GarmentPanelPoint, end: GarmentPanelPoint) => {
     const dx = end[0] - start[0], dy = end[1] - start[1];
     const lengthSquared = dx * dx + dy * dy;

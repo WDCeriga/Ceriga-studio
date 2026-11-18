@@ -9,6 +9,7 @@ import type { HemSettings, TshirtHemStyles } from './tshirtHemStyles';
 import type { NeckFinish } from './tshirtNeckFinish';
 import { tshirtNeckMaster } from './tshirtNeckPack';
 import { neckRibbing } from './tshirtNecklineQuality';
+import { rawNeckBoundary } from './rawNeckEdge';
 import { hoodieNeckline, hoodieNeckCurve, hoodiePositionOption, hoodieProfileOption, hoodieTypeOption, HOODLESS_NECK_OFFSET, HOODLESS_NECK_Y } from './hoodieNecklines';
 import type { GarmentAssetSelection, ResolvedGarmentLayer } from './garmentSvgCatalog';
 import pocket from '../../assets/studio-hoodie/regular/pocket.svg?raw';
@@ -46,6 +47,8 @@ function hemRibLines(d: string) {
 }
 const seam = (d: string, width = 4.4) =>
   svg(`<path fill="none" stroke="#202020" stroke-width="${width}" stroke-linejoin="round" stroke-linecap="round" d="${d}"/>`);
+const rawHoodlessNeck = (d: string) =>
+  seam(d, 2.2).replace('<svg ', '<svg data-raw-hoodless-neck="true" ');
 
 const stitchPath = (path: string, width = 4) =>
   `<path d="${path}" fill="none" stroke="#ffffff" stroke-width="${width}" stroke-dasharray="9 7" stroke-linecap="round"/>`;
@@ -499,7 +502,12 @@ function fitTshirtNeck(option: ReturnType<typeof hoodieNeckline>, front: boolean
   const scale = 400 / (right.x - left.x);
   const x = 824 - left.x * scale;
   const y = HOODLESS_NECK_Y - joinY * scale;
-  const rawBody = finish === 'raw' && master ? fabricRings(master.body) : undefined;
+  // Use the same registered cut contour as the T-shirt preview. The body
+  // trace can include a shallow rear rim above the actual front opening.
+  const rawMarker = finish === 'raw'
+    ? master?.outline.match(/<path\b[^>]*data-ink-preserve="true"[^>]*\/>/)?.[0]
+    : undefined;
+  const rawCut = rawMarker ? rawNeckBoundary(fabricRings(svg(rawMarker)), front ? 'front' : 'back') : [];
   const transform = `translate(${1024 + (x - 1024) * boxyWidth} ${y}) scale(${scale * boxyWidth} ${scale})`;
   const fitAsset = (raw: string) => raw.replace(/<g transform="[^"]+"/,
     `<g transform="${transform}"`).replace('<svg ', `<svg data-tshirt-hoodie-neck="true" data-no-fabric-edge-seal="true"${master ? ` data-neck-master-finish="${finish}"` : ''} `);
@@ -516,13 +524,11 @@ function fitTshirtNeck(option: ReturnType<typeof hoodieNeckline>, front: boolean
         bottom = Math.max(bottom, crossing);
       }
     }
-    if (rawBody?.length) {
-      let opening = Infinity;
-      for (const ring of rawBody) for (let i = 0; i < ring.length; i++) {
-        const a = ring[i], b = ring[(i + 1) % ring.length];
-        if ((a.x > probe) !== (b.x > probe)) opening = Math.min(opening, a.y + (b.y - a.y) * (probe - a.x) / (b.x - a.x));
-      }
-      if (Number.isFinite(opening)) bottom = opening + 9 / scale;
+    if (rawCut.length > 1 && probe >= rawCut[0].x && probe <= rawCut.at(-1)!.x) {
+      const next = rawCut.findIndex(point => point.x >= probe);
+      const a = rawCut[Math.max(0, next - 1)], b = rawCut[next];
+      const opening = a.x === b.x ? a.y : a.y + (b.y - a.y) * (probe - a.x) / (b.x - a.x);
+      bottom = opening + 9 / scale;
     }
     return Number.isFinite(bottom) && Number.isFinite(top) ? { top: y + top * scale, bottom: y + bottom * scale } : { top: HOODLESS_NECK_Y, bottom: HOODLESS_NECK_Y };
   };
@@ -740,7 +746,9 @@ export function regularHoodieLayers(
       { role: 'interior', interior: true, surface: 'reverse', exteriorPartId: 'base', hoodieColour: 'hood-inside' });
     const left = `${traced.joinX} ${traced.joinY}`;
     const edge = `M ${2048 - traced.joinX} ${traced.joinY} ${traced.rightToLeft}`;
-    const rawOutline = traced.finishSource === 'raw' ? seam(edge, 5).replace('<svg ', '<svg data-neck-master-finish="raw" ') : seam(edge, 5);
+    const rawOutline = traced.finishSource === 'raw'
+      ? rawHoodlessNeck(edge).replace('<svg ', '<svg data-neck-master-finish="raw" ')
+      : rawHoodlessNeck(edge);
     add('neck', neckOption.label, rawNeck ? rawOutline : traced.raw, 32, rawNeck ? undefined : { role: 'neck' }, rawNeck ? '#202020' : undefined);
     layers.at(-1)!.measurementShoulder = point(left);
     layers.at(-1)!.measurementUnderarm = point(`${2048 - traced.joinX} ${traced.joinY}`);
@@ -764,7 +772,7 @@ export function regularHoodieLayers(
     const band = `M ${left} ${outerNeck} ${innerNeck} Z`;
     const neckPath = band;
     const rawEdge = `M ${left} ${outerNeck}`;
-    add('neck', neckOption.label, rawNeck ? seam(rawEdge, 5) : panel(neckPath),
+    add('neck', neckOption.label, rawNeck ? rawHoodlessNeck(rawEdge) : panel(neckPath),
       32, rawNeck ? undefined : { role: 'neck' }, rawNeck ? '#202020' : undefined);
     layers.at(-1)!.measurementShoulder = point(left);
     layers.at(-1)!.measurementUnderarm = point(right);
@@ -798,21 +806,8 @@ export function regularHoodieLayers(
         { role: 'interior', interior: true, exteriorPartId: 'hood', hoodieColour: 'hood-inside', surface: lined ? 'lining' : 'reverse' });
       add('hoodFaceOutline', 'Hood face opening', face(seam(shape.opening, 5)), 40);
       if (frontSeams && selection.hoodOpeningFinish !== 'raw') add('hoodFaceSeams', 'Hood face seams', profileHood(seam(frontSeams, 5)), 40);
-      if (!lowHood && selection.hoodOpeningFinish !== 'raw') add('stitchingHoodFacing', 'Hood facing stitching',
-        face(svg(stitchPath(shape.opening)).replace('<svg ', '<svg data-hood-facing-stitch="true" ')), 42, undefined, thread);
     }
     add('outline', 'Hood outline', profileHood(seam(`${shell} ${hoodLines}`, 5)), 40);
-    const hoodStitch = scuba && lowHood
-      ? (front ? 'M 781 407 C 803 468 910 503 1024 503 C 1138 503 1245 468 1267 407' : 'M 1036 280 L 1036 786')
-      : scuba ? (front ? 'M 757 345 C 780 236 894 140 1024 140 C 1154 140 1268 236 1291 345'
-      : profile === 'three-panel' ? 'M 977 39 C 916 220 919 500 954 755 M 1071 39 C 1132 220 1129 500 1094 755'
-        : 'M 1036 43 L 1036 765') : lowHood ? (front ? 'M 775 528 C 903 503 1145 503 1273 528'
-      : 'M 745 549 C 898 590 1150 590 1303 549') : front
-      ? 'M 758 365 C 793 249 913 156 1024 156 C 1135 156 1255 249 1290 365'
-      : profile === 'three-panel' ? 'M 977 54 C 916 220 919 500 954 731 M 1071 54 C 1132 220 1129 500 1094 731' : 'M 1036 43 L 1036 741';
-    if (front ? selection.hoodOpeningFinish !== 'raw' : profile !== 'seamless' && !(lowHood && scuba && profile === 'three-panel')) {
-      add('stitching', 'Hood stitching', profileHood(stitchSvg(hoodStitch)), 42, undefined, thread);
-    }
     if (front && shape.crossover && (selection.hoodOverlap ?? 'on') === 'on') {
       add('hoodOverlap', 'Hood overlap seam', profileHood(seam(shape.crossover, 5)), 41, undefined, '#202020');
     }

@@ -212,6 +212,13 @@ export function centerTorsoSpan(geometry: OpeningGeometry | undefined, center: n
   return undefined;
 }
 
+export function garmentPanelSpanAtY(geometry: OpeningGeometry | undefined, id: string, y: number) {
+  const panel = geometry?.panels.find(item => item.id === id);
+  if (!panel) return undefined;
+  const edges = intersections(panel.polygons, y, 'y');
+  return edges.length > 1 ? [edges[0], edges.at(-1)!] as const : undefined;
+}
+
 const centerFrontX = (bounds: DetailBounds) => bounds.frontNeckCenterX ?? (bounds.minX + bounds.maxX) / 2;
 
 function isCenterFrontOpening(opening: OpeningDefaults, bounds: DetailBounds) {

@@ -13,8 +13,9 @@ export function LabelEdgeControls({label,onChange}:{label:GarmentLabel;onChange:
   if (label.construction === 'printed') return null;
   const stitching = label.stitchingPlacement ?? 'none';
   const thread = label.stitchingColour ?? '#555555';
+  const sewn = label.category !== 'hand' && label.method !== 'card';
   return <section className="label-edge-controls">
-    <h3>Outline & stitching</h3>
+    <h3>{sewn ? 'Outline & stitching' : 'Outline'}</h3>
     <label className="label-edge-toggle">
       <span>Outline<small>A solid line around the cut edge</small></span>
       <input type="checkbox" checked={label.borderEnabled}
@@ -23,7 +24,7 @@ export function LabelEdgeControls({label,onChange}:{label:GarmentLabel;onChange:
     {label.borderEnabled && <AdvancedColorPopover value={label.border} onChange={border=>onChange({border})}>
       <button type="button" className="label-edge-colour"><i style={{background:label.border}}/>Outline colour<span>{label.border.toUpperCase()}</span></button>
     </AdvancedColorPopover>}
-    <p className="label-edge-caption">Stitching position</p>
+    {sewn && <><p className="label-edge-caption">Stitching position</p>
     <div className="label-stitch-choices" role="group" aria-label="Stitching position">
       {stitchChoices.map(({id,label:name,path})=><button type="button" key={id} aria-pressed={stitching===id}
         onClick={()=>onChange({stitchingPlacement:id})}>
@@ -36,7 +37,7 @@ export function LabelEdgeControls({label,onChange}:{label:GarmentLabel;onChange:
     </div>
     {stitching !== 'none' && <AdvancedColorPopover value={thread} onChange={stitchingColour=>onChange({stitchingColour})}>
       <button type="button" className="label-edge-colour"><i style={{background:thread}}/>Thread colour<span>{thread.toUpperCase()}</span></button>
-    </AdvancedColorPopover>}
+    </AdvancedColorPopover>}</>}
     {canAttachLabelToCollar(label) && <label className="label-edge-toggle label-collar-attachment">
       <span>Sew into collar seam<small>Attach the top of the label to the inside back collar.</small></span>
       <input type="checkbox" checked={Boolean(label.attachToCollarSeam)}

@@ -41,7 +41,9 @@ function blockLabelLayout(label: GarmentLabel) {
   const usableHeight = Math.max(1, label.heightMm - insetY * 2);
   const sections = labelTextSections(label);
   const active = label.blocks!.filter(block => block.enabled);
-  const symbols = active.some(block => block.key === 'careText') ? Object.entries(label.care).filter(([, value]) => Boolean(value)) : [];
+  const symbols = active.some(block => block.key === 'careText')
+    ? (Object.keys(CARE_OPTIONS) as CareCategory[]).map(key => [key, label.care[key]] as const).filter(([, value]) => Boolean(value))
+    : [];
   const symbolSize = Math.min(4.5, usableWidth / Math.max(1, symbols.length));
   const sectioned = label.sectionLayout && label.sectionLayout !== 'stack';
   const paired = !sectioned && ['inline', 'split'].includes(label.hierarchy ?? '') && active.some(block => block.key === 'brand') && active.some(block => block.key === 'size');

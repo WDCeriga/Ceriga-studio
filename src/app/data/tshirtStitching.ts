@@ -310,7 +310,7 @@ export function renderStitchStyles(source: ResolvedGarmentLayer, geometry: Stitc
     const bottomConstruction = region === 'bottom' ? resolveHemSettings(hems, 'bodyHem').construction : undefined;
     if (bottomConstruction === 'elasticated' || bottomConstruction === 'adjustable') return '';
     const resolved = resolveStitchSettings(settings, region);
-    const style = resolved.style ?? 'standard';
+    const style = resolved.style ?? (region==='side'&&source.svgRaw.includes('data-trouser-stitch-region')?'none':'standard');
     const width = { fine: 2.1, regular: 2.7, heavy: 3.4 }[resolved.thread ?? 'regular'];
     const physical = Object.entries(geometry.hemClips ?? {}).filter(([id]) =>
       (id === 'bodyHem' ? 'bottom' : id.startsWith('underlayer') ? 'undersleeve' : 'sleeve') === region);

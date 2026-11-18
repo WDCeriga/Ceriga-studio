@@ -21,7 +21,13 @@ export function labelFoldChoices(label:GarmentLabel){
 
 export function applyLabelShape(label:GarmentLabel,shape:GarmentLabel['shape']){
  const width=label.widthMm,curved=['circle','oval'].includes(shape),wasCurved=['circle','oval'].includes(label.shape);
- const height=shape==='circle'||shape==='square'?width:shape==='horizontal'?Math.max(8,Math.round(width/3)):shape==='vertical'?Math.min(250,Math.round(width*2.5)):shape==='oval'?Math.max(8,Math.round(width*.6)):wasCurved?Math.max(8,Math.round(width*.6)):label.heightMm;
+ const height=shape==='circle'||shape==='square'?width
+  :shape==='rectangle'?Math.min(250,Math.round(width*1.7))
+  :shape==='rounded'?Math.max(8,Math.round(width*.6))
+  :shape==='horizontal'?Math.max(8,Math.round(width/3))
+  :shape==='vertical'?Math.min(250,Math.round(width*2.5))
+  :shape==='oval'?Math.max(8,Math.round(width*.6))
+  :wasCurved?Math.max(8,Math.round(width*.6)):label.heightMm;
  return normalizeLabel({...label,customOutline:undefined,shape,heightMm:height,cut:shape==='rounded'?'rounded':curved?'straight':label.cut==='rounded'?'straight':label.cut,fold:curved?'die':wasCurved?'straight':label.fold});
 }
 export function applyLabelCut(label:GarmentLabel,cut:NonNullable<GarmentLabel['cut']>){return normalizeLabel({...label,customOutline:undefined,cut,shape:label.shape==='rounded'&&cut!=='rounded'?'rectangle':label.shape})}

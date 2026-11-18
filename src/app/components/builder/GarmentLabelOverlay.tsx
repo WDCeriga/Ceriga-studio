@@ -117,7 +117,8 @@ export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer
   const base = layers.find(layer => layer.id === 'base');
   if (!base) return null;
   const body = base.bbox;
-  const unit = (body.maxX - body.minX) / (referenceWidthMm > 0 ? referenceWidthMm : 500);
+  const rightLeg = layers.find(layer => layer.id === 'trouserLegRight');
+  const unit = ((rightLeg?.bbox.maxX ?? body.maxX) - body.minX) / (referenceWidthMm > 0 ? referenceWidthMm : 500);
   const width = label.widthMm * unit;
   const height = label.heightMm * unit;
   let layer = base;
@@ -127,7 +128,36 @@ export function labelPlacement(label: GarmentLabel, layers: LabelAttachmentLayer
   const offsetX = label.offsetXmm * unit;
   const offsetY = label.offsetYmm * unit;
   let collarClip: string | undefined;
-  if (label.category === 'neck' || label.position.startsWith('neck-')) {
+  if (rightLeg) {
+    const waist = layers.find(entry => entry.id === 'waistband');
+    const right = label.position.endsWith('right');
+    if (waist && (label.position.startsWith('waistband-') || label.position.startsWith('neck-'))) {
+      layer = waist;
+      const band = waist.bbox;
+      const bias = label.position.endsWith('left') ? -.25 : right ? .25 : label.position === 'waistband-tag' ? -.28 : 0;
+      x = clamp(band.centerX + (band.maxX - band.minX) * bias + offsetX, band.minX + width / 2, band.maxX - width / 2);
+      const edge = boundary(maskById.waistband, 'y', x, band.minY, band.maxY, true);
+      y = edge - (isInteriorLabel(label) ? 0 : height * .72) + offsetY;
+    } else {
+      layer = right ? rightLeg : base;
+      const leg = layer.bbox;
+      if (label.position.startsWith('sleeve-') || label.position.endsWith('hem')) {
+        layer = layers.find(entry => entry.id === (right ? 'trouserCuffRight' : 'bodyHem')) ?? layer;
+        const opening = layer.bbox;
+        const anchor = maskById[layer.id] ? sleeveLabelAnchor(maskById[layer.id], right ? 'Right' : 'Left') : null;
+        x = (anchor?.x ?? opening.centerX) + offsetX;
+        y = (anchor?.y ?? opening.maxY) - height * (isInteriorLabel(label) ? 1.1 : .65) + offsetY;
+        angle += anchor?.angle ?? 0;
+      } else {
+        y = clamp(leg.minY + (leg.maxY - leg.minY) * .28 + offsetY, leg.minY + 32, leg.maxY - height);
+        const edge = boundary(maskById[layer.id], 'x', y, leg.minX, leg.maxX, right);
+        const inside = isInteriorLabel(label);
+        const lowerEdge = inside ? boundary(maskById[layer.id], 'x', y + height, leg.minX, leg.maxX, right) : edge;
+        x = edge + (right ? -1 : 1) * (inside ? width / 2 + unit * 2 : width * .35) + offsetX;
+        if (inside) angle -= Math.atan2(lowerEdge - edge, height) * 180 / Math.PI;
+      }
+    }
+  } else if (label.category === 'neck' || label.position.startsWith('neck-')) {
     const inner = layers.find(entry => entry.id === 'innerBackNeck');
     if (!inner || !maskById.innerBackNeck) return null;
     layer = inner;
@@ -200,10 +230,14 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
     if (gesture.current && gesture.current.label.id !== selectedId) { gesture.current = null; draftRef.current = null; setDraft(null); }
   }, [selectedId]);
   const selected = labels.find(label => label.id === selectedId);
+  const trousers = layers.some(layer => layer.id === 'trouserLegRight');
+  const visible = (label: GarmentLabel) => trousers && label.manualPosition === undefined && label.position.startsWith('neck-')
+    ? label.position === 'neck-outside' ? view === 'back' && !interior : interior
+    : labelVisible(label, view, interior);
   const place = (label: GarmentLabel) => manualPlacement && label.manualPosition === undefined ? null : labelPlacement(label, layers, referenceWidthMm, maskById, manualBounds);
-  const placement = selected && labelVisible(selected, view, interior) ? place(selected) : null;
+  const placement = selected && visible(selected) ? place(selected) : null;
   const corners = placement ? [[placement.x, 0], [placement.x + placement.width, 0], [placement.x, placement.height], [placement.x + placement.width, placement.height]].map(([x, y]) => placement.matrix.transformPoint(new DOMPoint(x, y))) : [];
-  const contextLayers = manualPlacement || selected?.manualPosition !== undefined ? [] : selected?.category === 'neck' || selected?.position.startsWith('neck-')
+  const contextLayers = trousers || manualPlacement || selected?.manualPosition !== undefined ? [] : selected?.category === 'neck' || selected?.position.startsWith('neck-')
     ? layers.filter(layer => ['neck', 'innerBackNeck'].includes(layer.id))
     : selected?.position.startsWith('sleeve-')
       ? layers.filter(layer => ['sleeve', 'underSleeve', 'sleeveHem', 'underSleeveHem'].some(prefix => layer.id === `${prefix}${selected.position.endsWith('left') ? 'Left' : 'Right'}`))
@@ -220,7 +254,9 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
   const focused = placement && selected ? { id: selected.id, x: placement.center.x, y: placement.center.y,
     width: Math.max(...corners.map(point => point.x)) - Math.min(...corners.map(point => point.x)),
     height: Math.max(...corners.map(point => point.y)) - Math.min(...corners.map(point => point.y)),
-    context: contextCorners.length ? { x: (contextMinX + contextMaxX) / 2, y: (contextMinY + contextMaxY) / 2, width: contextMaxX - contextMinX, height: contextMaxY - contextMinY } : undefined } : null;
+    context: trousers ? { x: placement.center.x, y: placement.center.y - placement.height * .16,
+      width: Math.max(340, placement.width * 2.5), height: Math.max(310, placement.height * 1.85) }
+      : contextCorners.length ? { x: (contextMinX + contextMaxX) / 2, y: (contextMinY + contextMaxY) / 2, width: contextMaxX - contextMinX, height: contextMaxY - contextMinY } : undefined } : null;
   useEffect(() => { if (focused) onFocus?.(focused); }, [focused?.id, focused?.x, focused?.y, focused?.width, focused?.height, focused?.context?.x, focused?.context?.y, focused?.context?.width, focused?.context?.height, onFocus]);
   const start = (event: PointerEvent<SVGGElement | SVGRectElement>, label: GarmentLabel, placement: NonNullable<ReturnType<typeof labelPlacement>>, resize: boolean) => {
     if (!onChange || !svgRef.current || event.button !== 0) return;
@@ -272,7 +308,7 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
       const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
       positionSelected(point.x, point.y);
     }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); positionSelected((manualBounds.minX + manualBounds.maxX) / 2, (manualBounds.minY + manualBounds.maxY) / 2); } }} />}
-    {labels.filter(label => labelVisible(label, view, interior)).map((saved, index) => {
+    {labels.filter(visible).map((saved, index) => {
       const label = constrainNeckLabel(draft?.id === saved.id ? draft : saved, layers, referenceWidthMm, maskById);
       const placement = place(label); if (!placement) return null;
       const clipId = `${clipPrefix}-collar-label-${index}`;

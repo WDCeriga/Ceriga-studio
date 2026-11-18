@@ -67,7 +67,8 @@ export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxi
  useEffect(()=>{
   const key=(event:KeyboardEvent)=>{
    if((event.target as Element)?.closest('input,textarea,select,[contenteditable="true"]'))return;
-   if((event.key==='Enter'||event.code==='Space')&&(event.target as Element)?.closest('button,summary'))return;
+   if(event.isComposing||event.repeat)return;
+   if(event.code==='Space'&&(event.target as Element)?.closest('button,summary'))return;
    if(event.key.toLowerCase()==='c'&&!event.ctrlKey&&!event.metaKey){event.preventDefault();event.stopImmediatePropagation();setCurvature(value=>!value);return;}
    if(event.code==='Space'){event.preventDefault();event.stopImmediatePropagation();space.current=true;return;}
    if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase())){event.preventDefault();event.stopImmediatePropagation();if(gesture.current)return;if(event.shiftKey||event.key.toLowerCase()==='y')actions.current.redoLast();else actions.current.undo();return;}

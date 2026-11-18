@@ -74,6 +74,7 @@ export function BuilderTopBar({
 }
 export function BuilderSidebar({
   fixedHoodie = false,
+  sweatpants = false,
   materialTool,onMaterialTool,
   section,
   onSection,
@@ -85,6 +86,7 @@ export function BuilderSidebar({
   onConstructionTool
 }: {
   fixedHoodie?: boolean;
+  sweatpants?: boolean;
   materialTool?:MaterialTool;onMaterialTool?:(tool:MaterialTool)=>void;
   section: BuilderSection;
   onSection: (s: BuilderSection) => void;
@@ -102,7 +104,7 @@ export function BuilderSidebar({
       })}</nav>}<div className="builder-context"><h2 hidden={assetEditing}>{section === 'Materials & Colour'?'Material tools':section === 'Construction' ? 'Construction tools' : section === 'Fit & Measurements' ? 'Measurement tools' : section==='Artwork & Graphics'?'Artwork tools':'Section tools'}</h2>{section === 'Fit & Measurements' ? MEASUREMENT_TOOLS.map((s, i) => {
         const Icon = [Ruler, TableProperties, CirclePlus, FileUp][i];
         return <button key={s} className={tool === s ? 'is-selected' : ''} onClick={() => onTool(s)} title={s}><Icon size={20} /><span>{s}</span></button>;
-      }) : section==='Materials & Colour'?MATERIAL_TOOLS.map((s,i)=><button key={s} className={materialTool===s?'is-selected':''} onClick={()=>onMaterialTool?.(s)} title={s}>{(()=>{const Icon=[Palette,Shirt,Grid2X2,BookOpen,Blend][i];return <Icon size={20}/>})()}<span>{s}</span></button>):section === 'Construction' ? construction.map((s,index) => {return <button key={s} className={constructionTool === s ? 'is-selected' : ''} onClick={() => onConstructionTool(s)} title={fixedHoodie&&index===0?'Hood & neckline':s}><ConstructionToolIcon index={index}/><span>{fixedHoodie&&index===0?'Hood & neckline':s}</span></button>}) : section==='Artwork & Graphics'?<PrintDesignNavigation/> : (section==='Labels & Branding'||section==='Packaging'||section==='Artwork & Graphics')?(section==='Labels & Branding'?LABEL_TOOLS:PACKAGING_TOOLS).map((name,i)=><button key={name} className={workflow.tool===name?'is-selected':''} onClick={()=>workflow.setTool(name)}>{(()=>{const Icon=[Tag,PenLine,Settings,ScanLine][i];return <Icon size={20}/>})()}<span>{name}</span></button>): <p>{section==='Order & quantities'?'Select a run, adjust your size curve and continue to delivery.':'More tools will appear here.'}</p>}</div><div className="builder-sidebar-footer"><button onClick={() => onTool('Upload reference')} title="Upload reference"><Upload size={19} /><span>Upload reference</span></button><small>Reference / inspiration only</small></div></aside>;
+      }) : section==='Materials & Colour'?MATERIAL_TOOLS.map((s,i)=><button key={s} className={materialTool===s?'is-selected':''} onClick={()=>onMaterialTool?.(s)} title={s}>{(()=>{const Icon=[Palette,Shirt,Grid2X2,BookOpen,Blend][i];return <Icon size={20}/>})()}<span>{s}</span></button>):section === 'Construction' ? construction.map((s,index) => {return <button key={s} className={constructionTool === s ? 'is-selected' : ''} onClick={() => onConstructionTool(s)} title={sweatpants?['Waistband','Leg construction','Hems & cuffs'][index]??s:fixedHoodie&&index===0?'Hood & neckline':s}><ConstructionToolIcon index={index}/><span>{sweatpants?['Waistband','Leg construction','Hems & cuffs'][index]??s:fixedHoodie&&index===0?'Hood & neckline':s}</span></button>}) : section==='Artwork & Graphics'?<PrintDesignNavigation/> : (section==='Labels & Branding'||section==='Packaging'||section==='Artwork & Graphics')?(section==='Labels & Branding'?LABEL_TOOLS:PACKAGING_TOOLS).map((name,i)=><button key={name} className={workflow.tool===name?'is-selected':''} onClick={()=>workflow.setTool(name)}>{(()=>{const Icon=[Tag,PenLine,Settings,ScanLine][i];return <Icon size={20}/>})()}<span>{name}</span></button>): <p>{section==='Order & quantities'?'Select a run, adjust your size curve and continue to delivery.':'More tools will appear here.'}</p>}</div><div className="builder-sidebar-footer"><button onClick={() => onTool('Upload reference')} title="Upload reference"><Upload size={19} /><span>Upload reference</span></button><small>Reference / inspiration only</small></div></aside>;
 }
 export function BuilderWorkspace({
   children,
@@ -155,6 +157,7 @@ export function BuilderPlaceholder({
 }
 export function BuilderShell({
   fixedHoodie = false,
+  sweatpants = false,
   materialTool,onMaterialTool,
   onWorkspaceFit,onReview,reviewOpen,sizeComparison,
   topbar,
@@ -168,6 +171,7 @@ export function BuilderShell({
   onConstructionTool
 }: {
   fixedHoodie?: boolean;
+  sweatpants?: boolean;
   onWorkspaceFit:()=>void;onReview:()=>void;reviewOpen:boolean;sizeComparison?:{enabled:boolean;first:string;second:string};
   topbar: ReactNode;
   children: ReactNode;
@@ -219,10 +223,10 @@ export function BuilderShell({
   const effectiveWidth=tablet?Math.max(280,Math.min(430,inspectorWidth, width-(collapsed||!tabletExpanded||width<1000?64:190)-300)):Math.max(300,inspectorWidth);
  const artworkStudio=usePrintsStudio();
  const revealInspector=()=>openInspector(inspectorSnap==='peek'?'half':inspectorSnap);
- const mobileTools=section==='Artwork & Graphics'?<MobileToolTabs label="Artwork tools" items={PRINT_TOOL_GROUPS.map(t=>({id:t.id,label:t.label}))} value={artworkStudio.panel} onChange={id=>{artworkStudio.setPanel(id as typeof artworkStudio.panel);revealInspector()}}/>:section==='Materials & Colour'?<MobileToolTabs label="Material tools" items={MATERIAL_TOOLS.map(t=>({id:t,label:t}))} value={materialTool??MATERIAL_TOOLS[0]} onChange={id=>{onMaterialTool?.(id as MaterialTool);revealInspector()}}/>:section==='Construction'?<MobileToolTabs label="Construction tools" items={construction.map((t,index)=>({id:t,label:fixedHoodie&&index===0?'Hood & neckline':t}))} value={constructionTool} onChange={id=>{onConstructionTool(id);revealInspector()}}/>:section==='Fit & Measurements'?<MobileToolTabs label="Measurement tools" items={MEASUREMENT_TOOLS.map(t=>({id:t,label:t}))} value={tool} onChange={id=>{onTool(id as MeasurementTool);revealInspector()}}/>:null;
+ const mobileTools=section==='Artwork & Graphics'?<MobileToolTabs label="Artwork tools" items={PRINT_TOOL_GROUPS.map(t=>({id:t.id,label:t.label}))} value={artworkStudio.panel} onChange={id=>{artworkStudio.setPanel(id as typeof artworkStudio.panel);revealInspector()}}/>:section==='Materials & Colour'?<MobileToolTabs label="Material tools" items={MATERIAL_TOOLS.map(t=>({id:t,label:t}))} value={materialTool??MATERIAL_TOOLS[0]} onChange={id=>{onMaterialTool?.(id as MaterialTool);revealInspector()}}/>:section==='Construction'?<MobileToolTabs label="Construction tools" items={construction.map((t,index)=>({id:t,label:sweatpants?['Waistband','Leg construction','Hems & cuffs'][index]??t:fixedHoodie&&index===0?'Hood & neckline':t}))} value={constructionTool} onChange={id=>{onConstructionTool(id);revealInspector()}}/>:section==='Fit & Measurements'?<MobileToolTabs label="Measurement tools" items={MEASUREMENT_TOOLS.map(t=>({id:t,label:t}))} value={tool} onChange={id=>{onTool(id as MeasurementTool);revealInspector()}}/>:null;
  const responsiveValue=useMemo(()=>({detailMode,setDetailMode,detailAddRequest,onDetailAddHandled:()=>setDetailAddRequest(0),size,setSize,panel,setPanel,canvasFocus:phone&&canvasFocus,inspectorSnap,setInspectorSnap:openInspector,openSections:()=>setPanel('sections')}),[size,panel,inspectorSnap,detailAddRequest,detailMode,phone,tablet,touchTablet,canvasFocus]);
  return <PackagingPanelPreviewProvider enabled={section==='Packaging'}><StudioWorkflowContext.Provider value={{tool:workflowTool,setTool:name=>{rememberedWorkflow.current[section]=name;setWorkflowTool(name);if(name!=='Design')setWorkflowSelection(null);revealInspector()},selection:workflowSelection,setSelection:setWorkflowSelection,controlsHost,setControlsHost}}><MobileSectionToolsContext.Provider value={mobileTools}><ResponsiveBuilderContext.Provider value={responsiveValue}><div className="ceriga-builder-shell" data-asset-editing={assetEditing} style={{'--builder-viewport-top':`${viewportTop}px`,'--builder-viewport-height':`${viewportHeight}px`,'--builder-inspector-width':`${inspectorCollapsed?40:effectiveWidth}px`,'--phone-inspector-height':`${canvasFocus||panel||reviewOpen?0:sheetSnapHeight(inspectorSnap,viewportHeight,true)}px`} as CSSProperties} data-canvas-focus={phone&&canvasFocus} data-inspector-collapsed={inspectorCollapsed} data-resizing={resizing} data-section={section} data-construction-tool={section==='Construction'?constructionTool:undefined} data-size-compare={Boolean(sizeComparison?.enabled)} data-tool={tool} data-phone-snap={inspectorSnap} data-nav-collapsed={collapsed||tablet&&(!tabletExpanded||width<1000)}><BuilderTooltips/>{!assetEditing&&topbar}<div className="builder-shell-grid"><BuilderSidebar {...{
-        section,materialTool,onMaterialTool,fixedHoodie,
+        section,materialTool,onMaterialTool,fixedHoodie,sweatpants,
         onSection:(next:BuilderSection)=>{onSection(next)},
         tool,
         onTool,

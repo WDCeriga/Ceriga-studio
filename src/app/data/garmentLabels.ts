@@ -15,8 +15,17 @@ export const LABEL_POSITIONS = {
   'neck-inside': 'Inside back neck - centered', 'neck-left': 'Inside back neck - left', 'neck-right': 'Inside back neck - right',
   'neck-outside': 'Exterior back neck', 'care-left': 'Inside left side seam', 'care-right': 'Inside right side seam', 'care-hem': 'Inside lower hem',
   'sleeve-left': 'Left sleeve opening', 'sleeve-right': 'Right sleeve opening', 'seam-left': 'Left side seam', 'seam-right': 'Right side seam', 'hem': 'Bottom hem', 'hand': 'Swing tag - cord attachment',
+  'waistband-tag': 'Exterior waistband',
+  'waistband-inside':'Inside back waistband - centered', 'waistband-left':'Inside back waistband - left', 'waistband-right':'Inside back waistband - right',
 } as const;
 export type LabelPosition = keyof typeof LABEL_POSITIONS;
+const trouserLabelLocations: Partial<Record<LabelPosition,string>> = {
+  'neck-inside':'Inside back waistband - centered', 'neck-left':'Inside back waistband - left', 'neck-right':'Inside back waistband - right',
+  'care-hem':'Inside left leg hem', 'sleeve-left':'Left leg opening', 'sleeve-right':'Right leg opening', hem:'Left leg hem',
+};
+export function labelPositionName(position: LabelPosition, trousers = false) {
+  return (trousers ? trouserLabelLocations[position] : undefined) ?? LABEL_POSITIONS[position];
+}
 export const CARE_OPTIONS = {
   washing: { '': 'Incomplete', 'no': 'Do not wash', '30': 'Wash at 30 C', '40': 'Wash at 40 C', '60': 'Wash at 60 C' },
   bleaching: { '': 'Incomplete', 'no': 'Do not bleach', 'any': 'Any bleach', 'oxygen': 'Non-chlorine bleach only' },
@@ -175,11 +184,11 @@ export function labelExportFaces(label: GarmentLabel): GarmentLabel[] {
   return ['tag', 'hand'].includes(label.category) ? (['front', 'back'] as const).map(side => normalizeLabel(switchTagFace(label, side))) : [label];
 }
 
-export function labelPositions(category: LabelCategory): LabelPosition[] {
-  if (category === 'neck') return ['neck-inside', 'neck-left', 'neck-right'];
-  if (category === 'care') return ['care-left', 'care-right', 'neck-inside', 'care-hem'];
+export function labelPositions(category: LabelCategory, trousers = false): LabelPosition[] {
+  if (category === 'neck') return trousers ? ['waistband-inside','waistband-left','waistband-right'] : ['neck-inside', 'neck-left', 'neck-right'];
+  if (category === 'care') return ['care-left', 'care-right', trousers?'waistband-inside':'neck-inside', 'care-hem'];
   if (category === 'hand') return ['hand'];
-  return ['sleeve-left', 'sleeve-right', 'seam-left', 'seam-right', 'hem'];
+  return [...(trousers ? ['waistband-tag' as const] : []), 'sleeve-left', 'sleeve-right', 'seam-left', 'seam-right', 'hem'];
 }
 
 export function createGarmentLabel(category: LabelCategory, manualPlacement = false): GarmentLabel {
@@ -235,7 +244,7 @@ export function normalizeLabel(label: GarmentLabel): GarmentLabel {
     method: label.category === 'hand' ? 'card' : printed ? (['heat', 'dtf', 'dtg', 'screen'].includes(label.method) ? label.method : 'heat') : (['woven', 'fabric'].includes(label.method) ? label.method : 'woven'),
     fold: printed ? 'straight' : curved ? 'die' : label.fold,
     borderEnabled: label.borderEnabled,
-    position: labelPositions(label.category).includes(label.position) ? label.position : labelPositions(label.category)[0],
+    position: labelPositions(label.category, label.position.startsWith('waistband-')).includes(label.position) ? label.position : labelPositions(label.category)[0],
     foldMm: finite(label.foldMm, 5, 2, 15), marginMm: finite(label.marginMm, 2, .5, Math.min(widthMm, heightMm) / 3),
     fontSizeMm: finite(label.fontSizeMm, 3, 1.5, 20), logoWidth: finite(label.logoWidth, 55, 5, 100),
     fontWeight: finite(Number(label.fontWeight), 600, 100, 900), letterSpacingMm: finite(label.letterSpacingMm, 0, 0, 5),
@@ -281,13 +290,15 @@ export function canAttachLabelToCollar(label: GarmentLabel) {
 
 export function isInteriorLabel(label: GarmentLabel) {
   if (label.manualPosition !== undefined) return false;
-  return label.position !== 'neck-outside' && (label.position.startsWith('neck-') || label.position.startsWith('care-'));
+  return label.position !== 'neck-outside' && (label.position.startsWith('neck-') || label.position.startsWith('care-') ||
+    ['waistband-inside','waistband-left','waistband-right'].includes(label.position));
 }
 
 export function labelVisible(label: GarmentLabel, view: 'front' | 'back', interior = false) {
   if (label.category === 'hand') return false;
   if (label.manualPosition !== undefined) return Boolean(label.manualPosition) && view === label.exteriorView;
   if (label.position === 'neck-outside') return view === 'back' && !interior;
+  if (label.position.startsWith('waistband-') && isInteriorLabel(label)) return interior;
   if (label.category === 'neck' || label.position.startsWith('neck-')) return view === 'front';
   if (isInteriorLabel(label)) return interior;
   return !interior && view === label.exteriorView;

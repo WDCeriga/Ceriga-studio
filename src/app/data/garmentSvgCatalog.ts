@@ -1,3 +1,4 @@
+import {SWEATPANTS_PRESET,sweatpantsLayers} from './sweatpants';
 import { REGULAR_HOODIE_PRESET, regularHoodieLayers } from './regularHoodie';
 import {withRegularConstruction} from './regularConstruction';
 import {withTshirtSurfaceQuality} from './tshirtSurfaceQuality';
@@ -1004,6 +1005,7 @@ export function resolveGarmentPackFit(
   garmentType: GarmentSvgGarmentType,
   fit?: string,
 ): string | undefined {
+  if(garmentType==='trousers')return fit??'regular';
   const fits = GARMENT_CONFIGS[garmentType].fits;
   if (!fits?.length) return undefined;
   if (fit && fits.some((option) => option.id === fit)) return fit;
@@ -1087,6 +1089,7 @@ export function getDefaultGarmentSelection(
   fit?: string,
 ): GarmentAssetSelection {
   if (garmentType === 'hoodie') return { base: REGULAR_HOODIE_PRESET };
+  if (garmentType === 'trousers') return {base:SWEATPANTS_PRESET};
   const config = GARMENT_CONFIGS[garmentType];
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   const selection: GarmentAssetSelection = {};
@@ -1170,7 +1173,7 @@ export function applyGarmentFitAndLinks(
   selection: GarmentAssetSelection,
   fit?: string,
 ): GarmentAssetSelection {
-  if (garmentType === 'hoodie' && selection.base === REGULAR_HOODIE_PRESET) return { ...selection };
+  if ((garmentType === 'hoodie' && selection.base === REGULAR_HOODIE_PRESET)||(garmentType==='trousers'&&selection.base===SWEATPANTS_PRESET)) return { ...selection };
   const config = GARMENT_CONFIGS[garmentType];
   const resolvedFit = resolveGarmentPackFit(garmentType, fit);
   let next = { ...selection };
@@ -1307,6 +1310,11 @@ export function resolveGarmentLayers(input: ResolveGarmentLayersInput): Resolved
   if (input.customAssetState?.importedGarment) {
     return importedGarmentLayers(input.customAssetState.importedGarment, input.view ?? 'front', input.partColors, input.customAssetState.garmentDetails)
       .sort((first, second) => first.zIndex - second.zIndex);
+  }
+  if(input.garmentType==='trousers'&&input.selection.base===SWEATPANTS_PRESET){
+    const state=input.customAssetState as typeof input.customAssetState & {measurements?:Record<string,Record<string,string>>;measurementGrading?:{baseSize?:string}};
+    const cord=state?.garmentDetails?.find(detail=>detail.type==='drawstring'&&!detail.hidden);
+    return sweatpantsLayers({...input.selection,...(cord?{pantsDrawstring:'custom'}:{})},input.fit,input.view==='back',state?.measurements,state?.measurementGrading?.baseSize);
   }
   const sleevelessSource = input.garmentType === 'tshirt'
     ? sleevelessTshirtSources.get(input.selection['Sleeve length']) : undefined;

@@ -1,3 +1,4 @@
+import {TROUSER_UTILITIES,TROUSER_POCKETS,TROUSER_TABS} from './trouserTrimAssets';
 import {zipRoute} from '../lib/zipCurve';
 import {warpZipSvg} from '../lib/warpZipSvg';
 import pocketSvg from '../../assets/garment-details/patch-pocket.svg?raw';
@@ -8,10 +9,11 @@ import { getGarmentAsset, getGarmentAssetSvgRaw } from './garmentSvgCatalog';
 import { tintPotraceSvg } from '../lib/tshirtSvgUtils';
 import { DEFAULT_PATCH, patchSvg, type PatchSettings } from './garmentPatches';
 import type { CustomAssetDefinition } from './customAssets';
-import { centerTorsoSpan, createOpening, openingGapProfile, openingOpenAmount, setOpeningEndpoint, ZIP_TAPE, transformOpening, type GarmentOpening, type OpeningGeometry } from './garmentOpenings';
+import { centerTorsoSpan, createOpening, garmentPanelSpanAtY, openingGapProfile, openingOpenAmount, setOpeningEndpoint, ZIP_TAPE, transformOpening, type GarmentOpening, type OpeningGeometry } from './garmentOpenings';
 import { HOODIE_HARDWARE, HOODIE_POCKETS, hoodieCordSvg, splitHoodiePocketSvg, type HoodieTrimSettings } from './hoodieTrimAssets';
 
 export const GARMENT_DETAIL_ASSETS = {
+  utility: { ...TROUSER_UTILITIES[0], label:'Utility detail' },
   pocket: { label: 'Pocket', svg: pocketSvg, width: .2, ratio: 200 / 220, x: .72, y: .4, stitch: true, hardware: false },
   zip: { label: 'Zip', svg: zipSvg, width: .055, ratio: 48 / 240, x: .5, y: .31, stitch: true, hardware: true },
   button: { label: 'Button', svg: buttonSvg, width: .06, ratio: 1, x: .5, y: .43, stitch: false, hardware: false },
@@ -28,6 +30,7 @@ export type GarmentDetailType = keyof typeof GARMENT_DETAIL_ASSETS;
 const variantSvgs = import.meta.glob<string>('../../assets/garment-details/*/*.svg', { eager: true, query: '?raw', import: 'default' });
 export const GARMENT_DETAIL_OPTIONS = {
   ...HOODIE_HARDWARE,
+  utility:[...TROUSER_UTILITIES,...TROUSER_TABS],
   patch: [],
   button: [
     { id: 'button-01', label: 'Two-hole rim', stitch: false, hardware: false },
@@ -52,6 +55,7 @@ export const GARMENT_DETAIL_OPTIONS = {
     { id: 'pocket-04', label: 'Flap pocket', stitch: true, hardware: true },
     { id: 'pocket-05', label: 'Divided pocket', stitch: true, hardware: true },
     ...HOODIE_POCKETS,
+    ...TROUSER_POCKETS,
   ],
 } as const;
 
@@ -83,7 +87,8 @@ export function zipPullThumbnail(style: ZipPullStyle) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-22 -5 44 60"><path d="${shape.path}" fill="#D4D4D4" fill-rule="evenodd" stroke="#141414" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
 }
 
-export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset' | 'patch' | 'customAsset' | 'hoodieTrim' | 'splitPocketGap' | 'integratedCordLock'>) {
+export function detailAsset(detail: Pick<GarmentDetail, 'type' | 'variant' | 'catalogueAsset' | 'draftedPocket' | 'patch' | 'customAsset' | 'hoodieTrim' | 'splitPocketGap' | 'integratedCordLock'>) {
+  if (detail.draftedPocket) return { ...GARMENT_DETAIL_ASSETS.pocket, ...detail.draftedPocket, label: 'Trouser pocket' };
   if (detail.customAsset) {
     const asset = detail.customAsset;
     return { ...GARMENT_DETAIL_ASSETS[asset.detailType ?? detail.type], label: asset.name, svg: asset.svg,
@@ -136,6 +141,7 @@ export interface GarmentDetail {
   flipY?: boolean;
   copiedFromId?: string;
   catalogueAsset?: { id: string; width: number; ratio: number; crop: DetailBounds };
+  draftedPocket?: { svg: string; width: number; ratio: number; stitch: boolean; hardware: boolean };
   customAsset?: CustomAssetDefinition;
   placementArea?: 'canvas';
   sourceLayerId?: string;
@@ -150,10 +156,12 @@ export interface GarmentDetail {
   patch?: PatchSettings;
   hoodieTrim?: HoodieTrimSettings;
   hoodAnchor?: number | null;
+  trouserAnchor?: 'waist';
+  drawstringPosition?: 'internal'|'external';
   splitPocketGap?: number;
 }
 
-export interface DetailBounds { minX: number; minY: number; maxX: number; maxY: number; necklineY?: number; frontNeckCenterX?: number; hoodOpeningY?: number; hoodZipY?: number; polo?: boolean; tshirtFront?: boolean; openingGeometry?: OpeningGeometry }
+export interface DetailBounds { trousers?:boolean;waistbandY?:number;waistbandHeight?:number;shorts?:boolean;pocketEnd?:{x:number;y:number}; minX: number; minY: number; maxX: number; maxY: number; necklineY?: number; frontNeckCenterX?: number; hoodOpeningY?: number; hoodZipY?: number; polo?: boolean; tshirtFront?: boolean; openingGeometry?: OpeningGeometry }
 
 export function createGarmentDetail(type: GarmentDetailType, details: GarmentDetail[], fill: string, variant?: GarmentDetailVariant): GarmentDetail {
   const asset = detailAsset({ type, variant });
@@ -167,7 +175,71 @@ export function createGarmentDetail(type: GarmentDetailType, details: GarmentDet
 export function detailLocksProportions(detail: GarmentDetail) {
   return !detail.opening && !detail.freeResize;
 }
+export function anchorTrouserTrim(detail:GarmentDetail,bounds:DetailBounds){
+ if(!bounds.trousers||detail.trouserAnchor!=='waist')return detail;
+ const asset=detailAsset(detail),height=(bounds.maxX-bounds.minX)*asset.width/asset.ratio*detailAxisScale(detail,'y');
+ const y=((bounds.waistbandY??bounds.minY)+(bounds.waistbandHeight??56)*.5+height*.4-bounds.minY)/(bounds.maxY-bounds.minY);
+ return Math.abs(detail.y-y)<.00001&&detail.x===.5?detail:{...detail,x:.5,y};
+}
+
+/** Place new utility details against the current waistband, pocket or leg contour. */
+export function placeTrouserUtility(detail: GarmentDetail, bounds: DetailBounds): GarmentDetail {
+  if (!bounds.trousers || detail.type !== 'utility') return detail;
+  const asset = detailAsset(detail);
+  const bodyWidth = bounds.maxX - bounds.minX;
+  const bodyHeight = bounds.maxY - bounds.minY;
+  const width = asset.width * bodyWidth;
+  const height = width / asset.ratio;
+  const waist = (bounds.waistbandY ?? bounds.minY) + (bounds.waistbandHeight ?? 56) - 8;
+  const legLength = bounds.maxY - waist;
+  const right = detail.view === 'back';
+  const side = right ? -1 : 1;
+  const edgeAt = (y: number) => {
+    const span = garmentPanelSpanAtY(bounds.openingGeometry, right ? 'trouserLegRight' : 'base',
+      Math.max(waist + 10, Math.min(bounds.maxY - 62, y)));
+    return right ? span?.[1] ?? bounds.maxX : span?.[0] ?? bounds.minX;
+  };
+  let y = waist + legLength * .22;
+  let inset = width * .65;
+  let rotation = 0;
+  let scale = 1;
+  switch (detail.variant) {
+    case 'trouser-waistband-tab': y = waist + height * .38; inset = bodyWidth * .18; break;
+    case 'trouser-seam-tab': y = waist + legLength * .22; inset = width * .35; break;
+    case 'trouser-d-ring':
+    case 'trouser-key-loop': y = waist + height * .34; inset = bodyWidth * .17; break;
+    case 'trouser-buckle-tab': y = waist - height * .18; inset = width * .64; break;
+    case 'trouser-utility-loop': y = waist + legLength * (bounds.shorts ? .42 : .20); inset = width * .40; break;
+    case 'trouser-webbing-strap':
+    case 'trouser-side-strap':
+    case 'trouser-snap-tab': y = waist + legLength * (bounds.shorts ? .52 : .28); break;
+    case 'trouser-knee-tab': y = waist + legLength * .55; break;
+    case 'trouser-ankle-tab': y = bounds.maxY - Math.max(25, height * .72); inset = width * .57; break;
+    case 'trouser-shock-cord': y = bounds.maxY - height * .30; inset = width * .42; break;
+    case 'trouser-bartack': {
+      y = bounds.pocketEnd?.y ?? waist + 14;
+      inset = width * .40;
+      const x = bounds.pocketEnd?.x;
+      if (x !== undefined) return { ...detail, x: (x - bounds.minX) / bodyWidth, y: (y - bounds.minY) / bodyHeight };
+      break;
+    }
+    case 'trouser-reflective-strip':
+    case 'trouser-side-tape': {
+      const tape = detail.variant === 'trouser-side-tape';
+      y = waist + legLength * (tape ? .48 : .79);
+      inset = width * (tape ? .65 : 1.4);
+      scale = Math.min(1, legLength * (tape ? .56 : .22) / height);
+      const half = height * scale / 2;
+      rotation = -Math.atan2(edgeAt(y + half) - edgeAt(y - half), half * 2) * 180 / Math.PI;
+      break;
+    }
+  }
+  const x = edgeAt(y) + side * inset;
+  return { ...detail, x: (x - bounds.minX) / bodyWidth, y: (y - bounds.minY) / bodyHeight, rotation, scale,
+    ...(right && detail.variant === 'trouser-seam-tab' ? {flipX:true} : {}) };
+}
 export function anchorHoodTrim(detail: GarmentDetail, bounds: DetailBounds) {
+  if(bounds.trousers)return anchorTrouserTrim(detail,bounds);
   if (detail.hoodAnchor === null || bounds.hoodOpeningY === undefined ||
     (detail.hoodAnchor === undefined && !['drawstring', 'eyelet', 'aglet', 'hoodDetail'].includes(detail.type))) return detail;
   const bodyHeight = bounds.maxY - bounds.minY;

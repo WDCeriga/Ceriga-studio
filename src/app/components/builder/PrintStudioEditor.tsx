@@ -2941,6 +2941,16 @@ export function PrintsDesignPreview({
     setCustomAreaDraft([]); setCustomAreaCursor(null); customAreaDraftIdRef.current = null;
     studio.setTool('customAreaEdit');
   };
+  useEffect(()=>{
+    if(!editable||studio.tool!=='customArea')return;
+    const finish=(event:KeyboardEvent)=>{
+      if(event.key!=='Enter'||event.isComposing||event.repeat||
+        (event.target as Element)?.closest('input,textarea,select,[contenteditable="true"]'))return;
+      event.preventDefault();event.stopImmediatePropagation();closeCustomArea();
+    };
+    window.addEventListener('keydown',finish,true);
+    return()=>window.removeEventListener('keydown',finish,true);
+  },[editable,studio.tool]);
 
   const handleCustomAreaPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!editable || event.button !== 0 || !zoneRef.current) return;

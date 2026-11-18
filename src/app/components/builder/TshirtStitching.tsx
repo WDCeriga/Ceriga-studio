@@ -18,7 +18,7 @@ import { stitchVariant } from '../../data/tshirtStitching';
 export type StitchEditor = { region: StitchRegion; closeUp: boolean; onSelect: (region: StitchRegion) => void; onApply?: (region:StitchRegion,settings:StitchSettings)=>void };
 
 export function useStitchGeometry(layers: ResolvedGarmentLayer[], fit: string, enabled = true, preferVector = false) {
-  const technical=useTechnicalDrawing(),regular=useRegularConstruction()||technical||preferVector||layers.some(l=>l.id==='bodyStitching'||l.svgRaw.includes('data-live-hem-finish'));
+  const technical=useTechnicalDrawing(),regular=useRegularConstruction()||technical||preferVector||layers.some(l=>l.svgRaw.includes('data-trouser-stitch-region')||l.id==='bodyStitching'||l.svgRaw.includes('data-live-hem-finish'));
   const vector=useMemo(()=>regular&&enabled?{rows:straightSleeveStitches(layers,constructionStitchRows(layers)),clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,'M0,0H1536V1536H0Z'])) as StitchGeometry['clips']}:undefined,[regular,enabled,layers]);
   const [result, setResult] = useState<{ layers: ResolvedGarmentLayer[]; geometry: StitchGeometry }>();
   const [failed, setFailed] = useState(false);
@@ -40,7 +40,8 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor,
   const technical=useTechnicalDrawing();
   const hoodie = layers.some(layer => layer.id === 'bodyStitching' && layer.svgRaw.includes('data-hoodie-stitch-region'));
   const regularConstruction = useRegularConstruction();
-  const regular=hoodie||regularConstruction||technical||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
+  const trousers=layers.some(layer=>layer.svgRaw.includes('data-trouser-stitch-region'));
+  const regular=hoodie||trousers||regularConstruction||technical||layers.some(l=>l.svgRaw.includes('data-live-hem-finish'));
   const prefix = useId().replace(/:/g, '');
   const { geometry, failed } = useStitchGeometry(layers, fit, !regular);
   const regularRows=useMemo(()=>regular?constructionStitchRows(layers):undefined,[regular,layers]);
@@ -49,7 +50,7 @@ export function TshirtStitchingLayer({ layers, fit, settings, hems, fabricColor,
   const colors = fabricColor ? Object.fromEntries(layers.filter(layer => layer.kind === 'solid').map(layer => [layer.id, layer.tint ?? fabricColor])) : undefined;
   if (colors) colors.neckline = colors.neck ?? colors.base;
   const fullClip = 'M0,0H1536V1536H0Z';
-  const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,fullClip])) as StitchGeometry['clips'],hemClips:Object.fromEntries(layers.filter(l=>/^(bodyHem|sleeveHem(?:Left|Right)|underlayerHem(?:Left|Right))$/.test(l.id)).map(layer=>{
+  const vectorGeometry=regular?{rows:regularRows!,clips:Object.fromEntries(Object.keys(TSHIRT_STITCH_REGIONS).map(id=>[id,fullClip])) as StitchGeometry['clips'],hemClips:Object.fromEntries(layers.filter(l=>!trousers&&/^(bodyHem|sleeveHem(?:Left|Right)|underlayerHem(?:Left|Right))$/.test(l.id)).map(layer=>{
     // Hoodie cuff stitching straddles the join. Clipping it to the cuff alone
     // cuts away any part of the stitch that falls on the sleeve fabric.
     const stitchCut = hoodie && /^sleeveHem/.test(layer.id) ? fullClip : fabricRings(layer.svgRaw)

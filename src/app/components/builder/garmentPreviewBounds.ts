@@ -16,7 +16,7 @@ export function garmentPreviewLayerBounds(layer: Pick<ResolvedGarmentLayer, 'id'
       if (maxX > minX && maxY > minY) return { minX, minY, maxX, maxY, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2 };
     }
   }
-  if (layer.assetId?.startsWith('studio-hoodie:')) {
+  if (layer.assetId?.startsWith('studio-hoodie:') || layer.assetId?.startsWith('studio-sweatpants:')) {
     // These editable paths carry their own transforms instead of a Potrace group transform.
     const markup = layer.svgRaw.replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>)/,
       '$1<g transform="scale(1 1)">$2</g>$3');

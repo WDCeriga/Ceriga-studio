@@ -35,6 +35,23 @@ function attachment(layer:ResolvedGarmentLayer,selector='[data-sleeve-join]'):P[
  });
 }
 export function constructionStitchRows(layers:ResolvedGarmentLayer[]):StitchGeometry['rows']{
+ const trouserStitches=layers.find(layer=>layer.svgRaw.includes('data-trouser-stitch-region'));
+ if(trouserStitches){
+  const rows:StitchGeometry['rows']={neckline:[],shoulder:[],armhole:[],sleeve:[],undersleeve:[],side:[],bottom:[]};
+  const root=new DOMParser().parseFromString(trouserStitches.svgRaw,'image/svg+xml');
+  for(const region of ['neckline','armhole','side','bottom'] as const){
+   rows[region]=Array.from(root.querySelectorAll(`[data-trouser-stitch-region="${region}"]`)).flatMap(path=>{
+    const transforms:string[]=[];
+    for(let node:Element|null=path;node&&node!==root.documentElement;node=node.parentElement){
+     const transform=node.getAttribute('transform');
+     if(transform)transforms.unshift(transform);
+    }
+    const drawing=svgpath(path.getAttribute('d')??'').abs().transform(transforms.join(' ')).toString();
+    return flattenPathContours(drawing,4,true).filter(row=>row.length>1);
+   });
+  }
+  return rows;
+ }
  const hoodieStitches = layers.find(layer => layer.id === 'bodyStitching' && layer.svgRaw.includes('data-hoodie-stitch-region'));
  if (hoodieStitches) {
   const rows: StitchGeometry['rows'] = { neckline: [], shoulder: [], armhole: [], sleeve: [], undersleeve: [], side: [], bottom: [] };
