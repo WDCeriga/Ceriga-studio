@@ -38,6 +38,10 @@ export const SWEATPANTS_OPTIONS={
 export function sweatpantsLength(value?:string){
  return ['shorts','above-knee','knee'].includes(value??'')?'shorts':'full';
 }
+export function sweatpantsDrawstring(selection:GarmentAssetSelection){
+ const cord=selection.pantsDrawstring;
+ return !cord||cord==='auto'?(selection.pantsWaist==='drawstring'?'external':'none'):cord;
+}
 export function sweatpantsLengthAdjustment(selection:GarmentAssetSelection){
  const key=sweatpantsLength(selection.pantsLength)==='shorts'?'pantsShortLengthAdjust':'pantsFullLengthAdjust';
  const value=Number(selection[key]??0);
@@ -231,7 +235,7 @@ export function sweatpantsLayers(selection:GarmentAssetSelection,fit='regular',b
   add('legFolds','Stacked hem folds',`<g fill="none" stroke="#202020" stroke-opacity=".5" stroke-width="2.4"><path d="${folds}"/>${mirror(folds)}</g>`);
  }
  add('stitching','Waist and hem stitching',`<g fill="none" stroke="#fff" stroke-width="2.4" stroke-dasharray="7 5"><path data-trouser-stitch-region="neckline" d="${waistRow}"/>${back||!showPockets||!pocketRow||selection.pantsPocketStitch!=='on'?'':`<g data-trouser-pocket-rows="true"><g data-trouser-pocket="pocketFacingLeft"><path data-trouser-stitch-region="armhole" d="${pocketRow}"/></g><g data-trouser-pocket="pocketFacingRight" transform="translate(2048 0) scale(-1 1)"><path data-trouser-stitch-region="armhole" d="${pocketRow}"/></g></g>`}${b.hem==='raw'||b.hem==='open'?'':`<path data-trouser-stitch-region="bottom" d="${bottom}"/><g transform="translate(2048 0) scale(-1 1)"><path data-trouser-stitch-region="bottom" d="${bottom}"/></g>`}</g><defs><path data-trouser-stitch-region="side" d="${sideRow}" transform="translate(9 0)"/><g transform="translate(2039 0) scale(-1 1)"><path data-trouser-stitch-region="side" d="${sideRow}"/></g></defs>`);
- if(!back&&b.waist!=='flat'&&selection.pantsDrawstring==='external'){
+ if(!back&&b.waist!=='flat'&&sweatpantsDrawstring(selection)==='external'){
  const cord=hoodieCordSvg('round',{spacing:.65}).replace('<svg ',`<svg x="960" y="${top+band*.52-22}" width="128" height="216" style="--detail-fill:#d8d5c8;--detail-outline:#202020;--detail-stitch:#eeeeea;--detail-hardware:#d4d4d4" `);
  add('drawstring','Waist drawstring',cord);
  }

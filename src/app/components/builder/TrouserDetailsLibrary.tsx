@@ -3,7 +3,7 @@ import {MaterialSelect} from './shell/MaterialSelect';
 import {GARMENT_DETAIL_OPTIONS,detailAsset,createGarmentDetail,type GarmentDetail,type GarmentDetailType,type GarmentDetailVariant,type DetailBounds} from '../../data/garmentDetails';
 import type {GarmentAssetSelection} from '../../data/garmentSvgCatalog';
 import {TROUSER_POCKET_CHOICES,TROUSER_UTILITIES,TROUSER_PATCH_PRESETS,TROUSER_TABS,TROUSER_ZIP_PLACEMENTS} from '../../data/trouserTrimAssets';
-import {TROUSER_POCKET_DIMENSIONS,trouserBuiltInPocketThumbnail,trouserPocketDimension} from '../../data/sweatpants';
+import {TROUSER_POCKET_DIMENSIONS,sweatpantsDrawstring,trouserBuiltInPocketThumbnail,trouserPocketDimension} from '../../data/sweatpants';
 import {DEFAULT_PATCH,type PatchSettings} from '../../data/garmentPatches';
 import {EYELET_STYLES,TIP_STYLES} from '../../data/hoodieTrimAssets';
 export interface TrouserDetailConstruction {selection:GarmentAssetSelection;onChange:(patch:GarmentAssetSelection)=>void;onView:(view:'front'|'back')=>void;onAddToView:(detail:GarmentDetail)=>void}
@@ -16,6 +16,7 @@ export function TrouserDetailsLibrary({construction,details,onChange,onSelect,ad
  const thumb=(raw:string)=>'data:image/svg+xml,'+encodeURIComponent(raw.replaceAll('var(--detail-fill, none)','#b7bdc6').replaceAll('var(--detail-outline, black)','#25282c').replaceAll('var(--detail-stitch, black)','#fff').replaceAll('var(--detail-hardware, none)','#ddd'));
  const card=(label:string,raw:string,action:()=>void,selected=false,disabled=false)=><button type="button" key={label} aria-label={'Add '+label} aria-pressed={selected} disabled={disabled} onClick={action}><img alt="" src={thumb(raw)}/><span>{label}</span></button>;
  const cord=details.find(d=>d.type==='drawstring'&&!d.hidden);
+ const cordPosition=cord?.drawstringPosition??sweatpantsDrawstring(construction.selection);
  const frontPocket=construction.selection.pantsFrontPocket??'side-seam';
  const backPocket=construction.selection.pantsBackPocket??'none';
  const activePocket=view==='front'?frontPocket:backPocket;
@@ -56,7 +57,7 @@ export function TrouserDetailsLibrary({construction,details,onChange,onSelect,ad
    </details>}
   </>}
   {section==='Waist trims'&&<><div className="detail-category-grid detail-subcategory-grid" role="group" aria-label="Waist trim category">{['Drawstrings','Eyelets','Cord locks','Aglets / tips','Waistband tabs'].map(label=><button key={label} type="button" aria-pressed={waist===label} onClick={()=>setWaist(label)}>{label}</button>)}</div>
-   {(cord||['external','internal'].includes(construction.selection.pantsDrawstring??''))&&<label className="studio-field">Drawstring position<MaterialSelect aria-label="Waist drawstring position" value={cord?.drawstringPosition??construction.selection.pantsDrawstring??'external'} onChange={event=>{construction.onChange({pantsDrawstring:event.target.value});if(cord)onChange(details.map(d=>d.id===cord.id?{...d,drawstringPosition:event.target.value as 'internal'|'external'}:d))}}><option value="external">External</option><option value="internal">Internal</option></MaterialSelect></label>}
+   {(cord||['external','internal'].includes(cordPosition))&&<label className="studio-field">Drawstring position<MaterialSelect aria-label="Waist drawstring position" value={cordPosition==='internal'?'internal':'external'} onChange={event=>{construction.onChange({pantsDrawstring:event.target.value});if(cord)onChange(details.map(d=>d.id===cord.id?{...d,drawstringPosition:event.target.value as 'internal'|'external'}:d))}}><option value="external">External</option><option value="internal">Internal</option></MaterialSelect></label>}
    <div className="trouser-detail-cards">{waist==='Drawstrings'&&GARMENT_DETAIL_OPTIONS.drawstring.map(option=>card(option.label,option.svg,()=>{construction.onChange({pantsDrawstring:'external'});add('drawstring',option.id as GarmentDetailVariant,undefined,{trouserAnchor:'waist',drawstringPosition:'external'})}))}
    {waist==='Cord locks'&&GARMENT_DETAIL_OPTIONS.toggle.map(option=>card(option.label,option.svg,()=>{construction.onChange({pantsDrawstring:'external'});add('toggle',option.id as GarmentDetailVariant)}))}
    {waist==='Eyelets'&&EYELET_STYLES.map(([id,label])=>card(label,detailAsset({type:'eyelet',variant:('eyelet-'+id) as GarmentDetailVariant}).svg,()=>editCord({hoodieTrim:{...cord?.hoodieTrim,eyelet:id}})))}

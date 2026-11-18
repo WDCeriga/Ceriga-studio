@@ -104,7 +104,10 @@ export function SweatpantsControls({ selection, onChange, section = 'fit' }: {
               role="group" aria-label={group.label}>
               {options.map(([value, label]) => (
                 <button type="button" key={value} aria-pressed={selected === value}
-                  className={selected === value ? 'is-selected' : ''} onClick={() => onChange({ [shortLeg?'pantsShortLeg':key]: value })}>
+                  className={selected === value ? 'is-selected' : ''} onClick={() => onChange({
+                    [shortLeg?'pantsShortLeg':key]: value,
+                    ...(key==='pantsWaist'&&value==='drawstring'&&selection.pantsDrawstring==='none'?{pantsDrawstring:'auto'}:{}),
+                  })}>
                   {isRise && <RisePreview rise={value} />}
                   {section === 'waist' && <WaistbandPreview construction={value} />}
                   {section === 'leg' && <LegShapePreview shape={value} short={shortLeg} />}
