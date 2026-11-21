@@ -12,6 +12,7 @@ import { useCombine } from './useCombine';
 import { startShapeBuilder } from '../state/shapeBuilder';
 import { createRepeat } from '../geometry/repeat';
 import { blendIssue, createBlend } from '../geometry/blend';
+import { createOverlap, overlapIssue } from '../geometry/overlap';
 import { placeTextInside, textAndShape, warpTextToShape } from '../geometry/textFit';
 import { outlineTextForCombine } from '../geometry/combine';
 import { createBoolean } from '../../../../lib/booleanArtwork';
@@ -79,7 +80,7 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
     align: (to, scope) => onChange(alignArtwork(elements, ids, to, scope === 'print-area' ? area : undefined), selectedId ?? undefined),
     distribute: axis => onChange(distributeArtwork(elements, ids, axis), selectedId ?? undefined),
     group: multi && !groupLayersIssue(elements, ids) ? () => { const id = crypto.randomUUID(); onChange(groupDesignLayers(elements, ids, id), id); } : undefined,
-    combine: multi && !combine.issue ? { previews: combine.previews, run: op => void combine.run(op), builder: () => { studio.setBooleanPreview([]); startShapeBuilder(ids); } } : undefined,
+    combine: multi && !combine.issue ? { previews: combine.previews, run: op => void combine.run(op), builder: () => { studio.setBooleanPreview([]); startShapeBuilder(ids); }, overlap: !overlapIssue(elements, ids) ? () => { const id = crypto.randomUUID(); void fitRun(() => createOverlap(elements, ids, id, fonts), id); } : undefined } : undefined,
     repeat: selected && !selected.artworkRepeat && selected.type !== 'group' ? mode => { const id = crypto.randomUUID(); onChange(createRepeat(elements, selected.id, mode, id), id); } : undefined,
     textInShape: pair ? {
       inside: () => void fitRun(() => placeTextInside(elements, pair.textId, pair.shapeId, fonts), pair.textId),
@@ -91,6 +92,7 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
         knockoutId.current = id; return createBoolean(prepared, ids, 'subtract', id);
       }, undefined),
     } : undefined,
+    stretchLetters: selected?.type === 'text' ? { on: studio.adjustLettersId === selected.id, toggle: () => studio.setAdjustLettersId(studio.adjustLettersId === selected.id ? null : selected.id) } : undefined,
     textRecipes: selected?.type === 'text' ? {
       active: selected.textRecipe?.id,
       apply: id => onUpdate(selected.id, applyTextRecipe(selected, id, onSurface ? undefined : scene.surfaceColour, studio.unitsPerCm)),

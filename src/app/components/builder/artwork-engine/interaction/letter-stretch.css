@@ -1,0 +1,6 @@
+/* Letter stretching: quiet outlines until a letter is picked, then measurement-blue handles. */
+.cx-letter-stretch{position:absolute;inset:0;z-index:85;width:100%;height:100%;overflow:visible;pointer-events:none}
+.cx-letter-stretch rect{fill:transparent;stroke:rgb(47 111 237 / .4);stroke-width:1;vector-effect:non-scaling-stroke;pointer-events:all;cursor:move;transition:stroke .12s ease-out}
+.cx-letter-stretch rect:hover{stroke:#2F6FED}
+.cx-letter-stretch rect.is-active{stroke:#2F6FED;stroke-width:1.5}
+.cx-letter-stretch rect.cx-letter-stretch__handle{fill:#fff;stroke:#2F6FED;stroke-width:1.5}

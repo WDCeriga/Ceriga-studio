@@ -27,3 +27,10 @@
 .cx-recipe-custom__head strong{font-weight:500}
 .cx-linked-text{margin:6px 0 10px}
 .cx-built-shape{margin:4px 0 10px}
+
+/* Letters: pick a letter, then exact values. */
+.cx-letters{display:grid;gap:8px;margin:2px 0 10px}
+.cx-letters__row{display:flex;flex-wrap:wrap;gap:4px}
+.ceriga-builder-shell .builder-inspector .cx-letters__row>button{position:relative;min-width:28px;height:28px;padding:0 6px;border:1px solid #dadad7;border-radius:6px;background:#f6f6f4;color:#3f3f3c;font-size:13px;line-height:1}
+.ceriga-builder-shell .builder-inspector .cx-letters__row>button[data-changed]::after{content:'';position:absolute;top:3px;right:3px;width:4px;height:4px;border-radius:50%;background:#2F6FED}
+.ceriga-builder-shell .builder-inspector .cx-letters__row>button[aria-pressed=true]{border-color:#1f1f1d;background:#1f1f1d;color:#fff}

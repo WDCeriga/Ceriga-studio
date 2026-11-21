@@ -36,6 +36,12 @@ export function CombinedTextSource({ child, update }: { child: DesignElement; up
   </div>;
 }
 
+/** An overlap follows its two objects until it is unlinked into an ordinary shape. */
+export function OverlapLinkControls({ element, update }: { element: DesignElement; update: (patch: Partial<DesignElement>) => void }) {
+  if (!element.overlapOf) return null;
+  return <div className="path-workflow-actions cx-built-shape"><button type="button" onClick={() => update({ overlapOf: undefined, hidden: false, layerName: 'Overlap shape' })}>Unlink overlap</button></div>;
+}
+
 /** On a shape made by the shape builder: reopen it, or return to the original shapes. */
 export function BuiltShapeControls({ element }: { element: DesignElement }) {
   const artwork = useArtworkDocument(), studio = usePrintsStudio();

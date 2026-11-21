@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { productionArtworkSvg } from './src/app/lib/productionArtwork';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { productionArtworkSvg } from './src/app/lib/productionArtwork';export * from './src/app/components/builder/artwork-engine/geometry/letterStretch';export { overlapColour, overlapIsStale, overlapIssue, overlapShape, createOverlap, refreshOverlap } from './src/app/components/builder/artwork-engine/geometry/overlap';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -258,3 +258,28 @@ const releasedInks = api.releaseBlend(api.updateBlend(live, { startColour: '#ff0
 assert.equal(api.inkOf(releasedInks.children[0]).toLowerCase(), '#ff0000', 'released paths keep their blend colours');
 assert.equal(api.inkOf(releasedInks.children[1]).toLowerCase(), '#00ff00');
 console.log('artwork engine: blend colour, blur and export ok');
+
+// Reference 19: stretch one letter from any handle; the opposite edge stays put.
+const letterBox = { left: 10, top: 20, right: 30, bottom: 60 }, letterPivot = { x: 20, y: 40 };
+const place = (t, x, y) => ({ x: letterPivot.x + t.x + (x - letterPivot.x) * t.scaleX, y: letterPivot.y + t.y + (y - letterPivot.y) * t.scaleY });
+const down = api.stretchLetter(api.IDENTITY_LETTER, letterBox, letterPivot, { x: 0, y: 1 }, 0, 40);
+assert(Math.abs(place(down, 20, 20).y - 20) < 1e-6 && Math.abs(place(down, 20, 60).y - 100) < 1e-6, 'dragging the bottom keeps the top fixed');
+assert.equal(down.scaleX, 1, 'an edge handle changes one axis');
+const corner2 = api.stretchLetter(api.IDENTITY_LETTER, letterBox, letterPivot, { x: 1, y: 1 }, 20, 10, { proportional: true });
+assert.equal(corner2.scaleX, corner2.scaleY, 'Shift keeps proportion');
+const centred = api.stretchLetter(api.IDENTITY_LETTER, letterBox, letterPivot, { x: 1, y: 0 }, 10, 0, { fromCentre: true });
+assert(Math.abs(place(centred, 10, 40).x - 0) < 1e-6 && Math.abs(place(centred, 30, 40).x - 40) < 1e-6, 'Alt scales from the centre');
+assert(api.stretchLetter(api.IDENTITY_LETTER, letterBox, letterPivot, { x: 0, y: 1 }, 0, -500).scaleY >= .05, 'a letter cannot collapse or invert');
+
+// Reference 19: a live overlap colour that follows both objects.
+const boxA = { id: 'oa', type: 'shape', content: 'custom-path', shapeGeometry: 'bounds', x: 50, y: 50, width: 60, height: 60, rotation: 0, color: '#0044cc', shapeFilled: true, shapeFillColor: '#0044cc', borderWidth: 0, side: 'front', shapePath: { closed: true, nodes: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }] } };
+const boxB = { ...boxA, id: 'ob', x: 80, color: '#dd2222', shapeFillColor: '#dd2222' };
+const withOverlap = await api.createOverlap([boxA, boxB], ['oa', 'ob'], 'ov');
+assert.deepEqual(withOverlap.map(item => item.id), ['oa', 'ob', 'ov'], 'the overlap sits above both objects');
+const ov = withOverlap[2]; assert(Math.abs(ov.width - 30) < .1 && Math.abs(ov.x - 65) < .1, 'the overlap is exactly the shared area');
+assert(![boxA.color, boxB.color].includes(ov.color), 'the overlap starts in its own colour');
+assert.equal(api.overlapIsStale(ov, boxA, boxB), false);
+const movedB = { ...boxB, x: 70 }; assert.equal(api.overlapIsStale(ov, boxA, movedB), true, 'moving a source marks it stale');
+const refreshed = await api.refreshOverlap(ov, boxA, movedB); assert(Math.abs(refreshed.width - 40) < .1, 'the overlap reshapes');
+assert.equal((await api.refreshOverlap(ov, boxA, { ...boxB, x: 500 })).hidden, true, 'it hides when the objects stop touching');
+console.log('artwork engine: letter stretch and overlap ok');

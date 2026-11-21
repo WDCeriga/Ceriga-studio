@@ -3,7 +3,7 @@ import {
   Copy, FlipHorizontal2, FlipVertical2, Trash2, Lock, Unlock, Type, Crop, ArrowUpToLine, ArrowUp, ArrowDown, ArrowDownToLine,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2, Waves, Sparkles, TypeOutline, SquareDot, Spline, SquareDashed,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2, ALargeSmall, Waves, Sparkles, TypeOutline, SquareDot, Spline, SquareDashed,
 } from 'lucide-react';
 import type { ContextAction } from './ContextToolbar';
 import type { BooleanOperation } from '../../../../lib/booleanArtwork';
@@ -31,11 +31,13 @@ export type ContextHandlers = {
   /** Multi-select: group into one editable group (absent when grouping isn't possible). */
   group?: () => void;
   /** Multi-select: combine into one shape (absent when the selection can't combine). Text is allowed. */
-  combine?: { previews: CombinePreview[]; run: (op: BooleanOperation) => void; builder?: () => void };
+  combine?: { previews: CombinePreview[]; run: (op: BooleanOperation) => void; builder?: () => void; overlap?: () => void };
   /** Single object: make a live repeat (around a centre, mirror, 4-way, 180° turn). */
   repeat?: (mode: RepeatMode) => void;
   /** Multi-select of one text + one shape: words take the shape (plan F.2). */
   /** Single text: one-tap styles (plan §9.6). */
+  /** Single text: stretch individual letters on the canvas. */
+  stretchLetters?: { on: boolean; toggle: () => void };
   textRecipes?: { active?: string; apply: (id: string) => void; clear?: () => void };
   /** Multi-select of paths: make a live blend. */
   blend?: () => void;
@@ -83,7 +85,7 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
           { id: 'knockout', label: 'Cut out of shape', icon: <SquareDashed size={ICON} />, onSelect: h.textInShape.knockout },
         ] } as ContextAction] : []),
         ...(h.blend ? [{ id: 'blend', label: 'Blend', icon: <Waves size={ICON} />, showLabel: true, onSelect: h.blend } as ContextAction] : []),
-        ...(h.combine ? [{ id: 'combine', label: 'Combine', icon: <Blend size={ICON} />, showLabel: true, menu: COMBINE_OPS.map(({ op, label }): ContextAction => { const preview = h.combine!.previews.find(item => item.op === op); return { id: op, label, icon: <CombineThumb preview={preview} size={26} />, disabled: Boolean(preview && 'empty' in preview), onSelect: () => h.combine!.run(op) }; }).concat(h.combine.builder ? [{ id: 'sep-builder', label: '' }, { id: 'builder', label: 'Shape builder', icon: <MousePointerClick size={ICON} />, onSelect: h.combine.builder }] : []) } as ContextAction] : []),
+        ...(h.combine ? [{ id: 'combine', label: 'Combine', icon: <Blend size={ICON} />, showLabel: true, menu: COMBINE_OPS.map(({ op, label }): ContextAction => { const preview = h.combine!.previews.find(item => item.op === op); return { id: op, label, icon: <CombineThumb preview={preview} size={26} />, disabled: Boolean(preview && 'empty' in preview), onSelect: () => h.combine!.run(op) }; }).concat(h.combine.builder ? [{ id: 'sep-builder', label: '' }, { id: 'builder', label: 'Shape builder', icon: <MousePointerClick size={ICON} />, onSelect: h.combine.builder }] : []).concat(h.combine.overlap ? [{ id: 'overlap', label: 'Overlap colour', icon: <Blend size={ICON} />, onSelect: h.combine.overlap }] : []) } as ContextAction] : []),
         { id: 'group', label: 'Group', icon: <Group size={ICON} />, showLabel: true, disabled: !h.group, onSelect: () => h.group?.() },
         alignMenu(h, 'selection', 'Align'),
         { id: 'dist-x', label: 'Space evenly across', icon: <AlignHorizontalDistributeCenter size={ICON} />, disabled: selection.count < 3, onSelect: () => h.distribute?.('x') },
@@ -107,6 +109,7 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
     ...RECIPE_FAMILIES.flatMap((family, index): ContextAction[] => [...(index ? [{ id: 'sep-' + family, label: '' }] : []), ...TEXT_RECIPES.filter(recipe => recipe.family === family).map((recipe): ContextAction => ({ id: recipe.id, label: recipe.label, pressed: h.textRecipes!.active === recipe.id, onSelect: () => h.textRecipes!.apply(recipe.id) }))]),
     ...(h.textRecipes.clear ? [{ id: 'sep-clear', label: '' }, { id: 'clear', label: 'Back to original', onSelect: h.textRecipes.clear }] : []),
   ] });
+  if (selection.type === 'text' && h.stretchLetters && !locked) primary.push({ id: 'letters', label: 'Letters', icon: <ALargeSmall size={ICON} />, showLabel: true, pressed: h.stretchLetters.on, onSelect: h.stretchLetters.toggle });
   if (primary.length) primary.push({ id: 'sep-p', label: '' });
   return {
     actions: [

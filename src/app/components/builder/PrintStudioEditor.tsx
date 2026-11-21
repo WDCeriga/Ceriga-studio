@@ -1,6 +1,8 @@
 import { RepeatCentreHandle } from './artwork-engine/interaction/RepeatCentreHandle';
 import { ShapeBuilderOverlay } from './artwork-engine/interaction/ShapeBuilderOverlay';
 import { useShapeBuilder } from './artwork-engine/state/shapeBuilder';
+import { LetterStretchOverlay } from './artwork-engine/interaction/LetterStretchOverlay';
+import { useLiveOverlaps } from './artwork-engine/interaction/useLiveOverlaps';
 import { garmentEdges, refreshEdgeText } from './artwork-engine/geometry/garmentEdges';
 import { setGarmentEdges } from './artwork-engine/state/garmentEdges';
 import { PARAMETRIC_SHAPES } from './artwork-engine/geometry/shapes/registry';
@@ -21,7 +23,6 @@ import {artworkImagePlacement} from '../../lib/artworkImagePlacement';
 import * as ArtworkContextMenu from '@radix-ui/react-context-menu';
 import {LogoTraceRegionOverlay} from './printsStudio/LogoTraceRegionOverlay';
 import {ReferenceTraceOverlay} from './printsStudio/ReferenceTraceOverlay';
-import {GlyphAdjustmentOverlay} from './printsStudio/GlyphAdjustmentOverlay';
 import {fontIdentity} from '../../lib/workspaceFonts';
 import {writeArtworkClipboard,readArtworkClipboard,pastedArtwork} from '../../lib/artworkClipboard';
 import {loadFontLibrary} from './printsStudio/designLibrary';
@@ -222,7 +223,7 @@ export interface DesignElement extends ImageAdjustmentValues {
   imageTrace?:import('../../lib/imageTracing').TraceState;
   tracingReference?:boolean;referenceHidden?:boolean;referenceUnitsPerCm?:number;
   letteringPaints?:{key:string;fill:string}[];
-  letteringParts?: {key:string;label:string}[];
+  letteringParts?: {key:string;label:string;/** Scale origin, % of the outlined box. */pivot?:{x:number;y:number}}[];
   booleanOperation?: 'join'|'subtract'|'intersect'|'exclude'|'divide';
   booleanSourceKey?:string;
   booleanStyleKey?:string;
@@ -276,6 +277,8 @@ export interface DesignElement extends ImageAdjustmentValues {
   /** Live blend group: children are the hidden source paths; the lines are generated (Artwork ref 16). */
   artworkBlend?:import('./artwork-engine/geometry/blend').BlendSettings;
   blendKey?:string;
+  /** A live overlap colour between two objects (Artwork ref 19). */
+  overlapOf?:import('./artwork-engine/geometry/overlap').OverlapLink;
   /** Colour of a key shape inside a blend. */
   blendColour?:string;
   /** Soft blur on an exported blend, in its own units. */
@@ -3211,6 +3214,8 @@ export function PrintsDesignPreview({
 
   edgeElementsRef.current=elements;
   useEffect(()=>{if(assetMode||!patternTargets.length){setGarmentEdges(garmentSide,[]);return;}const edges=garmentEdges(patternTargets);setGarmentEdges(garmentSide,edges);const rows=edgeElementsRef.current;let changed=false;const next=rows.map(row=>{if(row.type!=='text'||!row.textEdge)return row;const patch=refreshEdgeText(row,edges,garmentSide);if(!patch)return row;changed=true;return{...row,...patch};});if(changed)onChangeRef.current?.(next,selectedId??undefined);},[patternTargets,garmentSide,assetMode]);
+  useLiveOverlaps(elements,next=>onChangeRef.current?.(next,selectedId??undefined,{transient:true}));
+  const closeLetterStretch=useCallback(()=>studio.setAdjustLettersId(null),[studio.setAdjustLettersId]);
   const previewGarmentMask=(element:DesignElement)=>{const mask=element.patternTarget?patternTargets.find(part=>part.id===element.patternTarget):assetMode||focusArtwork?undefined:element.patternKeepNeckPlain?collarSafePatternMask:drawingMask;return mask?drawingMaskCss(mask,element.width,element.height,element.x,element.y,element.rotation):undefined;};
 
   useEffect(() => {
@@ -3980,7 +3985,7 @@ export function PrintsDesignPreview({
           {editable&&studio.tool==='textPlace'&&<TextPlacementDraft width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} color={studio.color} side={garmentSide} onComplete={text=>{onChange?.([...elements,text],text.id);setSelectedId(text.id);studio.setTool('select');beginTextEditing(text);}}/>}
           {editable&&selectedElement?.type==='group'&&!selectedElement.logoTrace&&studio.logoRegionEditing?.rootId===selectedElement.id&&<GroupPathOverlay root={selectedElement} scale={1/uiInv} onChange={patch=>updateElement(selectedElement.id,patch)} onPreview={(id,path)=>setLiveShapePath(path?{id,path}:null)}/>}
           {editable&&selectedElement?.logoTrace&&(studio.tool==='select'||studio.logoRegionEditing?.rootId===selectedElement.id)&&<LogoTraceRegionOverlay scale={sceneScale} root={selectedElement} elements={elements} onChange={(next,id)=>{onChange?.(next,id);if(id)setSelectedId(id)}}/>}
-          {editable&&selectedElement?.type==='text'&&studio.adjustLettersId===selectedElement.id&&<GlyphAdjustmentOverlay element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onChange={patch=>updateElement(selectedElement.id,patch)} onDone={()=>studio.setAdjustLettersId(null)}/>}
+          {editable&&selectedElement?.type==='text'&&studio.adjustLettersId===selectedElement.id&&<LetterStretchOverlay element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} scale={1/uiInv} onChange={(patch,transient)=>updateElement(selectedElement.id,patch,false,Boolean(transient))} onDone={closeLetterStretch}/>}
           {editable&&studio.referenceTask&&elements.find(e=>e.id===studio.referenceTask?.id)&&<ReferenceTraceOverlay element={elements.find(e=>e.id===studio.referenceTask?.id)!} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onChange={patch=>updateElement(studio.referenceTask!.id,patch)} onAdd={shape=>{onChange?.([...elements,shape],shape.id);setSelectedId(shape.id);}}/>}
           {editable&&studio.tool==='textTracking'&&selectedElement?.type==='text'&&<TrackingDrag key={selectedElement.textSpacingDrag??'letterSpacing'} property={selectedElement.textSpacingDrag??'letterSpacing'} element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onCancel={()=>studio.setTool('select')} onComplete={value=>{const property=selectedElement.textSpacingDrag??'letterSpacing',index=studio.textSelection?.id===selectedElement.id?studio.textSelection.start:0;updateElement(selectedElement.id,property==='textKerning'&&index>0?{textKerningPairs:[...(selectedElement.textKerningPairs??[]).filter(pair=>pair.index!==index),{index,offset:value}]}:{[property]:value});studio.setTool('select');}}/>}
           {editable&&studio.tool==='shapeLive'&&<LiveShapeDraft key={studio.liveShape} mirrorAxis={mirrorAxis} kind={studio.liveShape} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} unitsPerCm={studio.unitsPerCm} color={newObjectInk} side={garmentSide} onCancel={()=>studio.setTool('select')} onComplete={shape=>{addDrawnShape(shape);studio.setTool('select');}}/>}
@@ -4100,7 +4105,7 @@ export function PrintsDesignPreview({
                 data-pattern-reference-size={visualElement.patternReferenceSize}
                 data-pattern-part-label={patternPart?.label}
                 data-pattern-part-bounds={patternPart?JSON.stringify(patternPart.bounds):undefined}
-                data-artwork-hit-disabled={element.id === DRAWING_LAYER_ID || (surfaceContext && element.locked && element.svgPrecision && !element.svgPrecision.owner) ? '' : undefined}
+                data-artwork-hit-disabled={element.overlapOf || element.id === DRAWING_LAYER_ID || (surfaceContext && element.locked && element.svgPrecision && !element.svgPrecision.owner) ? '' : undefined}
                 className={cn(
                   'absolute canvas-element-drag',
                   draggingId === element.id && 'z-[15]',

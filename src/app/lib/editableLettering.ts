@@ -101,7 +101,7 @@ async function buildLettering(element:DesignElement,imports:{family:string;dataU
   rows.push(...(element.textPath||element.textStackFit||autoPoint?[glyphs]:wrapGlyphs(glyphs,limit)));sourceOffset+=content.length+(element.content.slice(sourceOffset+content.length).startsWith('\r\n')?2:1);
  }
  let frameHeight=0,rowTop=0;const layoutWidth=autoPoint?Math.max(1,...rows.map(row=>row.reduce((sum,g)=>sum+g.advance+g.before,0))):element.width;
- const parts:ShapePath[]=[],paints:{key:string;fill:string}[]=[],labels:{key:string;label:string}[]=[];
+ const parts:ShapePath[]=[],paints:{key:string;fill:string}[]=[],labels:{key:string;label:string;pivot?:{x:number;y:number}}[]=[];
  for(let row=0;row<rows.length;row++){
   const rowStart=parts.length,glyphs=rows[row],natural=glyphs.reduce((sum,g)=>sum+g.advance+g.before,0),spaces=glyphs.filter(g=>g.label===' ').length;
   if(element.textAlign==='justify'&&spaces&&!curved&&!element.textStackFit){const extra=(element.width-natural)/spaces;glyphs.forEach(g=>{if(g.label===' ')g.advance+=extra;});}
@@ -140,7 +140,7 @@ async function buildLettering(element:DesignElement,imports:{family:string;dataU
      return {x:position.x+dx*cs-dy*sn,y:position.y+dx*sn+dy*cs};
     });
     const transform=element.textGlyphTransforms?.[key];if(transform){const centerX=start+cursor+naturalAdvance/2,centerY=baseline-record.size*.35,angle=transform.rotation*Math.PI/180;path=mapShapePath(path,p=>{const x=(p.x-centerX)*transform.scaleX,y=(p.y-centerY)*transform.scaleY;return{x:centerX+transform.x+x*Math.cos(angle)-y*Math.sin(angle),y:centerY+transform.y+x*Math.sin(angle)+y*Math.cos(angle)};});}
-    parts.push(...[path,...(path.subpaths??[])].map(part=>({...part,subpaths:undefined,letterKey:key})));paints.push({key,fill:record.color});labels.push({key,label:record.label});
+    parts.push(...[path,...(path.subpaths??[])].map(part=>({...part,subpaths:undefined,letterKey:key})));paints.push({key,fill:record.color});labels.push({key,label:record.label,...(position?{}:{pivot:{x:start+cursor+naturalAdvance/2+(transform?.x??0),y:baseline-record.size*.35+(transform?.y??0)}})});
    }
    cursor+=record.advance+extra;
   }
@@ -152,6 +152,7 @@ async function buildLettering(element:DesignElement,imports:{family:string;dataU
  const coordinates=parts.flatMap(part=>part.nodes.flatMap(node=>[node,...(node.in?[node.in]:[]),...(node.out?[node.out]:[])]));
  const left=Math.min(...coordinates.map(p=>p.x)),top=Math.min(...coordinates.map(p=>p.y)),width=Math.max(1,Math.max(...coordinates.map(p=>p.x))-left),height=Math.max(1,Math.max(...coordinates.map(p=>p.y))-top);
  const path=mapShapePath({...parts[0],subpaths:parts.slice(1)},p=>({x:(p.x-left)/width*100,y:(p.y-top)/height*100}));
+ for(const label of labels)if(label.pivot)label.pivot={x:((sx!==1?element.width/2+(label.pivot.x-element.width/2)*sx:label.pivot.x)-left)/width*100,y:((sy!==1?frameHeight/2+(label.pivot.y-frameHeight/2)*sy:label.pivot.y)-top)/height*100};
  const dx=(left+width/2-(autoPoint?layoutWidth:element.width)/2)*(element.flipHorizontal?-1:1),dy=(top+height/2-(element.autoHeight===false?element.height:frameHeight)/2)*(element.flipVertical?-1:1),angle=element.rotation*Math.PI/180;
  const fillMode=element.textFillMode??((element.borderWidth??0)>0?'fill-outline':'filled');
  return {type:'shape',content:'custom-lettering',x:element.x+dx*Math.cos(angle)-dy*Math.sin(angle),y:element.y+dx*Math.sin(angle)+dy*Math.cos(angle),width,height,shapePath:path,shapeGeometry:'bounds',shapeFillRule:'nonzero',shapeFilled:fillMode!=='outline',shapeFillColor:element.color,shapeStrokeColor:element.borderColor??element.color,borderWidth:fillMode==='filled'?0:element.borderWidth??.25,shapeEffects:element.textEffects,letteringParts:labels,letteringPaints:element.textCharacterStyles?.some(range=>range.style.color)?paints:undefined,letteringSource:structuredClone(element),autoWidth:false,autoHeight:false,textLayoutHeight:frameHeight,textLayoutWidth:layoutWidth};
@@ -167,7 +168,7 @@ async function badgeLettering(element:DesignElement,imports:{family:string;dataU
  const radius=Math.max(original, badge.radius,...Object.entries(rows).map(([name,text])=>
   advanceFor(font,text,original,element.letterSpacing??0)/(name==='centre'?1.6:Math.PI*.9) + (name==='top'?capHeight/2:0)));
  const size=Math.max(element.width,element.height,2*(radius+original));
- const k=.5522847498307936,parts:ShapePath[]=[],labels:{key:string;label:string}[]=[];
+ const k=.5522847498307936,parts:ShapePath[]=[],labels:{key:string;label:string;pivot?:{x:number;y:number}}[]=[];
  for(const [name,text] of Object.entries(rows)){if(!text.trim())continue;
   // Both paths run left to right. The bottom line faces inward, so its
   // baseline sits farther out to place the visible caps on the same ring.
