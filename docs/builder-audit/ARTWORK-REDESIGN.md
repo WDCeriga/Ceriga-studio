@@ -993,3 +993,34 @@ Research list — **brushes** (Procreate / Fresco / Illustrator): monoline inkin
 Research list — **patterns** (streetwear + textile): paisley / bandana, checkerboard (varsity, warped), racing check, flames, tie-dye (spiral, crumple, ice), acid wash, bleach splatter, camo (woodland, desert, digital, tiger, urban, frog, custom-colour), leopard / zebra / snake / cow, tartan builder (sett editor), houndstooth / herringbone, argyle, polka (halftone), stars & stripes, waves / topo / contour, barbed / chain, floral (ditsy, tropical), geometric (memphis, bauhaus), noise / grain fields, typographic repeat (your words). Pattern engine controls: scale (cm), rotation, offset/half-drop/brick, colourways from garment palette, seed, density, edge softness, and "fit to panel" vs "continuous across seams".
 
 Filters for images (Phase 4): curves / levels, HSL per colour, gradient map, sharpen / clarity, noise reduce, posterise, threshold, halftone, background remove, select subject, colour to ink separation preview.
+
+
+## G. Reference 16 — blended line flower poster (added 21 Nov 2026)
+
+A 21-second Illustrator build of a teal and cream "FLOWER" poster. Contact sheets are local only.
+
+**How it is made**
+1. **Background:** cream paper, soft teal colour fields, visible film grain, thin keyline frame.
+2. **Flower:** the Pen draws a jagged top edge and a tiny closed shape at the stem. A **Blend** with a high step count generates hundreds of thin in-between lines, which read as a translucent petal.
+3. **Second flower:** the blend is duplicated, rotated, and its source paths are reshaped. The blend updates live.
+4. **Type:** widely tracked serif "FLOWER" rotated on a slant; a tagline with an Arc warp.
+5. **Details:** thin curling pen lines with tapered ends, small blended droplets, and a soft paper shadow on the final mockup.
+
+**Ceriga status (code check, 21 Nov 2026)**
+| Technique | Status | Build |
+|---|---|---|
+| Pen paths, duplicate, rotate | Have | Add Alt-drag duplicate if missing |
+| Tracked, rotated and warped type | Have | — |
+| Grain finish | Have | Quality pass in Phase 3 |
+| **Blend between paths** | **Missing** | New live Blend object |
+| Soft multi-point colour fields | Missing (linear, radial, conic only) | Freeform gradient |
+| Width profile / tapered vector lines | Missing | Already planned in Phase 5; bring forward for Blend |
+| Paper frame and mockup shadow | Partial | Asset Studio, Phase 7 |
+
+**Blend specification (fully editable, per the standing rule)**
+- Select two or more paths → **Blend** in the floating bar. Works with open and closed paths and with different point counts (resample by arc length).
+- **Quick:** Steps slider, Lines / Smooth looks.
+- **Pro:** exact steps (2–600) or distance between steps; start-point alignment and direction reverse; easing curve; stroke width, opacity and colour from start to end; spine (blend along a drawn path); align to page or path.
+- **Live sources:** drag or edit either source path with the pen and every step updates. Add a third key shape mid-blend. **Expand** is optional and reversible until flattened.
+- **Performance:** render steps as one compound SVG path; cap live preview density during drag, full density on release.
+- **Production:** warn when lines are finer than the print method can hold (screen print, embroidery, puff); offer a minimum line weight or step reduction.

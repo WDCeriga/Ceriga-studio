@@ -131,8 +131,9 @@ export function applyTextRecipe(element: DesignElement, recipeId: string, surfac
     letterSpacing: recipe.tracking * size, lineSpacing: recipe.leading ?? base.lineSpacing,
     textTransform: recipe.upper ? 'uppercase' : 'none', color: roles.ink, textFillMode: undefined, borderWidth: 0, textShadowEnabled: false, shadowBlur: 0,
     textAppearance, textEffects: finish ? [finish] : undefined, textUnitsPerCm: units,
-    ...(recipe.warp ? { textShapeMode: 'warp' as const, textCurveAmount: 0, textStackFit: false, vectorTextEffects: [{ id: 'text-shape', type: recipe.warp.type, enabled: true, bend: recipe.warp.bend, horizontal: 0, vertical: 0 }] } : {}),
-    ...(recipe.stack ? { textShapeMode: 'stack' as const, textStackFit: true, textCurveAmount: 0, vectorTextEffects: undefined } : {}),
+    // Text following a path or garment edge stays there; the style changes its look only.
+    ...(recipe.warp && !element.textPath ? { textShapeMode: 'warp' as const, textCurveAmount: 0, textStackFit: false, vectorTextEffects: [{ id: 'text-shape', type: recipe.warp.type, enabled: true, bend: recipe.warp.bend, horizontal: 0, vertical: 0 }] } : {}),
+    ...(recipe.stack && !element.textPath ? { textShapeMode: 'stack' as const, textStackFit: true, textCurveAmount: 0, vectorTextEffects: undefined } : {}),
     textRecipe: { id: recipe.id, size, base },
   };
 }

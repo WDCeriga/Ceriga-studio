@@ -2,6 +2,7 @@ import clipping, { type MultiPolygon, type Polygon } from 'polygon-clipping';
 import type { DesignElement } from '../../PrintStudioEditor';
 import { fitPenPath, pathPolygons, shapeWorldPath } from '../../../../lib/artworkPathOperations';
 import type { ShapePath } from '../../../../lib/shapeGeometry';
+import { restoreLiveText } from '../../../../lib/booleanArtwork';
 
 /**
  * Shape builder geometry (Illustrator's Shift+M). Pure.
@@ -52,6 +53,8 @@ export const pieceSvgPath = (polygon: Polygon) => polygon.map(ring => `M${ring.s
 /** Rebuild: every piece becomes a filled shape painted like its owner; the sources are replaced in place. */
 export function rebuildFromPieces(elements: DesignElement[], ids: string[], pieces: BuilderPiece[], newId: () => string): { elements: DesignElement[]; created: string[] } {
   const sources = new Map(elements.filter(element => ids.includes(element.id)).map(element => [element.id, element]));
+  // Every piece remembers the originals, so the build can be reopened or undone at any time.
+  const builtFrom = { id: newId(), sources: [...sources.values()].map(element => element.builtFrom ? { ...element, builtFrom: undefined } : element) };
   const created: DesignElement[] = pieces.map(piece => {
     const base = sources.get(piece.owner) ?? [...sources.values()][0];
     const rings: ShapePath[] = piece.polygon.map(ring => ({ closed: true, nodes: ring.slice(0, -1).map(([x, y]) => ({ x, y })) }));
@@ -60,11 +63,20 @@ export function rebuildFromPieces(elements: DesignElement[], ids: string[], piec
       ...base, ...fitted, id: newId(), type: 'shape', content: 'custom-path', shapeGeometry: 'bounds', shapeFillRule: 'evenodd',
       rotation: 0, flipHorizontal: false, flipVertical: false, children: undefined, booleanOperation: undefined, booleanSourceKey: undefined, booleanStyleKey: undefined,
       drawingVectorSource: undefined, shapeBrush: undefined, letteringParts: undefined, letteringPaints: undefined, shapeOperationSources: undefined, shapeOperationFrame: undefined,
-      shapeParameters: undefined, shapeCornerRadius: 0, shapeFilled: true, shapeFillColor: base.shapeFillColor ?? base.color, layerName: 'Built shape',
+      shapeParameters: undefined, shapeCornerRadius: 0, shapeFilled: true, shapeFillColor: base.shapeFillColor ?? base.color, layerName: 'Built shape', builtFrom,
     } as DesignElement;
   });
   const first = elements.findIndex(element => ids.includes(element.id));
   const rest = elements.filter(element => !ids.includes(element.id));
   const insertAt = elements.slice(0, first).filter(element => !ids.includes(element.id)).length;
   return { elements: [...rest.slice(0, insertAt), ...created, ...rest.slice(insertAt)], created: created.map(element => element.id) };
+}
+
+/** Replace every piece of a build with its original shapes (words come back as live text). */
+export function restoreBuiltShapes(elements: DesignElement[], builtId: string): { elements: DesignElement[]; restored: string[] } {
+  const first = elements.findIndex(element => element.builtFrom?.id === builtId);
+  if (first < 0) return { elements, restored: [] };
+  const originals = elements[first].builtFrom!.sources.map(restoreLiveText);
+  const before = elements.slice(0, first).filter(element => element.builtFrom?.id !== builtId), after = elements.slice(first).filter(element => element.builtFrom?.id !== builtId);
+  return { elements: [...before, ...originals, ...after], restored: originals.map(element => element.id) };
 }

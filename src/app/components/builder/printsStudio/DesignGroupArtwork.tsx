@@ -11,6 +11,7 @@ import { CustomAreaGraphic } from './CustomAreaGraphic';
 import { ImageAdjustmentDefs } from './ImageAdjustmentDefs';
 import { StudioGraphic } from './StudioGraphic';
 import { TextArtwork } from './TextArtwork';
+import { blendBands } from '../artwork-engine/geometry/blend';
 import { FilteredImage } from './FilteredImage';
 
 const ignore = () => {};
@@ -25,7 +26,7 @@ export const DesignGroupArtwork=memo(function DesignGroupArtwork({ element }: { 
   if(element.logoTrace?.showSource)return <img src={element.logoTrace.source} alt="Original logo" className="h-full w-full object-fill"/>;
   return <div ref={host} className="relative h-full w-full" style={{ filter: imageAdjustmentFilter(element), ...artworkFlipStyle(element) }}>
     <div data-group-source style={{ position: 'absolute', width, height, transformOrigin: '0 0', transform: `scale(${element.width / width}, ${element.height / height})` }}>
-      {(element.children ?? []).filter(child => !child.hidden).map(child => <div key={child.id} data-group-child={child.id}
+      {(element.artworkBlend ? blendBands(element) : element.children ?? []).filter(child => !child.hidden).map(child => <div key={child.id} data-group-child={child.id}
         style={{ position: 'absolute', left: child.x, top: child.y, width: child.width,
           height: child.type === 'text' && child.autoHeight !== false ? undefined : child.height,
           opacity: (child.opacity ?? 100) / 100, transform: `translate(-50%, -50%) rotate(${child.rotation}deg)` }}>

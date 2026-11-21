@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -158,3 +158,79 @@ const before = once.textAppearance.find(item => item.type === 'stroke').widthMm,
 assert(Math.abs(grown.textAppearance.find(item => item.type === 'stroke').widthMm - before * 2) < 1e-6, 'outlines scale with the text');
 assert.equal(api.refreshTextRecipeScale(grown), grown, 'scaling is stable');
 console.log('artwork engine: phase 2 recipes ok');
+
+// Everything stays editable: builds, warps and combined words can return to their sources.
+const built = api.rebuildFromPieces(scene, ['a', 'b'], api.builderPieces(scene, ['a', 'b']), () => crypto.randomUUID());
+const back = api.restoreBuiltShapes(built.elements, built.elements[0].builtFrom.id);
+assert.deepEqual(back.elements.map(element => element.id), ['a', 'b'], 'a shape build restores its original shapes');
+const warpedText = { ...word, id: 'wt', vectorTextEffects: [{ id: 'e', type: 'envelope', enabled: true, bend: 0, horizontal: 0, vertical: 0, envelope: { top: [0, 0], bottom: [1, 1], aspect: 2, strength: 40, sourceShape: rect, textBefore: { x: 1, y: 2, width: 3, height: 4, rotation: 5, fontSize: 6 } } }] };
+const unwarped = api.restoreWarpedShape([warpedText], 'wt');
+assert.deepEqual(unwarped.map(element => element.id), ['r', 'wt']); assert.equal(unwarped[1].fontSize, 6); assert.equal(unwarped[1].vectorTextEffects, undefined);
+assert.equal(api.restoreLiveText({ id: 'o', type: 'shape', x: 9, y: 8, rotation: 7, letteringSource: { ...word } }).type, 'text', 'combined words return as live text');
+
+// Garment edges: read from a part mask, on the correct side, refit unless the user moved the text.
+const maskW = 200, maskH = 100, mask = new Uint8ClampedArray(maskW * maskH * 4);
+for (let y = 40; y < 60; y++) for (let x = 20; x < 180; x++) mask[(y * maskW + x) * 4 + 3] = 255;
+const part = id => ({ id, alpha: mask, canvas: { width: maskW, height: maskH }, width: maskW, height: maskH });
+const edges = api.garmentEdges([part('neck'), part('bodyHem'), part('sleeveLeft')]);
+assert.deepEqual(edges.map(item => item.id), ['neckline', 'hem', 'sleeve-left']);
+assert(edges[0].path.nodes.every(n => Math.abs(n.y - 59) < 1.5), 'neckline follows the bottom of the collar');
+assert(edges[1].path.nodes.every(n => Math.abs(n.y - 40) < 1.5), 'hem follows the top of the hem');
+assert(edges[2].path.nodes[0].x < edges[2].path.nodes.at(-1).x, 'sleeve text reads left to right');
+assert(api.edgeOffset('below', 5, 20) > 5 && api.edgeOffset('above', 5, 20) === -5);
+const edgeText = { ...word, ...api.textOnEdge(word, edges[1], 'front', 5, 400) };
+assert(edgeText.fontSize < word.fontSize, 'long words shrink to fit the edge');
+assert.equal(api.refreshEdgeText(edgeText, edges, 'front'), null, 'unchanged garment does not move linked text');
+const lower = [{ ...edges[1], path: { ...edges[1].path, nodes: edges[1].path.nodes.map(n => ({ ...n, y: n.y + 12, in: n.in && { ...n.in, y: n.in.y + 12 }, out: n.out && { ...n.out, y: n.out.y + 12 } })) } }];
+assert(api.refreshEdgeText(edgeText, lower, 'front'), 'linked text follows a changed hem');
+assert.equal(api.refreshEdgeText({ ...edgeText, x: edgeText.x + 20 }, lower, 'front'), null, 'text the user moved stays where they put it');
+const vee = Array.from({ length: 41 }, (_, i) => ({ x: i * 5, y: 100 - Math.abs(i - 20) * 3 }));
+const gentle = api.gentleCurveBelow(vee);
+assert(gentle.every((p, i) => p.y >= vee[i].y - 1e-6), 'the curve never crosses the collar');
+assert(Math.max(...gentle.map(p => p.y)) - Math.min(...gentle.map(p => p.y)) <= 200 * .16 + 1e-6, 'a V-neck becomes a gentle curve');
+console.log('artwork engine: editable sources and garment edges ok');
+
+// Reference 16: live blend. Sources stay editable, lines are generated, every value changes the result.
+const blendLine = (id, y, extra = {}) => ({ id, type: 'shape', content: 'custom-path', shapeGeometry: 'bounds', x: 100, y, width: 100, height: 20, rotation: 0, color: '#112233', shapeStrokeColor: '#112233', borderWidth: 1, shapeFilled: false, side: 'front', shapePath: { closed: false, nodes: [{ x: 0, y: 50 }, { x: 50, y: 0 }, { x: 100, y: 50 }] }, ...extra });
+const lines = [blendLine('l1', 50), blendLine('l2', 150, { color: '#ddeeff', shapeStrokeColor: '#ddeeff' })];
+assert.equal(api.blendIssue(lines, ['l1', 'l2']), null);
+assert(api.blendIssue(lines, ['l1']), 'one path cannot blend');
+const blended = api.createBlend(lines, ['l1', 'l2'], 'blend', 10);
+assert.equal(blended.length, 1); const live = blended[0];
+assert.equal(live.children.length, 2, 'only the sources are stored'); assert(live.children.every(child => child.hidden));
+const countLines = group => api.blendBands(group).reduce((sum, band) => sum + 1 + (band.shapePath.subpaths?.length ?? 0), 0);
+assert.equal(countLines(live), 98, '96 steps plus both sources');
+assert.equal(countLines(api.updateBlend(live, { steps: 10 })), 12, 'steps change the line count');
+assert(api.blendBands(live).length > 1, 'colour change makes colour bands'); assert(api.blendBands(live).length <= 32);
+assert.equal(api.refreshBlend(live), live, 'an unchanged blend is not rebuilt');
+const moved = api.updateBlendSource(live, live.children[1].id, { y: live.children[1].y + 40 });
+assert(moved.height > live.height + 30, 'moving a source updates the blend');
+const keyed = api.addBlendKey(live, 'mid'); assert.equal(keyed.children.length, 3); assert.equal(api.removeBlendKey(keyed, 'mid').children.length, 2);
+const closedA = { closed: true, nodes: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }] };
+const rotated = { closed: true, nodes: [closedA.nodes[2], closedA.nodes[3], closedA.nodes[0], closedA.nodes[1]] };
+const aligned = api.alignPoints(api.resamplePath(closedA, 40), api.resamplePath(rotated, 40), true);
+assert(Math.hypot(aligned[0].x, aligned[0].y) < 1, 'closed paths align their start points so the blend does not twist');
+const expanded = api.expandBlend(live); assert(expanded.children.every(child => !child.hidden && child.type === 'shape')); assert.equal(expanded.blendExpandedFrom.id, 'blend');
+assert(api.releaseBlend(live).children.every(child => !child.hidden), 'release returns the paths');
+const spined = api.setBlendSpine([live, blendLine('sp', 100)], 'blend', 'sp'); assert.equal(spined.length, 1); assert(spined[0].artworkBlend.spine);
+assert.equal(api.clearBlendSpine(spined, 'blend').length, 2, 'releasing the spine returns its path');
+console.log('artwork engine: blend ok');
+
+const straight = Array.from({ length: 100 }, (_, i) => ({ x: i, y: 0 }));
+assert.equal(api.simplifyStep(straight).length, 2, 'straight lines need only their ends');
+const cornerRun = [...straight, ...Array.from({ length: 50 }, (_, i) => ({ x: 99, y: i + 1 }))];
+assert.equal(api.simplifyStep(cornerRun).length, 3, 'a corner is preserved');
+console.log('artwork engine: blend simplification ok');
+
+// Speed: the garment skips redraws only when its own data is unchanged.
+assert(api.sameData({ a: [1, { b: 2 }] }, { a: [1, { b: 2 }] })); assert(!api.sameData({ a: [1, { b: 2 }] }, { a: [1, { b: 3 }] }));
+assert(!api.sameData({ fn() {} }, { fn() {} }), 'different functions are never treated as equal');
+const garmentProps = (color, art, extra = {}) => ({ color, customAssetState: { torsoCrop: 2, prints: art, studioArtwork: art }, ...extra });
+assert(api.samePreviewProps(garmentProps('#111111', [1]), garmentProps('#111111', [2])), 'an artwork-only edit does not redraw the garment');
+assert(!api.samePreviewProps(garmentProps('#111111', [1]), garmentProps('#222222', [1])), 'a colour change redraws the garment');
+assert(!api.samePreviewProps({ customAssetState: { torsoCrop: 1 } }, { customAssetState: { torsoCrop: 2 } }), 'a garment change redraws it');
+const drawA = () => 1, drawB = () => 2;
+assert(api.samePreviewProps({ renderMeasurements: drawA, renderMeasurementsDeps: ['x'] }, { renderMeasurements: drawB, renderMeasurementsDeps: ['x'] }), 'an overlay with unchanged data does not redraw');
+assert(!api.samePreviewProps({ renderMeasurements: drawA, renderMeasurementsDeps: ['x'] }, { renderMeasurements: drawB, renderMeasurementsDeps: ['y'] }), 'an overlay with new data redraws');
+assert(!api.samePreviewProps({ renderMeasurements: drawA }, { renderMeasurements: drawB }), 'an undeclared overlay always redraws');
+console.log('artwork engine: preview memo ok');

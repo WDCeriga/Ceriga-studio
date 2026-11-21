@@ -10,6 +10,7 @@ import {type MeasurementGrading} from '../../lib/measurementGrading';
 import {type SizingActions} from './shell/AdvancedSizingEditor';
 import {FitMeasurementsInspector} from './shell/FitMeasurementsInspector';
 import { useMemo, useState, type ReactNode, type ComponentProps } from 'react';
+import { useStableHandlers } from './artwork-engine/state/stablePreviewProps';
 import type { TshirtHemStyles } from '../../data/tshirtHemStyles';
 import type { TshirtStitching } from '../../data/tshirtStitching';
 import type { NeckFinish } from '../../data/tshirtNeckFinish';
@@ -425,6 +426,7 @@ export function MeasurementPreview({
     garmentType === 'trousers'
       ? garmentType
       : null;
+  const stableHandlers = useStableHandlers({ onGuideSelect, onDrawingBounds, onAssetSelect, onAssetMeasurementsChange });
   const resolvedSelection = useMemo(() => {
     if (svgPack && selection) {
       return applyGarmentFitAndLinks(svgPack, selection, fit);
@@ -454,10 +456,11 @@ export function MeasurementPreview({
             garmentDetails={garmentDetails}
             detailView={detailView}
             labelEditor={sharedGarmentProps?.onSelectedLayerChange?undefined:{ interior: Boolean(sharedGarmentProps?.garmentLabels?.some(label => selectedAssetId === `label:${detailView ?? 'front'}:${label.id}` && isInteriorLabel(label))) }}
-            renderMeasurements={overlay ? undefined : resolvedSelection.base===TANK_PRESET?()=>showGuides?<TankMeasurementGuides highlightedId={highlightedMeasurementId} selection={resolvedSelection} fit={fit??'regular'} back={detailView==='back'} onSelect={onGuideSelect}/>:null:svgPack==='trousers'&&resolvedSelection.base===SWEATPANTS_PRESET ? ()=>showGuides?<SweatpantsMeasurementGuides highlightedId={highlightedMeasurementId} selection={resolvedSelection} fit={fit??'regular'} back={detailView==='back'} onSelect={onGuideSelect}/>:null : (sources, bounds) => <CustomAssetMeasurementLayer hoodieStyle={svgPack === 'hoodie' && !sharedGarmentProps?.customAssetState?.importedGarment ? resolvedSelection.hoodieStyle ?? 'pullover' : undefined} showGuides={showGuides} onDrawingBounds={onDrawingBounds} presentation={presentation} onGuideSelect={onGuideSelect} sources={sources} bounds={bounds}
+            renderMeasurements={overlay ? undefined : resolvedSelection.base===TANK_PRESET?()=>showGuides?<TankMeasurementGuides highlightedId={highlightedMeasurementId} selection={resolvedSelection} fit={fit??'regular'} back={detailView==='back'} onSelect={onGuideSelect}/>:null:svgPack==='trousers'&&resolvedSelection.base===SWEATPANTS_PRESET ? ()=>showGuides?<SweatpantsMeasurementGuides highlightedId={highlightedMeasurementId} selection={resolvedSelection} fit={fit??'regular'} back={detailView==='back'} onSelect={onGuideSelect}/>:null : (sources, bounds) => <CustomAssetMeasurementLayer hoodieStyle={svgPack === 'hoodie' && !sharedGarmentProps?.customAssetState?.importedGarment ? resolvedSelection.hoodieStyle ?? 'pullover' : undefined} showGuides={showGuides} onDrawingBounds={stableHandlers.onDrawingBounds} presentation={presentation} onGuideSelect={stableHandlers.onGuideSelect} sources={sources} bounds={bounds}
               panels={sharedGarmentProps?.semanticPanels} panelSeams={sharedGarmentProps?.savedPanelling?.seams} panelMirror={sharedGarmentProps?.savedPanelling?.mirror} details={garmentDetails} labels={sharedGarmentProps?.garmentLabels} prints={prints} view={detailView ?? 'front'}
               referenceWidthCm={sharedGarmentProps?.labelReferenceWidthMm ? sharedGarmentProps.labelReferenceWidthMm / 10 : 50}
-              unit={measurementUnit} selectedId={selectedAssetId} highlightedId={highlightedMeasurementId} onSelect={onAssetSelect} onMeasurementsChange={onAssetMeasurementsChange} />}
+              unit={measurementUnit} selectedId={selectedAssetId} highlightedId={highlightedMeasurementId} onSelect={stableHandlers.onAssetSelect} onMeasurementsChange={stableHandlers.onAssetMeasurementsChange} />}
+            renderMeasurementsDeps={[Boolean(overlay),showGuides,highlightedMeasurementId,resolvedSelection,fit,detailView,svgPack,presentation,sharedGarmentProps,garmentDetails,measurementUnit,selectedAssetId]}
             className={cn('h-full w-full', imgClassName)}
           />
           {overlay}

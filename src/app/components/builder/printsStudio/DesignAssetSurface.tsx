@@ -17,6 +17,7 @@ import { artworkEffectPadding } from '../../../lib/textEffectRendering';
 import { alphaBounds, boundsQuad, quadMap, validQuad, UNIT_QUAD, type Bounds, type Quad } from '../../../lib/designGeometry';
 import type { DesignElement } from '../PrintStudioEditor';
 import { drawingMaskCss, type GarmentDrawingMask } from './useGarmentDrawingMask';
+import { textAppearanceBleed } from '../../../lib/textAppearance';
 import { sourceSignature, WarpedArtwork } from './WarpedArtwork';
 import type { WarpSettings } from '../../../lib/warpGeometry';
 import { buildArtworkClipPath } from '../../../lib/artworkCrop';
@@ -131,6 +132,8 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
   useEffect(() => {
     const node = content.current;
     if (!node || interacting || editingPath) return;
+    // A blend has hundreds of lines: rasterising them to a hit mask stalls the page, so its frame is the hit area.
+    if (element.artworkBlend) { setPrintMask(null); setBounds({ x: 0, y: 0, width: 1, height: 1 }); return; }
     let cancelled = false;
     const version = captureVersion.current;
     const current = () => !cancelled && version === captureVersion.current;
@@ -181,7 +184,8 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
         console.warn('Could not prepare artwork pixel hit area.',error);
         if (current()) setBounds({ x: 0, y: 0, width: 1, height: 1 });
       }
-    }, 80);
+    // Refresh the print mask once a slider settles, so dragging stays fluid.
+    }, 240);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [renderSignature, element.content, element.customAreaImage, element.customAreaPoints, element.shapeGeometry, element.warp, width, actualHeight, warpRevision, cropping, interacting,editingPath,scale]);
 
@@ -241,13 +245,16 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
   };
 
   const eraseMask=element.eraseContours?.length?'url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" preserveAspectRatio="none"><defs><mask id="cut" maskContentUnits="objectBoundingBox" style="mask-type:luminance"><rect width="1" height="1" fill="white"/>'+element.eraseContours.map(ps=>'<path fill="black" d="M'+ps.map(p=>p.x+','+p.y).join('L')+'Z"/>').join('')+'</mask></defs><rect width="1" height="1" fill="white" mask="url(#cut)"/></svg>')+'")':undefined;
+  // Outlines and shadows may sit outside the text frame; the garment mask must reach them.
+  const appearanceBleed=textAppearanceBleed(element);
   const projected=(live??element.perspective)?.some((point,index)=>Math.abs(point.x-UNIT_QUAD[index].x)>1e-8||Math.abs(point.y-UNIT_QUAD[index].y)>1e-8);
   const projectionTransform=projected?map.css(width,actualHeight):undefined;
   return <ArtworkInteractionContext.Provider value={interacting}><ArtworkResolutionContext.Provider value={scale}>
     <div ref={surface} data-pattern-clip={element.patternTarget} data-drawing-clip={element.type === 'drawing' && garmentMask !== undefined ? '' : undefined} className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', ...(!artworkSurface && (element.type === 'drawing' || element.patternTarget || garmentMask) && garmentMask !== undefined ? {
       visibility: garmentMask ? undefined : 'hidden',
-      maskImage: garmentMask ? drawingMaskCss(garmentMask, width, actualHeight, position?.x ?? element.x, position?.y ?? element.y, element.rotation) : undefined,
-      maskSize: '100% 100%', maskRepeat: 'no-repeat',
+      maskImage: garmentMask ? drawingMaskCss(garmentMask, width, actualHeight, position?.x ?? element.x, position?.y ?? element.y, element.rotation, false, appearanceBleed) : undefined,
+      maskSize: appearanceBleed ? `calc(100% + ${appearanceBleed * 2}px) calc(100% + ${appearanceBleed * 2}px)` : '100% 100%', maskRepeat: 'no-repeat',
+      ...(appearanceBleed ? { maskPosition: `${-appearanceBleed}px ${-appearanceBleed}px`, maskClip: 'no-clip' as const } : {}),
     } : {}) }}>
     <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: projectionTransform }}>
       <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }),maskImage:eraseMask,maskSize:'100% 100%',maskRepeat:'no-repeat' }}>

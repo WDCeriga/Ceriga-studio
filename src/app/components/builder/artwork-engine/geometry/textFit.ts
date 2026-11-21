@@ -65,7 +65,8 @@ export async function warpTextToShape(elements: DesignElement[], textId: string,
     ...text, x: profile.left + profile.width / 2, y: profile.top + profile.height / 2, rotation: 0,
     fontSize: (text.fontSize ?? 30) * scale, width: profile.width, height: profile.height,
     textShapeMode: 'warp', textShapeSource: undefined, textPath: undefined, textCurveAmount: 0, textBadge: undefined,
-    vectorTextEffects: [{ id: 'text-shape', type: 'envelope', enabled: true, bend: 0, horizontal: 0, vertical: 0, envelope: { top: profile.topEdge, bottom: profile.bottomEdge, aspect: profile.width / profile.height } }],
+    vectorTextEffects: [{ id: 'text-shape', type: 'envelope', enabled: true, bend: 0, horizontal: 0, vertical: 0, envelope: { top: profile.topEdge, bottom: profile.bottomEdge, aspect: profile.width / profile.height, strength: 100, sourceShape: shape,
+      textBefore: { x: text.x, y: text.y, width: text.width, height: text.height, rotation: text.rotation, fontSize: text.fontSize, autoWidth: text.autoWidth, autoHeight: text.autoHeight } } }],
   };
   return elements.flatMap(e => e.id === shapeId ? [] : e.id === textId ? [next] : [e]);
 }
@@ -93,4 +94,12 @@ export function textAndShape(elements: DesignElement[], ids: string[]): { textId
   const text = picked.find(e => e.type === 'text'), shape = picked.find(e => e.type === 'shape' && !e.shapeBrush);
   if (!text || !shape || (text.side ?? 'front') !== (shape.side ?? 'front')) return null;
   return { textId: text.id, shapeId: shape.id };
+}
+
+/** Undo Warp to shape: the words go back to where they were and the shape returns beneath them. */
+export function restoreWarpedShape(elements: DesignElement[], textId: string): DesignElement[] {
+  const text = elements.find(e => e.id === textId), envelope = text?.vectorTextEffects?.find(e => e.type === 'envelope')?.envelope;
+  if (!text || !envelope) return elements;
+  const straight: DesignElement = { ...text, ...(envelope.textBefore ?? {}), vectorTextEffects: undefined, textShapeMode: 'none' };
+  return elements.flatMap(e => e.id !== textId ? [e] : envelope.sourceShape ? [envelope.sourceShape, straight] : [straight]);
 }

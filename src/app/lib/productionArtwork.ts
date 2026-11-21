@@ -6,6 +6,7 @@ import {expandTrace} from './imageTracing';
 import {normalizeCrop} from './artworkCrop';
 import {isIdentityWarp} from './warpGeometry';
 import type {DesignElement} from '../components/builder/PrintStudioEditor';
+import {blendBands} from '../components/builder/artwork-engine/geometry/blend';
 import {outlineLettering} from './editableLettering';import {flattenBoolean} from './booleanArtwork';import {shapePathData,shapeToEditablePath} from './shapeGeometry';import {mapShapePath} from './artworkPathOperations';import {svgPaint} from './studioPaint';import {supportsVectorDrawing,vectorDrawingMarkup} from './vectorDrawing';
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!));
 export async function prepareProductionArtwork(elements:DesignElement[],fonts:{family:string;dataUrl:string}[]=[]):Promise<DesignElement[]>{
@@ -13,7 +14,7 @@ export async function prepareProductionArtwork(elements:DesignElement[],fonts:{f
   if(element.textAppearance)element=await expandTextAppearance(element,fonts,true);
   else if(element.cropTop||element.cropRight||element.cropBottom||element.cropLeft||element.cornerRadius||element.eraseContours?.length){const local={...element,x:element.width/2,y:element.height/2,rotation:0,flipHorizontal:false,flipVertical:false,opacity:100,cropTop:0,cropRight:0,cropBottom:0,cropLeft:0,cornerRadius:0,eraseContours:undefined,warp:undefined,perspective:undefined};const outlined={...local,...await outlineLettering(local,fonts),letteringSource:undefined};element={...element,type:'group',children:[outlined],groupSourceWidth:element.width,groupSourceHeight:element.height};}
   else element={...element,...await outlineLettering(element,fonts),letteringSource:undefined};
- }if(element.booleanOperation)element=flattenBoolean(element);if(element.children)element.children=await prepareProductionArtwork(element.children,fonts);return {...element,logoTrace:undefined,logoTraceRegion:undefined,shapeOperationSources:undefined,shapeOperationFrame:undefined,letteringSource:undefined};}));
+ }if(element.booleanOperation)element=flattenBoolean(element);if(element.artworkBlend)element={...element,children:blendBands(element),artworkBlend:undefined,blendKey:undefined};if(element.children)element.children=await prepareProductionArtwork(element.children,fonts);return {...element,logoTrace:undefined,logoTraceRegion:undefined,shapeOperationSources:undefined,shapeOperationFrame:undefined,letteringSource:undefined};}));
 }
 export async function productionArtworkSvg(elements:DesignElement[],width:number,height:number,options:{side?:'front'|'back';fonts?:{family:string;dataUrl:string}[];unitsPerCm?:number;complex?:(element:DesignElement)=>Promise<string>}={}){
  const prepared=await prepareProductionArtwork(elements.filter(e=>!options.side||(e.side??'front')===options.side),options.fonts),definitions:string[]=[];let counter=0;

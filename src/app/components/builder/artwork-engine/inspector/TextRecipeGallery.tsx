@@ -5,6 +5,7 @@ import { usePrintsStudio } from '../../printsStudio/PrintsStudioContext';
 import { TextArtwork } from '../../printsStudio/TextArtwork';
 import { useArtworkScene } from '../state/scene';
 import { RECIPE_FAMILIES, TEXT_RECIPES, applyTextRecipe, clearTextRecipe, type RecipeFamily } from '../typography/recipes';
+import { TextRecipeCustomiser } from './TextRecipeCustomiser';
 import './text-recipes.css';
 
 const TILE_SIZE = 36;
@@ -37,6 +38,7 @@ export function TextRecipeGallery({ element, update }: { element: DesignElement;
   const studio = usePrintsStudio(), scene = useArtworkScene(), onSurface = useContext(ArtworkSurfaceContext);
   const surface = onSurface ? undefined : scene.surfaceColour;
   const activeFamily = TEXT_RECIPES.find(recipe => recipe.id === element.textRecipe?.id)?.family;
+  const [customising, setCustomising] = useState(false);
   const [family, setFamily] = useState<RecipeFamily>(activeFamily ?? 'Sport');
   // A style picked from the floating bar opens its family here.
   useEffect(() => { if (activeFamily) setFamily(activeFamily); }, [activeFamily]);
@@ -55,6 +57,10 @@ export function TextRecipeGallery({ element, update }: { element: DesignElement;
         <span className="cx-recipe-tile__name">{recipe.label}</span>
       </button>)}
     </div>
-    {element.textRecipe && <button type="button" className="cx-recipes__reset" onClick={() => update(clearTextRecipe(element))}>Back to original</button>}
+    {element.textRecipe && <>
+      <button type="button" className="cx-recipes__customise" aria-expanded={customising} onClick={() => setCustomising(!customising)}><span>Customise</span></button>
+      {customising && <TextRecipeCustomiser element={element} update={update} surface={surface} unitsPerCm={studio.unitsPerCm} />}
+      <button type="button" className="cx-recipes__reset" onClick={() => update(clearTextRecipe(element))}>Back to original</button>
+    </>}
   </div>;
 }

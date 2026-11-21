@@ -31,7 +31,7 @@ export async function outlineTextForCombine(elements: DesignElement[], ids: stri
   elements = elements.map(element => ids.includes(element.id) && sameInk(element) ? { ...element, borderWidth: 0 } : element);
   const targets = elements.filter(element => ids.includes(element.id) && isCombinableText(element, imports));
   if (!targets.length) return elements;
-  const outlined = new Map(await Promise.all(targets.map(async element => [element.id, { ...element, ...await outlineLettering(element, imports), shapeFilled: true, shapeFillColor: element.color, borderWidth: 0 } as DesignElement] as const)));
+  const outlined = new Map(await Promise.all(targets.map(async element => [element.id, { ...element, ...await outlineLettering(element, imports), shapeFilled: true, shapeFillColor: element.color, borderWidth: 0, layerName: element.layerName ?? `Text: ${element.content}` } as DesignElement] as const)));
   return elements.map(element => outlined.get(element.id) ?? element);
 }
 

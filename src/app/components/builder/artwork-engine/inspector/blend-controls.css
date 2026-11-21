@@ -1,0 +1,19 @@
+/* Blend panel: quick look tiles, then exact values. */
+.cx-blend-looks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.ceriga-builder-shell .builder-inspector :is(.cx-blend-looks,.cx-blend-easing)>button{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:8px 3px 6px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;font-size:11px;line-height:1.2;transition:border-color .15s ease-out,background-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector :is(.cx-blend-looks,.cx-blend-easing)>button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector :is(.cx-blend-looks,.cx-blend-easing)>button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4;color:#1f1f1d}
+.cx-blend-looks svg{width:44px;height:26px;fill:none;stroke:currentColor;stroke-width:1;flex-shrink:0}
+.cx-blend-looks svg .is-solid{fill:currentColor;stroke:none;opacity:.8}
+.cx-blend-easing{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.cx-blend-easing svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;flex-shrink:0}
+.cx-blend-wells{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:6px 0 8px}
+.cx-blend-well{display:flex;align-items:center;justify-content:space-between;color:#3f3f3c;font-size:13px}
+.cx-blend-well input{width:28px;height:28px;padding:0;overflow:hidden;border:1px solid #dadad7;border-radius:999px;background:none;cursor:pointer}
+.cx-blend-well input::-webkit-color-swatch-wrapper{padding:0}
+.cx-blend-well input::-webkit-color-swatch{border:0;border-radius:999px}
+.cx-blend-sources{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.ceriga-builder-shell .builder-inspector .cx-blend-sources>button{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 11px;border:1px solid #dadad7;border-radius:999px;background:#f6f6f4;color:#3f3f3c;font-size:12px;line-height:1}
+.ceriga-builder-shell .builder-inspector .cx-blend-sources>button:last-child{padding:0 7px}
+.ceriga-builder-shell .builder-inspector .cx-blend-sources>button[aria-pressed=true]{border-color:#1f1f1d;background:#1f1f1d;color:#fff}
+.cx-blend-edit{display:inline-flex;align-items:center;justify-content:center;gap:6px}

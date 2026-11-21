@@ -1,6 +1,8 @@
 import { RepeatCentreHandle } from './artwork-engine/interaction/RepeatCentreHandle';
 import { ShapeBuilderOverlay } from './artwork-engine/interaction/ShapeBuilderOverlay';
 import { useShapeBuilder } from './artwork-engine/state/shapeBuilder';
+import { garmentEdges, refreshEdgeText } from './artwork-engine/geometry/garmentEdges';
+import { setGarmentEdges } from './artwork-engine/state/garmentEdges';
 import { PARAMETRIC_SHAPES } from './artwork-engine/geometry/shapes/registry';
 import {artworkTransformPreview} from '../../lib/artworkTransformPreview';
 import {shapePathData} from '../../lib/shapeGeometry';
@@ -211,7 +213,7 @@ export interface DesignElement extends ImageAdjustmentValues {
   textGlyphTransforms?:Record<string,{x:number;y:number;rotation:number;scaleX:number;scaleY:number}>;
   vectorTextEffects?:{id:string;type:'arc'|'arch'|'bulge'|'flag'|'wave'|'rise'|'perspective'|'squeeze'|'inflate'|'fisheye'|'twist'|'fan'|'envelope';enabled:boolean;bend:number;horizontal:number;vertical:number;
     /** Envelope warp: top / bottom edge profiles (0–1 of the box) sampled evenly left→right, and the box aspect (w/h) to take on. */
-    envelope?:{top:number[];bottom:number[];aspect:number}}[];
+    envelope?:{top:number[];bottom:number[];aspect:number;strength?:number;sourceShape?:DesignElement;textBefore?:Pick<DesignElement,'x'|'y'|'width'|'height'|'rotation'|'fontSize'|'autoWidth'|'autoHeight'>}}[];
   logoTrace?:import('../../lib/logoOutlineTypes').LogoTraceState;
   vectorEffects?:import('../../lib/vectorEffects').VectorEffects;
   layerOrderExplicit?:boolean;
@@ -271,6 +273,13 @@ export interface DesignElement extends ImageAdjustmentValues {
   repeatKey?:string;
   repeatMaster?:boolean;
   repeatCopy?:boolean;
+  /** Live blend group: children are the hidden source paths; the lines are generated (Artwork ref 16). */
+  artworkBlend?:import('./artwork-engine/geometry/blend').BlendSettings;
+  blendKey?:string;
+  /** An expanded blend keeps the live one so it can be restored. */
+  blendExpandedFrom?:DesignElement;
+  /** Shape-builder piece: the original shapes it can return to. */
+  builtFrom?:{id:string;sources:DesignElement[]};
   shapeGeometry?: 'bounds';
   shapeFilled?: boolean;
   shapeParameters?: Record<string, number | string>;
@@ -285,7 +294,9 @@ export interface DesignElement extends ImageAdjustmentValues {
   /** Text blocks only */
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   textCharacterStyles?:{start:number;end:number;style:{fontId?:string;fontPostscriptName?:string;fontDisplayName?:string;color?:string;fontSize?:number;fontFamily?:string;fontWeight?:'normal'|'bold';fontStyle?:'normal'|'italic';letterSpacing?:number;baselineShift?:number}}[];
-  textPath?:{path:ShapePath;offset:number;flip?:boolean};
+  textPath?:{path:ShapePath;offset:number;flip?:boolean;/** Slide along the path (artwork units). */shift?:number};
+  /** Text following a real garment edge; refits when the garment changes unless the user moved it. */
+  textEdge?:import('./artwork-engine/geometry/garmentEdges').TextEdgeLink;
   textScaleX?:number;textScaleY?:number;
   textBaselineShift?:number;
   textFrameMode?:'point'|'area';
@@ -2838,6 +2849,7 @@ export function PrintsDesignPreview({
     studio.setTextEditRequest(null);
   }, [editable, elements, studio.textEditRequest, studio.setTextEditRequest]);
   const shapeBuilderIds = useShapeBuilder();
+  const edgeElementsRef = useRef<DesignElement[]>([]);
   const [alignmentGuides, setAlignmentGuides] = useState<{
     vertical: number[];
     horizontal: number[];
@@ -3193,6 +3205,8 @@ export function PrintsDesignPreview({
 
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
 
+  edgeElementsRef.current=elements;
+  useEffect(()=>{if(assetMode||!patternTargets.length){setGarmentEdges(garmentSide,[]);return;}const edges=garmentEdges(patternTargets);setGarmentEdges(garmentSide,edges);const rows=edgeElementsRef.current;let changed=false;const next=rows.map(row=>{if(row.type!=='text'||!row.textEdge)return row;const patch=refreshEdgeText(row,edges,garmentSide);if(!patch)return row;changed=true;return{...row,...patch};});if(changed)onChangeRef.current?.(next,selectedId??undefined);},[patternTargets,garmentSide,assetMode]);
   const previewGarmentMask=(element:DesignElement)=>{const mask=element.patternTarget?patternTargets.find(part=>part.id===element.patternTarget):assetMode||focusArtwork?undefined:element.patternKeepNeckPlain?collarSafePatternMask:drawingMask;return mask?drawingMaskCss(mask,element.width,element.height,element.x,element.y,element.rotation):undefined;};
 
   useEffect(() => {

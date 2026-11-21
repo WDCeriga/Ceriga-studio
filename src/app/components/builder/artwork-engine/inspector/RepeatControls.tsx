@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { ShapeObjectEditor } from '../../shell/ShapesStudio';
+import { ClothingFontPicker } from '../../shell/ClothingFontPicker';
+import { TextAppearanceControls } from '../../shell/TextAppearanceControls';
+import { fontIdentity } from '../../../../lib/workspaceFonts';
+import { StrokeStyleControls } from './StrokeStyleControls';
 import type { DesignElement } from '../../PrintStudioEditor';
 import { StudioFold, StudioNumber, StudioRange } from '../../shell/StudioControls';
 import { usePrintsStudio } from '../../printsStudio/PrintsStudioContext';
@@ -52,7 +56,13 @@ export function RepeatControls({ element, update }: { element: DesignElement; up
         {master.type === 'text' && <label className="studio-field">Text<textarea rows={2} value={master.content} onChange={event => apply({ master: { content: event.target.value } })} /></label>}
         <StudioNumber label="Source width" unit="mm" min={1} max={400} step={.5} value={mm(master.width)} onChange={value => { const k = px(value) / Math.max(.0001, master.width); apply({ master: { width: master.width * k, height: master.height * k, ...(master.type === 'text' && master.fontSize ? { fontSize: master.fontSize * k } : {}) } }); }} />
         <StudioRange label="Source turn" unit="°" min={-180} max={180} value={Math.round(master.rotation)} onChange={rotation => apply({ master: { rotation } })} />
-        {master.type === 'shape' && <ShapeObjectEditor element={master} update={patch => apply({ master: patch })} toolsOnly />}
+        {master.type === 'text' && <><label className="studio-field">Font<ClothingFontPicker value={master.fontFamily ?? 'Inter'} sample={master.content} onChange={fontFamily => apply({ master: { fontFamily, ...fontIdentity(fontFamily) } })} /></label><TextAppearanceControls element={{ ...master, textUnitsPerCm: studio.unitsPerCm }} update={patch => apply({ master: patch })} /></>}
+        {master.type === 'shape' && <>
+          <div className="typography-segments" role="group" aria-label="Source style"><button type="button" aria-pressed={!master.shapeFilled} onClick={() => apply({ master: { shapeFilled: false, shapeStrokeColor: inkOf(master), borderWidth: master.borderWidth || 2 } })}>Outline</button><button type="button" aria-pressed={Boolean(master.shapeFilled)} onClick={() => apply({ master: { shapeFilled: true, shapeFillColor: inkOf(master) } })}>Filled</button></div>
+          <StudioNumber label="Outline" unit="mm" min={0} max={40} step={.1} value={mm(master.borderWidth ?? 0)} onChange={value => apply({ master: { borderWidth: px(value), ...(value > 0 && !master.shapeStrokeColor ? { shapeStrokeColor: inkOf(master) } : {}) } })} />
+          {(master.borderWidth ?? 0) > 0 && <StrokeStyleControls element={master} unitsPerCm={studio.unitsPerCm} update={patch => apply({ master: patch })} />}
+          <ShapeObjectEditor element={master} update={patch => apply({ master: patch })} toolsOnly />
+        </>}
       </div>}
     </div>
     <button type="button" className="studio-outline-action" onClick={() => update(releaseRepeat(element))}>Release copies</button>

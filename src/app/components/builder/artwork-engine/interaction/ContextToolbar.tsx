@@ -63,7 +63,14 @@ export function ContextToolbar({ anchor, hostWidth, actions, overflow, label = '
 }) {
   const bar = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
-  useLayoutEffect(() => { if (bar.current) setWidth(bar.current.offsetWidth); });
+  const shown = Boolean(anchor) && !hidden;
+  // Measure when the bar's size changes, not on every render (each read forces a page layout).
+  useLayoutEffect(() => {
+    const node = bar.current; if (!node) return;
+    setWidth(node.offsetWidth);
+    const observer = new ResizeObserver(() => setWidth(node.offsetWidth)); observer.observe(node);
+    return () => observer.disconnect();
+  }, [shown]);
   if (!anchor || hidden) return null;
   const below = anchor.y - GAP - 40 < 8;
   const centre = anchor.x + anchor.width / 2;

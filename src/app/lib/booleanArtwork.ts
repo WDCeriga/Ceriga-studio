@@ -36,6 +36,8 @@ export function createBoolean(elements:DesignElement[],ids:string[],operation:Bo
 export function flattenBoolean(element:DesignElement):DesignElement{
  const resolved=refreshBoolean(element);return {...resolved,children:undefined,booleanOperation:undefined,booleanSourceKey:undefined,booleanStyleKey:undefined,groupSourceWidth:undefined,groupSourceHeight:undefined};
 }
+/** Outlined words go back to live text in the same place. */
+export const restoreLiveText=(element:DesignElement):DesignElement=>element.type==='shape'&&element.letteringSource?{...element.letteringSource,id:element.id,x:element.x,y:element.y,rotation:element.rotation,side:element.side,hidden:element.hidden,locked:element.locked}:element;
 export function releaseBoolean(element:DesignElement):DesignElement{
- const {shapePath,booleanOperation,booleanSourceKey,booleanStyleKey,...source}=refreshBoolean(element);return {...source,type:'group',content:'',layerName:'Boolean source shapes'};
+ const {shapePath,booleanOperation,booleanSourceKey,booleanStyleKey,...source}=refreshBoolean(element);return {...source,children:source.children?.map(restoreLiveText),type:'group',content:'',layerName:'Boolean source shapes'};
 }

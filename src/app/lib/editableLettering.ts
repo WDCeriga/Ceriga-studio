@@ -117,7 +117,7 @@ async function buildLettering(element:DesignElement,imports:{family:string;dataU
    extra=(Math.max(baseNatural,length-gap)-natural)/(glyphs.length-1);
   }
   const total=natural+extra*Math.max(0,glyphs.length-1),align=element.textAlign??'center';
-  const start=align==='left'||align==='justify'?0:align==='right'?(sampler?sampler.length/scale:layoutWidth)-total:((sampler?sampler.length/scale:layoutWidth)-total)/2;
+  const aligned=align==='left'||align==='justify'?0:align==='right'?(sampler?sampler.length/scale:layoutWidth)-total:((sampler?sampler.length/scale:layoutWidth)-total)/2,slide=custom?element.textPath?.shift??0:0,room=Math.max(0,(sampler?sampler.length/scale:layoutWidth)-total),start=slide?Math.max(0,Math.min(room,aligned+slide)):aligned;
   let cursor=0;
   for(const record of glyphs){
    cursor+=record.before;

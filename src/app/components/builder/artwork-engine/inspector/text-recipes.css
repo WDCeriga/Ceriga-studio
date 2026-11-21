@@ -16,3 +16,14 @@
 .cx-recipe-tile__name{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ceriga-builder-shell .builder-inspector .cx-recipes__reset{width:100%;height:32px;margin-top:6px;border:0;background:none;color:#6b6b66;font-size:12px}
 .ceriga-builder-shell .builder-inspector .cx-recipes__reset:hover{color:#1f1f1d}
+
+/* Customise: every value a style set. */
+.ceriga-builder-shell .builder-inspector .cx-recipes__customise{display:flex;align-items:center;justify-content:space-between;width:100%;height:34px;margin-top:8px;padding:0 2px;border:0;border-top:1px solid #ececea;background:none;color:#1f1f1d;font-size:13px}
+.cx-recipes__customise::after{content:'';width:7px;height:7px;border-right:1.5px solid #8a8a85;border-bottom:1.5px solid #8a8a85;transform:translateY(-2px) rotate(45deg);transition:transform .15s ease-out}
+.cx-recipes__customise[aria-expanded=true]::after{transform:translateY(1px) rotate(-135deg)}
+.cx-recipe-custom{padding:4px 0 2px}
+.cx-recipe-custom__layer{padding:8px 0;border-bottom:1px solid #f0f0ee}
+.cx-recipe-custom__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;color:#1f1f1d;font-size:13px}
+.cx-recipe-custom__head strong{font-weight:500}
+.cx-linked-text{margin:6px 0 10px}
+.cx-built-shape{margin:4px 0 10px}

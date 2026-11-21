@@ -1,3 +1,5 @@
+import { memo } from 'react';
+import { samePreviewProps, useStableHandlers } from './artwork-engine/state/stablePreviewProps';
 import {TANK_PRESET} from '../../data/tankTop';
 import { hoodiePartColour } from '../../data/interiorColour';
 import {poloRepairPanel} from '../../lib/poloPanelRepair';
@@ -333,6 +335,8 @@ export interface TshirtSvgPreviewProps {
   onDetailsChange?: (details: GarmentDetail[]) => void;
   onDetailBoundsChange?: (bounds: DetailBounds | undefined) => void;
   renderMeasurements?: (sources: MeasurementSource[], bounds: DetailBounds | undefined) => React.ReactNode;
+  /** The data renderMeasurements draws from, so an unchanged overlay does not redraw the garment. */
+  renderMeasurementsDeps?: unknown;
   onBuiltinDetailsChange?: (details: GarmentDetail[]) => void;
   detailEditor?: DetailEditorState;
   layerTransforms?: Partial<Record<string, TshirtLayerTransform>>;
@@ -981,7 +985,14 @@ function buildLayerLayouts(
   );
 }
 
-export function TshirtSvgPreview({
+/** The garment only redraws when its own data changes, not on every artwork edit. */
+export function TshirtSvgPreview(props: TshirtSvgPreviewProps) {
+  return <MemoTshirtSvgPreview {...useStableHandlers(props)} />;
+}
+const MemoTshirtSvgPreview = memo(TshirtSvgPreviewView, (previous, next) => {
+  return samePreviewProps(previous as unknown as Record<string, unknown>, next as unknown as Record<string, unknown>);
+});
+function TshirtSvgPreviewView({
   constructionPanels,
   panellingEditor,
   fabricAssignments,

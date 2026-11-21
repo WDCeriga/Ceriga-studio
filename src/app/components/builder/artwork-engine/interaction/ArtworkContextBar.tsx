@@ -11,6 +11,7 @@ import { groupDesignLayers, groupLayersIssue } from '../../../../lib/designGroup
 import { useCombine } from './useCombine';
 import { startShapeBuilder } from '../state/shapeBuilder';
 import { createRepeat } from '../geometry/repeat';
+import { blendIssue, createBlend } from '../geometry/blend';
 import { placeTextInside, textAndShape, warpTextToShape } from '../geometry/textFit';
 import { outlineTextForCombine } from '../geometry/combine';
 import { createBoolean } from '../../../../lib/booleanArtwork';
@@ -95,6 +96,7 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
       apply: id => onUpdate(selected.id, applyTextRecipe(selected, id, onSurface ? undefined : scene.surfaceColour, studio.unitsPerCm)),
       clear: selected.textRecipe ? () => onUpdate(selected.id, clearTextRecipe(selected)) : undefined,
     } : undefined,
+    blend: multi && !hidden && !blendIssue(elements, ids) ? () => { const id = crypto.randomUUID(); onChange(createBlend(elements, ids, id, studio.unitsPerCm, onSurface ? undefined : scene.surfaceColour), id); studio.setSelectionIds([]); studio.setSelectionAdditive(false); } : undefined,
     centreOnGarment: () => { if (!area) return; onChange(alignArtwork(alignArtwork(elements, ids, 'center', area), ids, 'middle', area), selectedId ?? undefined); },
   };
 
