@@ -19,6 +19,8 @@ import regularThumbnail from '../../../../assets/studio-tshirt/fit-thumbnails/re
 import slimThumbnail from '../../../../assets/studio-tshirt/fit-thumbnails/slim.svg';
 import boxyThumbnail from '../../../../assets/studio-tshirt/fit-thumbnails/boxy.svg';
 import oversizedThumbnail from '../../../../assets/studio-tshirt/fit-thumbnails/oversized.svg';
+import {VisualOptionGrid,FitSilhouette,PresetArt} from '../design-system';
+import {FIT_SILHOUETTES,type FitSilhouetteId} from '../design-system/fitSilhouettes';
 const sizes = ['xs', 's', 'm', 'l', 'xl', 'xxl'];
 export function FitMeasurementsInspector({
   onFitPreview,
@@ -60,10 +62,31 @@ export function FitMeasurementsInspector({
   onHighlight: (id: MeasurementGuideId | null) => void;
 }) {
  const measurementLabels = measurementLabelsForPresets(presets);
-  const [expanded, setExpanded] = useState<string | null>('chestWidth');
+  // Open the highlighted row; garments without chest width (Joggers) fall back to their first measurement.
+  const [expanded, setExpanded] = useState<string | null>(() => { const want = highlightedMeasurementId ?? 'chestWidth'; return measurementLabels.some(m => m.id === want) ? want : measurementLabels[0]?.id ?? null; });
   const {size,setSize,panel:sheet,setPanel:setSheet,inspectorSnap,setInspectorSnap}=useResponsiveBuilder();const width=useBuilderWidth();const phone=width<768;const tablet=width>=768&&width<1200;
   const coreRef=useRef<HTMLDetailsElement>(null);
-  useEffect(() => { if(highlightedMeasurementId){setExpanded(highlightedMeasurementId);if(coreRef.current)coreRef.current.open=true;} }, [highlightedMeasurementId]);
+  const revealedMeasurement=useRef(highlightedMeasurementId);
+  useEffect(() => {
+    if(!highlightedMeasurementId)return;
+    // A highlight this garment doesn't have (Joggers have no chest width) opens the first row instead.
+    setExpanded(measurementLabels.some(m=>m.id===highlightedMeasurementId)?highlightedMeasurementId:measurementLabels[0]?.id??null);
+    if(coreRef.current)coreRef.current.open=true;
+    // Only reveal on an actual selection change, so the panel still opens at the top (fit choices).
+    if(revealedMeasurement.current===highlightedMeasurementId)return;
+    revealedMeasurement.current=highlightedMeasurementId;
+    // Selecting a measurement on the canvas must reveal its row: the list sits far down the inspector.
+    const frame=requestAnimationFrame(()=>{
+      const row=coreRef.current?.querySelector<HTMLElement>(`[data-measure-id="${highlightedMeasurementId}"]`);
+      const scroller=row?.closest<HTMLElement>('.builder-inspector');
+      if(!row||!scroller)return;
+      const r=row.getBoundingClientRect(),s=scroller.getBoundingClientRect();
+      if(r.top>=s.top+8&&r.bottom<=s.bottom-8)return;
+      const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      scroller.scrollTo({top:scroller.scrollTop+(r.top-s.top)-24,behavior:reduce?'auto':'smooth'});
+    });
+    return()=>cancelAnimationFrame(frame);
+  }, [highlightedMeasurementId]);
   useEffect(()=>{const reveal=()=>{setInspectorSnap('peek');setSheet(null)};window.addEventListener('ceriga-measure-selected',reveal);return()=>window.removeEventListener('ceriga-measure-selected',reveal)},[]);
  const [flash,setFlash]=useState(false);
   const currentRevision=JSON.stringify([highlightedMeasurementId,measurements[highlightedMeasurementId||'chestWidth']?.[size]]);
@@ -71,15 +94,24 @@ export function FitMeasurementsInspector({
   useEffect(()=>{if(previousRevision.current===currentRevision)return;previousRevision.current=currentRevision;setFlash(true);const timer=setTimeout(()=>setFlash(false),220);return()=>clearTimeout(timer)},[currentRevision]);
   const unit = measurementUnitLabel(measurementUnit);
   const field=(id:MeasurementGuideId,s:string,value:string)=><MeasurementValueField key={id+'-'+s+'-'+measurementUnit} id={id} size={s} value={value} unit={measurementUnit} onFocus={()=>onHighlight(id)} onCommit={v=>onMeasurementChange(id,s,v)}/>;
-  const fitGrid=<><div className={hoodie ? "builder-fit-grid builder-fit-grid--hoodie" : "builder-fit-grid"} role="group" aria-label="Fit preset">{fitChoices.map(f=><button key={f.id} onClick={()=>{onFitPreview?.(null);onFitChange(f.id);setSheet(null)}} aria-pressed={fit===f.id}><span className="new-fit-art"><img src={f.thumbnail ?? (f.id==='slim'?slimThumbnail:f.id==='oversized'?oversizedThumbnail:f.id==='boxy'?boxyThumbnail:regularThumbnail)} alt=""/></span><span>{f.name}</span></button>)}</div>{shoulderControls}</>;
+  // Phase 1: fit choices use the shared VisualOptionGrid. T-shirt fits (no preset thumbnail) show true-scale
+  // silhouettes; other garments keep their own preset thumbnails. Same handler as before.
+  const fitPreview=(f:typeof fitChoices[number])=>!f.thumbnail&&f.id in FIT_SILHOUETTES
+    ?<FitSilhouette fit={f.id as FitSilhouetteId}/>
+    // PresetArt normalises each preset's generated art to the shared line-art language.
+    :<PresetArt src={f.thumbnail ?? (f.id==='slim'?slimThumbnail:f.id==='oversized'?oversizedThumbnail:f.id==='boxy'?boxyThumbnail:regularThumbnail)}/>;
+  const fitOptions=<div className={hoodie ? "builder-fit-grid builder-fit-grid--hoodie cx" : "builder-fit-grid cx"}><VisualOptionGrid label="Fit preset" columns={4} value={fit}
+    options={fitChoices.map(f=>({id:f.id,label:f.name,preview:fitPreview(f)}))} onChange={id=>{onFitPreview?.(null);onFitChange(id);setSheet(null)}}/></div>;
+  const fitGrid=<>{fitOptions}{shoulderControls}</>;
+  // Same section pattern as every other fit section (title · current value · chevron), on all four presets.
+  const fitSection=<><details className="sweatpants-choice fit-choice cx" open><summary><span>Fit<small>{fitChoices.find(f=>f.id===fit)?.name??fit}</small></span><ChevronDown size={16}/></summary>{fitOptions}</details>{shoulderControls}</>;
   const advanceMeasurement=(direction:number)=>{const index=Math.max(0,measurementLabels.findIndex(m=>m.id===highlightedMeasurementId));const id=measurementLabels[(index+direction+measurementLabels.length)%measurementLabels.length].id;onHighlight(id);setExpanded(id)};
   const swipe=useMeasurementSwipe(advanceMeasurement);
   if(advanced&&sizingActions){const editor=<AdvancedSizingEditor measurements={measurements} presets={presets} grading={grading} tolerances={measurementTolerances} actions={sizingActions} unit={measurementUnit} onUnit={onMeasurementUnitChange} onMeasurementChange={onMeasurementChange} onToleranceChange={onToleranceChange} onHighlight={onHighlight} highlightedId={highlightedMeasurementId}/>;return phone?(!sheet&&<BuilderSheet title="Advanced sizing" persistent compactHeader snap={inspectorSnap} onSnap={setInspectorSnap} onClose={()=>setInspectorSnap('peek')}><div className="advanced-phone-heading"><button onClick={()=>setInspectorSnap(inspectorSnap==='peek'?'half':'peek')} aria-label={inspectorSnap==='peek'?'Expand advanced sizing':'Collapse advanced sizing'}>Advanced sizing <span>Size {size.toUpperCase()}</span><ChevronUp size={16} style={{transform:inspectorSnap==='peek'?undefined:'rotate(180deg)'}}/></button>{onGuidesVisibleChange&&<MeasurementGuidesToggle phone checked={guidesVisible} onChange={onGuidesVisibleChange}/>}</div>{inspectorSnap!=='peek'&&<MobileSectionTools/>}{inspectorSnap!=='peek'&&<div {...swipe} className="touch-measurement-navigation">{editor}</div>}</BuilderSheet>):<div {...swipe} className="touch-measurement-navigation">{editor}</div>;}
   const selected=measurementLabels.find(m=>m.id===highlightedMeasurementId)??measurementLabels[0];
   const desktopContent=<div className="builder-fit-measurements touch-measurement-navigation" {...(!phone?swipe:{})}>
     <p className="compact-fit-helper">Choose a fit, then refine measurements.</p>
-    <h3 className="builder-eyebrow fit-section-label">Fit</h3>
-    {tablet?<><h3 className="tablet-fit-label">Fit</h3><button className="tablet-fit-select" aria-haspopup="dialog" onClick={()=>setSheet('fit')}>{fitChoices.find(f=>f.id===fit)?.name??fit}<ChevronDown size={16}/></button></>:fitGrid}
+    {tablet?<><h3 className="tablet-fit-label">Fit</h3><button className="tablet-fit-select" aria-haspopup="dialog" onClick={()=>setSheet('fit')}>{fitChoices.find(f=>f.id===fit)?.name??fit}<ChevronDown size={16}/></button></>:fitSection}
     {tablet&&<details className="tablet-size-disclosure"><summary>Size & units · {size.toUpperCase()} · {unit}</summary><div className="tablet-size-settings"><div className="builder-size-range">{sizes.map(s=><button key={s} aria-pressed={size===s} onClick={()=>setSize(s)}>{s.toUpperCase()}</button>)}</div><NewSegmentedControl label="Units" values={['cm','in']} value={measurementUnit} onChange={v=>onMeasurementUnitChange(v as MeasurementUnit)}/></div></details>}
     <div className="new-measure-settings restored-core-settings"><div><span>Size range</span><div className="builder-size-range">{sizes.map(s=><button key={s} aria-label={'Edit size '+s.toUpperCase()} aria-pressed={size===s} onClick={()=>setSize(s)}>{s.toUpperCase()}</button>)}</div></div><label>Units<NewSegmentedControl label="Units" values={['cm','in']} value={measurementUnit} onChange={v=>onMeasurementUnitChange(v as MeasurementUnit)}/></label></div>
     <div className="builder-measure-heading"><h3>Measurements</h3><span className="builder-muted"><i/> {size.toUpperCase()} · Unconfirmed</span></div>
@@ -90,7 +122,7 @@ export function FitMeasurementsInspector({
       const preset=presets[m.id]?.[size]??'0',value=measurements[m.id]?.[size]??preset,diff=value.trim()===''?NaN:Number(value)-Number(preset),open=expanded===m.id;
       const tolerance=getMeasurementTolerance(measurementTolerances,m.id,size);
       const productionRange=getToleranceRange(value,tolerance.valueCm);
-      return <section key={m.id} className="new-measure-row" data-selected={selected.id===m.id} data-flash={flash&&selected.id===m.id}>
+      return <section key={m.id} className="new-measure-row" data-measure-id={m.id} data-selected={selected.id===m.id} data-flash={flash&&selected.id===m.id}>
         <div className="new-measure-main"><button className="new-measure-select" aria-expanded={open} onClick={()=>{onHighlight(m.id);setExpanded(open?null:m.id)}}><span className="builder-measure-letter">{m.label.split('.')[0]}</span><span>{m.label.split('. ')[1]}</span></button>{field(m.id,size,value)}</div>
         <div className="new-measure-source"><span>{value.trim()===''?'Not set':diff===0?((phone||tablet)?(fitChoices.find(f=>f.id===fit)?.name??fit)+' preset':'From preset'):'Custom'}</span><button aria-label={'Expand '+m.label} aria-expanded={open} onClick={()=>{onHighlight(m.id);setExpanded(open?null:m.id)}}>How to measure <ChevronDown size={12} style={{transform:open?'rotate(180deg)':undefined}}/></button></div>
         {open&&<div className="new-measure-help"><div className="new-measure-comparison">{[['Current',value.trim()===''?'—':formatMeasurementDisplay(value,measurementUnit)+' '+unit],['Preset',formatMeasurementDisplay(preset,measurementUnit)+' '+unit],['Difference',Number.isFinite(diff)?(diff>0?'+':'')+formatMeasurementDisplay(String(diff),measurementUnit)+' '+unit:'—']].map(([label,v])=><div className="measurement-meta-cell" key={label}><span>{label}</span><output>{v}</output></div>)}<div className="measurement-meta-cell"><span>Tolerance</span><MeasurementValueField tolerance id={m.id} size={size} value={tolerance.valueCm} unit={measurementUnit} ariaLabel={'Tolerance '+m.label+' '+size.toUpperCase()+' in '+unit} onFocus={()=>onHighlight(m.id)} onCommit={value=>onToleranceChange?.(m.id,tolerance.key,value)}/><small className="tolerance-status">{tolerance.status}</small></div></div><div className="measurement-reset-actions"><button className="builder-link" onClick={()=>onMeasurementChange(m.id,size,preset)}>Reset measurement to preset</button>{tolerance.status!=='Recommended'&&tolerance.recommendedCm!==undefined&&<button className="builder-link" onClick={()=>onToleranceChange?.(m.id,tolerance.key,String(tolerance.recommendedCm))}>Reset tolerance</button>}</div>{productionRange&&<p className="tolerance-production-range">Acceptable range: <output>{formatMeasurementDisplay(String(productionRange.min),measurementUnit)} – {formatMeasurementDisplay(String(productionRange.max),measurementUnit)} {unit}</output></p>}<p>{SWEATPANTS_MEASUREMENT_HELP[m.id]??<>Follow the highlighted {m.label.split('.')[0]} guide on the flat garment.</>}</p></div>}

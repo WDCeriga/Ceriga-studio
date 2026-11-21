@@ -278,6 +278,9 @@
 }
 .builder-workspace {
   position:relative;
+  /* Contain canvas overlay z-indexes (zoom bar, packaging editor view, studio toolbars)
+     so they can never paint above the shell dialog layer (Review & Export, references). */
+  isolation:isolate;
   display:flex;
   flex-direction:column;
   min-width:0;

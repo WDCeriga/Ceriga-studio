@@ -1895,9 +1895,39 @@ export function TshirtSvgPreview({
     y: collarGeometry.top + collarGeometry.height * .8, scale: 3 } : undefined;
   const focusedPart=partFocus?layerLayouts.find(layer=>layer.id===partFocus):undefined;
   const fixedHoodieCloseUp = garmentType === 'hoodie' && !customAssetState?.importedGarment && (partFocus === 'hood' || partFocus === 'neck');
+  // Frame the part where it is actually painted. Stored layer bboxes are in each asset's own
+  // coordinate space (sleeves especially), so measure the rendered shapes relative to the camera
+  // box instead; the ratio is unaffected by the camera's own scale/translate.
+  const [paintedFocus, setPaintedFocus] = useState<{ id: string; minX: number; maxX: number; minY: number; maxY: number }>();
+  useLayoutEffect(() => {
+    if (!partFocus) { setPaintedFocus(undefined); return; }
+    // Some garments paint their part artwork a few frames after mount, so retry briefly.
+    let frameId = 0, attempts = 0;
+    const measure = () => {
+      const camera = canvasRef.current;
+      const layer = camera?.querySelector<HTMLElement>(`[data-layer-id="${CSS.escape(partFocus)}"]`);
+      const frame = camera?.getBoundingClientRect();
+      const shapes = layer ? [...layer.querySelectorAll<SVGGraphicsElement>('path,polygon,rect,image,use')]
+        .filter(el => !el.closest('defs,mask,clipPath')).map(el => el.getBoundingClientRect()).filter(r => r.width > 0 && r.height > 0) : [];
+      if (!frame?.width || !shapes.length) {
+        if (++attempts < 30) frameId = requestAnimationFrame(measure);
+        return;
+      }
+      const toX = (v: number) => (v - frame.left) / frame.width * 2048, toY = (v: number) => (v - frame.top) / frame.height * 2048;
+      const next = { id: partFocus, minX: toX(Math.min(...shapes.map(r => r.left))), maxX: toX(Math.max(...shapes.map(r => r.right))),
+        minY: toY(Math.min(...shapes.map(r => r.top))), maxY: toY(Math.max(...shapes.map(r => r.bottom))) };
+      setPaintedFocus(prev => prev && prev.id === next.id && Math.abs(prev.minX - next.minX) < 1 && Math.abs(prev.maxX - next.maxX) < 1
+        && Math.abs(prev.minY - next.minY) < 1 && Math.abs(prev.maxY - next.maxY) < 1 ? prev : next);
+    };
+    measure();
+    return () => cancelAnimationFrame(frameId);
+  }, [partFocus, layerLayouts, detailView, fit, garmentType]);
+  const focusedBounds = paintedFocus && paintedFocus.id === partFocus ? paintedFocus
+    : focusedPart?.bbox ? { minX: focusedPart.bbox.minX, maxX: focusedPart.bbox.maxX, minY: focusedPart.bbox.minY, maxY: focusedPart.bbox.maxY } : undefined;
   const partCamera = fixedHoodieCloseUp ? { x: 1024, y: 440, scale: 2 }
-    : focusedPart?.bbox ? { x: focusedPart.bbox.centerX, y: focusedPart.bbox.centerY,
-      scale: Math.max(1.8, Math.min(4, 1100 / Math.max(focusedPart.bbox.maxX - focusedPart.bbox.minX, focusedPart.bbox.maxY - focusedPart.bbox.minY))) }
+    : focusedBounds ? { x: (focusedBounds.minX + focusedBounds.maxX) / 2, y: (focusedBounds.minY + focusedBounds.maxY) / 2,
+      // Floor of 1.2 (not 1.8) so long parts such as hoodie sleeves fit the square preview frame.
+      scale: Math.max(1.2, Math.min(4, 1100 / Math.max(focusedBounds.maxX - focusedBounds.minX, focusedBounds.maxY - focusedBounds.minY))) }
       : undefined;
   const previewCamera = partCamera ?? (partFocus ? {x:1024,y:1024,scale:1} : undefined) ?? collarCamera ?? hemCamera ?? detailCamera ?? stitchCamera;
 

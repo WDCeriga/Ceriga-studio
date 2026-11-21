@@ -1,11 +1,13 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { PageLoadingFallback } from "./components/PageLoadingFallback";
+import { BuilderLoadingFallback } from "./components/builder/BuilderLoadingFallback";
 import { NotFound } from "./pages/NotFound";
 import { SidebarLayout } from "./components/SidebarLayout";
 
 export const router = createBrowserRouter([
  {path:"/artwork-studies",lazy:async()=>{const{ArtworkStudies}=await import("./pages/ArtworkStudies");return{Component:ArtworkStudies}}},
   ...(import.meta.env.DEV ? [{ path: '/garment-import-review', lazy: async () => ({ Component: (await import('./pages/GarmentImportReview')).GarmentImportReview }) }] : []),
+  ...(import.meta.env.DEV ? [{ path: '/dev/builder-primitives', lazy: async () => ({ Component: (await import('./pages/dev/BuilderPrimitives')).BuilderPrimitives }) }] : []),
   {
     path: "/",
     HydrateFallback: PageLoadingFallback,
@@ -107,6 +109,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/builder/:productId?",
+    HydrateFallback: BuilderLoadingFallback,
     lazy: async () => {
       const { Builder } = await import("./pages/Builder");
       return { Component: Builder };
