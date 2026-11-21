@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { productionArtworkSvg } from './src/app/lib/productionArtwork';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -212,6 +212,7 @@ const aligned = api.alignPoints(api.resamplePath(closedA, 40), api.resamplePath(
 assert(Math.hypot(aligned[0].x, aligned[0].y) < 1, 'closed paths align their start points so the blend does not twist');
 const expanded = api.expandBlend(live); assert(expanded.children.every(child => !child.hidden && child.type === 'shape')); assert.equal(expanded.blendExpandedFrom.id, 'blend');
 assert(api.releaseBlend(live).children.every(child => !child.hidden), 'release returns the paths');
+for (const result of [api.expandBlend(live), api.releaseBlend(live)]) { const merged = { ...live, ...result }; assert.equal(merged.artworkBlend, undefined, 'leaving blend mode survives a panel merge'); assert.equal(merged.blendKey, undefined); }
 const spined = api.setBlendSpine([live, blendLine('sp', 100)], 'blend', 'sp'); assert.equal(spined.length, 1); assert(spined[0].artworkBlend.spine);
 assert.equal(api.clearBlendSpine(spined, 'blend').length, 2, 'releasing the spine returns its path');
 console.log('artwork engine: blend ok');
@@ -234,3 +235,26 @@ assert(api.samePreviewProps({ renderMeasurements: drawA, renderMeasurementsDeps:
 assert(!api.samePreviewProps({ renderMeasurements: drawA, renderMeasurementsDeps: ['x'] }, { renderMeasurements: drawB, renderMeasurementsDeps: ['y'] }), 'an overlay with new data redraws');
 assert(!api.samePreviewProps({ renderMeasurements: drawA }, { renderMeasurements: drawB }), 'an undeclared overlay always redraws');
 console.log('artwork engine: preview memo ok');
+
+// Text along a part starts centred and no taller than the part; after that the size is the designer's.
+const sleeveEdge = api.garmentEdges([part('sleeveLeft')])[0];
+assert(sleeveEdge.thickness > 15 && sleeveEdge.thickness < 25, 'sleeve width is measured');
+const onSleeve = api.textOnEdge({ ...word, fontSize: 60 }, sleeveEdge, 'front', 0, 100);
+assert(onSleeve.fontSize * .72 <= sleeveEdge.thickness * .6 + 1e-6, 'text starts inside the sleeve');
+assert.equal(onSleeve.textPath.offset, onSleeve.fontSize * .72 / 2, 'text starts centred on the sleeve');
+assert.equal(api.textOnEdge({ ...word, fontSize: 60 }, sleeveEdge, 'front', 0).fontSize, 60, 'a size the designer sets is kept');
+console.log('artwork engine: sleeve fit ok');
+
+// Reference 17: colour per key shape, blur, and print export of a blend.
+const threeKeys = api.updateBlendSource(api.addBlendKey(live, 'peach'), 'peach', { blendColour: '#ff0000' });
+const midBand = api.blendBands(threeKeys).find(band => /Blend 1[5-8]/.test(band.layerName));
+assert(parseInt(midBand.color.slice(1, 3), 16) > parseInt(midBand.color.slice(5, 7), 16) + 40, 'the blend passes through the key colour');
+const blurred = api.updateBlend(live, { blur: 6 });
+assert(blurred.width >= live.width + 30 && blurred.height >= live.height + 30, 'the frame makes room for the blur');
+const exported = await api.productionArtworkSvg([blurred], 400, 400);
+assert(exported.includes('feGaussianBlur'), 'blur reaches the print file');
+assert(!exported.includes('Blend sources') && (exported.match(/<path/g) ?? []).length >= 8, 'the generated lines reach the print file');
+const releasedInks = api.releaseBlend(api.updateBlend(live, { startColour: '#ff0000', endColour: '#00ff00' }));
+assert.equal(api.inkOf(releasedInks.children[0]).toLowerCase(), '#ff0000', 'released paths keep their blend colours');
+assert.equal(api.inkOf(releasedInks.children[1]).toLowerCase(), '#00ff00');
+console.log('artwork engine: blend colour, blur and export ok');

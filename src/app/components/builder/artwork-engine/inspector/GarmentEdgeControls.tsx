@@ -28,7 +28,9 @@ export function GarmentEdgeControls({ element: el, update, units }: { element: D
       setError('');
       const plain = { ...el, textPath: undefined, textEdge: undefined, textShapeMode: 'none' as const, vectorTextEffects: undefined, textCurveAmount: 0, textBadge: undefined, autoWidth: true, autoHeight: true };
       const outline = await outlineLettering(plain, loadFontLibrary());
-      update({ ...textOnEdge(el, edge, side, linked?.gap ?? px(DEFAULT_GAP_MM), outline.textLayoutWidth ?? outline.width), textShapeSource: el.textShapeSource ?? { x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation, autoWidth: el.autoWidth, autoHeight: el.autoHeight } });
+      const previous = edges.find(item => item.id === linked?.id);
+      const gap = linked && previous?.sit === edge.sit ? linked.gap : edge.sit === 'along' ? 0 : px(DEFAULT_GAP_MM);
+      update({ ...textOnEdge(el, edge, side, gap, outline.textLayoutWidth ?? outline.width), textShapeSource: el.textShapeSource ?? { x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation, autoWidth: el.autoWidth, autoHeight: el.autoHeight } });
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not place the text on this edge.'); }
   };
   const moved = Boolean(linked && el.textPath && Math.hypot(el.x - linked.x, el.y - linked.y) > .5);
@@ -41,7 +43,7 @@ export function GarmentEdgeControls({ element: el, update, units }: { element: D
     </div>
     {error && <p role="alert">{error}</p>}
     {linked && el.textPath && <div className="cx-edges__controls">
-      <StudioNumber label="Distance from edge" unit="mm" min={-100} max={200} step={.5} value={Number(mm(linked.gap).toFixed(1))} onChange={value => setGap(px(value))} />
+      <StudioNumber label={sit === 'along' ? 'Offset from centre' : 'Distance from edge'} unit="mm" min={-100} max={200} step={.5} value={Number(mm(linked.gap).toFixed(1))} onChange={value => setGap(px(value))} />
       <StudioRange label="Slide along edge" unit="mm" min={-300} max={300} value={Math.round(mm(el.textPath.shift ?? 0))} onChange={value => update({ textPath: { ...el.textPath!, shift: px(value) } })} />
       {moved && current && <button type="button" className="studio-outline-action" onClick={() => void follow(current)}>Snap back to {current.label.toLowerCase()}</button>}
     </div>}

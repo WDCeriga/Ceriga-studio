@@ -1024,3 +1024,38 @@ A 21-second Illustrator build of a teal and cream "FLOWER" poster. Contact sheet
 - **Live sources:** drag or edit either source path with the pen and every step updates. Add a third key shape mid-blend. **Expand** is optional and reversible until flattened.
 - **Performance:** render steps as one compound SVG path; cap live preview density during drag, full density on release.
 - **Production:** warn when lines are finer than the print method can hold (screen print, embroidery, puff); offer a minimum line weight or step reduction.
+
+
+## H. References 17 and 19 — blurred blend flower, stretched type poster (added 21 Nov 2026)
+
+The file "10.19.38 AM (1)" is byte-identical to reference 16.
+
+### H.1 Reference 17 — blurred blend flower (Illustrator, 40 s)
+Three ellipses (cream, peach, yellow) are aligned at the base, blurred, and blended with about 30 steps into one glowing petal. The petal is duplicated and rotated into a flower. A reflected copy fades out through a gradient opacity mask, a blurred ellipse sits behind as a glow, and grain finishes everything.
+
+| Technique | Status |
+|---|---|
+| Blend through three colour-keyed shapes | Built |
+| Blur radius on a blend, in preview and print file | Built |
+| Duplicate and rotate a live blend | Built |
+| Blur radius on any shape or text, with exact value | Check in Phase 3 |
+| **Gradient opacity mask** (fade any object, editable handles) | Missing |
+| **One-tap reflection** (flipped copy + fade + distance) | Missing |
+| Blending modes per object (multiply, screen, overlay…) | Missing from object panel |
+| Grain on a group or whole design | Quality pass in Phase 3 |
+
+### H.2 Reference 19 — "MAKE IT POP" poster (Illustrator, 9 s)
+Heavy type is outlined, then **each letter is dragged by its own handles** until the words fill the page: tall M, stretched O, offset P. A starburst is placed over it. Type is blue, the star red, and **the overlap becomes a third colour** (pink). The poster is shown framed.
+
+| Technique | Status |
+|---|---|
+| Per-letter adjust | Exists but buried in Advanced; needs checking against this speed |
+| **Direct letter stretching on canvas** | Build: click a letter, drag its handles; words stay live; Shift keeps proportion, Alt scales from centre; numeric W/H/X/Y/rotation per letter; Reset letter |
+| **Fit word to a box / fill the page** | Missing: each line justified to width, heights editable per line |
+| Starburst | Have (Burst, with points and depth to check) |
+| **Overlap colour** | Missing: select two objects → the intersection gets its own live, editable colour; moving either object updates it |
+| Poster / framed mockup | Asset Studio, Phase 7 |
+
+### H.3 Build order
+1. Direct letter stretching and fit-to-box. 2. Overlap colour. 3. Gradient opacity mask and reflection. 4. Blend modes per object.
+All follow the standing rule: simple first, every value editable, source stays live.

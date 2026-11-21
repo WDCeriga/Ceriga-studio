@@ -7,8 +7,8 @@ import type { ShapePath } from '../../../../lib/shapeGeometry';
  * whatever neckline, hem or sleeve the garment currently has, on every preset and side.
  * `sit` says which side of the edge the letters belong on.
  */
-export type GarmentEdgeId = 'neckline' | 'hem' | 'pocket' | 'waistband' | 'sleeve-left' | 'sleeve-right' | 'leg-left' | 'leg-right';
-export type GarmentEdge = { id: GarmentEdgeId; label: string; sit: 'below' | 'above' | 'along'; path: ShapePath; length: number };
+export type GarmentEdgeId = 'neckline' | 'hem' | 'pocket' | 'pocket-left' | 'pocket-right' | 'waistband' | 'sleeve-left' | 'sleeve-right' | 'leg-left' | 'leg-right';
+export type GarmentEdge = { id: GarmentEdgeId; label: string; sit: 'below' | 'above' | 'along'; path: ShapePath; length: number; /** Average width of the part, for text running along it. */ thickness?: number };
 export type EdgeTarget = { id: string; alpha: ArrayLike<number>; canvas: { width: number; height: number }; width: number; height: number };
 export type TextEdgeLink = { id: GarmentEdgeId; side: 'front' | 'back'; gap: number; x: number; y: number; fontSize?: number };
 
@@ -78,36 +78,50 @@ export function partCentreLine(t: EdgeTarget): Point[] {
   return line.length >= 3 ? line : [];
 }
 
-const edge = (id: GarmentEdgeId, label: string, sit: GarmentEdge['sit'], points: Point[]): GarmentEdge[] =>
-  points.length >= 3 ? [{ id, label, sit, path: curveThrough(points), length: polylineLength(points) }] : [];
+const edge = (id: GarmentEdgeId, label: string, sit: GarmentEdge['sit'], points: Point[], thickness?: number): GarmentEdge[] =>
+  points.length >= 3 ? [{ id, label, sit, path: curveThrough(points), length: polylineLength(points), thickness }] : [];
+
+/** A part's centre line, with its average width (area ÷ length). */
+function alongPart(id: GarmentEdgeId, label: string, t: EdgeTarget): GarmentEdge[] {
+  const line = partCentreLine(t); if (line.length < 3) return [];
+  const w = t.canvas.width, h = t.canvas.height, step = Math.max(1, Math.round(Math.max(w, h) / 320)); let cells = 0;
+  for (let y = 0; y < h; y += step) for (let x = 0; x < w; x += step) if (filled(t, x, y)) cells++;
+  const area = cells * (step / w * t.width) * (step / h * t.height);
+  return edge(id, label, 'along', line, area / Math.max(1, polylineLength(line)));
+}
 
 /** Every edge this garment side actually has. */
 export function garmentEdges(targets: EdgeTarget[]): GarmentEdge[] {
   const find = (...ids: string[]) => ids.map(id => targets.find(t => t.id === id)).find(Boolean);
-  const neck = find('neck', 'hood'), hem = find('bodyHem', 'hem'), pocket = find('pocket'), waist = find('waistband');
+  const neck = find('neck', 'hood'), hem = find('bodyHem', 'hem'), pocket = find('pocket'), waist = find('waistband'), pocketL = find('pocketFacingLeft'), pocketR = find('pocketFacingRight');
   const sleeveL = find('sleeveLeft'), sleeveR = find('sleeveRight'), legR = find('trouserLegRight'), legL = legR ? find('base') : undefined;
   return [
     ...(neck ? edge('neckline', 'Neckline', 'below', gentleCurveBelow(partContour(neck, 'bottom', .1))) : []),
     ...(waist ? edge('waistband', 'Waistband', 'below', partContour(waist, 'bottom')) : []),
     ...(hem ? edge('hem', 'Hem', 'above', partContour(hem, 'top')) : []),
     ...(pocket ? edge('pocket', 'Pocket', 'below', partContour(pocket, 'top', .08)) : []),
-    ...(sleeveL ? edge('sleeve-left', 'Left sleeve', 'along', partCentreLine(sleeveL)) : []),
-    ...(sleeveR ? edge('sleeve-right', 'Right sleeve', 'along', partCentreLine(sleeveR)) : []),
-    ...(legL ? edge('leg-left', 'Left leg', 'along', partCentreLine(legL)) : []),
-    ...(legR ? edge('leg-right', 'Right leg', 'along', partCentreLine(legR)) : []),
+    ...(pocketL ? alongPart('pocket-left', 'Left pocket', pocketL) : []),
+    ...(pocketR ? alongPart('pocket-right', 'Right pocket', pocketR) : []),
+    ...(sleeveL ? alongPart('sleeve-left', 'Left sleeve', sleeveL) : []),
+    ...(sleeveR ? alongPart('sleeve-right', 'Right sleeve', sleeveR) : []),
+    ...(legL ? alongPart('leg-left', 'Left leg', legL) : []),
+    ...(legR ? alongPart('leg-right', 'Right leg', legR) : []),
   ];
 }
 
 /** Baseline offset so the letters clear the edge by `gap`, on the right side of it. */
 export function edgeOffset(sit: GarmentEdge['sit'], gap: number, fontSize: number) {
   const cap = fontSize * .72;
-  return sit === 'below' ? gap + cap : sit === 'above' ? -gap : cap / 2 + gap;
+  return sit === 'below' ? gap + cap : sit === 'above' ? -gap : cap / 2 - gap;
 }
 
 /** The text patch that puts it on an edge. `fit` shrinks the size if the words are longer than the edge. */
 export function textOnEdge(text: DesignElement, found: GarmentEdge, side: 'front' | 'back', gap: number, wordWidth?: number): Partial<DesignElement> {
-  const fit = wordWidth && wordWidth > found.length * .92 ? found.length * .92 / wordWidth : 1;
-  const fontSize = (text.fontSize ?? 30) * fit, frame = fitPenPath(found.path, fontSize * 1.6);
+  // First placement only: start at a size that fits. After that, the size is the designer's.
+  const byLength = wordWidth && wordWidth > found.length * .92 ? found.length * .92 / wordWidth : 1;
+  const size = text.fontSize ?? 30, byWidth = wordWidth && found.thickness && size * .72 > found.thickness * .6 ? found.thickness * .6 / (size * .72) : 1;
+  const fit = Math.min(byLength, byWidth);
+  const fontSize = size * fit, frame = fitPenPath(found.path, fontSize * 1.6);
   return {
     x: frame.x, y: frame.y, width: frame.width, height: frame.height, rotation: 0, flipHorizontal: false, flipVertical: false, fontSize,
     autoWidth: false, autoHeight: false, textShapeMode: 'path', textCurveAmount: 0, textBadge: undefined, textStackFit: false, vectorTextEffects: undefined, warp: undefined, perspective: undefined,

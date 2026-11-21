@@ -276,6 +276,10 @@ export interface DesignElement extends ImageAdjustmentValues {
   /** Live blend group: children are the hidden source paths; the lines are generated (Artwork ref 16). */
   artworkBlend?:import('./artwork-engine/geometry/blend').BlendSettings;
   blendKey?:string;
+  /** Colour of a key shape inside a blend. */
+  blendColour?:string;
+  /** Soft blur on an exported blend, in its own units. */
+  blendBlur?:number;
   /** An expanded blend keeps the live one so it can be restored. */
   blendExpandedFrom?:DesignElement;
   /** Shape-builder piece: the original shapes it can return to. */

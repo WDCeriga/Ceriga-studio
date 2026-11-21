@@ -29,6 +29,9 @@ export function BlendControls({ element, update }: { element: DesignElement; upd
   const scale = element.width / Math.max(.0001, element.groupSourceWidth ?? element.width), units = Math.max(.0001, studio.unitsPerCm);
   const mm = (value: number) => Number((value * scale * 10 / units).toFixed(2)), px = (value: number) => value * units / 10 / Math.max(.0001, scale);
   const source = sources.find(item => item.id === picked) ?? sources[0];
+  const sourceIndex = source ? sources.indexOf(source) : 0;
+  const sourceColour = sourceIndex === 0 ? s.startColour : sourceIndex === sources.length - 1 ? s.endColour : source?.blendColour ?? s.startColour;
+  const setSourceColour = (colour: string) => { if (sourceIndex === 0) set({ startColour: colour }); else if (sourceIndex === sources.length - 1) set({ endColour: colour }); else if (source) update(updateBlendSource(element, source.id, { blendColour: colour })); };
   const paths = (artwork?.elements ?? []).filter(item => item.id !== element.id && item.type === 'shape' && !item.hidden && (item.side ?? 'front') === (element.side ?? 'front'));
   const editPoints = () => {
     if (!source) return;
@@ -47,6 +50,8 @@ export function BlendControls({ element, update }: { element: DesignElement; upd
       ? <StudioRange label="Steps" unit="" min={1} max={BLEND_MAX_STEPS} value={s.steps} onChange={steps => set({ steps })} />
       : <StudioNumber label="Distance between" unit="mm" min={.05} max={100} step={.05} value={mm(s.spacing)} onChange={value => set({ spacing: px(value) })} />}
 
+    <StudioRange label="Blur" unit="mm" min={0} max={60} step={.5} value={mm(s.blur ?? 0)} onChange={value => set({ blur: value ? px(value) : 0 })} />
+
     <StudioFold title="Line" rowHeight={40} value={`${mm(s.startWidth)} mm`} open>
       {s.look === 'lines' && <div className="studio-two-columns">
         <StudioNumber label="Start width" unit="mm" min={.02} max={40} step={.01} value={mm(s.startWidth)} onChange={value => set({ startWidth: px(value) })} />
@@ -56,7 +61,6 @@ export function BlendControls({ element, update }: { element: DesignElement; upd
         <StudioNumber label="Start opacity" unit="%" min={0} max={100} step={1} value={s.startOpacity} onChange={startOpacity => set({ startOpacity })} />
         <StudioNumber label="End opacity" unit="%" min={0} max={100} step={1} value={s.endOpacity} onChange={endOpacity => set({ endOpacity })} />
       </div>
-      <div className="cx-blend-wells"><Well label="Start" value={s.startColour} onChange={startColour => set({ startColour })} /><Well label="End" value={s.endColour} onChange={endColour => set({ endColour })} /></div>
     </StudioFold>
 
     <StudioFold title="Flow" rowHeight={40} value={EASINGS.find(item => item.id === s.easing)?.label}>
@@ -75,6 +79,7 @@ export function BlendControls({ element, update }: { element: DesignElement; upd
         <button type="button" aria-label="Add key shape" title="Add key shape" onClick={() => { const id = crypto.randomUUID(); update(addBlendKey(element, id)); setPicked(id); }}><Plus size={14} /></button>
       </div>
       {source && <>
+        <div className="cx-blend-wells"><Well label="Colour" value={sourceColour} onChange={setSourceColour} /></div>
         <button type="button" className="studio-outline-action cx-blend-edit" onClick={editPoints}><CornerDownRight size={15} />Edit points on canvas</button>
         <div className="studio-two-columns">
           {(['x', 'y', 'width', 'height'] as const).map(key => <StudioNumber key={key} label={key === 'x' ? 'X' : key === 'y' ? 'Y' : key === 'width' ? 'Width' : 'Height'} unit="mm" min={key === 'width' || key === 'height' ? .1 : -4000} max={4000} step={.5} value={mm(source[key])} onChange={value => update(updateBlendSource(element, source.id, { [key]: px(value) }))} />)}

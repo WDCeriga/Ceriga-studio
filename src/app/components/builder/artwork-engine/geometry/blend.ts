@@ -3,7 +3,7 @@ import { pathSegmentPoint } from '../../../../lib/shapePathEditing';
 import { shapeWorldPath } from '../../../../lib/artworkPathOperations';
 import { textPathSampler } from '../../../../lib/textPathSampler';
 import type { ShapePath } from '../../../../lib/shapeGeometry';
-import { inkOf } from '../state/sharedProperties';
+import { inkOf, inkPatch } from '../state/sharedProperties';
 import { readableInk } from './colour';
 
 /**
@@ -29,6 +29,8 @@ export type BlendSettings = {
   startWidth: number; endWidth: number;
   startOpacity: number; endOpacity: number;
   startColour: string; endColour: string;
+  /** Gaussian blur radius in group source units (soft, glowing blends). */
+  blur?: number;
   /** Optional path the blend travels along, in group source space. */
   spine?: { path: ShapePath; element?: DesignElement };
 };
@@ -141,6 +143,16 @@ function blendSteps(group: DesignElement, keys = blendKeys(group)): Step[] {
   return out;
 }
 
+/** Colour along the blend, passing through every key shape's colour. */
+function colourStops(group: DesignElement) {
+  const s = group.artworkBlend!, sources = group.children ?? [];
+  return sources.map((source, index) => index === 0 ? s.startColour : index === sources.length - 1 ? s.endColour : source.blendColour ?? inkOf(source));
+}
+const colourAt = (stops: string[], u: number) => {
+  const span = Math.max(0, Math.min(1, u)) * (stops.length - 1), index = Math.min(stops.length - 2, Math.floor(span));
+  return mixColour(stops[index], stops[index + 1], span - index);
+};
+
 const blendKeyOf = (group: DesignElement) => JSON.stringify([group.artworkBlend, group.children]);
 
 /** Drop points that add no visible shape, so hundreds of lines stay light to draw. */
@@ -177,13 +189,14 @@ export function blendBands(group: DesignElement): DesignElement[] {
   const cacheKey = group.id + blendKeyOf(group), hit = bandCache.get(cacheKey);
   if (hit) return hit;
   const keys = blendKeys(group), steps = blendSteps(group, keys), closed = keys[0].closed;
-  const varies = s.startColour !== s.endColour || s.startWidth !== s.endWidth || s.startOpacity !== s.endOpacity;
+  const stops = colourStops(group);
+  const varies = new Set(stops).size > 1 || s.startWidth !== s.endWidth || s.startOpacity !== s.endOpacity;
   const count = varies ? Math.min(MAX_BANDS, steps.length) : 1, fill = s.look === 'smooth' && closed;
   const bands: DesignElement[] = [];
   for (let b = 0; b < count; b++) {
     const row = steps.filter((_, i) => Math.min(count - 1, Math.floor(i / steps.length * count)) === b);
     if (!row.length) continue;
-    const t = row.reduce((sum, step) => sum + step.t, 0) / row.length, colour = mixColour(s.startColour, s.endColour, t);
+    const t = row.reduce((sum, step) => sum + step.t, 0) / row.length, colour = colourAt(stops, t);
     const width = s.startWidth + (s.endWidth - s.startWidth) * t, opacity = s.startOpacity + (s.endOpacity - s.startOpacity) * t;
     bands.push({
       ...fitSteps(row.map(step => simplifyStep(step.points)), closed), id: `${group.id}~band-${b}`, type: 'shape', content: 'custom-path', shapeGeometry: 'bounds', rotation: 0,
@@ -210,7 +223,7 @@ export function refreshBlend(group: DesignElement): DesignElement {
   try { steps = blendSteps(group); } catch { return group; }
   let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
   for (const step of steps) for (const p of step.points) { if (p.x < l) l = p.x; if (p.x > r) r = p.x; if (p.y < t) t = p.y; if (p.y > b) b = p.y; }
-  const pad = s.look === 'lines' ? Math.max(s.startWidth, s.endWidth) / 2 + .5 : .5;
+  const pad = (s.look === 'lines' ? Math.max(s.startWidth, s.endWidth) / 2 + .5 : .5) + (s.blur ?? 0) * 3;
   const left = l - pad, top = t - pad, width = Math.max(1, r - l + pad * 2), height = Math.max(1, b - t + pad * 2);
   const sourceW = group.groupSourceWidth ?? group.width, sourceH = group.groupSourceHeight ?? group.height;
   const sx = group.width / Math.max(.0001, sourceW), sy = group.height / Math.max(.0001, sourceH);
@@ -260,7 +273,7 @@ export function addBlendKey(group: DesignElement, newId: string): DesignElement 
   const a = keys[at].points, b = keys[at + 1].points, mid = a.map((p, i) => ({ x: (p.x + b[i].x) / 2, y: (p.y + b[i].y) / 2 }));
   const frame = fitSteps([mid], keys[0].closed);
   const key: DesignElement = {
-    ...sources[at], ...frame, shapePath: { closed: keys[0].closed, nodes: frame.shapePath.nodes.filter((_, i) => i % 4 === 0) }, id: newId, content: 'custom-path', shapeGeometry: 'bounds',
+    ...sources[at], blendColour: colourAt(colourStops(group), (at + .5) / (sources.length - 1)), ...frame, shapePath: { closed: keys[0].closed, nodes: frame.shapePath.nodes.filter((_, i) => i % 4 === 0) }, id: newId, content: 'custom-path', shapeGeometry: 'bounds',
     rotation: 0, flipHorizontal: false, flipVertical: false, shapeParameters: undefined, shapeCornerRadius: 0, hidden: true, layerName: 'Key shape',
   };
   return refreshBlend({ ...group, children: [...sources.slice(0, at + 1), key, ...sources.slice(at + 1)] });
@@ -294,12 +307,13 @@ export function clearBlendSpine(elements: DesignElement[], groupId: string): Des
 /** Expand into real, individually editable shapes, keeping the live blend so it can be restored. */
 export function expandBlend(group: DesignElement): DesignElement {
   const bands = blendBands(group).map((band, index) => ({ ...band, id: `${group.id}-expanded-${index}` }));
-  const { artworkBlend: _settings, blendKey: _key, ...rest } = group;
-  return { ...rest, layerName: 'Expanded blend', children: bands, blendExpandedFrom: group };
+  // Cleared explicitly: the panel merges this result over the current object.
+  return { ...group, artworkBlend: undefined, blendKey: undefined, layerName: 'Expanded blend', children: bands, blendExpandedFrom: group };
 }
 
 /** Stop blending: the source paths come back as a normal group. */
 export function releaseBlend(group: DesignElement): DesignElement {
-  const { artworkBlend: _settings, blendKey: _key, ...rest } = group;
-  return { ...rest, layerName: 'Blend sources', children: group.children?.map(child => ({ ...child, hidden: false })) };
+  // The paths keep the colours they had in the blend.
+  const stops = colourStops(group);
+  return { ...group, artworkBlend: undefined, blendKey: undefined, layerName: 'Blend sources', children: group.children?.map((child, index) => ({ ...child, ...inkPatch(child, stops[index]), blendColour: undefined, hidden: false })) };
 }

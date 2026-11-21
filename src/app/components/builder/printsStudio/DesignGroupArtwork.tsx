@@ -24,7 +24,7 @@ export const DesignGroupArtwork=memo(function DesignGroupArtwork({ element }: { 
   const height = element.groupSourceHeight ?? element.height;
   const displayScale=useContext(ArtworkResolutionContext)*Math.max(element.width/Math.max(1,width),element.height/Math.max(1,height));
   if(element.logoTrace?.showSource)return <img src={element.logoTrace.source} alt="Original logo" className="h-full w-full object-fill"/>;
-  return <div ref={host} className="relative h-full w-full" style={{ filter: imageAdjustmentFilter(element), ...artworkFlipStyle(element) }}>
+  return <div ref={host} className="relative h-full w-full" style={{ filter: [imageAdjustmentFilter(element), element.artworkBlend?.blur ? `blur(${element.artworkBlend.blur * element.width / Math.max(.0001, width)}px)` : ''].filter(Boolean).join(' ') || undefined, ...artworkFlipStyle(element) }}>
     <div data-group-source style={{ position: 'absolute', width, height, transformOrigin: '0 0', transform: `scale(${element.width / width}, ${element.height / height})` }}>
       {(element.artworkBlend ? blendBands(element) : element.children ?? []).filter(child => !child.hidden).map(child => <div key={child.id} data-group-child={child.id}
         style={{ position: 'absolute', left: child.x, top: child.y, width: child.width,
