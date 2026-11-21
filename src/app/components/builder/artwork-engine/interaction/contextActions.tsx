@@ -3,7 +3,7 @@ import {
   Copy, FlipHorizontal2, FlipVertical2, Trash2, Lock, Unlock, Type, Crop, ArrowUpToLine, ArrowUp, ArrowDown, ArrowDownToLine,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2, TypeOutline, SquareDot, Spline, SquareDashed,
 } from 'lucide-react';
 import type { ContextAction } from './ContextToolbar';
 import type { BooleanOperation } from '../../../../lib/booleanArtwork';
@@ -33,6 +33,8 @@ export type ContextHandlers = {
   combine?: { previews: CombinePreview[]; run: (op: BooleanOperation) => void; builder?: () => void };
   /** Single object: make a live repeat (around a centre, mirror, 4-way, 180° turn). */
   repeat?: (mode: RepeatMode) => void;
+  /** Multi-select of one text + one shape: words take the shape (plan F.2). */
+  textInShape?: { warp: () => void; inside: () => void; knockout: () => void };
 };
 
 export type ContextSelection =
@@ -70,6 +72,11 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
   if (selection.kind === 'multi') {
     return {
       actions: [
+        ...(h.textInShape ? [{ id: 'text-shape', label: 'Text + shape', icon: <TypeOutline size={ICON} />, showLabel: true, menu: [
+          { id: 'inside', label: 'Place inside', icon: <SquareDot size={ICON} />, onSelect: h.textInShape.inside },
+          { id: 'warp', label: 'Warp to shape', icon: <Spline size={ICON} />, onSelect: h.textInShape.warp },
+          { id: 'knockout', label: 'Cut out of shape', icon: <SquareDashed size={ICON} />, onSelect: h.textInShape.knockout },
+        ] } as ContextAction] : []),
         ...(h.combine ? [{ id: 'combine', label: 'Combine', icon: <Blend size={ICON} />, showLabel: true, menu: COMBINE_OPS.map(({ op, label }): ContextAction => { const preview = h.combine!.previews.find(item => item.op === op); return { id: op, label, icon: <CombineThumb preview={preview} size={26} />, disabled: Boolean(preview && 'empty' in preview), onSelect: () => h.combine!.run(op) }; }).concat(h.combine.builder ? [{ id: 'sep-builder', label: '' }, { id: 'builder', label: 'Shape builder', icon: <MousePointerClick size={ICON} />, onSelect: h.combine.builder }] : []) } as ContextAction] : []),
         { id: 'group', label: 'Group', icon: <Group size={ICON} />, showLabel: true, disabled: !h.group, onSelect: () => h.group?.() },
         alignMenu(h, 'selection', 'Align'),

@@ -1,0 +1,14 @@
+/* Text shape gallery (Phase 2): layout chips, then warp tiles drawn with the user's own word. */
+.cx-text-shapes{margin:2px 0 12px}
+.cx-text-shapes__modes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.cx-text-shapes__warps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ceriga-builder-shell .builder-inspector :is(.cx-text-shapes__modes,.cx-text-shapes__warps)>button{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:8px 4px 7px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;font-size:11px;line-height:1.2;transition:border-color .15s ease-out,background-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector :is(.cx-text-shapes__modes,.cx-text-shapes__warps)>button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector :is(.cx-text-shapes__modes,.cx-text-shapes__warps)>button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4;color:#1f1f1d}
+.cx-text-shapes__glyph{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.cx-text-shapes__preview{display:flex;align-items:center;justify-content:center;width:100%;height:34px}
+.cx-text-shapes__preview svg{display:block;width:100%;height:100%;overflow:visible}
+.cx-text-shapes__preview path{fill:#1f1f1d}
+.cx-text-shapes__preview i{display:block;width:70%;height:8px;border-radius:4px;background:#ececea}
+@media (prefers-reduced-motion:no-preference){.cx-text-shapes__preview i{animation:cx-text-shapes-pulse 1.2s ease-in-out infinite alternate}}
+@keyframes cx-text-shapes-pulse{from{opacity:.5}to{opacity:1}}

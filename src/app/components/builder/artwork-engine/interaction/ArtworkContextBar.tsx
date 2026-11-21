@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { DesignElement } from '../../PrintStudioEditor';
 import { alignArtwork, arrangeArtwork, distributeArtwork, type Area } from '../../../../lib/artworkArrange';
 import { ContextToolbar, useSelectionAnchor } from './ContextToolbar';
@@ -8,6 +8,10 @@ import { groupDesignLayers, groupLayersIssue } from '../../../../lib/designGroup
 import { useCombine } from './useCombine';
 import { startShapeBuilder } from '../state/shapeBuilder';
 import { createRepeat } from '../geometry/repeat';
+import { placeTextInside, textAndShape, warpTextToShape } from '../geometry/textFit';
+import { outlineTextForCombine } from '../geometry/combine';
+import { createBoolean } from '../../../../lib/booleanArtwork';
+import { loadFontLibrary } from '../../printsStudio/designLibrary';
 import { usePrintsStudio } from '../../printsStudio/PrintsStudioContext';
 
 /** A quiet round colour well (native picker) for the context toolbar. */
@@ -41,6 +45,13 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
   const anchor = useSelectionAnchor(host, hidden ? [] : ids);
   const selected = !multi && selectedId ? elements.find(element => element.id === selectedId) : undefined;
   const area = printArea && printArea.width > 0 ? printArea : undefined;
+  const pair = multi && !hidden ? textAndShape(elements, ids) : null;
+  const fonts = useMemo(() => loadFontLibrary(), []);
+  const knockoutId = useRef<string | null>(null);
+  const fitRun = async (work: () => Promise<DesignElement[]>, selectId: string | undefined) => {
+    try { const next = await work(); onChange(next, selectId ?? knockoutId.current ?? undefined); studio.setSelectionIds([]); studio.setSelectionAdditive(false); }
+    catch (error) { console.warn('Text + shape', error); }
+  };
   const combine = useCombine(elements, multi && !hidden ? ids : [], (next, id) => { onChange(next, id); studio.setSelectionIds([]); studio.setSelectionAdditive(false); studio.setBooleanPreview([]); });
 
 
@@ -64,6 +75,16 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
     group: multi && !groupLayersIssue(elements, ids) ? () => { const id = crypto.randomUUID(); onChange(groupDesignLayers(elements, ids, id), id); } : undefined,
     combine: multi && !combine.issue ? { previews: combine.previews, run: op => void combine.run(op), builder: () => { studio.setBooleanPreview([]); startShapeBuilder(ids); } } : undefined,
     repeat: selected && !selected.artworkRepeat && selected.type !== 'group' ? mode => { const id = crypto.randomUUID(); onChange(createRepeat(elements, selected.id, mode, id), id); } : undefined,
+    textInShape: pair ? {
+      inside: () => void fitRun(() => placeTextInside(elements, pair.textId, pair.shapeId, fonts), pair.textId),
+      warp: () => void fitRun(() => warpTextToShape(elements, pair.textId, pair.shapeId, fonts), pair.textId),
+      knockout: () => void fitRun(async () => {
+        // Text must sit above the shape for Cut out; then outline it behind the scenes and subtract.
+        const ordered = [...elements.filter(e => e.id !== pair.textId)]; ordered.splice(ordered.findIndex(e => e.id === pair.shapeId) + 1, 0, elements.find(e => e.id === pair.textId)!);
+        const prepared = await outlineTextForCombine(ordered, ids, fonts), id = crypto.randomUUID();
+        knockoutId.current = id; return createBoolean(prepared, ids, 'subtract', id);
+      }, undefined),
+    } : undefined,
     centreOnGarment: () => { if (!area) return; onChange(alignArtwork(alignArtwork(elements, ids, 'center', area), ids, 'middle', area), selectedId ?? undefined); },
   };
 

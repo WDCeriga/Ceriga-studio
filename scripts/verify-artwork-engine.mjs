@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -118,3 +118,21 @@ const split = api.cutPathAtNode({ closed: false, nodes: [{ x: 0, y: 0 }, { x: 5,
 assert.equal(split.main.nodes.length, 2); assert.equal(split.extra.nodes.length, 2);
 assert.equal(api.cutPathAtNode({ closed: false, nodes: [{ x: 0, y: 0 }, { x: 5, y: 0 }] }, 0), null);
 console.log('artwork engine: phase 1 scissors ok');
+
+// Phase 2: words as shapes — a rectangle's profile is flat top/bottom; a circle's middle chord is its full width; warps stay finite.
+const rect = { id: 'r', type: 'shape', content: 'rect', x: 100, y: 100, width: 80, height: 40, rotation: 0, color: '#111', shapeFilled: true, borderWidth: 0, side: 'front' };
+const profile = api.shapeProfile(rect);
+assert(profile && profile.width > 50 && profile.topEdge.slice(4, -4).every(v => v < .02) && profile.bottomEdge.slice(4, -4).every(v => v > .98), 'rectangle profile is flat away from its rounded corners');
+const disc = api.shapeProfile({ ...rect, id: 'c', content: 'circle', width: 60, height: 60 });
+assert(disc.topEdge[24] < disc.topEdge[2], 'circle profile is higher in the middle than at the sides');
+assert(Math.abs(api.middleChord(disc).width - disc.width) < disc.width * .08, 'circle middle chord is its diameter');
+assert.deepEqual(api.textAndShape([rect, { id: 't', type: 'text', side: 'front' }], ['r', 't']), { textId: 't', shapeId: 'r' });
+assert.equal(api.textAndShape([rect], ['r']), null);
+const glyph = { closed: true, nodes: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }] };
+for (const type of ['squeeze', 'inflate', 'fisheye', 'twist', 'fan']) {
+  const out = api.applyVectorTextEffects(glyph, [{ id: 'w', type, enabled: true, bend: 60, horizontal: 0, vertical: 0 }], 200, 50);
+  assert(out.nodes.length > 4 && out.nodes.every(n => Number.isFinite(n.x) && Number.isFinite(n.y)), `${type} warp produces a finite outline`);
+}
+const env = api.applyVectorTextEffects(glyph, [{ id: 'e', type: 'envelope', enabled: true, bend: 0, horizontal: 0, vertical: 0, envelope: { top: [.5, 0, .5], bottom: [.5, 1, .5], aspect: 1 } }], 100, 100);
+assert(Math.min(...env.nodes.map(n => n.y)) < 5 && Math.max(...env.nodes.map(n => n.y)) > 95, 'envelope stretches the middle to the full height');
+console.log('artwork engine: phase 2 text shapes ok');

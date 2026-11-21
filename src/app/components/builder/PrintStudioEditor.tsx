@@ -209,7 +209,9 @@ export interface DesignElement extends ImageAdjustmentValues {
   id: string;
   fontId?:string;fontPostscriptName?:string;fontDisplayName?:string;fontAxes?:Record<string,number>;fontFeatures?:Record<string,boolean>;
   textGlyphTransforms?:Record<string,{x:number;y:number;rotation:number;scaleX:number;scaleY:number}>;
-  vectorTextEffects?:{id:string;type:'arc'|'arch'|'bulge'|'flag'|'wave'|'rise'|'perspective';enabled:boolean;bend:number;horizontal:number;vertical:number}[];
+  vectorTextEffects?:{id:string;type:'arc'|'arch'|'bulge'|'flag'|'wave'|'rise'|'perspective'|'squeeze'|'inflate'|'fisheye'|'twist'|'fan'|'envelope';enabled:boolean;bend:number;horizontal:number;vertical:number;
+    /** Envelope warp: top / bottom edge profiles (0–1 of the box) sampled evenly left→right, and the box aspect (w/h) to take on. */
+    envelope?:{top:number[];bottom:number[];aspect:number}}[];
   logoTrace?:import('../../lib/logoOutlineTypes').LogoTraceState;
   vectorEffects?:import('../../lib/vectorEffects').VectorEffects;
   layerOrderExplicit?:boolean;
