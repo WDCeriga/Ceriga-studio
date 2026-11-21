@@ -1,7 +1,12 @@
+import { RepeatCentreHandle } from './artwork-engine/interaction/RepeatCentreHandle';
+import { ShapeBuilderOverlay } from './artwork-engine/interaction/ShapeBuilderOverlay';
+import { useShapeBuilder } from './artwork-engine/state/shapeBuilder';
+import { PARAMETRIC_SHAPES } from './artwork-engine/geometry/shapes/registry';
 import {artworkTransformPreview} from '../../lib/artworkTransformPreview';
 import {shapePathData} from '../../lib/shapeGeometry';
 import {MultiArtworkTransform} from './printsStudio/MultiArtworkTransform';
 import { SelectionTransformControls } from './SelectionTransformControls';
+import { useNewObjectInk, ArtworkContextBar, formatTransformReadout, SpacingHints, equalSpacingSnap, spacingSignature, getSnapSettings, type SpacingHint } from './artwork-engine';
 import {ArtworkCanvasMenu} from './shell/ArtworkCanvasMenu';
 import {ArtworkSurfaceContext} from './printsStudio/ArtworkSurfaceContext';
 import {GarmentArtworkCameraLayer} from './printsStudio/GarmentArtworkCameraLayer';
@@ -255,6 +260,12 @@ export interface DesignElement extends ImageAdjustmentValues {
   wearRasterTinted?:boolean;
   wearDetail?:{roughness?:number;fray?:number;bend?:number;skew?:number;seed?:number};
   shapeCornerRadius?:number;
+  shapeCornerStyle?:'round'|'scoop'|'chamfer';
+  /** Live repeat group (Artwork Phase 1): child 0 is the hidden master, the rest are generated copies. */
+  artworkRepeat?:import('./artwork-engine/geometry/repeat').RepeatSettings;
+  repeatKey?:string;
+  repeatMaster?:boolean;
+  repeatCopy?:boolean;
   shapeGeometry?: 'bounds';
   shapeFilled?: boolean;
   shapeParameters?: Record<string, number | string>;
@@ -950,6 +961,8 @@ export function PrintsDesignStep({
     [elements, garmentSide],
   );
   const studio = usePrintsStudio();
+  // Artwork engine: new text and shapes start readable on the garment (keeps a colour the user picked). See artwork-engine/geometry/colour.
+  const newObjectInk = useNewObjectInk(studio.color);
   const setSelectedIdRef = useRef(setSelectedId);
   setSelectedIdRef.current = setSelectedId;
   const studioPanelRef = useRef(studio.panel);
@@ -1152,7 +1165,7 @@ export function PrintsDesignStep({
       rotation: 0,
       fontSize: narrow ? 22 : 30,
       fontFamily: 'Inter',
-      color: studio.color,
+      color: newObjectInk,
       borderWidth: 0,
       borderColor: '#FFFFFF',
       opacity: 100,
@@ -1197,7 +1210,7 @@ export function PrintsDesignStep({
 
   const addTextPreset = (preset: Partial<DesignElement>) => {
     const zone=document.querySelector('[data-print-design-zone]') as HTMLElement|null;
-    const element:DesignElement={id:crypto.randomUUID(),type:'text',content:preset.content??'Your brand',x:(zone?.clientWidth??720)/2,y:(zone?.clientHeight??616)/2,width:300,height:70,rotation:0,color:studio.color,fontFamily:'Inter',fontSize:30,textAlign:'center',autoWidth:true,autoHeight:true,textFrameMode:'point',opacity:100,printMethod:DEFAULT_PRINT_METHOD,side:garmentSide,...preset};
+    const element:DesignElement={id:crypto.randomUUID(),type:'text',content:preset.content??'Your brand',x:(zone?.clientWidth??720)/2,y:(zone?.clientHeight??616)/2,width:300,height:70,rotation:0,color:newObjectInk,fontFamily:'Inter',fontSize:30,textAlign:'center',autoWidth:true,autoHeight:true,textFrameMode:'point',opacity:100,printMethod:DEFAULT_PRINT_METHOD,side:garmentSide,...preset};
     onChange([...elements,element],element.id);setSelectedId(element.id);studio.setTool('select');
   };
   const capturePatternLayer = async (id: string): Promise<CustomPatternSource> => {
@@ -1210,7 +1223,7 @@ export function PrintsDesignStep({
 
   const placeStudioAsset = (kind: StudioAssetKind, id: string, settings?: PatternPatch) => {
     studio.setPathEditingId(null);
-    if(kind==='shape'&&['rect','ellipse','polygon','star','line'].includes(id)){studio.setLiveShape(id as 'rect'|'ellipse'|'polygon'|'star'|'line');studio.setPanel('shapes');studio.setPathEditingId(null);setSelectedId(null);studio.setTool('shapeLive');return;}
+    // Result first: clicking a shape card places it at once (the Shape tool on the canvas rail still drags out a custom size).
     if (kind === 'shape' && id === 'custom-polygon') {
       studio.setPenTargetId(null); studio.setSelectionIds([]);
       setSelectedId(null);
@@ -1236,9 +1249,11 @@ export function PrintsDesignStep({
       width: size.width,
       height: size.height,
       rotation: 0,
-      color: studio.color,
+      color: newObjectInk,
       borderWidth: 0,
-      ...(kind === 'shape' ? {...studioShapeDefaults(id),borderWidth:2,shapeStrokeColor:'#000000',shapeFilled:false} : {}),
+      ...(kind === 'shape' ? {...studioShapeDefaults(id),borderWidth:2,shapeStrokeColor:newObjectInk,shapeFilled:false} : {}),
+      // Phase 1: solid fashion shapes (badges, barcode, flames…) land filled in the readable ink.
+      ...(kind==='shape'&&PARAMETRIC_SHAPES[id]?.filled?{shapeFilled:true,shapeFillColor:newObjectInk,borderWidth:0}:{}),
       ...(kind==='shape'&&id==='paint-stain'?{shapeGeometry:'bounds' as const,shapeFilled:true,shapeFillColor:studio.color,shapePath:paintStainPath(),paintStain:{style:'splash',seed:37,spread:65},width:110,height:110}:{}),
       opacity: 100,
       locked: false,
@@ -2611,6 +2626,7 @@ export function PrintsDesignPreview({
   const isPackagingSurface = surfaceContext?.surface.kind === 'packagingPanel';
   const elements=useMemo(()=>orderDesignLayers(sourceElements),[sourceElements]);
   const studio = usePrintsStudio();
+  const newObjectInk = useNewObjectInk(studio.color); // Artwork engine: readable default ink
   const [contextImageId,setContextImageId]=useState<string|null>(null);
   const assetWorkspace = useAssetWorkspaceContext();
   const frameRef = useRef<HTMLDivElement>(null);
@@ -2814,13 +2830,16 @@ export function PrintsDesignPreview({
     beginTextEditing(element);
     studio.setTextEditRequest(null);
   }, [editable, elements, studio.textEditRequest, studio.setTextEditRequest]);
+  const shapeBuilderIds = useShapeBuilder();
   const [alignmentGuides, setAlignmentGuides] = useState<{
     vertical: number[];
     horizontal: number[];
+    /** Equal-spacing smart guides (artwork engine). */
+    spacing?: SpacingHint[];
   } | null>(null);
   /** Last guides actually committed to state so we can skip redundant setState
    *  calls during drag — identical guides don't need a re-render. */
-  const guidesRef = useRef<{ vertical: number[]; horizontal: number[] } | null>(null);
+  const guidesRef = useRef<{ vertical: number[]; horizontal: number[]; spacing?: SpacingHint[] } | null>(null);
 
   useLayoutEffect(() => {
     elementsRef.current = elements;
@@ -3180,7 +3199,7 @@ export function PrintsDesignPreview({
     const preview=source&&root?artworkTransformPreview(root,manip.kind==='resize'?manip.startElement:source,elementsRef.current,previewGarmentMask):null;
     const previewUpdate = (id: string, next: Partial<DesignElement>) => {
       patch = {...patch,...next};
-      if(preview&&source)preview.update({...source,...patch});else flushSync(()=>setLiveTransform({id,patch}));
+      if(preview&&source){preview.update({...source,...patch});/* Live readout without re-rendering the editor (engine formatter). */const chip=root?.querySelector('.cx-selection-chrome__readout');if(chip)chip.textContent=formatTransformReadout(manip.kind,{...source,...patch} as DesignElement,studio.unitsPerCm);}else flushSync(()=>setLiveTransform({id,patch}));
     };
     const applyMove = (e: PointerEvent) => {
       if (manip.kind === 'rotate') {
@@ -3295,9 +3314,13 @@ export function PrintsDesignPreview({
         zone.offsetWidth,
         zone.offsetHeight,
         draggingId,
-        snapBoxes,
-        {...(assetMode?{}:PREVIEW_SNAP_CENTER_NUDGE),tolerance:6*zone.offsetWidth/Math.max(1,zone.getBoundingClientRect().width)},
+        getSnapSettings().objects ? snapBoxes : [],
+        {...(assetMode?{}:PREVIEW_SNAP_CENTER_NUDGE),tolerance:6*zone.offsetWidth/Math.max(1,zone.getBoundingClientRect().width),centre:getSnapSettings().garment},
       );
+
+      /* Equal-spacing smart guides on any axis that didn't already snap to an edge or centre (artwork engine). */
+      const spacingSnap = snapHeldOff || !getSnapSettings().spacing ? null : equalSpacingSnap({x:snapped.x,y:snapped.y,halfW,halfH}, snapBoxes.filter(box=>box.id!==draggingId), 6*zone.offsetWidth/Math.max(1,zone.getBoundingClientRect().width), {x:snapped.verticalLines.length>0,y:snapped.horizontalLines.length>0});
+      if (spacingSnap?.hints.length) { snapped.x = spacingSnap.x; snapped.y = spacingSnap.y; }
 
       /* Skip setAlignmentGuides when the guide lines haven't actually changed —
        * React still does work for a same-value setState and we call this on
@@ -3307,10 +3330,12 @@ export function PrintsDesignPreview({
         prevGuides != null && arraysSame(prevGuides.vertical, snapped.verticalLines);
       const hSame =
         prevGuides != null && arraysSame(prevGuides.horizontal, snapped.horizontalLines);
-      if (!vSame || !hSame) {
+      const sSame = spacingSignature(prevGuides?.spacing) === spacingSignature(spacingSnap?.hints);
+      if (!vSame || !hSame || !sSame) {
         const nextGuides = {
           vertical: snapped.verticalLines,
           horizontal: snapped.horizontalLines,
+          spacing: spacingSnap?.hints,
         };
         guidesRef.current = nextGuides;
         setAlignmentGuides(nextGuides);
@@ -3554,7 +3579,15 @@ export function PrintsDesignPreview({
       )}
     >
       {editable && onChange && studio.tool==='select' && !studio.pathEditingId && <ArtworkSelectionTools elements={elements} side={garmentSide} selectedId={selectedId} onChange={onChange} onSelect={setSelectedId}/>}
-      {editable && cropEditingId && selectedElement?.id === cropEditingId ? (
+      {/* Artwork engine context toolbar (plan §7) — replaces the old floating toolbars on this canvas. */}
+        {editable && !narrowViewport && !showCanvasChromeToolbar && (
+          <ArtworkContextBar elements={elements} selectedId={selectedId} selectionIds={studio.selectionIds}
+            hidden={Boolean(shapeBuilderIds || manip || draggingId || dragLivePos || liveTransform || editingTextId || cropEditingId || studio.pathEditingId || studio.tool !== 'select')}
+            printArea={studio.printArea} onChange={(next, id) => onChangeRef.current?.(next, id)}
+            onDuplicate={duplicateElement} onRemove={removeElement} onUpdate={(id, patch) => updateElement(id, patch)}
+            onEditText={id => studio.setTextEditRequest(id)} onCrop={id => setCropEditingId(id)} />
+        )}
+        {editable && cropEditingId && selectedElement?.id === cropEditingId ? (
         <div data-editor-chrome data-crop-editor className="absolute inset-x-0 top-0 z-[210] flex justify-center p-2">
           <CropEditorControls draft={cropDraft} onChange={setCropDraft} onApply={applyCrop} onCancel={() => setCropEditingId(null)} />
         </div>
@@ -3898,6 +3931,9 @@ export function PrintsDesignPreview({
           {editable&&studio.booleanPreview.map(preview=><div key={preview.id} data-editor-chrome aria-hidden="true" className="pointer-events-none absolute" style={{left:preview.x,top:preview.y,width:preview.width,height:preview.height,transform:`translate(-50%,-50%) rotate(${preview.rotation}deg)`,opacity:.4,zIndex:95}}><StudioGraphic element={{...preview,shapeFilled:true,shapeFillColor:preview.shapeFillColor??preview.color??'#737373',borderWidth:0,shapeEffects:undefined}}/></div>)}
           {!surfaceContext && marqueeOverlay}
           {editable && alignmentGuides && <ArtworkAlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} inverseScale={uiInv} hairline={Boolean(surfaceContext && !isPackagingSurface)}/>}
+          {editable && !shapeBuilderIds && studio.tool === 'select' && selectedElement?.artworkRepeat && !draggingId && <RepeatCentreHandle group={selectedElement} inverseScale={uiInv} onChange={next => updateElement(next.id, next)}/>}
+                {editable && shapeBuilderIds && <ShapeBuilderOverlay elements={elements} ids={shapeBuilderIds} onCommit={(next, id) => { studio.setSelectionIds([]); studio.setSelectionAdditive(false); onChangeRef.current?.(next, id); }}/>}
+                {editable && alignmentGuides?.spacing && <SpacingHints hints={alignmentGuides.spacing} inverseScale={uiInv} unitsPerCm={studio.unitsPerCm}/>}
           {editable && (studio.tool === 'brush' || studio.tool === 'eraser') && elements
             .filter(element => element.id === DRAWING_LAYER_ID && designElementSide(element) === garmentSide)
             .map(element => <ImageAdjustmentDefs key={element.id} element={element} />)}
@@ -3922,7 +3958,7 @@ export function PrintsDesignPreview({
           {editable&&selectedElement?.type==='text'&&studio.adjustLettersId===selectedElement.id&&<GlyphAdjustmentOverlay element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onChange={patch=>updateElement(selectedElement.id,patch)} onDone={()=>studio.setAdjustLettersId(null)}/>}
           {editable&&studio.referenceTask&&elements.find(e=>e.id===studio.referenceTask?.id)&&<ReferenceTraceOverlay element={elements.find(e=>e.id===studio.referenceTask?.id)!} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onChange={patch=>updateElement(studio.referenceTask!.id,patch)} onAdd={shape=>{onChange?.([...elements,shape],shape.id);setSelectedId(shape.id);}}/>}
           {editable&&studio.tool==='textTracking'&&selectedElement?.type==='text'&&<TrackingDrag key={selectedElement.textSpacingDrag??'letterSpacing'} property={selectedElement.textSpacingDrag??'letterSpacing'} element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onCancel={()=>studio.setTool('select')} onComplete={value=>{const property=selectedElement.textSpacingDrag??'letterSpacing',index=studio.textSelection?.id===selectedElement.id?studio.textSelection.start:0;updateElement(selectedElement.id,property==='textKerning'&&index>0?{textKerningPairs:[...(selectedElement.textKerningPairs??[]).filter(pair=>pair.index!==index),{index,offset:value}]}:{[property]:value});studio.setTool('select');}}/>}
-          {editable&&studio.tool==='shapeLive'&&<LiveShapeDraft key={studio.liveShape} mirrorAxis={mirrorAxis} kind={studio.liveShape} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} unitsPerCm={studio.unitsPerCm} color={studio.color} side={garmentSide} onCancel={()=>studio.setTool('select')} onComplete={shape=>{addDrawnShape(shape);studio.setTool('select');}}/>}
+          {editable&&studio.tool==='shapeLive'&&<LiveShapeDraft key={studio.liveShape} mirrorAxis={mirrorAxis} kind={studio.liveShape} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} unitsPerCm={studio.unitsPerCm} color={newObjectInk} side={garmentSide} onCancel={()=>studio.setTool('select')} onComplete={shape=>{addDrawnShape(shape);studio.setTool('select');}}/>}
           {editable&&studio.tool==='shapePencil'&&<ShapePencilDraft mirrorAxis={mirrorAxis} width={zoneEl?.clientWidth??1} height={zoneEl?.clientHeight??1} onCancel={()=>studio.setTool('select')} onComplete={path=>{const next=createPenArtwork(path,studio.color,garmentSide,crypto.randomUUID(),surfaceContext?.surface.units==='mm'?.15:2);addDrawnShape(next);studio.setTool('select');}}/>}
           {editable && studio.tool === 'shapePolygon' && <PenPathDraft key={garmentSide + (studio.penTargetId ?? '')}
             width={zoneEl?.clientWidth ?? 1} height={zoneEl?.clientHeight ?? 1} color={studio.color}
@@ -4094,7 +4130,7 @@ export function PrintsDesignPreview({
                   warpEditing={warpEditingId === element.id && !studio.drawing}
                   onWarpChange={(warp) => updateElement(element.id, { warp })}
                   scale={1 / uiInv} onChange={patch => updateElement(element.id, patch)}
-                  overlay={<PrintTransformOverlay transformLabel={manip?.id===element.id?(manip.kind==='rotate'?`${Math.round(visualElement.rotation)}°`:`${visualElement.width.toFixed(1)} × ${visualElement.height.toFixed(1)} px`):undefined} tight hideBounds={element.type==='shape'&&Boolean(element.shapePath)&&!element.shapePath?.closed} rotation={visualElement.rotation} shapeChrome={element.type==='shape'||element.type==='customArea'} compactHandles={narrowViewport && element.type !== 'text'}
+                  overlay={<PrintTransformOverlay transformLabel={manip?.id===element.id?formatTransformReadout(manip.kind,visualElement,studio.unitsPerCm):undefined} tight hideBounds={element.type==='shape'&&Boolean(element.shapePath)&&!element.shapePath?.closed} rotation={visualElement.rotation} shapeChrome={element.type==='shape'||element.type==='customArea'} compactHandles={narrowViewport && element.type !== 'text'}
                     phoneTextMinimal={narrowViewport && element.type === 'text'} uiInverseScale={uiInv}
                     onRotatePointerDown={event => {
                       event.currentTarget.setPointerCapture(event.pointerId);

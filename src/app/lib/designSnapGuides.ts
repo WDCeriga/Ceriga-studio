@@ -15,6 +15,8 @@ export type SnapDragOptions = {
   centerNudgeFractionY?: number;
   /** Inset from zone edges (px, zone coordinates) so layers stay inside the visible area (same idea as extra-details clamp). */
   edgeInsetPx?: number;
+  /** Snap to the garment / canvas centre lines (default true). */
+  centre?: boolean;
 };
 
 export function snapDragInZone(
@@ -35,8 +37,9 @@ export function snapDragInZone(
   const midX = zoneW * (0.5 + nxFrac);
   const midY = zoneH * (0.5 + nyFrac);
 
-  const centerXTargets: number[] = [midX, ...others.map((o) => o.x)];
-  const centerYTargets: number[] = [midY, ...others.map((o) => o.y)];
+  const withCentre = options?.centre !== false;
+  const centerXTargets: number[] = [...(withCentre ? [midX] : []), ...others.map((o) => o.x)];
+  const centerYTargets: number[] = [...(withCentre ? [midY] : []), ...others.map((o) => o.y)];
 
   const edgeXTargets: number[] = [0, zoneW];
   const edgeYTargets: number[] = [0, zoneH];

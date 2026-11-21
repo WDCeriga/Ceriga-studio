@@ -23,7 +23,7 @@ export function VectorEffectsPanel({element,update}:{element:DesignElement;updat
   return !['grayscale','muted'].includes(look.id)&&!(blackOrWhite&&['bw','vibrant'].includes(look.id));
  });
  const change=(patch:Partial<VectorEffects>)=>update({vectorEffects:{preset,...settings,...patch}});
- return <StudioFold title="Artwork effects" value={VECTOR_LOOKS.find(look=>look.id===preset)?.label??'Original'}>
+ return <StudioFold title="Colour treatment" value={VECTOR_LOOKS.find(look=>look.id===preset)?.label??'Original'}>
   <fieldset disabled={element.locked} className="vector-effect-controls">
    <div className="artwork-look-grid vector-look-grid" role="group" aria-label="Artwork effect presets">
     {looks.map(look=><button key={look.id} type="button" aria-label={`Apply ${look.label} artwork effect`} aria-pressed={preset===look.id} onClick={()=>look.id==='none'?update({vectorEffects:undefined}):change({preset:look.id,strength:settings?.strength||100})}>

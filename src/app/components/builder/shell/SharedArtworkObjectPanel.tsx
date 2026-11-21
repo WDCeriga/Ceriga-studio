@@ -14,20 +14,24 @@ import {StudioFold,StudioPaint,StudioRange} from './StudioControls';
 import {TextAppearanceControls} from './TextAppearanceControls';
 import {shapeAppearance} from '../../../lib/shapeAppearance';
 import {MaterialSelect} from './MaterialSelect';
+import {inkOf,inkPatch} from '../artwork-engine';
 export function SharedArtworkObjectPanel({element,update,children}:{element:DesignElement;update:(patch:Partial<DesignElement>)=>void;children:ReactNode}){
- const surface=useContext(ArtworkSurfaceContext),workspace=useAssetWorkspaceContext(),canonical=useCanonicalArtworkElements([element],!workspace?.project)[0],studio=usePrintsStudio(),units=studio.unitsPerCm,type=element.logoTrace?'Trace':element.type==='customArea'?'Path':element.type==='drawing'?'Sketch':element.type.charAt(0).toUpperCase()+element.type.slice(1),nativeShape=element.type==='shape'&&!element.shapeBrush;
- return <div className="studio-object-panel" data-shared-object-inspector>
+ const surface=useContext(ArtworkSurfaceContext),workspace=useAssetWorkspaceContext(),canonical=useCanonicalArtworkElements([element],!workspace?.project)[0],studio=usePrintsStudio(),units=studio.unitsPerCm,type=element.logoTrace?'Trace':element.type==='customArea'?'Path':element.type==='drawing'?'Sketch':element.type.charAt(0).toUpperCase()+element.type.slice(1),nativeShape=element.type==='shape'&&!element.shapeBrush,quickShape=nativeShape&&!element.artworkAppearance&&!element.locked;
+ return <div className="studio-object-panel" data-shared-object-inspector data-panel-layout="quick-adjust-advanced">
  <ArtworkObjectIdentity element={element} update={update}/>
  {element.sketchOnly&&<button className="studio-outline-action" onClick={()=>update({sketchOnly:false})}>Use as artwork</button>}
- <ArtworkPrintMethod element={element} update={update} initiallyOpen/>
+ {/* QUICK — outline or filled, and the colour (plan §6.2). Shapes with a custom appearance stack keep Appearance below. */}
+ {quickShape&&<div className="cx-quick"><div className="cx-quick-size"><div className="typography-segments" role="group" aria-label="Shape style"><button type="button" aria-pressed={!element.shapeFilled} onClick={()=>update({shapeFilled:false,shapeStrokeColor:inkOf(element),borderWidth:element.borderWidth||2})}>Outline</button><button type="button" aria-pressed={Boolean(element.shapeFilled)} onClick={()=>update({shapeFilled:true,shapeFillColor:inkOf(element)})}>Filled</button></div><label className="cx-quick-ink" title="Colour" style={{background:inkOf(element)}}><input type="color" aria-label="Shape colour" value={/^#[0-9a-f]{6}$/i.test(inkOf(element))?inkOf(element):'#171717'} onChange={event=>update(inkPatch(element,event.target.value))}/></label></div></div>}
+ {/* ADJUST — the shape's own geometry first, then appearance, effects, arrange */}
+ <div className="studio-object-tools">{children}</div>
  <StudioFold title="Appearance" rowHeight={40} value={`${artworkColours(element).length} colour${artworkColours(element).length === 1 ? '' : 's'}`}><fieldset disabled={element.locked}>
  {nativeShape?<><TextAppearanceControls element={{...element,textUnitsPerCm:units,textAppearance:shapeAppearance(element,units)}} update={patch=>update({...('textAppearance'in patch?{artworkAppearance:patch.textAppearance,textUnitsPerCm:units}:{}),...('opacity'in patch?{opacity:patch.opacity}:{})})}/><label className="studio-field">Stroke cap<MaterialSelect aria-label="Stroke cap" value={element.shapeStrokeCap??'round'} onChange={event=>update({shapeStrokeCap:event.target.value as DesignElement['shapeStrokeCap']})}>{['round','butt','square'].map(cap=><option key={cap}>{cap}</option>)}</MaterialSelect></label>{element.artworkAppearance&&<button className="studio-outline-action" onClick={()=>update(expandShapeAppearance({...canonical,textUnitsPerCm:units},true))}>Expand appearance</button>}<StudioFold title="Colourway inks" rowHeight={40}><ArtworkColourSlots element={element} update={update}/></StudioFold></>:<><ArtworkColourSlots element={element} update={update}/>{!element.colourSlots?.length&&element.type!=='image'&&<StudioPaint label="Ink colour" value={element.color??'#171717'} onChange={color=>update({color})}/>}<StudioRange label="Opacity" value={element.opacity??100} onChange={opacity=>update({opacity})}/></>}
  <ArtworkClipControls element={element} update={update}/>
  </fieldset></StudioFold>
  <VectorEffectsPanel element={element} update={update}/>
- <div className="studio-object-tools">{children}</div>
  <ArtworkTransformFields element={element} update={update}/>
- {!surface&&<StudioFold title="Finish" rowHeight={40} value={element.artworkFinish?.type??'Standard ink'}><fieldset disabled={element.locked}><ArtworkFinishControls element={element} update={update}/></fieldset></StudioFold>}
-
+ {/* ADVANCED */}
+ {!surface&&<StudioFold title="Advanced" rowHeight={40}> {!surface&&<StudioFold title="Finish" rowHeight={40} value={element.artworkFinish?.type??'Standard ink'}><fieldset disabled={element.locked}><ArtworkFinishControls element={element} update={update}/></fieldset></StudioFold>}</StudioFold>}
+ <ArtworkPrintMethod element={element} update={update}/>
  </div>;
 }

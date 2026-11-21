@@ -1,0 +1,48 @@
+/* Context toolbar — a quiet white island above the selection (same family as the bottom canvas bar). */
+.cx-context-bar { position: absolute; z-index: 120; display: flex; align-items: center; gap: 2px; height: 36px; padding: 4px; border-radius: 10px;
+  background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 1px 2px -1px rgb(0 0 0 / .06), 0 4px 12px 0 rgb(0 0 0 / .06);
+  transform: translate(-50%, -100%); white-space: nowrap; pointer-events: auto; animation: cx-context-in 140ms ease-out; }
+.cx-context-bar[data-side='bottom'] { transform: translate(-50%, 0); }
+@keyframes cx-context-in { from { opacity: 0; } to { opacity: 1; } }
+
+.cx-context-bar__btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; min-width: 28px; padding: 0 7px; border: 0; border-radius: 6px;
+  background: transparent; color: #404040; font: 400 13px/1 Inter, system-ui, sans-serif; cursor: pointer; justify-content: center; }
+.cx-context-bar__btn[data-labelled] { padding: 0 9px 0 7px; }
+.cx-context-bar__btn:hover:not(:disabled) { background: #f2f2f0; color: #171717; }
+.cx-context-bar__btn[aria-pressed='true'] { background: #171717; color: #fff; }
+.cx-context-bar__btn[data-tone='danger']:hover:not(:disabled) { background: #fdecec; color: #b42318; }
+.cx-context-bar__btn:disabled { color: #c4c4c2; cursor: not-allowed; }
+.cx-context-bar__btn:focus-visible { outline: 2px solid #171717; outline-offset: 1px; }
+.cx-context-bar__btn svg { width: 16px; height: 16px; flex: none; }
+.cx-context-bar__sep { width: 1px; height: 18px; margin: 0 3px; background: #ececea; flex: none; }
+.cx-context-bar__custom { display: inline-flex; align-items: center; height: 28px; padding: 0 4px; }
+
+.cx-context-menu { z-index: 400; min-width: 200px; padding: 4px; border-radius: 10px; background: #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 8px 24px rgb(0 0 0 / .1); animation: cx-context-in 120ms ease-out; }
+.cx-context-menu__item { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 10px; border-radius: 6px; outline: none;
+  color: #262626; font: 400 13px/1 Inter, system-ui, sans-serif; cursor: pointer; user-select: none; }
+.cx-context-menu__item svg { width: 16px; height: 16px; color: #737373; flex: none; }
+.cx-context-menu__item[data-highlighted] { background: #f2f2f0; color: #171717; }
+.cx-context-menu__item[data-disabled] { color: #c4c4c2; cursor: default; }
+.cx-context-menu__item[data-tone='danger'][data-highlighted] { background: #fdecec; color: #b42318; }
+.cx-context-menu__sep { height: 1px; margin: 4px 6px; background: #ececea; }
+
+@media (prefers-reduced-motion: reduce) { .cx-context-bar, .cx-context-menu { animation: none; } }
+
+.cx-context-host { position: absolute; inset: 0; pointer-events: none; z-index: 110; }
+.cx-colour-well { position: relative; display: block; width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12), 0 0 0 2px #fff, 0 0 0 3px #e5e5e3; cursor: pointer; margin: 0 4px; }
+.cx-colour-well:hover { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12), 0 0 0 2px #fff, 0 0 0 3px #c8c8c5; }
+.cx-colour-well input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+/* Colour well reads as a swatch: inner hairline, white gap, soft outer ring (visible on white UI and on white ink) */
+.cx-colour-well { width: 18px; height: 18px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .18), 0 0 0 2px #fff, 0 0 0 3px #d4d4d1; }
+
+/* Equal-spacing chip (smart guides) — calm measurement blue, never red */
+.cx-spacing-chip { display: inline-block; padding: 1px 5px; border-radius: 4px; background: #2F6FED; color: #fff; font: 500 10px/14px Inter, system-ui, sans-serif; text-align: center; white-space: nowrap; }
+
+/* Snap menu (bottom bar) */
+.cx-snap-trigger { display: inline-flex; align-items: center; gap: 6px; }
+.cx-snap-trigger[aria-pressed='false'] { color: #a3a3a3 !important; }
+.cx-context-menu__label { padding: 6px 10px 4px; color: #8a8a8a; font: 400 12px/1.2 Inter, system-ui, sans-serif; }
+.cx-context-menu__check { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: none; }
+.cx-context-menu__item span small { display: block; margin-top: 2px; color: #8a8a8a; font-size: 12px; }
+.cx-context-menu__item:has(small) { height: auto; padding-top: 7px; padding-bottom: 7px; align-items: flex-start; }

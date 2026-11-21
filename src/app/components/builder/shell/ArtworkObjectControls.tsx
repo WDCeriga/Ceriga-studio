@@ -1,5 +1,5 @@
 import {ArtworkQuickActions} from './ArtworkQuickActions';
-import {useContext} from 'react';
+import {useContext,useState} from 'react';
 import {ArtworkSurfaceContext} from '../printsStudio/ArtworkSurfaceContext';
 import {isFabricArtwork} from '../../../lib/artworkProduction';
 import {Eye,EyeOff,Lock,Unlock,FlipHorizontal2,RotateCcw,RotateCw,RotateCwSquare,Undo2} from 'lucide-react';
@@ -15,6 +15,7 @@ import {StudioFold,StudioNumber,StudioPaint,StudioRange} from './StudioControls'
 import {MaterialSelect} from './MaterialSelect';
 import {PrintWearControls} from './PrintWearControls';
 import {TextileInkControls} from './TextileInkControls';
+import {garmentPlacements,placeOnGarment,rotateAboutPivot,PIVOT_GRID} from '../artwork-engine';
 
 type Props={element:DesignElement;update:(patch:Partial<DesignElement>)=>void};
 function wrapRotation(angle: number) {
@@ -23,7 +24,11 @@ function wrapRotation(angle: number) {
 }
 
 export function ArtworkOrientationControls({element, update}: Props) {
-  const rotate = (degrees: number) => update({rotation: wrapRotation(element.rotation + degrees)});
+  // Pivot (plan R7): every rotation keeps the chosen reference point fixed. Centre = previous behaviour.
+  const [pivotId,setPivotId] = useState('0:0');
+  const pivot = PIVOT_GRID.find(item=>item.id===pivotId)?.pivot ?? PIVOT_GRID[4].pivot;
+  const rotateTo = (rotation: number) => update(rotateAboutPivot(element, rotation, pivot));
+  const rotate = (degrees: number) => rotateTo(wrapRotation(element.rotation + degrees));
   // A canvas-diagonal reflection reverses the current angle before the local flip.
   const flipDiagonal = (angle: number) => update({
     rotation: wrapRotation(angle - element.rotation),
@@ -31,7 +36,7 @@ export function ArtworkOrientationControls({element, update}: Props) {
   });
 
   return <fieldset disabled={element.locked}>
-    <StudioNumber label="Rotation" unit="°" min={-360} max={360} value={element.rotation} onChange={rotation=>update({rotation})}/>
+    <div className="cx-rotation-row"><StudioNumber label="Rotation" unit="°" min={-360} max={360} value={element.rotation} onChange={rotation=>rotateTo(rotation)}/><div className="cx-pivot-grid" role="radiogroup" aria-label="Rotate around" title="Rotate around this point">{PIVOT_GRID.map(item=><button key={item.id} type="button" role="radio" aria-checked={pivotId===item.id} aria-label={item.label} title={item.label} onClick={()=>setPivotId(item.id)}/>)}</div></div>
     <div className="path-workflow-actions" role="group" aria-label="Rotate artwork">
       <button type="button" onClick={() => rotate(-90)}><RotateCcw size={14}/>90° left</button>
       <button type="button" onClick={() => rotate(90)}><RotateCw size={14}/>90° right</button>
@@ -54,11 +59,18 @@ export function ArtworkOrientationControls({element, update}: Props) {
 export function ArtworkObjectIdentity({element,update}:Props){return <><div className="studio-object-identity"><span className="studio-layer-thumb"><ArtworkThumbnail element={element}/></span><div style={{flex:1,minWidth:0}}><input aria-label="Artwork layer name" placeholder={element.type==='text'?element.content:'Name this artwork'} value={element.layerName??''} onChange={event=>update({layerName:event.target.value||undefined})}/><small>{element.type==='drawing'?(element.sketchOnly?'Sketch':'Drawing'):element.logoTrace?'Trace':element.type==='customArea'?'Path':element.type.charAt(0).toUpperCase()+element.type.slice(1)}</small></div><button aria-label={element.hidden?'Show artwork':'Hide artwork'} onClick={()=>update({hidden:!element.hidden})}>{element.hidden?<EyeOff size={15}/>:<Eye size={15}/>}</button><button aria-label={element.locked?'Unlock artwork':'Lock artwork'} onClick={()=>update({locked:!element.locked})}>{element.locked?<Lock size={16}/>:<Unlock size={16}/>}</button></div><ArtworkQuickActions element={element} update={update}/></>;}
 export function ArtworkTransformFields({element,update}:Props){
  const surface=useContext(ArtworkSurfaceContext),studio=usePrintsStudio(),unit=surface?.surface.units??'cm',units=unit==='mm'?studio.unitsPerCm/10:studio.unitsPerCm,origin=surface?{x:0,y:0}:{x:studio.printArea.x+studio.printArea.width/2,y:studio.printArea.y};
- return <StudioFold title="Position & size" rowHeight={40}><fieldset disabled={element.locked}>
+ // Arrange (plan §6.3): garment placements first, then exact numbers. Placements only make sense on a garment.
+ return <StudioFold title="Arrange" rowHeight={40}><fieldset disabled={element.locked}>
+ <GarmentPlacementChips element={element} update={update}/>
  <div className="studio-two-columns">{(['x','y','width','height'] as const).map(key=><StudioNumber key={key} label={{x:'X',y:'Y',width:'Width',height:'Height'}[key]} unit={unit} min={key==='width'||key==='height'?.01:-200} max={200} step={.01} value={(element[key]-(key==='x'?origin.x:key==='y'?origin.y:0))/units} onChange={value=>update({[key]:value*units+(key==='x'?origin.x:key==='y'?origin.y:0),...(element.aspectLocked&&key==='width'?{height:element.height*value*units/element.width}:element.aspectLocked&&key==='height'?{width:element.width*value*units/element.height}:{})})}/>)}</div>
  <label className="studio-switch">Lock ratio<input type="checkbox" checked={element.aspectLocked??false} onChange={event=>update({aspectLocked:event.target.checked})}/></label>
  <ArtworkOrientationControls element={element} update={update}/>
  </fieldset></StudioFold>;
+}
+/** One-tap garment placements (plan §16). Shown only for artwork on a garment, not labels / packaging / Asset Workspace. */
+export function GarmentPlacementChips({element,update}:Props){
+ const surface=useContext(ArtworkSurfaceContext),studio=usePrintsStudio(),workspace=useAssetWorkspaceContext(),onGarment=!surface&&!workspace?.project&&studio.printArea.width>0;
+ return <>{onGarment&&<div className="cx-placement-chips" role="group" aria-label="Place on garment">{garmentPlacements(((element as {side?:string}).side==='back'?'back':'front')).map(place=><button key={place.id} type="button" onClick={()=>{const box=element.type==='text'?{width:element.textLayoutWidth??element.width,height:element.textLayoutHeight??element.height}:element,placed=placeOnGarment(box,place.id,studio.printArea,studio.unitsPerCm);/* Text sizes from its font: scale the font by the same ratio instead of forcing a box. */update(element.type==='text'?{x:placed.x,y:placed.y,fontSize:Math.max(1,(element.fontSize??30)*placed.width/Math.max(1,box.width))}:placed)}}>{place.label}</button>)}</div>}</>;
 }
 export function ArtworkColourSlots({element,update}:Props){
  const context=useArtwork(),workspace=useAssetWorkspaceContext(),slots=element.colourSlots??[];

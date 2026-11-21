@@ -1,18 +1,2 @@
-.studio-selection-controls{position:absolute;inset:0;z-index:50;pointer-events:none}
-.studio-selection-frame{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-.studio-selection-handle{position:absolute;display:grid;place-items:center;padding:0;border:0;background:transparent;pointer-events:auto;touch-action:none}
-.studio-selection-handle:after{content:'';width:7px;height:7px;background:#fff;border:1px solid #CC2D24;border-radius:0}
-.studio-selection-rotate{position:absolute;left:50%;width:32px;height:32px;display:grid;place-items:center;padding:0;background:#fff;color:#CC2D24;border:1px solid #CC2D24;border-radius:50%;pointer-events:auto;touch-action:none;cursor:grab}
-.studio-selection-handle:focus-visible,.studio-selection-rotate:focus-visible{outline:2px solid #CC2D24;outline-offset:2px}
-.studio-selection-readout{position:absolute;left:50%;padding:4px 7px;background:#fff;border:1px solid #eee;border-radius:4px;color:#525252;font-size:10px;white-space:nowrap;transform-origin:top center}
-[data-logo-selection]>rect:not([aria-label]),[data-glyph-box]>rect:first-child{stroke:#CC2D24;stroke-dasharray:3 3}
-[data-logo-selection]>rect[aria-label],[data-logo-selection]>ellipse,[data-glyph-box]>rect[aria-label]:not(:first-child),[data-glyph-box]>circle{stroke:#CC2D24;fill:white}
-[data-artwork-multi-selection]{box-shadow:none!important;border:1px dashed #CC2D24!important;background:transparent!important}
-[data-label-handle] rect:last-child{stroke:#CC2D24;rx:0}
-
-/* Canvas hit areas stay invisible even inside legacy surface/button styling. */
-.studio-selection-controls>button.studio-selection-handle,
-.studio-selection-controls>button.studio-selection-handle:is(:hover,:focus,:focus-visible,:active){min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;background-image:none!important;box-shadow:none!important}
-.studio-selection-controls>button.studio-selection-handle:after{width:5px!important;height:5px!important;min-width:0!important;min-height:0!important;padding:0!important;border:1px solid #CC2D24!important;background:white!important;box-shadow:none!important}
-.studio-selection-controls>button.studio-selection-rotate,
-.studio-selection-controls>button.studio-selection-rotate:is(:hover,:focus,:active){width:24px!important;height:24px!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;padding:0!important;background:white!important;color:#CC2D24!important;border:1px solid #CC2D24!important;border-radius:50%!important;box-shadow:none!important}
+/* Retired: selection chrome styles now live in artwork-engine/interaction/selection-chrome.css
+   (gallery canvas states, no red). Kept as an empty module because MultiArtworkTransform imports it. */
