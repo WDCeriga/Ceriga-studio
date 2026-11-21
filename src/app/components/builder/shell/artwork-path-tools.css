@@ -32,3 +32,14 @@
 .path-secondary-options{margin:15px 0 12px;border-top:1px solid #ededed}.path-secondary-options>summary{display:flex;align-items:center;justify-content:space-between;list-style:none;cursor:pointer;padding:12px 0;font-size:12px;color:#737373}.path-secondary-options>summary::after{content:'+';font-size:16px}.path-secondary-options[open]>summary::after{content:'−'}.path-secondary-content{display:grid;gap:12px;padding-bottom:8px}.path-secondary-content .path-workflow-actions{margin-top:0}.combine-align-actions{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;padding:4px;background:#f6f6f6;border-radius:6px}.combine-align-actions>button{display:grid;place-items:center;min-width:0;height:34px;border:0;border-radius:4px;background:transparent;color:#525252}.combine-align-actions>button:hover{background:white;color:#262626}.combine-utility-actions>.material-select-trigger{flex-basis:100%;width:100%}.combine-operation-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.combine-operation-grid button{border-color:transparent;padding:9px 3px;border-radius:6px;background:#fafafa;font-size:10px}.combine-operation-grid button svg{width:48px;height:34px}
 
 .pen-point-options>div{display:flex;flex-direction:column;gap:0}.pen-point-options button,.pen-point-options label{justify-content:flex-start;border:0;border-bottom:1px solid #f0f0f0;border-radius:0;background:transparent;padding:9px 0;text-align:left}.pen-point-options button:hover:enabled{background:#f8f8f8}
+
+/* Phase 1 Combine: real result thumbnails with short names. */
+.cx-combine-choices{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0 10px}
+.ceriga-builder-shell .cx-combine-choices>button,.cx-combine-choices>button{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:8px 2px 6px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;font-size:11px;line-height:1.2;transition:border-color .15s ease-out,background-color .15s ease-out}
+.cx-combine-choices>button:hover:enabled{border-color:#bdbdb8;background:#f6f6f4}
+.cx-combine-choices>button:active:enabled{transform:scale(.97)}
+.cx-combine-choices>button:disabled{opacity:.4}
+.cx-combine-thumb{display:block;flex-shrink:0}
+.cx-combine-thumb path{fill:#1f1f1d}
+.cx-combine-thumb.is-empty path{fill:none;stroke:#bdbdb8;stroke-width:1;stroke-linecap:round}
+.cx-context-menu .cx-combine-thumb path{fill:currentColor}

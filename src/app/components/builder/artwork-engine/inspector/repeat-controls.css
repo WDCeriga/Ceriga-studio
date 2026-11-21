@@ -1,0 +1,18 @@
+﻿/* Repeat panel (Phase 1): mode tiles match the corner-style tiles; glyphs are line icons. */
+.cx-repeat-glyph{display:block;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.cx-repeat-modes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.ceriga-builder-shell .builder-inspector .cx-repeat-modes>button{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:8px 2px 7px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;font-size:11px;line-height:1.2;text-align:center;transition:border-color .15s ease-out,background-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-repeat-modes>button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-repeat-modes>button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4;color:#1f1f1d}
+.cx-repeat-toggles{display:flex;gap:6px;margin:2px 0 10px}
+.ceriga-builder-shell .builder-inspector .cx-repeat-toggles>button{height:28px;padding:0 12px;border-radius:999px;border:1px solid #dadad7;background:#f6f6f4;color:#3f3f3c;font-size:12px}
+.ceriga-builder-shell .builder-inspector .cx-repeat-toggles>button[aria-pressed=true]{background:#1f1f1d;border-color:#1f1f1d;color:#fff}
+.cx-repeat-colour{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px;font-size:13px;color:#3f3f3c}
+.cx-repeat-colour input{width:28px;height:28px;padding:0;border:1px solid #dadad7;border-radius:999px;overflow:hidden;background:none;cursor:pointer}
+.cx-repeat-colour input::-webkit-color-swatch-wrapper{padding:0}.cx-repeat-colour input::-webkit-color-swatch{border:0;border-radius:999px}
+.cx-repeat-source{margin:4px 0 12px;border-top:1px solid #ececea;padding-top:10px}
+.ceriga-builder-shell .builder-inspector .cx-repeat-source__toggle{display:flex;align-items:baseline;justify-content:space-between;width:100%;padding:6px 0;background:none;border:0;color:#1f1f1d;font-size:13px;text-align:left}
+.cx-repeat-source__toggle small{color:#8a8a85;font-size:12px}
+.cx-repeat-source__toggle::after{content:'';width:7px;height:7px;margin-left:8px;border-right:1.5px solid #8a8a85;border-bottom:1.5px solid #8a8a85;transform:translateY(-2px) rotate(45deg);transition:transform .15s ease-out}
+.cx-repeat-source__toggle[aria-expanded=true]::after{transform:translateY(1px) rotate(-135deg)}
+.cx-repeat-source__body{padding:6px 0 2px}

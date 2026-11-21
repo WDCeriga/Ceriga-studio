@@ -27,3 +27,22 @@
 .shapes-library .shape-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:16px}
 .shapes-library .shape-choice-grid>.shape-choice-card{display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:8px;min-width:0;min-height:88px;padding:10px 12px;background:var(--builder-ui-surface,#fff);border:1px solid var(--builder-ui-line,#dedede);border-radius:5px;text-align:left;color:var(--builder-ui-text,#262626)}
 .shapes-library .shape-choice-preview{height:44px;width:100%}.shapes-library .shape-choice-card>span:last-child{font-size:11px;text-align:left;line-height:1.4}.shapes-library .shape-choice-card:hover{background:var(--builder-ui-soft,#f5f5f5);border-color:var(--builder-ui-muted,#a3a3a3)}.shape-choice-card:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+/* Artwork Phase 1: visible shape families (chips) and a denser three-up library. */
+.shapes-library .shape-library-controls{display:flex;align-items:center;gap:8px;min-width:0}
+.cx-shape-families{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;padding:2px 0;mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.cx-shape-families::-webkit-scrollbar{display:none}
+.cx-shape-families>button{flex:none;height:28px;padding:0 11px;border-radius:999px;border:1px solid #dadad7;background:#f6f6f4;color:#3f3f3c;font-size:12px;line-height:1;white-space:nowrap;transition:background-color .15s ease-out,border-color .15s ease-out,color .15s ease-out}
+.cx-shape-families>button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-shape-families>button[aria-selected=true],.cx-shape-families>button[aria-selected=true]{background:#1f1f1d;border-color:#1f1f1d;color:#fff}
+.shapes-library .shape-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.shapes-library .shape-choice-grid>.shape-choice-card{min-height:78px;padding:8px 8px 7px;gap:6px;align-items:center;border-color:#e6e6e3}
+.shapes-library .shape-choice-preview{height:40px}
+.shapes-library .shape-choice-card>span:last-child{font-size:11px;text-align:center;line-height:1.25;text-wrap:balance;max-width:100%}
+
+/* Live corners: three visual style tiles. */
+.cx-corner-styles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.ceriga-builder-shell .builder-inspector .cx-corner-styles>button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px 7px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;font-size:12px;transition:border-color .15s ease-out,background-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-corner-styles>button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-corner-styles>button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4;color:#1f1f1d}
+.cx-corner-styles svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}

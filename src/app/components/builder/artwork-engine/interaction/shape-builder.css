@@ -1,0 +1,12 @@
+/* Shape builder (Phase 1): pieces in measurement blue; merge trail darker. Garment coordinates, so strokes don't scale. */
+.cx-shape-builder{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;z-index:1000;touch-action:none}
+.cx-shape-builder path{fill:rgb(47 111 237 / .06);stroke:#2F6FED;stroke-width:1;stroke-dasharray:3 3;vector-effect:non-scaling-stroke;cursor:crosshair;pointer-events:all;transition:fill .12s ease-out}
+.cx-shape-builder path.is-hover{fill:rgb(47 111 237 / .22);stroke-dasharray:none}
+.cx-shape-builder path.is-merging{fill:rgb(47 111 237 / .38);stroke-dasharray:none}
+.cx-shape-builder-bar{position:fixed;left:50%;top:58px;transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 14px;border-radius:999px;background:#fff;color:#3f3f3c;font-size:12px;white-space:nowrap;box-shadow:0 0 0 1px rgb(0 0 0 / .06),0 1px 2px -1px rgb(0 0 0 / .06),0 4px 12px rgb(0 0 0 / .06)}
+.cx-shape-builder-bar strong{font-weight:500;color:#1f1f1d;font-size:13px}
+.cx-shape-builder-bar span{color:#7a7a75}
+.cx-shape-builder-bar button{height:28px;padding:0 12px;border-radius:999px;border:1px solid #dadad7;background:#f6f6f4;color:#1f1f1d;font-size:12px}
+.cx-shape-builder-bar button.is-primary{background:#1f1f1d;border-color:#1f1f1d;color:#fff}
+@media (max-width:767px){.cx-shape-builder-bar span{display:none}}
+html[data-shape-builder] :is(.cx-selection-chrome,.cx-context-host){display:none}

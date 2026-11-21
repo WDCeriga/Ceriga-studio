@@ -1,5 +1,6 @@
 import {roundNormalizedVectorPath} from './roundedVectorPath';
 import {ARTWORK_MOTIFS,editableSvgPath} from './artworkMotifs';
+import {parametricShapeControls,parametricShapePath} from '../components/builder/artwork-engine/geometry/shapes/registry';
 export interface ShapePathNode {
   x: number;
   y: number;
@@ -21,6 +22,7 @@ export interface ShapePath {
 
 export interface ShapeGeometryElement {
   shapeCornerRadius?:number;
+  shapeCornerStyle?:'round'|'scoop'|'chamfer';
   drawingVectorSource?:unknown;
   type?: string;
   content: string;
@@ -47,6 +49,8 @@ const roundness = control('roundness', 'Roundness', 0, 100, 0);
 const corners = ['Top left', 'Top right', 'Bottom right', 'Bottom left'].map((label, i) => control(['cornerTopLeft', 'cornerTopRight', 'cornerBottomRight', 'cornerBottomLeft'][i], `${label} corner`, 0, 32, 4));
 
 export function shapeControls(content: string): ShapeControl[] {
+  const parametric = parametricShapeControls(content); // Artwork engine fashion shapes (Phase 1)
+  if (parametric) return parametric;
   switch (content) {
     case 'ellipse': case 'circle': return [
       { key: 'ellipseMode', label: 'Ellipse shape', min: 0, max: 0, step: 1, default: 'full', options: [
@@ -185,6 +189,8 @@ function clonePath(path: ShapePath): ShapePath {
 function rawShapeToEditablePath(element: ShapeGeometryElement): ShapePath {
   if (element.shapePath) return clonePath(element.shapePath);
   const content = element.content;
+  const parametric = parametricShapePath(element); // Artwork engine fashion shapes (Phase 1)
+  if (parametric) return parametric;
   if(ARTWORK_MOTIFS[content])return editableSvgPath(ARTWORK_MOTIFS[content]);
   const p = (key: string, fallback: number, min = 0, max = 100) => parameter(element, key, fallback, min, max);
   const rounding = p('roundness', 0);
@@ -374,4 +380,4 @@ function fittedShapeToEditablePath(element:ShapeGeometryElement):ShapePath{
 }
 
 /** A zero radius always returns the original editable path. */
-export function shapeToEditablePath(element:ShapeGeometryElement):ShapePath{const path=fittedShapeToEditablePath(element);return element.shapeCornerRadius?roundNormalizedVectorPath(path,element.shapeCornerRadius,Math.max(1,element.width??100),Math.max(1,element.height??100)):path;}
+export function shapeToEditablePath(element:ShapeGeometryElement):ShapePath{const path=fittedShapeToEditablePath(element);return element.shapeCornerRadius?roundNormalizedVectorPath(path,element.shapeCornerRadius,Math.max(1,element.width??100),Math.max(1,element.height??100),element.shapeCornerStyle??'round'):path;}

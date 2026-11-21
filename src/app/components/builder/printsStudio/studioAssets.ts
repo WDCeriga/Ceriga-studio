@@ -1,3 +1,4 @@
+import { PARAMETRIC_SHAPES } from '../artwork-engine/geometry/shapes/registry';
 export const ARTWORK_UPLOAD_DRAG_MIME='application/x-ceriga-upload';
 import { PATTERN_CATALOG } from '../../../lib/patternCatalog';
 import { shapeIsClosed, type ShapeGeometryElement } from '../../../lib/shapeGeometry';
@@ -57,6 +58,8 @@ export const SHAPE_ASSETS: StudioAsset[] = [
   { id: 'cloud', label: 'Cloud', kind: 'shape' },
   { id: 'blob', label: 'Blob', kind: 'shape' },
   { id: 'custom-polygon', label: 'Custom Polygon', kind: 'shape' },
+  // Parametric fashion shapes from the Artwork engine registry (Phase 1).
+  ...Object.values(PARAMETRIC_SHAPES).map(shape => ({ id: shape.id, label: shape.label, kind: 'shape' as const })),
 ];
 
 export function canFillShape(element: ShapeGeometryElement) {
