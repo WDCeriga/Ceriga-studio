@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -108,3 +108,13 @@ const gapped = api.updateRepeat(six, { settings: { gap: 3 } });
 assert(gapped.children.slice(1).every(child => child.content === 'custom-path'), 'overlapping copies are cut by the next copy');
 const released = api.releaseRepeat(gapped); assert.equal(released.children.length, 6, `release keeps the copies, drops the master (${gapped.children.length} → ${released.children.length})`);
 console.log('artwork engine: phase 1 repeat ok');
+
+// Phase 1: scissors — a closed square opens at an anchor; an open path splits in two; endpoints can't be cut.
+const sq = { closed: true, nodes: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }] };
+const opened = api.cutPathAtNode(sq, 2);
+assert(opened && !opened.main.closed && !opened.extra && opened.main.nodes.length === 5, 'closed path opens with the cut point at both ends');
+assert.deepEqual([opened.main.nodes[0].x, opened.main.nodes[0].y, opened.main.nodes[4].x, opened.main.nodes[4].y], [10, 10, 10, 10]);
+const split = api.cutPathAtNode({ closed: false, nodes: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 10, y: 0 }] }, 1);
+assert.equal(split.main.nodes.length, 2); assert.equal(split.extra.nodes.length, 2);
+assert.equal(api.cutPathAtNode({ closed: false, nodes: [{ x: 0, y: 0 }, { x: 5, y: 0 }] }, 0), null);
+console.log('artwork engine: phase 1 scissors ok');

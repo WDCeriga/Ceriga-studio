@@ -2,7 +2,8 @@ import {fitDraftEdge,referenceEdgeFit,fitWholeReference} from '../../../lib/refe
 import {useTraceEdges} from './useTraceEdges';
 import {usePrintsStudio} from './PrintsStudioContext';
 import {shapeWorldPath} from '../../../lib/artworkPathOperations';
-import {MousePointer2,Plus,Minus,CornerUpRight,Circle,Spline} from 'lucide-react';
+import {MousePointer2,Plus,Minus,CornerUpRight,Circle,Spline,Scissors} from 'lucide-react';
+import {cutPathAtNode} from '../artwork-engine/geometry/pathCut';
 import {frameGesture} from '../../../lib/frameGesture';
 import {mapShapePath} from '../../../lib/artworkPathOperations';
 import {bendPenSegment,nearestPenSegment} from '../../../lib/penGeometry';
@@ -33,7 +34,7 @@ export function ShapePathEditor({ element, tracingElements=[], scale, onChange, 
   const [linked, setLinked] = useState(true);
   const [cleanupOpen,setCleanupOpen]=useState(false);
   const [pointBox,setPointBox]=useState<MarqueeBox|null>(null);
-  const [mode,setMode]=useState<'move'|'add'|'remove'|'convert'|'pen'|'fit'>('move');
+  const [mode,setMode]=useState<'move'|'add'|'remove'|'convert'|'cut'|'pen'|'fit'>('move');
   const studio=usePrintsStudio(),[fitIndex,setFitIndex]=useState(0),[otherRoute,setOtherRoute]=useState(false),[fitError,setFitError]=useState(''),edges=useTraceEdges(tracingElements,mode==='fit',studio.layerRenderer.current);
   const cancelDrag = useRef<(() => void) | null>(null);
   const [transientPath,setTransientPath]=useState<ShapePath|null>(null);
@@ -57,7 +58,7 @@ export function ShapePathEditor({ element, tracingElements=[], scale, onChange, 
       const state = latest.current;
       const store = (next: ShapePath) => state.onChange(state.subpath < 0 ? next : { ...state.path, subpaths: state.path.subpaths?.map((part, index) => index === state.subpath ? next : part) });
       if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'){event.preventDefault();event.stopImmediatePropagation();setSelection(state.activePath.nodes.map((_,i)=>i));return;}
-      if(!event.ctrlKey&&!event.metaKey&&!event.altKey){const next=event.key==='+'||event.key==='='?'add':event.key==='-'?'remove':event.key.toLowerCase()==='c'?'convert':event.key.toLowerCase()==='a'?'move':event.key.toLowerCase()==='p'?'pen':null;if(next){event.preventDefault();event.stopImmediatePropagation();setMode(next);return;}}
+      if(!event.ctrlKey&&!event.metaKey&&!event.altKey){const next=event.key==='+'||event.key==='='?'add':event.key==='-'?'remove':event.key.toLowerCase()==='c'?'convert':event.key.toLowerCase()==='a'?'move':event.key.toLowerCase()==='x'?'cut':event.key.toLowerCase()==='p'?'pen':null;if(next){event.preventDefault();event.stopImmediatePropagation();setMode(next);return;}}
       if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); cancelDrag.current?.(); state.onDone(); }
       if ((event.key === 'Delete' || event.key === 'Backspace') && state.selection.length) {
         event.preventDefault(); event.stopImmediatePropagation();
@@ -90,6 +91,8 @@ export function ShapePathEditor({ element, tracingElements=[], scale, onChange, 
     event.preventDefault(); event.stopPropagation();
     cancelDrag.current?.();svg.current?.focus({preventScroll:true});
     if(!handle&&mode==='pen'&&!activePath.closed&&!activePath.subpaths?.length&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&(index===0||index===activePath.nodes.length-1)&&onContinue){onContinue(index===0);return;}
+    // Scissors: open a closed path at this anchor, or split an open path in two (extra piece joins the subpaths).
+    if(!handle&&mode==='cut'){const cut=cutPathAtNode({...activePath,subpaths:undefined},index);if(cut){const pieces=cut.extra?[cut.extra]:[];onChange(subpath<0?{...cut.main,subpaths:[...(path.subpaths??[]),...pieces]}:{...path,subpaths:[...(path.subpaths??[]).map((part,i)=>i===subpath?cut.main:part),...pieces]});setSelection([]);}return;}
     if(!handle&&(mode==='remove'||(mode==='pen'&&!event.ctrlKey&&!event.metaKey&&!event.altKey))){apply(deleteShapePoints(activePath,[index]));setSelection([]);return;}
     const indices = handle ? selection : event.shiftKey ? selection.includes(index) ? selection.filter(i => i !== index) : [...selection, index] : selection.includes(index) ? selection : [index];
     if (!handle) setSelection(indices);
@@ -164,7 +167,7 @@ export function ShapePathEditor({ element, tracingElements=[], scale, onChange, 
   return <div data-shape-path-editor data-editor-chrome className="pointer-events-none absolute inset-0 z-50">
     {controlsHost&&createPortal(<div role="toolbar" aria-label="Path point actions" className="pen-inspector-controls shape-point-toolbar">
       <div className="pen-controls-heading"><strong>Edit points</strong><span>{activePath.nodes.length} points</span></div><p className="pen-controls-hint">Drag across anchors to select a section. Drag a segment to bend it. Shift adds points; Alt adjusts one handle.</p>
-      <div className="pen-mode-actions" role="group" aria-label="Point editing mode">{(['move','add','remove','convert'] as const).map(action=>{const Icon={move:MousePointer2,add:Plus,remove:Minus,convert:CornerUpRight}[action];return <button key={action} className={button} aria-pressed={mode===action} onClick={()=>setMode(action)}><Icon size={16}/><span>{({move:'Move points',add:'Add point',remove:'Remove point',convert:'Corner / curve'})[action]}</span></button>})}</div>
+      <div className="pen-mode-actions" role="group" aria-label="Point editing mode">{(['move','add','remove','convert','cut'] as const).map(action=>{const Icon={move:MousePointer2,add:Plus,remove:Minus,convert:CornerUpRight,cut:Scissors}[action];return <button key={action} className={button} aria-pressed={mode===action} onClick={()=>setMode(action)}><Icon size={16}/><span>{({move:'Move points',add:'Add point',remove:'Remove point',convert:'Corner / curve',cut:'Cut path'})[action]}</span></button>})}</div>
       <button className={button} aria-pressed={mode==='fit'} onClick={()=>setMode(mode==='fit'?'move':'fit')}>Fit edge to reference</button>
       {mode==='fit'&&<div className="pen-reference-fit-controls"><p className="path-workflow-help">Click an edge on your drawing to fit it to the reference. Your rough points guide which boundary to follow.</p><StudioNumber label="Edge to fit" min={1} max={Math.max(1,activePath.nodes.length-(activePath.closed?0:1))} step={1} unit="" value={Math.min(fitIndex+1,Math.max(1,activePath.nodes.length-(activePath.closed?0:1)))} onChange={value=>setFitIndex(value-1)}/><label className="studio-switch">Take the other route<input type="checkbox" checked={otherRoute} onChange={event=>setOtherRoute(event.target.checked)}/></label><div className="pen-draft-actions"><button disabled={edges.loading||!edges.contours.length} onClick={()=>fitEdge(Math.min(fitIndex,activePath.nodes.length-(activePath.closed?1:2)))}>{edges.loading?'Reading outline…':'Fit selected edge'}</button><button disabled={edges.loading||!edges.contours.length} onClick={fitAll}>Fit whole outline</button></div>{fitError&&<p role="alert" className="pen-inline-error">{fitError}</p>}</div>}
       {selection.length>1&&<span className="pen-selection-count">{selection.length} points selected · drag a selected point to move them together</span>}

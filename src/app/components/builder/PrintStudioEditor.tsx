@@ -256,6 +256,9 @@ export interface DesignElement extends ImageAdjustmentValues {
   drawingSmoothness?:number;
   paintStain?:{style:string;seed:number;spread:number};
   shapeStrokeStyle?:'solid'|'dashed'|'dotted'|'double';
+  /** Dash length and gap (garment px); default from stroke width. */
+  shapeDashLength?:number;
+  shapeDashGap?:number;
   shapeOutlineAccent?:string;
   wearRasterTinted?:boolean;
   wearDetail?:{roughness?:number;fray?:number;bend?:number;skew?:number;seed?:number};

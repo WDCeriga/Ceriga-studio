@@ -46,3 +46,11 @@
 .ceriga-builder-shell .builder-inspector .cx-corner-styles>button:hover{border-color:#bdbdb8}
 .ceriga-builder-shell .builder-inspector .cx-corner-styles>button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4;color:#1f1f1d}
 .cx-corner-styles svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.cx-dash-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
+/* Line style tiles (Appearance): tiny previews of each stroke. */
+.cx-stroke-style{margin:6px 0 10px}
+.cx-stroke-style__row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.ceriga-builder-shell .builder-inspector .cx-stroke-style__row>button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px 6px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;font-size:11px;transition:border-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-stroke-style__row>button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-stroke-style__row>button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4;color:#1f1f1d}
+.cx-stroke-style svg{width:36px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;flex-shrink:0}

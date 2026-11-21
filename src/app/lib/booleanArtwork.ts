@@ -3,7 +3,7 @@ import type {DesignElement} from '../components/builder/PrintStudioEditor';
 import {combineArtworkPaths,fitPenPath,mapShapePath,pathPolygons,shapeWorldPath,type PathOperation} from './artworkPathOperations';
 import type {ShapePath} from './shapeGeometry';
 export type BooleanOperation=PathOperation|'divide';
-const paintKeys=['color','shapeFilled','shapeFillColor','shapeStrokeColor','borderWidth','shapeStrokeCap','shapeStrokeJoin','shapeStrokeAlign','shapeStrokeStyle','shapeOutlineAccent','shapeFillReference','shapeStrokeReference','shapeEffects','opacity','printMethod'] as const;
+const paintKeys=['color','shapeFilled','shapeFillColor','shapeStrokeColor','borderWidth','shapeStrokeCap','shapeStrokeJoin','shapeStrokeAlign','shapeStrokeStyle','shapeDashLength','shapeDashGap','shapeOutlineAccent','shapeFillReference','shapeStrokeReference','shapeEffects','opacity','printMethod'] as const;
 const paint=(source:DesignElement)=>Object.fromEntries(paintKeys.map(key=>[key,source[key]]));
 function divide(geometries:MultiPolygon[]):MultiPolygon{
  let pieces:MultiPolygon[]=[];
