@@ -289,6 +289,8 @@ export interface DesignElement extends ImageAdjustmentValues {
   textScaleX?:number;textScaleY?:number;
   textBaselineShift?:number;
   textFrameMode?:'point'|'area';
+  /** Applied text recipe and the style it replaced (Artwork Phase 2). */
+  textRecipe?:import('./artwork-engine/typography/recipes').TextRecipeState;
   textKerningPairs?:{index:number;offset:number}[];
   textKerning?:number;
   fontStyle?: 'normal' | 'italic';

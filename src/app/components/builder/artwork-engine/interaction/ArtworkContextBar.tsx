@@ -1,4 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
+import { ArtworkSurfaceContext } from '../../printsStudio/ArtworkSurfaceContext';
+import { useArtworkScene } from '../state/scene';
+import { applyTextRecipe, clearTextRecipe } from '../typography/recipes';
 import type { DesignElement } from '../../PrintStudioEditor';
 import { alignArtwork, arrangeArtwork, distributeArtwork, type Area } from '../../../../lib/artworkArrange';
 import { ContextToolbar, useSelectionAnchor } from './ContextToolbar';
@@ -40,6 +43,8 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
 }) {
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const studio = usePrintsStudio();
+  const scene = useArtworkScene();
+  const onSurface = useContext(ArtworkSurfaceContext);
   const multi = selectionIds.length > 1;
   const ids = multi ? selectionIds : selectedId ? [selectedId] : [];
   const anchor = useSelectionAnchor(host, hidden ? [] : ids);
@@ -84,6 +89,11 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
         const prepared = await outlineTextForCombine(ordered, ids, fonts), id = crypto.randomUUID();
         knockoutId.current = id; return createBoolean(prepared, ids, 'subtract', id);
       }, undefined),
+    } : undefined,
+    textRecipes: selected?.type === 'text' ? {
+      active: selected.textRecipe?.id,
+      apply: id => onUpdate(selected.id, applyTextRecipe(selected, id, onSurface ? undefined : scene.surfaceColour, studio.unitsPerCm)),
+      clear: selected.textRecipe ? () => onUpdate(selected.id, clearTextRecipe(selected)) : undefined,
     } : undefined,
     centreOnGarment: () => { if (!area) return; onChange(alignArtwork(alignArtwork(elements, ids, 'center', area), ids, 'middle', area), selectedId ?? undefined); },
   };

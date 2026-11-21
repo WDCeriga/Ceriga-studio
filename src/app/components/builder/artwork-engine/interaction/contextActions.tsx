@@ -3,13 +3,14 @@ import {
   Copy, FlipHorizontal2, FlipVertical2, Trash2, Lock, Unlock, Type, Crop, ArrowUpToLine, ArrowUp, ArrowDown, ArrowDownToLine,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2, TypeOutline, SquareDot, Spline, SquareDashed,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2, Sparkles, TypeOutline, SquareDot, Spline, SquareDashed,
 } from 'lucide-react';
 import type { ContextAction } from './ContextToolbar';
 import type { BooleanOperation } from '../../../../lib/booleanArtwork';
 import { COMBINE_OPS, type CombinePreview } from '../geometry/combine';
 import { CombineThumb } from '../inspector/CombineChoices';
 import { REPEAT_MODES, type RepeatMode } from '../geometry/repeat';
+import { RECIPE_FAMILIES, TEXT_RECIPES } from '../typography/recipes';
 import { RepeatGlyph } from '../inspector/RepeatControls';
 
 export type ArrangeDirection = 'front' | 'forward' | 'backward' | 'back';
@@ -34,6 +35,8 @@ export type ContextHandlers = {
   /** Single object: make a live repeat (around a centre, mirror, 4-way, 180° turn). */
   repeat?: (mode: RepeatMode) => void;
   /** Multi-select of one text + one shape: words take the shape (plan F.2). */
+  /** Single text: one-tap styles (plan §9.6). */
+  textRecipes?: { active?: string; apply: (id: string) => void; clear?: () => void };
   textInShape?: { warp: () => void; inside: () => void; knockout: () => void };
 };
 
@@ -97,6 +100,10 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
   if (selection.type === 'text' && h.editText) primary.push({ id: 'edit', label: 'Edit text', icon: <Type size={ICON} />, showLabel: true, disabled: locked, onSelect: h.editText });
   if (selection.type === 'image' && h.crop) primary.push({ id: 'crop', label: 'Crop', icon: <Crop size={ICON} />, showLabel: true, disabled: locked, onSelect: h.crop });
   if (selection.colourControl && !locked) primary.push({ id: 'colour', label: 'Colour', render: selection.colourControl });
+  if (selection.type === 'text' && h.textRecipes && !locked) primary.push({ id: 'style', label: 'Style', icon: <Sparkles size={ICON} />, showLabel: true, menu: [
+    ...RECIPE_FAMILIES.flatMap((family, index): ContextAction[] => [...(index ? [{ id: 'sep-' + family, label: '' }] : []), ...TEXT_RECIPES.filter(recipe => recipe.family === family).map((recipe): ContextAction => ({ id: recipe.id, label: recipe.label, pressed: h.textRecipes!.active === recipe.id, onSelect: () => h.textRecipes!.apply(recipe.id) }))]),
+    ...(h.textRecipes.clear ? [{ id: 'sep-clear', label: '' }, { id: 'clear', label: 'Back to original', onSelect: h.textRecipes.clear }] : []),
+  ] });
   if (primary.length) primary.push({ id: 'sep-p', label: '' });
   return {
     actions: [

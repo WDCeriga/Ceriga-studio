@@ -46,3 +46,6 @@
 .cx-context-menu__check { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: none; }
 .cx-context-menu__item span small { display: block; margin-top: 2px; color: #8a8a8a; font-size: 12px; }
 .cx-context-menu__item:has(small) { height: auto; padding-top: 7px; padding-bottom: 7px; align-items: flex-start; }
+
+/* Long menus (text styles) scroll inside the viewport. */
+.cx-context-menu { max-height: min(440px, calc(100vh - 96px)); overflow-y: auto; scrollbar-width: thin; }

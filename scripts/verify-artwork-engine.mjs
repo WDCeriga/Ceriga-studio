@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -136,3 +136,25 @@ for (const type of ['squeeze', 'inflate', 'fisheye', 'twist', 'fan']) {
 const env = api.applyVectorTextEffects(glyph, [{ id: 'e', type: 'envelope', enabled: true, bend: 0, horizontal: 0, vertical: 0, envelope: { top: [.5, 0, .5], bottom: [.5, 1, .5], aspect: 1 } }], 100, 100);
 assert(Math.min(...env.nodes.map(n => n.y)) < 5 && Math.max(...env.nodes.map(n => n.y)) > 95, 'envelope stretches the middle to the full height');
 console.log('artwork engine: phase 2 text shapes ok');
+
+// Phase 2: text recipes — words and position never change, Original restores exactly, sizes follow the text, colours read on the garment.
+const word = { id: 'w', type: 'text', content: 'Ceriga', x: 40, y: 60, width: 100, height: 30, rotation: 3, fontSize: 30, fontFamily: 'Inter', fontWeight: 'normal', color: '#171717', letterSpacing: 2, printMethod: 'DTG', side: 'front' };
+assert(api.TEXT_RECIPES.length >= 18, 'at least the 18 planned recipes');
+assert.equal(new Set(api.TEXT_RECIPES.map(recipe => recipe.id)).size, api.TEXT_RECIPES.length, 'recipe ids are unique');
+for (const recipe of api.TEXT_RECIPES) for (const surface of ['#34363B', '#FFFFFF', '#C8102E']) {
+  const styled = { ...word, ...api.applyTextRecipe(word, recipe.id, surface, 30) };
+  assert.deepEqual([styled.content, styled.x, styled.y, styled.rotation, styled.fontSize], ['Ceriga', 40, 60, 3, 30], recipe.id + ' keeps words, place and size');
+  assert(styled.textAppearance.length >= 1 && styled.textAppearance.every(item => item.colour), recipe.id + ' has an appearance stack');
+  assert(api.contrastRatio(styled.color, surface) >= 3, recipe.id + ' main ink reads on ' + surface);
+  const restored = { ...styled, ...api.clearTextRecipe(styled) };
+  for (const key of ['fontFamily', 'fontWeight', 'color', 'letterSpacing']) assert.equal(restored[key], word[key], recipe.id + ' restores ' + key);
+  assert.equal(restored.textAppearance, undefined); assert.equal(restored.textRecipe, undefined);
+}
+const once = { ...word, ...api.applyTextRecipe(word, 'varsity', '#FFFFFF', 30) }, twice = { ...once, ...api.applyTextRecipe(once, 'chrome', '#FFFFFF', 30) };
+assert.equal(twice.textRecipe.base.fontFamily, 'Inter', 'switching recipes keeps the true original');
+const screen = { ...word, printMethod: 'Screen Print' }, flat = { ...screen, ...api.applyTextRecipe(screen, 'chrome', '#FFFFFF', 30) };
+assert(!flat.textAppearance.some(item => item.colour.startsWith('paint:')), 'no gradients on screen print');
+const before = once.textAppearance.find(item => item.type === 'stroke').widthMm, grown = api.refreshTextRecipeScale({ ...once, fontSize: 60 });
+assert(Math.abs(grown.textAppearance.find(item => item.type === 'stroke').widthMm - before * 2) < 1e-6, 'outlines scale with the text');
+assert.equal(api.refreshTextRecipeScale(grown), grown, 'scaling is stable');
+console.log('artwork engine: phase 2 recipes ok');

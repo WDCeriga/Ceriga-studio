@@ -1,0 +1,18 @@
+/* Text recipes (Phase 2): the user's word, on the garment colour, in each style. */
+.cx-recipes{margin:2px 0 10px}
+.cx-recipes__families{display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none}
+.cx-recipes__families::-webkit-scrollbar{display:none}
+.ceriga-builder-shell .builder-inspector .cx-recipes__families>button{flex:none;height:28px;padding:0 11px;border:1px solid #dadad7;border-radius:999px;background:#f6f6f4;color:#3f3f3c;font-size:12px;line-height:1;transition:background-color .15s ease-out,border-color .15s ease-out,color .15s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-recipes__families>button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-recipes__families>button[aria-selected=true]{border-color:#1f1f1d;background:#1f1f1d;color:#fff}
+.cx-recipes__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.ceriga-builder-shell .builder-inspector .cx-recipe-tile{display:flex;flex-direction:column;gap:5px;min-width:0;padding:4px 4px 6px;border:1px solid #e6e6e3;border-radius:9px;background:#fff;color:#3f3f3c;font-size:12px;line-height:1.2;text-align:center;transition:border-color .15s ease-out,transform .125s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-recipe-tile:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-recipe-tile:active{transform:scale(.97)}
+.ceriga-builder-shell .builder-inspector .cx-recipe-tile[aria-pressed=true]{border-color:#1f1f1d;color:#1f1f1d;box-shadow:0 0 0 1px #1f1f1d}
+.cx-recipe-tile__stage{display:block;height:58px;overflow:hidden;border-radius:5px}
+.cx-recipe-tile__art{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;overflow:hidden;pointer-events:none}
+.cx-recipe-tile__art>span{position:relative;display:block;flex:none;transform-origin:center}
+.cx-recipe-tile__name{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ceriga-builder-shell .builder-inspector .cx-recipes__reset{width:100%;height:32px;margin-top:6px;border:0;background:none;color:#6b6b66;font-size:12px}
+.ceriga-builder-shell .builder-inspector .cx-recipes__reset:hover{color:#1f1f1d}
