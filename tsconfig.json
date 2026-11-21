@@ -1,0 +1,26 @@
+{
+  // Type-checking only: Vite (esbuild) still compiles the app, so nothing here changes the build.
+  // Mirrors vite.config.ts: React JSX, ESM + bundler resolution, the `@` → src alias,
+  // `?raw`/`?url` asset imports (vite/client) and `figma:asset/*` (src/figma-assets.d.ts).
+  // Deliberately not `strict`: the codebase was written without it. Baseline errors are
+  // tracked in typecheck-baseline.json and enforced by `npm run typecheck`.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "useDefineForClassFields": true,
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

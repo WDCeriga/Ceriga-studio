@@ -7,9 +7,11 @@
     "build": "vite build",
     "predev": "npm install --prefer-offline --no-audit --no-fund",
     "dev": "vite",
-    "test:surfaces": "node scripts/verify-surface-migration.mjs && node scripts/verify-surface-contracts.mjs && node scripts/verify-label-section-frames.mjs && node scripts/verify-surface-text-units.mjs && node scripts/verify-surface-selection.mjs && node scripts/verify-surface-groups.mjs && node scripts/verify-label-cut-edges.mjs && node scripts/verify-label-stitching.mjs && node scripts/verify-label-reference.mjs && node scripts/verify-surface-clipping.mjs && node scripts/verify-label-text-movement.mjs && node scripts/verify-artwork-inspector-flow.mjs",
+    "test:surfaces": "node scripts/verify-surface-migration.mjs && node scripts/verify-surface-contracts.mjs && node scripts/verify-label-section-frames.mjs && node scripts/verify-surface-text-units.mjs && node scripts/verify-surface-selection.mjs && node scripts/verify-surface-groups.mjs && node scripts/verify-label-cut-edges.mjs && node scripts/verify-label-stitching.mjs && node scripts/verify-label-reference.mjs && node scripts/verify-surface-clipping.mjs && node scripts/verify-label-text-movement.mjs && node scripts/verify-artwork-inspector-flow.mjs && node scripts/verify-artwork-engine.mjs",
     "prebuild": "npm run test:surfaces && npm run test:zip-panel",
-    "test:zip-panel": "node scripts/verify-zip-panel.mjs"
+    "test:zip-panel": "node scripts/verify-zip-panel.mjs",
+    "typecheck": "node scripts/typecheck.mjs",
+    "typecheck:baseline": "node scripts/typecheck.mjs --update"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -115,6 +117,7 @@
     "@vitejs/plugin-react": "4.7.0",
     "@xmldom/xmldom": "^0.9.12",
     "tailwindcss": "4.1.12",
+    "typescript": "~5.9",
     "vite": "^6.3.5"
   },
   "peerDependencies": {
