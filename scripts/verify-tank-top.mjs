@@ -21,6 +21,13 @@ for(const back of [false,true]){
  const bodies=api.TANK_OPTIONS.tankType.options.map(([tankType])=>api.tankLayers({tankType},'regular',back).find(layer=>layer.id==='base').svgRaw);
  assert.equal(new Set(bodies).size,3,'All three constructions have distinct body geometry in each view');
 }
+for(const fit of api.TANK_FITS)for(const tankNeck of ['crew','thincrew','scoop','v','deep-v']){
+ const anchors=[false,true].map(back=>{
+  const body=api.tankLayers({tankNeck},fit.id,back).find(layer=>layer.id==='base').svgRaw;
+  return body.match(/L([\d.]+) ([\d.]+)Z/).slice(1);
+ });
+ assert.deepEqual(anchors[0],anchors[1],'Front and rear neckline share the shoulder attachment');
+}
 assert(new Set(api.TANK_FITS.map(fit=>(fit.waist/fit.chest).toFixed(3))).size>2,'Fit blocks change the waist contour, not only scale');
 for(let i=1;i<api.TANK_FITS.length;i++){
  const previous=api.tankMeasurementPresets({},api.TANK_FITS[i-1].id),current=api.tankMeasurementPresets({},api.TANK_FITS[i].id);
@@ -64,7 +71,10 @@ for(const fit of api.TANK_FITS)for(const [tankType] of api.TANK_OPTIONS.tankType
   const facing=layers.find(layer=>layer.id==='bodyHem');
   assert.equal(facing?.kind,tankHem==='raw'?undefined:'solid');
   if(tankHem==='raw')assert(!layers.find(layer=>layer.id==='rawHem').svgRaw.includes('stroke-dasharray'));
-  if(facing)assert.equal(facing.fabricRegion.materialCategory,'hem');
+  if(facing){
+   assert.equal(facing.fabricRegion.role,'hem');
+   assert.equal(facing.fabricRegion.materialCategory,'hem');
+  }
   if(tankHem==='rib'){
    const texture=layers.find(layer=>layer.id==='bodyHemRib');
    assert(Number.isInteger(texture.zIndex)&&texture.zIndex>facing.zIndex);

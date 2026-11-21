@@ -660,6 +660,18 @@ export function detailSvg(detail: GarmentDetail, displayRatio?: number, part?: '
     if (!detail.catalogueAsset && !detail.customAsset) detailTemplates.set(raw, template);
   }
   const svg = template.cloneNode(true) as Element;
+  if(detail.variant?.startsWith('tank-')){
+    for(const definition of svg.querySelectorAll('defs [id]')){
+      const original=definition.id;
+      const unique=original+'-'+detail.id.replace(/[^a-zA-Z0-9_-]/g,'');
+      definition.id=unique;
+      for(const element of svg.querySelectorAll('*')){
+        for(const attribute of Array.from(element.attributes)){
+          if(attribute.value.includes('url(#'+original+')'))element.setAttribute(attribute.name,attribute.value.replaceAll('url(#'+original+')','url(#'+unique+')'));
+        }
+      }
+    }
+  }
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('stroke-linejoin', 'round');
   svg.setAttribute('stroke-linecap', 'round');

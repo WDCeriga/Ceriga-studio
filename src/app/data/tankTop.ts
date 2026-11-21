@@ -29,7 +29,7 @@ export const TANK_FITS=[
 ] as const;
 export const TANK_OPTIONS={
  tankType:{label:'Tank construction',options:[['normal','Normal tank'],['muscle','Muscle tank'],['racer','Racerback singlet']]},
- tankNeck:{label:'Neck shape',options:[['crew','Crew neck'],['thincrew','Thin crew neck'],['scoop','Scoop neck'],['deep','Deep scoop'],['athletic','Athletic front'],['square','Square neck'],['v','V-neck'],['deep-v','Deep V-neck']]},
+ tankNeck:{label:'Neck shape',options:[['crew','Crew neck'],['thincrew','Thin crew neck'],['scoop','Scoop neck'],['deep','Deep scoop'],['athletic','Athletic front'],['v','V-neck'],['deep-v','Deep V-neck']]},
  tankStrap:{label:'Strap width',options:[['narrow','Narrow'],['standard','Standard'],['wide','Wide']]},
  tankArmhole:{label:'Armhole depth',options:[['high','High'],['standard','Standard'],['deep','Deep']]},
  tankLength:{label:'Body length',options:[['cropped','Cropped'],['standard','Standard'],['longline','Longline']]},
@@ -80,14 +80,28 @@ export function tankLayers(selection:GarmentAssetSelection,fit='regular',back=fa
  });
  const shoulderOuter=Math.max(neckHalf+28,shoulder);
  const armY=top+b.armhole*ratio('armhole'),left=1024-chest,right=1024+chest;
- const neckShape=back?(selection.tankBack==='straight'?'square':'crew'):tankNeckForFit(selection,fit);
- const neckY=top+neckDrop,neckL=1024-neckHalf,neckR=1024+neckHalf;
+ const frontNeckShape=tankNeckForFit(selection,fit);
+ const frontCollar=selection.tankNeckFinish!=='raw'?tankTshirtNeck(frontNeckShape,1024-neckHalf,1024+neckHalf,top,
+  Number(presets.neckDrop.m)*10*ratio('neckDrop'),fit,(selection.tankNeckFinish??'rib')==='rib'):undefined;
+ const rearBandWidth=frontCollar?.bandWidth??(selection.tankNeckFinish==='fold'?5:frontNeckShape==='thincrew'?6:12);
+ const rearJoinLeft=frontCollar?.joinX??1024-neckHalf-rearBandWidth;
+ const rearTop=frontCollar?.joinY??top;
+ const openingTop=back?rearTop:top;
+ const neckShape=back?(selection.tankBack==='straight'?'square':'crew'):frontNeckShape;
+ const neckY=openingTop+neckDrop,neckL=back&&frontCollar?rearJoinLeft+rearBandWidth:1024-neckHalf,neckR=2048-neckL;
+ const rearNeckCurve=(l:number,r:number,y:number,depth:number,reverse=false)=>{
+  const span=r-l;
+  return reverse
+   ? `L${r} ${y}C${r-span*.24} ${y+depth*4/3} ${l+span*.24} ${y+depth*4/3} ${l} ${y}`
+   : `M${l} ${y}C${l+span*.24} ${y+depth*4/3} ${r-span*.24} ${y+depth*4/3} ${r} ${y}`;
+ };
  const neck=(offset=0)=>{
-  const l=neckL-offset,r=neckR+offset,y=top+offset,d=neckY+offset;
+  const l=neckL-offset,r=neckR+offset,y=openingTop+offset,d=neckY+offset;
   const shared=!back&&sharedNeckCurve(({crew:'crew',thincrew:'thincrew',scoop:'scoop',deep:'scoop',athletic:'scoop',v:'vneck','deep-v':'deep-vneck'} as Record<string,string>)[neckShape],l,r,y,neckDrop,false,fit);
   if(shared)return shared;
   if(neckShape==='v')return `M${l} ${y}Q${l+30} ${d-36} 1024 ${d}Q${r-30} ${d-36} ${r} ${y}`;
   if(neckShape==='square')return `M${l} ${y}L${l+8} ${d-13}Q${l+8} ${d} ${l+21} ${d}H${r-21}Q${r-8} ${d} ${r-8} ${d-13}L${r} ${y}`;
+  if(back)return rearNeckCurve(l,r,y,neckDrop);
   return `M${l} ${y}C${l+8} ${d+neckDrop*.20} ${r-8} ${d+neckDrop*.20} ${r} ${y}`;
  };
  const shoulderY=top+b.shoulderDrop;
@@ -97,8 +111,8 @@ export function tankLayers(selection:GarmentAssetSelection,fit='regular',back=fa
  const reverseLeftArm=(inset=0)=>`C${left+b.armSweep+inset} ${armEndControlY} ${1024-shoulderOuter+7+inset} ${armControlY} ${1024-shoulderOuter+inset} ${shoulderY}`;
  const rightArm=(inset=0)=>leftArm(inset);
  const neckline=neck(),hemStyle=selection.tankHem??'single';
- const fittedCollar=!back&&selection.tankNeckFinish!=='raw'?tankTshirtNeck(neckShape,neckL,neckR,top,neckDrop,fit,(selection.tankNeckFinish??'rib')==='rib'):undefined;
- const shoulderNeckLeft=fittedCollar?.joinX??neckL,shoulderNeckY=fittedCollar?.joinY??top;
+ const fittedCollar=!back?frontCollar:undefined;
+ const shoulderNeckLeft=back&&frontCollar?rearJoinLeft:fittedCollar?.joinX??neckL,shoulderNeckY=back?rearTop:fittedCollar?.joinY??top;
  const hemY=end+(back&&hemStyle==='dropped'?52:0);
  const hemCurve=hemStyle==='curved'?52:b.hemBow;
  const waist=b.waist*ratio('chestWidth'),waistY=armY+(hemY-armY)*b.waistPosition;
@@ -111,7 +125,7 @@ export function tankLayers(selection:GarmentAssetSelection,fit='regular',back=fa
  const svg=(markup:string)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 2048" data-no-fabric-edge-seal="true" data-tank-top="true">${markup}</svg>`;
  const add=(id:string,name:string,markup:string,solid=false,role='body',z=solid?10:30)=>{
   layers.push({id,displayName:name,category:id,assetId:TANK_PRESET+':'+id,svgRaw:svg(markup),zIndex:z,kind:solid?'solid':'detail',
-   ...(solid?{fabricRegion:{role,materialCategory:role==='neck'?'neck':role==='cuff'?'hem':'body',...(role==='interior'?{interior:true,surface:'reverse',exteriorPartId:'base'}:role==='armhole'?{fallbackFromId:'base'}:{})}}:{tint:id==='stitching'?'#eeeeea':'#202020'})} as ResolvedGarmentLayer);
+   ...(solid?{fabricRegion:{role,materialCategory:role==='neck'?'neck':role==='hem'?'hem':'body',...(role==='interior'?{interior:true,surface:'reverse',exteriorPartId:'base'}:role==='armhole'?{fallbackFromId:'base'}:{})}}:{tint:id==='stitching'?'#eeeeea':'#202020'})} as ResolvedGarmentLayer);
  };
  add('base','Tank body',`<path fill="#000000" d="${body}"/>`,true);
  if(!back){
@@ -124,7 +138,7 @@ export function tankLayers(selection:GarmentAssetSelection,fit='regular',back=fa
  for(const [id,name,d,key] of finishes){
   const finish=selection[key]??TANK_DEFAULTS[key],mirror=id==='armholeRight'?' transform="translate(2048 0) scale(-1 1)"':'';
   if(finish==='none')continue;
-  const width=finish==='raw'?1.7:finish==='fold'?5:finish==='elastic'||finish==='foe'?10:id==='neck'&&neckShape==='thincrew'?6:12;
+   const width=back&&id==='neck'?rearBandWidth:finish==='raw'?1.7:finish==='fold'?5:finish==='elastic'||finish==='foe'?10:id==='neck'&&frontNeckShape==='thincrew'?6:12;
   if(finish==='raw'){
    add(id+'Raw',name,`<g${mirror}><path d="${d}" fill="none" stroke="#aaa" stroke-width="2" stroke-dasharray="1 2"/></g>`);
   }else{
@@ -141,12 +155,22 @@ export function tankLayers(selection:GarmentAssetSelection,fit='regular',back=fa
      :neckShape==='square'?`L${r-8} ${drop-13}Q${r-8} ${drop} ${r-21} ${drop}H${l+21}Q${l+8} ${drop} ${l+8} ${drop-13}L${l} ${y}`
      :`C${r-8} ${drop+neckDrop*.20} ${l+8} ${drop+neckDrop*.20} ${l} ${y}`);
     band=`${d}L${r} ${y}${reverse}Z`;
+    if(back&&neckShape!=='square'){
+     band=`${d}${rearNeckCurve(l,r,rearTop,neckDrop+width,true)}Z`;
+    }
    }else{
     band=`${d}L${left+width} ${armY}${reverseLeftArm(width)}Z`;
    }
    add(id,name,`<g${mirror}><path d="${band}" fill="#000000"/></g>`,true,id==='neck'?'neck':'armhole',24);
    add(id+'Outline',name+' outline',`<g${mirror}><path d="${band}" fill="none" stroke="#202020" stroke-width="1.7"/></g>`,false,'body',26);
-   if(finish==='rib')add(id+'Ribs',name+' rib lines',`<g${mirror}><path d="${d}" fill="none" stroke="#555" stroke-width="${width-2}" stroke-dasharray="1 5"/></g>`,false,'body',27);
+   if(finish==='rib'){
+    const clip=`tank-binding-${id}-${back?'back':'front'}`;
+    let ribs='';
+    const bindingLeft=id==='neck'?neckL-width:left;
+    const bindingRight=id==='neck'?neckR+width:1024-shoulderOuter+width;
+    for(let x=bindingLeft;x<=bindingRight;x+=5)ribs+=`M${x} ${Math.min(top,rearTop)-2}V${armY+2}`;
+    add(id+'Ribs',name+' rib lines',`<g${mirror}><defs><clipPath id="${clip}"><path d="${band}"/></clipPath></defs><path data-texture="rib" d="${ribs}" clip-path="url(#${clip})" fill="none" stroke="#555" stroke-width="1"/></g>`,false,'body',27);
+   }
   }
  }
  const sideRow=`M${left+8} ${armY}C${left+8} ${armY+upperSide} ${1024-waist+8} ${waistY-upperSide} ${1024-waist+8} ${waistY}C${1024-waist+8} ${waistY+lowerSide} ${1024-hem+8} ${hemY-lowerSide} ${1024-hem+8} ${hemY-5}`;

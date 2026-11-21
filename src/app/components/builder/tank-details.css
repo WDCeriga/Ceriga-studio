@@ -1,0 +1,23 @@
+.tank-details-library .tank-openings-editor {
+ grid-column:1 / -1;
+ min-height:44px;
+ padding:12px;
+ border:1px solid #d8d8d8;
+ border-radius:8px;
+ background:#f7f7f7;
+ color:#262626;
+ text-align:left;
+}
+.tank-details-library .trouser-detail-categories {
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:8px;
+}
+.tank-details-library .trouser-detail-categories button {
+ min-height:44px;
+ white-space:normal;
+}
+.tank-details-library .trouser-detail-cards button:focus-visible {
+ outline:2px solid #cc2d24;
+ outline-offset:3px;
+}

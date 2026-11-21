@@ -1,5 +1,6 @@
 import {TANK_TSHIRT_NECK_ASSETS} from './tankTshirtNeckAssets';
 import registration from './tankTshirtNeckRegistration.json';
+import {getPotraceSvgBBoxFast} from '../lib/tshirtSvgUtils';
 const kindKey=(kind:string)=>({crew:'crew',thincrew:'thincrew',scoop:'scoop',deep:'scoop',athletic:'scoop',v:'vneck','deep-v':'deep-vneck'} as Record<string,string>)[kind];
 export function tankTshirtNeckMaster(kind:string,fit='regular'){
  const key=fit+'.'+kindKey(kind);
@@ -25,6 +26,7 @@ export function tankTshirtNeck(kind:string,left:number,right:number,top:number,d
   (_,originalTransform:string)=>`<g${attributes} transform="${transform} ${originalTransform}"`,
  );
  return {
+  bandWidth:Math.max(5,((getPotraceSvgBBoxFast(band)?.maxY??bounds.low+12)-bounds.low)*sy),
   joinX:left+(bounds.joinX-bounds.min)*sx,joinY:top+(bounds.joinY-bounds.top)*sy,
   fill:placeFabric(band,` data-shared-tshirt-neck="${fit}.${kindKey(kind)}"`),
   inside:placeFabric(inside),

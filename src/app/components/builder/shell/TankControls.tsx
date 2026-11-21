@@ -10,6 +10,7 @@ import {constructionDepth} from '../../../lib/constructionDepth';
 import type {GarmentAssetSelection} from '../../../data/garmentSvgCatalog';
 import {TANK_OPTIONS,TANK_DEFAULTS,TANK_ARMHOLE_FINISHES,tankThumbnail,tankNeckForFit,TANK_LENGTH_RANGE,tankLengthAdjustment} from '../../../data/tankTop';
 import './sweatpants-controls.css';
+import {VisualOptionGrid,PresetArt} from '../design-system';
 export function TankControls({selection,onChange,section='fit',fit='regular'}:{selection:GarmentAssetSelection;onChange:(patch:GarmentAssetSelection)=>void;fit?:string;section?:'fit'|'openings'|'body'|'hem'}){
  const keys=section==='fit'?['tankLength']:section==='openings'?['tankNeck','tankStrap','tankArmhole']:section==='body'?['tankType']:['tankHem'];
  const adjustment=tankLengthAdjustment(selection.tankLengthAdjust);
@@ -20,21 +21,26 @@ export function TankControls({selection,onChange,section='fit',fit='regular'}:{s
    const group=TANK_OPTIONS[key as keyof typeof TANK_OPTIONS];
    const selected=key==='tankNeck'?tankNeckForFit(selection,fit):selection[key]??TANK_DEFAULTS[key];
    const folds:Record<string,HemConstruction>={single:'single-fold',double:'double-fold',raw:'raw',cover:'double-fold',rib:'rib',curved:'single-fold',dropped:'single-fold'};
-   return <details className={section==='fit'?'sweatpants-choice':'material-section-disclosure'} key={key} open><summary>{group.label}{section==='fit'&&<ChevronDown size={16}/>}</summary>
-    {key==='tankNeck'?<NeckChoiceGrid choices={group.options.map(([id,name])=>({id,name}))} selected={selected} onSelect={id=>onChange({tankNeck:id})}/>:<div role="group" aria-label={group.label} className={key==='tankHem'?'hem-construction-grid':section==='fit'?'sweatpants-option-grid':'neck-shape-grid tank-shape-grid'}>
+   return <details className={section==='fit'?'sweatpants-choice':'material-section-disclosure'} key={key} open><summary>{section==='fit'?<><span>{group.label}<small>{group.options.find(([id])=>id===selected)?.[1]}</small></span><ChevronDown size={16}/></>:group.label}</summary>
+    {key==='tankNeck'?<NeckChoiceGrid choices={group.options.map(([id,name])=>({id,name}))} selected={selected} onSelect={id=>onChange({tankNeck:id})}/>:section==='fit'?
+     // Phase 1: Fit choices use the shared VisualOptionGrid (same options, images, state and handler).
+     <div className="sweatpants-fit-grid cx"><VisualOptionGrid label={group.label} columns={3} value={selected}
+      options={group.options.map(([id,label])=>({id,label,preview:<PresetArt src={tankThumbnail(fit,{...selection,[key]:id})}/>}))}
+      onChange={id=>onChange({[key]:id})}/></div>:<div role="group" aria-label={group.label} className={key==='tankHem'?'hem-construction-grid':'neck-shape-grid tank-shape-grid'}>
      {group.options.map(([id,label])=><button type="button" key={id} className={selected===id?'is-selected':''} aria-pressed={selected===id}
       onClick={()=>onChange({[key]:id})}>
       {key==='tankHem'?<FoldDrawing kind={folds[id]}/>:<img className="sweatpants-leg-art" src={tankThumbnail(fit,{...selection,[key]:id})} alt=""/>}
       <span>{label}</span>
-      {section!=='fit'&&selected===id&&<Check className="neck-choice-check" size={12}/>}
+      {selected===id&&<Check className="neck-choice-check" size={12}/>}
      </button>)}
     </div>}
     {key==='tankLength'&&<div className="sweatpants-length-adjuster" style={{'--length-position':`${100*(adjustment-min)/(max-min)}%`} as CSSProperties}>
-     <label className="sweatpants-length-value">Length adjustment <span><input type="number" aria-label="Length adjustment in centimetres" min={min} max={max} step={step} value={adjustment} onChange={event=>adjustLength(event.target.value)}/> cm</span></label>
+     <div className="sweatpants-length-value"><label htmlFor="tank-length-adjustment">Length adjustment</label><span><input id="tank-length-adjustment" type="number" aria-label="Length adjustment in centimetres" min={min} max={max} step={step} value={adjustment} onChange={event=>adjustLength(event.target.value)}/> cm</span></div>
      <div className="sweatpants-length-slider"><div className="sweatpants-length-track" aria-hidden="true"/><input type="range" aria-label="Adjust tank length" min={min} max={max} step={step} value={adjustment} onChange={event=>adjustLength(event.target.value)}/></div>
      <div className="sweatpants-length-scale" aria-hidden="true"><span>{min} cm</span><span>+{max} cm</span></div>
      <button className="sweatpants-length-reset" type="button" disabled={adjustment===0} onClick={()=>adjustLength('0')}>Reset length</button>
     </div>}
+    {key==='tankLength'&&<p className="cx-section-helper">Adjusts the body and hem only.</p>}
    </details>;
   })}
   {section==='openings'&&<>
@@ -59,7 +65,7 @@ export function TankControls({selection,onChange,section='fit',fit='regular'}:{s
   </>}
  </div>;
 }
-export function TankConstructionInspector(props:{selection:GarmentAssetSelection;fit?:string;unit?:'cm'|'in';onChange:(patch:GarmentAssetSelection)=>void;section:'openings'|'body'|'hem';onMaterials:()=>void;onMeasurements:()=>void;notes:string;onNotes:(value:string)=>void;closeUp?:boolean;onCloseUp?:()=>void}){
+export function TankConstructionInspector(props:{selection:GarmentAssetSelection;fit?:string;unit?:'cm'|'in';onChange:(patch:GarmentAssetSelection)=>void;section:'openings'|'body'|'hem';onMaterials:()=>void;onMeasurements:()=>void;notes:string;onNotes:(value:string)=>void;closeUp?:boolean;onCloseUp?:()=>void;hemColour?:{value:string;onChange:(colour:string)=>void;onMatchBody:()=>void}}){
  const {section,selection,fit}=props;
  const title={openings:'Neck & armhole',body:'Tank construction',hem:'Hem'}[section];
  const key={openings:'tankNeck',body:'tankType',hem:'tankHem'}[section] as 'tankNeck'|'tankType'|'tankHem';
@@ -73,6 +79,10 @@ export function TankConstructionInspector(props:{selection:GarmentAssetSelection
    {props.onCloseUp&&<button type="button" aria-pressed={props.closeUp} onClick={props.onCloseUp}><Focus size={14}/>{props.closeUp?'Full garment':'Close-up'}</button>}
   </section>
   <TankControls {...props}/>
+  {section==='hem'&&value!=='raw'&&props.hemColour&&<section className="material-section-disclosure">
+   <label className="preset-construction-colour">Hem colour <span>{props.hemColour.value.toUpperCase()}<input type="color" aria-label="Hem colour" value={props.hemColour.value} onChange={event=>props.hemColour?.onChange(event.currentTarget.value)}/></span></label>
+   <button type="button" className="material-wide-button" onClick={props.hemColour.onMatchBody}>Match body colour</button>
+  </section>}
   {section==='hem'&&value!=='raw'
    ?<ConstructionDimensions label={value==='rib'?'Band height':'Hem depth'} cm={constructionDepth(selection.tankHemDepth,value==='rib'?3:1.3,value==='rib'?12:5)} defaultCm={value==='rib'?3:1.3} maxCm={value==='rib'?12:5} unit={props.unit} onChange={cm=>props.onChange({tankHemDepth:String(cm)})} onMeasurements={props.onMeasurements}/>
    :<details open className="material-section-disclosure"><summary>Measurements</summary><button className="material-wide-button" type="button" onClick={props.onMeasurements}>Edit measurements <ArrowUpRight size={14}/></button></details>}

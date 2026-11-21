@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { ArrowRight, Check, Minus, Plus, Trash2 } from 'lucide-react';
 import { ORDER_SIZE_KEYS, type OrderSizeKey } from '../../data/builderSteps';
 import { applySizeChange, distributeQuantity, isSampleQuantityValid, maxBulkRuns, newBulkRun, setOrderMode, sumBreakdown, type OrderQuantityPlan, type OrderQuantityLine } from '../../data/orderQuantities';
@@ -9,7 +9,7 @@ import './order-quantities-studio.css';
 type Props = { plan: OrderQuantityPlan; onChange: (plan: OrderQuantityPlan) => void; selectedRunId?: string; onRunChange?: (id: string) => void };
 function activeRun(plan: OrderQuantityPlan, id?: string) { return plan.bulkRuns.find(run => run.id === id) ?? plan.sample; }
 
-export function OrderQuantitiesStudio({ plan, garment, name, colour = '#262626', selectedRunId, garmentScale=1 }: Props & { garment: ReactNode; name: string; colour?: string; garmentScale?: number }) {
+export function OrderQuantitiesStudio({ plan, garment, name, colour = '#262626', selectedRunId, garmentScale=1, garmentFrame }: Props & { garment: ReactNode; name: string; colour?: string; garmentScale?: number; garmentFrame?:CSSProperties }) {
   const line = activeRun(plan, selectedRunId);
   const total = sumBreakdown(line.bySize);
   const maximum = Math.max(1, ...Object.values(line.bySize));
@@ -20,7 +20,7 @@ export function OrderQuantitiesStudio({ plan, garment, name, colour = '#262626',
   return <div className="order-studio">
     <div className="order-canvas-caption"><span className="order-design-swatch" style={{background:colour}}/>{name}<span>Front</span></div>
     <div className="order-production-layout">
-      <div className="order-garment-art"><div style={{transform:`scale(${garmentScale})`,transformOrigin:'center'}}>{garment}</div></div>
+      <div className="order-garment-art" style={garmentFrame?{containerType:'size'}:undefined}><div style={garmentFrame?{...garmentFrame,position:'absolute',left:'50%',top:'50%'}:{transform:`scale(${garmentScale})`,transformOrigin:'center'}}>{garment}</div></div>
       <section className="order-canvas-breakdown" aria-label="Size breakdown">
         <span className="order-run-caption">{line.kind === 'sample' ? 'Samples' : `Bulk quote ${plan.bulkRuns.findIndex(run => run.id === line.id)+1}`}</span>
         <div className="order-total"><strong>{total.toLocaleString()} <small>{total === 1 ? 'unit' : 'units'}</small></strong></div>

@@ -166,7 +166,7 @@ export function foldedGarmentVectorImage(markup:string,x:number,y:number,scale=1
  const outline=trousers?trouserFoldOutline:garmentFoldOutline;
  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="260" viewBox="0 0 240 260"><defs><clipPath id="fold-window"><path d="'+outline+'"/></clipPath></defs><g clip-path="url(#fold-window)"><svg x="'+x+'" y="'+y+'" width="'+520*scale+'" height="'+520*scale+'" viewBox="0 0 520 520">'+markup+'</svg></g></svg>');
 }
-function FoldedLiveGarment({preview,reverse,color,width,height,trousers}:{preview:(reverse:boolean)=>ReactNode;reverse:boolean;color:string;width:number;height:number;trousers:boolean}) {
+function FoldedLiveGarment({preview,reverse,color,width,height,trousers,tank=false}:{preview:(reverse:boolean)=>ReactNode;reverse:boolean;color:string;width:number;height:number;trousers:boolean;tank?:boolean}) {
  const id=useId().replace(/:/g,'');
  const sourceRef=useRef<HTMLDivElement>(null);
  const [nativeMarkup,setNativeMarkup]=useState('');
@@ -183,17 +183,17 @@ function FoldedLiveGarment({preview,reverse,color,width,height,trousers}:{previe
     const waistCenter=waist?(waist.left+waist.right)/2:0;
     // Present one half of the waistband on the top fold, with the second leg tucked underneath.
     const foldedSpan=waist?Math.max(1,(waist.right-waist.left)/2+8):1;
-    const scale=waist?132/(foldedSpan*520/2048):1;
+    const scale=waist?132/(foldedSpan*520/2048):tank&&body?168/Math.max(1,(body.right-body.left)*520/2048):1;
     const next=waist?{
       x:reverse?54-(waistCenter+18)*520/2048*scale:186-(waistCenter-18)*520/2048*scale,
       y:30-waist.top*520/2048*scale,scale,
-    }:{x:120-(target.left+target.right)/2*520/2048,y:30-target.top*520/2048,scale};
+    }:{x:120-(target.left+target.right)/2*520/2048*scale,y:30-target.top*520/2048*scale,scale};
     setFraming(old=>Math.abs(old.x-next.x)+Math.abs(old.y-next.y)+Math.abs(old.scale-next.scale)>.2?next:old);
     const bounds=host.getBoundingClientRect();
     const root=new DOMMatrix().translate(bounds.left,bounds.top);if(bounds.width){
      const pieces:string[]=[];
      const layerOrder=(node:Element)=>{let order=0,current:Element|null=node;while(current&&current!==host){const value=Number(getComputedStyle(current).zIndex);if(Number.isFinite(value))order+=value;current=current.parentElement}return order};
-     Array.from(host.querySelectorAll('svg')).sort((a,b)=>layerOrder(a)-layerOrder(b)).forEach(node=>{const svg=node as SVGSVGElement;if(svg.closest('defs')||!svg.closest('[data-layer-id]')||!svg.viewBox.baseVal.width)return;const matrix=svg.getScreenCTM();if(!matrix)return;const relative=root.inverse().multiply(matrix);const clone=svg.cloneNode(true) as SVGSVGElement;const box=svg.viewBox.baseVal;clone.setAttribute('width',String(box.width));clone.setAttribute('height',String(box.height));clone.setAttribute('x','0');clone.setAttribute('y','0');clone.removeAttribute('class');clone.removeAttribute('style');
+     Array.from(host.querySelectorAll('svg')).sort((a,b)=>layerOrder(a)-layerOrder(b)).forEach(node=>{const svg=node as SVGSVGElement;if(svg.closest('defs')||!svg.closest(tank?'[data-layer-id],[data-detail-id],[data-garment-label]':'[data-layer-id]')||!svg.viewBox.baseVal.width)return;const matrix=svg.getScreenCTM();if(!matrix)return;const relative=root.inverse().multiply(matrix);const clone=svg.cloneNode(true) as SVGSVGElement;const box=svg.viewBox.baseVal;clone.setAttribute('width',String(box.width));clone.setAttribute('height',String(box.height));clone.setAttribute('x','0');clone.setAttribute('y','0');clone.removeAttribute('class');clone.removeAttribute('style');
       const originals=svg.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');const copies=clone.querySelectorAll('path,rect,circle,ellipse,line,polyline,polygon,text');originals.forEach((element,index)=>{if(element.closest('defs'))return;const paint=getComputedStyle(element);for(const key of ['fill','stroke','stroke-width','opacity','fill-opacity','stroke-opacity','stroke-linejoin','stroke-linecap','font-family','font-size']){const value=paint.getPropertyValue(key);if(value)copies[index]?.setAttribute(key,value)}});
       pieces.push('<g transform="'+'matrix('+[relative.a,relative.b,relative.c,relative.d,relative.e,relative.f].join(' ')+')'+'">'+new XMLSerializer().serializeToString(clone)+'</g>');
      });
@@ -203,9 +203,9 @@ function FoldedLiveGarment({preview,reverse,color,width,height,trousers}:{previe
   };
   const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(measure)};
   const observer=new MutationObserver(schedule);observer.observe(host,{subtree:true,childList:true,attributes:true});const resize=new ResizeObserver(schedule);resize.observe(host);schedule();return()=>{observer.disconnect();resize.disconnect();cancelAnimationFrame(frame)};
- },[reverse,id,trousers]);
+ },[reverse,id,trousers,tank]);
 
- return <>{typeof document!=='undefined'&&createPortal(<div ref={sourceRef} data-live-fold-source="offscreen" className="pkg-fold-source" aria-hidden="true" style={{position:'fixed',left:-10000,top:0,width:520,height:520,opacity:0,pointerEvents:'none',overflow:'hidden',zIndex:-1}}>{preview(reverse)}</div>,document.body)}<svg data-packaging-folded-live="true" data-garment-facing={reverse?'back':'front'} width={width} height={height} viewBox="0 0 240 260" preserveAspectRatio="xMidYMid meet" overflow="hidden" pointerEvents="none">
+ return <>{typeof document!=='undefined'&&createPortal(<div ref={sourceRef} data-live-fold-source="offscreen" className="pkg-fold-source" aria-hidden="true" style={{position:'fixed',left:-10000,top:0,width:520,height:520,opacity:0,pointerEvents:'none',overflow:'hidden',zIndex:-1}}>{preview(reverse)}</div>,document.body)}<svg data-packaging-folded-live="true" data-folded-tank={tank||undefined} data-garment-facing={reverse?'back':'front'} width={width} height={height} viewBox="0 0 240 260" preserveAspectRatio="xMidYMid meet" overflow="hidden" pointerEvents="none">
   <defs>
    <clipPath id={id+'-folded-body'}><path d={outline}/></clipPath>
    <linearGradient id={id+'-side-fold'}><stop stopColor="#000" stopOpacity=".15"/><stop offset=".07" stopColor="#fff" stopOpacity=".1"/><stop offset=".18" stopColor="#000" stopOpacity="0"/><stop offset=".82" stopColor="#000" stopOpacity="0"/><stop offset=".94" stopColor="#fff" stopOpacity=".08"/><stop offset="1" stopColor="#000" stopOpacity=".16"/></linearGradient><linearGradient id={id+'-fold-shade'} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fff" stopOpacity=".10"/><stop offset=".75" stopColor="#000" stopOpacity="0"/><stop offset="1" stopColor="#000" stopOpacity=".09"/></linearGradient>
@@ -215,7 +215,7 @@ function FoldedLiveGarment({preview,reverse,color,width,height,trousers}:{previe
    <path d="M57 195H183L185 221Q182 232 169 233Q120 237 71 233Q58 232 55 221Z" stroke="#000" strokeOpacity=".15"/>
    <path d="M59 219Q120 226 181 219M63 227Q120 233 177 227" fill="none" stroke="#000" strokeOpacity=".15"/>
   </g>:<>
-  <rect data-folded-sleeves="tucked" x="38" y="47" width="164" height="186" rx="9" fill={color}/>
+  <rect data-folded-sleeves={tank?undefined:'tucked'} data-folded-body-layer={tank?'tank':undefined} x="38" y="47" width="164" height="186" rx="9" fill={color}/>
   <rect x="38" y="47" width="164" height="186" rx="9" fill="#000" opacity=".13"/>
   <rect x="36" y="43" width="168" height="186" rx="9" fill={color}/>
   <defs><clipPath id={id+'-turned-fold'}><rect x="39" y="215" width="162" height="13" rx="5"/></clipPath></defs>
@@ -238,7 +238,7 @@ function PackagingContents({ design, panel, garmentColor, garmentType, garmentPr
   const region = printRegion({ ...design, shippingLabel: false }, panel);
   const inset = Math.min(region.width, region.height) * .025;
   return <g data-packaging-contents="true" transform={`translate(${region.x + inset} ${region.y + inset})`} pointerEvents="none">
-    {garmentPreview?<FoldedLiveGarment preview={garmentPreview} reverse={reverse} trousers={garmentType==='trousers'} color={garmentColor??'#737b7b'} width={region.width-inset*2} height={region.height-inset*2}/>:<FoldedGarment color={garmentColor} garmentType={garmentType} reverse={reverse} width={region.width - inset * 2} height={region.height - inset * 2} />}
+    {garmentPreview?<FoldedLiveGarment preview={garmentPreview} reverse={reverse} trousers={garmentType==='trousers'} tank={garmentType==='tanktop'} color={garmentColor??'#737b7b'} width={region.width-inset*2} height={region.height-inset*2}/>:<FoldedGarment color={garmentColor} garmentType={garmentType} reverse={reverse} width={region.width - inset * 2} height={region.height - inset * 2} />}
   </g>;
 }
 

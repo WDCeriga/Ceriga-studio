@@ -35,7 +35,7 @@ export function tankHem(add:AddLayer,style:string,depthValue:string|undefined,ce
  }
  const [top,p,q]=atY(edgeY-depth);
  const band=`${row(top)}C${print(p)} ${print(q)} ${print(end)}Q${centre} ${edgeY+bow} ${print(mirror(end))}C${print(mirror(q))} ${print(mirror(p))} ${print(mirror(top))}Z`;
- add('bodyHem',style==='rib'?'Rib hem band':'Hem facing',`<path d="${band}" fill="#000000"/>`,true,'cuff',20);
+ add('bodyHem',style==='rib'?'Rib hem band':'Bottom hem',`<path${style==='rib'?' data-drawn-hem-ribbing="true"':''} d="${band}" fill="#000000"/>`,true,'hem',20);
  if(style==='rib'){
   // Keep each stroke inside both curved edges without a document-wide clip ID.
   const ribHalfWidth=Math.min(top[0],p[0],q[0],edgeX)-centre-3;
@@ -45,7 +45,7 @@ export function tankHem(add:AddLayer,style:string,depthValue:string|undefined,ce
   for(let x=centre-ribHalfWidth;x<=centre+ribHalfWidth;x+=5) {
    ribs+=ribLine(x);
   }
-  add('bodyHemRib','Hem rib lines',`<g data-fixed-ink="true" fill="none"><path d="${ribs}" stroke="#16181c" stroke-opacity=".7" stroke-width="1.5"/></g>`,false,'body',22);
+  add('bodyHemRib','Hem rib lines',`<g data-fixed-ink="true" data-texture="rib" fill="none"><path d="${ribs}" stroke="#16181c" stroke-opacity=".7" stroke-width="1.5"/></g>`,false,'body',22);
  }
  const stitch=(y:number)=>row(atY(y)[0],3);
  const line=stitch(edgeY-depth);

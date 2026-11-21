@@ -10,7 +10,7 @@ import {useTechnicalDrawing,normalizeTechnicalSvg,useTshirtPreviewInk} from '../
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { Copy, CopyPlus, Plus, Upload, Trash2, FlipHorizontal2, FlipVertical2, RotateCcw, RotateCw, ArrowDownToLine, Maximize, ZoomIn, AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, AlignStartVertical, AlignEndVertical } from 'lucide-react';
 import type { GarmentView } from '../../data/garmentView';
-import { createOpening, openingNecklineReach } from '../../data/garmentOpenings';
+import { createOpening, openingNecklineReach, garmentPanelSpanAtY } from '../../data/garmentOpenings';
 import { OpeningControls } from './OpeningControls';
 import { GARMENT_DETAIL_ASSETS, GARMENT_DETAIL_OPTIONS, ZIP_PULL_STYLES, zipPullStyle, zipPullScale, zipPullThumbnail, zipHardwareGeometry, adjustZipPull, anchorHoodTrim, createGarmentDetail, detailAsset, detailAxisScale, detailPlacement, detailLocksProportions, detailScale, detailSvg, resizeGarmentDetail, detailRotation, alignGarmentZip, setDetailTransform, detailGesture, alignGarmentDetail,
   placeTrouserUtility, type GarmentDetail, type GarmentDetailType, type GarmentDetailVariant, type DetailBounds, type DetailGuide, type DetailAlignment } from '../../data/garmentDetails';
@@ -299,9 +299,9 @@ function HoodieTrimControls({ detail, onChange, bounds }: {
   </details>;
 }
 
-export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload, hoodie = false, trousers, tankTop=false, onTankFinish }: DetailEditorProps & {
+export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, color, view = 'front', onDuplicateToOtherView, onMoveToView, bounds, editor, copiedIds = [], builtins = [], referenceWidthCm, unit = 'cm', customUpload, hoodie = false, trousers, tankTop=false, onTankFinish, onTankOpenings }: DetailEditorProps & {
   hoodie?: boolean;
-  tankTop?: boolean; onTankFinish?:(finish:string)=>void;
+  tankTop?: boolean; onTankOpenings?:()=>void; onTankFinish?:(finish:string)=>void;
   trousers?:TrouserDetailConstruction;
   customUpload?: ReactNode; color: string; view?: GarmentView; onDuplicateToOtherView?: (detail: GarmentDetail) => void; bounds?: DetailBounds; copiedIds?: string[];
   onMoveToView?: (detail: GarmentDetail, view: GarmentView) => void;
@@ -341,10 +341,13 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
   useEffect(()=>{workbenchRef.current?.closest('.responsive-sheet-content,.builder-inspector')?.scrollTo({top:0,behavior:'smooth'})},[libraryOpen,selectedId]);
   const duplicateSelected=()=>{if(!selected)return;const identity=createGarmentDetail(selected.type,details,selected.fill);const copy={...selected,id:identity.id,name:identity.name,sourceLayerId:undefined,arrangementId:undefined,selected:true,scale:detailScale(selected.scale)};const next=bounds?setDetailTransform(copy,bounds,{x:selected.x+.04,y:selected.y+.04}):copy;onChange([...details,next]);editDetail(next.id)};
   const removeSelected=()=>{if(!selected)return;const remaining=selected.sourceLayerId?details.map(d=>d.id===selected.id?{...d,hidden:true,selected:false}:d):details.filter(d=>d.id!==selected.id);onChange(remaining);const next=remaining.find(d=>!d.hidden);onSelect(next?.id??null);if(!next)showLibrary()};
+  // Floating-bar actions (Duplicate / Remove) reuse the panel's own handlers, exactly as the ⋯ menu does.
+  const detailActionRef=useRef({duplicateSelected,removeSelected});detailActionRef.current={duplicateSelected,removeSelected};
+  useEffect(()=>{const onAction=(event:Event)=>{const action=(event as CustomEvent<string>).detail;if(action==='duplicate')detailActionRef.current.duplicateSelected();else if(action==='remove')detailActionRef.current.removeSelected()};window.addEventListener('ceriga-detail-action',onAction);return()=>window.removeEventListener('ceriga-detail-action',onAction)},[]);
   const update = (patch: Partial<GarmentDetail>) => onChange(details.map(detail => detail.id === selectedId ? { ...detail, ...patch } : detail));
   const add = (type: GarmentDetailType, variant?: GarmentDetailVariant, length?: 'quarter' | 'half' | 'full', overrides:Partial<GarmentDetail>={}) => {
     const fill = type === 'patch' ? '#D4D4D4' : type === 'drawstring' ? '#DDD6C7' : color;
-    const overlay = { ...createGarmentDetail(type, details, fill, variant), view,...Object.fromEntries(Object.entries(overrides).filter(([,value])=>value!==undefined)),
+    const overlay = { ...createGarmentDetail(type, details, fill, variant), view,...(tankTop?{freeResize:true}:{}),...Object.fromEntries(Object.entries(overrides).filter(([,value])=>value!==undefined)),
       ...(hoodie && type === 'pocket' && variant?.startsWith('hoodie-') ? { stitch: '#B0B0B0' } : {}) };
     let detail = type === 'zip' && bounds ? createOpening(overlay, bounds, trousers?'free':'neckline') : overlay;
     if (!trousers && view === 'front' && bounds && (variant === 'zip-06' || variant === 'zip-07')) {
@@ -354,6 +357,14 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
     if (length && bounds) detail = alignGarmentZip(detail, bounds, length);
     if (bounds) detail = anchorHoodTrim(detail, bounds);
     if (bounds && trousers && type === 'utility') detail = placeTrouserUtility(detail, bounds);
+    if (bounds && tankTop && type === 'utility' && ['tank-slit','tank-dropped-slit','tank-side-tape','tank-piping','tank-bartack','tank-mesh'].includes(variant ?? '')) {
+      const bodyWidth=bounds.maxX-bounds.minX;
+      const span=garmentPanelSpanAtY(bounds.openingGeometry,'base',bounds.minY+detail.y*(bounds.maxY-bounds.minY));
+      if(span){
+        const halfWidth=detailAsset(detail).width*bodyWidth*detailScale(detail.scale)/2;
+        detail={...detail,x:(span[0]-bounds.minX+halfWidth+3)/bodyWidth};
+      }
+    }
     editor?.onOpeningStageChange?.('final');
     const nextDetails = (hoodie||trousers) && type === 'toggle' && !details.some(item => item.type === 'drawstring' && !item.hidden && (item.view ?? 'front') === 'front')
       ? [...details, { ...createGarmentDetail('drawstring', details, '#DDD6C7', 'cord-round'), view: 'front' as const, selected: false,...(trousers?{trouserAnchor:'waist' as const,drawstringPosition:'external' as const}:{}) }]
@@ -395,7 +406,7 @@ export function GarmentDetailsPanel({ details, selectedId, onSelect, onChange, c
       {builtinError && <p role="status" className="text-xs text-amber-300">{builtinError}</p>}
     </div>}
     <section className="detail-library" hidden={!libraryOpen}><div className="detail-library-content">
-      {tankTop?<TankDetailsLibrary add={add} onFinish={onTankFinish}/>:trousers?<TrouserDetailsLibrary construction={trousers} details={details} onChange={onChange} onSelect={editDetail} add={add} bounds={bounds} view={view}/>:<>
+      {tankTop?<TankDetailsLibrary view={view} add={add} onFinish={onTankFinish} onEditOpenings={onTankOpenings}/>:trousers?<TrouserDetailsLibrary construction={trousers} details={details} onChange={onChange} onSelect={editDetail} add={add} bounds={bounds} view={view}/>:<>
       <div role="group" aria-label="Detail category" className="detail-category-grid">
         {primaryDetailCategories.map(type => <button key={type} type="button"
           aria-pressed={activeCategory === type} onClick={() => setCategory(type)}>
@@ -694,7 +705,7 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
         onLostPointerCapture={event => { if (gesture.current?.pointerId === event.pointerId) cancel(); }}>
         <button type="button" aria-label={`${detail.name} on garment`} aria-pressed={editable ? selected : undefined} tabIndex={editable ? 0 : -1}
         className={`garment-detail-hit absolute inset-0 h-full w-full touch-none bg-transparent p-0 ${editable ? 'pointer-events-auto cursor-move' : 'pointer-events-none'}`}
-        style={{ outline: selected && !pullSelected && wordSelection !== detail.id ? '1px dashed #CC2D24' : undefined, outlineOffset: 6 }}
+        style={{ outline: selected && !pullSelected && wordSelection !== detail.id ? '1px solid #9a9a9a' : undefined, outlineOffset: 12 }}
         onPointerDown={event => start(event, detail)}
         onClick={event => { event.stopPropagation(); if (editable) { setWordSelection(null); onSelect?.(detail.id); editor?.onPartChange('zip'); } }}
         onKeyDown={event => {
@@ -719,13 +730,13 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
           <g transform={`translate(${current.flipX ? sourceWidth : 0} ${current.flipY ? sourceHeight : 0}) scale(${current.flipX ? -1 : 1} ${current.flipY ? -1 : 1})`}>
             <g transform={`translate(${curvedPull?.x??hardware.center} ${curvedPull?.y??hardware.pullY}) rotate(${curvedPull?.angle??0}) rotate(${current.zipPullSide === 'left' ? 18 : current.zipPullSide === 'right' ? -18 : 0}) scale(${pullScale})`}>
               <rect role="button" tabIndex={0} aria-label={`Select ${detail.name} pull`} aria-pressed={pullSelected} x="-14" y="0" width="28" height={zipPullStyle(current).id === 'short' ? 22 : 50}
-                fill="transparent" stroke={pullSelected ? '#CC2D24' : 'none'} strokeWidth=".6" strokeDasharray="2 2" className="pointer-events-auto touch-none cursor-move"
+                fill="transparent" stroke={pullSelected ? '#171717' : 'none'} strokeWidth=".6" className="pointer-events-auto touch-none cursor-move"
                 onPointerDown={event => start(event, detail, undefined, 'move')} onClick={event => { event.stopPropagation(); onSelect?.(detail.id); editor.onPartChange('pull'); }}
                 onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect?.(detail.id); editor.onPartChange('pull'); }
                   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) { event.preventDefault(); event.stopPropagation(); const increment = event.shiftKey ? 40 : 8;
                     const next = adjustZipPull(detail, bounds, event.key === 'ArrowLeft' ? -increment : event.key === 'ArrowRight' ? increment : 0, event.key === 'ArrowUp' ? -increment : event.key === 'ArrowDown' ? increment : 0, 'move');
                     onChange?.(details.map(item => item.id === detail.id ? next : item)); } }} />
-              {pullSelected && <rect role="button" tabIndex={0} aria-label={`Resize ${detail.name} pull`} x="10" y={zipPullStyle(current).id === 'short' ? 18 : 46} width="8" height="8" fill="white" stroke="#CC2D24" strokeWidth=".6"
+              {pullSelected && <rect role="button" tabIndex={0} aria-label={`Resize ${detail.name} pull`} x="10" y={zipPullStyle(current).id === 'short' ? 18 : 46} width="8" height="8" rx="1.5" fill="white" stroke="#171717" strokeWidth=".6"
                 className="pointer-events-auto touch-none cursor-nwse-resize" onPointerDown={event => start(event, detail, undefined, 'resize')}
                 onKeyDown={event => { if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return; event.preventDefault(); event.stopPropagation();
                   const next = { ...detail, zipPullScale: zipPullScale({ zipPullScale: zipPullScale(detail) + (['ArrowUp', 'ArrowLeft'].includes(event.key) ? -.05 : .05) }) };
@@ -733,11 +744,11 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
             </g>
           </g>
         </svg>}
-        {selected && !pullSelected && wordSelection !== detail.id && <button type="button" aria-label={`Rotate ${detail.name}`} title={`Rotate ${detail.name}`} className="pointer-events-auto absolute flex h-8 w-8 touch-none items-center justify-center rounded-full border border-[#CC2D24] bg-white text-[#CC2D24]"
-                  style={{ left: '50%', top: -50, transform: 'translateX(-50%)' }} onPointerDown={event => start(event, detail, undefined, undefined, true)}
+        {selected && !pullSelected && wordSelection !== detail.id && <button type="button" aria-label={`Rotate ${detail.name}`} title={`Rotate ${detail.name}`} className="cx-live-rotate pointer-events-auto absolute touch-none"
+                  style={{ left: '50%', top: -40, transform: 'translateX(-50%)' }} onPointerDown={event => start(event, detail, undefined, undefined, true)}
           onKeyDown={event => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return; event.preventDefault(); event.stopPropagation();
             const next = setDetailTransform(detail, bounds, { rotation: detailRotation(detail) + (['ArrowLeft', 'ArrowDown'].includes(event.key) ? -1 : 1) * (event.shiftKey ? 15 : 1) });
-            onChange?.(details.map(item => item.id === detail.id ? next : item)); }}><RotateCw size={12} /></button>}
+            onChange?.(details.map(item => item.id === detail.id ? next : item)); }}><span className="cx-live-rotate-dot" aria-hidden="true" /></button>}
         {selected && !pullSelected && wordSelection !== detail.id && [
           { name: 'top left', x: -1, y: -1 }, { name: 'top right', x: 1, y: -1 },
           { name: 'bottom left', x: -1, y: 1 }, { name: 'bottom right', x: 1, y: 1 },
@@ -758,7 +769,7 @@ export function GarmentDetailsOverlay({ details, bounds, selectedId, onSelect, o
             const dy = event.key === 'ArrowUp' ? -increment : event.key === 'ArrowDown' ? increment : 0;
             const next = resizeGarmentDetail(detail, bounds, corner.x, corner.y, dx, dy);
             onChange?.(details.map(item => item.id === detail.id ? next : item));
-          }}><span className="h-2 w-2 border border-[#CC2D24] bg-white" /></button>)}
+          }}><span className="cx-live-handle" data-kind={!corner.x ? (sideways ? 'v' : 'h') : !corner.y ? (sideways ? 'h' : 'v') : 'corner'} aria-hidden="true" /></button>)}
       </div>;
     })}
   </div>;
