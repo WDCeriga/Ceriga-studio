@@ -31,7 +31,7 @@ export function TrouserDetailsLibrary({construction,details,onChange,onSelect,ad
  };
  return <div className="trouser-details-library">
   <div className="detail-category-grid trouser-detail-categories" role="group" aria-label="Trouser detail category">{['Pockets','Waist trims','Zips & pulls','Utility details','Patches / tabs'].map(label=><button type="button" key={label} aria-pressed={section===label} onClick={()=>{setSection(label);if(label==='Waist trims')construction.onView('front')}}>{label}</button>)}</div>
-  {section==='Pockets'&&<><p className="detail-library-hint">Pocket construction follows the selected fit and works on both trousers and shorts.</p><div className="trouser-detail-cards">{TROUSER_POCKET_CHOICES.map(([id,label])=>{
+  {section==='Pockets'&&<><p className="detail-library-hint">Pockets follow the selected fit.</p><div className="trouser-detail-cards">{TROUSER_POCKET_CHOICES.map(([id,label])=>{
    const chosen=id==='patch-back'?backPocket==='patch':id==='welt-back'?backPocket==='welt'
     :id==='none'?frontPocket==='none'&&backPocket==='none'&&!details.some(detail=>detail.type==='pocket'):frontPocket===id;
    return card(label,pocketThumbnails[id],()=>pocket(id),chosen);

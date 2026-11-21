@@ -1,0 +1,120 @@
+/*
+ * Ceriga Builder visual system (Phase 1). Namespace: --cx-*.
+ * Spec: docs/builder-audit/AUDIT.md §12 (tokens, density modes, canvas interaction states).
+ * Every new primitive reads from these tokens; nothing is styled ad hoc.
+ * Existing --builder-ui-* variables (builder-experience.css) are left untouched.
+ */
+:root {
+  /* Ink scale: neutral, slightly warm. Tertiary is the lightest colour allowed for text (≥4.5:1 on white). */
+  --cx-ink: #171717;
+  --cx-ink-2: #404040;          /* secondary text */
+  --cx-ink-3: #6b6b6b;          /* tertiary text, 5.3:1 on white */
+  --cx-ink-4: #a3a3a3;          /* icons at rest, disabled text (non-essential only) */
+  --cx-line: #e7e7e5;           /* hairlines between regions */
+  --cx-line-strong: #d6d6d3;
+
+  /* Surfaces */
+  /* Artboard backdrop for the Asset Workspace and the design-review gallery ONLY.
+     The garment Builder workspace stays open: never put a surface behind the garment (AUDIT rule 6). */
+  --cx-stage: #f6f6f5;
+  --cx-panel: #ffffff;          /* rail + inspector */
+  --cx-raised: #ffffff;         /* floating toolbars, popovers */
+  --cx-fill: #f4f4f3;           /* inactive card / control fill */
+  --cx-fill-hover: #ececea;
+  --cx-fill-press: #e4e4e1;
+
+  /* Roles (canvas + states). Red is reserved for the primary CTA and errors. */
+  --cx-accent: #cc2d24;         /* Ceriga red: primary CTA, errors */
+  --cx-focus: #5b5bd6;          /* focus ring + snap guides only (muted blue-violet) */
+  --cx-warning: #b45309;        /* seam warnings (amber) */
+  --cx-warning-fill: #fef3c7;
+
+  /* Elevation: layered transparent shadows (definition, near, ambient). */
+  --cx-shadow-float:
+    0 0 0 1px rgb(0 0 0 / .06),
+    0 1px 2px -1px rgb(0 0 0 / .06),
+    0 4px 12px 0 rgb(0 0 0 / .05);
+  --cx-shadow-float-hover:
+    0 0 0 1px rgb(0 0 0 / .08),
+    0 1px 2px -1px rgb(0 0 0 / .08),
+    0 6px 16px 0 rgb(0 0 0 / .07);
+  --cx-shadow-pop:
+    0 0 0 1px rgb(0 0 0 / .07),
+    0 2px 4px -1px rgb(0 0 0 / .06),
+    0 12px 28px -4px rgb(0 0 0 / .10);
+
+  /* Radii: controls 6, cards/popovers 8, floating toolbars 10. Nothing larger. */
+  --cx-r-control: 6px;
+  --cx-r-card: 8px;
+  --cx-r-float: 10px;
+
+  /* Type (Inter Variable is already loaded by the app). */
+  --cx-font: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  --cx-title: 600 18px/1.3 var(--cx-font);
+  --cx-heading: 600 13px/1.4 var(--cx-font);
+  --cx-body: 400 13px/1.45 var(--cx-font);
+  --cx-helper: 400 12px/1.45 var(--cx-font);
+  --cx-caption: 500 11px/1.35 var(--cx-font);
+
+  /* Typography levels (the only ones the Builder uses). Hierarchy comes from spacing, grouping and
+     position first; weight changes stay subtle. Selected text is never heavier than 500. */
+  --cx-type-title: 600 18px/1.3 var(--cx-font);        /* inspector / page title */
+  --cx-type-section: 600 13px/1.4 var(--cx-font);      /* Fit, Shoulder construction, Rise, Length, Body length… */
+  --cx-type-label: 400 12.5px/1.35 var(--cx-font);     /* option labels, field labels */
+  --cx-type-label-selected-weight: 500;
+  --cx-type-helper: 400 12px/1.45 var(--cx-font);      /* descriptions, helper text */
+  --cx-type-meta: 400 12px/1.4 var(--cx-font);         /* units, status, summaries in headers */
+  /* Section rhythm */
+  --cx-section-gap: 22px;       /* between option groups */
+  --cx-heading-gap: 10px;       /* heading → content */
+  --cx-label-gap: 6px;          /* preview → label */
+
+  /* Icons */
+  --cx-icon: 16px;
+  --cx-icon-tool: 18px;
+
+  /* Motion: transform/opacity only (AUDIT §7). */
+  --cx-ease-out: cubic-bezier(.23, 1, .32, 1);
+  --cx-ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  --cx-t-press: 100ms;
+  --cx-t-state: 150ms;
+  --cx-t-push: 200ms;
+  --cx-t-camera: 280ms;
+}
+
+/* Density modes. A container sets data-density; primitives inside read these sizes. */
+:root,
+[data-density='standard'] {
+  --cx-control-h: 36px;
+  --cx-row-gap: 8px;
+  --cx-grid-gap: 8px;
+  --cx-group-gap: 24px;
+  --cx-pad: 16px;
+  --cx-text: 13px;
+  --cx-text-helper: 12px;
+  --cx-thumb: 48px;
+}
+[data-density='compact'] {
+  --cx-control-h: 28px;
+  --cx-row-gap: 4px;
+  --cx-grid-gap: 6px;
+  --cx-group-gap: 16px;
+  --cx-pad: 12px;
+  --cx-text: 12px;
+  --cx-text-helper: 11px;
+  --cx-thumb: 36px;
+}
+[data-density='visual-grid'] {
+  --cx-control-h: 36px;
+  --cx-row-gap: 8px;
+  --cx-grid-gap: 8px;
+  --cx-group-gap: 24px;
+  --cx-pad: 16px;
+  --cx-text: 12px;
+  --cx-text-helper: 11px;
+  --cx-thumb: 88px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --cx-t-press: 0ms; --cx-t-state: 0ms; --cx-t-push: 0ms; --cx-t-camera: 0ms; }
+}

@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { SWEATPANTS_OPTIONS, SWEATPANTS_SHORT_LEGS, sweatpantsBlock, sweatpantsLength, sweatpantsLengthAdjustment, sweatpantsLegThumbnail } from '../../../data/sweatpants';
 import type { GarmentAssetSelection } from '../../../data/garmentSvgCatalog';
 import './sweatpants-controls.css';
+import { VisualOptionGrid, CroppedImage, harmonisePreviewArt } from '../design-system';
 
 function WaistbandPreview({ construction }: { construction: string }) {
   const gathered = construction === 'elastic' || construction === 'drawstring';
@@ -56,6 +57,16 @@ function RisePreview({ rise }: { rise: string }) {
   );
 }
 
+/** Rise on the real trouser render: the dashed line is the natural waist; the garment sits lower (low), at (mid) or above (high) it. */
+function RiseTechPreview({ rise, leg }: { rise: string; leg: string }) {
+  const shift = rise === 'low' ? 9 : rise === 'high' ? -3 : 3; // % of tile height
+  return (
+    <span className="cx-rise" aria-hidden="true">
+      <img src={harmonisePreviewArt(sweatpantsLegThumbnail(leg))} alt="" draggable={false} style={{ transform: `translateY(${shift}%)` }} />
+      <i className="cx-rise-waist" />
+    </span>
+  );
+}
 function HemPreview({ finish }: { finish: string }) {
   return (
     <svg viewBox="0 0 100 90" fill="none" aria-hidden="true">
@@ -105,8 +116,15 @@ export function SweatpantsControls({ selection, onChange, section = 'fit' }: {
           : isLeg ? sweatpantsBlock(selection).leg : selection[key] ?? defaults[key];
         return (
           <details className="sweatpants-choice" key={key} open>
-            <summary><span>{group.label}</span><ChevronDown size={16} /></summary>
-            <div className={`sweatpants-option-grid${isLength ? ' sweatpants-length-options' : ''}${isRise ? ' sweatpants-rise-options' : ''}`}
+            <summary><span>{group.label}<small>{options.find(([value]) => value === selected)?.[1]}</small></span><ChevronDown size={16} /></summary>
+            {section === 'fit' ? (
+              // Phase 1: fit choices use the shared VisualOptionGrid with feature-specific previews.
+              <div className="sweatpants-fit-grid cx"><VisualOptionGrid label={group.label} columns={isLength ? 2 : 3} value={selected}
+                options={options.map(([value, label]) => ({ id: value, label,
+                  preview: isRise ? <RiseTechPreview rise={value} leg={sweatpantsBlock(selection).leg} />
+                    : <CroppedImage region="full" src={sweatpantsLegThumbnail(sweatpantsBlock(selection).leg, value === 'shorts')} /> }))}
+                onChange={value => onChange({ [key]: value })} /></div>
+            ) : <div className={`sweatpants-option-grid${isLength ? ' sweatpants-length-options' : ''}${isRise ? ' sweatpants-rise-options' : ''}`}
               role="group" aria-label={group.label}>
               {options.map(([value, label]) => (
                 <button type="button" key={value} aria-pressed={selected === value}
@@ -121,7 +139,7 @@ export function SweatpantsControls({ selection, onChange, section = 'fit' }: {
                   <span>{label}</span>
                 </button>
               ))}
-            </div>
+            </div>}
             {isLength && (
               <div className="sweatpants-length-adjuster" style={{ '--length-position': `${(adjustment + 10) * 4}%` } as CSSProperties}>
                 <div className="sweatpants-length-value">
@@ -138,6 +156,7 @@ export function SweatpantsControls({ selection, onChange, section = 'fit' }: {
                 <button className="sweatpants-length-reset" type="button" disabled={adjustment === 0} onClick={() => setAdjustment('0')}>Reset length</button>
               </div>
             )}
+            {isLength && section === 'fit' && <p className="cx-section-helper">Adjusts the leg and hem only.</p>}
           </details>
         );
       })}

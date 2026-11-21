@@ -1,0 +1,344 @@
+/*
+ * Phase 1 shell layer: re-skins the Builder chrome with the --cx visual system
+ * (docs/builder-audit/AUDIT.md §11–12). Imported last by BuilderShell.tsx, so it overrides
+ * the legacy shell sheets without editing them. Selectors are doubled to win specificity.
+ */
+.ceriga-builder-shell.ceriga-builder-shell { font-family: var(--cx-font); -webkit-font-smoothing: antialiased; }
+
+/* ---------- Top bar: quieter chrome, primary action compact ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .builder-topbar { background: var(--cx-panel); box-shadow: 0 1px 0 var(--cx-line); border-bottom: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb { font: var(--cx-body); color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-name { font: 600 13px/1.4 var(--cx-font); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-draft { font: var(--cx-caption); color: var(--cx-ink-3); background: var(--cx-fill); border: 0; border-radius: 4px; padding: 2px 6px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-project-actions > button:not(.builder-primary) { border-radius: var(--cx-r-control); color: var(--cx-ink-2); transition: background-color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-project-actions > button:not(.builder-primary):hover:not(:disabled) { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-save { font: var(--cx-helper); color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-primary { height: 32px; padding: 0 14px; border: 0; border-radius: var(--cx-r-control); background: var(--cx-accent); color: #fff;
+  font: 500 13px/1 var(--cx-font); letter-spacing: 0; box-shadow: 0 1px 2px rgb(204 45 36 / .25); transition: background-color var(--cx-t-state) var(--cx-ease-out), transform var(--cx-t-press) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-primary:hover { background: #b8271f; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-primary:active { transform: scale(.97); }
+
+/* ---------- Left rail: sections, then the active section's areas ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar { background: var(--cx-panel); border-right: 0; box-shadow: 1px 0 0 var(--cx-line); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button { height: 34px; min-height: 34px; gap: 10px; padding: 0 10px; border: 0; border-radius: var(--cx-r-control);
+  background: transparent; color: var(--cx-ink-2); font: 400 13px/1 var(--cx-font); letter-spacing: 0; transition: background-color var(--cx-t-state) var(--cx-ease-out), color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button > svg { width: 17px; height: 17px; stroke-width: 1.6; color: var(--cx-ink-3); flex: none; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button.is-selected { background: var(--cx-fill-hover); color: var(--cx-ink); font-weight: 600; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button.is-selected > svg { color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-status-dot { display: none; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > h2,
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > :is(p, small) { font: 500 11px/1.4 var(--cx-font); letter-spacing: 0; text-transform: none; color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > button { height: 30px; min-height: 30px; font-size: 12.5px; padding-left: 12px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > button > svg { width: 15px; height: 15px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar nav { border-bottom-color: var(--cx-line); }
+
+/* Collapse controls: quiet floating icon buttons, never overlapping labels */
+.ceriga-builder-shell.ceriga-builder-shell :is(.builder-collapse, .builder-inspector-collapse) { width: 24px; height: 24px; min-height: 24px; border: 0; border-radius: var(--cx-r-control);
+  background: var(--cx-raised); color: var(--cx-ink-3); box-shadow: var(--cx-shadow-float); transition: color var(--cx-t-state) var(--cx-ease-out), box-shadow var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell :is(.builder-collapse, .builder-inspector-collapse):hover { color: var(--cx-ink); box-shadow: var(--cx-shadow-float-hover); }
+
+/* ---------- Inspector frame + one-line heading ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail { background: var(--cx-panel); border-left: 0; box-shadow: -1px 0 0 var(--cx-line); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-heading { padding: 0 0 14px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-heading > .builder-eyebrow { display: none; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-heading > h2 { font: var(--cx-title); letter-spacing: -.01em; color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-heading > p { margin: 3px 0 0; font: var(--cx-helper); color: var(--cx-ink-3); }
+
+/* ---------- Focus: one consistent ring across the shell ---------- */
+.ceriga-builder-shell.ceriga-builder-shell :is(.builder-topbar, .builder-sidebar, .builder-inspector-rail) :focus-visible { outline: 2px solid var(--cx-focus); outline-offset: 2px; }
+
+/* Rail metrics: full section names must fit (no ellipsis at the standard rail width). */
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button { gap: 8px; padding: 0 8px; font-size: 12.5px; letter-spacing: -.005em; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button > svg { width: 16px; height: 16px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > button { font-size: 12px; padding-left: 10px; }
+/* Sub-areas keep their full wording: allow a second line rather than truncating. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > button { height: auto; min-height: 30px; padding-block: 6px; align-items: center; text-align: left; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > button > span { white-space: normal; line-height: 1.25; overflow: visible; }
+
+/* Every panel heading (shared InspectorHeading and the per-studio headers use .materials-heading):
+   one-line title, no "XX STUDIO" eyebrow, short helper line. */
+.ceriga-builder-shell.ceriga-builder-shell :is(.materials-heading, .builder-inspector-heading) > .builder-eyebrow { display: none; }
+.ceriga-builder-shell.ceriga-builder-shell :is(.materials-heading, .builder-inspector-heading) { padding-bottom: 14px; margin-bottom: 0; }
+.ceriga-builder-shell.ceriga-builder-shell :is(.materials-heading, .builder-inspector-heading) > h2 { margin: 0; font: var(--cx-title); letter-spacing: -.01em; color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell :is(.materials-heading, .builder-inspector-heading) > p { margin: 3px 0 0; font: var(--cx-helper); color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .studio-inspector-header .builder-eyebrow { display: none; }
+.ceriga-builder-shell.ceriga-builder-shell .studio-inspector-header h2 { font: var(--cx-title); letter-spacing: -.01em; color: var(--cx-ink); margin: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .studio-inspector-header p { font: var(--cx-helper); color: var(--cx-ink-3); margin: 3px 0 0; }
+
+/* ---------- Canvas dock: one bottom-centre island over the open workspace (no band, no surface) ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock { position: absolute; left: 50%; bottom: 16px; top: auto; right: auto; z-index: 30; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: var(--cx-r-float); background: var(--cx-raised); box-shadow: var(--cx-shadow-float); white-space: nowrap; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > :is(.new-view-switch, .studio-canvas-zoom, .measurement-guides-toggle) {
+  position: static; inset: auto; transform: none; margin: 0; border: 0; box-shadow: none; background: transparent; width: auto; height: auto; min-height: 0; padding: 0; }
+/* View: segmented */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch { display: flex; gap: 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch > button { height: 28px; min-height: 28px; padding: 0 10px; border: 0; border-radius: var(--cx-r-control); background: transparent;
+  color: var(--cx-ink-2); font: 500 12px/1 var(--cx-font); box-shadow: none; transition: background-color var(--cx-t-state) var(--cx-ease-out), color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch > button:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch > button[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }
+/* Zoom: − value + Fit */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom { display: flex; align-items: center; gap: 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > button { height: 28px; min-height: 28px; min-width: 28px; padding: 0 8px; border: 0; border-radius: var(--cx-r-control);
+  background: transparent; color: var(--cx-ink-2); font: 500 12px/1 var(--cx-font); box-shadow: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > button:hover:not(:disabled) { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > button:disabled { color: #c4c4c2; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > label { display: flex; align-items: center; height: 28px; padding: 0 2px; border: 0; border-radius: var(--cx-r-control); background: transparent; box-shadow: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > label:hover { background: var(--cx-fill); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom input { width: 34px; border: 0; background: transparent; padding: 0; text-align: right; font: 500 12px/1 var(--cx-font); font-variant-numeric: tabular-nums; color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom label > span { font: 500 12px/1 var(--cx-font); color: var(--cx-ink-3); }
+/* Guides: compact switch */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: var(--cx-r-control); color: var(--cx-ink-2); font: 500 12px/1 var(--cx-font); cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle .guides-label-phone { display: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle .guides-label-desktop { display: inline; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock .cx-toolbar-sep { flex: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > :is(.new-view-switch, .studio-canvas-zoom, .measurement-guides-toggle) { position: static !important; inset: auto !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; transform: none !important; margin: 0 !important; box-shadow: none !important; border: 0 !important; background: transparent !important; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; box-shadow: none !important; border: 0 !important;
+  height: 28px; min-height: 28px; padding: 0 10px; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-2); font: 500 12px/1 var(--cx-font); opacity: 1; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle:hover:not(:disabled) { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle:disabled { color: #b5b5b2; cursor: not-allowed; }
+/* Tool-options strip (e.g. brush size/opacity) sits just above the canvas dock, centred, never beside it. */
+.ceriga-builder-shell.ceriga-builder-shell .print-canvas-footer > .draw-quick-settings { position: absolute !important; left: 50% !important; right: auto !important; bottom: 72px !important; top: auto !important;
+  transform: translateX(-50%) !important; z-index: 29; margin: 0; padding: 4px 10px; border: 0 !important; border-radius: var(--cx-r-float); background: var(--cx-raised); box-shadow: var(--cx-shadow-float); }
+
+/* Fit grid now hosts the shared VisualOptionGrid: neutralise the legacy grid/button styling around it. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx { display: block; grid-template-columns: none; gap: 0; border: 0; padding: 0; background: none; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option { height: auto; min-height: 0; width: auto; border: 0; box-shadow: none; background: transparent; padding: 4px 4px 6px; aspect-ratio: auto; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option[aria-checked='true'] { background: transparent; border: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option-preview { --cx-thumb: 76px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option-preview > img { max-width: 78%; max-height: 78%; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option { align-items: stretch; }
+
+/* ---------- Fit section: legacy containers now hosting VisualOptionGrid ---------- */
+.ceriga-builder-shell.ceriga-builder-shell :is(.shoulder-construction-picker, .torso-crop-control, .sweatpants-fit-grid).cx .cx-option {
+  height: auto; min-height: 0; width: auto; border: 0; box-shadow: none; background: transparent; padding: 4px 4px 6px; align-items: stretch; aspect-ratio: auto; display: flex; flex-direction: column; }
+.ceriga-builder-shell.ceriga-builder-shell :is(.shoulder-construction-picker, .torso-crop-control, .sweatpants-fit-grid).cx .cx-option > span { display: block; }
+.ceriga-builder-shell.ceriga-builder-shell :is(.shoulder-construction-picker, .torso-crop-control, .sweatpants-fit-grid).cx .cx-option-preview { display: grid; }
+.ceriga-builder-shell.ceriga-builder-shell .shoulder-construction-picker.cx .cx-option-preview { --cx-thumb: 64px; }
+.ceriga-builder-shell.ceriga-builder-shell .torso-crop-control.cx .cx-option-preview { --cx-thumb: 84px; }
+.ceriga-builder-shell.ceriga-builder-shell .sweatpants-fit-grid.cx .cx-option-preview { --cx-thumb: 66px; }
+.ceriga-builder-shell.ceriga-builder-shell .shoulder-construction-picker.cx > h3 { font: var(--cx-heading); color: var(--cx-ink); margin: 0 0 10px; }
+.ceriga-builder-shell.ceriga-builder-shell .shoulder-construction-picker.cx > p { font: var(--cx-helper); color: var(--cx-ink-3); margin: 8px 0 0; }
+.ceriga-builder-shell.ceriga-builder-shell .sweatpants-fit-grid.cx { display: block; }
+
+/* ---------- Tank length cards (TankControls markup left untouched): same visual language ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-option-grid > button { border: 0; background: transparent; box-shadow: none; padding: 4px 4px 6px; gap: 6px;
+  color: var(--cx-ink-2); font: var(--cx-caption); font-size: 12px; transition: transform var(--cx-t-press) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-option-grid > button > :is(img, svg) { width: 100%; border-radius: calc(var(--cx-r-card) - 2px); background: var(--cx-fill);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .035); outline: 0 solid transparent; transition: background-color var(--cx-t-state) var(--cx-ease-out), box-shadow var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-option-grid > button:hover > :is(img, svg) { background: var(--cx-fill-hover); }
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-option-grid > button:active { transform: scale(.98); }
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-option-grid > button[aria-pressed='true'] { color: var(--cx-ink); font-weight: 600; background: transparent; border: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-option-grid > button[aria-pressed='true'] > :is(img, svg) { background: var(--cx-panel); box-shadow: 0 0 0 1.5px var(--cx-ink), 0 1px 2px rgb(0 0 0 / .06); }
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-option-grid > button:focus-visible { outline: 2px solid var(--cx-focus); outline-offset: 0; border-radius: var(--cx-r-card); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar .builder-context > button { padding-left: 6px; padding-right: 4px; gap: 7px; }
+.ceriga-builder-shell.ceriga-builder-shell .tank-controls .sweatpants-fit-grid.cx .cx-option-preview { --cx-thumb: 92px; }
+
+/* ---------- Top bar: left = document + editing, right = history + output ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-back-link { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 6px; margin-left: -6px; border-radius: var(--cx-r-control);
+  color: var(--cx-ink-3); text-decoration: none; font: var(--cx-body); transition: background-color var(--cx-t-state) var(--cx-ease-out), color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-back-link:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-crumb-sep { color: var(--cx-line-strong); margin: 0 -2px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb .builder-save { height: 24px; padding: 0 6px; border: 0; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-3); font: var(--cx-helper); white-space: nowrap; cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb .builder-save:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-doc-divider { width: 1px; height: 18px; background: var(--cx-line); margin: 0 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group { display: flex; gap: 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group > button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--cx-r-control);
+  background: transparent; color: var(--cx-ink-2); cursor: pointer; transition: background-color var(--cx-t-state) var(--cx-ease-out), color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group > button:hover:not(:disabled) { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group > button:disabled { color: #c4c4c2; cursor: default; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-project-actions { display: flex; align-items: center; gap: 8px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-project-actions > button[aria-label='Version history'] { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-2); }
+@media (max-width: 767px) { .ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb :is(.builder-save, .builder-doc-divider, .builder-history-group) { display: none; } }
+.ceriga-builder-shell.ceriga-builder-shell .builder-crumb-sep { margin: 0 -4px; }
+
+/* ================= Fit & Measurements: one structure, shared type levels, all presets =================
+   Every level maps to a --cx-type-* token; no preset-specific type remains. !important is used only
+   where legacy sheets already force values with !important. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.fit-section-label, .shoulder-construction-picker > h3, .builder-measure-heading h3) {
+  font: var(--cx-type-section) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--cx-ink) !important; margin: 0 0 var(--cx-heading-gap) !important; }
+/* Collapsible sections (Rise, Length, Body length on every preset): heading · current value · chevron */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary {
+  display: flex !important; align-items: center; gap: 8px; min-height: 0 !important; padding: 0 !important; margin: 0 0 var(--cx-heading-gap) !important; border: 0 !important;
+  font: var(--cx-type-section) !important; color: var(--cx-ink) !important; cursor: pointer; list-style: none; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary::-webkit-details-marker { display: none; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary > span { display: flex !important; flex: 1; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0;
+  font: var(--cx-type-section) !important; color: var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary small { display: inline !important; margin: 0 !important; font: var(--cx-type-meta) !important; color: var(--cx-ink-3) !important; white-space: nowrap; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary > svg { flex: none; width: 14px !important; height: 14px !important; color: var(--cx-ink-4) !important; transition: transform var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice:not([open]) > summary { margin-bottom: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice:not([open]) > summary > svg { transform: rotate(-90deg); }
+/* Section rhythm: identical spacing and one hairline between every option group */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.shoulder-construction-picker, .sweatpants-choice, .restored-core-settings, .builder-measure-heading) {
+  margin: var(--cx-section-gap) 0 0 !important; padding: var(--cx-section-gap) 0 0 !important; border: 0 !important; border-top: 1px solid var(--cx-line) !important; background: none !important; box-shadow: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .fit-section-label { margin-top: 4px !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.shoulder-construction-picker > p, .cx-section-helper) { margin: 10px 0 0 !important; font: var(--cx-type-helper) !important; color: var(--cx-ink-3) !important; }
+/* Fine-adjust control: one design for every preset (T-shirt/Hoodie % and Joggers/Tank cm) */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-adjuster { margin: 12px 0 0 !important; padding: 12px !important; border: 0 !important; border-radius: var(--cx-r-card) !important; background: var(--cx-fill) !important; box-shadow: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value { display: flex !important; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value > label { font: var(--cx-type-label) !important; color: var(--cx-ink-2) !important; margin: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value > span { display: inline-flex !important; align-items: center; gap: 4px; height: 28px; padding: 0 8px !important; border: 0 !important; border-radius: var(--cx-r-control) !important;
+  background: var(--cx-panel) !important; box-shadow: inset 0 0 0 1px var(--cx-line) !important; font: var(--cx-type-meta) !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value input { width: 40px !important; height: auto !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important;
+  font: var(--cx-type-label) !important; font-variant-numeric: tabular-nums; color: var(--cx-ink) !important; text-align: right; -moz-appearance: textfield; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value input::-webkit-inner-spin-button, .ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value > span:focus-within { box-shadow: inset 0 0 0 1.5px var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider { position: relative; height: 20px; margin: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-track { display: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range'] { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; margin: 0; padding: 0; background: transparent; border: 0; cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range']::-webkit-slider-runnable-track { height: 2px; border-radius: 1px; background: var(--cx-line-strong); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range']::-moz-range-track { height: 2px; border-radius: 1px; background: var(--cx-line-strong); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px var(--cx-ink), 0 1px 3px rgb(0 0 0 / .18); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range']::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px var(--cx-ink), 0 1px 3px rgb(0 0 0 / .18); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range']:focus-visible { outline: 2px solid var(--cx-focus); outline-offset: 2px; border-radius: 4px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-scale { display: flex !important; justify-content: space-between; margin: 2px 0 0 !important; font: var(--cx-type-meta) !important; font-size: 11px !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-reset { display: block; margin: 8px auto 0 !important; padding: 2px 6px !important; border: 0 !important; background: none !important; font: var(--cx-type-meta) !important; color: var(--cx-ink-2) !important; text-decoration: none !important; border-radius: 4px; cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-reset:hover:not(:disabled) { background: var(--cx-fill-hover) !important; color: var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-reset:disabled { color: var(--cx-ink-4) !important; cursor: default; }
+/* Field labels and metadata */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .restored-core-settings :is(span, label):not(:has(button)) { font: var(--cx-type-meta) !important; color: var(--cx-ink-2) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .core-measurements-collapse > summary { font: var(--cx-type-label) !important; font-weight: 500 !important; color: var(--cx-ink-2) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .new-measure-source > span, .ceriga-builder-shell.ceriga-builder-shell .builder-inspector .new-measure-comparison span { font: var(--cx-type-meta) !important; font-size: 11.5px !important; color: var(--cx-ink-3) !important; }
+/* One tile size per preview type across presets: full-garment length previews 84px, cropped region (rise) 66px. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.torso-crop-control, .sweatpants-fit-grid, .tank-controls .sweatpants-fit-grid).cx .cx-option-preview { --cx-thumb: 84px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-fit-grid.cx [role='radiogroup'][aria-label='Rise'] .cx-option-preview { --cx-thumb: 66px; }
+
+/* ================= Refinement v2 (shell) ================= */
+/* Every option tile in the inspector is the same size, whatever grid it is in. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .cx-option-preview { --cx-thumb: 66px !important; }
+/* Quieter type: weight comes from position and spacing, not boldness. */
+.ceriga-builder-shell.ceriga-builder-shell :is(.materials-heading, .builder-inspector-heading, .studio-inspector-header) > h2,
+.ceriga-builder-shell.ceriga-builder-shell .studio-inspector-header h2 { font: 600 16px/1.3 var(--cx-font) !important; letter-spacing: -.01em !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.fit-section-label, .shoulder-construction-picker > h3, .builder-measure-heading h3),
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary,
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary > span { font: 500 13px/1.4 var(--cx-font) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar :is(nav, .builder-context) > button.is-selected { font-weight: 500; }
+/* Segmented controls (view, size range, units) keep their original solid selected style (user preference, 19 Nov 2026). */
+/* Fine-adjust: one slim inline row — label · slider · value — no grey box. Reset appears only when there is something to reset. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-adjuster { display: grid !important; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 12px; row-gap: 4px;
+  margin: 14px 0 0 !important; padding: 0 !important; background: none !important; border-radius: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value { display: contents !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value > label { grid-column: 1; grid-row: 1; font: 400 12px/1.3 var(--cx-font) !important; color: var(--cx-ink-2) !important; white-space: nowrap; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider { grid-column: 2; grid-row: 1; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value > span { grid-column: 3; grid-row: 1; height: 26px !important; background: var(--cx-fill) !important; box-shadow: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-value input { width: 30px !important; font: 400 12px/1 var(--cx-font) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-scale { display: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-reset { grid-column: 3; grid-row: 2; justify-self: end; margin: 0 !important; padding: 0 !important; font: 400 11.5px/1.3 var(--cx-font) !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-reset:disabled { display: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range']::-webkit-slider-thumb { width: 12px; height: 12px; margin-top: -5px; box-shadow: 0 0 0 1px rgb(23 23 23 / .6), 0 1px 2px rgb(0 0 0 / .15); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .sweatpants-length-slider > input[type='range']::-moz-range-thumb { width: 12px; height: 12px; box-shadow: 0 0 0 1px rgb(23 23 23 / .6), 0 1px 2px rgb(0 0 0 / .15); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .cx-section-helper, .ceriga-builder-shell.ceriga-builder-shell .builder-inspector .shoulder-construction-picker > p { font: 400 12px/1.45 var(--cx-font) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.sweatpants-choice, .shoulder-construction-picker, .torso-crop-control) > .cx-option-group, .ceriga-builder-shell.ceriga-builder-shell .builder-inspector .cx .cx-option-group { display: flex !important; flex-direction: column !important; width: 100% !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .cx-option-preview { --cx-thumb: auto !important; height: auto !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option-preview > img { max-width: 100% !important; max-height: 100% !important; }
+
+/* ---------- Import / Custom measurement: honest current-vs-later panels ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx { display: flex; flex-direction: column; gap: 0; padding: 0; border: 0; background: none; }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-import-block { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 0 0 var(--cx-section-gap); }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-import-block + .cx-import-block { padding-top: var(--cx-section-gap); border-top: 1px solid var(--cx-line); }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-import-title { display: flex; align-items: center; gap: 8px; margin: 0; font: 500 13px/1.4 var(--cx-font); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-import-text { margin: 0; font: 400 12px/1.5 var(--cx-font); color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-import-badge { padding: 2px 6px; border-radius: 4px; background: var(--cx-fill); font: 500 11px/1.3 var(--cx-font); color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx [data-state='later'] .cx-import-title { color: var(--cx-ink-2); }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-import-formats { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 0; padding: 0; list-style: none; }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-import-formats > li { padding: 3px 8px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--cx-line); font: 400 11.5px/1.3 var(--cx-font); color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .measurement-import-panel.cx .cx-btn { margin-top: 4px; height: 32px; }
+
+/* ---------- Advanced sizing: purpose-built measurement grid, not a spreadsheet dump ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor table { border-collapse: separate; border-spacing: 0; width: 100%; font: 400 12px/1.3 var(--cx-font); font-variant-numeric: tabular-nums; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor thead th { position: sticky; top: 0; z-index: 2; height: 34px; padding: 0 6px; background: var(--cx-panel); border-bottom: 1px solid var(--cx-line);
+  font: 500 11.5px/1.2 var(--cx-font) !important; color: var(--cx-ink-3) !important; text-align: center; text-transform: none; letter-spacing: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor thead th:first-child { text-align: left; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor thead th small { display: block; font: 400 10.5px/1.2 var(--cx-font); color: var(--cx-ink-3); }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor thead th[data-anchor='true'] { color: var(--cx-ink) !important; }
+/* Pinned measurement names */
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor :is(thead, tbody) tr > :first-child { position: sticky; left: 0; z-index: 1; background: var(--cx-panel); box-shadow: 1px 0 0 var(--cx-line); }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor thead tr > :first-child { z-index: 3; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor tbody th > button { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 118px; height: 36px; padding: 0 8px 0 0; border: 0; background: none;
+  font: 400 12.5px/1.25 var(--cx-font) !important; color: var(--cx-ink) !important; text-align: left; text-decoration: none !important; cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor tbody th > button > svg { margin-left: auto; color: var(--cx-ink-4); flex: none; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor tbody :is(th, td) { border-bottom: 1px solid #f0f0ee; padding: 0 3px; height: 36px; vertical-align: middle; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor tbody tr:hover > :is(th, td), .ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor tbody tr[data-active='true'] > :is(th, td) { background: #fafaf9; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor tbody tr[data-active='true'] > th > button { font-weight: 500 !important; }
+/* Cells */
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td input { width: 100%; min-width: 48px; height: 28px; padding: 0 6px; border: 0 !important; border-radius: 5px; background: transparent; box-shadow: none !important;
+  font: 400 12.5px/1 var(--cx-font) !important; font-variant-numeric: tabular-nums; color: var(--cx-ink); text-align: right; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td input:hover { background: var(--cx-fill); }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td input:focus { outline: none; background: #fff; box-shadow: inset 0 0 0 1.5px var(--cx-ink) !important; }
+/* Base size column: a quiet tinted band */
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor :is(td, th)[data-anchor='true'] { background: #f7f7f6; }
+/* Advanced sizing table mode: lift the laptop 360px inspector clamp so every size column is visible. */
+.ceriga-builder-shell[data-sizing-table] .builder-shell-grid { grid-template-columns: var(--builder-nav-width) minmax(0, 1fr) var(--builder-inspector-width) !important; }
+.ceriga-builder-shell[data-sizing-table] .builder-inspector-rail { width: var(--builder-inspector-width) !important; max-width: none !important; }
+/* Value fields: one focus ring on the field box only — never an inner ring on the input itself. */
+.ceriga-builder-shell.ceriga-builder-shell :is(.builder-topbar, .builder-sidebar, .builder-inspector-rail) :is(input:not([type='range']):not([type='checkbox']):not([type='radio']), textarea, select):focus-visible { outline: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail :is(input:not([type='range']):not([type='checkbox']):not([type='radio']), textarea):focus { outline: none !important; box-shadow: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .new-measure-value:focus-within { border-color: var(--cx-ink) !important; box-shadow: none !important; outline: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail .advanced-sizing-editor td :is(input:not([type='range']):not([type='checkbox']):not([type='radio'])):focus { background: #fff !important; box-shadow: inset 0 0 0 1.5px var(--cx-ink) !important; }
+/* Advanced sizing cells: the cell box carries the single ring; the input never draws its own (no inner border). */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail .advanced-sizing-editor td :is(input:not([type='range']):not([type='checkbox']):not([type='radio'])):focus,
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail .advanced-sizing-editor td input { box-shadow: none !important; background: transparent !important; border: 0 !important; outline: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td .new-measure-value { border: 1px solid transparent !important; border-radius: 6px !important; background: transparent !important; box-shadow: none !important; transition: background-color var(--cx-t-state) var(--cx-ease-out), border-color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td .new-measure-value:hover { background: var(--cx-fill) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td .new-measure-value:focus-within { background: #fff !important; border-color: var(--cx-ink) !important; }
+
+/* ================= Materials & Colour (Phase 1) =================
+   Same structure, type levels and rhythm as Fit & Measurements. No markup removed: the mini part
+   diagram duplicates canvas selection and is visually hidden; part chips remain the accessible picker. */
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor { --mat-gap: var(--cx-section-gap); }
+/* Hint: a quiet line, not a grey box (it is also the live status region, so it stays in the DOM). */
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor > .material-notice { margin: 0 0 4px !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important;
+  font: 400 12px/1.45 var(--cx-font) !important; color: var(--cx-ink-3) !important; min-height: 0 !important; }
+/* Sections: heading · value · chevron, hairline between groups */
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor > :is(.material-section-disclosure, .material-disclosure) { margin: var(--mat-gap) 0 0 !important; padding: var(--mat-gap) 0 0 !important; border: 0 !important; border-top: 1px solid var(--cx-line) !important; background: none !important; box-shadow: none !important; border-radius: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor > :is(.material-section-disclosure, .material-disclosure) > summary { display: flex !important; align-items: center; justify-content: space-between; gap: 8px; min-height: 0 !important; padding: 0 !important;
+  margin: 0 0 var(--cx-heading-gap) !important; font: 500 13px/1.4 var(--cx-font) !important; color: var(--cx-ink) !important; border: 0 !important; list-style: none; cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor > :is(.material-section-disclosure, .material-disclosure):not([open]) > summary { margin-bottom: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor > :is(.material-section-disclosure, .material-disclosure) > summary small { margin-left: auto !important; font: 400 12px/1.4 var(--cx-font) !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor > :is(.material-section-disclosure, .material-disclosure) > summary > svg { width: 14px !important; height: 14px !important; color: var(--cx-ink-4) !important; flex: none; }
+/* Apply to: no card, no duplicated mini garment */
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-part-map { padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; border-radius: 0 !important; display: flex; flex-direction: column; gap: 10px; }
+/* Garment diagram in Apply to is kept visible (user preference, 19 Nov 2026). */
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-header { order: 3; display: flex !important; justify-content: flex-start; margin: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-header > span { display: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-header > button { height: auto !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; font: 400 12px/1.4 var(--cx-font) !important; color: var(--cx-ink-2) !important; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--cx-line-strong); }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-header > button:hover { color: var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-hint { order: 2; margin: 0 !important; font: 400 12px/1.45 var(--cx-font) !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-targets { order: 1; margin: 0 !important; padding: 0 !important; border: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-group-label { display: block; margin: 0 0 6px !important; font: 400 12px/1.4 var(--cx-font) !important; color: var(--cx-ink-3) !important; text-transform: none !important; letter-spacing: 0 !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-parts { display: flex !important; flex-wrap: wrap; gap: 6px !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-parts > button { height: 28px !important; min-height: 28px !important; padding: 0 10px !important; border: 0 !important; border-radius: 6px !important; background: var(--cx-fill) !important; box-shadow: none !important;
+  font: 400 12px/1 var(--cx-font) !important; color: var(--cx-ink-2) !important; transition: background-color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-parts > button:hover { background: var(--cx-fill-hover) !important; color: var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-parts > button:is([aria-pressed='true'], .is-selected, [data-selected='true']) { background: var(--cx-ink) !important; color: #fff !important; }
+/* Main fabric: one flat row, not a card inside a card */
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-main-card { display: grid !important; grid-template-columns: 40px 1fr auto; align-items: center; column-gap: 12px; padding: 8px !important; margin: 0 -8px !important; border: 0 !important; border-radius: 8px !important;
+  background: none !important; box-shadow: none !important; cursor: pointer; transition: background-color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-main-card:hover { background: var(--cx-fill) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-main-card .builder-eyebrow { display: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-main-card .material-fabric-swatch { width: 40px !important; height: 40px !important; border-radius: 8px !important; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .06) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-main-card h3 { margin: 0 !important; font: 500 13px/1.3 var(--cx-font) !important; color: var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-main-card p { margin: 1px 0 0 !important; font: 400 12px/1.35 var(--cx-font) !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-main-card small { font: 400 11.5px/1.35 var(--cx-font) !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-spec-row { margin: 12px 0 0 !important; gap: 8px !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-spec-row > label { font: 400 12px/1.4 var(--cx-font) !important; color: var(--cx-ink-2) !important; }
+/* Colour: calmer swatches, shared controls */
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-colour-browser { padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-browser-swatches { gap: 6px !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-browser-swatches button { width: 22px !important; height: 22px !important; min-width: 0 !important; min-height: 0 !important; border-radius: 50% !important;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / .08) !important; transition: transform var(--cx-t-press) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-browser-swatches button:hover { transform: scale(1.12); }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-browser-swatches button:is([aria-pressed='true'], [aria-checked='true'], .is-selected) { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-wide-button { height: 32px !important; min-height: 32px !important; margin: 10px 0 0 !important; border: 0 !important; border-radius: 6px !important; background: var(--cx-fill) !important; box-shadow: none !important;
+  font: 500 12px/1 var(--cx-font) !important; color: var(--cx-ink) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-wide-button:hover { background: var(--cx-fill-hover) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-caption { font: 400 12px/1.45 var(--cx-font) !important; color: var(--cx-ink-3) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-palette-link button { font: 400 12px/1.4 var(--cx-font) !important; color: var(--cx-ink-2) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-part-map { min-height: 0 !important; height: auto !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-header { align-self: flex-start !important; width: auto !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor .material-map-header > button { width: auto !important; text-align: left !important; }
+.ceriga-builder-shell.ceriga-builder-shell .materials-editor > .material-section-disclosure > section { min-height: 0 !important; }

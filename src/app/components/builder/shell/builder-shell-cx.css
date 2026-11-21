@@ -1,0 +1,158 @@
+/*
+ * Phase 1 functional layer only (19 Nov 2026). The visual re-skin was retired at the user's request
+ * (kept for reference in builder-shell-cx.reskin-retired.css, not imported). These rules exist because
+ * components rely on them: canvas toolbar layout, option grids inside legacy containers, top-bar grouping,
+ * Advanced sizing table width, and single-ring value fields.
+ */
+
+/* ---------- Canvas dock: one bottom-centre island over the open workspace (no band, no surface) ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock { position: absolute; left: 50%; bottom: 16px; top: auto; right: auto; z-index: 30; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: var(--cx-r-float); background: var(--cx-raised); box-shadow: var(--cx-shadow-float); white-space: nowrap; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > :is(.new-view-switch, .studio-canvas-zoom, .measurement-guides-toggle) {
+  position: static; inset: auto; transform: none; margin: 0; border: 0; box-shadow: none; background: transparent; width: auto; height: auto; min-height: 0; padding: 0; }
+/* View: segmented */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch { display: flex; gap: 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch > button { height: 28px; min-height: 28px; padding: 0 10px; border: 0; border-radius: var(--cx-r-control); background: transparent;
+  color: var(--cx-ink-2); font: 500 13px/1 var(--cx-font); box-shadow: none; transition: background-color var(--cx-t-state) var(--cx-ease-out), color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch > button:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .new-view-switch > button[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }
+/* Zoom: − value + Fit */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom { display: flex; align-items: center; gap: 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > button { height: 28px; min-height: 28px; min-width: 28px; padding: 0 8px; border: 0; border-radius: var(--cx-r-control);
+  background: transparent; color: var(--cx-ink-2); font: 500 13px/1 var(--cx-font); box-shadow: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > button:hover:not(:disabled) { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > button:disabled { color: #c4c4c2; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > label { display: flex; align-items: center; height: 28px; padding: 0 2px; border: 0; border-radius: var(--cx-r-control); background: transparent; box-shadow: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom > label:hover { background: var(--cx-fill); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom input { width: 34px; border: 0; background: transparent; padding: 0; text-align: right; font: 500 13px/1 var(--cx-font); font-variant-numeric: tabular-nums; color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .studio-canvas-zoom label > span { font: 500 13px/1 var(--cx-font); color: var(--cx-ink-3); }
+/* Guides: compact switch */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: var(--cx-r-control); color: var(--cx-ink-2); font: 500 13px/1 var(--cx-font); cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle .guides-label-phone { display: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .measurement-guides-toggle .guides-label-desktop { display: inline; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock .cx-toolbar-sep { flex: none; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > :is(.new-view-switch, .studio-canvas-zoom, .measurement-guides-toggle) { position: static !important; inset: auto !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; transform: none !important; margin: 0 !important; box-shadow: none !important; border: 0 !important; background: transparent !important; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle { position: static !important; inset: auto !important; transform: none !important; margin: 0 !important; box-shadow: none !important; border: 0 !important;
+  height: 28px; min-height: 28px; padding: 0 10px; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-2); font: 500 13px/1 var(--cx-font); opacity: 1; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle:hover:not(:disabled) { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .artwork-view-toggle:disabled { color: #b5b5b2; cursor: not-allowed; }
+/* Tool-options strip (e.g. brush size/opacity) sits just above the canvas dock, centred, never beside it. */
+.ceriga-builder-shell.ceriga-builder-shell .print-canvas-footer > .draw-quick-settings { position: absolute !important; left: 50% !important; right: auto !important; bottom: 72px !important; top: auto !important;
+  transform: translateX(-50%) !important; z-index: 29; margin: 0; padding: 4px 10px; border: 0 !important; border-radius: var(--cx-r-float); background: var(--cx-raised); box-shadow: var(--cx-shadow-float); }
+
+/* Fit grid now hosts the shared VisualOptionGrid: neutralise the legacy grid/button styling around it. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx { display: block; grid-template-columns: none; gap: 0; border: 0; padding: 0; background: none; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option { height: auto; min-height: 0; width: auto; border: 0; box-shadow: none; background: transparent; padding: 4px 4px 6px; aspect-ratio: auto; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option[aria-checked='true'] { background: transparent; border: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option-preview { --cx-thumb: 76px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option-preview > img { max-width: 78%; max-height: 78%; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option { align-items: stretch; }
+
+/* ---------- Fit section: legacy containers now hosting VisualOptionGrid ---------- */
+.ceriga-builder-shell.ceriga-builder-shell :is(.shoulder-construction-picker, .torso-crop-control, .sweatpants-fit-grid).cx .cx-option {
+  height: auto; min-height: 0; width: auto; border: 0; box-shadow: none; background: transparent; padding: 4px 4px 6px; align-items: stretch; aspect-ratio: auto; display: flex; flex-direction: column; }
+.ceriga-builder-shell.ceriga-builder-shell :is(.shoulder-construction-picker, .torso-crop-control, .sweatpants-fit-grid).cx .cx-option > span { display: block; }
+.ceriga-builder-shell.ceriga-builder-shell :is(.shoulder-construction-picker, .torso-crop-control, .sweatpants-fit-grid).cx .cx-option-preview { display: grid; }
+.ceriga-builder-shell.ceriga-builder-shell .shoulder-construction-picker.cx .cx-option-preview { --cx-thumb: 64px; }
+.ceriga-builder-shell.ceriga-builder-shell .torso-crop-control.cx .cx-option-preview { --cx-thumb: 84px; }
+.ceriga-builder-shell.ceriga-builder-shell .sweatpants-fit-grid.cx .cx-option-preview { --cx-thumb: 66px; }
+.ceriga-builder-shell.ceriga-builder-shell .shoulder-construction-picker.cx > h3 { font: var(--cx-heading); color: var(--cx-ink); margin: 0 0 10px; }
+.ceriga-builder-shell.ceriga-builder-shell .shoulder-construction-picker.cx > p { font: var(--cx-helper); color: var(--cx-ink-3); margin: 8px 0 0; }
+.ceriga-builder-shell.ceriga-builder-shell .sweatpants-fit-grid.cx { display: block; }
+
+
+/* ---------- Top bar: left = document + editing, right = history + output ---------- */
+.ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-back-link { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 6px; margin-left: -6px; border-radius: var(--cx-r-control);
+  color: var(--cx-ink-3); text-decoration: none; font: var(--cx-body); transition: background-color var(--cx-t-state) var(--cx-ease-out), color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-back-link:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-crumb-sep { color: var(--cx-line-strong); margin: 0 -2px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb .builder-save { height: 24px; padding: 0 6px; border: 0; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-3); font: var(--cx-helper); white-space: nowrap; cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb .builder-save:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-doc-divider { width: 1px; height: 18px; background: var(--cx-line); margin: 0 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group { display: flex; gap: 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group > button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--cx-r-control);
+  background: transparent; color: var(--cx-ink-2); cursor: pointer; transition: background-color var(--cx-t-state) var(--cx-ease-out), color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group > button:hover:not(:disabled) { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .builder-history-group > button:disabled { color: #c4c4c2; cursor: default; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-project-actions { display: flex; align-items: center; gap: 8px; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-project-actions > button[aria-label='Version history'] { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-2); }
+@media (max-width: 767px) { .ceriga-builder-shell.ceriga-builder-shell .builder-breadcrumb :is(.builder-save, .builder-doc-divider, .builder-history-group) { display: none; } }
+.ceriga-builder-shell.ceriga-builder-shell .builder-crumb-sep { margin: 0 -4px; }
+
+
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.sweatpants-choice, .shoulder-construction-picker, .torso-crop-control) > .cx-option-group, .ceriga-builder-shell.ceriga-builder-shell .builder-inspector .cx .cx-option-group { display: flex !important; flex-direction: column !important; width: 100% !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .cx-option-preview { --cx-thumb: auto !important; height: auto !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-fit-grid.cx .cx-option-preview > img { max-width: 100% !important; max-height: 100% !important; }
+
+.ceriga-builder-shell[data-sizing-table] .builder-shell-grid { grid-template-columns: var(--builder-nav-width) minmax(0, 1fr) var(--builder-inspector-width) !important; }
+.ceriga-builder-shell[data-sizing-table] .builder-inspector-rail { width: var(--builder-inspector-width) !important; max-width: none !important; }
+/* Value fields: one focus ring on the field box only — never an inner ring on the input itself. */
+.ceriga-builder-shell.ceriga-builder-shell :is(.builder-topbar, .builder-sidebar, .builder-inspector-rail) :is(input:not([type='range']):not([type='checkbox']):not([type='radio']), textarea, select):focus-visible { outline: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail :is(input:not([type='range']):not([type='checkbox']):not([type='radio']), textarea):focus { outline: none !important; box-shadow: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector .new-measure-value:focus-within { border-color: var(--cx-ink) !important; box-shadow: none !important; outline: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail .advanced-sizing-editor td :is(input:not([type='range']):not([type='checkbox']):not([type='radio'])):focus { background: #fff !important; box-shadow: inset 0 0 0 1.5px var(--cx-ink) !important; }
+/* Advanced sizing cells: the cell box carries the single ring; the input never draws its own (no inner border). */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail .advanced-sizing-editor td :is(input:not([type='range']):not([type='checkbox']):not([type='radio'])):focus,
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector-rail .advanced-sizing-editor td input { box-shadow: none !important; background: transparent !important; border: 0 !important; outline: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td .new-measure-value { border: 1px solid transparent !important; border-radius: 6px !important; background: transparent !important; box-shadow: none !important; transition: background-color var(--cx-t-state) var(--cx-ease-out), border-color var(--cx-t-state) var(--cx-ease-out); }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td .new-measure-value:hover { background: var(--cx-fill) !important; }
+.ceriga-builder-shell.ceriga-builder-shell .advanced-sizing-editor td .new-measure-value:focus-within { background: #fff !important; border-color: var(--cx-ink) !important; }
+
+
+/* The garment area stops above the canvas dock (16px offset + ~46px dock + gap), so tall garments such as the
+   hoodie never run underneath it. The preview is container-sized, so it re-fits automatically. */
+@media (min-width: 768px) {
+  .ceriga-builder-shell.ceriga-builder-shell .new-builder-canvas .new-canvas-area { bottom: 76px !important; }
+}
+
+/* Section tools in the canvas dock (Materials: Clean view; Stitching: Close-up; Wash: Show wash).
+   Same height, radius and pressed state as Front/Back so the bar reads as one control. */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-toggle { height: 28px; min-height: 28px; padding: 0 10px; border: 0; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-2); font: 500 13px/1 var(--cx-font); white-space: nowrap; cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-toggle:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-toggle[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }
+/* Seam drawing in the dock: Draw/Edit pair + contextual actions; Finish seam is the one filled button */
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-group { display: flex; gap: 2px; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock .cx-dock-group > .cx-dock-toggle { height: 28px; min-height: 28px; padding: 0 10px; border: 0; border-radius: var(--cx-r-control); background: transparent; color: var(--cx-ink-2); font: 500 13px/1 var(--cx-font); cursor: pointer; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock .cx-dock-group > .cx-dock-toggle:hover { background: var(--cx-fill); color: var(--cx-ink); }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock .cx-dock-group > .cx-dock-toggle[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-primary { background: var(--cx-ink); color: #fff; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-primary:hover { background: #333; color: #fff; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-toggle:disabled { color: #c4c4c2; cursor: not-allowed; background: transparent; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-dock-danger:hover { background: #fdecec; color: #b42318; }
+/* Labels canvas: one quiet hint line above the shared bar (was a boxed two-line notice) */
+.ceriga-builder-shell .label-canvas-hint { left: 50%; bottom: 76px; transform: translateX(-50%); margin: 0; font: 400 13px/1.4 var(--cx-font); color: #8a8a8a; white-space: nowrap; }
+
+/* ---------- Live canvas selection = the gallery's canvas states (/dev/builder-primitives) ----------
+   Solid 1px ink frame; 8px white corner squares and pill side-handles with an ink ring; a 10px rotate dot on a
+   stalk; handles fill ink while dragged. Red stays reserved for the primary action and errors. */
+.ceriga-builder-shell .cx-live-handle { display: block; background: #fff; border-radius: 1.5px; box-shadow: 0 0 0 1px #171717, 0 1px 2px rgb(0 0 0 / .18); transition: transform 120ms ease-out, background-color 120ms ease-out; }
+.ceriga-builder-shell .cx-live-handle[data-kind='corner'] { width: 8px; height: 8px; }
+.ceriga-builder-shell .cx-live-handle[data-kind='h'] { width: 14px; height: 6px; border-radius: 3px; }
+.ceriga-builder-shell .cx-live-handle[data-kind='v'] { width: 6px; height: 14px; border-radius: 3px; }
+.ceriga-builder-shell button:hover > .cx-live-handle { transform: scale(1.2); }
+.ceriga-builder-shell button:active > .cx-live-handle { background: #171717; }
+.ceriga-builder-shell .cx-live-rotate { width: 20px; height: 20px; padding: 0; border: 0; background: transparent; display: grid; place-items: center; cursor: grab; }
+.ceriga-builder-shell .cx-live-rotate:active { cursor: grabbing; }
+.ceriga-builder-shell .cx-live-rotate-dot { position: relative; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #171717, 0 0 0 2px rgb(255 255 255 / .85), 0 1px 3px 1px rgb(0 0 0 / .2); transition: transform 120ms ease-out, background-color 120ms ease-out; }
+.ceriga-builder-shell .cx-live-rotate-dot::after { content: ''; position: absolute; left: 3.5px; top: 11px; width: 3px; height: 13px; background: linear-gradient(90deg, rgb(255 255 255 / .85) 0 1px, #171717 1px 2px, rgb(255 255 255 / .85) 2px); }
+.ceriga-builder-shell .cx-live-rotate:hover .cx-live-rotate-dot { transform: scale(1.15); }
+.ceriga-builder-shell .cx-live-rotate:active .cx-live-rotate-dot { background: #171717; }
+.ceriga-builder-shell .cx-live-rotate:focus-visible { outline: 2px solid #171717; outline-offset: 2px; border-radius: 50%; }
+@media (prefers-reduced-motion: reduce) { .ceriga-builder-shell :is(.cx-live-handle, .cx-live-rotate-dot) { transition: none; } }
+/* Labels canvas: the garment fits above the shared bar and its hint (the size container re-measures its content box) */
+.ceriga-builder-shell [data-label-editing-surface] > div[class*="container-type:size"] { padding: 48px 0 104px; box-sizing: border-box; }
+/* Labels → Artwork view: the label bar and the artwork editor's zoom sit side by side as one centred pair */
+.ceriga-builder-shell [data-label-editing-surface]:has(.surface-editor-zoom) .label-canvas-dock:not(:has(.studio-canvas-zoom)) { transform: translateX(calc(-100% - 4px)); }
+.ceriga-builder-shell [data-label-editing-surface] .surface-editor-zoom { position: absolute !important; left: calc(50% + 4px) !important; right: auto !important; top: auto !important; bottom: -104px !important; z-index: 30; } /* lines up with the bar: 104px is the label canvas's reserved bottom padding */
+.ceriga-builder-shell.ceriga-builder-shell [data-label-editing-surface] .surface-editor-zoom > .studio-canvas-zoom { display: flex; align-items: center; gap: 2px; height: 36px; padding: 4px; border: 0 !important; border-radius: 10px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 1px 2px -1px rgb(0 0 0 / .06), 0 4px 12px 0 rgb(0 0 0 / .05) !important; }
+.ceriga-builder-shell [data-label-editing-surface] .surface-editor-zoom > .studio-canvas-zoom > * { border: 0 !important; background: transparent; height: 28px; min-height: 28px; border-radius: 6px; font-size: 13px !important; font-weight: 400 !important; }
+.ceriga-builder-shell [data-label-editing-surface] .surface-editor-zoom > .studio-canvas-zoom > button:hover:not(:disabled) { background: #f2f2f0; }
+
+/* Focus mode (Artwork): collapse the left rail and right panel; the top bar (undo/redo), tool rail,
+   context toolbar and bottom bar (zoom, Exit focus) stay. */
+html[data-artwork-focus] .ceriga-builder-shell.ceriga-builder-shell .builder-shell-grid { grid-template-columns: minmax(0, 1fr) !important; }
+html[data-artwork-focus] .ceriga-builder-shell :is(.builder-sidebar, .builder-inspector, .builder-inspector-rail, .builder-inspector-resize, .builder-inspector-collapse) { display: none !important; }
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-focus-toggle[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }

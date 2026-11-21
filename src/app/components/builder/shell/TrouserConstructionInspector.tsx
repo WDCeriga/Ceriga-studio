@@ -23,7 +23,7 @@ export function TrouserConstructionInspector({section,selection,onChange,onMater
    {selection.pantsFly!=='none'&&<><ConstructionDimensions label="Fly seam length" cm={constructionDepth(selection.pantsFlyLength,12,18)} defaultCm={12} maxCm={18} unit={unit} onChange={cm=>onChange({pantsFlyLength:String(cm)})} onMeasurements={onMeasurements}/><button className="material-wide-button" type="button" onClick={onFlyMaterials}>Edit fly seam colour <ArrowUpRight size={14}/></button></>}
   </details>}
   {section==='leg'&&<details open className="material-section-disclosure"><summary>Measurements</summary><button className="material-wide-button" type="button" onClick={onMeasurements}>Edit measurements <ArrowUpRight size={14}/></button></details>}
-  <details className="material-section-disclosure"><summary>Material & colour</summary><p className="material-caption">Use the shared material library and colourways for the waistband, leg panels and cuffs.</p><button className="material-wide-button" type="button" onClick={onMaterials}>Edit material & colour <ArrowUpRight size={14}/></button></details>
+  <details className="material-section-disclosure"><summary>Material & colour</summary><p className="material-caption">Colours and fabrics are set in Materials.</p><button className="material-wide-button" type="button" onClick={onMaterials}>Edit material & colour <ArrowUpRight size={14}/></button></details>
   <details className="material-section-disclosure"><summary>Construction notes</summary><textarea aria-label={title+' notes'} value={notes} onChange={event=>onNotes(event.target.value)} placeholder="Add construction requirements…"/></details>
  </div>;
 }

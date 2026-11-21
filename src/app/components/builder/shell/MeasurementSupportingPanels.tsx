@@ -79,3 +79,14 @@ export function NewReferencePanel({
 export function ImportMeasurementsPanel(){
  return <section className="measurement-import-panel"><h3>Upload</h3><p>Import measurements from a tech pack, size chart or spreadsheet. Review the data before applying it to your garment.</p><button className="measurement-import-dropzone" disabled aria-label="Upload measurements — coming soon"><FileUp size={40} strokeWidth={1.4}/><strong>Drop a file here</strong><span>or click to upload</span><small>Excel, CSV, PDF (tech pack), or a photo of a size chart.</small></button><span className="measurement-import-soon">File import coming soon</span><button className="measurement-import-template" disabled><Download size={15}/>Download the Ceriga template<span>Coming soon</span></button><div className="measurement-import-review"><Info size={18}/><div><h4>Review</h4><p>Imported values will appear here for you to check before applying them. No measurements are changed by this preview.</p></div></div></section>
 }
+
+/** Custom points of measure aren't supported yet; say so plainly and point to what can be edited now. */
+export function CustomMeasurementPanel({onCore}:{onCore:()=>void}){
+ return <section className="measurement-import-panel cx">
+  <div className="cx-import-block" data-state="later">
+   <h3 className="cx-import-title">Custom points of measure <span className="cx-import-badge">Coming later</span></h3>
+   <p className="cx-import-text">Adding your own measurement isn't available yet. Every standard measurement — and the dimensions of any artwork or asset you've uploaded — can already be edited in Core measurements.</p>
+   <button type="button" className="cx-btn" onClick={onCore}>Go to core measurements</button>
+  </div>
+ </section>;
+}

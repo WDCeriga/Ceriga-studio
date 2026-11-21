@@ -1,0 +1,17 @@
+/*
+ * Builder UI scale (19 Nov 2026). The user preferred the Builder at ~90% browser zoom, "a little bigger".
+ * On laptop/desktop widths the whole shell renders at 90% â€” the same as browser zoom, so every element keeps
+ * its proportions. The shell's own height is divided by the scale so it still fills the window exactly.
+ * Phones and tablets keep 100% (touch targets).
+ */
+@media (min-width: 1024px) {
+  .ceriga-builder-shell { --builder-ui-scale: .90; zoom: var(--builder-ui-scale); }
+  .ceriga-builder-shell,
+  .ceriga-builder-shell[data-section] { height: calc(var(--builder-viewport-height, 100dvh) / var(--builder-ui-scale)) !important; }
+}
+
+/* The 90% scale frees room for the full-width rail, so labels like "Fit & Measurements" and
+   "Import measurements" no longer truncate (208 CSS px renders at ~200 px). Asset editing keeps its own width. */
+@media (min-width: 1024px) {
+  .ceriga-builder-shell.ceriga-builder-shell[data-nav-collapsed=false]:not([data-asset-editing=true]) { --builder-nav-width: 208px; }
+}
