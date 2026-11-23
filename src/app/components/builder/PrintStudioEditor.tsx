@@ -2786,10 +2786,11 @@ export function PrintsDesignPreview({
   // Asset Studio guides drive Pen, Pencil and Shape. They take over from the simple Mirror while active.
   const studioGuides = useGuides(), guideProject = assetMode && !surfaceContext ? assetWorkspace?.project : undefined;
   const guideSymmetry = guideProject && studioGuides.symmetry.mode !== 'off' ? studioGuides.symmetry : undefined;
-  const guideLines = useMemo<GuideSegment[] | undefined>(() => {
-    if (!guideProject || !zoneEl || !studioGuides.assisted || !hasLineGuides(studioGuides)) return undefined;
-    const sx = zoneEl.clientWidth / guideProject.width, sy = zoneEl.clientHeight / guideProject.height;
-    return guideSegments(studioGuides, guideProject.width, guideProject.height).map(([x1, y1, x2, y2]) => [x1 * sx, y1 * sy, x2 * sx, y2 * sy]);
+  // Placed points snap to the visible lines; freehand strokes use a fine fan of perspective rays.
+  const [guideLines, strokeGuideLines] = useMemo<[GuideSegment[] | undefined, GuideSegment[] | undefined]>(() => {
+    if (!guideProject || !zoneEl || !studioGuides.assisted || !hasLineGuides(studioGuides)) return [undefined, undefined];
+    const sx = zoneEl.clientWidth / guideProject.width, sy = zoneEl.clientHeight / guideProject.height, lines = (dense: boolean) => guideSegments(studioGuides, guideProject.width, guideProject.height, dense).map(([x1, y1, x2, y2]): GuideSegment => [x1 * sx, y1 * sy, x2 * sx, y2 * sy]);
+    return [lines(false), lines(true)];
   }, [guideProject?.width, guideProject?.height, zoneEl, studioGuides]);
   const mirrorAxis = !guideSymmetry && studio.symmetry && zoneEl ? drawingMask?.axis ?? zoneEl.clientWidth / 2 : undefined;
   const addDrawnShape = (shape: DesignElement) => {
@@ -3858,7 +3859,7 @@ export function PrintsDesignPreview({
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-          {assetMode ? <><div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ borderWidth:surfaceContext?0:undefined,backgroundColor: surfaceContext?'transparent':assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: 'none' }} />{artboardBackground&&<div className="pointer-events-none absolute inset-0" data-surface-substrate>{artboardBackground}</div>}{!surfaceContext&&assetWorkspace?.project&&<StudioGuidesOverlay width={assetWorkspace.project.width} height={assetWorkspace.project.height}/>}</> : (
+          {assetMode ? <><div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ borderWidth:surfaceContext?0:undefined,backgroundColor: surfaceContext?'transparent':assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: 'none' }} />{artboardBackground&&<div className="pointer-events-none absolute inset-0" data-surface-substrate>{artboardBackground}</div>}{!surfaceContext&&assetWorkspace?.project&&<StudioGuidesOverlay width={assetWorkspace.project.width} height={assetWorkspace.project.height} scale={liveCanvasS}/>}</> : (
           <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: focusArtwork?'none':garmentInteractive ? 'auto' : 'none',visibility:focusArtwork?'hidden':undefined }} data-print-garment-preview>
             {typeof garmentPreview === 'function' ? garmentPreview(sceneScale) : garmentPreview}
           </div>
@@ -4028,7 +4029,7 @@ export function PrintsDesignPreview({
           {editable&&studio.referenceTask&&elements.find(e=>e.id===studio.referenceTask?.id)&&<ReferenceTraceOverlay element={elements.find(e=>e.id===studio.referenceTask?.id)!} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onChange={patch=>updateElement(studio.referenceTask!.id,patch)} onAdd={shape=>{onChange?.([...elements,shape],shape.id);setSelectedId(shape.id);}}/>}
           {editable&&studio.tool==='textTracking'&&selectedElement?.type==='text'&&<TrackingDrag key={selectedElement.textSpacingDrag??'letterSpacing'} property={selectedElement.textSpacingDrag??'letterSpacing'} element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onCancel={()=>studio.setTool('select')} onComplete={value=>{const property=selectedElement.textSpacingDrag??'letterSpacing',index=studio.textSelection?.id===selectedElement.id?studio.textSelection.start:0;updateElement(selectedElement.id,property==='textKerning'&&index>0?{textKerningPairs:[...(selectedElement.textKerningPairs??[]).filter(pair=>pair.index!==index),{index,offset:value}]}:{[property]:value});studio.setTool('select');}}/>}
           {editable&&studio.tool==='shapeLive'&&<LiveShapeDraft key={studio.liveShape} mirrorAxis={mirrorAxis} guideLines={guideLines} symmetry={guideSymmetry} kind={studio.liveShape} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} unitsPerCm={studio.unitsPerCm} color={newObjectInk} side={garmentSide} onCancel={()=>studio.setTool('select')} onComplete={shape=>{addDrawnShape(shape);studio.setTool('select');}}/>}
-          {editable&&studio.tool==='shapePencil'&&<ShapePencilDraft mirrorAxis={mirrorAxis} guideLines={guideLines} symmetry={guideSymmetry} width={zoneEl?.clientWidth??1} height={zoneEl?.clientHeight??1} onCancel={()=>studio.setTool('select')} onComplete={path=>{const next=createPenArtwork(path,studio.color,garmentSide,crypto.randomUUID(),surfaceContext?.surface.units==='mm'?.15:2);addDrawnShape(next);studio.setTool('select');}}/>}
+          {editable&&studio.tool==='shapePencil'&&<ShapePencilDraft mirrorAxis={mirrorAxis} guideLines={strokeGuideLines} symmetry={guideSymmetry} width={zoneEl?.clientWidth??1} height={zoneEl?.clientHeight??1} onCancel={()=>studio.setTool('select')} onComplete={path=>{const next=createPenArtwork(path,studio.color,garmentSide,crypto.randomUUID(),surfaceContext?.surface.units==='mm'?.15:2);addDrawnShape(next);studio.setTool('select');}}/>}
           {editable && studio.tool === 'shapePolygon' && <PenPathDraft key={garmentSide + (studio.penTargetId ?? '')}
             width={zoneEl?.clientWidth ?? 1} height={zoneEl?.clientHeight ?? 1} color={studio.color}
             emphasizeStroke={isPackagingSurface}

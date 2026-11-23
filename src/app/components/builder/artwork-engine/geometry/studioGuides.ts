@@ -3,11 +3,18 @@
  * so they can never reach a saved asset or print file.
  */
 export type SymmetryMode = 'off' | 'vertical' | 'horizontal' | 'quadrant' | 'radial';
+export type RulerUnit = 'px' | 'cm';
+export type CustomGuide = { id: string; axis: 'x' | 'y'; at: number };
 export type StudioGuides = {
   grid: { on: boolean; size: number; divisions: number };
   isometric: { on: boolean; size: number; angle: number };
   lettering: { on: boolean; rows: number; xHeight: number; capHeight: number; slant: number };
+  /** Vanishing points are percentages of the canvas and may sit outside it. */
+  perspective: { on: boolean; count: 1 | 2 | 3; lines: number; points: { x: number; y: number }[] };
   symmetry: { mode: SymmetryMode; segments: number };
+  rulers: { on: boolean; unit: RulerUnit };
+  /** Lines dragged out of the rulers, in canvas units. */
+  customGuides: CustomGuide[];
   colour: string;
   opacity: number;
   /** Strokes follow the nearest grid, isometric or lettering line. */
@@ -17,13 +24,26 @@ export const DEFAULT_GUIDES: StudioGuides = {
   grid: { on: false, size: 60, divisions: 4 },
   isometric: { on: false, size: 40, angle: 30 },
   lettering: { on: false, rows: 3, xHeight: 55, capHeight: 78, slant: 0 },
+  perspective: { on: false, count: 2, lines: 24, points: [{ x: 50, y: 40 }, { x: 6, y: 40 }, { x: 94, y: 40 }, { x: 50, y: 118 }] },
   symmetry: { mode: 'off', segments: 8 },
+  rulers: { on: false, unit: 'px' },
+  customGuides: [],
   colour: '#2f6fed',
   opacity: 45,
   assisted: false,
 };
-export const hasLineGuides = (g: StudioGuides) => g.grid.on || g.isometric.on || g.lettering.on;
-export const guidesActive = (g: StudioGuides) => g.grid.on || g.isometric.on || g.lettering.on || g.symmetry.mode !== 'off';
+export const hasLineGuides = (g: StudioGuides) => g.grid.on || g.isometric.on || g.lettering.on || g.perspective.on || g.customGuides.length > 0;
+export const guidesActive = (g: StudioGuides) => hasLineGuides(g) || g.symmetry.mode !== 'off' || g.rulers.on;
+/** Asset Studio works at 10 canvas units to the centimetre. */
+export const CANVAS_UNITS_PER_CM = 10;
+/** Ruler marks that stay readable at any zoom: labelled steps of 1, 2 or 5, each split in five. */
+export function rulerTicks(length: number, scale: number, unit: RulerUnit) {
+  const perUnit = unit === 'cm' ? CANVAS_UNITS_PER_CM : 1, wanted = 64 / Math.max(.001, scale) / perUnit, power = 10 ** Math.floor(Math.log10(wanted)), base = wanted / power, step = (base <= 1 ? 1 : base <= 2 ? 2 : base <= 5 ? 5 : 10) * power, spacing = step * perUnit, major: { at: number; label: string }[] = [], minor: number[] = [];
+  for (let i = 0; i * spacing <= length + 1e-6; i++) { major.push({ at: i * spacing, label: String(Number((i * step).toFixed(4))) }); for (let k = 1; k < 5; k++) { const at = (i + k / 5) * spacing; if (at <= length) minor.push(at); } }
+  return { major, minor };
+}
+/** Which stored points are in use: one central point, or a left, right and optional third. */
+export const activeVanishingPoints = (p: StudioGuides['perspective']) => p.count === 1 ? [0] : p.count === 2 ? [1, 2] : [1, 2, 3];
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : lo));
 const f = (v: number) => Math.round(v * 100) / 100;
@@ -42,7 +62,7 @@ function across(x: number, y: number, angle: number, w: number, h: number) {
 }
 
 /** Three weights of line: fine, main and the strong axis lines. */
-export function guidePaths(g: StudioGuides, w: number, h: number) {
+export function guidePaths(g: StudioGuides, w: number, h: number, denseRays = false) {
   const minor: string[] = [], major: string[] = [], axis: string[] = [];
   if (g.grid.on) {
     const size = clamp(g.grid.size, 4, 1000), divisions = Math.round(clamp(g.grid.divisions, 1, 12)), step = size / divisions, cols = Math.ceil(w / step), rows = Math.ceil(h / step);
@@ -64,6 +84,13 @@ export function guidePaths(g: StudioGuides, w: number, h: number) {
     }
     if (slant) { const angle = (90 + slant) * Math.PI / 180, spacing = rowHeight * .5, reach = Math.abs(Math.tan(slant * Math.PI / 180)) * h; for (let px = -reach; px <= w + reach; px += spacing) { const line = across(px, 0, angle, w, h); if (line) minor.push(line); } }
   }
+  if (g.perspective.on) {
+    const used = activeVanishingPoints(g.perspective).map(index => g.perspective.points[index]).map(p => ({ x: p.x / 100 * w, y: p.y / 100 * h })), lines = denseRays ? 360 : Math.round(clamp(g.perspective.lines, 6, 72));
+    for (const point of used) for (let i = 0; i < lines; i++) { const line = across(point.x, point.y, i / lines * Math.PI, w, h); if (line) minor.push(line); }
+    const [first, second] = used, horizon = second && g.perspective.count > 1 ? Math.atan2(second.y - first.y, second.x - first.x) : 0, line = across(first.x, first.y, horizon, w, h);
+    if (line) axis.push(line);
+  }
+  for (const guide of g.customGuides) { if (guide.axis === 'x' && guide.at >= 0 && guide.at <= w) axis.push(seg(guide.at, 0, guide.at, h)); if (guide.axis === 'y' && guide.at >= 0 && guide.at <= h) axis.push(seg(0, guide.at, w, guide.at)); }
   const cx = w / 2, cy = h / 2, mode = g.symmetry.mode;
   if (mode === 'vertical' || mode === 'quadrant') axis.push(seg(cx, 0, cx, h));
   if (mode === 'horizontal' || mode === 'quadrant') axis.push(seg(0, cy, w, cy));
@@ -99,8 +126,8 @@ export function symmetryCopies<T extends { x: number; y: number; rotation: numbe
 }
 export type GuideSegment = [number, number, number, number];
 /** Straight lines a stroke can follow. Symmetry axes mirror drawing rather than attract it. */
-export function guideSegments(g: StudioGuides, w: number, h: number): GuideSegment[] {
-  const paths = guidePaths({ ...g, symmetry: { ...g.symmetry, mode: 'off' } }, w, h);
+export function guideSegments(g: StudioGuides, w: number, h: number, denseRays = false): GuideSegment[] {
+  const paths = guidePaths({ ...g, symmetry: { ...g.symmetry, mode: 'off' } }, w, h, denseRays);
   return [...(paths.minor + paths.major + paths.axis).matchAll(/M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)/g)].map(m => [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])]);
 }
 export function projectToSegment([x1, y1, x2, y2]: GuideSegment, x: number, y: number) {
@@ -149,6 +176,6 @@ export function readGuides(raw: string | null): StudioGuides {
     const v = JSON.parse(raw ?? 'null');
     if (!v || typeof v !== 'object') return DEFAULT_GUIDES;
     const mode = ['off', 'vertical', 'horizontal', 'quadrant', 'radial'].includes(v.symmetry?.mode) ? v.symmetry.mode as SymmetryMode : 'off';
-    return { grid: { ...DEFAULT_GUIDES.grid, ...v.grid }, isometric: { ...DEFAULT_GUIDES.isometric, ...v.isometric }, lettering: { ...DEFAULT_GUIDES.lettering, ...v.lettering }, symmetry: { segments: Number.isFinite(v.symmetry?.segments) ? v.symmetry.segments : DEFAULT_GUIDES.symmetry.segments, mode }, colour: /^#[\da-f]{6}$/i.test(v.colour) ? v.colour : DEFAULT_GUIDES.colour, opacity: Number.isFinite(v.opacity) ? clamp(v.opacity, 10, 100) : DEFAULT_GUIDES.opacity, assisted: v.assisted === true };
+    return { grid: { ...DEFAULT_GUIDES.grid, ...v.grid }, isometric: { ...DEFAULT_GUIDES.isometric, ...v.isometric }, lettering: { ...DEFAULT_GUIDES.lettering, ...v.lettering }, perspective: { on: v.perspective?.on === true, count: [1, 2, 3].includes(v.perspective?.count) ? v.perspective.count : DEFAULT_GUIDES.perspective.count, lines: Number.isFinite(v.perspective?.lines) ? clamp(v.perspective.lines, 6, 72) : DEFAULT_GUIDES.perspective.lines, points: DEFAULT_GUIDES.perspective.points.map((fallback, index) => { const point = v.perspective?.points?.[index]; return Number.isFinite(point?.x) && Number.isFinite(point?.y) ? { x: clamp(point.x, -100, 200), y: clamp(point.y, -100, 200) } : fallback; }) }, rulers: { on: v.rulers?.on === true, unit: v.rulers?.unit === 'cm' ? 'cm' : 'px' }, customGuides: Array.isArray(v.customGuides) ? v.customGuides.filter((item: CustomGuide) => typeof item?.id === 'string' && (item.axis === 'x' || item.axis === 'y') && Number.isFinite(item.at)).slice(0, 80) : [], symmetry: { segments: Number.isFinite(v.symmetry?.segments) ? v.symmetry.segments : DEFAULT_GUIDES.symmetry.segments, mode }, colour: /^#[\da-f]{6}$/i.test(v.colour) ? v.colour : DEFAULT_GUIDES.colour, opacity: Number.isFinite(v.opacity) ? clamp(v.opacity, 10, 100) : DEFAULT_GUIDES.opacity, assisted: v.assisted === true };
   } catch { return DEFAULT_GUIDES; }
 }

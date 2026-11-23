@@ -859,7 +859,7 @@ export function PrintsDrawLayer({
     const rect = canvas.getBoundingClientRect();
     assistSettledRef.current=false;
     guideSymmetryRef.current=s.tool==='brush'&&assetProject&&studioGuides.symmetry.mode!=='off'?studioGuides.symmetry:null;
-    strokeAssistRef.current=s.tool==='brush'&&assetProject&&studioGuides.assisted&&hasLineGuides(studioGuides)?createStrokeAssist(guideSegments(studioGuides,assetProject.width,assetProject.height)):null;
+    strokeAssistRef.current=s.tool==='brush'&&assetProject&&studioGuides.assisted&&hasLineGuides(studioGuides)?createStrokeAssist(guideSegments(studioGuides,assetProject.width,assetProject.height,true)):null;
     const pt = assisted(eventPoint(e, canvas, rect),canvas);
     const previous=s.tool==='brush'?sessionRef.current?.element:undefined;
     const unit=canvas.width/Math.max(1,canvas.clientWidth);
@@ -992,7 +992,7 @@ export function PrintsDrawLayer({
     }
     if (canvas && tool === 'brush' && !heldShape && event.type !== 'pointercancel') {
       const settings = studioRef.current;
-      const raw = eventPoint(event, canvas);
+      const raw = assisted(eventPoint(event, canvas), canvas);
       raw.p = strokeRef.current.at(-1)?.p ?? raw.p;
       const endpoint = stabilizerRef.current?.(raw, settings.stabilization / 100, event.timeStamp) ?? raw;
       const last = strokeRef.current.at(-1);

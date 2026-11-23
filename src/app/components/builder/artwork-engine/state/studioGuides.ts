@@ -11,4 +11,10 @@ export function setGuides(next: StudioGuides) {
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* Guides still work for this session. */ }
   listeners.forEach(listener => listener());
 }
+export const getGuides = () => guides;
+/** Vanishing point handles show only while the Guides menu is open, so they never block drawing. */
+let editing = false;
+const editingListeners = new Set<() => void>();
+export function setGuideEditing(next: boolean) { if (next === editing) return; editing = next; editingListeners.forEach(listener => listener()); }
+export const useGuideEditing = () => useSyncExternalStore(listener => { editingListeners.add(listener); return () => editingListeners.delete(listener); }, () => editing, () => editing);
 export const useGuides = () => useSyncExternalStore(listener => { listeners.add(listener); return () => listeners.delete(listener); }, () => guides, () => guides);
