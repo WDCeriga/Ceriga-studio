@@ -71,7 +71,7 @@ function Curves({ grade, counts, write }: { grade: ImageGrade; counts?: Uint32Ar
 
 /** Levels, curves, colour mixer and detail. Every step is live and non-destructive. */
 export function ImageGradeControls({ element, update }: { element: DesignElement; update: (patch: Partial<DesignElement>) => void }) {
-  const grade = element.imageGrade ?? {}, counts = useHistogram(element.content), [band, setBand] = useState<HueBand>('red'), shift = grade.hsl?.[band] ?? {}, active = gradeIsActive({ ...grade, enabled: true }), latest = useRef(grade);
+  const grade = element.imageGrade ?? {}, counts = useHistogram(element.content), [band, setBand] = useState<HueBand>('red'), shift = grade.hsl?.[band] ?? {}, active = gradeIsActive({ ...grade, cutout: undefined, recolour: undefined, enabled: true }), latest = useRef(grade);
   latest.current = grade;
   const write = (patch: Partial<ImageGrade>) => { const next = { ...latest.current, ...patch }; latest.current = next; update({ imageGrade: next }); };
   const setShift = (key: 'h' | 's' | 'l', value: number) => write({ hsl: { ...latest.current.hsl, [band]: { ...latest.current.hsl?.[band], [key]: value } } });
@@ -99,6 +99,6 @@ export function ImageGradeControls({ element, update }: { element: DesignElement
       {grade.map && <><div className="cx-grade-stops">{grade.map.stops.map((stop, index) => <input key={index} type="color" aria-label={`Map colour ${index + 1}`} value={stop.color} onChange={event => write({ map: { ...latest.current.map!, stops: latest.current.map!.stops.map((item, i) => i === index ? { ...item, color: event.target.value } : item) } })} />)}</div>
         <StudioRange label="Strength" min={0} max={100} value={grade.map.amount} unit="%" onChange={amount => write({ map: { ...latest.current.map!, amount } })} /></>}
     </div>
-    {Boolean(element.imageGrade) && <button type="button" className="artwork-reset" onClick={() => update({ imageGrade: undefined })}>Reset pro colour</button>}
+    {active && <button type="button" className="artwork-reset" onClick={() => update({ imageGrade: grade.cutout || grade.recolour ? { cutout: grade.cutout, recolour: grade.recolour } : undefined })}>Reset pro colour</button>}
   </StudioFold>;
 }

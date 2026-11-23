@@ -1,0 +1,12 @@
+/* Floating crop bar. */
+.cx-crop-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 10px;max-width:calc(100% - 16px);padding:6px 8px;border-radius:12px;background:#fff;color:#1f1f1d;font-size:12px;box-shadow:0 0 0 1px rgb(0 0 0 / .07),0 2px 4px -1px rgb(0 0 0 / .08),0 6px 16px rgb(0 0 0 / .08)}
+.cx-crop-bar__group{display:inline-flex;align-items:center;gap:2px}
+.cx-crop-bar__rule{width:1px;height:20px;background:#e6e6e3}
+.cx-crop-bar__size{min-width:58px;color:#737370;font-size:11px;font-variant-numeric:tabular-nums;text-align:center}
+.cx-crop-bar button{display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:28px;padding:0 7px;border:0;border-radius:6px;background:transparent;color:#3f3f3c;font-size:12px;transition:background-color .12s ease-out}
+.cx-crop-bar button:hover{background:#f2f2ef}
+.cx-crop-bar button[aria-pressed=true]{background:#1f1f1d;color:#fff}
+.cx-crop-bar .is-shape{padding:0}
+.cx-crop-bar .is-shape svg{display:block;width:14px;height:14px;fill:currentColor;flex-shrink:0}
+.cx-crop-bar .is-apply{padding:0 12px;background:#1f1f1d;color:#fff}
+.cx-crop-bar .is-apply:hover{background:#3a3a37}

@@ -63,6 +63,11 @@ export type ImageFilterSettings = {
   inkChroma?: number;
   inkCleanup?: number;
   backgroundTolerance?: number;
+  backgroundInner?: boolean;
+  edgeShift?: number;
+  edgeFeather?: number;
+  specks?: number;
+  defringe?: number;
   pixelSize?: number;
   amount?: number;
   separation?: number;
@@ -96,7 +101,7 @@ const texture = (grain: number, fade: number): ImageFilterControl[] => [
 const CONTROLS: Partial<Record<ImageFilterId, ImageFilterControl[]>> = {
   'extract-light': [range('threshold','Ink threshold',0,255,155),range('softness','Edge softness',1,100,25),range('inkChroma','Maximum ink colour spread',0,255,255),range('inkCleanup','Clean ink edges',0,100,0),color('backgroundColor','Reject background colour','#344357'),range('backgroundTolerance','Background rejection',0,255,0),color('inkColor','Ink colour','#ece8db')],
   'extract-dark': [range('threshold','Ink threshold',0,255,110),range('softness','Edge softness',1,100,25),range('inkChroma','Maximum ink colour spread',0,255,255),range('inkCleanup','Clean ink edges',0,100,0),color('backgroundColor','Reject background colour','#344357'),range('backgroundTolerance','Background rejection',0,255,0),color('inkColor','Ink colour','#171717')],
-  'remove-background': [range('threshold','Background tolerance',1,180,45),range('softness','Edge softness',1,80,18)],
+  'remove-background': [range('threshold','Tolerance',1,180,45),range('softness','Edge softness',1,80,18),range('edgeShift','Move edge',-20,20,0),range('edgeFeather','Feather',0,20,0),range('specks','Clean specks',0,100,0),range('defringe','Remove fringe',0,100,100)],
   'remove-colour': [color('backgroundColor','Background colour','#344357'),range('threshold','Colour tolerance',0,255,50),range('softness','Edge softness',1,100,20)],
   bw: [range('contrast', 'Contrast', 0, 100, 20)],
   'high-contrast-bw': [range('contrast', 'Contrast', 0, 100, 70)],
@@ -331,7 +336,7 @@ export function applyImageFilter(data: Uint8ClampedArray, width: number, height:
   }
 
   if(id==='remove-background'){
-    const result=removeImageBackground(data,width,height,number('threshold',45,1,180),number('softness',18,1,80),settings.backgroundAuto===false?parseColor(settings.backgroundColor,'#ffffff'):undefined);
+    const result=removeImageBackground(data,width,height,number('threshold',45,1,180),number('softness',18,1,80),settings.backgroundAuto===false?parseColor(settings.backgroundColor,'#ffffff'):undefined,{inner:settings.backgroundInner===true,shift:number('edgeShift',0,-20,20),feather:number('edgeFeather',0,0,20),specks:number('specks',0,0,100),defringe:number('defringe',100,0,100)});
     for(let i=0;i<output.length;i++)output[i]=data[i]+(result[i]-data[i])*intensity;
     return output;
   }

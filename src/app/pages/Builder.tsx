@@ -2176,7 +2176,8 @@ function BuilderContent() {
       if ((e.metaKey || e.ctrlKey) && ['z','y'].includes(e.key.toLowerCase())) {
         if(panellingActive&&panellingDraftPointCount>0&&!e.shiftKey)return;
         const t = e.target as HTMLElement | null;
-        if (t?.closest('input, textarea, [contenteditable="true"]')) return;
+        // Sliders, switches and colour wells have no text undo of their own, so the design's undo still applies.
+        if (t?.closest('input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]), textarea, [contenteditable="true"]')) return;
         e.preventDefault();
         const forward=e.key.toLowerCase()==='y'||e.shiftKey;
         if(studioAssetWorkspace.project){if(forward)studioAssetWorkspace.redo();else studioAssetWorkspace.undo();}

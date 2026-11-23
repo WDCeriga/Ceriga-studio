@@ -240,6 +240,10 @@ export interface DesignElement extends ImageAdjustmentValues {
   imageFilter?: ImageFilterSettings;
   /** Non-destructive levels, curves, colour mixer and gradient map. */
   imageGrade?: import('./artwork-engine/image/grade').ImageGrade;
+  /** Brush swapped on a finished drawing, with the original brushes kept for going back. */
+  drawingRestyle?: import('../../lib/drawingRestyle').DrawingRestyle;
+  /** Editable shape crop, fitted to the crop rectangle. */
+  cropShape?: import('../../lib/artworkCrop').CropShapeId;
   textEffects?: TextEffect[];
   letteringSource?: DesignElement;
   type: 'image' | 'text' | 'drawing' | 'shape' | 'pattern' | 'distress' | 'customArea' | 'group';
@@ -721,6 +725,7 @@ export function CropEditingOverlay({
 export function buildImageClipPath(
   el: {
     cornerRadius?: number;
+    cropShape?: import('../../lib/artworkCrop').CropShapeId;
     cropTop?: number;
     cropRight?: number;
     cropBottom?: number;
@@ -3481,10 +3486,12 @@ export function PrintsDesignPreview({
   );
   const { cropEditingId, setCropEditingId } = studio;
   const [cropDraft, setCropDraft] = useState<CropInsets>(() => normalizeCrop({}));
+  const [cropShapeDraft, setCropShapeDraft] = useState<DesignElement['cropShape']>();
+  const [cropRatio, setCropRatio] = useState<number | null>(null);
   useLayoutEffect(() => {
     if (!editable || !cropEditingId) return;
     const element = elements.find(item => item.id === cropEditingId);
-    if (element) setCropDraft(normalizeCrop(element));
+    if (element) { setCropDraft(normalizeCrop(element)); setCropShapeDraft(element.cropShape); setCropRatio(null); }
   }, [cropEditingId, editable]);
   useEffect(() => {
     if (!editable || !cropEditingId) return;
@@ -3502,7 +3509,7 @@ export function PrintsDesignPreview({
   }, [editable, cropEditingId]);
   const applyCrop = () => {
     if (editable && selectedElement && !selectedElement.locked && cropEditingId === selectedElement.id) {
-      updateElement(selectedElement.id, normalizeCrop(cropDraft));
+      updateElement(selectedElement.id, { ...normalizeCrop(cropDraft), cropShape: cropShapeDraft });
     }
     setCropEditingId(null);
   };
@@ -3631,7 +3638,7 @@ export function PrintsDesignPreview({
         )}
         {editable && cropEditingId && selectedElement?.id === cropEditingId ? (
         <div data-editor-chrome data-crop-editor className="absolute inset-x-0 top-0 z-[210] flex justify-center p-2">
-          <CropEditorControls draft={cropDraft} onChange={setCropDraft} onApply={applyCrop} onCancel={() => setCropEditingId(null)} />
+          <CropEditorControls draft={cropDraft} onChange={setCropDraft} onApply={applyCrop} onCancel={() => setCropEditingId(null)} width={selectedElement.width} height={selectedElement.height} ratio={cropRatio} onRatio={setCropRatio} shape={cropShapeDraft} onShape={setCropShapeDraft} />
         </div>
       ) : null}
       {narrowViewport && showCanvasChromeToolbar && selectedElement && typeof document !== 'undefined'
@@ -4167,7 +4174,7 @@ export function PrintsDesignPreview({
                 {editable&&selected&&!locked&&(['rect','ellipse','circle'].includes(element.content)||(element.content==='rounded-rect'&&element.shapeParameters?.studioRevision===2))&&!element.shapePath&&studio.pathEditingId!==element.id&&studio.tool==='select'&&<LiveCornerHandle element={visualElement} scale={1/uiInv} onPreview={shapeParameters=>setLiveTransform(shapeParameters?{id:element.id,patch:{shapeParameters}}:null)} onChange={shapeParameters=>updateElement(element.id,{shapeParameters})}/>}
                 <DesignAssetSurface clipStyle={artworkClipStyle(visualElement,elements)} interacting={manip?.id===element.id||draggingId===element.id} editingPath={studio.pathEditingId===element.id||studio.logoRegionEditing?.rootId===element.id} element={visualElement} selected={selected && studio.logoRegionEditing?.rootId!==element.id && (studio.selectionIds.length<2||Boolean(marquee)) && studio.tool!=='shapePolygon' && studio.tool!=='shapePencil' && editable && !locked && !isEditingText && !cropEditingId && studio.pathEditingId !== element.id && !(element.type === 'customArea' && (studio.tool === 'customAreaEdit' || studio.tool === 'customAreaAddPoint')) && !patternPart}
                   cropping={editable && cropEditingId === element.id}
-                  cropOverlay={<InteractiveCropOverlay element={cropDraft} onChange={setCropDraft} width={visualElement.width} height={visualElement.height} />}
+                  cropOverlay={<InteractiveCropOverlay element={cropDraft} onChange={setCropDraft} width={visualElement.width} height={visualElement.height} ratio={cropRatio} shape={cropShapeDraft} />}
                   garmentMask={patternPart ?? (assetMode || focusArtwork ? undefined : element.patternKeepNeckPlain ? collarSafePatternMask : drawingMask)} position={{ x: liveX, y: liveY }}
                   distort={distortEditingId === element.id && !studio.drawing}
                   warpEditing={warpEditingId === element.id && !studio.drawing}

@@ -1,0 +1,12 @@
+/* 3D brush and restyle controls. */
+.cx-volume{display:grid;gap:8px;margin:8px 0}
+.cx-volume-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;color:#3f3f3c;font-size:13px}
+.cx-volume-seg{display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:#f6f6f4}
+.ceriga-builder-shell .builder-inspector .cx-volume-seg button{height:24px;min-width:50px;padding:0 7px;border:0;border-radius:4px;background:transparent;color:#737370;font-size:11px}
+.ceriga-builder-shell .builder-inspector .cx-volume-seg button[aria-pressed=true]{background:#fff;color:#1f1f1d;box-shadow:0 0 0 1px rgb(0 0 0 / .08)}
+.cx-volume-check{display:inline-flex;align-items:center;gap:7px;color:#3f3f3c;font-size:13px}
+.cx-volume-row input[type=color]{width:26px;height:26px;padding:0;overflow:hidden;border:1px solid #dadad7;border-radius:999px;background:none;cursor:pointer}
+.cx-volume-row input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.cx-volume-row input[type=color]::-webkit-color-swatch{border:0;border-radius:999px}
+.cx-restyle{min-width:0;border:0;padding:0;margin:0}
+.cx-restyle .draw-brush-grid{max-height:286px;overflow-y:auto}

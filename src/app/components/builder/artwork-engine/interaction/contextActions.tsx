@@ -3,7 +3,7 @@ import {
   Copy, FlipHorizontal2, FlipVertical2, Trash2, Lock, Unlock, Type, Crop, ArrowUpToLine, ArrowUp, ArrowDown, ArrowDownToLine,
   AlignHorizontalJustifyStart, AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd,
   AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd,
-  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2, ALargeSmall, Waves, Sparkles, TypeOutline, SquareDot, Spline, SquareDashed,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter, LayoutGrid, Target, Layers, Group, Blend, MousePointerClick, Flower2, ALargeSmall, Waves, Sparkles, TypeOutline, SquareDot, Spline, SquareDashed, Eraser, Palette, ScanLine, Brush,
 } from 'lucide-react';
 import type { ContextAction } from './ContextToolbar';
 import type { BooleanOperation } from '../../../../lib/booleanArtwork';
@@ -44,6 +44,12 @@ export type ContextHandlers = {
   /** Multi-select of paths: make a live blend. */
   blend?: () => void;
   textInShape?: { warp: () => void; inside: () => void; knockout: () => void };
+  /** Single drawing: swap the brush on every stroke. */
+  restyle?: { active?: string; options: { id: string; label: string }[]; apply: (id: string) => void; clear?: () => void };
+  /** Single drawing: add or remove popular effects. */
+  drawingEffects?: { options: { id: string; label: string }[]; active: string[]; toggle: (id: string) => void };
+  /** Single image: quick look, background removal, recolour and trace. */
+  image?: { looks: { id: string; label: string }[]; look: string; setLook: (id: string) => void; cutout: boolean; toggleCutout: () => void; recolour: () => void; trace: () => void };
 };
 
 export type ContextSelection =
@@ -106,6 +112,14 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
   const primary: ContextAction[] = [];
   if (selection.type === 'text' && h.editText) primary.push({ id: 'edit', label: 'Edit text', icon: <Type size={ICON} />, showLabel: true, disabled: locked, onSelect: h.editText });
   if (selection.type === 'image' && h.crop) primary.push({ id: 'crop', label: 'Crop', icon: <Crop size={ICON} />, showLabel: true, disabled: locked, onSelect: h.crop });
+  if (selection.type === 'drawing' && h.restyle && !locked) primary.push({ id: 'restyle', label: 'Restyle', icon: <Brush size={ICON} />, showLabel: true, menu: [...h.restyle.options.map((option): ContextAction => ({ id: 'restyle-' + option.id, label: option.label, pressed: h.restyle!.active === option.id, onSelect: () => h.restyle!.apply(option.id) })), ...(h.restyle.clear ? [{ id: 'sep-restyle', label: '' }, { id: 'restyle-clear', label: 'Back to original', onSelect: h.restyle.clear }] : [])] });
+  if (selection.type === 'drawing' && h.drawingEffects && !locked) primary.push({ id: 'drawing-effects', label: 'Effects', icon: <Sparkles size={ICON} />, showLabel: true, menu: h.drawingEffects.options.map((option): ContextAction => ({ id: 'fx-' + option.id, label: option.label, pressed: h.drawingEffects!.active.includes(option.id), onSelect: () => h.drawingEffects!.toggle(option.id) })) });
+  if (selection.type === 'image' && h.image && !locked) primary.push(
+    { id: 'look', label: 'Look', icon: <Sparkles size={ICON} />, showLabel: true, menu: h.image.looks.map((look): ContextAction => ({ id: 'look-' + look.id, label: look.label, pressed: h.image!.look === look.id, onSelect: () => h.image!.setLook(look.id) })) },
+    { id: 'cutout', label: 'Remove background', icon: <Eraser size={ICON} />, pressed: h.image.cutout, onSelect: h.image.toggleCutout },
+    { id: 'recolour', label: 'Recolour', icon: <Palette size={ICON} />, onSelect: h.image.recolour },
+    { id: 'trace', label: 'Trace to vector', icon: <ScanLine size={ICON} />, onSelect: h.image.trace },
+  );
   if (selection.colourControl && !locked) primary.push({ id: 'colour', label: 'Colour', render: selection.colourControl });
   if (selection.type === 'text' && h.textRecipes && !locked) primary.push({ id: 'style', label: 'Style', icon: <Sparkles size={ICON} />, showLabel: true, menu: [
     ...RECIPE_FAMILIES.flatMap((family, index): ContextAction[] => [...(index ? [{ id: 'sep-' + family, label: '' }] : []), ...TEXT_RECIPES.filter(recipe => recipe.family === family).map((recipe): ContextAction => ({ id: recipe.id, label: recipe.label, pressed: h.textRecipes!.active === recipe.id, onSelect: () => h.textRecipes!.apply(recipe.id) }))]),

@@ -1,5 +1,6 @@
 import {renderBrushStroke} from './drawingBrush';
 import {createBrushTextureMask} from './brushTextures';
+import {isVolumeBrush} from './brushVolume';
 import {conicPaintMarkup} from './studioPaint';
 import type {RecordedDrawing,RecordedStroke} from './drawingReplay';
 const esc=(v:unknown)=>String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]!));
@@ -52,4 +53,4 @@ export function vectorDrawingMarkup(source:RecordedDrawing,prefix:string,color?:
  let content=groups.join('');if(source.erasers?.length){const erase=vectorDrawingMarkup({...source,strokes:source.erasers,erasers:undefined,cuts:undefined},prefix+'-erase','#000');defs.push(`<mask id="${prefix}-erase-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="${source.width}" height="${source.height}" style="mask-type:luminance"><rect width="100%" height="100%" fill="white"/>${erase}</mask>`);content=`<g mask="url(#${prefix}-erase-mask)">${content}</g>`}if(source.cuts?.length){defs.push(`<mask id="${prefix}-cuts" maskUnits="userSpaceOnUse" x="0" y="0" width="${source.width}" height="${source.height}"><rect width="100%" height="100%" fill="white"/>${source.cuts.map(ps=>'<path fill="black" d="M'+ps.map(p=>p.x+','+p.y).join('L')+'Z"/>').join('')}</mask>`);content=`<g mask="url(#${prefix}-cuts)">${content}</g>`}
  return `<defs>${defs.join('')}</defs>${content}`;
 }
-export function supportsVectorDrawing(source:RecordedDrawing){return [...source.strokes,...(source.erasers??[])].every(s=>s.settings.texture!=='custom')}
+export function supportsVectorDrawing(source:RecordedDrawing){return [...source.strokes,...(source.erasers??[])].every(s=>s.settings.texture!=='custom'&&!isVolumeBrush(String(s.settings.brushPreset)))}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { productionArtworkSvg } from './src/app/lib/productionArtwork';export * from './src/app/components/builder/artwork-engine/geometry/letterStretch';export { overlapColour, overlapIsStale, overlapIssue, overlapShape, createOverlap, refreshOverlap } from './src/app/components/builder/artwork-engine/geometry/overlap';export { DEFAULT_FADE, createReflection, refreshReflections, fadeGradient, fadeStyle } from './src/app/components/builder/artwork-engine/geometry/fade';export { orderDesignLayers } from './src/app/lib/designLayerOrdering';export * from './src/app/components/builder/artwork-engine/typography/outcomes';export { expandTextAppearance } from './src/app/lib/textAppearance';export { applyImageGrade, autoLevels, curveTable, gradeIsActive, imageHistogram } from './src/app/components/builder/artwork-engine/image/grade';export { applyTextEffects, createShapeEffect, shapeEffectControls, RETIRED_EFFECTS, TEXT_EFFECTS } from './src/app/lib/textEffects';export * from './src/app/components/builder/artwork-engine/geometry/colourField';export * from './src/app/components/builder/artwork-engine/geometry/widthProfile';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { productionArtworkSvg } from './src/app/lib/productionArtwork';export * from './src/app/components/builder/artwork-engine/geometry/letterStretch';export { overlapColour, overlapIsStale, overlapIssue, overlapShape, createOverlap, refreshOverlap } from './src/app/components/builder/artwork-engine/geometry/overlap';export { DEFAULT_FADE, createReflection, refreshReflections, fadeGradient, fadeStyle } from './src/app/components/builder/artwork-engine/geometry/fade';export { orderDesignLayers } from './src/app/lib/designLayerOrdering';export * from './src/app/components/builder/artwork-engine/typography/outcomes';export { expandTextAppearance } from './src/app/lib/textAppearance';export { VOLUME_BRUSHES, VOLUME_DEFAULTS, groupVolumeStrokes, insideDistance, isVolumeBrush, shadeVolume } from './src/app/lib/brushVolume';export { clearRestyle, patchDrawingStrokes, restyleDrawing } from './src/app/lib/drawingRestyle';export { supportsVectorDrawing } from './src/app/lib/vectorDrawing';export { BRUSH_PRESETS, DEFAULT_BRUSH_SETTINGS, brushPresetControls } from './src/app/lib/drawingBrush';export { RIBBON_BRUSHES } from './src/app/lib/brushRibbons';export { vectorDrawingMarkup } from './src/app/lib/vectorDrawing';export { CROP_SHAPES, adjustCropToRatio, buildArtworkClipPath, cropShapePoints, cropToRatio } from './src/app/lib/artworkCrop';export { removeImageBackground } from './src/app/lib/removeImageBackground';export { printQuality, isVectorImage } from './src/app/components/builder/artwork-engine/image/printQuality';export { extractPalette } from './src/app/components/builder/artwork-engine/image/grade';export { applyImageGrade, autoLevels, curveTable, gradeIsActive, imageHistogram } from './src/app/components/builder/artwork-engine/image/grade';export { applyTextEffects, createShapeEffect, shapeEffectControls, RETIRED_EFFECTS, TEXT_EFFECTS } from './src/app/lib/textEffects';export * from './src/app/components/builder/artwork-engine/geometry/colourField';export * from './src/app/components/builder/artwork-engine/geometry/widthProfile';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -379,3 +379,104 @@ for (const gradeCase of [{ clarity: 60 }, { denoise: 60 }, { vibrance: 50 }, { b
 const gradeLevels = api.autoLevels(api.imageHistogram(new Uint8ClampedArray(Array.from({ length: 100 }, (_, i) => [60 + i, 60 + i, 60 + i, 255]).flat())));
 assert(gradeLevels.black >= 60 && gradeLevels.white <= 159 && gradeLevels.white > 150, 'auto tone finds the real range');
 console.log('artwork engine: image grade ok');
+
+// Artwork Phase 4: ratio crops, shape crops and refined background removal.
+const ratioCrop = api.cropToRatio({}, 400, 200, 1);
+assert(Math.abs((100 - ratioCrop.cropLeft - ratioCrop.cropRight) * 4 - (100 - ratioCrop.cropTop - ratioCrop.cropBottom) * 2) < 1e-6, 'ratio crop is really square');
+for (const handle of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
+  const held = api.adjustCropToRatio(ratioCrop, handle, handle.includes('w') ? 6 : -6, handle.includes('n') ? 9 : -9, .5), heldW = 100 - held.cropLeft - held.cropRight, heldH = 100 - held.cropTop - held.cropBottom;
+  assert(Math.abs(heldW / heldH - .5) < 1e-6 && held.cropLeft >= 0 && held.cropTop >= 0 && held.cropRight >= 0 && held.cropBottom >= 0, handle + ' keeps the ratio inside the image');
+}
+for (const shape of api.CROP_SHAPES) {
+  const inset = { cropLeft: 10, cropTop: 20, cropRight: 30, cropBottom: 10 }, shapePoints = api.cropShapePoints(inset, shape.id);
+  assert(shapePoints.length >= 3 && shapePoints.every(([x, y]) => x >= 9.99 && x <= 70.01 && y >= 19.99 && y <= 90.01), shape.id + ' stays inside the crop');
+  assert(api.buildArtworkClipPath({ ...inset, cropShape: shape.id }).startsWith('polygon('), shape.id + ' clips the canvas');
+}
+assert.equal(api.buildArtworkClipPath({ cropShape: 'circle' }, { ignoreCrop: true }), undefined, 'the full image shows while cropping');
+const shapePrint = await api.productionArtworkSvg([{ id: 'crop-print', type: 'image', content: 'data:image/png;base64,AA==', x: 20, y: 20, width: 40, height: 40, rotation: 0, cropShape: 'star' }], 40, 40);
+assert(shapePrint.includes('<polygon') && shapePrint.includes('clip-path'), 'shape crop reaches the print file');
+const bgW = 40, bgH = 40, bgImage = new Uint8ClampedArray(bgW * bgH * 4);
+for (let y = 0; y < bgH; y++) for (let x = 0; x < bgW; x++) {
+  const inRing = Math.hypot(x - 20, y - 20) < 14 && Math.hypot(x - 20, y - 20) > 6, dot = x === 3 && y === 3;
+  bgImage.set(inRing || dot ? [20, 20, 200, 255] : x < 20 ? [255, 255, 255, 255] : [235, 60, 60, 255], (y * bgW + x) * 4);
+}
+const bgAlpha = (data, x, y) => data[(y * bgW + x) * 4 + 3];
+const bgPlain = api.removeImageBackground(bgImage, bgW, bgH, 30, 4);
+assert(bgAlpha(bgPlain, 1, 20) === 0 && bgAlpha(bgPlain, 38, 20) === 0 && bgAlpha(bgPlain, 20, 10) === 255, 'a two-colour backdrop is removed and the artwork kept');
+assert.equal(bgAlpha(bgPlain, 20, 20) > 0, true, 'inner areas stay by default');
+assert.equal(bgAlpha(api.removeImageBackground(bgImage, bgW, bgH, 30, 4, undefined, { inner: true }), 20, 20), 0, 'inner areas can be removed');
+assert.equal(bgAlpha(bgPlain, 3, 3), 255); assert.equal(bgAlpha(api.removeImageBackground(bgImage, bgW, bgH, 30, 4, undefined, { specks: 100 }), 3, 3), 0, 'specks can be cleaned');
+const bgCount = data => { let n = 0; for (let i = 3; i < data.length; i += 4) n += data[i] > 127 ? 1 : 0; return n; };
+assert(bgCount(api.removeImageBackground(bgImage, bgW, bgH, 30, 4, undefined, { shift: 2 })) > bgCount(bgPlain) && bgCount(api.removeImageBackground(bgImage, bgW, bgH, 30, 4, undefined, { shift: -2 })) < bgCount(bgPlain), 'the edge can move both ways');
+console.log('artwork engine: crop and background ok');
+
+// Artwork Phase 4: recolour, combined cutout and print sharpness.
+const imageToRecolour = new Uint8ClampedArray([200, 30, 30, 255, 220, 50, 50, 255, 30, 30, 200, 255, 30, 200, 30, 255]);
+const imageRecoloured = api.applyImageGrade(imageToRecolour, 4, 1, { recolour: { range: 60, colours: [{ from: '#c81e1e', to: '#1ec81e' }] } });
+assert.deepEqual([...imageRecoloured.slice(0, 3)], [30, 200, 30], 'the chosen colour changes exactly');
+assert(imageRecoloured[5] > imageRecoloured[4] && imageRecoloured[5] > imageRecoloured[6], 'nearby shades follow the new colour');
+assert.deepEqual([...imageRecoloured.slice(8, 11)], [30, 30, 200], 'other colours stay put');
+const paletteImage = new Uint8ClampedArray(400 * 4); for (let i = 0; i < 400; i++) paletteImage.set(i < 300 ? [240, 20, 20, 255] : [20, 20, 240, 255], i * 4);
+const foundColours = api.extractPalette(paletteImage, 2);
+assert.deepEqual(foundColours, ['#f01414', '#1414f0'], 'palette finds the main colours, largest first');
+assert.deepEqual(api.extractPalette(paletteImage, 2), foundColours, 'palette is repeatable');
+const cutoutImage = new Uint8ClampedArray(20 * 20 * 4); for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) cutoutImage.set(x > 5 && x < 14 && y > 5 && y < 14 ? [200, 30, 30, 255] : [255, 255, 255, 255], (y * 20 + x) * 4);
+const cutoutGraded = api.applyImageGrade(cutoutImage, 20, 20, { cutout: { id: 'remove-background', intensity: 100 }, recolour: { range: 60, colours: [{ from: '#c81e1e', to: '#1e1ec8' }] } });
+assert(cutoutGraded[3] === 0 && cutoutGraded[(10 * 20 + 10) * 4 + 3] === 255 && cutoutGraded[(10 * 20 + 10) * 4 + 2] === 200, 'cutout and recolour work together');
+const printSharp = api.printQuality(3000, 3000, 200, 200, 10), printLow = api.printQuality(300, 300, 300, 300, 10);
+assert(printSharp.grade === 'sharp' && printSharp.ppi === 381 && printSharp.fitScale === 1, 'large image at 20 cm prints sharp');
+assert(printLow.grade === 'low' && Math.abs(api.printQuality(300, 300, 300 * printLow.fitScale, 300 * printLow.fitScale, 10).ppi - 150) <= 1, 'Fix resizes to the target resolution');
+assert(api.isVectorImage('data:image/svg+xml;base64,AA==') && !api.isVectorImage('data:image/png;base64,AA=='), 'vectors are recognised');
+console.log('artwork engine: recolour and print quality ok');
+
+// Artwork Phase 5: direction-aware brushes stay editable, repeatable and vector.
+const brushLine = Array.from({ length: 80 }, (_, i) => ({ x: 20 + i * 4, y: 100 + Math.sin(i / 12) * 30, p: .4 + Math.sin(i / 79 * Math.PI) * .6, tilt: 0 }));
+const brushDrawing = (id, patch = {}, points = brushLine) => { const preset = api.BRUSH_PRESETS.find(item => item.id === id); return { width: 400, height: 200, strokes: [{ points, seed: 9, opacity: 1, settings: { ...api.DEFAULT_BRUSH_SETTINGS, ...preset.settings, brushPreset: id, brushSize: preset.size, color: '#d9412f', opacity: 100, pressure: true, stabilization: 20, grain: 0, pencil: { pencilOnly: false, tiltShading: false, doubleTapTogglesEraser: false }, ...patch } }] }; };
+assert(api.BRUSH_PRESETS.length >= 52 && new Set(api.BRUSH_PRESETS.map(item => item.id)).size === api.BRUSH_PRESETS.length, 'brush library is complete and unique');
+for (const id of api.RIBBON_BRUSHES) {
+  assert(api.BRUSH_PRESETS.some(item => item.id === id), id + ' is in the library');
+  const markup = api.vectorDrawingMarkup(brushDrawing(id), 'b');
+  assert(markup.includes('<path') && !markup.includes('NaN') && !markup.includes('<image'), id + ' exports as clean vector');
+  assert.equal(markup, api.vectorDrawingMarkup(brushDrawing(id), 'b'), id + ' is repeatable');
+  assert(api.vectorDrawingMarkup(brushDrawing(id, {}, [brushLine[0]]), 'b').includes('<path'), id + ' works for a single tap');
+  assert(api.vectorDrawingMarkup(brushDrawing(id, {}, [brushLine[0], { ...brushLine[0] }]), 'b').includes('<path'), id + ' survives a stroke with no length');
+  assert(api.brushPresetControls(id).length >= 1, id + ' has controls');
+}
+for (const id of ['rope', 'chain-link', 'barbed-wire', 'zipper', 'ribbon', 'star-scatter', 'sparkle-scatter', 'flower-scatter']) {
+  assert.deepEqual(api.brushPresetControls(id).map(control => control.key), ['patternScale', 'patternGap', 'patternJitter'], id + ' has pattern controls');
+  assert.notEqual(api.vectorDrawingMarkup(brushDrawing(id, { patternScale: 180 }), 'b'), api.vectorDrawingMarkup(brushDrawing(id), 'b'), id + ' repeat size changes the stroke');
+}
+const brushMarks = (id, count) => (api.vectorDrawingMarkup(brushDrawing(id, {}, brushLine.slice(0, count)), 'b').match(/<path/g) ?? []).length;
+assert(brushMarks('star-scatter', 80) > brushMarks('star-scatter', 30), 'longer strokes place more marks');
+assert.equal((api.vectorDrawingMarkup(brushDrawing('highlighter'), 'b').match(/<path/g) ?? []).length, 1, 'a see-through ink is one even shape, so it cannot band');
+console.log('artwork engine: brushes ok');
+
+// Artwork Phase 5: 3D brushes are lit surfaces, and any drawing can be brushRestyled and restored.
+const volW = 90, volH = 50, volMask = new Float32Array(volW * volH);
+for (let y = 0; y < volH; y++) for (let x = 0; x < volW; x++) volMask[y * volW + x] = Math.abs(y - 25) <= 16 && x > 8 && x < 82 ? 1 : 0;
+const volDistance = api.insideDistance(volMask, volW, volH);
+assert(Math.abs(volDistance[25 * volW + 45] - 17) < 1e-6 && volDistance[2 * volW + 45] === 0, 'distance to the edge is exact');
+assert(api.VOLUME_BRUSHES.length >= 16, '3D and contour family');
+const volLum = (data, x, y) => { const i = (y * volW + x) * 4; return data[i] * .2126 + data[i + 1] * .7152 + data[i + 2] * .0722; };
+for (const brush of api.VOLUME_BRUSHES) {
+  const options = { ...api.VOLUME_DEFAULTS, ...brush.settings }, shaded = api.shadeVolume(brush.id, volMask, volW, volH, 17, options, [200, 60, 50], 4, 1);
+  assert.deepEqual([...shaded], [...api.shadeVolume(brush.id, volMask, volW, volH, 17, options, [200, 60, 50], 4, 1)], brush.id + ' is repeatable');
+  assert(shaded.some(value => value > 0) && !shaded.some(Number.isNaN), brush.id + ' draws');
+  const volTones = new Set(); for (let index = 0; index < shaded.length; index += 4) if (volMask[index / 4] === 1) volTones.add(Math.round((shaded[index] * .2126 + shaded[index + 1] * .7152 + shaded[index + 2] * .0722) * shaded[index + 3] / 255 / 8)); assert(volTones.size > 1, brush.id + ' has real shading or line work');
+  assert(api.BRUSH_PRESETS.some(item => item.id === brush.id), brush.id + ' is in the library');
+}
+const volLit = light => api.shadeVolume('inflate', volMask, volW, volH, 17, { ...api.VOLUME_DEFAULTS, volumeLight: light, volumeGloss: 0 }, [200, 200, 200], 4, 1);
+assert(volLum(volLit(270), 45, 13) > volLum(volLit(270), 45, 37) + 30 && volLum(volLit(90), 45, 37) > volLum(volLit(90), 45, 13) + 30, 'the light angle really moves the highlight');
+const volOff = api.shadeVolume('stipple-tube', volMask, volW, volH, 17, { ...api.VOLUME_DEFAULTS, volumePaperOn: false }, [0, 0, 0], 4, 1), volOn = api.shadeVolume('stipple-tube', volMask, volW, volH, 17, { ...api.VOLUME_DEFAULTS, volumePaperOn: true }, [0, 0, 0], 4, 1);
+assert(volOff.some((value, index) => index % 4 === 3 && value === 0 && volMask[(index - 3) / 4] === 1) && volOn[(25 * volW + 45) * 4 + 3] === 255, 'ink can print alone or over a fill');
+const volA = { points: [], seed: 1, settings: { brushPreset: 'inflate', color: '#111111' } }, volB = { ...volA }, volC = { ...volA, settings: { brushPreset: 'inflate', color: '#ff0000' } }, volD = { ...volC, settings: { ...volC.settings, volumeMerge: false } };
+assert.deepEqual(api.groupVolumeStrokes([volA, volB, volC, volD]).map(group => group.length), [2, 1, 1], 'same brush and colour fuse, others stay apart');
+const restyleSource = brushDrawing('pen'), restyleEl = { drawing: restyleSource }, brushRestyled = api.restyleDrawing(restyleEl, 'inflate');
+assert.equal(brushRestyled.drawing.strokes[0].settings.brushPreset, 'inflate'); assert.deepEqual(brushRestyled.drawing.strokes[0].points, restyleSource.strokes[0].points, 'restyle never moves the line');
+assert.equal(brushRestyled.drawing.strokes[0].settings.color, '#d9412f', 'restyle keeps the colour');
+const brushRestyledTwice = api.restyleDrawing({ ...restyleEl, ...brushRestyled }, 'chalk'); assert.equal(brushRestyledTwice.drawingRestyle.original[0].brushPreset, 'pen', 'the original survives repeated restyles');
+assert.equal(api.restyleDrawing({ ...restyleEl, ...brushRestyled }, 'inflate', 2).drawing.strokes[0].settings.brushSize, brushRestyled.drawing.strokes[0].settings.brushSize * 2, 'stroke size is editable');
+assert.deepEqual(api.clearRestyle({ ...restyleEl, ...brushRestyledTwice }).drawing.strokes[0].settings, restyleSource.strokes[0].settings, 'back to original is exact');
+assert.equal(api.patchDrawingStrokes({ ...restyleEl, ...brushRestyled }, { volumeLight: 40 }).drawing.strokes[0].settings.volumeLight, 40, 'finished strokes stay editable');
+assert.equal(api.supportsVectorDrawing(brushRestyled.drawing), false); assert.equal(api.supportsVectorDrawing(restyleSource), true);
+console.log('artwork engine: 3D brushes and restyle ok');

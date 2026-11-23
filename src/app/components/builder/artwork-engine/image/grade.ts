@@ -2,6 +2,8 @@
  * Non-destructive image grade: levels, curves, per-colour HSL, vibrance, clarity, noise reduction and gradient map.
  * The original file is never changed; every value stays editable and the grade can be switched off.
  */
+import { applyImageFilter, type ImageFilterSettings } from '../../../../lib/imageFilters';
+
 export type CurvePoint = { x: number; y: number };
 export type CurveChannel = 'rgb' | 'r' | 'g' | 'b';
 export const HUE_BANDS = [
@@ -15,6 +17,9 @@ export type BandShift = { h?: number; s?: number; l?: number };
 export type GradientMap = { stops: { position: number; color: string }[]; amount: number };
 export type ImageGrade = {
   enabled?: boolean;
+  /** Background removal, kept separate so it combines with any image look. */
+  cutout?: ImageFilterSettings;
+  recolour?: { colours: { from: string; to: string }[]; range: number };
   black?: number; mid?: number; white?: number;
   curves?: Partial<Record<CurveChannel, CurvePoint[]>>;
   hsl?: Partial<Record<HueBand, BandShift>>;
@@ -37,7 +42,7 @@ const isFlatCurve = (points?: CurvePoint[]) => !points || points.length < 2 || p
 export function gradeIsActive(grade?: ImageGrade): grade is ImageGrade {
   if (!grade || grade.enabled === false) return false;
   const shifted = Object.values(grade.hsl ?? {}).some(band => band && (band.h || band.s || band.l));
-  return Boolean((grade.black ?? 0) > 0 || (grade.white ?? 255) < 255 || grade.mid !== undefined || Object.values(grade.curves ?? {}).some(c => !isFlatCurve(c)) || shifted || grade.vibrance || grade.clarity || grade.denoise || (grade.map && grade.map.amount > 0));
+  return Boolean(grade.cutout || grade.recolour?.colours.some(c => c.from !== c.to) || (grade.black ?? 0) > 0 || (grade.white ?? 255) < 255 || grade.mid !== undefined || Object.values(grade.curves ?? {}).some(c => !isFlatCurve(c)) || shifted || grade.vibrance || grade.clarity || grade.denoise || (grade.map && grade.map.amount > 0));
 }
 
 /** Monotone cubic through the points, so a curve never overshoots or folds back. */
@@ -119,10 +124,30 @@ function fromHsl(h: number, s: number, l: number, out: Uint8ClampedArray, i: num
   out[i] = (r + m) * 255; out[i + 1] = (g + m) * 255; out[i + 2] = (b + m) * 255;
 }
 
+/** Moves each colour by its own shift, so highlights and shadows inside it survive. */
+function recolourPixels(out: Uint8ClampedArray, colours: { from: string; to: string }[], range: number) {
+  const swaps = colours.map(c => { const from = hexRgb(c.from), to = hexRgb(c.to); return { from, shift: [to[0] - from[0], to[1] - from[1], to[2] - from[2]] }; }), reach = Math.max(1, range);
+  for (let i = 0; i < out.length; i += 4) {
+    if (!out[i + 3]) continue;
+    const r = out[i], g = out[i + 1], b = out[i + 2];
+    let total = 0, dr = 0, dg = 0, db = 0;
+    for (const swap of swaps) {
+      const distance = Math.hypot(r - swap.from[0], g - swap.from[1], b - swap.from[2]);
+      if (distance >= reach) continue;
+      const t = Math.min(1, (reach - distance) / (reach * .5)), weight = t * t * (3 - 2 * t);
+      total += weight; dr += swap.shift[0] * weight; dg += swap.shift[1] * weight; db += swap.shift[2] * weight;
+    }
+    if (!total) continue;
+    const scale = 1 / Math.max(1, total);
+    out[i] = clamp(r + dr * scale); out[i + 1] = clamp(g + dg * scale); out[i + 2] = clamp(b + db * scale);
+  }
+}
+
 export function applyImageGrade(data: Uint8ClampedArray, w: number, h: number, grade?: ImageGrade): Uint8ClampedArray {
-  const out = new Uint8ClampedArray(data);
-  if (!gradeIsActive(grade) || !w || !h) return out;
+  if (!gradeIsActive(grade) || !w || !h) return new Uint8ClampedArray(data);
+  const base = grade.cutout ? applyImageFilter(data, w, h, { ...grade.cutout, id: 'remove-background', intensity: 100 }) : data, out = new Uint8ClampedArray(base);
   const reach = Math.max(w, h) / 600;
+  if (grade.recolour?.colours.some(c => c.from !== c.to)) recolourPixels(out, grade.recolour.colours, grade.recolour.range);
   if (grade.denoise) {
     const strength = clamp(grade.denoise, 0, 100) / 100, radius = Math.max(1, Math.round((1 + strength * 2) * reach)), sigma = 10 + strength * 42, channels = [0, 1, 2].map(c => { const f = new Float32Array(w * h); for (let j = 0; j < f.length; j++) f[j] = out[j * 4 + c]; return boxBlur(f, w, h, radius); });
     for (let j = 0; j < w * h; j++) {
@@ -170,8 +195,28 @@ export function applyImageGrade(data: Uint8ClampedArray, w: number, h: number, g
       for (let c = 0; c < 3; c++) out[i + c] += (table[v + c] - out[i + c]) * amount;
     }
   }
-  for (let i = 3; i < out.length; i += 4) out[i] = data[i];
+  for (let i = 3; i < out.length; i += 4) out[i] = base[i];
   return out;
+}
+
+/** Main colours by k-means from evenly spread starting colours. Repeatable for the same image. */
+export function extractPalette(data: Uint8ClampedArray, count: number): string[] {
+  const samples: number[][] = [], step = Math.max(1, Math.floor(data.length / 4 / 6000));
+  for (let i = 0; i < data.length; i += step * 4) if (data[i + 3] > 128) samples.push([data[i], data[i + 1], data[i + 2]]);
+  if (!samples.length) return [];
+  const ordered = [...samples].sort((a, b) => lumaOf(Uint8ClampedArray.from(a), 0) - lumaOf(Uint8ClampedArray.from(b), 0)), size = Math.min(count, samples.length);
+  let centres = Array.from({ length: size }, (_, k) => [...ordered[Math.floor((k + .5) / size * ordered.length)]]), counts = new Array(size).fill(0);
+  for (let pass = 0; pass < 10; pass++) {
+    const sums = centres.map(() => [0, 0, 0]); counts = new Array(size).fill(0);
+    for (const s of samples) {
+      let best = 0, score = Infinity;
+      centres.forEach((c, k) => { const d = (s[0] - c[0]) ** 2 + (s[1] - c[1]) ** 2 + (s[2] - c[2]) ** 2; if (d < score) { score = d; best = k; } });
+      counts[best]++; sums[best][0] += s[0]; sums[best][1] += s[1]; sums[best][2] += s[2];
+    }
+    centres = centres.map((c, k) => counts[k] ? sums[k].map(v => v / counts[k]) : c);
+  }
+  const hex = (c: number[]) => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+  return [...new Set(centres.map((c, k) => ({ c, n: counts[k] })).filter(item => item.n > 0).sort((a, b) => b.n - a.n).map(item => hex(item.c)))];
 }
 
 export function imageHistogram(data: Uint8ClampedArray) {

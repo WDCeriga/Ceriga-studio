@@ -19,6 +19,16 @@ import { outlineTextForCombine } from '../geometry/combine';
 import { createBoolean } from '../../../../lib/booleanArtwork';
 import { loadFontLibrary } from '../../printsStudio/designLibrary';
 import { usePrintsStudio } from '../../printsStudio/PrintsStudioContext';
+import { revealImageTool } from '../state/imageTool';
+import { clearRestyle, restyleDrawing } from '../../../../lib/drawingRestyle';
+import { BRUSH_PRESETS, type BrushPreset } from '../../../../lib/drawingBrush';
+import { TEXT_EFFECTS, createShapeEffect, type TextEffectId } from '../../../../lib/textEffects';
+
+const QUICK_DRAWING_EFFECTS = (['distressed', 'halftone', 'riso', 'screen-print', 'sticker', 'glow', 'long-shadow', 'foil', 'chrome', 'glitter', 'embroidery', 'gradient'] as TextEffectId[]).map(id => ({ id, label: TEXT_EFFECTS.find(effect => effect.id === id)?.label ?? id }));
+const QUICK_RESTYLES = ['inflate', 'stipple-tube', 'puffy-paint', 'balloon', 'chrome-tube', 'neon-tube', 'halo-line', 'hairline', 'spray', 'chalk', 'marker', 'pen'].map(id => ({ id, label: BRUSH_PRESETS.find(brush => brush.id === id)?.label ?? id }));
+import type { ImageFilterId } from '../../../../lib/imageFilters';
+
+const IMAGE_LOOKS: { id: ImageFilterId; label: string }[] = [{ id: 'none', label: 'Original' }, { id: 'bw', label: 'B&W' }, { id: 'vintage', label: 'Vintage' }, { id: 'film', label: 'Film' }, { id: 'washed', label: 'Washed' }, { id: 'duotone', label: 'Duotone' }, { id: 'halftone', label: 'Halftone' }, { id: 'screen-print', label: 'Screen print' }, { id: 'threshold', label: 'Threshold' }];
 
 /** A quiet round colour well (native picker) for the context toolbar. */
 function ColourWell({ value, onChange, label }: { value: string; onChange: (hex: string) => void; label: string }) {
@@ -78,6 +88,25 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
     arrange: direction => onChange(arrangeArtwork(elements, ids, direction), selectedId ?? undefined),
     editText: selected?.type === 'text' ? () => onEditText(selected.id) : undefined,
     crop: selected?.type === 'image' ? () => onCrop(selected.id) : undefined,
+    drawingEffects: selected?.type === 'drawing' && selected.drawing?.strokes.length ? {
+      options: QUICK_DRAWING_EFFECTS, active: (selected.shapeEffects ?? []).map(effect => effect.type),
+      toggle: id => { const current = selected.shapeEffects ?? [], has = current.some(effect => effect.type === id); onUpdate(selected.id, { shapeEffects: has ? current.filter(effect => effect.type !== id) : [...current, { ...createShapeEffect(id as TextEffectId), id: crypto.randomUUID() }] }); },
+    } : undefined,
+    restyle: selected?.type === 'drawing' && selected.drawing?.strokes.length ? {
+      active: selected.drawingRestyle?.preset ?? selected.drawing.strokes[0].settings.brushPreset, options: QUICK_RESTYLES,
+      apply: id => onUpdate(selected.id, restyleDrawing(selected, id as BrushPreset)),
+      clear: selected.drawingRestyle ? () => onUpdate(selected.id, clearRestyle(selected)) : undefined,
+    } : undefined,
+    image: selected?.type === 'image' ? {
+      looks: IMAGE_LOOKS, look: selected.imageFilter?.id ?? 'none',
+      setLook: id => onUpdate(selected.id, { imageFilter: id === 'none' ? undefined : { id: id as ImageFilterId, intensity: selected.imageFilter?.intensity ?? 100 } }),
+      cutout: Boolean(selected.imageGrade?.cutout) || selected.imageFilter?.id === 'remove-background',
+      toggleCutout: () => {
+        const on = Boolean(selected.imageGrade?.cutout) || selected.imageFilter?.id === 'remove-background';
+        onUpdate(selected.id, { imageGrade: { ...selected.imageGrade, cutout: on ? undefined : { id: 'remove-background', intensity: 100 } }, ...(selected.imageFilter?.id === 'remove-background' ? { imageFilter: undefined } : {}) });
+      },
+      recolour: () => revealImageTool('recolour'), trace: () => revealImageTool('trace'),
+    } : undefined,
     align: (to, scope) => onChange(alignArtwork(elements, ids, to, scope === 'print-area' ? area : undefined), selectedId ?? undefined),
     distribute: axis => onChange(distributeArtwork(elements, ids, axis), selectedId ?? undefined),
     group: multi && !groupLayersIssue(elements, ids) ? () => { const id = crypto.randomUUID(); onChange(groupDesignLayers(elements, ids, id), id); } : undefined,

@@ -432,7 +432,7 @@ export function PrintsDrawLayer({
     }
 
     replayPointsRef.current=[...points];
-    renderBrushStroke(sctx, points, s, cssToCanvas, strokeSeedRef.current);
+    renderBrushStroke(sctx, points, drawingRef.current ? { ...s, volumeDraft: true } : s, cssToCanvas, strokeSeedRef.current);
     sctx.restore();
 
     mirrorStroke(sctx);
@@ -519,7 +519,7 @@ export function PrintsDrawLayer({
       (Object.keys({ ...previous.element, ...existing }) as (keyof DesignElement)[]).every(key =>
         ['content', 'x', 'y', 'width', 'height'].includes(key) || existing[key] === previous.element[key]);
     const canAppend = previous && existing && (existing.side ?? 'front') === sideRef.current &&
-      (compatibleDistress || (tool === 'brush' && existing === previous.element && !existing.drawing?.cuts?.length && !existing.drawing?.erasers?.length && !existing.eraseContours?.length &&
+      (compatibleDistress || (tool === 'brush' && existing.drawing === previous.element.drawing && existing.content === previous.element.content && existing.x === previous.element.x && existing.y === previous.element.y && existing.width === previous.element.width && existing.height === previous.element.height && !existing.rotation && !existing.flipHorizontal && !existing.flipVertical && !existing.locked && !existing.hidden && !existing.drawing?.cuts?.length && !existing.drawing?.erasers?.length && !existing.eraseContours?.length &&
         previous.canvas.width === canvas.width && previous.canvas.height === canvas.height));
     const merged = document.createElement('canvas');
     merged.width = canvas.width;
@@ -527,7 +527,7 @@ export function PrintsDrawLayer({
     const mergedContext = merged.getContext('2d');
     if (!mergedContext) return;
     if (canAppend) {
-      if ((existing === previous.element || unchangedWear) && previous.canvas.width === canvas.width && previous.canvas.height === canvas.height) {
+      if ((tool === 'brush' || existing === previous.element || unchangedWear) && previous.canvas.width === canvas.width && previous.canvas.height === canvas.height) {
         mergedContext.drawImage(previous.canvas, 0, 0);
       } else {
         const image = host.querySelector<HTMLImageElement>(`[data-print-id="${existing.id}"] img`);
@@ -557,6 +557,8 @@ export function PrintsDrawLayer({
       clip:garmentMask?{url:garmentMask.vectorUrl??garmentMask.url,x:-originX,y:-originY,width:garmentMask.width,height:garmentMask.height}:undefined};
     const oldStrokes=canAppend&&previous?.element.drawing?previous.element.drawing.strokes.map(s=>offsetRecordedStroke(s,previous.element.x-previous.element.width/2-originX,previous.element.y-previous.element.height/2-originY)):[];
     const next: DesignElement = {
+      // A new stroke keeps the layer's effects, restyle, name and finish.
+      ...(tool==='brush'&&canAppend&&existing?existing:{}),
       ...(tool==='brush'&&recorded.points.length?{drawing:{width:box.w/scaleX,height:box.h/scaleY,strokes:[...oldStrokes,recorded]}}:{}),
       id: canAppend ? previous.element.id : crypto.randomUUID(),
       type: tool === 'distress' ? 'distress' : 'drawing',
@@ -566,11 +568,11 @@ export function PrintsDrawLayer({
       width: box.w / scaleX,
       height: box.h / scaleY,
       rotation: 0,
-      opacity: 100,
+      opacity: tool==='brush'&&canAppend&&existing?existing.opacity:100,
       locked: false,
       ...(tool==='distress'?{wear:{kind:studioRef.current.distressType,sourceWidth:box.w/scaleX,sourceHeight:box.h/scaleY,
         marks:cropWearMarks([...(canAppend&&existing?garmentWearMarks(existing).map(mark=>({...mark,x:mark.x*scaleX,y:mark.y*scaleY,width:mark.width*scaleX,height:mark.height*scaleY})):[]),...distressStampsRef.current.map(mark=>({...mark,opacity:mark.opacity*studioRef.current.opacity/100}))],box.x,box.y,scaleX,scaleY)}}:{}),
-      printMethod: tool === 'distress' ? undefined : DEFAULT_PRINT_METHOD,
+      printMethod: tool === 'distress' ? undefined : tool==='brush'&&canAppend&&existing?existing.printMethod:DEFAULT_PRINT_METHOD,
       side: sideRef.current,
       aspectLocked: false,
     };

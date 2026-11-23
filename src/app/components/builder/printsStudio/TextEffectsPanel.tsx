@@ -17,7 +17,8 @@ export interface TextEffectsPanelProps {
   element: DesignElement;
   onChange: (updates: Partial<DesignElement>) => void;
   images?: Array<{ name: string; src: string }>;
-  target?: 'text' | 'shape';
+  /** Drawings use the full library: everything text and shapes can do. */
+  target?: 'text' | 'shape' | 'drawing';
   defaultOpen?: boolean;
 }
 
@@ -36,9 +37,9 @@ function uniqueId() {
 
 export function TextEffectsPanel({ element, onChange, images = [], target = 'text', defaultOpen=false }: TextEffectsPanelProps) {
   const closedShape = target === 'shape' && shapeIsClosed(element);
-  const catalog = target === 'shape' ? SHAPE_EFFECTS.filter(effect => closedShape || !['texture-fill', 'image-fill'].includes(effect.id)) : TEXT_EFFECTS;
-  const createEffect = target === 'shape' ? createShapeEffect : createTextEffect;
-  const field = target === 'shape' ? 'shapeEffects' : 'textEffects';
+  const catalog = target === 'drawing' ? [...new Map([...TEXT_EFFECTS, ...SHAPE_EFFECTS].map(effect => [effect.id, effect])).values()] : target === 'shape' ? SHAPE_EFFECTS.filter(effect => closedShape || !['texture-fill', 'image-fill'].includes(effect.id)) : TEXT_EFFECTS;
+  const createEffect = target === 'text' ? createTextEffect : createShapeEffect;
+  const field = target === 'text' ? 'textEffects' : 'shapeEffects';
   const previews = useMemo(() => catalog.map(item => ({ ...item, effect: { ...createEffect(item.id), seed: 1 }   })), [target, closedShape]);
   const [selection, setSelection] = useState<{ elementId: string; effectId: string } | null>(null);
   const [sourceError, setSourceError] = useState('');
@@ -50,7 +51,7 @@ export function TextEffectsPanel({ element, onChange, images = [], target = 'tex
   const dragged = useRef<string | null>(null);
   const effects = element[field] ?? [];
   const active = effects.find(effect => selection?.elementId === element.id && effect.id === selection.effectId) ?? effects[0];
-  const controls = active ? (target === 'shape' ? shapeEffectControls : textEffectControls)(active.type) : [];
+  const controls = active ? (target === 'text' ? textEffectControls : shapeEffectControls)(active.type) : [];
   const visibleControls=controls.filter(control=>!(active?.type==='gradient'&&active.settings.type==='radial'&&control.key==='angle'));
   const orderedControls=[...visibleControls.filter(numericControl),...visibleControls.filter(control=>!numericControl(control))];
   const locked = !!element.locked;
@@ -171,16 +172,16 @@ export function TextEffectsPanel({ element, onChange, images = [], target = 'tex
 
   if (element.type !== target) return null;
 
-  return <details open={panelOpen} onToggle={event=>{if(event.currentTarget.open!==panelOpen)setPanelOpen(event.currentTarget.open)}} className="studio-effects-panel rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3" data-text-effects-panel={target === 'text' ? true : undefined} data-shape-effects-panel={target === 'shape' ? true : undefined}>
+  return <details open={panelOpen} onToggle={event=>{if(event.currentTarget.open!==panelOpen)setPanelOpen(event.currentTarget.open)}} className="studio-effects-panel rounded-xl border border-[#e2e2e2] bg-[#fafafa] p-3" data-text-effects-panel={target === 'text' ? true : undefined} data-shape-effects-panel={target === 'shape' ? true : undefined} data-drawing-effects-panel={target === 'drawing' ? true : undefined}>
     <summary className="effect-library-heading"><span>Visual effects<small>{effects.length?`${effects.length} applied`:"Optional"}</small></span><ChevronDown size={15}/></summary>
     <fieldset disabled={locked} className="mt-3 min-w-0 space-y-3 disabled:opacity-50">
-      <legend className="sr-only">{target === 'shape' ? 'Shape effects' : 'Text effects'}</legend>
+      <legend className="sr-only">{target === 'text' ? 'Text effects' : target === 'shape' ? 'Shape effects' : 'Brush effects'}</legend>
       {effects.length>0&&<div className="effect-library-actions"><button onClick={()=>setBrowse(!showLibrary)}>{showLibrary?'Close library':'+ Add effect'}</button><button onClick={()=>{changeEffects(()=>[]);setSelection(null)}}>Clear effects</button></div>}
       {showLibrary&&<>
       <div className="effect-library-controls"><MaterialSelect aria-label="Effect category" value={category} onChange={event=>setCategory(event.target.value)}>{[...Object.keys(EFFECT_GROUPS),'All'].map(name=><option key={name}>{name}</option>)}</MaterialSelect><input aria-label="Find an effect" placeholder="Find an effect" value={query} onChange={event=>setQuery(event.target.value)}/></div><div className="effect-preview-grid grid max-h-80 grid-cols-2 gap-1.5 overflow-y-auto pr-1" aria-label={`Available ${target} effects`}>
         {visiblePreviews.map(({ id, label, effect }) => <button key={id} type="button" aria-label={`Add ${label} effect`} onClick={() => addEffect(id)}
           className="min-w-0 overflow-hidden rounded-lg border border-[#e2e2e2] bg-[#f2f2f2] text-left hover:border-[#262626]/70">
-          <div className="flex h-14 w-full items-center justify-center overflow-hidden" aria-hidden="true"><TextEffectPreview effect={effect} text="CERIGA" shape={target === 'shape'} /></div>
+          <div className="flex h-14 w-full items-center justify-center overflow-hidden" aria-hidden="true"><TextEffectPreview effect={effect} text="CERIGA" shape={target !== 'text'} /></div>
           <span className="block px-1.5 py-1 text-[9px] leading-tight text-[#737373]">{label}</span>
         </button>)}
       </div>
@@ -201,7 +202,7 @@ export function TextEffectsPanel({ element, onChange, images = [], target = 'tex
                 dragged.current = null;
               }}>
               <div className="flex min-w-0 items-center gap-1">
-                {target === 'shape' && <span className="w-12 shrink-0" aria-hidden="true"><TextEffectPreview effect={effect} shape /></span>}
+                {target !== 'text' && <span className="w-12 shrink-0" aria-hidden="true"><TextEffectPreview effect={effect} shape /></span>}
                 <button type="button" draggable={!locked} aria-label={`Drag ${label} effect ${index + 1} to reorder`} title="Drag to reorder, or use Move up / Move down" className={`${buttonClass} cursor-grab`}
                   onDragStart={event => { if (locked) { event.preventDefault(); return; } dragged.current = effect.id; event.dataTransfer.setData(DRAG_TYPE, effect.id); event.dataTransfer.effectAllowed = 'move'; }}
                   onDragEnd={() => { dragged.current = null; }}><GripVertical className="h-3 w-3" aria-hidden="true" /></button>
@@ -217,7 +218,7 @@ export function TextEffectsPanel({ element, onChange, images = [], target = 'tex
       {active && <section aria-label="Selected effect settings" className="space-y-3 border-t border-[#e2e2e2] pt-3">
         <h3 className="text-[11px] font-semibold text-[#737373]">{catalog.find(item => item.id === active.type)?.label ?? active.type}</h3>
         <div className="effect-intensity-editor"><StudioNumber label="Effect intensity" min={0} max={100} unit="%" value={active.intensity} onChange={intensity=>patchEffect(active.id,{intensity})}/><div className="effect-strength-presets">{[{label:'Subtle',value:25},{label:'Balanced',value:60},{label:'Strong',value:100}].map(item=><button key={item.value} aria-pressed={active.intensity===item.value} onClick={()=>patchEffect(active.id,{intensity:item.value})}>{item.label}</button>)}</div></div>
-        {(RANDOM_EFFECTS.has(active.type) || target === 'shape' && ['grunge', 'rough-edges'].includes(active.type)) && <button type="button" className={`${buttonClass} w-full text-[10px]`} onClick={() => patchEffect(active.id, { seed: (active.seed + 1) >>> 0 })}>Randomise</button>}
+        {(RANDOM_EFFECTS.has(active.type) || target !== 'text' && ['grunge', 'rough-edges'].includes(active.type)) && <button type="button" className={`${buttonClass} w-full text-[10px]`} onClick={() => patchEffect(active.id, { seed: (active.seed + 1) >>> 0 })}>Randomise</button>}
         <div className="effect-controls-grid">{orderedControls.map(control=>{const value=active.settings[control.key]??control.default;return control.type==='color'?<StudioPaint allowGradients={false} key={control.key} label={control.label} value={String(value)} onChange={value=>updateSetting(control.key,value)}/>:control.type==='select'?<div className="studio-field effect-option-field" key={control.key}><span>{control.label}</span>{control.options.length<=4?<div className="effect-choice-options">{control.options.map(option=><button key={option.value} aria-pressed={String(value)===option.value} onClick={()=>updateSetting(control.key,option.value)}>{option.label}</button>)}</div>:<MaterialSelect aria-label={`Effect ${control.label}`} value={String(value)} onChange={event=>updateSetting(control.key,event.target.value)}>{control.options.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</MaterialSelect>}</div>:CONTINUOUS_EFFECT_KEYS.has(control.key)?<StudioRange key={control.key} label={control.label} min={control.min} max={control.max} step={control.step} unit={control.max===100?'%':''} value={Number(value)} onChange={value=>updateSetting(control.key,value)}/>:<StudioNumber step={control.step} key={control.key} label={control.label} value={Number(value)} min={control.min} max={control.max} unit={/angle|direction|rotation/i.test(control.key)?'°':control.max===100?'%':''} onChange={value=>updateSetting(control.key,value)}/>})}</div>
         {active.type === 'gradient' && <section aria-label="Gradient stops" className="space-y-2">
           <h4 className="text-[10px] font-semibold text-[#737373]">Gradient stops</h4>
@@ -235,7 +236,7 @@ export function TextEffectsPanel({ element, onChange, images = [], target = 'tex
         </section>}
         {isFill && <section aria-label="Fill image source" className="space-y-2">
           <h4 className="text-[10px] font-semibold text-[#737373]">Image source</h4>
-          {active.source ? <img src={active.source} alt="Current fill source" className="h-20 w-full rounded-lg border border-[#e2e2e2] object-contain" /> : <p className="text-[10px] text-[#737373]">Choose an image or texture to fill the {target === 'shape' ? 'shape' : 'lettering'}. The gallery shows a sample.</p>}
+          {active.source ? <img src={active.source} alt="Current fill source" className="h-20 w-full rounded-lg border border-[#e2e2e2] object-contain" /> : <p className="text-[10px] text-[#737373]">Choose an image or texture to fill the {target === 'text' ? 'lettering' : target === 'shape' ? 'shape' : 'strokes'}. The gallery shows a sample.</p>}
           <label className="block text-[10px] text-[#737373]">Upload image (up to 20 MB)
             <input type="file" accept="image/*" aria-label="Upload fill image" onChange={event => { uploadSource(event.target.files?.[0]); event.target.value = ''; }} className="mt-1 block w-full min-w-0 text-[10px] text-[#737373] file:mr-2 file:rounded file:border-0 file:bg-[#f2f2f2] file:px-2 file:py-1.5 file:text-[#262626]" />
           </label>

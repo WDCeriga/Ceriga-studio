@@ -1,5 +1,7 @@
 import simplify from 'simplify-js';
 import { canvasPaint } from './studioPaint';
+import { RIBBON_BRUSHES, renderRibbonBrush } from './brushRibbons';
+import { VOLUME_BRUSHES, VOLUME_DEFAULTS, isVolumeBrush, renderVolumeStrokes, type VolumeBrushId, type VolumeSettings } from './brushVolume';
 import { applyBrushTexture, DEFAULT_TEXTURE_SETTINGS, type BrushTexture, type BrushTextureSettings } from './brushTextures';
 export { BRUSH_TEXTURES, DEFAULT_TEXTURE_SETTINGS, applyBrushTexture } from './brushTextures';
 export type { BrushTexture, BrushTextureSettings } from './brushTextures';
@@ -17,9 +19,13 @@ export type BrushPreset = 'pencil' | 'pen' | 'marker' | 'paint' | 'crayon' | 'sp
   | 'graffiti-marker' | 'graffiti-mop' | 'splatter' | 'drip-paint' | 'sponge' | 'halftone-brush'
   | 'noise-brush' | 'grain-brush' | 'rough-edge-brush' | 'pixel-brush' | 'distress-brush'
   | 'running-stitch' | 'chain-stitch' | 'cross-stitch' | 'zigzag-stitch' | 'satin-stitch' | 'fill-stitch'
-  | 'chain-embroidery' | 'chenille';
+  | 'chain-embroidery' | 'chenille'
+  | 'brush-pen' | 'gel-pen' | 'chisel-marker' | 'rope' | 'chain-link' | 'barbed-wire' | 'zipper' | 'ribbon'
+  | 'star-scatter' | 'sparkle-scatter' | 'flower-scatter' | VolumeBrushId;
 
-export interface BrushSettings extends BrushTextureSettings {
+export interface BrushSettings extends BrushTextureSettings, Partial<VolumeSettings> {
+  /** Faster 3D preview while the pen is still down. */
+  volumeDraft?: boolean;
   brushPreset: BrushPreset;
   texture: BrushTexture;
   brushAngle: number;
@@ -60,13 +66,16 @@ export interface BrushSettings extends BrushTextureSettings {
   stitchWidth?: number;
   stitchDensity?: number;
   stitchDirection?: number;
+  patternScale?: number;
+  patternGap?: number;
+  patternJitter?: number;
 }
 
 export interface BrushPresetControl {
   key: keyof Pick<BrushSettings, 'inkFlow' | 'paintLoad' | 'bristleDensity' | 'edgeRoughness' | 'particleDensity' | 'pixelSize'
     | 'splatterAmount' | 'splatterParticleSize' | 'splatterScatter' | 'dripAmount' | 'dripLength' | 'dripThickness'
     | 'halftoneDotSize' | 'halftoneSpacing' | 'halftoneAngle' | 'halftoneDensity' | 'distressAmount' | 'distressRoughness'
-    | 'threadThickness' | 'stitchLength' | 'stitchWidth' | 'stitchDensity' | 'stitchDirection'>;
+    | 'threadThickness' | 'stitchLength' | 'stitchWidth' | 'stitchDensity' | 'stitchDirection' | 'patternScale' | 'patternGap' | 'patternJitter'>;
   label: string;
   min: number;
   max: number;
@@ -95,10 +104,10 @@ const PRESET_CONTROLS = {
     { key: 'dripThickness', label: 'Drip thickness', min: 1, max: 100, default: 12 },
   ],
   halftone: [
-    { key: 'halftoneDotSize', label: 'Dot size', min: 1, max: 50, default: 10 },
-    { key: 'halftoneSpacing', label: 'Dot spacing', min: 5, max: 100, default: 30 },
+    { key: 'halftoneDotSize', label: 'Dot size', min: 1, max: 50, default: 13 },
+    { key: 'halftoneSpacing', label: 'Dot spacing', min: 5, max: 100, default: 19 },
     { key: 'halftoneAngle', label: 'Dot angle', min: -180, max: 180, default: 45 },
-    { key: 'halftoneDensity', label: 'Dot density', min: 1, max: 100, default: 75 },
+    { key: 'halftoneDensity', label: 'Dot density', min: 1, max: 100, default: 92 },
   ],
   distress: [
     { key: 'distressAmount', label: 'Distress amount', min: 1, max: 100, default: 55 },
@@ -111,15 +120,23 @@ const PRESET_CONTROLS = {
     { key: 'stitchDensity', label: 'Stitch density', min: 10, max: 200, default: 100 },
     { key: 'stitchDirection', label: 'Thread direction', min: -180, max: 180, default: 0 },
   ],
+  pattern: [
+    { key: 'patternScale', label: 'Repeat size', min: 30, max: 300, default: 100 },
+    { key: 'patternGap', label: 'Gap', min: 0, max: 300, default: 0 },
+    { key: 'patternJitter', label: 'Wobble', min: 0, max: 100, default: 20 },
+  ],
 } satisfies Record<string, BrushPresetControl[]>;
 
 const THREAD_PRESETS: BrushPreset[] = ['stitching', 'embroidery', 'running-stitch', 'chain-stitch', 'cross-stitch',
   'zigzag-stitch', 'satin-stitch', 'fill-stitch', 'chain-embroidery', 'chenille'];
 
 export function brushPresetControls(id: BrushPreset): BrushPresetControl[] {
+  if (isVolumeBrush(id)) return [];
   if (THREAD_PRESETS.includes(id)) return PRESET_CONTROLS.thread.map(control => ({ ...control }));
   let controls: BrushPresetControl[];
   switch (id) {
+    case 'rope': case 'chain-link': case 'barbed-wire': case 'zipper': case 'ribbon': case 'star-scatter': case 'sparkle-scatter': case 'flower-scatter':
+      controls = PRESET_CONTROLS.pattern; break;
     case 'splatter': controls = PRESET_CONTROLS.splatter; break;
     case 'drip-paint': case 'graffiti-mop': controls = PRESET_CONTROLS.drip; break;
     case 'halftone-brush': controls = PRESET_CONTROLS.halftone; break;
@@ -163,7 +180,7 @@ export const BRUSH_PRESETS: { id: BrushPreset; label: string; size: number; grai
   { id: 'splatter', label: 'Splatter', size: 40, grain: 0, settings: { brushSpacing: 70 } },
   { id: 'drip-paint', label: 'Drip Paint', size: 28, grain: 0, settings: { brushSpacing: 85 } },
   { id: 'sponge', label: 'Sponge', size: 36, grain: 0, settings: { brushSpacing: 35 } },
-  { id: 'halftone-brush', label: 'Halftone Brush', size: 40, grain: 0, settings: { brushSpacing: 80 } },
+  { id: 'halftone-brush', label: 'Halftone Brush', size: 40, grain: 0, settings: { brushSpacing: 38 } },
   { id: 'noise-brush', label: 'Noise Brush', size: 32, grain: 0, settings: { brushSpacing: 30 } },
   { id: 'grain-brush', label: 'Grain Brush', size: 28, grain: 0, settings: { brushSpacing: 24 } },
   { id: 'rough-edge-brush', label: 'Rough Edge Brush', size: 28, grain: 0, settings: { brushSpacing: 24 } },
@@ -177,10 +194,23 @@ export const BRUSH_PRESETS: { id: BrushPreset; label: string; size: number; grai
   { id: 'fill-stitch', label: 'Fill Stitch', size: 20, grain: 0, settings: { brushSpacing: 95 } },
   { id: 'chain-embroidery', label: 'Chain Embroidery', size: 20, grain: 0, settings: { brushSpacing: 80 } },
   { id: 'chenille', label: 'Chenille', size: 24, grain: 0, settings: { brushSpacing: 40 } },
+  { id: 'brush-pen', label: 'Brush Pen', size: 16, grain: 0, settings: { taperStart: 18, taperEnd: 32 } },
+  { id: 'gel-pen', label: 'Gel Pen', size: 7, grain: 0, settings: {} },
+  { id: 'chisel-marker', label: 'Chisel Marker', size: 26, grain: 0, settings: { brushRotation: -40 } },
+  { id: 'rope', label: 'Rope', size: 22, grain: 0, settings: {} },
+  { id: 'chain-link', label: 'Chain', size: 22, grain: 0, settings: {} },
+  { id: 'barbed-wire', label: 'Barbed Wire', size: 26, grain: 0, settings: {} },
+  { id: 'zipper', label: 'Zipper', size: 22, grain: 0, settings: {} },
+  { id: 'ribbon', label: 'Ribbon', size: 26, grain: 0, settings: {} },
+  { id: 'star-scatter', label: 'Stars', size: 24, grain: 0, settings: {} },
+  { id: 'sparkle-scatter', label: 'Sparkles', size: 26, grain: 0, settings: {} },
+  { id: 'flower-scatter', label: 'Flowers', size: 24, grain: 0, settings: {} },
+  ...VOLUME_BRUSHES.map(brush => ({ id: brush.id as BrushPreset, label: brush.label, size: brush.size, grain: 0, settings: brush.settings as Partial<BrushSettings> })),
 ];
 
 export const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   ...DEFAULT_TEXTURE_SETTINGS,
+  ...VOLUME_DEFAULTS,
   brushPreset: 'pen', texture: 'smooth', brushAngle: 90, brushRotation: 0,
   taperStart: 0, taperEnd: 0, blur: 0, smoothing: 35, symmetry: false,
   brushSpacing: 12, scatterEnabled: false, scatterSpread: 100,
@@ -477,7 +507,7 @@ function drawBrushMark(
       for (let ring = 10; ring >= 1; ring--) { alpha(0.018 * flow / 0.8); dot(0, 0, ring / 10); }
       break;
     case 'spray':
-      for (let particle = 0; particle < Math.round(particles * 0.4); particle++) {
+      for (let particle = 0; particle < Math.round(particles * 1.3); particle++) {
         const [x, y] = position(); alpha(0.18 + random() * 0.6);
         dot(x, y, Math.max(pixel * 0.3, 0.015 + random() * 0.035));
       }
@@ -496,7 +526,7 @@ function drawBrushMark(
         const [x, y] = position(0.9);
         alpha(preset === 'charcoal' ? 0.35 + random() * 0.5 : 0.12 + random() * 0.45);
         if (preset === 'chalk') {
-          const width = 0.04 + random() * 0.16; context.fillRect(x, y, width, width * 0.65);
+          const width = 0.05 + random() * 0.17; context.fillRect(x, y, width, width * 0.7); context.fillRect(-x, -y, width * .8, width * .55);
         } else if (preset === 'charcoal') {
           line(x - 0.2, y, x + random() * 0.3, y + 0.04, 0.025 + random() * 0.1);
         } else if (preset === 'crayon') ragged(x, y, 0.06 + random() * 0.15, 0.7, 5);
@@ -617,6 +647,11 @@ export function renderBrushStroke(
   if (!points.length || !Number.isFinite(scale) || scale <= 0) return;
   const size = bounded(settings.brushSize, 14, 1, 512) * scale;
   const preset = settings.brushPreset;
+  if (isVolumeBrush(preset)) {
+    renderVolumeStrokes(context, [{ points, settings: { ...settings, brushSize: bounded(settings.brushSize, 14, 1, 512) }, seed, paintFrame }], scale, settings.volumeDraft === true);
+    if (surfaceEffects) applyBrushTexture(context, settings, settings.grain, scale);
+    return;
+  }
   const thread = THREAD_PRESETS.includes(preset);
   const { samples, length } = createBrushStamps(points, settings, scale, seed);
   context.save();
@@ -625,7 +660,8 @@ export function renderBrushStroke(
   context.strokeStyle = context.fillStyle;
   context.lineCap = 'round';
   context.lineJoin = 'round';
-  for (let index = 0; index < samples.length; index++) {
+  if (RIBBON_BRUSHES.has(preset)) renderRibbonBrush(context, preset, { points, size, scale, seed: strokeSeed(settings, seed), pressure: settings.pressure, taperStart: settings.taperStart, taperEnd: settings.taperEnd, nib: settings.brushRotation, value: key => controlValue(settings, key as BrushPresetControl['key']) / 100 });
+  else for (let index = 0; index < samples.length; index++) {
       const point = samples[index];
       const start = settings.taperStart ? Math.max(0.04, Math.min(1, point.distance / Math.max(1, length * settings.taperStart / 200))) : 1;
       const end = settings.taperEnd ? Math.max(0.04, Math.min(1, (length - point.distance) / Math.max(1, length * settings.taperEnd / 200))) : 1;

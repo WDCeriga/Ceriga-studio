@@ -61,7 +61,7 @@ export function DesignAssetSurface({ generatedLayer=false,clipStyle,element, sel
   const width = Math.max(1, element.width);
   const actualHeight = Math.max(1, height);
   const renderSignature = sourceSignature(element)+'|'+JSON.stringify(element.eraseContours??[]);
-  const printMaskKey=JSON.stringify([renderSignature,width,actualHeight,element.warp,cropping]);
+  const printMaskKey=JSON.stringify([renderSignature,width,actualHeight,element.warp,cropping,element.cropShape]);
   const map = quadMap(live ?? element.perspective);
   const corners = boundsQuad(bounds).map(map.project);
   const selectionLeft = Math.min(...corners.map(point => point.x)) * width;
@@ -249,7 +249,8 @@ export function DesignAssetSurface({ generatedLayer=false,clipStyle,element, sel
 
   const eraseMask=element.eraseContours?.length?'url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" preserveAspectRatio="none"><defs><mask id="cut" maskContentUnits="objectBoundingBox" style="mask-type:luminance"><rect width="1" height="1" fill="white"/>'+element.eraseContours.map(ps=>'<path fill="black" d="M'+ps.map(p=>p.x+','+p.y).join('L')+'Z"/>').join('')+'</mask></defs><rect width="1" height="1" fill="white" mask="url(#cut)"/></svg>')+'")':undefined;
   // Outlines and shadows may sit outside the text frame; the garment mask must reach them.
-  const appearanceBleed=textAppearanceBleed(element);
+  // Glows, shadows and stickers reach past the object, so the garment mask must cover them too.
+  const appearanceBleed=Math.max(textAppearanceBleed(element),element.textEffects?.length||element.shapeEffects?.length?artworkEffectPadding(element):0);
   const projected=(live??element.perspective)?.some((point,index)=>Math.abs(point.x-UNIT_QUAD[index].x)>1e-8||Math.abs(point.y-UNIT_QUAD[index].y)>1e-8);
   const projectionTransform=projected?map.css(width,actualHeight):undefined;
   return <ArtworkInteractionContext.Provider value={interacting}><ArtworkResolutionContext.Provider value={scale}>

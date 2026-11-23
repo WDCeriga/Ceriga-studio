@@ -1,0 +1,17 @@
+/* Print sharpness and recolour. */
+.cx-print-quality{display:flex;align-items:center;gap:6px;min-height:32px;margin:0 0 8px;padding:4px 8px;border-radius:7px;background:#f6f6f4;color:#737370;font-size:11px;font-variant-numeric:tabular-nums}
+.cx-print-quality i{width:7px;height:7px;flex-shrink:0;border-radius:999px;background:#2e9e5b}
+.cx-print-quality[data-grade=good] i{background:#6aa84f}
+.cx-print-quality[data-grade=soft] i{background:#e0a100}
+.cx-print-quality[data-grade=low] i{background:#d92d2d}
+.cx-print-quality strong{color:#1f1f1d;font-size:12px;font-weight:500}
+.cx-print-quality span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ceriga-builder-shell .builder-inspector .cx-print-quality button{height:24px;margin-left:auto;padding:0 9px;border:1px solid #dadad7;border-radius:5px;background:#fff;color:#1f1f1d;font-size:11px}
+.cx-recolour{display:grid;gap:5px;margin:2px 0 10px}
+.cx-recolour__row{display:flex;align-items:center;gap:7px;color:#8d8d89}
+.cx-recolour__row>span{width:26px;height:26px;flex-shrink:0;border-radius:999px;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .12)}
+.cx-recolour__row svg{flex-shrink:0}
+.cx-recolour__row input{width:26px;height:26px;flex-shrink:0;padding:0;overflow:hidden;border:1px solid #dadad7;border-radius:999px;background:none;cursor:pointer}
+.cx-recolour__row input::-webkit-color-swatch-wrapper{padding:0}
+.cx-recolour__row input::-webkit-color-swatch{border:0;border-radius:999px}
+.cx-recolour__row code{color:#737370;font-family:inherit;font-size:11px;font-variant-numeric:tabular-nums}
