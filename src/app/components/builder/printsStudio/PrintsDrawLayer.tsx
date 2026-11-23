@@ -16,6 +16,9 @@ import type { GarmentDrawingMask } from './useGarmentDrawingMask';
 import { createDistressStamp, separateDistressMarks, type DistressMark, type DistressMarkKind } from '../../../lib/distressScatter';
 import { renderDistressMarks } from '../../../lib/distressRendering';
 import { removeBrushMask } from '../../../lib/brushRemoval';
+import { useAssetWorkspaceContext } from './AssetWorkspace';
+import { useGuides } from '../artwork-engine/state/studioGuides';
+import { createStrokeAssist, guideSegments, hasLineGuides, projectToSegment } from '../artwork-engine/geometry/studioGuides';
 
 const supportsQuickShape = (preset: string) => ['pen', 'pencil', 'fine-liner', 'technical-pen'].includes(preset);
 
@@ -226,6 +229,10 @@ export function PrintsDrawLayer({
   const onChangeRef = useRef(onChange);
   const sideRef = useRef(garmentSide);
   const finishDrawingRef=useRef(onFinishDrawing);finishDrawingRef.current=onFinishDrawing;
+  const assetProject=useAssetWorkspaceContext()?.project,studioGuides=useGuides();
+  const strokeAssistRef=useRef<ReturnType<typeof createStrokeAssist>|null>(null),assistSettledRef=useRef(false);
+  // Assisted drawing works in artboard units, so it lines up with the guides at any zoom.
+  const assisted=(point:Pt,canvas:HTMLCanvasElement):Pt=>{const assist=strokeAssistRef.current;if(!assist||!assetProject)return point;const sx=assetProject.width/canvas.width,sy=assetProject.height/canvas.height,next=assist(point.x*sx,point.y*sy);return {...point,x:next.x/sx,y:next.y/sy};};
   const finishTapRef=useRef<{id:string;x:number;y:number;time:number}|null>(null);
   const eraseMasksRef = useRef<SVGSVGElement>(null);
   const lastErasePtRef = useRef<Pt | null>(null);
@@ -839,7 +846,9 @@ export function PrintsDrawLayer({
     pointerIdRef.current = e.pointerId;
     strokeSeedRef.current = (Math.random() * 0x7fffffff) | 0;
     const rect = canvas.getBoundingClientRect();
-    const pt = eventPoint(e, canvas, rect);
+    assistSettledRef.current=false;
+    strokeAssistRef.current=s.tool==='brush'&&assetProject&&studioGuides.assisted&&hasLineGuides(studioGuides)?createStrokeAssist(guideSegments(studioGuides,assetProject.width,assetProject.height)):null;
+    const pt = assisted(eventPoint(e, canvas, rect),canvas);
     const previous=s.tool==='brush'?sessionRef.current?.element:undefined;
     const unit=canvas.width/Math.max(1,canvas.clientWidth);
     finishTapRef.current=previous&&outsideDrawing({x:pt.x/unit,y:pt.y/unit},previous)?{id:previous.id,x:e.clientX,y:e.clientY,time:e.timeStamp}:null;
@@ -847,7 +856,7 @@ export function PrintsDrawLayer({
     shapeStrokeRef.current = [pt];
     smoothTipRef.current = pt;
     stabilizerRef.current = createBrushStabilizer(pt, e.timeStamp, canvas.width / Math.max(1, rect.width));
-    scheduleShape(pt);
+    if (!strokeAssistRef.current) scheduleShape(pt);
     const tool = studioRef.current.tool;
     if (tool === 'distress') {
       lastDistressStampRef.current = null;
@@ -874,12 +883,21 @@ export function PrintsDrawLayer({
   };
 
   const appendPointerSample = (sample: PointerEvent, canvas: HTMLCanvasElement, tool: PrintsStudioTool) => {
-    const raw = eventPoint(sample, canvas);
+    const raw = assisted(eventPoint(sample, canvas),canvas);
+    const assistLine=strokeAssistRef.current?.line();
+    if(assistLine&&assetProject&&!assistSettledRef.current){
+      // The stroke has chosen its line, so its opening points move onto it too.
+      assistSettledRef.current=true;
+      const sx=assetProject.width/canvas.width,sy=assetProject.height/canvas.height,onLine=(point:Pt):Pt=>{const next=projectToSegment(assistLine,point.x*sx,point.y*sy);return {...point,x:next.x/sx,y:next.y/sy};};
+      strokeRef.current=strokeRef.current.map(onLine);shapeStrokeRef.current=shapeStrokeRef.current.map(onLine);
+      const opening=strokeRef.current[strokeRef.current.length-1]??raw;
+      smoothTipRef.current=opening;stabilizerRef.current=createBrushStabilizer(opening,sample.timeStamp,canvas.width/Math.max(1,canvas.getBoundingClientRect().width));
+    }
     const anchor = holdPointRef.current;
     const holdTolerance = 4 * canvas.width / Math.max(1, canvas.clientWidth);
     if (anchor && Math.hypot(raw.x - anchor.x, raw.y - anchor.y) < holdTolerance && shapeRef.current) return;
     if (tool === 'brush') shapeStrokeRef.current.push(raw);
-    if (!anchor || Math.hypot(raw.x - anchor.x, raw.y - anchor.y) >= holdTolerance) scheduleShape(raw);
+    if (!strokeAssistRef.current && (!anchor || Math.hypot(raw.x - anchor.x, raw.y - anchor.y) >= holdTolerance)) scheduleShape(raw);
     const amount = studioRef.current.stabilization / 100;
     const pt = stabilizerRef.current?.(raw, amount, sample.timeStamp) ?? raw;
     smoothTipRef.current = pt;

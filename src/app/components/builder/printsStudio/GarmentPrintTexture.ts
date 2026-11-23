@@ -92,10 +92,13 @@ export function useGarmentPrintTexture(zone: HTMLDivElement | null, side: 'front
         if (generation === current) setMask(null);
       } finally { URL.revokeObjectURL(url); }
     };
+    // Wait for the UI to paint and for a burst of changes to settle before the costly raster.
+    let settle = 0;
     const schedule = () => {
       generation++;
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => { void rebuild(); });
+      window.clearTimeout(settle);
+      frame = requestAnimationFrame(() => { settle = window.setTimeout(() => { void rebuild(); }, 90); });
     };
     const observer = new MutationObserver(records=>{
       records=records.filter(record=>record.target===zone||!(record.target instanceof Element)||!record.target.closest('[data-artwork-camera-layer]'));
@@ -112,7 +115,7 @@ export function useGarmentPrintTexture(zone: HTMLDivElement | null, side: 'front
     resize.observe(zone);
     resize.observe(preview);
     schedule();
-    return () => { window.clearTimeout(cameraTimer); generation++; observer.disconnect(); resize.disconnect(); cancelAnimationFrame(frame); };
+    return () => { window.clearTimeout(cameraTimer); generation++; observer.disconnect(); resize.disconnect(); window.clearTimeout(settle); cancelAnimationFrame(frame); };
   }, [zone, side, artboard,qualityScale,mode,enabled]);
   return mask;
 }

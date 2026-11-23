@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { Grid3x3 } from 'lucide-react';
-import { DEFAULT_GUIDES, guidePaths, guidesActive, type StudioGuides as Guides, type SymmetryMode } from '../geometry/studioGuides';
+import { DEFAULT_GUIDES, guidePaths, guidesActive, hasLineGuides, type StudioGuides as Guides, type SymmetryMode } from '../geometry/studioGuides';
 import { setGuides, useGuides } from '../state/studioGuides';
 import './studio-guides.css';
 
@@ -29,6 +29,7 @@ export function GuidesMenu() {
       <Section label="Isometric" on={g.isometric.on} onToggle={on => part('isometric', { on })}><Slider label="Iso size" min={10} max={200} unit=" px" value={g.isometric.size} onChange={size => part('isometric', { size })} /><Slider label="Angle" min={10} max={70} unit="°" value={g.isometric.angle} onChange={angle => part('isometric', { angle })} /></Section>
       <Section label="Lettering" on={g.lettering.on} onToggle={on => part('lettering', { on })}><Slider label="Rows" min={1} max={12} value={g.lettering.rows} onChange={rows => part('lettering', { rows })} /><Slider label="x-height" min={20} max={90} unit="%" value={g.lettering.xHeight} onChange={xHeight => part('lettering', { xHeight })} /><Slider label="Cap height" min={30} max={100} unit="%" value={g.lettering.capHeight} onChange={capHeight => part('lettering', { capHeight })} /><Slider label="Slant" min={-45} max={45} unit="°" value={g.lettering.slant} onChange={slant => part('lettering', { slant })} /></Section>
       <section><span className="cx-guides-title">Symmetry</span><div className="cx-guides-seg" role="group" aria-label="Symmetry guide">{SYMMETRY.map(item => <button key={item.id} type="button" aria-pressed={g.symmetry.mode === item.id} onClick={() => part('symmetry', { mode: item.id })}>{item.label}</button>)}</div>{g.symmetry.mode === 'radial' && <div className="cx-guides-body"><Slider label="Segments" min={2} max={32} value={g.symmetry.segments} onChange={segments => part('symmetry', { segments })} /></div>}</section>
+      <section><label className="cx-guides-head" title="Strokes follow the nearest guide line"><span>Assisted drawing</span><input type="checkbox" aria-label="Assisted drawing" disabled={!hasLineGuides(g)} checked={g.assisted && hasLineGuides(g)} onChange={event => setGuides({ ...g, assisted: event.target.checked })} /></label></section>
       <footer><label className="cx-guides-colour"><span>Colour</span><input type="color" aria-label="Guide colour" value={g.colour} onChange={event => setGuides({ ...g, colour: event.target.value })} /></label><Slider label="Opacity" min={10} max={100} unit="%" value={g.opacity} onChange={opacity => setGuides({ ...g, opacity })} /><button type="button" disabled={!active} onClick={() => setGuides({ ...DEFAULT_GUIDES, colour: g.colour, opacity: g.opacity })}>Clear guides</button></footer>
     </Popover.Content></Popover.Portal>
   </Popover.Root>;

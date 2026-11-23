@@ -6,6 +6,7 @@ import type { SavedUpload } from './designLibrary';
 import { PATTERN_CATALOG, patternDefinition } from '../../../lib/patternCatalog';
 import { changePatternType, customPatternSettings, initialPatternSettings, isSelectedPattern, selectedPatternKind, type CustomPatternSource, type PatternPatch } from '../../../lib/patternEditing';
 import { PatternGraphic } from './PatternGraphic';
+import { LazyPatternPreview } from './LazyPatternPreview';
 import { PatternControls } from './PatternControls';
 import { PatternMaker } from './PatternMaker';
 import { useAssetWorkspaceContext } from './AssetWorkspace';
@@ -70,7 +71,7 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
               onDragStart={event => drag(event, item.id, kind === item.id && selected ? selected : { ...settings, patternSeed: 1729 })}
               onClick={() => { setCustomOpen(false); if (selected && (patterned || selected.type === 'customArea')) onChange(changePatternType(selected, item.id)); else onPlace(item.id, settings); }}
               className={`overflow-hidden rounded-lg border text-[9px] leading-tight text-[#737373] ${kind === item.id ? 'border-[#262626] bg-[#262626]/15' : 'border-[#e2e2e2] bg-[#fafafa] hover:border-[#e2e2e2]'} disabled:opacity-40`}>
-              <div className="h-14 w-full bg-[#262626] p-1"><PatternGraphic element={preview} /></div>
+              <div className="h-14 w-full bg-[#262626] p-1"><LazyPatternPreview><PatternGraphic element={preview} /></LazyPatternPreview></div>
               <span className="flex min-h-8 items-center justify-center px-1 py-1">{item.label}</span>
             </button>;
           })}

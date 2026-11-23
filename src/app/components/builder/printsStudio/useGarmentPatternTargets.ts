@@ -22,6 +22,9 @@ export function targetContains(target: GarmentPatternTarget, x: number, y: numbe
     && target.alpha[(py * target.canvas.width + px) * 4 + 3] > 32;
 }
 
+/** Mask building is split across tasks so clicks and painting are never held up. */
+const breathe = () => new Promise<void>(resolve => window.setTimeout(resolve, 0));
+
 export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'front' | 'back',qualityScale=1,disabled=false) {
   const [targets, setTargets] = useState<GarmentPatternTarget[]>([]);
   const source=useRef<{zone:HTMLElement|null;side:string}|undefined>(undefined);
@@ -34,6 +37,8 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
     let frame = 0;
     let cameraTimer=0;
     const rebuild = async (version: number) => {
+      await breathe();
+      if (version !== generation) return;
       const rect = zone.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       const width = zone.clientWidth;
@@ -47,7 +52,7 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
         .filter(layer => !['outline','stitching','construction','stitch'].includes(layer.dataset.layerId??''))
         .filter(layer => getComputedStyle(layer).visibility !== 'hidden' && getComputedStyle(layer).display !== 'none')
         .sort((a, b) => (a.dataset.patternTrimId?1000:Number(getComputedStyle(a).zIndex)||0) - (b.dataset.patternTrimId?1000:Number(getComputedStyle(b).zIndex)||0));
-      const rasters = await Promise.all(layers.map(async layer => {
+      const rasterise = async (layer: HTMLElement) => {
         const svg = layer.querySelector<SVGSVGElement>('svg');
         const matrix = svg?.getScreenCTM();
         if (!svg || !matrix) return null;
@@ -126,13 +131,21 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
           }
           return { id: layer.dataset.patternTrimId?'trim:'+layer.dataset.patternTrimId:layer.dataset.layerId!, label: layer.dataset.patternTrimName ?? names[layer.dataset.layerId!] ?? layer.dataset.asset ?? layer.dataset.layerId!, canvas, coverage };
         } finally { URL.revokeObjectURL(url); }
-      }));
+      };
+      const rasters: Awaited<ReturnType<typeof rasterise>>[] = [];
+      for (const layer of layers) {
+        if (version !== generation) return;
+        rasters.push(await rasterise(layer));
+        await breathe();
+      }
       if (version !== generation) return;
       const occlusion = document.createElement('canvas'); occlusion.width = pixelWidth; occlusion.height = pixelHeight;
       const cover = occlusion.getContext('2d')!;
       const next: GarmentPatternTarget[] = [];
       for (const layer of rasters.reverse()) {
         if (!layer) continue;
+        await breathe();
+        if (version !== generation) return;
         const canvas = document.createElement('canvas'); canvas.width = pixelWidth; canvas.height = pixelHeight;
         const context = canvas.getContext('2d', { willReadFrequently: true })!;
         context.drawImage(layer.canvas, 0, 0);
@@ -142,7 +155,7 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
         let minX = pixelWidth, minY = pixelHeight, maxX = -1, maxY = -1;
         for (let y = 0; y < pixelHeight; y++) for (let x = 0; x < pixelWidth; x++) {
           if (alpha[(y * pixelWidth + x) * 4 + 3] > 32) {
-            minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+            if (x < minX) minX = x; if (y < minY) minY = y; if (x > maxX) maxX = x; if (y > maxY) maxY = y;
           }
         }
         if (maxX < minX) continue;

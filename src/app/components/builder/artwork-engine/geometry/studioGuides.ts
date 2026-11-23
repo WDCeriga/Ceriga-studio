@@ -10,6 +10,8 @@ export type StudioGuides = {
   symmetry: { mode: SymmetryMode; segments: number };
   colour: string;
   opacity: number;
+  /** Strokes follow the nearest grid, isometric or lettering line. */
+  assisted: boolean;
 };
 export const DEFAULT_GUIDES: StudioGuides = {
   grid: { on: false, size: 60, divisions: 4 },
@@ -18,7 +20,9 @@ export const DEFAULT_GUIDES: StudioGuides = {
   symmetry: { mode: 'off', segments: 8 },
   colour: '#2f6fed',
   opacity: 45,
+  assisted: false,
 };
+export const hasLineGuides = (g: StudioGuides) => g.grid.on || g.isometric.on || g.lettering.on;
 export const guidesActive = (g: StudioGuides) => g.grid.on || g.isometric.on || g.lettering.on || g.symmetry.mode !== 'off';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : lo));
@@ -70,11 +74,45 @@ export function guidePaths(g: StudioGuides, w: number, h: number) {
   return { minor: minor.join(''), major: major.join(''), axis: axis.join('') };
 }
 
+export type GuideSegment = [number, number, number, number];
+/** Straight lines a stroke can follow. Symmetry axes mirror drawing rather than attract it. */
+export function guideSegments(g: StudioGuides, w: number, h: number): GuideSegment[] {
+  const paths = guidePaths({ ...g, symmetry: { ...g.symmetry, mode: 'off' } }, w, h);
+  return [...(paths.minor + paths.major + paths.axis).matchAll(/M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)/g)].map(m => [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])]);
+}
+export function projectToSegment([x1, y1, x2, y2]: GuideSegment, x: number, y: number) {
+  const dx = x2 - x1, dy = y2 - y1, length = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / length));
+  return { x: x1 + dx * t, y: y1 + dy * t };
+}
+const distanceTo = (segment: GuideSegment, x: number, y: number) => { const p = projectToSegment(segment, x, y); return Math.hypot(p.x - x, p.y - y); };
+/** Waits for a few units of movement, then locks the stroke to the close line running the same way. */
+export function createStrokeAssist(segments: GuideSegment[], settle = 18) {
+  let start: { x: number; y: number } | null = null, anchor: { x: number; y: number } | null = null, locked: GuideSegment | null = null;
+  const assist = (x: number, y: number) => {
+    if (!segments.length) return { x, y };
+    if (!start) {
+      start = { x, y };
+      anchor = projectToSegment(segments.reduce((best, item) => distanceTo(item, x, y) < distanceTo(best, x, y) ? item : best), x, y);
+      return anchor;
+    }
+    if (!locked) {
+      const mx = x - start.x, my = y - start.y, moved = Math.hypot(mx, my);
+      if (moved < settle) return anchor!;
+      const score = (item: GuideSegment) => { const dx = item[2] - item[0], dy = item[3] - item[1], along = Math.abs(dx * mx + dy * my) / ((Math.hypot(dx, dy) || 1) * moved); return distanceTo(item, anchor!.x, anchor!.y) + (1 - along) * 160; };
+      locked = segments.reduce((best, item) => score(item) < score(best) ? item : best);
+    }
+    return projectToSegment(locked, x, y);
+  };
+  /** The line this stroke settled on, once it has. */
+  assist.line = () => locked;
+  return assist;
+}
+
 export function readGuides(raw: string | null): StudioGuides {
   try {
     const v = JSON.parse(raw ?? 'null');
     if (!v || typeof v !== 'object') return DEFAULT_GUIDES;
     const mode = ['off', 'vertical', 'horizontal', 'quadrant', 'radial'].includes(v.symmetry?.mode) ? v.symmetry.mode as SymmetryMode : 'off';
-    return { grid: { ...DEFAULT_GUIDES.grid, ...v.grid }, isometric: { ...DEFAULT_GUIDES.isometric, ...v.isometric }, lettering: { ...DEFAULT_GUIDES.lettering, ...v.lettering }, symmetry: { segments: Number.isFinite(v.symmetry?.segments) ? v.symmetry.segments : DEFAULT_GUIDES.symmetry.segments, mode }, colour: /^#[\da-f]{6}$/i.test(v.colour) ? v.colour : DEFAULT_GUIDES.colour, opacity: Number.isFinite(v.opacity) ? clamp(v.opacity, 10, 100) : DEFAULT_GUIDES.opacity };
+    return { grid: { ...DEFAULT_GUIDES.grid, ...v.grid }, isometric: { ...DEFAULT_GUIDES.isometric, ...v.isometric }, lettering: { ...DEFAULT_GUIDES.lettering, ...v.lettering }, symmetry: { segments: Number.isFinite(v.symmetry?.segments) ? v.symmetry.segments : DEFAULT_GUIDES.symmetry.segments, mode }, colour: /^#[\da-f]{6}$/i.test(v.colour) ? v.colour : DEFAULT_GUIDES.colour, opacity: Number.isFinite(v.opacity) ? clamp(v.opacity, 10, 100) : DEFAULT_GUIDES.opacity, assisted: v.assisted === true };
   } catch { return DEFAULT_GUIDES; }
 }
