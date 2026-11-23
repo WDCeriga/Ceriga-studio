@@ -10,7 +10,7 @@ export function ImageArtwork({element}:{element:DesignElement}){
  return <div className="relative h-full w-full" style={{filter:composeArtworkFilter(element)}}>
   <ImageFxDefs element={element}/>
   <ImageAdjustmentDefs element={element}/>
-  <FilteredImage source={element.content} settings={element.imageFilter}
+  <FilteredImage source={element.content} settings={element.imageFilter} grade={element.imageGrade}
    tint={element.imageFilter?element.color:undefined} alt={element.layerName??'Artwork'}
    className="h-full w-full object-fill"
    style={{...artworkFlipStyle(element),opacity:tinted?0:undefined}}/>

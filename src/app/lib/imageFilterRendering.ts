@@ -1,4 +1,5 @@
 import { applyImageFilter, type ImageFilterSettings } from './imageFilters';
+import { applyImageGrade, gradeIsActive, type ImageGrade } from '../components/builder/artwork-engine/image/grade';
 
 type Pixels = { data: Uint8ClampedArray; width: number; height: number };
 type FilteredPixels = Pixels & { original: Uint8ClampedArray };
@@ -37,8 +38,8 @@ function sourcePixels(source: string, size: number) {
   });
 }
 
-function processPixels(pixels: Pixels, settings: ImageFilterSettings): Promise<Uint8ClampedArray> {
-  if (typeof Worker === 'undefined') return Promise.resolve(applyImageFilter(pixels.data, pixels.width, pixels.height, settings));
+function processPixels(pixels: Pixels, settings: ImageFilterSettings, grade?: ImageGrade): Promise<Uint8ClampedArray> {
+  if (typeof Worker === 'undefined') return Promise.resolve(grade ? applyImageGrade(pixels.data, pixels.width, pixels.height, grade) : applyImageFilter(pixels.data, pixels.width, pixels.height, settings));
   if (!worker) {
     worker = new Worker(new URL('./imageFilter.worker.ts', import.meta.url), { type: 'module' });
     worker.onmessage = event => {
@@ -57,7 +58,7 @@ function processPixels(pixels: Pixels, settings: ImageFilterSettings): Promise<U
     const data = pixels.data.slice();
     requests.set(id, { resolve, reject });
     try {
-      worker!.postMessage({ id, data, width: pixels.width, height: pixels.height, settings }, [data.buffer]);
+      worker!.postMessage({ id, data, width: pixels.width, height: pixels.height, settings, grade }, [data.buffer]);
     } catch (error) {
       requests.delete(id);
       reject(error);
@@ -65,12 +66,13 @@ function processPixels(pixels: Pixels, settings: ImageFilterSettings): Promise<U
   });
 }
 
-export function filteredImagePixels(source: string, settings: ImageFilterSettings, size = 4096) {
-  const full = { ...settings, intensity: 100 };
-  const key = JSON.stringify([source, full, size]);
+export function filteredImagePixels(source: string, settings: ImageFilterSettings, size = 4096, imageGrade?: ImageGrade) {
+  const full = { ...settings, intensity: 100 }, grade = gradeIsActive(imageGrade) ? imageGrade : undefined;
+  const key = JSON.stringify([source, full, size, grade]);
   return remember(size <= 96 ? thumbnails : artwork, key, size <= 96 ? 40 : 2, async () => {
-    const original = await sourcePixels(source, size);
-    const data = await processPixels(original, full);
+    const raw = await sourcePixels(source, size);
+    const original = grade ? { ...raw, data: await processPixels(raw, full, grade) } : raw;
+    const data = full.id === 'none' ? original.data : await processPixels(original, full);
     return { ...original, original: original.data, data };
   });
 }

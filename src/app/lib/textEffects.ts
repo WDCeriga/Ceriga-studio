@@ -1,3 +1,5 @@
+import { NEW_PRO_EFFECTS, applyProEffect, isProEffect, proEffectControls } from './textEffectsPro';
+
 export type TextEffectId =
   | 'distressed' | 'grunge' | 'cracked' | 'faded' | 'vintage-print' | 'grain'
   | 'halftone' | 'noise' | 'photocopy' | 'screen-print' | 'spray-paint' | 'ink-bleed'
@@ -5,7 +7,8 @@ export type TextEffectId =
   | 'extrude' | 'bevel' | 'inner-shadow' | 'glow' | 'neon' | 'long-shadow'
   | 'offset-print' | 'rgb-split' | 'glitch' | 'pixelated' | 'blur' | 'motion-blur'
   | 'gradient' | 'duotone' | 'texture-fill' | 'image-fill'
-  | 'rough-edges' | 'shadow' | 'inner-glow';
+  | 'rough-edges' | 'shadow' | 'inner-glow'
+  | 'riso' | 'stipple' | 'engraving' | 'stamp' | 'dither' | 'inline' | 'contour' | 'sticker' | 'rhinestone' | 'glitter';
 
 export interface TextEffect {
   id: string;
@@ -41,11 +44,15 @@ export const TEXT_EFFECTS: Array<{ id: TextEffectId; label: string }> = [
   { id: 'blur', label: 'Blur' }, { id: 'motion-blur', label: 'Motion Blur' },
   { id: 'gradient', label: 'Gradient' }, { id: 'duotone', label: 'Duotone' },
   { id: 'texture-fill', label: 'Texture Fill' }, { id: 'image-fill', label: 'Image Fill' },
+  ...NEW_PRO_EFFECTS,
 ];
+/** Replaced by better effects: hidden from the gallery, but saved designs keep rendering. */
+export const RETIRED_EFFECTS = new Set<TextEffectId>(['noise', 'metallic']);
 export const SHAPE_EFFECTS: Array<{ id: TextEffectId; label: string }> = [
   'distressed', 'grunge', 'rough-edges', 'grain', 'noise', 'halftone', 'screen-print', 'spray-paint',
   'photocopy', 'cracked', 'blur', 'shadow', 'inner-shadow', 'glow', 'inner-glow', 'long-shadow',
-  'extrude', 'bevel', 'chrome', 'metallic', 'texture-fill', 'image-fill', 'offset-print', 'rgb-split', 'glitch', 'gradient',
+  'extrude', 'bevel', 'chrome', 'metallic', 'foil', 'embroidery', 'ink-bleed', 'duotone', 'texture-fill', 'image-fill', 'offset-print', 'rgb-split', 'glitch', 'gradient',
+  ...NEW_PRO_EFFECTS.map(item => item.id),
 ].map(id => ({ id: id as TextEffectId, label: TEXT_EFFECTS.find(item => item.id === id)?.label
   ?? ({ 'rough-edges': 'Rough Edges', shadow: 'Shadow', 'inner-glow': 'Inner Glow' } as Record<string, string>)[id] }));
 
@@ -94,8 +101,10 @@ export function createShapeEffect(type: TextEffectId): TextEffect {
 }
 
 function effectControls(type: TextEffectId): TextEffectControl[] {
+  const pro = proEffectControls(type);
+  if (pro) return pro;
   switch (type) {
-    case 'rough-edges': return [amount(80), range('size', 'Edge Depth', 6, 0, 24), roughness(), range('frequency', 'Frequency', 20, 1, 100)];
+    case 'rough-edges': return [amount(80), range('size', 'Edge Depth', 2.5, 0, 24, .5), roughness(), range('frequency', 'Frequency', 20, 1, 100)];
     case 'shadow': return [color('color', 'Shadow Colour', '#202030'), range('offsetX', 'Offset X', 10, -32, 32), range('offsetY', 'Offset Y', 10, -32, 32), range('softness', 'Softness', 8, 0, 24), opacity()];
     case 'inner-glow': return [color('color', 'Glow Colour', '#ffdb91'), range('size', 'Size', 12, 0, 32), amount(80), range('softness', 'Softness', 60)];
     case 'distressed': return [amount(), range('size', 'Size', 4, 1, 24), roughness(), density()];
@@ -124,7 +133,7 @@ function effectControls(type: TextEffectId): TextEffectControl[] {
     case 'long-shadow': return [range('length', 'Length', 36, 0, 64), range('angle', 'Angle', 45, 0, 360), color('color', 'Shadow Colour', '#28233e'), opacity()];
     case 'offset-print': return [range('offsetX', 'Offset X', 6, -32, 32), range('offsetY', 'Offset Y', 4, -32, 32), color('color', 'Secondary Colour', '#ff3b89'), amount(75), color('tertiaryColor', 'Tertiary Colour', '#19c8ed'), range('tertiaryAmount', 'Tertiary Amount', 0)];
     case 'rgb-split': return [range('separation', 'Separation', 6, 0, 32), direction(), amount(80)];
-    case 'glitch': return [amount(65), range('sliceSize', 'Slice Size', 6, 1, 32), range('displacement', 'Displacement', 16, 0, 40), range('rgbSplit', 'RGB Split', 5, 0, 16)];
+    case 'glitch': return [amount(35), range('sliceSize', 'Slice Size', 5, 1, 32), range('displacement', 'Displacement', 8, 0, 40), range('rgbSplit', 'RGB Split', 2, 0, 16)];
     case 'pixelated': return [range('size', 'Pixel Size', 6, 1, 32), amount(100)];
     case 'blur': return [range('amount', 'Blur Radius', 5, 0, 20)];
     case 'motion-blur': return [amount(75), direction(), range('distance', 'Distance', 20, 0, 48)];
@@ -317,6 +326,7 @@ function applyOne(data: Uint8ClampedArray, w: number, h: number, effect: TextEff
   if (bounds.empty) return out;
   const type = effect.type;
   if (type === 'blur') return blurPixels(data, w, h, n('amount') * scale);
+  if (isProEffect(type)) return applyProEffect(type, data, w, h, scale, seed, { n, p, col, text: key => String(settings[key]) }, { alpha, bounds, geometry, blurField, noise, hash });
   const needsGeometry = ['rough-edges', 'inner-glow', 'vintage-print', 'screen-print', 'spray-paint', 'ink-bleed', 'embroidery', 'puff-print', 'chrome', 'metallic', 'foil', 'bevel', 'neon'].includes(type);
   const geo = needsGeometry ? geometry(alpha, w, h) : undefined;
   let blurred: Float32Array | undefined;

@@ -9,7 +9,7 @@ import { SliderValueInput } from '../SliderValueInput';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ArrowDown, ArrowUp, Copy, Eye, EyeOff, GripVertical, Trash2 } from 'lucide-react';
 import type { DesignElement } from '../PrintStudioEditor';
-import { TEXT_EFFECTS, SHAPE_EFFECTS, createTextEffect, createShapeEffect, textEffectControls, shapeEffectControls, type TextEffect, type TextEffectId } from '../../../lib/textEffects';
+import { RETIRED_EFFECTS, TEXT_EFFECTS, SHAPE_EFFECTS, createTextEffect, createShapeEffect, textEffectControls, shapeEffectControls, type TextEffect, type TextEffectId } from '../../../lib/textEffects';
 import { TextEffectPreview } from './TextEffectsArtwork';
 import { shapeIsClosed } from '../../../lib/shapeGeometry';
 
@@ -21,10 +21,10 @@ export interface TextEffectsPanelProps {
   defaultOpen?: boolean;
 }
 
-const EFFECT_GROUPS:Record<string,string[]>={Popular:['faded','vintage-print','distressed','cracked','halftone','gradient'],Surface:['distressed','grunge','cracked','faded','vintage-print','grain','halftone','noise','photocopy','screen-print','spray-paint','ink-bleed','rough-edges'],Dimension:['embroidery','puff-print','chrome','metallic','foil','gloss','extrude','bevel','inner-shadow','glow','neon','long-shadow'],Colour:['gradient','duotone','texture-fill','image-fill','offset-print','rgb-split'],Distortion:['glitch','pixelated','blur','motion-blur']};
+const EFFECT_GROUPS:Record<string,string[]>={Popular:['vintage-print','distressed','halftone','riso','chrome','foil','sticker','embroidery'],Print:['screen-print','halftone','riso','stipple','engraving','dither','stamp','photocopy','offset-print','ink-bleed'],Wear:['distressed','grunge','cracked','faded','vintage-print','grain','spray-paint','rough-edges'],Outline:['inline','contour','sticker','shadow','long-shadow','extrude','glow','neon'],Finish:['embroidery','puff-print','chrome','foil','glitter','rhinestone','gloss','bevel','inner-shadow','inner-glow'],Colour:['gradient','duotone','texture-fill','image-fill','rgb-split'],Distort:['glitch','pixelated','blur','motion-blur']};
 const CONTINUOUS_EFFECT_KEYS=new Set(['amount','strength','opacity','softness','roughness','blur','intensity']);
 const numericControl=(control:{type:string;key:string})=>control.type==='range'&&!CONTINUOUS_EFFECT_KEYS.has(control.key);
-const RANDOM_EFFECTS = new Set<TextEffectId>(['distressed', 'cracked', 'faded', 'glitch']);
+const RANDOM_EFFECTS = new Set<TextEffectId>(['distressed', 'cracked', 'faded', 'glitch', 'grain', 'vintage-print', 'spray-paint', 'screen-print', 'photocopy', 'ink-bleed', 'foil', 'riso', 'stipple', 'engraving', 'stamp', 'rhinestone', 'glitter']);
 const DRAG_TYPE = 'application/x-ceriga-text-effect';
 const buttonClass = 'rounded border border-[#e2e2e2] bg-[#fafafa] p-1.5 text-[#737373] hover:border-[#e2e2e2] hover:text-[#262626] disabled:cursor-not-allowed disabled:opacity-30';
 const rangeClass = 'mt-1 block w-full accent-[#262626]';
@@ -57,7 +57,7 @@ export function TextEffectsPanel({ element, onChange, images = [], target = 'tex
   const [panelOpen,setPanelOpen]=useState(defaultOpen),[browse,setBrowse]=useState(effects.length===0);
   const showLibrary=browse||effects.length===0;
   const [category,setCategory]=useState('Popular'),[query,setQuery]=useState('');
-  const visiblePreviews=previews.filter(item=>(query||category==='All'||EFFECT_GROUPS[category].includes(item.id))&&item.label.toLowerCase().includes(query.toLowerCase()));
+  const visiblePreviews=previews.filter(item=>!RETIRED_EFFECTS.has(item.id)&&(query||category==='All'||EFFECT_GROUPS[category].includes(item.id))&&item.label.toLowerCase().includes(query.toLowerCase()));
   const isFill = active?.type === 'texture-fill' || active?.type === 'image-fill';
   const gradientStops = active?.stops && active.stops.length >= 2 ? active.stops : previews.find(item => item.id === 'gradient')?.effect.stops ?? [
     { color: '#405b6f', position: 0 },

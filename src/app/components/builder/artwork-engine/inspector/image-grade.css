@@ -1,0 +1,37 @@
+/* Pro colour: levels, curves, mixer and gradient map. */
+.cx-grade-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:2px 0 12px}
+.ceriga-builder-shell .builder-inspector .cx-grade-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 8px;border:1px solid #dadad7;border-radius:7px;background:#fff;color:#1f1f1d;font-size:12px;transition:border-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-grade-actions button:hover:not(:disabled){border-color:#8d8d89}
+.ceriga-builder-shell .builder-inspector .cx-grade-actions button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4}
+.ceriga-builder-shell .builder-inspector .cx-grade-actions button:disabled{opacity:.45}
+.cx-grade-actions svg{flex-shrink:0}
+.cx-grade-block{margin:0 0 14px}
+.cx-grade-title{display:block;margin-bottom:6px;color:#3f3f3c;font-size:13px}
+.cx-grade-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cx-grade-row .cx-grade-title{margin:0}
+.cx-levels{display:block;width:100%;height:76px;overflow:visible;border-radius:6px;background:linear-gradient(#f6f6f4 0 80%,transparent 80%)}
+.cx-grade-values{display:flex;justify-content:space-between;margin-top:2px;color:#737370;font-size:10px;font-variant-numeric:tabular-nums}
+.cx-grade-tabs{display:inline-flex;gap:2px;padding:2px;border-radius:6px;background:#f6f6f4}
+.ceriga-builder-shell .builder-inspector .cx-grade-tabs button{min-width:26px;height:22px;padding:0 5px;border:0;border-radius:4px;background:transparent;color:#737370;font-size:10px}
+.ceriga-builder-shell .builder-inspector .cx-grade-tabs button[aria-pressed=true]{background:#fff;color:#1f1f1d;box-shadow:0 0 0 1px rgb(0 0 0 / .08)}
+.cx-curve{display:block;width:100%;aspect-ratio:1;overflow:visible;border-radius:6px;background:#f6f6f4;cursor:crosshair;touch-action:none}
+.cx-curve line{stroke:#e2e2de;stroke-width:1;vector-effect:non-scaling-stroke}
+.cx-curve .base{stroke:#cfcfcb;stroke-dasharray:3 3}
+.cx-curve .hist{fill:#dcdcd8}
+.cx-curve .value{fill:none;stroke-width:1.75;vector-effect:non-scaling-stroke}
+.cx-curve circle{fill:#fff;stroke:#2F6FED;stroke-width:1.5;vector-effect:non-scaling-stroke;cursor:grab}
+.cx-curve circle.is-active{fill:#2F6FED}
+.cx-grade-bands{display:flex;justify-content:space-between;gap:4px;margin-bottom:10px}
+.ceriga-builder-shell .builder-inspector .cx-grade-bands button{position:relative;width:24px;height:24px;padding:0;border:2px solid #fff;border-radius:999px;box-shadow:0 0 0 1px rgb(0 0 0 / .14)}
+.ceriga-builder-shell .builder-inspector .cx-grade-bands button[aria-pressed=true]{box-shadow:0 0 0 2px #1f1f1d}
+.cx-grade-bands button[data-changed]::after{content:"";position:absolute;right:-3px;top:-3px;width:7px;height:7px;border:1px solid #fff;border-radius:999px;background:#2F6FED}
+.cx-grade-maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.ceriga-builder-shell .builder-inspector .cx-grade-maps button{display:flex;flex-direction:column;gap:4px;min-width:0;padding:3px 3px 5px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;transition:border-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-grade-maps button:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-grade-maps button[aria-pressed=true]{border-color:#1f1f1d;box-shadow:0 0 0 1px #1f1f1d;color:#1f1f1d}
+.cx-grade-maps span{display:block;height:22px;border-radius:5px}
+.cx-grade-maps small{font-size:11px;line-height:1.2;text-align:center}
+.cx-grade-stops{display:flex;gap:6px;margin-bottom:8px}
+.cx-grade-stops input{width:28px;height:28px;padding:0;overflow:hidden;border:1px solid #dadad7;border-radius:999px;background:none;cursor:pointer}
+.cx-grade-stops input::-webkit-color-swatch-wrapper{padding:0}
+.cx-grade-stops input::-webkit-color-swatch{border:0;border-radius:999px}

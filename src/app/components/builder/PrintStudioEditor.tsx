@@ -238,6 +238,8 @@ export interface DesignElement extends ImageAdjustmentValues {
   shapeOperationFrame?: {x:number;y:number;width:number;height:number;rotation:number};
   layerName?: string;
   imageFilter?: ImageFilterSettings;
+  /** Non-destructive levels, curves, colour mixer and gradient map. */
+  imageGrade?: import('./artwork-engine/image/grade').ImageGrade;
   textEffects?: TextEffect[];
   letteringSource?: DesignElement;
   type: 'image' | 'text' | 'drawing' | 'shape' | 'pattern' | 'distress' | 'customArea' | 'group';
@@ -4217,6 +4219,7 @@ export function PrintsDesignPreview({
                     <FilteredImage
                       source={element.content}
                       settings={element.type === 'image' ? element.imageFilter : undefined}
+                      grade={element.type === 'image' ? element.imageGrade : undefined}
                       tint={element.imageFilter?element.color:undefined}
                       alt={element.type === 'drawing' ? 'Drawing' : element.type === 'distress' ? 'Distress' : 'Artwork'}
                       className="h-full w-full object-fill"
