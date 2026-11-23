@@ -11,7 +11,7 @@ import {usePenControlsHost} from './usePenControlsHost';
 import {useEffect,useRef,useState,type PointerEvent as ReactPointerEvent} from 'react';
 import {shapePathData,type ShapePath,type ShapePathNode} from '../../../lib/shapeGeometry';
 import {reversePenPath,closeMirroredPenPath,nearestPenSegment,constrainPenPoint,copyPenPoint,dragPenHandle,offsetPenNode,snapPenPoint,type PenPoint as Point} from '../../../lib/penGeometry';
-import {snapToGuides,symmetryTransforms,type GuideSegment,type StudioGuides} from '../artwork-engine/geometry/studioGuides';
+import {snapAngle,snapToGuides,symmetryTransforms,type GuideSegment,type StudioGuides} from '../artwork-engine/geometry/studioGuides';
 import '../shell/artwork-path-tools.css';
 type Gesture={pointer:number;index:number;kind:'place'|'move'|'handle'|'close';handle?:'in'|'out';before:ShapePathNode[];base:ShapePathNode[];start:Point;last:Point;dragged:boolean;cornerClick?:boolean};
 const clone=(nodes:ShapePathNode[])=>nodes.map(n=>({...copyPenPoint(n),in:n.in?copyPenPoint(n.in):undefined,out:n.out?copyPenPoint(n.out):undefined}));
@@ -47,7 +47,7 @@ function lengthTick(from: Point, to: Point, size: number) {
   return 'M' + (x - offsetX) + ',' + (y - offsetY) + 'L' + (x + offsetX) + ',' + (y + offsetY);
 }
 
-export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxis,guideLines,symmetry,tracingElements=[],cutting=false,operation='subtract',error,initialPath,snapTargets=[],openPaths=[],onContinue,onComplete,onCancel}:{width:number;height:number;color:string;emphasizeStroke?:boolean;mirrorAxis?:number;guideLines?:GuideSegment[];symmetry?:StudioGuides['symmetry'];tracingElements?:DesignElement[];cutting?:boolean;operation?:'subtract'|'join'|'continue'|'split';error?:string;initialPath?:ShapePath;snapTargets?:Point[];openPaths?:{id:string;path:ShapePath}[];onContinue?:(id:string,fromStart:boolean)=>void;onComplete:(path:ShapePath,mirrored?:boolean)=>void;onCancel:()=>void}){
+export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxis,guideLines,guideAngle,symmetry,tracingElements=[],cutting=false,operation='subtract',error,initialPath,snapTargets=[],openPaths=[],onContinue,onComplete,onCancel}:{width:number;height:number;color:string;emphasizeStroke?:boolean;mirrorAxis?:number;guideLines?:GuideSegment[];guideAngle?:number;symmetry?:StudioGuides['symmetry'];tracingElements?:DesignElement[];cutting?:boolean;operation?:'subtract'|'join'|'continue'|'split';error?:string;initialPath?:ShapePath;snapTargets?:Point[];openPaths?:{id:string;path:ShapePath}[];onContinue?:(id:string,fromStart:boolean)=>void;onComplete:(path:ShapePath,mirrored?:boolean)=>void;onCancel:()=>void}){
  const studio=usePrintsStudio(),[snapEdges,setSnapEdges]=useState(false),[fitEnabled,setFitEnabled]=useState(false),[fitIndex,setFitIndex]=useState(0),[otherRoute,setOtherRoute]=useState(false),[fitError,setFitError]=useState(''),edges=useTraceEdges(tracingElements,snapEdges||fitEnabled,studio.layerRenderer.current);
  const curvature=studio.penCurvature,setCurvature=studio.setPenCurvature;
  const controlsHost=usePenControlsHost(),[nodes,setNodes]=useState<ShapePathNode[]>(()=>clone(initialPath?.nodes??[])),[cursor,setCursor]=useState<Point|null>(null),[selected,setSelected]=useState<number|null>(null),[dragging,setDragging]=useState(false),[editMode,setEditMode]=useState(false),[preview,setPreview]=useState(true),[snapping,setSnapping]=useState(true),[grid,setGrid]=useState(false),[independent,setIndependent]=useState(false),[guides,setGuides]=useState<{vertical?:number;horizontal?:number}>({}),[revision,setRevision]=useState(0);
@@ -91,12 +91,12 @@ export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxi
   if(!draft.current.length&&onContinue){const p=point(event);for(const candidate of openPaths){for(const fromStart of [true,false]){const end=fromStart?candidate.path.nodes[0]:candidate.path.nodes.at(-1);if(end&&Math.hypot(end.x-p.x,end.y-p.y)<radius*2.5){event.preventDefault();event.stopPropagation();onContinue(candidate.id,fromStart);return;}}}}
   if((event.ctrlKey||event.metaKey)&&!cutting){event.preventDefault();event.stopPropagation();finish(false);return;}
   if(editMode)return;
-  let p=point(event),before=clone(draft.current);p=event.shiftKey&&before.length?constrainPenPoint(before.at(-1)!,p):snap(p,-1,event.ctrlKey||event.metaKey);
+  let p=point(event),before=clone(draft.current);p=event.shiftKey&&before.length?constrainPenPoint(before.at(-1)!,p):snap(p,-1,event.ctrlKey||event.metaKey);if(guideAngle&&before.length&&!event.shiftKey&&!event.ctrlKey&&!event.metaKey)p=copyPenPoint(snapAngle(before.at(-1)!,p,guideAngle));
   if(before.length>=3&&Math.hypot(p.x-before[0].x,p.y-before[0].y)<radius*3){setSelected(0);begin(event,{index:0,kind:'close',before,base:before,start:point(event)});return;}
   if(event.altKey)corners.current.add(before.length);else corners.current.delete(before.length);const placed=[...before,copyPenPoint(p)],next=curvature?autoCurve(placed,corners.current):placed;write(next);setSelected(next.length-1);begin(event,{index:next.length-1,kind:'place',before,base:clone(next),start:p});
  };
  const processMove=(event:ReactPointerEvent)=>{
-  let p=point(event);const g=gesture.current;if(!g){setCursor(event.shiftKey&&draft.current.length?constrainPenPoint(draft.current.at(-1)!,p):snap(p));return;}if(g.pointer!==event.pointerId)return;
+  let p=point(event);const g=gesture.current;if(!g){setCursor(event.shiftKey&&draft.current.length?constrainPenPoint(draft.current.at(-1)!,p):guideAngle&&draft.current.length&&!event.ctrlKey&&!event.metaKey?copyPenPoint(snapAngle(draft.current.at(-1)!,snap(p),guideAngle)):snap(p));return;}if(g.pointer!==event.pointerId)return;
   if(space.current){const delta={x:p.x-g.last.x,y:p.y-g.last.y};write(draft.current.map((n,i)=>i===g.index?offsetPenNode(n,delta):n));g.base=clone(draft.current);g.start={...g.start,x:g.start.x+delta.x,y:g.start.y+delta.y};g.last=p;g.dragged=true;setDragging(true);return;}
   if(!g.dragged&&Math.hypot(p.x-g.start.x,p.y-g.start.y)<radius*.45){g.last=p;return;}
   g.dragged=true;setDragging(true);const node=g.base[g.index];

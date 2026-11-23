@@ -4,7 +4,7 @@ import { useShapeBuilder } from './artwork-engine/state/shapeBuilder';
 import { ColourFieldHandles } from './artwork-engine/interaction/ColourFieldHandles';
 import { StudioGuidesOverlay } from './artwork-engine/interaction/StudioGuides';
 import { useGuides } from './artwork-engine/state/studioGuides';
-import { guideSegments, hasLineGuides, symmetryCopies, type GuideSegment } from './artwork-engine/geometry/studioGuides';
+import { guideCurves, guideSegments, hasLineGuides, symmetryCopies, type GuideSegment } from './artwork-engine/geometry/studioGuides';
 import { LetterStretchOverlay } from './artwork-engine/interaction/LetterStretchOverlay';
 import { useLiveOverlaps } from './artwork-engine/interaction/useLiveOverlaps';
 import { garmentEdges, refreshEdgeText } from './artwork-engine/geometry/garmentEdges';
@@ -2786,11 +2786,12 @@ export function PrintsDesignPreview({
   // Asset Studio guides drive Pen, Pencil and Shape. They take over from the simple Mirror while active.
   const studioGuides = useGuides(), guideProject = assetMode && !surfaceContext ? assetWorkspace?.project : undefined;
   const guideSymmetry = guideProject && studioGuides.symmetry.mode !== 'off' ? studioGuides.symmetry : undefined;
+  const guideAngle = guideProject && studioGuides.angle.on ? studioGuides.angle.step : undefined;
   // Placed points snap to the visible lines; freehand strokes use a fine fan of perspective rays.
-  const [guideLines, strokeGuideLines] = useMemo<[GuideSegment[] | undefined, GuideSegment[] | undefined]>(() => {
-    if (!guideProject || !zoneEl || !studioGuides.assisted || !hasLineGuides(studioGuides)) return [undefined, undefined];
+  const [guideLines, strokeGuideLines, strokeGuideCurves] = useMemo<[GuideSegment[] | undefined, GuideSegment[] | undefined, { x: number; y: number }[][] | undefined]>(() => {
+    if (!guideProject || !zoneEl || !studioGuides.assisted || !hasLineGuides(studioGuides)) return [undefined, undefined, undefined];
     const sx = zoneEl.clientWidth / guideProject.width, sy = zoneEl.clientHeight / guideProject.height, lines = (dense: boolean) => guideSegments(studioGuides, guideProject.width, guideProject.height, dense).map(([x1, y1, x2, y2]): GuideSegment => [x1 * sx, y1 * sy, x2 * sx, y2 * sy]);
-    return [lines(false), lines(true)];
+    return [lines(false), lines(true), guideCurves(studioGuides, guideProject.width, guideProject.height).map(curve => curve.map(point => ({ x: point.x * sx, y: point.y * sy })))];
   }, [guideProject?.width, guideProject?.height, zoneEl, studioGuides]);
   const mirrorAxis = !guideSymmetry && studio.symmetry && zoneEl ? drawingMask?.axis ?? zoneEl.clientWidth / 2 : undefined;
   const addDrawnShape = (shape: DesignElement) => {
@@ -4028,13 +4029,13 @@ export function PrintsDesignPreview({
           {editable&&selectedElement?.type==='text'&&studio.adjustLettersId===selectedElement.id&&<LetterStretchOverlay element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} scale={1/uiInv} onChange={(patch,transient)=>updateElement(selectedElement.id,patch,false,Boolean(transient))} onDone={closeLetterStretch}/>}
           {editable&&studio.referenceTask&&elements.find(e=>e.id===studio.referenceTask?.id)&&<ReferenceTraceOverlay element={elements.find(e=>e.id===studio.referenceTask?.id)!} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onChange={patch=>updateElement(studio.referenceTask!.id,patch)} onAdd={shape=>{onChange?.([...elements,shape],shape.id);setSelectedId(shape.id);}}/>}
           {editable&&studio.tool==='textTracking'&&selectedElement?.type==='text'&&<TrackingDrag key={selectedElement.textSpacingDrag??'letterSpacing'} property={selectedElement.textSpacingDrag??'letterSpacing'} element={selectedElement} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} onCancel={()=>studio.setTool('select')} onComplete={value=>{const property=selectedElement.textSpacingDrag??'letterSpacing',index=studio.textSelection?.id===selectedElement.id?studio.textSelection.start:0;updateElement(selectedElement.id,property==='textKerning'&&index>0?{textKerningPairs:[...(selectedElement.textKerningPairs??[]).filter(pair=>pair.index!==index),{index,offset:value}]}:{[property]:value});studio.setTool('select');}}/>}
-          {editable&&studio.tool==='shapeLive'&&<LiveShapeDraft key={studio.liveShape} mirrorAxis={mirrorAxis} guideLines={guideLines} symmetry={guideSymmetry} kind={studio.liveShape} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} unitsPerCm={studio.unitsPerCm} color={newObjectInk} side={garmentSide} onCancel={()=>studio.setTool('select')} onComplete={shape=>{addDrawnShape(shape);studio.setTool('select');}}/>}
-          {editable&&studio.tool==='shapePencil'&&<ShapePencilDraft mirrorAxis={mirrorAxis} guideLines={strokeGuideLines} symmetry={guideSymmetry} width={zoneEl?.clientWidth??1} height={zoneEl?.clientHeight??1} onCancel={()=>studio.setTool('select')} onComplete={path=>{const next=createPenArtwork(path,studio.color,garmentSide,crypto.randomUUID(),surfaceContext?.surface.units==='mm'?.15:2);addDrawnShape(next);studio.setTool('select');}}/>}
+          {editable&&studio.tool==='shapeLive'&&<LiveShapeDraft key={studio.liveShape} mirrorAxis={mirrorAxis} guideAngle={guideAngle} guideLines={guideLines} symmetry={guideSymmetry} kind={studio.liveShape} width={zoneEl?.clientWidth??800} height={zoneEl?.clientHeight??700} unitsPerCm={studio.unitsPerCm} color={newObjectInk} side={garmentSide} onCancel={()=>studio.setTool('select')} onComplete={shape=>{addDrawnShape(shape);studio.setTool('select');}}/>}
+          {editable&&studio.tool==='shapePencil'&&<ShapePencilDraft mirrorAxis={mirrorAxis} guideAngle={guideAngle} guideLines={strokeGuideLines} guideCurves={strokeGuideCurves} symmetry={guideSymmetry} width={zoneEl?.clientWidth??1} height={zoneEl?.clientHeight??1} onCancel={()=>studio.setTool('select')} onComplete={path=>{const next=createPenArtwork(path,studio.color,garmentSide,crypto.randomUUID(),surfaceContext?.surface.units==='mm'?.15:2);addDrawnShape(next);studio.setTool('select');}}/>}
           {editable && studio.tool === 'shapePolygon' && <PenPathDraft key={garmentSide + (studio.penTargetId ?? '')}
             width={zoneEl?.clientWidth ?? 1} height={zoneEl?.clientHeight ?? 1} color={studio.color}
             emphasizeStroke={isPackagingSurface}
             mirrorAxis={studio.penTargetId ? undefined : mirrorAxis}
-            guideLines={guideLines} symmetry={studio.penTargetId ? undefined : guideSymmetry}
+            guideLines={guideLines} guideAngle={guideAngle} symmetry={studio.penTargetId ? undefined : guideSymmetry}
             tracingElements={elements.filter(el=>(el.side??'front')===garmentSide&&el.id!==studio.penTargetId)}
             cutting={Boolean(studio.penTargetId)&&studio.penOperation!=='continue'} error={penError} operation={studio.penOperation}
             initialPath={studio.penOperation==='continue'?(()=>{const target=elements.find(el=>el.id===studio.penTargetId);return target?(penResumeStartId===target.id?reversePenPath(shapeWorldPath(target)):shapeWorldPath(target)):undefined;})():undefined}

@@ -3,7 +3,7 @@ import { waitForImageFilters } from './imageFilterRendering';
 import type { DesignElement } from '../components/builder/PrintStudioEditor';
 import { sourceSignature } from '../components/builder/printsStudio/WarpedArtwork';
 
-export async function exportAssetArtboard(width: number, height: number, elements: DesignElement[], background?: string): Promise<string> {
+export async function exportAssetArtboard(width: number, height: number, elements: DesignElement[], background?: string, pixelRatio = 1): Promise<string> {
   const zone = document.querySelector<HTMLElement>('[data-asset-artboard]');
   if (!zone || !zone.getBoundingClientRect().width) throw new Error('The asset artboard must be visible before saving.');
   await waitForImageFilters(zone);
@@ -27,7 +27,7 @@ export async function exportAssetArtboard(width: number, height: number, element
   await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   const nodes = [...zone.querySelectorAll(':scope > [data-print-id]')];
   const canvas = await toCanvas(zone, {
-    width, height, pixelRatio: 1, backgroundColor: background ?? 'transparent',
+    width, height, pixelRatio, backgroundColor: background ?? 'transparent',
     style: { position: 'relative', left: '0', top: '0', right: 'auto', bottom: 'auto', margin: '0', width: `${width}px`, height: `${height}px`, overflow: 'hidden', transform: 'none', border: 'none', boxShadow: 'none', background: background ?? 'transparent' },
     filter: node => {
       if (!(node instanceof Element)) return true;
@@ -35,6 +35,6 @@ export async function exportAssetArtboard(width: number, height: number, element
       return node.parentElement !== zone || nodes.includes(node);
     },
   });
-  if (canvas.width !== width || canvas.height !== height) throw new Error('The rendered asset size is incorrect.');
+  if (Math.abs(canvas.width - width * pixelRatio) > 1 || Math.abs(canvas.height - height * pixelRatio) > 1) throw new Error('The rendered asset size is incorrect.');
   return canvas.toDataURL('image/png');
 }

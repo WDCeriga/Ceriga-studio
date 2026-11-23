@@ -3,6 +3,8 @@
  * so they can never reach a saved asset or print file.
  */
 export type SymmetryMode = 'off' | 'vertical' | 'horizontal' | 'quadrant' | 'radial';
+export type SkeletonKind = 'arch' | 'wave' | 'banner' | 'circle' | 'ribbon' | 'perspective';
+export type GuideSkeleton = { on: boolean; kind: SkeletonKind; x: number; y: number; width: number; height: number; bend: number; rows: number };
 export type RulerUnit = 'px' | 'cm';
 export type CustomGuide = { id: string; axis: 'x' | 'y'; at: number };
 export type StudioGuides = {
@@ -12,6 +14,10 @@ export type StudioGuides = {
   /** Vanishing points are percentages of the canvas and may sit outside it. */
   perspective: { on: boolean; count: 1 | 2 | 3; lines: number; points: { x: number; y: number }[] };
   symmetry: { mode: SymmetryMode; segments: number };
+  /** A low-opacity frame to letter inside. Position and size are percentages of the canvas. */
+  skeleton: GuideSkeleton;
+  /** Lines and strokes keep to multiples of this angle. */
+  angle: { on: boolean; step: number };
   rulers: { on: boolean; unit: RulerUnit };
   /** Lines dragged out of the rulers, in canvas units. */
   customGuides: CustomGuide[];
@@ -26,14 +32,36 @@ export const DEFAULT_GUIDES: StudioGuides = {
   lettering: { on: false, rows: 3, xHeight: 55, capHeight: 78, slant: 0 },
   perspective: { on: false, count: 2, lines: 24, points: [{ x: 50, y: 40 }, { x: 6, y: 40 }, { x: 94, y: 40 }, { x: 50, y: 118 }] },
   symmetry: { mode: 'off', segments: 8 },
+  skeleton: { on: false, kind: 'arch', x: 50, y: 50, width: 70, height: 26, bend: 45, rows: 2 },
+  angle: { on: false, step: 45 },
   rulers: { on: false, unit: 'px' },
   customGuides: [],
   colour: '#2f6fed',
   opacity: 45,
   assisted: false,
 };
-export const hasLineGuides = (g: StudioGuides) => g.grid.on || g.isometric.on || g.lettering.on || g.perspective.on || g.customGuides.length > 0;
+export const hasLineGuides = (g: StudioGuides) => g.grid.on || g.isometric.on || g.lettering.on || g.perspective.on || g.skeleton.on || g.customGuides.length > 0;
 export const guidesActive = (g: StudioGuides) => hasLineGuides(g) || g.symmetry.mode !== 'off' || g.rulers.on;
+/** Maps a place in the frame (t along, v across, both 0 to 1) onto the curved layout. */
+export function skeletonPoint(s: GuideSkeleton, w: number, h: number, t: number, v: number) {
+  const cx = s.x / 100 * w, cy = s.y / 100 * h, W = s.width / 100 * w, H = s.height / 100 * h, b = clamp(s.bend, -100, 100) / 100, across = v - .5, wave = Math.sin(t * Math.PI * 2);
+  if (s.kind === 'circle') {
+    const sweep = Math.PI * (1 + Math.abs(b)), angle = (b < 0 ? Math.PI / 2 : -Math.PI / 2) + (t - .5) * sweep * (b < 0 ? -1 : 1), outer = Math.min(W, s.width / 100 * w) / 2, radius = Math.max(1, outer - v * Math.min(H, outer * .9));
+    return { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+  }
+  const x = cx + (t - .5) * W;
+  if (s.kind === 'arch') return { x, y: cy + across * H - b * H * .9 * (Math.sin(Math.PI * t) - .5) };
+  if (s.kind === 'wave') return { x, y: cy + across * H + b * H * .55 * wave };
+  if (s.kind === 'banner') { const edge = Math.abs(2 * t - 1); return { x, y: cy + across * H * (1 - .22 * edge ** 3) - b * H * .55 * (1 - edge * edge - .5) }; }
+  if (s.kind === 'ribbon') return { x: x + across * H * .28 * b * Math.cos(t * Math.PI * 2), y: cy + across * H * (1 - .42 * Math.abs(wave)) + b * H * .5 * wave };
+  return { x, y: cy + across * H * (1 + b * .75 * (2 * t - 1)) };
+}
+/** One curve per lettering line, from the top of the frame to the bottom. */
+export function skeletonCurves(s: GuideSkeleton, w: number, h: number, samples = 72) {
+  const rows = Math.round(clamp(s.rows, 1, 6));
+  return Array.from({ length: rows + 1 }, (_, row) => Array.from({ length: samples + 1 }, (_, i) => skeletonPoint(s, w, h, i / samples, row / rows)));
+}
+export const guideCurves = (g: StudioGuides, w: number, h: number) => g.skeleton.on ? skeletonCurves(g.skeleton, w, h) : [];
 /** Asset Studio works at 10 canvas units to the centimetre. */
 export const CANVAS_UNITS_PER_CM = 10;
 /** Ruler marks that stay readable at any zoom: labelled steps of 1, 2 or 5, each split in five. */
@@ -90,6 +118,11 @@ export function guidePaths(g: StudioGuides, w: number, h: number, denseRays = fa
     const [first, second] = used, horizon = second && g.perspective.count > 1 ? Math.atan2(second.y - first.y, second.x - first.x) : 0, line = across(first.x, first.y, horizon, w, h);
     if (line) axis.push(line);
   }
+  if (g.skeleton.on) {
+    const curves = skeletonCurves(g.skeleton, w, h);
+    curves.forEach((curve, row) => { const target = row === 0 || row === curves.length - 1 ? axis : major; for (let i = 1; i < curve.length; i++) target.push(seg(curve[i - 1].x, curve[i - 1].y, curve[i].x, curve[i].y)); });
+    for (const t of [0, 1]) { const start = skeletonPoint(g.skeleton, w, h, t, 0), end = skeletonPoint(g.skeleton, w, h, t, 1); minor.push(seg(start.x, start.y, end.x, end.y)); }
+  }
   for (const guide of g.customGuides) { if (guide.axis === 'x' && guide.at >= 0 && guide.at <= w) axis.push(seg(guide.at, 0, guide.at, h)); if (guide.axis === 'y' && guide.at >= 0 && guide.at <= h) axis.push(seg(0, guide.at, w, guide.at)); }
   const cx = w / 2, cy = h / 2, mode = g.symmetry.mode;
   if (mode === 'vertical' || mode === 'quadrant') axis.push(seg(cx, 0, cx, h));
@@ -127,7 +160,8 @@ export function symmetryCopies<T extends { x: number; y: number; rotation: numbe
 export type GuideSegment = [number, number, number, number];
 /** Straight lines a stroke can follow. Symmetry axes mirror drawing rather than attract it. */
 export function guideSegments(g: StudioGuides, w: number, h: number, denseRays = false): GuideSegment[] {
-  const paths = guidePaths({ ...g, symmetry: { ...g.symmetry, mode: 'off' } }, w, h, denseRays);
+  // Freehand strokes follow skeleton curves whole; only placed points use their short pieces.
+  const paths = guidePaths({ ...g, skeleton: denseRays ? { ...g.skeleton, on: false } : g.skeleton, symmetry: { ...g.symmetry, mode: 'off' } }, w, h, denseRays);
   return [...(paths.minor + paths.major + paths.axis).matchAll(/M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)/g)].map(m => [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])]);
 }
 export function projectToSegment([x1, y1, x2, y2]: GuideSegment, x: number, y: number) {
@@ -148,27 +182,71 @@ export function snapToGuides(segments: GuideSegment[], x: number, y: number, rad
   }
   return near[0].point;
 }
-/** Waits for a few units of movement, then locks the stroke to the close line running the same way. */
-export function createStrokeAssist(segments: GuideSegment[], settle = 18) {
-  let start: { x: number; y: number } | null = null, anchor: { x: number; y: number } | null = null, locked: GuideSegment | null = null;
+type GuidePoint = { x: number; y: number };
+/** The closest place on a curve, with the direction the curve runs there. */
+function onCurve(curve: GuidePoint[], x: number, y: number) {
+  let best = { point: curve[0], distance: Infinity, dx: 1, dy: 0 };
+  for (let i = 1; i < curve.length; i++) { const a = curve[i - 1], b = curve[i], point = projectToSegment([a.x, a.y, b.x, b.y], x, y), distance = Math.hypot(point.x - x, point.y - y); if (distance < best.distance) best = { point, distance, dx: b.x - a.x, dy: b.y - a.y }; }
+  return best;
+}
+/** Waits for a few units of movement, then locks the stroke to the close line or curve running the same way. */
+export function createStrokeAssist(segments: GuideSegment[], settle = 18, curves: GuidePoint[][] = []) {
+  let start: GuidePoint | null = null, anchor: GuidePoint | null = null, locked: GuideSegment | null = null, lockedCurve: GuidePoint[] | null = null;
+  const nearest = (x: number, y: number) => {
+    const options = [...segments.map(item => projectToSegment(item, x, y)), ...curves.map(curve => onCurve(curve, x, y).point)];
+    return options.reduce((best, item) => Math.hypot(item.x - x, item.y - y) < Math.hypot(best.x - x, best.y - y) ? item : best);
+  };
+  const snap = (x: number, y: number) => lockedCurve ? onCurve(lockedCurve, x, y).point : locked ? projectToSegment(locked, x, y) : { x, y };
   const assist = (x: number, y: number) => {
-    if (!segments.length) return { x, y };
-    if (!start) {
-      start = { x, y };
-      anchor = projectToSegment(segments.reduce((best, item) => distanceTo(item, x, y) < distanceTo(best, x, y) ? item : best), x, y);
-      return anchor;
-    }
-    if (!locked) {
+    if (!segments.length && !curves.length) return { x, y };
+    if (!start) { start = { x, y }; anchor = nearest(x, y); return anchor; }
+    if (!locked && !lockedCurve) {
       const mx = x - start.x, my = y - start.y, moved = Math.hypot(mx, my);
       if (moved < settle) return anchor!;
-      const score = (item: GuideSegment) => { const dx = item[2] - item[0], dy = item[3] - item[1], along = Math.abs(dx * mx + dy * my) / ((Math.hypot(dx, dy) || 1) * moved); return distanceTo(item, anchor!.x, anchor!.y) + (1 - along) * 160; };
-      locked = segments.reduce((best, item) => score(item) < score(best) ? item : best);
+      const alignment = (dx: number, dy: number) => Math.abs(dx * mx + dy * my) / ((Math.hypot(dx, dy) || 1) * moved);
+      const lineScore = (item: GuideSegment) => distanceTo(item, anchor!.x, anchor!.y) + (1 - alignment(item[2] - item[0], item[3] - item[1])) * 160;
+      const curveScore = (curve: GuidePoint[]) => { const hit = onCurve(curve, anchor!.x, anchor!.y); return hit.distance + (1 - alignment(hit.dx, hit.dy)) * 160; };
+      const bestLine = segments.length ? segments.reduce((best, item) => lineScore(item) < lineScore(best) ? item : best) : null, bestCurve = curves.length ? curves.reduce((best, item) => curveScore(item) < curveScore(best) ? item : best) : null;
+      if (bestCurve && (!bestLine || curveScore(bestCurve) <= lineScore(bestLine))) lockedCurve = bestCurve; else locked = bestLine;
     }
-    return projectToSegment(locked, x, y);
+    return snap(x, y);
   };
-  /** The line this stroke settled on, once it has. */
+  /** The straight line this stroke settled on, when it chose one. */
   assist.line = () => locked;
+  assist.settled = () => Boolean(locked || lockedCurve);
+  assist.snap = snap;
   return assist;
+}
+
+/** Keeps the distance from one point to another, at the nearest allowed angle. */
+export function snapAngle(from: { x: number; y: number }, to: { x: number; y: number }, step: number) {
+  const unit = clamp(step, 1, 90) * Math.PI / 180, length = Math.hypot(to.x - from.x, to.y - from.y), angle = Math.round(Math.atan2(to.y - from.y, to.x - from.x) / unit) * unit;
+  return { x: from.x + Math.cos(angle) * length, y: from.y + Math.sin(angle) * length };
+}
+/** A freehand stroke that settles onto the nearest allowed angle from where it began. */
+export function createAngleAssist(step: number, settle = 12) {
+  let start: { x: number; y: number } | null = null, locked: GuideSegment | null = null;
+  const snap = (x: number, y: number) => locked ? projectToSegment(locked, x, y) : { x, y };
+  const assist = (x: number, y: number) => {
+    if (!start) { start = { x, y }; return start; }
+    if (!locked) {
+      if (Math.hypot(x - start.x, y - start.y) < settle) return start;
+      const aim = snapAngle(start, { x, y }, step), length = Math.hypot(aim.x - start.x, aim.y - start.y) || 1, dx = (aim.x - start.x) / length, dy = (aim.y - start.y) / length;
+      locked = [start.x - dx * 100000, start.y - dy * 100000, start.x + dx * 100000, start.y + dy * 100000];
+    }
+    return snap(x, y);
+  };
+  assist.line = () => locked;
+  assist.settled = () => Boolean(locked);
+  assist.snap = snap;
+  return assist;
+}
+/** Guides along the edges and centre of a box, skipping any already there. */
+export function guidesFromBox(box: { x: number; y: number; width: number; height: number }, existing: CustomGuide[], makeId: () => string): CustomGuide[] {
+  const wanted: Pick<CustomGuide, 'axis' | 'at'>[] = [box.x, box.x + box.width / 2, box.x + box.width].map(at => ({ axis: 'x' as const, at: Math.round(at) })).concat([box.y, box.y + box.height / 2, box.y + box.height].map(at => ({ axis: 'y' as const, at: Math.round(at) })) as never[]);
+  const next = [...existing];
+  for (const item of wanted) if (!next.some(guide => guide.axis === item.axis && guide.at === item.at)) next.push({ ...item, id: makeId() });
+  return next.slice(0, 80);
 }
 
 export function readGuides(raw: string | null): StudioGuides {
@@ -176,6 +254,6 @@ export function readGuides(raw: string | null): StudioGuides {
     const v = JSON.parse(raw ?? 'null');
     if (!v || typeof v !== 'object') return DEFAULT_GUIDES;
     const mode = ['off', 'vertical', 'horizontal', 'quadrant', 'radial'].includes(v.symmetry?.mode) ? v.symmetry.mode as SymmetryMode : 'off';
-    return { grid: { ...DEFAULT_GUIDES.grid, ...v.grid }, isometric: { ...DEFAULT_GUIDES.isometric, ...v.isometric }, lettering: { ...DEFAULT_GUIDES.lettering, ...v.lettering }, perspective: { on: v.perspective?.on === true, count: [1, 2, 3].includes(v.perspective?.count) ? v.perspective.count : DEFAULT_GUIDES.perspective.count, lines: Number.isFinite(v.perspective?.lines) ? clamp(v.perspective.lines, 6, 72) : DEFAULT_GUIDES.perspective.lines, points: DEFAULT_GUIDES.perspective.points.map((fallback, index) => { const point = v.perspective?.points?.[index]; return Number.isFinite(point?.x) && Number.isFinite(point?.y) ? { x: clamp(point.x, -100, 200), y: clamp(point.y, -100, 200) } : fallback; }) }, rulers: { on: v.rulers?.on === true, unit: v.rulers?.unit === 'cm' ? 'cm' : 'px' }, customGuides: Array.isArray(v.customGuides) ? v.customGuides.filter((item: CustomGuide) => typeof item?.id === 'string' && (item.axis === 'x' || item.axis === 'y') && Number.isFinite(item.at)).slice(0, 80) : [], symmetry: { segments: Number.isFinite(v.symmetry?.segments) ? v.symmetry.segments : DEFAULT_GUIDES.symmetry.segments, mode }, colour: /^#[\da-f]{6}$/i.test(v.colour) ? v.colour : DEFAULT_GUIDES.colour, opacity: Number.isFinite(v.opacity) ? clamp(v.opacity, 10, 100) : DEFAULT_GUIDES.opacity, assisted: v.assisted === true };
+    return { grid: { ...DEFAULT_GUIDES.grid, ...v.grid }, isometric: { ...DEFAULT_GUIDES.isometric, ...v.isometric }, lettering: { ...DEFAULT_GUIDES.lettering, ...v.lettering }, perspective: { on: v.perspective?.on === true, count: [1, 2, 3].includes(v.perspective?.count) ? v.perspective.count : DEFAULT_GUIDES.perspective.count, lines: Number.isFinite(v.perspective?.lines) ? clamp(v.perspective.lines, 6, 72) : DEFAULT_GUIDES.perspective.lines, points: DEFAULT_GUIDES.perspective.points.map((fallback, index) => { const point = v.perspective?.points?.[index]; return Number.isFinite(point?.x) && Number.isFinite(point?.y) ? { x: clamp(point.x, -100, 200), y: clamp(point.y, -100, 200) } : fallback; }) }, skeleton: { on: v.skeleton?.on === true, kind: ['arch', 'wave', 'banner', 'circle', 'ribbon', 'perspective'].includes(v.skeleton?.kind) ? v.skeleton.kind : DEFAULT_GUIDES.skeleton.kind, x: Number.isFinite(v.skeleton?.x) ? clamp(v.skeleton.x, -50, 150) : DEFAULT_GUIDES.skeleton.x, y: Number.isFinite(v.skeleton?.y) ? clamp(v.skeleton.y, -50, 150) : DEFAULT_GUIDES.skeleton.y, width: Number.isFinite(v.skeleton?.width) ? clamp(v.skeleton.width, 10, 150) : DEFAULT_GUIDES.skeleton.width, height: Number.isFinite(v.skeleton?.height) ? clamp(v.skeleton.height, 4, 100) : DEFAULT_GUIDES.skeleton.height, bend: Number.isFinite(v.skeleton?.bend) ? clamp(v.skeleton.bend, -100, 100) : DEFAULT_GUIDES.skeleton.bend, rows: Number.isFinite(v.skeleton?.rows) ? Math.round(clamp(v.skeleton.rows, 1, 6)) : DEFAULT_GUIDES.skeleton.rows }, angle: { on: v.angle?.on === true, step: Number.isFinite(v.angle?.step) ? Math.round(clamp(v.angle.step, 1, 90)) : DEFAULT_GUIDES.angle.step }, rulers: { on: v.rulers?.on === true, unit: v.rulers?.unit === 'cm' ? 'cm' : 'px' }, customGuides: Array.isArray(v.customGuides) ? v.customGuides.filter((item: CustomGuide) => typeof item?.id === 'string' && (item.axis === 'x' || item.axis === 'y') && Number.isFinite(item.at)).slice(0, 80) : [], symmetry: { segments: Number.isFinite(v.symmetry?.segments) ? v.symmetry.segments : DEFAULT_GUIDES.symmetry.segments, mode }, colour: /^#[\da-f]{6}$/i.test(v.colour) ? v.colour : DEFAULT_GUIDES.colour, opacity: Number.isFinite(v.opacity) ? clamp(v.opacity, 10, 100) : DEFAULT_GUIDES.opacity, assisted: v.assisted === true };
   } catch { return DEFAULT_GUIDES; }
 }

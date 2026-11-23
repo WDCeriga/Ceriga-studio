@@ -18,7 +18,7 @@ import { renderDistressMarks } from '../../../lib/distressRendering';
 import { removeBrushMask } from '../../../lib/brushRemoval';
 import { useAssetWorkspaceContext } from './AssetWorkspace';
 import { useGuides } from '../artwork-engine/state/studioGuides';
-import { createStrokeAssist, guideSegments, hasLineGuides, mapGuidePoint, projectToSegment, symmetryTransforms, type StudioGuides } from '../artwork-engine/geometry/studioGuides';
+import { createAngleAssist, createStrokeAssist, guideCurves, guideSegments, hasLineGuides, mapGuidePoint, symmetryTransforms, type StudioGuides } from '../artwork-engine/geometry/studioGuides';
 
 const supportsQuickShape = (preset: string) => ['pen', 'pencil', 'fine-liner', 'technical-pen'].includes(preset);
 
@@ -859,7 +859,7 @@ export function PrintsDrawLayer({
     const rect = canvas.getBoundingClientRect();
     assistSettledRef.current=false;
     guideSymmetryRef.current=s.tool==='brush'&&assetProject&&studioGuides.symmetry.mode!=='off'?studioGuides.symmetry:null;
-    strokeAssistRef.current=s.tool==='brush'&&assetProject&&studioGuides.assisted&&hasLineGuides(studioGuides)?createStrokeAssist(guideSegments(studioGuides,assetProject.width,assetProject.height,true)):null;
+    strokeAssistRef.current=s.tool==='brush'&&assetProject&&studioGuides.angle.on?createAngleAssist(studioGuides.angle.step):s.tool==='brush'&&assetProject&&studioGuides.assisted&&hasLineGuides(studioGuides)?createStrokeAssist(guideSegments(studioGuides,assetProject.width,assetProject.height,true),18,guideCurves(studioGuides,assetProject.width,assetProject.height)):null;
     const pt = assisted(eventPoint(e, canvas, rect),canvas);
     const previous=s.tool==='brush'?sessionRef.current?.element:undefined;
     const unit=canvas.width/Math.max(1,canvas.clientWidth);
@@ -896,11 +896,11 @@ export function PrintsDrawLayer({
 
   const appendPointerSample = (sample: PointerEvent, canvas: HTMLCanvasElement, tool: PrintsStudioTool) => {
     const raw = assisted(eventPoint(sample, canvas),canvas);
-    const assistLine=strokeAssistRef.current?.line();
-    if(assistLine&&assetProject&&!assistSettledRef.current){
+    const strokeAssist=strokeAssistRef.current;
+    if(strokeAssist?.settled()&&assetProject&&!assistSettledRef.current){
       // The stroke has chosen its line, so its opening points move onto it too.
       assistSettledRef.current=true;
-      const sx=assetProject.width/canvas.width,sy=assetProject.height/canvas.height,onLine=(point:Pt):Pt=>{const next=projectToSegment(assistLine,point.x*sx,point.y*sy);return {...point,x:next.x/sx,y:next.y/sy};};
+      const sx=assetProject.width/canvas.width,sy=assetProject.height/canvas.height,onLine=(point:Pt):Pt=>{const next=strokeAssist.snap(point.x*sx,point.y*sy);return {...point,x:next.x/sx,y:next.y/sy};};
       strokeRef.current=strokeRef.current.map(onLine);shapeStrokeRef.current=shapeStrokeRef.current.map(onLine);
       const opening=strokeRef.current[strokeRef.current.length-1]??raw;
       smoothTipRef.current=opening;stabilizerRef.current=createBrushStabilizer(opening,sample.timeStamp,canvas.width/Math.max(1,canvas.getBoundingClientRect().width));
