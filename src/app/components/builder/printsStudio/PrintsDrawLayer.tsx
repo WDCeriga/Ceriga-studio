@@ -18,7 +18,7 @@ import { renderDistressMarks } from '../../../lib/distressRendering';
 import { removeBrushMask } from '../../../lib/brushRemoval';
 import { useAssetWorkspaceContext } from './AssetWorkspace';
 import { useGuides } from '../artwork-engine/state/studioGuides';
-import { createStrokeAssist, guideSegments, hasLineGuides, projectToSegment } from '../artwork-engine/geometry/studioGuides';
+import { createStrokeAssist, guideSegments, hasLineGuides, mapGuidePoint, projectToSegment, symmetryTransforms, type StudioGuides } from '../artwork-engine/geometry/studioGuides';
 
 const supportsQuickShape = (preset: string) => ['pen', 'pencil', 'fine-liner', 'technical-pen'].includes(preset);
 
@@ -230,7 +230,7 @@ export function PrintsDrawLayer({
   const sideRef = useRef(garmentSide);
   const finishDrawingRef=useRef(onFinishDrawing);finishDrawingRef.current=onFinishDrawing;
   const assetProject=useAssetWorkspaceContext()?.project,studioGuides=useGuides();
-  const strokeAssistRef=useRef<ReturnType<typeof createStrokeAssist>|null>(null),assistSettledRef=useRef(false);
+  const strokeAssistRef=useRef<ReturnType<typeof createStrokeAssist>|null>(null),assistSettledRef=useRef(false),guideSymmetryRef=useRef<StudioGuides['symmetry']|null>(null);
   // Assisted drawing works in artboard units, so it lines up with the guides at any zoom.
   const assisted=(point:Pt,canvas:HTMLCanvasElement):Pt=>{const assist=strokeAssistRef.current;if(!assist||!assetProject)return point;const sx=assetProject.width/canvas.width,sy=assetProject.height/canvas.height,next=assist(point.x*sx,point.y*sy);return {...point,x:next.x/sx,y:next.y/sy};};
   const finishTapRef=useRef<{id:string;x:number;y:number;time:number}|null>(null);
@@ -300,6 +300,15 @@ export function PrintsDrawLayer({
   };
 
   const mirrorStroke = (context: CanvasRenderingContext2D) => {
+    const guided=guideSymmetryRef.current;
+    if(guided){
+      const source=mirrorLayerRef.current??document.createElement('canvas');mirrorLayerRef.current=source;
+      source.width=context.canvas.width;source.height=context.canvas.height;source.getContext('2d')?.drawImage(context.canvas,0,0);
+      context.save();
+      for(const [a,b,c,d,e,f] of symmetryTransforms(guided,context.canvas.width,context.canvas.height)){context.setTransform(a,b,c,d,e,f);context.drawImage(source,0,0);}
+      context.restore();
+      return;
+    }
     if (!studioRef.current.symmetry) return;
     const copy = mirrorLayerRef.current ?? document.createElement('canvas');
     mirrorLayerRef.current = copy;
@@ -560,13 +569,15 @@ export function PrintsDrawLayer({
     const originX=box.x/scaleX,originY=box.y/scaleY;
     const recorded:RecordedStroke={points:replayPointsRef.current.map(p=>({...p,x:p.x/scaleX-originX,y:p.y/scaleY-originY})),settings:snapshotBrush(studioRef.current),seed:strokeSeedRef.current,opacity:studioRef.current.opacity/100,
       paintFrame:{x:-originX,y:-originY,width:cssW,height:cssH},
-      mirrorAxis:studioRef.current.symmetry?(garmentMask?.axis??cssW/2)-originX:undefined,
+      mirrorAxis:studioRef.current.symmetry&&!guideSymmetryRef.current?(garmentMask?.axis??cssW/2)-originX:undefined,
       clip:garmentMask?{url:garmentMask.vectorUrl??garmentMask.url,x:-originX,y:-originY,width:garmentMask.width,height:garmentMask.height}:undefined};
+    // Each symmetry copy is a real recorded stroke, so restyles and effects reach all of them.
+    const symmetryCopies:RecordedStroke[]=guideSymmetryRef.current?symmetryTransforms(guideSymmetryRef.current,cssW,cssH).map(matrix=>({...recorded,points:recorded.points.map(point=>{const next=mapGuidePoint(matrix,point.x+originX,point.y+originY);return {...point,x:next.x-originX,y:next.y-originY};})})):[];
     const oldStrokes=canAppend&&previous?.element.drawing?previous.element.drawing.strokes.map(s=>offsetRecordedStroke(s,previous.element.x-previous.element.width/2-originX,previous.element.y-previous.element.height/2-originY)):[];
     const next: DesignElement = {
       // A new stroke keeps the layer's effects, restyle, name and finish.
       ...(tool==='brush'&&canAppend&&existing?existing:{}),
-      ...(tool==='brush'&&recorded.points.length?{drawing:{width:box.w/scaleX,height:box.h/scaleY,strokes:[...oldStrokes,recorded]}}:{}),
+      ...(tool==='brush'&&recorded.points.length?{drawing:{width:box.w/scaleX,height:box.h/scaleY,strokes:[...oldStrokes,recorded,...symmetryCopies]}}:{}),
       id: canAppend ? previous.element.id : crypto.randomUUID(),
       type: tool === 'distress' ? 'distress' : 'drawing',
       content: dataUrl,
@@ -847,6 +858,7 @@ export function PrintsDrawLayer({
     strokeSeedRef.current = (Math.random() * 0x7fffffff) | 0;
     const rect = canvas.getBoundingClientRect();
     assistSettledRef.current=false;
+    guideSymmetryRef.current=s.tool==='brush'&&assetProject&&studioGuides.symmetry.mode!=='off'?studioGuides.symmetry:null;
     strokeAssistRef.current=s.tool==='brush'&&assetProject&&studioGuides.assisted&&hasLineGuides(studioGuides)?createStrokeAssist(guideSegments(studioGuides,assetProject.width,assetProject.height)):null;
     const pt = assisted(eventPoint(e, canvas, rect),canvas);
     const previous=s.tool==='brush'?sessionRef.current?.element:undefined;

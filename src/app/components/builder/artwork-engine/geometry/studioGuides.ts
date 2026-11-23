@@ -74,6 +74,29 @@ export function guidePaths(g: StudioGuides, w: number, h: number) {
   return { minor: minor.join(''), major: major.join(''), axis: axis.join('') };
 }
 
+export type GuideMatrix = [number, number, number, number, number, number];
+export const mapGuidePoint = ([a, b, c, d, e, f]: GuideMatrix, x: number, y: number) => ({ x: a * x + c * y + e, y: b * x + d * y + f });
+/** The extra copies of a stroke for this symmetry, around the centre of a w by h canvas. */
+export function symmetryTransforms(symmetry: StudioGuides['symmetry'], w: number, h: number): GuideMatrix[] {
+  const flipX: GuideMatrix = [-1, 0, 0, 1, w, 0], flipY: GuideMatrix = [1, 0, 0, -1, 0, h], flipBoth: GuideMatrix = [-1, 0, 0, -1, w, h];
+  if (symmetry.mode === 'vertical') return [flipX];
+  if (symmetry.mode === 'horizontal') return [flipY];
+  if (symmetry.mode === 'quadrant') return [flipX, flipY, flipBoth];
+  if (symmetry.mode !== 'radial') return [];
+  const count = Math.round(clamp(symmetry.segments, 2, 32)), cx = w / 2, cy = h / 2;
+  return Array.from({ length: count - 1 }, (_, index) => {
+    const angle = (index + 1) / count * Math.PI * 2, cos = Math.cos(angle), sin = Math.sin(angle);
+    return [cos, sin, -sin, cos, cx - cos * cx + sin * cy, cy - sin * cx - cos * cy] as GuideMatrix;
+  });
+}
+/** Editable copies of a shape: position, rotation and flip follow the symmetry. */
+export function symmetryCopies<T extends { x: number; y: number; rotation: number; flipHorizontal?: boolean; flipVertical?: boolean }>(shape: T, symmetry: StudioGuides['symmetry'], w: number, h: number): T[] {
+  return symmetryTransforms(symmetry, w, h).map(matrix => {
+    const [a, b, c, d] = matrix, point = mapGuidePoint(matrix, shape.x, shape.y);
+    if (a * d - b * c > 0) return { ...shape, ...point, rotation: shape.rotation + Math.atan2(b, a) * 180 / Math.PI };
+    return { ...shape, ...point, rotation: -shape.rotation, ...(a < 0 ? { flipHorizontal: !shape.flipHorizontal } : { flipVertical: !shape.flipVertical }) };
+  });
+}
 export type GuideSegment = [number, number, number, number];
 /** Straight lines a stroke can follow. Symmetry axes mirror drawing rather than attract it. */
 export function guideSegments(g: StudioGuides, w: number, h: number): GuideSegment[] {
@@ -85,6 +108,19 @@ export function projectToSegment([x1, y1, x2, y2]: GuideSegment, x: number, y: n
   return { x: x1 + dx * t, y: y1 + dy * t };
 }
 const distanceTo = (segment: GuideSegment, x: number, y: number) => { const p = projectToSegment(segment, x, y); return Math.hypot(p.x - x, p.y - y); };
+/** Pulls a placed point onto a nearby guide line, or onto the crossing of two lines. */
+export function snapToGuides(segments: GuideSegment[], x: number, y: number, radius: number) {
+  const near = segments.map(segment => ({ segment, point: projectToSegment(segment, x, y) })).map(item => ({ ...item, distance: Math.hypot(item.point.x - x, item.point.y - y) })).filter(item => item.distance <= radius).sort((p, q) => p.distance - q.distance);
+  if (!near.length) return null;
+  const [x1, y1, x2, y2] = near[0].segment, ax = x2 - x1, ay = y2 - y1;
+  for (const item of near.slice(1)) {
+    const [x3, y3, x4, y4] = item.segment, bx = x4 - x3, by = y4 - y3, cross = ax * by - ay * bx;
+    if (Math.abs(cross) < 1e-6 * (Math.hypot(ax, ay) * Math.hypot(bx, by) || 1)) continue;
+    const t = ((x3 - x1) * by - (y3 - y1) * bx) / cross, hit = { x: x1 + ax * t, y: y1 + ay * t };
+    if (Math.hypot(hit.x - x, hit.y - y) <= radius * 1.5) return hit;
+  }
+  return near[0].point;
+}
 /** Waits for a few units of movement, then locks the stroke to the close line running the same way. */
 export function createStrokeAssist(segments: GuideSegment[], settle = 18) {
   let start: { x: number; y: number } | null = null, anchor: { x: number; y: number } | null = null, locked: GuideSegment | null = null;

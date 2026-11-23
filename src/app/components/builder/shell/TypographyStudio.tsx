@@ -1,3 +1,4 @@
+import { CanvasWord } from '../printsStudio/AssetWorkspace';
 import {fontStylePatch} from '../../../lib/fontStyleSupport';
 import {FontUploadControls} from './FontUploadControls';
 import {fontIdentity} from '../../../lib/workspaceFonts';
@@ -43,7 +44,7 @@ const styles = [
 ] as const;
 export function TypographyLibrary({api}:{api:PrintStudioToolAPI}) {
  const [rights,setRights]=useState(false);
- return <div className="typography-library"><label className="studio-field">Your words<TextListInput value={api.textInput} onChange={api.onTextInput} onSubmit={api.onAddText}/></label><button className="studio-solid-action" disabled={!api.textInput.trim()} onClick={api.onAddText}><Plus size={15}/>Add text</button><p className="typography-help">Double-click text on the garment to type directly.</p><section className="typography-presets"><h3>Start with a style</h3><div>{styles.map(style=><button key={style.name} aria-label={`Add ${style.name} text`} onClick={()=>api.onAddTextPreset?.({content:api.textInput.trim()||style.sample,fontFamily:style.font,fontSize:style.size,fontWeight:style.weight})}><span style={{fontFamily:style.font,fontWeight:style.weight}}>{style.sample}</span><small>{style.name}<Plus size={13}/></small></button>)}</div></section><FontUploadControls/></div>;
+ return <div className="typography-library"><label className="studio-field">Your words<TextListInput value={api.textInput} onChange={api.onTextInput} onSubmit={api.onAddText}/></label><button className="studio-solid-action" disabled={!api.textInput.trim()} onClick={api.onAddText}><Plus size={15}/>Add text</button><p className="typography-help">Double-click text on the <CanvasWord/> to type directly.</p><section className="typography-presets"><h3>Start with a style</h3><div>{styles.map(style=><button key={style.name} aria-label={`Add ${style.name} text`} onClick={()=>api.onAddTextPreset?.({content:api.textInput.trim()||style.sample,fontFamily:style.font,fontSize:style.size,fontWeight:style.weight})}><span style={{fontFamily:style.font,fontWeight:style.weight}}>{style.sample}</span><small>{style.name}<Plus size={13}/></small></button>)}</div></section><FontUploadControls/></div>;
 }
 export {TextInspector as TypographyEditor} from './TextInspector';
 export function TypographyCanvasTools({elements,selectedId,onChange,onSelect,history,side='front'}:{elements:DesignElement[];selectedId:string|null;onChange:(elements:DesignElement[])=>void;onSelect:(id:string|null)=>void;history?:DrawHistory;side?:'front'|'back'}) {

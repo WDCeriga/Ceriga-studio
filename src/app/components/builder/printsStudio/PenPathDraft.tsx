@@ -11,6 +11,7 @@ import {usePenControlsHost} from './usePenControlsHost';
 import {useEffect,useRef,useState,type PointerEvent as ReactPointerEvent} from 'react';
 import {shapePathData,type ShapePath,type ShapePathNode} from '../../../lib/shapeGeometry';
 import {reversePenPath,closeMirroredPenPath,nearestPenSegment,constrainPenPoint,copyPenPoint,dragPenHandle,offsetPenNode,snapPenPoint,type PenPoint as Point} from '../../../lib/penGeometry';
+import {snapToGuides,symmetryTransforms,type GuideSegment,type StudioGuides} from '../artwork-engine/geometry/studioGuides';
 import '../shell/artwork-path-tools.css';
 type Gesture={pointer:number;index:number;kind:'place'|'move'|'handle'|'close';handle?:'in'|'out';before:ShapePathNode[];base:ShapePathNode[];start:Point;last:Point;dragged:boolean;cornerClick?:boolean};
 const clone=(nodes:ShapePathNode[])=>nodes.map(n=>({...copyPenPoint(n),in:n.in?copyPenPoint(n.in):undefined,out:n.out?copyPenPoint(n.out):undefined}));
@@ -46,7 +47,7 @@ function lengthTick(from: Point, to: Point, size: number) {
   return 'M' + (x - offsetX) + ',' + (y - offsetY) + 'L' + (x + offsetX) + ',' + (y + offsetY);
 }
 
-export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxis,tracingElements=[],cutting=false,operation='subtract',error,initialPath,snapTargets=[],openPaths=[],onContinue,onComplete,onCancel}:{width:number;height:number;color:string;emphasizeStroke?:boolean;mirrorAxis?:number;tracingElements?:DesignElement[];cutting?:boolean;operation?:'subtract'|'join'|'continue'|'split';error?:string;initialPath?:ShapePath;snapTargets?:Point[];openPaths?:{id:string;path:ShapePath}[];onContinue?:(id:string,fromStart:boolean)=>void;onComplete:(path:ShapePath,mirrored?:boolean)=>void;onCancel:()=>void}){
+export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxis,guideLines,symmetry,tracingElements=[],cutting=false,operation='subtract',error,initialPath,snapTargets=[],openPaths=[],onContinue,onComplete,onCancel}:{width:number;height:number;color:string;emphasizeStroke?:boolean;mirrorAxis?:number;guideLines?:GuideSegment[];symmetry?:StudioGuides['symmetry'];tracingElements?:DesignElement[];cutting?:boolean;operation?:'subtract'|'join'|'continue'|'split';error?:string;initialPath?:ShapePath;snapTargets?:Point[];openPaths?:{id:string;path:ShapePath}[];onContinue?:(id:string,fromStart:boolean)=>void;onComplete:(path:ShapePath,mirrored?:boolean)=>void;onCancel:()=>void}){
  const studio=usePrintsStudio(),[snapEdges,setSnapEdges]=useState(false),[fitEnabled,setFitEnabled]=useState(false),[fitIndex,setFitIndex]=useState(0),[otherRoute,setOtherRoute]=useState(false),[fitError,setFitError]=useState(''),edges=useTraceEdges(tracingElements,snapEdges||fitEnabled,studio.layerRenderer.current);
  const curvature=studio.penCurvature,setCurvature=studio.setPenCurvature;
  const controlsHost=usePenControlsHost(),[nodes,setNodes]=useState<ShapePathNode[]>(()=>clone(initialPath?.nodes??[])),[cursor,setCursor]=useState<Point|null>(null),[selected,setSelected]=useState<number|null>(null),[dragging,setDragging]=useState(false),[editMode,setEditMode]=useState(false),[preview,setPreview]=useState(true),[snapping,setSnapping]=useState(true),[grid,setGrid]=useState(false),[independent,setIndependent]=useState(false),[guides,setGuides]=useState<{vertical?:number;horizontal?:number}>({}),[revision,setRevision]=useState(0);
@@ -83,7 +84,7 @@ export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxi
  },[]);
  const point=(event:ReactPointerEvent):Point=>{const matrix=svg.current?.getScreenCTM();return matrix?copyPenPoint(new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse())):{x:0,y:0};};
  const radius=3*width/Math.max(1,svg.current?.getBoundingClientRect().width??width);
- const snap=(p:Point,exclude=-1,heldOff=false)=>{if(snapEdges&&!heldOff){const edge=edges.snap(p,radius*8/3);if(edge!==p){setGuides({});return edge;}}if(!snapping||heldOff){setGuides({});return p;}const result=snapPenPoint(p,[...snapTargets,{x:width/2,y:height/2},...draft.current.filter((_,i)=>i!==exclude)],radius*2.8,grid?10:0);setGuides({vertical:result.vertical,horizontal:result.horizontal});return result.point;};
+ const snap=(p:Point,exclude=-1,heldOff=false)=>{if(snapEdges&&!heldOff){const edge=edges.snap(p,radius*8/3);if(edge!==p){setGuides({});return edge;}}if(guideLines?.length&&!heldOff){const onGuide=snapToGuides(guideLines,p.x,p.y,radius*2.8);if(onGuide){setGuides({});return copyPenPoint({...p,...onGuide});}}if(!snapping||heldOff){setGuides({});return p;}const result=snapPenPoint(p,[...snapTargets,{x:width/2,y:height/2},...draft.current.filter((_,i)=>i!==exclude)],radius*2.8,grid?10:0);setGuides({vertical:result.vertical,horizontal:result.horizontal});return result.point;};
  const begin=(event:ReactPointerEvent,g:Omit<Gesture,'pointer'|'last'|'dragged'>)=>{event.preventDefault();event.stopPropagation();svg.current?.focus({preventScroll:true});gesture.current={...g,pointer:event.pointerId,last:g.start,dragged:false};event.currentTarget.setPointerCapture(event.pointerId);};
  const start=(event:ReactPointerEvent)=>{
   if(event.button!==0)return;
@@ -151,6 +152,7 @@ export function PenPathDraft({width,height,color,emphasizeStroke=false,mirrorAxi
    setGuides({});
   }} onPointerCancel={()=>{const g=gesture.current;if(g)write(clone(g.before));gesture.current=null;setDragging(false);setGuides({});}}>
    {guides.vertical!==undefined&&!dragging&&<line x1={guides.vertical} y1={0} x2={guides.vertical} y2={height} stroke="#737373" strokeOpacity=".35" strokeDasharray="3 5" />}{guides.horizontal!==undefined&&!dragging&&<line x1={0} y1={guides.horizontal} x2={width} y2={guides.horizontal} stroke="#737373" strokeOpacity=".35" strokeDasharray="3 5" />}
+   {symmetry&&previewNodes.length>=2&&symmetryTransforms(symmetry,width,height).map((matrix,index)=><path key={index} d={shapePathData({closed:false,nodes:previewNodes})} transform={`matrix(${matrix.join(' ')})`} fill="none" stroke="#737373" strokeOpacity=".7" vectorEffect="non-scaling-stroke" pointerEvents="none"/>)}
    {mirrorAxis !== undefined && <g pointerEvents="none" stroke="#737373" strokeOpacity=".65" fill="none">
      <line x1={mirrorAxis} x2={mirrorAxis} y1={0} y2={height} strokeDasharray="3 5" vectorEffect="non-scaling-stroke"/>
      {previewNodes.length > 1 && <path d={shapePathData({closed:gesture.current?.kind==='close',nodes:previewNodes})}

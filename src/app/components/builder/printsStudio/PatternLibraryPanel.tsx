@@ -7,6 +7,7 @@ import { PATTERN_CATALOG, patternDefinition } from '../../../lib/patternCatalog'
 import { changePatternType, customPatternSettings, initialPatternSettings, isSelectedPattern, selectedPatternKind, type CustomPatternSource, type PatternPatch } from '../../../lib/patternEditing';
 import { PatternGraphic } from './PatternGraphic';
 import { LazyPatternPreview } from './LazyPatternPreview';
+import { GarmentOnly } from './AssetWorkspace';
 import { PatternControls } from './PatternControls';
 import { PatternMaker } from './PatternMaker';
 import { useAssetWorkspaceContext } from './AssetWorkspace';
@@ -58,7 +59,7 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
   };
   const buttonClass = 'rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2 py-2 text-[11px] text-[#737373] hover:bg-[#f2f2f2] disabled:opacity-40';
   return <div className="space-y-4" data-pattern-library>
-    <p className="text-[10px] leading-relaxed text-[#737373]">Choose a style or drag its preview onto a garment part or closed Custom Area. Select a pattern to edit it.</p>
+    <p className="text-[10px] leading-relaxed text-[#737373]">Choose a style<GarmentOnly> or drag its preview onto a garment part or closed Custom Area</GarmentOnly>. Select a pattern to edit it.</p>
     {!customOnly&&<details open className="space-y-3"><summary className="cursor-pointer text-xs font-semibold text-[#737373]">Pattern styles</summary>
     {PATTERN_CATALOG.filter(item => item.id !== 'custom' && !item.retired).reduce<string[]>((categories, item) => categories.includes(item.category) ? categories : [...categories, item.category], []).map(category =>
       <section key={category} className="space-y-2">

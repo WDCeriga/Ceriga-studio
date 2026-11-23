@@ -9,6 +9,9 @@ type Workspace = ReturnType<typeof useAssetWorkspace>;
 const Context = createContext<Workspace | null>(null);
 export function AssetWorkspaceProvider({ value, children }: { value: Workspace | null; children: ReactNode }) { return <Context.Provider value={value}>{children}</Context.Provider>; }
 export const useAssetWorkspaceContext = () => useContext(Context);
+/** Copy and controls that only make sense with a garment on the canvas. */
+export const GarmentOnly = ({ children }: { children: ReactNode }) => useContext(Context)?.project ? null : <>{children}</>;
+export const CanvasWord = () => <>{useContext(Context)?.project ? 'canvas' : 'garment'}</>;
 const button = 'rounded-md border border-[#e2e2e2] px-3 py-2 text-xs font-semibold text-[#262626] hover:bg-[#f2f2f2] disabled:opacity-40';
 const input = 'min-w-0 rounded-md border border-[#e2e2e2] bg-[#fafafa] px-2 py-1.5 text-xs text-[#262626]';
 
@@ -25,7 +28,7 @@ export function AssetWorkspaceHeader() {
  const {project,busy,changeProject}=workspace,existing=workspace.library.some(asset=>asset.id===project.id);
  return <header data-asset-workspace-header className="asset-workspace-header as-header">
   <div className="as-bar">
-   <div className="as-left"><button className="as-back" aria-label="Back to garment" title="Back to garment" disabled={busy} onClick={workspace.back}><ArrowLeft size={16}/></button><div className="as-name"><small>Asset Studio</small><input aria-label="Asset name" disabled={busy} value={project.name} maxLength={120} onChange={event=>changeProject({name:event.target.value})}/></div></div>
+   <div className="as-left"><button className="as-back" aria-label="Close Asset Studio" title="Close Asset Studio" disabled={busy} onClick={workspace.back}><ArrowLeft size={16}/></button><div className="as-name"><small>Asset Studio</small><input aria-label="Asset name" disabled={busy} value={project.name} maxLength={120} onChange={event=>changeProject({name:event.target.value})}/></div></div>
    <div className="as-center"><CanvasMenu workspace={workspace}/><BackgroundMenu workspace={workspace}/></div>
    <div className="as-right"><span className="as-status" role="status">{busy?'Saving…':workspace.dirty?'Unsaved':existing?'Saved':'New'}</span>{existing&&<button className="as-copy" disabled={busy} onClick={()=>void workspace.save(true)}>Save a copy</button>}<AddToGarmentMenu workspace={workspace}/></div>
   </div>

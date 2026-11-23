@@ -1619,7 +1619,9 @@ function BuilderContent() {
         })();
   const primaryColor = state.colors[0]?.hex || (state.garmentType === 'hoodie' ? '#34363B' : '#5C7FB6');
   // Artwork engine scene: the garment colour new artwork is drawn on (readable default ink).
-  useEffect(() => { setArtworkScene({ surfaceColour: primaryColor }); }, [primaryColor]);
+  // Asset Studio has its own canvas, so the garment colour must not reach it.
+  const assetCanvas = studioAssetWorkspace.project ? studioAssetWorkspace.project.background ?? '#ffffff' : null;
+  useEffect(() => { setArtworkScene({ surfaceColour: assetCanvas ?? primaryColor }); }, [assetCanvas, primaryColor]);
   const garmentSvgType = resolveProductSvgType(state.importedGarment?.manifest.garmentType ?? state.garmentType, state.importedGarment ? undefined : state.svgPack) ?? (state.importedGarment ? 'tshirt' : null);
   // Finishes do not alter the split geometry. Avoid polygon recomputation for colour/style edits.
   const panellingGeometryKey=JSON.stringify((state.panellingSeams??[]).map(({id,anchors,fit,view,parentSurfaceId,mirrorGroupId,mirrorLinked})=>({id,anchors,fit,view,parentSurfaceId,mirrorGroupId,mirrorLinked})));

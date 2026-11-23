@@ -23,7 +23,7 @@ import { useEffect, useLayoutEffect, useMemo, useState, useRef, Fragment, type R
 import { Brush, Shapes, Type, Grid3X3, ImagePlus, Sparkles, ChevronLeft,Library } from 'lucide-react';
 import { PrintsDesignStep, PrintsDesignPreview, type DesignElement } from '../PrintStudioEditor';
 import { usePrintsStudio } from '../printsStudio/PrintsStudioContext';
-import { useAssetWorkspaceContext, AssetWorkspaceEntry, AssetWorkspaceHeader, AssetWorkspaceDialogs } from '../printsStudio/AssetWorkspace';
+import { useAssetWorkspaceContext, AssetWorkspaceEntry, AssetWorkspaceHeader, AssetWorkspaceDialogs, GarmentOnly } from '../printsStudio/AssetWorkspace';
 import { CanvasZoom } from './CanvasZoom';
 import { useResponsiveBuilder, useBuilderWidth } from './responsiveBuilder';
 import { StudioCreationPanel } from './StudioCreationPanel';
@@ -44,7 +44,9 @@ export const PRINT_TOOL_GROUPS = [
  {id:'distress',label:'Finishes & texture',hint:'Print finishes and wear',icon:Sparkles,group:'FINISH'},
 ] as const;
 export function PrintDesignNavigation({onActivate}:{onActivate?:()=>void}){
- const studio=usePrintsStudio(),items=PRINT_TOOL_GROUPS;
+ const studio=usePrintsStudio(),inAssetStudio=Boolean(useAssetWorkspaceContext()?.project),items=inAssetStudio?PRINT_TOOL_GROUPS.filter(item=>item.id!=='distress'):PRINT_TOOL_GROUPS;
+ // Fabric wear belongs to a garment, so Asset Studio opens on a tool it can use.
+ useEffect(()=>{if(inAssetStudio&&studio.panel==='distress')studio.setPanel('text');},[inAssetStudio,studio.panel]);
  return <div className="print-family-navigation">{items.map(({id,label,icon:Icon,group},index)=><Fragment key={id}>{items[index-1]?.group!==group&&<h2>{group}</h2>}<button className={studio.panel===id?'is-selected':''} aria-current={studio.panel===id?'true':undefined} onClick={()=>{studio.setPanel(id);onActivate?.();}}><Icon size={19} strokeWidth={1.7}/><span>{label}</span></button></Fragment>)}<AddArtworkMenu onActivate={onActivate}/></div>;
 }
 
