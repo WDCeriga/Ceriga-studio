@@ -1,13 +1,15 @@
 import {refreshBoolean} from './booleanArtwork';
 import {refreshRepeat} from '../components/builder/artwork-engine/geometry/repeat';
 import {refreshBlend} from '../components/builder/artwork-engine/geometry/blend';
+import {refreshReflections} from '../components/builder/artwork-engine/geometry/fade';
 import {refreshTextRecipeScale} from '../components/builder/artwork-engine/typography/recipeScale';
+import {refreshTextOutcomeScale} from '../components/builder/artwork-engine/typography/outcomes';
 import {keepEdgeOnResize} from '../components/builder/artwork-engine/geometry/garmentEdges';
 import {getGarmentEdges} from '../components/builder/artwork-engine/state/garmentEdges';
 import type {DesignElement} from '../components/builder/PrintStudioEditor';
 /** Patterns form the background tier; preserve relative order within each tier. */
 export function orderDesignLayers(elements:DesignElement[]):DesignElement[]{
- const layers=elements.map(element=>refreshBlend(refreshRepeat(refreshBoolean(refreshTextRecipeScale(keepEdgeOnResize(element.children&&!element.artworkRepeat&&!element.artworkBlend?{...element,children:orderDesignLayers(element.children)}:element,getGarmentEdges().edges,getGarmentEdges().side))))));
+ const layers=refreshReflections(elements).map(element=>refreshBlend(refreshRepeat(refreshBoolean(refreshTextOutcomeScale(refreshTextRecipeScale(keepEdgeOnResize(element.children&&!element.artworkRepeat&&!element.artworkBlend?{...element,children:orderDesignLayers(element.children)}:element,getGarmentEdges().edges,getGarmentEdges().side)))))));
  return [...layers.filter(e=>e.tracingReference),...layers.filter(e=>!e.tracingReference&&isBackgroundPattern(e)),...layers.filter(e=>!e.tracingReference&&!isBackgroundPattern(e))];
 }
 export function isBackgroundPattern(element:DesignElement):boolean{

@@ -4,6 +4,7 @@ import { ClothingFontPicker } from '../../shell/ClothingFontPicker';
 import { TextAppearanceControls } from '../../shell/TextAppearanceControls';
 import { fontIdentity } from '../../../../lib/workspaceFonts';
 import { StrokeStyleControls } from './StrokeStyleControls';
+import { WidthProfileControls } from './WidthProfileControls';
 import type { DesignElement } from '../../PrintStudioEditor';
 import { StudioFold, StudioNumber, StudioRange } from '../../shell/StudioControls';
 import { usePrintsStudio } from '../../printsStudio/PrintsStudioContext';
@@ -60,7 +61,7 @@ export function RepeatControls({ element, update }: { element: DesignElement; up
         {master.type === 'shape' && <>
           <div className="typography-segments" role="group" aria-label="Source style"><button type="button" aria-pressed={!master.shapeFilled} onClick={() => apply({ master: { shapeFilled: false, shapeStrokeColor: inkOf(master), borderWidth: master.borderWidth || 2 } })}>Outline</button><button type="button" aria-pressed={Boolean(master.shapeFilled)} onClick={() => apply({ master: { shapeFilled: true, shapeFillColor: inkOf(master) } })}>Filled</button></div>
           <StudioNumber label="Outline" unit="mm" min={0} max={40} step={.1} value={mm(master.borderWidth ?? 0)} onChange={value => apply({ master: { borderWidth: px(value), ...(value > 0 && !master.shapeStrokeColor ? { shapeStrokeColor: inkOf(master) } : {}) } })} />
-          {(master.borderWidth ?? 0) > 0 && <StrokeStyleControls element={master} unitsPerCm={studio.unitsPerCm} update={patch => apply({ master: patch })} />}
+          {(master.borderWidth ?? 0) > 0 && <><StrokeStyleControls element={master} unitsPerCm={studio.unitsPerCm} update={patch => apply({ master: patch })} /><WidthProfileControls element={master} update={patch => apply({ master: patch })} /></>}
           <ShapeObjectEditor element={master} update={patch => apply({ master: patch })} toolsOnly />
         </>}
       </div>}

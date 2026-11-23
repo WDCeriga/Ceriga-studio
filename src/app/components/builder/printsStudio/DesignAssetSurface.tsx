@@ -18,6 +18,7 @@ import { alphaBounds, boundsQuad, quadMap, validQuad, UNIT_QUAD, type Bounds, ty
 import type { DesignElement } from '../PrintStudioEditor';
 import { drawingMaskCss, type GarmentDrawingMask } from './useGarmentDrawingMask';
 import { textAppearanceBleed } from '../../../lib/textAppearance';
+import { fadeStyle } from '../artwork-engine/geometry/fade';
 import { sourceSignature, WarpedArtwork } from './WarpedArtwork';
 import type { WarpSettings } from '../../../lib/warpGeometry';
 import { buildArtworkClipPath } from '../../../lib/artworkCrop';
@@ -25,11 +26,13 @@ import { registerArtworkHitTest } from '../../../lib/artworkHitTesting';
 
 const FULL_VECTOR_BOUNDS:Bounds={x:0,y:0,width:1,height:1};
 
-export function DesignAssetSurface({ clipStyle,element, selected, interacting = false, editingPath = false, distort = false, scale, onChange, children, overlay, garmentMask, position, warpEditing = false, onWarpChange, cropping = false, cropOverlay }: {
+export function DesignAssetSurface({ generatedLayer=false,clipStyle,element, selected, interacting = false, editingPath = false, distort = false, scale, onChange, children, overlay, garmentMask, position, warpEditing = false, onWarpChange, cropping = false, cropOverlay }: {
   clipStyle?:CSSProperties;
   element: DesignElement; selected: boolean; distort?: boolean; scale: number; onChange: (patch: Partial<DesignElement>) => void; children: ReactNode; overlay: ReactNode;
   interacting?: boolean;
   editingPath?: boolean;
+  /** One of many generated layers (outcome copies, blend bands): its parent already holds the print mask. */
+  generatedLayer?: boolean;
   garmentMask?: GarmentDrawingMask | null;
   position?: { x: number; y: number };
   warpEditing?: boolean;
@@ -133,7 +136,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
     const node = content.current;
     if (!node || interacting || editingPath) return;
     // A blend has hundreds of lines: rasterising them to a hit mask stalls the page, so its frame is the hit area.
-    if (element.artworkBlend) { setPrintMask(null); setBounds({ x: 0, y: 0, width: 1, height: 1 }); return; }
+    if (element.artworkBlend || generatedLayer) { setPrintMask(null); setBounds({ x: 0, y: 0, width: 1, height: 1 }); return; }
     let cancelled = false;
     const version = captureVersion.current;
     const current = () => !cancelled && version === captureVersion.current;
@@ -256,7 +259,7 @@ export function DesignAssetSurface({ clipStyle,element, selected, interacting = 
       maskSize: appearanceBleed ? `calc(100% + ${appearanceBleed * 2}px) calc(100% + ${appearanceBleed * 2}px)` : '100% 100%', maskRepeat: 'no-repeat',
       ...(appearanceBleed ? { maskPosition: `${-appearanceBleed}px ${-appearanceBleed}px`, maskClip: 'no-clip' as const } : {}),
     } : {}) }}>
-    <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: projectionTransform }}>
+    <div data-asset-projection className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', transformOrigin: '0 0', transform: projectionTransform, ...fadeStyle(element) }}>
       <div ref={content} data-asset-content className="relative w-full" style={{ height: element.type === 'text' ? undefined : '100%', clipPath: buildArtworkClipPath(element, { ignoreCrop: cropping }),maskImage:eraseMask,maskSize:'100% 100%',maskRepeat:'no-repeat' }}>
         <div style={surfaceMask} className="h-full w-full"><ArtworkSurfaceContext.Provider value={null}><div data-artwork-clipped={clipStyle?true:undefined} style={{...clipStyle,filter:vectorEffectFilter(element.vectorEffects)}} className="h-full w-full"><ArtworkFinishPreview element={element}>{element.warp ? <WarpedArtwork element={element} warp={element.warp} editing={warpEditing} onCommit={onWarpChange ?? (() => {})}>{children}</WarpedArtwork> : children}</ArtworkFinishPreview></div></ArtworkSurfaceContext.Provider></div>
       </div>

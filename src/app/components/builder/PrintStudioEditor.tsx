@@ -1,6 +1,7 @@
 import { RepeatCentreHandle } from './artwork-engine/interaction/RepeatCentreHandle';
 import { ShapeBuilderOverlay } from './artwork-engine/interaction/ShapeBuilderOverlay';
 import { useShapeBuilder } from './artwork-engine/state/shapeBuilder';
+import { ColourFieldHandles } from './artwork-engine/interaction/ColourFieldHandles';
 import { LetterStretchOverlay } from './artwork-engine/interaction/LetterStretchOverlay';
 import { useLiveOverlaps } from './artwork-engine/interaction/useLiveOverlaps';
 import { garmentEdges, refreshEdgeText } from './artwork-engine/geometry/garmentEdges';
@@ -262,6 +263,9 @@ export interface DesignElement extends ImageAdjustmentValues {
   paintStain?:{style:string;seed:number;spread:number};
   shapeStrokeStyle?:'solid'|'dashed'|'dotted'|'double';
   /** Dash length and gap (garment px); default from stroke width. */
+  /** Soft multi-point colour fill and variable line width (Artwork refs 16, 17). */
+  colourField?:import('./artwork-engine/geometry/colourField').ColourField;
+  shapeWidthProfile?:import('./artwork-engine/geometry/widthProfile').WidthProfile;
   shapeDashLength?:number;
   shapeDashGap?:number;
   shapeOutlineAccent?:string;
@@ -277,6 +281,10 @@ export interface DesignElement extends ImageAdjustmentValues {
   /** Live blend group: children are the hidden source paths; the lines are generated (Artwork ref 16). */
   artworkBlend?:import('./artwork-engine/geometry/blend').BlendSettings;
   blendKey?:string;
+  /** Editable gradient fade, blend mode and linked reflection (Artwork ref 17). */
+  artworkFade?:import('./artwork-engine/geometry/fade').ArtworkFade;
+  artworkBlendMode?:import('./artwork-engine/geometry/fade').ArtworkBlendMode;
+  reflectionOf?:import('./artwork-engine/geometry/fade').ReflectionLink;
   /** A live overlap colour between two objects (Artwork ref 19). */
   overlapOf?:import('./artwork-engine/geometry/overlap').OverlapLink;
   /** Colour of a key shape inside a blend. */
@@ -309,6 +317,8 @@ export interface DesignElement extends ImageAdjustmentValues {
   textFrameMode?:'point'|'area';
   /** Applied text recipe and the style it replaced (Artwork Phase 2). */
   textRecipe?:import('./artwork-engine/typography/recipes').TextRecipeState;
+  /** One-tap text outcome and its editable values (Artwork plan 9.5). */
+  textOutcome?:import('./artwork-engine/typography/outcomes').TextOutcome;
   textKerningPairs?:{index:number;offset:number}[];
   textKerning?:number;
   fontStyle?: 'normal' | 'italic';
@@ -3961,6 +3971,7 @@ export function PrintsDesignPreview({
           {editable&&studio.booleanPreview.map(preview=><div key={preview.id} data-editor-chrome aria-hidden="true" className="pointer-events-none absolute" style={{left:preview.x,top:preview.y,width:preview.width,height:preview.height,transform:`translate(-50%,-50%) rotate(${preview.rotation}deg)`,opacity:.4,zIndex:95}}><StudioGraphic element={{...preview,shapeFilled:true,shapeFillColor:preview.shapeFillColor??preview.color??'#737373',borderWidth:0,shapeEffects:undefined}}/></div>)}
           {!surfaceContext && marqueeOverlay}
           {editable && alignmentGuides && <ArtworkAlignmentGuides vertical={alignmentGuides.vertical} horizontal={alignmentGuides.horizontal} inverseScale={uiInv} hairline={Boolean(surfaceContext && !isPackagingSurface)}/>}
+          {editable && !shapeBuilderIds && studio.tool === 'select' && selectedElement?.colourField && selectedElement.shapeFilled && !draggingId && !manip && <ColourFieldHandles element={selectedElement} inverseScale={uiInv} onChange={(patch, transient) => updateElement(selectedElement.id, patch, false, transient)}/>}
           {editable && !shapeBuilderIds && studio.tool === 'select' && selectedElement?.artworkRepeat && !draggingId && <RepeatCentreHandle group={selectedElement} inverseScale={uiInv} onChange={next => updateElement(next.id, next)}/>}
                 {editable && shapeBuilderIds && <ShapeBuilderOverlay elements={elements} ids={shapeBuilderIds} onCommit={(next, id) => { studio.setSelectionIds([]); studio.setSelectionAdditive(false); onChangeRef.current?.(next, id); }}/>}
                 {editable && alignmentGuides?.spacing && <SpacingHints hints={alignmentGuides.spacing} inverseScale={uiInv} unitsPerCm={studio.unitsPerCm}/>}
@@ -4105,7 +4116,7 @@ export function PrintsDesignPreview({
                 data-pattern-reference-size={visualElement.patternReferenceSize}
                 data-pattern-part-label={patternPart?.label}
                 data-pattern-part-bounds={patternPart?JSON.stringify(patternPart.bounds):undefined}
-                data-artwork-hit-disabled={element.overlapOf || element.id === DRAWING_LAYER_ID || (surfaceContext && element.locked && element.svgPrecision && !element.svgPrecision.owner) ? '' : undefined}
+                data-artwork-hit-disabled={element.overlapOf || element.reflectionOf || element.id === DRAWING_LAYER_ID || (surfaceContext && element.locked && element.svgPrecision && !element.svgPrecision.owner) ? '' : undefined}
                 className={cn(
                   'absolute canvas-element-drag',
                   draggingId === element.id && 'z-[15]',
@@ -4116,7 +4127,7 @@ export function PrintsDesignPreview({
                 )}
                 style={{
                   ...({'--artwork-ui-inverse':uiInv} as React.CSSProperties),
-                  mixBlendMode:element.patternTarget?.startsWith('trim:')?'multiply':undefined,
+                  mixBlendMode:element.patternTarget?.startsWith('trim:')?'multiply':element.artworkBlendMode,
                   visibility:studio.tool==='shapePolygon'&&studio.penOperation==='continue'&&studio.penTargetId===element.id?'hidden':undefined,
                   zIndex:assetMode?(isBackgroundPattern(element)?0:isHeld?15:1):(element.behindTrims?100:isHeld?260:250),
                   left: liveX,

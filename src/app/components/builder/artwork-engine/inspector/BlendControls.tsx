@@ -70,7 +70,7 @@ export function BlendControls({ element, update }: { element: DesignElement; upd
       <label className="studio-switch">Reverse direction<input type="checkbox" checked={s.reverse} onChange={event => set({ reverse: event.target.checked })} /></label>
       {artwork && (s.spine
         ? <button type="button" className="studio-outline-action" onClick={() => artwork.onChange(clearBlendSpine(artwork.elements, element.id), element.id)}>Release spine</button>
-        : <label className="studio-field">Follow a path<MaterialSelect aria-label="Blend spine" value="" onChange={event => event.target.value && artwork.onChange(setBlendSpine(artwork.elements, element.id, event.target.value), element.id)}><option value="">Straight</option>{paths.map(item => <option key={item.id} value={item.id}>{item.layerName ?? item.content}</option>)}</MaterialSelect></label>)}
+        : <label className="studio-field">Follow a path<MaterialSelect aria-label="Blend spine" value="" onChange={event => event.target.value && artwork.onChange(setBlendSpine(artwork.elements, element.id, event.target.value), element.id)}><option value="">Straight</option>{paths.map(item => <option key={item.id} value={item.id}>{item.layerName ?? (item.content === 'custom-path' || item.content === 'custom-polygon' ? 'Pen path' : item.content)}</option>)}</MaterialSelect></label>)}
     </StudioFold>
 
     <StudioFold title="Source paths" rowHeight={40} value={`${sources.length}`} open>

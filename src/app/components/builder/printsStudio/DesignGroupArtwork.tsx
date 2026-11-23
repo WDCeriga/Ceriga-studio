@@ -32,7 +32,7 @@ export const DesignGroupArtwork=memo(function DesignGroupArtwork({ element }: { 
           opacity: (child.opacity ?? 100) / 100, transform: `translate(-50%, -50%) rotate(${child.rotation}deg)` }}>
         <ImageFxDefs element={child} />
         <ImageAdjustmentDefs element={child} />
-        <DesignAssetSurface clipStyle={artworkClipStyle(child,element.children??[])} element={child} selected={false} scale={displayScale} onChange={ignore} overlay={null}>
+        <DesignAssetSurface generatedLayer={Boolean(element.artworkBlend)||element.content==='expanded-text-appearance'} clipStyle={artworkClipStyle(child,element.children??[])} element={child} selected={false} scale={displayScale} onChange={ignore} overlay={null}>
           {child.type === 'group' ? <DesignGroupArtwork element={child} />
             : child.type === 'text' ? <TextArtwork element={child} fontSize={child.fontSize ?? 30} />
               : child.type === 'customArea' ? <CustomAreaGraphic element={child} points={child.customAreaPoints ?? []} selectedPoint={null} editing={false} onSelectPoint={ignore} onPointPointerDown={ignore} />

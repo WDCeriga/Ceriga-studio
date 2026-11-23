@@ -1,4 +1,7 @@
 import {StrokeStyleControls} from '../artwork-engine/inspector/StrokeStyleControls';
+import {FadeBlendControls} from '../artwork-engine/inspector/FadeBlendControls';
+import {ColourFieldControls} from '../artwork-engine/inspector/ColourFieldControls';
+import {WidthProfileControls} from '../artwork-engine/inspector/WidthProfileControls';
 import {VectorEffectsPanel} from './VectorEffectsPanel';
 import {ArtworkPrintMethod} from './ArtworkPrintMethod';
 import {artworkColours} from '../../../lib/artworkColourSlots';
@@ -26,9 +29,11 @@ export function SharedArtworkObjectPanel({element,update,children}:{element:Desi
  {/* ADJUST — the shape's own geometry first, then appearance, effects, arrange */}
  <div className="studio-object-tools">{children}</div>
  <StudioFold title="Appearance" rowHeight={40} value={`${artworkColours(element).length} colour${artworkColours(element).length === 1 ? '' : 's'}`}><fieldset disabled={element.locked}>
- {nativeShape?<><TextAppearanceControls element={{...element,textUnitsPerCm:units,textAppearance:shapeAppearance(element,units)}} update={patch=>update({...('textAppearance'in patch?{artworkAppearance:patch.textAppearance,textUnitsPerCm:units}:{}),...('opacity'in patch?{opacity:patch.opacity}:{})})}/><label className="studio-field">Stroke cap<MaterialSelect aria-label="Stroke cap" value={element.shapeStrokeCap??'round'} onChange={event=>update({shapeStrokeCap:event.target.value as DesignElement['shapeStrokeCap']})}>{['round','butt','square'].map(cap=><option key={cap}>{cap}</option>)}</MaterialSelect></label>{(element.borderWidth??0)>0&&<StrokeStyleControls element={element} update={update} unitsPerCm={units}/>}{element.artworkAppearance&&<button className="studio-outline-action" onClick={()=>update(expandShapeAppearance({...canonical,textUnitsPerCm:units},true))}>Expand appearance</button>}<StudioFold title="Colourway inks" rowHeight={40}><ArtworkColourSlots element={element} update={update}/></StudioFold></>:<><ArtworkColourSlots element={element} update={update}/>{!element.colourSlots?.length&&element.type!=='image'&&<StudioPaint label="Ink colour" value={element.color??'#171717'} onChange={color=>update({color})}/>}<StudioRange label="Opacity" value={element.opacity??100} onChange={opacity=>update({opacity})}/></>}
+ {nativeShape?<><TextAppearanceControls element={{...element,textUnitsPerCm:units,textAppearance:shapeAppearance(element,units)}} update={patch=>update({...('textAppearance'in patch?{artworkAppearance:patch.textAppearance,textUnitsPerCm:units}:{}),...('opacity'in patch?{opacity:patch.opacity}:{})})}/><label className="studio-field">Stroke cap<MaterialSelect aria-label="Stroke cap" value={element.shapeStrokeCap??'round'} onChange={event=>update({shapeStrokeCap:event.target.value as DesignElement['shapeStrokeCap']})}>{['round','butt','square'].map(cap=><option key={cap}>{cap}</option>)}</MaterialSelect></label>{(element.borderWidth??0)>0&&<StrokeStyleControls element={element} update={update} unitsPerCm={units}/>}{(element.borderWidth??0)>0&&!element.artworkAppearance&&<WidthProfileControls element={element} update={update}/>}{element.artworkAppearance&&<button className="studio-outline-action" onClick={()=>update(expandShapeAppearance({...canonical,textUnitsPerCm:units},true))}>Expand appearance</button>}<StudioFold title="Colourway inks" rowHeight={40}><ArtworkColourSlots element={element} update={update}/></StudioFold></>:<><ArtworkColourSlots element={element} update={update}/>{!element.colourSlots?.length&&element.type!=='image'&&<StudioPaint label="Ink colour" value={element.color??'#171717'} onChange={color=>update({color})}/>}<StudioRange label="Opacity" value={element.opacity??100} onChange={opacity=>update({opacity})}/></>}
  <ArtworkClipControls element={element} update={update}/>
  </fieldset></StudioFold>
+ {nativeShape&&!element.artworkAppearance&&<ColourFieldControls element={element} update={update}/>}
+ <FadeBlendControls element={element} update={update}/>
  <VectorEffectsPanel element={element} update={update}/>
  <ArtworkTransformFields element={element} update={update}/>
  {/* ADVANCED */}

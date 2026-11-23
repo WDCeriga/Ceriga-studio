@@ -13,6 +13,7 @@ import { startShapeBuilder } from '../state/shapeBuilder';
 import { createRepeat } from '../geometry/repeat';
 import { blendIssue, createBlend } from '../geometry/blend';
 import { createOverlap, overlapIssue } from '../geometry/overlap';
+import { createReflection } from '../geometry/fade';
 import { placeTextInside, textAndShape, warpTextToShape } from '../geometry/textFit';
 import { outlineTextForCombine } from '../geometry/combine';
 import { createBoolean } from '../../../../lib/booleanArtwork';
@@ -92,6 +93,7 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
         knockoutId.current = id; return createBoolean(prepared, ids, 'subtract', id);
       }, undefined),
     } : undefined,
+    reflect: selected && !selected.reflectionOf && !elements.some(element => element.reflectionOf?.of === selected.id) ? () => onChange(createReflection(elements, selected.id, crypto.randomUUID(), studio.unitsPerCm * .2), selected.id) : undefined,
     stretchLetters: selected?.type === 'text' ? { on: studio.adjustLettersId === selected.id, toggle: () => studio.setAdjustLettersId(studio.adjustLettersId === selected.id ? null : selected.id) } : undefined,
     textRecipes: selected?.type === 'text' ? {
       active: selected.textRecipe?.id,

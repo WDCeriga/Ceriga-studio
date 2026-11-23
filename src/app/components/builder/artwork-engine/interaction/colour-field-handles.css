@@ -1,0 +1,4 @@
+/* Colour points on the artwork. */
+.cx-field-handles{position:absolute;z-index:600;pointer-events:none}
+.cx-field-handles>button{position:absolute;width:18px;height:18px;padding:0;border:2px solid #fff;border-radius:999px;box-shadow:0 0 0 1px rgb(0 0 0 / .28),0 1px 3px rgb(0 0 0 / .28);cursor:move;pointer-events:auto;touch-action:none}
+.cx-field-handles>button[aria-pressed=true]{box-shadow:0 0 0 2px #2F6FED,0 1px 3px rgb(0 0 0 / .28)}

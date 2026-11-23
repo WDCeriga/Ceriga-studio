@@ -38,6 +38,8 @@ export type ContextHandlers = {
   /** Single text: one-tap styles (plan §9.6). */
   /** Single text: stretch individual letters on the canvas. */
   stretchLetters?: { on: boolean; toggle: () => void };
+  /** Single object: add a linked reflection below it. */
+  reflect?: () => void;
   textRecipes?: { active?: string; apply: (id: string) => void; clear?: () => void };
   /** Multi-select of paths: make a live blend. */
   blend?: () => void;
@@ -124,6 +126,7 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
     ],
     overflow: [
       { id: 'flip-y', label: 'Flip vertically', icon: <FlipVertical2 size={ICON} />, disabled: locked, onSelect: () => h.flip('y') },
+      ...(h.reflect ? [{ id: 'reflect', label: 'Add reflection', icon: <FlipVertical2 size={ICON} />, disabled: locked, onSelect: h.reflect } as ContextAction] : []),
       { id: 'sep-o', label: '' },
       ...(alignMenu(h, 'print-area', 'Align to print area').menu ?? []).map((item): ContextAction => ({
         ...item, id: 'pa-' + item.id, disabled: locked, label: item.label.replace('Align', 'Print area ·'),

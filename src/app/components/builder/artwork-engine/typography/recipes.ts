@@ -3,6 +3,7 @@ import { createTextEffect, type TextEffectId } from '../../../../lib/textEffects
 import { textGradientAllowed, type TextAppearanceItem } from '../../../../lib/textAppearance';
 import { fontIdentity } from '../../../../lib/workspaceFonts';
 import { INK_DARK, INK_LIGHT, contrastRatio, readableInk } from '../geometry/colour';
+import { applyTextOutcome } from './outcomes';
 
 /**
  * Text recipes (plan §9.6). A recipe is font + spacing + case + appearance stack + optional warp and finish.
@@ -110,6 +111,12 @@ function paint(colour: Colour, roles: ReturnType<typeof recipeColours>, gradient
 
 /** The patch that puts a recipe on a text object. */
 export function applyTextRecipe(element: DesignElement, recipeId: string, surface: string | undefined, unitsPerCm: number): Partial<DesignElement> {
+  const patch = recipePatch(element, recipeId, surface, unitsPerCm);
+  if (!element.textOutcome || !patch.textAppearance) return patch;
+  const outcome = { ...element.textOutcome, baseTracking: patch.letterSpacing };
+  return { ...patch, ...applyTextOutcome({ ...element, ...patch, textOutcome: outcome } as DesignElement, outcome, unitsPerCm) };
+}
+function recipePatch(element: DesignElement, recipeId: string, surface: string | undefined, unitsPerCm: number): Partial<DesignElement> {
   const recipe = TEXT_RECIPES.find(item => item.id === recipeId);
   if (!recipe) return {};
   const base = element.textRecipe?.base ?? styleOf(element);
@@ -135,6 +142,8 @@ export function applyTextRecipe(element: DesignElement, recipeId: string, surfac
     ...(recipe.warp && !element.textPath ? { textShapeMode: 'warp' as const, textCurveAmount: 0, textStackFit: false, vectorTextEffects: [{ id: 'text-shape', type: recipe.warp.type, enabled: true, bend: recipe.warp.bend, horizontal: 0, vertical: 0 }] } : {}),
     ...(recipe.stack && !element.textPath ? { textShapeMode: 'stack' as const, textStackFit: true, textCurveAmount: 0, vectorTextEffects: undefined } : {}),
     textRecipe: { id: recipe.id, size, base },
+    // A style swaps the letters' look; a chosen outcome stays on top of it.
+    textOutcome: undefined,
   };
 }
 

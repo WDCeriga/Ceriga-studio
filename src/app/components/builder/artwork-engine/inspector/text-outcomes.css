@@ -1,0 +1,16 @@
+/* Text outcomes: the user's word in each look, then exact values. */
+.cx-outcomes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:2px 0 10px}
+.ceriga-builder-shell .builder-inspector .cx-outcome-tile{display:flex;flex-direction:column;gap:4px;min-width:0;padding:3px 3px 5px;border:1px solid #e6e6e3;border-radius:8px;background:#fff;color:#3f3f3c;font-size:11px;line-height:1.2;text-align:center;transition:border-color .15s ease-out,transform .125s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-outcome-tile:hover{border-color:#bdbdb8}
+.ceriga-builder-shell .builder-inspector .cx-outcome-tile:active{transform:scale(.97)}
+.ceriga-builder-shell .builder-inspector .cx-outcome-tile[aria-pressed=true]{border-color:#1f1f1d;color:#1f1f1d;box-shadow:0 0 0 1px #1f1f1d}
+.cx-outcome-tile__stage{display:block;height:46px;overflow:hidden;border-radius:5px}
+.cx-outcome-tile__art{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;overflow:hidden;pointer-events:none}
+.cx-outcome-tile__art>span{position:relative;display:block;flex:none;transform-origin:center}
+.cx-outcome-tile__name{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-outcome-values{margin-bottom:6px}
+.cx-outcome-wells{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:6px 0 8px}
+.cx-outcome-well{display:flex;align-items:center;justify-content:space-between;color:#3f3f3c;font-size:13px}
+.cx-outcome-well input{width:28px;height:28px;padding:0;overflow:hidden;border:1px solid #dadad7;border-radius:999px;background:none;cursor:pointer}
+.cx-outcome-well input::-webkit-color-swatch-wrapper{padding:0}
+.cx-outcome-well input::-webkit-color-swatch{border:0;border-radius:999px}

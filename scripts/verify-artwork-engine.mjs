@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { surfaceRuntime } from './surface-test-runtime.mjs';
 
 // Artwork engine (plan R1): pure state + geometry modules are unit-tested here.
-const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { productionArtworkSvg } from './src/app/lib/productionArtwork';export * from './src/app/components/builder/artwork-engine/geometry/letterStretch';export { overlapColour, overlapIsStale, overlapIssue, overlapShape, createOverlap, refreshOverlap } from './src/app/components/builder/artwork-engine/geometry/overlap';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
+const { api } = await surfaceRuntime(`export * from './src/app/components/builder/artwork-engine/state/workspaceState';export * from './src/app/components/builder/artwork-engine/geometry/colour';export * from './src/app/components/builder/artwork-engine/state/sharedProperties';export * from './src/app/components/builder/artwork-engine/geometry/placement';export * from './src/app/components/builder/artwork-engine/geometry/spacing';export * from './src/app/components/builder/artwork-engine/geometry/readout';export * from './src/app/components/builder/artwork-engine/geometry/pivot';export * from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export * from './src/app/components/builder/artwork-engine/geometry/shapes/registry';export { roundVectorPath } from './src/app/lib/roundedVectorPath';export * from './src/app/components/builder/artwork-engine/geometry/repeat';export * from './src/app/components/builder/artwork-engine/geometry/pathCut';export { shapeProfile, middleChord, textAndShape, restoreWarpedShape } from './src/app/components/builder/artwork-engine/geometry/textFit';export { restoreBuiltShapes } from './src/app/components/builder/artwork-engine/geometry/shapeBuilder';export { restoreLiveText } from './src/app/lib/booleanArtwork';export * from './src/app/components/builder/artwork-engine/geometry/blend';export { productionArtworkSvg } from './src/app/lib/productionArtwork';export * from './src/app/components/builder/artwork-engine/geometry/letterStretch';export { overlapColour, overlapIsStale, overlapIssue, overlapShape, createOverlap, refreshOverlap } from './src/app/components/builder/artwork-engine/geometry/overlap';export { DEFAULT_FADE, createReflection, refreshReflections, fadeGradient, fadeStyle } from './src/app/components/builder/artwork-engine/geometry/fade';export { orderDesignLayers } from './src/app/lib/designLayerOrdering';export * from './src/app/components/builder/artwork-engine/typography/outcomes';export { expandTextAppearance } from './src/app/lib/textAppearance';export * from './src/app/components/builder/artwork-engine/geometry/colourField';export * from './src/app/components/builder/artwork-engine/geometry/widthProfile';export { sameData, samePreviewProps, changedPreviewProps, withoutArtwork } from './src/app/components/builder/artwork-engine/state/stablePreviewProps';export * from './src/app/components/builder/artwork-engine/geometry/garmentEdges';export { applyVectorTextEffects } from './src/app/lib/vectorTextEffects';export * from './src/app/components/builder/artwork-engine/typography/recipes';export * from './src/app/components/builder/artwork-engine/typography/recipeScale';`);
 
 // Workspace states (plan §4.2)
 const state = input => api.deriveWorkspaceState({ tool: 'select', selectionCount: 0, directEditing: false, ...input });
@@ -283,3 +283,63 @@ const movedB = { ...boxB, x: 70 }; assert.equal(api.overlapIsStale(ov, boxA, mov
 const refreshed = await api.refreshOverlap(ov, boxA, movedB); assert(Math.abs(refreshed.width - 40) < .1, 'the overlap reshapes');
 assert.equal((await api.refreshOverlap(ov, boxA, { ...boxB, x: 500 })).hidden, true, 'it hides when the objects stop touching');
 console.log('artwork engine: letter stretch and overlap ok');
+
+// Reference 17: editable fade, blend mode and a reflection that follows its object.
+assert(api.fadeGradient(api.DEFAULT_FADE).includes('linear-gradient(180deg'));
+assert(api.fadeGradient({ ...api.DEFAULT_FADE, type: 'radial' }).startsWith('radial-gradient'));
+assert.equal(api.fadeStyle(boxA), undefined, 'no fade, no mask');
+const mirrored2 = api.createReflection([boxA], 'oa', 'rf', 4);
+assert.deepEqual(mirrored2.map(item => item.id), ['rf', 'oa'], 'the reflection sits behind its object');
+const rf = mirrored2[0]; assert.equal(rf.flipVertical, true); assert.equal(rf.height, 36, 'default length 60%'); assert.equal(rf.y, 50 + 30 + 4 + 18);
+const movedSource = api.refreshReflections(mirrored2.map(item => item.id === 'oa' ? { ...item, x: 120, shapeFillColor: '#00aa55' } : item))[0];
+assert.equal(movedSource.x, 120); assert.equal(movedSource.shapeFillColor, '#00aa55', 'edits to the object carry to the reflection');
+assert.equal(movedSource.opacity, rf.opacity, 'its own strength is kept');
+assert.equal(api.refreshReflections(mirrored2), mirrored2, 'an unchanged reflection is stable');
+assert.deepEqual(api.refreshReflections([rf]).length, 0, 'deleting the object removes its reflection');
+assert.equal(api.orderDesignLayers(mirrored2.map(item => item.id === 'oa' ? { ...item, y: 70 } : item)).find(item => item.id === 'rf').y, 122, 'the layer pipeline keeps it in step');
+const fadedSvg = await api.productionArtworkSvg([{ ...boxA, artworkFade: api.DEFAULT_FADE, artworkBlendMode: 'multiply' }], 200, 200);
+assert(fadedSvg.includes('<mask') && fadedSvg.includes('linearGradient') && fadedSvg.includes('mix-blend-mode:multiply'), 'fade and blend mode reach the print file');
+console.log('artwork engine: fade, blend mode and reflection ok');
+
+// Plan 9.5: one-tap outcomes stay editable, reversible, proportional and live.
+const outWord = { ...word, id: 'ow', fontSize: 40, letterSpacing: 2, textUnitsPerCm: 10 };
+for (const { id } of api.TEXT_OUTCOMES) {
+  const styled = { ...outWord, ...api.applyTextOutcome(outWord, api.defaultOutcome(id, '#111111', '#ffffff'), 10) };
+  assert.equal(styled.content, 'Ceriga', id + ' keeps the words'); assert.equal(styled.textOutcome.id, id);
+  assert(styled.textAppearance.some(item => item.id.startsWith('outcome-')), id + ' adds editable layers');
+  const again = { ...styled, ...api.applyTextOutcome(styled, { ...styled.textOutcome, distance: styled.textOutcome.distance * 2 }, 10) };
+  assert.equal(again.textAppearance.length, styled.textAppearance.length, id + ' does not stack up when edited');
+  const removed = { ...styled, ...api.clearTextOutcome(styled) };
+  assert(!removed.textAppearance.some(item => item.id.startsWith('outcome-')), id + ' removes cleanly'); assert.equal(removed.letterSpacing, 2, id + ' restores tracking');
+}
+const longShadow = { ...outWord, ...api.applyTextOutcome(outWord, api.defaultOutcome('long-shadow', '#111111', '#ffffff'), 10) };
+const depthOf = el => el.textAppearance.find(item => item.type === 'extrude').depthMm;
+const doubled = api.refreshTextOutcomeScale({ ...longShadow, fontSize: 80 });
+assert(Math.abs(depthOf(doubled) - depthOf(longShadow) * 2) < 1e-6, 'outcomes scale with the text');
+assert.equal(api.refreshTextOutcomeScale(doubled), doubled, 'outcome scaling is stable');
+const interlocked = { ...outWord, ...api.applyTextOutcome(outWord, api.defaultOutcome('interlock', '#111111', '#ffffff'), 10) };
+assert(interlocked.letterSpacing < 2, 'interlock pulls letters together'); assert.equal(interlocked.textAppearance[0].type, 'interlock', 'interlock draws on top');
+const restyled = { ...interlocked, ...api.applyTextRecipe(interlocked, 'athletic', '#ffffff', 10) };
+assert.equal(restyled.textOutcome.id, 'interlock', 'changing style keeps the outcome'); assert.equal(restyled.textRecipe.id, 'athletic');
+assert(restyled.textAppearance.filter(item => item.type === 'interlock').length === 1);
+console.log('artwork engine: text outcomes ok');
+
+// References 16 and 17: colour fields and variable-width lines, as editable vectors in the print file.
+assert(api.COLOUR_FIELD_PRESETS.length >= 6, 'colour field looks');
+const fieldLook = api.COLOUR_FIELD_PRESETS[0].field, fieldSvg = api.colourFieldSvg('f', fieldLook, 200, 100);
+assert.equal((fieldSvg.defs.match(/<radialGradient/g) ?? []).length, fieldLook.points.length, 'one gradient per point');
+assert.equal((fieldSvg.layers.match(/<rect/g) ?? []).length, fieldLook.points.length + 1, 'base plus one layer per point');
+const hardPoint = api.colourFieldSvg('h', { base: '#ffffff', points: [{ id: 'a', x: 50, y: 50, colour: '#000000', size: 50, softness: 0, opacity: 100 }] }, 100, 100);
+assert(hardPoint.defs.includes('offset="0.875" stop-color="#000000" stop-opacity="1.0000"'), 'zero softness keeps a solid centre');
+assert.notEqual(api.newFieldPoint(fieldLook, 'n').id, fieldLook.points[0].id);
+assert.equal(api.widthAt(api.WIDTH_PRESETS[0].stops, 0), 0); assert.equal(api.widthAt(api.WIDTH_PRESETS[0].stops, .5), 1); assert.equal(api.widthAt(api.WIDTH_PRESETS[0].stops, 1), 0);
+assert(api.widthAt([{ t: 0, width: 0 }, { t: 1, width: 100 }], .25) < .25, 'width eases between stops');
+const taperLine = { closed: false, nodes: [{ x: 0, y: 50 }, { x: 100, y: 50 }] };
+const outlined = api.profileOutline(taperLine, 10, { stops: api.WIDTH_PRESETS[0].stops });
+const outlineYs = [...outlined.matchAll(/(?:M|L)(-?[\d.]+) (-?[\d.]+)/g)].map(m => Number(m[2]));
+assert(Math.max(...outlineYs) <= 55.01 && Math.max(...outlineYs) > 54.5 && Math.min(...outlineYs) < 45.5, 'the line reaches full width in the middle');
+assert(api.profileOutline({ closed: true, nodes: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 50, y: 50 }, { x: 0, y: 50 }] }, 4, { stops: [{ t: 0, width: 100 }, { t: 1, width: 100 }] }).split('Z').length > 3, 'a closed line has an inner and outer edge');
+const fieldBox = { ...boxA, colourField: fieldLook, shapeWidthProfile: { stops: api.WIDTH_PRESETS[0].stops }, borderWidth: 3 };
+const fieldPrint = await api.productionArtworkSvg([fieldBox], 200, 200);
+assert(fieldPrint.includes('radialGradient') && fieldPrint.includes('clip-path') && fieldPrint.includes('fill-rule="nonzero"') && !fieldPrint.includes('stroke-width="3"'), 'field and tapered line reach the print file as vectors');
+console.log('artwork engine: colour field and width profile ok');

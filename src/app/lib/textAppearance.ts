@@ -7,7 +7,7 @@ import clipping,{type MultiPolygon} from 'polygon-clipping';
 import {richTextSpans} from './richArtworkText';
 import {DEFAULT_IMAGE_ADJUSTMENTS} from './imageAdjustments';
 
-export type TextAppearanceItem={id:string;type:'fill'|'stroke'|'offset'|'shadow'|'extrude';enabled:boolean;colour:string;preserveCharacterColours?:boolean;widthMm?:number;join?:'round'|'miter'|'bevel';position?:'inside'|'outside'|'center';xMm?:number;yMm?:number;depthMm?:number;angle?:number};
+export type TextAppearanceItem={id:string;type:'fill'|'stroke'|'offset'|'shadow'|'extrude'|'interlock';enabled:boolean;colour:string;/** Extrude: fades to this colour. Interlock: the letter colour. */colourTo?:string;/** Extrude: separate copies instead of a solid depth. */copies?:number;/** Extrude: size of the far end, 1 = same. */scaleTo?:number;/** Extrude: thin outline around each copy so they read separately. */edgeMm?:number;preserveCharacterColours?:boolean;widthMm?:number;join?:'round'|'miter'|'bevel';position?:'inside'|'outside'|'center';xMm?:number;yMm?:number;depthMm?:number;angle?:number};
 export function textAppearance(element:DesignElement):TextAppearanceItem[]{
   if(element.textAppearance)return element.textAppearance;
   const items:TextAppearanceItem[]=[{id:'text-fill',type:'fill',enabled:element.textFillMode!=='outline',colour:element.color??'#171717',preserveCharacterColours:Boolean(element.textCharacterStyles?.some(range=>range.style.color))}],units=element.textUnitsPerCm??30;
@@ -15,9 +15,10 @@ export function textAppearance(element:DesignElement):TextAppearanceItem[]{
   if(element.textShadowEnabled)items.push({id:'text-shadow',type:'shadow',enabled:true,colour:element.shadowColor??'#171717',xMm:(element.shadowOffsetX??2)*10/units,yMm:(element.shadowOffsetY??2)*10/units});
   return items;
 }
+const mixHex=(a:string,b:string,t:number)=>{if(!/^#[0-9a-f]{6}$/i.test(a)||!/^#[0-9a-f]{6}$/i.test(b))return a;return '#'+[1,3,5].map(i=>{const x=parseInt(a.slice(i,i+2),16),y=parseInt(b.slice(i,i+2),16);return Math.round(x+(y-x)*t).toString(16).padStart(2,'0')}).join('')};
 export function textColours(element:DesignElement){return [...new Set(textAppearance(element).filter(item=>item.enabled).flatMap(item=>item.type==='fill'&&item.preserveCharacterColours?richTextSpans(element.content,element.textCharacterStyles).filter(run=>run.content.trim()).map(run=>run.style.color??item.colour):[item.colour]).flatMap(colour=>(parsePaint(colour)?.stops.map(stop=>stop.color)??[colour]).map(value=>value.toLowerCase())))];}
 /** How far outlines, shadows and depth reach past the text frame, in artwork units. */
-export function textAppearanceBleed(element:DesignElement){if(element.type!=='text')return 0;const letters=Object.values(element.textGlyphTransforms??{}),size=element.fontSize??30,stretched=letters.length?Math.ceil(Math.max(...letters.map(t=>Math.max(Math.abs(t.x),Math.abs(t.y))+size*Math.max(t.scaleX,t.scaleY)*1.2)))+Math.max(element.width,element.height):0;if(!element.textAppearance)return stretched;const units=element.textUnitsPerCm??30,reach=Math.max(0,...element.textAppearance.filter(item=>item.enabled).map(item=>item.type==='stroke'||item.type==='offset'?item.widthMm??0:item.type==='shadow'?Math.max(Math.abs(item.xMm??0),Math.abs(item.yMm??0)):item.type==='extrude'?item.depthMm??0:0));return (reach>0?Math.ceil(reach*units/10)+2:0)+stretched;}
+export function textAppearanceBleed(element:DesignElement){if(element.type!=='text')return 0;const letters=Object.values(element.textGlyphTransforms??{}),size=element.fontSize??30,stretched=letters.length?Math.ceil(Math.max(...letters.map(t=>Math.max(Math.abs(t.x),Math.abs(t.y))+size*Math.max(t.scaleX,t.scaleY)*1.2)))+Math.max(element.width,element.height):0;if(!element.textAppearance)return stretched;const units=element.textUnitsPerCm??30,reach=Math.max(0,...element.textAppearance.filter(item=>item.enabled).map(item=>item.type==='stroke'||item.type==='offset'?item.widthMm??0:item.type==='shadow'?Math.max(Math.abs(item.xMm??0),Math.abs(item.yMm??0)):item.type==='extrude'?item.depthMm??0:item.type==='interlock'?item.widthMm??0:0)),flare=element.textAppearance.some(item=>item.enabled&&(item.scaleTo??1)>1)?Math.max(element.width,element.height):0;return (reach>0?Math.ceil(reach*units/10)+2:0)+stretched+flare;}
 export const textGradientAllowed=(method?:string)=>!['Screen Print','Embroidery','Puff Print','Heat Transfer'].includes(method??'DTG');
 export const localAppearanceSource=(element:DesignElement):DesignElement=>({...element,...DEFAULT_IMAGE_ADJUSTMENTS,imageFilter:undefined,cropTop:0,cropRight:0,cropBottom:0,cropLeft:0,cornerRadius:0,warp:undefined,perspective:undefined,clipToArtworkId:undefined,clipToArtworkIds:undefined,artworkClipPaths:undefined,eraseContours:undefined,shadowBlur:0,shadowOffsetX:0,shadowOffsetY:0,textShadowEnabled:false});
 
@@ -43,8 +44,15 @@ export function paintOutlinedText(element:DesignElement,base:DesignElement,byCol
     }
     if(item.type==='shadow')children.push({...ink(base,item),x:base.x+(item.xMm??1)*units/10,y:base.y+(item.yMm??1)*units/10});
     if(item.type==='extrude'){
-      const depth=Math.max(0,item.depthMm??1)*units/10,angle=(item.angle??45)*Math.PI/180,steps=Math.max(1,Math.min(160,Math.ceil(depth/.15)));
-      for(let step=steps;step>=0;step--)children.push({...ink(base,item,'-'+step),x:base.x+Math.cos(angle)*depth*step/steps,y:base.y+Math.sin(angle)*depth*step/steps});
+      const depth=Math.max(0,item.depthMm??1)*units/10,angle=(item.angle??45)*Math.PI/180,steps=item.copies?Math.max(1,Math.min(160,Math.round(item.copies))):Math.max(1,Math.min(item.colourTo?56:160,Math.ceil(depth/.15)));
+      const edge=item.edgeMm&&item.colourTo?ink(outlineArtworkStroke({...base,shapeFilled:false,borderWidth:item.edgeMm*units/10,shapeStrokeColor:item.colourTo,shapeStrokeAlign:'outside',shapeStrokeJoin:'round'}),{...item,colour:item.colourTo},'-edge'):null;
+      for(let step=steps;step>=(item.copies?1:0);step--){const t=step/steps,k=1+((item.scaleTo??1)-1)*t,dx=Math.cos(angle)*depth*t,dy=Math.sin(angle)*depth*t;if(edge)children.push({...edge,id:edge.id+'-'+step,x:edge.x+dx,y:edge.y+dy});children.push({...ink(base,item.colourTo?{...item,colour:mixHex(item.colour,item.colourTo,t)}:item,'-'+step),x:base.x+dx,y:base.y+dy,width:base.width*k,height:base.height*k});}
+      if(edge)children.push({...edge,id:edge.id+'-front'});
+    }
+    if(item.type==='interlock'&&base.shapePath){
+      // Each letter is drawn over the last with a gap around it, so the letters read as woven.
+      const parts=[{...base.shapePath,subpaths:undefined},...(base.shapePath.subpaths??[])],keys=[...new Set(parts.map(part=>part.letterKey).filter(Boolean))] as string[],width=(item.widthMm??.5)*units/10;
+      keys.forEach((key,index)=>{const own=parts.filter(part=>part.letterKey===key),letter={...base,shapePath:{...own[0],subpaths:own.slice(1)}};if(width>0)children.push(ink(outlineArtworkStroke({...letter,shapeFilled:false,borderWidth:width,shapeStrokeColor:item.colour,shapeStrokeAlign:'outside',shapeStrokeJoin:'round'}),item,'-gap-'+index));children.push(ink(letter,{...item,colour:item.colourTo??element.color??'#171717'},'-letter-'+index));});
     }
   }
   let output=children;

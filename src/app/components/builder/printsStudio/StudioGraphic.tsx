@@ -1,3 +1,5 @@
+import { colourFieldSvg } from '../artwork-engine/geometry/colourField';
+import { profileOutline } from '../artwork-engine/geometry/widthProfile';
 import {SurfacePrecisionGraphic} from './SurfacePrecisionGraphic';
 import {precisionGeometryChanged} from '../../../lib/svgPrecision';
 import {ShapeAppearanceArtwork} from './ShapeAppearanceArtwork';
@@ -51,28 +53,33 @@ function StudioGraphicBase({ element }: { element: DesignElement }) {
   const paint = svgPaint(strokeOf(element), `paint-${id}`, paintWidth, paintHeight);
   const fillPaint = svgPaint(element.shapeFillColor ?? element.color ?? '#FFFFFF', `fill-${id}`, paintWidth, paintHeight);
   const stroke = paint.color;
-  const fill = element.shapeFilled && canFillShape(element) ? fillPaint.color : 'none';
+  const field = element.type === 'shape' && element.shapeFilled && canFillShape(element) ? element.colourField : undefined;
+  const fill = field ? 'none' : element.shapeFilled && canFillShape(element) ? fillPaint.color : 'none';
   const definitions = <defs dangerouslySetInnerHTML={{ __html: paint.defs + fillPaint.defs }} />;
   const sw = weightOf(element);
+  const widthProfile = element.type === 'shape' && sw > 0 && (!element.shapeStrokeStyle || element.shapeStrokeStyle === 'solid') ? element.shapeWidthProfile : undefined;
   const flip = artworkFlipStyle(element);
   const legacy = ['ellipse', 'rect', 'line', 'zigzag', 'squiggly', 'triangle', 'star', 'arrow'];
   const boundsLegacy = ['ellipse', 'circle', 'rect', 'semicircle-open', 'semicircle-closed', 'line'];
-  const parametric = Boolean(element.shapeStrokeStyle&&element.shapeStrokeStyle!=='solid') || !!element.shapePath || !!Object.keys(element.shapeParameters ?? {}).length
+  const parametric = Boolean(field) || Boolean(widthProfile) || Boolean(element.shapeStrokeStyle&&element.shapeStrokeStyle!=='solid') || !!element.shapePath || !!Object.keys(element.shapeParameters ?? {}).length
     || !(element.shapeGeometry === 'bounds' ? boundsLegacy : legacy).includes(element.content);
 
   if (element.type === 'shape' && parametric) {
     const width = element.shapeGeometry === 'bounds' ? Math.max(sw, element.width) : 100;
     const height = element.shapeGeometry === 'bounds' ? Math.max(sw, element.height) : 100;
     const path = scaledPath(shapeToEditablePath(element), width, height);
+    const fieldSvg = field ? colourFieldSvg('field-' + id, field, width, height) : null;
     return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={flip} aria-hidden>
       {definitions}
+      {fieldSvg&&<><defs><clipPath id={'field-clip-'+id}><path d={shapePathData(path)} clipRule={element.shapeFillRule??'evenodd'}/></clipPath></defs><defs dangerouslySetInnerHTML={{__html:fieldSvg.defs}}/><g data-editable-ink clipPath={`url(#field-clip-${id})`} dangerouslySetInnerHTML={{__html:fieldSvg.layers}}/></>}
       {element.shapeStrokeAlign==='inside'&&<defs><clipPath id={'stroke-inside-'+id}><path d={shapePathData(path)} fillRule={element.shapeFillRule??'evenodd'}/></clipPath></defs>}
       {element.shapeStrokeAlign==='outside'&&<><defs><mask id={'stroke-outside-'+id} maskUnits="userSpaceOnUse" x={-sw*3} y={-sw*3} width={width+sw*6} height={height+sw*6}><rect x={-sw*3} y={-sw*3} width={width+sw*6} height={height+sw*6} fill="white"/><path d={shapePathData(path)} fill="black" fillRule={element.shapeFillRule??'evenodd'}/></mask></defs><path d={shapePathData(path)} fill={fill} fillRule={element.shapeFillRule??'evenodd'} stroke="none"/></>}
       {element.drawingVectorSource&&element.shapeFilled&&<path d={[path,...(path.subpaths??[])].filter(p=>p.closed).map(p=>shapePathData({...p,subpaths:undefined})).join(' ')} fill={fill} fillRule="evenodd" stroke="none"/>}
       {element.shapeStrokeStyle==='double'&&sw>0&&<path data-editable-ink d={shapePathData(path)} fill="none" stroke={element.shapeOutlineAccent??'#f0eadb'} strokeWidth={sw*1.8} strokeLinejoin="round"/>}
       {element.letteringPaints?.length&&element.shapeFilled?element.letteringPaints.map((paint,index)=>{const parts=[path,...(path.subpaths??[])].filter(p=>p.letterKey===paint.key);const ink=svgPaint(paint.fill,`glyph-${id}-${index}`,width,height);return parts.length?<g key={index}><defs dangerouslySetInnerHTML={{__html:ink.defs}}/><path d={shapePathData({...parts[0],subpaths:parts.slice(1)})} fill={ink.color} fillRule={element.shapeFillRule??'evenodd'} stroke="none"/></g>:null;}):null}
-      <path data-editable-ink d={shapePathData(path)} strokeDasharray={element.shapeStrokeStyle==='dashed'?`${element.shapeDashLength??sw*3} ${element.shapeDashGap??sw*2}`:element.shapeStrokeStyle==='dotted'?`.01 ${element.shapeDashGap??sw*2}`:undefined} fill={element.letteringPaints?.length||element.drawingVectorSource||element.shapeStrokeAlign==='outside'?'none':fill} clipPath={element.shapeStrokeAlign==='inside'?`url(#stroke-inside-${id})`:undefined} mask={element.shapeStrokeAlign==='outside'?`url(#stroke-outside-${id})`:undefined} fillRule={element.shapeFillRule??(element.paintStain?'nonzero':'evenodd')} stroke={stroke} strokeWidth={element.shapeStrokeAlign&&element.shapeStrokeAlign!=='center'?sw*2:sw}
+      <path data-editable-ink d={shapePathData(path)} strokeDasharray={element.shapeStrokeStyle==='dashed'?`${element.shapeDashLength??sw*3} ${element.shapeDashGap??sw*2}`:element.shapeStrokeStyle==='dotted'?`.01 ${element.shapeDashGap??sw*2}`:undefined} fill={element.letteringPaints?.length||element.drawingVectorSource||element.shapeStrokeAlign==='outside'?'none':fill} clipPath={element.shapeStrokeAlign==='inside'?`url(#stroke-inside-${id})`:undefined} mask={element.shapeStrokeAlign==='outside'?`url(#stroke-outside-${id})`:undefined} fillRule={element.shapeFillRule??(element.paintStain?'nonzero':'evenodd')} stroke={widthProfile?'none':stroke} strokeWidth={element.shapeStrokeAlign&&element.shapeStrokeAlign!=='center'?sw*2:sw}
         strokeLinecap={element.shapeStrokeCap??(element.content === 'zigzag' ? 'butt' : 'round')} strokeLinejoin={element.shapeStrokeJoin??(element.content === 'zigzag' ? 'miter' : 'round')} strokeMiterlimit={8} />
+      {widthProfile&&<path data-editable-ink d={profileOutline(path,sw,widthProfile)} fill={stroke} fillRule="nonzero" stroke="none"/>}
     </svg>;
   }
 
