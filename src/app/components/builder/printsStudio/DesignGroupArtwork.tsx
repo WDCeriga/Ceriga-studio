@@ -13,6 +13,7 @@ import { StudioGraphic } from './StudioGraphic';
 import { TextArtwork } from './TextArtwork';
 import { blendBands } from '../artwork-engine/geometry/blend';
 import { FilteredImage } from './FilteredImage';
+import { GarmentPatternReliefContext, GarmentPrintTextureContext } from './GarmentPrintTexture';
 
 const ignore = () => {};
 
@@ -25,7 +26,8 @@ export const DesignGroupArtwork=memo(function DesignGroupArtwork({ element }: { 
   const displayScale=useContext(ArtworkResolutionContext)*Math.max(element.width/Math.max(1,width),element.height/Math.max(1,height));
   if(element.logoTrace?.showSource)return <img src={element.logoTrace.source} alt="Original logo" className="h-full w-full object-fill"/>;
   return <div ref={host} className="relative h-full w-full" style={{ filter: [imageAdjustmentFilter(element), element.artworkBlend?.blur ? `blur(${element.artworkBlend.blur * element.width / Math.max(.0001, width)}px)` : ''].filter(Boolean).join(' ') || undefined, ...artworkFlipStyle(element) }}>
-    <div data-group-source style={{ position: 'absolute', width, height, transformOrigin: '0 0', transform: `scale(${element.width / width}, ${element.height / height})` }}>
+    {/* Children use group coordinates, so the garment texture is applied once by the group itself. */}
+    <GarmentPrintTextureContext.Provider value={null}><GarmentPatternReliefContext.Provider value={null}><div data-group-source style={{ position: 'absolute', width, height, transformOrigin: '0 0', transform: `scale(${element.width / width}, ${element.height / height})` }}>
       {(element.artworkBlend ? blendBands(element) : element.children ?? []).filter(child => !child.hidden).map(child => <div key={child.id} data-group-child={child.id}
         style={{ position: 'absolute', left: child.x, top: child.y, width: child.width,
           height: child.type === 'text' && child.autoHeight !== false ? undefined : child.height,
@@ -44,6 +46,6 @@ export const DesignGroupArtwork=memo(function DesignGroupArtwork({ element }: { 
                   </div>}
         </DesignAssetSurface>
       </div>)}
-    </div>
+    </div></GarmentPatternReliefContext.Provider></GarmentPrintTextureContext.Provider>
   </div>;
 });

@@ -140,10 +140,11 @@ export function useAssetWorkspace({ onPlaceOnGarment, garmentSide = 'front' }: {
   const insert = useCallback((asset: AssetProject, point?: Point) => {
     if (busyRef.current) return;
     const current = snapshotRef.current;
-    if (!current) { onPlaceOnGarment(asset, point); return; }
+    // A saved asset arrives as its thumbnail shows it; its background is an editable layer.
+    if (!current) { onPlaceOnGarment(asset, point, { background: asset.background }); return; }
     const width = Math.min(180, current.project.width * .5);
     const id = `asset-${crypto.randomUUID()}`;
-    change([...current.project.elements, placeNativeStudioAsset(asset,{id,x:point?.x??current.project.width/2,y:point?.y??current.project.height/2,width,side:'front'})], id);
+    change([...current.project.elements, placeNativeStudioAsset(asset,{id,x:point?.x??current.project.width/2,y:point?.y??current.project.height/2,width,side:'front'},{background:asset.background})], id);
   }, [change, onPlaceOnGarment]);
   const saveSelectionToLibrary=useCallback(async(elements:DesignElement[],name:string)=>{
     const selected=elements.filter(element=>!element.hidden&&!element.tracingReference);if(!authReady||busyRef.current||!selected.length||!name.trim())throw new Error('Select artwork and give it a name first.');
