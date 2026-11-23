@@ -42,7 +42,7 @@ export function checkManufacturerProduction(order:SuperAdminOrder,factory:Manufa
  const plan=order.orderQuantities;const units=(line:{targetTotal?:number;bySize?:Record<string,number>})=>line.targetTotal??Object.values(line.bySize||{}).reduce((a,b)=>a+b,0);
  const lines=[...(plan?.sample?[plan.sample]:[]),...(plan?.bulkRuns||[])].filter(line=>units(line)>0);
  if(!lines.length)failures.push('Sample/bulk quantities are not recorded');
- const capacity=factory.availableCapacity??factory.monthlyCapacity;
+ const capacity=factory.availableCapacity??(factory.monthlyCapacity && factory.monthlyCapacity>0 ? factory.monthlyCapacity : undefined);
  const moq=Object.entries(factory.garmentMoqOverrides||{}).find(([g])=>garment(g)===garment(order.garmentType||''))?.[1]??factory.moq;
  for(const line of lines){const quantity=units(line);if(!Number.isInteger(quantity)||quantity<=0)failures.push('Invalid quantity');
   if(factory.maxSingleOrderQuantity!=null&&quantity>factory.maxSingleOrderQuantity)failures.push(`Quantity ${quantity} exceeds the single-order ceiling ${factory.maxSingleOrderQuantity}`);

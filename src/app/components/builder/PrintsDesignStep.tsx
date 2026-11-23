@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../ui/utils';
@@ -461,6 +462,8 @@ export function PrintTransformOverlay({
   compactHandles?: boolean;
   phoneTextMinimal?: boolean;
 }) {
+  useCerigaTranslation();
+
   const inv = uiInverseScale > 0 && Math.abs(uiInverseScale - 1) > 0.001 ? uiInverseScale : 1;
   const invStyle =
     inv === 1
@@ -480,13 +483,13 @@ export function PrintTransformOverlay({
         />
         <button
           type="button"
-          aria-label="Scale from corner"
+          aria-label={cerigaTranslate("interface.text_f4b27230cce87745")}
           className="pointer-events-auto absolute -left-1.5 -top-1.5 z-[60] h-3 w-3 touch-none rounded-full border-2 border-zinc-300/95 bg-white shadow-sm active:scale-95"
           onPointerDown={(e) => onResizePointerDown(e, 'nw')}
         />
         <button
           type="button"
-          aria-label="Stretch width"
+          aria-label={cerigaTranslate("interface.text_874c720ae161df00")}
           className="pointer-events-auto absolute -right-1 top-1/2 z-[60] h-7 w-2 -translate-y-1/2 touch-none rounded-full border-2 border-zinc-300/95 bg-white shadow-sm active:scale-95"
           onPointerDown={(e) => onResizePointerDown(e, 'e')}
         />
@@ -523,7 +526,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Resize NW — scale"
+        aria-label={cerigaTranslate("interface.text_0aebe61c27d03c34")}
         className={cn(
           dot,
           compactHandles ? '-left-1.5 -top-1.5' : large ? '-left-2.5 -top-2.5' : '-left-2 -top-2',
@@ -534,7 +537,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Resize NE — scale"
+        aria-label={cerigaTranslate("interface.text_2a8a7334993a62bb")}
         className={cn(
           dot,
           compactHandles ? '-right-1.5 -top-1.5' : large ? '-right-2.5 -top-2.5' : '-right-2 -top-2',
@@ -545,7 +548,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Resize SW — scale"
+        aria-label={cerigaTranslate("interface.text_faafa6fcb8b5ed4f")}
         className={cn(
           dot,
           compactHandles ? '-bottom-1.5 -left-1.5' : large ? '-bottom-2.5 -left-2.5' : '-bottom-2 -left-2',
@@ -556,7 +559,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Resize SE — scale"
+        aria-label={cerigaTranslate("interface.text_93b61df260c23b38")}
         className={cn(
           dot,
           compactHandles ? '-bottom-1.5 -right-1.5' : large ? '-bottom-2.5 -right-2.5' : '-bottom-2 -right-2',
@@ -567,7 +570,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Stretch width — east"
+        aria-label={cerigaTranslate("interface.text_f26731b5da487a04")}
         className={cn(
           dot,
           compactHandles
@@ -582,7 +585,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Stretch width — west"
+        aria-label={cerigaTranslate("interface.text_f2c0dab89ea1b7a3")}
         className={cn(
           dot,
           compactHandles
@@ -597,7 +600,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Stretch height — north"
+        aria-label={cerigaTranslate("interface.text_55e64a41fb0be527")}
         className={cn(
           dot,
           compactHandles
@@ -612,7 +615,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Stretch height — south"
+        aria-label={cerigaTranslate("interface.text_95a6e55233438432")}
         className={cn(
           dot,
           compactHandles
@@ -627,7 +630,7 @@ export function PrintTransformOverlay({
       />
       <button
         type="button"
-        aria-label="Rotate"
+        aria-label={cerigaTranslate("interface.text_c3613b1704f54c8b")}
         className={cn(
           'pointer-events-auto absolute left-1/2 z-[60] flex -translate-x-1/2 touch-none items-center justify-center rounded-full border-2 bg-[#09090B] text-[#CC2D24] shadow-lg active:scale-95',
           off.rot,
@@ -675,10 +678,12 @@ function SliderField({
   onChange: (n: number) => void;
   suffix: string;
 }) {
+  useCerigaTranslation();
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{label}</span>
+        <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{cerigaTranslateLabel(label)}</span>
         <span className="text-[10px] font-semibold tabular-nums text-white/65">
           {value}
           {suffix}
@@ -709,6 +714,8 @@ export function SidebarNumberField({
   onChange: (n: number) => void;
   step?: number;
 }) {
+  useCerigaTranslation();
+
   const [draft, setDraft] = useState<string>(String(value));
   useEffect(() => {
     setDraft(String(value));
@@ -716,7 +723,7 @@ export function SidebarNumberField({
   return (
     <label className="flex min-w-0 flex-col gap-1">
       <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/38">
-        {label}
+        {cerigaTranslateLabel(label)}
       </span>
       <div
         className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#252528] bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60"
@@ -754,6 +761,8 @@ export function PrintsDesignStep({
   onSelectedLayerIdChange,
   usePhoneStrips = false,
 }: PrintsDesignStepProps) {
+  useCerigaTranslation();
+
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
   const selectedId = selectionControlled ? (selectedLayerIdProp ?? null) : fallbackSelectedId;
@@ -1062,17 +1071,13 @@ export function PrintsDesignStep({
 
   return (
     <div className="space-y-3.5">
-      <PrintPanel title="Add artwork">
+      <PrintPanel title={cerigaTranslate("interface.text_0ee192130a496197")}>
         {usePhoneStrips ? (
           <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x [-webkit-overflow-scrolling:touch]">
             <Button onClick={handleUploadImage} variant="outline" className={artBtnClass}>
-              <Upload className="mr-1.5 h-3.5 w-3.5" />
-              Upload
-            </Button>
+              <Upload className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_865e89de78d94c74")}</Button>
             <Button onClick={handleAddText} className={addTextClass}>
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add text
-            </Button>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_1b4d10038c3280fe")}</Button>
           </div>
         ) : (
         <div className="grid grid-cols-2 gap-2">
@@ -1081,35 +1086,29 @@ export function PrintsDesignStep({
             variant="outline"
             className="h-9 border-white/18 bg-white/[0.04] px-2 text-[10px] !text-white hover:bg-white/10"
           >
-            <Upload className="mr-1.5 h-3.5 w-3.5" />
-            Upload
-          </Button>
+            <Upload className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_865e89de78d94c74")}</Button>
           <Button
             onClick={handleAddText}
             className="h-9 bg-[#FF3B30] px-2 text-[10px] text-white hover:bg-[#FF3B30]/90"
           >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add text
-          </Button>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_1b4d10038c3280fe")}</Button>
         </div>
         )}
         <div className="mt-3">
-          <Label className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-            Text content
-          </Label>
+          <Label className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_c24623502a05ae7e")}</Label>
           <div className="flex gap-2">
             <Input
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
-              placeholder="Type, then add"
+              placeholder={cerigaTranslate("interface.text_2bf0be27c9d42eb7")}
               className="h-9 flex-1 border-white/12 bg-black/35 text-[11px] text-white placeholder:text-white/28"
               onKeyDown={(e) => e.key === 'Enter' && handleAddText()}
             />
             <Button
               onClick={handleAddText}
-              title="Add text to design"
+              title={cerigaTranslate("interface.text_5249234375d1a0fd")}
               className="h-9 min-w-9 shrink-0 bg-[#FF3B30] px-2 hover:bg-[#FF3B30]/90"
-              aria-label="Add text to design"
+              aria-label={cerigaTranslate("interface.text_5249234375d1a0fd")}
             >
               <Check className="h-4 w-4" strokeWidth={2.5} />
             </Button>
@@ -1121,12 +1120,10 @@ export function PrintsDesignStep({
           onClick={importFontFile}
           className="mt-3 h-9 w-full border-white/18 bg-white/[0.04] px-2 text-[10px] !text-white hover:bg-white/10"
         >
-          <Upload className="mr-1.5 h-3.5 w-3.5" />
-          Import font
-        </Button>
+          <Upload className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_1cf7b894de15216b")}</Button>
       </PrintPanel>
 
-      <PrintPanel title="Placement presets">
+      <PrintPanel title={cerigaTranslate("interface.text_90ab92f1ddb009dd")}>
         {usePhoneStrips ? (
           <div className="-mx-0.5 flex gap-2 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
             {DESIGN_PRESETS.map((preset) => (
@@ -1136,7 +1133,7 @@ export function PrintsDesignStep({
                 onClick={() => applyPreset(preset)}
                 className="shrink-0 min-h-11 rounded-full border border-white/12 bg-black/30 px-4 py-2.5 text-left text-xs font-medium text-white/80 transition hover:border-white/25 hover:text-white"
               >
-                {preset}
+                {cerigaTranslateLabel(preset)}
               </button>
             ))}
           </div>
@@ -1149,7 +1146,7 @@ export function PrintsDesignStep({
               onClick={() => applyPreset(preset)}
               className="rounded-xl border border-[#252528] bg-black/25 px-2.5 py-2.5 text-left text-[10px] font-medium text-white/72 transition hover:border-white/22 hover:text-white"
             >
-              {preset}
+              {cerigaTranslateLabel(preset)}
             </button>
           ))}
         </div>
@@ -1157,37 +1154,30 @@ export function PrintsDesignStep({
       </PrintPanel>
 
       {selected ? (
-        <PrintPanel title="Selected element">
+        <PrintPanel title={cerigaTranslate("interface.text_6d59bda00d702f29")}>
           <div className="mb-4 flex items-center justify-between gap-2">
             <span className="text-[10px] text-white/45">
-              {selected.type === 'image' ? 'Image' : 'Text'}
+              {selected.type === 'image' ? cerigaTranslate("interface.text_1aa4cb0bcca76e92") : cerigaTranslate("interface.text_71988c4d8e0803ba")}
             </span>
             <Button
               onClick={deleteSelected}
               variant="outline"
               className="h-8 border-white/18 px-2.5 text-[10px] !text-white hover:bg-white/10"
             >
-              <Trash2 className="mr-1 h-3 w-3" />
-              Delete
-            </Button>
+              <Trash2 className="mr-1 h-3 w-3" />{cerigaTranslate("common.delete")}</Button>
           </div>
 
           <div className="space-y-5">
             <div>
-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                Printing method
-              </Label>
-              <p className="mb-2 text-[9px] leading-snug text-white/42">
-                Each layer uses one process. DTG = direct-to-garment; DTF = direct-to-film — hover a button for full
-                wording.
-              </p>
+              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_c927f0ce536099a8")}</Label>
+              <p className="mb-2 text-[9px] leading-snug text-white/42">{cerigaTranslate("interface.text_5343168a8066c2fb")}</p>
               {usePhoneStrips ? (
                 <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
                   {PRINT_METHODS.map((method) => (
                     <button
                       key={method}
                       type="button"
-                      title={PRINT_METHOD_DESCRIPTIONS[method]}
+                      title={cerigaTranslateLabel(PRINT_METHOD_DESCRIPTIONS[method])}
                       onClick={() => updateSelected({ printMethod: method })}
                       className={cn(
                         'shrink-0 snap-start rounded-full border px-3.5 py-2.5 text-[11px] font-semibold leading-tight transition',
@@ -1196,7 +1186,7 @@ export function PrintsDesignStep({
                           : 'border-[#252528] bg-black/30 text-white/70 hover:border-white/20 hover:text-white',
                       )}
                     >
-                      {method}
+                      {cerigaTranslateLabel(method)}
                     </button>
                   ))}
                 </div>
@@ -1206,7 +1196,7 @@ export function PrintsDesignStep({
                   <button
                     key={method}
                     type="button"
-                    title={PRINT_METHOD_DESCRIPTIONS[method]}
+                    title={cerigaTranslateLabel(PRINT_METHOD_DESCRIPTIONS[method])}
                     onClick={() => updateSelected({ printMethod: method })}
                     className={cn(
                       'min-h-9 rounded-xl border px-2 py-2 text-left text-[10px] font-medium transition',
@@ -1215,9 +1205,9 @@ export function PrintsDesignStep({
                         : 'border-[#252528] bg-black/25 text-white/68 hover:border-white/20 hover:text-white',
                     )}
                   >
-                    <span className="block">{method}</span>
+                    <span className="block">{cerigaTranslateLabel(method)}</span>
                     <span className="mt-0.5 block text-[8px] font-normal leading-tight text-white/38">
-                      {PRINT_METHOD_DESCRIPTIONS[method]}
+                      {cerigaTranslateLabel(PRINT_METHOD_DESCRIPTIONS[method])}
                     </span>
                   </button>
                 ))}
@@ -1228,9 +1218,7 @@ export function PrintsDesignStep({
             {selected.type === 'text' && (
               <>
                 <div>
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                    Font
-                  </Label>
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_64d0b3adcd2dbe33")}</Label>
                   {usePhoneStrips ? (
                     <div className="-mx-0.5 flex max-w-full gap-2.5 overflow-x-auto pb-1 no-scrollbar touch-pan-x">
                       {allFontOptions.map((font) => (
@@ -1273,9 +1261,7 @@ export function PrintsDesignStep({
                 </div>
 
                 <div>
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                    Alignment
-                  </Label>
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_9d597870c4b3f76d")}</Label>
                   <div className="flex flex-wrap gap-1">
                     {(
                       [
@@ -1295,7 +1281,7 @@ export function PrintsDesignStep({
                             ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white'
                             : 'border-[#252528] bg-black/25 hover:border-white/20 hover:text-white',
                         )}
-                        aria-label={`Align ${align}`}
+                        aria-label={cerigaTranslate("interface.text_9b5f8210f46a0b45",{value0:(align)})}
                       >
                         <Icon className="h-3.5 w-3.5" />
                       </button>
@@ -1317,9 +1303,7 @@ export function PrintsDesignStep({
                       selected.fontStyle === 'italic' && 'border-[#FF3B30] bg-[#FF3B30]/12',
                     )}
                   >
-                    <Italic className="mr-1 h-3.5 w-3.5" />
-                    Italic
-                  </Button>
+                    <Italic className="mr-1 h-3.5 w-3.5" />{cerigaTranslate("interface.text_9bf37cb58a694456")}</Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -1331,22 +1315,19 @@ export function PrintsDesignStep({
                     }}
                     className="h-9 flex-1 border-white/18 bg-white/[0.04] px-2 text-[10px] !text-white hover:bg-white/10"
                   >
-                    {(selected.textTransform ?? 'none') === 'uppercase'
-                      ? 'AA'
-                      : (selected.textTransform ?? 'none') === 'lowercase'
-                        ? 'aa'
-                        : 'Aa'}
+                    {(selected.textTransform ?? cerigaTranslate("interface.text_140bedbf9c3f6d56")) === 'uppercase'
+                      ? cerigaTranslate("interface.text_58bb119c35513a45")
+                      : (selected.textTransform ?? cerigaTranslate("interface.text_140bedbf9c3f6d56")) === 'lowercase'
+                        ? cerigaTranslate("interface.text_961b6dd3ede3cb8e")
+                        : cerigaTranslate("interface.text_81acaafba961bb83")}
                   </Button>
                 </div>
 
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <Label className="mb-0 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                      Letter spacing
-                    </Label>
+                    <Label className="mb-0 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_4b2eb7f7cd01abfe")}</Label>
                     <span className="text-[10px] tabular-nums text-white/45">
-                      {selected.letterSpacing ?? 0}px
-                    </span>
+                      {selected.letterSpacing ?? 0}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                   </div>
                   <input
                     type="range"
@@ -1360,9 +1341,7 @@ export function PrintsDesignStep({
                 </div>
 
                 <div>
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                    Font size
-                  </Label>
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_6d784d95c63833e6")}</Label>
                   <NumberStepper
                     value={selected.fontSize ?? 30}
                     onDecrease={() => updateFontSize(-1)}
@@ -1371,9 +1350,7 @@ export function PrintsDesignStep({
                 </div>
 
                 <div>
-                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                    Text colour
-                  </Label>
+                  <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_25e9c8090de7f831")}</Label>
                   <StudioColorField
                     value={selected.color ?? '#FFFFFF'}
                     onChange={(h) => updateSelected({ color: h })}
@@ -1385,9 +1362,7 @@ export function PrintsDesignStep({
             )}
 
             <div>
-              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">
-                Rotation
-              </Label>
+              <Label className="mb-2 block text-[9px] font-bold uppercase tracking-[0.14em] text-white/38">{cerigaTranslate("interface.text_57b5e2fc1bba18bb")}</Label>
               <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-3">
                 <div className="mb-2 flex justify-between text-[10px] tabular-nums text-white/55">
                   <span>0°</span>
@@ -1401,13 +1376,13 @@ export function PrintsDesignStep({
                   value={rotNorm}
                   onChange={(e) => updateSelected({ rotation: Number(e.target.value) })}
                   className="rotation-scroller h-3 w-full cursor-pointer"
-                  aria-label="Rotation"
+                  aria-label={cerigaTranslate("interface.text_57b5e2fc1bba18bb")}
                 />
               </div>
             </div>
 
             <SliderField
-              label="Opacity"
+              label={cerigaTranslate("interface.text_6062652e10dd84c6")}
               value={selected.opacity ?? 100}
               min={15}
               max={100}
@@ -1418,7 +1393,7 @@ export function PrintsDesignStep({
             <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                  {selected.type === 'text' ? 'Text outline' : 'Border'}
+                  {selected.type === 'text' ? cerigaTranslate("interface.text_f2944adb7d942e5d") : cerigaTranslate("interface.text_3b4bdff339e94fdc")}
                 </span>
                 <Button
                   type="button"
@@ -1433,11 +1408,11 @@ export function PrintsDesignStep({
                   className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
                 >
                   <Square className="mr-1 h-3 w-3" />
-                  {(selected.borderWidth ?? 0) > 0 ? 'Off' : 'On'}
+                  {(selected.borderWidth ?? 0) > 0 ? cerigaTranslate("interface.text_ca7981b46ecf2c17") : cerigaTranslate("interface.text_130011756125313c")}
                 </Button>
               </div>
               <SliderField
-                label="Thickness"
+                label={cerigaTranslate("interface.text_7b5944144275ea10")}
                 value={selected.borderWidth ?? 0}
                 min={0}
                 max={8}
@@ -1445,7 +1420,7 @@ export function PrintsDesignStep({
                 onChange={(n) => updateSelected({ borderWidth: n })}
               />
               <div className="mt-3">
-                <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">Colour</span>
+                <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
                 <StudioColorField
                   value={selected.borderColor ?? '#FFFFFF'}
                   onChange={(h) => updateSelected({ borderColor: h })}
@@ -1456,7 +1431,7 @@ export function PrintsDesignStep({
               {selected.type === 'image' ? (
                 <div className="mt-3">
                   <SliderField
-                    label="Corner rounding"
+                    label={cerigaTranslate("interface.text_78726400408a9eb6")}
                     value={selected.cornerRadius ?? 0}
                     min={0}
                     max={80}
@@ -1469,13 +1444,11 @@ export function PrintsDesignStep({
 
             <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
               <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                  Size &amp; rotation
-                </span>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_6f5a23bebf2f4cbe")}</span>
               </div>
               <div className="grid min-w-0 grid-cols-2 gap-2">
                 <SidebarNumberField
-                  label="Width"
+                  label={cerigaTranslate("interface.text_3019947b6daf18b0")}
                   suffix="px"
                   value={Math.round(selected.width || 0)}
                   onChange={(v) => {
@@ -1494,7 +1467,7 @@ export function PrintsDesignStep({
                   }}
                 />
                 <SidebarNumberField
-                  label="Height"
+                  label={cerigaTranslate("interface.text_bfe2eca401797325")}
                   suffix="px"
                   value={Math.round(selected.height || 0)}
                   onChange={(v) => {
@@ -1513,14 +1486,14 @@ export function PrintsDesignStep({
                   }}
                 />
                 <SidebarNumberField
-                  label="Rotate"
+                  label={cerigaTranslate("interface.text_c3613b1704f54c8b")}
                   suffix="°"
                   value={Math.round(selected.rotation ?? 0)}
                   onChange={(v) => updateSelected({ rotation: ((v % 360) + 360) % 360 })}
                 />
                 {selected.type === 'image' ? (
                   <SidebarNumberField
-                    label="Scale"
+                    label={cerigaTranslate("interface.text_f102986b39effb31")}
                     suffix="%"
                     value={100}
                     onChange={(v) => {
@@ -1538,9 +1511,7 @@ export function PrintsDesignStep({
             {selected.type === 'image' ? (
               <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                    Drop shadow
-                  </span>
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_e8b0b8daf176b804")}</span>
                   <Button
                     type="button"
                     variant="outline"
@@ -1554,11 +1525,11 @@ export function PrintsDesignStep({
                     }
                     className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
                   >
-                    {(selected.shadowBlur ?? 0) > 0 ? 'Off' : 'On'}
+                    {(selected.shadowBlur ?? 0) > 0 ? cerigaTranslate("interface.text_ca7981b46ecf2c17") : cerigaTranslate("interface.text_130011756125313c")}
                   </Button>
                 </div>
                 <SliderField
-                  label="Blur"
+                  label={cerigaTranslate("interface.text_cd83e6731d2b1736")}
                   value={selected.shadowBlur ?? 0}
                   min={0}
                   max={40}
@@ -1567,7 +1538,7 @@ export function PrintsDesignStep({
                 />
                 <div className="mt-3">
                   <SliderField
-                    label="Offset Y"
+                    label={cerigaTranslate("interface.text_a320e52b9cd2058e")}
                     value={selected.shadowOffsetY ?? 6}
                     min={-20}
                     max={30}
@@ -1576,9 +1547,7 @@ export function PrintsDesignStep({
                   />
                 </div>
                 <div className="mt-3">
-                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
-                    Colour
-                  </span>
+                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
                   <StudioColorField
                     value={selected.shadowColor ?? '#000000'}
                     onChange={(h) => updateSelected({ shadowColor: h })}
@@ -1592,9 +1561,7 @@ export function PrintsDesignStep({
             {selected.type === 'image' ? (
               <div className="rounded-xl border border-[#252528] bg-black/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                    Crop
-                  </span>
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_98caf7c43c6f2c35")}</span>
                   {((selected.cropTop ?? 0) > 0 ||
                     (selected.cropRight ?? 0) > 0 ||
                     (selected.cropBottom ?? 0) > 0 ||
@@ -1612,13 +1579,11 @@ export function PrintsDesignStep({
                         })
                       }
                       className="h-7 border-white/18 px-2 text-[9px] !text-white hover:bg-white/10"
-                    >
-                      Reset
-                    </Button>
+                    >{cerigaTranslate("interface.text_daee7606b339f3c3")}</Button>
                   )}
                 </div>
                 <SliderField
-                  label="Top"
+                  label={cerigaTranslate("interface.text_d5cdfcf7ff75338f")}
                   value={selected.cropTop ?? 0}
                   min={0}
                   max={Math.max(0, 95 - (selected.cropBottom ?? 0))}
@@ -1627,7 +1592,7 @@ export function PrintsDesignStep({
                 />
                 <div className="mt-3">
                   <SliderField
-                    label="Right"
+                    label={cerigaTranslate("interface.text_883361d5d682a157")}
                     value={selected.cropRight ?? 0}
                     min={0}
                     max={Math.max(0, 95 - (selected.cropLeft ?? 0))}
@@ -1637,7 +1602,7 @@ export function PrintsDesignStep({
                 </div>
                 <div className="mt-3">
                   <SliderField
-                    label="Bottom"
+                    label={cerigaTranslate("interface.text_479ad21ac9096236")}
                     value={selected.cropBottom ?? 0}
                     min={0}
                     max={Math.max(0, 95 - (selected.cropTop ?? 0))}
@@ -1647,7 +1612,7 @@ export function PrintsDesignStep({
                 </div>
                 <div className="mt-3">
                   <SliderField
-                    label="Left"
+                    label={cerigaTranslate("interface.text_58eb9032e3bb83f0")}
                     value={selected.cropLeft ?? 0}
                     min={0}
                     max={Math.max(0, 95 - (selected.cropRight ?? 0))}
@@ -1664,33 +1629,25 @@ export function PrintsDesignStep({
                 onClick={() => updateSelected({ flipHorizontal: !selected.flipHorizontal })}
                 className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
               >
-                <FlipHorizontal2 className="mr-1.5 h-3 w-3" />
-                Flip
-              </Button>
+                <FlipHorizontal2 className="mr-1.5 h-3 w-3" />{cerigaTranslate("interface.text_2449d137ea15fd2b")}</Button>
               <Button
                 variant="outline"
                 onClick={duplicateSelected}
                 className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
               >
-                <Copy className="mr-1.5 h-3 w-3" />
-                Duplicate
-              </Button>
+                <Copy className="mr-1.5 h-3 w-3" />{cerigaTranslate("interface.text_02cdaabfca805d6a")}</Button>
               <Button
                 variant="outline"
                 onClick={() => layer('front')}
                 className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
               >
-                <BringToFront className="mr-1.5 h-3 w-3" />
-                Top
-              </Button>
+                <BringToFront className="mr-1.5 h-3 w-3" />{cerigaTranslate("interface.text_d5cdfcf7ff75338f")}</Button>
               <Button
                 variant="outline"
                 onClick={() => layer('back')}
                 className="h-9 border-white/18 px-2 text-[10px] !text-white hover:bg-white/10"
               >
-                <SendToBack className="mr-1.5 h-3 w-3" />
-                Bottom
-              </Button>
+                <SendToBack className="mr-1.5 h-3 w-3" />{cerigaTranslate("interface.text_479ad21ac9096236")}</Button>
               <Button
                 variant="outline"
                 onClick={() => updateSelected({ locked: !selected.locked })}
@@ -1698,31 +1655,23 @@ export function PrintsDesignStep({
               >
                 {selected.locked ? (
                   <>
-                    <Unlock className="mr-1.5 h-3 w-3" />
-                    Unlock position
-                  </>
+                    <Unlock className="mr-1.5 h-3 w-3" />{cerigaTranslate("interface.text_18538f72a316703b")}</>
                 ) : (
                   <>
-                    <Lock className="mr-1.5 h-3 w-3" />
-                    Lock position
-                  </>
+                    <Lock className="mr-1.5 h-3 w-3" />{cerigaTranslate("interface.text_20cd3751f574e232")}</>
                 )}
               </Button>
               <div className="col-span-2 flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/25 px-3 py-2.5 text-[10px] text-white/55">
-                <Move className="h-3.5 w-3.5 shrink-0 text-white/45" />
-                Drag to move · corners scale · sides stretch · double-click text to edit
-              </div>
+                <Move className="h-3.5 w-3.5 shrink-0 text-white/45" />{cerigaTranslate("interface.text_2b20dc7b37d2712f")}</div>
             </div>
           </div>
         </PrintPanel>
       ) : null}
 
-      <PrintPanel title={`Elements (${elements.length})`}>
+      <PrintPanel title={cerigaTranslate("interface.text_cbbc9c4088ae2908",{value0:(elements.length)})}>
         <div className={cn('space-y-2', listDraggingId && 'list-reorder-active')}>
           {elements.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">
-              Upload artwork or add text, then drag on the preview.
-            </div>
+            <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">{cerigaTranslate("interface.text_ae15f8cb4e4b46eb")}</div>
           ) : (
             (() => {
               const sourceIndex = listDraggingId
@@ -1776,8 +1725,8 @@ export function PrintsDesignStep({
                     tabIndex={0}
                     onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
                     className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
-                    aria-label="Drag to reorder layer"
-                    title="Drag to reorder"
+                    aria-label={cerigaTranslate("interface.text_767e8129998b2d49")}
+                    title={cerigaTranslate("interface.text_ef86a0ed928794a4")}
                   >
                     <GripVertical className="h-3.5 w-3.5" strokeWidth={2} />
                   </div>
@@ -1795,7 +1744,7 @@ export function PrintsDesignStep({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[11px] font-medium text-white">
-                        {element.type === 'image' ? 'Uploaded artwork' : element.content}
+                        {element.type === 'image' ? cerigaTranslate("interface.text_c9443c58c9dd431d") : element.content}
                       </div>
                       <div className="truncate text-[9.5px] text-white/40">
                         <span className="text-white/55">
@@ -1810,8 +1759,8 @@ export function PrintsDesignStep({
                   <button
                     type="button"
                     className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#252528] px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
-                    aria-label="Delete layer"
-                    title="Delete"
+                    aria-label={cerigaTranslate("interface.text_65f213772b9c5334")}
+                    title={cerigaTranslate("common.delete")}
                     onClick={(e) => {
                       e.stopPropagation();
                       removeElementById(element.id);
@@ -1874,6 +1823,8 @@ export function PrintsDesignPreview({
   liveCanvasScale: liveCanvasScaleProp,
   phoneConfigSheetCollapsed = false,
 }: PrintsDesignPreviewProps) {
+  useCerigaTranslation();
+
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
   const selectedId = selectionControlled ? (selectedLayerIdProp ?? null) : fallbackSelectedId;
@@ -2411,7 +2362,7 @@ export function PrintsDesignPreview({
         <div className="relative h-full w-full">
         <img
           src={imgBlackTshirt}
-          alt="Garment preview"
+          alt={cerigaTranslate("interface.text_9e6f37daf4a66502")}
           className="h-auto max-h-full w-full object-contain opacity-0"
         />
 
@@ -2420,9 +2371,7 @@ export function PrintsDesignPreview({
           editable &&
           selectedElement?.type === 'text' &&
           editingTextId !== selectedElement.id ? (
-            <p className="pointer-events-none shrink-0 px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">
-              Tap the text on the design again to edit, or drag to move it.
-            </p>
+            <p className="pointer-events-none shrink-0 px-2 pb-1.5 text-center text-[10px] leading-tight text-white/48">{cerigaTranslate("interface.text_fa6c971a44fb23fa")}</p>
           ) : null}
           {editable &&
           !narrowViewport &&
@@ -2463,7 +2412,7 @@ export function PrintsDesignPreview({
             <div className="absolute inset-0 flex items-center justify-center">
           <img
             src={imgBlackTshirt}
-            alt="Garment"
+            alt={cerigaTranslate("adminOrders.garment")}
             className="h-full max-h-full w-full object-contain"
           />
 
@@ -2500,7 +2449,7 @@ export function PrintsDesignPreview({
             const selected = selectedId === element.id;
 
             const bw = element.borderWidth ?? 0;
-            const bc = element.borderColor ?? '#FFFFFF';
+            const bc = element.borderColor ?? "#FFFFFF";
             const op = (element.opacity ?? 100) / 100;
             const locked = element.locked === true;
             const isEditingText = editingTextId === element.id;
@@ -2577,7 +2526,7 @@ export function PrintsDesignPreview({
                     <ImageFxDefs element={element} />
                     <img
                       src={element.content}
-                      alt="Artwork"
+                      alt={cerigaTranslate("interface.text_d5fbb86add39fc3c")}
                       className="h-full w-full object-contain"
                       style={{
                         transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,

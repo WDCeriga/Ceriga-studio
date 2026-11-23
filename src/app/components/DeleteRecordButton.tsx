@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,6 +10,9 @@ export function DeleteRecordButton({ label, description, onDelete, disabled = fa
   onDelete: () => Promise<void> | void;
   disabled?: boolean;
 }) {
+  
+
+  const { t, label: translateLabel } = useCerigaTranslation();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const remove = async () => {
@@ -16,22 +20,22 @@ export function DeleteRecordButton({ label, description, onDelete, disabled = fa
     setBusy(true);
     try {
       await onDelete();
-      toast.success(`${label} deleted`);
+      toast.success(t('adminOrders.deleted', {record:label}));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Deletion failed');
+      toast.error(cerigaTranslateLabel(error instanceof Error ? error.message : t('adminOrders.deleteError')));
     } finally {
       setBusy(false);
     }
   };
   return (
     <span onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-      <button type="button" disabled={disabled || busy} aria-label={`Delete ${label}`} title={`Delete ${label}`}
+      <button type="button" disabled={disabled || busy} aria-label={t('adminOrders.deleteTitle',{record:label})} title={t('adminOrders.deleteTitle',{record:label})}
         className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
         onClick={(event) => { event.preventDefault(); setOpen(true); }}>
-        <Trash2 className="h-3.5 w-3.5" /> {busy ? 'Deleting…' : 'Delete'}
+        <Trash2 className="h-3.5 w-3.5" /> {t(busy ? "common.deleting" : "common.delete")}
       </button>
-      <ConfirmDialog open={open} onOpenChange={setOpen} title={`Delete ${label}?`} description={description}
-        tone="danger" confirmLabel="Delete" onConfirm={() => { void remove(); }} />
+      <ConfirmDialog open={open} onOpenChange={setOpen} title={t('adminOrders.deleteTitle',{record:label})} description={translateLabel(description)}
+        tone="danger" confirmLabel={t('common.delete')} onConfirm={() => { void remove(); }} />
     </span>
   );
 }

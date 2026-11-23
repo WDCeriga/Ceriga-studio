@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { FactoryMaterialsPanel } from '../../components/manufacturer/FactoryMaterialsPanel';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useMemo, useState } from 'react';
@@ -113,6 +114,8 @@ function parseDraft(draft: Draft): Omit<FactoryMaterial, 'id' | 'updatedAt'> | n
 }
 
 function ManufacturerMaterialsPreview() {
+  useCerigaTranslation();
+
   const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState<(typeof KIND_FILTERS)[number]['id']>('all');
   const [search, setSearch] = useState('');
@@ -157,20 +160,20 @@ function ManufacturerMaterialsPreview() {
 
   const saveForm = () => {
     if (!actingHasPermission('edit_materials')) {
-      toast.error('You need Edit materials permission');
+      toast.error(cerigaTranslate("interface.text_2298d90304bfbf5d"));
       return;
     }
     const parsed = parseDraft(draft);
     if (!parsed) {
-      toast.error('Name and valid quantity / reorder level required');
+      toast.error(cerigaTranslate("interface.text_e9f6c91ba44484e8"));
       return;
     }
     if (editingId) {
       updateFactoryMaterial(editingId, parsed);
-      toast.success('Material updated');
+      toast.success(cerigaTranslate("interface.text_960b41b9e97c338e"));
     } else {
       addFactoryMaterial(parsed);
-      toast.success('Material added');
+      toast.success(cerigaTranslate("interface.text_675db460d188484a"));
     }
     setFormOpen(false);
     setEditingId(null);
@@ -180,7 +183,7 @@ function ManufacturerMaterialsPreview() {
 
   const bump = (id: string, delta: number) => {
     if (!actingHasPermission('edit_materials')) {
-      toast.error('You need Edit materials permission');
+      toast.error(cerigaTranslate("interface.text_2298d90304bfbf5d"));
       return;
     }
     adjustFactoryMaterialQuantity(id, delta);
@@ -189,14 +192,14 @@ function ManufacturerMaterialsPreview() {
 
   const confirmRemove = () => {
     if (!actingHasPermission('edit_materials')) {
-      toast.error('You need Edit materials permission');
+      toast.error(cerigaTranslate("interface.text_2298d90304bfbf5d"));
       return;
     }
     if (!removeId) return;
     removeFactoryMaterial(removeId);
     setRemoveId(null);
     refresh();
-    toast.success('Material removed');
+    toast.success(cerigaTranslate("interface.text_ac3d1c7cda0f4b88"));
   };
 
   return (
@@ -205,19 +208,13 @@ function ManufacturerMaterialsPreview() {
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <Boxes className="h-4 w-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Stock</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{cerigaTranslate("interface.text_d5cade7ef3191690")}</span>
           </div>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Materials
-          </h1>
-          <p className="mt-1 text-sm text-white/45">
-            Track fabric, trims, and packaging so quoting and production know what&apos;s on hand.
-          </p>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{cerigaTranslate("nav.materials")}</h1>
+          <p className="mt-1 text-sm text-white/45">{cerigaTranslate("interface.text_3ab6dfd3dfcca529")}</p>
         </div>
         <Button className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90" onClick={openAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add material
-        </Button>
+          <Plus className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_42a2f282d2b478d4")}</Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -232,7 +229,7 @@ function ManufacturerMaterialsPreview() {
             className="rounded-2xl border border-[#252528] bg-[#111113] px-4 py-3.5"
           >
             <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-              {card.label}
+              {cerigaTranslateLabel(card.label)}
             </p>
             <p
               className={cn(
@@ -260,7 +257,7 @@ function ManufacturerMaterialsPreview() {
                   : 'border-[#252528] bg-white/[0.03] text-white/50 hover:text-white',
               )}
             >
-              {f.label}
+              {cerigaTranslateLabel(f.label)}
             </button>
           ))}
         </div>
@@ -270,7 +267,7 @@ function ManufacturerMaterialsPreview() {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, colour, supplier…"
+            placeholder={cerigaTranslate("interface.text_7ee80e4c48a14f3f")}
             className="w-full rounded-xl border border-[#252528] bg-white/[0.04] py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25"
           />
         </div>
@@ -279,20 +276,20 @@ function ManufacturerMaterialsPreview() {
       {formOpen ? (
         <section className="rounded-2xl border border-[#CC2D24]/25 bg-[#111113] p-5">
           <h2 className="text-sm font-semibold text-white">
-            {editingId ? 'Edit material' : 'New material'}
+            {editingId ? cerigaTranslate("interface.text_212dfb3b91c8d328") : cerigaTranslate("interface.text_dfe2edea22922952")}
           </h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="sm:col-span-2 lg:col-span-1">
-              <Label className="text-[10px] text-white/40">Name</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_dcd1d5223f73b3a9")}</Label>
               <Input
                 value={draft.name}
                 onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
                 className="mt-1 border-white/15 bg-white/5 text-white"
-                placeholder="e.g. Organic fleece"
+                placeholder={cerigaTranslate("interface.text_9c9079c726a7b23d")}
               />
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">Kind</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_f5387f9bb6ed7031")}</Label>
               <Select
                 value={draft.kind}
                 onValueChange={(v) => setDraft((d) => ({ ...d, kind: v as FactoryMaterialKind }))}
@@ -303,23 +300,23 @@ function ManufacturerMaterialsPreview() {
                 <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {(Object.keys(FACTORY_MATERIAL_KIND_LABEL) as FactoryMaterialKind[]).map((k) => (
                     <SelectItem key={k} value={k}>
-                      {FACTORY_MATERIAL_KIND_LABEL[k]}
+                      {cerigaTranslateLabel(FACTORY_MATERIAL_KIND_LABEL[k])}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">Colour</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</Label>
               <Input
                 value={draft.colour}
                 onChange={(e) => setDraft((d) => ({ ...d, colour: e.target.value }))}
                 className="mt-1 border-white/15 bg-white/5 text-white"
-                placeholder="Optional"
+                placeholder={cerigaTranslate("interface.text_59be71333c960fd0")}
               />
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">GSM (fabrics)</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_c2dd5a5efad9c846")}</Label>
               <Input
                 value={draft.gsm}
                 onChange={(e) => setDraft((d) => ({ ...d, gsm: e.target.value }))}
@@ -328,7 +325,7 @@ function ManufacturerMaterialsPreview() {
               />
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">Quantity on hand</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_69c89d4117d083bf")}</Label>
               <Input
                 value={draft.quantity}
                 onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
@@ -336,7 +333,7 @@ function ManufacturerMaterialsPreview() {
               />
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">Unit</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_4e545960f1bffc13")}</Label>
               <Select
                 value={draft.unit}
                 onValueChange={(v) => setDraft((d) => ({ ...d, unit: v as FactoryMaterialUnit }))}
@@ -347,14 +344,14 @@ function ManufacturerMaterialsPreview() {
                 <SelectContent className="border-[#252528] bg-[#161618] text-white">
                   {FACTORY_MATERIAL_UNITS.map((u) => (
                     <SelectItem key={u} value={u}>
-                      {u}
+                      {cerigaTranslateLabel(u)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">Reorder when ≤</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_69eda65222772d4c")}</Label>
               <Input
                 value={draft.reorderAt}
                 onChange={(e) => setDraft((d) => ({ ...d, reorderAt: e.target.value }))}
@@ -362,7 +359,7 @@ function ManufacturerMaterialsPreview() {
               />
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">Supplier</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_72e2f03367f77cb2")}</Label>
               <Input
                 value={draft.supplier}
                 onChange={(e) => setDraft((d) => ({ ...d, supplier: e.target.value }))}
@@ -370,27 +367,27 @@ function ManufacturerMaterialsPreview() {
               />
             </div>
             <div>
-              <Label className="text-[10px] text-white/40">Location note</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_05c557e48be9b1f0")}</Label>
               <Input
                 value={draft.location}
                 onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}
                 className="mt-1 border-white/15 bg-white/5 text-white"
-                placeholder="Bay / shelf"
+                placeholder={cerigaTranslate("interface.text_ec8c6538196679a1")}
               />
             </div>
             <div className="sm:col-span-2 lg:col-span-3">
-              <Label className="text-[10px] text-white/40">Notes</Label>
+              <Label className="text-[10px] text-white/40">{cerigaTranslate("adminOrders.notes")}</Label>
               <Textarea
                 value={draft.notes}
                 onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                 className="mt-1 min-h-[72px] border-white/15 bg-white/5 text-white"
-                placeholder="Lot notes, preferred use, etc."
+                placeholder={cerigaTranslate("interface.text_23c6130583e62fad")}
               />
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90" onClick={saveForm}>
-              {editingId ? 'Save changes' : 'Add to stock'}
+              {editingId ? cerigaTranslate("common.saveChanges") : cerigaTranslate("interface.text_4b3f79c6c7f39886")}
             </Button>
             <Button
               variant="outline"
@@ -399,9 +396,7 @@ function ManufacturerMaterialsPreview() {
                 setFormOpen(false);
                 setEditingId(null);
               }}
-            >
-              Cancel
-            </Button>
+            >{cerigaTranslate("common.cancel")}</Button>
           </div>
         </section>
       ) : null}
@@ -410,19 +405,19 @@ function ManufacturerMaterialsPreview() {
         {filtered.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <Package className="mx-auto h-8 w-8 text-white/20" />
-            <p className="mt-3 text-sm text-white/45">No materials match this filter.</p>
+            <p className="mt-3 text-sm text-white/45">{cerigaTranslate("interface.text_239a3733b7744d15")}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead>
                 <tr className="border-b border-[#252528] text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                  <th className="px-4 py-3 font-semibold">Material</th>
-                  <th className="px-4 py-3 font-semibold">Kind</th>
-                  <th className="px-4 py-3 font-semibold">On hand</th>
-                  <th className="px-4 py-3 font-semibold">Supplier</th>
-                  <th className="px-4 py-3 font-semibold">Location</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_616cb218a65b982f")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_f5387f9bb6ed7031")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_9de5d84ed8e5c5b1")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_72e2f03367f77cb2")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_15b61974b2707a7b")}</th>
+                  <th className="px-4 py-3 font-semibold text-right">{cerigaTranslate("interface.text_ff8059dc6752afdd")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
@@ -438,13 +433,12 @@ function ManufacturerMaterialsPreview() {
                           <div>
                             <p className="font-medium text-white">{m.name}</p>
                             <p className="mt-0.5 text-[11px] text-white/40">
-                              {[m.colour, m.gsm != null ? `${m.gsm}gsm` : null]
+                              {[m.colour, m.gsm != null ? cerigaTranslate("interface.text_3da59ea8aa3bfa41",{value0:(m.gsm)}) : null]
                                 .filter(Boolean)
                                 .join(' · ') || '—'}
                             </p>
                             {low ? (
-                              <p className="mt-1 text-[10px] font-medium text-amber-300/90">
-                                Low — reorder at {m.reorderAt} {m.unit}
+                              <p className="mt-1 text-[10px] font-medium text-amber-300/90">{cerigaTranslate("interface.text_3fea74aacc271b2a")}{" "}{m.reorderAt} {m.unit}
                               </p>
                             ) : null}
                           </div>
@@ -452,7 +446,7 @@ function ManufacturerMaterialsPreview() {
                       </td>
                       <td className="px-4 py-3.5">
                         <span className="rounded-md border border-[#252528] bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase text-white/55">
-                          {FACTORY_MATERIAL_KIND_LABEL[m.kind]}
+                          {cerigaTranslateLabel(FACTORY_MATERIAL_KIND_LABEL[m.kind])}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -461,7 +455,7 @@ function ManufacturerMaterialsPreview() {
                             type="button"
                             onClick={() => bump(m.id, -1)}
                             className="flex h-7 w-7 items-center justify-center rounded-md border border-[#252528] text-white/60 hover:bg-white/5 hover:text-white"
-                            aria-label="Decrease"
+                            aria-label={cerigaTranslate("interface.text_991e5ab396c965a1")}
                           >
                             −
                           </button>
@@ -478,7 +472,7 @@ function ManufacturerMaterialsPreview() {
                             type="button"
                             onClick={() => bump(m.id, 1)}
                             className="flex h-7 w-7 items-center justify-center rounded-md border border-[#252528] text-white/60 hover:bg-white/5 hover:text-white"
-                            aria-label="Increase"
+                            aria-label={cerigaTranslate("interface.text_0c2d3b8713b00333")}
                           >
                             +
                           </button>
@@ -493,9 +487,7 @@ function ManufacturerMaterialsPreview() {
                             variant="outline"
                             className="border-white/15 text-white hover:bg-white/5"
                             onClick={() => openEdit(m)}
-                          >
-                            Edit
-                          </Button>
+                          >{cerigaTranslate("common.edit")}</Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -520,9 +512,9 @@ function ManufacturerMaterialsPreview() {
         onOpenChange={(open) => {
           if (!open) setRemoveId(null);
         }}
-        title="Remove this material?"
-        description="It will be removed from your factory stock list. You can add it again later."
-        confirmLabel="Remove"
+        title={cerigaTranslate("interface.text_883e0f5a8926522a")}
+        description={cerigaTranslate("interface.text_2d0ea79da883aa69")}
+        confirmLabel={cerigaTranslate("interface.text_c3812fc4acb861d5")}
         tone="danger"
         onConfirm={confirmRemove}
       />

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 "use client";
 
 import * as React from "react";
@@ -33,6 +34,8 @@ type CarouselContextProps = {
 const CarouselContext = React.createContext<CarouselContextProps | null>(null);
 
 function useCarousel() {
+  useCerigaTranslation();
+
   const context = React.useContext(CarouselContext);
 
   if (!context) {
@@ -177,6 +180,8 @@ function CarouselPrevious({
   size = "icon",
   ...props
 }: React.ComponentProps<typeof Button>) {
+  useCerigaTranslation();
+
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
 
   return (
@@ -196,7 +201,7 @@ function CarouselPrevious({
       {...props}
     >
       <ArrowLeft />
-      <span className="sr-only">Previous slide</span>
+      <span className="sr-only">{cerigaTranslate("interface.text_bfb549220c60fc91")}</span>
     </Button>
   );
 }
@@ -207,6 +212,8 @@ function CarouselNext({
   size = "icon",
   ...props
 }: React.ComponentProps<typeof Button>) {
+  useCerigaTranslation();
+
   const { orientation, scrollNext, canScrollNext } = useCarousel();
 
   return (
@@ -226,7 +233,7 @@ function CarouselNext({
       {...props}
     >
       <ArrowRight />
-      <span className="sr-only">Next slide</span>
+      <span className="sr-only">{cerigaTranslate("interface.text_cdc93d1c8fe9a2af")}</span>
     </Button>
   );
 }

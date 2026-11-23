@@ -1,3 +1,4 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as React from 'react';
@@ -15,7 +16,7 @@ const imports = {
   '../../contexts/FactoryAccessContext': { useFactoryAccess: () => ({ ready: true }) },
 };
 new Function('React', 'require', 'module', 'exports', code)(
-  React, id => imports[id] ?? {}, module, module.exports,
+  React, ((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(id => imports[id] ?? {}), module, module.exports,
 );
 const html = renderToStaticMarkup(React.createElement(module.exports.ManufacturerFulfilment));
 assert.match(html, /Production<span>0<\/span>/);

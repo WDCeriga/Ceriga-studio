@@ -1,6 +1,22 @@
 import {loadFreight} from './freight';
 import { getSupabase } from './supabaseClient';
 import type { ManufacturerQuoteTierRow } from './ordersDb';
+import { rowToUserOrder, type OrderRow } from './ordersDb';
+
+export async function fetchComparisonRequests(orderId?: string) {
+  const { data, error } = await getSupabase().rpc('factory_comparison_requests', orderId ? { p_order: orderId } : {});
+  if (error?.code === 'PGRST202') return [];
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as OrderRow[]).map(rowToUserOrder);
+}
+
+export async function respondToComparison(orderId: string, tiers: ManufacturerQuoteTierRow[], comments: string, decline = false) {
+  const { data, error } = await getSupabase().rpc('factory_respond_comparison', {
+    p_order: orderId, p_tiers: tiers, p_comments: comments, p_decline: decline,
+  });
+  if (error || data !== orderId) throw new Error(error?.message ?? 'The response was not saved.');
+  window.dispatchEvent(new Event('ceriga-orders-updated'));
+}
 
 export async function submitManufacturerQuote(orderId: string, tiers: ManufacturerQuoteTierRow[]): Promise<void> {
   // An older backend would silently drop unknown shipping fields. Fail before saving until the migration is live.
@@ -11,6 +27,15 @@ export async function submitManufacturerQuote(orderId: string, tiers: Manufactur
   const { data, error } = await getSupabase().rpc('submit_manufacturer_quote', { p_order_id: orderId, p_tiers: tiers });
   if (error) throw new Error(error.message);
   if (data !== orderId) throw new Error('The database did not confirm quotation submission');
+  window.dispatchEvent(new Event('ceriga-orders-updated'));
+}
+
+/** Keeps the existing quote validators and adds an atomic edit-version check. */
+export async function submitCheckedFactoryQuote(orderId:string,tiers:ManufacturerQuoteTierRow[],expected:{at:string|null;status:string},comparison=false,comments='') {
+  const {data,error}=await getSupabase().rpc('submit_factory_quote_checked',{
+    p_order:orderId,p_tiers:tiers,p_expected:expected,p_comparison:comparison,p_comments:comments,
+  });
+  if(error||data!==orderId)throw Object.assign(new Error(error?.message??'The database did not confirm quotation submission'),{code:error?.code});
   window.dispatchEvent(new Event('ceriga-orders-updated'));
 }
 

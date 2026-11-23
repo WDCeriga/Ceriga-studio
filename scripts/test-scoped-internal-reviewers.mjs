@@ -1,0 +1,41 @@
+process.on('uncaughtException',e=>{console.error(e.message,e.where??'');process.exit(1)});
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {testDatabase,asAccount} from './support/testDatabase.mjs';
+const db=await testDatabase();const [admin,buyer,factory,staff]=Array.from({length:4},()=>randomUUID());
+const actor=id=>asAccount(db,id,id===admin?'owner@ceriga.io':id+'@example.invalid');
+const context=id=>db.query('select public.internal_review_context($1) value',[id]).then(r=>r.rows[0].value);
+const permissions={'orders.view':'assigned','communication.view':'assigned','communication.edit':'assigned','quotations.view':'assigned','quotations.edit':'assigned','shipping.view':'assigned','shipping.edit':'assigned'};
+try{
+ for(const id of [admin,buyer,factory,staff])await db.query('insert into auth.users(id,email,email_confirmed_at,encrypted_password)values($1,$2,now(),$3)',[id,id===admin?'owner@ceriga.io':id+'@example.invalid','fixture-password-hash']);
+ await db.query("insert into manufacturer_profiles(user_id,factory_name,status,onboarding_complete,garments,moq)values($1,'Factory','active',true,array['T-shirts'],1)",[factory]);
+ await actor(admin);
+ await assert.rejects(db.query('select public.platform_worker_manage(\'save_role\',$1)',[{name:'Invalid reviewer',permissions:{'communication.view':'all'}}]),/Orders access/);
+ const role=(await db.query('select public.platform_worker_manage(\'save_role\',$1) value',[{name:'Assigned reviewer',permissions}])).rows[0].value;
+ await db.exec('reset role');await db.query('insert into platform_workers(user_id,role_id)values($1,$2)',[staff,role.id]);
+ await actor(buyer);
+ const create=()=>db.query('select public.create_customer_order($1) value',[{kind:'production',product_name:'Reviewer fixture',garment_type:'T-shirts',order_quantities:{mode:'custom_clothing',sample:{id:'sample',kind:'sample',bySize:{m:1}},bulkRuns:[]}}]).then(r=>r.rows[0].value.id);
+ const own=await create(),outside=await create();
+ await actor(admin);for(const id of [own,outside])await db.query('select public.assign_order_manufacturer($1,$2,current_date+3)',[id,factory]);
+ await db.exec('reset role');await db.query('insert into platform_worker_assignments(order_id,worker_id)values($1,$2)',[own,staff]);
+ const request=randomUUID();await actor(factory);
+ await db.query('select public.order_communication_localized_action($1,\'manufacturer\',\'submit\',$2,0,\'Please confirm the print.\',\'design\',null,\'[]\',false,\'en\')',[own,request]);
+ await actor(staff);let allowed=await context(own);assert.equal(allowed.communicationWrite,true);assert.equal(allowed.shippingWrite,true);
+ assert.equal((await db.query('select public.is_superadmin() value')).rows[0].value,false);
+ await assert.rejects(context(outside),/access denied/);
+ let history=(await db.query('select public.order_communication_history($1,\'admin\') value',[own])).rows[0].value;
+ assert.equal(history.length,1);assert.equal(history[0].canAct,true);
+ await db.query('select public.order_communication_localized_action($1,\'admin\',\'approve\',$2,$3,\'Please confirm the print.\',\'design\',null,\'[]\',false,\'en\')',[own,request,history[0].version]);
+ await assert.rejects(db.query('select public.order_communication_history($1,\'admin\')',[outside]),/access denied/);
+ await assert.rejects(db.query('select public.admin_select_factory_quote($1,$2,null)',[outside,factory]),/authorization/);
+ const shipping=(await db.query('select public.worker_shipping_context($1) value',[own])).rows[0].value;
+ assert.deepEqual(shipping.quotes,[]);assert.equal(shipping.manufacturerQuotes,null);assert.equal(shipping.releaseAuthorized,false);
+ await assert.rejects(db.query("select public.freight_logistics_update($1,gen_random_uuid(),'collection_scheduled','{}')",[own]),/approved QC/);
+ await assert.rejects(db.query('select public.publish_order_quote($1,\'[]\')',[own]),/Superadmin|authorization|permission/i);
+ await actor(admin);await db.exec('reset role');await db.query('update platform_worker_roles set permissions=$2 where id=$1',[role.id,{'orders.view':'assigned','communication.view':'assigned'}]);
+ await actor(staff);allowed=await context(own);assert.equal(allowed.communicationWrite,false);assert.equal(allowed.shippingRead,false);
+ history=(await db.query('select public.order_communication_history($1,\'admin\') value',[own])).rows[0].value;assert.equal(history[0].canAct,false);
+ await assert.rejects(db.query('select public.order_communication_localized_action($1,\'admin\',\'reject\',$2,$3,\'No\',\'design\',null,\'[]\',false,\'en\')',[own,request,history[0].version]),/review permission/);
+ for(const id of [buyer,factory]){await actor(id);await assert.rejects(context(own),/access denied/);}
+ console.log('PASS scoped reviewer dependencies, assigned-only reads/writes, original communication approval/audit, no Super Admin promotion, protected pricing/release, shipping sanitization and immediate permission revocation.');
+}finally{await db.close();}

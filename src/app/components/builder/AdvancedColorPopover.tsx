@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { normalizeHex6 } from '../../lib/colorUtils';
@@ -88,6 +89,8 @@ export function AdvancedColorPopover({
   /** Optional class for the popover panel (e.g. width). */
   contentClassName?: string;
 }) {
+  useCerigaTranslation();
+
   const hex = normalizeHex6(value);
   const [open, setOpen] = useState(false);
   const [hsv, setHsv] = useState(() => {
@@ -189,12 +192,12 @@ export function AdvancedColorPopover({
               background:
                 'linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%)',
             }}
-            aria-label="Hue"
+            aria-label={cerigaTranslate("interface.text_4d7056f0e9bef487")}
           />
         </div>
         <div className="mt-3">
           <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-white/45">RGB</span>
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_88b5990f3ff59730")}</span>
             <span className="font-mono text-[10px] text-white/55">{hex}</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -206,7 +209,7 @@ export function AdvancedColorPopover({
               ]
             ).map(([label, key, channel]) => (
               <div key={key}>
-                <label className="mb-1 block text-center text-[9px] font-medium text-white/40">{label}</label>
+                <label className="mb-1 block text-center text-[9px] font-medium text-white/40">{cerigaTranslateLabel(label)}</label>
                 <input
                   type="number"
                   min={0}
@@ -223,9 +226,7 @@ export function AdvancedColorPopover({
             ))}
           </div>
         </div>
-        <p className="mt-2 text-[10px] leading-snug text-white/40">
-          Drag the square for saturation and brightness, use the strip for hue, or type RGB values.
-        </p>
+        <p className="mt-2 text-[10px] leading-snug text-white/40">{cerigaTranslate("interface.text_2f784659720d2911")}</p>
       </PopoverContent>
     </Popover>
   );

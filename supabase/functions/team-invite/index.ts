@@ -1,3 +1,4 @@
+import { invitationEmail } from '../_shared/invitationEmail.ts';
 import {createClient}from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Content-Type':'application/json'};
 Deno.serve(async(req:Request)=>{const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});if(req.method==='OPTIONS')return new Response('ok',{headers});if(req.method!=='POST')return reply({error:'POST required'},405);
@@ -12,7 +13,10 @@ Deno.serve(async(req:Request)=>{const reply=(data:unknown,status=200)=>new Respo
  const fragment=invite.token+(authHash?'&invite='+encodeURIComponent(authHash)+'&type='+otpType:'');
  const configuredOrigin=Deno.env.get('CERIGA_APP_URL');const mailKey=Deno.env.get('RESEND_API_KEY'),from=Deno.env.get('CERIGA_INVITE_FROM');let delivery='failed',reason='Email delivery is not configured';let link:string|undefined;
  if(configuredOrigin){const app=new URL(configuredOrigin);if(app.protocol!=='https:')throw new Error('Invitation app URL must use HTTPS');link=app.origin+'/team-invite#'+fragment;}
- if(link&&mailKey&&from){try{const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+mailKey,'Content-Type':'application/json','Idempotency-Key':invite.id+':'+invite.token.slice(0,16)},body:JSON.stringify({from,to:[invite.email],subject:'Invitation to your Ceriga factory team',text:`You have been invited to a manufacturer team on Ceriga. Open this invitation to set up your password or sign in as ${invite.email} and join the team: ${link}\nTeam membership invitations expire in 7 days; password setup links may expire sooner. Ask the factory owner to resend an expired setup link. If you did not expect it, ignore this email.`})});if(response.ok){delivery='sent';reason='';}else reason='Email provider rejected delivery';}catch{reason='Email provider unavailable';}}
+ if(link&&mailKey&&from){try{
+   const {data:recipient}=await server.from('profiles').select('preferred_language').eq('email',invite.email).maybeSingle();
+   const message=invitationEmail(recipient?.preferred_language,link,{expiresInSevenDays:true});
+   const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+mailKey,'Content-Type':'application/json','Idempotency-Key':invite.id+':'+invite.token.slice(0,16)},body:JSON.stringify({from,to:[invite.email],...message})});if(response.ok){delivery='sent';reason='';}else reason='Email provider rejected delivery';}catch{reason='Email provider unavailable';}}
  const marked=await server.rpc('record_team_invite_delivery',{p_id:invite.id,p_status:delivery,p_error:reason||null});if(marked.error)throw new Error('Invitation saved, but delivery status could not be recorded');
  return reply({id:invite.id,token:fragment,link,delivery,notice:reason});
  }catch(error){return reply({error:error instanceof Error?error.message:'Invitation failed'},500);}});

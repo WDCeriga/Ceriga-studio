@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { useState, useMemo } from 'react';
 import {
   Wrench,
@@ -39,6 +40,8 @@ export function StepProductionCapabilities({
   onBack,
   errors,
 }: Props) {
+  useCerigaTranslation();
+
   const [search, setSearch] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [customCapInput, setCustomCapInput] = useState('');
@@ -112,10 +115,8 @@ export function StepProductionCapabilities({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">3. Production Capabilities</h2>
-        <p className="mt-1 text-sm text-white/50">
-          Select the production methods you offer and indicate whether each is in-house or outsourced.
-        </p>
+        <h2 className="text-xl font-semibold text-white">{cerigaTranslate("interface.text_eb32249993b9fb65")}</h2>
+        <p className="mt-1 text-sm text-white/50">{cerigaTranslate("interface.text_16bd6db165b66fba")}</p>
       </div>
 
       {/* Global Capability Search & Counter Banner */}
@@ -125,20 +126,19 @@ export function StepProductionCapabilities({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search printing, embroidery, washing, cut & sew..."
+            placeholder={cerigaTranslate("interface.text_a4c7132e8359be80")}
             className="pl-9 h-9 border-white/10 bg-white/[0.03] text-xs text-white placeholder:text-white/30"
           />
         </div>
         <div className="flex items-center gap-2">
           <div className="rounded-lg bg-white/5 px-3 py-1.5 text-xs text-white/70">
-            <span className="font-semibold text-[#CC2D24]">{selectedCount}</span> techniques active
-          </div>
+            <span className="font-semibold text-[#CC2D24]">{selectedCount}</span>{" "}{cerigaTranslate("interface.text_81fa1a96b2e4f0f0")}</div>
         </div>
       </div>
 
       {errors.capabilities && (
         <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200">
-          {errors.capabilities}
+          {cerigaTranslateLabel(errors.capabilities)}
         </div>
       )}
 
@@ -164,14 +164,13 @@ export function StepProductionCapabilities({
                     <h3 className="text-sm font-semibold text-white">{group.title}</h3>
                     {inGroupSelected > 0 && (
                       <span className="rounded-full bg-[#CC2D24]/20 border border-[#CC2D24]/40 px-2 py-0.5 text-[10px] font-semibold text-red-200">
-                        {inGroupSelected} enabled
-                      </span>
+                        {inGroupSelected}{" "}{cerigaTranslate("interface.text_fb9cf75606b4070d")}</span>
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-white/40">{group.description}</p>
                 </div>
                 <div className="flex items-center gap-2 text-white/40">
-                  <span className="text-xs">{isCollapsed ? 'Expand' : 'Collapse'}</span>
+                  <span className="text-xs">{isCollapsed ? cerigaTranslate("nav.expand") : cerigaTranslate("nav.collapse")}</span>
                   {isCollapsed ? (
                     <ChevronDown className="h-4 w-4" />
                   ) : (
@@ -184,16 +183,16 @@ export function StepProductionCapabilities({
               {!isCollapsed && (
                 <div className="border-t border-[#252528] p-5 space-y-3 bg-black/10">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[11px] text-white/40">New selections default to in-house. Existing sources are preserved.</p>
+                    <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_136c4765f4b3df57")}</p>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      aria-label={`Select all ${group.title.toLowerCase()}`}
+                      aria-label={cerigaTranslate("interface.text_0c65822ebd5e7a48",{value0:(group.title.toLowerCase())})}
                       disabled={!group.items.length || group.items.every(item => Boolean(capabilitiesMap[item]))}
                       onClick={() => selectAllCapabilities(group.items)}
                       className="h-8 border-white/15 text-xs text-white hover:bg-white/10"
-                    >Select all{search.trim() ? ' matching' : ''}</Button>
+                    >{cerigaTranslate("interface.text_1fc9a387654d410f")}{search.trim() ? cerigaTranslate("interface.text_e0705e68b0468289") : ''}</Button>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {group.items.map((item) => {
@@ -239,9 +238,7 @@ export function StepProductionCapabilities({
                                     : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white',
                                 )}
                               >
-                                <Building className="h-2.5 w-2.5" />
-                                In-house
-                              </button>
+                                <Building className="h-2.5 w-2.5" />{cerigaTranslate("interface.text_3e30be7fdc20bf40")}</button>
                               <button
                                 type="button"
                                 onClick={() => setCapability(item, 'outsourced')}
@@ -252,9 +249,7 @@ export function StepProductionCapabilities({
                                     : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white',
                                 )}
                               >
-                                <Handshake className="h-2.5 w-2.5" />
-                                Outsourced
-                              </button>
+                                <Handshake className="h-2.5 w-2.5" />{cerigaTranslate("interface.text_4ac666241916881e")}</button>
                             </div>
                           )}
                         </div>
@@ -271,15 +266,13 @@ export function StepProductionCapabilities({
       {/* Custom Additional Capabilities Section */}
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-white">Additional Custom Capabilities</h3>
-          <p className="mt-0.5 text-xs text-white/40">
-            Offer proprietary machinery or niche methods not listed above (e.g. Ultrasonic bonding, Laser cutting, Dip dye).
-          </p>
+          <h3 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_848bfa5b60022745")}</h3>
+          <p className="mt-0.5 text-xs text-white/40">{cerigaTranslate("interface.text_7b3423c5cadb5b47")}</p>
         </div>
 
         <div className="flex max-w-2xl flex-wrap gap-2">
-          <select aria-label="Custom capability category" value={customCategory} onChange={event => setCustomCategory(event.target.value as CapabilityCategory)} className="h-9 rounded-md border border-white/10 bg-[#111113] px-2 text-xs text-white">
-            {METHOD_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
+          <select aria-label={cerigaTranslate("interface.text_406c69d766a4c99e")} value={customCategory} onChange={event => setCustomCategory(event.target.value as CapabilityCategory)} className="h-9 rounded-md border border-white/10 bg-[#111113] px-2 text-xs text-white">
+            {METHOD_CATEGORIES.map(category => <option key={category.id} value={category.id}>{cerigaTranslateLabel(category.label)}</option>)}
           </select>
           <Input
             value={customCapInput}
@@ -290,7 +283,7 @@ export function StepProductionCapabilities({
                 addCustomCapability();
               }
             }}
-            placeholder="Add technique name..."
+            placeholder={cerigaTranslate("interface.text_a2034b9119a7915f")}
             className="border-white/10 bg-white/[0.03] text-xs text-white placeholder:text-white/30"
           />
           <Button
@@ -298,14 +291,13 @@ export function StepProductionCapabilities({
             onClick={addCustomCapability}
             className="bg-white/10 text-white hover:bg-white/20 text-xs px-4"
           >
-            <Plus className="mr-1 h-3.5 w-3.5" /> Add
-          </Button>
+            <Plus className="mr-1 h-3.5 w-3.5" />{" "}{cerigaTranslate("interface.text_9fd728c66c9a256b")}</Button>
         </div>
 
         {profile.customCapabilities && profile.customCapabilities.length > 0 && (
           <div className="flex flex-wrap gap-2 pt-2">
             {profile.customCapabilities.map((custom) => {
-              const source = capabilitiesMap[custom] || 'in_house';
+              const source = capabilitiesMap[custom] || "in_house";
               return (
                 <div
                   key={custom}
@@ -320,9 +312,7 @@ export function StepProductionCapabilities({
                         'px-1.5 py-0.5 rounded',
                         source === 'in_house' ? 'bg-[#CC2D24] text-white font-medium' : 'text-white/40',
                       )}
-                    >
-                      In-house
-                    </button>
+                    >{cerigaTranslate("interface.text_3e30be7fdc20bf40")}</button>
                     <button
                       type="button"
                       onClick={() => setCapability(custom, 'outsourced')}
@@ -330,9 +320,7 @@ export function StepProductionCapabilities({
                         'px-1.5 py-0.5 rounded',
                         source === 'outsourced' ? 'bg-amber-600 text-white font-medium' : 'text-white/40',
                       )}
-                    >
-                      Outsourced
-                    </button>
+                    >{cerigaTranslate("interface.text_4ac666241916881e")}</button>
                   </div>
                   <button
                     type="button"
@@ -355,16 +343,12 @@ export function StepProductionCapabilities({
           variant="outline"
           onClick={onBack}
           className="border-white/15 text-white hover:bg-white/5"
-        >
-          Back
-        </Button>
+        >{cerigaTranslate("common.back")}</Button>
         <Button
           type="button"
           onClick={onNext}
           className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
-        >
-          Continue to Capacity & Pricing
-        </Button>
+        >{cerigaTranslate("interface.text_c2280ef6c56e0ad5")}</Button>
       </div>
     </div>
   );

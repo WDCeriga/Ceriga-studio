@@ -1,3 +1,5 @@
+import { activeLocale as cerigaLocale } from '../../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 "use client";
 
 import * as React from "react";
@@ -25,6 +27,8 @@ type ChartContextProps = {
 const ChartContext = React.createContext<ChartContextProps | null>(null);
 
 function useChart() {
+  useCerigaTranslation();
+
   const context = React.useContext(ChartContext);
 
   if (!context) {
@@ -144,7 +148,7 @@ function ChartTooltipContent({
     if (labelFormatter) {
       return (
         <div className={cn("font-medium", labelClassName)}>
-          {labelFormatter(value, payload)}
+          {cerigaTranslateLabel(labelFormatter(value, payload))}
         </div>
       );
     }
@@ -234,7 +238,7 @@ function ChartTooltipContent({
                     </div>
                     {item.value && (
                       <span className="text-foreground font-mono font-medium tabular-nums">
-                        {item.value.toLocaleString()}
+                        {item.value.toLocaleString(cerigaLocale())}
                       </span>
                     )}
                   </div>

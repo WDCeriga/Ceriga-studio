@@ -14,6 +14,16 @@ function RedirectPreserveSearch({ to }: { to: string }) {
   return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
 }
 
+function LegacyPriceReviewRedirect() {
+  const { search, hash, state } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('view', 'pricing');
+  if (!params.has('order') && typeof state?.startOrderId === 'string') {
+    params.set('order', state.startOrderId);
+  }
+  return <Navigate to={`/superadmin/assignment?${params}${hash}`} replace />;
+}
+
 function LegacyCrmAccessRedirect(){const{audience,userId}=useParams();return <Navigate replace to={audience==='manufacturers'?'/superadmin/manufacturers':userId?(audience==='workers'?'/superadmin/workers/'+userId:'/superadmin/users/'+userId):'/superadmin/workers/roles'}/>;}
 export const router = createBrowserRouter([
   {path:'/worker-invite',lazy:async()=>{const{WorkerInvitation}=await import('./pages/WorkerInvitation');return{Component:WorkerInvitation};}},
@@ -367,20 +377,18 @@ export const router = createBrowserRouter([
     },
   },
   {
-    path: "/superadmin/orders/review",
+    path: "/superadmin/orders/communication",
     lazy: async () => {
-      const [{ SuperAdminLayout }, { SuperAdminOrderReviewQueue }] = await Promise.all([
+      const [{ SuperAdminLayout }, { SuperAdminOrderCommunication }] = await Promise.all([
         import("./components/superadmin/SuperAdminLayout"),
-        import("./pages/superadmin/SuperAdminOrderReviewQueue"),
+        import("./pages/superadmin/SuperAdminOrderCommunication"),
       ]);
-      return {
-        element: (
-          <SuperAdminLayout>
-            <SuperAdminOrderReviewQueue />
-          </SuperAdminLayout>
-        ),
-      };
+      return { element: <SuperAdminLayout><SuperAdminOrderCommunication /></SuperAdminLayout> };
     },
+  },
+  {
+    path: "/superadmin/orders/review",
+    element: <LegacyPriceReviewRedirect />,
   },
   {
     path: "/superadmin/orders/:id",
@@ -974,3 +982,11 @@ export const router = createBrowserRouter([
     Component: NotFound,
   },
 ]);
+
+// Apply the portal palette before lazy routes render and on client navigation.
+function applyPortalPalette(pathname: string) {
+  document.documentElement.toggleAttribute('data-light-portal', /^\/(superadmin|manufacturer)(\/|$)/.test(pathname));
+}
+
+applyPortalPalette(router.state.location.pathname);
+router.subscribe(({ location }) => applyPortalPalette(location.pathname));

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { MessageImagePreview } from '../../components/MessageImagePreview';
 import './superadmin-messages.css';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
@@ -213,7 +214,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 export function SuperAdminMessages() {
-  const { manufacturerList } = useSuperadminData();
+  useCerigaTranslation();
+
+  const { manufacturerList } = useSuperadminData({scope:'manufacturers'});
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState('');
@@ -381,12 +384,12 @@ export function SuperAdminMessages() {
 
     for (const file of Array.from(files)) {
       if (file.size > MAX_FILE_BYTES) {
-        toast.error(`${file.name} exceeds 10 MB`);
+        toast.error(cerigaTranslate("interface.text_7e00fd0299f3b2a6",{value0:(file.name)}));
         continue;
       }
 
       if (kind === 'image' && !['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) {
-        toast.error(`${file.name} is not a supported image`);
+        toast.error(cerigaTranslate("interface.text_57368ccee8dd6a6f",{value0:(file.name)}));
         continue;
       }
 
@@ -403,7 +406,7 @@ export function SuperAdminMessages() {
     if (next.length === 0) return;
 
     setPendingAttachments((prev) => [...prev, ...next]);
-    toast.success(next.length === 1 ? 'Attachment added' : `${next.length} attachments added`);
+    toast.success(cerigaTranslateLabel(next.length === 1 ? cerigaTranslate("interface.text_f39a309fb0054d8e") : cerigaTranslate("interface.text_bbbea8125cd9b327",{value0:(next.length)})));
   };
 
   const onImageChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -463,18 +466,18 @@ export function SuperAdminMessages() {
       setAlibabaStatus(status);
       if (!status.configured) {
         toast.error(
-          status.message ||
-            'Alibaba is not connected. Add Edge Function secrets (see Settings).',
+          cerigaTranslateLabel(status.message ||
+            cerigaTranslate("interface.text_f3e60a64aabc261d")),
         );
         return;
       }
       const result = await syncAlibabaInbox();
       await refreshThreads();
       toast.success(
-        `Synced ${result.conversations} Alibaba conversation${result.conversations === 1 ? '' : 's'}`,
+        cerigaTranslate("interface.plural_f234f3c2fc2c4125",{value0:(result.conversations),count:Number(result.conversations)}),
       );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Alibaba sync failed');
+      toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_0538927a813d8ea6")));
     } finally {
       setSyncing(false);
     }
@@ -501,7 +504,7 @@ export function SuperAdminMessages() {
       setActive(created.id);
       setNewOpen(false);
       setNewQuery('');
-      toast.success(`Started conversation with ${candidate.name}`);
+      toast.success(cerigaTranslate("interface.text_b03afcd5dadf6db0",{value0:(candidate.name)}));
     } catch (err) {
       setConversationError(chatErrorMessage(err, 'Could not create conversation'));
     } finally {
@@ -510,7 +513,7 @@ export function SuperAdminMessages() {
   };
 
   if (loading) {
-    return <div className="admin-messages"><h1>Messages</h1><p role="status" className="messages-loading">Loading conversations…</p></div>;
+    return <div className="admin-messages"><h1>{cerigaTranslate("nav.messages")}</h1><p role="status" className="messages-loading">{cerigaTranslate("interface.text_1eec1dfc13a43e8f")}</p></div>;
   }
 
   const channelTabs: { id: ChannelFilter; label: string }[] = [
@@ -526,13 +529,9 @@ export function SuperAdminMessages() {
     <div className={'admin-messages space-y-6 '+(mobileConversation?'messages-show-thread':'')}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-            CERIGA / INBOX
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Messages
-          </h1>
-          <p className="messages-intro">Conversations with your factories and partners, in one place.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">{cerigaTranslate("interface.text_ef0086fac4eb7814")}</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{cerigaTranslate("nav.messages")}</h1>
+          <p className="messages-intro">{cerigaTranslate("interface.text_60ad5191d0c60ddb")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -543,28 +542,27 @@ export function SuperAdminMessages() {
             onClick={() => void handleSyncAlibaba()}
           >
             <RefreshCw className={cn('mr-2 h-3.5 w-3.5', syncing && 'animate-spin')} />
-            {syncing ? 'Syncing…' : 'Sync Alibaba'}
+            {syncing ? cerigaTranslate("interface.text_8a046cc90ab0a981") : cerigaTranslate("interface.text_a26f01bb4dd1d988")}
           </Button>
           {totalUnread > 0 ? (
             <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#CC2D24]/30 bg-[#CC2D24]/10 px-3 py-1.5 text-xs font-medium text-red-100">
               <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" />
-              {totalUnread} unread
-            </span>
+              {totalUnread}{" "}{cerigaTranslate("interface.text_2cc1c371db104eb5")}</span>
           ) : null}
         </div>
       </div>
 
-      {listError&&<div role="alert" className="messages-error"><span>{listError}</span><button type="button" onClick={()=>void refreshThreads()}>Retry inbox</button></div>}
+      {listError&&<div role="alert" className="messages-error"><span>{cerigaTranslateLabel(listError)}</span><button type="button" onClick={()=>void refreshThreads()}>{cerigaTranslate("interface.text_b3046430ac275886")}</button></div>}
       <div className="messages-workspace flex min-h-[calc(100dvh-14rem)] flex-col overflow-hidden rounded-2xl border border-[#252528] bg-[#111113] lg:min-h-[calc(100dvh-12rem)] lg:flex-row">
         <aside className="messages-inbox flex w-full shrink-0 flex-col border-b border-[#252528] lg:w-[min(100%,360px)] lg:border-b-0 lg:border-r">
           <div className="border-b border-[#252528] p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
               <Input
-                aria-label="Search conversations"
+                aria-label={cerigaTranslate("interface.text_8abdf3b226e73179")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search conversations"
+                placeholder={cerigaTranslate("interface.text_8abdf3b226e73179")}
                 className="h-10 border-[#252528] bg-black/30 pl-9 text-sm text-white placeholder:text-white/30"
               />
             </div>
@@ -581,20 +579,18 @@ export function SuperAdminMessages() {
                       : 'border-[#252528] text-white/45 hover:border-white/15 hover:text-white/70',
                   )}
                 >
-                  {tab.label}
+                  {cerigaTranslateLabel(tab.label)}
                 </button>
               ))}
             </div>
-            <label className="messages-unread"><input type="checkbox" checked={unreadOnly} onChange={e=>setUnreadOnly(e.target.checked)}/>Unread only</label>
+            <label className="messages-unread"><input type="checkbox" checked={unreadOnly} onChange={e=>setUnreadOnly(e.target.checked)}/>{cerigaTranslate("interface.text_8ab25e81f97fb1c7")}</label>
             <Button
               size="sm"
               className="mt-3 w-full bg-[#CC2D24] hover:bg-[#CC2D24]/90"
               onClick={() => setNewOpen(true)}
               disabled={channelFilter === 'alibaba'||sending}
             >
-              <UserPlus className="mr-2 h-4 w-4" />
-              New conversation
-            </Button>
+              <UserPlus className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_396c946f0c795aa6")}</Button>
           </div>
 
           <ScrollArea className="max-h-[38vh] lg:max-h-none lg:flex-1">
@@ -602,29 +598,25 @@ export function SuperAdminMessages() {
               {showAlibabaConnectPanel ? (
                 <div className="mx-1 rounded-xl border border-orange-500/25 bg-orange-500/[0.06] px-3 py-5 text-center">
                   <Globe2 className="mx-auto h-6 w-6 text-orange-300/80" />
-                  <p className="mt-3 text-sm font-medium text-white">Connect Alibaba.com</p>
-                  <p className="mt-1.5 text-xs leading-relaxed text-white/50">
-                    Connect your Alibaba account in Settings to sync buyer conversations. Existing Ceriga conversations remain available.
-                  </p>
+                  <p className="mt-3 text-sm font-medium text-white">{cerigaTranslate("interface.text_b57a0230d1f5e0c8")}</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-white/50">{cerigaTranslate("interface.text_d78f6bae12ea7243")}</p>
                   <Button
                     size="sm"
                     variant="outline"
                     className="mt-4 border-orange-500/35 text-orange-100"
                     disabled={syncing}
                     onClick={() => void handleSyncAlibaba()}
-                  >
-                    Check connection
-                  </Button>
+                  >{cerigaTranslate("interface.text_be5dff52eeb0fd5b")}</Button>
                 </div>
               ) : filteredThreads.length === 0 ? (
                 <p className="px-3 py-8 text-center text-sm text-white/40">
                   {channelFilter === 'alibaba'
                     ? alibabaConfigured
-                      ? 'No Alibaba conversations yet — hit Sync Alibaba.'
-                      : 'Alibaba is not connected.'
+                      ? cerigaTranslate("interface.text_7596cec343ceafed")
+                      : cerigaTranslate("interface.text_18aa8aaabe0e3cbb")
                     : threads.length === 0
-                      ? 'No conversations yet.'
-                      : 'No matches.'}
+                      ? cerigaTranslate("interface.text_52a8737366b2b6bd")
+                      : cerigaTranslate("interface.text_d6572bd2e77380ce")}
                 </p>
               ) : (
                 filteredThreads.map((t) => {
@@ -635,7 +627,7 @@ export function SuperAdminMessages() {
                     <button
                       key={t.id}
                       type="button"
-                      aria-label={'Open conversation with '+t.name} aria-pressed={selected} disabled={sending}
+                      aria-label={cerigaTranslate("interface.text_4d3517d684e103ec",{value0:(t.name)})} aria-pressed={selected} disabled={sending}
                       onClick={() => selectThread(t.id)}
                       className={cn(
                         'relative flex w-full gap-3 rounded-xl px-3 py-3 text-left transition',
@@ -663,7 +655,7 @@ export function SuperAdminMessages() {
                                 background: `${accent}12`,
                               }}
                             >
-                              {threadRoleLabel(t)}
+                              {cerigaTranslateLabel(threadRoleLabel(t))}
                             </span>
                           </div>
                           <span className="shrink-0 text-[10px] tabular-nums text-white/35">
@@ -691,23 +683,23 @@ export function SuperAdminMessages() {
           {thread ? (
             <>
               <div className="messages-thread-heading flex items-center justify-between gap-4 border-b border-[#252528] px-4 py-4 sm:px-6">
-                <button type="button" className="messages-back" aria-label="Back to conversations" disabled={sending} onClick={()=>{if(active)draftsRef.current[active]={text:draft,attachments:pendingAttachments};setMobileConversation(false);setActive('');setMessages([]);}}><ArrowLeft size={18}/></button>
+                <button type="button" className="messages-back" aria-label={cerigaTranslate("interface.text_d456fc75664472cc")} disabled={sending} onClick={()=>{if(active)draftsRef.current[active]={text:draft,attachments:pendingAttachments};setMobileConversation(false);setActive('');setMessages([]);}}><ArrowLeft size={18}/></button>
                 <div className="flex min-w-0 items-center gap-3">
                   <ThreadAvatar thread={thread} />
                   <div className="min-w-0">
                     <h2 className="truncate text-base font-semibold text-white">{thread.name}</h2>
-                    <p className="text-xs text-white/40">{threadRoleLabel(thread)}</p>
+                    <p className="text-xs text-white/40">{cerigaTranslateLabel(threadRoleLabel(thread))}</p>
                   </div>
                 </div>
               </div>
 
-              {messageError&&<div role="alert" className="messages-error"><span>{messageError}</span><button type="button" disabled={sending} onClick={()=>setMessageReload(n=>n+1)}>Reload messages</button></div>}
+              {messageError&&<div role="alert" className="messages-error"><span>{cerigaTranslateLabel(messageError)}</span><button type="button" disabled={sending} onClick={()=>setMessageReload(n=>n+1)}>{cerigaTranslate("interface.text_71b184ce73db4cce")}</button></div>}
               <ScrollArea className="messages-history flex-1">
                 <div className="space-y-4 px-4 py-5 sm:px-6">
                   {messagesLoading ? (
-                    <p className="py-8 text-center text-sm text-white/40">Loading messages…</p>
+                    <p className="py-8 text-center text-sm text-white/40">{cerigaTranslate("interface.text_3a496d425b0f4530")}</p>
                   ) : messageError&&messages.length===0?null:messages.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-white/40">No messages yet — say hello.</p>
+                    <p className="py-8 text-center text-sm text-white/40">{cerigaTranslate("interface.text_5119025b198927d3")}</p>
                   ) : (
                     messages.map((message) => (
                       <MessageBubble key={message.id} message={message} />
@@ -719,9 +711,7 @@ export function SuperAdminMessages() {
 
               <div className="messages-composer border-t border-[#252528] bg-[#111113]/80 p-4 backdrop-blur-sm sm:px-6">
                 {isAlibabaThread ? (
-                  <p className="mb-3 text-[11px] text-white/40">
-                    Alibaba send is text-only. Attachments are not supported yet.
-                  </p>
+                  <p className="mb-3 text-[11px] text-white/40">{cerigaTranslate("interface.text_4a63dac3b4c9e1c3")}</p>
                 ) : null}
                 <input
                   ref={imageInputRef}
@@ -770,7 +760,7 @@ export function SuperAdminMessages() {
                           type="button"
                           disabled={sending} onClick={() => removePendingAttachment(attachment.id)}
                           className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/15 bg-[#161618] text-white/60 transition hover:text-white"
-                          aria-label={`Remove ${attachment.name}`}
+                          aria-label={cerigaTranslate("interface.text_e224cf245aada55a",{value0:(attachment.name)})}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -788,7 +778,7 @@ export function SuperAdminMessages() {
                         variant="ghost"
                         className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
                         disabled={sending||messagesLoading} onClick={() => imageInputRef.current?.click()}
-                        aria-label="Upload image"
+                        aria-label={cerigaTranslate("interface.text_ffe4df6c7ca600c4")}
                       >
                         <ImagePlus className="h-4 w-4" />
                       </Button>
@@ -798,17 +788,17 @@ export function SuperAdminMessages() {
                         variant="ghost"
                         className="h-10 w-10 shrink-0 rounded-xl text-white/55 hover:bg-white/10 hover:text-white"
                         disabled={sending||messagesLoading} onClick={() => fileInputRef.current?.click()}
-                        aria-label="Upload file"
+                        aria-label={cerigaTranslate("interface.text_d99bcd78b586826a")}
                       >
                         <Paperclip className="h-4 w-4" />
                       </Button>
                     </>
                   ) : null}
-                  <textarea rows={2} aria-label="Message" disabled={sending||messagesLoading}
+                  <textarea rows={2} aria-label={cerigaTranslate("interface.text_2f77668a9dfbf8d5")} disabled={sending||messagesLoading}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     placeholder={
-                      isAlibabaThread ? 'Reply on Alibaba…' : 'Write a message…'
+                      isAlibabaThread ? cerigaTranslate("interface.text_9a9a55cb39730711") : cerigaTranslate("interface.text_dc9f3f9fa011a11e")
                     }
                     className="min-h-10 flex-1 border-0 bg-transparent text-sm text-white shadow-none placeholder:text-white/30 focus-visible:ring-0"
                     onKeyDown={(e) => {
@@ -820,14 +810,14 @@ export function SuperAdminMessages() {
                   />
                   <Button
                     size="icon"
-                    aria-label="Send"
+                    aria-label={cerigaTranslate("interface.text_f6f4688ff23d50c6")}
                     className="h-10 w-10 shrink-0 rounded-xl bg-[#CC2D24] hover:bg-[#CC2D24]/90"
                     disabled={!canSend || sending||messagesLoading}
                     onClick={() => void sendMessage()}
                   >
                     <Send className="h-4 w-4" />
                   </Button>
-                </div><p className="messages-compose-hint">{sending?'Sending…':'Enter to send · Shift + Enter for a new line · attachments up to 10 MB each'}</p>
+                </div><p className="messages-compose-hint">{sending?cerigaTranslate("authentication.sending"):cerigaTranslate("interface.text_446f6e8f84740e88")}</p>
               </div>
             </>
           ) : (
@@ -837,10 +827,10 @@ export function SuperAdminMessages() {
               </span>
               <p className="text-sm text-white/45">
                 {showAlibabaConnectPanel
-                  ? 'Connect Alibaba to sync buyer conversations'
+                  ? cerigaTranslate("interface.text_b304d9f6ba5c5a1d")
                   : threads.length === 0
-                    ? 'Start a conversation with a manufacturer and their team'
-                    : 'Select a conversation'}
+                    ? cerigaTranslate("interface.text_21217515e9527b42")
+                    : cerigaTranslate("interface.text_12d82ae5928141ae")}
               </p>
             </div>
           )}
@@ -850,21 +840,21 @@ export function SuperAdminMessages() {
       <Dialog open={newOpen} onOpenChange={(open) => { if (!creatingConversation) { setNewOpen(open); setConversationError(null); } }}>
         <DialogContent className="messages-new-dialog border-[#252528] bg-[#111113] text-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>New conversation</DialogTitle>
+            <DialogTitle>{cerigaTranslate("interface.text_396c946f0c795aa6")}</DialogTitle>
           </DialogHeader>
-          {conversationError && <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300">{conversationError}</p>}
-          {creatingConversation && <p role="status" className="text-xs text-white/50">Creating conversation…</p>}
+          {conversationError && <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-300">{cerigaTranslateLabel(conversationError)}</p>}
+          {creatingConversation && <p role="status" className="text-xs text-white/50">{cerigaTranslate("interface.text_83bf10e19e9c78db")}</p>}
           <Input
-            aria-label="Search manufacturers to message"
+            aria-label={cerigaTranslate("interface.text_79271c94cae8c965")}
             value={newQuery}
             onChange={(e) => setNewQuery(e.target.value)}
-            placeholder="Search manufacturers…"
+            placeholder={cerigaTranslate("interface.text_ec054f02deadb787")}
             className="border-[#252528] bg-black/30 text-white"
           />
           <ScrollArea className="mt-2 h-64">
             <div className="space-y-1 pr-2">
               {newCandidates.length === 0 ? (
-                <p className="py-8 text-center text-sm text-white/40">No accounts found.</p>
+                <p className="py-8 text-center text-sm text-white/40">{cerigaTranslate("interface.text_7fae03bf4bd8e96b")}</p>
               ) : (
                 newCandidates.map((c) => (
                   <button
@@ -892,9 +882,7 @@ export function SuperAdminMessages() {
               className="border-white/15 text-white"
               onClick={() => setNewOpen(false)}
               disabled={creatingConversation}
-            >
-              Cancel
-            </Button>
+            >{cerigaTranslate("common.cancel")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import {displayMoney,useCurrency}from'../../../lib/accountCurrency';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -73,7 +74,7 @@ export function PeriodSelect({
       <SelectContent className="border-[#252528] bg-[#161618] text-white">
         {STATS_PERIODS.map((p) => (
           <SelectItem key={p} value={p}>
-            {PERIOD_LABELS[p]}
+            {cerigaTranslateLabel(PERIOD_LABELS[p])}
           </SelectItem>
         ))}
       </SelectContent>
@@ -101,7 +102,7 @@ export function StatsPageHeader({
         className="inline-flex items-center gap-2 text-sm text-white/45 transition hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />
-        {backLabel}
+        {cerigaTranslateLabel(backLabel)}
       </Link>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -118,13 +119,15 @@ export function KpiGrid({
 }: {
   items: { label: string; value: string; delta?: string }[];
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((k) => (
         <div key={k.label} className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-            {k.label}
+            {cerigaTranslateLabel(k.label)}
           </div>
           <div className="mt-2 text-2xl font-semibold tabular-nums text-white">{formatDemoValue(k.value)}</div>
           {k.delta ? (
@@ -171,6 +174,8 @@ export function SectionHubCard({
   path: string;
   previewMetrics: { label: string; value: string; delta?: string }[];
 }) {
+  useCerigaTranslation();
+
   const Icon = SECTION_ICONS[id];
 
   return (
@@ -197,7 +202,7 @@ export function SectionHubCard({
         {previewMetrics.map((m) => (
           <div key={m.label}>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-              {m.label}
+              {cerigaTranslateLabel(m.label)}
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-lg font-semibold tabular-nums text-white">{m.value}</span>

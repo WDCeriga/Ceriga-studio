@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useEffect, useRef, useState } from 'react';
 import {
   AlignCenter,
@@ -95,6 +96,8 @@ export function InlineElementToolbar({
   popoverOpenAbove = false,
   variant = 'full',
 }: Props) {
+  useCerigaTranslation();
+
   const slim = variant === 'slim';
   const isText = element.type === 'text';
   const isImage = element.type === 'image';
@@ -205,7 +208,7 @@ export function InlineElementToolbar({
     <div
       ref={rootRef}
       role="toolbar"
-      aria-label="Element quick actions"
+      aria-label={cerigaTranslate("interface.text_b98678126394fdf8")}
       data-inline-toolbar
       onPointerDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
@@ -247,7 +250,7 @@ export function InlineElementToolbar({
                 compact ? 'max-w-[min(8.75rem,34vw)] min-w-[4.5rem] justify-between pr-0.5' : 'max-w-[128px] justify-between pr-1.5',
                 openPanel === 'font' && 'bg-white/10 text-white',
               )}
-              title="Font family"
+              title={cerigaTranslate("interface.text_119ef3fa607e7c05")}
             >
               <Type className={cn('shrink-0', compact ? 'h-3 w-3' : 'h-3.5 w-3.5')} strokeWidth={2} />
               <span
@@ -268,14 +271,14 @@ export function InlineElementToolbar({
                 onClick={() => bumpSize(-1)}
                 disabled={isLocked}
                 className={cn(iconBtn, 'text-white/75')}
-                title="Decrease size"
-                aria-label="Decrease font size"
+                title={cerigaTranslate("interface.text_281615afb3e72923")}
+                aria-label={cerigaTranslate("interface.text_bb5da4861a16b259")}
               >
                 <Minus className={ic} />
               </button>
               <input
                 type="number"
-                aria-label="Font size"
+                aria-label={cerigaTranslate("interface.text_6d784d95c63833e6")}
                 value={Math.round(currentSize)}
                 min={10}
                 max={160}
@@ -299,8 +302,8 @@ export function InlineElementToolbar({
                 onClick={() => bumpSize(1)}
                 disabled={isLocked}
                 className={cn(iconBtn, 'text-white/75')}
-                title="Increase size"
-                aria-label="Increase font size"
+                title={cerigaTranslate("interface.text_093284d1ed2301ed")}
+                aria-label={cerigaTranslate("interface.text_2f0c3d49e6bdeea5")}
               >
                 <Plus className={ic} />
               </button>
@@ -314,8 +317,8 @@ export function InlineElementToolbar({
               onClick={() => togglePanel('color')}
               disabled={isLocked}
               className={cn(iconBtn, openPanel === 'color' && 'bg-white/10')}
-              title="Text colour"
-              aria-label="Text colour"
+              title={cerigaTranslate("interface.text_25e9c8090de7f831")}
+              aria-label={cerigaTranslate("interface.text_25e9c8090de7f831")}
             >
               <span
                 className={cn(
@@ -336,8 +339,8 @@ export function InlineElementToolbar({
               }
               disabled={isLocked}
               className={cn(iconBtn, element.fontStyle === 'italic' && 'bg-white/10 text-white')}
-              title="Italic"
-              aria-label="Italic"
+              title={cerigaTranslate("interface.text_9bf37cb58a694456")}
+              aria-label={cerigaTranslate("interface.text_9bf37cb58a694456")}
               aria-pressed={element.fontStyle === 'italic'}
             >
               <Italic className={ic} />
@@ -355,8 +358,8 @@ export function InlineElementToolbar({
               }}
               disabled={isLocked}
               className={cn(iconBtn, openPanel === 'align' && 'bg-white/10')}
-              title={`Alignment (${currentAlign})`}
-              aria-label="Alignment"
+              title={cerigaTranslate("interface.text_51412781c1b2c822",{value0:(currentAlign)})}
+              aria-label={cerigaTranslate("interface.text_9d597870c4b3f76d")}
             >
               <AlignIcon className={ic} />
             </button>
@@ -367,8 +370,8 @@ export function InlineElementToolbar({
               onClick={cycleCase}
               disabled={isLocked}
               className={cn(iconBtn, currentCase !== 'none' && 'bg-white/10 text-white')}
-              title={`Text case: ${currentCase}`}
-              aria-label="Text case"
+              title={cerigaTranslate("interface.text_13374d65a116aa55",{value0:(currentCase)})}
+              aria-label={cerigaTranslate("interface.text_56bdf0c0b4689338")}
             >
               <CaseSensitive className={ic} />
             </button>
@@ -382,10 +385,10 @@ export function InlineElementToolbar({
                   onClick={() => togglePanel('effects')}
                   disabled={isLocked}
                   className={cn(textBtn, openPanel === 'effects' && 'bg-white/10 text-white')}
-                  title="Effects"
+                  title={cerigaTranslate("interface.text_358511c8c09805c9")}
                 >
                   <Sparkles className={ic} />
-                  {!compact && <span className="font-semibold">Effects</span>}
+                  {!compact && <span className="font-semibold">{cerigaTranslate("interface.text_358511c8c09805c9")}</span>}
                 </button>
               </>
             ) : null}
@@ -399,10 +402,10 @@ export function InlineElementToolbar({
               onClick={() => togglePanel('effects')}
               disabled={isLocked}
               className={cn(textBtn, openPanel === 'effects' && 'bg-white/10 text-white')}
-              title="Adjustments"
+              title={cerigaTranslate("interface.text_d4c74ac02d25210f")}
             >
               <Sparkles className={ic} />
-              {!compact && <span className="font-semibold">Adjust</span>}
+              {!compact && <span className="font-semibold">{cerigaTranslate("interface.text_fd8a7d7b3e7bdf8c")}</span>}
             </button>
 
             <button
@@ -410,7 +413,7 @@ export function InlineElementToolbar({
               onClick={() => togglePanel('border')}
               disabled={isLocked}
               className={cn(textBtn, openPanel === 'border' && 'bg-white/10 text-white')}
-              title="Outline & corners"
+              title={cerigaTranslate("interface.text_45d3186b5008101f")}
             >
               <span
                 className="block h-4 w-4 shrink-0"
@@ -420,7 +423,7 @@ export function InlineElementToolbar({
                     cornerRadius > 0 ? `${Math.min(8, cornerRadius / 10)}px` : '2px',
                 }}
               />
-              {!compact && <span className="font-semibold">Outline</span>}
+              {!compact && <span className="font-semibold">{cerigaTranslate("interface.text_eabbf3abaf8d98ab")}</span>}
             </button>
 
             <button
@@ -428,11 +431,11 @@ export function InlineElementToolbar({
               onClick={() => togglePanel('crop')}
               disabled={isLocked}
               className={cn(textBtn, openPanel === 'crop' && 'bg-white/10 text-white')}
-              title="Crop"
+              title={cerigaTranslate("interface.text_98caf7c43c6f2c35")}
               aria-pressed={hasCrop}
             >
               <Crop className={ic} />
-              {!compact && <span className="font-semibold">Crop</span>}
+              {!compact && <span className="font-semibold">{cerigaTranslate("interface.text_98caf7c43c6f2c35")}</span>}
             </button>
           </>
         ) : null}
@@ -446,10 +449,10 @@ export function InlineElementToolbar({
               onClick={() => togglePanel('size')}
               disabled={isLocked}
               className={cn(textBtn, openPanel === 'size' && 'bg-white/10 text-white')}
-              title="Size & rotation"
+              title={cerigaTranslate("interface.text_6f5a23bebf2f4cbe")}
             >
               <Move3d className={ic} />
-              {!compact && <span className="font-semibold">Size</span>}
+              {!compact && <span className="font-semibold">{cerigaTranslate("interface.text_1af851907331c0ed")}</span>}
             </button>
 
             <Divider />
@@ -460,8 +463,8 @@ export function InlineElementToolbar({
               onClick={() => onPatch({ flipHorizontal: !element.flipHorizontal })}
               disabled={isLocked}
               className={cn(iconBtn, element.flipHorizontal && 'bg-white/10 text-white')}
-              title="Flip horizontally"
-              aria-label="Flip horizontally"
+              title={cerigaTranslate("interface.text_7edc03ef932e2fbc")}
+              aria-label={cerigaTranslate("interface.text_7edc03ef932e2fbc")}
               aria-pressed={Boolean(element.flipHorizontal)}
             >
               <FlipHorizontal2 className={ic} />
@@ -476,8 +479,8 @@ export function InlineElementToolbar({
           type="button"
           onClick={() => onPatch({ locked: !isLocked })}
           className={cn(iconBtn, isLocked && 'bg-white/10 text-white')}
-          title={isLocked ? 'Unlock' : 'Lock'}
-          aria-label={isLocked ? 'Unlock element' : 'Lock element'}
+          title={isLocked ? cerigaTranslate("interface.text_4ac709aa58bcfe5d") : cerigaTranslate("interface.text_db44b8db4f05d720")}
+          aria-label={isLocked ? cerigaTranslate("interface.text_35633bcee8e6cd30") : cerigaTranslate("interface.text_4f19bd843b313472")}
           aria-pressed={isLocked}
         >
           {isLocked ? <Unlock className={ic} /> : <Lock className={ic} />}
@@ -489,8 +492,8 @@ export function InlineElementToolbar({
           onClick={onDuplicate}
           disabled={isLocked}
           className={iconBtn}
-          title="Duplicate"
-          aria-label="Duplicate"
+          title={cerigaTranslate("interface.text_02cdaabfca805d6a")}
+          aria-label={cerigaTranslate("interface.text_02cdaabfca805d6a")}
         >
           <Copy className={ic} />
         </button>
@@ -500,8 +503,8 @@ export function InlineElementToolbar({
           type="button"
           onClick={onDelete}
           className={cn(iconBtn, 'hover:bg-[#FF3B30]/20 hover:text-[#FF8C85]')}
-          title="Delete"
-          aria-label="Delete"
+          title={cerigaTranslate("common.delete")}
+          aria-label={cerigaTranslate("common.delete")}
         >
           <Trash2 className={ic} />
         </button>
@@ -510,9 +513,7 @@ export function InlineElementToolbar({
       {/* ──────────────── Popovers ──────────────── */}
       {!compact && openPanel === 'font' ? (
         <Popover side={popSide}>
-          <div className="mb-1 px-2 pt-1 text-[9px] font-semibold uppercase tracking-wider text-white/45">
-            Font
-          </div>
+          <div className="mb-1 px-2 pt-1 text-[9px] font-semibold uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_64d0b3adcd2dbe33")}</div>
           <div className="no-scrollbar max-h-[220px] overflow-y-auto px-1 pb-1">
             {fontOptions.map((font) => (
               <button
@@ -538,9 +539,7 @@ export function InlineElementToolbar({
 
       {!compact && openPanel === 'color' ? (
         <Popover side={popSide}>
-          <div className="px-2 pt-2 text-[9px] font-semibold uppercase tracking-wider text-white/45">
-            Text colour
-          </div>
+          <div className="px-2 pt-2 text-[9px] font-semibold uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_25e9c8090de7f831")}</div>
           <ColorGrid
             colors={STUDIO_TEXT_MAIN_COLORS as readonly string[]}
             selected={currentColor}
@@ -559,7 +558,7 @@ export function InlineElementToolbar({
             }}
           />
           <div className="flex items-center gap-2 border-t border-white/[0.07] px-2 py-2">
-            <label className="text-[9px] uppercase tracking-wider text-white/45">Custom</label>
+            <label className="text-[9px] uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_494ca78f7374e46f")}</label>
             <input
               type="color"
               value={currentColor}
@@ -597,7 +596,7 @@ export function InlineElementToolbar({
                   'builder-focus press-feedback flex h-8 w-8 items-center justify-center rounded-md text-white/75 hover:bg-white/10 hover:text-white',
                   currentAlign === id && 'bg-white/15 text-white',
                 )}
-                title={`Align ${id}`}
+                title={cerigaTranslate("interface.text_9b5f8210f46a0b45",{value0:(id)})}
               >
                 <Icon className="h-4 w-4" />
               </button>
@@ -611,9 +610,7 @@ export function InlineElementToolbar({
           <div className="space-y-3 p-2">
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                  Opacity
-                </span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_6062652e10dd84c6")}</span>
                 <span className="text-[10px] font-semibold text-white/75">{Math.round(opacity)}%</span>
               </div>
               <input
@@ -631,10 +628,8 @@ export function InlineElementToolbar({
               <>
                 <div>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                      Outline
-                    </span>
-                    <span className="text-[10px] font-semibold text-white/75">{outline}px</span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_eabbf3abaf8d98ab")}</span>
+                    <span className="text-[10px] font-semibold text-white/75">{outline}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                   </div>
                   <input
                     type="range"
@@ -648,7 +643,7 @@ export function InlineElementToolbar({
                   />
                   {outline > 0 ? (
                     <div className="mt-1.5 flex items-center gap-2">
-                      <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
+                      <span className="text-[9px] uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
                       <input
                         type="color"
                         value={outlineColor}
@@ -661,12 +656,9 @@ export function InlineElementToolbar({
                 </div>
                 <div>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                      Letter spacing
-                    </span>
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_4b2eb7f7cd01abfe")}</span>
                     <span className="text-[10px] font-semibold text-white/75">
-                      {element.letterSpacing ?? 0}px
-                    </span>
+                      {element.letterSpacing ?? 0}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                   </div>
                   <input
                     type="range"
@@ -680,9 +672,7 @@ export function InlineElementToolbar({
                   />
                 </div>
                 <div>
-                  <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                    Shadow
-                  </div>
+                  <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_4c764cb6248ef933")}</div>
                   <div className="flex items-center gap-2">
                     <input
                       type="range"
@@ -706,9 +696,7 @@ export function InlineElementToolbar({
               </>
             ) : (
               <div>
-                <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                  Shadow
-                </div>
+                <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_4c764cb6248ef933")}</div>
                 <div className="flex items-center gap-2">
                   <input
                     type="range"
@@ -739,10 +727,8 @@ export function InlineElementToolbar({
           <div className="space-y-3 p-2">
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                  Outline width
-                </span>
-                <span className="text-[10px] font-semibold text-white/75">{outline}px</span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_ce044329ef92f8fa")}</span>
+                <span className="text-[10px] font-semibold text-white/75">{outline}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
               </div>
               <input
                 type="range"
@@ -756,7 +742,7 @@ export function InlineElementToolbar({
               />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
+              <span className="text-[9px] uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
               <input
                 type="color"
                 value={outlineColor}
@@ -779,11 +765,9 @@ export function InlineElementToolbar({
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                  <Squircle className="h-3 w-3" /> Corner rounding
-                </span>
+                  <Squircle className="h-3 w-3" />{" "}{cerigaTranslate("interface.text_78726400408a9eb6")}</span>
                 <span className="text-[10px] font-semibold text-white/75">
-                  {Math.round(cornerRadius)}px
-                </span>
+                  {Math.round(cornerRadius)}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
               </div>
               <input
                 type="range"
@@ -804,13 +788,11 @@ export function InlineElementToolbar({
         <Popover side={popSide} className="w-[260px]">
           <div className="space-y-2.5 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                Attributes
-              </span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_4b0ed88f7d99420f")}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <AttrField
-                label="Width"
+                label={cerigaTranslate("interface.text_3019947b6daf18b0")}
                 suffix="px"
                 value={Math.round(element.width || 0)}
                 onChange={(v) => {
@@ -822,7 +804,7 @@ export function InlineElementToolbar({
                 }}
               />
               <AttrField
-                label="Height"
+                label={cerigaTranslate("interface.text_bfe2eca401797325")}
                 suffix="px"
                 value={Math.round(element.height || 0)}
                 onChange={(v) => {
@@ -834,7 +816,7 @@ export function InlineElementToolbar({
                 }}
               />
               <AttrField
-                label="Rotate"
+                label={cerigaTranslate("interface.text_c3613b1704f54c8b")}
                 suffix="°"
                 value={Math.round((element.rotation ?? 0) * 10) / 10}
                 step={1}
@@ -842,14 +824,14 @@ export function InlineElementToolbar({
               />
               {isText ? (
                 <AttrField
-                  label="Font size"
+                  label={cerigaTranslate("interface.text_6d784d95c63833e6")}
                   suffix="px"
                   value={Math.round(element.fontSize ?? 30)}
                   onChange={(v) => onPatch({ fontSize: Math.max(10, Math.min(160, v)) })}
                 />
               ) : (
                 <AttrField
-                  label="Scale"
+                  label={cerigaTranslate("interface.text_f102986b39effb31")}
                   suffix="%"
                   value={100}
                   step={1}
@@ -868,10 +850,9 @@ export function InlineElementToolbar({
                 type="button"
                 onClick={() => onPatch({ rotation: 0 })}
                 className="builder-focus press-feedback inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-semibold text-white/75 hover:bg-white/10 hover:text-white"
-                title="Reset rotation"
+                title={cerigaTranslate("interface.text_bcee126845cdf99e")}
               >
-                <RotateCw className="h-3 w-3" /> Reset
-              </button>
+                <RotateCw className="h-3 w-3" />{" "}{cerigaTranslate("interface.text_daee7606b339f3c3")}</button>
             </div>
           </div>
         </Popover>
@@ -881,8 +862,7 @@ export function InlineElementToolbar({
         <Popover side={popSide} className="w-[260px]">
           <div className="space-y-2.5 p-2">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                Crop ({Math.round(100 - cropT - cropB)}×{Math.round(100 - cropL - cropR)}%)
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_1498306c3633754e")}{Math.round(100 - cropT - cropB)}×{Math.round(100 - cropL - cropR)}%)
               </span>
               {hasCrop ? (
                 <button
@@ -891,31 +871,29 @@ export function InlineElementToolbar({
                     onPatch({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 })
                   }
                   className="builder-focus press-feedback rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/60 hover:bg-white/10 hover:text-white"
-                >
-                  Reset
-                </button>
+                >{cerigaTranslate("interface.text_daee7606b339f3c3")}</button>
               ) : null}
             </div>
             <CropSlider
-              label="Top"
+              label={cerigaTranslate("interface.text_d5cdfcf7ff75338f")}
               value={cropT}
               otherOpposite={cropB}
               onChange={(v) => onPatch({ cropTop: v })}
             />
             <CropSlider
-              label="Right"
+              label={cerigaTranslate("interface.text_883361d5d682a157")}
               value={cropR}
               otherOpposite={cropL}
               onChange={(v) => onPatch({ cropRight: v })}
             />
             <CropSlider
-              label="Bottom"
+              label={cerigaTranslate("interface.text_479ad21ac9096236")}
               value={cropB}
               otherOpposite={cropT}
               onChange={(v) => onPatch({ cropBottom: v })}
             />
             <CropSlider
-              label="Left"
+              label={cerigaTranslate("interface.text_58eb9032e3bb83f0")}
               value={cropL}
               otherOpposite={cropR}
               onChange={(v) => onPatch({ cropLeft: v })}
@@ -950,20 +928,20 @@ export function InlineElementToolbar({
             <SheetHeader className="border-b border-[#252528] px-4 pb-3 pt-0 pr-14">
               <SheetTitle className="text-center text-lg font-bold tracking-tight text-white">
                 {openPanel === 'font'
-                  ? 'Font'
+                  ? cerigaTranslate("interface.text_64d0b3adcd2dbe33")
                   : openPanel === 'color'
-                    ? 'Text colour'
+                    ? cerigaTranslate("interface.text_25e9c8090de7f831")
                     : openPanel === 'align'
-                      ? 'Alignment'
+                      ? cerigaTranslate("interface.text_9d597870c4b3f76d")
                       : openPanel === 'effects'
-                        ? 'Effects'
+                        ? cerigaTranslate("interface.text_358511c8c09805c9")
                         : openPanel === 'size'
-                          ? 'Size'
+                          ? cerigaTranslate("interface.text_1af851907331c0ed")
                           : openPanel === 'border'
-                            ? 'Outline'
+                            ? cerigaTranslate("interface.text_eabbf3abaf8d98ab")
                             : openPanel === 'crop'
-                              ? 'Crop'
-                              : 'Options'}
+                              ? cerigaTranslate("interface.text_98caf7c43c6f2c35")
+                              : cerigaTranslate("interface.text_d0db8b5e364b6989")}
               </SheetTitle>
             </SheetHeader>
             <div className="max-h-[min(72dvh,580px)] overflow-y-auto overscroll-contain pb-[max(1.25rem,calc(env(safe-area-inset-bottom,0px)+1rem))]">
@@ -995,9 +973,7 @@ export function InlineElementToolbar({
               ) : null}
               {openPanel === 'color' ? (
                 <div>
-                  <div className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                    Main colours
-                  </div>
+                  <div className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_16a71a86e5794460")}</div>
                   <ColorGrid
                     comfortable
                     colors={STUDIO_TEXT_MAIN_COLORS as readonly string[]}
@@ -1008,9 +984,7 @@ export function InlineElementToolbar({
                     }}
                   />
                   <div className="mx-3 my-2 h-px bg-white/[0.08]" />
-                  <div className="px-4 text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                    Popular
-                  </div>
+                  <div className="px-4 text-[10px] font-semibold uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_76327dec9ae3a06a")}</div>
                   <ColorGrid
                     comfortable
                     colors={STUDIO_TEXT_POPULAR_COLORS as readonly string[]}
@@ -1021,7 +995,7 @@ export function InlineElementToolbar({
                     }}
                   />
                   <div className="flex items-center gap-2 border-t border-[#252528] px-4 py-3">
-                    <span className="text-[9px] uppercase tracking-wider text-white/45">Custom</span>
+                    <span className="text-[9px] uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_494ca78f7374e46f")}</span>
                     <input
                       type="color"
                       value={currentColor}
@@ -1070,9 +1044,7 @@ export function InlineElementToolbar({
                 <div className="space-y-3 px-3 pb-4 pt-1">
                   <div>
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                        Opacity
-                      </span>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_6062652e10dd84c6")}</span>
                       <span className="text-[10px] font-semibold text-white/75">{Math.round(opacity)}%</span>
                     </div>
                     <input
@@ -1090,10 +1062,8 @@ export function InlineElementToolbar({
                     <>
                       <div>
                         <div className="mb-1 flex items-center justify-between">
-                          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                            Outline
-                          </span>
-                          <span className="text-[10px] font-semibold text-white/75">{outline}px</span>
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_eabbf3abaf8d98ab")}</span>
+                          <span className="text-[10px] font-semibold text-white/75">{outline}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                         </div>
                         <input
                           type="range"
@@ -1107,7 +1077,7 @@ export function InlineElementToolbar({
                         />
                         {outline > 0 ? (
                           <div className="mt-1.5 flex items-center gap-2">
-                            <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
+                            <span className="text-[9px] uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
                             <input
                               type="color"
                               value={outlineColor}
@@ -1120,12 +1090,9 @@ export function InlineElementToolbar({
                       </div>
                       <div>
                         <div className="mb-1 flex items-center justify-between">
-                          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                            Letter spacing
-                          </span>
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_4b2eb7f7cd01abfe")}</span>
                           <span className="text-[10px] font-semibold text-white/75">
-                            {element.letterSpacing ?? 0}px
-                          </span>
+                            {element.letterSpacing ?? 0}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                         </div>
                         <input
                           type="range"
@@ -1139,9 +1106,7 @@ export function InlineElementToolbar({
                         />
                       </div>
                       <div>
-                        <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                          Shadow
-                        </div>
+                        <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_4c764cb6248ef933")}</div>
                         <div className="flex items-center gap-2">
                           <input
                             type="range"
@@ -1165,9 +1130,7 @@ export function InlineElementToolbar({
                     </>
                   ) : (
                     <div>
-                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                        Shadow
-                      </div>
+                      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_4c764cb6248ef933")}</div>
                       <div className="flex items-center gap-2">
                         <input
                           type="range"
@@ -1195,7 +1158,7 @@ export function InlineElementToolbar({
                 <div className="space-y-2.5 px-3 pb-4 pt-1">
                   <div className="grid grid-cols-2 gap-2">
                     <AttrField
-                      label="Width"
+                      label={cerigaTranslate("interface.text_3019947b6daf18b0")}
                       suffix="px"
                       value={Math.round(element.width || 0)}
                       onChange={(v) => {
@@ -1207,7 +1170,7 @@ export function InlineElementToolbar({
                       }}
                     />
                     <AttrField
-                      label="Height"
+                      label={cerigaTranslate("interface.text_bfe2eca401797325")}
                       suffix="px"
                       value={Math.round(element.height || 0)}
                       onChange={(v) => {
@@ -1219,7 +1182,7 @@ export function InlineElementToolbar({
                       }}
                     />
                     <AttrField
-                      label="Rotate"
+                      label={cerigaTranslate("interface.text_c3613b1704f54c8b")}
                       suffix="°"
                       value={Math.round((element.rotation ?? 0) * 10) / 10}
                       step={1}
@@ -1227,14 +1190,14 @@ export function InlineElementToolbar({
                     />
                     {isText ? (
                       <AttrField
-                        label="Font size"
+                        label={cerigaTranslate("interface.text_6d784d95c63833e6")}
                         suffix="px"
                         value={Math.round(element.fontSize ?? 30)}
                         onChange={(v) => onPatch({ fontSize: Math.max(10, Math.min(160, v)) })}
                       />
                     ) : (
                       <AttrField
-                        label="Scale"
+                        label={cerigaTranslate("interface.text_f102986b39effb31")}
                         suffix="%"
                         value={100}
                         step={1}
@@ -1254,8 +1217,7 @@ export function InlineElementToolbar({
                       onClick={() => onPatch({ rotation: 0 })}
                       className="builder-focus press-feedback inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-white/75 hover:bg-white/10 hover:text-white"
                     >
-                      <RotateCw className="h-3.5 w-3.5" /> Reset rotation
-                    </button>
+                      <RotateCw className="h-3.5 w-3.5" />{" "}{cerigaTranslate("interface.text_bcee126845cdf99e")}</button>
                   </div>
                 </div>
               ) : null}
@@ -1263,10 +1225,8 @@ export function InlineElementToolbar({
                 <div className="space-y-3 px-3 pb-4 pt-1">
                   <div>
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                        Outline width
-                      </span>
-                      <span className="text-[10px] font-semibold text-white/75">{outline}px</span>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_ce044329ef92f8fa")}</span>
+                      <span className="text-[10px] font-semibold text-white/75">{outline}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                     </div>
                     <input
                       type="range"
@@ -1280,7 +1240,7 @@ export function InlineElementToolbar({
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[9px] uppercase tracking-wider text-white/45">Colour</span>
+                    <span className="text-[9px] uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
                     <input
                       type="color"
                       value={outlineColor}
@@ -1303,11 +1263,9 @@ export function InlineElementToolbar({
                   <div>
                     <div className="mb-1 flex items-center justify-between">
                       <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                        <Squircle className="h-3 w-3" /> Corner rounding
-                      </span>
+                        <Squircle className="h-3 w-3" />{" "}{cerigaTranslate("interface.text_78726400408a9eb6")}</span>
                       <span className="text-[10px] font-semibold text-white/75">
-                        {Math.round(cornerRadius)}px
-                      </span>
+                        {Math.round(cornerRadius)}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                     </div>
                     <input
                       type="range"
@@ -1325,8 +1283,7 @@ export function InlineElementToolbar({
               {openPanel === 'crop' && isImage ? (
                 <div className="space-y-2.5 px-3 pb-4 pt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-                      Crop ({Math.round(100 - cropT - cropB)}×{Math.round(100 - cropL - cropR)}%)
+                    <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_1498306c3633754e")}{Math.round(100 - cropT - cropB)}×{Math.round(100 - cropL - cropR)}%)
                     </span>
                     {hasCrop ? (
                       <button
@@ -1335,31 +1292,29 @@ export function InlineElementToolbar({
                           onPatch({ cropTop: 0, cropRight: 0, cropBottom: 0, cropLeft: 0 })
                         }
                         className="builder-focus press-feedback rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white/60 hover:bg-white/10 hover:text-white"
-                      >
-                        Reset
-                      </button>
+                      >{cerigaTranslate("interface.text_daee7606b339f3c3")}</button>
                     ) : null}
                   </div>
                   <CropSlider
-                    label="Top"
+                    label={cerigaTranslate("interface.text_d5cdfcf7ff75338f")}
                     value={cropT}
                     otherOpposite={cropB}
                     onChange={(v) => onPatch({ cropTop: v })}
                   />
                   <CropSlider
-                    label="Right"
+                    label={cerigaTranslate("interface.text_883361d5d682a157")}
                     value={cropR}
                     otherOpposite={cropL}
                     onChange={(v) => onPatch({ cropRight: v })}
                   />
                   <CropSlider
-                    label="Bottom"
+                    label={cerigaTranslate("interface.text_479ad21ac9096236")}
                     value={cropB}
                     otherOpposite={cropT}
                     onChange={(v) => onPatch({ cropBottom: v })}
                   />
                   <CropSlider
-                    label="Left"
+                    label={cerigaTranslate("interface.text_58eb9032e3bb83f0")}
                     value={cropL}
                     otherOpposite={cropR}
                     onChange={(v) => onPatch({ cropLeft: v })}
@@ -1388,6 +1343,8 @@ function AttrField({
   onChange: (v: number) => void;
   step?: number;
 }) {
+  useCerigaTranslation();
+
   const [draft, setDraft] = useState<string>(String(value));
   useEffect(() => {
     setDraft(String(value));
@@ -1395,7 +1352,7 @@ function AttrField({
   return (
     <label className="flex min-w-0 flex-col gap-1">
       <span className="text-[9px] font-semibold uppercase tracking-wider text-white/55">
-        {label}
+        {cerigaTranslateLabel(label)}
       </span>
       <div className="flex h-8 min-w-0 items-center gap-1.5 rounded-lg border border-[#252528] bg-black/40 px-2.5 transition-colors focus-within:border-[#CC2D24]/55 focus-within:bg-black/60">
         <input
@@ -1436,12 +1393,14 @@ function CropSlider({
   otherOpposite: number;
   onChange: (v: number) => void;
 }) {
+  useCerigaTranslation();
+
   const max = Math.max(0, 95 - otherOpposite);
   const clamped = Math.min(value, max);
   return (
     <div>
       <div className="mb-0.5 flex items-center justify-between">
-        <span className="text-[9px] font-medium uppercase tracking-wider text-white/50">{label}</span>
+        <span className="text-[9px] font-medium uppercase tracking-wider text-white/50">{cerigaTranslateLabel(label)}</span>
         <span className="text-[10px] font-semibold text-white/75">{Math.round(clamped)}%</span>
       </div>
       <input
@@ -1510,6 +1469,8 @@ function ColorGrid({
   /** Larger swatches and spacing for bottom-sheet / touch layouts. */
   comfortable?: boolean;
 }) {
+  useCerigaTranslation();
+
   return (
     <div className={cn('flex flex-wrap', comfortable ? 'gap-2.5 px-3 py-3 sm:gap-3' : 'gap-1.5 p-2')}>
       {colors.map((hex) => (
@@ -1528,7 +1489,7 @@ function ColorGrid({
                 : 'border-white/15 hover:border-white/40',
           )}
           style={{ backgroundColor: hex }}
-          aria-label={`Set colour ${hex}`}
+          aria-label={cerigaTranslate("interface.text_1019fef97d97f4bc",{value0:(hex)})}
           title={hex}
         />
       ))}

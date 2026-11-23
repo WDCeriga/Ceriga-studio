@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import './superadmin-users.css';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -116,6 +117,8 @@ function SortableHeader({
   onSort: (field: SortField) => void;
   className?: string;
 }) {
+  useCerigaTranslation();
+
   const active = sortField === field;
   return (
     <th className={className} aria-sort={active ? sortDir === 'asc' ? 'ascending' : 'descending' : 'none'}>
@@ -127,7 +130,7 @@ function SortableHeader({
           active ? 'text-[#262626]' : 'text-[#737373]',
         )}
       >
-        {label}
+        {cerigaTranslateLabel(label)}
         {active ? (
           sortDir === 'asc' ? (
             <ArrowUp className="h-3.5 w-3.5 text-[#CC2D24]" aria-hidden />
@@ -143,6 +146,8 @@ function SortableHeader({
 }
 
 export function SuperAdminUsers() {
+  useCerigaTranslation();
+
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -164,7 +169,7 @@ export function SuperAdminUsers() {
   const [body, setBody] = useState('');
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
 
-  const { users: MOCK_SUPER_USERS, loading: usersLoading, usersError, deleteAccount, refresh } = useSuperadminData();
+  const { users: MOCK_SUPER_USERS, loading: usersLoading, usersError, deleteAccount, refresh } = useSuperadminData({scope:'users'});
 
   const activeUser = useMemo(
     () => MOCK_SUPER_USERS.find((u) => u.id === activeUserId) ?? null,
@@ -329,9 +334,9 @@ export function SuperAdminUsers() {
   const copyEmail = async (email: string) => {
     try {
       await navigator.clipboard.writeText(email);
-      toast.success('Email copied');
+      toast.success(cerigaTranslate("interface.text_28411e5e86b6fea2"));
     } catch {
-      toast.error('Could not copy email');
+      toast.error(cerigaTranslate("interface.text_a623297fd0546ca6"));
     }
   };
 
@@ -344,18 +349,18 @@ export function SuperAdminUsers() {
     const name = customName.trim();
     const email = customEmail.trim().toLowerCase();
     if (!name) {
-      toast.error('Enter a name for this recipient');
+      toast.error(cerigaTranslate("interface.text_a57f79529f47832d"));
       return;
     }
     if (!isValidEmail(email)) {
-      toast.error('Enter a valid email address');
+      toast.error(cerigaTranslate("interface.text_c20ffba2f53079de"));
       return;
     }
     const duplicate =
       customRecipients.some((r) => r.email === email) ||
       MOCK_SUPER_USERS.some((u) => u.email.toLowerCase() === email);
     if (duplicate) {
-      toast.error('That email is already in the list');
+      toast.error(cerigaTranslate("interface.text_d515314129a4dbaa"));
       return;
     }
     setCustomRecipients((prev) => [
@@ -373,15 +378,15 @@ export function SuperAdminUsers() {
 
   const handleSendEmail = () => {
     if (totalRecipientCount === 0) {
-      toast.error('Select at least one recipient');
+      toast.error(cerigaTranslate("interface.text_b2fe2976df3ce9fc"));
       return;
     }
     if (!subject.trim()) {
-      toast.error('Add a subject line');
+      toast.error(cerigaTranslate("interface.text_fec2459f9b57ff7f"));
       return;
     }
     if (!body.trim()) {
-      toast.error('Write your message');
+      toast.error(cerigaTranslate("interface.text_aa220fb68ca726bb"));
       return;
     }
     const sent: SentRecipient[] = [
@@ -391,11 +396,11 @@ export function SuperAdminUsers() {
     const recipients = [...new Set(sent.map(r => r.email.toLowerCase()))];
     const draft = 'mailto:?bcc=' + encodeURIComponent(recipients.join(',')) + '&subject=' + encodeURIComponent(subject.trim()) + '&body=' + encodeURIComponent(body.trim());
     if (draft.length > 1800) {
-      toast.error('This draft is too large for an email link. Select fewer recipients or shorten your message.');
+      toast.error(cerigaTranslate("interface.text_eb0a55518f868645"));
       return;
     }
     window.location.href = draft;
-    toast.info('Draft requested in your email app. Review and send it there.');
+    toast.info(cerigaTranslate("interface.text_ed4198ad59c81346"));
   };
 
   const rolePills: { id: RoleFilter; label: string; count?: number }[] = [
@@ -410,16 +415,14 @@ export function SuperAdminUsers() {
       {/* Header */}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-            CERIGA / ACCOUNTS
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#262626] sm:text-3xl">Users</h1>
-          <p className="users-intro">Find accounts, review profiles, and manage access.</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">{cerigaTranslate("interface.text_ef282d06a91fee0e")}</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#262626] sm:text-3xl">{cerigaTranslate("nav.users")}</h1>
+          <p className="users-intro">{cerigaTranslate("interface.text_d16f1320a2c2faec")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button className="bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90" onClick={openEmailComposer}>
             <Mail className="mr-2 h-4 w-4" />
-            {selectedIds.size > 0 ? `Email selected (${selectedIds.size})` : 'Compose email'}
+            {selectedIds.size > 0 ? cerigaTranslate("interface.text_7a8f7b1b629a5bd7",{value0:(selectedIds.size)}) : cerigaTranslate("interface.text_6589a9896f9cc6ce")}
           </Button>
         </div>
       </div>
@@ -436,16 +439,15 @@ export function SuperAdminUsers() {
             key={s.label}
             className="rounded-md border border-[#e2e2e2] bg-gradient-to-br from-[#161618] to-[#111113] p-4"
           >
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#737373]">{s.label}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#737373]">{cerigaTranslateLabel(s.label)}</div>
             <div className="mt-1 text-2xl font-semibold tabular-nums text-[#262626]">{usersLoading || usersError ? '—' : s.value}</div>
           </div>
         ))}
       </div>
 
       {usersError ? (
-        <div className="rounded-md border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">
-          Could not load users: {usersError}
-          <button type="button" className="ml-3 underline" disabled={usersLoading} onClick={() => { void refresh(); }}>Retry</button>
+        <div className="rounded-md border border-amber-500/25 bg-amber-500/[0.08] px-4 py-3 text-xs text-amber-100/90">{cerigaTranslate("interface.text_eddf3fa5e25e1c36")}{" "}{cerigaTranslateLabel(usersError)}
+          <button type="button" className="ml-3 underline" disabled={usersLoading} onClick={() => { void refresh(); }}>{cerigaTranslate("interface.text_942087cc2d41e013")}</button>
         </div>
       ) : null}
 
@@ -463,9 +465,9 @@ export function SuperAdminUsers() {
             data-1p-ignore
             data-lpignore="true"
             value={search}
-            aria-label="Search users"
+            aria-label={cerigaTranslate("interface.text_e4bb77af4bc57267")}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by name or email…"
+            placeholder={cerigaTranslate("interface.text_a949ce5b6107fab1")}
             className="h-10 w-full border-0 border-b border-[#dedede] bg-transparent pl-7 pr-2 text-sm text-[#262626] outline-none transition-colors placeholder:text-[#737373] focus:border-[#CC2D24]/70 focus:ring-0"
           />
         </div>
@@ -483,7 +485,7 @@ export function SuperAdminUsers() {
                   : 'border-transparent bg-[#f7f7f7] text-[#737373] hover:bg-[#f7f7f7] hover:text-[#262626]',
               )}
             >
-              {pill.label}
+              {cerigaTranslateLabel(pill.label)}
               {pill.count != null ? (
                 <span className="ml-1.5 tabular-nums text-[#737373]">{pill.count}</span>
               ) : null}
@@ -496,24 +498,18 @@ export function SuperAdminUsers() {
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-[#CC2D24]/30 bg-gradient-to-r from-[#CC2D24]/12 to-transparent px-4 py-3">
           <UsersIcon className="h-5 w-5 text-[#CC2D24]" />
           <span className="text-sm text-[#737373]">
-            <strong className="text-[#262626]">{selectedIds.size}</strong> user
-            {selectedIds.size === 1 ? '' : 's'} selected
-          </span>
+            <strong className="text-[#262626]">{selectedIds.size}</strong>{" "}{cerigaTranslate("interface.plural_noun_04f8996da763b7a9",{count:Number(selectedIds.size)})}{" "}{cerigaTranslate("interface.text_d7cbbb688b2e506c")}</span>
           <Button size="sm" className="h-8 bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={openEmailComposer}>
-            <Mail className="mr-1.5 h-3.5 w-3.5" />
-            Email them
-          </Button>
+            <Mail className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_600f8dae7836f858")}</Button>
           <button
             type="button"
             className="ml-auto text-xs text-[#737373] hover:text-[#262626]"
             onClick={() => setSelectedIds(new Set())}
-          >
-            Clear selection
-          </button>
+          >{cerigaTranslate("interface.text_cea4d2e010b8fd52")}</button>
         </div>
       ) : null}
 
-      <div className="users-results"><span role="status">{usersLoading ? 'Loading accounts…' : usersError ? 'Account data unavailable' : sortedUsers.length + ' matching account' + (sortedUsers.length === 1 ? '' : 's') + ' · ' + selectedIds.size + ' selected across filters'}</span>{(search || listRoleFilter !== 'all') && <button type="button" onClick={() => { setSearch(''); setListRoleFilter('all'); setPage(1); }}>Clear filters</button>}</div>
+      <div className="users-results"><span role="status">{usersLoading ? cerigaTranslate("interface.text_2494bdb5bc468296") : usersError ? cerigaTranslate("interface.text_3f92a9593f4f6445") : cerigaTranslate("interface.plural_da412a5922710817",{value0:(sortedUsers.length),value2:(selectedIds.size),count:Number(sortedUsers.length)})}</span>{(search || listRoleFilter !== 'all') && <button type="button" onClick={() => { setSearch(''); setListRoleFilter('all'); setPage(1); }}>{cerigaTranslate("orders.clear")}</button>}</div>
       {/* Table */}
       <div className="overflow-hidden rounded-md border border-[#e2e2e2] bg-white users-table">
         <div className="overflow-x-auto">
@@ -524,13 +520,13 @@ export function SuperAdminUsers() {
                   <Checkbox
                     checked={allFilteredSelected ? true : someFilteredSelected ? 'indeterminate' : false}
                     onCheckedChange={toggleAllFiltered}
-                    aria-label="Select all matching users"
+                    aria-label={cerigaTranslate("interface.text_0d2f92d5fb03e2b3")}
                     className="border-[#dedede] data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
                   />
                 </th>
                 <SortableHeader
                   field="name"
-                  label="User"
+                  label={cerigaTranslate("interface.text_b512d97e7cbf97c2")}
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
@@ -538,7 +534,7 @@ export function SuperAdminUsers() {
                 />
                 <SortableHeader
                   field="role"
-                  label="Role"
+                  label={cerigaTranslate("interface.text_14736a2eb9f4159f")}
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
@@ -546,7 +542,7 @@ export function SuperAdminUsers() {
                 />
                 <SortableHeader
                   field="credits"
-                  label="AI chat"
+                  label={cerigaTranslate("interface.text_5a3fb0f77198d732")}
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
@@ -554,7 +550,7 @@ export function SuperAdminUsers() {
                 />
                 <SortableHeader
                   field="orders"
-                  label="Orders"
+                  label={cerigaTranslate("nav.orders")}
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
@@ -562,7 +558,7 @@ export function SuperAdminUsers() {
                 />
                 <SortableHeader
                   field="lastActive"
-                  label="Last active"
+                  label={cerigaTranslate("interface.text_bcdf701c4dfbaee3")}
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={toggleSort}
@@ -573,9 +569,7 @@ export function SuperAdminUsers() {
             <tbody>
               {usersLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-sm text-[#737373]">
-                    Loading users…
-                  </td>
+                  <td colSpan={6} className="px-4 py-16 text-center text-sm text-[#737373]">{cerigaTranslate("interface.text_a53ec7ac2a7b8fb1")}</td>
                 </tr>
               ) : sortedUsers.length === 0 ? (
                 <tr>
@@ -583,10 +577,10 @@ export function SuperAdminUsers() {
                     <UsersIcon className="mx-auto h-8 w-8 text-[#737373]" />
                     <p className="mt-3 text-sm text-[#737373]">
                       {search.trim() || listRoleFilter !== 'all'
-                        ? 'No users match your filters.'
+                        ? cerigaTranslate("interface.text_015da0267cee4939")
                         : usersError
-                          ? 'Users could not be loaded.'
-                          : 'No profiles in the database yet.'}
+                          ? cerigaTranslate("interface.text_96fd782eb1b61a09")
+                          : cerigaTranslate("interface.text_ec64feef1a8350d4")}
                     </p>
                   </td>
                 </tr>
@@ -615,7 +609,7 @@ export function SuperAdminUsers() {
                         <Checkbox
                           checked={selected}
                           onCheckedChange={() => toggleUser(u.id)}
-                          aria-label={`Select ${u.name}`}
+                          aria-label={cerigaTranslate("interface.text_33de0e8b35aac169",{value0:(u.name)})}
                           className="border-[#dedede] data-[state=checked]:border-[#CC2D24] data-[state=checked]:bg-[#CC2D24]"
                         />
                       </td>
@@ -637,7 +631,7 @@ export function SuperAdminUsers() {
                             ROLE_STYLE[u.role],
                           )}
                         >
-                          {ROLE_LABEL[u.role]}
+                          {cerigaTranslateLabel(ROLE_LABEL[u.role])}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 tabular-nums font-medium text-[#737373]">{u.credits}</td>
@@ -647,7 +641,7 @@ export function SuperAdminUsers() {
                           {u.lastActive}
                           <ArrowRight className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-100" />
                         </span>
-                        <DeleteRecordButton label={u.name} description="Permanently delete this user account and its associated profile data? Accounts that own orders must have those orders deleted first. This cannot be undone."
+                        <DeleteRecordButton label={u.name} description={cerigaTranslate("interface.text_7d5817f60316cf06")}
                           onDelete={async () => {
                             await deleteAccount(u.id);
                             setSelectedIds((previous) => new Set([...previous].filter((id) => id !== u.id)));
@@ -664,7 +658,7 @@ export function SuperAdminUsers() {
         </div>
       </div>
 
-      <nav className="users-pagination" aria-label="User list pages"><span>{sortedUsers.length ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, sortedUsers.length)} of {sortedUsers.length}</span><div><button type="button" disabled={usersLoading || currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>Page {currentPage} of {pageCount}</span><button type="button" disabled={usersLoading || currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Next</button></div></nav>
+      <nav className="users-pagination" aria-label={cerigaTranslate("interface.text_f541722fab217e7d")}><span>{sortedUsers.length ? (currentPage - 1) * pageSize + 1 : 0}–{Math.min(currentPage * pageSize, sortedUsers.length)}{" "}{cerigaTranslate("interface.text_28391d3bc64ec15c")}{" "}{sortedUsers.length}</span><div><button type="button" disabled={usersLoading || currentPage <= 1} onClick={() => setPage(currentPage - 1)}>{cerigaTranslate("common.previous")}</button><span>{cerigaTranslate("interface.text_0a30a815d67d7dd2")}{" "}{currentPage}{" "}{cerigaTranslate("interface.text_28391d3bc64ec15c")}{" "}{pageCount}</span><button type="button" disabled={usersLoading || currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>{cerigaTranslate("common.next")}</button></div></nav>
       {/* User preview sheet */}
       <Sheet open={activeUserId != null} onOpenChange={(open) => !open && setActiveUserId(null)}>
         <SheetContent
@@ -686,7 +680,7 @@ export function SuperAdminUsers() {
                             type="button"
                             className="shrink-0 rounded-md p-1 text-[#737373] transition hover:bg-[#f7f7f7] hover:text-[#262626]"
                             onClick={() => copyEmail(activeUser.email)}
-                            aria-label="Copy email"
+                            aria-label={cerigaTranslate("interface.text_1449d5fb47172cac")}
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </button>
@@ -698,7 +692,7 @@ export function SuperAdminUsers() {
                           ROLE_STYLE[activeUser.role],
                         )}
                       >
-                        {ROLE_LABEL[activeUser.role]}
+                        {cerigaTranslateLabel(ROLE_LABEL[activeUser.role])}
                       </span>
                     </div>
                   </div>
@@ -718,7 +712,7 @@ export function SuperAdminUsers() {
                       className="rounded-md border border-[#e2e2e2] bg-[#f7f7f7] px-3 py-3"
                     >
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">
-                        {stat.label}
+                        {cerigaTranslateLabel(stat.label)}
                       </div>
                       <div className="mt-1 text-lg font-semibold tabular-nums text-[#262626]">
                         {stat.value}
@@ -732,8 +726,7 @@ export function SuperAdminUsers() {
                     className="w-full bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90"
                     onClick={() => openEmailForUser(activeUser.id)}
                   >
-                    <Mail className="mr-2 h-4 w-4" />
-                    Email {activeUser.name.split(/\s+/)[0]}
+                    <Mail className="mr-2 h-4 w-4" />{cerigaTranslate("authentication.email")}{" "}{activeUser.name.split(/\s+/)[0]}
                   </Button>
                   <Button
                     variant="outline"
@@ -741,11 +734,11 @@ export function SuperAdminUsers() {
                     onClick={() => {
                       const wasSelected = selectedIds.has(activeUser.id);
                       toggleUser(activeUser.id);
-                      toast.success(wasSelected ? 'Removed from selection' : 'Added to selection');
+                      toast.success(cerigaTranslateLabel(wasSelected ? 'Removed from selection' : 'Added to selection'));
                     }}
                   >
                     <UsersIcon className="mr-2 h-4 w-4" />
-                    {selectedIds.has(activeUser.id) ? 'Remove from selection' : 'Select for bulk email'}
+                    {selectedIds.has(activeUser.id) ? cerigaTranslate("interface.text_b9180d6696fed742") : cerigaTranslate("interface.text_35965f377cca4f5b")}
                   </Button>
                   <Button
                     variant="outline"
@@ -754,9 +747,7 @@ export function SuperAdminUsers() {
                       setActiveUserId(null);
                       navigate(`/superadmin/users/${activeUser.id}`);
                     }}
-                  >
-                    View full profile
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                  >{cerigaTranslate("interface.text_88bf0a859510fcc6")}<ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -775,19 +766,16 @@ export function SuperAdminUsers() {
                   <DialogTitle className="flex items-center gap-2 text-lg text-[#262626]">
                     <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#CC2D24]/20">
                       <Mail className="h-4 w-4 text-[#CC2D24]" />
-                    </span>
-                    Prepare email draft
-                  </DialogTitle>
+                    </span>{cerigaTranslate("interface.text_c4fa0f3ea2332e37")}</DialogTitle>
                 </DialogHeader>
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-                <p className="users-email-note">Choose recipients, then open a draft in your email app. Ceriga does not send this message. Recipients are added as BCC.</p>
+                <p className="users-email-note">{cerigaTranslate("interface.text_77880d73077a3b68")}</p>
                 {/* To bar */}
                 <div className="border-b border-[#e2e2e2] px-6 py-4">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
-                      To · {totalRecipientCount} recipient{totalRecipientCount === 1 ? '' : 's'}
+                    <Label className="text-[11px] font-semibold uppercase tracking-wider text-[#737373]">{cerigaTranslate("interface.text_02590c6edf9045d3")}{" "}{totalRecipientCount}{" "}{cerigaTranslate("interface.plural_noun_665d0698dbc8fb95",{count:Number(totalRecipientCount)})}
                     </Label>
                     <button
                       type="button"
@@ -796,11 +784,11 @@ export function SuperAdminUsers() {
                     >
                       {allEmailPoolSelected
                         ? emailUserSearch.trim()
-                          ? 'Deselect shown'
-                          : 'Deselect users'
+                          ? cerigaTranslate("interface.text_be03af5c558e4dbd")
+                          : cerigaTranslate("interface.text_e7aa690e61d042d0")
                         : emailUserSearch.trim()
-                          ? 'Select shown'
-                          : 'Select all users'}
+                          ? cerigaTranslate("interface.text_8d4c2992af0eddad")
+                          : cerigaTranslate("interface.text_5236895593a9448c")}
                     </button>
                   </div>
                   <div className="flex min-h-[2.5rem] flex-wrap gap-1.5">
@@ -815,7 +803,7 @@ export function SuperAdminUsers() {
                           type="button"
                           className="ml-0.5 rounded-md p-0.5 hover:bg-[#f7f7f7]"
                           onClick={() => toggleEmailUser(u.id)}
-                          aria-label={`Remove ${u.email}`}
+                          aria-label={cerigaTranslate("interface.text_e224cf245aada55a",{value0:(u.email)})}
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -832,14 +820,14 @@ export function SuperAdminUsers() {
                           type="button"
                           className="rounded-md p-0.5 hover:bg-[#f7f7f7]"
                           onClick={() => removeCustomRecipient(r.id)}
-                          aria-label={`Remove ${r.email}`}
+                          aria-label={cerigaTranslate("interface.text_e224cf245aada55a",{value0:(r.email)})}
                         >
                           <X className="h-3 w-3" />
                         </button>
                       </span>
                     ))}
                     {totalRecipientCount === 0 ? (
-                      <span className="text-xs text-[#737373]">No recipients yet</span>
+                      <span className="text-xs text-[#737373]">{cerigaTranslate("interface.text_c77827d0c9f8c990")}</span>
                     ) : null}
                   </div>
                 </div>
@@ -860,7 +848,7 @@ export function SuperAdminUsers() {
                               : 'border-[#e2e2e2] text-[#737373] hover:text-[#262626]',
                           )}
                         >
-                          {pill.label}
+                          {cerigaTranslateLabel(pill.label)}
                         </button>
                       ))}
                     </div>
@@ -878,7 +866,7 @@ export function SuperAdminUsers() {
                         data-lpignore="true"
                         value={emailUserSearch}
                         onChange={(e) => setEmailUserSearch(e.target.value)}
-                        placeholder="Search users by name or email…"
+                        placeholder={cerigaTranslate("interface.text_81012a595286648a")}
                         className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#fafafa] pl-9 pr-8 text-sm text-[#262626] outline-none transition placeholder:text-[#737373] focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/25"
                       />
                       {emailUserSearch ? (
@@ -886,7 +874,7 @@ export function SuperAdminUsers() {
                           type="button"
                           onClick={() => setEmailUserSearch('')}
                           className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#737373] hover:bg-[#f7f7f7] hover:text-[#262626]"
-                          aria-label="Clear search"
+                          aria-label={cerigaTranslate("interface.text_3b7ea51793e9d906")}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -897,7 +885,7 @@ export function SuperAdminUsers() {
                       {searchedEmailPool.length === 0 ? (
                         <div className="px-3 py-8 text-center">
                           <Search className="mx-auto h-5 w-5 text-[#737373]" />
-                          <p className="mt-2 text-xs text-[#737373]">No users match your search.</p>
+                          <p className="mt-2 text-xs text-[#737373]">{cerigaTranslate("interface.text_3ccbd64ae664fa67")}</p>
                         </div>
                       ) : (
                         searchedEmailPool.map((u) => (
@@ -931,15 +919,11 @@ export function SuperAdminUsers() {
                           onClick={() => setShowCustomForm(true)}
                           className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#e2e2e2] bg-[#fafafa] py-2.5 text-sm font-medium text-[#737373] transition hover:border-[#CC2D24]/40 hover:text-[#262626]"
                         >
-                          <Plus className="h-4 w-4 text-[#CC2D24]" />
-                          Add custom email
-                        </button>
+                          <Plus className="h-4 w-4 text-[#CC2D24]" />{cerigaTranslate("interface.text_9fd3758016b3e493")}</button>
                       ) : (
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold uppercase tracking-wider text-[#737373]">
-                              New recipient
-                            </span>
+                            <span className="text-xs font-semibold uppercase tracking-wider text-[#737373]">{cerigaTranslate("interface.text_45cc42099f1c616f")}</span>
                             <button
                               type="button"
                               className="text-[#737373] hover:text-[#262626]"
@@ -955,14 +939,14 @@ export function SuperAdminUsers() {
                           <Input
                             value={customName}
                             onChange={(e) => setCustomName(e.target.value)}
-                            placeholder="Name (e.g. Partner contact)"
+                            placeholder={cerigaTranslate("interface.text_5b24b61d413293d8")}
                             className="h-10 border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373]"
                           />
                           <Input
                             type="email"
                             value={customEmail}
                             onChange={(e) => setCustomEmail(e.target.value)}
-                            placeholder="email@company.com"
+                            placeholder={cerigaTranslate("interface.text_aac7c4bbf8773552")}
                             className="h-10 border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373]"
                             onKeyDown={(e) => e.key === 'Enter' && addCustomRecipient()}
                           />
@@ -972,9 +956,7 @@ export function SuperAdminUsers() {
                             className="w-full bg-[#CC2D24] hover:bg-[#CC2D24]/90"
                             onClick={addCustomRecipient}
                           >
-                            <UserPlus className="mr-1.5 h-4 w-4" />
-                            Add to recipients
-                          </Button>
+                            <UserPlus className="mr-1.5 h-4 w-4" />{cerigaTranslate("interface.text_6fe504d9d6c5bb14")}</Button>
                         </div>
                       )}
                     </div>
@@ -983,26 +965,22 @@ export function SuperAdminUsers() {
                   {/* Message panel */}
                   <div className="space-y-4 p-6">
                     <div>
-                      <Label htmlFor="email-subject" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
-                        Subject
-                      </Label>
+                      <Label htmlFor="email-subject" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#737373]">{cerigaTranslate("interface.text_68971283841aecdf")}</Label>
                       <Input
                         id="email-subject"
                         value={subject}
                         onChange={(e) => setSubject(e.target.value)}
-                        placeholder="Subject line"
+                        placeholder={cerigaTranslate("interface.text_dc01923f9fd5b285")}
                         className="h-11 border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373]"
                       />
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col">
-                      <Label htmlFor="email-body" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
-                        Message
-                      </Label>
+                      <Label htmlFor="email-body" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#737373]">{cerigaTranslate("interface.text_2f77668a9dfbf8d5")}</Label>
                       <Textarea
                         id="email-body"
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
-                        placeholder="Hi team,&#10;&#10;Write your message here…"
+                        placeholder={cerigaTranslate("interface.text_021f50a375251e71")}
                         className="min-h-[200px] flex-1 resize-none border-[#dedede] bg-[#fafafa] text-[#262626] placeholder:text-[#737373] lg:min-h-[240px]"
                       />
                     </div>
@@ -1015,16 +993,13 @@ export function SuperAdminUsers() {
                   variant="outline"
                   className="border-[#dedede] text-[#262626] hover:bg-[#f7f7f7]"
                   onClick={closeEmailComposer}
-                >
-                  Cancel
-                </Button>
+                >{cerigaTranslate("common.cancel")}</Button>
                 <Button
                   className="min-w-[140px] bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/25 hover:bg-[#CC2D24]/90"
                   disabled={totalRecipientCount === 0 || !subject.trim() || !body.trim()}
                   onClick={handleSendEmail}
                 >
-                  <Send className="mr-2 h-4 w-4" />
-                  Open email app ({totalRecipientCount})
+                  <Send className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_35f62ec1905570f5")}{totalRecipientCount})
                 </Button>
               </DialogFooter>
             </>

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -18,6 +19,8 @@ type Props = {
 };
 
 export function GarmentOptionField({ label, placeholder, options, selected, customOptions, onToggle, onSelectAll, onAdd, onRemove, green }: Props) {
+  useCerigaTranslation();
+
   const [text, setText] = useState('');
   const add = () => {
     const value = text.trim();
@@ -26,18 +29,16 @@ export function GarmentOptionField({ label, placeholder, options, selected, cust
   const choices = [...new Set([...options, ...selected, ...customOptions])];
   return (
     <fieldset>
-      <legend className="text-xs text-white/80 font-medium">{label}</legend>
+      <legend className="text-xs text-white/80 font-medium">{cerigaTranslateLabel(label)}</legend>
       <Button
         type="button"
         size="sm"
         variant="outline"
-        aria-label={`Select all ${label.toLowerCase()}`}
+        aria-label={cerigaTranslate("interface.text_0c65822ebd5e7a48",{value0:(label.toLowerCase())})}
         disabled={!choices.length || choices.every(value => selected.includes(value))}
         onClick={() => onSelectAll(choices)}
         className="mt-2 h-8 border-white/15 text-xs text-white hover:bg-white/10"
-      >
-        Select all
-      </Button>
+      >{cerigaTranslate("interface.text_1fc9a387654d410f")}</Button>
       <div className="mt-2.5 flex flex-wrap gap-2">
         {choices.map(option => (
           <span key={option} className="inline-flex items-center gap-1">
@@ -51,23 +52,22 @@ export function GarmentOptionField({ label, placeholder, options, selected, cust
                   : 'border-[#252528] bg-white/[0.02] text-white/60 hover:text-white')}
             >{option}</button>
             {customOptions.includes(option) && (
-              <button type="button" aria-label={`Remove ${option}`} onClick={() => onRemove(option)} className="px-1 text-white/50 hover:text-white">&times;</button>
+              <button type="button" aria-label={cerigaTranslate("interface.text_e224cf245aada55a",{value0:(option)})} onClick={() => onRemove(option)} className="px-1 text-white/50 hover:text-white">&times;</button>
             )}
           </span>
         ))}
       </div>
       <div className="mt-3 flex max-w-sm gap-2">
         <Input
-          aria-label={`Custom ${label.toLowerCase()}`}
+          aria-label={cerigaTranslate("interface.text_5ba720aac0361d12",{value0:(label.toLowerCase())})}
           value={text}
           onChange={event => setText(event.target.value)}
           onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); add(); } }}
-          placeholder={placeholder}
+          placeholder={cerigaTranslateLabel(placeholder)}
           className="h-8 text-xs border-white/10 bg-white/[0.03] text-white placeholder:text-white/30"
         />
         <Button type="button" size="sm" variant="outline" onClick={add} className="h-8 text-xs border-white/15 text-white hover:bg-white/10">
-          <Plus className="mr-1 h-3 w-3" /> Add
-        </Button>
+          <Plus className="mr-1 h-3 w-3" />{" "}{cerigaTranslate("interface.text_9fd728c66c9a256b")}</Button>
       </div>
     </fieldset>
   );

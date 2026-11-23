@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { useState, type ChangeEvent } from 'react';
 import { Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -44,6 +45,8 @@ export function BuilderComponentEditor({
   allowedOptionsByGroup,
   onChange,
 }: BuilderComponentEditorProps) {
+  useCerigaTranslation();
+
   const [newOptionNames, setNewOptionNames] = useState<Record<string, string>>({});
   const isProductMode = !!allowedComponentIds;
 
@@ -78,12 +81,12 @@ export function BuilderComponentEditor({
   const addCustomOption = (groupKey: string, baseGroupOptions: StepOption[]) => {
     const name = (newOptionNames[groupKey] ?? '').trim();
     if (!name) {
-      toast.error('Enter a label');
+      toast.error(cerigaTranslate("interface.text_7ac1f3de3fe220d8"));
       return;
     }
     const merged = [...baseGroupOptions, ...(customOptions[groupKey] ?? [])];
     if (merged.some((o) => o.name.toLowerCase() === name.toLowerCase())) {
-      toast.error('That label already exists');
+      toast.error(cerigaTranslate("interface.text_b431803a09118c22"));
       return;
     }
     const id = optionIdFromLabel(name, groupKey);
@@ -99,7 +102,7 @@ export function BuilderComponentEditor({
       },
     });
     setNewOptionNames((prev) => ({ ...prev, [groupKey]: '' }));
-    toast.success(`Added spec label “${name}”`);
+    toast.success(cerigaTranslate("interface.text_9d09e00c36ba7f15",{value0:(name)}));
   };
 
   const removeCustomOption = (groupKey: string, optionId: string) => {
@@ -136,11 +139,11 @@ export function BuilderComponentEditor({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-white">{comp.title}</p>
+                <p className="text-sm font-medium text-white">{cerigaTranslateLabel(comp.title)}</p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-white/35">{holderEnabled ? 'On' : 'Off'}</span>
+                  <span className="text-[10px] text-white/35">{holderEnabled ? cerigaTranslate("interface.text_130011756125313c") : cerigaTranslate("interface.text_ca7981b46ecf2c17")}</span>
                   <Switch
                     checked={holderEnabled}
                     disabled={isProductMode && !holderInBase}
@@ -170,7 +173,7 @@ export function BuilderComponentEditor({
                             )
                           }
                         >
-                          {group.label}: {enabled.length === poolIds.length ? 'Clear' : 'All'}
+                          {cerigaTranslateLabel(group.label)}: {enabled.length === poolIds.length ? cerigaTranslate("interface.text_83b12c2216efb4fd") : cerigaTranslate("interface.text_a52ace420f2175d0")}
                         </button>
                       );
                     })}
@@ -199,7 +202,7 @@ export function BuilderComponentEditor({
                     <div key={group.key}>
                       {groups.length > 1 ? (
                         <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/30">
-                          {group.label}
+                          {cerigaTranslateLabel(group.label)}
                         </p>
                       ) : null}
                       <div className="flex flex-wrap gap-1.5">
@@ -226,9 +229,7 @@ export function BuilderComponentEditor({
                               >
                                 {option.name}
                                 {isCustom ? (
-                                  <span className="ml-1 text-[9px] uppercase tracking-wide opacity-60">
-                                    spec
-                                  </span>
+                                  <span className="ml-1 text-[9px] uppercase tracking-wide opacity-60">{cerigaTranslate("interface.text_d4f02eaafd1a9e9d")}</span>
                                 ) : null}
                               </button>
                               {isCustom && allowCustomOptions ? (
@@ -237,7 +238,7 @@ export function BuilderComponentEditor({
                                   disabled={!holderEnabled}
                                   onClick={() => removeCustomOption(group.key, option.id)}
                                   className="rounded-r-lg border border-l-0 border-amber-500/30 px-1.5 py-1 text-white/50 hover:text-white"
-                                  aria-label={`Remove ${option.name}`}
+                                  aria-label={cerigaTranslate("interface.text_e224cf245aada55a",{value0:(option.name)})}
                                 >
                                   <X className="h-3 w-3" />
                                 </button>
@@ -265,7 +266,7 @@ export function BuilderComponentEditor({
                                 addCustomOption(group.key, group.options);
                               }
                             }}
-                            placeholder={`Spec-only ${group.label.toLowerCase()} label…`}
+                            placeholder={cerigaTranslate("interface.text_0bccdbacebd6be6d",{value0:(group.label.toLowerCase())})}
                             className="h-8 flex-1 border-white/12 bg-white/[0.03] text-xs text-white placeholder:text-white/25"
                           />
                           <Button
@@ -275,9 +276,7 @@ export function BuilderComponentEditor({
                             className="h-8 shrink-0 border-white/15 bg-transparent text-white hover:bg-white/10"
                             onClick={() => addCustomOption(group.key, group.options)}
                           >
-                            <Plus className="mr-1 h-3.5 w-3.5" />
-                            Add label
-                          </Button>
+                            <Plus className="mr-1 h-3.5 w-3.5" />{cerigaTranslate("interface.text_e3488b9096633f44")}</Button>
                         </div>
                       ) : null}
                     </div>

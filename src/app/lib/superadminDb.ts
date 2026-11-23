@@ -61,6 +61,7 @@ export async function fetchIsSuperadmin(): Promise<boolean> {
 
 /** DB order status → superadmin pipeline status. */
 function toSuperStatus(order: UserOrder): OrderStatus {
+  if (order.status === 'admin_draft' || order.status === 'customer_confirmation') return 'draft';
   if(order.status==='priced') return order.priceOptions?.length ? 'sent_to_brand' : 'pending_review';
   if(['paid','processing','shipping','completed','ready'].includes(order.status)) {
     return ({paid:'paid',processing:'in_production',shipping:'shipped',completed:'completed',ready:'completed'} as const)[order.status as 'paid'|'processing'|'shipping'|'completed'|'ready'];
@@ -126,6 +127,11 @@ export function toSuperAdminOrder(
   const manufacturerTier=order.manufacturerQuote?.find(t=>t.id===selectedOption?.id)??order.manufacturerQuote?.[0];
   return {
     id: order.id,
+    productionReleasedAt: order.productionReleasedAt,
+    manufacturerSubmittedAt: order.manufacturerSubmittedAt,
+    paymentVerifiedAt: order.paymentVerifiedAt,
+    qcStatus: order.qcStatus,
+    completionMethod: order.completionMethod,
     currency:order.paidCurrency??selectedOption?.currency,
     currencySnapshot:selectedOption?.currencySnapshot,
     manufacturerCurrency:manufacturerTier?.currency,
@@ -135,6 +141,7 @@ export function toSuperAdminOrder(
     userEmail: opts.contactEmail ?? order.contactEmail ?? '',
     productName: order.productName,
     status: toSuperStatus(order),
+    statusLabel: order.statusLabel,
     createdAt: opts.createdAtIso,
     manufacturerId: order.assignedManufacturerId,
     manufacturerName: opts.manufacturerName,
@@ -163,11 +170,22 @@ export function toSuperAdminOrder(
   };
 }
 
+export type AdminOrderQuery={search:string;kind:string;stage:string;sort:string;direction:string;currency:string;offset:number;statusLabels:Record<string,string>};
+export type AdminOrderPage={orders:SuperAdminOrder[];total:number;totalAll:number;awaitingReview:number;atManufacturer:number;quotedTotals:{currency:import('./currency').Currency;cents:number}[]};
+export async function fetchAdminOrderPage(query:AdminOrderQuery):Promise<AdminOrderPage>{
+  requireConfigured();
+  const {data,error}=await getSupabase().rpc('admin_order_page',{p_query:query});
+  if(error||!data||!Array.isArray(data.rows))throw new Error(error?.message??'The database did not return the order page.');
+  return {...data,orders:data.rows.map((row:OrderRow&{user_name:string;user_email:string;manufacturer_name:string})=>toSuperAdminOrder(rowToUserOrder(row),{userId:row.user_id,createdAtIso:row.created_at,userName:row.user_name,contactEmail:row.user_email,manufacturerName:row.manufacturer_name||undefined}))};
+}
+
 /** Fetch every order visible to the superadmin (RLS-gated). */
-async function loadfetchAllOrders(): Promise<SuperAdminOrder[]> {
+async function loadfetchAllOrders(orderId?:string): Promise<SuperAdminOrder[]> {
   requireConfigured();
   const supabase = getSupabase();
-  const {data:rows,error}=await supabase.from('account_orders').select('*').order('created_at',{ascending:false});
+  let query=supabase.from('account_orders').select('*').order('created_at',{ascending:false});
+  if(orderId)query=query.eq('id',orderId);
+  const {data:rows,error}=await query;
   if (error) throw new Error(error.message||'Could not load customer orders');
 
   const orderRows=(rows??[]) as OrderRow[];
@@ -700,6 +718,7 @@ async function performadminPatchOrder(
 }
 
 const adminReads=new Map<string,{at:number;request:Promise<unknown>}>();
+export function invalidateSuperadminReads() { adminReads.clear(); }
 async function cachedAdminRead<T>(name:string,read:()=>Promise<T>):Promise<T>{
  const auth=getSupabase().auth;if(typeof auth.getSession!=='function')return read();
  const{data:{session},error}=await auth.getSession();if(error||!session)throw new Error('Sign in to load admin data');
@@ -707,7 +726,7 @@ async function cachedAdminRead<T>(name:string,read:()=>Promise<T>):Promise<T>{
  const request=read().catch(error=>{adminReads.delete(key);throw error;});if(adminReads.size>24)adminReads.clear();adminReads.set(key,{at:Date.now(),request});return request;
 }
 
-export async function fetchAllOrders(...args:Parameters<typeof loadfetchAllOrders>){return cachedAdminRead('fetchAllOrders',()=>loadfetchAllOrders(...args));}
+export async function fetchAllOrders(...args:Parameters<typeof loadfetchAllOrders>){return cachedAdminRead('fetchAllOrders:'+(args[0]??'all'),()=>loadfetchAllOrders(...args));}
 
 export async function fetchAllUsers(...args:Parameters<typeof loadfetchAllUsers>){return cachedAdminRead('fetchAllUsers',()=>loadfetchAllUsers(...args));}
 
@@ -718,6 +737,17 @@ export async function fetchManufacturerAccounts(...args:Parameters<typeof loadfe
 export async function adminPatchProfile(...args:Parameters<typeof performadminPatchProfile>){try{return await performadminPatchProfile(...args);}finally{adminReads.clear();}}
 
 export async function adminPatchOrder(...args:Parameters<typeof performadminPatchOrder>){try{return await performadminPatchOrder(...args);}finally{adminReads.clear();}}
+
+export async function assignMatchedManufacturer(orderId: string, manufacturerId: string, due: string, reason: string | null) {
+  try {
+    const { data, error } = await getSupabase().rpc('admin_assign_matched_manufacturer', {
+      p_order: orderId, p_manufacturer: manufacturerId, p_due: due, p_override_reason: reason,
+    });
+    if (error || !data) throw new Error(error?.message ?? 'Could not save the assignment.');
+  } finally {
+    adminReads.clear();
+  }
+}
 
 export async function adminDeleteOrder(...args:Parameters<typeof performadminDeleteOrder>){try{return await performadminDeleteOrder(...args);}finally{adminReads.clear();}}
 

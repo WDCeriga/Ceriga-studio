@@ -346,3 +346,4 @@
   justify-content:flex-end;
   gap:8px;
 }
+.quote-stale-warning{margin:16px 0;padding:16px;border:1px solid #e4c9c5;border-radius:6px;background:#fffafa;color:#242424}.quote-stale-warning button,.quote-save-draft{min-height:40px;padding:8px 12px;border:1px solid #d4d4d4;background:white;color:#202020;border-radius:5px;margin:8px 8px 0 0}.quote-stale-warning button:focus-visible,.quote-save-draft:focus-visible{outline:2px solid #cf2b22;outline-offset:3px}

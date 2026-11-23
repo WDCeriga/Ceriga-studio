@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../ui/button';
@@ -96,6 +97,8 @@ export function LabelsPackagingStep({
   onPreviewBaseColorChange,
   usePhoneStrips = false,
 }: LabelsPackagingStepProps) {
+  useCerigaTranslation();
+
   const [fallbackSelectedId, setFallbackSelectedId] = useState<string | null>(elements[0]?.id ?? null);
   const selectionControlled = onSelectedLayerIdChange !== undefined;
   const surfaceColorControlled =
@@ -354,7 +357,7 @@ export function LabelsPackagingStep({
     <div className="w-full min-w-0 space-y-4">
       <div>
         <Label className={sectionLabelClass}>
-          {subStep === 'label' ? 'Label option' : 'Packaging option'}
+          {subStep === 'label' ? cerigaTranslate("interface.text_9b1275177900215c") : cerigaTranslate("interface.text_16a96a8d89f482e9")}
         </Label>
         {usePhoneStrips ? (
           <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
@@ -403,19 +406,19 @@ export function LabelsPackagingStep({
           <SelectContent className="border-[#252528] bg-[#161618] text-white">
             {subStep === 'label' ? (
               <>
-                <SelectItem value="none">No label</SelectItem>
-                <SelectItem value="woven">Woven label</SelectItem>
-                <SelectItem value="printed">Printed transfer</SelectItem>
-                <SelectItem value="heat">Heat transfer</SelectItem>
-                <SelectItem value="satin">Satin label</SelectItem>
+                <SelectItem value="none">{cerigaTranslate("interface.text_d672877375b33270")}</SelectItem>
+                <SelectItem value="woven">{cerigaTranslate("interface.text_dc4e2e3bc79679bf")}</SelectItem>
+                <SelectItem value="printed">{cerigaTranslate("interface.text_603632b6b3e99558")}</SelectItem>
+                <SelectItem value="heat">{cerigaTranslate("interface.text_4a26f9164e97bfd8")}</SelectItem>
+                <SelectItem value="satin">{cerigaTranslate("interface.text_ca63b197226b6a23")}</SelectItem>
               </>
             ) : (
               <>
-                <SelectItem value="none">No packaging</SelectItem>
-                <SelectItem value="polybag">Polybag</SelectItem>
-                <SelectItem value="box">Box</SelectItem>
-                <SelectItem value="mailer">Mailer</SelectItem>
-                <SelectItem value="tissue">Tissue wrap</SelectItem>
+                <SelectItem value="none">{cerigaTranslate("interface.text_ed08126a9911c3a4")}</SelectItem>
+                <SelectItem value="polybag">{cerigaTranslate("interface.text_db445d94f340e8f5")}</SelectItem>
+                <SelectItem value="box">{cerigaTranslate("interface.text_512fd3c6042cd1d9")}</SelectItem>
+                <SelectItem value="mailer">{cerigaTranslate("interface.text_6c07ba63d2fc25b9")}</SelectItem>
+                <SelectItem value="tissue">{cerigaTranslate("interface.text_8bd31f974caeec44")}</SelectItem>
               </>
             )}
           </SelectContent>
@@ -426,8 +429,8 @@ export function LabelsPackagingStep({
       {isNone ? (
         <div className="rounded-xl border border-[#252528] bg-white/[0.04] px-4 py-5 text-center text-[12px] leading-relaxed text-white/50">
           {subStep === 'label'
-            ? 'No custom neck label will be included. You can still add notes for the factory below.'
-            : 'No custom packaging artwork. Add any shipping or outer-pack notes below.'}
+            ? cerigaTranslate("interface.text_cac8ff7d8cd40884")
+            : cerigaTranslate("interface.text_bb5dbb3713e16109")}
         </div>
       ) : (
         <>
@@ -437,9 +440,9 @@ export function LabelsPackagingStep({
             >
               {surfaceColorControlled
                 ? subStep === 'label'
-                  ? 'Label material / print colour'
-                  : 'Packaging colour'
-                : 'Preview base colour'}
+                  ? cerigaTranslate("interface.text_4d2bb13572e17dc0")
+                  : cerigaTranslate("interface.text_34ae6fe2ec6acad7")
+                : cerigaTranslate("interface.text_f14ff6e1c6fc84a3")}
             </Label>
             <StudioColorField
               value={
@@ -470,16 +473,12 @@ export function LabelsPackagingStep({
                 variant="outline"
                 className="h-10 min-w-[7rem] shrink-0 border-white/20 bg-white/5 px-3 text-[11px] !text-white hover:bg-white/10 sm:min-w-[7.5rem]"
               >
-                <Upload className="mr-1.5 h-3.5 w-3.5" />
-                Upload
-              </Button>
+                <Upload className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_865e89de78d94c74")}</Button>
               <Button
                 onClick={addText}
                 className="h-10 min-w-[7rem] shrink-0 bg-[#FF3B30] px-3 text-[11px] hover:bg-[#FF3B30]/90 sm:min-w-[7.5rem]"
               >
-                <Check className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.5} />
-                Add text
-              </Button>
+                <Check className="mr-1.5 h-3.5 w-3.5" strokeWidth={2.5} />{cerigaTranslate("interface.text_1b4d10038c3280fe")}</Button>
             </div>
           ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -488,33 +487,29 @@ export function LabelsPackagingStep({
               variant="outline"
               className="h-10 min-h-[44px] border-white/20 bg-white/5 px-2 text-[11px] !text-white hover:bg-white/10 md:h-8 md:min-h-0 md:text-[10px]"
             >
-              <Upload className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" />
-              Upload
-            </Button>
+              <Upload className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" />{cerigaTranslate("interface.text_865e89de78d94c74")}</Button>
             <Button
               onClick={addText}
               className="h-10 min-h-[44px] bg-[#FF3B30] px-2 text-[11px] hover:bg-[#FF3B30]/90 md:h-8 md:min-h-0 md:text-[10px]"
             >
-              <Check className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" strokeWidth={2.5} />
-              Add text
-            </Button>
+              <Check className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" strokeWidth={2.5} />{cerigaTranslate("interface.text_1b4d10038c3280fe")}</Button>
           </div>
           )}
 
           <div>
-            <Label className={sectionLabelClass}>Text</Label>
+            <Label className={sectionLabelClass}>{cerigaTranslate("interface.text_71988c4d8e0803ba")}</Label>
             <div className="flex gap-2">
               <Input
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
                 className="h-10 min-h-[44px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30 md:h-9 md:min-h-0"
-                placeholder={subStep === 'label' ? 'Brand name' : 'Packaging message'}
+                placeholder={subStep === 'label' ? cerigaTranslate("interface.text_3cfd0ef82258340c") : cerigaTranslate("interface.text_2c2f9e9e822e55aa")}
                 onKeyDown={(e) => e.key === 'Enter' && addText()}
               />
               <Button
                 onClick={addText}
                 className="h-10 min-h-[44px] min-w-11 bg-[#FF3B30] px-2 hover:bg-[#FF3B30]/90 md:h-9 md:min-h-0 md:min-w-9"
-                aria-label="Add text"
+                aria-label={cerigaTranslate("interface.text_1b4d10038c3280fe")}
               >
                 <Check className="h-4 w-4 md:h-3.5 md:w-3.5" strokeWidth={2.5} />
               </Button>
@@ -527,28 +522,24 @@ export function LabelsPackagingStep({
             onClick={importFontFile}
             className="mt-2 h-10 min-h-[44px] w-full border-white/20 bg-white/5 px-2 text-[11px] !text-white hover:bg-white/10 md:h-8 md:min-h-0 md:text-[10px]"
           >
-            <Upload className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" />
-            Import font
-          </Button>
+            <Upload className="mr-1.5 h-4 w-4 md:h-3.5 md:w-3.5" />{cerigaTranslate("interface.text_1cf7b894de15216b")}</Button>
 
           {selected ? (
             <div className="space-y-3 rounded-xl border border-[#252528] bg-white/5 p-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">Selected layer</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">{cerigaTranslate("interface.text_8b3256668b969b0c")}</div>
                 <Button
                   onClick={deleteSelected}
                   variant="outline"
                   className="h-7 shrink-0 border-white/20 px-2 text-[10px] !text-white hover:bg-white/10"
                 >
-                  <Trash2 className="mr-1 h-3 w-3" />
-                  Delete
-                </Button>
+                  <Trash2 className="mr-1 h-3 w-3" />{cerigaTranslate("common.delete")}</Button>
               </div>
 
               {selected.type === 'text' && (
                 <>
                   <div>
-                    <Label className={sectionLabelClass}>Font</Label>
+                    <Label className={sectionLabelClass}>{cerigaTranslate("interface.text_64d0b3adcd2dbe33")}</Label>
                     {usePhoneStrips ? (
                       <div className="-mx-0.5 flex gap-2.5 overflow-x-auto pb-1.5 no-scrollbar touch-pan-x">
                         {allFontOptions.map((font) => (
@@ -590,7 +581,7 @@ export function LabelsPackagingStep({
                   </div>
 
                   <div>
-                    <Label className={sectionLabelClass}>Alignment</Label>
+                    <Label className={sectionLabelClass}>{cerigaTranslate("interface.text_9d597870c4b3f76d")}</Label>
                     <div className="flex flex-wrap gap-1">
                       {(
                         [
@@ -610,7 +601,7 @@ export function LabelsPackagingStep({
                               ? 'border-[#FF3B30] bg-[#FF3B30]/15 text-white'
                               : 'border-[#252528] bg-black/20 hover:border-white/20 hover:text-white',
                           )}
-                          aria-label={`Align ${align}`}
+                          aria-label={cerigaTranslate("interface.text_9b5f8210f46a0b45",{value0:(align)})}
                         >
                           <Icon className="h-3.5 w-3.5" />
                         </button>
@@ -632,9 +623,7 @@ export function LabelsPackagingStep({
                         selected.fontStyle === 'italic' && 'border-[#FF3B30] bg-[#FF3B30]/12',
                       )}
                     >
-                      <Italic className="mr-1 h-3.5 w-3.5" />
-                      Italic
-                    </Button>
+                      <Italic className="mr-1 h-3.5 w-3.5" />{cerigaTranslate("interface.text_9bf37cb58a694456")}</Button>
                     <Button
                       type="button"
                       variant="outline"
@@ -646,20 +635,19 @@ export function LabelsPackagingStep({
                       }}
                       className="h-8 flex-1 border-white/20 bg-white/5 px-2 text-[10px] !text-white hover:bg-white/10"
                     >
-                      {(selected.textTransform ?? 'none') === 'uppercase'
-                        ? 'AA'
-                        : (selected.textTransform ?? 'none') === 'lowercase'
-                          ? 'aa'
-                          : 'Aa'}
+                      {(selected.textTransform ?? cerigaTranslate("interface.text_140bedbf9c3f6d56")) === 'uppercase'
+                        ? cerigaTranslate("interface.text_58bb119c35513a45")
+                        : (selected.textTransform ?? cerigaTranslate("interface.text_140bedbf9c3f6d56")) === 'lowercase'
+                          ? cerigaTranslate("interface.text_961b6dd3ede3cb8e")
+                          : cerigaTranslate("interface.text_81acaafba961bb83")}
                     </Button>
                   </div>
 
                   <div>
                     <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <Label className={cn(sectionLabelClass, 'mb-0')}>Letter spacing</Label>
+                      <Label className={cn(sectionLabelClass, 'mb-0')}>{cerigaTranslate("interface.text_4b2eb7f7cd01abfe")}</Label>
                       <span className="text-[10px] tabular-nums text-white/45">
-                        {selected.letterSpacing ?? 0}px
-                      </span>
+                        {selected.letterSpacing ?? 0}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                     </div>
                     <input
                       type="range"
@@ -673,7 +661,7 @@ export function LabelsPackagingStep({
                   </div>
 
                   <div>
-                    <Label className={sectionLabelClass}>Size</Label>
+                    <Label className={sectionLabelClass}>{cerigaTranslate("interface.text_1af851907331c0ed")}</Label>
                     <NumberStepper
                       value={selected.fontSize ?? 20}
                       onDecrease={() => updateFontSize(-1)}
@@ -681,7 +669,7 @@ export function LabelsPackagingStep({
                     />
                   </div>
                   <div>
-                    <Label className={sectionLabelClass}>Text colour</Label>
+                    <Label className={sectionLabelClass}>{cerigaTranslate("interface.text_25e9c8090de7f831")}</Label>
                     <StudioColorField
                       value={selected.color ?? '#111111'}
                       onChange={(c) => updateSelected({ color: c })}
@@ -696,7 +684,7 @@ export function LabelsPackagingStep({
 
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">Opacity</Label>
+                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">{cerigaTranslate("interface.text_6062652e10dd84c6")}</Label>
                   <span className="text-[10px] tabular-nums text-white/50">{selected.opacity ?? 100}%</span>
                 </div>
                 <input
@@ -711,13 +699,11 @@ export function LabelsPackagingStep({
 
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
-                    Size &amp; rotation
-                  </Label>
+                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">{cerigaTranslate("interface.text_6f5a23bebf2f4cbe")}</Label>
                 </div>
                 <div className="grid min-w-0 grid-cols-2 gap-2">
                   <SidebarNumberField
-                    label="Width"
+                    label={cerigaTranslate("interface.text_3019947b6daf18b0")}
                     suffix="px"
                     value={Math.round(selected.width || 0)}
                     onChange={(v) => {
@@ -736,7 +722,7 @@ export function LabelsPackagingStep({
                     }}
                   />
                   <SidebarNumberField
-                    label="Height"
+                    label={cerigaTranslate("interface.text_bfe2eca401797325")}
                     suffix="px"
                     value={Math.round(selected.height || 0)}
                     onChange={(v) => {
@@ -755,14 +741,14 @@ export function LabelsPackagingStep({
                     }}
                   />
                   <SidebarNumberField
-                    label="Rotate"
+                    label={cerigaTranslate("interface.text_c3613b1704f54c8b")}
                     suffix="°"
                     value={Math.round(selected.rotation ?? 0)}
                     onChange={(v) => updateSelected({ rotation: ((v % 360) + 360) % 360 })}
                   />
                   {selected.type === 'image' ? (
                     <SidebarNumberField
-                      label="Scale"
+                      label={cerigaTranslate("interface.text_f102986b39effb31")}
                       suffix="%"
                       value={100}
                       onChange={(v) => {
@@ -780,7 +766,7 @@ export function LabelsPackagingStep({
               <div className="rounded-lg border border-[#252528] bg-black/20 p-3">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                    {selected.type === 'text' ? 'Text outline' : 'Border'}
+                    {selected.type === 'text' ? cerigaTranslate("interface.text_f2944adb7d942e5d") : cerigaTranslate("interface.text_3b4bdff339e94fdc")}
                   </span>
                   <Button
                     type="button"
@@ -794,16 +780,13 @@ export function LabelsPackagingStep({
                     }
                     className="h-7 border-white/20 px-2 text-[9px] !text-white hover:bg-white/10"
                   >
-                    {(selected.borderWidth ?? 0) > 0 ? 'Off' : 'On'}
+                    {(selected.borderWidth ?? 0) > 0 ? cerigaTranslate("interface.text_ca7981b46ecf2c17") : cerigaTranslate("interface.text_130011756125313c")}
                   </Button>
                 </div>
                 <div className="mb-2 flex items-center justify-between">
-                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
-                    Thickness
-                  </Label>
+                  <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">{cerigaTranslate("interface.text_7b5944144275ea10")}</Label>
                   <span className="text-[10px] tabular-nums text-white/50">
-                    {selected.borderWidth ?? 0}px
-                  </span>
+                    {selected.borderWidth ?? 0}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                 </div>
                 <input
                   type="range"
@@ -815,9 +798,7 @@ export function LabelsPackagingStep({
                   className="h-2 w-full cursor-pointer accent-[#FF3B30]"
                 />
                 <div className="mt-3">
-                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
-                    Colour
-                  </span>
+                  <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
                   <StudioColorField
                     value={selected.borderColor ?? '#111111'}
                     onChange={(h) => updateSelected({ borderColor: h })}
@@ -828,12 +809,9 @@ export function LabelsPackagingStep({
                 {selected.type === 'image' ? (
                   <div className="mt-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
-                        Corner rounding
-                      </Label>
+                      <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">{cerigaTranslate("interface.text_78726400408a9eb6")}</Label>
                       <span className="text-[10px] tabular-nums text-white/50">
-                        {selected.cornerRadius ?? 0}px
-                      </span>
+                        {selected.cornerRadius ?? 0}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                     </div>
                     <input
                       type="range"
@@ -851,9 +829,7 @@ export function LabelsPackagingStep({
               {selected.type === 'image' ? (
                 <div className="rounded-lg border border-[#252528] bg-black/20 p-3">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                      Drop shadow
-                    </span>
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_e8b0b8daf176b804")}</span>
                     <Button
                       type="button"
                       variant="outline"
@@ -867,16 +843,13 @@ export function LabelsPackagingStep({
                       }
                       className="h-7 border-white/20 px-2 text-[9px] !text-white hover:bg-white/10"
                     >
-                      {(selected.shadowBlur ?? 0) > 0 ? 'Off' : 'On'}
+                      {(selected.shadowBlur ?? 0) > 0 ? cerigaTranslate("interface.text_ca7981b46ecf2c17") : cerigaTranslate("interface.text_130011756125313c")}
                     </Button>
                   </div>
                   <div className="mb-2 flex items-center justify-between">
-                    <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
-                      Blur
-                    </Label>
+                    <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">{cerigaTranslate("interface.text_cd83e6731d2b1736")}</Label>
                     <span className="text-[10px] tabular-nums text-white/50">
-                      {selected.shadowBlur ?? 0}px
-                    </span>
+                      {selected.shadowBlur ?? 0}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                   </div>
                   <input
                     type="range"
@@ -888,12 +861,9 @@ export function LabelsPackagingStep({
                   />
                   <div className="mt-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
-                        Offset Y
-                      </Label>
+                      <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">{cerigaTranslate("interface.text_a320e52b9cd2058e")}</Label>
                       <span className="text-[10px] tabular-nums text-white/50">
-                        {selected.shadowOffsetY ?? 6}px
-                      </span>
+                        {selected.shadowOffsetY ?? 6}{cerigaTranslate("interface.text_6ee2cc105a677431")}</span>
                     </div>
                     <input
                       type="range"
@@ -907,9 +877,7 @@ export function LabelsPackagingStep({
                     />
                   </div>
                   <div className="mt-3">
-                    <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">
-                      Colour
-                    </span>
+                    <span className="mb-2 block text-[9px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</span>
                     <StudioColorField
                       value={selected.shadowColor ?? '#000000'}
                       onChange={(h) => updateSelected({ shadowColor: h })}
@@ -923,9 +891,7 @@ export function LabelsPackagingStep({
               {selected.type === 'image' ? (
                 <div className="rounded-lg border border-[#252528] bg-black/20 p-3">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">
-                      Crop
-                    </span>
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_98caf7c43c6f2c35")}</span>
                     {((selected.cropTop ?? 0) > 0 ||
                       (selected.cropRight ?? 0) > 0 ||
                       (selected.cropBottom ?? 0) > 0 ||
@@ -943,9 +909,7 @@ export function LabelsPackagingStep({
                           })
                         }
                         className="h-7 border-white/20 px-2 text-[9px] !text-white hover:bg-white/10"
-                      >
-                        Reset
-                      </Button>
+                      >{cerigaTranslate("interface.text_daee7606b339f3c3")}</Button>
                     )}
                   </div>
                   {(
@@ -963,7 +927,7 @@ export function LabelsPackagingStep({
                       <div key={key} className={idx === 0 ? '' : 'mt-3'}>
                         <div className="mb-2 flex items-center justify-between">
                           <Label className="text-[10px] font-medium uppercase tracking-wider text-[#9CA3AF]">
-                            {label}
+                            {cerigaTranslateLabel(label)}
                           </Label>
                           <span className="text-[10px] tabular-nums text-white/50">
                             {Math.round(Math.min(val, max))}%
@@ -989,41 +953,31 @@ export function LabelsPackagingStep({
                   onClick={() => updateSelected({ rotation: ((selected.rotation ?? 0) + 15) % 360 })}
                   className="h-8 border-white/20 px-2 text-[10px] !text-white hover:bg-white/10"
                 >
-                  <RotateCw className="mr-1 h-3 w-3" />
-                  Rotate 15°
-                </Button>
+                  <RotateCw className="mr-1 h-3 w-3" />{cerigaTranslate("interface.text_a639fd28b58d9a5c")}</Button>
                 <Button
                   variant="outline"
                   onClick={duplicateSelected}
                   className="h-8 border-white/20 px-2 text-[10px] !text-white hover:bg-white/10"
                 >
-                  <Copy className="mr-1 h-3 w-3" />
-                  Duplicate
-                </Button>
+                  <Copy className="mr-1 h-3 w-3" />{cerigaTranslate("interface.text_02cdaabfca805d6a")}</Button>
                 {selected.type === 'image' ? (
                   <Button
                     variant="outline"
                     onClick={() => updateSelected({ flipHorizontal: !selected.flipHorizontal })}
                     className="col-span-2 h-8 border-white/20 px-2 text-[10px] !text-white hover:bg-white/10"
                   >
-                    <FlipHorizontal2 className="mr-1 h-3 w-3" />
-                    Flip horizontal
-                  </Button>
+                    <FlipHorizontal2 className="mr-1 h-3 w-3" />{cerigaTranslate("interface.text_9692a0ce7511d6a3")}</Button>
                 ) : null}
                 <div className="col-span-2 flex items-center justify-center gap-2 rounded-lg border border-[#252528] bg-black/20 px-2 py-2 text-center text-[10px] leading-snug text-white/60">
-                  <Move className="h-3 w-3 shrink-0" />
-                  Drag to move · corners scale · sides stretch · double-click text to edit
-                </div>
+                  <Move className="h-3 w-3 shrink-0" />{cerigaTranslate("interface.text_2b20dc7b37d2712f")}</div>
               </div>
             </div>
           ) : null}
 
-          <PrintPanel title={`Elements (${elements.length})`}>
+          <PrintPanel title={cerigaTranslate("interface.text_cbbc9c4088ae2908",{value0:(elements.length)})}>
             <div className={cn('space-y-2', listDraggingId && 'list-reorder-active')}>
               {elements.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">
-                  Upload artwork or add text, then drag on the preview.
-                </div>
+                <div className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-center text-[11px] leading-relaxed text-white/38">{cerigaTranslate("interface.text_ae15f8cb4e4b46eb")}</div>
               ) : (
                 (() => {
                   const sourceIndex = listDraggingId
@@ -1072,8 +1026,8 @@ export function LabelsPackagingStep({
                         tabIndex={0}
                         onPointerDown={(ev) => onListGripPointerDown(ev, element.id)}
                         className="flex shrink-0 cursor-grab touch-none select-none items-center rounded-l-[8px] px-1 text-white/35 hover:bg-white/[0.06] hover:text-white/60 active:cursor-grabbing"
-                        aria-label="Drag to reorder layer"
-                        title="Drag to reorder"
+                        aria-label={cerigaTranslate("interface.text_767e8129998b2d49")}
+                        title={cerigaTranslate("interface.text_ef86a0ed928794a4")}
                       >
                         <GripVertical className="h-3.5 w-3.5" strokeWidth={2} />
                       </div>
@@ -1091,7 +1045,7 @@ export function LabelsPackagingStep({
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[11px] font-medium text-white">
-                            {element.type === 'image' ? 'Uploaded artwork' : element.content}
+                            {element.type === 'image' ? cerigaTranslate("interface.text_c9443c58c9dd431d") : element.content}
                           </div>
                           <div className="truncate text-[9.5px] text-white/40">
                             {Math.round(element.x)}, {Math.round(element.y)} ·{' '}
@@ -1102,8 +1056,8 @@ export function LabelsPackagingStep({
                       <button
                         type="button"
                         className="flex shrink-0 items-center justify-center rounded-r-[8px] border-l border-[#252528] px-2 text-white/35 transition hover:bg-white/[0.08] hover:text-[#FF3B30]"
-                        aria-label="Delete layer"
-                        title="Delete"
+                        aria-label={cerigaTranslate("interface.text_65f213772b9c5334")}
+                        title={cerigaTranslate("common.delete")}
                         onClick={(e) => {
                           e.stopPropagation();
                           removeElementFromList(element.id);
@@ -1122,14 +1076,12 @@ export function LabelsPackagingStep({
       )}
 
       <div>
-        <Label htmlFor={`${subStep}-notes`} className={sectionLabelClass}>
-          Extra Details
-        </Label>
+        <Label htmlFor={`${subStep}-notes`} className={sectionLabelClass}>{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
         <Textarea
           id={`${subStep}-notes`}
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
-          placeholder={`Add any ${subStep} requirements...`}
+          placeholder={cerigaTranslate("interface.text_72ece616c04ba854",{value0:(subStep)})}
           className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
         />
       </div>
@@ -1280,6 +1232,8 @@ function DesignSurface({
   phoneConfigSheetCollapsed?: boolean;
   showMobileTextToolbar?: boolean;
 }) {
+  useCerigaTranslation();
+
   const editable = Boolean(onElementsChange);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -1787,9 +1741,7 @@ function DesignSurface({
           </div>
         ) : null}
         {narrowViewport && editable && selectedElement?.type === 'text' && editingTextId !== selectedElement.id ? (
-          <p className="mb-1.5 w-full max-w-md shrink-0 px-2 text-center text-[10px] leading-tight text-white/48">
-            Tap the text {mode === 'label' ? 'on the label' : 'in the area'} again to edit, or drag to move it.
-          </p>
+          <p className="mb-1.5 w-full max-w-md shrink-0 px-2 text-center text-[10px] leading-tight text-white/48">{cerigaTranslate("interface.text_ada1051d3f9d4694")}{" "}{mode === 'label' ? cerigaTranslate("interface.text_c0910f945393d3d5") : cerigaTranslate("interface.text_8565e8ab27ce7c18")}{" "}{cerigaTranslate("interface.text_ee180829daaa4add")}</p>
         ) : null}
         <div
           className={cn(
@@ -1821,9 +1773,7 @@ function DesignSurface({
           <div
             className="flex h-full min-h-0 items-center justify-center px-2 text-center text-[10px] uppercase tracking-[0.14em] sm:text-[11px] sm:tracking-[0.18em]"
             style={{ color: emptyHintColor }}
-          >
-            Drag text or artwork here
-          </div>
+          >{cerigaTranslate("interface.text_3b49eb106535806d")}</div>
         )}
 
         <div
@@ -1922,7 +1872,7 @@ function DesignSurface({
                     <ImageFxDefs element={element} />
                     <img
                       src={element.content}
-                      alt="Artwork"
+                      alt={cerigaTranslate("interface.text_d5fbb86add39fc3c")}
                       className="h-full w-full object-contain"
                       style={{
                         transform: element.flipHorizontal ? 'scaleX(-1)' : undefined,

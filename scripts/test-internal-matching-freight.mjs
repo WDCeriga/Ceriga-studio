@@ -1,0 +1,30 @@
+process.on('uncaughtException',e=>{console.error(e.message,e.where??'');process.exit(1)});
+import assert from 'node:assert/strict';import{randomUUID}from'node:crypto';import fs from'node:fs/promises';import{testDatabase,asAccount}from'./support/testDatabase.mjs';
+const db=await testDatabase();const[admin,buyer,factory]=Array.from({length:3},randomUUID);
+const rpc=async(n,args,values)=>(await db.query(`select public.${n}(${args}) value`,values)).rows[0].value;
+try{
+for(const id of[admin,buyer,factory])await db.query('insert into auth.users(id,email)values($1,$2)',[id,id===admin?'owner@ceriga.io':id+'@example.invalid']);
+await asAccount(db,buyer);await assert.rejects(rpc('admin_matching_settings','',[]),/Superadmin/);
+await asAccount(db,admin,'owner@ceriga.io');const settings=await rpc('admin_matching_settings','',[]);
+assert.equal((await rpc('admin_matching_settings','$1,$2',[{...settings,similarityPoints:3},settings])).similarityPoints,3);
+await assert.rejects(rpc('admin_matching_settings','$1,$2',[settings,settings]),/changed/);
+await assert.rejects(rpc('admin_matching_settings','$1,$2',[{...settings,windowDays:0},{...settings,similarityPoints:3}]),/Invalid/);
+await db.exec('reset role');await db.query("insert into manufacturer_profiles(user_id,factory_name,onboarding_complete,status)values($1,'Factory',true,'active')",[factory]);
+const oid=(await db.query("insert into orders(user_id,kind,product_name,garment_type,status,status_label,order_quantities)values($1,'production','Freight fixture','T-shirts','submitted','Submitted',$2)returning id",[buyer,{sample:{id:'sample',kind:'sample',targetTotal:1},bulkRuns:[{id:'bulk',kind:'bulk',targetTotal:2}]}])).rows[0].id;
+await db.query("select set_config('app.routing_write',$1,false)",[oid]);await db.query("update orders set assigned_manufacturer_id=$1,factory_status='new'where id=$2",[factory,oid]);
+const core={priceCents:1200,currency:'EUR',provider:'Carrier',method:'Air',origin:'Porto',destination:'London'};
+await asAccount(db,factory);await rpc('submit_manufacturer_quote','$1,$2',[oid,[{id:'sample',kind:'sample',totalUnits:1,unitPriceCents:1000,currency:'EUR',leadTimeDays:7,shipping:core},{id:'bulk',kind:'bulk',totalUnits:2,unitPriceCents:900,currency:'EUR',leadTimeDays:14,shipping:core}]]);
+await asAccount(db,admin,'owner@ceriga.io');const f=(await db.query("insert into freight_forwarders(company_name)values('Carrier')returning id")).rows[0].id;
+const source={...core,transitDays:5,cartons:1,weightKg:1,lengthCm:20,widthCm:20,heightCm:20,validUntil:'2099-01-01',insurance:'Insured',services:'Door to door',tradeTerms:'DAP'};
+const target={...source,priceCents:4300,insurance:'Old',weightKg:12,cartons:2};
+const a=await rpc('freight_add_quote','$1,$2,$3,$4',[oid,'sample',source,f]);const b=await rpc('freight_add_quote','$1,$2,$3,$4',[oid,'bulk',target,f]);
+const ids=await rpc('freight_apply_common_terms','$1,$2,$3',[oid,a,[b]]);assert.equal(ids.length,1);
+const q=(await db.query('select terms from order_freight_quotes where id=$1',[ids[0]])).rows[0].terms;
+assert.equal(q.priceCents,4300);assert.equal(q.currency,'EUR');assert.equal(q.weightKg,12);assert.equal(q.insurance,'Insured');
+assert.equal((await db.query('select *from order_freight_selections where order_id=$1',[oid])).rows.length,0);
+assert.equal((await rpc('freight_apply_common_terms','$1,$2,$3',[oid,a,[b]]))[0],ids[0]);
+await assert.rejects(rpc('freight_apply_common_terms','$1,$2,$3',[oid,a,[a]]),/distinct/);
+await asAccount(db,buyer);await assert.rejects(rpc('freight_apply_common_terms','$1,$2,$3',[oid,a,[b]]),/Superadmin/);
+await db.exec('reset role');await db.exec(await fs.readFile('supabase/migrations/20261123090000_internal_matching_and_freight_tools.sql','utf8'));
+console.log('PASS matching settings persistence/conflict/validation/isolation; non-price freight reuse preserves independent price, currency and dimensions; no selection, duplicate safety and repeatable migration.');
+}finally{await db.close();}

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { Link } from 'react-router';
 import {
   CheckCircle2,
@@ -15,6 +16,8 @@ import {
 } from '../../data/manufacturerOnboardingStore';
 
 export function ManufacturerProfileCompletenessCard() {
+  useCerigaTranslation();
+
   const profile = loadCompleteManufacturerProfile();
   const { totalPercentage, sections } = calculateProfileCompleteness(profile);
 
@@ -33,16 +36,11 @@ export function ManufacturerProfileCompletenessCard() {
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <TrendingUp className="h-4 w-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">
-              Profile Completeness
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider">{cerigaTranslate("interface.text_ac21dded0a00fd2e")}</span>
           </div>
-          <h2 className="mt-1 text-lg font-semibold text-white">
-            Manufacturing Profile Strength: {totalPercentage}%
+          <h2 className="mt-1 text-lg font-semibold text-white">{cerigaTranslate("interface.text_174162671e0dcb7f")}{" "}{totalPercentage}%
           </h2>
-          <p className="mt-0.5 text-xs text-white/45">
-            A complete profile gives Ceriga the exact parameters required to route high-match brand orders to your floor.
-          </p>
+          <p className="mt-0.5 text-xs text-white/45">{cerigaTranslate("interface.text_ad69d129844599a0")}</p>
         </div>
 
         {/* Circular Percentage Pill */}

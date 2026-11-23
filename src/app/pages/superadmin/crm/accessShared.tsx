@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { Link } from 'react-router';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import type { SuperAdminUser } from '../../../data/superadminMock';
@@ -47,15 +48,13 @@ export function AccessBreadcrumb({
   audience?: AccessAudience;
   profileName?: string;
 }) {
+  useCerigaTranslation();
+
   return (
     <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-[11px] text-white/40">
-      <Link to="/superadmin/crm" className="hover:text-white/70">
-        CRM
-      </Link>
+      <Link to="/superadmin/crm" className="hover:text-white/70">{cerigaTranslate("interface.text_130f70ae5b44ed4c")}</Link>
       <ChevronRight className="h-3 w-3" />
-      <Link to="/superadmin/crm/access" className="hover:text-white/70">
-        Roles & access
-      </Link>
+      <Link to="/superadmin/crm/access" className="hover:text-white/70">{cerigaTranslate("interface.text_d9cda9d6e711a760")}</Link>
       {audience ? (
         <>
           <ChevronRight className="h-3 w-3" />
@@ -90,6 +89,8 @@ export function ProfileCard({
   enabledCount: number;
   totalPages: number;
 }) {
+  useCerigaTranslation();
+
   return (
     <Link
       to={`/superadmin/crm/access/${audience}/${user.id}`}
@@ -104,8 +105,7 @@ export function ProfileCard({
       </div>
       <div className="shrink-0 text-right">
         <p className="text-[10px] font-medium text-[#CC2D24]">
-          {enabledCount}/{totalPages} pages
-        </p>
+          {enabledCount}/{totalPages}{" "}{cerigaTranslate("interface.text_bfa062de040f55a1")}</p>
         <ChevronRight className="ml-auto mt-1 h-4 w-4 text-white/25 transition group-hover:text-white/50" />
       </div>
     </Link>
@@ -113,13 +113,15 @@ export function ProfileCard({
 }
 
 export function BackLink({ to, label }: { to: string; label: string }) {
+  useCerigaTranslation();
+
   return (
     <Link
       to={to}
       className="mb-2 inline-flex items-center gap-2 text-xs font-medium text-white/45 transition hover:text-white/80"
     >
       <ArrowLeft className="h-3.5 w-3.5" />
-      {label}
+      {cerigaTranslateLabel(label)}
     </Link>
   );
 }

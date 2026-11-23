@@ -147,6 +147,7 @@ export function rowToUserOrder(row: OrderRow): UserOrder {
 }
 
 export type CreateOrderDbInput = {
+  id?: string;
   sourceOrderId?: string;
   useApprovedSample?: boolean;
   kind: UserOrderKind;
@@ -228,6 +229,7 @@ export async function insertOrder(input: CreateOrderDbInput): Promise<UserOrder>
   if (!user) throw new Error('You must be signed in to create an order');
 
   const payload = {
+    ...(input.id ? { id: input.id } : {}),
     user_id: user.id,
     kind: input.kind,
     product_name: input.productName,
@@ -319,7 +321,7 @@ export async function uploadOrderFiles(
       cacheControl: '3600',
       upsert: false,
     });
-    if (error) throw error;
+    if (error) throw new Error(requestMessage(error, 'Could not upload order files'));
     uploaded.push({ path, name: file.name });
   }
   return uploaded;

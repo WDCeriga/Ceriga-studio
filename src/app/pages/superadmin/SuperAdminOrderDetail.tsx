@@ -1,3 +1,10 @@
+import {InternalWorkPanel} from '../../components/superadmin/InternalWorkPanel';
+import { formatQuantityLine as cerigaQuantityLine } from '../../i18n/i18n';
+import { activeLocale as cerigaLocale } from '../../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
+import { AdminRecordControls } from '../../components/superadmin/AdminRecordControls';
+import { OrderCommunication } from '../../components/orders/OrderCommunication';
+import { InternalOrderTask } from '../../components/superadmin/InternalOrderTask';
 import { AdminFactoryDocuments } from '../../components/superadmin/AdminFactoryDocuments';
 import './superadmin-order-detail.css';
 import {FreightTotalPreview} from '../../components/freight/FreightTotalPreview';
@@ -136,7 +143,7 @@ function customStatusLabel(status: OrderStatus) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', {
+  return new Date(iso).toLocaleDateString(cerigaLocale(), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -153,7 +160,7 @@ function orderInitials(name: string) {
 }
 
 async function copyText(text: string, label: string) {
-  try{await navigator.clipboard.writeText(text);toast.success('Copied '+label);}catch{toast.error('Could not copy '+label);}
+  try{await navigator.clipboard.writeText(text);toast.success(cerigaTranslate("interface.text_80d930b333bbfcc5",{value0:(label)}));}catch{toast.error(cerigaTranslate("interface.text_82fa53d778b3773a",{value0:(label)}));}
 }
 
 function displayPrice(order: SuperAdminOrder) {
@@ -168,37 +175,40 @@ function mockQuantity(productName: string) {
 }
 
 export function SuperAdminOrderDetail() {
+  useCerigaTranslation();
+
   useCurrency();
   const { id } = useParams();
-  const { orders, patchOrder } = useSuperadminData();
+  const { orders, patchOrder, refresh,loading,error } = useSuperadminData({scope:'orders',orderId:id});
   const order = id ? orders.find((o) => o.id === id) : undefined;
 
   if (!order) {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center text-center">
+      <div role={error?'alert':loading?'status':undefined} className="flex min-h-[40vh] flex-col items-center justify-center text-center">
         <Package className="h-10 w-10 text-white/25" />
         <h2 className="mt-4 text-lg font-semibold text-white">
-          {orders.length === 0 ? 'Loading order…' : 'Order not found'}
+          {error?cerigaTranslateLabel(error):loading?cerigaTranslate("interface.text_5a5f7fb48c3b602b") : cerigaTranslate("interface.text_30658cae73f22632")}
         </h2>
-        {!orders.length ? null : (
+        {error&&<Button className="mt-4" onClick={()=>void refresh()}>{cerigaTranslate('common.retry')}</Button>}
+        {loading ? null : (
           <Button asChild className="mt-6 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
             <Link to="/superadmin/orders">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to orders
-            </Link>
+              <ArrowLeft className="mr-2 h-4 w-4" />{cerigaTranslate("orders.back")}</Link>
           </Button>
         )}
       </div>
     );
   }
 
+  const actions = <AdminRecordControls entity="order" id={order.id} onSaved={refresh} />;
   if (order.kind === 'techpack') {
-    return <TechPackOrderDetail order={order} />;
+    return <TechPackOrderDetail order={order} actions={actions} />;
   }
 
   return (
     <CustomClothingOrderDetail
       order={order}
+      actions={actions}
       onOpsChange={async(patch) => {
         const saved=await patchOrder(order.id,patch);if(!saved)throw new Error('Order update was not saved. Please try again.');
       }}
@@ -215,15 +225,15 @@ export function SuperAdminOrderDetail() {
 }
 
 function OrderBackLink() {
+  useCerigaTranslation();
+
   useCurrency();
   return (
     <Link
       to="/superadmin/orders"
       className="inline-flex items-center gap-2 text-sm text-white/45 transition hover:text-white"
     >
-      <ArrowLeft className="h-4 w-4" />
-      Orders
-    </Link>
+      <ArrowLeft className="h-4 w-4" />{cerigaTranslate("nav.orders")}</Link>
   );
 }
 
@@ -236,6 +246,8 @@ function WorkflowPipeline({
   steps: { status: OrderStatus; label: string }[];
   accent?: 'red' | 'violet';
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const currentRank = STATUS_RANK[order.status];
 
@@ -248,7 +260,7 @@ function WorkflowPipeline({
 
   return (
     <div className="od-workflow mt-6 border-t border-[#252528] pt-5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Progress</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("adminOrders.progress")}</p>
       <div className="od-workflow-track mt-4 flex items-start gap-0.5 overflow-x-auto pb-1">
         {steps.map((step, i) => {
           const state = stepState(step.status);
@@ -280,7 +292,7 @@ function WorkflowPipeline({
                     state === 'current' ? 'text-white' : 'text-white/35',
                   )}
                 >
-                  {step.label}
+                  {cerigaTranslateLabel(step.label)}
                 </span>
               </div>
               {i < steps.length - 1 ? (
@@ -310,6 +322,8 @@ function OrderHero({
   statusLabel: string;
   children?: ReactNode;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const gradient = isTechPack
     ? 'from-violet-500/14 via-violet-500/[0.03] to-transparent'
@@ -340,7 +354,7 @@ function OrderHero({
                   type="button"
                   className="rounded-md p-1 text-white/35 transition hover:bg-white/10 hover:text-white"
                   onClick={() => copyText(order.id, 'order ID')}
-                  aria-label="Copy order ID"
+                  aria-label={cerigaTranslate("adminOrders.copy")}
                 >
                   <Copy className="h-3.5 w-3.5" />
                 </button>
@@ -355,7 +369,7 @@ function OrderHero({
                     statusTone(order.status),
                   )}
                 >
-                  {statusLabel}
+                  {cerigaTranslateLabel(statusLabel)}
                 </span>
                 <span
                   className={cn(
@@ -364,7 +378,7 @@ function OrderHero({
                   )}
                 >
                   {isTechPack ? <Package className="h-3 w-3" /> : <Shirt className="h-3 w-3" />}
-                  {isTechPack ? 'Tech pack' : 'Custom clothing'}
+                  {isTechPack ? cerigaTranslate("adminOrders.techpack") : cerigaTranslate("adminOrders.clothing")}
                 </span>
               </div>
             </div>
@@ -384,18 +398,18 @@ function OrderHero({
               ? {
                   label: 'Garment',
                   value: order.garmentType ?? '—',
-                  sub: order.exportFormat ? EXPORT_LABEL[order.exportFormat] : 'PDF export',
+                  sub: order.exportFormat ? EXPORT_LABEL[order.exportFormat] : cerigaTranslate("interface.text_1236501cbaea69ff"),
                   icon: FileText,
                 }
               : {
                   label: 'Manufacturer',
-                  value: order.manufacturerName ?? 'Unassigned',
+                  value: order.manufacturerName ?? cerigaTranslate("adminOrders.unassigned"),
                   icon: Factory,
                 },
             {
-              label: isTechPack ? 'Billing' : 'Delivery',
+              label: isTechPack ? cerigaTranslate("adminOrders.billing") : cerigaTranslate("nav.delivery"),
               value: isTechPack
-                ? price ?? 'Pending'
+                ? price ?? cerigaTranslate("orders.pending")
                 : order.delivery
                   ? `${order.delivery.address1}, ${order.delivery.city}`
                   : `${order.deliveryCity}, ${order.deliveryCountry}`,
@@ -413,7 +427,7 @@ function OrderHero({
             >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-white/35">
                 <item.icon className="h-3.5 w-3.5" />
-                {item.label}
+                {cerigaTranslateLabel(item.label)}
               </div>
               <div className="mt-1 truncate text-sm font-semibold text-white">{item.value}</div>
               {'sub' in item && item.sub ? (
@@ -434,10 +448,12 @@ function OrderHero({
 }
 
 function CustomerCard({ order }: { order: SuperAdminOrder }) {
+  useCerigaTranslation();
+
   useCurrency();
   return (
     <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Customer</h2>
+      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("adminOrders.customer")}</h2>
       <div className="mt-4 flex items-center gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#252528] bg-white/[0.04] text-sm font-bold text-white/75">
           {orderInitials(order.userName)}
@@ -455,9 +471,7 @@ function CustomerCard({ order }: { order: SuperAdminOrder }) {
           className="flex-1 border-white/15 bg-white/[0.03] text-white/80 hover:bg-white/10 hover:text-white"
         >
           <Link to={`/superadmin/users/${order.userId}`}>
-            <User className="mr-2 h-3.5 w-3.5" />
-            Profile
-          </Link>
+            <User className="mr-2 h-3.5 w-3.5" />{cerigaTranslate("common.profile")}</Link>
         </Button>
         <Button
           variant="outline"
@@ -475,19 +489,17 @@ function CustomerCard({ order }: { order: SuperAdminOrder }) {
 }
 
 function DeliveryCard({ order }: { order: SuperAdminOrder }) {
+  useCerigaTranslation();
+
   useCurrency();
   const delivery: OrderDeliveryInfo | undefined = order.delivery;
   return (
     <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-        Delivery
-      </h2>
+      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("nav.delivery")}</h2>
       {delivery ? (
         <div className="mt-4 space-y-4 text-sm">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-              Contact
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_2b5c3d26721ae9c3")}</p>
             <p className="mt-1 font-medium text-white">
               {delivery.firstName} {delivery.lastName}
             </p>
@@ -498,9 +510,7 @@ function DeliveryCard({ order }: { order: SuperAdminOrder }) {
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-              Address
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_56ef8f20955f2564")}</p>
             <div className="mt-1 flex items-start gap-2">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-white/35" />
               <div className="space-y-0.5 text-white/80">
@@ -512,9 +522,7 @@ function DeliveryCard({ order }: { order: SuperAdminOrder }) {
           </div>
           {delivery.instructions ? (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                Special instructions
-              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_4e80e96365cc0517")}</p>
               <p className="mt-1 text-white/60">{delivery.instructions}</p>
             </div>
           ) : null}
@@ -532,6 +540,8 @@ function DeliveryCard({ order }: { order: SuperAdminOrder }) {
 }
 
 function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
+  useCerigaTranslation();
+
   useCurrency();
   const tiers = getOrderQuoteTiers(order);
   const hasQuote = tiers.length > 0;
@@ -539,9 +549,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
 
   return (
     <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-        Manufacturer
-      </h2>
+      <h2 className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("adminOrders.factory")}</h2>
       {order.manufacturerName ? (
         <div className="mt-4">
           <div className="flex items-start gap-3">
@@ -551,8 +559,7 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
             <div>
               <p className="font-medium text-white">{order.manufacturerName}</p>
               {order.dueQuoteBy && !hasQuote ? (
-                <p className="mt-0.5 text-[11px] text-white/40">
-                  Quote due {new Date(order.dueQuoteBy).toLocaleDateString('en-GB', {
+                <p className="mt-0.5 text-[11px] text-white/40">{cerigaTranslate("manufacturerOrders.quoteDue")}{" "}{new Date(order.dueQuoteBy).toLocaleDateString(cerigaLocale(), {
                     day: 'numeric',
                     month: 'short',
                   })}
@@ -571,13 +578,13 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
             )}
           >
             {hasQuote
-              ? `Quotation received · ${tiers.length} option${tiers.length === 1 ? '' : 's'}`
+              ? cerigaTranslate("interface.plural_6908bca22f99f40a",{value0:(tiers.length),count:Number(tiers.length)})
               : awaitingQuote
-                ? 'Awaiting pricing submission'
-                : 'Not yet engaged'}
+                ? cerigaTranslate("interface.text_b43312d5304c5eaf")
+                : cerigaTranslate("interface.text_fb8d687288430613")}
           </div>
           {order.factoryRejectReason ? (
-            <p className="mt-2 text-[11px] text-red-200/80">Declined: {order.factoryRejectReason}</p>
+            <p className="mt-2 text-[11px] text-red-200/80">{cerigaTranslate("interface.text_85be99c92549ca81")}{" "}{order.factoryRejectReason}</p>
           ) : null}
           {hasQuote ? (
             <ul className="mt-3 space-y-1.5">
@@ -587,11 +594,11 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
                   className="flex items-center justify-between gap-2 text-[11px] text-white/50"
                 >
                   <span>
-                    {tier.label}
+                    {cerigaTranslateLabel(tier.label)}
                     {tier.totalUnits > 0 ? ` · ${tier.totalUnits}u` : ''}
                   </span>
                   <span className="tabular-nums text-white/75">
-                    {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">Original: {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}</span>{tier.payableCurrency&&tier.payablePriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/60">Customer payable: {originalMoney(tier.payablePriceCents,tier.payableCurrency)} (locked)</span>}
+                    {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">{cerigaTranslate("interface.text_71cd5f2db91a7385")}{" "}{tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):cerigaTranslate("interface.text_7e1bb820a1eb1b10")}</span>{tier.payableCurrency&&tier.payablePriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/60">{cerigaTranslate("interface.text_d8e76aca7a91f729")}{" "}{originalMoney(tier.payablePriceCents,tier.payableCurrency)}{" "}{cerigaTranslate("interface.text_f832bb4f4783ada1")}</span>}
                   </span>
                 </li>
               ))}
@@ -600,19 +607,15 @@ function ManufacturerCard({ order }: { order: SuperAdminOrder }) {
           <Link
             to="/superadmin/assignment"
             className="mt-3 inline-flex text-[11px] text-[#CC2D24] hover:underline"
-          >
-            Open assignment console
-          </Link>
+          >{cerigaTranslate("interface.text_f22813a13bf672c3")}</Link>
         </div>
       ) : (
         <div className="mt-4">
-          <p className="text-sm text-white/45">No manufacturer assigned yet.</p>
+          <p className="text-sm text-white/45">{cerigaTranslate("interface.text_6369a2e68384742f")}</p>
           <Link
             to="/superadmin/assignment"
             className="mt-2 inline-flex text-[11px] text-[#CC2D24] hover:underline"
-          >
-            Assign in console
-          </Link>
+          >{cerigaTranslate("interface.text_d7417aad37cda733")}</Link>
         </div>
       )}
     </section>
@@ -626,6 +629,8 @@ function ProductionPulseCard({
   order: SuperAdminOrder;
   onOpsChange?: () => void;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const pulse = getProductionPulse(order.id);
   const [flagOpen, setFlagOpen] = useState(false);
@@ -634,10 +639,8 @@ function ProductionPulseCard({
     <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-white">Production pulse</h2>
-          <p className="mt-0.5 text-[11px] text-white/40">
-            Read-only floor status · QC photos below
-          </p>
+          <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_e1a7cfbb2c6700c7")}</h2>
+          <p className="mt-0.5 text-[11px] text-white/40">{cerigaTranslate("interface.text_36ca255e28f39199")}</p>
         </div>
         {pulse.flagged ? (
           <Button
@@ -646,53 +649,45 @@ function ProductionPulseCard({
             className="border-white/15 bg-white/[0.03] text-white/80"
             onClick={() => {
               clearQcBrandFlag(order.id);
-              toast.success('Cleared brand QC flag');
+              toast.success(cerigaTranslate("interface.text_1c0885a69cc91a16"));
               onOpsChange?.();
             }}
-          >
-            Clear flag
-          </Button>
+          >{cerigaTranslate("interface.text_eaf05d552ed6174f")}</Button>
         ) : (
           <Button
             size="sm"
             className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
             onClick={() => setFlagOpen(true)}
           >
-            <Flag className="mr-1.5 h-3.5 w-3.5" />
-            Flag for brand
-          </Button>
+            <Flag className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_be3ece5c6d23b291")}</Button>
         )}
       </div>
 
       {pulse.job ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-2.5">
-            <p className="text-[10px] uppercase tracking-wide text-white/35">Stage</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/35">{cerigaTranslate("interface.text_de838855e4a6e04e")}</p>
             <p className="mt-0.5 text-sm font-medium text-white">
-              {PRODUCTION_STAGE_LABEL[pulse.job.stage]}
+              {cerigaTranslateLabel(PRODUCTION_STAGE_LABEL[pulse.job.stage])}
             </p>
           </div>
           <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-2.5">
-            <p className="text-[10px] uppercase tracking-wide text-white/35">Assignee</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/35">{cerigaTranslate("interface.text_5e20d20e3978dcf8")}</p>
             <p className="mt-0.5 text-sm font-medium text-white">
-              {pulse.job.assigneeName ?? 'Unassigned'}
+              {pulse.job.assigneeName ?? cerigaTranslate("adminOrders.unassigned")}
             </p>
           </div>
           <div className="rounded-xl border border-[#252528] bg-black/20 px-3 py-2.5">
-            <p className="text-[10px] uppercase tracking-wide text-white/35">QC photos</p>
+            <p className="text-[10px] uppercase tracking-wide text-white/35">{cerigaTranslate("interface.text_f88e7bfd339f8f17")}</p>
             <p className="mt-0.5 text-sm font-medium tabular-nums text-white">{pulse.photoCount}</p>
           </div>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-white/40">
-          No production job linked yet — gallery still shows any published QC for this order id.
-        </p>
+        <p className="mt-4 text-sm text-white/40">{cerigaTranslate("interface.text_cef537b0f6f48057")}</p>
       )}
 
       {pulse.flagged ? (
-        <p className="mt-3 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-[12px] text-violet-100">
-          Flagged for brand
-          {pulse.flaggedAt ? ` · ${pulse.flaggedAt}` : ''}
+        <p className="mt-3 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-[12px] text-violet-100">{cerigaTranslate("interface.text_66c4900d1a56293e")}{pulse.flaggedAt ? ` · ${pulse.flaggedAt}` : ''}
           {pulse.flagNote ? ` — ${pulse.flagNote}` : ''}
         </p>
       ) : null}
@@ -700,12 +695,12 @@ function ProductionPulseCard({
       <ConfirmDialog
         open={flagOpen}
         onOpenChange={setFlagOpen}
-        title="Flag QC for brand?"
-        description="Marks this order so ops can push the brand to review published QC photos."
-        confirmLabel="Flag for brand"
+        title={cerigaTranslate("interface.text_a695604c101170fa")}
+        description={cerigaTranslate("interface.text_e4f9bbd73d121f3a")}
+        confirmLabel={cerigaTranslate("interface.text_be3ece5c6d23b291")}
         onConfirm={() => {
           flagQcForBrand(order.id, 'Please review published QC photos');
-          toast.success('Flagged for brand review');
+          toast.success(cerigaTranslate("interface.text_c24a181a403f83df"));
           onOpsChange?.();
         }}
       />
@@ -749,16 +744,18 @@ function TechPackDownloadButton({
   variant?: 'outline' | 'default';
   className?: string;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const [exporting, setExporting] = useState(false);
   const handle = async () => {
     setExporting(true);
     try {
       await exportOrderTechPackPdf(order);
-      toast.success('Tech pack PDF downloaded');
+      toast.success(cerigaTranslate("interface.text_fd9b10ceead5a657"));
     } catch (err) {
       console.error('Tech pack export failed', err);
-      toast.error('Could not generate the PDF — try again.');
+      toast.error(cerigaTranslate("interface.text_4e2811a6ee9ccc94"));
     } finally {
       setExporting(false);
     }
@@ -776,7 +773,7 @@ function TechPackDownloadButton({
       ) : (
         <Download className="mr-2 h-3.5 w-3.5" />
       )}
-      {exporting ? 'Generating…' : label}
+      {exporting ? cerigaTranslate("interface.text_d20a4476a0a85978") : label}
     </Button>
   );
 }
@@ -799,6 +796,8 @@ function TechPackViewerDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const product = getProductById(techPack.builderProductId);
   const builderHref = builderUrl(techPack);
@@ -808,8 +807,7 @@ function TechPackViewerDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto border-[#252528] bg-[#111113] text-white sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-lg text-white">{techPack.name}</DialogTitle>
-          <DialogDescription className="text-white/45">
-            Customer tech pack from {customerName}
+          <DialogDescription className="text-white/45">{cerigaTranslate("interface.text_03960b7892291a6c")}{" "}{customerName}
           </DialogDescription>
         </DialogHeader>
 
@@ -833,7 +831,7 @@ function TechPackViewerDialog({
               { label: 'Garment', value: techPack.garmentType },
               { label: 'Blueprint', value: product?.name ?? techPack.builderProductId },
               { label: 'Format', value: exportFormatLabel(techPack.exportFormat) },
-              { label: 'Pages', value: techPack.pageCount ? `${techPack.pageCount} pages` : '—' },
+              { label: 'Pages', value: techPack.pageCount ? cerigaTranslate("interface.text_33ba9ffc8e6096fd",{value0:(techPack.pageCount)}) : '—' },
               {
                 label: 'Last exported',
                 value: techPack.lastExportedAt ? formatDate(techPack.lastExportedAt) : '—',
@@ -841,7 +839,7 @@ function TechPackViewerDialog({
               { label: 'Project ID', value: techPack.projectId, mono: true },
             ].map((row) => (
               <div key={row.label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-                <dt className="text-white/45">{row.label}</dt>
+                <dt className="text-white/45">{cerigaTranslateLabel(row.label)}</dt>
                 <dd className={cn('text-right font-medium text-white/85', row.mono && 'font-mono text-xs')}>
                   {row.value}
                 </dd>
@@ -850,21 +848,19 @@ function TechPackViewerDialog({
           </dl>
 
           <div className="rounded-xl border border-[#252528] bg-white/[0.02] p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Includes</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_df498282bede20a9")}</p>
             <ul className="mt-2 space-y-1.5 text-sm text-white/60">
-              <li>· Flat sketches & construction callouts</li>
-              <li>· Measurement tables (graded)</li>
-              <li>· Fabric, trim, and colour specifications</li>
-              <li>· Print / label placement zones</li>
+              <li>{cerigaTranslate("interface.text_19200d3db3e5efac")}</li>
+              <li>{cerigaTranslate("interface.text_7512424a9bd76e56")}</li>
+              <li>{cerigaTranslate("interface.text_ddad9fb24ffa3f5a")}</li>
+              <li>{cerigaTranslate("interface.text_d25a20d319b653c6")}</li>
             </ul>
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button className="flex-1 bg-[#CC2D24] hover:bg-[#CC2D24]/90" asChild>
               <a href={builderHref} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Open in builder
-              </a>
+                <ExternalLink className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_28516bcfe43e79de")}</a>
             </Button>
             <TechPackDownloadButton
               order={order}
@@ -878,6 +874,8 @@ function TechPackViewerDialog({
 }
 
 function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
+  useCerigaTranslation();
+
   useCurrency();
   const qty = mockQuantity(order.productName);
   const techPack = order.customerTechPack;
@@ -886,13 +884,11 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
 
   return (
     <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-      <h2 className="text-sm font-semibold text-white">Production spec</h2>
+      <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_1720732f3fd319fb")}</h2>
 
       {techPack ? (
         <div className="mt-5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-            Customer tech pack
-          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_8091194c4abb4e0f")}</p>
           <button
             type="button"
             onClick={() => setViewerOpen(true)}
@@ -913,12 +909,11 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-white group-hover:text-violet-100">{techPack.name}</p>
                 <p className="mt-1 text-xs text-white/45">
-                  {techPack.garmentType} · {exportFormatLabel(techPack.exportFormat)}
-                  {techPack.pageCount ? ` · ${techPack.pageCount} pages` : ''}
+                  {techPack.garmentType} · {cerigaTranslateLabel(exportFormatLabel(techPack.exportFormat))}
+                  {techPack.pageCount ? cerigaTranslate("interface.text_cbb67f1b26438459",{value0:(techPack.pageCount)}) : ''}
                 </p>
                 {techPack.lastExportedAt ? (
-                  <p className="mt-1 text-[11px] text-white/35">
-                    Exported {formatDate(techPack.lastExportedAt)}
+                  <p className="mt-1 text-[11px] text-white/35">{cerigaTranslate("interface.text_391065e4dc23592a")}{" "}{formatDate(techPack.lastExportedAt)}
                   </p>
                 ) : null}
               </div>
@@ -932,9 +927,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
               className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
               onClick={() => setViewerOpen(true)}
             >
-              <FileText className="mr-2 h-3.5 w-3.5" />
-              Open tech pack
-            </Button>
+              <FileText className="mr-2 h-3.5 w-3.5" />{cerigaTranslate("interface.text_d97ec00f47fd96a9")}</Button>
             <Button
               size="sm"
               variant="outline"
@@ -942,14 +935,12 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
               asChild
             >
               <a href={builderUrl(techPack)} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                Open in builder
-              </a>
+                <ExternalLink className="mr-2 h-3.5 w-3.5" />{cerigaTranslate("interface.text_28516bcfe43e79de")}</a>
             </Button>
             <TechPackDownloadButton
               order={order}
               size="sm"
-              label="PDF"
+              label={cerigaTranslate("interface.text_1d393b0081b632c5")}
               className="border-white/15 text-white hover:bg-white/10"
             />
           </div>
@@ -965,14 +956,14 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
       ) : (
         <div className="mt-5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] px-4 py-6 text-center">
           <FileText className="mx-auto h-8 w-8 text-white/20" />
-          <p className="mt-3 text-sm text-white/50">No tech pack attached to this order yet.</p>
+          <p className="mt-3 text-sm text-white/50">{cerigaTranslate("interface.text_df108974640c479e")}</p>
         </div>
       )}
 
       <dl className="mt-5 divide-y divide-white/[0.06] rounded-xl border border-[#252528] bg-black/20">
         {[
           { label: 'Product', value: order.productName },
-          { label: 'Quantity', value: qty ? `${qty} units` : '—' },
+          { label: 'Quantity', value: qty ? cerigaTranslate("interface.text_44b3c2a4a47289c6",{value0:(qty)}) : '—' },
           {
             label: 'Delivery',
             value: order.delivery
@@ -990,7 +981,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
           { label: 'Submitted', value: formatDate(order.createdAt) },
         ].map((row) => (
           <div key={row.label} className="flex items-start justify-between gap-4 px-4 py-3 text-sm">
-            <dt className="shrink-0 text-white/45">{row.label}</dt>
+            <dt className="shrink-0 text-white/45">{cerigaTranslateLabel(row.label)}</dt>
             <dd className="text-right font-medium text-white/85">{row.value}</dd>
           </div>
         ))}
@@ -998,7 +989,7 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
 
       {order.notes ? (
         <div className="mt-4 rounded-xl border border-[#252528] bg-white/[0.02] p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">Notes</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("adminOrders.notes")}</p>
           <p className="mt-2 text-sm leading-relaxed text-white/60">{order.notes}</p>
         </div>
       ) : null}
@@ -1006,7 +997,9 @@ function ProductionSpecCard({ order }: { order: SuperAdminOrder }) {
   );
 }
 
-function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
+function TechPackOrderDetail({ order, actions }: { order: SuperAdminOrder; actions: ReactNode }) {
+  useCerigaTranslation();
+
   useCurrency();
   const isReady = order.status === 'completed';
   const isPaid = order.status === 'paid' || isReady;
@@ -1017,9 +1010,10 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
     <div className="admin-order-detail space-y-6">
       <OrderBackLink />
       {order.routingVersion===2 && <OrderRoutingHistory orderId={order.id} />}
-      {order.quoteExpiresAt && <p className="rounded-lg border border-amber-500/20 p-3 text-sm text-amber-200">Customer offer expires {new Date(order.quoteExpiresAt).toLocaleString('en-GB')}. Expired offers require a fresh approval.</p>}
+      {order.quoteExpiresAt && <p className="rounded-lg border border-amber-500/20 p-3 text-sm text-amber-200">{cerigaTranslate("interface.text_14dbbdb2de98b6ba")}{" "}{new Date(order.quoteExpiresAt).toLocaleString(cerigaLocale())}{cerigaTranslate("interface.text_f46c191399dd8703")}</p>}
 
       <OrderHero order={order} isTechPack statusLabel={techPackStatusLabel(order.status)}>
+        {actions}
         {isReady ? (
           <TechPackDownloadButton
             order={order}
@@ -1037,7 +1031,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
                 <FileText className="h-4 w-4 text-violet-300" />
               </span>
               <div>
-                <h2 className="text-sm font-semibold text-white">Digital export</h2>
+                <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_6e4e19b0b873d745")}</h2>
               </div>
             </div>
 
@@ -1045,7 +1039,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
               {[
                 { label: 'Format', value: exportLabel },
                 { label: 'Garment', value: order.garmentType ?? '—' },
-                { label: 'Amount', value: price ?? 'Awaiting payment' },
+                { label: 'Amount', value: price ?? cerigaTranslate("adminOrders.awaitPayment") },
                 { label: 'Region', value: `${order.deliveryCity}, ${order.deliveryCountry}` },
               ].map((row) => (
                 <div
@@ -1053,7 +1047,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
                   className="rounded-xl border border-[#252528] bg-white/[0.02] px-4 py-3"
                 >
                   <dt className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                    {row.label}
+                    {cerigaTranslateLabel(row.label)}
                   </dt>
                   <dd className="mt-1 text-sm font-medium text-white">{row.value}</dd>
                 </div>
@@ -1064,14 +1058,14 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
               <div className="mt-5 flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
                 <div>
-                  <p className="text-sm font-medium text-white">Export ready for download</p>
+                  <p className="text-sm font-medium text-white">{cerigaTranslate("interface.text_8b10ded78074384c")}</p>
                 </div>
               </div>
             ) : !isPaid ? (
               <div className="mt-5 flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
                 <Clock className="h-5 w-5 shrink-0 text-amber-300" />
                 <div>
-                  <p className="text-sm font-medium text-white">Awaiting customer payment</p>
+                  <p className="text-sm font-medium text-white">{cerigaTranslate("interface.text_f6d939c193739283")}</p>
                 </div>
               </div>
             ) : null}
@@ -1080,11 +1074,9 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button
                   className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
-                  onClick={() => toast.message('Open the tech pack from the order workspace to download')}
+                  onClick={() => toast.message(cerigaTranslate("interface.text_098b899e25e31499"))}
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download PDF
-                </Button>
+                  <Download className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_6183be0883d2a89c")}</Button>
                 <Button
                   variant="outline"
                   className="border-white/15 text-white hover:bg-white/10"
@@ -1092,9 +1084,7 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
                     window.location.href = `mailto:${encodeURIComponent(order.userEmail)}?subject=${encodeURIComponent(`Download link for order ${order.id}`)}`;
                   }}
                 >
-                  <Mail className="mr-2 h-4 w-4" />
-                  Resend link
-                </Button>
+                  <Mail className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_25a200daeda8bad0")}</Button>
               </div>
             ) : null}
           </section>
@@ -1110,10 +1100,12 @@ function TechPackOrderDetail({ order }: { order: SuperAdminOrder }) {
 
 function CustomClothingOrderDetail({
   order,
+  actions,
   onOpsChange,
   onOpsSubmitPricing,
 }: {
   order: SuperAdminOrder;
+  actions: ReactNode;
   onOpsChange?: (patch: {
     tracking?: string | null;
     opsNotes?: string | null;
@@ -1126,6 +1118,8 @@ function CustomClothingOrderDetail({
     charges?: Record<string,number>;
   }[]) => Promise<boolean | void>;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const resolved = resolveMarginForManufacturer(order.manufacturerId, order.manufacturerName);
   const marginPercent = order.cerigaMarginPercent ?? resolved.platformMarginPercent;
@@ -1155,7 +1149,7 @@ function CustomClothingOrderDetail({
   const canReview = order.status === 'pending_review' && quoteTiers.length > 0;
   const awaitingQuote = Boolean(order.manufacturerName) && quoteTiers.length === 0;
   const quantityLines = order.orderQuantities
-    ? formatOrderQuantitiesSummary(order.orderQuantities)
+    ? formatOrderQuantitiesSummary(order.orderQuantities, cerigaQuantityLine).map(cerigaTranslateLabel)
     : [];
 
   const parseTierFinals = () => {
@@ -1187,22 +1181,22 @@ function CustomClothingOrderDetail({
 
   const submitToBrand = () => {
     if(pricingLock.current)return;
-    if(!shippingReady){toast.error('Confirm shipping for every quotation option first.');return;}
+    if(!shippingReady){toast.error(cerigaTranslate("interface.text_56bd263bb5dc4df6"));return;}
     const rows = parseTierFinals();
     if (!rows || rows.length === 0) {
-      toast.error('Enter a valid final price for every quote tier');
+      toast.error(cerigaTranslate("interface.text_efd731e9508cd365"));
       return;
     }
     pricingLock.current=true;setSavingPricing(true);
     void (async () => { try {
       const ok = await onOpsSubmitPricing?.(rows);
       if (ok === false) {
-        toast.error('Could not send pricing to brand');
+        toast.error(cerigaTranslate("interface.text_66dc71aa4bf00d38"));
         return;
       }
       setSubmitted(true);
-      toast.success('Full approved quotations, including shipping, sent to the customer.');
-    }catch(e){toast.error(e instanceof Error?e.message:'Could not issue quotation');}finally{pricingLock.current=false;setSavingPricing(false);}})();
+      toast.success(cerigaTranslate("interface.text_bb742dc95e400cc4"));
+    }catch(e){toast.error(cerigaTranslateLabel(e instanceof Error?e.message:cerigaTranslate("interface.text_689aef46e4ebba56")));}finally{pricingLock.current=false;setSavingPricing(false);}})();
   };
 
   const navigate=useNavigate();
@@ -1221,24 +1215,30 @@ function CustomClothingOrderDetail({
       <OrderBackLink />
 
       <OrderHero order={order} isTechPack={false} statusLabel={customStatusLabel(order.status)}>
+        {actions}
         {canReview && !submitted && shippingReady ? (
           <Button
             className="bg-[#CC2D24] shadow-lg shadow-[#CC2D24]/20 hover:bg-[#CC2D24]/90"
             onClick={submitToBrand}
           >
-            <Send className="mr-2 h-4 w-4" />
-            Submit to brand
-          </Button>
+            <Send className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_7dad3d5a8fabf751")}</Button>
         ) : null}
       </OrderHero>
+
+      <InternalOrderTask order={order} shippingReady={shippingReady}/>
+      {isSupabaseConfigured&&<InternalWorkPanel orderId={order.id} kind="amendment"/>}
+      {isSupabaseConfigured && <details className="od-conversation" open={typeof window!=='undefined'&&window.location?.hash==='#customer-communication'?true:undefined}>
+        <summary>{cerigaTranslateLabel('Order communication')}</summary>
+        <OrderCommunication key={order.id} orderId={order.id} scope="admin" />
+      </details>}
 
       {submitted ? (
         <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-5 py-4">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
           <div>
-            <p className="text-sm font-medium text-white">Pricing options sent to brand</p>
+            <p className="text-sm font-medium text-white">{cerigaTranslate("interface.text_2fca47afd0bffdff")}</p>
             <p className="text-xs text-white/50">
-              {quoteTiers.length} tiers · {order.userEmail}
+              {quoteTiers.length}{" "}{cerigaTranslate("interface.text_23da944803b4991c")}{" "}{order.userEmail}
             </p>
           </div>
         </div>
@@ -1246,8 +1246,8 @@ function CustomClothingOrderDetail({
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {fulfilment&&isSupabaseConfigured&&<div className="od-current-work"><div className="od-stage-heading"><span>ORDER WORKSPACE</span><h2>{deliveryStage?'Shipping & delivery':'Production & quality'}</h2><p>{deliveryStage?'Follow collection, carrier updates and delivery confirmation.':'Review production updates and quality evidence before dispatch.'}</p></div>{!deliveryStage&&<ProductionProgress orderId={order.id}/>}<OrderQualityControl orderId={order.id} view={deliveryStage?'delivery':'quality'}/></div>}
-          <details className="od-pricing" open={canPrepareQuote}><summary>{canPrepareQuote?'Quotation review':'Quotation & approved prices'}<span>{canPrepareQuote?'Review costs and confirm shipping':'View saved quotation details'}</span></summary>
+          {fulfilment&&isSupabaseConfigured&&<div id="current-work" className="od-current-work"><div className="od-stage-heading"><span>{cerigaTranslate("interface.text_89b1b15f967e3553")}</span><h2>{deliveryStage?cerigaTranslate("interface.text_45b41c8d5ff43b57"):cerigaTranslate("interface.text_fa9028fa2df41fe9")}</h2><p>{deliveryStage?cerigaTranslate("interface.text_fb93c5d31ef59008"):cerigaTranslate("interface.text_463c309690425bbe")}</p></div>{!deliveryStage&&<ProductionProgress orderId={order.id}/>}<OrderQualityControl orderId={order.id} view={deliveryStage?'delivery':'quality'}/></div>}
+          <details id="quotation-review" className="od-pricing" open={canReview&&quoteTiers.length>0}><summary>{canPrepareQuote?cerigaTranslate("interface.text_a46713fdca737282"):cerigaTranslate("interface.text_823daabd3ff07973")}<span>{canPrepareQuote?cerigaTranslate("interface.text_5e2e997e45799248"):cerigaTranslate("interface.text_f6c4f489151a387b")}</span></summary>
           <section
             className={cn(
               'rounded-2xl border bg-[#111113] p-5 sm:p-6',
@@ -1263,11 +1263,9 @@ function CustomClothingOrderDetail({
                 </span>
                 <div>
                   <h2 className="text-sm font-semibold text-white">
-                    {canReview && !submitted ? 'Price review' : 'Pricing'}
+                    {canReview && !submitted ? cerigaTranslate("interface.text_69017a5771a9d89d") : cerigaTranslate("nav.pricing")}
                   </h2>
-                  <p className="text-[11px] text-white/40">
-                    Sample + bulk tiers · {marginPercent}% {resolved.planName} margin
-                  </p>
+                  <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_1f5c14216fb866c8")}{" "}{marginPercent}% {resolved.planName}{" "}{cerigaTranslate("interface.text_34e39f662ff56641")}</p>
                 </div>
               </div>
               {quoteTiers.length > 0 && !pricingLocked ? (
@@ -1275,17 +1273,13 @@ function CustomClothingOrderDetail({
                   type="button"
                   className="text-[11px] font-medium text-[#CC2D24] hover:underline"
                   onClick={useAllCalculated}
-                >
-                  Use calculated for all
-                </button>
+                >{cerigaTranslate("interface.text_3e4323a63fc4a9df")}</button>
               ) : null}
             </div>
 
             {quantityLines.length > 0 ? (
               <div className="mt-4 rounded-xl border border-[#252528] bg-white/[0.02] px-3 py-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                  Brand requested
-                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_92291e8eb6925ffd")}</p>
                 <ul className="mt-1.5 space-y-0.5 text-[12px] text-white/60">
                   {quantityLines.map((line) => (
                     <li key={line}>{line}</li>
@@ -1295,9 +1289,9 @@ function CustomClothingOrderDetail({
             ) : null}
 
             {canPrepareQuote&&<FreightReview orderId={order.id} onReady={setShippingReady}/>}
-            {!canPrepareQuote&&<details className="od-shipping-audit"><summary>Shipping options & amendments</summary><FreightReview orderId={order.id}/></details>}
+            {!canPrepareQuote&&<details className="od-shipping-audit"><summary>{cerigaTranslate("interface.text_d8fd290490b326d9")}</summary><FreightReview orderId={order.id}/></details>}
             {!pricingLocked&&<FreightTotalPreview orderId={order.id} prices={()=>parseTierFinals()?.map(r=>({id:r.id,cents:r.cents,...r.charges}))||null}/>}
-            {canPrepareQuote&&<p className="text-xs text-white/50">Enter manufacturing subtotals including Ceriga margin below. Approved shipping and separate charges are added before converting and locking the customer total.</p>}
+            {canPrepareQuote&&<p className="text-xs text-white/50">{cerigaTranslate("interface.text_9e1847bd1d397ccb")}</p>}
             {quoteTiers.length > 0 ? (
               <div className="mt-5 space-y-3">
                 {quoteTiers.map((tier) => {
@@ -1316,10 +1310,10 @@ function CustomClothingOrderDetail({
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-white">{tier.label}</p>
+                          <p className="text-sm font-semibold text-white">{cerigaTranslateLabel(tier.label)}</p>
                           <p className="text-[11px] text-white/40">
-                            {tier.kind === 'sample' ? 'Sample run' : 'Bulk production'}
-                            {tier.totalUnits > 0 ? ` · ${tier.totalUnits} units` : ''}
+                            {tier.kind === 'sample' ? cerigaTranslate("interface.text_1405635fe7ab913d") : cerigaTranslate("interface.text_a23e5cc9e908115f")}
+                            {tier.totalUnits > 0 ? cerigaTranslate("interface.text_cd5d90c4d566a384",{value0:(tier.totalUnits)}) : ''}
                           </p>
                         </div>
                         <span
@@ -1336,17 +1330,13 @@ function CustomClothingOrderDetail({
 
                       <div className="mt-3 grid gap-2 sm:grid-cols-3">
                         <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2">
-                          <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
-                            Manufacturing quote
-                          </p>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_0de5a45c89895e77")}</p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
-                            {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">Original: {tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):'Currency needs review'}</span>{tier.payableCurrency&&tier.payablePriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/60">Customer payable: {originalMoney(tier.payablePriceCents,tier.payableCurrency)} (locked)</span>}
+                            {displayMoney(tier.manufacturerQuoteCents,tier.currency)}<span className="mt-1 block text-[11px] font-normal text-white/45">{cerigaTranslate("interface.text_71cd5f2db91a7385")}{" "}{tier.currency?originalMoney(tier.manufacturerQuoteCents,tier.currency):cerigaTranslate("interface.text_7e1bb820a1eb1b10")}</span>{tier.payableCurrency&&tier.payablePriceCents!=null&&<span className="mt-1 block text-[11px] font-normal text-white/60">{cerigaTranslate("interface.text_d8e76aca7a91f729")}{" "}{originalMoney(tier.payablePriceCents,tier.payableCurrency)}{" "}{cerigaTranslate("interface.text_f832bb4f4783ada1")}</span>}
                           </p>
                         </div>
                         <div className="rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2">
-                          <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
-                            Manufacturing + margin
-                          </p>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_f1c6550050537f04")}</p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums text-white">
                             {tier.calculatedPriceCents != null
                               ? displayMoney(tier.calculatedPriceCents,tier.currency)
@@ -1358,7 +1348,7 @@ function CustomClothingOrderDetail({
                             htmlFor={`final-${tier.id}`}
                             className="text-[9px] font-semibold uppercase tracking-wider text-white/50"
                           >
-                            {pricingLocked?(tier.finalPriceCents!=null?'Approved total':'Manufacturing estimate'):'Manufacturing subtotal incl. margin'} ({tier.currency ?? 'needs review'})
+                            {pricingLocked?(tier.finalPriceCents!=null?cerigaTranslate("interface.text_6d3e027aaa96943f"):cerigaTranslate("interface.text_b6516040373a79b8")):cerigaTranslate("interface.text_fcb8f31a271bca1d")} ({tier.currency ?? cerigaTranslate("interface.text_42e19750d12233c0")})
                           </Label>
                           <Input
                             id={`final-${tier.id}`}
@@ -1373,21 +1363,19 @@ function CustomClothingOrderDetail({
                         </div>
                       </div>
                       {changed && !pricingLocked ? (
-                        <p className="mt-2 text-[11px] text-amber-200/80">
-                          Custom price differs from calculated
-                        </p>
+                        <p className="mt-2 text-[11px] text-amber-200/80">{cerigaTranslate("interface.text_a2889aff5f141b3d")}</p>
                       ) : null}
-                      {!pricingLocked&&<div className="freight-fields">{Object.entries({feesCents:'Shipping service fee',taxCents:'Taxes',dutiesCents:'Known duties',otherCents:'Other known charges'}).map(([k,label])=><label key={k}>{label} ({tier.currency})<input type="number" min="0" step="0.01" value={charges[tier.id]?.[k]||''} placeholder="0.00" onChange={e=>setCharges(previous=>({...previous,[tier.id]:{...previous[tier.id],[k]:e.target.value}}))}/></label>)}</div>}
+                      {!pricingLocked&&<div className="freight-fields">{Object.entries({feesCents:'Shipping service fee',taxCents:'Taxes',dutiesCents:'Known duties',otherCents:'Other known charges'}).map(([k,label])=><label key={k}>{cerigaTranslateLabel(label)} ({tier.currency})<input type="number" min="0" step="0.01" value={charges[tier.id]?.[k]||''} placeholder="0.00" onChange={e=>setCharges(previous=>({...previous,[tier.id]:{...previous[tier.id],[k]:e.target.value}}))}/></label>)}</div>}
                     </div>
                   );
                 })}
 
-                {!pricingLocked && order.factoryQuoteStatus==='quoted' && <RejectQuotation orderId={order.id} onRejected={action=>{toast.success(action==='revise'?'Revised quotation requested from manufacturer':'Quotation rejected — choose another manufacturer');if(action==='reassign')navigate('/superadmin/assignment');}} />}
+                {!pricingLocked && order.factoryQuoteStatus==='quoted' && <RejectQuotation orderId={order.id} onRejected={action=>{toast.success(cerigaTranslateLabel(action==='revise'?'Revised quotation requested from manufacturer':'Quotation rejected — choose another manufacturer'));if(action==='reassign')navigate('/superadmin/assignment');}} />}
                 {!pricingLocked ? (
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" disabled={savingPricing||!shippingReady} onClick={submitToBrand}>
                       <Send className="mr-2 h-4 w-4" />
-                      {savingPricing?'Sending…':expiredOffer ? 'Renew 30-day offer' : canReview ? 'Submit all tiers to brand' : 'Send to brand'}
+                      {savingPricing?cerigaTranslate("authentication.sending"):expiredOffer ? cerigaTranslate("interface.text_e350dac7311bbc08") : canReview ? cerigaTranslate("interface.text_250a02e057466a3b") : cerigaTranslate("interface.text_7af81e30fee5aee2")}
                     </Button>
                     {canReview ? (
                       <Button
@@ -1395,12 +1383,10 @@ function CustomClothingOrderDetail({
                         className="border-white/15 text-white hover:bg-white/10"
                         asChild
                       >
-                        <Link to="/superadmin/orders/review" state={{ startOrderId: order.id }}>
-                          Review all in queue
-                        </Link>
+                        <Link to={`/superadmin/assignment?view=pricing&order=${encodeURIComponent(order.id)}`}>{cerigaTranslate("interface.text_f6f3fa20b88d121a")}</Link>
                       </Button>
                     ) : null}
-<p className="od-draft-note">Prices are saved when you send the quotation.</p>
+<p className="od-draft-note">{cerigaTranslate("interface.text_85724c38ef350cf1")}</p>
                   </div>
                 ) : null}
               </div>
@@ -1412,15 +1398,15 @@ function CustomClothingOrderDetail({
                   </span>
                   <p className="font-medium text-white">
                     {awaitingQuote
-                      ? `Waiting on ${order.manufacturerName} for sample + bulk quotes`
-                      : 'No manufacturer quote yet'}
+                      ? cerigaTranslate("interface.text_290d42a4f3d0fe0a",{value0:(order.manufacturerName)})
+                      : cerigaTranslate("interface.text_3cb401c0f3c81e8e")}
                   </p>
                 </div>
               </div>
             )}
           </section>
           </details>
-          <details className="od-specifications"><summary>Order specifications & tech pack<span>Garments, quantities and original requirements</span></summary><ProductionSpecCard order={order}/></details>
+          <details id="order-specifications" className="od-specifications"><summary>{cerigaTranslate("interface.text_8a9ec164c9d0f22d")}<span>{cerigaTranslate("interface.text_709869099cf0baee")}</span></summary><ProductionSpecCard order={order}/></details>
           {!isSupabaseConfigured && <ProductionPulseCard order={order} onOpsChange={onOpsChange} />}
           {!isSupabaseConfigured && <ProductionQcGallery
             orderId={order.id}
@@ -1436,16 +1422,14 @@ function CustomClothingOrderDetail({
           {['paid', 'in_production', 'shipped', 'completed'].includes(order.status) ? (
             <section className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-                <Truck className="h-4 w-4 text-[#CC2D24]" />
-                Tracking
-              </h2>
+                <Truck className="h-4 w-4 text-[#CC2D24]" />{cerigaTranslate("adminOrders.tracking")}</h2>
               <div className="mt-4 space-y-3">
                 <Input
                   value={tracking}
                   onChange={(e) => setTracking(e.target.value)}
                   className="border-white/12 bg-black/40 font-mono text-sm text-white"
-                  aria-label="Carrier tracking ID"
-                  placeholder="Carrier tracking ID"
+                  aria-label={cerigaTranslate("interface.text_655d949d53580045")}
+                  placeholder={cerigaTranslate("interface.text_655d949d53580045")}
                 />
                 <Button
                   variant="outline"
@@ -1453,12 +1437,12 @@ function CustomClothingOrderDetail({
                   disabled={savingTracking}
                   onClick={async() => {
                     if(trackingLock.current)return;trackingLock.current=true;setSavingTracking(true);
-                    try{if(!onOpsChange)throw new Error('Order updates are unavailable');await onOpsChange({tracking:tracking.trim()||null});toast.success('Tracking saved');}
-                    catch(e){toast.error(e instanceof Error?e.message:'Tracking could not be saved');}
+                    try{if(!onOpsChange)throw new Error('Order updates are unavailable');await onOpsChange({tracking:tracking.trim()||null});toast.success(cerigaTranslate("interface.text_fbbee35a17c54c96"));}
+                    catch(e){toast.error(cerigaTranslateLabel(e instanceof Error?e.message:'Tracking could not be saved'));}
                     finally{trackingLock.current=false;setSavingTracking(false);}
                   }}
                 >
-                  {savingTracking ? 'Saving…' : 'Save tracking'}
+                  {savingTracking ? cerigaTranslate("common.saving") : cerigaTranslate("interface.text_84991bae1c6db15b")}
                 </Button>
               </div>
             </section>
@@ -1470,9 +1454,7 @@ function CustomClothingOrderDetail({
             asChild
           >
             <Link to="/superadmin/orders">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              All orders
-            </Link>
+              <ArrowLeft className="mr-2 h-4 w-4" />{cerigaTranslate("orders.all")}</Link>
           </Button>
         </div>
       </div>

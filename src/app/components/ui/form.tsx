@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 "use client";
 
 import * as React from "react";
@@ -43,6 +44,8 @@ const FormField = <
 };
 
 const useFormField = () => {
+  useCerigaTranslation();
+
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
   const { getFieldState } = useFormContext();

@@ -1,10 +1,11 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {transformWithEsbuild} from 'vite';
 import * as React from 'react';
 import * as Icons from 'lucide-react';
 import {renderToStaticMarkup} from 'react-dom/server';
-const load=async(path,imports)=>{const m={exports:{}};new Function('React','require','module','exports',(await transformWithEsbuild(await fs.readFile(path,'utf8'),path,{format:'cjs',target:'es2022'})).code)(React,n=>{if(!(n in imports))throw Error(n);return imports[n];},m,m.exports);return m.exports;};
+const load=async(path,imports)=>{const m={exports:{}};new Function('React','require','module','exports',(await transformWithEsbuild(await fs.readFile(path,'utf8'),path,{format:'cjs',target:'es2022'})).code)(React,((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(n=>{if(!(n in imports))throw Error(n);return imports[n];}),m,m.exports);return m.exports;};
 const status={not_submitted:'Not Submitted',pending_review:'Pending Review',changes_required:'Changes Required',approved:'Approved'};
 let hook=0,values=['','all','attention',1],changes=[];
 const imports={react:{...React,useState:()=>{const i=hook++;return[values[i],v=>changes.push([i,v])];}},'react-router':{Link:({to,children,...p})=>React.createElement('a',{...p,href:to},children)},'lucide-react':Icons,'../../data/qualityControl':{QC_REPORT_STATUS:status},'../dashboard/manufacturer-dashboard.css':{},'../manufacturer/manufacturer-orders.css':{},'./manufacturer-quality.css':{}};

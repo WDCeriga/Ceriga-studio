@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { displayLocale } from '../i18n/locale';
 import { getSupabase, isSupabaseConfigured } from './supabaseClient';
 import { convertMinor, formatMoney, isCurrency, type Currency, type RateSnapshot } from './currency';
 export type CurrencyState={accountId:string|null;currency:Currency;ready:boolean;saving:boolean;error:string;rates:RateSnapshot|null;rateError:string};
@@ -20,7 +21,14 @@ export function setAccountCurrency(currency:Currency):Promise<void>{
  const account=state.accountId;emit({saving:true,error:''});
  const operation=writes.catch(()=>undefined).then(async()=>{try{if(state.accountId!==account)throw new Error('Account changed before currency was saved');if(isSupabaseConfigured){if(!account)throw new Error('Sign in to save currency.');const {data,error}=await getSupabase().rpc('set_account_currency',{p_currency:currency});if(error||data!==currency)throw new Error(error?.message||'Currency was not saved');}if(state.accountId===account){emit({currency,ready:true,error:'',saving:false});window.dispatchEvent(new CustomEvent('ceriga-account-currency-changed',{detail:currency}));}}catch(error){if(state.accountId===account)emit({saving:false,error:error instanceof Error?error.message:'Could not save currency'});throw error;}});writes=operation;return operation;
 }
-export function useCurrency(){return useSyncExternalStore(subscribeCurrency,getCurrencyState,getCurrencyState);}
+const subscribeLanguage = (listener: () => void) => {
+  window.addEventListener('ceriga-language-changed', listener);
+  return () => window.removeEventListener('ceriga-language-changed', listener);
+};
+export function useCurrency(){
+  useSyncExternalStore(subscribeLanguage, displayLocale, () => 'en-GB');
+  return useSyncExternalStore(subscribeCurrency,getCurrencyState,getCurrencyState);
+}
 /** Display-only: stored cents and source currency are never mutated. Missing FX keeps the labelled original. */
 export function displayMoney(cents:number,source:Currency|undefined,locale?:string):string{
  if(!isCurrency(source))return `${Number.isSafeInteger(cents)?(cents/100).toFixed(2):'—'} (currency needs review)`;

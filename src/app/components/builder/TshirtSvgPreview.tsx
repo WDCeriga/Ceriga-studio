@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import React, {
   useCallback,
   useEffect,
@@ -351,6 +352,8 @@ function SelectionHandle({
   scaleAnchor?: ScaleAnchor;
   onPointerDown?: (e: ReactPointerEvent<HTMLDivElement>, fixedAnchor: ScaleAnchor) => void;
 }) {
+  useCerigaTranslation();
+
   const size: CSSProperties =
     variant === 'edge-h'
       ? {
@@ -374,7 +377,7 @@ function SelectionHandle({
     <div
       role="button"
       tabIndex={-1}
-      aria-label="Scale"
+      aria-label={cerigaTranslate("interface.text_f102986b39effb31")}
       className={cn(
         'absolute rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)]',
         onPointerDown ? 'pointer-events-auto' : 'pointer-events-none',
@@ -416,6 +419,8 @@ function SelectionOutline({
   onScale?: (e: ReactPointerEvent<HTMLDivElement>, anchor: ScaleAnchor) => void;
   onRotate?: (e: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
+  useCerigaTranslation();
+
   const rect = bboxToPercentRect(bbox);
 
   return (
@@ -476,7 +481,7 @@ function SelectionOutline({
             <div
               role="button"
               tabIndex={-1}
-              aria-label="Rotate"
+              aria-label={cerigaTranslate("interface.text_c3613b1704f54c8b")}
               className="mt-0.5 cursor-grab rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.35)] active:cursor-grabbing pointer-events-auto"
               style={{
                 width: SEL_HANDLE.rotate,
@@ -558,6 +563,8 @@ function LayerHitTarget({
   selected: boolean;
   onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
 }) {
+  useCerigaTranslation();
+
   const rect = bboxToPercentRect(bbox);
   const zIndex = selected ? SELECTED_LAYER_Z + 10 : 100 + zIndexBase;
 
@@ -574,7 +581,7 @@ function LayerHitTarget({
         data-tshirt-hit-target=""
         role="button"
         tabIndex={0}
-        aria-label={`Select ${displayName}`}
+        aria-label={cerigaTranslate("interface.text_33de0e8b35aac169",{value0:(displayName)})}
         className={cn(
           'absolute cursor-pointer rounded-sm touch-none',
           selected ? '' : 'hover:bg-white/[0.04]',

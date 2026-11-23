@@ -72,6 +72,7 @@
 .quote-feedback { color: #35543a; }
 .quote-columns { display: grid; gap: 16px; align-items: start; }
 .quote-columns > * { min-width: 0; }
+.quote-sidebar { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1120px) {
   .quote-columns { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 }

@@ -1,3 +1,5 @@
+import { activeLocale as cerigaLocale } from '../../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useEffect, useMemo, useState } from 'react';
 import { Camera, ImageIcon } from 'lucide-react';
 import {
@@ -11,7 +13,7 @@ import { cn } from '../ui/utils';
 
 function formatWhen(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-GB', {
+    return new Date(iso).toLocaleDateString(cerigaLocale(), {
       day: 'numeric',
       month: 'short',
     });
@@ -83,6 +85,8 @@ export function ProductionQcGalleryView({
   emptyHint?: string;
   className?: string;
 }) {
+  useCerigaTranslation();
+
   const groups = useMemo(() => groupPhotosByStage(photos), [photos]);
 
   if (photos.length === 0) {
@@ -107,7 +111,7 @@ export function ProductionQcGalleryView({
           <h2 className="text-[13px] font-semibold text-white">{title}</h2>
         </div>
         <p className="text-[10px] tabular-nums text-white/35">
-          {photos.length} · {groups.length} stage{groups.length === 1 ? '' : 's'}
+          {photos.length} · {groups.length}{" "}{cerigaTranslate("interface.plural_noun_c7ff6dcd94d7161e",{count:Number(groups.length)})}
         </p>
       </div>
 
@@ -121,7 +125,7 @@ export function ProductionQcGalleryView({
                   STAGE_TONE[stage],
                 )}
               >
-                {PRODUCTION_STAGE_LABEL[stage]}
+                {cerigaTranslateLabel(PRODUCTION_STAGE_LABEL[stage])}
               </span>
               <span className="h-px flex-1 bg-white/[0.06]" />
               <span className="text-[9px] tabular-nums text-white/35">{stagePhotos.length}</span>

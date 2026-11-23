@@ -3,6 +3,8 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
+import { enGB, zhCN, tr, pt, es, fr } from 'date-fns/locale';
+import { availableLanguage, i18n, useCerigaTranslation } from '../../i18n/i18n';
 
 import { cn } from "./utils";
 import { buttonVariants } from "./button";
@@ -11,10 +13,26 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  locale,
+  labels,
+  dir,
   ...props
 }: React.ComponentProps<typeof DayPicker>) {
+  const { t } = useCerigaTranslation();
+  const dateLocales = { en: enGB, 'zh-CN': zhCN, tr, pt, es, fr };
+  const language = availableLanguage(i18n.resolvedLanguage) ?? 'en';
   return (
     <DayPicker
+      locale={locale ?? dateLocales[language]}
+      dir={dir ?? i18n.dir()}
+      labels={{
+        labelNext: () => t('interface.calendarNext'),
+        labelPrevious: () => t('interface.calendarPrevious'),
+        labelMonthDropdown: () => t('interface.calendarMonth'),
+        labelYearDropdown: () => t('interface.calendarYear'),
+        labelWeekNumber: count => t('interface.calendarWeek', { count }),
+        ...labels,
+      }}
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       classNames={{

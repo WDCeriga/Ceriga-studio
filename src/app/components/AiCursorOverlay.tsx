@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useAiCursor } from '../contexts/AiCursorContext';
 import { cn } from './ui/utils';
 
@@ -6,6 +7,8 @@ import { cn } from './ui/utils';
  * Position is driven by AiCursorProvider (rAF eased moves toward DOM targets).
  */
 export function AiCursorOverlay() {
+  useCerigaTranslation();
+
   const { state } = useAiCursor();
   const { visible, point, busy } = state;
 
@@ -48,9 +51,7 @@ export function AiCursorOverlay() {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="absolute left-5 top-5 whitespace-nowrap rounded-full border border-[#CC2D24]/40 bg-[#1C0F0F]/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#E5534A] shadow-lg">
-            AI
-          </span>
+          <span className="absolute left-5 top-5 whitespace-nowrap rounded-full border border-[#CC2D24]/40 bg-[#1C0F0F]/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#E5534A] shadow-lg">{cerigaTranslate("interface.text_11fb682be0a0233d")}</span>
         </div>
       </div>
     </div>

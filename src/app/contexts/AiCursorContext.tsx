@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import {
   createContext,
   useCallback,
@@ -117,9 +118,11 @@ export function AiCursorProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAiCursor(): AiCursorContextValue {
+  useCerigaTranslation();
+
   const ctx = useContext(AiCursorContext);
   if (!ctx) {
-    throw new Error('useAiCursor must be used within AiCursorProvider');
+    throw new Error("useAiCursor must be used within AiCursorProvider");
   }
   return ctx;
 }

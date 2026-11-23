@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useState, type ReactNode } from 'react';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -46,6 +47,8 @@ function MeasurementUnitToggle({
   unit: MeasurementUnit;
   onChange: (u: MeasurementUnit) => void;
 }) {
+  useCerigaTranslation();
+
   return (
     <div
       className={cn(
@@ -53,7 +56,7 @@ function MeasurementUnitToggle({
         'md:min-w-[4.25rem] md:p-px',
       )}
       role="group"
-      aria-label="Measurement unit"
+      aria-label={cerigaTranslate("interface.text_5ff41108633ca7c1")}
     >
       {(['cm', 'in'] as const).map((u) => {
         const active = unit === u;
@@ -151,6 +154,8 @@ export function MeasurementsStep({
   onHighlightedMeasurementIdChange,
   assetSelection,
 }: MeasurementsStepProps) {
+  useCerigaTranslation();
+
   const currentMeasurements = fit && fitMeasurements[fit] ? fitMeasurements[fit] : fitMeasurements.regular;
   const guideGarment: MeasurementGuideGarmentId =
     resolveGarmentSvgType(garmentType as GarmentType) ?? 'tshirt';
@@ -166,9 +171,7 @@ export function MeasurementsStep({
     <div className="space-y-4 md:space-y-6">
       {/* Fit Selector */}
       <div>
-        <Label className="mb-2 block text-[10px] uppercase tracking-wider text-white/60 md:mb-3 md:text-xs">
-          Fit Type
-        </Label>
+        <Label className="mb-2 block text-[10px] uppercase tracking-wider text-white/60 md:mb-3 md:text-xs">{cerigaTranslate("interface.text_aef979c96f961d1b")}</Label>
         <Select value={fit} onValueChange={onFitChange}>
           <SelectTrigger
             className={cn(
@@ -178,7 +181,7 @@ export function MeasurementsStep({
               'sm:min-h-9 sm:px-3 sm:py-2 sm:text-sm',
             )}
           >
-            <SelectValue placeholder="Select fit" />
+            <SelectValue placeholder={cerigaTranslate("interface.text_1134f4ead141ad7d")} />
           </SelectTrigger>
           <SelectContent
             position="popper"
@@ -204,7 +207,7 @@ export function MeasurementsStep({
                   'sm:min-h-8 sm:py-2 sm:pr-8 sm:text-sm',
                 )}
               >
-                {option.name}
+                {cerigaTranslateLabel(option.name)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -214,16 +217,13 @@ export function MeasurementsStep({
       {/* Measurement Table */}
       <div>
         <div className="mb-1.5 flex min-w-0 flex-row items-center justify-between gap-2 md:mb-2 md:gap-3">
-          <Label className="min-w-0 flex-1 truncate pr-1 text-[10px] uppercase leading-snug tracking-wider text-white/60 md:text-[10px]">
-            Measurement ({measurementUnitLabel(measurementUnit)})
+          <Label className="min-w-0 flex-1 truncate pr-1 text-[10px] uppercase leading-snug tracking-wider text-white/60 md:text-[10px]">{cerigaTranslate("interface.text_06779be2d9ef5781")}{cerigaTranslateLabel(measurementUnitLabel(measurementUnit))})
           </Label>
           <div className="shrink-0">
             <MeasurementUnitToggle unit={measurementUnit} onChange={onMeasurementUnitChange} />
           </div>
         </div>
-        <p className="mb-1.5 text-[9px] leading-snug text-white/38 md:mb-2 md:text-[9px]">
-          Values are stored in centimetres; when you pick {measurementUnit === 'in' ? 'inches' : 'cm'}, we
-          convert for display. Each cell is one measurement in {measurementUnitLabel(measurementUnit)}.
+        <p className="mb-1.5 text-[9px] leading-snug text-white/38 md:mb-2 md:text-[9px]">{cerigaTranslate("interface.text_ac8cf2128bec5a7d")}{" "}{measurementUnit === 'in' ? cerigaTranslate("interface.text_56bcdb725a5710d8") : cerigaTranslate("interface.text_b5039c325d7107d6")}{cerigaTranslate("interface.text_b6edc8c9735d61bc")}{" "}{cerigaTranslateLabel(measurementUnitLabel(measurementUnit))}.
         </p>
         <div
           className="overflow-hidden rounded-lg border border-[#252528] bg-white/5"
@@ -233,12 +233,8 @@ export function MeasurementsStep({
             <table className="w-full text-xs md:text-xs">
               <thead>
                 <tr className="border-b border-[#252528]">
-                  <th className="px-1 py-1 text-left text-[10px] font-semibold text-white/70 md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
-                    Size
-                  </th>
-                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
-                    XS
-                  </th>
+                  <th className="px-1 py-1 text-left text-[10px] font-semibold text-white/70 md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">{cerigaTranslate("interface.text_1af851907331c0ed")}</th>
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">{cerigaTranslate("interface.text_4e12aed95e4c368a")}</th>
                   <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     S
                   </th>
@@ -248,12 +244,8 @@ export function MeasurementsStep({
                   <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
                     L
                   </th>
-                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
-                    XL
-                  </th>
-                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">
-                    XXL
-                  </th>
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">{cerigaTranslate("interface.text_f365705bb0612eed")}</th>
+                  <th className="px-0.5 py-1 text-[10px] font-semibold text-white/70 md:px-1 md:py-1.5 md:text-[10px] md:font-medium md:text-white/60">{cerigaTranslate("interface.text_0a783b9b8a7de6ef")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -268,7 +260,7 @@ export function MeasurementsStep({
                   >
                     <td className="max-w-[5.75rem] px-1 py-0.5 text-left text-[10px] font-semibold leading-tight text-white/90 md:max-w-none md:px-2 md:py-1.5 md:text-[10px] md:font-medium md:text-white/80">
                       <div>
-                        {measurementGuideLetterAt(index)}. {measurement.label}
+                        {measurementGuideLetterAt(index)}. {cerigaTranslateLabel(measurement.label)}
                       </div>
                       <div className="mt-0.5 text-[9px] font-normal normal-case tracking-normal text-white/35">
                         {measurement.assignedLabel}
@@ -279,7 +271,7 @@ export function MeasurementsStep({
                         <Input
                           type="text"
                           inputMode="decimal"
-                          aria-label={`${measurement.label} ${size.toUpperCase()} in ${measurementUnitLabel(measurementUnit)}`}
+                          aria-label={cerigaTranslate("interface.text_902103f5267dd864",{value0:(measurement.label),value1:(size.toUpperCase()),value2:(measurementUnitLabel(measurementUnit))})}
                           title={`${measurementUnitLabel(measurementUnit)}`}
                           value={formatMeasurementDisplay(
                             measurements[measurement.id]?.[size] ||

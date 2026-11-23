@@ -1,3 +1,7 @@
+import { translateProjectTitle } from '../i18n/i18n';
+import { formatQuantityLine as cerigaQuantityLine } from '../i18n/i18n';
+import { activeLocale as cerigaLocale } from '../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import {
   useCallback,
   useEffect,
@@ -118,10 +122,10 @@ import {
 import {
   defaultOrderQuantityPlan,
   formatOrderQuantitiesSummary,
-  isSampleQuantityValid,
   normalizeOrderQuantityPlan,
   planHasAnyQuantity,
-  sampleValidationMessage,
+  quantityValidationMessage,
+  setOrderMode,
   type OrderQuantityPlan,
 } from '../data/orderQuantities';
 import { cn } from '../components/ui/utils';
@@ -466,11 +470,13 @@ function isTechpackSpecUrl(): boolean {
 }
 
 function stepTabTitle(item: BuilderStep, techpackSpecFlow: boolean): string {
-  if (techpackSpecFlow && item.id === 9) return 'Upload design';
-  return item.title;
+  if (techpackSpecFlow && item.id === 9) return cerigaTranslateLabel('Upload design');
+  return cerigaTranslateLabel(item.title);
 }
 
 export function Builder() {
+  useCerigaTranslation();
+
   const { productId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -670,7 +676,7 @@ export function Builder() {
         const row = await getProject(urlProjectId);
         if (cancelled) return;
         if (!row) {
-          toast.error('Project not found');
+          toast.error(cerigaTranslate("interface.text_758e8416eb8a3588"));
           setProjectHydrating(false);
           return;
         }
@@ -701,7 +707,7 @@ export function Builder() {
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : 'Could not load project';
-          toast.error(message);
+          toast.error(cerigaTranslateLabel(message));
         }
       } finally {
         if (!cancelled) setProjectHydrating(false);
@@ -836,7 +842,7 @@ export function Builder() {
 
   const saveManualVersion = useCallback(() => {
     captureVersion({ manual: true });
-    toast.success('Version saved');
+    toast.success(cerigaTranslate("interface.text_17efe3c4dec7b49b"));
   }, [captureVersion]);
 
   const restoreVersion = useCallback(
@@ -853,7 +859,7 @@ export function Builder() {
         }
         return resolved;
       });
-      toast.success('Restored version');
+      toast.success(cerigaTranslate("interface.text_0cc0fdef78d42f9c"));
     },
     [versions, syncHistoryAvailability],
   );
@@ -1130,12 +1136,12 @@ export function Builder() {
     async (showToast = true) => {
       if (!navigator.onLine) {
         setSaveError('offline');
-        if (showToast) toast.error('Offline — draft not synced. Reconnect and try again.');
+        if (showToast) toast.error(cerigaTranslate("interface.text_34783677d5a19611"));
         return;
       }
       if (usingSupabase && !isAuthenticated) {
         setSaveError('failed');
-        if (showToast) toast.error('Sign in to save your draft to the cloud');
+        if (showToast) toast.error(cerigaTranslate("interface.text_4850ac0d369461db"));
         return;
       }
 
@@ -1148,7 +1154,7 @@ export function Builder() {
             window.setTimeout(resolve, 420);
           });
           if (showToast) {
-            toast.message('Cloud DB not configured', {
+            toast.message(cerigaTranslate("interface.text_960fce21d868c2eb"), {
               description: 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env',
             });
           }
@@ -1191,11 +1197,11 @@ export function Builder() {
       try {
         await run;
         captureVersion({ manual: false });
-        if (showToast) toast.success('Draft saved');
+        if (showToast) toast.success(cerigaTranslate("interface.text_5ccb8caacdc53835"));
       } catch (err) {
         setSaveError('failed');
         const message = err instanceof Error ? err.message : 'Could not save — try again';
-        if (showToast) toast.error(message);
+        if (showToast) toast.error(cerigaTranslateLabel(message));
       } finally {
         setSaving(false);
       }
@@ -1466,6 +1472,13 @@ export function Builder() {
   });
 
   const continueToOrderDelivery = async () => {
+    // Ordering is an explicit production intent, independent of the design entry point.
+    const productionQuantities = setOrderMode(state.orderQuantities, 'custom_clothing');
+    const quantityError = quantityValidationMessage(productionQuantities);
+    if (quantityError) {
+      toast.error(cerigaTranslateLabel(quantityError));
+      return;
+    }
     const artwork = [state.prints, state.labels, state.packaging];
     let artworkFingerprint: string | undefined;
     if (window.crypto.subtle && artwork.flat().every(layer => layer.type === 'text' || layer.content.startsWith('data:'))) {
@@ -1478,13 +1491,13 @@ export function Builder() {
       } catch { /* The comparison will require manual review. */ }
     }
     let mockup: Blob | undefined;
-    if (state.orderQuantities.mode !== 'techpack') {
+    {
       try {
         const { renderPrintFrontPng } = await import('../lib/techPackRasterize');
         const png = await renderPrintFrontPng({ ...state, baseColor: primaryColor }, 480);
         if (png) mockup = await (await fetch(png)).blob();
       } catch {
-        toast.error('Could not prepare the order mockup. Try again before continuing.');
+        toast.error(cerigaTranslate("interface.text_37f11e44e286653c"));
         return;
       }
     }
@@ -1496,7 +1509,8 @@ export function Builder() {
         productName: repeatOrder?.name ?? product?.name ?? 'Studio project',
         garmentType: state.garmentType,
         specifications: { ...orderSpecifications(), artworkFingerprint },
-        orderQuantities: state.orderQuantities,
+        orderQuantities: productionQuantities,
+        orderIntent: 'production',
         from: 'builder',
       },
     });
@@ -1508,9 +1522,12 @@ export function Builder() {
       return;
     }
 
-    if (currentStep === 12 && !isSampleQuantityValid(state.orderQuantities)) {
-      toast.error(sampleValidationMessage(state.orderQuantities));
-      return;
+    if (currentStep === 12) {
+      const quantityError = quantityValidationMessage(state.orderQuantities);
+      if (quantityError) {
+        toast.error(cerigaTranslateLabel(quantityError));
+        return;
+      }
     }
 
     if (techpackSpecFlow && techpackNavigationList && techpackNavigationList.length > 0) {
@@ -1951,7 +1968,7 @@ export function Builder() {
             [endedKey]: { top: meta.defaultTop, left: meta.defaultLeft },
           },
         }));
-        toast.success('Detail removed');
+        toast.success(cerigaTranslate("interface.text_7e358ba4d4d5a543"));
       }
       detailOverDeleteRef.current = false;
       activeDetailDragKeyRef.current = null;
@@ -2104,9 +2121,7 @@ export function Builder() {
               <Label
                 htmlFor="measurements-notes"
                 className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60"
-              >
-                Extra Details
-              </Label>
+              >{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
               <Textarea
                 id="measurements-notes"
                 value={state.extraDetails.measurements || ''}
@@ -2120,7 +2135,7 @@ export function Builder() {
                   }))
                 }
                 className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                placeholder="Add any specific measurement requirements..."
+                placeholder={cerigaTranslate("interface.text_c394f5a20c55ab10")}
               />
             </div>
           </div>
@@ -2136,20 +2151,18 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Fabric Type
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_e3e25959951af8c8")}</Label>
               <Select
                 value={state.fabricType}
                 onValueChange={(value) => setState((prev) => ({ ...prev, fabricType: value }))}
               >
                 <SelectTrigger className="h-9 border-[#252528] bg-white/5 text-[11px] text-white">
-                  <SelectValue placeholder="Select fabric" />
+                  <SelectValue placeholder={cerigaTranslate("interface.text_7fbb9b06034783fa")} />
                 </SelectTrigger>
                 <SelectContent className="border-[#252528] bg-[#161618] text-[#F0EEEE]">
                   {FABRIC_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      {cerigaTranslateLabel(option.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -2158,9 +2171,7 @@ export function Builder() {
 
             {!techpackSpecFlow ? (
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Colour Selection
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_ed1b09b0a3532772")}</Label>
               <StudioColorField
                 value={state.colors[0]?.hex ?? '#FFFFFF'}
                 onChange={applyFabricHex}
@@ -2171,16 +2182,12 @@ export function Builder() {
                 clearLabel="Clear fabric colour"
               />
               {state.colors[0]?.pantone ? (
-                <p className="mt-1 text-[10px] text-white/45">
-                  Pantone reference: {state.colors[0].pantone}
+                <p className="mt-1 text-[10px] text-white/45">{cerigaTranslate("interface.text_029be706cff29726")}{" "}{state.colors[0].pantone}
                 </p>
               ) : null}
             </div>
             ) : (
-              <p className="text-[11px] leading-relaxed text-white/42">
-                Fabric colour is specified in your notes or uploaded files. Use the first step to attach artwork
-                and the fabric notes below for dye or Pantone callouts.
-              </p>
+              <p className="text-[11px] leading-relaxed text-white/42">{cerigaTranslate("interface.text_d14be01cdf7ca7ce")}</p>
             )}
 
             {isGarmentSvgFlow ? (
@@ -2188,9 +2195,7 @@ export function Builder() {
             ) : null}
 
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                GSM
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_569a327df59b4b88")}</Label>
               <Input
                 value={state.gsm || ''}
                 onChange={(e) => setState((prev) => ({ ...prev, gsm: e.target.value }))}
@@ -2201,9 +2206,7 @@ export function Builder() {
             </div>
 
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Extra Details
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
               <Textarea
                 value={state.extraDetails.fabric || ''}
                 onChange={(e) =>
@@ -2213,7 +2216,7 @@ export function Builder() {
                   }))
                 }
                 className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                placeholder="Add specific fabric or colour requirements..."
+                placeholder={cerigaTranslate("interface.text_844192ccd631c944")}
               />
             </div>
           </div>
@@ -2228,16 +2231,14 @@ export function Builder() {
               {renderGarmentAssetGrids(3)}
               {!techpackSpecFlow ? (
                 <TrimColorFamilyPicker
-                  label="Neck / collar trim colour"
+                  label={cerigaTranslate("interface.text_03d71ce60fae6438")}
                   value={state.neckTrimColor}
                   onChange={(hex) => setState((prev) => ({ ...prev, neckTrimColor: hex }))}
                   onClear={() => setState((prev) => ({ ...prev, neckTrimColor: undefined }))}
                 />
               ) : null}
               <div>
-                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                  Extra Details
-                </Label>
+                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
                 <Textarea
                   value={state.extraDetails.neck || ''}
                   onChange={(e) =>
@@ -2247,7 +2248,7 @@ export function Builder() {
                     }))
                   }
                   className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  placeholder="Add any specific neck or collar requirements..."
+                  placeholder={cerigaTranslate("interface.text_49da111353adc2b7")}
                 />
               </div>
             </div>
@@ -2256,7 +2257,7 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <ChoiceStep
-              label="Neck / Collar Type"
+              label={cerigaTranslate("interface.text_9c93a7f826a82df0")}
               options={neckOptions[state.garmentType] || []}
               selected={state.neckType}
               onSelect={(value) => setState((prev) => ({ ...prev, neckType: value }))}
@@ -2267,11 +2268,11 @@ export function Builder() {
                   extraDetails: { ...prev.extraDetails, neck: value },
                 }))
               }
-              placeholder="Add any specific neck or collar requirements..."
+              placeholder={cerigaTranslate("interface.text_49da111353adc2b7")}
             />
             {!techpackSpecFlow ? (
               <TrimColorFamilyPicker
-                label="Neck / collar trim colour"
+                label={cerigaTranslate("interface.text_03d71ce60fae6438")}
                 value={state.neckTrimColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, neckTrimColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, neckTrimColor: undefined }))}
@@ -2288,16 +2289,14 @@ export function Builder() {
               {renderGarmentAssetGrids(4)}
               {!techpackSpecFlow ? (
                 <TrimColorFamilyPicker
-                  label="Sleeve colour"
+                  label={cerigaTranslate("interface.text_793015055f7bebd9")}
                   value={state.sleeveTrimColor}
                   onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
                   onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
                 />
               ) : null}
               <div>
-                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                  Extra Details
-                </Label>
+                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
                 <Textarea
                   value={state.extraDetails.sleeves || ''}
                   onChange={(e) =>
@@ -2307,7 +2306,7 @@ export function Builder() {
                     }))
                   }
                   className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  placeholder="Add sleeve requirements..."
+                  placeholder={cerigaTranslate("interface.text_aa18831954460aa8")}
                 />
               </div>
             </div>
@@ -2316,7 +2315,7 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <ChoiceGrid
-              label="Sleeve Type"
+              label={cerigaTranslate("interface.text_b8138fc3f71986d7")}
               options={sleeveTypeOptions.map((item) => ({ id: item.id, name: item.name }))}
               selected={state.sleeveType}
               onSelect={(value) => setState((prev) => ({ ...prev, sleeveType: value }))}
@@ -2324,7 +2323,7 @@ export function Builder() {
             />
             {state.sleeveType !== 'sleeveless' && (
               <ChoiceGrid
-                label="Sleeve Length"
+                label={cerigaTranslate("interface.text_6a3c283ee5f6efd4")}
                 options={sleeveLengthOptions.map((item) => ({ id: item.id, name: item.name }))}
                 selected={state.sleeveLength}
                 onSelect={(value) => setState((prev) => ({ ...prev, sleeveLength: value }))}
@@ -2333,16 +2332,14 @@ export function Builder() {
             )}
             {!techpackSpecFlow ? (
               <TrimColorFamilyPicker
-                label="Sleeve trim colour"
+                label={cerigaTranslate("interface.text_a88f720c78b9d2ab")}
                 value={state.sleeveTrimColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, sleeveTrimColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, sleeveTrimColor: undefined }))}
               />
             ) : null}
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Extra Details
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
               <Textarea
                 value={state.extraDetails.sleeves || ''}
                 onChange={(e) =>
@@ -2352,7 +2349,7 @@ export function Builder() {
                   }))
                 }
                 className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                placeholder="Add sleeve requirements..."
+                placeholder={cerigaTranslate("interface.text_aa18831954460aa8")}
               />
             </div>
           </div>
@@ -2365,16 +2362,14 @@ export function Builder() {
               {renderGarmentAssetGrids(5)}
               {!techpackSpecFlow && garmentConfig?.trimBindings.cuff?.length ? (
                 <TrimColorFamilyPicker
-                  label="Sleeve hem / cuff trim colour"
+                  label={cerigaTranslate("interface.text_3af70edb422dea9b")}
                   value={state.cuffTrimColor}
                   onChange={(hex) => setState((prev) => ({ ...prev, cuffTrimColor: hex }))}
                   onClear={() => setState((prev) => ({ ...prev, cuffTrimColor: undefined }))}
                 />
               ) : null}
               <div>
-                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                  Extra Details
-                </Label>
+                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
                 <Textarea
                   value={state.extraDetails.hem || ''}
                   onChange={(e) =>
@@ -2384,7 +2379,7 @@ export function Builder() {
                     }))
                   }
                   className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  placeholder="Add hem or cuff requirements..."
+                  placeholder={cerigaTranslate("interface.text_559cfa955e50af93")}
                 />
               </div>
             </div>
@@ -2393,7 +2388,7 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <ChoiceGrid
-              label="Hem Type"
+              label={cerigaTranslate("interface.text_e22e4fdbbd055a1b")}
               options={hemOptions.map((item) => ({ id: item.id, name: item.name }))}
               selected={state.hemType}
               onSelect={(value) => setState((prev) => ({ ...prev, hemType: value }))}
@@ -2401,7 +2396,7 @@ export function Builder() {
             />
             {state.sleeveType !== 'sleeveless' && (
               <ChoiceGrid
-                label="Cuff Type"
+                label={cerigaTranslate("interface.text_7a49e1d1b356e389")}
                 options={cuffOptions.map((item) => ({ id: item.id, name: item.name }))}
                 selected={state.cuffType}
                 onSelect={(value) => setState((prev) => ({ ...prev, cuffType: value }))}
@@ -2409,9 +2404,7 @@ export function Builder() {
               />
             )}
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Extra Details
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
               <Textarea
                 value={state.extraDetails.hem || ''}
                 onChange={(e) =>
@@ -2421,7 +2414,7 @@ export function Builder() {
                   }))
                 }
                 className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                placeholder="Add hem or cuff requirements..."
+                placeholder={cerigaTranslate("interface.text_559cfa955e50af93")}
               />
             </div>
           </div>
@@ -2436,10 +2429,10 @@ export function Builder() {
                 <TrimColorFamilyPicker
                   label={
                     state.garmentType === 'trousers' || state.garmentType === 'shorts'
-                      ? 'Pocket & drawstring trim colour'
+                      ? cerigaTranslate("interface.text_28f4cc166b28c3ae")
                       : state.garmentType === 'hoodie'
-                        ? 'Pocket, zip & drawstring trim colour'
-                        : 'Pocket, zip & placket trim colour'
+                        ? cerigaTranslate("interface.text_5f1f6bf05da931b7")
+                        : cerigaTranslate("interface.text_76f78c0b016b5bfb")
                   }
                   value={state.pocketTrimColor}
                   onChange={(hex) => setState((prev) => ({ ...prev, pocketTrimColor: hex }))}
@@ -2447,9 +2440,7 @@ export function Builder() {
                 />
               ) : null}
               <div>
-                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                  Extra Details
-                </Label>
+                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
                 <Textarea
                   value={state.extraDetails.pockets || ''}
                   onChange={(e) =>
@@ -2459,7 +2450,7 @@ export function Builder() {
                     }))
                   }
                   className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  placeholder="Add pocket or zip requirements..."
+                  placeholder={cerigaTranslate("interface.text_f87d787aaeeb92da")}
                 />
               </div>
             </div>
@@ -2468,14 +2459,14 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <ChoiceGrid
-              label="Pocket Type"
+              label={cerigaTranslate("interface.text_2af96d8f6c68788d")}
               options={pocketOptions.map((item) => ({ id: item.id, name: item.name }))}
               selected={state.pocketType}
               onSelect={(value) => setState((prev) => ({ ...prev, pocketType: value }))}
               columns="grid-cols-2"
             />
             <ChoiceGrid
-              label="Zip Type"
+              label={cerigaTranslate("interface.text_7ef1ed2d12bfd56a")}
               options={zipOptions.map((item) => ({ id: item.id, name: item.name }))}
               selected={state.zipType}
               onSelect={(value) => setState((prev) => ({ ...prev, zipType: value }))}
@@ -2483,16 +2474,14 @@ export function Builder() {
             />
             {!techpackSpecFlow ? (
               <TrimColorFamilyPicker
-                label="Pocket & zip trim colour"
+                label={cerigaTranslate("interface.text_ee36e319541d1089")}
                 value={state.pocketTrimColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, pocketTrimColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, pocketTrimColor: undefined }))}
               />
             ) : null}
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Extra Details
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
               <Textarea
                 value={state.extraDetails.pockets || ''}
                 onChange={(e) =>
@@ -2502,7 +2491,7 @@ export function Builder() {
                   }))
                 }
                 className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                placeholder="Add pocket or zip requirements..."
+                placeholder={cerigaTranslate("interface.text_f87d787aaeeb92da")}
               />
             </div>
           </div>
@@ -2514,9 +2503,7 @@ export function Builder() {
             <div className="space-y-4">
               {renderGarmentAssetGrids(7)}
               <div>
-                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                  Extra Details
-                </Label>
+                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
                 <Textarea
                   value={state.extraDetails.fading || ''}
                   onChange={(e) =>
@@ -2526,7 +2513,7 @@ export function Builder() {
                     }))
                   }
                   className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  placeholder="Describe fade zones, intensity, or wash instructions..."
+                  placeholder={cerigaTranslate("interface.text_7418a7ba836351f3")}
                 />
               </div>
             </div>
@@ -2535,16 +2522,14 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <ChoiceGrid
-              label="Fading treatment"
+              label={cerigaTranslate("interface.text_8320c793ff701947")}
               options={fadingOptions.map((item) => ({ id: item.id, name: item.name }))}
               selected={state.fadingType}
               onSelect={(value) => setState((prev) => ({ ...prev, fadingType: value }))}
               columns="grid-cols-2"
             />
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Extra Details
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
               <Textarea
                 value={state.extraDetails.fading || ''}
                 onChange={(e) =>
@@ -2554,7 +2539,7 @@ export function Builder() {
                   }))
                 }
                 className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                placeholder="Describe fade zones, intensity, or wash instructions..."
+                placeholder={cerigaTranslate("interface.text_7418a7ba836351f3")}
               />
             </div>
           </div>
@@ -2567,16 +2552,14 @@ export function Builder() {
               {renderGarmentAssetGrids(8)}
               {!techpackSpecFlow ? (
                 <TrimColorFamilyPicker
-                  label="Stitch / thread colour"
+                  label={cerigaTranslate("interface.text_8b8e89f7865db0a8")}
                   value={state.stitchingColor}
                   onChange={(hex) => setState((prev) => ({ ...prev, stitchingColor: hex }))}
                   onClear={() => setState((prev) => ({ ...prev, stitchingColor: undefined }))}
                 />
               ) : null}
               <div>
-                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                  Extra Details
-                </Label>
+                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
                 <Textarea
                   value={state.extraDetails.stitching || ''}
                   onChange={(e) =>
@@ -2586,7 +2569,7 @@ export function Builder() {
                     }))
                   }
                   className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                  placeholder="SPI, seam notes, contrast stitching details, etc..."
+                  placeholder={cerigaTranslate("interface.text_4832d99b7d6c3420")}
                 />
               </div>
             </div>
@@ -2595,7 +2578,7 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <ChoiceGrid
-              label="Stitching"
+              label={cerigaTranslate("interface.text_fffdd575a4429007")}
               options={stitchingOptions.map((item) => ({ id: item.id, name: item.name }))}
               selected={state.stitchingType}
               onSelect={(value) => setState((prev) => ({ ...prev, stitchingType: value }))}
@@ -2603,16 +2586,14 @@ export function Builder() {
             />
             {!techpackSpecFlow ? (
               <TrimColorFamilyPicker
-                label="Stitch / thread colour"
+                label={cerigaTranslate("interface.text_8b8e89f7865db0a8")}
                 value={state.stitchingColor}
                 onChange={(hex) => setState((prev) => ({ ...prev, stitchingColor: hex }))}
                 onClear={() => setState((prev) => ({ ...prev, stitchingColor: undefined }))}
               />
             ) : null}
             <div>
-              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-                Extra Details
-              </Label>
+              <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
               <Textarea
                 value={state.extraDetails.stitching || ''}
                 onChange={(e) =>
@@ -2622,7 +2603,7 @@ export function Builder() {
                   }))
                 }
                 className="min-h-[82px] border-[#252528] bg-white/5 text-[11px] text-white placeholder:text-white/30"
-                placeholder="SPI, seam notes, contrast stitching details, etc..."
+                placeholder={cerigaTranslate("interface.text_4832d99b7d6c3420")}
               />
             </div>
           </div>
@@ -2760,36 +2741,36 @@ export function Builder() {
         return (
           <div className="space-y-4">
             <div className="space-y-2.5 rounded-lg border border-[#252528] bg-white/5 p-4">
-              <ReviewRow label="Garment Type" value={state.garmentType} />
-              <ReviewRow label="Fit" value={state.fit || 'Not selected'} />
+              <ReviewRow label={cerigaTranslate("interface.text_198473e6778d22c0")} value={state.garmentType} />
+              <ReviewRow label={cerigaTranslate("interface.text_9f872ed43d00d8bd")} value={state.fit || 'Not selected'} />
               <ReviewRow
-                label="Measure in"
+                label={cerigaTranslate("interface.text_283c49d9412a2350")}
                 value={state.measurementUnit === 'in' ? 'Inches' : 'Centimeters'}
               />
               <ReviewRow
-                label="Colour"
+                label={cerigaTranslate("interface.text_3a9dfa58df63e0dd")}
                 value={state.colors[0]?.hex || 'Not selected'}
                 swatch={state.colors[0]?.hex}
               />
               <ReviewRow
-                label="Fabric"
+                label={cerigaTranslate("interface.text_de7b2b8384b81848")}
                 value={state.fabricType?.replace('-', ' ') || 'Not selected'}
               />
               {isGarmentSvgFlow && garmentSvgType ? (
                 <>
                   {getGarmentSpecRows(garmentSvgType, garmentSelection).map((row) => (
-                    <ReviewRow key={row.label} label={row.label} value={row.value} />
+                    <ReviewRow key={row.label} label={cerigaTranslateLabel(row.label)} value={row.value} />
                   ))}
                 </>
               ) : (
                 <>
                   <ReviewRow
-                    label="Neck"
+                    label={cerigaTranslate("interface.text_6b27a97151bbf20f")}
                     value={state.neckType?.replace('-', ' ') || 'Not selected'}
                     hidden={shouldSkipStep(3)}
                   />
                   <ReviewRow
-                    label="Sleeves"
+                    label={cerigaTranslate("interface.text_570d3088b844a9e0")}
                     value={
                       state.sleeveType
                         ? `${state.sleeveType}${state.sleeveLength ? ` (${state.sleeveLength})` : ''}`
@@ -2800,14 +2781,14 @@ export function Builder() {
                 </>
               )}
               {state.fadingType ? (
-                <ReviewRow label="Fading" value={state.fadingType.replace('-', ' ')} />
+                <ReviewRow label={cerigaTranslate("interface.text_371684be175b1f4a")} value={state.fadingType.replace('-', ' ')} />
               ) : null}
               {state.stitchingType ? (
-                <ReviewRow label="Stitching" value={state.stitchingType.replace('-', ' ')} />
+                <ReviewRow label={cerigaTranslate("interface.text_fffdd575a4429007")} value={state.stitchingType.replace('-', ' ')} />
               ) : null}
               {state.stitchingColor ? (
                 <ReviewRow
-                  label="Stitch / thread colour"
+                  label={cerigaTranslate("interface.text_8b8e89f7865db0a8")}
                   value={state.stitchingColor}
                   swatch={state.stitchingColor}
                 />
@@ -2816,7 +2797,7 @@ export function Builder() {
                 ? state.prints.map((p, i) => (
                     <ReviewRow
                       key={p.id}
-                      label={`Print ${i + 1}`}
+                      label={cerigaTranslate("interface.text_6b7fdd7b4663746b",{value0:(i + 1)})}
                       value={`${describePrintMethodLabel(p.printMethod)} · ${
                         p.type === 'image'
                           ? 'Artwork'
@@ -2825,62 +2806,51 @@ export function Builder() {
                     />
                   ))
                 : null}
-              <ReviewRow label="Neck label" value={formatPlanSummary('label', state.labelType)} />
+              <ReviewRow label={cerigaTranslate("interface.text_a187fd0cce3a774e")} value={formatPlanSummary('label', state.labelType)} />
               {state.labelColor ? (
-                <ReviewRow label="Label colour" value={state.labelColor} swatch={state.labelColor} />
+                <ReviewRow label={cerigaTranslate("interface.text_b6bd2daa8645536c")} value={state.labelColor} swatch={state.labelColor} />
               ) : null}
-              <ReviewRow label="Packaging" value={formatPlanSummary('packaging', state.packagingType)} />
+              <ReviewRow label={cerigaTranslate("interface.text_0d62bb01df4edd95")} value={formatPlanSummary('packaging', state.packagingType)} />
               {state.packagingColor ? (
                 <ReviewRow
-                  label="Packaging colour"
+                  label={cerigaTranslate("interface.text_34ae6fe2ec6acad7")}
                   value={state.packagingColor}
                   swatch={state.packagingColor}
                 />
               ) : null}
               <ReviewRow
-                label="Order quantities"
+                label={cerigaTranslate("interface.text_b65d9c0d8f0aa09f")}
                 value={
                   planHasAnyQuantity(state.orderQuantities)
-                    ? formatOrderQuantitiesSummary(state.orderQuantities).join(' · ')
+                    ? formatOrderQuantitiesSummary(state.orderQuantities, cerigaQuantityLine).map(cerigaTranslateLabel).join(' · ')
                     : 'Not set'
                 }
               />
             </div>
 
             <div className="rounded-lg border border-[#CC2D24]/30 bg-[#1C0F0F]/50 p-4">
-              <p className="ceriga-mono mb-1 text-[10px] uppercase tracking-[0.08em] text-[#E5534A]">
-                Finish
-              </p>
-              <p className="mb-3 text-[12px] leading-relaxed text-[#A3A3A8]">
-                Export a PDF for manufacturers you work with, or continue to order samples /
-                production with Ceriga.
-              </p>
+              <p className="ceriga-mono mb-1 text-[10px] uppercase tracking-[0.08em] text-[#E5534A]">{cerigaTranslate("interface.text_a6c7a84baa6750fc")}</p>
+              <p className="mb-3 text-[12px] leading-relaxed text-[#A3A3A8]">{cerigaTranslate("interface.text_17bc92a23ac4398e")}</p>
               <div className="space-y-2">
                 <Button
                   type="button"
                   onClick={() => setShowDownloadModal(true)}
                   className="h-11 w-full bg-[#FF3B30] text-xs font-semibold hover:bg-[#FF3B30]/90"
                 >
-                  <Download className="mr-1.5 h-3.5 w-3.5" />
-                  Export tech pack PDF
-                </Button>
+                  <Download className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_458a05044f6ac231")}</Button>
                 <Button
                   type="button"
                   onClick={() => void continueToOrderDelivery()}
                   className="h-11 w-full bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90"
                 >
-                  <Factory className="mr-1.5 h-3.5 w-3.5" />
-                  Order with Ceriga
-                </Button>
+                  <Factory className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_4447a75ea4e64106")}</Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => handleSave(true)}
                   className="h-11 w-full border-white/20 text-xs !text-white hover:bg-white/10"
                 >
-                  <Save className="mr-1.5 h-3.5 w-3.5" />
-                  Save project
-                </Button>
+                  <Save className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_08330ed07cfe9e09")}</Button>
               </div>
             </div>
           </div>
@@ -2944,21 +2914,21 @@ export function Builder() {
 
   const renderSummaryBody = () => (
     <div className="space-y-4 text-sm">
-        <SpecRow label="Product" value={product.name} />
-        <SpecRow label="Garment Type" value={state.garmentType} capitalize />
-        {state.fit ? <SpecRow label="Fit" value={state.fit} capitalize /> : null}
+        <SpecRow label={cerigaTranslate("interface.text_fb9ef894175c3274")} value={cerigaTranslateLabel(product.name)} />
+        <SpecRow label={cerigaTranslate("interface.text_198473e6778d22c0")} value={state.garmentType} capitalize />
+        {state.fit ? <SpecRow label={cerigaTranslate("interface.text_9f872ed43d00d8bd")} value={state.fit} capitalize /> : null}
         <SpecRow
-          label="Measurement"
+          label={cerigaTranslate("interface.text_385165e2ff598045")}
           value={state.measurementUnit === 'in' ? 'Inches' : 'Centimeters'}
         />
         {state.fabricType ? (
-          <SpecRow label="Fabric" value={state.fabricType.replace('-', ' ')} capitalize />
+          <SpecRow label={cerigaTranslate("interface.text_de7b2b8384b81848")} value={state.fabricType.replace('-', ' ')} capitalize />
         ) : null}
-        {state.gsm ? <SpecRow label="GSM" value={state.gsm} /> : null}
+        {state.gsm ? <SpecRow label={cerigaTranslate("interface.text_569a327df59b4b88")} value={state.gsm} /> : null}
 
         {state.colors[0] ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Colour</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_3a9dfa58df63e0dd")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -2977,40 +2947,40 @@ export function Builder() {
         {isGarmentSvgFlow && garmentSvgType ? (
           <>
             {getGarmentSpecRows(garmentSvgType, garmentSelection).map((row) => (
-              <SpecRow key={row.label} label={row.label} value={row.value} />
+              <SpecRow key={row.label} label={cerigaTranslateLabel(row.label)} value={row.value} />
             ))}
           </>
         ) : (
           <>
             {state.neckType ? (
-              <SpecRow label="Neck" value={state.neckType.replace('-', ' ')} capitalize />
+              <SpecRow label={cerigaTranslate("interface.text_6b27a97151bbf20f")} value={state.neckType.replace('-', ' ')} capitalize />
             ) : null}
             {state.sleeveType ? (
               <SpecRow
-                label="Sleeves"
+                label={cerigaTranslate("interface.text_570d3088b844a9e0")}
                 value={`${state.sleeveType}${
                   state.sleeveLength ? ` (${state.sleeveLength})` : ''
                 }`}
                 capitalize
               />
             ) : null}
-            {state.hemType ? <SpecRow label="Hem" value={state.hemType} capitalize /> : null}
-            {state.cuffType ? <SpecRow label="Cuffs" value={state.cuffType} capitalize /> : null}
+            {state.hemType ? <SpecRow label={cerigaTranslate("interface.text_425e7e7fa82d932a")} value={state.hemType} capitalize /> : null}
+            {state.cuffType ? <SpecRow label={cerigaTranslate("interface.text_5f3947932528bf28")} value={state.cuffType} capitalize /> : null}
             {state.pocketType ? (
-              <SpecRow label="Pockets" value={state.pocketType} capitalize />
+              <SpecRow label={cerigaTranslate("interface.text_09fbcea7adb3acf0")} value={state.pocketType} capitalize />
             ) : null}
-            {state.zipType ? <SpecRow label="Zip" value={state.zipType} capitalize /> : null}
+            {state.zipType ? <SpecRow label={cerigaTranslate("interface.text_7bc88ebb6d01d4dd")} value={state.zipType} capitalize /> : null}
           </>
         )}
         {state.fadingType ? (
-          <SpecRow label="Fading" value={state.fadingType.replace('-', ' ')} capitalize />
+          <SpecRow label={cerigaTranslate("interface.text_371684be175b1f4a")} value={state.fadingType.replace('-', ' ')} capitalize />
         ) : null}
         {state.stitchingType ? (
-          <SpecRow label="Stitching" value={state.stitchingType.replace('-', ' ')} capitalize />
+          <SpecRow label={cerigaTranslate("interface.text_fffdd575a4429007")} value={state.stitchingType.replace('-', ' ')} capitalize />
         ) : null}
         {state.stitchingColor ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Stitch colour</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_73d4b14065e5143a")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -3022,7 +2992,7 @@ export function Builder() {
         ) : null}
         {state.neckTrimColor ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Neck trim</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_8d481fddfd5814f2")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -3034,7 +3004,7 @@ export function Builder() {
         ) : null}
         {state.sleeveTrimColor ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Sleeve colour</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_793015055f7bebd9")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -3046,7 +3016,7 @@ export function Builder() {
         ) : null}
         {state.cuffTrimColor ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Cuff trim</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_503b54abb5e9070e")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -3058,7 +3028,7 @@ export function Builder() {
         ) : null}
         {state.pocketTrimColor ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Pocket / zip trim</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_db0c3d89c37bc71d")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -3072,7 +3042,7 @@ export function Builder() {
           ? state.prints.map((p, i) => (
               <SpecRow
                 key={p.id}
-                label={`Print ${i + 1}`}
+                label={cerigaTranslate("interface.text_6b7fdd7b4663746b",{value0:(i + 1)})}
                 value={`${describePrintMethodLabel(p.printMethod)} — ${
                   p.type === 'image'
                     ? 'Artwork'
@@ -3081,10 +3051,10 @@ export function Builder() {
               />
             ))
           : null}
-        <SpecRow label="Neck label" value={formatPlanSummary('label', state.labelType)} />
+        <SpecRow label={cerigaTranslate("interface.text_a187fd0cce3a774e")} value={formatPlanSummary('label', state.labelType)} />
         {state.labelColor ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Label colour</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_b6bd2daa8645536c")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -3094,10 +3064,10 @@ export function Builder() {
             </div>
           </div>
         ) : null}
-        <SpecRow label="Packaging" value={formatPlanSummary('packaging', state.packagingType)} />
+        <SpecRow label={cerigaTranslate("interface.text_0d62bb01df4edd95")} value={formatPlanSummary('packaging', state.packagingType)} />
         {state.packagingColor ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">Packaging colour</div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_34ae6fe2ec6acad7")}</div>
             <div className="flex items-center gap-2">
               <div
                 className="h-6 w-6 flex-shrink-0 rounded border border-white/20"
@@ -3111,9 +3081,7 @@ export function Builder() {
 
         {summaryStepNotes ? (
           <div className="border-b border-[#252528] pb-4">
-            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">
-              Step notes
-            </div>
+            <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_76213c4b0c540d08")}</div>
             <div className="rounded-lg border border-[#252528] bg-white/5 p-3 text-xs leading-relaxed text-white/80">
               {summaryStepNotes}
             </div>
@@ -3159,9 +3127,7 @@ export function Builder() {
               isPhone && 'min-h-11',
             )}
           >
-            <ChevronLeft className="mr-0.5 h-4 w-4" />
-            Back
-          </Button>
+            <ChevronLeft className="mr-0.5 h-4 w-4" />{cerigaTranslate("common.back")}</Button>
           <Button
             onClick={handleNext}
             className={cn(
@@ -3169,7 +3135,7 @@ export function Builder() {
               isPhone && 'min-h-11',
             )}
           >
-            {currentStep === 13 ? 'Order with Ceriga' : 'Continue'}
+            {currentStep === 13 ? cerigaTranslate("interface.text_4447a75ea4e64106") : cerigaTranslate("interface.text_31fbef162594de01")}
             <ChevronRight className="ml-0.5 h-4 w-4" />
           </Button>
         </div>
@@ -3187,14 +3153,13 @@ export function Builder() {
         >
           {isPhone ? (
             <div className="mb-3 flex min-w-0 items-center justify-between gap-2 border-b border-[#252528] pb-2.5">
-              <div className="min-w-0 text-[8px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">
-                Step {phoneProcessStepCount}
+              <div className="min-w-0 text-[8px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">{cerigaTranslate("interface.text_8e6a6cca7aae1d1e")}{" "}{phoneProcessStepCount}
               </div>
               <button
                 type="button"
                 onClick={() => phoneEditorPanelRef.current?.collapse()}
                 className="builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/55 hover:bg-white/[0.06] hover:text-white"
-                aria-label="Close configuration panel"
+                aria-label={cerigaTranslate("interface.text_40ea9c7d420f0666")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -3204,7 +3169,7 @@ export function Builder() {
             <div className="mb-3 min-w-0 sm:mb-4">
                 <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
                 <div className="min-w-0 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24] md:text-[10px]">
-                  {stepTitleLabel}
+                  {cerigaTranslateLabel(stepTitleLabel)}
                 </div>
                 <button
                   type="button"
@@ -3212,28 +3177,28 @@ export function Builder() {
                   className={cn(
                     'builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/55 hover:bg-white/[0.06] hover:text-white md:h-9 md:w-9',
                   )}
-                  aria-label="Close panel"
+                  aria-label={cerigaTranslate("interface.text_a600b900f83db6cb")}
                 >
                   <X className="h-4 w-4 md:h-[18px] md:w-[18px]" />
                 </button>
               </div>
               <h2 className="break-words font-['Plus_Jakarta_Sans',sans-serif] text-[15px] font-extrabold leading-tight tracking-[-0.5px] text-white sm:text-[16px] md:text-[17px] xl:text-[18px]">
-                {stepTitleLabel.toUpperCase()}
+                {cerigaTranslateLabel(stepTitleLabel).toLocaleUpperCase(cerigaLocale())}
               </h2>
             </div>
           ) : !isPhone ? (
             <>
               <div className="mb-1 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24] md:text-[10px]">
-                {stepTitleLabel}
+                {cerigaTranslateLabel(stepTitleLabel)}
               </div>
               <h2 className="mb-1.5 font-['Plus_Jakarta_Sans',sans-serif] text-[16px] font-extrabold tracking-[-0.5px] text-white md:mb-2.5 md:text-[17px] xl:text-[18px]">
-                {stepTitleLabel.toUpperCase()}
+                {cerigaTranslateLabel(stepTitleLabel).toLocaleUpperCase(cerigaLocale())}
               </h2>
             </>
           ) : (
             <div className="mb-3 min-w-0">
               <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-[15px] font-extrabold leading-tight tracking-[-0.4px] text-white">
-                {stepTitleLabel.toUpperCase()}
+                {cerigaTranslateLabel(stepTitleLabel).toLocaleUpperCase(cerigaLocale())}
               </h2>
             </div>
           )}
@@ -3243,7 +3208,7 @@ export function Builder() {
               isPhone && 'mb-3',
             )}
           >
-            {stepDescriptionLabel}
+            {cerigaTranslateLabel(stepDescriptionLabel)}
           </p>
           {renderStepContent()}
           {isPhone ? editorNavFooter : null}
@@ -3323,9 +3288,7 @@ export function Builder() {
                   ? 'bg-[#CC2D24] text-white'
                   : 'text-white/60 hover:bg-white/10 hover:text-white',
               )}
-            >
-              Front
-            </button>
+            >{cerigaTranslate("interface.text_a617590202898821")}</button>
             <button
               type="button"
               onClick={() => setShowFront(false)}
@@ -3338,9 +3301,7 @@ export function Builder() {
                   ? 'bg-[#CC2D24] text-white'
                   : 'text-white/60 hover:bg-white/10 hover:text-white',
               )}
-            >
-              Back
-            </button>
+            >{cerigaTranslate("common.back")}</button>
           </div>
         </div>
 
@@ -3631,14 +3592,14 @@ export function Builder() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                aria-label="Zoom out"
+                aria-label={cerigaTranslate("interface.text_bc7b631a689b45ca")}
                 className="h-7 w-7 shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white sm:h-8 sm:w-8"
                 onClick={() => setPreviewZoom((z) => Math.max(PREVIEW_ZOOM_MIN, z - 10))}
               >
                 <Minus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               </Button>
               <input
-                aria-label="Canvas zoom"
+                aria-label={cerigaTranslate("interface.text_c1fc5951380872dc")}
                 className="h-1 w-[3rem] cursor-pointer accent-[#CC2D24] sm:w-[5.5rem]"
                 type="range"
                 min={PREVIEW_ZOOM_MIN}
@@ -3651,7 +3612,7 @@ export function Builder() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                aria-label="Zoom in"
+                aria-label={cerigaTranslate("interface.text_0e47f09a748fa132")}
                 className="h-7 w-7 shrink-0 p-0 !text-white/80 hover:bg-white/10 hover:!text-white sm:h-8 sm:w-8"
                 onClick={() => setPreviewZoom((z) => Math.min(previewZoomMax, z + 10))}
               >
@@ -3659,7 +3620,7 @@ export function Builder() {
               </Button>
               <span
                 className="min-w-0 min-w-[2.5rem] cursor-pointer text-center text-[10px] font-semibold tabular-nums text-white/75 sm:min-w-[2.75rem] sm:text-[11px]"
-                title="Reset zoom & position"
+                title={cerigaTranslate("interface.text_d3d7f74bb03355b9")}
                 onClick={() => {
                   setPreviewZoom(PREVIEW_ZOOM_DEFAULT);
                   setPreviewPan({ x: 0, y: 0 });
@@ -3667,9 +3628,7 @@ export function Builder() {
               >
                 {Math.min(previewZoom, previewZoomMax)}%
               </span>
-              <span className="hidden max-w-[7rem] border-l border-[#252528] pl-2 text-[8px] leading-tight text-white/35 lg:inline">
-                Drag empty · Ctrl+scroll
-              </span>
+              <span className="hidden max-w-[7rem] border-l border-[#252528] pl-2 text-[8px] leading-tight text-white/35 lg:inline">{cerigaTranslate("interface.text_d5562a6f2223e4ea")}</span>
             </div>
             <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-[#252528] bg-black/55 px-2 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:gap-2.5 sm:px-3 sm:py-2">
               <CircularProgress value={progress} compact />
@@ -3677,9 +3636,7 @@ export function Builder() {
                 <div className="text-[11px] font-bold tabular-nums text-white sm:text-xs">
                   {Math.round(progress)}%
                 </div>
-                <div className="hidden text-[7px] font-semibold uppercase tracking-wider text-white/35 sm:block sm:text-[8px]">
-                  Complete
-                </div>
+                <div className="hidden text-[7px] font-semibold uppercase tracking-wider text-white/35 sm:block sm:text-[8px]">{cerigaTranslate("interface.text_143b270a32602d41")}</div>
               </div>
             </div>
           </div>
@@ -3708,7 +3665,7 @@ export function Builder() {
                 )}
               />
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] max-md:text-[8px] max-md:tracking-[0.14em]">
-                {isOverDeleteZone ? 'Release to delete' : 'Drag here'}
+                {isOverDeleteZone ? cerigaTranslate("interface.text_70c038961eacebd6") : cerigaTranslate("interface.text_64405c82b5a38a39")}
               </span>
             </div>
           </div>
@@ -3720,9 +3677,7 @@ export function Builder() {
               type="button"
               onClick={() => phoneEditorPanelRef.current?.expand()}
               className="h-9 min-h-9 rounded-full border border-[#3A3A40] bg-[#161618]/95 px-5 text-[11px] font-semibold text-white shadow-[0_8px_28px_rgba(0,0,0,0.4)] backdrop-blur-md"
-            >
-              Edit step
-            </Button>
+            >{cerigaTranslate("interface.text_c5279a315f406bad")}</Button>
           </div>
         ) : null}
       </div>
@@ -3751,12 +3706,12 @@ export function Builder() {
           <div
             className="no-scrollbar flex w-full min-w-0 flex-1 items-center gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]"
           >
-            <div className="grid shrink-0 grid-cols-2 gap-0.5" role="toolbar" aria-label="Project">
+            <div className="grid shrink-0 grid-cols-2 gap-0.5" role="toolbar" aria-label={cerigaTranslate("interface.text_9859597853197476")}>
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
-                aria-label="Back to catalog"
+                aria-label={cerigaTranslate("interface.text_5945b61656beeccd")}
                 className={cn(
                   phoneNavIconCell,
                   'p-0 !text-white/60 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]',
@@ -3773,8 +3728,8 @@ export function Builder() {
                   phoneNavIconCell,
                   'relative z-[1] p-0 !text-white/75 hover:bg-white/10 hover:!text-white active:bg-white/[0.08]',
                 )}
-                aria-label="Edit project name"
-                title="Edit name"
+                aria-label={cerigaTranslate("interface.text_62f8f7c6feabd968")}
+                title={cerigaTranslate("interface.text_308b88fcc3dffe50")}
                 onClick={() => setIsEditingName(true)}
               >
                 <SquarePen className={phoneNavIconClass} strokeWidth={2} />
@@ -3796,7 +3751,7 @@ export function Builder() {
               <div
                 className="flex min-w-0 flex-1 justify-center px-2"
                 role="group"
-                aria-label="Preview background"
+                aria-label={cerigaTranslate("interface.text_35d0cc8746d053f2")}
               >
                 <div className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-lg border border-[#252528] bg-white/[0.06] px-1 shadow-inner">
                   {(['black', 'white', 'transparent'] as const).map((bg) => (
@@ -3805,7 +3760,7 @@ export function Builder() {
                       type="button"
                       onClick={() => setPreviewBackground(bg)}
                       title={bg}
-                      aria-label={`Background ${bg}`}
+                      aria-label={cerigaTranslate("interface.text_5b6a4021c2f02194",{value0:(bg)})}
                       className={cn(
                         'builder-focus press-feedback size-[1.65rem] shrink-0 rounded-md border-2 transition-transform active:scale-95',
                         previewBackground === bg
@@ -3832,7 +3787,7 @@ export function Builder() {
               className="grid shrink-0 grid-cols-4 gap-0.5"
               aria-live="polite"
               role="toolbar"
-              aria-label="Editor actions"
+              aria-label={cerigaTranslate("interface.text_5ff6832a9f66eea9")}
             >
               <button
                 type="button"
@@ -3844,8 +3799,8 @@ export function Builder() {
                     ? 'bg-white/10 text-white'
                     : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
                 )}
-                title={showExtraDetails ? 'Hide measurement callouts' : 'Show details on preview'}
-                aria-label={showExtraDetails ? 'Hide details' : 'Show details'}
+                title={showExtraDetails ? cerigaTranslate("interface.text_2df54c55c91a29ef") : cerigaTranslate("interface.text_27a16463fc96f147")}
+                aria-label={showExtraDetails ? cerigaTranslate("interface.text_c9722a7a962a8435") : cerigaTranslate("interface.text_1af77ee273cbdaae")}
                 aria-pressed={showExtraDetails}
               >
                 <Info className={phoneNavIconClass} strokeWidth={2} />
@@ -3856,7 +3811,7 @@ export function Builder() {
                 size="sm"
                 onClick={undo}
                 disabled={!undoAvailable}
-                aria-label="Undo"
+                aria-label={cerigaTranslate("interface.text_a8283ade31856f71")}
                 className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white disabled:opacity-30')}
               >
                 <Undo2 className={phoneNavIconClass} strokeWidth={2} />
@@ -3867,7 +3822,7 @@ export function Builder() {
                 size="sm"
                 onClick={redo}
                 disabled={!redoAvailable}
-                aria-label="Redo"
+                aria-label={cerigaTranslate("interface.text_74273989b0966e23")}
                 className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white disabled:opacity-30')}
               >
                 <Redo2 className={phoneNavIconClass} strokeWidth={2} />
@@ -3877,8 +3832,8 @@ export function Builder() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowVersionHistory(true)}
-                aria-label="Version history"
-                title="Version history"
+                aria-label={cerigaTranslate("interface.text_a6df11e706c514f1")}
+                title={cerigaTranslate("interface.text_a6df11e706c514f1")}
                 className={cn(phoneNavIconCell, 'p-0 !text-white/70 hover:!text-white')}
               >
                 <History className={phoneNavIconClass} strokeWidth={2} />
@@ -3892,12 +3847,12 @@ export function Builder() {
                 variant="ghost"
                 size="sm"
                 asChild
-                aria-label="Back to catalog"
+                aria-label={cerigaTranslate("interface.text_5945b61656beeccd")}
                 className="h-8 w-8 shrink-0 p-0 !text-white/60 hover:bg-white/10 hover:!text-white sm:h-7 sm:w-auto sm:px-2 sm:text-[10px]"
               >
                 <Link to="/catalog">
                   <ArrowLeft className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
-                  <span className="hidden sm:inline">BACK</span>
+                  <span className="hidden sm:inline">{cerigaTranslate("interface.text_639807a2e01886a2")}</span>
                 </Link>
               </Button>
             </div>
@@ -3921,9 +3876,9 @@ export function Builder() {
                   <div
                     className="cursor-pointer truncate text-center text-[13px] font-semibold text-white hover:text-white/85"
                     onClick={() => setIsEditingName(true)}
-                    title="Rename project"
+                    title={cerigaTranslate("interface.text_2a0478eef5361f0d")}
                   >
-                    {projectName}
+                    {translateProjectTitle(projectName, product.name)}
                   </div>
                 )}
               </div>
@@ -3941,7 +3896,7 @@ export function Builder() {
                       : 'text-white/55 hover:bg-white/[0.06] hover:text-white',
                   )}
                 >
-                  {showExtraDetails ? 'Hide details' : 'Show details'}
+                  {showExtraDetails ? cerigaTranslate("interface.text_c9722a7a962a8435") : cerigaTranslate("interface.text_1af77ee273cbdaae")}
                 </button>
                 <div className="flex shrink-0 items-center gap-0.5 rounded-md border border-[#252528] bg-white/[0.04] p-0.5">
                   {(['black', 'white', 'transparent'] as const).map((bg) => (
@@ -3950,7 +3905,7 @@ export function Builder() {
                       type="button"
                       onClick={() => setPreviewBackground(bg)}
                       title={bg}
-                      aria-label={`Background ${bg}`}
+                      aria-label={cerigaTranslate("interface.text_5b6a4021c2f02194",{value0:(bg)})}
                       className={cn(
                         'builder-focus press-feedback h-5 w-5 shrink-0 rounded border',
                         previewBackground === bg
@@ -3981,7 +3936,7 @@ export function Builder() {
                   size="sm"
                   onClick={undo}
                   disabled={!undoAvailable}
-                  aria-label="Undo"
+                  aria-label={cerigaTranslate("interface.text_a8283ade31856f71")}
                   className="h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
                 >
                   <Undo2 className="h-4 w-4" />
@@ -3992,7 +3947,7 @@ export function Builder() {
                   size="sm"
                   onClick={redo}
                   disabled={!redoAvailable}
-                  aria-label="Redo"
+                  aria-label={cerigaTranslate("interface.text_74273989b0966e23")}
                   className="h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white disabled:opacity-30"
                 >
                   <Redo2 className="h-4 w-4" />
@@ -4002,24 +3957,22 @@ export function Builder() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowVersionHistory(true)}
-                  aria-label="Version history"
-                  title="Version history"
+                  aria-label={cerigaTranslate("interface.text_a6df11e706c514f1")}
+                  title={cerigaTranslate("interface.text_a6df11e706c514f1")}
                   className="h-8 w-8 shrink-0 p-0 !text-white/70 hover:!text-white"
                 >
                   <History className="h-4 w-4" />
                 </Button>
               </div>
               <span className="text-[9px] font-medium uppercase tracking-wider text-white/35">
-                {saving ? 'Saving…' : !networkOnline ? 'Offline' : saveError ? 'Not synced' : 'Saved'}
+                {saving ? cerigaTranslate("common.saving") : !networkOnline ? cerigaTranslate("interface.text_a1794783aab72d20") : saveError ? cerigaTranslate("interface.text_87cde3efa76b8e6c") : cerigaTranslate("interface.text_b5c120b316c237a0")}
               </span>
               <button
                 type="button"
                 onClick={() => setShowReviewDrawer(true)}
                 className="builder-focus press-feedback flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-black hover:bg-white/90"
               >
-                <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
-                Review
-              </button>
+                <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />{cerigaTranslate("adminOrders.review")}</button>
             </div>
           </>
         )}
@@ -4030,10 +3983,10 @@ export function Builder() {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#CC2D24]/25 bg-[#CC2D24]/[0.07] px-3 py-2 sm:px-5">
           <p className="max-w-[min(100%,560px)] text-[11px] leading-snug text-white/82">
             {!networkOnline
-              ? 'You appear to be offline. Edits stay in this session; reconnect, then use Save or Continue.'
+              ? cerigaTranslate("interface.text_036c6249fe6063c6")
               : saveError === 'failed'
-                ? 'Last save did not finish. Check your connection, then retry.'
-                : 'Save again to sync your draft to the server.'}
+                ? cerigaTranslate("interface.text_7271d8e9b5cf4d5c")
+                : cerigaTranslate("interface.text_eb94a5079aad9ecb")}
           </p>
           <Button
             type="button"
@@ -4042,9 +3995,7 @@ export function Builder() {
             className="h-7 shrink-0 border-white/22 text-[10px] !text-white hover:bg-white/10"
             onClick={retrySave}
             disabled={saving || !networkOnline}
-          >
-            Retry save
-          </Button>
+          >{cerigaTranslate("interface.text_71fdfa790e509d2d")}</Button>
         </div>
       )}
 
@@ -4052,7 +4003,7 @@ export function Builder() {
         {!isPhone ? (
           <aside
             className="flex w-[4.5rem] shrink-0 flex-col bg-[#09090B] py-2 md:w-[5rem] lg:w-[5.75rem]"
-            aria-label="Builder steps"
+            aria-label={cerigaTranslate("interface.text_33a4ff0e1ca6aa98")}
           >
             <div className="scrollbar-dark flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden pb-3 pl-1.5 pr-0">
               {visibleBuilderSteps.map((item) => {
@@ -4130,7 +4081,7 @@ export function Builder() {
                 {livePreviewBlock}
               </Panel>
               <PanelResizeHandle
-                title="Drag to resize preview and configure"
+                title={cerigaTranslate("interface.text_d50efd5d84508c9a")}
                 className={cn(
                   'group relative z-20 flex shrink-0 cursor-ns-resize items-center justify-center bg-[#09090B] transition-colors hover:bg-[#161618] data-[resize-handle-state=drag]:bg-[#1a1010]',
                   isPhone ? 'min-h-10 py-2' : 'h-3 py-0.5',
@@ -4138,7 +4089,7 @@ export function Builder() {
                 )}
               >
                 <div className="h-1 w-[4.5rem] rounded-full bg-white/20 transition-colors group-hover:bg-white/35 group-data-[resize-handle-state=drag]:bg-[#CC2D24]/80" aria-hidden />
-                <span className="sr-only">Drag to resize preview and configure panels</span>
+                <span className="sr-only">{cerigaTranslate("interface.text_46107f80963da1d0")}</span>
               </PanelResizeHandle>
               <Panel
                 id="phone-builder-editor"
@@ -4219,9 +4170,8 @@ export function Builder() {
           className="z-[25] flex shrink-0 flex-col border-t border-white/[0.1] bg-[#080808] shadow-[0_-2px_20px_rgba(0,0,0,0.35)]"
         >
           <div className="px-2.5 pt-1.5">
-            <div className="text-[7px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">Process</div>
-            <div className="truncate text-[10px] text-white/50">
-              Step {phoneProcessStepCount} · {phoneProcessTitle}
+            <div className="text-[7px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">{cerigaTranslate("interface.text_e083bd83e9d3e97e")}</div>
+            <div className="truncate text-[10px] text-white/50">{cerigaTranslate("interface.text_8e6a6cca7aae1d1e")}{" "}{phoneProcessStepCount} · {cerigaTranslateLabel(phoneProcessTitle)}
             </div>
           </div>
           <div className="scrollbar-dark flex min-h-[4.25rem] touch-pan-x gap-0 overflow-x-auto overflow-y-hidden overscroll-x-contain px-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-1.5 [-webkit-overflow-scrolling:touch]">
@@ -4277,13 +4227,13 @@ export function Builder() {
         <div className={cn('fixed inset-0 flex justify-end', isPhone ? 'z-[300]' : 'z-[70]')}>
           <button
             type="button"
-            aria-label="Close review"
+            aria-label={cerigaTranslate("interface.text_337f911f9b4aad88")}
             className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
             onClick={() => setShowReviewDrawer(false)}
           />
           <aside
             role="dialog"
-            aria-label="Tech pack review"
+            aria-label={cerigaTranslate("interface.text_0246223d945a61b3")}
             className="relative z-10 flex h-full w-full max-w-[min(420px,94vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
             {isPhone ? (
@@ -4295,23 +4245,19 @@ export function Builder() {
                   onClick={() => setShowReviewDrawer(false)}
                 >
                   <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
-                  <span className="text-[13px] font-semibold">Back</span>
+                  <span className="text-[13px] font-semibold">{cerigaTranslate("common.back")}</span>
                 </Button>
               </div>
             ) : null}
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
               <div className="min-w-0">
-                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">
-                  Specification
-                </div>
-                <h3 className="text-balance text-[16px] font-bold leading-snug text-white">
-                  Review tech pack
-                </h3>
+                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_397324160ebbc766")}</div>
+                <h3 className="text-balance text-[16px] font-bold leading-snug text-white">{cerigaTranslate("interface.text_533a234a753ace2f")}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowReviewDrawer(false)}
-                aria-label="Close"
+                aria-label={cerigaTranslate("common.close")}
                 className="builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/[0.06] hover:text-white md:h-9 md:w-9"
               >
                 <X className="h-4 w-4 md:h-[18px] md:w-[18px]" />
@@ -4333,13 +4279,13 @@ export function Builder() {
         >
           <button
             type="button"
-            aria-label="Close version history"
+            aria-label={cerigaTranslate("interface.text_c960f6207629309c")}
             className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
             onClick={() => setShowVersionHistory(false)}
           />
           <aside
             role="dialog"
-            aria-label="Version history"
+            aria-label={cerigaTranslate("interface.text_a6df11e706c514f1")}
             className="relative z-10 flex h-full w-full max-w-[min(440px,96vw)] flex-col border-l border-[#252528] bg-[#09090B] shadow-[0_-8px_60px_rgba(0,0,0,0.55)] animate-in slide-in-from-right duration-200"
           >
             {isPhone ? (
@@ -4351,28 +4297,24 @@ export function Builder() {
                   onClick={() => setShowVersionHistory(false)}
                 >
                   <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
-                  <span className="text-[13px] font-semibold">Back</span>
+                  <span className="text-[13px] font-semibold">{cerigaTranslate("common.back")}</span>
                 </Button>
               </div>
             ) : null}
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] px-4 pb-3.5 pt-3.5 sm:px-5 sm:pt-4 sm:pb-4">
               <div className="min-w-0">
-                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">
-                  Timeline
-                </div>
-                <h3 className="text-balance text-[17px] font-bold leading-snug text-white">
-                  Version history
-                </h3>
+                <div className="mb-1 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_9dcff98e275f0cb9")}</div>
+                <h3 className="text-balance text-[17px] font-bold leading-snug text-white">{cerigaTranslate("interface.text_a6df11e706c514f1")}</h3>
                 <div className="mt-0.5 text-[11px] text-white/50">
                   {versions.length === 0
-                    ? 'No versions yet — save one to start the timeline.'
-                    : `${versions.length + 1} version${versions.length + 1 === 1 ? '' : 's'}`}
+                    ? cerigaTranslate("interface.text_c795b7cb59fb2f85")
+                    : cerigaTranslate("interface.plural_b621923aee7c615a",{value0:(versions.length + 1),count:Number(versions.length + 1)})}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowVersionHistory(false)}
-                aria-label="Close"
+                aria-label={cerigaTranslate("common.close")}
                 className="builder-focus flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/[0.06] hover:text-white md:h-9 md:w-9"
               >
                 <X className="h-4 w-4 md:h-[18px] md:w-[18px]" />
@@ -4380,9 +4322,7 @@ export function Builder() {
             </div>
 
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.05] bg-black/30 px-4 py-2.5 sm:px-5">
-              <div className="text-[10px] leading-snug text-white/45">
-                Auto-saves every few minutes
-              </div>
+              <div className="text-[10px] leading-snug text-white/45">{cerigaTranslate("interface.text_88513a39e29b1264")}</div>
               <Button
                 type="button"
                 variant="outline"
@@ -4390,9 +4330,7 @@ export function Builder() {
                 className="h-10 min-h-10 shrink-0 border-[#3A3A40] bg-white/[0.04] px-3.5 text-[11px] font-semibold uppercase tracking-wider !text-white hover:!bg-white/[0.1] sm:h-9 sm:min-h-9 sm:px-3 sm:text-[10px]"
                 onClick={saveManualVersion}
               >
-                <Save className="mr-2 h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />
-                Save version
-              </Button>
+                <Save className="mr-2 h-4 w-4 sm:mr-1.5 sm:h-3 sm:w-3" />{cerigaTranslate("interface.text_9256c289604e9e0c")}</Button>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
@@ -4409,24 +4347,18 @@ export function Builder() {
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col justify-center">
                       <div className="flex items-center gap-1.5">
-                        <span className="rounded-full bg-[#FF3B30]/25 px-2 py-[2px] text-[9px] font-bold uppercase tracking-wider text-[#FF8C85]">
-                          Current
-                        </span>
+                        <span className="rounded-full bg-[#FF3B30]/25 px-2 py-[2px] text-[9px] font-bold uppercase tracking-wider text-[#FF8C85]">{cerigaTranslate("interface.text_e0d1b68224bf0b31")}</span>
                       </div>
                       <div className="mt-1 text-[12px] font-semibold text-white">
                         {formatVersionDate(Date.now())}
                       </div>
-                      <div className="mt-0.5 text-[10.5px] text-white/55">
-                        Live — all unsaved changes
-                      </div>
+                      <div className="mt-0.5 text-[10.5px] text-white/55">{cerigaTranslate("interface.text_cd48d08eedd56d30")}</div>
                     </div>
                   </div>
                 </li>
 
                 {versions.length === 0 ? (
-                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-[#252528] px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">
-                    Your saves land here. We also snapshot automatically as you edit.
-                  </li>
+                  <li className="mx-auto my-6 max-w-[260px] rounded-lg border border-dashed border-[#252528] px-3 py-6 text-center text-[11px] leading-relaxed text-white/45">{cerigaTranslate("interface.text_7293b4f7fd447b12")}</li>
                 ) : (
                   versions.map((v, idx) => (
                     <li
@@ -4444,12 +4376,10 @@ export function Builder() {
                         <div className="flex min-w-0 flex-1 flex-col">
                           <div className="flex items-center gap-1.5">
                             {idx === 0 ? (
-                              <span className="rounded-full bg-white/10 px-1.5 py-[1px] text-[8.5px] font-bold uppercase tracking-wider text-white/75">
-                                Latest
-                              </span>
+                              <span className="rounded-full bg-white/10 px-1.5 py-[1px] text-[8.5px] font-bold uppercase tracking-wider text-white/75">{cerigaTranslate("interface.text_8730d3c2022abf1f")}</span>
                             ) : null}
                             <span className="rounded-full bg-white/[0.04] px-1.5 py-[1px] text-[8.5px] font-bold uppercase tracking-wider text-white/55">
-                              {v.manual ? 'Saved' : 'Auto'}
+                              {v.manual ? cerigaTranslate("interface.text_b5c120b316c237a0") : cerigaTranslate("interface.text_0286249762f7c943")}
                             </span>
                           </div>
                           <div className="mt-1 text-[12px] font-semibold text-white">
@@ -4463,16 +4393,14 @@ export function Builder() {
                               type="button"
                               onClick={() => restoreVersion(v.id)}
                               className="builder-focus press-feedback flex min-h-10 items-center gap-1.5 rounded-lg border border-[#3A3A40] bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white hover:bg-white/[0.1] sm:h-8 sm:min-h-0 sm:gap-1 sm:rounded-md sm:px-2 sm:py-1 sm:text-[10px]"
-                              title="Restore this version"
+                              title={cerigaTranslate("interface.text_0570daa12fe55db8")}
                             >
-                              <RotateCcw className="h-4 w-4 sm:h-3 sm:w-3" strokeWidth={2.25} />
-                              Restore
-                            </button>
+                              <RotateCcw className="h-4 w-4 sm:h-3 sm:w-3" strokeWidth={2.25} />{cerigaTranslate("interface.text_a76e13b9839270eb")}</button>
                             <button
                               type="button"
                               onClick={() => removeVersion(v.id)}
-                              aria-label="Delete version"
-                              title="Delete"
+                              aria-label={cerigaTranslate("interface.text_02d1a2d90348a67a")}
+                              title={cerigaTranslate("common.delete")}
                               className="builder-focus flex min-h-10 min-w-10 items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.06] hover:text-[#FF3B30] sm:h-8 sm:min-h-0 sm:min-w-0 sm:w-8 sm:rounded-md"
                             >
                               <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
@@ -4495,9 +4423,9 @@ export function Builder() {
 function formatVersionDate(ts: number): string {
   const d = new Date(ts);
   const day = d.getDate();
-  const month = d.toLocaleString(undefined, { month: 'short' });
+  const month = d.toLocaleString(cerigaLocale(), { month: 'short' });
   const year = d.getFullYear();
-  const time = d.toLocaleString(undefined, {
+  const time = d.toLocaleString(cerigaLocale(), {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -4538,6 +4466,8 @@ interface VersionThumbnailProps {
  * a version at a glance (like Canva / Figma version history cards).
  */
 function VersionThumbnail({ state, currentStep }: VersionThumbnailProps) {
+  useCerigaTranslation();
+
   const garmentColor = state.colors?.[0]?.hex || '#2e2e2e';
   const elements = pickThumbnailElements(state, currentStep);
   const layerLabel = pickLayerLabel(currentStep);
@@ -4729,24 +4659,24 @@ function ChoiceStep({
   onNotes: (value: string) => void;
   placeholder: string;
 }) {
+  useCerigaTranslation();
+
   return (
     <div className="space-y-4">
       <ChoiceGrid
-        label={label}
+        label={cerigaTranslateLabel(label)}
         options={options}
         selected={selected}
         onSelect={onSelect}
         columns="grid-cols-2"
       />
       <div>
-        <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-          Extra Details
-        </Label>
+        <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">{cerigaTranslate("interface.text_cba7a58044377f17")}</Label>
         <Textarea
           value={notes}
           onChange={(e) => onNotes(e.target.value)}
           className="min-h-[68px] border-[#252528] bg-white/5 text-[10px] text-white placeholder:text-white/30 md:min-h-[82px] md:text-[11px]"
-          placeholder={placeholder}
+          placeholder={cerigaTranslateLabel(placeholder)}
         />
       </div>
     </div>
@@ -4766,10 +4696,12 @@ function ChoiceGrid({
   onSelect: (value: string) => void;
   columns: string;
 }) {
+  useCerigaTranslation();
+
   return (
     <div>
       <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-        {label}
+        {cerigaTranslateLabel(label)}
       </Label>
       <div className={`grid ${columns} gap-1.5 sm:gap-2`}>
         {options.map((option) => (
@@ -4783,7 +4715,7 @@ function ChoiceGrid({
                 : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white'
             }`}
           >
-            <div className="text-[10px] font-medium leading-snug sm:text-[11px]">{option.name}</div>
+            <div className="text-[10px] font-medium leading-snug sm:text-[11px]">{cerigaTranslateLabel(option.name)}</div>
           </button>
         ))}
       </div>
@@ -4810,11 +4742,13 @@ function ReviewRow({
   swatch?: string;
   hidden?: boolean;
 }) {
+  useCerigaTranslation();
+
   if (hidden) return null;
 
   return (
     <div className="flex items-center justify-between border-b border-[#252528] pb-2.5">
-      <span className="text-xs text-white/50">{label}:</span>
+      <span className="text-xs text-white/50">{cerigaTranslateLabel(label)}:</span>
       {swatch ? (
         <div className="flex items-center gap-2">
           <div
@@ -4839,9 +4773,11 @@ function SpecRow({
   value: string;
   capitalize?: boolean;
 }) {
+  useCerigaTranslation();
+
   return (
     <div className="border-b border-[#252528] pb-4">
-      <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{label}</div>
+      <div className="mb-1.5 text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslateLabel(label)}</div>
       <div
         className={`flex items-center gap-2 text-sm font-semibold text-white ${
           capitalize ? 'capitalize' : ''

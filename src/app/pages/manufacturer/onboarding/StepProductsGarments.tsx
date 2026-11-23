@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { useState } from 'react';
 import {
   Shirt,
@@ -29,6 +30,8 @@ type Props = {
 };
 
 export function StepProductsGarments({ profile, onChange, onNext, onBack, errors }: Props) {
+  useCerigaTranslation();
+
   const [expandedCategory, setExpandedCategory] = useState<GarmentCategory | null>(
     profile.garments[0] || null,
   );
@@ -91,10 +94,8 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">2. Products & Garments</h2>
-        <p className="mt-1 text-sm text-white/50">
-          Choose the garments you make, review each category’s specifications, then confirm what your factory supports.
-        </p>
+        <h2 className="text-xl font-semibold text-white">{cerigaTranslate("interface.text_1ad4b940521bb22c")}</h2>
+        <p className="mt-1 text-sm text-white/50">{cerigaTranslate("interface.text_8be70a1e8ce280a1")}</p>
       </div>
 
       {/* Main Garment Selection Cards */}
@@ -102,15 +103,15 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 text-white">
             <Shirt className="h-4 w-4 text-[#CC2D24]" />
-            <h3 className="text-sm font-semibold">Select Garment Categories</h3>
-            <span className="text-xs text-[#CC2D24] font-medium">* Select at least 1</span>
+            <h3 className="text-sm font-semibold">{cerigaTranslate("interface.text_a1a93cf9f1b2e517")}</h3>
+            <span className="text-xs text-[#CC2D24] font-medium">{cerigaTranslate("interface.text_1ed1d9e980f90509")}</span>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            aria-label="Select all garment categories"
+            aria-label={cerigaTranslate("interface.text_7b0980de705b78f8")}
             disabled={ALL_GARMENT_CATEGORIES.every(cat => profile.garments.includes(cat))}
             onClick={() => {
               clearConfirmation();
@@ -119,16 +120,15 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
               if (!expandedCategory) setExpandedCategory(garments[0] ?? null);
             }}
             className="h-8 border-white/15 text-xs text-white hover:bg-white/10"
-          >Select all</Button>
+          >{cerigaTranslate("interface.text_1fc9a387654d410f")}</Button>
           <span className="text-xs text-white/50">
-            {profile.garments.length} selected
-          </span>
+            {profile.garments.length}{" "}{cerigaTranslate("interface.text_d7cbbb688b2e506c")}</span>
           </div>
         </div>
 
         {errors.garments && (
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-200">
-            {errors.garments}
+            {cerigaTranslateLabel(errors.garments)}
           </div>
         )}
 
@@ -162,16 +162,16 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                 </div>
                 {selected && (
                   <span className="mt-2 text-[10px] text-red-200/80 font-medium">
-                    {isGarmentConfirmed(profile.garmentDetails?.[cat]) ? 'Confirmed specs' : 'Review suggestions'} &rarr;
+                    {isGarmentConfirmed(profile.garmentDetails?.[cat]) ? cerigaTranslate("interface.text_80c41ec1a0265513") : cerigaTranslate("interface.text_2b58dd60e483ec44")} &rarr;
                   </span>
                 )}
               </button>
             );
           })}
         </div>
-        <div className="garment-confirmation-bar"><p>Confirm that your factory supports the selected garment specifications. You can review and edit each category below.</p><Button type="button" className="garment-confirm-selected" disabled={!profile.garments.length||profile.garments.every(cat=>isGarmentConfirmed(profile.garmentDetails?.[cat]))} onClick={confirmSelected}><Check className="h-3.5 w-3.5"/>{profile.garments.length>0&&profile.garments.every(cat=>isGarmentConfirmed(profile.garmentDetails?.[cat]))?'All selected confirmed':'Confirm selected garments'}</Button></div>
+        <div className="garment-confirmation-bar"><p>{cerigaTranslate("interface.text_b639d996f39b4525")}</p><Button type="button" className="garment-confirm-selected" disabled={!profile.garments.length||profile.garments.every(cat=>isGarmentConfirmed(profile.garmentDetails?.[cat]))} onClick={confirmSelected}><Check className="h-3.5 w-3.5"/>{profile.garments.length>0&&profile.garments.every(cat=>isGarmentConfirmed(profile.garmentDetails?.[cat]))?cerigaTranslate("interface.text_f64d516fa3b67126"):cerigaTranslate("interface.text_b8832d6c862df8ab")}</Button></div>
         {confirmationMessage&&<p role="status" className="garment-confirmation-message">{confirmationMessage}</p>}
-        {confirmationIssues.length>0&&<div role="alert" className="garment-confirmation-issues"><p>These garments still need attention:</p><ul>{confirmationIssues.map(issue=><li key={issue}>{issue}</li>)}</ul></div>}
+        {confirmationIssues.length>0&&<div role="alert" className="garment-confirmation-issues"><p>{cerigaTranslate("interface.text_d490452024cc3f27")}</p><ul>{confirmationIssues.map(issue=><li key={issue}>{issue}</li>)}</ul></div>}
       </div>
 
       {/* Garment-Specific Capabilities (Conditional Sections) */}
@@ -179,14 +179,10 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-white">Garment-Specific Specifications</h3>
-              <p className="text-xs text-white/40">
-                Suggestions are not verified capabilities. Confirm each category before it can be used for order matching. Editing a category requires confirmation again.
-              </p>
+              <h3 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_bf3624f0fb5b32d4")}</h3>
+              <p className="text-xs text-white/40">{cerigaTranslate("interface.text_82972d6b756469dc")}</p>
             </div>
-            <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-white/40">
-              Review required
-            </span>
+            <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] font-medium text-white/40">{cerigaTranslate("interface.text_f0742e3a82fe8b57")}</span>
           </div>
 
           <div className="space-y-3">
@@ -221,20 +217,20 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                       <div>
                         <span className="text-sm font-semibold text-white">{cat}</span>
                         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-white/40">
-                          <span>{detail.styles?.length || 0} styles</span>
+                          <span>{detail.styles?.length || 0}{" "}{cerigaTranslate("interface.text_90a7578caf8760be")}</span>
                           <span>&bull;</span>
                           <span>
                             {detail.minGsm && detail.maxGsm
-                              ? `${detail.minGsm} - ${detail.maxGsm} GSM`
-                              : 'Standard GSM'}
+                              ? cerigaTranslate("interface.text_a4b764c35f579e00",{value0:(detail.minGsm),value1:(detail.maxGsm)})
+                              : cerigaTranslate("interface.text_63f879ecbe54ddda")}
                           </span>
                           <span>&bull;</span>
-                          <span>{detail.materials?.length || 0} fabrics</span>
+                          <span>{detail.materials?.length || 0}{" "}{cerigaTranslate("interface.text_e8a76a07860e076e")}</span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-white/50">
-                      <span className="text-xs">{isExpanded ? 'Collapse' : 'Configure'}</span>
+                      <span className="text-xs">{isExpanded ? cerigaTranslate("nav.collapse") : cerigaTranslate("interface.text_6defafa2caa65304")}</span>
                       {isExpanded ? (
                         <ChevronUp className="h-4 w-4" />
                       ) : (
@@ -243,14 +239,14 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                     </div>
                   </button>
 
-                  {errors[cat] && <p className="px-5 pb-3 text-xs text-red-400">{errors[cat]}</p>}
+                  {errors[cat] && <p className="px-5 pb-3 text-xs text-red-400">{cerigaTranslateLabel(errors[cat])}</p>}
 
                   {/* Expanded Customisation Form */}
                   {isExpanded && (
                     <div className="border-t border-[#252528] p-5 sm:p-6 space-y-6 bg-black/20">
                       <GarmentOptionField
-                        label={`Supported styles & fits for ${cat}`}
-                        placeholder="Add custom style or fit..."
+                        label={cerigaTranslate("interface.text_09eccd7db0863aba",{value0:(cat)})}
+                        placeholder={cerigaTranslate("interface.text_5e632027ed1f8660")}
                         options={stylePresets}
                         selected={detail.styles ?? []}
                         customOptions={detail.customStyles ?? []}
@@ -263,12 +259,8 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                       {/* Fabric Weight GSM Ranges */}
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
-                          <Label className="text-xs text-white/80 font-medium">
-                            Minimum Fabric Weight (GSM)
-                          </Label>
-                          <p className="text-[11px] text-white/40 mb-1.5">
-                            Lightest fabric weight your machines handle cleanly.
-                          </p>
+                          <Label className="text-xs text-white/80 font-medium">{cerigaTranslate("interface.text_9a3d449f01bec48f")}</Label>
+                          <p className="text-[11px] text-white/40 mb-1.5">{cerigaTranslate("interface.text_3e82c78ccd9a7e27")}</p>
                           <Input
                             type="number"
                             min="1"
@@ -283,12 +275,8 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                           />
                         </div>
                         <div>
-                          <Label className="text-xs text-white/80 font-medium">
-                            Maximum Fabric Weight (GSM)
-                          </Label>
-                          <p className="text-[11px] text-white/40 mb-1.5">
-                            Heaviest fabric weight your needles & stitchers accommodate.
-                          </p>
+                          <Label className="text-xs text-white/80 font-medium">{cerigaTranslate("interface.text_dd02d972a4f1e9b3")}</Label>
+                          <p className="text-[11px] text-white/40 mb-1.5">{cerigaTranslate("interface.text_0c0132e96df6cfbb")}</p>
                           <Input
                             type="number"
                             min="1"
@@ -304,14 +292,11 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-white/40">
-                        GSM suggestions describe the main fabric, not the finished garment, lining, or insulation.
-                        Adjust to your actual range; leave blank where GSM is not applicable, such as yarn-based knitwear.
-                      </p>
+                      <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_0ab0fd9fa2469b11")}</p>
 
                       <GarmentOptionField
-                        label="Supported materials & fabrications"
-                        placeholder="Add custom material (e.g. Bamboo fleece)..."
+                        label={cerigaTranslate("interface.text_e9933446f8037fe1")}
+                        placeholder={cerigaTranslate("interface.text_525c9ab29e444ae6")}
                         options={[...new Set([...defaults.materials, ...DEFAULT_MATERIALS])]}
                         selected={detail.materials ?? []}
                         customOptions={detail.customMaterials ?? []}
@@ -323,8 +308,8 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                       />
 
                       <GarmentOptionField
-                        label="Construction details"
-                        placeholder="Add custom construction detail..."
+                        label={cerigaTranslate("interface.text_bcc8b944e6c34005")}
+                        placeholder={cerigaTranslate("interface.text_7a686332a73e79a3")}
                         options={defaults.constructionDetails ?? []}
                         selected={detail.constructionDetails ?? []}
                         customOptions={detail.customConstructionDetails ?? []}
@@ -335,7 +320,7 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                       />
 
                       <div className="border-t border-[#252528] pt-4 space-y-2">
-                        {reviewError && <p className="text-xs text-amber-300">{reviewError}</p>}
+                        {reviewError && <p className="text-xs text-amber-300">{cerigaTranslateLabel(reviewError)}</p>}
                         <label className="flex items-start gap-2 text-xs text-white/80">
                           <input
                             type="checkbox"
@@ -343,11 +328,9 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
                             disabled={Boolean(reviewError)}
                             onChange={event => updateGarmentDetail(cat, { confirmed: event.target.checked })}
                             className="mt-0.5 accent-[#CC2D24]"
-                          />
-                          I have reviewed these selections and confirm our facility supports the selected {cat.toLowerCase()} styles, materials, construction details, and fabric weights.
-                        </label>
+                          />{cerigaTranslate("interface.text_53b6e3d4b11d928f")}{" "}{cat.toLowerCase()}{" "}{cerigaTranslate("interface.text_77ed5cce058c4d0d")}</label>
                         <p className="text-[11px] text-white/40">
-                          {confirmed ? 'Confirmed by you for order matching.' : 'Awaiting your review. These suggestions are excluded from order matching.'}
+                          {confirmed ? cerigaTranslate("interface.text_b48556051ce070f4") : cerigaTranslate("interface.text_9caa5c695c747230")}
                         </p>
                       </div>
                     </div>
@@ -366,16 +349,12 @@ export function StepProductsGarments({ profile, onChange, onNext, onBack, errors
           variant="outline"
           onClick={onBack}
           className="border-white/15 text-white hover:bg-white/5"
-        >
-          Back
-        </Button>
+        >{cerigaTranslate("common.back")}</Button>
         <Button
           type="button"
           onClick={onNext}
           className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
-        >
-          Continue to Production Capabilities
-        </Button>
+        >{cerigaTranslate("interface.text_be28a9a86697214e")}</Button>
       </div>
     </div>
   );

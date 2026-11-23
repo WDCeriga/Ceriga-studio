@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 "use client";
 
 import { useState } from "react";
@@ -8,12 +9,14 @@ import { cn } from "./ui/utils";
 import "./support-footer.css";
 
 export function DashboardLiveChat({light=false}:{light?:boolean}) {
+  useCerigaTranslation();
+
   const [open, setOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(false);
 
   return (
     <>
-      <footer className={cn("support-footer flex justify-end border-t border-[#252528] bg-[#09090B] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:px-6",light&&"support-footer-light")} aria-label="Support">
+      <footer className={cn("support-footer flex justify-end border-t border-[#252528] bg-[#09090B] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:px-6",light&&"support-footer-light")} aria-label={cerigaTranslate("adminOrders.support")}>
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -32,9 +35,7 @@ export function DashboardLiveChat({light=false}:{light?:boolean}) {
               <User className="h-2.5 w-2.5 text-white" strokeWidth={2.5} aria-hidden />
             </span>
           </span>
-          <span className="max-w-[200px] text-left text-sm font-semibold leading-tight text-[#F0EEEE] sm:max-w-none">
-            Chat with us
-          </span>
+          <span className="max-w-[200px] text-left text-sm font-semibold leading-tight text-[#F0EEEE] sm:max-w-none">{cerigaTranslate("interface.text_0e551acbe2082ccf")}</span>
         </button>
       </footer>
 
@@ -50,7 +51,7 @@ export function DashboardLiveChat({light=false}:{light?:boolean}) {
               : "lg:h-full lg:max-h-dvh lg:w-[min(100vw-1rem,400px)] lg:border-l lg:border-[#252528]",
           )}
         >
-          <SheetTitle className="sr-only">Chat with us</SheetTitle>
+          <SheetTitle className="sr-only">{cerigaTranslate("interface.text_0e551acbe2082ccf")}</SheetTitle>
           <SupportChatPanel
             layout="sheet"
             sheetOpen={open}

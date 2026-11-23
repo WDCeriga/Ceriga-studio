@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog';
 import { cn } from './ui/utils';
+import { useCerigaTranslation } from '../i18n/i18n';
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -38,6 +39,7 @@ export function ConfirmDialog({
   onConfirm,
   className,
 }: ConfirmDialogProps) {
+  const { label: translateLabel } = useCerigaTranslation();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className={cn('border-[#252528] bg-[#161618] text-[#F0EEEE] shadow-2xl shadow-black/50', className)}>
@@ -47,7 +49,7 @@ export function ConfirmDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel className="border-[#3A3A40] bg-transparent text-[#F0EEEE] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]">
-            {cancelLabel}
+            {translateLabel(cancelLabel)}
           </AlertDialogCancel>
           <AlertDialogAction
             className={cn(
@@ -59,7 +61,7 @@ export function ConfirmDialog({
               onOpenChange(false);
             }}
           >
-            {confirmLabel}
+            {translateLabel(confirmLabel)}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

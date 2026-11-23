@@ -32,8 +32,8 @@ const assign = async (id,factoryId,kind,units,status='processing') => {
 };
 
 try {
-  await db.exec(await fs.readFile('supabase/migrations/20261110030000_factory_order_history.sql','utf8'));
-  await db.exec(await fs.readFile('supabase/migrations/20261110050000_restore_bulk_quote_options.sql','utf8'));
+  // testDatabase loads the current schema; replaying older function definitions would undo later guards.
+
   for (const [id,email] of emails) await db.query('insert into auth.users(id,email,email_confirmed_at)values($1,$2,now())',[id,email]);
   await db.query("update profiles set role='manufacturer' where id in ($1,$2)",[factory,second]);
   await db.query("update profiles set full_name='Hidden Brand' where id=$1",[buyer]);

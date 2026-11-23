@@ -1,3 +1,5 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
+import { Translate } from '../i18n/LanguageProvider';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, ArrowUpRight, Download, Layers } from 'lucide-react';
@@ -10,6 +12,8 @@ import { products } from '../data/products';
 const RED = '#CC2D24';
 
 export function Home() {
+  useCerigaTranslation();
+
   return (
     <MarketingShell>
       {/* Hero */}
@@ -23,24 +27,21 @@ export function Home() {
 
         <div className="relative mx-auto grid max-w-[1320px] grid-cols-1 items-start gap-6 min-[560px]:grid-cols-2 min-[560px]:items-center min-[560px]:gap-4 md:gap-8 lg:gap-12 xl:gap-16">
           <div className="order-1 min-w-0 max-w-xl min-[560px]:order-1">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#CC2D24] sm:mb-3 sm:text-[10px]">
-              Precision built
-            </p>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#CC2D24] sm:mb-3 sm:text-[10px]">{cerigaTranslate("interface.text_a6958f4bad8417b2")}</p>
             <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-[clamp(1.35rem,4.2vw,3.75rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-[#F2F0EC] sm:leading-[1.05]">
               <span className="min-[560px]:hidden">
-                Build your garment.
+                <Translate k="marketing.heroA" />
                 <br />
-                <span style={{ color: RED }}>Ship a factory-ready</span>
+                <span style={{ color: RED }}><Translate k="marketing.heroB" /></span>
                 <br />
-                tech pack.
+                <Translate k="marketing.heroC" />
               </span>
               <span className="hidden min-[560px]:inline">
-                Build your garment. <span style={{ color: RED }}>Ship a factory-ready</span> tech pack.
+                <Translate k="marketing.heroA" /> <span style={{ color: RED }}><Translate k="marketing.heroB" /></span> <Translate k="marketing.heroC" />
               </span>
             </h1>
             <p className="mt-3 max-w-[28rem] text-[13px] leading-relaxed text-white/50 sm:mt-4 sm:text-[clamp(0.8rem,1.6vw,1rem)]">
-              Configure every detail visually, export professional PDFs (paid per download — no subscription), and use the
-              in-app AI assistant on free or monthly chat plans.
+              <Translate k="marketing.heroDetails" /> <Translate k="marketing.pdfPricing" />
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <Button
@@ -48,7 +49,7 @@ export function Home() {
                 className="h-11 min-h-[44px] w-full bg-[#CC2D24] text-xs font-semibold uppercase tracking-wider hover:bg-[#CC2D24]/90 sm:w-auto sm:px-8"
               >
                 <Link to="/signup" className="inline-flex items-center justify-center gap-2">
-                  Get started
+                  <Translate k="marketing.start" />
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -57,9 +58,7 @@ export function Home() {
                 variant="outline"
                 className="h-11 min-h-[44px] w-full border-white/18 bg-transparent text-xs font-semibold uppercase tracking-wider text-white/80 hover:bg-white/5 sm:w-auto sm:px-6"
               >
-                <Link to="/how-it-works" className="inline-flex items-center justify-center gap-2">
-                  How it works
-                </Link>
+                <Link to="/how-it-works" className="inline-flex items-center justify-center gap-2">{cerigaTranslate("nav.how")}</Link>
               </Button>
             </div>
 
@@ -74,7 +73,7 @@ export function Home() {
                     {val}
                   </div>
                   <div className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-white/40 sm:mt-1 sm:text-[10px]">
-                    {label}
+                    {cerigaTranslateLabel(label)}
                   </div>
                 </div>
               ))}
@@ -118,13 +117,11 @@ export function Home() {
               className="group rounded-[14px] border border-[#252528] bg-[#111113] p-5 transition-all hover:border-white/[0.14] sm:p-6"
             >
               <h2 className="flex items-center justify-between font-['Plus_Jakarta_Sans',sans-serif] text-base font-bold text-[#F2F0EC] sm:text-lg">
-                {card.title}
+                {cerigaTranslateLabel(card.title)}
                 <ArrowUpRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[#CC2D24]" />
               </h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/45">{card.body}</p>
-              <span className="mt-4 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#CC2D24]">
-                Read more
-                <ArrowRight className="h-3 w-3" />
+              <p className="mt-2 text-sm leading-relaxed text-white/45">{cerigaTranslateLabel(card.body)}</p>
+              <span className="mt-4 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#CC2D24]">{cerigaTranslate("interface.text_83b794145c0cc3f5")}<ArrowRight className="h-3 w-3" />
               </span>
             </Link>
           ))}
@@ -133,7 +130,7 @@ export function Home() {
 
       <MarketingFaq
         id="faq"
-        title="Questions, answered"
+        title={cerigaTranslate("interface.text_7b7e3d30ea887918")}
         items={[
           {
             q: 'How does the studio process work?',
@@ -165,10 +162,10 @@ export function Home() {
           <div className="mb-4 flex flex-col justify-between gap-2 sm:mb-10 sm:flex-row sm:items-end sm:gap-3">
             <div>
               <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#CC2D24] sm:mb-2 sm:text-[10px]">
-                Catalog
+                <Translate k="marketing.catalog" />
               </p>
               <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-[clamp(0.95rem,4.2vw,1.65rem)] font-bold tracking-tight text-[#F2F0EC] sm:text-[clamp(1.35rem,3vw,1.85rem)]">
-                Popular garment blueprints
+                <Translate k="marketing.popular" />
               </h2>
             </div>
             <Button
@@ -177,7 +174,7 @@ export function Home() {
               className="h-8 w-full shrink-0 border-white/15 text-xs text-white/80 hover:bg-white/5 sm:h-9 sm:w-auto sm:text-sm"
             >
               <Link to="/signup" className="inline-flex items-center gap-1">
-                Open studio
+                <Translate k="marketing.open" />
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -197,21 +194,18 @@ export function Home() {
         style={{ background: RED }}
       >
         <div className="mx-auto max-w-[640px] px-2 text-center">
-          <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.22em] text-white/75">Proof over promises</p>
+          <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.22em] text-white/75">{cerigaTranslate("interface.text_2eda435cd7a9692c")}</p>
           <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-[clamp(1.65rem,4vw,2.25rem)] font-extrabold leading-tight tracking-[-0.03em] text-white">
-            See the output quality
+            <Translate k="marketing.output" />
           </h2>
-          <p className="mx-auto mt-4 max-w-[460px] text-sm leading-relaxed text-white/80">
-            Download a sample tech pack to review layout, callouts, and measurement tables — the same structure your
-            manufacturers receive.
-          </p>
+          <p className="mx-auto mt-4 max-w-[460px] text-sm leading-relaxed text-white/80">{cerigaTranslate("interface.text_ae5c7097be45335f")}</p>
           <Button
             asChild
             className="mt-8 h-11 bg-white text-xs font-semibold uppercase tracking-wider text-[#CC2D24] hover:bg-white/95"
           >
             <a href="#" className="inline-flex items-center gap-2">
               <Download className="h-4 w-4" />
-              Download sample
+              <Translate k="marketing.sample" />
             </a>
           </Button>
         </div>
@@ -221,6 +215,8 @@ export function Home() {
 }
 
 function ProductCard({ product }: { product: (typeof products)[number] }) {
+  useCerigaTranslation();
+
   const [hovered, setHovered] = useState(false);
   return (
     <div
@@ -246,18 +242,14 @@ function ProductCard({ product }: { product: (typeof products)[number] }) {
         <h3 className="text-[11px] font-semibold leading-snug tracking-tight text-[#F2F0EC] sm:text-sm">{product.name}</h3>
         <div className="mt-1.5 flex gap-1.5 rounded border border-[#252528] bg-[#111113] p-1.5 sm:mt-3 sm:gap-2 sm:p-2">
           <Layers className="mt-0.5 h-3 w-3 shrink-0 text-white/35 sm:h-3.5 sm:w-3.5" />
-          <p className="text-[7px] leading-snug text-white/38 sm:text-[9px] sm:leading-relaxed">
-            Guided builder for measurements, materials, and construction.
-          </p>
+          <p className="text-[7px] leading-snug text-white/38 sm:text-[9px] sm:leading-relaxed">{cerigaTranslate("interface.text_ce789f63568762af")}</p>
         </div>
         <Link
           to={`/signup`}
           className={`mt-1.5 flex items-center justify-center gap-0.5 rounded py-1 text-[8px] font-semibold uppercase tracking-wider transition-colors sm:mt-3 sm:gap-1 sm:rounded-lg sm:py-2 sm:text-[10px] ${
             hovered ? 'bg-[#CC2D24] text-white' : 'border border-[#252528] text-white/45'
           }`}
-        >
-          Configure in studio
-          <ArrowUpRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+        >{cerigaTranslate("interface.text_c7e0f6b5597aafd1")}<ArrowUpRight className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
         </Link>
       </div>
     </div>

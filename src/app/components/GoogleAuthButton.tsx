@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useNavigate } from 'react-router';
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,6 +31,8 @@ function profileFromCredential(res: CredentialResponse) {
 type Flow = 'login' | 'signup';
 
 export function GoogleAuthButton({ flow }: { flow: Flow }) {
+  useCerigaTranslation();
+
   const navigate = useNavigate();
   const { loginWithGoogleProfile, signupWithGoogleProfile } = useAuth();
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
@@ -53,19 +56,19 @@ export function GoogleAuthButton({ flow }: { flow: Flow }) {
   const onGoogleSuccess = (res: CredentialResponse) => {
     const profile = profileFromCredential(res);
     if (!profile) {
-      toast.error('Could not read Google profile');
+      toast.error(cerigaTranslate("interface.text_4f3d5b9260049988"));
       return;
     }
     void finish(profile).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : 'Sign-in failed';
-      toast.error(message);
+      toast.error(cerigaTranslateLabel(message));
     });
   };
 
   const onDemo = () => {
     const n = Math.floor(Math.random() * 9000) + 1000;
     void finish({ email: `demo.user.${n}@gmail.com`, name: 'Demo Google user' }).catch(() =>
-      toast.error('Sign-in failed'),
+      toast.error(cerigaTranslate("interface.text_5ee01ca9e679b23b")),
     );
   };
 
@@ -79,9 +82,7 @@ export function GoogleAuthButton({ flow }: { flow: Flow }) {
       >
         <span className="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-[11px] font-bold text-[#4285F4]">
           G
-        </span>
-        Continue with Google
-      </Button>
+        </span>{cerigaTranslate("interface.text_cce937e891444a74")}</Button>
     );
   }
 
@@ -89,7 +90,7 @@ export function GoogleAuthButton({ flow }: { flow: Flow }) {
     <div className="flex w-full justify-center [&>div]:!w-full [&_iframe]:!mx-auto">
       <GoogleLogin
         onSuccess={onGoogleSuccess}
-        onError={() => toast.error('Google sign-in was cancelled or failed')}
+        onError={() => toast.error(cerigaTranslate("interface.text_43f938f57abeea64"))}
         useOneTap={false}
         theme="filled_black"
         size="large"

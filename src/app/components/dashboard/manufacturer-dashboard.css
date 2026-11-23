@@ -71,3 +71,50 @@
 @media(max-width:900px){.fh-work-grid{grid-template-columns:1fr}.fh-activity ol{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.fh-activity li:before{display:none}.fh-performance{align-items:flex-start;flex-direction:column;gap:20px}.fh-performance-metrics{width:100%}.fh-stat{padding:16px}.fh-stat-note>span{line-height:1.6}.fh-date{font-size:10px}}
 @media(max-width:600px){.fh-topline{padding-bottom:14px}.fh-date{display:none}.fh-heading{align-items:flex-start;flex-direction:column;padding:24px 0;gap:16px}.fh-heading h1{font-size:29px}.fh-toolbar{width:100%;justify-content:space-between}.factory-home select,.fh-icon-button,.fh-search,.fh-sort{min-height:44px}.fh-icon-button{width:44px}.fh-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.fh-stat:nth-child(2){border-right:0}.fh-stat:nth-child(-n+2){border-bottom:1px solid var(--fh-line)}.fh-stat>strong{font-size:30px;margin:10px 0}.fh-stat-note{font-size:9px}.fh-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.fh-shortcuts>a{min-height:55px}.fh-shortcuts strong{font-size:11px}.fh-section-head{padding:16px 16px 0}.fh-section-description{padding-left:16px;padding-right:16px}.fh-task-list{padding:0 16px}.fh-task-list>li{flex-wrap:wrap;gap:10px}.fh-task-main{flex-basis:calc(100% - 54px)}.fh-task-action{margin-left:50px;min-height:40px}.fh-activity ol{grid-template-columns:1fr;padding-left:16px;padding-right:16px}.fh-table-wrap{display:none}.fh-mobile-orders{display:block}.fh-mobile-orders>a{display:block;padding:16px;border-bottom:1px solid #ededed}.fh-mobile-orders>a:last-child{border:0}.fh-mobile-orders>a>div{display:flex;justify-content:space-between;gap:10px;font-size:12px}.fh-mobile-orders p{font-size:10px;color:var(--fh-muted);margin-top:6px}.fh-mobile-orders a>span{font-size:10px;color:var(--fh-secondary);display:block;margin-top:7px}.fh-order-toolbar{padding:16px}.fh-search{flex-basis:100%}.fh-order-toolbar select,.fh-sort{flex:1}.fh-performance-metrics{grid-template-columns:1fr;gap:15px}.fh-performance-metrics>div{display:grid;grid-template-columns:1fr auto;align-items:center;padding-bottom:15px;border-bottom:1px solid #ededed}.fh-performance-metrics strong{grid-column:2;grid-row:1/3;margin-top:0;font-size:25px}.fh-footer{flex-direction:column}.fh-error{align-items:flex-start;flex-direction:column}.fh-task-title>strong{overflow-wrap:anywhere}}
 @media(prefers-reduced-motion:reduce){.factory-home *{animation:none!important;transition:none!important}}
+
+/* Factory operations dashboard */
+.factory-operations .ops-heading{padding:12px 0 20px}
+.factory-operations .ops-heading .fh-eyebrow{margin-bottom:5px}
+.factory-operations .ops-section{margin-top:18px}
+.factory-operations .ops-section + .fh-stats{margin-top:18px}
+.factory-operations .ops-section h2{font-size:15px;font-weight:650}
+.factory-operations .ops-filter{display:grid;gap:4px;font-size:11px;color:var(--fh-secondary);min-width:0}
+.factory-operations .ops-filter select{max-width:100%;width:100%;color:var(--fh-ink)}
+.factory-operations .fh-search{align-self:end;min-height:36px}
+.factory-operations .fh-order-toolbar{padding-block:12px}
+.factory-operations .ops-list{list-style:none;padding:0 16px;margin:0}
+.factory-operations .ops-list>li{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--fh-line)}
+.factory-operations .ops-list>li:first-child{border-top:0}
+.factory-operations .ops-item{flex:1;min-width:0;overflow-wrap:anywhere}
+.factory-operations :is(.ops-item,.ops-due,.ops-floor-row) small{display:block;color:var(--fh-secondary);font-size:11px;margin-top:3px}
+.factory-operations .ops-item p{margin-top:4px}
+.factory-operations .ops-list time,.factory-operations .ops-due{font-size:12px}
+.factory-operations .ops-urgent,.factory-operations small.ops-urgent{color:#a12822}
+.factory-operations .ops-empty{min-height:96px;padding:22px 16px}
+.factory-operations .ops-deadline-counts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--fh-line);border-block:1px solid var(--fh-line);margin-top:12px}
+.factory-operations .ops-deadline-counts>a{display:grid;gap:5px;background:white;padding:10px 16px}
+.factory-operations .ops-deadline-counts>a:hover{background:var(--fh-soft)}
+.factory-operations .ops-deadline-counts strong{font-size:19px}
+.factory-operations .ops-floor-head,.factory-operations .ops-floor-row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,.8fr) minmax(0,.85fr) minmax(0,1.1fr) minmax(0,1.15fr) minmax(0,1fr) minmax(0,1.05fr);gap:10px;align-items:center;padding:10px 14px}
+.factory-operations .ops-floor-head{background:#fafafa;color:var(--fh-secondary);font-size:11px}
+.factory-operations .ops-floor-row{border-top:1px solid var(--fh-line);font-size:12px;overflow-wrap:anywhere}
+.factory-operations .ops-order-cell{display:flex;align-items:center;gap:8px}
+.factory-operations .ops-order-cell a{min-width:0}
+.factory-operations .ops-pages{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:10px 16px;border-top:1px solid var(--fh-line)}
+.factory-operations .ops-pages button{border:1px solid var(--fh-line);border-radius:4px;min-height:36px;padding:5px 9px}
+.factory-operations .ops-pages button:disabled{opacity:.5}
+.factory-operations :is(a,button,select):focus-visible{outline:2px solid #262626;outline-offset:2px}
+.factory-operations .fh-task-action{margin-left:0;min-height:36px}
+@media(max-width:900px){
+  .factory-operations .ops-floor-head{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%)}
+  .factory-operations .ops-floor-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:14px}
+  .factory-operations .ops-order-cell{grid-column:1/-1}
+  .factory-operations .ops-floor-row [data-label]::before{content:attr(data-label);display:block;color:var(--fh-secondary);font-size:10px;margin-bottom:2px}
+}
+@media(max-width:600px){
+  .factory-operations .ops-deadline-counts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .factory-operations .ops-list>li{flex-wrap:wrap}
+  .factory-operations .ops-list>li>.ops-item{flex-basis:calc(100% - 60px)}
+  .factory-operations .fh-task-action,.factory-operations .ops-pages button{min-height:44px}
+  .factory-operations .ops-filter{flex:1 1 120px}
+}

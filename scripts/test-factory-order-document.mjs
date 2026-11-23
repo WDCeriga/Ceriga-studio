@@ -1,3 +1,4 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { transformWithEsbuild } from 'vite';
@@ -23,11 +24,11 @@ const server={from:name=>{
   return {data:new Blob(['mock png'],{type:'image/png'})};
 }})}};
 const Deno={env:{get:key=>key},serve:callback=>{handler=callback;}};
-new Function('require','Deno',code)(()=>({createClient:(_url,key,options)=>{
+new Function('require','Deno',code)(((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(()=>({createClient:(_url,key,options)=>{
   if(key==='SUPABASE_SERVICE_ROLE_KEY')return server;
   assert.equal(options.global.headers['x-ceriga-factory'],factoryId);
   return actor;
-}}),Deno);
+}})),Deno);
 const request=(body={orderId,documentId,factoryId},authorization='Bearer mock')=>handler(new Request('https://example.invalid',{method:'POST',headers:authorization?{Authorization:authorization}:{},body:JSON.stringify(body)}));
 assert.equal((await request({},'')).status,400);
 assert.equal((await request(undefined,'')).status,401);

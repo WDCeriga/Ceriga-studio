@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { Link } from 'react-router';
 import { Building2, ChevronRight, Users } from 'lucide-react';
 import { AUDIENCE_META, getProfilesForAudience, type AccessAudience } from '../../../data/crmAccessMock';
@@ -15,7 +16,9 @@ const AUDIENCE_ICONS = {
 const AUDIENCES: Exclude<AccessAudience, 'manufacturers'>[] = ['users'];
 
 export function SuperAdminCRMAccess() {
-  const { users, loading } = useSuperadminData();
+  useCerigaTranslation();
+
+  const { users, loading } = useSuperadminData({scope:'users'});
 
   if (loading) {
     return <PageLoadingFallback />;
@@ -26,19 +29,10 @@ export function SuperAdminCRMAccess() {
       <AccessBreadcrumb />
 
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-          Roles & access
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          Who can see what
-        </h1>
-        <p className="mt-2 text-sm text-white/40">
-          Brand portal access.{' '}
-          <Link to="/superadmin/manufacturers" className="text-[#CC2D24] hover:underline">
-            Manage manufacturers
-          </Link>{' '}
-          in their own section.
-        </p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">{cerigaTranslate("interface.text_d9cda9d6e711a760")}</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{cerigaTranslate("interface.text_d7ec34643fddc87e")}</h1>
+        <p className="mt-2 text-sm text-white/40">{cerigaTranslate("interface.text_1e9eb41e2c133a22")}{' '}
+          <Link to="/superadmin/manufacturers" className="text-[#CC2D24] hover:underline">{cerigaTranslate("interface.text_ec525ca964280d14")}</Link>{' '}{cerigaTranslate("interface.text_953ea9da6510bf23")}</p>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -63,10 +57,10 @@ export function SuperAdminCRMAccess() {
                   <Icon className="h-5 w-5" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-white">{meta.title}</h2>
-                  <p className="mt-1 text-sm text-white/45">{meta.subtitle}</p>
+                  <h2 className="text-base font-semibold text-white">{cerigaTranslateLabel(meta.title)}</h2>
+                  <p className="mt-1 text-sm text-white/45">{cerigaTranslateLabel(meta.subtitle)}</p>
                   <p className="mt-3 text-[11px] tabular-nums text-white/35">
-                    {count} account{count === 1 ? '' : 's'}
+                    {count}{" "}{cerigaTranslate("interface.plural_noun_9af211329b2fc82e",{count:Number(count)})}
                   </p>
                 </div>
               </div>

@@ -1,3 +1,5 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
+import { LanguageSelect } from '../i18n/LanguageProvider';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,6 +43,9 @@ function navClass(active: boolean, collapsed?: boolean) {
 }
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
+  
+
+  const { t, label: translateLabel } = useCerigaTranslation();
   const navItems = baseNavItems;
   const location = useLocation();
   const navigate = useNavigate();
@@ -98,13 +103,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
               key={item.path}
               to={item.path}
               onClick={onNavigate}
-              title={collapsed ? item.label : undefined}
+              title={collapsed ? translateLabel(item.label) : undefined}
               data-ai-target={`nav-${item.label.toLowerCase()}`}
-              data-ai-label={`Sidebar: ${item.label}`}
+              data-ai-label={`Sidebar: ${translateLabel(item.label)}`}
               className={navClass(active, collapsed)}
             >
               <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{cerigaTranslateLabel(translateLabel(item.label))}</span>}
             </Link>
           );
         })}
@@ -112,13 +117,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           <Link
             to="/superadmin"
             onClick={onNavigate}
-            title={collapsed ? 'Superadmin' : undefined}
+            title={collapsed ? cerigaTranslate("interface.text_9f53f96c1bb7a218") : undefined}
             data-ai-target="nav-superadmin"
             data-ai-label="Sidebar: Superadmin"
             className={navClass(isActive('/superadmin'), collapsed)}
           >
             <Shield className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-            {!collapsed && <span>Superadmin</span>}
+            {!collapsed && <span>{cerigaTranslate("interface.text_9f53f96c1bb7a218")}</span>}
           </Link>
         )}
       </nav>
@@ -126,22 +131,23 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         <Link
           to="/settings"
           onClick={onNavigate}
-          title={collapsed ? 'Settings' : undefined}
+          title={collapsed ? cerigaTranslate("nav.settings") : undefined}
           data-ai-target="nav-settings"
           data-ai-label="Sidebar: Settings"
           className={navClass(isActive('/settings'), collapsed)}
         >
           <Settings className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-          {!collapsed && <span>Settings</span>}
+          {!collapsed && <span>{t('nav.settings')}</span>}
         </Link>
+        <div className="px-2 py-1"><LanguageSelect compact={collapsed} /></div>
         <button
           type="button"
           onClick={handleLogout}
-          title={collapsed ? 'Log out' : undefined}
+          title={collapsed ? cerigaTranslate("authentication.logout") : undefined}
           className={cn(navClass(false, collapsed), 'w-full text-left')}
         >
           <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-          {!collapsed && <span>Log out</span>}
+          {!collapsed && <span>{t('authentication.logout')}</span>}
         </button>
       </div>
     </>
@@ -155,24 +161,20 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             type="button"
             onClick={() => setSheetOpen(true)}
             className="flex size-12 min-h-12 min-w-12 shrink-0 items-center justify-center rounded-md border border-[#252528] bg-[#161618] text-[#F0EEEE] hover:bg-[#1C1C1E]"
-            aria-label="Open menu"
+            aria-label={t('nav.openMenu')}
           >
             <Menu className="size-6" strokeWidth={1.75} />
           </button>
           <Link
             to="/dashboard"
             className="ceriga-mono text-[12px] font-medium uppercase tracking-[0.12em] text-[#F0EEEE]"
-          >
-            Ceriga
-          </Link>
+          >{cerigaTranslate("interface.text_49c6fd48ec76ae54")}</Link>
           <div className="flex items-center gap-2.5">
             <NotificationBell className="size-12 min-h-12 min-w-12 rounded-md border-[#252528] bg-[#161618] shadow-none backdrop-blur-0 [&_svg]:size-[20px]" />
             <Link
               to="/create"
               className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-md bg-[#CC2D24] px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-white hover:bg-[#E5534A]"
-            >
-              New
-            </Link>
+            >{cerigaTranslate("interface.text_18fdd549b2ed367a")}</Link>
           </div>
         </header>
       )}
@@ -182,16 +184,14 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           side="left"
           className="w-[min(300px,88vw)] border-[#252528] bg-[#09090B] p-0 text-[#F0EEEE] [&>button]:text-[#A3A3A8]"
         >
-          <SheetTitle className="sr-only">Main navigation</SheetTitle>
+          <SheetTitle className="sr-only">{cerigaTranslate("interface.text_eb355944b92d1058")}</SheetTitle>
           <div className="flex h-full flex-col pt-10">
             <div className="border-b border-[#252528] px-4 py-3">
               <Link
                 to="/dashboard"
                 onClick={() => setSheetOpen(false)}
                 className="ceriga-mono text-[12px] font-medium uppercase tracking-[0.1em] text-[#F0EEEE]"
-              >
-                Ceriga Studio
-              </Link>
+              >{cerigaTranslate("interface.text_38ebb1fe0ef59523")}</Link>
             </div>
             <NavLinks onNavigate={() => setSheetOpen(false)} />
           </div>
@@ -214,15 +214,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             <Link
               to="/dashboard"
               className="ceriga-mono text-[12px] font-medium uppercase tracking-[0.1em] text-[#F0EEEE]"
-            >
-              Ceriga Studio
-            </Link>
+            >{cerigaTranslate("interface.text_38ebb1fe0ef59523")}</Link>
           )}
           <button
             type="button"
             onClick={() => setIsCollapsed((prev) => !prev)}
             className="flex h-7 w-7 items-center justify-center rounded-md text-[#6B6B72] hover:bg-[#1C1C1E] hover:text-[#A3A3A8]"
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? cerigaTranslate("interface.text_37a5d6485e109bf6") : cerigaTranslate("interface.text_aab31cde23ba9783")}
           >
             {isCollapsed ? (
               <ChevronRight className="h-3.5 w-3.5" />
@@ -237,9 +235,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             <Link
               to="/dashboard"
               className="ceriga-mono text-[10px] font-medium uppercase tracking-[0.14em] text-[#F0EEEE]"
-            >
-              CS
-            </Link>
+            >{cerigaTranslate("interface.text_3a22ef4d24956d59")}</Link>
           </div>
         )}
 

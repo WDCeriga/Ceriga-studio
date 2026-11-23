@@ -1,3 +1,5 @@
+import { garmentAssetLabel } from '../../components/builder/TshirtAssetChoiceGrid';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { StudioColorField } from '../../components/builder/StudioColorField';
@@ -108,6 +110,8 @@ function CodedLinesCanvas({
   maxStrokes: number;
   onOutline?: (outline: CodedOutline | null) => void;
 }) {
+  useCerigaTranslation();
+
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -144,7 +148,7 @@ function CodedLinesCanvas({
       .catch((err: unknown) => {
         if (cancelled) return;
         onOutlineRef.current?.(null);
-        setError(err instanceof Error ? err.message : 'Extract failed');
+        setError(err instanceof Error ? err.message : cerigaTranslate("interface.text_d79e37163a7a7325"));
         setBusy(false);
       });
     return () => {
@@ -156,13 +160,11 @@ function CodedLinesCanvas({
     <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-[#0c0c0e]">
       {html ? <InlineMarkup html={html} /> : null}
       {busy ? (
-        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-white/45">
-          Extracting coded lines…
-        </div>
+        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-white/45">{cerigaTranslate("interface.text_b6e0cb7092e295b0")}</div>
       ) : null}
       {error ? (
         <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-[11px] text-red-300">
-          {error}
+          {cerigaTranslateLabel(error)}
         </div>
       ) : null}
     </div>
@@ -193,6 +195,8 @@ function FloodFillCanvas({
   mode: 'flood' | 'span' | 'close-and-flood';
   showClosingLines: boolean;
 }) {
+  useCerigaTranslation();
+
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -218,7 +222,7 @@ function FloodFillCanvas({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Fill failed');
+          setError(err instanceof Error ? err.message : cerigaTranslate("interface.text_582ac180957715d4"));
           setBusy(false);
         }
       });
@@ -233,13 +237,11 @@ function FloodFillCanvas({
         <img alt="" src={src} className="absolute inset-0 h-full w-full object-contain" />
       ) : null}
       {busy ? (
-        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-white/45">
-          Closing edges & filling…
-        </div>
+        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-white/45">{cerigaTranslate("interface.text_e291a9aef2bc4200")}</div>
       ) : null}
       {error ? (
         <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-[11px] text-red-300">
-          {error}
+          {cerigaTranslateLabel(error)}
         </div>
       ) : null}
     </div>
@@ -332,6 +334,8 @@ function MethodCanvas({
 }
 
 export function SleeveColorLab() {
+  useCerigaTranslation();
+
   const sleeves = useMemo(() => getGarmentAssets('tshirt', SLEEVE_CATEGORY), []);
   const cuffs = useMemo(() => getGarmentAssets('tshirt', CUFF_CATEGORY), []);
   const [sleeveId, setSleeveId] = useState(sleeves[0]?.id ?? '');
@@ -352,8 +356,7 @@ export function SleeveColorLab() {
 
   if (!sleeve) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0b] text-white">
-        No sleeve assets found under “{SLEEVE_CATEGORY}”.
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0b] text-white">{cerigaTranslate("interface.text_d04cae8a164e7f43")}{SLEEVE_CATEGORY}”.
       </div>
     );
   }
@@ -363,47 +366,31 @@ export function SleeveColorLab() {
       <header className="border-b border-white/10 bg-[#111113]/90 px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
-              Lab
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">
-              Sleeve colour methods
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-white/55">
-              Today’s assets are static potrace SVGs. Method 1 converts a sleeve into{' '}
-              <span className="text-white/80">coded polylines</span> (e.g. two lines), closes the
-              open ends, and fills the polygon in code.
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">{cerigaTranslate("interface.text_efdcf466b553a068")}</p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{cerigaTranslate("interface.text_7b85b262c610ca5c")}</h1>
+            <p className="mt-1 max-w-2xl text-sm text-white/55">{cerigaTranslate("interface.text_2b7b0cc5494520f5")}{' '}
+              <span className="text-white/80">{cerigaTranslate("interface.text_c89e2a503d816934")}</span>{" "}{cerigaTranslate("interface.text_0977e4230a18a105")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <Link
               to="/lab"
               className="text-white/50 underline-offset-4 hover:text-white hover:underline"
-            >
-              All labs
-            </Link>
+            >{cerigaTranslate("interface.text_9e87d9dadae79eb5")}</Link>
             <Link
               to="/lab/garment-json"
               className="text-white/50 underline-offset-4 hover:text-white hover:underline"
-            >
-              Garment JSON
-            </Link>
+            >{cerigaTranslate("interface.text_47205cf6512f87ab")}</Link>
             <Link
               to="/catalog"
               className="text-white/50 underline-offset-4 hover:text-white hover:underline"
-            >
-              Catalog
-            </Link>
+            >{cerigaTranslate("marketing.catalog")}</Link>
           </div>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[320px_minmax(0,1fr)] sm:px-6">
         <aside className="space-y-5 rounded-2xl border border-[#252528] bg-[#111113] p-4">
-          <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 p-3 text-[12px] leading-relaxed text-sky-100/85">
-            Blue dashed segment = closing edge added in code between the two loose ends (like
-            connecting your V into a triangle you can fill).
-          </div>
+          <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 p-3 text-[12px] leading-relaxed text-sky-100/85">{cerigaTranslate("interface.text_be0e28f687db5cb9")}</div>
 
           <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] text-white/70">
             <input
@@ -411,14 +398,10 @@ export function SleeveColorLab() {
               checked={asStraightLines}
               onChange={(e) => setAsStraightLines(e.target.checked)}
               className="accent-[#5B8CF5]"
-            />
-            Fit each stroke to a straight line (2 points)
-          </label>
+            />{cerigaTranslate("interface.text_a2064383f818961b")}</label>
 
           <div>
-            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">
-              Max strokes (2 = your sleeve example)
-            </label>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_4864b3b0ebfa2a28")}</label>
             <input
               type="range"
               min={1}
@@ -428,7 +411,7 @@ export function SleeveColorLab() {
               onChange={(e) => setMaxStrokes(Number(e.target.value))}
               className="w-full accent-[#5B8CF5]"
             />
-            <div className="mt-1 text-[11px] text-white/45">{maxStrokes} stroke(s)</div>
+            <div className="mt-1 text-[11px] text-white/45">{maxStrokes}{" "}{cerigaTranslate("interface.text_ccc19d228f297cd5")}</div>
           </div>
 
           <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] text-white/70">
@@ -437,15 +420,11 @@ export function SleeveColorLab() {
               checked={showClosingLines}
               onChange={(e) => setShowClosingLines(e.target.checked)}
               className="accent-[#5B8CF5]"
-            />
-            Show raster closing bridges (method 2)
-          </label>
+            />{cerigaTranslate("interface.text_ca3234dfdfe6f45e")}</label>
 
           {codedOutline ? (
             <div className="space-y-2">
-              <p className="text-[10px] uppercase tracking-wider text-white/50">
-                Extracted code
-              </p>
+              <p className="text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_c9d91c9fb4c203fb")}</p>
               <pre className="max-h-56 overflow-auto rounded-xl border border-white/10 bg-black/50 p-3 text-[10px] leading-relaxed text-emerald-200/90">
                 {codedOutline.codeSnippet}
               </pre>
@@ -453,9 +432,7 @@ export function SleeveColorLab() {
           ) : null}
 
           <div>
-            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">
-              Sleeve asset
-            </label>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_c0b14a62dca75f18")}</label>
             <select
               className="w-full rounded-lg border border-[#252528] bg-black/40 px-3 py-2 text-sm text-white"
               value={sleeve.id}
@@ -463,16 +440,14 @@ export function SleeveColorLab() {
             >
               {sleeves.map((asset) => (
                 <option key={asset.id} value={asset.id}>
-                  {asset.displayName}
+                  {garmentAssetLabel(asset.displayName)}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">
-              Cuff / hem asset (method 6)
-            </label>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_eea9423e3bc1b566")}</label>
             <select
               className="w-full rounded-lg border border-[#252528] bg-black/40 px-3 py-2 text-sm text-white"
               value={cuff?.id ?? ''}
@@ -480,16 +455,14 @@ export function SleeveColorLab() {
             >
               {cuffs.map((asset) => (
                 <option key={asset.id} value={asset.id}>
-                  {asset.displayName}
+                  {garmentAssetLabel(asset.displayName)}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">
-              Sleeve colour
-            </p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_793015055f7bebd9")}</p>
             <StudioColorField
               value={color}
               onChange={setColor}
@@ -500,9 +473,7 @@ export function SleeveColorLab() {
           </div>
 
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">
-              Cuff colour (method 6)
-            </p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_2e6ec5d75d09bc29")}</p>
             <StudioColorField
               value={cuffColor}
               onChange={setCuffColor}
@@ -513,9 +484,7 @@ export function SleeveColorLab() {
           </div>
 
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">
-              Focus method
-            </p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_8ee9d7338e8ba3e6")}</p>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
@@ -526,9 +495,7 @@ export function SleeveColorLab() {
                     ? 'border-[#CC2D24] bg-[#CC2D24]/15 text-white'
                     : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white',
                 )}
-              >
-                All
-              </button>
+              >{cerigaTranslate("interface.text_a52ace420f2175d0")}</button>
               {METHODS.map((m, i) => (
                 <button
                   key={m.id}
@@ -579,15 +546,11 @@ export function SleeveColorLab() {
               />
               <div className="space-y-1.5 border-t border-white/5 p-3.5">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-medium text-white">{method.title}</h2>
+                  <h2 className="text-sm font-medium text-white">{cerigaTranslateLabel(method.title)}</h2>
                   {method.fillsInterior ? (
-                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-200">
-                      fills interior
-                    </span>
+                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-200">{cerigaTranslate("interface.text_876e88f1f4e8866e")}</span>
                   ) : (
-                    <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/40">
-                      outline only
-                    </span>
+                    <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-white/40">{cerigaTranslate("interface.text_14aaa81814d8773d")}</span>
                   )}
                 </div>
                 <p className="text-[12px] leading-snug text-white/50">{method.blurb}</p>

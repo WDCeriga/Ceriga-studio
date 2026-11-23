@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { FolderOpen, Save } from 'lucide-react';
@@ -26,6 +27,8 @@ type Props = {
 
 /** Save / reuse packaging designs (DB library + packaging projects). */
 export function PackagingReuseBar({ snapshot, onApply }: Props) {
+  useCerigaTranslation();
+
   const { isAuthenticated, authReady, usingSupabase } = useAuth();
   const [items, setItems] = useState<ReusablePackagingItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
@@ -45,16 +48,16 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
   const handleApply = () => {
     const item = items.find((i) => i.id === selectedId);
     if (!item) {
-      toast.error('Pick a saved packaging design first');
+      toast.error(cerigaTranslate("interface.text_a50c1470b78cd369"));
       return;
     }
     onApply(structuredClone(item.snapshot));
-    toast.success(`Applied “${item.name}”`);
+    toast.success(cerigaTranslate("interface.text_d1c5043e7806d425",{value0:(item.name)}));
   };
 
   const handleSaveLibrary = async () => {
     if (!usingSupabase || !isAuthenticated) {
-      toast.error('Sign in to save packaging to your library');
+      toast.error(cerigaTranslate("interface.text_70fc94abcb1d4957"));
       return;
     }
     setBusy(true);
@@ -63,9 +66,9 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
       setSaveName('');
       await refresh();
       setSelectedId(entry.id);
-      toast.success('Saved to packaging library');
+      toast.success(cerigaTranslate("interface.text_d999c46eff32fc5d"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save packaging');
+      toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_effd4fdb6f4ab10a")));
     } finally {
       setBusy(false);
     }
@@ -74,32 +77,26 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
   return (
     <div className="space-y-3 rounded-[6px] border border-[#252528] bg-[#111113] p-3">
       <div className="flex items-center gap-2 justify-between">
-        <p className="ceriga-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8A90]">
-          Save & reuse
-        </p>
+        <p className="ceriga-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8A90]">{cerigaTranslate("interface.text_c94cbd24980de9ee")}</p>
         <Link
           to="/projects"
           className="text-[10px] text-[#6B6B72] underline-offset-2 hover:text-[#A3A3A8] hover:underline"
-        >
-          All projects
-        </Link>
+        >{cerigaTranslate("interface.text_4b87271b6b8170d4")}</Link>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="min-w-0 flex-1">
-          <label className="mb-1 block text-[10px] uppercase tracking-wider text-[#6B6B72]">
-            Apply saved
-          </label>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-[#6B6B72]">{cerigaTranslate("interface.text_b16aee48015280f9")}</label>
           <Select value={selectedId || undefined} onValueChange={setSelectedId}>
             <SelectTrigger className="h-9 border-[#252528] bg-black/40 text-[12px] text-[#F0EEEE]">
-              <SelectValue placeholder={items.length ? 'Choose packaging…' : 'No saved packaging yet'} />
+              <SelectValue placeholder={items.length ? cerigaTranslate("interface.text_3f5b140e7ecd1304") : cerigaTranslate("interface.text_e3fa6217ac5a4984")} />
             </SelectTrigger>
             <SelectContent className="border-[#252528] bg-[#161618] text-[#F0EEEE]">
               {items.map((item) => (
                 <SelectItem key={item.id} value={item.id} className="text-[12px]">
                   {item.name}
                   <span className="ml-1 text-[#6B6B72]">
-                    · {item.source === 'project' ? 'project' : 'library'}
+                    · {item.source === 'project' ? cerigaTranslate("interface.text_244210e48437b655") : cerigaTranslate("interface.text_b718f1354f724731")}
                   </span>
                 </SelectItem>
               ))}
@@ -113,20 +110,16 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
           onClick={handleApply}
           className="h-9 shrink-0 border-[#3A3A40] text-[11px] !text-white hover:bg-white/10"
         >
-          <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-          Apply
-        </Button>
+          <FolderOpen className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_31e392d1c0378bec")}</Button>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="min-w-0 flex-1">
-          <label className="mb-1 block text-[10px] uppercase tracking-wider text-[#6B6B72]">
-            Save current to library
-          </label>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-[#6B6B72]">{cerigaTranslate("interface.text_dd0b1ee72ac4a67b")}</label>
           <Input
             value={saveName}
             onChange={(e) => setSaveName(e.target.value)}
-            placeholder="e.g. Polybag — SS26"
+            placeholder={cerigaTranslate("interface.text_80c3ff4838ffd3ed")}
             className="h-9 border-[#252528] bg-black/40 text-[12px] text-[#F0EEEE] placeholder:text-[#6B6B72]"
           />
         </div>
@@ -136,14 +129,9 @@ export function PackagingReuseBar({ snapshot, onApply }: Props) {
           onClick={() => void handleSaveLibrary()}
           className="h-9 shrink-0 bg-[#CC2D24] text-[11px] font-semibold hover:bg-[#CC2D24]/90"
         >
-          <Save className="mr-1.5 h-3.5 w-3.5" />
-          Save
-        </Button>
+          <Save className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("common.save")}</Button>
       </div>
-      <p className="text-[10px] leading-relaxed text-[#45454B]">
-        Saves to your account library. Packaging projects you save while signed in also appear here
-        for reuse in any tech pack.
-      </p>
+      <p className="text-[10px] leading-relaxed text-[#45454B]">{cerigaTranslate("interface.text_2d50a80432827411")}</p>
     </div>
   );
 }

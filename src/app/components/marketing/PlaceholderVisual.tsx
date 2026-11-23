@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { cn } from '../ui/utils';
 import { ImageIcon } from 'lucide-react';
 
@@ -8,6 +9,8 @@ export function PlaceholderVisual({
   label: string;
   className?: string;
 }) {
+  useCerigaTranslation();
+
   return (
     <div
       className={cn(
@@ -24,11 +27,11 @@ export function PlaceholderVisual({
       />
       <div className="relative flex flex-col items-center gap-2 text-white/25">
         <ImageIcon className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={1} />
-        <span className="text-[9px] font-bold uppercase tracking-[0.2em]">Placeholder</span>
+        <span className="text-[9px] font-bold uppercase tracking-[0.2em]">{cerigaTranslate("interface.text_f4b24fed0274a316")}</span>
       </div>
       <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">{label}</span>
-        <span className="text-[9px] text-white/25">Replace with product shot</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">{cerigaTranslateLabel(label)}</span>
+        <span className="text-[9px] text-white/25">{cerigaTranslate("interface.text_74f0621c83b5fb08")}</span>
       </div>
     </div>
   );

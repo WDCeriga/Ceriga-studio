@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight } from 'lucide-react';
@@ -42,6 +43,8 @@ export function HomeTechpackPreview({
   /** Tighter layout for hero side-by-side (sm+) */
   compact?: boolean;
 }) {
+  useCerigaTranslation();
+
   const [colour, setColour] = useState<C>('forest');
   const [neck, setNeck] = useState<N>('hood');
   const [sleeve, setSleeve] = useState<S>('longR');
@@ -62,9 +65,7 @@ export function HomeTechpackPreview({
           'mb-1.5 text-center text-[8px] font-bold uppercase tracking-[0.18em] text-white/40 min-[560px]:text-left sm:text-[9px]',
           compact && 'min-[560px]:mb-1',
         )}
-      >
-        Interactive preview
-      </p>
+      >{cerigaTranslate("interface.text_19f6133860553e04")}</p>
       <div
         className={cn(
           'relative overflow-hidden rounded-2xl border border-[#252528] bg-[#09090B] shadow-[0_24px_80px_rgba(0,0,0,0.5)] sm:rounded-[18px]',
@@ -80,7 +81,7 @@ export function HomeTechpackPreview({
         >
           <img
             src={imgHoodie}
-            alt="Hoodie preview"
+            alt={cerigaTranslate("interface.text_58a0ae33e09b1cfe")}
             className="h-full w-full object-cover object-[center_15%]"
             width={480}
             height={600}
@@ -94,21 +95,17 @@ export function HomeTechpackPreview({
         </div>
 
         <div className={cn('border-t border-[#252528] bg-[#111113]/95 p-2.5 sm:p-3 md:p-4', compact && 'p-2 sm:p-2.5')}>
-          <p className={cn('mb-1.5 text-[8px] font-bold uppercase tracking-wider text-white/35', compact && 'mb-1')}>
-            Try a few choices
-          </p>
+          <p className={cn('mb-1.5 text-[8px] font-bold uppercase tracking-wider text-white/35', compact && 'mb-1')}>{cerigaTranslate("interface.text_fb8203e663139a22")}</p>
           <div className={cn('space-y-2', compact && 'space-y-1.5 sm:space-y-2')}>
             <div>
-              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>
-                Choose colour
-              </span>
+              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>{cerigaTranslate("interface.text_bc72ff3c85fbd0e8")}</span>
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 {colours.map(({ id, label, hex }) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() => setColour(id)}
-                    title={label}
+                    title={cerigaTranslateLabel(label)}
                     className={cn(
                       'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors sm:h-9 sm:w-9',
                       colour === id ? 'border-[#CC2D24] ring-2 ring-[#CC2D24]/35' : 'border-white/15 hover:border-white/30',
@@ -123,9 +120,7 @@ export function HomeTechpackPreview({
               </div>
             </div>
             <div>
-              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>
-                Select neck / collar type
-              </span>
+              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>{cerigaTranslate("interface.text_e3205fa5df6a28bc")}</span>
               <div className="flex flex-wrap gap-1 sm:gap-1.5">
                 {necks.map(({ id, label }) => (
                   <button
@@ -139,15 +134,13 @@ export function HomeTechpackPreview({
                         : 'border-[#252528] bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
                     )}
                   >
-                    {label}
+                    {cerigaTranslateLabel(label)}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>
-                Select sleeve
-              </span>
+              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>{cerigaTranslate("interface.text_e73baa5cfbb0c5af")}</span>
               <div className="flex flex-wrap gap-1 sm:gap-1.5">
                 {sleeves.map(({ id, label }) => (
                   <button
@@ -161,15 +154,13 @@ export function HomeTechpackPreview({
                         : 'border-[#252528] bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
                     )}
                   >
-                    {label}
+                    {cerigaTranslateLabel(label)}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>
-                Pockets
-              </span>
+              <span className={cn('mb-0.5 block text-[8px] text-white/40 sm:text-[9px]', compact && 'mb-0')}>{cerigaTranslate("interface.text_09fbcea7adb3acf0")}</span>
               <div className="flex flex-wrap gap-1 sm:gap-1.5">
                 {pocketsOpts.map(({ id, label }) => (
                   <button
@@ -183,7 +174,7 @@ export function HomeTechpackPreview({
                         : 'border-[#252528] bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white/70',
                     )}
                   >
-                    {label}
+                    {cerigaTranslateLabel(label)}
                   </button>
                 ))}
               </div>
@@ -195,9 +186,7 @@ export function HomeTechpackPreview({
               'mt-2 flex h-8 w-full items-center justify-center gap-1 rounded-lg bg-[#CC2D24] text-[9px] font-semibold uppercase tracking-wider text-white transition-colors hover:bg-[#CC2D24]/90 sm:mt-3 sm:h-9 sm:gap-1.5 sm:text-[10px]',
               compact && 'mt-2 h-8 text-[8px] sm:h-8 sm:text-[9px]',
             )}
-          >
-            Open full builder
-            <ArrowRight className="h-3.5 w-3.5" />
+          >{cerigaTranslate("interface.text_90dc81bc40c23803")}<ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </div>

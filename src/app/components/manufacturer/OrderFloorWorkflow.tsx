@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -43,6 +44,8 @@ export function OrderFloorWorkflow({
   order: FactoryOrder;
   onBooked?: () => void;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const matches = useMemo(
     () =>
@@ -78,7 +81,7 @@ export function OrderFloorWorkflow({
 
   const book = () => {
     if (!carrierId) {
-      toast.error('Enable a shipping carrier first');
+      toast.error(cerigaTranslate("interface.text_19544e629fc34544"));
       return;
     }
     createFactoryShipment({
@@ -97,7 +100,7 @@ export function OrderFloorWorkflow({
     });
     setConfirmOpen(false);
     onBooked?.();
-    toast.success('Shipment booked — appears under Shipping → Tracking');
+    toast.success(cerigaTranslate("interface.text_8f6c9a62ad30191e"));
   };
 
   return (
@@ -106,22 +109,17 @@ export function OrderFloorWorkflow({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Boxes className="h-4 w-4 text-[#CC2D24]" />
-            <h2 className="text-sm font-semibold text-white">Materials check</h2>
+            <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_a3b31cb2ea807e1d")}</h2>
           </div>
           <Link
             to="/manufacturer/materials"
             className="text-[11px] font-medium text-[#CC2D24] hover:underline"
-          >
-            Stock
-          </Link>
+          >{cerigaTranslate("interface.text_d5cade7ef3191690")}</Link>
         </div>
-        <p className="mt-1 text-[11px] text-white/40">
-          Matched against: <span className="text-white/55">{order.fabricNotes}</span>
+        <p className="mt-1 text-[11px] text-white/40">{cerigaTranslate("interface.text_084845e4a9b84c27")}{" "}<span className="text-white/55">{order.fabricNotes}</span>
         </p>
         {matches.length === 0 ? (
-          <p className="mt-3 text-[12px] text-white/40">
-            No stock matches — add materials or update fabric notes.
-          </p>
+          <p className="mt-3 text-[12px] text-white/40">{cerigaTranslate("interface.text_2ff7871a6759eacf")}</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {matches.map(({ material, reasons, lowStock }) => (
@@ -146,14 +144,10 @@ export function OrderFloorWorkflow({
                   </p>
                   {lowStock ? (
                     <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-amber-300">
-                      <AlertTriangle className="h-3 w-3" />
-                      Low
-                    </p>
+                      <AlertTriangle className="h-3 w-3" />{cerigaTranslate("interface.text_f793de205ead5ac3")}</p>
                   ) : (
                     <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-emerald-300/80">
-                      <CheckCircle2 className="h-3 w-3" />
-                      OK
-                    </p>
+                      <CheckCircle2 className="h-3 w-3" />{cerigaTranslate("interface.text_565339bc4d33d728")}</p>
                   )}
                 </div>
               </li>
@@ -166,24 +160,20 @@ export function OrderFloorWorkflow({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Ship className="h-4 w-4 text-[#CC2D24]" />
-            <h2 className="text-sm font-semibold text-white">Book shipment</h2>
+            <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_88bf554a928a577b")}</h2>
           </div>
           <Link
             to="/manufacturer/shipping"
             className="text-[11px] font-medium text-[#CC2D24] hover:underline"
-          >
-            Carriers
-          </Link>
+          >{cerigaTranslate("interface.text_2dfbed90b2d4b0d9")}</Link>
         </div>
 
         {existing ? (
           <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-3 text-[12px]">
             <p className="flex items-center gap-2 font-medium text-emerald-100">
-              <Truck className="h-3.5 w-3.5" />
-              Already booked
-            </p>
+              <Truck className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_6a06f2896d1b0f18")}</p>
             <p className="mt-1 text-emerald-100/70">
-              {getShippingCarrier(existing.carrierId)?.name} · {SHIPPING_MODE_LABEL[existing.mode]} ·{' '}
+              {getShippingCarrier(existing.carrierId)?.name} · {cerigaTranslateLabel(SHIPPING_MODE_LABEL[existing.mode])} ·{' '}
               {existing.incoterm}
               {existing.trackingNumber ? (
                 <span className="mt-1 block font-mono text-emerald-200">
@@ -193,14 +183,12 @@ export function OrderFloorWorkflow({
             </p>
           </div>
         ) : enabledCarriers.length === 0 ? (
-          <p className="mt-3 text-[12px] text-amber-200/90">
-            Enable a carrier under Shipping before booking.
-          </p>
+          <p className="mt-3 text-[12px] text-amber-200/90">{cerigaTranslate("interface.text_b5c61beeeb1d06d8")}</p>
         ) : (
           <div className="mt-3 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <Label className="text-[10px] text-white/40">Carrier</Label>
+                <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_271c535631ff3f3d")}</Label>
                 <Select value={carrierId} onValueChange={setCarrierId}>
                   <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                     <SelectValue />
@@ -215,7 +203,7 @@ export function OrderFloorWorkflow({
                 </Select>
               </div>
               <div>
-                <Label className="text-[10px] text-white/40">Mode</Label>
+                <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_5e23ec6a300dc60a")}</Label>
                 <Select value={mode} onValueChange={(v) => setMode(v as ShippingMode)}>
                   <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                     <SelectValue />
@@ -223,14 +211,14 @@ export function OrderFloorWorkflow({
                   <SelectContent className="border-[#252528] bg-[#161618] text-white">
                     {ALL_SHIPPING_MODES.map((m) => (
                       <SelectItem key={m} value={m}>
-                        {SHIPPING_MODE_LABEL[m]}
+                        {cerigaTranslateLabel(SHIPPING_MODE_LABEL[m])}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-[10px] text-white/40">Incoterm</Label>
+                <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_766608a70c8b0813")}</Label>
                 <Select value={incoterm} onValueChange={(v) => setIncoterm(v as Incoterm)}>
                   <SelectTrigger className="mt-1 border-white/15 bg-white/5 text-white">
                     <SelectValue />
@@ -238,32 +226,29 @@ export function OrderFloorWorkflow({
                   <SelectContent className="border-[#252528] bg-[#161618] text-white">
                     {ALL_INCOTERMS.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {INCOTERM_LABEL[t]}
+                        {cerigaTranslateLabel(INCOTERM_LABEL[t])}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-[10px] text-white/40">Tracking (optional)</Label>
+                <Label className="text-[10px] text-white/40">{cerigaTranslate("interface.text_ff9a823a09d27126")}</Label>
                 <Input
                   value={tracking}
                   onChange={(e) => setTracking(e.target.value)}
                   className="mt-1 border-white/15 bg-white/5 font-mono text-white"
-                  placeholder="Carrier ID"
+                  placeholder={cerigaTranslate("interface.text_9a71f391e7999450")}
                 />
               </div>
             </div>
-            <p className="text-[11px] text-white/40">
-              Est. shipping {displayMoney(quoteCents,LEGACY_FACTORY_CURRENCY)} · to {order.deliveryCity},{' '}
+            <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_77d3e22f2c23072e")}{" "}{displayMoney(quoteCents,LEGACY_FACTORY_CURRENCY)}{" "}{cerigaTranslate("interface.text_105281449127556d")}{" "}{order.deliveryCity},{' '}
               {order.deliveryCountry}
             </p>
             <Button
               className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
               onClick={() => setConfirmOpen(true)}
-            >
-              Book shipment
-            </Button>
+            >{cerigaTranslate("interface.text_88bf554a928a577b")}</Button>
           </div>
         )}
       </section>
@@ -271,9 +256,9 @@ export function OrderFloorWorkflow({
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Book this shipment?"
-        description={`Creates a tracking row for ${order.id} with ${getShippingCarrier(carrierId)?.name ?? 'carrier'} (${SHIPPING_MODE_LABEL[mode]}, ${incoterm}).`}
-        confirmLabel="Book shipment"
+        title={cerigaTranslate("interface.text_c68366b18a3708f6")}
+        description={cerigaTranslate("interface.text_60547fd561214951",{value0:(order.id),value1:(getShippingCarrier(carrierId)?.name ?? cerigaTranslate("interface.text_5803587e6791c119")),value2:(SHIPPING_MODE_LABEL[mode]),value3:(incoterm)})}
+        confirmLabel={cerigaTranslate("interface.text_88bf554a928a577b")}
         onConfirm={book}
       />
     </div>

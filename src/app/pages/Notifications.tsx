@@ -1,3 +1,5 @@
+import { activeLocale as cerigaLocale } from '../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import {
@@ -48,7 +50,7 @@ function categoryIcon(category: NotificationCategory) {
 function formatWhen(iso: string) {
   try {
     const d = new Date(iso);
-    return d.toLocaleString(undefined, {
+    return d.toLocaleString(cerigaLocale(), {
       dateStyle: "medium",
       timeStyle: "short",
     });
@@ -58,6 +60,9 @@ function formatWhen(iso: string) {
 }
 
 export function Notifications() {
+  
+
+ const { t, label: translateLabel } = useCerigaTranslation();
   const navigate = useNavigate();
   const { items, remove, clearAll, markRead, markAllRead } = useNotifications();
   const [filter, setFilter] = useState<"all" | NotificationCategory>("all");
@@ -93,28 +98,19 @@ export function Notifications() {
         onClick={() => navigate(-1)}
         className="mb-5 h-8 border-white/20 px-3 text-[10px] !text-white hover:bg-white/10"
       >
-        <ChevronLeft className="mr-1 h-3.5 w-3.5" />
-        BACK
-      </Button>
+        <ChevronLeft className="mr-1 h-3.5 w-3.5" />{cerigaTranslate("interface.text_639807a2e01886a2")}</Button>
 
       <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p
             className="mb-2 text-xs font-semibold uppercase tracking-[0.22em]"
             style={{ color: "#CC2D24" }}
-          >
-            Inbox
-          </p>
+          >{cerigaTranslate("interface.text_94835ea2fcf775cd")}</p>
           <h1
             className="text-3xl font-bold tracking-tight sm:text-4xl"
             style={{ color: "#F8F8F7", lineHeight: 1.08 }}
-          >
-            Notifications
-          </h1>
-          <p className="mt-2 max-w-lg text-base" style={{ color: "#ffffff50" }}>
-            Messages from the team, orders, payments, and system updates. Filter and sort
-            to find what matters.
-          </p>
+          >{cerigaTranslate("nav.notifications")}</h1>
+          <p className="mt-2 max-w-lg text-base" style={{ color: "#ffffff50" }}>{cerigaTranslate("interface.text_a7d64d029c602501")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {unread > 0 && (
@@ -127,26 +123,21 @@ export function Notifications() {
               }}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#CC2D24]" aria-hidden />
-              {unread} unread
-            </div>
+              {unread}{" "}{cerigaTranslate("interface.text_2cc1c371db104eb5")}</div>
           )}
           {unread > 0 && (
             <button
               type="button"
               onClick={() => markAllRead()}
               className="rounded-full border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              Mark all read
-            </button>
+            >{cerigaTranslate("interface.text_3bc62a9e6a39484a")}</button>
           )}
           {items.length > 0 && (
             <button
               type="button"
               onClick={() => setClearConfirmOpen(true)}
               className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300/90 transition-colors hover:bg-red-500/20"
-            >
-              Clear all
-            </button>
+            >{cerigaTranslate("interface.text_29a390f9237e3c84")}</button>
           )}
         </div>
       </div>
@@ -168,23 +159,21 @@ export function Notifications() {
                     : "border border-[#252528] bg-white/[0.04] text-white/55 hover:border-white/20 hover:text-white/80",
                 )}
               >
-                {label}
+                {cerigaTranslateLabel(label)}
               </button>
             );
           })}
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-white/35">
-            Sort
-          </span>
+          <span className="text-[11px] font-medium uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_bec69036aa27e7fa")}</span>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
             className="h-9 rounded-lg border border-[#252528] bg-[#111113] px-3 text-sm text-white outline-none focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/30"
           >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
+            <option value="newest">{cerigaTranslate("interface.text_ffb6f5764bddb68c")}</option>
+            <option value="oldest">{cerigaTranslate("interface.text_6e2ebdab3c02a3e6")}</option>
           </select>
         </div>
       </div>
@@ -198,8 +187,8 @@ export function Notifications() {
             style={{ background: "#111113" }}
           >
             {items.length === 0
-              ? "No notifications yet."
-              : "No notifications in this category yet."}
+              ? cerigaTranslate("interface.text_ca02c722b0986174")
+              : cerigaTranslate("interface.text_37c214922150a342")}
           </li>
         ) : (
           rows.map((n) => {
@@ -221,11 +210,11 @@ export function Notifications() {
                         {!n.read && (
                           <span
                             className="h-2 w-2 shrink-0 rounded-full bg-[#CC2D24]"
-                            title="Unread"
+                            title={cerigaTranslate("notifications.unread")}
                             aria-hidden
                           />
                         )}
-                        <h2 className="text-sm font-semibold text-[#F0F0EE]">{n.title}</h2>
+                        <h2 className="text-sm font-semibold text-[#F0F0EE]">{cerigaTranslateLabel(translateLabel(n.title))}</h2>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <time
@@ -242,16 +231,16 @@ export function Notifications() {
                             remove(n.id);
                           }}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-white/35 transition-colors hover:bg-red-500/15 hover:text-red-300"
-                          aria-label={`Delete ${n.title}`}
+                          aria-label={cerigaTranslate("interface.text_50256b3995d67d1e",{value0:(n.title)})}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
                     <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#CC2D24]/90">
-                      {NOTIFICATION_CATEGORY_LABEL[n.category]}
+                      {cerigaTranslateLabel(NOTIFICATION_CATEGORY_LABEL[n.category])}
                     </p>
-                    <p className="mt-2 text-sm leading-relaxed text-white/55">{n.body}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-white/55">{cerigaTranslateLabel(translateLabel(n.body))}</p>
                   </div>
                 </div>
             );
@@ -283,9 +272,9 @@ export function Notifications() {
       <ConfirmDialog
         open={clearConfirmOpen}
         onOpenChange={setClearConfirmOpen}
-        title="Delete all notifications?"
-        description="This clears your entire inbox and cannot be undone."
-        confirmLabel="Clear all"
+        title={cerigaTranslate("interface.text_054a1c1476e62f0e")}
+        description={cerigaTranslate("interface.text_2b6286d80188fc26")}
+        confirmLabel={cerigaTranslate("interface.text_29a390f9237e3c84")}
         tone="danger"
         onConfirm={clearAll}
       />

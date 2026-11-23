@@ -1,3 +1,5 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
+import { LanguageSelect } from '../i18n/LanguageProvider';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +14,9 @@ import { canAccessSuperadminLocalPreview } from '../lib/superadminAccess';
 import { fetchIsSuperadmin } from '../lib/superadminDb';
 
 export function Login() {
+  
+
+  const { t, label: translateLabel } = useCerigaTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -68,7 +73,7 @@ export function Login() {
 
       if (manufacturerLogin) {
         if (role !== 'manufacturer' && role !== 'worker') {
-          throw new Error('This account does not have manufacturer access. Use an invitation link from a Ceriga administrator.');
+          throw new Error("This account does not have manufacturer access. Use an invitation link from a Ceriga administrator.");
         }
         navigate('/manufacturer');
         return;
@@ -88,7 +93,7 @@ export function Login() {
       const message = err instanceof Error ? err.message : 'Invalid credentials';
       setError(
         message.includes('Email not confirmed')
-          ? 'Please verify your email first — check your inbox for the confirmation link.'
+          ? cerigaTranslate("interface.text_b9e0e4071d16c8bb")
           : message,
       );
     }
@@ -105,7 +110,7 @@ export function Login() {
       await requestPasswordReset(email.trim());
       setNotice('Password reset email sent — check your inbox.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send reset email');
+      setError(err instanceof Error ? err.message : cerigaTranslate("interface.text_3956f77394e0e0c7"));
     } finally {
       setResetting(false);
     }
@@ -116,46 +121,44 @@ export function Login() {
       <div className="w-full max-w-[390px]">
         <Link to="/" className="mb-5 inline-flex items-center text-[11px] uppercase tracking-wider text-white/60 transition-colors hover:text-white">
           <ArrowLeft className="mr-2 h-3.5 w-3.5" />
-          Back to home
+          {t('authentication.backHome')}
         </Link>
 
         <div className="rounded-2xl border border-[#252528] bg-white/5 p-6">
-          <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">Welcome Back</div>
-          <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold text-white">Log in</h1>
+          <div className="mb-3 flex justify-end"><LanguageSelect /></div>
+          <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">{t('authentication.welcome')}</div>
+          <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold text-white">{t('authentication.login')}</h1>
           <p className="mb-6 mt-1 text-sm text-white/55">
-            {manufacturerLogin ? 'Sign in to your manufacturer workspace.' : 'Access your Ceriga Studio workspace.'}
+            {t(manufacturerLogin ? "authentication.factorySignIn" : "authentication.studioSignIn")}
           </p>
 
-          {error && <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
-          {notice && <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{notice}</div>}
+          {error && <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">{cerigaTranslateLabel(translateLabel(error))}</div>}
+          {notice && <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">{cerigaTranslateLabel(translateLabel(notice))}</div>}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-[11px] uppercase tracking-wider text-white/55">Email</label>
-              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="you@example.com" autoComplete="email" />
+              <label htmlFor="email" className="mb-1.5 block text-[11px] uppercase tracking-wider text-white/55">{t('authentication.email')}</label>
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder={cerigaTranslate("interface.text_53e6cdc30765aade")} autoComplete="email" />
             </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label htmlFor="password" className="block text-[11px] uppercase tracking-wider text-white/55">Password</label>
+                <label htmlFor="password" className="block text-[11px] uppercase tracking-wider text-white/55">{t('authentication.password')}</label>
                 <button
                   type="button"
                   onClick={() => void handleForgotPassword()}
                   disabled={resetting}
                   className="text-[11px] text-[#E5534A] transition-colors hover:text-[#CC2D24] disabled:opacity-50"
                 >
-                  {resetting ? 'Sending…' : 'Forgot password?'}
+                  {t(resetting ? "authentication.sending" : "authentication.forgot")}
                 </button>
               </div>
-              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder="Enter your password" autoComplete="current-password" />
+              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10 w-full rounded-lg border border-[#252528] bg-black/20 px-3 text-sm text-white placeholder:text-white/35 focus:border-[#CC2D24] focus:outline-none" placeholder={t('authentication.enter')} autoComplete="current-password" />
             </div>
-            <Button type="submit" className="h-10 w-full bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90">LOG IN</Button>
+            <Button type="submit" className="h-10 w-full bg-[#CC2D24] text-xs font-semibold hover:bg-[#CC2D24]/90">{t('authentication.login')}</Button>
           </form>
 
           {!isSupabaseConfigured ? (
-            <p className="mt-3 text-center text-[10px] leading-relaxed text-amber-300/80">
-              Database not configured — sign-in is local preview only. Add Supabase keys to .env
-              (see .env.example).
-            </p>
+            <p className="mt-3 text-center text-[10px] leading-relaxed text-amber-300/80">{cerigaTranslate("interface.text_0936f3c45a6ea33e")}</p>
           ) : null}
 
           <div className="relative my-6">
@@ -163,15 +166,14 @@ export function Login() {
               <span className="w-full border-t border-[#252528]" />
             </div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-[0.14em]">
-              <span className="rounded bg-white/5 px-3 py-0.5 text-white/45">Or</span>
+              <span className="rounded bg-white/5 px-3 py-0.5 text-white/45">{t('authentication.or')}</span>
             </div>
           </div>
 
           <GoogleAuthButton flow="login" />
 
-          <p className="mt-5 text-center text-sm text-white/55">
-            Don&apos;t have an account?{' '}
-            <Link to={manufacturerLogin ? '/manufacturer/signup' : '/signup'} className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/80">Sign up</Link>
+          <p className="mt-5 text-center text-sm text-white/55">{cerigaTranslate("authentication.noAccount")}{' '}
+            <Link to={manufacturerLogin ? '/manufacturer/signup' : '/signup'} className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/80">{t('authentication.signup')}</Link>
           </p>
         </div>
       </div>

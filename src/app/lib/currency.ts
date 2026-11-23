@@ -1,3 +1,4 @@
+import { displayLocale } from '../i18n/locale';
 export const SUPPORTED_CURRENCIES = ['GBP', 'USD', 'EUR'] as const;
 export type Currency = typeof SUPPORTED_CURRENCIES[number];
 /** Only for explicitly GBP-denominated legacy factory price books, never unknown orders. */
@@ -10,8 +11,9 @@ export function currencySymbol(currency: Currency): string {
 }
 export function formatMoney(cents:number,currency:Currency,locale?:string):string{
  if(!Number.isSafeInteger(cents)||!isCurrency(currency))return 'Currency needs review';
- const formatter=new Intl.NumberFormat(locale||(typeof navigator!=='undefined'?navigator.language:'en-GB'),{style:'currency',currency,currencyDisplay:'symbol',minimumFractionDigits:2,maximumFractionDigits:2});
- const absolute=BigInt(cents<0?-cents:cents),whole=absolute/100n,fractional=(absolute%100n).toString().padStart(2,'0');
+ const formatter=new Intl.NumberFormat(locale || displayLocale(),{style:'currency',currency,currencyDisplay:'symbol',minimumFractionDigits:2,maximumFractionDigits:2});
+ const absolute=BigInt(cents<0?-cents:cents),whole=absolute/100n;
+ const fractional=new Intl.NumberFormat(locale || displayLocale(),{minimumIntegerDigits:2,useGrouping:false}).format(absolute%100n);
  const signed=cents<0?(whole===0n?-0:-whole):whole;
  const formatted=formatter.formatToParts(signed).map(p=>p.type==='fraction'?fractional:p.value).join('');return currency==='USD'?formatted+' USD':formatted;
 }

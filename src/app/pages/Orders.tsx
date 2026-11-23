@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { transactionMoney,displayMoney,useCurrency } from '../lib/accountCurrency';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../components/ui/button';
@@ -21,28 +22,28 @@ const kindFilters: { key: 'all' | UserOrderKind; label: string }[] = [
 ];
 
 function OrderKindBadge({ kind }: { kind: UserOrderKind }) {
+  useCerigaTranslation();
+
   if (kind === 'tech-pack') {
     return (
       <span className="ceriga-mono inline-flex items-center gap-1 rounded-[3px] border border-[#252528] bg-[#111113] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.06em] text-[#A3A3A8]">
-        <FileText className="h-3 w-3 shrink-0 text-[#8A8A90]" aria-hidden />
-        Tech pack
-      </span>
+        <FileText className="h-3 w-3 shrink-0 text-[#8A8A90]" aria-hidden />{cerigaTranslate("adminOrders.techpack")}</span>
     );
   }
   return (
     <span className="ceriga-mono inline-flex items-center gap-1 rounded-[3px] border border-[#5A4530] bg-[#1C0F0F] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.06em] text-[#E5534A]">
-      <Factory className="h-3 w-3 shrink-0 text-[#CC2D24]" aria-hidden />
-      Production
-    </span>
+      <Factory className="h-3 w-3 shrink-0 text-[#CC2D24]" aria-hidden />{cerigaTranslate("nav.production")}</span>
   );
 }
 
 function TrackingCell({ order }: { order: UserOrder }) {
+  useCerigaTranslation();
+
   if (order.kind === 'tech-pack') {
     return (
       <div className="max-w-[200px]">
         <span className="text-xs text-[#6B6B72]">—</span>
-        <p className="mt-0.5 text-[10px] leading-snug text-[#45454B]">Digital delivery · no shipment</p>
+        <p className="mt-0.5 text-[10px] leading-snug text-[#45454B]">{cerigaTranslate("interface.text_24b6cb2e9192f38f")}</p>
       </div>
     );
   }
@@ -53,7 +54,7 @@ function TrackingCell({ order }: { order: UserOrder }) {
         <button
           type="button"
           className="shrink-0 text-[#6B6B72] hover:text-[#A3A3A8]"
-          aria-label="Copy tracking number"
+          aria-label={cerigaTranslate("interface.text_1a543290fef3a62a")}
         >
           <Copy className="h-3.5 w-3.5" />
         </button>
@@ -62,8 +63,8 @@ function TrackingCell({ order }: { order: UserOrder }) {
   }
   return (
     <div>
-      <span className="text-xs text-[#8A8A90]">Pending</span>
-      <p className="mt-0.5 text-[10px] text-[#45454B]">Assigned when shipped</p>
+      <span className="text-xs text-[#8A8A90]">{cerigaTranslate("orders.pending")}</span>
+      <p className="mt-0.5 text-[10px] text-[#45454B]">{cerigaTranslate("interface.text_2b91854f7acd23a9")}</p>
     </div>
   );
 }
@@ -74,6 +75,8 @@ function formatTotal(order: UserOrder): string {
 }
 
 export function Orders() {
+  useCerigaTranslation();
+
 useCurrency();
   const navigate = useNavigate();
   const orders = useUserOrders();
@@ -99,11 +102,9 @@ useCurrency();
   return (
     <div className="ceriga-page overflow-x-hidden">
       <div className="mx-auto max-w-[1240px] px-4 pb-3 pt-7 sm:px-8 lg:px-10">
-        <div className="ceriga-page-eyebrow">Order management</div>
-        <h1 className="ceriga-page-title">Orders</h1>
-        <p className="ceriga-page-sub">
-          Open any order to see quotes, pay for a tier, track production, or download your tech pack.
-        </p>
+        <div className="ceriga-page-eyebrow">{cerigaTranslate("interface.text_3667722136f7a0e0")}</div>
+        <h1 className="ceriga-page-title">{cerigaTranslate("nav.orders")}</h1>
+        <p className="ceriga-page-sub">{cerigaTranslate("interface.text_3b9f407d4bb76ef4")}</p>
       </div>
 
       <div className="mx-auto max-w-[1240px] border-b border-[#252528] px-4 py-3 sm:px-8 lg:px-10">
@@ -112,7 +113,7 @@ useCurrency();
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8A8A90]" />
             <Input
               type="text"
-              placeholder="Search by order ID or product"
+              placeholder={cerigaTranslate("interface.text_247e37d3b56da4f9")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-9 border-[#252528] bg-[#161618] pl-9 text-xs text-[#F0EEEE] placeholder:text-[#6B6B72]"
@@ -122,7 +123,7 @@ useCurrency();
           <div
             className="grid grid-cols-3 gap-1 rounded-[6px] border border-[#252528] bg-[#111113] p-1 sm:max-w-sm"
             role="tablist"
-            aria-label="Filter orders by type"
+            aria-label={cerigaTranslate("interface.text_43c3d631fe5ff375")}
           >
             {kindFilters.map((f) => (
               <button
@@ -138,7 +139,7 @@ useCurrency();
                     : 'text-[#8A8A90] hover:text-[#F0EEEE]',
                 )}
               >
-                {f.label}
+                {cerigaTranslateLabel(f.label)}
               </button>
             ))}
           </div>
@@ -149,17 +150,15 @@ useCurrency();
         {orders.length === 0 ? (
           <div className="ceriga-card py-12 text-center">
             <Package className="mx-auto mb-2 h-10 w-10 text-[#45454B]" />
-            <h3 className="mb-2 text-base font-semibold text-[#F0EEEE]">No orders yet</h3>
-            <p className="mb-3 text-xs text-[#6B6B72]">
-              Create a tech pack or place a production order to see it here.
-            </p>
+            <h3 className="mb-2 text-base font-semibold text-[#F0EEEE]">{cerigaTranslate("interface.text_104b6eb41be38459")}</h3>
+            <p className="mb-3 text-xs text-[#6B6B72]">{cerigaTranslate("interface.text_b012fb813673020a")}</p>
             <Button asChild className="h-8 bg-[#CC2D24] text-[11px] font-semibold text-white hover:bg-[#E5534A]">
-              <Link to="/create">Create project</Link>
+              <Link to="/create">{cerigaTranslate("interface.text_fa67e4d0dae58c3c")}</Link>
             </Button>
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="ceriga-card px-4 py-10 text-center">
-            <p className="text-sm text-[#8A8A90]">No orders match your search or filter.</p>
+            <p className="text-sm text-[#8A8A90]">{cerigaTranslate("interface.text_f2dae2149f4fc5e2")}</p>
           </div>
         ) : (
           <>
@@ -187,22 +186,22 @@ useCurrency();
                         ORDER_STATUS_COLORS[order.status] ?? 'bg-[#252528] text-[#A3A3A8]',
                       )}
                     >
-                      {order.statusLabel}
+                      {cerigaTranslateLabel(order.statusLabel)}
                     </Badge>
                   </div>
                   <div className="grid grid-cols-2 gap-3 border-t border-[#252528] pt-3">
                     <div>
-                      <p className="ceriga-mono text-[10px] uppercase tracking-[0.06em] text-[#6B6B72]">Date</p>
+                      <p className="ceriga-mono text-[10px] uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("interface.text_99c40ab405926cb5")}</p>
                       <p className="mt-0.5 text-xs text-[#F0EEEE]">{order.orderDate}</p>
                     </div>
                     <div>
-                      <p className="ceriga-mono text-[10px] uppercase tracking-[0.06em] text-[#6B6B72]">Total</p>
+                      <p className="ceriga-mono text-[10px] uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("adminOrders.total")}</p>
                       <p className="mt-0.5 text-xs font-semibold tabular-nums text-[#F0EEEE]">
                         {formatTotal(order)}
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <p className="ceriga-mono text-[10px] uppercase tracking-[0.06em] text-[#6B6B72]">Details</p>
+                      <p className="ceriga-mono text-[10px] uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("adminOrders.details")}</p>
                       <p className="mt-0.5 text-xs text-[#F0EEEE]">{listQuantityLabel(order) ?? order.garmentType}</p>
                     </div>
                   </div>
@@ -215,21 +214,11 @@ useCurrency();
                 <table className="w-full">
                   <thead className="border-b border-[#252528] bg-[#111113]">
                     <tr>
-                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">
-                        Type / order
-                      </th>
-                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">
-                        Tracking
-                      </th>
-                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">
-                        Date
-                      </th>
-                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">
-                        Status
-                      </th>
-                      <th className="ceriga-mono px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">
-                        Total
-                      </th>
+                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("interface.text_0b0538cb92a58161")}</th>
+                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("adminOrders.tracking")}</th>
+                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("interface.text_99c40ab405926cb5")}</th>
+                      <th className="ceriga-mono px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("orders.status")}</th>
+                      <th className="ceriga-mono px-4 py-3 text-right text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B6B72]">{cerigaTranslate("adminOrders.total")}</th>
                       <th className="w-12 px-2 py-3" />
                     </tr>
                   </thead>
@@ -261,7 +250,7 @@ useCurrency();
                               ORDER_STATUS_COLORS[order.status] ?? 'bg-[#252528] text-[#A3A3A8]',
                             )}
                           >
-                            {order.statusLabel}
+                            {cerigaTranslateLabel(order.statusLabel)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 align-top text-right text-sm font-semibold tabular-nums text-[#F0EEEE]">
@@ -284,9 +273,7 @@ useCurrency();
                                     to={`/orders/${order.id}`}
                                     className="block px-3 py-2 text-xs text-[#F0EEEE] hover:bg-[#1C1C1E]"
                                     onClick={() => setOpenMenuId(null)}
-                                  >
-                                    View details
-                                  </Link>
+                                  >{cerigaTranslate("interface.text_d1bf045bb524dae5")}</Link>
                                 </div>
                               </>
                             )}

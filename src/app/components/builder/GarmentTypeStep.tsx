@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { Label } from '../ui/label';
 
 interface GarmentTypeOption {
@@ -22,10 +23,12 @@ interface GarmentTypeStepProps {
 }
 
 export function GarmentTypeStep({ garmentType, onGarmentTypeChange }: GarmentTypeStepProps) {
+  useCerigaTranslation();
+
   return (
     <div className="space-y-6">
       <div>
-        <Label className="mb-3 block text-white/60 text-xs uppercase tracking-wider">Select Garment Type</Label>
+        <Label className="mb-3 block text-white/60 text-xs uppercase tracking-wider">{cerigaTranslate("interface.text_dbfcdb2d0e9b5f72")}</Label>
         <div className="grid grid-cols-2 gap-3">
           {garmentTypes.map((option) => (
             <button
@@ -37,15 +40,15 @@ export function GarmentTypeStep({ garmentType, onGarmentTypeChange }: GarmentTyp
                   : 'border-[#252528] hover:border-white/30 text-white/60 hover:text-white bg-white/5'
               }`}
             >
-              <div className="font-semibold">{option.name}</div>
+              <div className="font-semibold">{cerigaTranslateLabel(option.name)}</div>
             </button>
           ))}
         </div>
       </div>
       <div className="p-4 bg-white/5 border border-[#252528] rounded-xl">
-        <div className="text-white/60 text-xs uppercase tracking-wider mb-2">Current Selection</div>
+        <div className="text-white/60 text-xs uppercase tracking-wider mb-2">{cerigaTranslate("interface.text_991cc279d57acd3f")}</div>
         <div className="text-xl font-bold text-white capitalize">
-          {garmentTypes.find(g => g.id === garmentType)?.name || 'Not selected'}
+          {garmentTypes.find(g => g.id === garmentType)?.name || cerigaTranslate("interface.text_df12aeba9bb9f9b0")}
         </div>
       </div>
     </div>

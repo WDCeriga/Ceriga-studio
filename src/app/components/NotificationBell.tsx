@@ -1,3 +1,5 @@
+import { activeLocale as cerigaLocale } from '../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 "use client";
 
 import { useEffect, useState } from "react";
@@ -16,7 +18,7 @@ type NotificationBellProps = {
 
 function formatWhen(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
+    return new Date(iso).toLocaleDateString(cerigaLocale(), {
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -45,6 +47,8 @@ function BellInner({ unread }: { unread: number }) {
  * lg and up: bell toggles the compact peek sheet.
  */
 export function NotificationBell({ className }: NotificationBellProps) {
+  useCerigaTranslation();
+
   const location = useLocation();
   const { items, remove, clearAll, markRead } = useNotifications();
   const [open, setOpen] = useState(false);
@@ -74,7 +78,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
         to="/notifications"
         className={cn(bellClassName, "lg:hidden")}
         aria-current={active ? "page" : undefined}
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+        aria-label={cerigaTranslate("interface.text_fbac5d2f7a247d35",{value0:(unread ? cerigaTranslate("interface.text_340606ff6d8fbee7",{value0:(unread)}) : "")})}
       >
         <BellInner unread={unread} />
       </Link>
@@ -86,7 +90,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
         className={cn(bellClassName, "hidden lg:flex")}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+        aria-label={cerigaTranslate("interface.text_fbac5d2f7a247d35",{value0:(unread ? cerigaTranslate("interface.text_340606ff6d8fbee7",{value0:(unread)}) : "")})}
       >
         <BellInner unread={unread} />
       </button>
@@ -102,14 +106,12 @@ export function NotificationBell({ className }: NotificationBellProps) {
               "[&>button:last-child]:hidden",
             )}
           >
-            <SheetTitle className="sr-only">Recent notifications</SheetTitle>
+            <SheetTitle className="sr-only">{cerigaTranslate("interface.text_11bc041452e3cc3f")}</SheetTitle>
 
             <div className="flex items-start justify-between gap-2 border-b border-[#252528] px-4 py-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">
-                  Inbox
-                </p>
-                <p className="truncate text-sm font-semibold text-white">Notifications</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#CC2D24]">{cerigaTranslate("interface.text_94835ea2fcf775cd")}</p>
+                <p className="truncate text-sm font-semibold text-white">{cerigaTranslate("nav.notifications")}</p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 {items.length > 0 && (
@@ -117,15 +119,13 @@ export function NotificationBell({ className }: NotificationBellProps) {
                     type="button"
                     onClick={() => setClearConfirmOpen(true)}
                     className="rounded-lg px-2 py-1.5 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
-                  >
-                    Clear all
-                  </button>
+                  >{cerigaTranslate("interface.text_29a390f9237e3c84")}</button>
                 )}
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#252528] bg-white/5 text-white/70 hover:bg-white/10"
-                  aria-label="Close"
+                  aria-label={cerigaTranslate("common.close")}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -134,9 +134,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
 
             <ScrollArea className="min-h-0 flex-1">
               {items.length === 0 ? (
-                <p className="px-4 py-10 text-center text-sm text-white/45">
-                  You&apos;re all caught up.
-                </p>
+                <p className="px-4 py-10 text-center text-sm text-white/45">{cerigaTranslate("interface.text_aebca55641976f4b")}</p>
               ) : (
                 <ul className="space-y-0 divide-y divide-white/[0.06] p-2">
                   {items.slice(0, 12).map((n) => (
@@ -160,13 +158,13 @@ export function NotificationBell({ className }: NotificationBellProps) {
                               )}
                               <div className="min-w-0">
                                 <p className="text-[13px] font-semibold leading-snug text-[#F0F0EE]">
-                                  {n.title}
+                                  {cerigaTranslateLabel(n.title)}
                                 </p>
                                 <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-[#CC2D24]/85">
-                                  {NOTIFICATION_CATEGORY_LABEL[n.category]}
+                                  {cerigaTranslateLabel(NOTIFICATION_CATEGORY_LABEL[n.category])}
                                 </p>
                                 <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/45">
-                                  {n.body}
+                                  {cerigaTranslateLabel(n.body)}
                                 </p>
                                 <p className="mt-1.5 text-[10px] text-white/30">
                                   {formatWhen(n.createdAt)}
@@ -189,13 +187,13 @@ export function NotificationBell({ className }: NotificationBellProps) {
                               )}
                               <div className="min-w-0">
                                 <p className="text-[13px] font-semibold leading-snug text-[#F0F0EE]">
-                                  {n.title}
+                                  {cerigaTranslateLabel(n.title)}
                                 </p>
                                 <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-[#CC2D24]/85">
-                                  {NOTIFICATION_CATEGORY_LABEL[n.category]}
+                                  {cerigaTranslateLabel(NOTIFICATION_CATEGORY_LABEL[n.category])}
                                 </p>
                                 <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/45">
-                                  {n.body}
+                                  {cerigaTranslateLabel(n.body)}
                                 </p>
                                 <p className="mt-1.5 text-[10px] text-white/30">
                                   {formatWhen(n.createdAt)}
@@ -208,7 +206,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
                           type="button"
                           onClick={() => remove(n.id)}
                           className="flex h-8 w-8 shrink-0 items-center justify-center self-start rounded-lg text-white/40 transition-colors hover:bg-red-500/15 hover:text-red-300"
-                          aria-label={`Delete ${n.title}`}
+                          aria-label={cerigaTranslate("interface.text_50256b3995d67d1e",{value0:(n.title)})}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -224,13 +222,9 @@ export function NotificationBell({ className }: NotificationBellProps) {
                 to="/notifications"
                 onClick={() => setOpen(false)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.05] py-2.5 text-sm font-medium text-white transition-colors hover:border-[#CC2D24]/35 hover:bg-[#CC2D24]/10"
-              >
-                Open full inbox
-                <ChevronRight className="h-4 w-4 opacity-70" />
+              >{cerigaTranslate("interface.text_e95ffa719cb81ebe")}<ChevronRight className="h-4 w-4 opacity-70" />
               </Link>
-              <p className="mt-2 text-center text-[10px] text-white/30">
-                Filters, sorting, and bulk actions in the full view
-              </p>
+              <p className="mt-2 text-center text-[10px] text-white/30">{cerigaTranslate("interface.text_84996a000c703b50")}</p>
             </div>
           </SheetContent>
         </Sheet>
@@ -238,9 +232,9 @@ export function NotificationBell({ className }: NotificationBellProps) {
       <ConfirmDialog
         open={clearConfirmOpen}
         onOpenChange={setClearConfirmOpen}
-        title="Delete all notifications?"
-        description="This clears your entire inbox and cannot be undone."
-        confirmLabel="Clear all"
+        title={cerigaTranslate("interface.text_054a1c1476e62f0e")}
+        description={cerigaTranslate("interface.text_2b6286d80188fc26")}
+        confirmLabel={cerigaTranslate("interface.text_29a390f9237e3c84")}
         tone="danger"
         onConfirm={clearAll}
       />

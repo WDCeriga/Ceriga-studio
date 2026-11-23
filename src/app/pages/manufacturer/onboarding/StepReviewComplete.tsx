@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import {
   Building2,
   Shirt,
@@ -32,6 +33,8 @@ export function StepReviewComplete({
   submitting,
   validationErrors,
 }: Props) {
+  useCerigaTranslation();
+
   const hasErrors = validationErrors.length > 0;
   const inHouseCaps = Object.entries(profile.capabilitiesMap || {})
     .filter(([_, src]) => src === 'in_house')
@@ -44,22 +47,18 @@ export function StepReviewComplete({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">7. Review & complete</h2>
-        <p className="mt-1 text-sm text-white/50">
-          Check your details before completing setup. Use Edit to return to a section; you can also update these details later in Settings.
-        </p>
+        <h2 className="text-xl font-semibold text-white">{cerigaTranslate("interface.text_8e51159d3fee9771")}</h2>
+        <p className="mt-1 text-sm text-white/50">{cerigaTranslate("interface.text_514990946ddb1b11")}</p>
       </div>
 
       {/* Validation Errors Notice */}
       {hasErrors && (
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 space-y-2">
           <div className="flex items-center gap-2 text-red-300 font-semibold text-sm">
-            <AlertTriangle className="h-4 w-4" />
-            Please resolve the following before completing onboarding:
-          </div>
+            <AlertTriangle className="h-4 w-4" />{cerigaTranslate("interface.text_cab6e10870bb6f42")}</div>
           <ul className="list-disc list-inside space-y-1 text-xs text-red-200">
             {validationErrors.map((err, idx) => (
-              <li key={idx}>{err}</li>
+              <li key={idx}>{cerigaTranslateLabel(err)}</li>
             ))}
           </ul>
         </div>
@@ -72,7 +71,7 @@ export function StepReviewComplete({
           <div className="flex items-center justify-between border-b border-[#252528] pb-4">
             <div className="flex items-center gap-2.5">
               <Building2 className="h-4 w-4 text-[#CC2D24]" />
-              <h3 className="text-sm font-semibold text-white">Factory Profile</h3>
+              <h3 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_12588d1d5fedf08e")}</h3>
             </div>
             <Button
               type="button"
@@ -81,25 +80,24 @@ export function StepReviewComplete({
               onClick={() => onEditStep(0)}
               className="text-xs text-[#CC2D24] hover:bg-white/5"
             >
-              <Edit2 className="h-3 w-3 mr-1" /> Edit
-            </Button>
+              <Edit2 className="h-3 w-3 mr-1" />{" "}{cerigaTranslate("common.edit")}</Button>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-xs">
             <div>
-              <span className="text-white/40">Facility Name</span>
+              <span className="text-white/40">{cerigaTranslate("interface.text_e1acd20f00c82431")}</span>
               <p className="font-semibold text-white mt-0.5">{profile.factoryName}</p>
             </div>
             <div>
-              <span className="text-white/40">Primary Contact</span>
+              <span className="text-white/40">{cerigaTranslate("interface.text_0f2d8f45f9e50c65")}</span>
               <p className="font-semibold text-white mt-0.5">{profile.contactName}</p>
             </div>
             <div>
-              <span className="text-white/40">Email</span>
+              <span className="text-white/40">{cerigaTranslate("authentication.email")}</span>
               <p className="font-semibold text-white mt-0.5">{profile.contactEmail}</p>
             </div>
             <div>
-              <span className="text-white/40">Location</span>
+              <span className="text-white/40">{cerigaTranslate("interface.text_15b61974b2707a7b")}</span>
               <p className="font-semibold text-white mt-0.5">
                 {profile.city}, {profile.country}
               </p>
@@ -107,7 +105,7 @@ export function StepReviewComplete({
           </div>
 
           <div>
-            <span className="text-xs text-white/40">Business Models:</span>
+            <span className="text-xs text-white/40">{cerigaTranslate("interface.text_a61b8af59fed644b")}</span>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {profile.manufacturerTypes?.map((t) => (
                 <span
@@ -126,8 +124,7 @@ export function StepReviewComplete({
           <div className="flex items-center justify-between border-b border-[#252528] pb-4">
             <div className="flex items-center gap-2.5">
               <Shirt className="h-4 w-4 text-[#CC2D24]" />
-              <h3 className="text-sm font-semibold text-white">
-                Garment Specialisations ({profile.garments.length})
+              <h3 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_07d0371fafc1134f")}{profile.garments.length})
               </h3>
             </div>
             <Button
@@ -137,8 +134,7 @@ export function StepReviewComplete({
               onClick={() => onEditStep(1)}
               className="text-xs text-[#CC2D24] hover:bg-white/5"
             >
-              <Edit2 className="h-3 w-3 mr-1" /> Edit
-            </Button>
+              <Edit2 className="h-3 w-3 mr-1" />{" "}{cerigaTranslate("common.edit")}</Button>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -151,12 +147,11 @@ export function StepReviewComplete({
                 >
                   <span className="font-semibold text-white">{g}</span>
                   <p className={cn('mt-0.5 text-[10px]', isGarmentConfirmed(detail) ? 'text-emerald-300' : 'text-amber-300')}>
-                    {isGarmentConfirmed(detail) ? 'Confirmed by manufacturer' : 'Review and confirmation required'}
+                    {isGarmentConfirmed(detail) ? cerigaTranslate("interface.text_905fbfe495473574") : cerigaTranslate("interface.text_efc75196d4d7d61b")}
                   </p>
                   {detail?.minGsm && detail?.maxGsm && (
                     <p className="text-[10px] text-white/40 mt-0.5">
-                      {detail.minGsm}-{detail.maxGsm} GSM
-                    </p>
+                      {detail.minGsm}-{detail.maxGsm}{" "}{cerigaTranslate("interface.text_569a327df59b4b88")}</p>
                   )}
                   {detail?.styles && detail.styles.length > 0 && (
                     <p className="text-[10px] text-white/50 truncate max-w-[150px]">
@@ -174,7 +169,7 @@ export function StepReviewComplete({
           <div className="flex items-center justify-between border-b border-[#252528] pb-4">
             <div className="flex items-center gap-2.5">
               <Wrench className="h-4 w-4 text-[#CC2D24]" />
-              <h3 className="text-sm font-semibold text-white">Production Capabilities</h3>
+              <h3 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_a9eb716c19c6ac05")}</h3>
             </div>
             <Button
               type="button"
@@ -183,14 +178,12 @@ export function StepReviewComplete({
               onClick={() => onEditStep(2)}
               className="text-xs text-[#CC2D24] hover:bg-white/5"
             >
-              <Edit2 className="h-3 w-3 mr-1" /> Edit
-            </Button>
+              <Edit2 className="h-3 w-3 mr-1" />{" "}{cerigaTranslate("common.edit")}</Button>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 text-xs">
             <div>
-              <span className="font-medium text-emerald-400">
-                In-House Techniques ({inHouseCaps.length})
+              <span className="font-medium text-emerald-400">{cerigaTranslate("interface.text_e90b17659035887a")}{inHouseCaps.length})
               </span>
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {inHouseCaps.map((c) => (
@@ -205,8 +198,7 @@ export function StepReviewComplete({
             </div>
 
             <div>
-              <span className="font-medium text-amber-400">
-                Outsourced Partners ({outsourcedCaps.length})
+              <span className="font-medium text-amber-400">{cerigaTranslate("interface.text_645c569e0fa8beaf")}{outsourcedCaps.length})
               </span>
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {outsourcedCaps.map((c) => (
@@ -227,7 +219,7 @@ export function StepReviewComplete({
           <div className="flex items-center justify-between border-b border-[#252528] pb-4">
             <div className="flex items-center gap-2.5">
               <Gauge className="h-4 w-4 text-[#CC2D24]" />
-              <h3 className="text-sm font-semibold text-white">Capacity & Turnarounds</h3>
+              <h3 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_912d5823376841d5")}</h3>
             </div>
             <Button
               type="button"
@@ -236,34 +228,32 @@ export function StepReviewComplete({
               onClick={() => onEditStep(3)}
               className="text-xs text-[#CC2D24] hover:bg-white/5"
             >
-              <Edit2 className="h-3 w-3 mr-1" /> Edit
-            </Button>
+              <Edit2 className="h-3 w-3 mr-1" />{" "}{cerigaTranslate("common.edit")}</Button>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-xs">
             <div>
-              <span className="text-white/40">General MOQ</span>
-              <p className="font-semibold text-white mt-0.5">{profile.generalMoq} units</p>
-              <p className="mt-1 text-[10px] text-white/50">Account quoting currency: {profile.pricing.preferredCurrency}</p>
+              <span className="text-white/40">{cerigaTranslate("interface.text_8de7e49610b81fc3")}</span>
+              <p className="font-semibold text-white mt-0.5">{profile.generalMoq}{" "}{cerigaTranslate("interface.text_c981a30c0e7b420b")}</p>
+              <p className="mt-1 text-[10px] text-white/50">{cerigaTranslate("interface.text_a2a738cc7274b7ce")}{" "}{profile.pricing.preferredCurrency}</p>
             </div>
             <div>
-              <span className="text-white/40">Monthly Output</span>
+              <span className="text-white/40">{cerigaTranslate("interface.text_65cccfc655e5f28b")}</span>
               <p className="font-semibold text-white mt-0.5">
-                {profile.monthlyCapacity?.toLocaleString()} units
-              </p>
+                {profile.monthlyCapacity?.toLocaleString()}{" "}{cerigaTranslate("interface.text_c981a30c0e7b420b")}</p>
             </div>
             <div>
-              <button type="button" onClick={() => onEditStep(4)} className="text-white/40 hover:text-white underline underline-offset-4">Sample Turnaround · Edit timeline</button>
+              <button type="button" onClick={() => onEditStep(4)} className="text-white/40 hover:text-white underline underline-offset-4">{cerigaTranslate("interface.text_d4653fa108bf6a4a")}</button>
               <p className="font-semibold text-white mt-0.5">
                 {profile.sampleLeadTimeMinDays} - {profile.sampleLeadTimeMaxDays}{' '}
-                {profile.timeUnit === 'working_days' ? 'work days' : 'days'}
+                {profile.timeUnit === 'working_days' ? cerigaTranslate("interface.text_baf107a2403f7ee1") : cerigaTranslate("interface.text_ab51004e9d71a485")}
               </p>
             </div>
             <div>
-              <button type="button" onClick={() => onEditStep(4)} className="text-white/40 hover:text-white underline underline-offset-4">Bulk Turnaround · Edit timeline</button>
+              <button type="button" onClick={() => onEditStep(4)} className="text-white/40 hover:text-white underline underline-offset-4">{cerigaTranslate("interface.text_5feecef9eee287fc")}</button>
               <p className="font-semibold text-white mt-0.5">
                 {profile.bulkLeadTimeMinDays} - {profile.bulkLeadTimeMaxDays}{' '}
-                {profile.timeUnit === 'working_days' ? 'work days' : 'days'}
+                {profile.timeUnit === 'working_days' ? cerigaTranslate("interface.text_baf107a2403f7ee1") : cerigaTranslate("interface.text_ab51004e9d71a485")}
               </p>
             </div>
           </div>
@@ -274,7 +264,7 @@ export function StepReviewComplete({
           <div className="flex items-center justify-between border-b border-[#252528] pb-4">
             <div className="flex items-center gap-2.5">
               <Truck className="h-4 w-4 text-[#CC2D24]" />
-              <h3 className="text-sm font-semibold text-white">Shipping</h3>
+              <h3 className="text-sm font-semibold text-white">{cerigaTranslate("nav.shipping")}</h3>
             </div>
             <Button
               type="button"
@@ -283,13 +273,12 @@ export function StepReviewComplete({
               onClick={() => onEditStep(5)}
               className="text-xs text-[#CC2D24] hover:bg-white/5"
             >
-              <Edit2 className="h-3 w-3 mr-1" /> Edit
-            </Button>
+              <Edit2 className="h-3 w-3 mr-1" />{" "}{cerigaTranslate("common.edit")}</Button>
           </div>
 
           <div className="space-y-3 text-xs">
             <div>
-              <span className="text-white/40">Destinations</span>
+              <span className="text-white/40">{cerigaTranslate("interface.text_72eb63f032e47e34")}</span>
               <div className="mt-1 flex flex-wrap gap-1">
                 {profile.shippingDestinations.map((d) => (
                   <span
@@ -313,16 +302,14 @@ export function StepReviewComplete({
           onClick={onBack}
           disabled={submitting}
           className="border-white/15 text-white hover:bg-white/5"
-        >
-          Back
-        </Button>
+        >{cerigaTranslate("common.back")}</Button>
         <Button
           type="button"
           onClick={onSubmit}
           disabled={submitting || hasErrors}
           className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-8 font-semibold shadow-lg shadow-red-900/30"
         >
-          {submitting ? 'Activating Profile...' : 'Complete setup'}
+          {submitting ? cerigaTranslate("interface.text_6667ab417ab2a850") : cerigaTranslate("interface.text_fe3da4e70bf34564")}
         </Button>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { displayMoney,useCurrency } from '../lib/accountCurrency';
 import {
   useCallback,
@@ -226,18 +227,20 @@ function PlacementControl({
   value: number;
   onChange: (v: number) => void;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#8A8A90]">
           {icon({ className: 'h-3 w-3 text-[#6B6B72]' })}
-          {label}
+          {cerigaTranslateLabel(label)}
         </span>
         <span className="inline-flex items-center gap-1">
           <button
             type="button"
-            aria-label={`Decrease ${label}`}
+            aria-label={cerigaTranslate("interface.text_105c0356935a6f20",{value0:(label)})}
             onClick={() => onChange(value - step)}
             className="flex h-6 w-6 items-center justify-center rounded-[4px] border border-[#2E2E32] text-[#A3A3A8] hover:border-[#3A3A40] hover:text-white"
           >
@@ -248,7 +251,7 @@ function PlacementControl({
           </span>
           <button
             type="button"
-            aria-label={`Increase ${label}`}
+            aria-label={cerigaTranslate("interface.text_26374f98c4b2a541",{value0:(label)})}
             onClick={() => onChange(value + step)}
             className="flex h-6 w-6 items-center justify-center rounded-[4px] border border-[#2E2E32] text-[#A3A3A8] hover:border-[#3A3A40] hover:text-white"
           >
@@ -262,7 +265,7 @@ function PlacementControl({
         step={step}
         value={[value]}
         onValueChange={(vals) => onChange(vals[0] ?? value)}
-        aria-label={label}
+        aria-label={cerigaTranslateLabel(label)}
         className={cn(
           '[&_[data-slot=slider-track]]:h-1 [&_[data-slot=slider-track]]:bg-[#252528]',
           '[&_[data-slot=slider-range]]:bg-[#CC2D24]',
@@ -310,6 +313,8 @@ function LiveMockup({
   editing?: boolean;
   large?: boolean;
 }) {
+  useCerigaTranslation();
+
   useCurrency();
   const spec = BASES.find((b) => b.id === base)!;
   const [angle, setAngle] = useState<PhotoAngle>('front');
@@ -440,7 +445,7 @@ function LiveMockup({
           <img
             key={blankPhoto(base, colorSlug, angle)}
             src={blankPhoto(base, colorSlug, angle)}
-            alt={`${spec.label} blank in ${colorName}`}
+            alt={cerigaTranslate("interface.text_0b0ac5e581a21d4a",{value0:(spec.label),value1:(colorName)})}
             className="absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
             draggable={false}
           />
@@ -505,7 +510,7 @@ function LiveMockup({
                     {/* Resize handle */}
                     <button
                       type="button"
-                      aria-label="Resize print"
+                      aria-label={cerigaTranslate("interface.text_ef53ed393663bf4a")}
                       onPointerDown={(e) => {
                         // Keep the wrapper's move-drag from hijacking this gesture.
                         e.stopPropagation();
@@ -518,7 +523,7 @@ function LiveMockup({
                     {/* Rotate handle */}
                     <button
                       type="button"
-                      aria-label="Rotate print"
+                      aria-label={cerigaTranslate("interface.text_94e14527159f772b")}
                       onPointerDown={(e) => {
                         e.stopPropagation();
                         beginDrag(e, 'rotate');
@@ -553,9 +558,7 @@ function LiveMockup({
                   'ceriga-mono text-center text-[10px] uppercase tracking-[0.14em]',
                   darkGarment ? 'text-white/55' : 'text-black/40',
                 )}
-              >
-                Print area
-              </p>
+              >{cerigaTranslate("interface.text_52d1ca57994dd7d3")}</p>
             </div>
           ) : null}
         </div>
@@ -567,7 +570,7 @@ function LiveMockup({
           className="mt-3 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#2E2E32] bg-[#0E0E10]/80 px-3 text-[11px] font-medium text-[#A3A3A8] backdrop-blur-sm transition-colors hover:border-[#3A3A40] hover:text-[#F0EEEE]"
         >
           <RotateCw className="h-3 w-3" />
-          {angle === 'front' ? 'View styled' : 'View flat'}
+          {angle === 'front' ? cerigaTranslate("interface.text_f0cdb6e5669b86fa") : cerigaTranslate("interface.text_9a2510a1be0152e4")}
         </button>
       </div>
     </div>
@@ -575,6 +578,8 @@ function LiveMockup({
 }
 
 export function PrintOnDemand() {
+  useCerigaTranslation();
+
   useCurrency();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('pick');
@@ -647,11 +652,11 @@ export function PrintOnDemand() {
 
   const handleCheckout = async () => {
     if (!designReady) {
-      toast.error(designMode === 'text' ? 'Add text for your print' : 'Upload a print image');
+      toast.error(cerigaTranslateLabel(designMode === 'text' ? cerigaTranslate("interface.text_716f1d62dc7b658e") : cerigaTranslate("interface.text_9f64bdcdb94b2218")));
       return;
     }
     if (units < 1) {
-      toast.error('Add at least one unit');
+      toast.error(cerigaTranslate("interface.text_b730cabac76c7c60"));
       return;
     }
     setSubmitting(true);
@@ -669,10 +674,10 @@ export function PrintOnDemand() {
         placement,
         imageFile: designMode === 'image' ? imageFile : null,
       });
-      toast.success('Order ready — complete payment');
+      toast.success(cerigaTranslate("interface.text_19d4ea761357cde4"));
       navigate(`/orders/${order.id}/checkout/pod`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not create order');
+      toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_9aa34d8b2d01f24c")));
     } finally {
       setSubmitting(false);
     }
@@ -685,16 +690,12 @@ export function PrintOnDemand() {
           to="/create"
           className="mb-8 inline-flex w-fit items-center gap-2 text-xs font-medium text-[#8A8A90] transition-colors hover:text-[#F0EEEE]"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Create
-        </Link>
+          <ArrowLeft className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_00f008dab93bb62a")}</Link>
 
         <div className="mb-8 max-w-lg">
-          <div className="ceriga-page-eyebrow">Print on demand</div>
-          <h1 className="ceriga-page-title">Choose a product</h1>
-          <p className="ceriga-page-sub">
-            Pick a blank, then customize color and front print on a live photo mockup.
-          </p>
+          <div className="ceriga-page-eyebrow">{cerigaTranslate("interface.text_e321cb3e4e02d1fb")}</div>
+          <h1 className="ceriga-page-title">{cerigaTranslate("interface.text_8154d0baaa8dfde2")}</h1>
+          <p className="ceriga-page-sub">{cerigaTranslate("interface.text_634c0ffe7d61ea6f")}</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
@@ -712,7 +713,7 @@ export function PrintOnDemand() {
                 <div className="relative aspect-[4/3] overflow-hidden bg-[#111113]">
                   <img
                     src={hero}
-                    alt={b.label}
+                    alt={cerigaTranslateLabel(b.label)}
                     loading="lazy"
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     draggable={false}
@@ -737,18 +738,15 @@ export function PrintOnDemand() {
                 <div className="flex flex-col border-t border-[#252528] p-5">
                   <div className="flex items-baseline justify-between gap-3">
                     <div className="text-[17px] font-semibold tracking-tight text-[#F0EEEE]">
-                      {b.label}
+                      {cerigaTranslateLabel(b.label)}
                     </div>
-                    <span className="ceriga-mono shrink-0 text-[12px] text-[#A3A3A8]">
-                      from {displayMoney(POD_UNIT_PRICE_CENTS[b.id],'EUR')}
-                      <span className="text-[#6B6B72]"> / unit</span>
+                    <span className="ceriga-mono shrink-0 text-[12px] text-[#A3A3A8]">{cerigaTranslate("interface.text_75857a45899985be")}{" "}{displayMoney(POD_UNIT_PRICE_CENTS[b.id],'EUR')}
+                      <span className="text-[#6B6B72]">{" "}{cerigaTranslate("interface.text_98dc6c0dae10b404")}</span>
                     </span>
                   </div>
                   <p className="mt-1 text-[13px] text-[#6B6B72]">{b.blurb}</p>
-                  <p className="mt-2 text-[12px] leading-relaxed text-[#8A8A90]">{b.detail}</p>
-                  <div className="mt-4 inline-flex items-center gap-2 text-[13px] font-medium text-[#F0EEEE]">
-                    Start designing
-                    <span
+                  <p className="mt-2 text-[12px] leading-relaxed text-[#8A8A90]">{cerigaTranslateLabel(b.detail)}</p>
+                  <div className="mt-4 inline-flex items-center gap-2 text-[13px] font-medium text-[#F0EEEE]">{cerigaTranslate("interface.text_fc01a00627cb14d1")}<span
                       aria-hidden
                       className="transition-transform duration-300 group-hover:translate-x-0.5"
                     >
@@ -774,23 +772,21 @@ export function PrintOnDemand() {
             className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-[#8A8A90] transition-colors hover:text-[#F0EEEE]"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Products</span>
+            <span className="hidden sm:inline">{cerigaTranslate("interface.text_4edc8bfafc6bd936")}</span>
           </button>
           <span className="hidden h-4 w-px bg-[#252528] sm:block" aria-hidden />
           <div className="min-w-0">
             <p className="truncate text-[13px] font-semibold text-[#F0EEEE]">
-              {spec.label}
+              {cerigaTranslateLabel(spec.label)}
               <span className="font-normal text-[#6B6B72]"> · {color.name}</span>
             </p>
-            <p className="ceriga-mono truncate text-[10px] uppercase tracking-[0.08em] text-[#45454B]">
-              Front print · {displayMoney(unitCents,'EUR')} / unit
-            </p>
+            <p className="ceriga-mono truncate text-[10px] uppercase tracking-[0.08em] text-[#45454B]">{cerigaTranslate("interface.text_e258e72e495369e0")}{" "}{displayMoney(unitCents,'EUR')}{" "}{cerigaTranslate("interface.text_98dc6c0dae10b404")}</p>
           </div>
         </div>
         <div className="hidden items-center gap-3 sm:flex">
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-wider text-[#6B6B72]">
-              {units > 0 ? `${units} units` : 'Add sizes'}
+              {units > 0 ? cerigaTranslate("interface.text_44b3c2a4a47289c6",{value0:(units)}) : cerigaTranslate("interface.text_dd1f1c0174e69931")}
             </p>
             <p className="text-sm font-semibold tabular-nums text-[#F0EEEE]">
               {displayMoney(totalCents,'EUR')}
@@ -803,7 +799,7 @@ export function PrintOnDemand() {
             className="ceriga-btn-primary h-9 gap-1.5 px-4 text-[12px] disabled:opacity-50"
           >
             <CreditCard className="h-3.5 w-3.5" />
-            {submitting ? '…' : 'Pay'}
+            {submitting ? '…' : cerigaTranslate("interface.text_723afa394daeea97")}
           </Button>
         </div>
       </header>
@@ -811,13 +807,9 @@ export function PrintOnDemand() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="relative flex min-h-0 shrink-0 flex-col border-b border-[#252528] lg:min-w-0 lg:flex-[1.35] lg:border-b-0 lg:border-r">
           <div className="absolute left-3 top-3 z-10 flex items-center gap-2 sm:left-4 sm:top-4">
-            <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-white/70 backdrop-blur-sm">
-              Front
-            </span>
+            <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-white/70 backdrop-blur-sm">{cerigaTranslate("interface.text_a617590202898821")}</span>
             {!designReady ? (
-              <span className="hidden rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] text-amber-100/80 sm:inline">
-                Add a print
-              </span>
+              <span className="hidden rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] text-amber-100/80 sm:inline">{cerigaTranslate("interface.text_d3f4f150bcede7f9")}</span>
             ) : null}
           </div>
           <div className="min-h-[42dvh] flex-1 lg:min-h-0">
@@ -839,7 +831,7 @@ export function PrintOnDemand() {
 
         <aside className="flex min-h-0 w-full flex-col bg-[#0E0E10] lg:w-[min(100%,400px)] lg:shrink-0 xl:w-[420px]">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28 lg:pb-4">
-            <Section step="1" title="Color">
+            <Section step="1" title={cerigaTranslate("interface.text_6b73191a0a4b6742")}>
               <div className="flex flex-wrap gap-2">
                 {spec.colors.map((c) => {
                   const selected = color.slug === c.slug;
@@ -879,7 +871,7 @@ export function PrintOnDemand() {
               <p className="mt-2.5 text-[12px] text-[#6B6B72]">{color.name}</p>
             </Section>
 
-            <Section step="2" title="Front design">
+            <Section step="2" title={cerigaTranslate("interface.text_7bb35d847bf03e78")}>
               <div className="mb-3 grid grid-cols-2 gap-1 rounded-[8px] border border-[#252528] bg-[#09090B] p-1">
                 {(
                   [
@@ -902,7 +894,7 @@ export function PrintOnDemand() {
                       )}
                     >
                       <Icon className="h-3.5 w-3.5" />
-                      {opt.label}
+                      {cerigaTranslateLabel(opt.label)}
                     </button>
                   );
                 })}
@@ -925,17 +917,12 @@ export function PrintOnDemand() {
                         className="max-h-20 max-w-[160px] object-contain"
                       />
                       <p className="max-w-full truncate text-center text-[12px] text-[#7FA888]">
-                        {imageFile?.name} · tap to replace
-                      </p>
+                        {imageFile?.name}{" "}{cerigaTranslate("interface.text_284f049653b98831")}</p>
                     </>
                   ) : (
                     <>
                       <ImagePlus className="h-6 w-6 text-[#E5534A]" strokeWidth={1.5} />
-                      <p className="text-center text-[12px] text-[#8A8A90]">
-                        Upload PNG or JPG
-                        <span className="mt-0.5 block text-[11px] text-[#45454B]">
-                          Transparent PNG prints cleanest
-                        </span>
+                      <p className="text-center text-[12px] text-[#8A8A90]">{cerigaTranslate("interface.text_02e9287053267063")}<span className="mt-0.5 block text-[11px] text-[#45454B]">{cerigaTranslate("interface.text_d0c7e76aae4b23ba")}</span>
                       </p>
                     </>
                   )}
@@ -953,9 +940,7 @@ export function PrintOnDemand() {
                       <Label
                         htmlFor="pod-text"
                         className="ceriga-mono text-[10px] uppercase tracking-[0.08em] text-[#6B6B72]"
-                      >
-                        Text
-                      </Label>
+                      >{cerigaTranslate("interface.text_71988c4d8e0803ba")}</Label>
                       <span className="ceriga-mono text-[10px] text-[#45454B]">
                         {text.length}/40
                       </span>
@@ -964,7 +949,7 @@ export function PrintOnDemand() {
                       id="pod-text"
                       value={text}
                       onChange={(e) => setText(e.target.value)}
-                      placeholder="e.g. CERIGA"
+                      placeholder={cerigaTranslate("interface.text_06b977f1aca4d5bb")}
                       maxLength={40}
                       className="h-11 border-[#2E2E32] bg-[#09090B] text-base font-semibold uppercase tracking-wide text-[#F0EEEE] placeholder:normal-case placeholder:font-normal placeholder:tracking-normal placeholder:text-[#45454B]"
                     />
@@ -994,11 +979,11 @@ export function PrintOnDemand() {
               )}
             </Section>
 
-            <Section step="3" title="Position & size">
+            <Section step="3" title={cerigaTranslate("interface.text_e3e758e704ea2484")}>
               <div className="space-y-4">
                 <PlacementControl
                   icon={(props) => <Move {...props} />}
-                  label="X position"
+                  label={cerigaTranslate("interface.text_509cea2a254998eb")}
                   display={`${placement.offsetX > 0 ? '+' : ''}${placement.offsetX}%`}
                   min={-OFFSET_LIMIT}
                   max={OFFSET_LIMIT}
@@ -1008,7 +993,7 @@ export function PrintOnDemand() {
                 />
                 <PlacementControl
                   icon={(props) => <Move {...props} />}
-                  label="Y position"
+                  label={cerigaTranslate("interface.text_307e63d5f5b680dc")}
                   display={`${placement.offsetY > 0 ? '+' : ''}${placement.offsetY}%`}
                   min={-OFFSET_LIMIT}
                   max={OFFSET_LIMIT}
@@ -1018,7 +1003,7 @@ export function PrintOnDemand() {
                 />
                 <PlacementControl
                   icon={(props) => <Square {...props} />}
-                  label="Size"
+                  label={cerigaTranslate("interface.text_1af851907331c0ed")}
                   display={`${placement.scale}%`}
                   min={SCALE_MIN}
                   max={SCALE_MAX}
@@ -1028,7 +1013,7 @@ export function PrintOnDemand() {
                 />
                 <PlacementControl
                   icon={(props) => <RotateCw {...props} />}
-                  label="Rotation"
+                  label={cerigaTranslate("interface.text_57b5e2fc1bba18bb")}
                   display={`${placement.rotation}°`}
                   min={-ROTATE_LIMIT}
                   max={ROTATE_LIMIT}
@@ -1037,9 +1022,7 @@ export function PrintOnDemand() {
                   onChange={(v) => patchPlacement({ rotation: v })}
                 />
                 <div className="flex items-center justify-between pt-0.5">
-                  <p className="text-[11px] leading-relaxed text-[#45454B]">
-                    Or drag the print on the mockup — corner resizes, top rotates.
-                  </p>
+                  <p className="text-[11px] leading-relaxed text-[#45454B]">{cerigaTranslate("interface.text_8793e6820cf19238")}</p>
                   <button
                     type="button"
                     onClick={resetPlacement}
@@ -1050,14 +1033,12 @@ export function PrintOnDemand() {
                       placement.rotation === 0
                     }
                     className="shrink-0 rounded-[6px] border border-[#2E2E32] px-2.5 py-1 text-[11px] font-medium text-[#A3A3A8] transition-colors hover:border-[#3A3A40] hover:text-[#F0EEEE] disabled:pointer-events-none disabled:opacity-40"
-                  >
-                    Reset
-                  </button>
+                  >{cerigaTranslate("interface.text_daee7606b339f3c3")}</button>
                 </div>
               </div>
             </Section>
 
-            <Section step="4" title="Sizes">
+            <Section step="4" title={cerigaTranslate("interface.text_74a3978d10045c73")}>
               <div className="grid grid-cols-3 gap-2">
                 {ORDER_SIZE_KEYS.map((size) => {
                   const qty = bySize[size] || 0;
@@ -1072,12 +1053,12 @@ export function PrintOnDemand() {
                       )}
                     >
                       <div className="mb-1.5 text-center text-[11px] font-semibold text-[#F0EEEE]">
-                        {SIZE_LABEL[size]}
+                        {cerigaTranslateLabel(SIZE_LABEL[size])}
                       </div>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          aria-label={`Decrease ${SIZE_LABEL[size]}`}
+                          aria-label={cerigaTranslate("interface.text_105c0356935a6f20",{value0:(SIZE_LABEL[size])})}
                           onClick={() => bumpSize(size, -1)}
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] border border-[#2E2E32] text-sm text-[#A3A3A8] hover:border-[#3A3A40] hover:text-white"
                         >
@@ -1092,7 +1073,7 @@ export function PrintOnDemand() {
                         />
                         <button
                           type="button"
-                          aria-label={`Increase ${SIZE_LABEL[size]}`}
+                          aria-label={cerigaTranslate("interface.text_26374f98c4b2a541",{value0:(SIZE_LABEL[size])})}
                           onClick={() => bumpSize(size, 1)}
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] border border-[#2E2E32] text-sm text-[#A3A3A8] hover:border-[#3A3A40] hover:text-white"
                         >
@@ -1123,16 +1104,14 @@ export function PrintOnDemand() {
                 >
                   <CreditCard className="h-4 w-4" />
                   {submitting
-                    ? 'Creating order…'
+                    ? cerigaTranslate("interface.text_65d861acd3eeb813")
                     : canPay
-                      ? `Pay ${displayMoney(totalCents,'EUR')}`
+                      ? cerigaTranslate("interface.text_289c69f0fc253d8e",{value0:(displayMoney(totalCents,'EUR'))})
                       : !designReady
-                        ? 'Add a print to continue'
-                        : 'Add sizes to continue'}
+                        ? cerigaTranslate("interface.text_c393c45e26f50d19")
+                        : cerigaTranslate("interface.text_f508ffe118044b64")}
                 </Button>
-                <p className="mt-2 text-center text-[10px] leading-relaxed text-[#45454B]">
-                  Fixed price · no quote wait · mock checkout
-                </p>
+                <p className="mt-2 text-center text-[10px] leading-relaxed text-[#45454B]">{cerigaTranslate("interface.text_69a897693222a88d")}</p>
               </div>
             </div>
           </div>
@@ -1142,7 +1121,7 @@ export function PrintOnDemand() {
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#252528] bg-[#09090B]/95 px-4 py-3 backdrop-blur-md lg:hidden">
         <div className="mb-2 flex items-center justify-between text-[12px]">
           <span className="text-[#8A8A90]">
-            {units > 0 ? `${units} units` : 'No sizes yet'} · {color.name}
+            {units > 0 ? cerigaTranslate("interface.text_44b3c2a4a47289c6",{value0:(units)}) : cerigaTranslate("interface.text_ea9985ea30a0efa9")} · {color.name}
           </span>
           <span className="font-semibold tabular-nums text-[#F0EEEE]">
             {displayMoney(totalCents,'EUR')}
@@ -1156,12 +1135,12 @@ export function PrintOnDemand() {
         >
           <CreditCard className="h-4 w-4" />
           {submitting
-            ? 'Creating order…'
+            ? cerigaTranslate("interface.text_65d861acd3eeb813")
             : canPay
-              ? `Pay ${displayMoney(totalCents,'EUR')}`
+              ? cerigaTranslate("interface.text_289c69f0fc253d8e",{value0:(displayMoney(totalCents,'EUR'))})
               : !designReady
-                ? 'Add a print to continue'
-                : 'Add sizes to continue'}
+                ? cerigaTranslate("interface.text_c393c45e26f50d19")
+                : cerigaTranslate("interface.text_f508ffe118044b64")}
         </Button>
       </div>
     </div>

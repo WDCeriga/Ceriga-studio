@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -16,6 +17,8 @@ import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { type PackagingSnapshot } from '../lib/packagingLibrary';
 
 export function PackagingOnly() {
+  useCerigaTranslation();
+
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectIdParam = searchParams.get('projectId');
@@ -69,7 +72,7 @@ export function PackagingOnly() {
         const extra = st.extraDetails as { packaging?: string } | undefined;
         setNotes(typeof extra?.packaging === 'string' ? extra.packaging : '');
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Could not load packaging project');
+        toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_a86d2341c31f0af6")));
       } finally {
         if (!cancelled) setHydrating(false);
       }
@@ -81,11 +84,11 @@ export function PackagingOnly() {
 
   const handleSaveProject = async () => {
     if (!isSupabaseConfigured) {
-      toast.error('Database is not configured. Add Supabase keys to .env');
+      toast.error(cerigaTranslate("interface.text_82ec7517991cee43"));
       return;
     }
     if (!isAuthenticated) {
-      toast.error('Sign in to save packaging as a project');
+      toast.error(cerigaTranslate("interface.text_29ba710fe358826a"));
       return;
     }
     setSaving(true);
@@ -109,9 +112,9 @@ export function PackagingOnly() {
       if (searchParams.get('projectId') !== row.id) {
         setSearchParams({ projectId: row.id }, { replace: true });
       }
-      toast.success('Packaging project saved');
+      toast.success(cerigaTranslate("interface.text_b054731d1516c88a"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save');
+      toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_16efcd21d74fc1d2")));
     } finally {
       setSaving(false);
     }
@@ -119,9 +122,7 @@ export function PackagingOnly() {
 
   if (hydrating) {
     return (
-      <div className="flex min-h-[50dvh] items-center justify-center bg-[#09090B] text-sm text-white/50">
-        Loading packaging…
-      </div>
+      <div className="flex min-h-[50dvh] items-center justify-center bg-[#09090B] text-sm text-white/50">{cerigaTranslate("interface.text_f3abcf6855d2b116")}</div>
     );
   }
 
@@ -132,23 +133,12 @@ export function PackagingOnly() {
           to="/create"
           className="mb-3 inline-flex items-center gap-2 text-[11px] font-medium text-white/45 transition-colors hover:text-white/80"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Create
-        </Link>
-        <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">
-          Packaging designer
-        </div>
-        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase leading-tight tracking-[-0.03em] text-white sm:text-[1.65rem]">
-          Packaging
-        </h1>
-        <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/50 sm:text-sm">
-          Same packaging tools as in a full tech pack. Save to reuse in garment projects, or continue
-          to order packaging on its own.
-        </p>
+          <ArrowLeft className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_00f008dab93bb62a")}</Link>
+        <div className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">{cerigaTranslate("interface.text_f428d09356bb7abc")}</div>
+        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase leading-tight tracking-[-0.03em] text-white sm:text-[1.65rem]">{cerigaTranslate("interface.text_0d62bb01df4edd95")}</h1>
+        <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/50 sm:text-sm">{cerigaTranslate("interface.text_0712a51447e5fa73")}</p>
         <div className="mt-3 max-w-sm">
-          <label className="mb-1 block text-[10px] uppercase tracking-wider text-white/40">
-            Project name
-          </label>
+          <label className="mb-1 block text-[10px] uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_25498193b898195d")}</label>
           <Input
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
@@ -203,7 +193,7 @@ export function PackagingOnly() {
             className="flex-1 border-white/15 text-white/85 hover:bg-white/5 lg:flex-none"
             asChild
           >
-            <Link to="/create">Back</Link>
+            <Link to="/create">{cerigaTranslate("common.back")}</Link>
           </Button>
           <Button
             type="button"
@@ -213,7 +203,7 @@ export function PackagingOnly() {
             className="flex-1 border-white/15 text-white/85 hover:bg-white/5 lg:flex-none"
           >
             <Save className="mr-1.5 h-3.5 w-3.5" />
-            {saving ? 'Saving…' : 'Save project'}
+            {saving ? cerigaTranslate("common.saving") : cerigaTranslate("interface.text_08330ed07cfe9e09")}
           </Button>
           <Button
             type="button"
@@ -235,9 +225,7 @@ export function PackagingOnly() {
                 });
               })();
             }}
-          >
-            Order packaging
-          </Button>
+          >{cerigaTranslate("interface.text_012ac241d8accfcf")}</Button>
         </div>
       </div>
     </div>

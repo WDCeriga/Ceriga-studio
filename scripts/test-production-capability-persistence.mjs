@@ -1,10 +1,11 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import {readFile}from'node:fs/promises';import{transformWithEsbuild}from'vite';
 const path='src/app/data/manufacturerCustomisationDb.ts';const{code}=await transformWithEsbuild(await readFile(path,'utf8'),path,{format:'cjs',target:'es2022'});
 let data=null,error=null,payload;
 const client={rpc:async(name,args)=>{if(name==='save_factory_operational_settings'){payload={user_id:'factory',settings:args.p_settings};return{data:'factory',error};}return{data:name==='factory_operational_settings'?data?.settings||null:{profile_details:{}},error};},auth:{getUser:async()=>({data:{user:{id:'factory'}},error:null})},from:()=>({upsert:async(value)=>{payload=value;return{error}},select(){return this},eq(){return this},maybeSingle:async()=>({data,error})})};
 const mocks={'../lib/supabaseClient':{isSupabaseConfigured:false},'./manufacturerMethodConstraints':{getCapabilityCatalog:()=>[],linkLegacyMethodConstraints:()=>[]},'./manufacturerGarmentMoqs':{garmentMoqOverridesForProfile:p=>p.garmentMoqOverrides||{}}};
-const m={exports:{}};new Function('require','module','exports',code)(key=>{if(!(key in mocks))throw Error(key);return mocks[key]},m,m.exports);
+const m={exports:{}};new Function('require','module','exports',code)(((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(key=>{if(!(key in mocks))throw Error(key);return mocks[key]}),m,m.exports);
 const garmentDetails={'T-shirts':{category:'T-shirts',confirmed:true,materials:['French Terry'],styles:['Oversized'],constructionDetails:['Raglan sleeve'],minGsm:280,maxGsm:400}};
 const profile={garmentDetails,capabilitiesMap:{DTG:'in_house'},customCapabilities:[],capabilityCatalog:[],customMethodMoqs:[]};
 await m.exports.saveCustomisationSettingsToDb(profile,client);assert.deepEqual(payload.settings.garmentDetails,garmentDetails);assert.equal(payload.user_id,'factory');data={settings:structuredClone(payload.settings)};assert.deepEqual((await m.exports.loadCustomisationSettingsFromDb(client)).garmentDetails,garmentDetails);

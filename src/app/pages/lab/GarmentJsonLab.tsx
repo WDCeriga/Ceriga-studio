@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -59,6 +60,8 @@ function clientToViewBox(
 }
 
 export function GarmentJsonLab() {
+  useCerigaTranslation();
+
   const initial = GARMENT_JSON_PRESETS[0]!.drawing;
   const [presetId, setPresetId] = useState(GARMENT_JSON_PRESETS[0]!.id);
   const [drawing, setDrawing] = useState<GarmentDrawing>(() => cloneDrawing(initial));
@@ -332,30 +335,19 @@ export function GarmentJsonLab() {
       <header className="border-b border-white/10 bg-[#111113]/90 px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
-              Lab
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">
-              Garment JSON editor
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-white/55">
-              Edit parametric piece JSON and see geometry update live. Drag yellow landmarks,
-              tweak params (e.g. sleeve length 8 → 10), then export.
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">{cerigaTranslate("interface.text_efdcf466b553a068")}</p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{cerigaTranslate("interface.text_b9046c6395591d9c")}</h1>
+            <p className="mt-1 max-w-2xl text-sm text-white/55">{cerigaTranslate("interface.text_a9c50575adafe432")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <Link
               to="/lab"
               className="text-white/50 underline-offset-4 hover:text-white hover:underline"
-            >
-              All labs
-            </Link>
+            >{cerigaTranslate("interface.text_9e87d9dadae79eb5")}</Link>
             <Link
               to="/lab/sleeve-color"
               className="text-white/50 underline-offset-4 hover:text-white hover:underline"
-            >
-              Sleeve colour
-            </Link>
+            >{cerigaTranslate("interface.text_793015055f7bebd9")}</Link>
           </div>
         </div>
       </header>
@@ -363,9 +355,7 @@ export function GarmentJsonLab() {
       <div className="mx-auto grid max-w-[1400px] gap-4 px-4 py-6 lg:grid-cols-[280px_minmax(0,1fr)_minmax(320px,420px)] sm:px-6">
         <aside className="space-y-4 rounded-2xl border border-[#252528] bg-[#111113] p-4">
           <div>
-            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">
-              Preset
-            </label>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_7252e7ce008587e1")}</label>
             <select
               className="w-full rounded-lg border border-[#252528] bg-black/40 px-3 py-2 text-sm text-white"
               value={presetId}
@@ -373,7 +363,7 @@ export function GarmentJsonLab() {
             >
               {GARMENT_JSON_PRESETS.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.label}
+                  {cerigaTranslateLabel(p.label)}
                 </option>
               ))}
             </select>
@@ -383,9 +373,7 @@ export function GarmentJsonLab() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">
-              Piece
-            </label>
+            <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_8d8a162d576ba33c")}</label>
             <div className="space-y-1">
               {drawing.pieces.map((piece) => (
                 <button
@@ -409,9 +397,7 @@ export function GarmentJsonLab() {
           {selectedPiece ? (
             <div className="space-y-3 border-t border-white/10 pt-4">
               <div>
-                <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">
-                  Fill
-                </label>
+                <label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_033955d469b620d6")}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -430,7 +416,7 @@ export function GarmentJsonLab() {
 
               {paramEntries.length > 0 ? (
                 <div className="space-y-3">
-                  <p className="text-[10px] uppercase tracking-wider text-white/50">Params</p>
+                  <p className="text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_7ffdd4b4c44c366a")}</p>
                   {paramEntries.map(([key, value]) => {
                     const isLength = key === 'length';
                     const min = isLength ? 2 : key === 'side' ? -1 : 1;
@@ -456,17 +442,13 @@ export function GarmentJsonLab() {
                   })}
                 </div>
               ) : (
-                <p className="text-[12px] text-white/40">
-                  No params on this piece — edit points in JSON or drag polygon vertices.
-                </p>
+                <p className="text-[12px] text-white/40">{cerigaTranslate("interface.text_26508dafa2c0a925")}</p>
               )}
             </div>
           ) : null}
 
           <div className="space-y-2 border-t border-white/10 pt-4">
-            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">
-              Canvas
-            </p>
+            <p className="mb-2 text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_3824a9f4dafe92c6")}</p>
             <div className="grid grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
               <button
                 type="button"
@@ -477,9 +459,7 @@ export function GarmentJsonLab() {
                     ? 'bg-white/15 text-white'
                     : 'text-white/50 hover:text-white/80',
                 )}
-              >
-                Dark
-              </button>
+              >{cerigaTranslate("interface.text_60acc53f13a5d1bf")}</button>
               <button
                 type="button"
                 onClick={() => setCanvasTheme('light')}
@@ -489,9 +469,7 @@ export function GarmentJsonLab() {
                     ? 'bg-white/15 text-white'
                     : 'text-white/50 hover:text-white/80',
                 )}
-              >
-                Light
-              </button>
+              >{cerigaTranslate("interface.text_dbcd5e7bb7a0f538")}</button>
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-[12px] text-white/70">
               <input
@@ -499,28 +477,19 @@ export function GarmentJsonLab() {
                 checked={showLandmarks}
                 onChange={(e) => setShowLandmarks(e.target.checked)}
                 className="accent-[#5B8CF5]"
-              />
-              Show landmarks
-            </label>
+              />{cerigaTranslate("interface.text_fc0857c7fc9bcf79")}</label>
             <label className="flex cursor-pointer items-center gap-2 text-[12px] text-white/70">
               <input
                 type="checkbox"
                 checked={showGuides}
                 onChange={(e) => setShowGuides(e.target.checked)}
                 className="accent-[#5B8CF5]"
-              />
-              Show guides
-            </label>
+              />{cerigaTranslate("interface.text_662908cdf5b6f5bf")}</label>
           </div>
 
           <div className="space-y-3 border-t border-white/10 pt-4">
-            <p className="text-[10px] uppercase tracking-wider text-white/50">
-              Trace reference
-            </p>
-            <p className="text-[12px] leading-relaxed text-white/45">
-              Drop a PNG on the canvas (or browse) to trace over. Image sits behind the
-              geometry.
-            </p>
+            <p className="text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_84c6e722c93344c7")}</p>
+            <p className="text-[12px] leading-relaxed text-white/45">{cerigaTranslate("interface.text_ce32c0c04f68f83b")}</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -536,17 +505,13 @@ export function GarmentJsonLab() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-white/70 hover:bg-white/[0.06]"
-              >
-                Browse image
-              </button>
+              >{cerigaTranslate("interface.text_6b87f8cf96fb099d")}</button>
               {hasTrace ? (
                 <button
                   type="button"
                   onClick={clearTraceImage}
                   className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-red-300/80 hover:bg-red-500/10"
-                >
-                  Clear
-                </button>
+                >{cerigaTranslate("interface.text_83b12c2216efb4fd")}</button>
               ) : null}
             </div>
             {traceName ? (
@@ -554,11 +519,11 @@ export function GarmentJsonLab() {
                 {traceName}
               </p>
             ) : null}
-            {traceError ? <p className="text-[11px] text-red-300">{traceError}</p> : null}
+            {traceError ? <p className="text-[11px] text-red-300">{cerigaTranslateLabel(traceError)}</p> : null}
             {hasTrace ? (
               <div>
                 <div className="mb-1 flex items-center justify-between text-[11px] text-white/60">
-                  <span>Image opacity</span>
+                  <span>{cerigaTranslate("interface.text_1719e36eb302bc1e")}</span>
                   <span className="tabular-nums text-white/85">
                     {Math.round(traceOpacity * 100)}%
                   </span>
@@ -613,9 +578,7 @@ export function GarmentJsonLab() {
                       ? 'border-sky-600/30 bg-white/90 text-sky-900'
                       : 'border-sky-300/40 bg-[#0c0c0e]/85 text-sky-100',
                   )}
-                >
-                  Drop image to trace
-                </span>
+                >{cerigaTranslate("interface.text_d216e0e30d172276")}</span>
               </div>
             ) : null}
             {!hasTrace ? (
@@ -624,41 +587,32 @@ export function GarmentJsonLab() {
                   'pointer-events-none absolute bottom-3 left-0 right-0 text-center text-[11px]',
                   canvasTheme === 'light' ? 'text-black/35' : 'text-white/30',
                 )}
-              >
-                Drop PNG here to trace
-              </div>
+              >{cerigaTranslate("interface.text_743aee2058de47dc")}</div>
             ) : null}
           </div>
-          <p className="text-[12px] text-white/45">
-            Drag yellow landmarks (or freeform polygon corners). With a reference image,
-            fills go translucent so you can align over the photo.
-          </p>
+          <p className="text-[12px] text-white/45">{cerigaTranslate("interface.text_be532ae00dbd32e4")}</p>
         </section>
 
         <aside className="flex min-h-[420px] flex-col rounded-2xl border border-[#252528] bg-[#111113] p-4">
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <p className="mr-auto text-[10px] uppercase tracking-wider text-white/50">JSON</p>
+            <p className="mr-auto text-[10px] uppercase tracking-wider text-white/50">{cerigaTranslate("interface.text_db1a21a0bc2ef8fb")}</p>
             <button
               type="button"
               onClick={handleFormatJson}
               className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-white/70 hover:bg-white/[0.06]"
-            >
-              Format
-            </button>
+            >{cerigaTranslate("interface.text_2f343666aaa88c44")}</button>
             <button
               type="button"
               onClick={handleCopy}
               className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-white/70 hover:bg-white/[0.06]"
             >
-              {copyStatus ?? 'Copy'}
+              {copyStatus ?? cerigaTranslate("interface.text_e21f935f11d7e966")}
             </button>
             <button
               type="button"
               onClick={handleExport}
               className="rounded-lg border border-sky-500/30 bg-sky-500/15 px-2.5 py-1 text-[11px] text-sky-100 hover:bg-sky-500/25"
-            >
-              Export .json
-            </button>
+            >{cerigaTranslate("interface.text_8da1ae4f24f99743")}</button>
           </div>
 
           <textarea
@@ -670,11 +624,11 @@ export function GarmentJsonLab() {
 
           <div className="mt-3 min-h-[1.25rem] text-[11px]">
             {parseError ? (
-              <span className="text-red-300">{parseError}</span>
+              <span className="text-red-300">{cerigaTranslateLabel(parseError)}</span>
             ) : jsonDirtyFromEditor ? (
-              <span className="text-emerald-300/80">Valid — preview updated</span>
+              <span className="text-emerald-300/80">{cerigaTranslate("interface.text_360fd35027aa2542")}</span>
             ) : (
-              <span className="text-white/40">Live synced with canvas</span>
+              <span className="text-white/40">{cerigaTranslate("interface.text_f5d3dcfd59c954af")}</span>
             )}
           </div>
         </aside>

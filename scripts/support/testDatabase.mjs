@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import {PGlite}from '../../.tmp-workflow-test/node_modules/@electric-sql/pglite/dist/index.js';
 /** Fully isolated PostgreSQL semantics. Network/cron delivery are deliberately mocked. */
-export async function testDatabase({dataDir}={}){
+export async function testDatabase({dataDir, automaticAssignment = false}={}){
  const db=new PGlite(dataDir);
  await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create schema cron;create schema net;
  create table auth.users(id uuid primary key default gen_random_uuid(),email text,email_confirmed_at timestamptz,invited_at timestamptz,encrypted_password text,raw_user_meta_data jsonb default '{}',created_at timestamptz default now());
@@ -16,7 +16,10 @@ export async function testDatabase({dataDir}={}){
  create function net.http_get(url text,timeout_milliseconds integer)returns bigint language sql as $$select nextval('net.requests')$$;
  grant usage on schema public,auth,storage to authenticated,anon,service_role;grant all on all tables in schema storage to authenticated,service_role;`);
  const schema=(await fs.readFile('supabase/schema.sql','utf8')).replace(/create extension if not exists "pgcrypto";/gi,'').replace(/create extension if not exists pg_net with schema extensions;/gi,'').replace(/create extension if not exists pg_cron with schema pg_catalog;/gi,'');
- try{await db.exec(schema);}catch(error){await db.close();throw new Error(error.message);}
+ try{
+   await db.exec(schema);
+   if (!automaticAssignment) await db.exec(`update public.platform_settings set value='"manual"' where key='manufacturer_assignment_mode'`);
+ }catch(error){await db.close();throw new Error(error.message);}
  return db;
 }
 export async function asAccount(db,id,email='account@example.invalid'){

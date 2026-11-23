@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import {
   GARMENT_NONE,
   getGarmentAssets,
@@ -6,6 +7,14 @@ import {
 } from '../../data/garmentSvgCatalog';
 import { Label } from '../ui/label';
 import { cn } from '../ui/utils';
+
+/** Filename placeholders are catalogue metadata; keep stored asset IDs unchanged. */
+export function garmentAssetLabel(displayName: string): string {
+  const placeholder = /^Untitled[_ ]Artwork[-_ ](\d+)$/i.exec(displayName);
+  return placeholder
+    ? cerigaTranslate('interface.garmentStyle', { number: placeholder[1] })
+    : cerigaTranslateLabel(displayName);
+}
 
 export function GarmentAssetChoiceGrid({
   garmentType,
@@ -18,13 +27,15 @@ export function GarmentAssetChoiceGrid({
   selected?: string;
   onSelect: (assetId: string) => void;
 }) {
+  useCerigaTranslation();
+
   const assets = getGarmentAssets(garmentType, category);
   const allowNone = isGarmentCategoryOptional(garmentType, category);
 
   return (
     <div>
       <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-        {category}
+        {cerigaTranslateLabel(category)}
       </Label>
       <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
         {allowNone ? (
@@ -38,7 +49,7 @@ export function GarmentAssetChoiceGrid({
                 : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
             )}
           >
-            <div className="text-[10px] font-medium leading-snug sm:text-[11px]">None</div>
+            <div className="text-[10px] font-medium leading-snug sm:text-[11px]">{cerigaTranslate("interface.text_dc937b59892604f5")}</div>
           </button>
         ) : null}
         {assets.map((asset) => (
@@ -53,8 +64,8 @@ export function GarmentAssetChoiceGrid({
                 : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
             )}
           >
-            <div className="break-all text-[10px] font-medium leading-snug sm:text-[11px]">
-              {asset.displayName}
+            <div className="break-words text-[10px] font-medium leading-snug sm:text-[11px]">
+              {garmentAssetLabel(asset.displayName)}
             </div>
           </button>
         ))}
@@ -75,10 +86,12 @@ export function TshirtAssetChoiceGrid({
   onSelect: (assetId: string) => void;
   allowNone?: boolean;
 }) {
+  useCerigaTranslation();
+
   return (
     <div>
       <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/60">
-        {category}
+        {cerigaTranslateLabel(category)}
       </Label>
       <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
         {allowNone ? (
@@ -92,7 +105,7 @@ export function TshirtAssetChoiceGrid({
                 : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
             )}
           >
-            <div className="text-[10px] font-medium leading-snug sm:text-[11px]">None</div>
+            <div className="text-[10px] font-medium leading-snug sm:text-[11px]">{cerigaTranslate("interface.text_dc937b59892604f5")}</div>
           </button>
         ) : null}
         {getGarmentAssets('tshirt', category).map((asset) => (
@@ -107,8 +120,8 @@ export function TshirtAssetChoiceGrid({
                 : 'border-[#252528] bg-white/5 text-white/60 hover:border-white/20 hover:text-white',
             )}
           >
-            <div className="break-all text-[10px] font-medium leading-snug sm:text-[11px]">
-              {asset.displayName}
+            <div className="break-words text-[10px] font-medium leading-snug sm:text-[11px]">
+              {garmentAssetLabel(asset.displayName)}
             </div>
           </button>
         ))}

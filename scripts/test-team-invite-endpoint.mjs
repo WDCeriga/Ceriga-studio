@@ -1,15 +1,21 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { transformWithEsbuild } from 'vite';
 
 const path = 'supabase/functions/workspace-team-invite/index.ts';
 const { code } = await transformWithEsbuild(await fs.readFile(path, 'utf8'), path, { format: 'cjs' });
+const templatePath = 'supabase/functions/_shared/invitationEmail.ts';
+const templateModule = {exports:{}};
+const templateCode = (await transformWithEsbuild(await fs.readFile(templatePath,'utf8'),templatePath,{format:'cjs'})).code;
+new Function('module','exports',templateCode)(templateModule,templateModule.exports);
 const env = { SUPABASE_URL:'https://db.example.invalid', SUPABASE_ANON_KEY:'anon', SUPABASE_SERVICE_ROLE_KEY:'service' };
 const token = 'a'.repeat(64);
 let handler;
 let signedIn = true, permitted = true, accountExists = true, needsPassword = false, renew = false, providerOK = true;
 const rpcCalls = [], emails = [], authTypes = [];
 const client = {
+  from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data:{preferred_language:'fr'} }) }) }) }),
   auth: {
     getUser: async () => signedIn ? { data:{user:{id:'actor'}},error:null } : { data:{user:null},error:new Error('Expired') },
     admin:{generateLink: async ({type}) => {
@@ -26,7 +32,7 @@ const client = {
     return { data:true,error:null };
   },
 };
-new Function('require','Deno','fetch',code)(()=>({createClient:()=>client}),{env:{get:key=>env[key]},serve:fn=>{handler=fn;}},async (_url,init)=>{
+new Function('require','Deno','fetch',code)(((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(name=>name.endsWith('invitationEmail.ts')?templateModule.exports:{createClient:()=>client}),{env:{get:key=>env[key]},serve:fn=>{handler=fn;}},async (_url,init)=>{
   emails.push(JSON.parse(init.body));
   return new Response(null,{status:providerOK?200:503});
 });
@@ -47,6 +53,8 @@ const factory = await (await send({...payload,origin:'https://untrusted.example.
 assert.deepEqual(factory,{id:'invite',delivery:'sent'});
 assert.match(emails.at(-1).text,/https:\/\/ceriga.example.invalid\/team-invite#/);
 assert.deepEqual(emails.at(-1).to,[payload.email]);
+assert.match(emails.at(-1).subject,/Rejoignez/);
+assert.match(templateModule.exports.invitationEmail('unavailable','https://example.invalid').subject,/Join your team/);
 assert.equal(rpcCalls.at(-1).args.p_sent,true);
 await send({...payload,workspace:'internal'});
 assert.match(emails.at(-1).text,/\/worker-invite#/);

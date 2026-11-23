@@ -1,3 +1,5 @@
+import { formatQuantityLine as cerigaQuantityLine } from '../../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { FactoryHistoryOrders } from '../../components/manufacturer/FactoryHistoryOrders';
 import { isSupabaseConfigured } from '../../lib/supabaseClient';
 import { useEffect, useMemo, useState } from 'react';
@@ -84,6 +86,8 @@ function totalUnits(order: ReturnType<typeof listFactoryOrders>[number]) {
 
 export function ManufacturerOrders(){return isSupabaseConfigured?<FactoryHistoryOrders/>:<ManufacturerOrdersPreview/>;}
 function ManufacturerOrdersPreview() {
+  useCerigaTranslation();
+
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState<FactoryOrderStatus | 'all'>('all');
@@ -150,13 +154,13 @@ function ManufacturerOrdersPreview() {
     setFilter(sf.status);
     setSearch(sf.search);
     setOverdueOnly(sf.overdueOnly);
-    toast.success(`Applied “${sf.name}”`);
+    toast.success(cerigaTranslate("interface.text_d1c5043e7806d425",{value0:(sf.name)}));
   };
 
   const saveCurrentFilter = () => {
     const name = saveName.trim();
     if (!name) {
-      toast.error('Name this filter first');
+      toast.error(cerigaTranslate("interface.text_33fd1134ee51fc49"));
       return;
     }
     const next: SavedFilter[] = [
@@ -172,7 +176,7 @@ function ManufacturerOrdersPreview() {
     setSavedFilters(next);
     persistSavedFilters(next);
     setSaveName('');
-    toast.success('Filter saved');
+    toast.success(cerigaTranslate("interface.text_5fa6bbb20c6d4ec3"));
   };
 
   const removeSaved = (id: string) => {
@@ -184,7 +188,7 @@ function ManufacturerOrdersPreview() {
   const exportCsv = () => {
     const csv = factoryOrdersToCsv(filtered);
     downloadTextFile(`ceriga-orders-${new Date().toISOString().slice(0, 10)}.csv`, csv);
-    toast.success(`Exported ${filtered.length} orders`);
+    toast.success(cerigaTranslate("interface.text_680cac4e70bbb96c",{value0:(filtered.length)}));
   };
 
   const selectedNewIds = filtered
@@ -195,7 +199,7 @@ function ManufacturerOrdersPreview() {
     const n = bulkStartFactoryReview(selectedNewIds);
     setSelected(new Set());
     setTick((t) => t + 1);
-    toast.success(n ? `Started review on ${n} order${n === 1 ? '' : 's'}` : 'No new orders selected');
+    toast.success(cerigaTranslateLabel(n ? cerigaTranslate("interface.plural_7adbe58aac9cec3d",{value0:(n),count:Number(n)}) : cerigaTranslate("interface.text_d13b9f44551df2a5")));
   };
 
   return (
@@ -204,15 +208,11 @@ function ManufacturerOrdersPreview() {
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <Package className="h-4 w-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">Inbox</span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{cerigaTranslate("interface.text_94835ea2fcf775cd")}</span>
           </div>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Orders
-          </h1>
-          <p className="mt-1 text-sm text-white/45">
-            Quote or decline — {filtered.length} shown
-            {overdueCount > 0 ? (
-              <span className="ml-2 text-amber-300/90">· {overdueCount} overdue quote</span>
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{cerigaTranslate("nav.orders")}</h1>
+          <p className="mt-1 text-sm text-white/45">{cerigaTranslate("interface.text_ba5bfc85e72caf16")}{" "}{filtered.length}{" "}{cerigaTranslate("interface.text_baaf53622a51d975")}{overdueCount > 0 ? (
+              <span className="ml-2 text-amber-300/90">· {overdueCount}{" "}{cerigaTranslate("interface.text_b260e2deb09c6094")}</span>
             ) : null}
           </p>
         </div>
@@ -223,16 +223,14 @@ function ManufacturerOrdersPreview() {
             className="border-white/15 bg-white/[0.03] text-white/80 hover:bg-white/5 hover:text-white"
             onClick={exportCsv}
           >
-            <Download className="mr-1.5 h-3.5 w-3.5" />
-            Export CSV
-          </Button>
+            <Download className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_91f71c14c8d6cc64")}</Button>
           <div className="relative w-full max-w-xs sm:w-56">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search brand, product, ID…"
+              placeholder={cerigaTranslate("interface.text_a883a6c905ac8fb7")}
               className="h-10 w-full rounded-xl border border-[#252528] bg-white/[0.03] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#CC2D24]/50"
             />
           </div>
@@ -252,7 +250,7 @@ function ManufacturerOrdersPreview() {
                 : 'border-[#252528] text-white/45 hover:text-white/75',
             )}
           >
-            {f.label}
+            {cerigaTranslateLabel(f.label)}
           </button>
         ))}
         <button
@@ -264,21 +262,15 @@ function ManufacturerOrdersPreview() {
               ? 'border-amber-500/40 bg-amber-500/15 text-amber-100'
               : 'border-[#252528] text-white/45 hover:text-white/75',
           )}
-        >
-          Overdue quotes
-        </button>
+        >{cerigaTranslate("interface.text_f8f858967058d792")}</button>
       </div>
 
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">
-              Saved filters
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_f52bc3467c8f281b")}</p>
             {savedFilters.length === 0 ? (
-              <p className="mt-1 text-[12px] text-white/35">
-                Save status + search + overdue for ops handoffs.
-              </p>
+              <p className="mt-1 text-[12px] text-white/35">{cerigaTranslate("interface.text_90557b351752810e")}</p>
             ) : (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {savedFilters.map((sf) => (
@@ -293,7 +285,7 @@ function ManufacturerOrdersPreview() {
                       type="button"
                       onClick={() => removeSaved(sf.id)}
                       className="rounded p-0.5 text-white/35 hover:bg-white/10 hover:text-white/70"
-                      aria-label={`Delete ${sf.name}`}
+                      aria-label={cerigaTranslate("interface.text_50256b3995d67d1e",{value0:(sf.name)})}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>
@@ -306,7 +298,7 @@ function ManufacturerOrdersPreview() {
             <Input
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
-              placeholder="Filter name"
+              placeholder={cerigaTranslate("interface.text_957064d14820b915")}
               className="h-9 w-40 border-white/15 bg-white/5 text-white"
             />
             <Button
@@ -315,9 +307,7 @@ function ManufacturerOrdersPreview() {
               className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
               onClick={saveCurrentFilter}
             >
-              <Bookmark className="mr-1.5 h-3.5 w-3.5" />
-              Save filter
-            </Button>
+              <Bookmark className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_9fe5192ce42624a0")}</Button>
           </div>
         </div>
       </div>
@@ -325,9 +315,8 @@ function ManufacturerOrdersPreview() {
       {selected.size > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#252528] bg-white/[0.03] px-4 py-3">
           <p className="text-[12px] text-white/65">
-            {selected.size} selected
-            {selectedNewIds.length > 0
-              ? ` · ${selectedNewIds.length} new can start review`
+            {selected.size}{" "}{cerigaTranslate("interface.text_d7cbbb688b2e506c")}{selectedNewIds.length > 0
+              ? cerigaTranslate("interface.text_75aebe26af06b053",{value0:(selectedNewIds.length)})
               : ''}
           </p>
           <Button
@@ -336,23 +325,17 @@ function ManufacturerOrdersPreview() {
             className="bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90"
             disabled={selectedNewIds.length === 0}
             onClick={() => setBulkConfirmOpen(true)}
-          >
-            Start review
-          </Button>
+          >{cerigaTranslate("interface.text_1cf5ecdbaaa0742e")}</Button>
           <button
             type="button"
             className="text-[11px] text-white/40 hover:text-white/70"
             onClick={() => setSelected(new Set())}
-          >
-            Clear
-          </button>
+          >{cerigaTranslate("interface.text_83b12c2216efb4fd")}</button>
         </div>
       ) : null}
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 px-6 py-16 text-center text-sm text-white/40">
-          No orders in this view.
-        </div>
+        <div className="rounded-2xl border border-dashed border-white/15 px-6 py-16 text-center text-sm text-white/40">{cerigaTranslate("interface.text_bdf0b61d68459dde")}</div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-[#252528] bg-[#111113]">
           <div className="overflow-x-auto">
@@ -365,22 +348,22 @@ function ManufacturerOrdersPreview() {
                       checked={allVisibleSelected}
                       onChange={toggleAllVisible}
                       className="rounded border-white/30"
-                      aria-label="Select all visible"
+                      aria-label={cerigaTranslate("interface.text_b48c0322c62831f7")}
                     />
                   </th>
-                  <th className="px-4 py-3 font-semibold">Order</th>
-                  <th className="px-4 py-3 font-semibold">Product</th>
-                  <th className="px-4 py-3 font-semibold">Brand</th>
-                  <th className="px-4 py-3 font-semibold">Type</th>
-                  <th className="px-4 py-3 font-semibold">Qty</th>
-                  <th className="px-4 py-3 font-semibold">Quote due</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("adminOrders.order")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_fb9ef894175c3274")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_090ed4316f1d99fd")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_baaddf70fb5d432b")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("interface.text_a9be9c3e9ab66e18")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("manufacturerOrders.quoteDue")}</th>
+                  <th className="px-4 py-3 font-semibold">{cerigaTranslate("orders.status")}</th>
                   <th className="px-4 py-3 font-semibold text-right"> </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((order) => {
-                  const qtyLines = formatOrderQuantitiesSummary(order.orderQuantities);
+                  const qtyLines = formatOrderQuantitiesSummary(order.orderQuantities, cerigaQuantityLine).map(cerigaTranslateLabel);
                   const units = totalUnits(order);
                   const overdue = isFactoryQuoteOverdue(order);
                   return (
@@ -398,7 +381,7 @@ function ManufacturerOrdersPreview() {
                           checked={selected.has(order.id)}
                           onChange={() => toggleOne(order.id)}
                           className="rounded border-white/30"
-                          aria-label={`Select ${order.id}`}
+                          aria-label={cerigaTranslate("interface.text_33de0e8b35aac169",{value0:(order.id)})}
                         />
                       </td>
                       <td className="px-4 py-3.5 align-middle">
@@ -435,9 +418,7 @@ function ManufacturerOrdersPreview() {
                             {formatFactoryDate(order.dueQuoteBy)}
                           </span>
                           {overdue ? (
-                            <span className="inline-flex w-fit rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200 ring-1 ring-inset ring-amber-500/25">
-                              Overdue
-                            </span>
+                            <span className="inline-flex w-fit rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200 ring-1 ring-inset ring-amber-500/25">{cerigaTranslate("orders.overdue")}</span>
                           ) : null}
                         </div>
                       </td>
@@ -448,7 +429,7 @@ function ManufacturerOrdersPreview() {
                             STATUS_STYLE[order.status] ?? STATUS_STYLE.reviewing,
                           )}
                         >
-                          {FACTORY_STATUS_LABEL[order.status]}
+                          {cerigaTranslateLabel(FACTORY_STATUS_LABEL[order.status])}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 align-middle text-right">
@@ -456,9 +437,7 @@ function ManufacturerOrdersPreview() {
                           to={`/manufacturer/orders/${order.id}`}
                           onClick={(e) => e.stopPropagation()}
                           className="inline-flex items-center gap-1 rounded-lg border border-[#252528] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-white/70 transition hover:border-[#CC2D24]/40 hover:text-white"
-                        >
-                          Open
-                          <ArrowUpRight className="h-3.5 w-3.5 text-[#CC2D24]" />
+                        >{cerigaTranslate("interface.text_ed077f3d8125d60d")}<ArrowUpRight className="h-3.5 w-3.5 text-[#CC2D24]" />
                         </Link>
                       </td>
                     </tr>
@@ -473,9 +452,9 @@ function ManufacturerOrdersPreview() {
       <ConfirmDialog
         open={bulkConfirmOpen}
         onOpenChange={setBulkConfirmOpen}
-        title="Start review on selected?"
-        description={`Move ${selectedNewIds.length} new order${selectedNewIds.length === 1 ? '' : 's'} to Reviewing.`}
-        confirmLabel="Start review"
+        title={cerigaTranslate("interface.text_4c535e87aaff2041")}
+        description={cerigaTranslate("interface.plural_3108eb17b4360b5f",{value0:(selectedNewIds.length),count:Number(selectedNewIds.length)})}
+        confirmLabel={cerigaTranslate("interface.text_1cf5ecdbaaa0742e")}
         onConfirm={commitBulkReview}
       />
     </div>

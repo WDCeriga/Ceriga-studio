@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import type { ReactNode } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from './ui/dialog';
 
@@ -10,13 +11,15 @@ type MessageImagePreviewProps = {
 };
 
 export function MessageImagePreview({ url, name, className, imageClassName, children }: MessageImagePreviewProps) {
+  useCerigaTranslation();
+
   return (
     <Dialog>
       <DialogTrigger asChild>
         <button
           type="button"
           className={['cursor-zoom-in text-left', className].filter(Boolean).join(' ')}
-          aria-label={`Expand image ${name}`}
+          aria-label={cerigaTranslate("interface.text_557151c7b66fcee2",{value0:(name)})}
         >
           <img src={url} alt={name} loading="lazy" className={imageClassName} />
           {children}

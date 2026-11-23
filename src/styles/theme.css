@@ -219,6 +219,113 @@ html:has(.manufacturer-home-shell, .manufacturer-onboarding-shell, .superadmin-o
   color-scheme: light;
 }
 
+/* Portal controls and their portalled menus, dialogs, and notifications share a light palette. */
+html[data-light-portal] {
+  --background: #fafafa;
+  --foreground: #171717;
+  --card: #fff;
+  --card-foreground: #171717;
+  --popover: #fff;
+  --popover-foreground: #171717;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #262626;
+  --muted: #f5f5f5;
+  --muted-foreground: #595959;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
+  --border: #e2e2e2;
+  --input: #dedede;
+  --input-background: #fff;
+  --switch-background: #d4d4d4;
+  --ceriga-scrollbar-track: #fafafa;
+  --ceriga-scrollbar-thumb: #bdbdbd;
+  --ceriga-scrollbar-thumb-hover: #999;
+}
+
+html[data-light-portal] .page-loading-fallback {
+  background-color: var(--background);
+}
+
+html[data-light-portal] .page-loading-fallback > p {
+  color: var(--muted-foreground);
+}
+
+
+/* Legacy surfaces still used by portal pages and shared auth/feedback components. */
+:where(html[data-light-portal]) :is(
+  [class~="bg-[#09090B]"],
+  [class~="bg-[#111113]"],
+  [class~="bg-[#141416]"],
+  [class~="bg-[#161618]"],
+  [class~="bg-[#171719]"],
+  [class~="bg-[#18181b]"],
+  [class~="bg-[#19191b]"],
+  [class~="bg-[#1C0F0F]"],
+  [class~="bg-[#1C1C1E]"],
+  [class~="bg-[#1c1c20]"],
+  [class~="bg-[#25252a]"],
+  [class~="bg-[#09090B]/95"],
+  [class~="bg-[#111113]/95"],
+  [class~="bg-[#161618]/95"]
+) {
+  background-color: var(--card);
+}
+
+:where(html[data-light-portal]) :is(
+  [class~="bg-black/10"],
+  [class~="bg-black/15"],
+  [class~="bg-black/20"],
+  [class~="bg-black/25"],
+  [class~="bg-black/30"],
+  [class~="bg-black/40"]
+):not([data-slot$="-overlay"]):not(:has(video, canvas)) {
+  background-color: var(--muted);
+}
+
+:where(html[data-light-portal]) :is(
+  [class^="border-white/"],
+  [class*=" border-white/"],
+  [class~="border-[#252528]"],
+  [class~="border-[#111113]"],
+  [class~="border-[#3A3A40]"]
+) {
+  border-color: var(--border);
+}
+
+:where(html[data-light-portal]) :is(
+  [class~="text-white"],
+  [class~="text-[#F0EEEE]"],
+  [class~="text-[#F2F0EC]"]
+):not(:where([class~="bg-[#CC2D24]"], [class~="bg-[#CC2D24]"] *, [class~="bg-[#FF3B30]"], [class~="bg-black/90"], [class~="bg-black/90"] *, [class~="bg-neutral-900"], [class~="bg-neutral-900"] *, [class~="bg-black"], [class~="bg-black"] *)) {
+  color: var(--foreground);
+}
+
+:where(html[data-light-portal]) :is(
+  [class^="text-white/"],
+  [class*=" text-white/"],
+  [class~="text-[#6B6B72]"],
+  [class~="text-[#8A8A90]"],
+  [class~="text-[#A3A3A8]"]
+) {
+  color: var(--muted-foreground);
+}
+
+:where(html[data-light-portal]) :is(input, textarea)[placeholder]::placeholder {
+  color: var(--muted-foreground);
+}
+
+:where(html[data-light-portal]) :is(
+  [class~="hover:bg-[#1C1C1E]"],
+  [class~="hover:bg-white/10"],
+  [class~="hover:bg-white/5"]
+):hover {
+  background-color: #ededed;
+}
+
+:where(html[data-light-portal]) [class~="from-[#161618]"][class~="to-[#111113]"] {
+  background-image: none;
+}
+
 /* Let the document scroll and keep the canvas light beyond the portal shell. */
 html:has(.manufacturer-home-shell, .superadmin-overview-shell),
 html:has(.manufacturer-home-shell, .superadmin-overview-shell) body,

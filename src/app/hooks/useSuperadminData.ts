@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchAllOrders,
+  fetchAdminOrderPage,
+  type AdminOrderPage,
+  type AdminOrderQuery,
   fetchAllUsers,
   adminPatchOrder,
   adminPatchProfile,
@@ -29,9 +32,13 @@ const SUPERADMIN_RLS_HINT =
  * Loads real orders + users from Supabase for the superadmin console.
  * Writes go to the DB, then re-fetch.
  */
-export function useSuperadminData() {
+export function useSuperadminData(options:{orderPage?:AdminOrderQuery;orderId?:string;scope?:'orders'|'users'|'manufacturers'|'assignment'}={}) {
+  const queryKey=JSON.stringify({page:options.orderPage??null,orderId:options.orderId??null,scope:options.scope??null});
+  const queryRef=useRef(queryKey);queryRef.current=queryKey;
+  const requestGeneration=useRef(0);
   const { authReady, isAuthenticated, usingSupabase, user } = useAuth();
   const accountKey=`${user?.id||''}:${user?.email||''}`;
+  const lastScope=useRef(accountKey);
   const currentAccount=useRef(accountKey);currentAccount.current=accountKey;
   const inFlight=useRef<string|null>(null);
   const [orders, setOrders] = useState<SuperAdminOrder[]>([]);
@@ -41,11 +48,12 @@ export function useSuperadminData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [orderPage,setOrderPage]=useState<AdminOrderPage|null>(null);
 
   const refresh = useCallback(async ({background=false}:{background?:boolean}={}) => {
-    if (!authReady||inFlight.current===accountKey) return;
-    const requestedAccount=accountKey;
-    const current=()=>currentAccount.current===requestedAccount;
+    if (!authReady||inFlight.current===accountKey+queryKey) return;
+    const requestedAccount=accountKey,requestedQuery=queryKey,generation=++requestGeneration.current;
+    const current=()=>currentAccount.current===requestedAccount&&queryRef.current===requestedQuery&&generation===requestGeneration.current;
     setUsersError(null);
 
     if (!isAuthenticated) {
@@ -74,7 +82,7 @@ export function useSuperadminData() {
       return;
     }
 
-    inFlight.current=accountKey;
+    inFlight.current=accountKey+queryKey;
     if(!background)setLoading(true);
     try {
       const localPreviewEnabled =
@@ -106,15 +114,16 @@ export function useSuperadminData() {
 
       const [ordersResult, usersResult, manufacturersResult, manufacturerListResult] =
         await Promise.allSettled([
-          fetchAllOrders(),
-          fetchAllUsers(),
-          fetchManufacturerAccounts(),
-          fetchManufacturerList(),
+          options.scope==='users'||options.scope==='manufacturers'?Promise.resolve({orders:[]} as AdminOrderPage):options.orderPage?fetchAdminOrderPage(options.orderPage):fetchAllOrders(options.orderId).then(orders=>({orders}) as AdminOrderPage),
+          options.scope&&options.scope!=='users'?Promise.resolve([]):fetchAllUsers(),
+          options.orderPage||options.scope&&options.scope!=='assignment'?Promise.resolve([]):fetchManufacturerAccounts(),
+          options.orderPage||options.scope&&options.scope!=='manufacturers'?Promise.resolve([]):fetchManufacturerList(),
         ]);
 
       if(!current())return;
       if (ordersResult.status === 'fulfilled') {
-        setOrders(ordersResult.value);
+        setOrders(ordersResult.value.orders);
+        setOrderPage(options.orderPage?ordersResult.value:null);
       } else {
         setOrders([]);
       }
@@ -138,20 +147,21 @@ export function useSuperadminData() {
         setManufacturerList([]);
       }
 
-      const failed = [ordersResult, usersResult, manufacturersResult, manufacturerListResult].find((result) => result.status === 'rejected');
+      const failed = (options.orderPage?[ordersResult]:[ordersResult, usersResult, manufacturersResult, manufacturerListResult]).find((result) => result.status === 'rejected');
       setError(failed?.status === 'rejected' ? (failed.reason?.message || 'Failed to refresh admin data') : null);
     } catch (err) {
       if(!current())return;
       setError(err instanceof Error ? err.message : 'Failed to load data');
       setUsersError(err instanceof Error ? err.message : 'Could not load user accounts');
     } finally {
-      if(inFlight.current===requestedAccount)inFlight.current=null;
+      if(inFlight.current===requestedAccount+requestedQuery)inFlight.current=null;
       if(current())setLoading(false);
     }
-  }, [authReady, isAuthenticated, usingSupabase, accountKey]);
+  }, [authReady, isAuthenticated, usingSupabase, accountKey, queryKey, options.scope]);
 
   useEffect(() => {
-    setOrders([]);setUsers([]);setManufacturers([]);setManufacturerList([]);
+    if(!options.orderPage||lastScope.current!==accountKey){setOrders([]);setUsers([]);setManufacturers([]);setManufacturerList([]);setOrderPage(null);}
+    lastScope.current=accountKey;
     void refresh();
     const update=()=>{if(document.visibilityState==='visible')void refresh({background:true});};
     const timer=window.setInterval(update,30000);
@@ -196,6 +206,7 @@ export function useSuperadminData() {
 
   return {
     orders,
+    orderPage,
     users,
     manufacturers,
     manufacturerList,

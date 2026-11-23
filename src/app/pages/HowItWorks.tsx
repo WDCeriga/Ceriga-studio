@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { Link } from 'react-router';
 import { ArrowRight, Box, FileStack, Truck } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -38,12 +39,15 @@ const flows = [
 ];
 
 export function HowItWorks() {
+  
+
+  const { t, label: translateLabel } = useCerigaTranslation();
   return (
     <MarketingShell>
       <MarketingPageHeader
         eyebrow="Process"
-        title="Three paths, one studio"
-        subtitle="Whether you are speccing a new style, refreshing packaging, or sending an existing pack to production, the steps stay short and visible."
+        title={t('marketing.workflowTitle')}
+        subtitle={cerigaTranslate("interface.text_9aaa66e4ebd12303")}
       />
 
       <section className="px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-16 md:px-8 lg:px-10">
@@ -64,9 +68,9 @@ export function HowItWorks() {
                   </div>
 
                   <div className="min-w-0 flex-1 rounded-[14px] border border-[#252528] bg-[#111113] p-5 sm:p-7">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">Flow</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_f1273dc72c95d57e")}</span>
                     <h2 className="mt-1 font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">
-                      {flow.name}
+                      {cerigaTranslateLabel(translateLabel(flow.name))}
                     </h2>
                     <ol className="mt-6 space-y-4">
                       {flow.steps.map((step, j) => (
@@ -74,7 +78,7 @@ export function HowItWorks() {
                           <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#CC2D24]/12 text-[11px] font-bold text-[#CC2D24]">
                             {j + 1}
                           </span>
-                          <span className="pt-0.5">{step}</span>
+                          <span className="pt-0.5">{cerigaTranslateLabel(step)}</span>
                         </li>
                       ))}
                     </ol>
@@ -83,7 +87,7 @@ export function HowItWorks() {
                       className="mt-6 h-9 bg-[#CC2D24] text-[10px] font-semibold uppercase tracking-wider hover:bg-[#CC2D24]/90"
                     >
                       <Link to={flow.cta.to} className="inline-flex items-center gap-2">
-                        {flow.cta.label}
+                        {cerigaTranslateLabel(flow.cta.label)}
                         <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
                     </Button>
@@ -97,19 +101,14 @@ export function HowItWorks() {
 
       <section className="border-t border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-12 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[560px] text-center">
-          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC]">
-            Inside the builder
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-white/45">
-            Steps mirror how product teams think: base silhouette first, then materials, then construction details, then
-            artwork and packaging. You can jump ahead where it makes sense; drafts remember your last position.
-          </p>
+          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC]">{cerigaTranslate("interface.text_59838e7a600f77b1")}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-white/45">{cerigaTranslate("interface.text_94de70074e341c18")}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Button asChild variant="outline" className="h-9 border-white/15 text-white/85 hover:bg-white/5">
-              <Link to="/features">All capabilities</Link>
+              <Link to="/features">{cerigaTranslate("interface.text_6ebe0bc360aaccb8")}</Link>
             </Button>
             <Button asChild className="h-9 bg-[#CC2D24] text-[10px] font-semibold uppercase tracking-wider hover:bg-[#CC2D24]/90">
-              <Link to="/signup">Get started</Link>
+              <Link to="/signup">{cerigaTranslate("marketing.start")}</Link>
             </Button>
           </div>
         </div>
@@ -117,7 +116,7 @@ export function HowItWorks() {
 
       <MarketingFaq
         eyebrow="Process FAQ"
-        title="Common questions"
+        title={cerigaTranslate("interface.text_dfb8a3d41335746f")}
         items={[
           {
             q: 'Do I have to finish every step in order?',

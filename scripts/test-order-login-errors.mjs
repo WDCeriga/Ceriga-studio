@@ -1,3 +1,4 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { transformWithEsbuild } from 'vite';
@@ -5,10 +6,10 @@ import { transformWithEsbuild } from 'vite';
 async function load(path, imports = {}) {
   const { code } = await transformWithEsbuild(await readFile(path, 'utf8'), path, { format: 'cjs', target: 'es2022' });
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', code)(name => {
+  new Function('require', 'module', 'exports', code)(((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(name => {
     if (!(name in imports)) throw Error(`Unexpected import: ${name}`);
     return imports[name];
-  }, module, module.exports);
+  }), module, module.exports);
   return module.exports;
 }
 const errors = await load('src/app/lib/requestErrors.ts');
@@ -35,6 +36,8 @@ const input = { kind: 'production', productName: 'Hoodie', garmentType: 'Hoodie'
 const order = await insertOrder(input);
 assert.equal(order.contactName, input.contactName); assert.deepEqual(order.delivery, input.delivery);
 assert.equal(payload.user_id, 'owner-id'); assert.equal(payload.contact_email, input.contactEmail); assert.equal(payload.contact_phone, '0000');
+await insertOrder({...input,id:'prepared-file-order'});
+assert.equal(payload.id,'prepared-file-order','pre-uploaded files and inserted order must share the same UUID');
 insertError = { message: 'column orders.contact_name does not exist', code: '42703' };
 await assert.rejects(insertOrder(input), error => error instanceof Error && /contact_name/.test(error.message));
 insertError = { message: 'TypeError: Failed to fetch' }; const before = insertCalls;

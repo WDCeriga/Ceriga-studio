@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useCurrency } from '../lib/accountCurrency';
 import { formatMoney } from '../lib/currency';
 import { Money } from '../components/Money';
@@ -39,6 +40,8 @@ function resolveCheckoutOption(
 }
 
 export function OrderCheckout() {
+  useCerigaTranslation();
+
   const accountCurrency = useCurrency();
   const { id, optionId } = useParams();
   const navigate = useNavigate();
@@ -53,9 +56,7 @@ export function OrderCheckout() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-sm text-white/50">
-        Loading checkout…
-      </div>
+      <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-sm text-white/50">{cerigaTranslate("interface.text_59e8f11478028e3d")}</div>
     );
   }
 
@@ -63,10 +64,10 @@ export function OrderCheckout() {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-white">
         <div className="text-center">
-          <h2 className="text-lg font-semibold">Checkout unavailable</h2>
-          {error && <p role="alert" className="mt-2 text-sm text-red-300">{error}</p>}
+          <h2 className="text-lg font-semibold">{cerigaTranslate("interface.text_d787cf27f25f64ce")}</h2>
+          {error && <p role="alert" className="mt-2 text-sm text-red-300">{cerigaTranslateLabel(error)}</p>}
           <Button asChild className="mt-4 h-9 bg-[#CC2D24] text-xs hover:bg-[#CC2D24]/90">
-            <Link to="/orders">Back to orders</Link>
+            <Link to="/orders">{cerigaTranslate("orders.back")}</Link>
           </Button>
         </div>
       </div>
@@ -92,11 +93,11 @@ export function OrderCheckout() {
     try {
       if(order.kind==='production') {
         await submitOrderToManufacturer(id, optionId);
-        toast.success('Order submitted to manufacturer');
+        toast.success(cerigaTranslate("interface.text_b8d36a78ef1cb01d"));
       } else await completeCheckout(id, optionId);
       navigate(order.kind === 'production' ? `/orders/${id}/fulfilment` : `/orders/${id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not submit order');
+      toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_9b4ed1b5279a5485")));
     } finally {
       setPaying(false);
     }
@@ -107,11 +108,11 @@ export function OrderCheckout() {
       <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-4 text-white">
         <section className="w-full max-w-lg space-y-4 rounded-xl border border-[#252528] bg-white/[0.03] p-6 text-center">
           <ShieldCheck className="mx-auto h-8 w-8 text-emerald-400" aria-hidden />
-          <h1 className="text-2xl font-bold">Payment preview</h1>
-          <p className="text-sm text-white/70">{order.productName} · {option.label}</p>
-          <p className="text-sm text-white/70">This was a payment preview. No charge was made and the order is still awaiting payment.</p>
+          <h1 className="text-2xl font-bold">{cerigaTranslate("interface.text_50f23124ca34d3bd")}</h1>
+          <p className="text-sm text-white/70">{order.productName} · {cerigaTranslateLabel(option.label)}</p>
+          <p className="text-sm text-white/70">{cerigaTranslate("interface.text_c45eb2b540ec6351")}</p>
           <Button asChild className="w-full bg-[#CC2D24] hover:bg-[#CC2D24]/90">
-            <Link to={`/orders/${id}`} replace>View order</Link>
+            <Link to={`/orders/${id}`} replace>{cerigaTranslate("orders.view")}</Link>
           </Button>
         </section>
       </div>
@@ -125,17 +126,15 @@ export function OrderCheckout() {
           to={`/orders/${id}`}
           className="mb-6 inline-flex items-center gap-2 text-[11px] font-medium text-white/45 transition-colors hover:text-white/80"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to order
-        </Link>
+          <ArrowLeft className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_f76954e5582758f5")}</Link>
 
-        <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">{order.kind==='production'?'Submit order':'Checkout'}</p>
+        <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">{order.kind==='production'?cerigaTranslate("interface.text_6dde50f964d9b8f0"):cerigaTranslate("interface.text_99e71f48c48f121b")}</p>
         <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase tracking-[-0.03em] text-white">
-          {option.label}
+          {cerigaTranslateLabel(option.label)}
         </h1>
         <p className="mt-1 text-sm text-white/45">{order.productName}</p>
 
-        {option.shipping&&<p className="mt-4 text-xs text-white/60">{option.shipping.provider} · {option.shipping.method}{option.shipping.transitDays ? ` · Estimated ${option.shipping.transitDays} calendar days after collection.` : ''} {option.shipping.tradeTerms}</p>}
+        {option.shipping&&<p className="mt-4 text-xs text-white/60">{option.shipping.provider} · {option.shipping.method}{option.shipping.transitDays ? cerigaTranslate("interface.text_031dabe89352ffd8",{value0:(option.shipping.transitDays)}) : ''} {option.shipping.tradeTerms}</p>}
         <div className="mt-6 space-y-4 rounded-xl border border-[#252528] bg-white/[0.03] p-5">
           <div className="flex items-center justify-between text-sm">
             <span className="text-white/55">{option.description}</span>
@@ -143,7 +142,7 @@ export function OrderCheckout() {
               {approvedAmount}
             </span>
           </div>
-          {option.currency&&accountCurrency.ready&&!accountCurrency.error&&accountCurrency.currency!==option.currency&&<p className="text-xs text-white/60">Indicative conversion: <Money cents={option.priceCents} currency={option.currency}/></p>}
+          {option.currency&&accountCurrency.ready&&!accountCurrency.error&&accountCurrency.currency!==option.currency&&<p className="text-xs text-white/60">{cerigaTranslate("interface.text_f67970db8a7f2f19")}{" "}<Money cents={option.priceCents} currency={option.currency}/></p>}
           <div className="border-t border-[#252528] pt-4">
             <div className="mb-3 flex gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2.5">
               <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300/90" aria-hidden />
@@ -153,11 +152,11 @@ export function OrderCheckout() {
             </div>
             <div className="flex items-center gap-2 text-[11px] text-white/40">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-              {expired?'This quote has expired. Contact Ceriga for an updated quote.':previewPayment?'Payment preview. No charge will be made.':order.kind==='production'?'Submit this option to your assigned manufacturer. No payment is collected.':'Review the approved amount before paying.'}
+              {expired?cerigaTranslate("interface.text_1e6504a403731206"):previewPayment?cerigaTranslate("interface.text_700b7f07949e2cda"):order.kind==='production'?cerigaTranslate("interface.text_ee770ad16aa0ac02"):cerigaTranslate("interface.text_189671f28567bc50")}
             </div>
           </div>
           {expired ? <Button asChild className="h-11 w-full bg-[#CC2D24] text-sm font-semibold hover:bg-[#CC2D24]/90">
-            <a href={supportHref}><Mail className="mr-2 h-4 w-4" aria-hidden />Request an updated quote</a>
+            <a href={supportHref}><Mail className="mr-2 h-4 w-4" aria-hidden />{cerigaTranslate("interface.text_8a14b71509b54540")}</a>
           </Button> : <Button
             type="button"
             disabled={!option.currency || paying}
@@ -165,12 +164,11 @@ export function OrderCheckout() {
             onClick={() => void handlePay()}
           >
             <CreditCard className="mr-2 h-4 w-4" />
-            {paying ? 'Submitting…' : order.kind==='production'&&!previewPayment?'Submit to manufacturer':`Pay ${approvedAmount}`}
+            {paying ? cerigaTranslate("interface.text_49195f559e4a9f5b") : order.kind==='production'&&!previewPayment?cerigaTranslate("interface.text_e6bcdfe53363e709"):cerigaTranslate("interface.text_289c69f0fc253d8e",{value0:(approvedAmount)})}
           </Button>}
         </div>
 
-        <p className="mt-4 text-center text-[10px] text-white/30">
-          Order {order.id}
+        <p className="mt-4 text-center text-[10px] text-white/30">{cerigaTranslate("adminOrders.order")}{" "}{order.id}
         </p>
       </div>
     </div>

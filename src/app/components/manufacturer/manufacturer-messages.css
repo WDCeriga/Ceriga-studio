@@ -99,3 +99,4 @@
 .messages-dialog [data-slot=dialog-footer]>.messages-dialog-confirm{background:#262626;color:white;border-color:#262626}
 .messages-dialog button:focus-visible{outline:2px solid #737373;outline-offset:3px}
 @media(max-width:767px){.messages-dialog [data-slot=dialog-footer]>button{min-height:44px}}
+.messages-purpose-note{font-size:13px;line-height:1.6;color:#666;max-width:800px;margin:0 0 20px}

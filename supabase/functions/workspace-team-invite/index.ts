@@ -1,3 +1,4 @@
+import { invitationEmail } from '../_shared/invitationEmail.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const headers = {
@@ -49,15 +50,13 @@ Deno.serve(async (request: Request) => {
       const fragment = await activationFragment(server, invite, internal);
       const path = internal ? '/worker-invite' : '/team-invite';
       const link = new URL(configuredOrigin).origin + path + '#' + fragment;
-      const workspace = internal ? 'the Ceriga team' : invite.factoryName;
-      const message = 'You have been invited to join ' + workspace + ' on Ceriga.\n\n'
-        + 'Open this invitation to activate your access: ' + link
-        + '\n\nIf you already use Ceriga, sign in with your existing account. Otherwise, create your password on Ceriga.';
+      const { data: recipient } = await server.from('profiles').select('preferred_language').eq('email', invite.email).maybeSingle();
+      const message = invitationEmail(recipient?.preferred_language, link, { workspace: internal ? 'Ceriga' : invite.factoryName });
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + mailKey, 'Content-Type': 'application/json',
           'Idempotency-Key': invite.id + ':' + invite.revision },
-        body: JSON.stringify({ from, to: [invite.email], subject: 'Join your team on Ceriga', text: message }),
+        body: JSON.stringify({ from, to: [invite.email], ...message }),
         signal: AbortSignal.timeout(10000),
       });
       sent = response.ok;

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { Palette } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '../ui/utils';
@@ -14,6 +15,8 @@ function PresetGrid({
   selected: string;
   onSelect: (hex: string) => void;
 }) {
+  useCerigaTranslation();
+
   return (
     <div
       className={cn(
@@ -37,7 +40,7 @@ function PresetGrid({
                 : 'border-white/15 hover:border-white/35',
             )}
             style={{ backgroundColor: norm }}
-            aria-label={`Colour ${norm}`}
+            aria-label={cerigaTranslate("interface.text_990ce2ca7afba5fe",{value0:(norm)})}
           />
         );
       })}
@@ -68,6 +71,8 @@ export function StudioColorField({
   clearLabel?: string;
   clearVisible?: boolean;
 }) {
+  useCerigaTranslation();
+
   const hex = normalizeHex6(value);
   const [hexDraft, setHexDraft] = useState(hex);
 
@@ -86,7 +91,7 @@ export function StudioColorField({
           <button
             type="button"
             className="group relative aspect-square w-[3.25rem] shrink-0 overflow-hidden rounded-xl border border-white/18 bg-black/30 shadow-inner transition hover:border-white/32 sm:aspect-[5/3] sm:w-[5.5rem]"
-            aria-label="Open colour picker"
+            aria-label={cerigaTranslate("interface.text_1e0b3a225501828b")}
           >
             <span className="absolute inset-0" style={{ backgroundColor: hex }} aria-hidden />
             <span
@@ -111,17 +116,17 @@ export function StudioColorField({
           spellCheck={false}
           placeholder="#FFFFFF"
           className="h-9 min-w-0 flex-1 rounded-full border-white/12 bg-black/35 px-3 font-mono text-[11px] text-white placeholder:text-white/28"
-          aria-label="Hex colour"
+          aria-label={cerigaTranslate("interface.text_867319a010d58488")}
         />
       </div>
 
       <div>
-        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{mainLabel}</div>
+        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{cerigaTranslateLabel(mainLabel)}</div>
         <PresetGrid colors={mainColors} selected={hex} onSelect={onChange} />
       </div>
 
       <div>
-        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{popularLabel}</div>
+        <div className="mb-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-white/40 sm:mb-1">{cerigaTranslateLabel(popularLabel)}</div>
         <PresetGrid colors={popularColors} selected={hex} onSelect={onChange} />
       </div>
 
@@ -131,7 +136,7 @@ export function StudioColorField({
           onClick={onClear}
           className="text-[9px] font-medium text-white/40 underline-offset-2 hover:text-white/65 hover:underline"
         >
-          {clearLabel}
+          {cerigaTranslateLabel(clearLabel)}
         </button>
       ) : null}
     </div>

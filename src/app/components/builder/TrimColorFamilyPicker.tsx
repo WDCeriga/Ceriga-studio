@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { STUDIO_MAIN_COLORS, STUDIO_POPULAR_COLORS } from '../../data/studioColorPresets';
 import { Label } from '../ui/label';
 import { StudioColorField } from './StudioColorField';
@@ -14,10 +15,12 @@ export function TrimColorFamilyPicker({
   onChange: (hex: string) => void;
   onClear?: () => void;
 }) {
+  useCerigaTranslation();
+
   return (
     <div className="mb-4">
       <Label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
-        {label}
+        {cerigaTranslateLabel(label)}
       </Label>
       <StudioColorField
         value={value ?? '#FFFFFF'}

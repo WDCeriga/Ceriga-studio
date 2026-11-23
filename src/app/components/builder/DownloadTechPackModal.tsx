@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useMemo, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -95,9 +96,11 @@ function SegmentedControl({
 }: {
   label: string; options: string[]; value: string; onChange: (v: string) => void;
 }) {
+  useCerigaTranslation();
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px' }}>
-      <span style={{ fontSize: 11, color: '#ffffff55', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 11, color: '#ffffff55', fontWeight: 500 }}>{cerigaTranslateLabel(label)}</span>
       <div style={{ display: 'flex', background: '#111113', border: '1px solid #252528', borderRadius: 7, padding: 2, gap: 2 }}>
         {options.map(opt => (
           <button
@@ -128,6 +131,8 @@ export function DownloadTechPackModal({
   builderState,
   projectName,
 }: DownloadTechPackModalProps) {
+  useCerigaTranslation();
+
   const [includeDetailsImage,      setIncludeDetailsImage]      = useState(true);
   const [includeMeasurementTable,  setIncludeMeasurementTable]  = useState(true);
   const [includeMaterialCallouts,  setIncludeMaterialCallouts]  = useState(true);
@@ -180,16 +185,16 @@ export function DownloadTechPackModal({
       };
       await downloadTechPackPdf(data, options);
       toast.success(
-        includeArtworkPages && builderState.prints.some((p) => p.type === 'image')
-          ? 'Tech pack PDF downloaded — artwork embedded'
-          : 'Tech pack PDF downloaded',
+        cerigaTranslateLabel(includeArtworkPages && builderState.prints.some((p) => p.type === 'image')
+          ? cerigaTranslate("interface.text_537050934f1f947f")
+          : cerigaTranslate("interface.text_fd9b10ceead5a657")),
       );
       setDownloadPhase('idle');
       onClose();
     } catch (err) {
       console.error('Tech pack export failed', err);
       setDownloadPhase('error');
-      toast.error('Export failed — try again.');
+      toast.error(cerigaTranslate("interface.text_64902208f02e2ae3"));
     }
   }, [
     builderState,
@@ -233,24 +238,15 @@ export function DownloadTechPackModal({
         {/* ── header ──────────────────────────────────────────────────────── */}
         <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid #252528', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 4 }}>
-              Export
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#F2F0EC', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-              Download Tech Pack
-            </div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 4 }}>{cerigaTranslate("adminOrders.export")}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#F2F0EC', letterSpacing: '-0.025em', lineHeight: 1.15 }}>{cerigaTranslate("interface.text_e88df9e45925ff28")}</div>
             <div style={{ fontSize: 11, color: '#ffffff35', marginTop: 3 }}>
-              {enabledCount} of {pages.length} sections included · {paperSize} · Landscape
-              {includeMeasurementTable ? (
-                <> · Measurements in {measurementUnit === 'in' ? 'inches' : 'cm'}</>
+              {enabledCount}{" "}{cerigaTranslate("interface.text_28391d3bc64ec15c")}{" "}{pages.length}{" "}{cerigaTranslate("interface.text_178aefcd5017d0fb")}{" "}{paperSize}{" "}{cerigaTranslate("interface.text_9caf83aa70fcdcea")}{includeMeasurementTable ? (
+                <>{" "}{cerigaTranslate("interface.text_a0cc2898c30b32e7")}{" "}{measurementUnit === 'in' ? cerigaTranslate("interface.text_56bcdb725a5710d8") : cerigaTranslate("interface.text_b5039c325d7107d6")}</>
               ) : null}
-              {includeQuantity ? null : <> · Quantities hidden</>}
+              {includeQuantity ? null : <>{" "}{cerigaTranslate("interface.text_7e79f1f606b6756a")}</>}
             </div>
-            <p style={{ fontSize: 10, color: '#ffffff40', marginTop: 8, lineHeight: 1.45, maxWidth: 360 }}>
-              The PDF is generated live from your current spec: measurement table, fabric &amp; colour,
-              construction selections and notes, artwork placement, labels &amp; packaging, and order
-              quantities — in the Ceriga landscape factory format.
-            </p>
+            <p style={{ fontSize: 10, color: '#ffffff40', marginTop: 8, lineHeight: 1.45, maxWidth: 360 }}>{cerigaTranslate("interface.text_1eac37bd81c069ae")}</p>
           </div>
           <button
             onClick={onClose}
@@ -267,14 +263,12 @@ export function DownloadTechPackModal({
 
           {/* pages section */}
           <div style={{ padding: '12px 14px 4px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', marginBottom: 2, padding: '0 2px' }}>
-              Include
-            </div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', marginBottom: 2, padding: '0 2px' }}>{cerigaTranslate("interface.text_7285576bdacf86fe")}</div>
           </div>
           <div style={{ padding: '0 6px' }}>
             {pages.map((p, i) => (
               <div key={p.title}>
-                <RowToggle icon={p.icon} title={p.title} sub={p.sub} enabled={p.enabled} onToggle={p.toggle} />
+                <RowToggle icon={p.icon} title={cerigaTranslateLabel(p.title)} sub={p.sub} enabled={p.enabled} onToggle={p.toggle} />
                 {i < pages.length - 1 && <Divider />}
               </div>
             ))}
@@ -285,9 +279,7 @@ export function DownloadTechPackModal({
 
           {/* background */}
           <div style={{ padding: '4px 14px 8px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', marginBottom: 10, padding: '4px 2px 0' }}>
-              Paper tone
-            </div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', marginBottom: 10, padding: '4px 2px 0' }}>{cerigaTranslate("interface.text_36200244b2337453")}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               {bgOptions.map(opt => (
                 <button
@@ -303,7 +295,7 @@ export function DownloadTechPackModal({
                   onMouseLeave={e => { if (selectedTechPackColor !== opt.hex) (e.currentTarget as HTMLElement).style.borderColor = '#ffffff0a'; }}
                 >
                   <div style={{ width: '100%', height: 28, borderRadius: 5, backgroundColor: opt.hex, border: '1px solid #00000018', marginBottom: 5 }} />
-                  <div style={{ fontSize: 10, fontWeight: 500, color: selectedTechPackColor === opt.hex ? '#F2F0EC' : '#ffffff45', textAlign: 'center' }}>{opt.name}</div>
+                  <div style={{ fontSize: 10, fontWeight: 500, color: selectedTechPackColor === opt.hex ? '#F2F0EC' : '#ffffff45', textAlign: 'center' }}>{cerigaTranslateLabel(opt.name)}</div>
                 </button>
               ))}
             </div>
@@ -314,14 +306,12 @@ export function DownloadTechPackModal({
 
           {/* format controls */}
           <div style={{ padding: '4px 0' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', padding: '8px 16px 2px' }}>
-              Format
-            </div>
-            <SegmentedControl label="Paper size"   options={['A4', 'Letter']}              value={paperSize}    onChange={v => setPaperSize(v as 'A4' | 'Letter')} />
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff30', padding: '8px 16px 2px' }}>{cerigaTranslate("interface.text_2f343666aaa88c44")}</div>
+            <SegmentedControl label={cerigaTranslate("interface.text_d02263b7e18d51e8")}   options={['A4', 'Letter']}              value={paperSize}    onChange={v => setPaperSize(v as 'A4' | 'Letter')} />
             <Divider />
-            <SegmentedControl label="Orientation"  options={['Landscape']}                 value="Landscape"    onChange={() => undefined} />
+            <SegmentedControl label={cerigaTranslate("interface.text_e3d11242200fe8f2")}  options={['Landscape']}                 value="Landscape"    onChange={() => undefined} />
             <Divider />
-            <SegmentedControl label="Export as"    options={['PDF', 'PDF + ZIP']}          value={exportFormat} onChange={v => setExportFormat(v as 'PDF' | 'PDF + ZIP')} />
+            <SegmentedControl label={cerigaTranslate("interface.text_1e74a176a3dd1ddb")}    options={['PDF', 'PDF + ZIP']}          value={exportFormat} onChange={v => setExportFormat(v as 'PDF' | 'PDF + ZIP')} />
           </div>
 
           {/* separator */}
@@ -331,13 +321,13 @@ export function DownloadTechPackModal({
           <div style={{ padding: '4px 6px 8px' }}>
             <RowToggle
               icon={Sparkles}
-              title="Generate product render"
+              title={cerigaTranslate("interface.text_f414594666c81f87")}
               sub="AI photorealistic image alongside the PDF (coming soon)"
               enabled={generateRealImage}
               onToggle={() => {
                 setGenerateRealImage(!generateRealImage);
                 if (!generateRealImage) {
-                  toast.message('AI render is not available yet', {
+                  toast.message(cerigaTranslate("interface.text_53cfc982daeb3ba1"), {
                     description: 'The PDF download works fully today.',
                   });
                 }
@@ -345,7 +335,7 @@ export function DownloadTechPackModal({
             />
             {generateRealImage && availableColors.length > 0 && (
               <div style={{ padding: '4px 14px 8px' }}>
-                <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ffffff30', marginBottom: 8 }}>Render colour</div>
+                <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#ffffff30', marginBottom: 8 }}>{cerigaTranslate("interface.text_dccf3b69c5314c3d")}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {availableColors.map(c => (
                     <button
@@ -380,9 +370,7 @@ export function DownloadTechPackModal({
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#ffffff18'; (e.currentTarget as HTMLElement).style.color = '#ffffff90'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#ffffff0e'; (e.currentTarget as HTMLElement).style.color = '#ffffff60'; }}
-          >
-            Cancel
-          </button>
+          >{cerigaTranslate("common.cancel")}</button>
           <button
             onClick={() => void runDownload()}
             disabled={downloadPhase === 'working'}
@@ -402,7 +390,7 @@ export function DownloadTechPackModal({
             ) : (
               <Download style={{ width: 13, height: 13 }} />
             )}
-            {downloadPhase === 'working' ? 'Generating…' : downloadPhase === 'error' ? `Retry ${exportFormat}` : `Download ${exportFormat}`}
+            {downloadPhase === 'working' ? cerigaTranslate("interface.text_d20a4476a0a85978") : downloadPhase === 'error' ? cerigaTranslate("interface.text_9e58d77649ac6f52",{value0:(exportFormat)}) : cerigaTranslate("interface.text_a4924ba426cf55bd",{value0:(exportFormat)})}
           </button>
         </div>
 

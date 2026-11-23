@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ASSET_EDITOR_CANVAS,
@@ -114,6 +115,8 @@ export function AssetEditorCanvas({
   onMoveAnchor,
   showPointHandles = false,
 }: AssetEditorCanvasProps) {
+  useCerigaTranslation();
+
   const svgRef = useRef<SVGSVGElement>(null);
   const [viewBox, setViewBox] = useState<EditorViewBox>(DEFAULT_EDITOR_VIEWBOX);
   const [cursorPoint, setCursorPoint] = useState<DrawnPoint | null>(null);
@@ -279,8 +282,7 @@ export function AssetEditorCanvas({
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl border border-white/10 bg-[#161b26]">
       <div className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-md bg-black/50 px-2 py-1 text-xs text-slate-300">
-        {zoomLabel}% · scroll zoom · drag points · dbl-click reset
-      </div>
+        {cerigaTranslateLabel(zoomLabel)}{cerigaTranslate("interface.text_3e0ef4e691e958a2")}</div>
       <svg
         ref={svgRef}
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
@@ -352,7 +354,7 @@ export function AssetEditorCanvas({
                 fontSize={28}
                 textAnchor="middle"
               >
-                {connection.label}
+                {cerigaTranslateLabel(connection.label)}
               </text>
             </g>
           );

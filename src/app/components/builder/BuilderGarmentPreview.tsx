@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useId } from 'react';
 import type { GarmentType } from '../../data/builderSteps';
 import { cn } from '../ui/utils';
@@ -647,6 +648,8 @@ export function BuilderGarmentPreview({
   pocketTrimColor,
   className,
 }: BuilderGarmentPreviewProps) {
+  useCerigaTranslation();
+
   const uid = useId().replace(/:/g, '');
   const fill = color || '#5C7FB6';
   const stroke = shade(fill, -0.35);
@@ -657,7 +660,7 @@ export function BuilderGarmentPreview({
       viewBox={`0 0 ${VB_W} ${VB_H}`}
       preserveAspectRatio="xMidYMid meet"
       className={cn('relative z-[1] drop-shadow-[0_18px_40px_rgba(0,0,0,0.22)]', className)}
-      aria-label="Garment preview"
+      aria-label={cerigaTranslate("interface.text_9e6f37daf4a66502")}
       role="img"
     >
       <defs>

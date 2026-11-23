@@ -1,66 +1,47 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import {useEffect,useRef,useState} from 'react';
 import {freightRpc,loadFreight,loadForwarders,type Forwarder,type FreightContext,type ShippingTerms} from '../../lib/freight';
 import {amountToCents,formatMoney} from '../../lib/currency';
 import {useCurrency} from '../../lib/accountCurrency';
 import {Money} from '../Money';
+import {ShippingFields,shippingDraft,shippingTerms} from './ShippingFields';
 import './freight.css';
+import {CommonFreightTerms} from './CommonFreightTerms';
 
 function AlternativeShippingForm({options,busy,onSave}:{options:NonNullable<FreightContext['manufacturerQuotes']>;busy:boolean;onSave:(option:string,forwarder:string,terms:ShippingTerms)=>void}){
- const [directory,setDirectory]=useState<Forwarder[]|null>(null);
- const [error,setError]=useState('');
- const [option,setOption]=useState(options[0].id);
- const [forwarder,setForwarder]=useState('');
- const accountCurrency=useCurrency();
- const {currency}=accountCurrency;
- const [enteredPrice,setEnteredPrice]=useState({value:'',currency});
- const price=enteredPrice.currency===currency?enteredPrice.value:'';
- useEffect(()=>{
-  let active=true;
-  loadForwarders().then(rows=>{if(active)setDirectory(rows.filter(row=>row.active));})
-   .catch(()=>{if(active)setError('Could not load freight forwarders. Close and reopen this form to retry.');});
-  return ()=>{active=false;};
- },[]);
- const tier=options.find(row=>row.id===option)??options[0];
- const route=tier.shipping;
+ const{t,label}=useCerigaTranslation();const[directory,setDirectory]=useState<Forwarder[]|null>(null),[error,setError]=useState(''),[option,setOption]=useState(options[0].id),[forwarder,setForwarder]=useState('');
+ const{currency,ready,saving,error:currencyError}=useCurrency();const[draft,setDraft]=useState(()=>shippingDraft(options[0].shipping,currency));
+ useEffect(()=>{let active=true;loadForwarders().then(rows=>{if(active)setDirectory(rows.filter(row=>row.active));}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[]);
  const provider=directory?.find(row=>row.id===forwarder);
- const method=provider?.methods.trim();
- const origin=route?.origin?.trim();
- const destination=route?.destination?.trim();
- const currencyReady=accountCurrency.ready&&!accountCurrency.saving&&!accountCurrency.error;
- if(error)return <p className="freight-error" role="alert">{error}</p>;
- if(!directory)return <p role="status">Loading freight forwarders…</p>;
- if(!directory.length)return <p>Add an active freight forwarder in the directory first.</p>;
- return <form className="freight-draft" onSubmit={event=>{
-  event.preventDefault();
-  const priceCents=amountToCents(price);
-  if(busy||!currencyReady||!provider||priceCents==null||priceCents<0||priceCents>100000000000||!method||!origin||!destination)return;
-  onSave(tier.id,provider.id,{priceCents,currency,provider:provider.company_name,method,origin,destination});
- }}>
-  <fieldset disabled={busy} className="freight-fields">
-   {options.length>1&&<label>Quotation option<select value={tier.id} onChange={event=>setOption(event.target.value)}>{options.map(row=><option key={row.id} value={row.id}>{row.label}</option>)}</select></label>}
-   <label>Freight forwarder<select required value={forwarder} onChange={event=>setForwarder(event.target.value)}><option value="">Select a freight forwarder</option>{directory.map(row=><option key={row.id} value={row.id}>{row.company_name}</option>)}</select></label>
-   <label>Shipping price{currencyReady?` (${currency})`:''}<input required disabled={!currencyReady} type="number" min="0" max="1000000000" step="0.01" value={price} onChange={event=>setEnteredPrice({value:event.target.value,currency})}/></label>
-   {provider&&<p className="freight-help">{method||'Add a shipping method in the freight forwarder directory.'}{provider.typical_delivery.trim()&&` · Typical delivery: ${provider.typical_delivery.trim()}`}</p>}
-   {(!origin||!destination)&&<p className="freight-help">Request a manufacturer quotation revision with shipping details before saving an alternative.</p>}
-   {!currencyReady&&<p className="freight-help">{accountCurrency.error||'Loading account currency…'}</p>}
-  </fieldset>
-  <button className="freight-primary" disabled={busy||!currencyReady||!provider||!method||!origin||!destination}>{busy?'Saving…':'Save shipping quotation'}</button>
+ if(error)return <p className="freight-error" role="alert">{label(error)}</p>;
+ if(!directory)return <p role="status">{t('interface.text_3cea7a5d863a3555')}</p>;
+ if(!directory.length)return <p>{t('interface.text_0ed8d56dbc7d778b')}</p>;
+ return <form className="freight-draft" onSubmit={e=>{e.preventDefault();if(busy||!ready||saving||currencyError||!provider)return;try{onSave(option,provider.id,shippingTerms(draft));}catch(e){setError(e instanceof Error?e.message:t('interface.text_394615f8d5e2c65e'));}}}>
+ <fieldset disabled={busy}>
+ {options.length>1&&<label>{t('interface.text_9a6e4a1857b73d9e')}<select value={option} onChange={e=>{setOption(e.target.value);setForwarder('');setDraft(shippingDraft(options.find(row=>row.id===e.target.value)?.shipping,currency));}}>{options.map(row=><option key={row.id} value={row.id}>{label(row.label)}</option>)}</select></label>}
+ <label>{t('interface.text_b5790c9accce7e02')}<select required value={forwarder} onChange={e=>{setForwarder(e.target.value);const f=directory.find(row=>row.id===e.target.value);setDraft(d=>({...d,priceCents:'',provider:f?.company_name??'',method:f?.methods??''}));}}><option value="">{t('interface.text_ed9e943b6c19b963')}</option>{directory.map(row=><option key={row.id} value={row.id}>{row.company_name}</option>)}</select></label>
+ {provider&&<ShippingFields value={draft} onChange={setDraft} disabled={busy}/>}
+ {currencyError&&<p role="alert">{currencyError}</p>}
+ </fieldset><button className="freight-primary" disabled={busy||!ready||saving||!!currencyError||!provider}>{busy?t('common.saving'):t('interface.text_2284cd1d75fb43eb')}</button>
  </form>;
 }
 
 export function FreightReview({orderId,onReady}:{orderId:string;onReady?:(ready:boolean)=>void}){
+  useCerigaTranslation();
+
  const [alternative,setAlternative]=useState(false);
  const[data,setData]=useState<FreightContext|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[reason,setReason]=useState(''),[feedback,setFeedback]=useState('');const lock=useRef(false);
  const refresh=async()=>{const d=await loadFreight(orderId);setData(d);onReady?.(!!d.manufacturerQuotes?.length&&d.manufacturerQuotes.every(t=>d.selections.some(s=>s.option_id===t.id)));};
  useEffect(()=>{let alive=true;setLoading(true);onReady?.(false);loadFreight(orderId).then(d=>{if(!alive)return;setData(d);onReady?.(!!d.manufacturerQuotes?.length&&d.manufacturerQuotes.every(t=>d.selections.some(s=>s.option_id===t.id)));}).catch(e=>{if(alive)setError(e.message);}).finally(()=>{if(alive)setLoading(false);});return()=>{alive=false;};},[orderId]);
- const run=async(fn:()=>Promise<unknown>,message:string)=>{if(lock.current)return;lock.current=true;setBusy(true);onReady?.(false);setError('');setFeedback('');try{await fn();await refresh();setFeedback(message);}catch(e){setError(e instanceof Error?e.message:'Shipping could not be saved.');}finally{lock.current=false;setBusy(false);}};
- return <section className="freight-panel" aria-busy={busy||loading}><h2>Shipping approval</h2><p className="freight-help">Confirm one arrangement for every sample / bulk option before sending the customer quotation.</p>{loading&&<p role="status">Loading shipping quotes…</p>}{error&&<p className="freight-error" role="alert">{error}<button disabled={busy} onClick={()=>void run(refresh,'Shipping refreshed.')}>Retry</button></p>}{feedback&&<p role="status">{feedback}</p>}
- {data?.manufacturerQuotes?.map(t=><div className="freight-quote" key={t.id}><h3>{t.label}</h3>{t.shipping?<><p>Manufacturer: {t.shipping.provider} · {formatMoney(t.shipping.priceCents,t.shipping.currency)} · {t.shipping.method}{t.shipping.transitDays ? ` · ${t.shipping.transitDays} calendar days` : ''}</p><p className="freight-help">{[`${t.shipping.origin} → ${t.shipping.destination}`, t.shipping.validUntil && `Valid through ${t.shipping.validUntil}`, t.shipping.insurance, t.shipping.services, t.shipping.tradeTerms].filter(Boolean).join(' · ')}</p><button disabled={busy} onClick={()=>void run(async()=>{const id=await freightRpc<string>('freight_add_quote',{p_order:orderId,p_option:t.id,p_terms:t.shipping,p_forwarder:null});await freightRpc('freight_select',{p_order:orderId,p_quote:id,p_amendment_reason:data.paid?reason:null});},'Manufacturer shipping selected.')}>Use manufacturer shipping</button></>:<p className="freight-error">This older quotation has no separate shipping terms. Request a manufacturer revision before issuing new customer pricing.</p>}</div>)}
- {data&&<><div className="freight-actions">{!!data.manufacturerQuotes?.length&&<button type="button" aria-expanded={alternative} disabled={busy} onClick={()=>setAlternative(value=>!value)}>{alternative?'Close alternative shipping':'Find Alternative Shipping'}</button>}<a href="/superadmin/shipping-onboard#forwarders">Manage freight forwarders</a></div>{data.paid&&<label>Paid order amendment reason<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Explain the provider change. Ceriga absorbs any cost difference; the customer's payable price stays locked."/></label>}
+ const run=async(fn:()=>Promise<unknown>,message:string)=>{if(lock.current)return;lock.current=true;setBusy(true);onReady?.(false);setError('');setFeedback('');try{await fn();await refresh();setFeedback(message);}catch(e){setError(e instanceof Error?e.message:cerigaTranslate("interface.text_394615f8d5e2c65e"));}finally{lock.current=false;setBusy(false);}};
+ return <section className="freight-panel" aria-busy={busy||loading}><h2>{cerigaTranslate("interface.text_17617ab3a1666633")}</h2><p className="freight-help">{cerigaTranslate("interface.text_68aaae7f65f4bde8")}</p>{loading&&<p role="status">{cerigaTranslate("interface.text_ff47129fe0ee5ac4")}</p>}{error&&<p className="freight-error" role="alert">{cerigaTranslateLabel(error)}<button disabled={busy} onClick={()=>void run(refresh,'Shipping refreshed.')}>{cerigaTranslate("interface.text_942087cc2d41e013")}</button></p>}{feedback&&<p role="status">{cerigaTranslateLabel(feedback)}</p>}
+ {data?.manufacturerQuotes?.map(t=><div className="freight-quote" key={t.id}><h3>{cerigaTranslateLabel(t.label)}</h3>{t.shipping?<><p>{cerigaTranslate("interface.text_5097dc1b2ff32c53")}{" "}{t.shipping.provider} · {formatMoney(t.shipping.priceCents,t.shipping.currency)} · {t.shipping.method}{t.shipping.transitDays ? cerigaTranslate("interface.text_3006d0359ac17724",{value0:(t.shipping.transitDays)}) : ''}</p><p className="freight-help">{[`${t.shipping.origin} → ${t.shipping.destination}`, t.shipping.validUntil && cerigaTranslate("interface.text_197d238bc911603e",{value0:(t.shipping.validUntil)}), t.shipping.insurance, t.shipping.services, t.shipping.tradeTerms].filter(Boolean).join(' · ')}</p><button disabled={busy} onClick={()=>void run(async()=>{const id=await freightRpc<string>('freight_add_quote',{p_order:orderId,p_option:t.id,p_terms:t.shipping,p_forwarder:null});await freightRpc('freight_select',{p_order:orderId,p_quote:id,p_amendment_reason:data.paid?reason:null});},'Manufacturer shipping selected.')}>{cerigaTranslate("interface.text_68dcbe4a4690c46b")}</button></>:<p className="freight-error">{cerigaTranslate("interface.text_af435b0afc729c87")}</p>}</div>)}
+ {data&&<><div className="freight-actions">{!!data.manufacturerQuotes?.length&&<button type="button" aria-expanded={alternative} disabled={busy} onClick={()=>setAlternative(value=>!value)}>{alternative?cerigaTranslate("interface.text_be254f42dd28e6d5"):cerigaTranslate("interface.text_620c7800145614e1")}</button>}<a href="/superadmin/shipping-onboard#forwarders">{cerigaTranslate("interface.text_aa995df5a2470b31")}</a></div>{data.paid&&<label>{cerigaTranslate("interface.text_c50008326a5ecd14")}<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder={cerigaTranslate("interface.text_d7999c0b8152fcee")}/></label>}
  {alternative&&!!data.manufacturerQuotes?.length&&<AlternativeShippingForm key={orderId} options={data.manufacturerQuotes} busy={busy} onSave={(option,forwarder,terms)=>void run(async()=>{
   await freightRpc('freight_add_quote',{p_order:orderId,p_option:option,p_terms:terms,p_forwarder:forwarder});
   setAlternative(false);
  },'Forwarder quotation saved. Select it below to approve.')}/>}
- <div className="freight-quotes">{data.quotes.map(q=>{const selected=data.selections.some(s=>s.quote_id===q.id);return <article className="freight-quote" data-selected={selected} key={q.id}><h3>{q.terms.provider} {selected?'· Selected':''}</h3><p>{data.manufacturerQuotes?.find(t=>t.id===q.option_id)?.label||q.option_id} · {q.source==='manufacturer'?'Manufacturer':'Freight forwarder'}</p><dl>{Object.entries({Cost:formatMoney(q.terms.priceCents,q.terms.currency),'Transit time':q.terms.transitDays && `${q.terms.transitDays} calendar days`,Route:`${q.terms.origin} → ${q.terms.destination}`,Method:q.terms.method,Insurance:q.terms.insurance,'Included services':q.terms.services,'Duty terms':q.terms.tradeTerms,'Valid through':q.terms.validUntil,Shipment:q.terms.weightKg && `${q.terms.weightKg} kg / ${q.terms.cartons} cartons`,Dimensions:q.terms.lengthCm && `${q.terms.lengthCm} × ${q.terms.widthCm} × ${q.terms.heightCm} cm`}).filter(([,value])=>Boolean(value)).map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl><p className="freight-help">Account estimate: <Money cents={q.terms.priceCents} currency={q.terms.currency}/></p><button disabled={busy||selected} onClick={()=>void run(()=>freightRpc('freight_select',{p_order:orderId,p_quote:q.id,p_amendment_reason:data.paid?reason:null}),'Shipping selection saved.')}>{selected?'Selected':'Select shipping'}</button></article>;})}</div>{!data.quotes.length&&<p className="freight-help">No comparison quotes saved.</p>}{data.amendments.length>0&&<p className="freight-help">{data.amendments.length} approved shipping amendment(s). The issued customer price is unchanged.</p>}</>}
+ <CommonFreightTerms data={data} busy={busy} apply={(source,targets)=>void run(()=>freightRpc('freight_apply_common_terms',{p_order:orderId,p_source:source,p_targets:targets}),cerigaTranslate('workflow.termsSaved'))}/>
+ <div className="freight-quotes">{data.quotes.map(q=>{const selected=data.selections.some(s=>s.quote_id===q.id);return <article className="freight-quote" data-selected={selected} key={q.id}><h3>{q.terms.provider} {selected?cerigaTranslate("interface.text_65cc4fd10f29d15b"):''}</h3><p>{data.manufacturerQuotes?.find(t=>t.id===q.option_id)?.label||q.option_id} · {q.source==='manufacturer'?cerigaTranslate("adminOrders.factory"):cerigaTranslate("interface.text_b5790c9accce7e02")}</p><dl>{Object.entries({Cost:formatMoney(q.terms.priceCents,q.terms.currency),'Transit time':q.terms.transitDays && cerigaTranslate("interface.text_0352b28fb974a531",{value0:(q.terms.transitDays)}),Route:`${q.terms.origin} → ${q.terms.destination}`,Method:q.terms.method,Insurance:q.terms.insurance,'Included services':q.terms.services,'Duty terms':q.terms.tradeTerms,'Valid through':q.terms.validUntil,Shipment:q.terms.weightKg && cerigaTranslate("interface.text_a8cc730a6a1135f3",{value0:(q.terms.weightKg),value1:(q.terms.cartons)}),Dimensions:q.terms.lengthCm && cerigaTranslate("interface.text_63631ca3950875da",{value0:(q.terms.lengthCm),value1:(q.terms.widthCm),value2:(q.terms.heightCm)})}).filter(([,value])=>Boolean(value)).map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl><p className="freight-help">{cerigaTranslate("interface.text_ed520f76d5f3ecc1")}{" "}<Money cents={q.terms.priceCents} currency={q.terms.currency}/></p><button disabled={busy||selected} onClick={()=>void run(()=>freightRpc('freight_select',{p_order:orderId,p_quote:q.id,p_amendment_reason:data.paid?reason:null}),'Shipping selection saved.')}>{selected?cerigaTranslate("interface.text_57fd7a0cf33f2666"):cerigaTranslate("interface.text_1453ab4df8bd4487")}</button></article>;})}</div>{!data.quotes.length&&<p className="freight-help">{cerigaTranslate("interface.text_e31084eb139a756c")}</p>}{data.amendments.length>0&&<p className="freight-help">{data.amendments.length}{" "}{cerigaTranslate("interface.text_14da810fd271c381")}</p>}</>}
  </section>;
 }

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,12 +7,12 @@ import { cn } from '../ui/utils';
 import { ORDER_SIZE_KEYS } from '../../data/builderSteps';
 import {
   applySizeChange,
-  CUSTOM_SAMPLE_MAX_PER_SIZE,
+  MIN_RUN_UNITS,
   distributeQuantity,
   emptySizeBreakdown,
   maxBulkRuns,
   newBulkRun,
-  sampleFixedTotal,
+  normalizeSampleLine,
   setOrderMode,
   sumBreakdown,
   type OrderQuantityLine,
@@ -78,8 +79,6 @@ function QuantityBlock({
   onRemove,
   showTargetTotal,
   minTotal,
-  fixedTotal,
-  maxPerSize,
   targetLabel = 'Quote tier (units)',
 }: {
   title: string;
@@ -89,36 +88,17 @@ function QuantityBlock({
   onRemove?: () => void;
   showTargetTotal?: boolean;
   minTotal?: number;
-  fixedTotal?: number;
-  maxPerSize?: number;
   targetLabel?: string;
 }) {
+  useCerigaTranslation();
+
   const total = sumBreakdown(line.bySize);
-  const belowMin = minTotal != null && total < minTotal;
-  const fixedMismatch = fixedTotal != null && total !== fixedTotal;
-  const sizeCap = maxPerSize != null ? undefined : fixedTotal ?? undefined;
+  const belowMin = minTotal != null && Math.max(total, showTargetTotal ? line.targetTotal ?? 0 : 0) < minTotal;
 
   const applyAutoFill = () => {
-    if (maxPerSize != null) {
-      const bySize = emptySizeBreakdown();
-      ORDER_SIZE_KEYS.forEach((k) => {
-        bySize[k] = maxPerSize;
-      });
-      onUpdate({
-        ...line,
-        targetTotal: fixedTotal,
-        bySize,
-      });
-      return;
-    }
-
-    const target = fixedTotal ?? Math.max(minTotal ?? 0, line.targetTotal ?? total);
+    const target = Math.max(minTotal ?? 0, line.targetTotal ?? total);
     if (target <= 0) return;
-    onUpdate({
-      ...line,
-      targetTotal: target,
-      bySize: distributeQuantity(target),
-    });
+    onUpdate({ ...line, targetTotal: target, bySize: distributeQuantity(target) });
   };
 
   return (
@@ -126,30 +106,25 @@ function QuantityBlock({
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-white/85">{title}</p>
-          {subtitle ? <p className="mt-0.5 text-[10px] text-white/40">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-0.5 text-[10px] text-white/40">{cerigaTranslateLabel(subtitle)}</p> : null}
         </div>
         {onRemove ? (
           <button
             type="button"
             onClick={onRemove}
             className="rounded-md p-1 text-white/35 transition hover:bg-white/10 hover:text-white"
-            aria-label={`Remove ${title}`}
+            aria-label={cerigaTranslate("interface.text_e224cf245aada55a",{value0:(title)})}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         ) : null}
       </div>
 
-      {fixedTotal != null ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#252528] bg-black/20 px-3 py-2">
-          <span className="text-[10px] uppercase tracking-wider text-white/45">Total units</span>
-          <span className="text-sm font-semibold tabular-nums text-white">{fixedTotal}</span>
-        </div>
-      ) : showTargetTotal ? (
+      {showTargetTotal ? (
         <div className="mb-3 flex flex-wrap items-end gap-2">
           <div className="min-w-[7rem] flex-1">
             <Label className="mb-1 block text-[9px] uppercase tracking-wider text-white/45">
-              {targetLabel}
+              {cerigaTranslateLabel(targetLabel)}
             </Label>
             <Input
               type="number"
@@ -172,60 +147,39 @@ function QuantityBlock({
             className="h-8 border-white/15 bg-transparent text-[10px] text-white hover:bg-white/10"
             onClick={applyAutoFill}
           >
-            <Sparkles className="mr-1.5 h-3 w-3" />
-            Auto-fill sizes
-          </Button>
+            <Sparkles className="mr-1.5 h-3 w-3" />{cerigaTranslate("interface.text_be8c44e852bd9703")}</Button>
         </div>
       ) : null}
 
       <SizeGrid
         bySize={line.bySize}
         onChange={(bySize) => onUpdate({ ...line, bySize })}
-        compact={!showTargetTotal && fixedTotal == null}
-        maxTotal={sizeCap}
-        maxPerSize={maxPerSize}
+        compact={!showTargetTotal}
       />
 
       <div className="mt-2.5 flex items-center justify-between text-[10px] text-white/45">
-        <span>
-          Total
-          {fixedTotal != null ? (
-            <span className="ml-1.5 text-white/30">· fixed {fixedTotal}</span>
-          ) : minTotal != null ? (
-            <span className={cn('ml-1.5', belowMin ? 'text-amber-300/90' : 'text-white/30')}>
-              · min {minTotal}
+        <span>{cerigaTranslate("adminOrders.total")}{minTotal != null ? (
+            <span className={cn('ml-1.5', belowMin ? 'text-amber-300/90' : 'text-white/30')}>{cerigaTranslate("interface.text_4ca7884033831a31")}{" "}{minTotal}
             </span>
           ) : null}
         </span>
         <span
           className={cn(
             'font-semibold tabular-nums',
-            belowMin || fixedMismatch ? 'text-amber-300' : 'text-white',
+            belowMin ? 'text-amber-300' : 'text-white',
           )}
         >
           {total}
         </span>
       </div>
 
-      {fixedTotal != null ? (
-        <div className="mt-2 flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8 border-white/15 bg-transparent text-[10px] text-white hover:bg-white/10"
-            onClick={applyAutoFill}
-          >
-            <Sparkles className="mr-1.5 h-3 w-3" />
-            {maxPerSize != null ? 'One per size' : 'Reset size split'}
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }
 
 export function OrderQuantitiesStep({ plan, onChange }: Props) {
+  useCerigaTranslation();
+
   const bulkCap = maxBulkRuns(plan.mode);
   const canAddBulk = plan.bulkRuns.length < bulkCap;
 
@@ -234,7 +188,7 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
   };
 
   const updateSample = (sample: OrderQuantityLine) => {
-    onChange({ ...plan, sample });
+    onChange({ ...plan, sample: normalizeSampleLine(sample) });
   };
 
   const updateBulk = (index: number, line: OrderQuantityLine) => {
@@ -272,50 +226,38 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
                 : 'text-white/45 hover:text-white/70',
             )}
           >
-            {opt.label}
+            {cerigaTranslateLabel(opt.label)}
           </button>
         ))}
       </div>
 
       <QuantityBlock
-        title="Sample"
-        subtitle={
-          plan.mode === 'custom_clothing'
-            ? 'Fixed 6 units — one sample per size (max 1 each)'
-            : undefined
-        }
+        title={cerigaTranslate("manufacturerOrders.sample")}
+        subtitle={cerigaTranslate("interface.text_112d85ab1a8754b6")}
         line={plan.sample}
         onUpdate={updateSample}
-        fixedTotal={sampleFixedTotal(plan.mode)}
-        maxPerSize={plan.mode === 'custom_clothing' ? CUSTOM_SAMPLE_MAX_PER_SIZE : undefined}
+        minTotal={MIN_RUN_UNITS}
       />
 
       <div className="space-y-2.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/85">
-            Bulk quotes
-          </p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-white/85">{cerigaTranslate("interface.text_e9d0c1de40dbe58b")}</p>
           <span className="text-[10px] text-white/35">
             {plan.bulkRuns.length}/{bulkCap}
           </span>
         </div>
 
         {plan.bulkRuns.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#252528] px-3 py-4 text-center text-[11px] text-white/40">
-            Add a bulk tier to get pricing for production runs.
-          </div>
+          <div className="rounded-xl border border-dashed border-[#252528] px-3 py-4 text-center text-[11px] text-white/40">{cerigaTranslate("interface.text_8744cb23299f76dd")}</div>
         ) : (
           plan.bulkRuns.map((run, index) => (
             <QuantityBlock
               key={run.id}
-              title={`Bulk ${index + 1}`}
+              title={cerigaTranslate("interface.text_350f0cb4aec117c3",{value0:(index + 1)})}
               line={run}
               onUpdate={(line) => updateBulk(index, line)}
-              onRemove={
-                plan.mode === 'custom_clothing' && plan.bulkRuns.length > 1
-                  ? () => removeBulk(index)
-                  : undefined
-              }
+              onRemove={() => removeBulk(index)}
+              minTotal={MIN_RUN_UNITS}
               showTargetTotal
             />
           ))
@@ -329,9 +271,7 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
             className="h-9 w-full border-white/15 bg-transparent text-[11px] text-white hover:bg-white/10"
             onClick={addBulk}
           >
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add bulk quote
-          </Button>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_2f95c34867347adf")}</Button>
         ) : null}
       </div>
     </div>
@@ -339,19 +279,21 @@ export function OrderQuantitiesStep({ plan, onChange }: Props) {
 }
 
 export function OrderQuantitiesSummary({ plan }: { plan: OrderQuantityPlan }) {
+  useCerigaTranslation();
+
   const sampleTotal = sumBreakdown(plan.sample.bySize);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-wider text-white/40">
-        <span>Order type</span>
+        <span>{cerigaTranslate("adminOrders.type")}</span>
         <span className="normal-case text-white/70">
-          {plan.mode === 'techpack' ? 'Tech pack' : 'Custom clothing'}
+          {plan.mode === 'techpack' ? cerigaTranslate("adminOrders.techpack") : cerigaTranslate("adminOrders.clothing")}
         </span>
       </div>
 
       <div className="rounded-lg border border-[#252528] bg-white/[0.03] p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">Sample</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">{cerigaTranslate("manufacturerOrders.sample")}</p>
         <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 text-xs sm:grid-cols-6">
           {ORDER_SIZE_KEYS.map((k) => (
             <div key={k}>
@@ -360,7 +302,7 @@ export function OrderQuantitiesSummary({ plan }: { plan: OrderQuantityPlan }) {
             </div>
           ))}
         </div>
-        <p className="mt-2 text-xs font-semibold text-white">{sampleTotal} units</p>
+        <p className="mt-2 text-xs font-semibold text-white">{sampleTotal}{" "}{cerigaTranslate("interface.text_c981a30c0e7b420b")}</p>
       </div>
 
       {plan.bulkRuns.map((run, index) => {
@@ -368,11 +310,9 @@ export function OrderQuantitiesSummary({ plan }: { plan: OrderQuantityPlan }) {
         if (total <= 0 && !run.targetTotal) return null;
         return (
           <div key={run.id} className="rounded-lg border border-[#252528] bg-white/[0.03] p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
-              Bulk {index + 1}
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-white/45">{cerigaTranslate("interface.text_3140100df131cf30")}{" "}{index + 1}
               {run.targetTotal ? (
-                <span className="ml-2 font-normal normal-case text-white/35">
-                  · tier {run.targetTotal}
+                <span className="ml-2 font-normal normal-case text-white/35">{cerigaTranslate("interface.text_1a276367226187f2")}{" "}{run.targetTotal}
                 </span>
               ) : null}
             </p>
@@ -384,7 +324,7 @@ export function OrderQuantitiesSummary({ plan }: { plan: OrderQuantityPlan }) {
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-xs font-semibold text-white">{total} units</p>
+            <p className="mt-2 text-xs font-semibold text-white">{total}{" "}{cerigaTranslate("interface.text_c981a30c0e7b420b")}</p>
           </div>
         );
       })}

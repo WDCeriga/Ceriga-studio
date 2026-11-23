@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import {
   Gauge,
   Calendar,
@@ -38,6 +39,8 @@ export function StepCapacityPricing({
   onBack,
   errors,
 }: Props) {
+  useCerigaTranslation();
+
 
   const pricing = normalizePricing(profile.pricing);
 
@@ -74,29 +77,26 @@ export function StepCapacityPricing({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">4. Capacity & pricing</h2>
-        <p className="mt-1 text-sm text-white/50">
-          Set your minimum order quantity, available capacity and indicative prices. Turnaround times come next.
-        </p>
+        <h2 className="text-xl font-semibold text-white">{cerigaTranslate("interface.text_92a675a5445ae214")}</h2>
+        <p className="mt-1 text-sm text-white/50">{cerigaTranslate("interface.text_60978b6ef31b03a6")}</p>
       </div>
 
       {/* General Production Capacity Section */}
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-6">
         <div className="flex items-center gap-2 text-white">
           <Gauge className="h-4 w-4 text-[#CC2D24]" />
-          <h3 className="text-sm font-semibold">Volume Limits & Line Capacity</h3>
-          <span className="text-xs text-[#CC2D24] font-medium">* Required</span>
+          <h3 className="text-sm font-semibold">{cerigaTranslate("interface.text_8a5f75aee13ed2a2")}</h3>
+          <span className="text-xs text-[#CC2D24] font-medium">{cerigaTranslate("interface.text_b62a197611d03b4d")}</span>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* General MOQ */}
           <div>
             <div className="flex items-center gap-1.5">
-              <Label className="text-xs text-white/80 font-medium">
-                General MOQ (Units) <span className="text-[#CC2D24]">*</span>
+              <Label className="text-xs text-white/80 font-medium">{cerigaTranslate("interface.text_d136fc2fce7c0f3b")}{" "}<span className="text-[#CC2D24]">*</span>
               </Label>
             </div>
-            <p className="text-[11px] text-white/40 mb-1.5">Default minimum across styles</p>
+            <p className="text-[11px] text-white/40 mb-1.5">{cerigaTranslate("interface.text_5f0b29fb686530d4")}</p>
             <Input
               type="number"
               min="1"
@@ -107,15 +107,14 @@ export function StepCapacityPricing({
                 errors.generalMoq && 'border-red-500/80',
               )}
             />
-            {errors.generalMoq && <p className="mt-1 text-xs text-red-400">{errors.generalMoq}</p>}
+            {errors.generalMoq && <p className="mt-1 text-xs text-red-400">{cerigaTranslateLabel(errors.generalMoq)}</p>}
           </div>
 
           {/* Monthly Capacity */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">
-              Monthly Capacity (Units) <span className="text-[#CC2D24]">*</span>
+            <Label className="text-xs text-white/80 font-medium">{cerigaTranslate("interface.text_bccb78d090e1d8eb")}{" "}<span className="text-[#CC2D24]">*</span>
             </Label>
-            <p className="text-[11px] text-white/40 mb-1.5">Total monthly output ceiling</p>
+            <p className="text-[11px] text-white/40 mb-1.5">{cerigaTranslate("interface.text_afb4aeabf7bab2a4")}</p>
             <Input
               type="number"
               min="1"
@@ -127,16 +126,14 @@ export function StepCapacityPricing({
               )}
             />
             {errors.monthlyCapacity && (
-              <p className="mt-1 text-xs text-red-400">{errors.monthlyCapacity}</p>
+              <p className="mt-1 text-xs text-red-400">{cerigaTranslateLabel(errors.monthlyCapacity)}</p>
             )}
           </div>
 
           {/* Currently Available Monthly Capacity */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">
-              Available Monthly Units
-            </Label>
-            <p className="text-[11px] text-white/40 mb-1.5">Free line space for new runs</p>
+            <Label className="text-xs text-white/80 font-medium">{cerigaTranslate("interface.text_42587d1a42dd418e")}</Label>
+            <p className="text-[11px] text-white/40 mb-1.5">{cerigaTranslate("interface.text_b47b5a54542b492b")}</p>
             <Input
               type="number"
               min="0"
@@ -153,15 +150,15 @@ export function StepCapacityPricing({
             />
             {errors.currentAvailableMonthlyCapacity && (
               <p className="mt-1 text-xs text-red-400">
-                {errors.currentAvailableMonthlyCapacity}
+                {cerigaTranslateLabel(errors.currentAvailableMonthlyCapacity)}
               </p>
             )}
           </div>
 
           {/* Max Single Order Quantity */}
           <div>
-            <Label className="text-xs text-white/80 font-medium">Max Single Order</Label>
-            <p className="text-[11px] text-white/40 mb-1.5">Maximum units per single run</p>
+            <Label className="text-xs text-white/80 font-medium">{cerigaTranslate("interface.text_26356cdd2461ee63")}</Label>
+            <p className="text-[11px] text-white/40 mb-1.5">{cerigaTranslate("interface.text_92da213ad8e89b15")}</p>
             <Input
               type="number"
               min="1"
@@ -176,7 +173,7 @@ export function StepCapacityPricing({
               )}
             />
             {errors.maxSingleOrderQuantity && (
-              <p className="mt-1 text-xs text-red-400">{errors.maxSingleOrderQuantity}</p>
+              <p className="mt-1 text-xs text-red-400">{cerigaTranslateLabel(errors.maxSingleOrderQuantity)}</p>
             )}
           </div>
         </div>
@@ -184,10 +181,8 @@ export function StepCapacityPricing({
         {/* Accepting New Orders Toggle */}
         <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.01] p-3.5">
           <div>
-            <span className="text-xs font-semibold text-white">Accepting New Brand Orders</span>
-            <p className="text-[11px] text-white/40">
-              When disabled, Ceriga will temporarily pause automated assignment to your inbox.
-            </p>
+            <span className="text-xs font-semibold text-white">{cerigaTranslate("interface.text_b60f8dc8e4c7e6cd")}</span>
+            <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_d38c8bf0480068fd")}</p>
           </div>
           <Switch
             checked={profile.acceptingNewOrders}
@@ -199,16 +194,14 @@ export function StepCapacityPricing({
       {/* Garment-Specific MOQ & Customisation MOQ */}
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-6">
         <div>
-          <h3 className="text-sm font-semibold text-white">Garment & Method MOQ Overrides</h3>
-          <p className="text-xs text-white/40">
-            Define specific minimums for more complex categories or specialised treatments.
-          </p>
+          <h3 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_dd1c7c25bc83528e")}</h3>
+          <p className="text-xs text-white/40">{cerigaTranslate("interface.text_7185bb1a161edab2")}</p>
         </div>
 
         {/* Garment-Specific Overrides */}
         {profile.garments.length > 0 && (
           <div>
-            <Label className="text-xs text-white/70 font-medium">Garment Category MOQs</Label>
+            <Label className="text-xs text-white/70 font-medium">{cerigaTranslate("interface.text_a92339fedb4824ee")}</Label>
             <div className="mt-2.5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {profile.garments.map((garment) => {
                 const override = profile.garmentMoqOverrides?.[garment];
@@ -222,27 +215,27 @@ export function StepCapacityPricing({
                   >
                     <span className="text-xs font-medium text-white">{garment}</span>
                     <p className="mt-1 text-[10px] text-white/45">
-                      {!hasOverride ? 'Using General MOQ' : confirmed ? 'Custom MOQ' : 'Saved MOQ — review required'}
+                      {!hasOverride ? cerigaTranslate("interface.text_16d27cf9281cdc51") : confirmed ? cerigaTranslate("interface.text_cd0fa22404eebb5a") : cerigaTranslate("interface.text_155186ddae4fe83e")}
                     </p>
                     <div className="mt-1.5 flex items-center gap-1.5">
                       <Input
                         type="number"
-                        aria-label={`${garment} MOQ`}
+                        aria-label={cerigaTranslate("interface.text_fbb9a7f576d05aee",{value0:(garment)})}
                         min="1"
                         step="1"
                         value={currentVal}
                         onChange={(e) => updateGarmentMoq(garment, Number(e.target.value) || 1)}
                         className="h-8 text-xs border-white/10 bg-black/40 text-white"
                       />
-                      <span className="text-[10px] text-white/40">units</span>
+                      <span className="text-[10px] text-white/40">{cerigaTranslate("interface.text_c981a30c0e7b420b")}</span>
                     </div>
                     {hasOverride && (
                       <div className="mt-2 space-y-1 text-[10px]">
                         {!confirmed && <>
-                          <p className="text-white/45">This older value may have been a default. Confirm it or reset to inherit.</p>
-                          <button type="button" className="block text-white/70 hover:text-white" onClick={() => updateGarmentMoq(garment, currentVal)}>Keep as Custom MOQ</button>
+                          <p className="text-white/45">{cerigaTranslate("interface.text_4f870688a5dd2225")}</p>
+                          <button type="button" className="block text-white/70 hover:text-white" onClick={() => updateGarmentMoq(garment, currentVal)}>{cerigaTranslate("interface.text_36c839ec64d0cd58")}</button>
                         </>}
-                        <button type="button" onClick={() => resetGarmentMoq(garment)} className="block text-[#CC2D24] hover:underline">Reset to General MOQ</button>
+                        <button type="button" onClick={() => resetGarmentMoq(garment)} className="block text-[#CC2D24] hover:underline">{cerigaTranslate("interface.text_5ed5122c3e5934f9")}</button>
                       </div>
                     )}
                   </div>
@@ -264,16 +257,12 @@ export function StepCapacityPricing({
           variant="outline"
           onClick={onBack}
           className="border-white/15 text-white hover:bg-white/5"
-        >
-          Back
-        </Button>
+        >{cerigaTranslate("common.back")}</Button>
         <Button
           type="button"
           onClick={onNext}
           className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
-        >
-          Continue to Timeline
-        </Button>
+        >{cerigaTranslate("interface.text_6b5f080b1b0d4d0a")}</Button>
       </div>
     </div>
   );

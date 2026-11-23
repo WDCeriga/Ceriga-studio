@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import '../../components/dashboard/manufacturer-dashboard.css';
 import './onboarding/manufacturer-onboarding.css';
 import {Button} from '../../components/ui/button';
@@ -41,6 +42,8 @@ function withConfiguredShippingMethods(profile: CompleteManufacturerProfile): Co
 }
 
 export function ManufacturerOnboarding() {
+  useCerigaTranslation();
+
   const navigate = useNavigate();
   const submitLock=useRef(false);
   const [timelineReady,setTimelineReady]=useState(false);
@@ -156,7 +159,7 @@ export function ManufacturerOnboarding() {
           ...(syncReady.current.pricing ? [saveManufacturerPricingToDb(saved.pricing)] : []),
         ]);
         if (!syncReady.current.methods || !syncReady.current.pricing || results.some(result => result.status === 'rejected')) {
-          throw new Error('Cloud sync is unavailable. Your draft is saved on this device.');
+          throw new Error("Cloud sync is unavailable. Your draft is saved on this device.");
         }
         if (sequence === saveSequence.current) setSaveStatus('saved');
       } catch (err) {
@@ -292,7 +295,7 @@ export function ManufacturerOnboarding() {
     else if (step === 5) isValid = validateStep5();
 
     if (!isValid) {
-      toast.error('Please complete the required fields before continuing');
+      toast.error(cerigaTranslate("interface.text_5accef73af7f0380"));
       return;
     }
 
@@ -360,7 +363,7 @@ export function ManufacturerOnboarding() {
     if(submitLock.current)return;
     const errors = getFullValidationErrors();
     if (errors.length > 0) {
-      toast.error('Please resolve the errors highlighted on the review page');
+      toast.error(cerigaTranslate("interface.text_21bd8b0442a899a9"));
       return;
     }
 
@@ -378,7 +381,7 @@ export function ManufacturerOnboarding() {
       pendingSnapshot.current = null;
       if (!syncReady.current.methods || !syncReady.current.pricing) {
         saveCompleteManufacturerProfile(profileRef.current);
-        throw new Error('Your draft is saved on this device. Restore cloud sync using Retry sync before completing onboarding.');
+        throw new Error("Your draft is saved on this device. Restore cloud sync using Retry sync before completing onboarding.");
       }
       await saveCustomisationSettingsToDb(completedProfile);
       await saveManufacturerPricingToDb(completedProfile.pricing);
@@ -386,7 +389,7 @@ export function ManufacturerOnboarding() {
       await completeOnboardingInDb(completedProfile);
       saveCompleteManufacturerProfile(completedProfile);
 
-      toast.success('Manufacturer setup complete! Welcome to your factory portal.');
+      toast.success(cerigaTranslate("interface.text_e9aee7770b723479"));
       navigate('/manufacturer', {
         replace: true,
         state: { manufacturerOnboardingComplete: true },
@@ -394,7 +397,7 @@ export function ManufacturerOnboarding() {
     } catch (err) {
       console.error('[ManufacturerOnboarding] Final submit failed:', err);
       setCompletionError(err instanceof Error?err.message:'Could not complete setup. Your draft remains available.');
-      toast.error(err instanceof Error ? err.message : 'Failed to complete onboarding');
+      toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_f0777a181ffecaad")));
     } finally {
       submitLock.current=false;setSubmitting(false);
     }
@@ -404,9 +407,9 @@ export function ManufacturerOnboarding() {
     <div className="factory-home factory-onboarding space-y-8 max-w-5xl mx-auto pb-16">
       {customisationLoadError && (
         <div role="alert" className="rounded-2xl border border-[#252528] bg-[#111113] p-6 text-sm text-white/70">
-          <p>You can continue editing. Your draft is saved on this device, but cloud sync needs attention before final submission.</p>
-          <p className="mt-2">{customisationLoadError}</p>
-          <button type="button" onClick={() => setSyncRetry(value => value + 1)} className="mt-3 text-[#CC2D24]">Retry sync</button>
+          <p>{cerigaTranslate("interface.text_19d5f1620e8f81e5")}</p>
+          <p className="mt-2">{cerigaTranslateLabel(customisationLoadError)}</p>
+          <button type="button" onClick={() => setSyncRetry(value => value + 1)} className="mt-3 text-[#CC2D24]">{cerigaTranslate("interface.text_b6d7d34f682d96fd")}</button>
         </div>
       )}
       {/* Top Banner with Auto-Save Indicator */}
@@ -414,36 +417,32 @@ export function ManufacturerOnboarding() {
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <Sparkles className="h-4 w-4" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">
-              Factory Partner Onboarding
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider">{cerigaTranslate("interface.text_81ba099f9f628afc")}</span>
           </div>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {profile.factoryName ? `Set up ${profile.factoryName}` : 'Set up your factory'}<span>.</span>
+            {profile.factoryName ? cerigaTranslate("interface.text_96790963838a945e",{value0:(profile.factoryName)}) : cerigaTranslate("interface.text_dc9190a5c8f2d938")}<span>.</span>
           </h1>
-          <p className="mt-1 text-sm text-white/45">
-            Tell Ceriga what your factory makes and how you work. You can return to saved steps at any time.
-          </p>
+          <p className="mt-1 text-sm text-white/45">{cerigaTranslate("interface.text_0d89b1688992d968")}</p>
         </div>
 
         {/* Status Pill & Resume Info */}
         <div className="flex items-center gap-2 self-start sm:self-center">
           <div className="onboarding-save-status flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/60">
-            {saveStatus === 'idle'?<span>Autosave on</span>:saveStatus === 'saving' ? (
+            {saveStatus === 'idle'?<span>{cerigaTranslate("interface.text_11caf5435b59cf7b")}</span>:saveStatus === 'saving' ? (
               <>
                 <Loader2 className="h-3 w-3 animate-spin text-amber-400" />
-                <span>Saving progress...</span>
+                <span>{cerigaTranslate("interface.text_2f265274535d078f")}</span>
               </>
             ) : saveStatus === 'error' ? (
               <>
                 <AlertCircle className="h-3 w-3 text-red-400" />
-                <span className="text-red-400">Saved on this device; sync failed</span>
-                <button type="button" onClick={() => setSyncRetry(value => value + 1)} className="ml-1 text-[#CC2D24]">Retry</button>
+                <span className="text-red-400">{cerigaTranslate("interface.text_1947d8ece2f3368f")}</span>
+                <button type="button" onClick={() => setSyncRetry(value => value + 1)} className="ml-1 text-[#CC2D24]">{cerigaTranslate("interface.text_942087cc2d41e013")}</button>
               </>
             ) : (
               <>
                 <Check className="h-3 w-3 text-emerald-400" />
-                <span>Progress saved</span>
+                <span>{cerigaTranslate("interface.text_7351562bacf20409")}</span>
               </>
             )}
           </div>
@@ -462,8 +461,8 @@ export function ManufacturerOnboarding() {
       />
 
       {/* Step Content */}
-      {Object.keys(fieldErrors).length>0&&<div id="onboarding-validation" tabIndex={-1} role="alert" className="onboarding-validation"><h2>Check these details before continuing</h2><ul>{Object.entries(fieldErrors).map(([key,message])=><li key={key}>{message}</li>)}</ul></div>}
-      {completionError&&<div role="alert" className="onboarding-validation"><h2>Setup could not be completed</h2><p>{completionError}</p><p>Your draft remains available. Resolve the issue, then try Complete setup again.</p></div>}
+      {Object.keys(fieldErrors).length>0&&<div id="onboarding-validation" tabIndex={-1} role="alert" className="onboarding-validation"><h2>{cerigaTranslate("interface.text_15b2c6fdc27478ff")}</h2><ul>{Object.entries(fieldErrors).map(([key,message])=><li key={key}>{message}</li>)}</ul></div>}
+      {completionError&&<div role="alert" className="onboarding-validation"><h2>{cerigaTranslate("interface.text_5081ee9d9966f7e8")}</h2><p>{cerigaTranslateLabel(completionError)}</p><p>{cerigaTranslate("interface.text_d788dfb1da7ce5de")}</p></div>}
       <div className="onboarding-step pt-2">
         {step === 0 && (
           <StepFactoryProfile
@@ -514,7 +513,7 @@ export function ManufacturerOnboarding() {
           />
         )}
 
-        {step === 4 && (<div className="space-y-8"><div><h2 className="text-xl font-semibold text-white">5. Production turnaround timeline</h2><p className="mt-1 text-sm text-white/50">Set your sample and bulk lead times, then configure each production stage. Orders start in Preparation once payment is verified and production is authorised.</p></div><ProductionLeadTimes profile={profile} onChange={handleProfileChange} errors={fieldErrors}/><ProductionTimelineEditor onReady={setTimelineReady}/><div className="onboarding-actions flex items-center justify-between gap-3 pt-2"><Button type="button" variant="outline" onClick={handleBack} className="min-h-11 border-white/15 text-white hover:bg-white/5">Back</Button><Button type="button" disabled={!timelineReady} onClick={handleNext} className="onboarding-primary min-h-11 bg-[#CC2D24] px-6 font-semibold text-white hover:bg-[#CC2D24]/90">Continue to Shipping</Button></div></div>)}
+        {step === 4 && (<div className="space-y-8"><div><h2 className="text-xl font-semibold text-white">{cerigaTranslate("interface.text_52a8658c171ab39d")}</h2><p className="mt-1 text-sm text-white/50">{cerigaTranslate("interface.text_ca0f96b9bb01976b")}</p></div><ProductionLeadTimes profile={profile} onChange={handleProfileChange} errors={fieldErrors}/><ProductionTimelineEditor onReady={setTimelineReady}/><div className="onboarding-actions flex items-center justify-between gap-3 pt-2"><Button type="button" variant="outline" onClick={handleBack} className="min-h-11 border-white/15 text-white hover:bg-white/5">{cerigaTranslate("common.back")}</Button><Button type="button" disabled={!timelineReady} onClick={handleNext} className="onboarding-primary min-h-11 bg-[#CC2D24] px-6 font-semibold text-white hover:bg-[#CC2D24]/90">{cerigaTranslate("interface.text_3603d9ee6688f8d6")}</Button></div></div>)}
         {step === 6 && (
           <StepReviewComplete
             profile={profile}

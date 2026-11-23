@@ -23,6 +23,8 @@ import type { ManufacturerQuoteTierRow } from '../lib/ordersDb';
 export type UserOrderKind = 'tech-pack' | 'production';
 
 export type UserOrderStatus =
+  | 'admin_draft'
+  | 'customer_confirmation'
   | 'submitted'
   | 'awaiting_payment'
   | 'priced'
@@ -415,7 +417,13 @@ export async function createOrderFromSubmit(input: {
     return order;
   }
 
+  // Initial attachments are ready before INSERT and automatic assignment.
+  const orderId = input.files?.length ? crypto.randomUUID() : undefined;
+  const uploaded = orderId ? await uploadOrderFiles(orderId, input.files!) : [];
   const order = await insertOrderDb({
+    id: orderId,
+    sourceOrderId: input.sourceOrderId,
+    useApprovedSample: input.useApprovedSample,
     kind: input.kind,
     productName: input.productName ?? 'Studio project',
     garmentType: input.garmentType ?? 'Garment',
@@ -427,24 +435,17 @@ export async function createOrderFromSubmit(input: {
     specifications: input.specifications,
     exportFormat: isTechPack ? 'pdf' : undefined,
     pricedAt: isTechPack ? new Date().toISOString().slice(0, 10) : undefined,
-    quoteRequest: input.quoteRequest,
+    quoteRequest: uploaded.length ? {
+      ...input.quoteRequest,
+      fileNames: uploaded.map(file => file.name),
+      storagePaths: uploaded.map(file => file.path),
+    } : input.quoteRequest,
     contactName: input.contactName,
     contactEmail: input.contactEmail,
     contactPhone: input.contactPhone,
     delivery: input.delivery,
   });
 
-  if (input.files && input.files.length > 0) {
-    const uploaded = await uploadOrderFiles(order.id, input.files);
-    const quoteRequest = {
-      ...input.quoteRequest,
-      fileNames: uploaded.map((u) => u.name),
-      storagePaths: uploaded.map((u) => u.path),
-    };
-    const patched = await patchOrderDb(order.id, { quoteRequest });
-    notifyOrdersUpdated();
-    return patched;
-  }
 
   notifyOrdersUpdated();
   return order;

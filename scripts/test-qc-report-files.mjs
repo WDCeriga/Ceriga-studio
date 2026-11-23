@@ -1,3 +1,4 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {transformWithEsbuild} from 'vite';
@@ -5,7 +6,7 @@ const name='src/app/lib/qcReportFiles.ts';const {code}=await transformWithEsbuil
 let storageError=null,actionError=null;const uploaded=[],removed=[];
 const fakeClient={auth:{getUser:async()=>({data:{user:{id:'factory'}},error:null})},storage:{from:()=>({upload:async(path,file)=>{uploaded.push({path,file});return {error:storageError};},remove:async(paths)=>{removed.push(...paths);return {error:null};},createSignedUrl:async(path)=>({data:{signedUrl:`signed:${path}`},error:null})})}};
 const mock={'./factoryTeam':{currentFactoryId:async()=> 'factory'},'./supabaseClient':{getSupabase:()=>fakeClient},'./qualityControlDb':{qcAction:async()=>{if(actionError)throw actionError;return crypto.randomUUID();}}};
-const mod={exports:{}};new Function('require','module','exports',code)(key=>mock[key],mod,mod.exports);const {prepareQcFile,uploadReportFile}=mod.exports;
+const mod={exports:{}};new Function('require','module','exports',code)(((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(key=>mock[key]),mod,mod.exports);const {prepareQcFile,uploadReportFile}=mod.exports;
 globalThis.createImageBitmap=async()=>({width:100,height:100,close(){}});
 const png=new File([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])],'photo.png',{type:'image/png'});
 assert.equal(await prepareQcFile(png,true),png);

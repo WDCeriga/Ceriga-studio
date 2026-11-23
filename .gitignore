@@ -37,3 +37,6 @@ Thumbs.db
 
 # Dedicated synthetic order sandboxes (never live application data)
 .sandbox/
+
+# Local-only translation models, generated working files and reversible snapshots
+.tmp-language-tools/

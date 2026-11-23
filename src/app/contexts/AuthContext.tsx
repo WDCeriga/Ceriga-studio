@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import {
   createContext,
   useContext,
@@ -107,6 +108,8 @@ function persistLocalUser(user: AuthUser): void {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  useCerigaTranslation();
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
@@ -255,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!profile.credential) {
-      throw new Error('Missing Google credential for Supabase sign-in');
+      throw new Error("Missing Google credential for Supabase sign-in");
     }
 
     const supabase = getSupabase();
@@ -288,7 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestPasswordReset = useCallback(async (email: string) => {
     if (!isSupabaseConfigured) {
-      throw new Error('Password reset is unavailable in local preview mode.');
+      throw new Error("Password reset is unavailable in local preview mode.");
     }
     const supabase = getSupabase();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -318,9 +321,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
+  useCerigaTranslation();
+
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

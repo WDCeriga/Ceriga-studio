@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { Link } from 'react-router';
 import {
   Copy,
@@ -40,12 +41,14 @@ export function ProjectActionsMenu({
   variant = 'footer',
   className,
 }: ProjectActionsMenuProps) {
+  useCerigaTranslation();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label={`More actions for ${projectName}`}
+          aria-label={cerigaTranslate("interface.text_7025f2de2cf460e7",{value0:(projectName)})}
           className={cn(
             variant === 'overlay'
               ? 'flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/75'
@@ -63,42 +66,34 @@ export function ProjectActionsMenu({
         <DropdownMenuItem asChild className="cursor-pointer focus:bg-white/10 focus:text-white">
           <Link to={openTo}>
             <ExternalLink className="h-3.5 w-3.5" />
-            {openLabel}
+            {cerigaTranslateLabel(openLabel)}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer focus:bg-white/10 focus:text-white"
           onClick={() => {
             onDuplicate?.();
-            toast.success(`Duplicated “${projectName}”`);
+            toast.success(cerigaTranslate("interface.text_e07815049c8e79c6",{value0:(projectName)}));
           }}
         >
-          <Copy className="h-3.5 w-3.5" />
-          Duplicate
-        </DropdownMenuItem>
+          <Copy className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_02cdaabfca805d6a")}</DropdownMenuItem>
         <DropdownMenuItem
           className="cursor-pointer focus:bg-white/10 focus:text-white"
-          onClick={() => toast.message(`Rename “${projectName}” — coming soon`)}
+          onClick={() => toast.message(cerigaTranslate("interface.text_bb855ff38ce57f18",{value0:(projectName)}))}
         >
-          <Pencil className="h-3.5 w-3.5" />
-          Rename
-        </DropdownMenuItem>
+          <Pencil className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_3064d79a295cefe4")}</DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer focus:bg-white/10 focus:text-white">
           <Link
             to={exportTo ?? `${openTo.replace(/\/$/, '')}${openTo.includes('?') ? '&' : '?'}step=13`}
           >
-            <Download className="h-3.5 w-3.5" />
-            Export tech pack
-          </Link>
+            <Download className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_3a644098e973d323")}</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-white/10" />
         <DropdownMenuItem
           className="cursor-pointer text-red-300 focus:bg-red-500/15 focus:text-red-200"
           onClick={onDelete}
         >
-          <Trash2 className="h-3.5 w-3.5" />
-          Delete
-        </DropdownMenuItem>
+          <Trash2 className="h-3.5 w-3.5" />{cerigaTranslate("common.delete")}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

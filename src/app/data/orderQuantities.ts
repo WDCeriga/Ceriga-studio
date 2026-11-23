@@ -18,19 +18,7 @@ export type OrderQuantityPlan = {
   bulkRuns: OrderQuantityLine[];
 };
 
-/** Fixed total units for tech pack sample (min and max) */
-export const SAMPLE_UNITS = 5;
-/** @deprecated Use SAMPLE_UNITS */
-export const SAMPLE_MIN_UNITS = SAMPLE_UNITS;
-/** Custom clothing: fixed 6 samples — one per size, max 1 each */
-export const CUSTOM_SAMPLE_UNITS = ORDER_SIZE_KEYS.length;
-export const CUSTOM_SAMPLE_MAX_PER_SIZE = 1;
-/** @deprecated Use CUSTOM_SAMPLE_UNITS */
-export const CUSTOM_SAMPLE_MAX_UNITS = CUSTOM_SAMPLE_UNITS;
-
-export function sampleFixedTotal(mode: OrderQuantityMode): number {
-  return mode === 'techpack' ? SAMPLE_UNITS : CUSTOM_SAMPLE_UNITS;
-}
+export const MIN_RUN_UNITS = 1;
 
 const SIZE_WEIGHTS: Record<OrderSizeKey, number> = {
   xs: 0.08,
@@ -85,64 +73,36 @@ export function distributeQuantity(total: number): SizeBreakdown {
   return result;
 }
 
-export function defaultSampleLine(mode: OrderQuantityMode = 'custom_clothing'): OrderQuantityLine {
-  if (mode === 'techpack') {
-    return {
-      id: 'sample',
-      kind: 'sample',
-      targetTotal: SAMPLE_UNITS,
-      bySize: distributeQuantity(SAMPLE_UNITS),
-    };
-  }
-
-  const bySize = emptySizeBreakdown();
-  ORDER_SIZE_KEYS.forEach((k) => {
-    bySize[k] = CUSTOM_SAMPLE_MAX_PER_SIZE;
-  });
-  return { id: 'sample', kind: 'sample', targetTotal: CUSTOM_SAMPLE_UNITS, bySize };
+export function defaultSampleLine(): OrderQuantityLine {
+  return {
+    id: 'sample',
+    kind: 'sample',
+    targetTotal: MIN_RUN_UNITS,
+    bySize: distributeQuantity(MIN_RUN_UNITS),
+  };
 }
 
-export function normalizeSampleLine(
-  line: OrderQuantityLine,
-  mode: OrderQuantityMode,
-): OrderQuantityLine {
+export function normalizeSampleLine(line: OrderQuantityLine): OrderQuantityLine {
   const bySize = { ...emptySizeBreakdown(), ...line.bySize };
-  if (mode === 'custom_clothing') {
-    ORDER_SIZE_KEYS.forEach((k) => {
-      bySize[k] = Math.min(
-        CUSTOM_SAMPLE_MAX_PER_SIZE,
-        Math.max(0, Math.floor(bySize[k] ?? 0)),
-      );
-    });
-  }
   return {
     ...line,
     id: line.id || 'sample',
     kind: 'sample',
-    targetTotal: mode === 'techpack' ? SAMPLE_UNITS : CUSTOM_SAMPLE_UNITS,
+    targetTotal: sumBreakdown(bySize),
     bySize,
   };
 }
 
-export function isSampleQuantityValid(plan: OrderQuantityPlan): boolean {
-  const fixed = sampleFixedTotal(plan.mode);
-  const total = sumBreakdown(plan.sample.bySize);
-
-  if (plan.mode === 'techpack') {
-    return total === fixed;
+export function quantityValidationMessage(plan: OrderQuantityPlan): string | undefined {
+  if (sumBreakdown(plan.sample.bySize) < MIN_RUN_UNITS) {
+    return 'Enter at least 1 sample unit across the sizes you need.';
   }
-
-  const perSizeOk = ORDER_SIZE_KEYS.every(
-    (k) => (plan.sample.bySize[k] ?? 0) <= CUSTOM_SAMPLE_MAX_PER_SIZE,
+  const emptyRun = plan.bulkRuns.findIndex(
+    run => Math.max(sumBreakdown(run.bySize), run.targetTotal ?? 0) < MIN_RUN_UNITS,
   );
-  return perSizeOk && total === fixed;
-}
-
-export function sampleValidationMessage(plan: OrderQuantityPlan): string {
-  if (plan.mode === 'techpack') {
-    return `Sample must be exactly ${SAMPLE_UNITS} units across sizes`;
+  if (emptyRun >= 0) {
+    return 'Enter at least 1 unit for Bulk ' + (emptyRun + 1) + ', or remove that bulk quote.';
   }
-  return `Sample must be exactly ${CUSTOM_SAMPLE_UNITS} units — one per size`;
 }
 
 /** Clamp a single-size edit so the breakdown never exceeds maxTotal / maxPerSize */
@@ -184,8 +144,8 @@ export function defaultOrderQuantityPlan(
 ): OrderQuantityPlan {
   return {
     mode,
-    sample: defaultSampleLine(mode),
-    bulkRuns: mode === 'techpack' ? [newBulkRun()] : [],
+    sample: defaultSampleLine(),
+    bulkRuns: [],
   };
 }
 
@@ -227,25 +187,14 @@ export function normalizeOrderQuantityPlan(
 
   return {
     mode,
-    sample: normalizeSampleLine(
-      {
-        ...input.sample,
-        bySize: { ...emptySizeBreakdown(), ...input.sample.bySize },
-      },
-      mode,
-    ),
-    bulkRuns:
-      mode === 'techpack' && bulkRuns.length === 0 ? [newBulkRun()] : bulkRuns,
+    sample: normalizeSampleLine(input.sample),
+    bulkRuns: bulkRuns.filter(run => sumBreakdown(run.bySize) > 0 || (run.targetTotal ?? 0) > 0),
   };
 }
 
 export function setOrderMode(plan: OrderQuantityPlan, mode: OrderQuantityMode): OrderQuantityPlan {
   const cap = maxBulkRuns(mode);
-  let bulkRuns = plan.bulkRuns.slice(0, cap);
-  if (mode === 'techpack' && bulkRuns.length === 0) {
-    bulkRuns = [newBulkRun()];
-  }
-  return { ...plan, mode, bulkRuns, sample: defaultSampleLine(mode) };
+  return { ...plan, mode, bulkRuns: plan.bulkRuns.slice(0, cap) };
 }
 
 export function planHasAnyQuantity(plan: OrderQuantityPlan): boolean {
@@ -253,11 +202,14 @@ export function planHasAnyQuantity(plan: OrderQuantityPlan): boolean {
   return plan.bulkRuns.some((run) => sumBreakdown(run.bySize) > 0);
 }
 
-export function formatOrderQuantitiesSummary(plan: OrderQuantityPlan): string[] {
+export function formatOrderQuantitiesSummary(
+  plan: OrderQuantityPlan,
+  formatLine?: (line: {kind: 'sample' | 'bulk'; total: number; index: number; target?: number}) => string,
+): string[] {
   const lines: string[] = [];
   const sampleTotal = sumBreakdown(plan.sample.bySize);
   if (sampleTotal > 0) {
-    lines.push(`Sample · ${sampleTotal} unit${sampleTotal === 1 ? '' : 's'}`);
+    lines.push(formatLine ? formatLine({kind:'sample',total:sampleTotal,index:0}) : `Sample · ${sampleTotal} unit${sampleTotal === 1 ? '' : 's'}`);
   }
   plan.bulkRuns.forEach((run, index) => {
     const total = sumBreakdown(run.bySize);
@@ -266,7 +218,7 @@ export function formatOrderQuantitiesSummary(plan: OrderQuantityPlan): string[] 
       run.targetTotal && run.targetTotal !== total
         ? `Bulk ${index + 1} · ${total} units (quote tier ${run.targetTotal})`
         : `Bulk ${index + 1} · ${total} units`;
-    lines.push(label);
+    lines.push(formatLine ? formatLine({kind:'bulk',total,index:index+1,target:run.targetTotal}) : label);
   });
   if (lines.length === 0) return ['Not set'];
   return lines;

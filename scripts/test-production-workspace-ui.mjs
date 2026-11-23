@@ -1,10 +1,11 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import * as React from 'react';
 import * as Icons from 'lucide-react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {transformWithEsbuild} from 'vite';
-const load=async(path,imports={})=>{const m={exports:{}};const{code}=await transformWithEsbuild(await fs.readFile(path,'utf8'),path,{format:'cjs',target:'es2022'});new Function('React','require','module','exports',code)(React,n=>{if(!(n in imports))throw Error('Unexpected dependency '+n);return imports[n];},m,m.exports);return m.exports;};
+const load=async(path,imports={})=>{const m={exports:{}};const{code}=await transformWithEsbuild(await fs.readFile(path,'utf8'),path,{format:'cjs',target:'es2022'});new Function('React','require','module','exports',code)(React,((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(n=>{if(!(n in imports))throw Error('Unexpected dependency '+n);return imports[n];}),m,m.exports);return m.exports;};
 const lib=await load('src/app/lib/productionTimeline.ts');
 const config={timezone:'UTC',workdays:[1,2,3,4,5],workStart:'09:00',workEnd:'17:00',startEvent:'production_approval',factors:[],stages:lib.productionStages.map(id=>({id,duration:1,unit:'working_days',starts:'previous_stage',automatic:false}))};
 const base={id:'production-test-order',name:'Cotton production shirt',garment:'T-shirt',quantity:100,stage:'preparation',version:1,productionStartedAt:'2026-10-28T09:00:00Z',qcStatus:'not_submitted',history:[],updates:[],plan:{config,revision:2,template_revision:1,blocks:[],stage_delays:[],facts:{},stage_started_at:'2026-10-28T09:00:00Z',original_completion:'2026-11-05T17:00:00Z',expected_completion:'2026-11-06T17:00:00Z',schedule:[{stage:'preparation',end:'2026-10-30T17:00:00Z',ready:false,blocked:false,automatic:false}]}};

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { Link } from 'react-router';
 
 const LABS = [
@@ -22,27 +23,21 @@ const LABS = [
 ];
 
 export function LabIndex() {
+  useCerigaTranslation();
+
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white">
       <header className="border-b border-white/10 bg-[#111113]/90 px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">
-              Lab
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">
-              Internal experiments
-            </h1>
-            <p className="mt-1 text-sm text-white/55">
-              Scratch pages for garment geometry and colouring — not part of the product nav.
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">{cerigaTranslate("interface.text_efdcf466b553a068")}</p>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{cerigaTranslate("interface.text_2542b50e36bc5360")}</h1>
+            <p className="mt-1 text-sm text-white/55">{cerigaTranslate("interface.text_b7f0a221aaa414b6")}</p>
           </div>
           <Link
             to="/catalog"
             className="text-sm text-white/50 underline-offset-4 hover:text-white hover:underline"
-          >
-            Catalog
-          </Link>
+          >{cerigaTranslate("marketing.catalog")}</Link>
         </div>
       </header>
 
@@ -53,7 +48,7 @@ export function LabIndex() {
               to={lab.to}
               className="block rounded-2xl border border-[#252528] bg-[#111113] px-5 py-4 transition hover:border-white/20 hover:bg-[#161618]"
             >
-              <h2 className="text-base font-medium text-white">{lab.title}</h2>
+              <h2 className="text-base font-medium text-white">{cerigaTranslateLabel(lab.title)}</h2>
               <p className="mt-1 text-sm text-white/50">{lab.blurb}</p>
             </Link>
           </li>

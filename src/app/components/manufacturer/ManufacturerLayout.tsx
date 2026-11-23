@@ -1,3 +1,5 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
+import { LanguageSelect } from '../../i18n/LanguageProvider';
 import '../portal-navigation.css';
 import './manufacturer-sidebar.css';
 import {ManufacturerOnboardingShell} from './ManufacturerOnboardingShell';
@@ -17,11 +19,9 @@ import {
   MessageCircle,
   Package,
   Settings,
-  Users,
-  Boxes,
   ClipboardList,
   Ship,
-  CalendarDays,
+  Truck,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import { getFactoryWorkspace } from '../../data/manufacturerPortalMock';
@@ -29,31 +29,32 @@ import { usePortalNotifications } from '../../hooks/usePortalNotifications';
 import { cn } from '../ui/utils';
 import { useManufacturerPricing } from '../../data/manufacturerPricing';
 
-import{FactoryAccessProvider,useFactoryAccess,factoryPageAllowed}from '../../contexts/FactoryAccessContext';
+import{FactoryAccessProvider,useFactoryAccess,factoryManagementPages,factoryPageAllowed}from '../../contexts/FactoryAccessContext';
 import{teamRpc}from '../../lib/factoryTeam';
 
 const RED = '#CC2D24';
 
 const navItems = [
-  { path: '/manufacturer', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { path: '/manufacturer', label: 'Overview', icon: LayoutDashboard, end: true },
+  { path: '/manufacturer/quotations', label: 'Quotes', icon: ClipboardList },
   { path: '/manufacturer/orders', label: 'Orders', icon: Package },
-  { path: '/manufacturer/fulfilment', label: 'Fulfilment', icon: ClipboardList },
-  { path: '/manufacturer/materials', label: 'Materials', icon: Boxes },
-  { path: '/manufacturer/capacity', label: 'Production calendar', icon: CalendarDays },
+  { path: '/manufacturer/fulfilment', label: 'Production & delivery', icon: Truck },
   { path: '/manufacturer/statistics', label: 'Statistics', icon: BarChart3 },
-  { path: '/manufacturer/team', label: 'Team & roles', icon: Users },
   { path: '/manufacturer/messages', label: 'Messages', icon: MessageCircle },
   { path: '/manufacturer/settings', label: 'Settings', icon: Settings },
 ] as const;
 
 export function ManufacturerLayout({children}:{children:ReactNode}){return <FactoryAccessProvider><ManufacturerWorkspace>{children}</ManufacturerWorkspace></FactoryAccessProvider>;}
 function ManufacturerWorkspace({ children }: { children: ReactNode }) {
+  
+
  const {access,ready:accessReady,error:accessError}=useFactoryAccess();
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, authReady } = useAuth();
   useManufacturerPricing();
   const { unread: notifUnread } = usePortalNotifications('manufacturer');
+  const { t, label: translateLabel } = useCerigaTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isLgUp, setIsLgUp] = useState(true);
@@ -102,8 +103,8 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
   }, [authReady, user, onboardingJustCompleted, demoWorkspace.onboardingComplete,access?.factoryId]);
 
   if(isSupabaseConfigured&&accessReady&&access?.passwordSetupRequired)return <Navigate to="/team-password" replace/>;
-  if(isSupabaseConfigured&&accessReady&&access&&!access.factoryId&&(access.hadMembership||access.organisations.length>0))return <main className="mx-auto mt-16 max-w-lg space-y-4 rounded-2xl border border-white/10 p-6 text-white"><h1 className="text-xl font-semibold">Select a factory workspace</h1><p className="text-sm text-white/55">Your previous factory access is no longer active. Select an authorised organisation or ask an owner for a new invitation.</p>{access.organisations.length>0?<select aria-label="Choose factory workspace" defaultValue="" className="w-full rounded-lg border border-white/20 bg-[#111113] p-3" onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}><option disabled value="">Choose an organisation</option>{access.organisations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select>:<Link to="/dashboard" className="inline-block text-red-300 underline">Return to your account</Link>}{loadError&&<p role="alert" className="text-red-200">{loadError}</p>}</main>;
-  if(loadError)return <div className="mx-auto mt-16 max-w-lg rounded-xl border border-red-400/25 p-6 text-white"><h1 className="font-semibold">Factory account unavailable</h1><p role="alert" className="mt-3 text-sm text-red-200">{loadError}</p><button type="button" onClick={()=>window.location.reload()} className="mt-4 rounded-lg border border-white/20 px-4 py-2">Retry account check</button></div>;
+  if(isSupabaseConfigured&&accessReady&&access&&!access.factoryId&&(access.hadMembership||access.organisations.length>0))return <main className="mx-auto mt-16 max-w-lg space-y-4 rounded-2xl border border-white/10 p-6 text-white"><h1 className="text-xl font-semibold">{cerigaTranslate("interface.text_cb75a94ba50a8320")}</h1><p className="text-sm text-white/55">{cerigaTranslate("interface.text_d3b5fc214add9dac")}</p>{access.organisations.length>0?<select aria-label={cerigaTranslate("interface.text_53bd8d0a0a692b9a")} defaultValue="" className="w-full rounded-lg border border-white/20 bg-[#111113] p-3" onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}><option disabled value="">{cerigaTranslate("interface.text_318de98546161683")}</option>{access.organisations.map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select>:<Link to="/dashboard" className="inline-block text-red-300 underline">{cerigaTranslate("interface.text_9929acfac92cd624")}</Link>}{loadError&&<p role="alert" className="text-red-200">{cerigaTranslateLabel(loadError)}</p>}</main>;
+  if(loadError)return <div className="mx-auto mt-16 max-w-lg rounded-xl border border-red-400/25 p-6 text-white"><h1 className="font-semibold">{cerigaTranslate("interface.text_212ce94fc73d52a1")}</h1><p role="alert" className="mt-3 text-sm text-red-200">{cerigaTranslateLabel(loadError)}</p><button type="button" onClick={()=>window.location.reload()} className="mt-4 rounded-lg border border-white/20 px-4 py-2">{cerigaTranslate("interface.text_e15b56dccffcf1e4")}</button></div>;
 
   const onOnboarding = location.pathname.startsWith('/manufacturer/onboarding');
 
@@ -160,7 +161,8 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
 
   const inClientHistory = location.pathname.startsWith('/manufacturer/clients/');
   const isActive = (path: string, end?: boolean) => {
-    if (path === '/manufacturer/orders' && (inClientHistory || /^\/manufacturer\/quotations(?:\/|$)/.test(location.pathname))) return true;
+    if (path === '/manufacturer/orders' && inClientHistory) return true;
+    if (path === '/manufacturer/settings' && factoryManagementPages.some(item => item.path === location.pathname.replace(/\/$/, ''))) return true;
     if (end) return location.pathname === path;
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
@@ -174,10 +176,9 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
   };
 
   const visibleNavItems=navItems.filter(item=>!isSupabaseConfigured||factoryPageAllowed(item.path,access?.permissions||[]));
-  const lightPortal = (inClientHistory||['/manufacturer','/manufacturer/orders','/manufacturer/quotations'].includes(location.pathname.replace(/\/$/,''))||location.pathname.startsWith('/manufacturer/orders/')||location.pathname.startsWith('/manufacturer/quotations/')||location.pathname==='/manufacturer/fulfilment'||location.pathname.startsWith('/manufacturer/fulfilment/')||location.pathname==='/manufacturer/production'||location.pathname.startsWith('/manufacturer/production/')||location.pathname==='/manufacturer/quality'||location.pathname.startsWith('/manufacturer/quality/')||location.pathname==='/manufacturer/shipping'||location.pathname.startsWith('/manufacturer/shipping/')||location.pathname==='/manufacturer/materials'||location.pathname==='/manufacturer/capacity'||location.pathname==='/manufacturer/portfolio'||location.pathname==='/manufacturer/verification'||location.pathname==='/manufacturer/statistics'||location.pathname==='/manufacturer/team'||location.pathname==='/manufacturer/messages'||(location.pathname==='/manufacturer/settings'||location.pathname.startsWith('/manufacturer/settings/'))||location.pathname==='/manufacturer/notifications'||location.pathname==='/manufacturer/onboarding');
   const NavBlock = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <nav aria-label="Workspace" className="flex-1 space-y-1 p-2">
+      <nav aria-label={t('nav.workspace')} className="flex-1 space-y-1 p-2">
         {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path, 'end' in item ? item.end : false);
@@ -195,7 +196,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
               )}
             >
               <Icon className="h-[18px] w-[18px] shrink-0" />
-              <span className="text-[13px] font-medium">{item.label}</span>
+              <span className="text-[13px] font-medium">{cerigaTranslateLabel(translateLabel(item.label))}</span>
             </Link>
           );
         })}
@@ -220,15 +221,16 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
               </span>
             ) : null}
           </span>
-          <span className="text-[13px] font-medium">Notifications</span>
+          <span className="text-[13px] font-medium">{t('nav.notifications')}</span>
         </Link>
+        <div className="px-2 py-1"><LanguageSelect /></div>
         <button
           type="button"
           onClick={handleLogout}
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[#A3A3A8] transition-colors hover:bg-[#1C1C1E] hover:text-[#F0EEEE]"
         >
           <LogOut className="h-[18px] w-[18px] shrink-0" />
-          <span className="text-[13px] font-medium">Log out</span>
+          <span className="text-[13px] font-medium">{t('authentication.logout')}</span>
         </button>
       </div>
     </>
@@ -237,13 +239,13 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
   if (onOnboarding) {
     return (
       <ManufacturerOnboardingShell>
-        <div className="manufacturer-onboarding-access">{isSupabaseConfigured&&accessError?<p role="alert" className="text-red-200">{accessError}</p>:isSupabaseConfigured&&!accessReady?<p role="status" className="text-white/60">Checking factory permissions…</p>:isSupabaseConfigured&&((!access?.factoryId&&!onOnboarding)||(access?.factoryId&&!factoryPageAllowed(location.pathname,access.permissions)))?<p role="alert" className="text-white/60">Your role does not have permission to access this page. Ask a factory owner to update your access.</p>:<div key={access?.factoryId}>{access?.organisations&&access.organisations.length>1&&<label className="mb-6 block text-xs text-white/60">Factory workspace<select aria-label="Switch factory organisation" className="ml-3 rounded-lg border border-white/20 bg-[#111113] p-2" value={access.factoryId||''} onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}>{access.organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}{children}</div>}</div>
+        <div className="manufacturer-onboarding-access">{isSupabaseConfigured&&accessError?<p role="alert" className="text-red-200">{cerigaTranslateLabel(accessError)}</p>:isSupabaseConfigured&&!accessReady?<p role="status" className="text-white/60">{cerigaTranslate("interface.text_6dea8711b200a8ce")}</p>:isSupabaseConfigured&&((!access?.factoryId&&!onOnboarding)||(access?.factoryId&&!factoryPageAllowed(location.pathname,access.permissions)))?<p role="alert" className="text-white/60">{cerigaTranslate("interface.text_44594404ba637c58")}</p>:<div key={access?.factoryId}>{access?.organisations&&access.organisations.length>1&&<label className="mb-6 block text-xs text-white/60">{cerigaTranslate("interface.text_c46143a78610bd2d")}<select aria-label={cerigaTranslate("interface.text_3e32174f9966df52")} className="ml-3 rounded-lg border border-white/20 bg-[#111113] p-2" value={access.factoryId||''} onChange={e=>void teamRpc('switch_factory_organisation',{p_factory:e.target.value}).then(()=>window.location.reload()).catch(err=>setLoadError(err.message))}>{access.organisations.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}{children}</div>}</div>
       </ManufacturerOnboardingShell>
     );
   }
 
   return (
-    <div className={cn("min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)] text-[#F0EEEE]",lightPortal&&'manufacturer-home-shell')}>
+    <div className={cn("min-h-dvh overflow-x-hidden bg-[#09090B] pb-[env(safe-area-inset-bottom)] text-[#F0EEEE]",'manufacturer-home-shell')}>
       {!isLgUp && (
         <header className="fixed left-0 right-0 top-0 z-40 flex min-h-[3.75rem] items-center justify-between border-b border-[#252528] bg-[#09090B]/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <button
@@ -252,21 +254,19 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
             aria-expanded={sheetOpen}
             aria-haspopup="dialog"
             className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
-            aria-label="Open menu"
+            aria-label={t('nav.openMenu')}
           >
             <Menu className="h-6 w-6" />
           </button>
           <span
             className="text-[11px] font-extrabold uppercase tracking-[0.2em]"
             style={{ color: RED }}
-          >
-            Factory
-          </span>
+          >{cerigaTranslate("interface.text_c4b97afe643da8e9")}</span>
           <Link
             to="/manufacturer/notifications"
             aria-current={isActive("/manufacturer/notifications") ? "page" : undefined}
             className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#252528] bg-[#1C1C1E] text-[#F0EEEE]"
-            aria-label={`Notifications${notifUnread ? `, ${notifUnread} unread` : ''}`}
+            aria-label={cerigaTranslate("interface.text_fbac5d2f7a247d35",{value0:(notifUnread ? cerigaTranslate("interface.text_340606ff6d8fbee7",{value0:(notifUnread)}) : '')})}
           >
             <Bell className="h-5 w-5" />
             {notifUnread > 0 ? (
@@ -282,9 +282,9 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
         <SheetContent
           side="left"
           aria-describedby={undefined}
-          className={cn("portal-mobile-menu w-[min(320px,88vw)] p-0", lightPortal && "portal-mobile-menu-light")}
+          className={"portal-mobile-menu portal-mobile-menu-light w-[min(320px,88vw)] p-0"}
         >
-          <SheetTitle className="sr-only">Factory navigation</SheetTitle>
+          <SheetTitle className="sr-only">{cerigaTranslate("interface.text_5d9e57980c45ca4f")}</SheetTitle>
           <div className="portal-mobile-menu-body">
             <div className="portal-mobile-menu-heading">
               <span className="text-sm font-extrabold uppercase tracking-wide text-[#F0EEEE]">
@@ -317,7 +317,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setCollapsed((x) => !x)}
             className="flex h-7 w-7 items-center justify-center rounded-md border border-[#252528] bg-[#1C1C1E]"
-            aria-label={collapsed ? 'Expand' : 'Collapse'}
+            aria-label={t(collapsed ? "nav.expand" : "nav.collapse")}
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4 text-[#A3A3A8]" />
@@ -331,6 +331,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
             <NavBlock />
           ) : (
             <div className="manufacturer-sidebar-icons flex flex-col items-center gap-1 p-2">
+              <LanguageSelect compact />
               {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path, 'end' in item ? item.end : false);
@@ -339,7 +340,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
                     key={item.path}
                     to={item.path}
                     aria-current={active ? "page" : undefined}
-                    title={item.label}
+                    title={translateLabel(item.label)}
                     className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
                       active
@@ -354,7 +355,7 @@ function ManufacturerWorkspace({ children }: { children: ReactNode }) {
               <Link
                 to="/manufacturer/notifications"
                 aria-current={isActive("/manufacturer/notifications") ? "page" : undefined}
-                title="Notifications"
+                title={cerigaTranslate("nav.notifications")}
                 className={cn(
                   'relative flex h-10 w-10 items-center justify-center rounded-xl',
                   isActive('/manufacturer/notifications')

@@ -1,10 +1,14 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import {ManufacturerOrdersView} from './ManufacturerOrdersView';
 import{useFactoryAccess}from '../../contexts/FactoryAccessContext';
 import { useEffect, useRef, useState } from 'react';
 import { fetchAssignedOrders } from '../../data/manufacturerDb';
+import { fetchComparisonRequests } from '../../lib/manufacturerQuote';
 import type { UserOrder } from '../../data/userOrders';
 
 export function useAssignedOrders(quotationOnly = false) {
+  useCerigaTranslation();
+
   const{access,ready}=useFactoryAccess();
   const loadedFactory=useRef(access?.factoryId);
   const [orders, setOrders] = useState<UserOrder[]>([]);
@@ -21,10 +25,14 @@ export function useAssignedOrders(quotationOnly = false) {
       if (inFlight) return;
       inFlight = true;
       try {
-        const rows = await fetchAssignedOrders({quotations:quotationOnly});
+        const [assigned, comparisons] = await Promise.all([
+          fetchAssignedOrders({quotations:quotationOnly}),
+          access?.permissions.includes('quote') ? fetchComparisonRequests() : Promise.resolve([]),
+        ]);
+        const rows = [...assigned, ...comparisons.filter(order => !assigned.some(row => row.id === order.id))];
         if (current) { loadedFactory.current=access?.factoryId;setOrders(rows); setError(''); }
       } catch (cause) {
-        if (current) setError(cause instanceof Error ? cause.message : 'Could not load assigned orders');
+        if (current) setError(cause instanceof Error ? cause.message : cerigaTranslate("interface.text_6fc599386563a050"));
       } finally {
         inFlight = false;
         if (current) setLoading(false);

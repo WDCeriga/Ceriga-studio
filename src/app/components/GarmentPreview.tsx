@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useEffect, useRef } from 'react';
 
 interface GarmentPreviewProps {
@@ -18,6 +19,8 @@ export function GarmentPreview({
   sleeveLength,
   mode = 'builder',
 }: GarmentPreviewProps) {
+  useCerigaTranslation();
+
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -170,22 +173,19 @@ export function GarmentPreview({
       <g id="layer-labels">
         <line x1="150" y1="75" x2="250" y2="75" stroke="#2C2C2A" strokeWidth="0.5" />
         <text x="255" y="78" fontSize="9" fill="#2C2C2A">
-          {neckType === 'vneck' ? 'V-Neck' : neckType === 'crew' ? 'Crew Neck' : 'Neck Detail'}
+          {neckType === 'vneck' ? cerigaTranslate("interface.text_a545271d104a44ce") : neckType === 'crew' ? cerigaTranslate("interface.text_4272721e4bebef47") : cerigaTranslate("interface.text_c4f5dff5b8a54153")}
         </text>
 
         {sleeveType !== 'sleeveless' && (
           <>
             <line x1="85" y1="150" x2="40" y2="150" stroke="#2C2C2A" strokeWidth="0.5" />
             <text x="10" y="153" fontSize="9" fill="#2C2C2A">
-              {sleeveType || 'Set-in'} {sleeveLength || 'Short'} Sleeve
-            </text>
+              {sleeveType || cerigaTranslate("interface.text_ffa13022ad1cac19")} {sleeveLength || cerigaTranslate("interface.text_f5d61ead3eefbf5c")}{" "}{cerigaTranslate("interface.text_4bad483c248b931a")}</text>
           </>
         )}
 
         <line x1="150" y1="280" x2="250" y2="280" stroke="#2C2C2A" strokeWidth="0.5" />
-        <text x="255" y="283" fontSize="9" fill="#2C2C2A">
-          Hem
-        </text>
+        <text x="255" y="283" fontSize="9" fill="#2C2C2A">{cerigaTranslate("interface.text_425e7e7fa82d932a")}</text>
       </g>
     );
   };

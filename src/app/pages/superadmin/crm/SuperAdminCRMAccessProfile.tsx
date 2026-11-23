@@ -1,3 +1,5 @@
+import { activeLocale as cerigaLocale } from '../../../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import{isSupabaseConfigured}from '../../../lib/supabaseClient';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
@@ -27,7 +29,7 @@ import { cn } from '../../../components/ui/utils';
 const VALID_AUDIENCES = new Set<string>(['users', 'workers']);
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-GB', {
+  return new Date(iso).toLocaleDateString(cerigaLocale(), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -35,8 +37,10 @@ function formatDate(iso: string) {
 }
 
 function SuperAdminCRMAccessProfilePreview() {
+  useCerigaTranslation();
+
   const { audience: audienceParam, userId } = useParams<{ audience: string; userId: string }>();
-  const { users, loading } = useSuperadminData();
+  const { users, loading } = useSuperadminData({scope:'users'});
 
   const audience =
     audienceParam && VALID_AUDIENCES.has(audienceParam)
@@ -98,9 +102,9 @@ function SuperAdminCRMAccessProfilePreview() {
   if (!audience || !meta || !user || !config) {
     return (
       <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
-        <p className="text-sm text-white/50">Profile not found.</p>
+        <p className="text-sm text-white/50">{cerigaTranslate("interface.text_142330085bae7e86")}</p>
         <Button asChild className="mt-4 bg-[#CC2D24] hover:bg-[#CC2D24]/90">
-          <Link to="/superadmin/crm/access">Back to roles & access</Link>
+          <Link to="/superadmin/crm/access">{cerigaTranslate("interface.text_7d0efcbbb9aea813")}</Link>
         </Button>
       </div>
     );
@@ -146,7 +150,7 @@ function SuperAdminCRMAccessProfilePreview() {
         roleLabel: role?.name ?? config.roleLabel,
         enabledPages: nextPages,
       });
-      toast.message(`Applied ${role?.name ?? 'role'} template`);
+      toast.message(cerigaTranslate("interface.text_c3db41a13ba44d13",{value0:(role?.name ?? 'role')}));
       setConfirmKind(null);
       return;
     }
@@ -155,9 +159,9 @@ function SuperAdminCRMAccessProfilePreview() {
       try {
         upsertProfileAccess(config);
         await setPlatformSetting(`crm_access_${config.userId}`, config);
-        toast.success(`Saved access for ${user.name}`);
+        toast.success(cerigaTranslate("interface.text_62b606e6c17b9a93",{value0:(user.name)}));
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Save failed');
+        toast.error(cerigaTranslateLabel(err instanceof Error ? err.message : cerigaTranslate("interface.text_53ad6f999b1f062f")));
       } finally {
         setSaving(false);
         setConfirmKind(null);
@@ -168,7 +172,7 @@ function SuperAdminCRMAccessProfilePreview() {
   return (
     <div className="space-y-6">
       <AccessBreadcrumb audience={audience} profileName={user.name} />
-      <BackLink to={`/superadmin/crm/access/${audience}`} label={`All ${meta.title.toLowerCase()}`} />
+      <BackLink to={`/superadmin/crm/access/${audience}`} label={cerigaTranslate("interface.text_b2899a619eb1f4bb",{value0:(meta.title.toLowerCase())})} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-4">
@@ -178,15 +182,13 @@ function SuperAdminCRMAccessProfilePreview() {
             <p className="mt-0.5 text-sm text-white/45">{user.email}</p>
           </div>
         </div>
-        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" disabled={saving} onClick={save}>
-          Save access
-        </Button>
+        <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" disabled={saving} onClick={save}>{cerigaTranslate("interface.text_0f586dd30b7a8725")}</Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-2">
           <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-            <h2 className="text-sm font-semibold text-white">Profile</h2>
+            <h2 className="text-sm font-semibold text-white">{cerigaTranslate("common.profile")}</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-center gap-2 text-white/50">
                 <Mail className="h-3.5 w-3.5" />
@@ -194,17 +196,17 @@ function SuperAdminCRMAccessProfilePreview() {
               </div>
               <div className="flex items-center gap-2 text-white/50">
                 <Calendar className="h-3.5 w-3.5" />
-                <span>Joined {formatDate(user.createdAt)}</span>
+                <span>{cerigaTranslate("interface.text_69318b0c6a928e7e")}{" "}{formatDate(user.createdAt)}</span>
               </div>
               <div className="flex items-center gap-2 text-white/50">
                 <Shield className="h-3.5 w-3.5" />
-                <span>Last active {formatDate(user.lastActive)}</span>
+                <span>{cerigaTranslate("interface.text_bcdf701c4dfbaee3")}{" "}{formatDate(user.lastActive)}</span>
               </div>
             </dl>
           </div>
 
           <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-            <Label className="text-white/60">Role label</Label>
+            <Label className="text-white/60">{cerigaTranslate("interface.text_e014a04ee002fe7d")}</Label>
             <Input
               value={config.roleLabel}
               onChange={(e) => setConfig({ ...config, roleLabel: e.target.value })}
@@ -214,7 +216,7 @@ function SuperAdminCRMAccessProfilePreview() {
 
           {audience === 'workers' ? (
             <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5">
-              <h2 className="text-sm font-semibold text-white">Role template</h2>
+              <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_240855550dbda22f")}</h2>
               <div className="mt-4 grid gap-2">
                 {WORKER_ROLE_TEMPLATES.map((role) => (
                   <button
@@ -240,24 +242,20 @@ function SuperAdminCRMAccessProfilePreview() {
           <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-white">Page access</h2>
+                <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_432ee4d8dd923e74")}</h2>
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   className="text-[11px] font-medium text-[#CC2D24] hover:underline"
                   onClick={() => setConfirmKind('pages-all')}
-                >
-                  Enable all
-                </button>
+                >{cerigaTranslate("interface.text_06f08e7c2f8a8c00")}</button>
                 <span className="text-white/20">·</span>
                 <button
                   type="button"
                   className="text-[11px] font-medium text-white/40 hover:text-white/70"
                   onClick={() => setConfirmKind('pages-none')}
-                >
-                  Clear all
-                </button>
+                >{cerigaTranslate("interface.text_29a390f9237e3c84")}</button>
               </div>
             </div>
 
@@ -270,7 +268,7 @@ function SuperAdminCRMAccessProfilePreview() {
                     className="flex items-center justify-between gap-4 rounded-xl border border-[#252528] bg-black/20 px-3 py-3"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white">{page.label}</p>
+                      <p className="text-sm font-medium text-white">{cerigaTranslateLabel(page.label)}</p>
                       <p className="text-[11px] text-white/40">{page.description}</p>
                     </div>
                     <Switch checked={on} onCheckedChange={(checked) => togglePage(page.id, checked)} />
@@ -289,23 +287,23 @@ function SuperAdminCRMAccessProfilePreview() {
         }}
         title={
           confirmKind === 'save'
-            ? 'Save access changes?'
+            ? cerigaTranslate("interface.text_e35b00b6c4948b39")
             : confirmKind === 'pages-all'
-              ? 'Enable all pages?'
+              ? cerigaTranslate("interface.text_02f8e6a43bc05e35")
               : confirmKind === 'pages-none'
-                ? 'Clear all page access?'
-                : 'Apply role template?'
+                ? cerigaTranslate("interface.text_cb70b6291890ae23")
+                : cerigaTranslate("interface.text_cdc98f4223ffb3b1")
         }
         description={
           confirmKind === 'save'
-            ? `Update portal access for ${user.name}.`
+            ? cerigaTranslate("interface.text_05e25fedc7d8a8ad",{value0:(user.name)})
             : confirmKind === 'pages-all'
-              ? 'All pages for this audience will be enabled.'
+              ? cerigaTranslate("interface.text_a9497b3f804b14ec")
               : confirmKind === 'pages-none'
-                ? 'This account will lose access to every page until you re-enable some.'
-                : 'Page permissions will be replaced by the selected template.'
+                ? cerigaTranslate("interface.text_18f03955ae9f8abd")
+                : cerigaTranslate("interface.text_f345a2df8d8e3cf0")
         }
-        confirmLabel={confirmKind === 'save' ? 'Save' : 'Confirm'}
+        confirmLabel={confirmKind === 'save' ? cerigaTranslate("common.save") : cerigaTranslate("common.confirm")}
         tone={confirmKind === 'pages-none' ? 'danger' : 'default'}
         onConfirm={() => void runConfirmed()}
       />
@@ -313,4 +311,6 @@ function SuperAdminCRMAccessProfilePreview() {
   );
 }
 
-export function SuperAdminCRMAccessProfile(){const{userId,audience}=useParams();if(audience==='workers')return <Navigate to={userId?`/superadmin/workers/${userId}`:'/superadmin/workers'} replace/>;return isSupabaseConfigured?<div className="space-y-4 text-white"><h1 className="text-2xl font-semibold">Account access</h1><p className="text-sm text-white/60">Access is enforced by the account role, order ownership and the super-admin email allowlist. Local page switches do not grant or revoke database access.</p><p className="text-sm text-white/60">Super admins retain full application-data access. Manufacturer accounts can access their assigned work, and brands can access their own records.</p><Link className="inline-block text-red-300 underline" to={userId?`/superadmin/users/${userId}`:"/superadmin/users"}>Open account controls</Link></div>:<SuperAdminCRMAccessProfilePreview/>;}
+export function SuperAdminCRMAccessProfile(){
+  useCerigaTranslation();
+const{userId,audience}=useParams();if(audience==='workers')return <Navigate to={userId?`/superadmin/workers/${userId}`:'/superadmin/workers'} replace/>;return isSupabaseConfigured?<div className="space-y-4 text-white"><h1 className="text-2xl font-semibold">{cerigaTranslate("interface.text_3386f588f0c29420")}</h1><p className="text-sm text-white/60">{cerigaTranslate("interface.text_0a2e232ac10a5bdb")}</p><p className="text-sm text-white/60">{cerigaTranslate("interface.text_e58d56102478c530")}</p><Link className="inline-block text-red-300 underline" to={userId?`/superadmin/users/${userId}`:"/superadmin/users"}>{cerigaTranslate("interface.text_760eed521078e27d")}</Link></div>:<SuperAdminCRMAccessProfilePreview/>;}

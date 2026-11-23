@@ -1,0 +1,86 @@
+.order-communication {
+  background: #fff;
+  color: #171717;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: clamp(14px, 3vw, 24px);
+  display: grid;
+  gap: 14px;
+  font-size: 14px;
+  scroll-margin-top: 24px;
+  overflow-wrap: anywhere;
+}
+.order-communication header { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 8px 16px; }
+.order-communication h2 { font-size: 18px; font-weight: 650; }
+.order-communication h3 { font-weight: 650; }
+.order-communication :is(p,dl) { margin: 0; }
+.order-communication .communication-muted, .communication-entry time { color: #646464; font-size: 13px; }
+.order-communication button {
+  width: fit-content; min-height: 40px; padding: 7px 12px; border-radius: 6px; border: 1px solid #a9241d;
+  color: #fff; background: #b8261e; cursor: pointer; font-weight: 550;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.order-communication .communication-secondary { background: white; color: #222; border-color: #d6d6d6; }
+.order-communication button:disabled { opacity: .6; cursor: wait; }
+.order-communication :is(input,textarea,select,button,a):focus-visible { outline: 2px solid #b8261e; outline-offset: 2px; }
+.communication-thread, .communication-entry, .communication-form { display: grid; gap: 10px; border-top: 1px solid #ececec; padding-top: 14px; }
+.communication-entry p { white-space: pre-wrap; }
+.communication-entry dl { background: #f7f7f7; padding: 10px; border-radius: 6px; }
+.communication-entry dt { font-weight: 600; }
+.communication-fields, .communication-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.communication-form label { display: grid; gap: 5px; min-width: 0; }
+.communication-form .communication-check { display: flex; align-items: center; gap: 8px; }
+.communication-form input:not([type=checkbox]), .communication-form :is(textarea,select) {
+  width: 100%; border: 1px solid #d6d6d6; border-radius: 6px; padding: 8px; background: white; color: #171717;
+}
+.communication-error { color: #a9241d; }
+.order-communication a { text-decoration: underline; text-underline-offset: 3px; }
+.order-communication .communication-heading { align-items: center; }
+.order-communication .communication-heading h2 { line-height: 1.3; margin-bottom: 4px; }
+.order-communication .communication-icon,
+.order-communication .communication-quiet {
+  background: transparent; color: #444; border-color: transparent;
+}
+.order-communication .communication-icon { width: 40px; padding: 0; }
+.order-communication .communication-icon:hover,
+.order-communication .communication-quiet:hover { background: #f1f1f1; }
+.order-communication .communication-form {
+  width: min(100%, 740px);
+  padding: clamp(12px, 3vw, 18px);
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  gap: 14px;
+}
+.communication-form > .communication-fields { align-items: center; gap: 10px 18px; }
+.communication-form fieldset.communication-fields { padding: 10px; border: 1px solid #e5e5e5; border-radius: 6px; }
+.communication-form fieldset label { flex: 1 1 150px; }
+.communication-form legend { padding: 0 5px; font-weight: 550; }
+.communication-form textarea { min-height: 96px; resize: vertical; }
+.communication-form-actions { padding-top: 12px; border-top: 1px solid #e8e8e8; }
+.communication-attachments { display: grid; gap: 8px; }
+.communication-attach-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.communication-attach-row label {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+  min-height: 36px; border: 1px solid #dedede; border-radius: 6px; background: #fff; cursor: pointer;
+}
+.communication-attach-row input:focus-visible + label { outline: 2px solid #b8261e; outline-offset: 2px; }
+.communication-attach-row input:disabled + label { opacity: .6; cursor: wait; }
+.communication-files { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; list-style: none; }
+.communication-files li {
+  display: flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%;
+  background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding-left: 8px;
+}
+.communication-files svg { flex-shrink: 0; }
+.communication-files .communication-icon { width: 36px; min-height: 36px; flex-shrink: 0; }
+.communication-empty {
+  display: flex; align-items: center; gap: 9px; padding: 13px 14px;
+  background: #f8f8f8; border-radius: 7px; color: #595959;
+}
+.communication-status, .communication-feedback { color: #595959; font-size: 13px; }
+.communication-status { background: #f5f5f5; border-radius: 4px; padding: 3px 7px; }
+@media (max-width: 480px) {
+  .communication-form > .communication-fields > label:first-child { width: 100%; }
+  .communication-form :is(select,input,textarea) { font-size: 16px; }
+}
+.communication-image-preview img{display:block;max-width:100%;max-height:320px;object-fit:contain;border:1px solid #e5e5e5;border-radius:6px;margin-top:8px}.communication-image-preview{margin:8px 0}

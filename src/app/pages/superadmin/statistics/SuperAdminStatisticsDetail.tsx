@@ -1,3 +1,5 @@
+import { activeLocale as cerigaLocale } from '../../../i18n/i18n';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { PortalReport } from '../../../components/PortalReport';
 import { isSupabaseConfigured } from '../../../lib/supabaseClient';
 import { displayMoney,useCurrency } from '../../../lib/accountCurrency';
@@ -67,12 +69,14 @@ const VALID_SECTIONS: StatsSectionId[] = [
 ];
 
 function FinancialSection() {
+  useCerigaTranslation();
+
 useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
         <ChartPanel
-          title="Revenue & margin"
+          title={cerigaTranslate("interface.text_4425ed8a445f4cfd")}
           className="lg:col-span-3"
         >
           <ResponsiveContainer width="100%" height="100%">
@@ -112,7 +116,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Payment methods" className="lg:col-span-2">
+        <ChartPanel title={cerigaTranslate("interface.text_16d26116c2f4536e")} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -137,7 +141,7 @@ useCurrency();
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartPanel title="Revenue by product">
+        <ChartPanel title={cerigaTranslate("interface.text_f7e0b8036cbe5aca")}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={revenueByProduct} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid stroke={gridStroke} horizontal={false} />
@@ -156,7 +160,7 @@ useCurrency();
         </ChartPanel>
 
         <DataTable
-          title="Top revenue lines"
+          title={cerigaTranslate("interface.text_dccf80c412dae340")}
           columns={['Product', 'Share', 'Revenue']}
           rows={revenueByProduct.map((r) => [`${r.name}`, `${r.value}%`, displayMoney(Math.round(r.revenue*100),'GBP')])}
         />
@@ -166,11 +170,13 @@ useCurrency();
 }
 
 function UsersSection() {
+  useCerigaTranslation();
+
 useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
-        <ChartPanel title="Signups & active users" className="lg:col-span-3">
+        <ChartPanel title={cerigaTranslate("interface.text_035238b3154ada71")} className="lg:col-span-3">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={weeklySignups}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -184,7 +190,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Users by role" className="lg:col-span-2">
+        <ChartPanel title={cerigaTranslate("interface.text_a0ac619b23301afc")} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={usersByRole}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -198,7 +204,7 @@ useCurrency();
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartPanel title="Daily active users">
+        <ChartPanel title={cerigaTranslate("interface.text_952574378718517c")}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={dailyActiveUsers}>
               <defs>
@@ -216,7 +222,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Retention cohort">
+        <ChartPanel title={cerigaTranslate("interface.text_820ad7a8cd78e038")}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={userRetention}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -233,11 +239,13 @@ useCurrency();
 }
 
 function OrdersSection() {
+  useCerigaTranslation();
+
 useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
-        <ChartPanel title="Order volume" className="lg:col-span-3">
+        <ChartPanel title={cerigaTranslate("interface.text_943a2d16ab53183a")} className="lg:col-span-3">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={orderVolumeTrend}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -251,7 +259,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Product mix" className="lg:col-span-2">
+        <ChartPanel title={cerigaTranslate("interface.text_58529d286b7cc294")} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -276,7 +284,7 @@ useCurrency();
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartPanel title="Pipeline status">
+        <ChartPanel title={cerigaTranslate("interface.text_9f96cc889f60f9b0")}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={ordersByStatus} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid stroke={gridStroke} horizontal={false} />
@@ -294,7 +302,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Fulfilment timing">
+        <ChartPanel title={cerigaTranslate("interface.text_694cb353e237ce2e")}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={fulfilmentDays}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -311,12 +319,14 @@ useCurrency();
 }
 
 function AiChatSection() {
+  useCerigaTranslation();
+
 useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
         <ChartPanel
-          title="Allowance vs usage"
+          title={cerigaTranslate("interface.text_afeb4a86e39b6e6f")}
           className="lg:col-span-3"
         >
           <ResponsiveContainer width="100%" height="100%">
@@ -356,7 +366,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Subscribers by plan" className="lg:col-span-2">
+        <ChartPanel title={cerigaTranslate("interface.text_326a9546fbaa573a")} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chatPlansByTier} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid stroke={gridStroke} horizontal={false} />
@@ -370,11 +380,11 @@ useCurrency();
       </div>
 
       <DataTable
-        title="Plan breakdown"
+        title={cerigaTranslate("interface.text_bfaa5a064cf8d851")}
         columns={['Plan', 'Subscribers', 'Est. MRR']}
         rows={chatPlansByTier.map((p) => [
           p.plan,
-          p.subscribers.toLocaleString(),
+          p.subscribers.toLocaleString(cerigaLocale()),
           p.plan === 'Free' ? '—' : displayMoney(p.subscribers * (p.plan === 'Studio' ? 1900 : p.plan === 'Scale' ? 4900 : 9900),'GBP'),
         ])}
       />
@@ -383,13 +393,15 @@ useCurrency();
 }
 
 function ManufacturersSection() {
+  useCerigaTranslation();
+
 useCurrency();
   const rankings = listFactoryRankings();
 
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
-        <ChartPanel title="Partner throughput" className="lg:col-span-3">
+        <ChartPanel title={cerigaTranslate("interface.text_d6ddb908366fe9b8")} className="lg:col-span-3">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={manufacturerThroughput}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -401,7 +413,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Quote response time" className="lg:col-span-2">
+        <ChartPanel title={cerigaTranslate("interface.text_c90e703e25299790")} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={manufacturerQuoteTrend}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -417,11 +429,8 @@ useCurrency();
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold text-white">Manufacturer rankings</h2>
-            <p className="mt-0.5 text-[11px] text-white/40">
-              Composite of win rate, quote hours, OTIF, on-time, and capacity use (same scorecard as
-              partner detail).
-            </p>
+            <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_7a1008cea3e04d2b")}</h2>
+            <p className="mt-0.5 text-[11px] text-white/40">{cerigaTranslate("interface.text_ab7edef83d38f8d3")}</p>
           </div>
         </div>
         <div className="mt-4 overflow-x-auto">
@@ -429,13 +438,13 @@ useCurrency();
             <thead>
               <tr className="border-b border-[#252528] text-[11px] font-semibold uppercase tracking-wider text-white/40">
                 <th className="pb-3 pr-3">#</th>
-                <th className="pb-3 pr-4">Partner</th>
-                <th className="pb-3 pr-4">Score</th>
-                <th className="pb-3 pr-4">Win rate</th>
-                <th className="pb-3 pr-4">Quote</th>
-                <th className="pb-3 pr-4">OTIF</th>
-                <th className="pb-3 pr-4">Capacity</th>
-                <th className="pb-3">Orders</th>
+                <th className="pb-3 pr-4">{cerigaTranslate("interface.text_29035e784f9305c0")}</th>
+                <th className="pb-3 pr-4">{cerigaTranslate("interface.text_38e5a46cbc5ad328")}</th>
+                <th className="pb-3 pr-4">{cerigaTranslate("interface.text_4be2547225845431")}</th>
+                <th className="pb-3 pr-4">{cerigaTranslate("interface.text_eb4cdebd82bf1194")}</th>
+                <th className="pb-3 pr-4">{cerigaTranslate("interface.text_49b39509e9e70980")}</th>
+                <th className="pb-3 pr-4">{cerigaTranslate("interface.text_ae65d096550ff4eb")}</th>
+                <th className="pb-3">{cerigaTranslate("nav.orders")}</th>
               </tr>
             </thead>
             <tbody>
@@ -450,9 +459,7 @@ useCurrency();
                       {r.name}
                     </Link>
                     {r.live ? (
-                      <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-300">
-                        Live
-                      </span>
+                      <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-300">{cerigaTranslate("interface.text_b64ac05f17e64d03")}</span>
                     ) : null}
                   </td>
                   <td className="py-3 pr-4 tabular-nums text-white/80">{r.score}</td>
@@ -472,11 +479,13 @@ useCurrency();
 }
 
 function EngagementSection() {
+  useCerigaTranslation();
+
 useCurrency();
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-5">
-        <ChartPanel title="Engagement over time" className="lg:col-span-3">
+        <ChartPanel title={cerigaTranslate("interface.text_c83da21f8a5e0a15")} className="lg:col-span-3">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={engagementTrend}>
               <CartesianGrid stroke={gridStroke} vertical={false} />
@@ -498,7 +507,7 @@ useCurrency();
           </ResponsiveContainer>
         </ChartPanel>
 
-        <ChartPanel title="Messages by channel" className="lg:col-span-2">
+        <ChartPanel title={cerigaTranslate("interface.text_324e42abd8dea27a")} className="lg:col-span-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={messageByType} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid stroke={gridStroke} horizontal={false} />

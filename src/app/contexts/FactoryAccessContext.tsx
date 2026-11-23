@@ -12,13 +12,19 @@ export function FactoryAccessProvider({children}:{children:ReactNode}){const{use
 export const useFactoryAccess=()=>useContext(Context);
 export function factoryPagePermission(path:string){const section=path.split('/')[2]||'';return({fulfilment:'view_orders',quotations:'quote',production:'production',quality:'view_orders',shipping:'shipping',materials:'inventory',capacity:'calendar',portfolio:'portfolio',verification:'verification',statistics:'analytics',team:'team',settings:'settings',messages:'messages',onboarding:'settings'}as Record<string,string>)[section]||'view_orders';}
 
-// Settings is also the entry point for team members with profile-only access.
+export const factoryManagementPages = [
+  { path: '/manufacturer/materials', label: 'Materials', description: 'Manage fabrics and inventory.' },
+  { path: '/manufacturer/capacity', label: 'Production calendar', description: 'Review capacity, closures and availability.' },
+  { path: '/manufacturer/team', label: 'Team & roles', description: 'Manage access to your factory workspace.' },
+] as const;
+
 export function factoryPageAllowed(path: string, permissions: string[]) {
   const page = path.replace(/\/$/, '');
   const canViewProfile = permissions.includes('portfolio') || permissions.includes('verification');
   if (['/manufacturer/settings/profile', '/manufacturer/portfolio', '/manufacturer/verification'].includes(page)) {
     return canViewProfile;
   }
-  if (page === '/manufacturer/settings') return permissions.includes('settings') || canViewProfile;
+  if (page === '/manufacturer/settings') return permissions.includes('settings') || canViewProfile ||
+    factoryManagementPages.some(item => permissions.includes(factoryPagePermission(item.path)));
   return permissions.includes(factoryPagePermission(page));
 }

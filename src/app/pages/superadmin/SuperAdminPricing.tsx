@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import './superadmin-pricing.css';
 import { formatAccountTotal,displayMoney,useCurrency } from '../../lib/accountCurrency';
 import { QuoteCalculatorSection } from "../../components/superadmin/QuoteCalculator";
@@ -61,13 +62,15 @@ function MoneyInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  useCerigaTranslation();
+
   const currencyState=useCurrency();
   const [draft,setDraft]=useState<string|null>(null);
   return (
     <div className="space-y-1.5">
-      <Label className="text-white/55">{label}</Label>
+      <Label className="text-white/55">{cerigaTranslateLabel(label)}</Label>
       <Input
-        type="text" inputMode="decimal" aria-label={label}
+        type="text" inputMode="decimal" aria-label={cerigaTranslateLabel(label)}
         value={draft??value}
         onChange={(e: ChangeEvent<HTMLInputElement>) => {const v=e.target.value.replace(',','.');if(!/^\d*(\.\d{0,2})?$/.test(v))return;const normalized=v===''||v==='.'?'0':v.endsWith('.')?v.slice(0,-1):v.startsWith('.')?'0'+v:v;if(inputToCents(normalized)==null)return;setDraft(v);onChange(normalized);}}
         onBlur={()=>setDraft(null)}
@@ -78,8 +81,10 @@ function MoneyInput({
 }
 
 export function SuperAdminPricing() {
+  useCerigaTranslation();
+
   const currencyState=useCurrency();
-  const { orders, error:ordersError, loading: ordersLoading } = useSuperadminData();
+  const { orders, error:ordersError, loading: ordersLoading } = useSuperadminData({scope:'orders'});
   const [config, setConfig] = useState<PlatformPricingConfig>(() => getDefaultPricingConfig());
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -171,9 +176,9 @@ export function SuperAdminPricing() {
       await setPlatformSetting('pricing', normalized);
       upsertPricingConfig(normalized);
       setConfig(normalized);setSavedConfig(JSON.stringify(normalized));
-      toast.success('Pricing rules saved');
+      toast.success(cerigaTranslate("interface.text_fc2347b4a6f58708"));
     } catch (err) {
-      const message=(err as { message?: string })?.message || 'Save failed';setSaveError(message);toast.error(message);
+      const message=(err as { message?: string })?.message || 'Save failed';setSaveError(message);toast.error(cerigaTranslateLabel(message));
     } finally {
       saveLock.current=false;setSaving(false);
     }
@@ -187,7 +192,7 @@ export function SuperAdminPricing() {
   }, [manualDraft]);
 
   if (ordersLoading || configLoading) {
-    return <div className="admin-pricing"><h1>Pricing</h1><p role="status" className="pricing-loading">Loading saved pricing rules…</p></div>;
+    return <div className="admin-pricing"><h1>{cerigaTranslate("nav.pricing")}</h1><p role="status" className="pricing-loading">{cerigaTranslate("interface.text_b696b67d7835aadf")}</p></div>;
   }
 
   const updateTechPack = (patch: Partial<PlatformPricingConfig['techPack']>) => {
@@ -208,16 +213,16 @@ export function SuperAdminPricing() {
   const submitManual = () => {
     if(manualLock.current)return;
     if (!manualDraft.customerName.trim() || !manualDraft.description.trim()) {
-      toast.error('Customer and description are required');
+      toast.error(cerigaTranslate("interface.text_c2f8e8af6f33853d"));
       return;
     }
     const revenueCents = inputToCents(manualDraft.revenue);
     if (revenueCents == null) {
-      toast.error('Enter a valid customer paid amount');
+      toast.error(cerigaTranslate("interface.text_963ca42421056db4"));
       return;
     }
     const cost=inputToCents(manualDraft.manufacturerCost),shipping=inputToCents(manualDraft.manufacturerShipping),quantity=Number(manualDraft.quantity);
-    if(revenueCents<0||cost==null||cost<0||shipping==null||shipping<0||!Number.isSafeInteger(quantity)||quantity<=0||!/^\d{4}-\d{2}-\d{2}$/.test(manualDraft.date)||!Number.isFinite(Date.parse(manualDraft.date+'T12:00:00Z'))||new Date(manualDraft.date+'T12:00:00Z').toISOString().slice(0,10)!==manualDraft.date){toast.error('Enter a valid date, positive whole quantity, and non-negative monetary amounts.');return;}
+    if(revenueCents<0||cost==null||cost<0||shipping==null||shipping<0||!Number.isSafeInteger(quantity)||quantity<=0||!/^\d{4}-\d{2}-\d{2}$/.test(manualDraft.date)||!Number.isFinite(Date.parse(manualDraft.date+'T12:00:00Z'))||new Date(manualDraft.date+'T12:00:00Z').toISOString().slice(0,10)!==manualDraft.date){toast.error(cerigaTranslate("interface.text_32515ba8eaa06827"));return;}
     manualLock.current=true;
     addManualLedgerRow({
       date: manualDraft.date,
@@ -240,40 +245,37 @@ export function SuperAdminPricing() {
       manufacturerCost: '0',
       manufacturerShipping: '0',
     });
-    toast.message('Temporary entry added for this session. It is not saved to the database.');
+    toast.message(cerigaTranslate("interface.text_bb411df56a96a276"));
   };
 
   return (
     <div className="admin-pricing space-y-8">
       {configError && (
-        <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
-          Could not load saved pricing: {configError}
-          <button type="button" className="ml-3 underline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry</button>
+        <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">{cerigaTranslate("interface.text_986dcff29fbc0326")}{" "}{cerigaTranslateLabel(configError)}
+          <button type="button" className="ml-3 underline" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>{cerigaTranslate("interface.text_942087cc2d41e013")}</button>
         </div>
       )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-[#CC2D24]">
             <DollarSign className="h-5 w-5" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider">CERIGA / PRICING</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider">{cerigaTranslate("interface.text_c44db865cfc2bd19")}</span>
           </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-            Pricing
-          </h1>
-          <p className="pricing-intro">Clear rules. Transparent estimates. Confident pricing decisions.</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{cerigaTranslate("nav.pricing")}</h1>
+          <p className="pricing-intro">{cerigaTranslate("interface.text_086a9d14ced7ece0")}</p>
         </div>
         <Button
           className="bg-[#CC2D24] hover:bg-[#CC2D24]/90"
           disabled={saving || Boolean(configError)||!dirty}
           onClick={() => void saveConfig()}
-        >{saving?'Saving…':dirty?'Save pricing rules':'Rules saved'}
+        >{saving?cerigaTranslate("common.saving"):dirty?cerigaTranslate("interface.text_fbe3f05a984f3b53"):cerigaTranslate("interface.text_83a5ef6bf6b1f4cb")}
         </Button>
       </div>
 
-      <nav className="pricing-tabs" aria-label="Pricing views">{[{id:'rules',label:'Pricing rules'},{id:'calculator',label:'Quote calculator'},{id:'estimates',label:'Order estimates'}].map(t=><button type="button" key={t.id} aria-pressed={tab===t.id} onClick={()=>setTab(t.id)}>{t.label}{t.id==='rules'&&dirty&&<span>Unsaved</span>}</button>)}</nav>
-      {ordersError&&<p role="alert" className="pricing-error">Could not load order estimates: {ordersError}</p>}
-      {saveError&&<p role="alert" className="pricing-error">{saveError}</p>}
-      {tab==='estimates'&&<><p className="pricing-guidance">These are indicative order values and estimated differences, including unpaid quotations. They are not verified received revenue. <Link to="/superadmin/statistics">View verified payment revenue in Statistics.</Link></p>
+      <nav className="pricing-tabs" aria-label={cerigaTranslate("interface.text_ad102b7a8acee3c2")}>{[{id:'rules',label:'Pricing rules'},{id:'calculator',label:'Quote calculator'},{id:'estimates',label:'Order estimates'}].map(t=><button type="button" key={t.id} aria-pressed={tab===t.id} onClick={()=>setTab(t.id)}>{cerigaTranslateLabel(t.label)}{t.id==='rules'&&dirty&&<span>{cerigaTranslate("interface.text_6250d5725dda6d9f")}</span>}</button>)}</nav>
+      {ordersError&&<p role="alert" className="pricing-error">{cerigaTranslate("interface.text_53343a7beeee8eb8")}{" "}{cerigaTranslateLabel(ordersError)}</p>}
+      {saveError&&<p role="alert" className="pricing-error">{cerigaTranslateLabel(saveError)}</p>}
+      {tab==='estimates'&&<><p className="pricing-guidance">{cerigaTranslate("interface.text_38f4b92dfc2f7ef5")}{" "}<Link to="/superadmin/statistics">{cerigaTranslate("interface.text_7602bc1e6cc97cdc")}</Link></p>
       {/* Snapshot */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -296,7 +298,7 @@ export function SuperAdminPricing() {
             label: 'Pending price reviews',
             value: String(pendingReviews),
             icon: Package,
-            link: pendingReviews > 0 ? '/superadmin/orders/review' : undefined,
+            link: pendingReviews > 0 ? cerigaTranslate("interface.text_5776596040b675be") : undefined,
           },
         ].map((card) => {
           const Icon = card.icon;
@@ -305,7 +307,7 @@ export function SuperAdminPricing() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
-                    {card.label}
+                    {cerigaTranslateLabel(card.label)}
                   </p>
                   <p className="mt-1 text-xl font-semibold tabular-nums text-white">{card.value}</p>
                 </div>
@@ -314,9 +316,7 @@ export function SuperAdminPricing() {
                 </span>
               </div>
               {card.link ? (
-                <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[#CC2D24]">
-                  Open review queue
-                  <ArrowRight className="h-3 w-3" />
+                <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-[#CC2D24]">{cerigaTranslate("interface.text_1ea5d41a07cd7c96")}<ArrowRight className="h-3 w-3" />
                 </p>
               ) : null}
             </div>
@@ -333,14 +333,14 @@ export function SuperAdminPricing() {
 
       </>}
       {tab==='calculator'&&<QuoteCalculatorSection />}
-      {tab==='rules'&&<fieldset className="pricing-rule-fields" disabled={saving||!!configError}><p className="pricing-guidance">{dirty?'Changes are not saved yet.':'Saved rules are loaded.'} Tech pack and assistant prices are entered in EUR. Markup examples use an original GBP manufacturer price. Changing your display currency does not rewrite these rules.</p>
+      {tab==='rules'&&<fieldset className="pricing-rule-fields" disabled={saving||!!configError}><p className="pricing-guidance">{dirty?cerigaTranslate("interface.text_db8c2a3bb16a4ea0"):cerigaTranslate("interface.text_d5a4f0e12488ed1d")}{" "}{cerigaTranslate("interface.text_7249abf80d78865f")}</p>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-          <h2 className="text-sm font-semibold text-white">Tech pack exports</h2>
+          <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_e57695c5dc4a7bba")}</h2>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <MoneyInput
-              label="Standard PDF (EUR)"
+              label={cerigaTranslate("interface.text_4e5e5c853607a4bc")}
               value={centsToInput(config.techPack.pdfCents)}
               onChange={(v) => {
                 const c = inputToCents(v);
@@ -348,7 +348,7 @@ export function SuperAdminPricing() {
               }}
             />
             <MoneyInput
-              label="PDF + asset bundle (EUR)"
+              label={cerigaTranslate("interface.text_300479b47e25da65")}
               value={centsToInput(config.techPack.bundleCents)}
               onChange={(v) => {
                 const c = inputToCents(v);
@@ -359,10 +359,10 @@ export function SuperAdminPricing() {
         </div>
 
         <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
-          <h2 className="text-sm font-semibold text-white">Estimated duties / tax (%)</h2>
+          <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_b4422af514ed60fb")}</h2>
           <div className="mt-4">
             <Input
-              aria-label="Estimated duties and tax percentage"
+              aria-label={cerigaTranslate("interface.text_b03224b1356e4abb")}
               type="number"
               step="0.1"
               min="0"
@@ -379,13 +379,11 @@ export function SuperAdminPricing() {
       {/* Production margins per manufacturer plan */}
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-sm font-semibold text-white">Production order markup by plan</h2>
+          <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_72048e5fa7b59a2e")}</h2>
           <Link
             to="/superadmin/manufacturers"
             className="text-[11px] font-medium text-[#CC2D24] hover:underline"
-          >
-            Assign plans
-          </Link>
+          >{cerigaTranslate("interface.text_a8d2a15dea605eca")}</Link>
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -404,24 +402,22 @@ export function SuperAdminPricing() {
       {/* AI chat plans */}
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-sm font-semibold text-white">AI assistant plans</h2>
+          <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_a618c9153a49d6fd")}</h2>
           <Link
             to="/pricing"
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] font-medium text-[#CC2D24] hover:underline"
-          >
-            Public pricing
-          </Link>
+          >{cerigaTranslate("interface.text_128b5e974cd504e6")}</Link>
         </div>
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#252528] text-[11px] uppercase tracking-wider text-white/45">
-                <th className="py-2 pr-4 font-medium">Plan</th>
-                <th className="py-2 pr-4 font-medium">Monthly (EUR)</th>
-                <th className="py-2 pr-4 font-medium">Messages / mo</th>
-                <th className="py-2 pr-4 font-medium">Public</th>
+                <th className="py-2 pr-4 font-medium">{cerigaTranslate("interface.text_fa8ed0bdabdd6bcb")}</th>
+                <th className="py-2 pr-4 font-medium">{cerigaTranslate("interface.text_7c9b97e20a2f79ec")}</th>
+                <th className="py-2 pr-4 font-medium">{cerigaTranslate("interface.text_01d6841b263e67ab")}</th>
+                <th className="py-2 pr-4 font-medium">{cerigaTranslate("interface.text_591935b15b1c88e2")}</th>
               </tr>
             </thead>
             <tbody>
@@ -430,13 +426,11 @@ export function SuperAdminPricing() {
                   <td className="py-3 pr-4">
                     <span className="font-medium text-white">{plan.tier}</span>
                     {plan.featured ? (
-                      <span className="ml-2 rounded-full bg-[#CC2D24]/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#CC2D24]">
-                        Featured
-                      </span>
+                      <span className="ml-2 rounded-full bg-[#CC2D24]/20 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#CC2D24]">{cerigaTranslate("interface.text_c533cafab69e4033")}</span>
                     ) : null}
                   </td>
                   <td className="py-3 pr-4">
-                    <MoneyInput label={plan.tier+' monthly price (EUR)'} value={centsToInput(plan.monthlyCents)} onChange={v=>{const c=inputToCents(v);if(c!=null)updateChatPlan(plan.id,{monthlyCents:c});}}/>
+                    <MoneyInput label={cerigaTranslate("interface.text_62d823dadb63aaac",{value0:(plan.tier)})} value={centsToInput(plan.monthlyCents)} onChange={v=>{const c=inputToCents(v);if(c!=null)updateChatPlan(plan.id,{monthlyCents:c});}}/>
                   </td>
                   <td className="py-3 pr-4">
                     <Input
@@ -474,16 +468,14 @@ export function SuperAdminPricing() {
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-white">Order estimates & session notes</h2>
+            <h2 className="text-sm font-semibold text-white">{cerigaTranslate("interface.text_3e52c68193225c08")}</h2>
           </div>
           <Button
             size="sm"
             className="bg-white/10 text-white hover:bg-white/15"
             onClick={() => {manualLock.current=false;setManualOpen(true);}}
           >
-            <Plus className="mr-2 h-3.5 w-3.5" />
-            Add temporary entry
-          </Button>
+            <Plus className="mr-2 h-3.5 w-3.5" />{cerigaTranslate("interface.text_6204d7bb9ab28be0")}</Button>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -500,7 +492,7 @@ export function SuperAdminPricing() {
                     : 'border-[#252528] bg-black/20 text-white/40 hover:border-white/20',
                 )}
               >
-                {key === 'all' ? 'All' : REVENUE_SOURCE_LABELS[key]}
+                {key === 'all' ? cerigaTranslate("interface.text_a52ace420f2175d0") : REVENUE_SOURCE_LABELS[key]}
               </button>
             ),
           )}
@@ -508,19 +500,19 @@ export function SuperAdminPricing() {
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/35">Estimated order value ({currencyState.currency})</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_2a7ea2be0841058e")}{currencyState.currency})</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-white">
               {formatAccountTotal(summary.totalRevenueGbp)}
             </p>
           </div>
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/35">Estimated difference ({currencyState.currency})</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_1996676c9e0ecde8")}{currencyState.currency})</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-emerald-300">
               {formatAccountTotal(summary.totalProfitGbp)}
             </p>
           </div>
           <div className="rounded-xl border border-[#252528] bg-black/25 px-4 py-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/35">Ledger rows</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/35">{cerigaTranslate("interface.text_95483027201a0a04")}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-white">{summary.rowCount}</p>
           </div>
         </div>
@@ -529,20 +521,18 @@ export function SuperAdminPricing() {
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#252528] text-[11px] uppercase tracking-wider text-white/45">
-                <th className="py-2 pr-3 font-medium">Date</th>
-                <th className="py-2 pr-3 font-medium">Source</th>
-                <th className="py-2 pr-3 font-medium">Customer</th>
-                <th className="py-2 pr-3 font-medium">Order value</th>
-                <th className="py-2 pr-3 font-medium">Mfg cost</th>
-                <th className="py-2 font-medium">Est. difference</th>
+                <th className="py-2 pr-3 font-medium">{cerigaTranslate("interface.text_99c40ab405926cb5")}</th>
+                <th className="py-2 pr-3 font-medium">{cerigaTranslate("interface.text_0e570ca6fabe24f9")}</th>
+                <th className="py-2 pr-3 font-medium">{cerigaTranslate("adminOrders.customer")}</th>
+                <th className="py-2 pr-3 font-medium">{cerigaTranslate("interface.text_fa10dc21c428b480")}</th>
+                <th className="py-2 pr-3 font-medium">{cerigaTranslate("interface.text_173a265765581ed9")}</th>
+                <th className="py-2 font-medium">{cerigaTranslate("interface.text_912bb9c1abd733dc")}</th>
               </tr>
             </thead>
             <tbody>
               {filteredLedger.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-sm text-white/40">
-                    No rows for this filter.
-                  </td>
+                  <td colSpan={6} className="py-8 text-center text-sm text-white/40">{cerigaTranslate("interface.text_2ef7d15bf46809e1")}</td>
                 </tr>
               ) : (
                 visibleLedger.map((row) => (
@@ -554,17 +544,17 @@ export function SuperAdminPricing() {
         </div>
       </div>
 
-      <nav className="pricing-pagination" aria-label="Order estimate pages"><span>{filteredLedger.length?(currentLedgerPage-1)*20+1:0}–{Math.min(currentLedgerPage*20,filteredLedger.length)} of {filteredLedger.length}</span><div><button type="button" disabled={currentLedgerPage<=1} onClick={()=>setLedgerPage(currentLedgerPage-1)}>Previous</button><span>{currentLedgerPage} / {ledgerPages}</span><button type="button" disabled={currentLedgerPage>=ledgerPages} onClick={()=>setLedgerPage(currentLedgerPage+1)}>Next</button></div></nav></>}
+      <nav className="pricing-pagination" aria-label={cerigaTranslate("interface.text_24866ea25b750160")}><span>{filteredLedger.length?(currentLedgerPage-1)*20+1:0}–{Math.min(currentLedgerPage*20,filteredLedger.length)}{" "}{cerigaTranslate("interface.text_28391d3bc64ec15c")}{" "}{filteredLedger.length}</span><div><button type="button" disabled={currentLedgerPage<=1} onClick={()=>setLedgerPage(currentLedgerPage-1)}>{cerigaTranslate("common.previous")}</button><span>{currentLedgerPage} / {ledgerPages}</span><button type="button" disabled={currentLedgerPage>=ledgerPages} onClick={()=>setLedgerPage(currentLedgerPage+1)}>{cerigaTranslate("common.next")}</button></div></nav></>}
       <Dialog open={manualOpen} onOpenChange={setManualOpen}>
         <DialogContent className="pricing-manual-dialog border-[#252528] bg-[#111113] text-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">Temporary estimate (GBP)</DialogTitle>
+            <DialogTitle className="text-white">{cerigaTranslate("interface.text_262e438eb122ac4d")}</DialogTitle>
           </DialogHeader>
-          <p className="pricing-guidance">For this browser session only. This is not a saved financial record or payment confirmation.</p>
+          <p className="pricing-guidance">{cerigaTranslate("interface.text_17fddc0904760726")}</p>
           <div className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label className="text-white/55">Date</Label>
+                <Label className="text-white/55">{cerigaTranslate("interface.text_99c40ab405926cb5")}</Label>
                 <Input
                   type="date"
                   value={manualDraft.date}
@@ -573,7 +563,7 @@ export function SuperAdminPricing() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-white/55">Quantity</Label>
+                <Label className="text-white/55">{cerigaTranslate("orders.quantity")}</Label>
                 <Input
                   value={manualDraft.quantity}
                   onChange={(e) => setManualDraft((d) => ({ ...d, quantity: e.target.value }))}
@@ -582,7 +572,7 @@ export function SuperAdminPricing() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-white/55">Customer</Label>
+              <Label className="text-white/55">{cerigaTranslate("adminOrders.customer")}</Label>
               <Input
                 value={manualDraft.customerName}
                 onChange={(e) => setManualDraft((d) => ({ ...d, customerName: e.target.value }))}
@@ -590,7 +580,7 @@ export function SuperAdminPricing() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-white/55">Description</Label>
+              <Label className="text-white/55">{cerigaTranslate("interface.text_526e0087cc3f254d")}</Label>
               <Input
                 value={manualDraft.description}
                 onChange={(e) => setManualDraft((d) => ({ ...d, description: e.target.value }))}
@@ -598,33 +588,28 @@ export function SuperAdminPricing() {
               />
             </div>
             <MoneyInput
-              label="Estimated order value (GBP)"
+              label={cerigaTranslate("interface.text_54ec65d6c9c55663")}
               value={manualDraft.revenue}
               onChange={(v) => setManualDraft((d) => ({ ...d, revenue: v }))}
             />
             <div className="grid gap-3 sm:grid-cols-2">
               <MoneyInput
-                label="Manufacturer cost (GBP)"
+                label={cerigaTranslate("interface.text_71498d2197733d57")}
                 value={manualDraft.manufacturerCost}
                 onChange={(v) => setManualDraft((d) => ({ ...d, manufacturerCost: v }))}
               />
               <MoneyInput
-                label="Mfg shipping (GBP)"
+                label={cerigaTranslate("interface.text_841bcbcd5fe1e494")}
                 value={manualDraft.manufacturerShipping}
                 onChange={(v) => setManualDraft((d) => ({ ...d, manufacturerShipping: v }))}
               />
             </div>
-            <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200/90">
-              Profit: {displayMoney(manualProfitPreview,'GBP')}
+            <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200/90">{cerigaTranslate("interface.text_ade047b888602898")}{" "}{displayMoney(manualProfitPreview,'GBP')}
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="border-white/15 text-white" onClick={() => setManualOpen(false)}>
-              Cancel
-            </Button>
-            <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={submitManual}>
-              Add session estimate
-            </Button>
+            <Button variant="outline" className="border-white/15 text-white" onClick={() => setManualOpen(false)}>{cerigaTranslate("common.cancel")}</Button>
+            <Button className="bg-[#CC2D24] hover:bg-[#CC2D24]/90" onClick={submitManual}>{cerigaTranslate("interface.text_253909a13b858306")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -636,15 +621,15 @@ export function SuperAdminPricing() {
         }}
         title={
           publishConfirm?.next
-            ? `Publish ${publishConfirm.planName}?`
-            : `Unpublish ${publishConfirm?.planName ?? 'plan'}?`
+            ? cerigaTranslate("interface.text_269af754050597f4",{value0:(publishConfirm.planName)})
+            : cerigaTranslate("interface.text_ec98518ac534008e",{value0:(publishConfirm?.planName ?? cerigaTranslate("interface.text_64879f7d6b960a01"))})
         }
         description={
           publishConfirm?.next
-            ? 'This plan will appear on the public pricing page after you save pricing rules.'
-            : 'This plan will be hidden after you save pricing rules. Existing subscribers are unaffected.'
+            ? cerigaTranslate("interface.text_9ceb4955afcc6c7f")
+            : cerigaTranslate("interface.text_3aea08ff2179d255")
         }
-        confirmLabel={publishConfirm?.next ? 'Publish' : 'Unpublish'}
+        confirmLabel={publishConfirm?.next ? cerigaTranslate("interface.text_859390eb495b2ead") : cerigaTranslate("interface.text_2db04a54fa743150")}
         tone={publishConfirm?.next ? 'default' : 'danger'}
         onConfirm={() => {
           if (!publishConfirm) return;
@@ -666,6 +651,8 @@ function ManufacturerPlanMarginCard({
   previewQuote: number;
   onMarginChange: (percent: number) => void;
 }) {
+  useCerigaTranslation();
+
   const currencyState=useCurrency();
   let brandPrice:number|undefined;try{const amount=applyProductionMargin(previewQuote,planMargin.platformMarginPercent);if(Number.isSafeInteger(amount)&&amount>=0)brandPrice=amount;}catch{/* Keep invalid drafts editable without crashing the page. */}
 
@@ -681,11 +668,11 @@ function ManufacturerPlanMarginCard({
       </div>
 
       <div className="mt-4 space-y-1.5">
-        <Label className="text-white/55">Markup on manufacturer price (%)</Label>
+        <Label className="text-white/55">{cerigaTranslate("interface.text_b0b9125cb6883e25")}</Label>
         <Input
           type="number"
           step="0.1"
-          min="0" aria-label={planMargin.planName+' markup percentage'}
+          min="0" aria-label={cerigaTranslate("interface.text_de8b8f958fd6a5c0",{value0:(planMargin.planName)})}
           value={planMargin.platformMarginPercent}
           onChange={(e) => onMarginChange(Number(e.target.value) || 0)}
           className="border-white/15 bg-white/5 text-white"
@@ -693,7 +680,7 @@ function ManufacturerPlanMarginCard({
       </div>
 
       <div className="mt-4 rounded-lg border border-[#252528] bg-white/[0.02] px-3 py-2.5 text-xs tabular-nums text-white">
-        <p className="pricing-example-label">Example: original manufacturer price {displayMoney(previewQuote,'GBP')}</p>{brandPrice===undefined?'Enter a supported markup percentage':displayMoney(brandPrice,'GBP')}
+        <p className="pricing-example-label">{cerigaTranslate("interface.text_4d597e4b06f49d06")}{" "}{displayMoney(previewQuote,'GBP')}</p>{brandPrice===undefined?cerigaTranslate("interface.text_f45ad8bf8cc6c0e1"):displayMoney(brandPrice,'GBP')}
       </div>
     </div>
   );
@@ -707,7 +694,7 @@ function LedgerRow({ row }: { row: RevenueLedgerRow }) {
       <td className="py-2.5 pr-3 text-xs text-white/50">{row.date}</td>
       <td className="py-2.5 pr-3">
         <span className="rounded-md border border-[#252528] bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium text-white/55">
-          {REVENUE_SOURCE_LABELS[row.source]}
+          {cerigaTranslateLabel(REVENUE_SOURCE_LABELS[row.source])}
         </span>
       </td>
       <td className="py-2.5 pr-3">

@@ -1,6 +1,7 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {transformWithEsbuild} from 'vite';import * as React from 'react';import * as Icons from 'lucide-react';import {renderToStaticMarkup} from 'react-dom/server';
-let hook=0,overrides={},updates=[],messages=[],saveMode='ok',calls=0,refreshes=0,resolveSave;const factory={userId:'factory',factoryName:'Factory One',onboardingComplete:true,status:'active'},bad={...factory,userId:'bad',factoryName:'Incompatible factory'};let loading=false,error='';const orders=Array.from({length:23},(_,i)=>({id:'order-'+i,kind:'custom_clothing',status:'submitted',productName:'Cotton shirt '+i,userName:'Brand One',manufacturerId:null}));const props={orders,manufacturers:[bad,factory],loading:false,error:'',patchOrder:async()=>{},refresh:async()=>{}};
-const wrap=tag=>({children,...p})=>React.createElement(tag,Object.fromEntries(Object.entries(p).filter(([k])=>['className','type','value','disabled','aria-label','min','onChange'].includes(k))),children);const imports={react:{...React,useEffect:()=>{},useRef:()=>({current:false}),useState:initial=>{const i=hook++;return [i in overrides?overrides[i]:initial,v=>updates.push([i,v])];}},'react-router':{Link:({to,children,...p})=>React.createElement('a',{...p,href:to},children)},'lucide-react':Icons,sonner:{toast:{error:v=>messages.push(['error',v]),success:v=>messages.push(['success',v])}},'../../lib/accountCurrency':{useCurrency:()=>{},displayMoney:()=>''},'../../data/assignmentRecommendation':{checkManufacturerProduction:(_o,m)=>({eligible:m.userId!=='bad',failures:m.userId==='bad'?['Unsupported garment']:[],warnings:['Availability not confirmed']}),recommendManufacturers:()=>[{factory,reasons:['Supports garment'],warning:'Confirm scheduling'}]},'../../hooks/useSuperadminData':{useSuperadminData:()=>({...props,loading,error,patchOrder:async()=>{calls++;if(saveMode==='throw')throw Error('Database write failed');if(saveMode==='false')return false;if(saveMode==='wait')return new Promise(r=>{resolveSave=r;});return true;},refresh:async()=>{refreshes++;}})},'../../data/superadminMock':{STATUS_LABELS:{submitted:'Submitted'},formatMoney:()=>''},'../../components/ui/button':{Button:wrap('button')},'../../components/ui/input':{Input:wrap('input')},'../../components/ui/dialog':{Dialog:({children})=>children,DialogContent:wrap('div'),DialogTitle:wrap('h2'),DialogDescription:wrap('p')},'../../components/ui/utils':{cn:(...v)=>v.filter(Boolean).join(' ')}};const m={exports:{}};new Function('React','require','module','exports',(await transformWithEsbuild(await readFile('src/app/pages/superadmin/SuperAdminAssignmentConsole.tsx','utf8'),'assign.tsx',{format:'cjs'})).code)(React,n=>n.endsWith('.css')?{}:imports[n],m,m.exports);const tree=()=>{hook=0;return m.exports.SuperAdminAssignmentConsole();};const flat=n=>!n||typeof n!=='object'?[]:[n,...React.Children.toArray(n.props?.children).flatMap(flat)];const html=()=>renderToStaticMarkup(tree());const visible=()=>flat(tree()).find(n=>n.type==='tbody').props.children;
+let effects=[],rpcError=null,hook=0,overrides={},updates=[],messages=[],saveMode='ok',calls=0,refreshes=0,resolveSave;const factory={userId:'factory',factoryName:'Factory One',onboardingComplete:true,status:'active'},bad={...factory,userId:'bad',factoryName:'Incompatible factory'};let loading=false,error='';const orders=Array.from({length:23},(_,i)=>({id:'order-'+i,kind:'custom_clothing',status:'submitted',productName:'Cotton shirt '+i,userName:'Brand One',manufacturerId:null}));const props={orders,manufacturers:[bad,factory],loading:false,error:'',patchOrder:async()=>{},refresh:async()=>{}};
+const wrap=tag=>({children,...p})=>React.createElement(tag,Object.fromEntries(Object.entries(p).filter(([k])=>['className','type','value','disabled','aria-label','min','onChange'].includes(k))),children);const imports={react:{...React,useEffect:effect=>effects.push(effect),useRef:()=>({current:false}),useState:initial=>{const i=hook++;return [i in overrides?overrides[i]:initial,v=>updates.push([i,v])];}},'react-router':{Link:({to,children,...p})=>React.createElement('a',{...p,href:to},children)},'lucide-react':Icons,sonner:{toast:{error:v=>messages.push(['error',v]),success:v=>messages.push(['success',v])}},'../../lib/accountCurrency':{useCurrency:()=>{},displayMoney:()=>''},'../../lib/supabaseClient':{getSupabase:()=>({rpc:async()=>({data:[],error:rpcError})})},'../../data/assignmentRecommendation':{recommendManufacturers:()=>[{factory}],checkManufacturerProduction:(_order,m)=>({eligible:m===factory,failures:m===factory?[]:['Unsupported garment'],warnings:[],reasons:[]})},'../../lib/superadminDb':{assignMatchedManufacturer:async()=>{calls++;if(saveMode==='throw')throw Error('Database write failed');if(saveMode==='false')throw Error('Could not save the assignment.');if(saveMode==='wait')return new Promise(r=>{resolveSave=r;});}},'../../hooks/useSuperadminData':{useSuperadminData:()=>({...props,loading,error,patchOrder:async()=>{calls++;if(saveMode==='throw')throw Error('Database write failed');if(saveMode==='false')return false;if(saveMode==='wait')return new Promise(r=>{resolveSave=r;});return true;},refresh:async()=>{refreshes++;}})},'../../data/superadminMock':{STATUS_LABELS:{submitted:'Submitted'},formatMoney:()=>''},'../../components/ui/button':{Button:wrap('button')},'../../components/ui/input':{Input:wrap('input')},'../../components/ui/dialog':{Dialog:({children})=>children,DialogContent:wrap('div'),DialogTitle:wrap('h2'),DialogDescription:wrap('p')},'../../components/ui/utils':{cn:(...v)=>v.filter(Boolean).join(' ')}};const m={exports:{}};new Function('React','require','module','exports',(await transformWithEsbuild(await readFile('src/app/pages/superadmin/SuperAdminAssignmentConsole.tsx','utf8'),'assign.tsx',{format:'cjs'})).code)(React,((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(n=>n.endsWith('.css')?{}:imports[n]),m,m.exports);const tree=()=>{if(overrides[1] && !overrides[10]?.legacy)overrides[10]={key:overrides[1].orderId+':'+overrides[3]+':0',windowDays:60,candidates:[{id:factory.userId,name:factory.factoryName,rank:1,eligible:true,reasons:['Supports garment'],warnings:['Confirm scheduling'],failures:[]},{id:bad.userId,name:bad.factoryName,eligible:false,failures:['Unsupported garment']}]};hook=0;effects=[];return m.exports.SuperAdminAssignmentConsole();};const flat=n=>!n||typeof n!=='object'?[]:[n,...React.Children.toArray(n.props?.children).flatMap(flat)];const html=()=>renderToStaticMarkup(tree());const visible=()=>flat(tree()).find(n=>n.type==='tbody').props.children;
 assert.match(html(),/1–20 of 23/);overrides={6:2};assert.match(html(),/21–23 of 23/);overrides={5:'no match'};assert.match(html(),/No requests match your filters/);overrides={};loading=true;assert.match(html(),/—/);loading=false;error='Database unavailable';assert.match(html(),/Could not load assignments: Database unavailable/);error='';
 const future='2099-01-01';overrides={1:{orderId:'order-0',productName:'Cotton shirt',mode:'assign'},2:'factory',3:future};let nodes=flat(tree());assert.match(html(),/Recommended/);assert.match(html(),/Confirm scheduling/);const picker=nodes.find(n=>n.props?.type==='radio'&&n.props.value===factory.userId);assert.ok(picker.props.checked);assert.ok(!nodes.some(n=>n.props?.type==='radio'&&n.props.value==='bad'));assert.match(html(),/Requirements not met/);assert.match(html(),/Unsupported garment/);updates=[];picker.props.onChange();assert.ok(updates.some(([i,v])=>i===2&&v==='factory'));assert.ok(updates.some(([i,v])=>i===7&&v===''));overrides[8]='no matching factory';assert.match(html(),/No suitable manufacturers match your search/);delete overrides[8];
 
@@ -61,3 +62,38 @@ assert.match(html(), /1–20 of 23 requests/);
 assert.match(html(), />Just submitted</);
 assert.doesNotMatch(html(), /assignment-column-popover/);
 console.log('PASS direct assignment header sorting and status cycling.');
+
+// A declined request is actionable reassignment, not an unanswered late quote.
+orders[21].factoryQuoteStatus='rejected';
+overrides={};
+assert.match(html(),/Need reassignment/);
+clickHeader('Show overdue requests');
+assert.match(html(),/No requests match your filters/);
+orders[21].factoryQuoteStatus='expired';
+overrides={};
+assert.match(html(),/Need reassignment/);
+orders[21].factoryQuoteStatus='new';
+
+overrides={1:{orderId:'order-0',productName:'Cotton shirt',mode:'assign'},2:'factory',3:future};
+rpcError={code:'PGRST202',message:'Missing function'};
+updates=[];
+tree();
+effects[1]();
+await new Promise(resolve=>setImmediate(resolve));
+const fallback=updates.find(([index,value])=>index===10 && value?.legacy)?.[1];
+assert.ok(fallback);
+overrides[10]=fallback;
+assert.match(html(),/Basic matching is available/);
+assert.match(html(),/Unsupported garment/);
+saveMode='ok';
+calls=0;
+await commit();
+assert.equal(calls,1);
+rpcError={code:'42501',message:'Access denied'};
+updates=[];
+tree();
+effects[1]();
+await new Promise(resolve=>setImmediate(resolve));
+assert.ok(updates.some(([index,value])=>index===11 && value==='Access denied'));
+assert.ok(!updates.some(([index,value])=>index===10 && value?.legacy));
+console.log('PASS missing matching RPC keeps basic assignment available; permission errors are not bypassed.');

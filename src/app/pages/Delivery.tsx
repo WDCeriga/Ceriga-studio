@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -6,9 +7,10 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { cn } from '../components/ui/utils';
-import type { OrderQuantityPlan } from '../data/orderQuantities';
+import { setOrderMode, type OrderQuantityPlan } from '../data/orderQuantities';
 import type { OrderDeliveryInfo } from '../data/orderDelivery';
 import { createOrderFromSubmit, type UserOrder } from '../data/userOrders';
+import { requestMessage } from '../lib/requestErrors';
 import { useAuth } from '../contexts/AuthContext';
 
 const fieldClass =
@@ -78,6 +80,8 @@ function FieldError({ message }: { message?: string }) {
 }
 
 export default function Delivery() {
+  useCerigaTranslation();
+
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -105,6 +109,7 @@ export default function Delivery() {
     () =>
       location.state as
         | {
+            orderIntent?: 'production';
             sourceOrderId?: string;
             mockup?: Blob;
             useApprovedSample?: boolean;
@@ -164,7 +169,8 @@ export default function Delivery() {
       return;
     }
 
-    const isTechPackExport = st?.orderQuantities?.mode === 'techpack';
+    const isProductionOrder = st?.orderIntent === 'production' || st?.from === 'builder';
+    const isTechPackExport = !isProductionOrder && st?.orderQuantities?.mode === 'techpack';
     const isPackaging = st?.from === 'packaging';
     const delivery = deliveryFromForm();
     setSubmitting(true);
@@ -176,7 +182,8 @@ export default function Delivery() {
         productName: st?.productName ?? (isPackaging ? 'Packaging order' : undefined),
         garmentType: st?.garmentType ?? (isPackaging ? 'Packaging' : undefined),
         kind: isTechPackExport ? 'tech-pack' : 'production',
-        orderQuantities: st?.orderQuantities,
+        orderQuantities: isProductionOrder && st?.orderQuantities
+          ? setOrderMode(st.orderQuantities, 'custom_clothing') : st?.orderQuantities,
         specifications: st?.specifications,
         files: st?.mockup ? [new File([st.mockup], 'submitted-mockup.png', { type: 'image/png' })] : undefined,
         contactName: `${delivery.firstName} ${delivery.lastName}`.trim(),
@@ -186,7 +193,7 @@ export default function Delivery() {
       });
       navigate(`/orders/${order.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not create order');
+      toast.error(cerigaTranslateLabel(requestMessage(err, cerigaTranslate("interface.text_9aa34d8b2d01f24c"))));
     } finally {
       setSubmitting(false);
     }
@@ -199,33 +206,23 @@ export default function Delivery() {
           type="button"
           onClick={handleBack}
           className="mb-5 inline-flex items-center gap-2 text-[11px] font-medium text-white/45 transition-colors hover:text-white/80"
-        >
-          Back
-        </button>
+        >{cerigaTranslate("common.back")}</button>
 
         <header className="mb-6">
-          <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">
-            Checkout
-          </p>
-          <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase leading-tight tracking-[-0.03em] text-white sm:text-[1.65rem]">
-            Delivery
-          </h1>
-          <p className="mt-2 max-w-lg text-xs leading-relaxed text-white/50 sm:text-sm">
-            Enter where we should send your order and how to reach you.
-          </p>
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-[2px] text-[#CC2D24]">{cerigaTranslate("interface.text_99e71f48c48f121b")}</p>
+          <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-2xl font-extrabold uppercase leading-tight tracking-[-0.03em] text-white sm:text-[1.65rem]">{cerigaTranslate("nav.delivery")}</h1>
+          <p className="mt-2 max-w-lg text-xs leading-relaxed text-white/50 sm:text-sm">{cerigaTranslate("interface.text_4e2c59b265233f0d")}</p>
         </header>
 
         <div className="space-y-6 rounded-xl border border-[#252528] bg-white/[0.03] p-4 sm:p-6">
-          <Section title="Contact information">
+          <Section title={cerigaTranslate("interface.text_cbc7311e953e2ca2")}>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <Label htmlFor="firstName" className="mb-1.5 text-xs text-white/55">
-                  First name
-                </Label>
+                <Label htmlFor="firstName" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("interface.text_702ef921ed1d89bf")}</Label>
                 <Input
                   id="firstName"
                   className={fieldClass}
-                  placeholder="Enter first name"
+                  placeholder={cerigaTranslate("interface.text_05786ecba6926b28")}
                   value={form.firstName}
                   onChange={(e) => set('firstName')(e.target.value)}
                   autoComplete="given-name"
@@ -233,13 +230,11 @@ export default function Delivery() {
                 <FieldError message={errors.firstName} />
               </div>
               <div>
-                <Label htmlFor="lastName" className="mb-1.5 text-xs text-white/55">
-                  Last name
-                </Label>
+                <Label htmlFor="lastName" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("interface.text_7b4888049459f04a")}</Label>
                 <Input
                   id="lastName"
                   className={fieldClass}
-                  placeholder="Enter last name"
+                  placeholder={cerigaTranslate("interface.text_6efd92ba0d0b41ff")}
                   value={form.lastName}
                   onChange={(e) => set('lastName')(e.target.value)}
                   autoComplete="family-name"
@@ -247,14 +242,12 @@ export default function Delivery() {
                 <FieldError message={errors.lastName} />
               </div>
               <div>
-                <Label htmlFor="email" className="mb-1.5 text-xs text-white/55">
-                  Email
-                </Label>
+                <Label htmlFor="email" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("authentication.email")}</Label>
                 <Input
                   id="email"
                   type="email"
                   className={fieldClass}
-                  placeholder="your@email.com"
+                  placeholder={cerigaTranslate("interface.text_97af051a28d9808c")}
                   value={form.email}
                   onChange={(e) => set('email')(e.target.value)}
                   autoComplete="email"
@@ -262,9 +255,7 @@ export default function Delivery() {
                 <FieldError message={errors.email} />
               </div>
               <div>
-                <Label htmlFor="phone" className="mb-1.5 text-xs text-white/55">
-                  Phone
-                </Label>
+                <Label htmlFor="phone" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("adminOrders.phone")}</Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -281,16 +272,14 @@ export default function Delivery() {
 
           <div className="border-t border-[#252528]" />
 
-          <Section title="Shipping address">
+          <Section title={cerigaTranslate("interface.text_37441a6666ff3dbd")}>
             <div className="space-y-3">
               <div>
-                <Label htmlFor="address1" className="mb-1.5 text-xs text-white/55">
-                  Address line 1
-                </Label>
+                <Label htmlFor="address1" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("interface.text_ee760b6e81b981e2")}</Label>
                 <Input
                   id="address1"
                   className={fieldClass}
-                  placeholder="Street address"
+                  placeholder={cerigaTranslate("interface.text_8a386dd14cb9a70f")}
                   value={form.address1}
                   onChange={(e) => set('address1')(e.target.value)}
                   autoComplete="address-line1"
@@ -298,13 +287,12 @@ export default function Delivery() {
                 <FieldError message={errors.address1} />
               </div>
               <div>
-                <Label htmlFor="address2" className="mb-1.5 text-xs text-white/55">
-                  Address line 2 <span className="text-white/30">(optional)</span>
+                <Label htmlFor="address2" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("interface.text_350b2b85c4af1724")}{" "}<span className="text-white/30">{cerigaTranslate("interface.text_0059798b7f7023e4")}</span>
                 </Label>
                 <Input
                   id="address2"
                   className={fieldClass}
-                  placeholder="Apartment, suite, etc."
+                  placeholder={cerigaTranslate("interface.text_2088543fd0df27c4")}
                   value={form.address2}
                   onChange={(e) => set('address2')(e.target.value)}
                   autoComplete="address-line2"
@@ -312,13 +300,11 @@ export default function Delivery() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <Label htmlFor="city" className="mb-1.5 text-xs text-white/55">
-                    City
-                  </Label>
+                  <Label htmlFor="city" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("interface.text_fc33f73246f48295")}</Label>
                   <Input
                     id="city"
                     className={fieldClass}
-                    placeholder="City"
+                    placeholder={cerigaTranslate("interface.text_fc33f73246f48295")}
                     value={form.city}
                     onChange={(e) => set('city')(e.target.value)}
                     autoComplete="address-level2"
@@ -326,13 +312,11 @@ export default function Delivery() {
                   <FieldError message={errors.city} />
                 </div>
                 <div>
-                  <Label htmlFor="postcode" className="mb-1.5 text-xs text-white/55">
-                    Postcode
-                  </Label>
+                  <Label htmlFor="postcode" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("interface.text_0a4387d25c62e78b")}</Label>
                   <Input
                     id="postcode"
                     className={fieldClass}
-                    placeholder="Postcode"
+                    placeholder={cerigaTranslate("interface.text_0a4387d25c62e78b")}
                     value={form.postcode}
                     onChange={(e) => set('postcode')(e.target.value)}
                     autoComplete="postal-code"
@@ -340,9 +324,7 @@ export default function Delivery() {
                   <FieldError message={errors.postcode} />
                 </div>
                 <div>
-                  <Label htmlFor="country" className="mb-1.5 text-xs text-white/55">
-                    Country
-                  </Label>
+                  <Label htmlFor="country" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("interface.text_701d021d08c54579")}</Label>
                   <select
                     id="country"
                     value={form.country}
@@ -351,7 +333,7 @@ export default function Delivery() {
                   >
                     {COUNTRIES.map((c) => (
                       <option key={c.value} value={c.value}>
-                        {c.label}
+                        {cerigaTranslateLabel(c.label)}
                       </option>
                     ))}
                   </select>
@@ -363,15 +345,14 @@ export default function Delivery() {
 
           <div className="border-t border-[#252528]" />
 
-          <Section title="Special instructions">
+          <Section title={cerigaTranslate("interface.text_4e80e96365cc0517")}>
             <div>
-              <Label htmlFor="instructions" className="mb-1.5 text-xs text-white/55">
-                Notes <span className="text-white/30">(optional)</span>
+              <Label htmlFor="instructions" className="mb-1.5 text-xs text-white/55">{cerigaTranslate("adminOrders.notes")}{" "}<span className="text-white/30">{cerigaTranslate("interface.text_0059798b7f7023e4")}</span>
               </Label>
               <Textarea
                 id="instructions"
                 className="min-h-[88px] resize-none border-[#252528] bg-white/[0.04] text-sm text-white placeholder:text-white/30 focus-visible:border-[#CC2D24] focus-visible:ring-[#CC2D24]/25"
-                placeholder="Add any special delivery instructions..."
+                placeholder={cerigaTranslate("interface.text_91d3ca101c3d2cfc")}
                 value={form.instructions}
                 onChange={(e) => set('instructions')(e.target.value)}
               />
@@ -385,7 +366,7 @@ export default function Delivery() {
               onClick={() => void handleSubmitOrder()}
               className="h-11 w-full rounded-lg bg-[#CC2D24] text-sm font-semibold text-white hover:bg-[#CC2D24]/90 disabled:opacity-50"
             >
-              {submitting ? 'Submitting…' : 'Submit order'}
+              {submitting ? cerigaTranslate("interface.text_49195f559e4a9f5b") : cerigaTranslate("interface.text_6dde50f964d9b8f0")}
             </Button>
           </div>
         </div>

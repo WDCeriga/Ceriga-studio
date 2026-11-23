@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { Search } from 'lucide-react';
@@ -16,8 +17,10 @@ import { AccessBreadcrumb, BackLink, ProfileCard } from './accessShared';
 const VALID_AUDIENCES = new Set<string>(['users', 'workers']);
 
 export function SuperAdminCRMAccessList() {
+  useCerigaTranslation();
+
   const { audience: audienceParam } = useParams<{ audience: string }>();
-  const { users, loading } = useSuperadminData();
+  const { users, loading } = useSuperadminData({scope:'users'});
   const [search, setSearch] = useState('');
 
   const audience =
@@ -48,7 +51,7 @@ export function SuperAdminCRMAccessList() {
   if (!audience) {
     return (
       <div className="rounded-2xl border border-[#252528] bg-[#111113] px-6 py-16 text-center">
-        <p className="text-sm text-white/50">Unknown audience.</p>
+        <p className="text-sm text-white/50">{cerigaTranslate("interface.text_a6a1eb4fa9090887")}</p>
       </div>
     );
   }
@@ -63,18 +66,17 @@ export function SuperAdminCRMAccessList() {
   return (
     <div className="space-y-6">
       <AccessBreadcrumb audience={audience} />
-      <BackLink to="/superadmin/crm/access" label="All audiences" />
+      <BackLink to="/superadmin/crm/access" label={cerigaTranslate("interface.text_34f08839a0c9bb50")} />
 
       <div>
         <p
           className="text-[11px] font-semibold uppercase tracking-[0.18em]"
           style={{ color: meta.accent }}
         >
-          {meta.title}
+          {cerigaTranslateLabel(meta.title)}
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          {meta.title} profiles
-        </h1>
+          {cerigaTranslateLabel(meta.title)}{" "}{cerigaTranslate("interface.text_d52fd337f01644a0")}</h1>
       </div>
 
       <div className="relative max-w-md">
@@ -83,7 +85,7 @@ export function SuperAdminCRMAccessList() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Search ${meta.title.toLowerCase()}…`}
+          placeholder={cerigaTranslate("interface.text_470eea9ad17cb6a2",{value0:(meta.title.toLowerCase())})}
           className="h-9 w-full border-0 border-b border-white/15 bg-transparent pl-7 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#CC2D24]/70"
         />
       </div>
@@ -91,7 +93,7 @@ export function SuperAdminCRMAccessList() {
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 bg-[#111113] px-6 py-16 text-center">
           <p className="text-sm text-white/45">
-            {profiles.length === 0 ? 'No accounts in this audience yet.' : 'No profiles match.'}
+            {profiles.length === 0 ? cerigaTranslate("interface.text_17bf7f87ef1487e6") : cerigaTranslate("interface.text_b45a9fc4a4198088")}
           </p>
         </div>
       ) : (

@@ -1,3 +1,5 @@
+import { garmentAssetLabel } from '../components/builder/TshirtAssetChoiceGrid';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import {
@@ -88,6 +90,8 @@ function loadStoredDocument(): DrawableAssetDocument | null {
 }
 
 export function AssetDrawingLab() {
+  useCerigaTranslation();
+
   const [doc, setDoc] = useState<DrawableAssetDocument>(() => loadStoredDocument() ?? createEmptyDocument());
   const [tool, setTool] = useState<AssetEditorTool>('select');
   const [selection, setSelection] = useState<AssetEditorSelection | null>(null);
@@ -117,7 +121,7 @@ export function AssetDrawingLab() {
       garmentConfig.categoryOrder.flatMap((category) =>
         getGarmentAssets(doc.meta.garmentType, category).map((asset) => ({
           id: asset.id,
-          label: `${category} / ${asset.displayName}`,
+          label: `${cerigaTranslateLabel(category)} / ${garmentAssetLabel(asset.displayName)}`,
         })),
       ),
     [doc.meta.garmentType, garmentConfig.categoryOrder],
@@ -247,7 +251,7 @@ export function AssetDrawingLab() {
     setImportAssetId(asset.id);
     setTool('select');
     setSelection(null);
-    setStatus(`Loaded ${asset.displayName} with auto-anchors.`);
+    setStatus(`Loaded ${garmentAssetLabel(asset.displayName)} with auto-anchors.`);
   };
 
   const handleQuickAdd = () => {
@@ -268,7 +272,7 @@ export function AssetDrawingLab() {
     setSelection(null);
     const pointCount = countStrokePoints(next.strokes);
     setStatus(
-      `Created "${asset.displayName}" (${TRACE_FIDELITY_LABELS[traceFidelity]}, ${pointCount} points, ${next.anchors.length} anchors). Drag green anchors or enable edit points.`,
+      `Created "${garmentAssetLabel(asset.displayName)}" (${TRACE_FIDELITY_LABELS[traceFidelity]}, ${pointCount} points, ${next.anchors.length} anchors). Drag green anchors or enable edit points.`,
     );
   };
 
@@ -289,7 +293,7 @@ export function AssetDrawingLab() {
     setDoc(buildAssetFromCatalog(asset, traceFidelity));
     setTool('select');
     setSelection(null);
-    setStatus(`Traced ${asset.displayName}. Drag anchors if needed, then Export SVG.`);
+    setStatus(`Traced ${garmentAssetLabel(asset.displayName)}. Drag anchors if needed, then Export SVG.`);
   };
 
   const handleSmoothAll = () => {
@@ -314,16 +318,14 @@ export function AssetDrawingLab() {
     <div className="min-h-screen bg-[#090b10] text-white">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Ceriga Lab</p>
-          <h1 className="text-2xl font-semibold">Asset Lab</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-400">
-            Simple workflow: clone a catalog part, auto-place anchors, export one SVG into{' '}
-            <code className="text-slate-300">src/assets/</code>. SVG is the source of truth — not JSON.
-          </p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{cerigaTranslate("interface.text_8c35fe030f4f3c37")}</p>
+          <h1 className="text-2xl font-semibold">{cerigaTranslate("interface.text_5f8f2d5a1f43b7a4")}</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-400">{cerigaTranslate("interface.text_180ace6bc27dc675")}{' '}
+            <code className="text-slate-300">src/assets/</code>{cerigaTranslate("interface.text_51c6e3332554f726")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" asChild>
-            <Link to="/dashboard">Back to studio</Link>
+            <Link to="/dashboard">{cerigaTranslate("interface.text_ab1e7085da6e0764")}</Link>
           </Button>
           <Button
             variant="outline"
@@ -331,18 +333,14 @@ export function AssetDrawingLab() {
               const bundle = exportDrawableAssetWithJsonBackup(doc);
               setStatus(`Exported SVG + editor backup JSON → ${bundle.importPath}`);
             }}
-          >
-            Backup JSON
-          </Button>
+          >{cerigaTranslate("interface.text_44860e21bdad68db")}</Button>
           <Button
             onClick={() => {
               const bundle = exportDrawableAsset(doc);
               setStatus(`Exported SVG → ${bundle.importPath}`);
             }}
           >
-            <Download className="size-4" />
-            Export SVG
-          </Button>
+            <Download className="size-4" />{cerigaTranslate("interface.text_3b20ad4d555d9d95")}</Button>
         </div>
       </header>
 
@@ -351,12 +349,12 @@ export function AssetDrawingLab() {
           <section className="space-y-3 rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-3">
             <div className="flex items-center gap-2">
               <Sparkles className="size-4 text-emerald-400" />
-              <h2 className="text-sm font-medium text-emerald-200">Quick add (recommended)</h2>
+              <h2 className="text-sm font-medium text-emerald-200">{cerigaTranslate("interface.text_72d4a9080c596010")}</h2>
             </div>
             <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-400">
-              <li>Pick garment + category below</li>
-              <li>Choose catalog variant</li>
-              <li>Create asset → nudge anchors → Export SVG</li>
+              <li>{cerigaTranslate("interface.text_0b07b1263b0679c8")}</li>
+              <li>{cerigaTranslate("interface.text_327b03c7132eeef6")}</li>
+              <li>{cerigaTranslate("interface.text_ef691e708e9ee144")}</li>
             </ol>
             <Select
               value={quickAddAssetId || undefined}
@@ -364,18 +362,18 @@ export function AssetDrawingLab() {
               disabled={categoryAssets.length === 0}
             >
               <SelectTrigger className={LAB_FIELD}>
-                <SelectValue placeholder={categoryAssets.length === 0 ? 'No variants in category' : 'Catalog variant'} />
+                <SelectValue placeholder={categoryAssets.length === 0 ? cerigaTranslate("interface.text_dade82eaaf2ffc53") : cerigaTranslate("interface.text_63f68845a99db2b2")} />
               </SelectTrigger>
               <SelectContent className="border-white/15 bg-[#1a2030] text-white">
                 {categoryAssets.map((asset) => (
                   <SelectItem key={asset.id} value={asset.id} className="text-white focus:bg-white/10 focus:text-white">
-                    {asset.displayName}
+                    {garmentAssetLabel(asset.displayName)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <div className="space-y-2">
-              <Label>Trace detail</Label>
+              <Label>{cerigaTranslate("interface.text_dbda832ef97b9c35")}</Label>
               <Select
                 value={traceFidelity}
                 onValueChange={(value) => setTraceFidelity(value as TraceFidelityPreset)}
@@ -390,32 +388,26 @@ export function AssetDrawingLab() {
                       value={preset}
                       className="text-white focus:bg-white/10 focus:text-white"
                     >
-                      {TRACE_FIDELITY_LABELS[preset]}
+                      {cerigaTranslateLabel(TRACE_FIDELITY_LABELS[preset])}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-slate-500">
-                Full detail keeps every traced point. Lower settings simplify for faster editing.
-              </p>
+              <p className="text-xs text-slate-500">{cerigaTranslate("interface.text_cba99819e4f9fcf1")}</p>
             </div>
             <Button className="w-full" onClick={handleQuickAdd} disabled={categoryAssets.length === 0}>
-              <Wand2 className="size-4" />
-              Create asset from catalog
-            </Button>
-            <Button variant="outline" className="w-full" onClick={handleResuggestAnchors} disabled={doc.strokes.length === 0}>
-              Re-suggest anchors
-            </Button>
+              <Wand2 className="size-4" />{cerigaTranslate("interface.text_218f3e1a645ece51")}</Button>
+            <Button variant="outline" className="w-full" onClick={handleResuggestAnchors} disabled={doc.strokes.length === 0}>{cerigaTranslate("interface.text_a1cfcaef3acd33e6")}</Button>
             <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-300">Show edit points</span>
+              <span className="text-slate-300">{cerigaTranslate("interface.text_591e1e3ef995cc8f")}</span>
               <Switch checked={showPointHandles} onCheckedChange={setShowPointHandles} />
             </label>
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-medium text-slate-300">Asset meta</h2>
+            <h2 className="text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_0eb6289479c4d371")}</h2>
             <div className="space-y-2">
-              <Label htmlFor="asset-name">Name</Label>
+              <Label htmlFor="asset-name">{cerigaTranslate("interface.text_dcd1d5223f73b3a9")}</Label>
               <Input
                 id="asset-name"
                 className={LAB_FIELD}
@@ -429,7 +421,7 @@ export function AssetDrawingLab() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Garment</Label>
+              <Label>{cerigaTranslate("adminOrders.garment")}</Label>
               <Select
                 value={doc.meta.garmentType}
                 onValueChange={(value) => {
@@ -445,14 +437,14 @@ export function AssetDrawingLab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="border-white/15 bg-[#1a2030] text-white">
-                  <SelectItem value="tshirt" className="text-white focus:bg-white/10 focus:text-white">T-shirt</SelectItem>
-                  <SelectItem value="hoodie" className="text-white focus:bg-white/10 focus:text-white">Hoodie</SelectItem>
-                  <SelectItem value="trousers" className="text-white focus:bg-white/10 focus:text-white">Trousers</SelectItem>
+                  <SelectItem value="tshirt" className="text-white focus:bg-white/10 focus:text-white">{cerigaTranslate("interface.text_d977e091ea89c4c4")}</SelectItem>
+                  <SelectItem value="hoodie" className="text-white focus:bg-white/10 focus:text-white">{cerigaTranslate("interface.text_84e05c9a21b56e23")}</SelectItem>
+                  <SelectItem value="trousers" className="text-white focus:bg-white/10 focus:text-white">{cerigaTranslate("interface.text_a1dd93fd5b3726c7")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>{cerigaTranslate("interface.text_292c06f0045a45d0")}</Label>
               <Select
                 value={doc.meta.category}
                 onValueChange={(value) => {
@@ -464,19 +456,19 @@ export function AssetDrawingLab() {
                 }}
               >
                 <SelectTrigger className={LAB_FIELD}>
-                  <SelectValue placeholder="Pick category" />
+                  <SelectValue placeholder={cerigaTranslate("interface.text_37b72fffe1a9717a")} />
                 </SelectTrigger>
                 <SelectContent className="border-white/15 bg-[#1a2030] text-white">
                   {garmentConfig.categoryOrder.map((category) => (
                     <SelectItem key={category} value={category} className="text-white focus:bg-white/10 focus:text-white">
-                      {category}
+                      {cerigaTranslateLabel(category)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="file-name">File name</Label>
+              <Label htmlFor="file-name">{cerigaTranslate("interface.text_3efed3de9d4b5170")}</Label>
               <Input
                 id="file-name"
                 className={LAB_FIELD}
@@ -492,9 +484,7 @@ export function AssetDrawingLab() {
           </section>
 
           <details className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <summary className="cursor-pointer text-sm font-medium text-slate-300">
-              Advanced: hand-draw &amp; import
-            </summary>
+            <summary className="cursor-pointer text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_f74530c8ac6d81ad")}</summary>
             <div className="mt-3 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 {TOOL_OPTIONS.map(({ id, label, icon: Icon }) => (
@@ -509,7 +499,7 @@ export function AssetDrawingLab() {
                     }}
                   >
                     <Icon className="size-4" />
-                    {label}
+                    {cerigaTranslateLabel(label)}
                   </Button>
                 ))}
               </div>
@@ -518,57 +508,50 @@ export function AssetDrawingLab() {
                 variant={snapGrid > 0 ? 'default' : 'outline'}
                 onClick={() => setSnapGrid((value) => (value > 0 ? 0 : 16))}
               >
-                <Grid3x3 className="size-4" />
-                Snap {snapGrid > 0 ? `${snapGrid}px` : 'off'}
+                <Grid3x3 className="size-4" />{cerigaTranslate("interface.text_98df9a59f0641d0c")}{" "}{snapGrid > 0 ? cerigaTranslate("interface.text_bfd8d62ce34b09e8",{value0:(snapGrid)}) : cerigaTranslate("interface.text_b4dc66dde806261b")}
               </Button>
-              <Button variant="outline" className="w-full" onClick={handleTraceCategoryReference}>
-                Trace category reference
-              </Button>
-              <Button variant="outline" className="w-full" onClick={handleSmoothAll} disabled={doc.strokes.length === 0}>
-                Smooth all strokes
-              </Button>
+              <Button variant="outline" className="w-full" onClick={handleTraceCategoryReference}>{cerigaTranslate("interface.text_6a9188beb345a66e")}</Button>
+              <Button variant="outline" className="w-full" onClick={handleSmoothAll} disabled={doc.strokes.length === 0}>{cerigaTranslate("interface.text_ac69effccb9ba752")}</Button>
             </div>
           </details>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-medium text-slate-300">SVG references</h2>
-            <p className="text-xs text-slate-400">
-              Ghost overlays from the catalog so you can trace and align to real garment parts.
-            </p>
+            <h2 className="text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_addf76487e5d1cd3")}</h2>
+            <p className="text-xs text-slate-400">{cerigaTranslate("interface.text_b2cfe5389847b9ef")}</p>
             <div className="space-y-2">
-              <Label>Category reference</Label>
+              <Label>{cerigaTranslate("interface.text_53dff2a2ef5c5091")}</Label>
               <Select
                 value={categoryReferenceId || undefined}
                 onValueChange={setCategoryReferenceId}
                 disabled={categoryAssets.length === 0}
               >
                 <SelectTrigger className={LAB_FIELD}>
-                  <SelectValue placeholder="Pick catalog variant" />
+                  <SelectValue placeholder={cerigaTranslate("interface.text_a52e76445ae2dc02")} />
                 </SelectTrigger>
                 <SelectContent className="border-white/15 bg-[#1a2030] text-white">
                   {categoryAssets.map((asset) => (
                     <SelectItem key={asset.id} value={asset.id} className="text-white focus:bg-white/10 focus:text-white">
-                      {asset.displayName}
+                      {garmentAssetLabel(asset.displayName)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-300">Show garment base</span>
+              <span className="text-slate-300">{cerigaTranslate("interface.text_c57beda523196acc")}</span>
               <Switch checked={showBaseReference} onCheckedChange={setShowBaseReference} />
             </label>
             <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-300">Show category SVG</span>
+              <span className="text-slate-300">{cerigaTranslate("interface.text_7a7c661cdb61eb71")}</span>
               <Switch checked={showCategoryReference} onCheckedChange={setShowCategoryReference} />
             </label>
             <label className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-300">Show related parts</span>
+              <span className="text-slate-300">{cerigaTranslate("interface.text_e22aabab2e02ec37")}</span>
               <Switch checked={showContextReference} onCheckedChange={setShowContextReference} />
             </label>
             <div className="space-y-1 rounded-lg border border-white/10 bg-black/20 p-2">
               {referenceLayers.length === 0 ? (
-                <p className="text-xs text-slate-500">No reference layers for this category.</p>
+                <p className="text-xs text-slate-500">{cerigaTranslate("interface.text_5af1d76331e44b24")}</p>
               ) : (
                 referenceLayers.map((layer) => (
                   <p key={layer.id} className="text-xs text-slate-400">
@@ -584,7 +567,7 @@ export function AssetDrawingLab() {
                       {layer.kind}
                     </span>
                     {' · '}
-                    {layer.label}
+                    {cerigaTranslateLabel(layer.label)}
                   </p>
                 ))
               )}
@@ -592,7 +575,7 @@ export function AssetDrawingLab() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-sm font-medium text-slate-300">Import</h2>
+            <h2 className="text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_2cff9baabf56ca00")}</h2>
             <input
               ref={jsonInputRef}
               type="file"
@@ -616,29 +599,23 @@ export function AssetDrawingLab() {
               }}
             />
             <Button variant="outline" className="w-full" onClick={() => jsonInputRef.current?.click()}>
-              <Upload className="size-4" />
-              Import .ceriga-asset.json
-            </Button>
+              <Upload className="size-4" />{cerigaTranslate("interface.text_e4fe1d3a957c2305")}</Button>
             <Button variant="outline" className="w-full" onClick={() => svgInputRef.current?.click()}>
-              <Upload className="size-4" />
-              Import .svg
-            </Button>
+              <Upload className="size-4" />{cerigaTranslate("interface.text_1b60188056d9c724")}</Button>
             <Select value={importAssetId || undefined} onValueChange={setImportAssetId}>
               <SelectTrigger className={LAB_FIELD}>
-                <SelectValue placeholder="Catalog asset" />
+                <SelectValue placeholder={cerigaTranslate("interface.text_e281bbbceb17e798")} />
               </SelectTrigger>
               <SelectContent className="border-white/15 bg-[#1a2030] text-white">
                 {catalogAssets.map((asset) => (
                   <SelectItem key={asset.id} value={asset.id} className="text-white focus:bg-white/10 focus:text-white">
-                    {asset.label}
+                    {cerigaTranslateLabel(asset.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Button variant="outline" className="w-full" onClick={handleImportCatalogAsset}>
-              <FolderOpen className="size-4" />
-              Load catalog asset
-            </Button>
+              <FolderOpen className="size-4" />{cerigaTranslate("interface.text_047e60a286385ea0")}</Button>
             <Button
               variant="outline"
               className="w-full"
@@ -648,9 +625,7 @@ export function AssetDrawingLab() {
                 setStatus('Started a new blank asset.');
               }}
             >
-              <Trash2 className="size-4" />
-              New blank asset
-            </Button>
+              <Trash2 className="size-4" />{cerigaTranslate("interface.text_8d9ddef855604922")}</Button>
           </section>
         </aside>
 
@@ -681,7 +656,7 @@ export function AssetDrawingLab() {
 
         <aside className="flex flex-col gap-4 overflow-auto rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <section>
-            <h2 className="mb-2 text-sm font-medium text-slate-300">Coordinates</h2>
+            <h2 className="mb-2 text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_117c132e939b9f65")}</h2>
             {selectedPoint?.point ? (
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -724,7 +699,7 @@ export function AssetDrawingLab() {
             ) : selectedAnchor ? (
               <div className="space-y-2">
                 <div>
-                  <Label>Name</Label>
+                  <Label>{cerigaTranslate("interface.text_dcd1d5223f73b3a9")}</Label>
                   <Input
                     className={LAB_FIELD}
                     value={selectedAnchor.name}
@@ -736,7 +711,7 @@ export function AssetDrawingLab() {
                   />
                 </div>
                 <div>
-                  <Label>Role</Label>
+                  <Label>{cerigaTranslate("interface.text_14736a2eb9f4159f")}</Label>
                   <Select
                     value={selectedAnchor.role}
                     onValueChange={(value) =>
@@ -753,7 +728,7 @@ export function AssetDrawingLab() {
                     <SelectContent className="border-white/15 bg-[#1a2030] text-white">
                       {ANCHOR_ROLE_OPTIONS.map((role) => (
                         <SelectItem key={role} value={role} className="text-white focus:bg-white/10 focus:text-white">
-                          {role}
+                          {cerigaTranslateLabel(role)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -789,15 +764,13 @@ export function AssetDrawingLab() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-slate-400">
-                Select a point or anchor to edit exact coordinates ({ASSET_EDITOR_CANVAS}×
-                {ASSET_EDITOR_CANVAS} space).
-              </p>
+              <p className="text-sm text-slate-400">{cerigaTranslate("interface.text_8594fae1d1599664")}{ASSET_EDITOR_CANVAS}×
+                {ASSET_EDITOR_CANVAS}{" "}{cerigaTranslate("interface.text_6a147639785b3cd3")}</p>
             )}
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-medium text-slate-300">Strokes ({doc.strokes.length})</h2>
+            <h2 className="mb-2 text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_3f2d4725f3e652d7")}{doc.strokes.length})</h2>
             <div className="space-y-2">
               {doc.strokes.map((stroke) => (
                 <button
@@ -806,15 +779,15 @@ export function AssetDrawingLab() {
                   className="flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-left text-sm hover:bg-white/5"
                   onClick={() => setSelection({ kind: 'stroke', strokeId: stroke.id })}
                 >
-                  <span>{stroke.label}</span>
-                  <span className="text-slate-400">{stroke.points.length} pts</span>
+                  <span>{cerigaTranslateLabel(stroke.label)}</span>
+                  <span className="text-slate-400">{stroke.points.length}{" "}{cerigaTranslate("interface.text_8c32e612bdc22150")}</span>
                 </button>
               ))}
             </div>
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-medium text-slate-300">Anchors ({doc.anchors.length})</h2>
+            <h2 className="mb-2 text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_5988d51e00762787")}{doc.anchors.length})</h2>
             <div className="space-y-2">
               {doc.anchors.map((anchor) => (
                 <button
@@ -833,11 +806,8 @@ export function AssetDrawingLab() {
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-medium text-slate-300">Builder import</h2>
-            <p className="mb-2 text-xs text-slate-400">
-              Copy the exported <strong className="text-slate-300">.svg</strong> file here (anchors are embedded inside).
-              JSON is optional editor backup only.
-            </p>
+            <h2 className="mb-2 text-sm font-medium text-slate-300">{cerigaTranslate("interface.text_d61edd5a5dac08d9")}</h2>
+            <p className="mb-2 text-xs text-slate-400">{cerigaTranslate("interface.text_1db1d5f517d15745")}{" "}<strong className="text-slate-300">{cerigaTranslate("interface.text_51b0eb3866be4cd7")}</strong>{" "}{cerigaTranslate("interface.text_5bc8ec2adffdc7bb")}</p>
             <code className="block rounded-lg bg-black/30 p-3 text-xs text-emerald-300">
               {exportBundle.importPath}
             </code>

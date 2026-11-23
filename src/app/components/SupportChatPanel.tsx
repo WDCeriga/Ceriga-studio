@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -15,7 +16,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Link } from "react-router";
 import { SUPPORT_FAQS, type SupportFaq } from "../data/supportChatFaq";
 import {
   loadSupportChatSession,
@@ -98,6 +98,8 @@ export function SupportChatPanel({
   onDesktopExpandedChange,
   className,
 }: SupportChatPanelProps) {
+  useCerigaTranslation();
+
   const aiCursor = useAiCursorOptional();
   const [messages, setMessages] = useState<SupportChatMessage[]>(initialMessages);
   const [draft, setDraft] = useState("");
@@ -323,8 +325,9 @@ export function SupportChatPanel({
   const pushPair = useCallback(
     (faq: SupportFaq) => {
       if (busy) return;
-      setMessages((m) => [...m, { id: newId(), role: "user", text: faq.question }]);
-      requestAssistantReply([...historyFromMessages(messages), { role: "user", content: faq.question }]);
+      const question = cerigaTranslateLabel(faq.question);
+      setMessages((m) => [...m, { id: newId(), role: "user", text: question }]);
+      requestAssistantReply([...historyFromMessages(messages), { role: "user", content: question }]);
     },
     [busy, messages, historyFromMessages, requestAssistantReply],
   );
@@ -464,36 +467,36 @@ export function SupportChatPanel({
             "flex shrink-0 items-center gap-0.5 rounded-[4px] py-1.5 pl-0.5 pr-2 text-[#F0EEEE] transition-colors hover:bg-[#1C1C1E]",
             layout === "sheet" && "lg:hidden",
           )}
-          aria-label="Back"
+          aria-label={cerigaTranslate("common.back")}
         >
           <ChevronLeft className="h-7 w-7" strokeWidth={2} />
-          <span className="text-base font-medium">Back</span>
+          <span className="text-base font-medium">{cerigaTranslate("common.back")}</span>
         </button>
 
         <div className="min-w-0 flex-1 lg:text-left">
-          <p className="ceriga-mono text-[10px] font-medium uppercase tracking-[0.1em] text-[#CC2D24]">Ceriga</p>
-          <p className="truncate font-semibold text-[#F0EEEE]">Chat with us</p>
+          <p className="ceriga-mono text-[10px] font-medium uppercase tracking-[0.1em] text-[#CC2D24]">{cerigaTranslate("interface.text_49c6fd48ec76ae54")}</p>
+          <p className="truncate font-semibold text-[#F0EEEE]">{cerigaTranslate("interface.text_0e551acbe2082ccf")}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           {layout === "sheet" ? (
             <>
-              <Link
-                to="/support"
+              <a
+                href="/support"
                 onClick={() => onClose()}
                 className="inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-[4px] border border-[#252528] bg-[#161618] px-2 text-xs font-semibold text-[#A3A3A8] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] sm:px-2.5"
-                title="Open full chat page"
+                title={cerigaTranslate("interface.text_5183a033cb240a34")}
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                <span className="hidden sm:inline">Full chat</span>
-              </Link>
+                <span className="hidden sm:inline">{cerigaTranslate("interface.text_7d3f3f065d9d477c")}</span>
+              </a>
               {onDesktopExpandedChange ? (
                 <button
                   type="button"
                   onClick={() => onDesktopExpandedChange(!desktopExpanded)}
                   className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[#252528] bg-[#161618] text-[#8A8A90] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] lg:flex"
-                  aria-label={desktopExpanded ? "Use narrow chat panel" : "Widen chat panel"}
-                  title={desktopExpanded ? "Narrow panel" : "Widen panel"}
+                  aria-label={desktopExpanded ? cerigaTranslate("interface.text_18efae26f8b576bd") : cerigaTranslate("interface.text_c30aad9a0b19be8d")}
+                  title={desktopExpanded ? cerigaTranslate("interface.text_2e69162ed0e9a072") : cerigaTranslate("interface.text_d489daeb3ccc2fbf")}
                 >
                   {desktopExpanded ? (
                     <Minimize2 className="h-4 w-4" strokeWidth={2} />
@@ -506,7 +509,7 @@ export function SupportChatPanel({
                 type="button"
                 onClick={onClose}
                 className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-[4px] border border-[#252528] bg-[#161618] text-[#8A8A90] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] lg:flex"
-                aria-label="Close"
+                aria-label={cerigaTranslate("common.close")}
               >
                 <X className="h-4 w-4" strokeWidth={2} />
               </button>
@@ -561,16 +564,12 @@ export function SupportChatPanel({
                           type="button"
                           onClick={cancelEdit}
                           className="rounded-[4px] px-2 py-1 text-[11px] font-medium text-white/70 hover:bg-black/20 hover:text-white"
-                        >
-                          Cancel
-                        </button>
+                        >{cerigaTranslate("common.cancel")}</button>
                         <button
                           type="button"
                           onClick={saveEdit}
                           className="rounded-[4px] bg-white/20 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/30"
-                        >
-                          Save
-                        </button>
+                        >{cerigaTranslate("common.save")}</button>
                       </div>
                     </div>
                   ) : (
@@ -578,7 +577,7 @@ export function SupportChatPanel({
                       {msg.role === "assistant" && <p>{msg.text}</p>}
                       {msg.role === "user" && (msg.text || msg.imageSrc) && (
                         <p className={!msg.text && msg.imageSrc ? "text-xs text-white/85" : ""}>
-                          {msg.text || (msg.imageSrc ? "Photo attachment" : "")}
+                          {msg.text || (msg.imageSrc ? cerigaTranslate("interface.text_c84c01b4205e6be3") : "")}
                         </p>
                       )}
                     </>
@@ -598,7 +597,7 @@ export function SupportChatPanel({
                         type="button"
                         onClick={() => copyMessageText(msg)}
                         className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#6B6B72] transition-colors hover:bg-[#1C1C1E] hover:text-[#F0EEEE]"
-                        aria-label="Copy message"
+                        aria-label={cerigaTranslate("interface.text_457efe538b254dfb")}
                       >
                         <Copy className="h-3.5 w-3.5" strokeWidth={2} />
                       </button>
@@ -614,7 +613,7 @@ export function SupportChatPanel({
                               ? "bg-[#1C0F0F] text-[#E5534A]"
                               : "text-[#6B6B72] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]",
                           )}
-                          aria-label="Helpful reply"
+                          aria-label={cerigaTranslate("interface.text_ae9285532b0b1c80")}
                           aria-pressed={msg.feedback === "up"}
                         >
                           <ThumbsUp className="h-3.5 w-3.5" strokeWidth={2} />
@@ -628,7 +627,7 @@ export function SupportChatPanel({
                               ? "bg-[#1C0F0F] text-[#E5534A]"
                               : "text-[#6B6B72] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]",
                           )}
-                          aria-label="Not helpful"
+                          aria-label={cerigaTranslate("interface.text_3c4ebf31165b926a")}
                           aria-pressed={msg.feedback === "down"}
                         >
                           <ThumbsDown className="h-3.5 w-3.5" strokeWidth={2} />
@@ -641,7 +640,7 @@ export function SupportChatPanel({
                           type="button"
                           onClick={() => startEdit(msg)}
                           className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#6B6B72] transition-colors hover:bg-[#1C1C1E] hover:text-[#F0EEEE]"
-                          aria-label="Edit message"
+                          aria-label={cerigaTranslate("interface.text_9757ccd5ef123556")}
                         >
                           <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
                         </button>
@@ -649,7 +648,7 @@ export function SupportChatPanel({
                           type="button"
                           onClick={() => deleteMessage(msg.id)}
                           className="flex h-7 w-7 items-center justify-center rounded-[4px] text-[#6B6B72] transition-colors hover:bg-[#1C0F0F] hover:text-[#E5534A]"
-                          aria-label="Delete message"
+                          aria-label={cerigaTranslate("interface.text_87e7176a7ce700af")}
                         >
                           <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                         </button>
@@ -683,7 +682,7 @@ export function SupportChatPanel({
             >
               <div className="rounded-[6px] rounded-bl-sm border border-[#252528] bg-[#161618] px-4 py-3">
                 <div className="flex items-center gap-1.5" role="status">
-                  <span className="sr-only">Ceriga is typing</span>
+                  <span className="sr-only">{cerigaTranslate("interface.text_6382f9127d06b36b")}</span>
                   {[0, 1, 2].map((i) => (
                     <span
                       key={i}
@@ -693,7 +692,7 @@ export function SupportChatPanel({
                   ))}
                 </div>
               </div>
-              <p className="pl-0.5 text-[10px] text-[#45454B]">Typing…</p>
+              <p className="pl-0.5 text-[10px] text-[#45454B]">{cerigaTranslate("interface.text_d7fee5b783947f06")}</p>
             </div>
           )}
           {followUps.length > 0 && !busy && (
@@ -725,9 +724,7 @@ export function SupportChatPanel({
           paddingBottom: `max(0.75rem, env(safe-area-inset-bottom, 0px), ${keyboardInset}px)`,
         }}
       >
-        <p className="ceriga-mono mb-2 text-[10px] font-medium uppercase tracking-[0.08em] text-[#6B6B72]">
-          Quick questions
-        </p>
+        <p className="ceriga-mono mb-2 text-[10px] font-medium uppercase tracking-[0.08em] text-[#6B6B72]">{cerigaTranslate("interface.text_b07e7e579215bf9f")}</p>
         <div className="scrollbar-dark mb-3 flex gap-1.5 overflow-x-auto pb-1">
           {SUPPORT_FAQS.map((faq) => (
             <button
@@ -737,7 +734,7 @@ export function SupportChatPanel({
               onClick={() => pushPair(faq)}
               className="shrink-0 rounded-[4px] border border-[#252528] bg-[#161618] px-2.5 py-1.5 text-left text-[11px] font-medium text-[#A3A3A8] transition-colors hover:border-[#CC2D24]/40 hover:bg-[#1C0F0F] hover:text-[#F0EEEE] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {faq.question}
+              {cerigaTranslateLabel(faq.question)}
             </button>
           ))}
         </div>
@@ -762,20 +759,16 @@ export function SupportChatPanel({
                   type="button"
                   onClick={removePendingImage}
                   className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-[#333338] bg-[#161618] text-[#A3A3A8] transition-colors hover:text-[#E5534A]"
-                  aria-label="Remove attached image"
+                  aria-label={cerigaTranslate("interface.text_285d00774b2611a5")}
                 >
                   <X className="h-2.5 w-2.5" strokeWidth={2.5} />
                 </button>
               </div>
               <div className="min-w-0">
-                <p className="ceriga-mono text-[9px] uppercase tracking-[0.08em] text-[#CC2D24]">
-                  Image attached
-                </p>
+                <p className="ceriga-mono text-[9px] uppercase tracking-[0.08em] text-[#CC2D24]">{cerigaTranslate("interface.text_0e0c8f0dde704108")}</p>
                 <p className="truncate text-[11px] text-[#A3A3A8]">{pendingImage.name}</p>
               </div>
-              <span className="ml-auto shrink-0 text-[10px] text-[#6B6B72]">
-                Add a note or send as-is
-              </span>
+              <span className="ml-auto shrink-0 text-[10px] text-[#6B6B72]">{cerigaTranslate("interface.text_69b08480ed715c13")}</span>
             </div>
           )}
           <div className="flex items-end gap-2">
@@ -784,7 +777,7 @@ export function SupportChatPanel({
               type="file"
               accept="image/*"
               className="sr-only"
-              aria-label="Upload image"
+              aria-label={cerigaTranslate("interface.text_ffe4df6c7ca600c4")}
               onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
             />
             <button
@@ -792,7 +785,7 @@ export function SupportChatPanel({
               disabled={busy}
               onClick={() => fileInputRef.current?.click()}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] border border-[#252528] bg-[#161618] text-[#8A8A90] transition-colors hover:border-[#333338] hover:text-[#F0EEEE] disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Add image"
+              aria-label={cerigaTranslate("interface.text_04136060b40fb36a")}
             >
               <ImagePlus className="h-5 w-5" />
             </button>
@@ -805,7 +798,7 @@ export function SupportChatPanel({
                   sendCompose();
                 }
               }}
-              placeholder={pendingImage ? "Describe what you need help with…" : "Type a message…"}
+              placeholder={pendingImage ? cerigaTranslate("interface.text_8e9c5b31e11a89f9") : cerigaTranslate("interface.text_04711048a180b806")}
               rows={2}
               disabled={busy}
               className="min-h-[2.75rem] flex-1 resize-none rounded-[4px] border border-[#252528] bg-[#09090B] px-3 py-2 text-sm text-[#F0EEEE] placeholder:text-[#6B6B72] outline-none focus:border-[#CC2D24]/50 focus:ring-1 focus:ring-[#CC2D24]/25 disabled:cursor-not-allowed disabled:opacity-50"
@@ -814,15 +807,13 @@ export function SupportChatPanel({
               type="submit"
               disabled={(!draft.trim() && !pendingImage) || busy}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] bg-[#CC2D24] text-white transition-colors hover:bg-[#E5534A] disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Send"
+              aria-label={cerigaTranslate("interface.text_f6f4688ff23d50c6")}
             >
               <Send className="h-4 w-4" />
             </button>
           </div>
         </form>
-        <p className="mt-2 text-center text-[10px] text-[#45454B]">
-          AI assistant with Ceriga Studio knowledge · A human can follow up on your account when needed
-        </p>
+        <p className="mt-2 text-center text-[10px] text-[#45454B]">{cerigaTranslate("interface.text_0746cb564a660dc1")}</p>
       </div>
     </div>
   );

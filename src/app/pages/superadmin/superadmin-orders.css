@@ -21,3 +21,5 @@
 .admin-orders .orders-table th:nth-last-child(2),.admin-orders .orders-table td:nth-last-child(2){text-align:right;white-space:nowrap}
 .admin-orders .orders-action-cell{white-space:nowrap}
 .admin-orders .orders-action-cell>button{margin-left:8px}
+
+.orders-secondary-actions{position:relative;display:inline-block;text-align:left}.orders-secondary-actions summary{list-style:none;cursor:pointer;padding:8px 12px;border:1px solid #e1e1e1;border-radius:5px;min-height:38px;font-weight:600}.orders-secondary-actions summary::-webkit-details-marker{display:none}.orders-secondary-actions[open]{z-index:2}.orders-secondary-actions[open]>button{position:absolute;right:0;top:43px;min-width:110px;background:white;border:1px solid #ddd;padding:10px;border-radius:5px}.orders-secondary-actions summary:focus-visible{outline:2px solid #c92823;outline-offset:3px}

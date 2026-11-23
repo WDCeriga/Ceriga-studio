@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { RotateCcw, X } from 'lucide-react';
 import { garmentLayerLabel } from '../../data/garmentSvgCatalog';
 import type { GarmentSvgGarmentType } from '../../data/garmentSvgCatalog';
@@ -22,12 +23,14 @@ export function TshirtLayerToolbar({
   onClearSelection: () => void;
   className?: string;
 }) {
+  useCerigaTranslation();
+
   const hasSelection = Boolean(selectedLayerId);
 
   return (
     <div
       role="status"
-      aria-label="Selected garment part"
+      aria-label={cerigaTranslate("interface.text_8f0a2ad327ca0d08")}
       className={cn(
         'flex items-center gap-2 rounded-2xl border border-white/12 bg-black/60 px-3 py-2 shadow-[0_6px_20px_rgba(0,0,0,0.35)] backdrop-blur-xl',
         className,
@@ -43,7 +46,7 @@ export function TshirtLayerToolbar({
             ) : null}
           </>
         ) : (
-          <span className="text-white/40">Click a part to select</span>
+          <span className="text-white/40">{cerigaTranslate("interface.text_76b9f09410972fec")}</span>
         )}
       </span>
 
@@ -53,17 +56,17 @@ export function TshirtLayerToolbar({
 
           <button
             type="button"
-            title="Reset position & scale"
+            title={cerigaTranslate("interface.text_4936c80204067920")}
             onClick={onResetTransform}
             className="builder-focus flex shrink-0 items-center gap-1 text-[9px] font-semibold text-white/50 transition hover:text-white sm:text-[10px]"
           >
             <RotateCcw className="h-3 w-3" strokeWidth={2} />
-            <span>Reset</span>
+            <span>{cerigaTranslate("interface.text_daee7606b339f3c3")}</span>
           </button>
 
           <button
             type="button"
-            aria-label="Deselect"
+            aria-label={cerigaTranslate("interface.text_142174c194577c23")}
             onClick={onClearSelection}
             className="builder-focus -mr-0.5 shrink-0 text-white/35 transition hover:text-white"
           >

@@ -1,3 +1,5 @@
+import { garmentAssetLabel } from '../../components/builder/TshirtAssetChoiceGrid';
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { ArrowLeft, Move, Plus, Trash2, Minus, Sparkles, RefreshCw } from 'lucide-react';
@@ -55,6 +57,8 @@ function isGuideGarmentId(value: string | undefined): value is MeasurementGuideG
 }
 
 export function SuperAdminMeasurementGuides() {
+  useCerigaTranslation();
+
   const { baseId: baseIdParam } = useParams<{ baseId: string }>();
   const garmentType: MeasurementGuideGarmentId = isGuideGarmentId(baseIdParam)
     ? baseIdParam
@@ -93,7 +97,7 @@ export function SuperAdminMeasurementGuides() {
 
   useEffect(() => {
     if (syncStatus === 'error' && syncError) {
-      toast.error(syncError);
+      toast.error(cerigaTranslateLabel(syncError));
     }
   }, [syncError, syncStatus]);
 
@@ -166,9 +170,7 @@ export function SuperAdminMeasurementGuides() {
 
   if (!scope) {
     return (
-      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-6 text-sm text-white/55">
-        No SVG assets found for this garment base.
-      </div>
+      <div className="rounded-2xl border border-[#252528] bg-[#111113] p-6 text-sm text-white/55">{cerigaTranslate("interface.text_cb6ae849bbbe0e9f")}</div>
     );
   }
 
@@ -237,23 +239,23 @@ export function SuperAdminMeasurementGuides() {
   const handleAddLine = () => {
     const guide = addMeasurementGuide(garmentType, scope);
     setSelectedGuideId(guide.id);
-    toast.success('Measurement line added');
+    toast.success(cerigaTranslate("interface.text_3cb0b8c462026010"));
   };
 
   const handleSeedSuggested = () => {
     if (seedAssetMeasurementGuides(garmentType, scope)) {
-      toast.success('Added suggested lines for this asset');
+      toast.success(cerigaTranslate("interface.text_5b21488b50cdde0c"));
     } else if (guides.length > 0) {
-      toast.message('This asset already has lines');
+      toast.message(cerigaTranslate("interface.text_899119a4a9b8a6c7"));
     } else {
-      toast.message('No suggested lines for this asset — add manually');
+      toast.message(cerigaTranslate("interface.text_c9666c50bb49ab30"));
     }
   };
 
   const handleClearAssetPack = () => {
     clearMeasurementGuideScope(garmentType, scope);
     setSelectedGuideId(null);
-    toast.success('Cleared lines for this asset');
+    toast.success(cerigaTranslate("interface.text_f573ffb74aa1f373"));
   };
 
   const handleConfirmDelete = () => {
@@ -262,7 +264,7 @@ export function SuperAdminMeasurementGuides() {
     removeMeasurementGuide(garmentType, pendingDeleteId, scope);
     setSelectedGuideId(nextGuides[0]?.id ?? null);
     setPendingDeleteId(null);
-    toast.success('Measurement line removed');
+    toast.success(cerigaTranslate("interface.text_1fb8cd3c4fe6b049"));
   };
 
   return (
@@ -273,21 +275,13 @@ export function SuperAdminMeasurementGuides() {
           className="inline-flex items-center gap-2 text-xs font-medium text-white/45 hover:text-white/80"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {garmentLabel} base
-        </Link>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          Measurement guides
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">
-          Each asset has its own lines. In the builder, lines from the selected base, neck, sleeve,
-          and other pieces are combined automatically.
-        </p>
+          {cerigaTranslateLabel(garmentLabel)}{" "}{cerigaTranslate("interface.text_cae662172fd450bb")}</Link>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">{cerigaTranslate("interface.text_2f794813748d278e")}</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">{cerigaTranslate("interface.text_8beac5b67e2f4bfe")}</p>
       </div>
 
       <div className="shrink-0 rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5">
-        <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/55">
-          Asset
-        </Label>
+        <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_80d298c9f240900f")}</Label>
         <Select value={scope} onValueChange={setScope}>
           <SelectTrigger className="max-w-xl border-white/15 bg-white/5 text-white">
             <SelectValue />
@@ -295,7 +289,7 @@ export function SuperAdminMeasurementGuides() {
           <SelectContent className="max-h-80 border-white/12 bg-[#161618] text-white">
             {assignableAssets.map((asset) => (
               <SelectItem key={asset.id} value={asset.id}>
-                {asset.categoryLabel} · {asset.displayName}
+                {cerigaTranslateLabel(asset.categoryLabel)} · {garmentAssetLabel(asset.displayName)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -307,12 +301,12 @@ export function SuperAdminMeasurementGuides() {
           <div className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
-                {garmentLabel} · {scopeLabel}
+                {cerigaTranslateLabel(garmentLabel)} · {cerigaTranslateLabel(scopeLabel)}
               </div>
               <div className="mt-1 text-sm text-white/60">
                 {selectedGuide
-                  ? `${measurementGuideLetterAt(selectedIndex)}. ${selectedGuide.label} — drag to reposition`
-                  : 'Lines for this asset only'}
+                  ? cerigaTranslate("interface.text_9a07028262ca1f41",{value0:(measurementGuideLetterAt(selectedIndex)),value1:(selectedGuide.label)})
+                  : cerigaTranslate("interface.text_7733925e77a2ff0b")}
               </div>
             </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -327,18 +321,18 @@ export function SuperAdminMeasurementGuides() {
                   )}
                 >
                   {syncStatus === 'loading'
-                    ? 'Loading cloud…'
+                    ? cerigaTranslate("interface.text_141ce492c7dbf4d7")
                     : syncStatus === 'saving'
-                      ? 'Saving…'
+                      ? cerigaTranslate("common.saving")
                       : syncStatus === 'saved'
-                        ? 'Saved to cloud'
+                        ? cerigaTranslate("interface.text_b2f4291bc3a812e6")
                         : syncStatus === 'error'
-                          ? 'Cloud save failed'
+                          ? cerigaTranslate("interface.text_45bcbf6793983336")
                           : syncStatus === 'local'
-                            ? 'Local only (no Supabase)'
+                            ? cerigaTranslate("interface.text_f45f4cf44e532273")
                             : usingCloud
-                              ? 'Cloud ready'
-                              : 'Autosaves'}
+                              ? cerigaTranslate("interface.text_f3d25eb8d474cd9c")
+                              : cerigaTranslate("interface.text_b924c7a22eb4174f")}
                 </div>
                 {usingCloud ? (
                   <Button
@@ -349,29 +343,27 @@ export function SuperAdminMeasurementGuides() {
                     disabled={syncStatus === 'loading' || syncStatus === 'saving'}
                     onClick={() => {
                       void hydrateMeasurementGuidesFromRemote(true)
-                        .then(() => toast.success('Reloaded from cloud'))
+                        .then(() => toast.success(cerigaTranslate("interface.text_0819c4541c9a5772")))
                         .catch(() => {
                           /* toast via sync error effect */
                         });
                     }}
                   >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Reload
-                  </Button>
+                    <RefreshCw className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_bdc090ec61e3fcfc")}</Button>
                 ) : null}
               <div className="flex items-center gap-1 rounded-xl border border-[#252528] bg-black/40 px-1.5 py-1">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  aria-label="Zoom out"
+                  aria-label={cerigaTranslate("interface.text_bc7b631a689b45ca")}
                   className="h-7 w-7 p-0 text-white/70 hover:bg-white/10 hover:text-white"
                   onClick={() => setZoom((z) => Math.max(ZOOM_MIN, z - 10))}
                 >
                   <Minus className="h-3.5 w-3.5" />
                 </Button>
                 <input
-                  aria-label="Canvas zoom"
+                  aria-label={cerigaTranslate("interface.text_c1fc5951380872dc")}
                   className="h-1 w-20 cursor-pointer accent-[#CC2D24] sm:w-24"
                   type="range"
                   min={ZOOM_MIN}
@@ -384,7 +376,7 @@ export function SuperAdminMeasurementGuides() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  aria-label="Zoom in"
+                  aria-label={cerigaTranslate("interface.text_0e47f09a748fa132")}
                   className="h-7 w-7 p-0 text-white/70 hover:bg-white/10 hover:text-white"
                   onClick={() => setZoom((z) => Math.min(ZOOM_MAX, z + 10))}
                 >
@@ -393,7 +385,7 @@ export function SuperAdminMeasurementGuides() {
                 <button
                   type="button"
                   className="min-w-[2.75rem] px-1 text-center text-[11px] tabular-nums text-white/55 hover:text-white"
-                  title="Reset zoom"
+                  title={cerigaTranslate("interface.text_91a661b24f1bc2bf")}
                   onClick={() => setZoom(ZOOM_DEFAULT)}
                 >
                   {zoom}%
@@ -436,11 +428,9 @@ export function SuperAdminMeasurementGuides() {
         <aside className="space-y-4 overflow-y-auto rounded-2xl border border-[#252528] bg-[#111113] p-4 sm:p-5 xl:max-h-full">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
-                Lines on this asset
-              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{cerigaTranslate("interface.text_760aa27e4442c582")}</div>
               <p className="mt-1 text-xs text-white/45">
-                {guides.length} line{guides.length === 1 ? '' : 's'} · {scopeLabel}
+                {guides.length}{" "}{cerigaTranslate("interface.plural_noun_38a9c1e721584da2",{count:Number(guides.length)})} · {cerigaTranslateLabel(scopeLabel)}
               </p>
             </div>
             <Button
@@ -450,9 +440,7 @@ export function SuperAdminMeasurementGuides() {
               className="border-white/15 text-white"
               onClick={handleAddLine}
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add
-            </Button>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_9fd728c66c9a256b")}</Button>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -464,9 +452,7 @@ export function SuperAdminMeasurementGuides() {
                 className="w-full border-white/15 text-white"
                 onClick={handleSeedSuggested}
               >
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                Add suggested lines
-              </Button>
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />{cerigaTranslate("interface.text_b46654b661f05131")}</Button>
             ) : null}
             {guides.length > 0 ? (
               <Button
@@ -475,17 +461,12 @@ export function SuperAdminMeasurementGuides() {
                 size="sm"
                 className="w-full border-white/15 text-white"
                 onClick={handleClearAssetPack}
-              >
-                Clear lines
-              </Button>
+              >{cerigaTranslate("interface.text_356551701da1189b")}</Button>
             ) : null}
           </div>
 
           {guides.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-white/45">
-              No lines on this asset yet. Add some, then they’ll combine with other selected assets
-              in the builder.
-            </div>
+            <div className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-white/45">{cerigaTranslate("interface.text_56cacf7d96a020d8")}</div>
           ) : (
             <div className="space-y-2">
               {guides.map((guide, index) => (
@@ -504,9 +485,9 @@ export function SuperAdminMeasurementGuides() {
                     {measurementGuideLetterAt(index)}
                   </div>
                   <div className="mt-0.5 text-[12px] leading-snug text-white">
-                    {guide.label.trim() || 'Untitled'}
+                    {guide.label.trim() || cerigaTranslate("interface.text_f59ab8d1331b7b16")}
                   </div>
-                  <div className="mt-1.5 text-[10px] leading-snug text-white/40">{scopeLabel}</div>
+                  <div className="mt-1.5 text-[10px] leading-snug text-white/40">{cerigaTranslateLabel(scopeLabel)}</div>
                 </button>
               ))}
             </div>
@@ -515,29 +496,25 @@ export function SuperAdminMeasurementGuides() {
           {selectedGuide ? (
             <>
               <div className="border-t border-white/10 pt-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
-                  Selected guide
-                </div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">{cerigaTranslate("interface.text_f704b06caccefafc")}</div>
                 <h2 className="mt-1 text-lg font-semibold text-white">
-                  {measurementGuideLetterAt(selectedIndex)}. {selectedGuide.label}
+                  {measurementGuideLetterAt(selectedIndex)}. {cerigaTranslateLabel(selectedGuide.label)}
                 </h2>
-                <p className="mt-1 text-[11px] text-white/40">{scopeLabel}</p>
+                <p className="mt-1 text-[11px] text-white/40">{cerigaTranslateLabel(scopeLabel)}</p>
               </div>
 
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[11px] leading-5 text-white/55">
                 <div className="flex items-start gap-2">
                   <Move className="mt-0.5 h-4 w-4 shrink-0 text-[#FF3B30]" />
-                  <p>Drag on the canvas to move this asset’s line.</p>
+                  <p>{cerigaTranslate("interface.text_ad593b966d8e11da")}</p>
                 </div>
               </div>
 
               <div>
-                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/55">
-                  Name
-                </Label>
+                <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/55">{cerigaTranslate("interface.text_dcd1d5223f73b3a9")}</Label>
                 <Input
                   value={selectedGuide.label}
-                  placeholder="Untitled"
+                  placeholder={cerigaTranslate("interface.text_f59ab8d1331b7b16")}
                   onChange={(event) =>
                     commitGuidePatch(selectedGuide.id, { label: event.target.value })
                   }
@@ -546,11 +523,9 @@ export function SuperAdminMeasurementGuides() {
               </div>
 
               <div className="space-y-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
-                  Move full line
-                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_4c2500aa1ecd7114")}</p>
                 <PositionField
-                  label="Line X"
+                  label={cerigaTranslate("interface.text_00270ecd77beeec4")}
                   value={getMeasurementGuideCenter(selectedGuide).x}
                   onChange={(value) => {
                     const center = getMeasurementGuideCenter(selectedGuide);
@@ -563,7 +538,7 @@ export function SuperAdminMeasurementGuides() {
                   }}
                 />
                 <PositionField
-                  label="Line Y"
+                  label={cerigaTranslate("interface.text_0d895cf26c019847")}
                   value={getMeasurementGuideCenter(selectedGuide).y}
                   onChange={(value) => {
                     const center = getMeasurementGuideCenter(selectedGuide);
@@ -576,7 +551,7 @@ export function SuperAdminMeasurementGuides() {
                   }}
                 />
                 <PositionField
-                  label="Length"
+                  label={cerigaTranslate("interface.text_adc95605a1b30c73")}
                   value={getMeasurementGuideLength(selectedGuide)}
                   onChange={(value) => {
                     commitGuidePatch(
@@ -585,11 +560,9 @@ export function SuperAdminMeasurementGuides() {
                     );
                   }}
                 />
-                <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-white/40">
-                  Rotation
-                </p>
+                <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-white/40">{cerigaTranslate("interface.text_57b5e2fc1bba18bb")}</p>
                 <PositionField
-                  label="Angle (°)"
+                  label={cerigaTranslate("interface.text_9eff3a618ed49148")}
                   value={getMeasurementGuideAngleDegrees(selectedGuide)}
                   step={1}
                   onChange={(value) => {
@@ -607,9 +580,7 @@ export function SuperAdminMeasurementGuides() {
                 className="w-full border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
                 onClick={() => setPendingDeleteId(selectedGuide.id)}
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Remove line
-              </Button>
+                <Trash2 className="mr-2 h-4 w-4" />{cerigaTranslate("interface.text_690991fae7260bc3")}</Button>
             </>
           ) : null}
         </aside>
@@ -620,9 +591,9 @@ export function SuperAdminMeasurementGuides() {
         onOpenChange={(open) => {
           if (!open) setPendingDeleteId(null);
         }}
-        title="Remove measurement line?"
-        description="Removes this line from the current asset only."
-        confirmLabel="Remove"
+        title={cerigaTranslate("interface.text_0f508633dec8ac5e")}
+        description={cerigaTranslate("interface.text_afdfb4a473824820")}
+        confirmLabel={cerigaTranslate("interface.text_c3812fc4acb861d5")}
         tone="danger"
         onConfirm={handleConfirmDelete}
       />
@@ -641,9 +612,11 @@ function PositionField({
   onChange: (value: number) => void;
   step?: number;
 }) {
+  useCerigaTranslation();
+
   return (
     <div>
-      <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/55">{label}</Label>
+      <Label className="mb-1.5 block text-[10px] uppercase tracking-wider text-white/55">{cerigaTranslateLabel(label)}</Label>
       <Input
         type="number"
         step={step}

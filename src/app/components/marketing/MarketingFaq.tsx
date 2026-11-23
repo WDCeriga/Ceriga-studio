@@ -1,3 +1,4 @@
+import { translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../i18n/i18n';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../ui/utils';
 
@@ -14,6 +15,7 @@ export function MarketingFaq({
   items: { q: string; a: string }[];
   className?: string;
 }) {
+  useCerigaTranslation();
   return (
     <section
       id={id}
@@ -23,9 +25,9 @@ export function MarketingFaq({
       )}
     >
       <div className="mx-auto max-w-[640px]">
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">{eyebrow}</p>
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#CC2D24]">{cerigaTranslateLabel(eyebrow)}</p>
         <h2 className="mt-2 font-['Plus_Jakarta_Sans',sans-serif] text-xl font-bold tracking-tight text-[#F2F0EC] sm:text-2xl">
-          {title}
+          {cerigaTranslateLabel(title)}
         </h2>
         <div className="mt-8 space-y-2">
           {items.map((item) => (
@@ -34,11 +36,11 @@ export function MarketingFaq({
               className="group rounded-[14px] border border-[#252528] bg-[#111113] transition-colors open:border-white/[0.12]"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-left text-sm font-medium text-[#F2F0EC] sm:px-5 sm:py-4 [&::-webkit-details-marker]:hidden">
-                <span className="pr-2">{item.q}</span>
+                <span className="pr-2">{cerigaTranslateLabel(item.q)}</span>
                 <ChevronDown className="h-4 w-4 shrink-0 text-white/35 transition-transform group-open:rotate-180" />
               </summary>
               <div className="border-t border-[#252528] px-4 pb-4 pt-0 sm:px-5">
-                <p className="pt-3 text-sm leading-relaxed text-white/45">{item.a}</p>
+                <p className="pt-3 text-sm leading-relaxed text-white/45">{cerigaTranslateLabel(item.a)}</p>
               </div>
             </details>
           ))}

@@ -1,3 +1,5 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from './i18n/i18n';
+import { LanguageProvider } from './i18n/LanguageProvider';
 import {CatalogueConfiguration}from './components/CatalogueConfiguration';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { Suspense } from "react";
@@ -19,17 +21,13 @@ const isProdBuild = import.meta.env.PROD;
 
 /** Production builds must not silently run on demo data when env is missing. */
 function ProductionConfigError() {
+  useCerigaTranslation();
+
   return (
     <div className="flex min-h-dvh items-center justify-center bg-[#09090B] px-5 text-white">
       <div className="max-w-md rounded-2xl border border-[#252528] bg-white/5 p-6 text-center">
-        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-extrabold">
-          Configuration error
-        </h1>
-        <p className="mt-2 text-sm text-white/55">
-          Database environment variables are missing in this deployment. Set
-          VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or the NEXT_PUBLIC_ equivalents)
-          and redeploy.
-        </p>
+        <h1 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-extrabold">{cerigaTranslate("interface.text_0a48c29a3392f4ac")}</h1>
+        <p className="mt-2 text-sm text-white/55">{cerigaTranslate("interface.text_b19011e56d74f174")}</p>
       </div>
     </div>
   );
@@ -53,13 +51,13 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <CurrencyProvider><CatalogueConfiguration><NotificationsProvider>
+        <LanguageProvider><CurrencyProvider><CatalogueConfiguration><NotificationsProvider>
           {googleClientId.trim() ? (
             <GoogleOAuthProvider clientId={googleClientId.trim()}>{inner}</GoogleOAuthProvider>
           ) : (
             inner
           )}
-        </NotificationsProvider></CatalogueConfiguration></CurrencyProvider>
+        </NotificationsProvider></CatalogueConfiguration></CurrencyProvider></LanguageProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

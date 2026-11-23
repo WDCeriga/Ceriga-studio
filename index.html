@@ -8,7 +8,17 @@
       /* Match app chrome so rubber-band / overscroll never flashes white */
       html, body { height: 100%; margin: 0; background-color: #09090b; overflow-x: clip; color: #f0eeee; }
       #root { min-height: 100%; min-height: 100dvh; min-width: 0; background-color: #09090b; }
+      html[data-light-portal], html[data-light-portal] body, html[data-light-portal] #root {
+        background-color: #fafafa;
+        color: #171717;
+        color-scheme: light;
+      }
     </style>
+    <script>
+      if (/^\/(superadmin|manufacturer)(\/|$)/.test(location.pathname)) {
+        document.documentElement.setAttribute('data-light-portal', '');
+      }
+    </script>
   </head>
 
   <body>

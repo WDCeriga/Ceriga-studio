@@ -11,4 +11,4 @@
 .admin-production-review .admin-assignment>div:first-child{border:0;padding-bottom:0}
 .production-review-report-links{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
 .production-review-report-links>a{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#525252;min-height:36px}
-@media(max-width:640px){.production-review-heading h1{font-size:29px}.production-review-views{gap:24px;margin-bottom:24px}.production-review-heading{padding-bottom:16px}}
+@media(max-width:640px){.production-review-heading h1{font-size:29px}.production-review-views{gap:clamp(12px,4vw,24px);margin-bottom:24px}.production-review-heading{padding-bottom:16px}}

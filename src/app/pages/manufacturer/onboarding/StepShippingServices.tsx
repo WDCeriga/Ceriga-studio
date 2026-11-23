@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../../../i18n/i18n';
 import { useState, useMemo } from 'react';
 import {
   Truck,
@@ -32,6 +33,8 @@ export function StepShippingServices({
   onBack,
   errors,
 }: Props) {
+  useCerigaTranslation();
+
   const [destSearch, setDestSearch] = useState('');
   const [openMethod, setOpenMethod] = useState<ShippingMethod>();
   const visibleMethod = openMethod ?? profile.shippingMethods[0];
@@ -75,10 +78,8 @@ export function StepShippingServices({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-white">6. Shipping</h2>
-        <p className="mt-1 text-sm text-white/50">
-          Choose your shipping destinations, delivery methods and customs services.
-        </p>
+        <h2 className="text-xl font-semibold text-white">{cerigaTranslate("interface.text_a26efb4b64d5de40")}</h2>
+        <p className="mt-1 text-sm text-white/50">{cerigaTranslate("interface.text_e3e8607751b315d4")}</p>
       </div>
 
       {/* Structured Shipping Destinations */}
@@ -86,16 +87,15 @@ export function StepShippingServices({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
             <Globe2 className="h-4 w-4 text-[#CC2D24]" />
-            <h3 className="text-sm font-semibold">Shipping Destinations & Regions</h3>
-            <span className="text-xs text-[#CC2D24] font-medium">* Required</span>
+            <h3 className="text-sm font-semibold">{cerigaTranslate("interface.text_c99fb82f22daf112")}</h3>
+            <span className="text-xs text-[#CC2D24] font-medium">{cerigaTranslate("interface.text_b62a197611d03b4d")}</span>
           </div>
           <span className="text-xs text-white/50">
-            {profile.shippingDestinations.length} selected
-          </span>
+            {profile.shippingDestinations.length}{" "}{cerigaTranslate("interface.text_d7cbbb688b2e506c")}</span>
         </div>
 
         {errors.destinations && (
-          <p className="text-xs text-red-400">{errors.destinations}</p>
+          <p className="text-xs text-red-400">{cerigaTranslateLabel(errors.destinations)}</p>
         )}
 
         {/* Search Field */}
@@ -104,7 +104,7 @@ export function StepShippingServices({
           <Input
             value={destSearch}
             onChange={(e) => setDestSearch(e.target.value)}
-            placeholder="Search country or region (e.g. EU, Worldwide)..."
+            placeholder={cerigaTranslate("interface.text_6c97750848e5aaa1")}
             className="pl-9 h-9 text-xs border-white/10 bg-white/[0.03] text-white placeholder:text-white/30"
           />
         </div>
@@ -144,11 +144,11 @@ export function StepShippingServices({
       <div className="rounded-2xl border border-[#252528] bg-[#111113] p-5 sm:p-6 space-y-6">
         <div className="flex items-center gap-2 text-white">
           <Truck className="h-4 w-4 text-[#CC2D24]" />
-          <h3 className="text-sm font-semibold">Shipping methods & provider</h3>
-          <span className="text-xs text-[#CC2D24] font-medium">* Required</span>
+          <h3 className="text-sm font-semibold">{cerigaTranslate("interface.text_8b9e7b142325d859")}</h3>
+          <span className="text-xs text-[#CC2D24] font-medium">{cerigaTranslate("interface.text_b62a197611d03b4d")}</span>
         </div>
 
-        {errors.methods && <p className="text-xs text-red-400">{errors.methods}</p>}
+        {errors.methods && <p className="text-xs text-red-400">{cerigaTranslateLabel(errors.methods)}</p>}
 
         {/* Shipping Methods Selection */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -169,19 +169,17 @@ export function StepShippingServices({
                 )}
               >
                 <span className="text-xs font-semibold">{method}</span>
-                {on && <Check className="ml-1 inline h-3 w-3" aria-label="Enabled" />}
+                {on && <Check className="ml-1 inline h-3 w-3" aria-label={cerigaTranslate("interface.text_92c1cdfdf4cb9cf6")} />}
               </button>
             );
           })}
         </div>
 
         {visibleMethod && <div className="space-y-3">
-          <p className="text-xs text-white/60">Add a provider or shipping time to offer this method on quotes. Use 0 days for same-day delivery.</p>
+          <p className="text-xs text-white/60">{cerigaTranslate("interface.text_88ef6372bbd80db4")}</p>
           <fieldset key={visibleMethod} className="grid gap-3 rounded-lg border border-white/15 p-3 sm:grid-cols-2">
             <legend className="px-1 text-sm font-medium">{visibleMethod}</legend>
-            <label className="block text-sm font-medium">
-              Provider
-              <Input className="mt-2 min-h-11" maxLength={200} placeholder="e.g. DHL"
+            <label className="block text-sm font-medium">{cerigaTranslate("interface.text_472590ae974d4c1f")}<Input className="mt-2 min-h-11" maxLength={200} placeholder={cerigaTranslate("interface.text_a7804807dcb8ee5e")}
                 value={profile.shippingProvidersByMethod?.[visibleMethod]
                   ?? (profile.shippingMethods.includes(visibleMethod) ? profile.shippingProvider ?? '' : '')}
                 onChange={event => updateShippingDetails(visibleMethod, {
@@ -191,10 +189,8 @@ export function StepShippingServices({
                   },
                 })}/>
             </label>
-            <label className="block text-sm font-medium">
-              Estimated shipping time (calendar days)
-              <Input className="mt-2 min-h-11" inputMode="numeric" maxLength={3}
-                placeholder="Optional"
+            <label className="block text-sm font-medium">{cerigaTranslate("interface.text_c0f69b97b113068e")}<Input className="mt-2 min-h-11" inputMode="numeric" maxLength={3}
+                placeholder={cerigaTranslate("interface.text_59be71333c960fd0")}
                 value={profile.shippingTransitDaysByMethod?.[visibleMethod] ?? ''}
                 onChange={event => {
                   const value = event.target.value;
@@ -214,8 +210,8 @@ export function StepShippingServices({
         <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-[#252528]">
           <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.01] p-3">
             <div>
-              <span className="text-xs font-medium text-white">Customs Documentation Support</span>
-              <p className="text-[11px] text-white/40">Invoices, packing lists, and export forms</p>
+              <span className="text-xs font-medium text-white">{cerigaTranslate("interface.text_bac2d8fd76f07510")}</span>
+              <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_1af648e2a6aeed32")}</p>
             </div>
             <Switch
               checked={profile.customsDocumentationSupport}
@@ -225,8 +221,8 @@ export function StepShippingServices({
 
           <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.01] p-3">
             <div>
-              <span className="text-xs font-medium text-white">Shipment Tracking Availability</span>
-              <p className="text-[11px] text-white/40">Live carrier tracking numbers for parcels</p>
+              <span className="text-xs font-medium text-white">{cerigaTranslate("interface.text_db4cdcf06d618d9a")}</span>
+              <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_897a314a44788576")}</p>
             </div>
             <Switch
               checked={profile.trackingAvailability}
@@ -236,8 +232,8 @@ export function StepShippingServices({
 
           <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.01] p-3">
             <div>
-              <span className="text-xs font-medium text-white">Direct-to-Customer (D2C) Dropship</span>
-              <p className="text-[11px] text-white/40">Ship directly to retail end customers</p>
+              <span className="text-xs font-medium text-white">{cerigaTranslate("interface.text_8d09b7616cffbc31")}</span>
+              <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_03f4757c2016c231")}</p>
             </div>
             <Switch
               checked={profile.directToCustomerShipping}
@@ -247,8 +243,8 @@ export function StepShippingServices({
 
           <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.01] p-3">
             <div>
-              <span className="text-xs font-medium text-white">Bulk Palletised Freight Handling</span>
-              <p className="text-[11px] text-white/40">Pallets, container load, freight loading bays</p>
+              <span className="text-xs font-medium text-white">{cerigaTranslate("interface.text_b665b946c4e8fdad")}</span>
+              <p className="text-[11px] text-white/40">{cerigaTranslate("interface.text_3d4c56888981cd18")}</p>
             </div>
             <Switch
               checked={profile.bulkShipmentHandling}
@@ -257,9 +253,7 @@ export function StepShippingServices({
           </div>
 
           <div>
-            <Label className="text-xs text-white/70 font-medium">
-              Typical Dispatch Time After Packing (Days)
-            </Label>
+            <Label className="text-xs text-white/70 font-medium">{cerigaTranslate("interface.text_df0ba69e41f90968")}</Label>
             <Input
               type="number"
               min="1"
@@ -278,16 +272,12 @@ export function StepShippingServices({
           variant="outline"
           onClick={onBack}
           className="border-white/15 text-white hover:bg-white/5"
-        >
-          Back
-        </Button>
+        >{cerigaTranslate("common.back")}</Button>
         <Button
           type="button"
           onClick={onNext}
           className="onboarding-primary bg-[#CC2D24] text-white hover:bg-[#CC2D24]/90 px-6 font-semibold"
-        >
-          Review setup
-        </Button>
+        >{cerigaTranslate("interface.text_5a16e3d43a6a82ab")}</Button>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 "use client";
 
 import {
@@ -96,6 +97,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 }
 
 export function useNotifications() {
+  useCerigaTranslation();
+
   const ctx = useContext(NotificationsContext);
   if (!ctx) {
     throw new Error("useNotifications must be used within NotificationsProvider");

@@ -49,6 +49,12 @@ export type ManufacturerQuoteTier = {
 };
 
 export type SuperAdminOrder = {
+  productionReleasedAt?: string;
+  manufacturerSubmittedAt?: string;
+  paymentVerifiedAt?: string;
+  qcStatus?: string;
+  completionMethod?: string;
+  statusLabel?: string;
   currency?: import('../lib/currency').Currency;
   currencySnapshot?:import('./userOrders').OrderPriceOption['currencySnapshot'];
   manufacturerCurrency?: import('../lib/currency').Currency;
@@ -90,7 +96,7 @@ export type SuperAdminOrder = {
   /** Factory declined — reason surfaced for re-route. */
   factoryRejectReason?: string;
   /** Mirror of factory portal quote pipeline when known. */
-  factoryQuoteStatus?: 'new' | 'reviewing' | 'clarifying' | 'quoted' | 'rejected';
+  factoryQuoteStatus?: 'new' | 'reviewing' | 'clarifying' | 'quoted' | 'rejected' | 'declined' | 'expired';
   /** Ops flagged QC photos for the brand to review. */
   qcFlaggedForBrand?: boolean;
   qcFlagNote?: string;

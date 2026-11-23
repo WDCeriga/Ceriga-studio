@@ -1,10 +1,11 @@
+import { localeMocks } from './support/localeMocks.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {transformWithEsbuild} from 'vite';
 import * as React from 'react';
 import * as Icons from 'lucide-react';
 import {renderToStaticMarkup} from 'react-dom/server';
-const load=async(path,imports={})=>{const m={exports:{}};new Function('React','require','module','exports',(await transformWithEsbuild(await fs.readFile(path,'utf8'),path,{format:'cjs',target:'es2022'})).code)(React,n=>{if(!(n in imports))throw Error(n);return imports[n];},m,m.exports);return m.exports;};
+const load=async(path,imports={})=>{const m={exports:{}};new Function('React','require','module','exports',(await transformWithEsbuild(await fs.readFile(path,'utf8'),path,{format:'cjs',target:'es2022'})).code)(React,((original)=>specifier=>{if(/\/i18n\/i18n$/.test(specifier)){let actual;try{actual=original(specifier)}catch{}if(!actual)return localeMocks['../../i18n/i18n'];for(const [key,value]of Object.entries(localeMocks['../../i18n/i18n']))if(!(key in actual))actual[key]=value;return actual}return original(specifier)})(n=>{if(!(n in imports))throw Error(n);return imports[n];}),m,m.exports);return m.exports;};
 const lib=await load('src/app/lib/productionCalendar.ts');
 const range=lib.calendarRange('2026-10-15','month');
 const factory={id:'owner',name:'Test factory',month_start:'2026-10-01',workdays:[1,2,3,4,5],timezone:'Europe/London',revision:0,blocked:2,units:120,adjusted_capacity:1000,unknown_units:0,unscheduled:0,active_orders:1,deadlines:1,utilisation:12,availability:'working',workload:'available',garments:['T-shirt']};

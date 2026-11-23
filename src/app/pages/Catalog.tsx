@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { getProductsByCategory, type Product } from '../data/products';
@@ -10,6 +11,8 @@ import { cn } from '../components/ui/utils';
 const categories = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Dresses'];
 
 export function Catalog() {
+  useCerigaTranslation();
+
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const builderFlow = (location.state as { builderFlow?: string } | null)?.builderFlow;
@@ -33,32 +36,27 @@ export function Catalog() {
           to="/create"
           className="mb-4 inline-flex items-center gap-2 text-[12px] font-medium text-[#8A8A90] transition-colors hover:text-[#F0EEEE]"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Create
-        </Link>
-        <div className="ceriga-page-eyebrow">Step · Choose garment</div>
-        <h1 className="ceriga-page-title">Templates</h1>
+          <ArrowLeft className="h-3.5 w-3.5" />{cerigaTranslate("interface.text_00f008dab93bb62a")}</Link>
+        <div className="ceriga-page-eyebrow">{cerigaTranslate("interface.text_f56b41c3ab776f0b")}</div>
+        <h1 className="ceriga-page-title">{cerigaTranslate("interface.text_56b564b75c7fdb48")}</h1>
         <p className="ceriga-page-sub">
           {packagingOnly
-            ? 'Packaging opens in its own workspace — no garment pick. Use Create → Packaging only, or open it below.'
+            ? cerigaTranslate("interface.text_c104cedab7229fbe")
             : techpackSpecFlow
-              ? 'Pick a garment template, then complete measurements and construction — upload artwork first, without on-shirt placement editing.'
-              : 'Pick a garment to design your tech pack. When you’re done you can export a PDF for your factories or order production with Ceriga.'}
+              ? cerigaTranslate("interface.text_7fe4b11efb65c1b1")
+              : cerigaTranslate("interface.text_84835d6ba5c46795")}
         </p>
         {packagingOnly && (
           <div className="mt-5 flex flex-col gap-3 rounded-[6px] border border-[#5A4530] bg-[#1C0F0F] p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <Package className="mt-0.5 h-5 w-5 shrink-0 text-[#CC2D24]" />
-              <p className="text-xs leading-relaxed text-[#A3A3A8]">
-                Skip the grid — go straight to the packaging canvas. You can still browse products
-                below for reference.
-              </p>
+              <p className="text-xs leading-relaxed text-[#A3A3A8]">{cerigaTranslate("interface.text_3c45716edb5cfcdf")}</p>
             </div>
             <Button
               asChild
               className="h-9 shrink-0 bg-[#CC2D24] text-[10px] font-semibold uppercase tracking-wider text-white hover:bg-[#E5534A]"
             >
-              <Link to="/packaging">Open packaging</Link>
+              <Link to="/packaging">{cerigaTranslate("interface.text_75142887700e834c")}</Link>
             </Button>
           </div>
         )}
@@ -79,13 +77,12 @@ export function Catalog() {
                   : 'border-[#252528] bg-transparent text-[#8A8A90] hover:border-[#333338] hover:text-[#A3A3A8]',
               )}
             >
-              {cat}
+              {cerigaTranslateLabel(cat)}
             </button>
           );
         })}
         <span className="ceriga-mono ml-auto shrink-0 pl-2 text-[10px] uppercase tracking-[0.06em] text-[#6B6B72]">
-          {filteredProducts.length} items
-        </span>
+          {filteredProducts.length}{" "}{cerigaTranslate("interface.text_5f3c4f8580d392e4")}</span>
       </div>
 
       {!catalogReady ? (
@@ -115,6 +112,8 @@ function ProductCard({
   packagingOnly: boolean;
   techpackSpecFlow: boolean;
 }) {
+  useCerigaTranslation();
+
   const href = packagingOnly
     ? '/packaging'
     : techpackSpecFlow
@@ -132,7 +131,7 @@ function ProductCard({
       <div className="relative aspect-[3/2] overflow-hidden border-b border-[#252528] bg-[#111113]">
         <img
           src={product.image}
-          alt={product.name}
+          alt={cerigaTranslateLabel(product.name)}
           loading="lazy"
           decoding="async"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -146,17 +145,15 @@ function ProductCard({
 
       <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-3.5">
         <h3 className="mb-1 text-[14px] font-semibold tracking-[-0.01em] text-[#F0EEEE]">
-          {product.name}
+          {cerigaTranslateLabel(product.name)}
         </h3>
         <p className="mb-3.5 line-clamp-2 flex-1 text-[11px] leading-relaxed text-[#6B6B72]">
-          {product.description}
+          {cerigaTranslateLabel(product.description)}
         </p>
 
         <div className="mb-3 flex items-start gap-2 rounded-[4px] border border-[#252528] bg-[#111113] px-2.5 py-2">
           <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#8A8A90]" />
-          <p className="m-0 text-[10px] leading-relaxed text-[#8A8A90]">
-            Build measurements, fabrics, construction, and artwork in the guided tech pack flow.
-          </p>
+          <p className="m-0 text-[10px] leading-relaxed text-[#8A8A90]">{cerigaTranslate("interface.text_04dfa501d6521380")}</p>
         </div>
 
         <Link
@@ -164,7 +161,7 @@ function ProductCard({
           state={linkState}
           className="ceriga-btn-ghost group-hover:border-[#CC2D24] group-hover:bg-[#CC2D24] group-hover:text-white"
         >
-          {packagingOnly ? 'Open workspace' : 'Configure'}
+          {packagingOnly ? cerigaTranslate("interface.text_b3e34b185d067b26") : cerigaTranslate("interface.text_6defafa2caa65304")}
           <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-px group-hover:-translate-y-px" />
         </Link>
       </div>

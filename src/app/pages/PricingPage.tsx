@@ -1,3 +1,4 @@
+import { translateInterface as cerigaTranslate, translateInterfaceLabel as cerigaTranslateLabel, useCerigaTranslation } from '../i18n/i18n';
 import {displayMoney,useCurrency} from '../lib/accountCurrency';
 import { Link } from 'react-router';
 import { Check, MessageSquare } from 'lucide-react';
@@ -137,64 +138,59 @@ const comparisonRows: {
 ];
 
 function CompareCell({ value }: { value: Cell | string }) {
+  useCerigaTranslation();
+
 useCurrency();
 if(typeof value==='string'&&/^€[0-9]+$/.test(value))return <>{displayMoney(Number(value.slice(1))*100,'EUR')}</>;
   if (typeof value === 'string')
-    return <span className="text-[11px] font-medium tabular-nums text-white/65">{value}</span>;
+    return <span className="text-[11px] font-medium tabular-nums text-white/65">{cerigaTranslateLabel(value)}</span>;
   if (value === 'yes')
     return (
-      <span className="inline-flex items-center justify-center text-[#CC2D24]" aria-label="Included">
+      <span className="inline-flex items-center justify-center text-[#CC2D24]" aria-label={cerigaTranslate("interface.text_ba829a98b7994088")}>
         <Check className="h-4 w-4" />
       </span>
     );
   if (value === 'no') return <span className="text-white/22">—</span>;
-  return <span className="text-[11px] font-medium text-amber-200/80">Limited</span>;
+  return <span className="text-[11px] font-medium text-amber-200/80">{cerigaTranslate("interface.text_e5125d9f63d2947b")}</span>;
 }
 
 export function PricingPage() {
+  useCerigaTranslation();
+
 useCurrency();
   return (
     <MarketingShell>
       <MarketingPageHeader
         eyebrow="Pricing"
-        title="Pay per tech pack. Subscribe for AI chat."
-        subtitle="Tech pack PDFs are a simple pay-per-export — no download subscriptions. The in-app AI assistant is available on free and paid monthly plans."
+        title={cerigaTranslate("interface.text_80b692b51beea2ab")}
+        subtitle={cerigaTranslate("interface.text_9c65a5c68f1a04ea")}
       />
 
       {/* Tech pack — pay per export only */}
       <section className="px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-12 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[1200px]">
-          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">Tech packs</p>
-          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">
-            Pay only when you export
-          </h2>
-          <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-white/45">
-            Build and edit in the studio for free. You are charged once when you download a finished tech pack PDF — no
-            monthly download plans or rollover credits.
-          </p>
+          <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">{cerigaTranslate("interface.text_934e4f851cacaf7a")}</p>
+          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">{cerigaTranslate("interface.text_c6492664f9b6b49f")}</h2>
+          <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-white/45">{cerigaTranslate("interface.text_a31973905ce17b6c")}</p>
 
           <div className="mt-6 max-w-md rounded-[14px] border border-[#252528] bg-[#0e0e10] p-5 sm:p-6">
-            <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">Pay per export</div>
+            <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-white/40">{cerigaTranslate("interface.text_b692747bdcadac89")}</div>
             <div className="mb-1">
               <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">
                 {displayMoney(Number(techPackPricing.price.slice(1))*100,'EUR')}
               </span>
               <span className="ml-1 text-xs text-white/45 sm:text-sm">{techPackPricing.priceSub}</span>
             </div>
-            <p className="mb-5 text-[11px] leading-relaxed text-white/40 sm:text-xs">
-              One charge per complete tech pack PDF download.
-            </p>
+            <p className="mb-5 text-[11px] leading-relaxed text-white/40 sm:text-xs">{cerigaTranslate("interface.text_bbf7f46c1bc1ccbb")}</p>
             <Link
               to="/signup"
               className="mb-5 block rounded-lg border border-[#252528] bg-white/[0.06] py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white/70 transition-opacity hover:opacity-90 sm:text-[11px]"
-            >
-              Create account
-            </Link>
+            >{cerigaTranslate("authentication.create")}</Link>
             <ul className="flex flex-col gap-2">
               {techPackPricing.features.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-[11px] text-white/55 sm:text-xs">
                   <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/40" />
-                  {f}
+                  {cerigaTranslateLabel(f)}
                 </li>
               ))}
             </ul>
@@ -207,15 +203,10 @@ useCurrency();
         <div className="mx-auto max-w-[1200px]">
           <div className="mb-6 flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-[#CC2D24]" />
-            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">AI assistant</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">{cerigaTranslate("interface.text_ab6eb4ac63b58418")}</p>
           </div>
-          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">
-            Monthly plans for in-app chat
-          </h2>
-          <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-white/45">
-            Get instant guidance while you work — measurements, exports, orders, and packaging. Subscriptions apply to
-            the AI chat only, not tech pack downloads.
-          </p>
+          <h2 className="font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:text-xl">{cerigaTranslate("interface.text_164a810a265acd04")}</h2>
+          <p className="mt-2 max-w-[640px] text-sm leading-relaxed text-white/45">{cerigaTranslate("interface.text_b8ab5794bd037e0e")}</p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-4">
             {chatTiers.map((t) => (
@@ -229,9 +220,7 @@ useCurrency();
                   <div
                     className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white"
                     style={{ background: RED }}
-                  >
-                    Best value
-                  </div>
+                  >{cerigaTranslate("interface.text_b4d06debb5f8b14f")}</div>
                 )}
                 <div
                   className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em]"
@@ -241,10 +230,10 @@ useCurrency();
                 </div>
                 <div className="mb-1">
                   <span className="text-2xl font-extrabold tracking-tight text-[#F2F0EC] sm:text-3xl">{displayMoney(Number(t.price.slice(1))*100,'EUR')}</span>
-                  {t.priceSub ? <span className="ml-1 text-xs text-white/45 sm:text-sm">{t.priceSub}</span> : null}
+                  {t.priceSub ? <span className="ml-1 text-xs text-white/45 sm:text-sm">{cerigaTranslateLabel(t.priceSub)}</span> : null}
                 </div>
                 <p className="mb-5 min-h-[2.5rem] text-[11px] leading-relaxed text-white/40 sm:min-h-0 sm:text-xs">
-                  {t.sub}
+                  {cerigaTranslateLabel(t.sub)}
                 </p>
 
                 {t.ctaTo ? (
@@ -257,7 +246,7 @@ useCurrency();
                       border: t.featured ? 'none' : '1px solid #ffffff10',
                     }}
                   >
-                    {t.cta}
+                    {cerigaTranslateLabel(t.cta)}
                   </Link>
                 ) : null}
 
@@ -265,7 +254,7 @@ useCurrency();
                   {t.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-[11px] text-white/55 sm:text-xs">
                       <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${t.featured ? 'text-[#CC2D24]' : 'text-white/40'}`} />
-                      {f}
+                      {cerigaTranslateLabel(f)}
                     </li>
                   ))}
                 </ul>
@@ -274,40 +263,33 @@ useCurrency();
           </div>
         </div>
 
-        <p className="mx-auto mt-8 max-w-[640px] text-center text-[11px] leading-relaxed text-white/40 sm:mt-10 sm:text-xs">
-          Need SSO, pooled chat seats, or API access?{' '}
-          <a href="mailto:hello@ceriga.studio" className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/85">
-            Contact sales
-          </a>{' '}
-          for Enterprise pricing.
-        </p>
+        <p className="mx-auto mt-8 max-w-[640px] text-center text-[11px] leading-relaxed text-white/40 sm:mt-10 sm:text-xs">{cerigaTranslate("interface.text_0c3d1c1652dabdfc")}{' '}
+          <a href="mailto:hello@ceriga.studio" className="font-medium text-[#CC2D24] hover:text-[#CC2D24]/85">{cerigaTranslate("interface.text_604abea32b499a4c")}</a>{' '}{cerigaTranslate("interface.text_e6d381b51f0cbb73")}</p>
       </section>
 
       <section className="border-t border-[#252528] bg-[#09090B] px-[max(1rem,env(safe-area-inset-left))] py-10 pr-[max(1rem,env(safe-area-inset-right))] sm:px-6 sm:py-14 md:px-8 lg:px-10">
         <div className="mx-auto max-w-[960px]">
-          <p className="mb-2 text-center text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">Compare</p>
-          <h2 className="mb-6 text-center font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:mb-8 sm:text-xl">
-            AI chat plan comparison
-          </h2>
+          <p className="mb-2 text-center text-[9px] font-bold uppercase tracking-[0.22em] text-[#CC2D24]">{cerigaTranslate("interface.text_e888155d8c7d2e3c")}</p>
+          <h2 className="mb-6 text-center font-['Plus_Jakarta_Sans',sans-serif] text-lg font-bold text-[#F2F0EC] sm:mb-8 sm:text-xl">{cerigaTranslate("interface.text_3e0975fceae4d656")}</h2>
 
           <div className="overflow-x-auto rounded-xl border border-[#252528] bg-[#111113] [-webkit-overflow-scrolling:touch]">
             <table className="w-full min-w-[600px] border-collapse text-left text-[11px] sm:text-xs">
               <thead>
                 <tr className="border-b border-[#252528] bg-black/40">
-                  <th className="px-3 py-2.5 font-semibold text-white/45 sm:px-4 sm:py-3">Capability</th>
-                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Free</th>
-                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Studio</th>
-                  <th className="px-2 py-2.5 text-center font-semibold text-[#CC2D24] sm:px-3 sm:py-3">Scale</th>
-                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">Business</th>
+                  <th className="px-3 py-2.5 font-semibold text-white/45 sm:px-4 sm:py-3">{cerigaTranslate("interface.text_5faf58a69db59058")}</th>
+                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">{cerigaTranslate("interface.text_f411a1fb62758b4c")}</th>
+                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">{cerigaTranslate("interface.text_0aa91af2ec4c1fd7")}</th>
+                  <th className="px-2 py-2.5 text-center font-semibold text-[#CC2D24] sm:px-3 sm:py-3">{cerigaTranslate("interface.text_f102986b39effb31")}</th>
+                  <th className="px-2 py-2.5 text-center font-semibold text-white/70 sm:px-3 sm:py-3">{cerigaTranslate("interface.text_76f68a75f01ed76f")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.06]">
                 {comparisonRows.map((row) => (
                   <tr key={row.feature} className="hover:bg-white/[0.02]">
                     <td className="px-3 py-2.5 text-white/75 sm:px-4 sm:py-3">
-                      {row.feature}
+                      {cerigaTranslateLabel(row.feature)}
                       {row.note ? (
-                        <span className="mt-0.5 block text-[9px] font-normal text-white/35 sm:text-[10px]">{row.note}</span>
+                        <span className="mt-0.5 block text-[9px] font-normal text-white/35 sm:text-[10px]">{cerigaTranslateLabel(row.note)}</span>
                       ) : null}
                     </td>
                     <td className="px-2 py-2.5 text-center text-white/60 sm:px-3 sm:py-3">
@@ -332,7 +314,7 @@ useCurrency();
 
       <MarketingFaq
         eyebrow="Billing & plans"
-        title="Pricing questions"
+        title={cerigaTranslate("interface.text_5af83621f4195b8a")}
         items={[
           {
             q: 'Do tech packs require a subscription?',
