@@ -1,4 +1,5 @@
 import { canvasPaint } from './studioPaint';
+import { applyBrushDynamics, brushDynamicsActive } from './brushDynamics';
 
 /**
  * 3D and contour brushes. Strokes become one height surface, lit by a movable light, so crossing strokes fuse
@@ -206,7 +207,7 @@ type Point = { x: number; y: number; p: number };
 export type VolumeStroke = { points: Point[]; settings: Record<string, unknown>; seed: number; mirrorAxis?: number; paintFrame?: { x: number; y: number; width: number; height: number } };
 
 function strokeDiscs(points: Point[], settings: Record<string, unknown>, scale: number, push: (x: number, y: number, r: number) => void) {
-  const full = Math.max(.75, num(settings.brushSize, 20) * scale / 2), pressure = settings.pressure !== false, taperStart = num(settings.taperStart, 0), taperEnd = num(settings.taperEnd, 0), step = Math.max(.5, full * .16), arc = [0];
+  const full = Math.max(.75, num(settings.brushSize, 20) * scale / 2), pressure = settings.pressure !== false || brushDynamicsActive(settings), taperStart = num(settings.taperStart, 0), taperEnd = num(settings.taperEnd, 0), step = Math.max(.5, full * .16), arc = [0];
   for (let i = 1; i < points.length; i++) arc.push(arc[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y));
   const total = arc[arc.length - 1], capLength = full * 2.3;
   const capAt = (kind: unknown, along: number) => {
@@ -235,7 +236,7 @@ export function renderVolumeStrokes(context: CanvasRenderingContext2D, strokes: 
   const discs: { x: number; y: number; r: number }[] = [];
   for (const stroke of strokes) {
     const add = (x: number, y: number, r: number) => { discs.push({ x, y, r }); if (stroke.mirrorAxis !== undefined) discs.push({ x: stroke.mirrorAxis * scale * 2 - x, y, r }); };
-    strokeDiscs(stroke.points, stroke.settings, scale, add);
+    strokeDiscs(applyBrushDynamics(stroke.points, stroke.settings, scale, stroke.seed), stroke.settings, scale, add);
   }
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity, maxR = 0;
   for (const c of discs) { left = Math.min(left, c.x - c.r); top = Math.min(top, c.y - c.r); right = Math.max(right, c.x + c.r); bottom = Math.max(bottom, c.y + c.r); maxR = Math.max(maxR, c.r); }

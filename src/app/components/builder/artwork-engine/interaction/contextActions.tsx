@@ -46,6 +46,8 @@ export type ContextHandlers = {
   textInShape?: { warp: () => void; inside: () => void; knockout: () => void };
   /** Single drawing: swap the brush on every stroke. */
   restyle?: { active?: string; options: { id: string; label: string }[]; apply: (id: string) => void; clear?: () => void };
+  /** Single drawing: open conversion to an editable vector. */
+  makeVector?: () => void;
   /** Single drawing: add or remove popular effects. */
   drawingEffects?: { options: { id: string; label: string }[]; active: string[]; toggle: (id: string) => void };
   /** Single image: quick look, background removal, recolour and trace. */
@@ -114,6 +116,7 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
   if (selection.type === 'image' && h.crop) primary.push({ id: 'crop', label: 'Crop', icon: <Crop size={ICON} />, showLabel: true, disabled: locked, onSelect: h.crop });
   if (selection.type === 'drawing' && h.restyle && !locked) primary.push({ id: 'restyle', label: 'Restyle', icon: <Brush size={ICON} />, showLabel: true, menu: [...h.restyle.options.map((option): ContextAction => ({ id: 'restyle-' + option.id, label: option.label, pressed: h.restyle!.active === option.id, onSelect: () => h.restyle!.apply(option.id) })), ...(h.restyle.clear ? [{ id: 'sep-restyle', label: '' }, { id: 'restyle-clear', label: 'Back to original', onSelect: h.restyle.clear }] : [])] });
   if (selection.type === 'drawing' && h.drawingEffects && !locked) primary.push({ id: 'drawing-effects', label: 'Effects', icon: <Sparkles size={ICON} />, showLabel: true, menu: h.drawingEffects.options.map((option): ContextAction => ({ id: 'fx-' + option.id, label: option.label, pressed: h.drawingEffects!.active.includes(option.id), onSelect: () => h.drawingEffects!.toggle(option.id) })) });
+  if (selection.type === 'drawing' && h.makeVector && !locked) primary.push({ id: 'make-vector', label: 'Make vector', icon: <Spline size={ICON} />, onSelect: h.makeVector });
   if (selection.type === 'image' && h.image && !locked) primary.push(
     { id: 'look', label: 'Look', icon: <Sparkles size={ICON} />, showLabel: true, menu: h.image.looks.map((look): ContextAction => ({ id: 'look-' + look.id, label: look.label, pressed: h.image!.look === look.id, onSelect: () => h.image!.setLook(look.id) })) },
     { id: 'cutout', label: 'Remove background', icon: <Eraser size={ICON} />, pressed: h.image.cutout, onSelect: h.image.toggleCutout },

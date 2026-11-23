@@ -28,7 +28,33 @@ function wave(x: number, seed: number) {
   return hash(i, seed) * (1 - u) + hash(i + 1, seed) * u;
 }
 
-function buildFrames(input: Input, spacing: number) {
+/** Pattern brushes turn on a small radius, so links and twists bend round a corner instead of colliding. */
+function roundCorners(points: Input['points'], spacing: number, radius: number) {
+  const even: Input['points'] = [points[0]];
+  let travelled = 0, next = spacing;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i], length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (!length) continue;
+    while (next <= travelled + length) { const t = (next - travelled) / length; even.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, p: a.p + (b.p - a.p) * t, tilt: a.tilt + (b.tilt - a.tilt) * t }); next += spacing; }
+    travelled += length;
+  }
+  const last = points[points.length - 1];
+  if (even.length < 5) return { points, closed: false };
+  const closed = Math.hypot(last.x - points[0].x, last.y - points[0].y) <= spacing * 1.5 && travelled > radius * 6;
+  let row = closed ? even.slice(0, Math.hypot(even[even.length - 1].x - even[0].x, even[even.length - 1].y - even[0].y) < spacing * .5 ? -1 : undefined) : [...even, last];
+  const n = row.length, reach = Math.max(1, Math.ceil(radius / spacing));
+  for (let pass = 0; pass < 2; pass++) {
+    row = row.map((point, i) => {
+      const r = closed ? Math.min(reach, Math.floor((n - 1) / 2)) : Math.min(reach, i, n - 1 - i);
+      let x = 0, y = 0;
+      for (let k = -r; k <= r; k++) { const item = row[closed ? (i + k + n) % n : i + k]; x += item.x; y += item.y; }
+      return { ...point, x: x / (2 * r + 1), y: y / (2 * r + 1) };
+    });
+  }
+  return { points: closed ? [...row, row[0]] : row, closed };
+}
+
+function buildFrames(input: Input, spacing: number, closed = false) {
   const { points, size, pressure, taperStart, taperEnd } = input, raw: { x: number; y: number; p: number; d: number }[] = [{ ...points[0], d: 0 }];
   let travelled = 0, next = spacing;
   for (let i = 1; i < points.length; i++) {
@@ -41,7 +67,7 @@ function buildFrames(input: Input, spacing: number) {
   if (travelled - raw[raw.length - 1].d > spacing * .25) raw.push({ x: last.x, y: last.y, p: last.p, d: travelled });
   const n = raw.length, frames: Frame[] = [];
   for (let i = 0; i < n; i++) {
-    const a = raw[Math.max(0, i - 2)], b = raw[Math.min(n - 1, i + 2)], dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy) || 1, tx = dx / length, ty = dy / length;
+    const ring = n - 1, a = closed ? raw[(i - 2 + ring * 2) % ring] : raw[Math.max(0, i - 2)], b = closed ? raw[(i + 2) % ring] : raw[Math.min(n - 1, i + 2)], dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy) || 1, tx = dx / length, ty = dy / length;
     let p = 0, weight = 0;
     for (let k = Math.max(0, i - 2); k <= Math.min(n - 1, i + 2); k++) { p += raw[k].p; weight++; }
     p /= weight;
@@ -52,11 +78,12 @@ function buildFrames(input: Input, spacing: number) {
 }
 
 export function renderRibbonBrush(context: CanvasRenderingContext2D, preset: string, input: Input) {
-  const { size, scale, seed, value } = input, spacing = Math.max(.75 * scale, size * .06), built = buildFrames(input, spacing), length = built.length;
-  const baseAlpha = context.globalAlpha, ink = context.strokeStyle, wobble = PATTERN.has(preset) && !preset.endsWith('-scatter') ? value('patternJitter') * size * .22 : 0;
+  const { size, scale, seed, value } = input, spacing = Math.max(.75 * scale, size * .06), bends = PATTERN.has(preset) && !preset.endsWith('-scatter') && input.points.length > 2, route = bends ? roundCorners(input.points, spacing, size * .62) : { points: input.points, closed: false }, closed = route.closed, built = buildFrames({ ...input, points: route.points }, spacing, closed), length = built.length;
+  const baseAlpha = context.globalAlpha, ink = context.strokeStyle, wobble = PATTERN.has(preset) && !preset.endsWith('-scatter') ? value('patternJitter') * size * (preset === 'rope' ? .07 : .22) : 0;
   const frames = wobble ? built.frames.map(f => { const shift = (wave(f.d / (size * 1.8), seed + 91) - .5) * 2 * wobble; return { ...f, x: f.x + f.nx * shift, y: f.y + f.ny * shift }; }) : built.frames;
   const alpha = (v: number) => { context.globalAlpha = baseAlpha * clamp(v); };
-  const at = (d: number): Frame => {
+  const at = (distance: number): Frame => {
+    const d = closed && length > 0 ? ((distance % length) + length) % length : distance;
     const index = clamp(d / spacing, 0, frames.length - 1), i = Math.floor(index), j = Math.min(frames.length - 1, i + 1), t = index - i, a = frames[i], b = frames[j];
     return { ...a, x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, r: a.r + (b.r - a.r) * t, d };
   };
@@ -100,6 +127,9 @@ export function renderRibbonBrush(context: CanvasRenderingContext2D, preset: str
     }
   };
   const repeat = size * Math.max(.2, value('patternScale')), gap = 1 + value('patternGap');
+  // On a closed shape the pattern lands exactly back on its start, so there is no visible seam.
+  const fit = (step: number, even = false) => { if (!closed) return step; let count = Math.max(even ? 2 : 1, Math.round(length / step)); if (even && count % 2) count++; return length / count; };
+  const limit = closed ? length - spacing * .01 : length, ahead = (d: number) => closed ? d : Math.min(length, d);
   const seg = (x1: number, y1: number, x2: number, y2: number) => { context.moveTo(x1, y1); context.lineTo(x2, y2); };
   const place = (f: Frame, across: number, along = 0) => ({ x: f.x + f.nx * f.r * across + f.tx * along, y: f.y + f.ny * f.r * across + f.ty * along });
   const polygon = (cx: number, cy: number, radius: number, rotation: number, spikes: number, inner: number) => {
@@ -163,18 +193,21 @@ export function renderRibbonBrush(context: CanvasRenderingContext2D, preset: str
       break;
     }
     case 'rope': {
-      const step = repeat * .5 * gap; alpha(1); context.lineWidth = repeat * .36; context.beginPath();
-      for (let d = 0; d <= length; d += step) { const a = place(at(d), -.72), b = place(at(Math.min(length, d + step * 1.25)), .72); seg(a.x, a.y, b.x, b.y); }
-      context.stroke();
-      alpha(.3); context.strokeStyle = '#000000'; context.lineWidth = Math.max(.5 * scale, repeat * .05); context.beginPath();
-      for (let d = step * .5; d <= length; d += step) { const a = place(at(d), -.9), b = place(at(Math.min(length, d + step * 1.25)), .9); seg(a.x, a.y, b.x, b.y); }
-      context.stroke(); context.strokeStyle = ink;
+      // Each strand is a filled twist that follows both edges of the line, so nothing can poke out on a bend.
+      const step = fit(repeat * .46 * gap), run = step * .84, slant = step * 1.15, points = 7;
+      alpha(1); context.beginPath();
+      for (let d = 0; d <= limit; d += step) {
+        for (let k = 0; k <= points; k++) { const t = k / points, o = place(at(ahead(d + run * t)), -(.8 + .2 * Math.sin(Math.PI * t))); if (k) context.lineTo(o.x, o.y); else context.moveTo(o.x, o.y); }
+        for (let k = 0; k <= points; k++) { const t = k / points, o = place(at(ahead(d + slant + run * (1 - t))), .8 + .2 * Math.sin(Math.PI * t)); context.lineTo(o.x, o.y); }
+        context.closePath();
+      }
+      context.fill();
       break;
     }
     case 'chain-link': {
-      const step = repeat * .82 * gap; let index = 0;
+      const step = fit(repeat * .82 * gap, true); let index = 0;
       alpha(1); context.lineWidth = Math.max(.7 * scale, size * .13);
-      for (let d = step / 2; d <= length; d += step, index++) {
+      for (let d = step / 2; d <= limit; d += step, index++) {
         const f = at(d), angle = Math.atan2(f.ty, f.tx), rx = step * .62;
         context.beginPath();
         if (index % 2) { context.moveTo(f.x - f.tx * rx, f.y - f.ty * rx); context.lineTo(f.x + f.tx * rx, f.y + f.ty * rx); }
@@ -184,10 +217,10 @@ export function renderRibbonBrush(context: CanvasRenderingContext2D, preset: str
       break;
     }
     case 'barbed-wire': {
-      const twist = repeat * .75 * gap, thin = Math.max(.6 * scale, size * .08);
+      const twist = fit(repeat * .75 * gap), thin = Math.max(.6 * scale, size * .08);
       strand(f => Math.sin(f.d / twist * Math.PI * 2) * .2, thin, 1); strand(f => -Math.sin(f.d / twist * Math.PI * 2) * .2, thin, 1);
       alpha(1); context.lineWidth = thin; context.beginPath();
-      for (let d = twist * 1.25; d <= length; d += twist * 3) {
+      for (let d = twist * 1.25; d <= limit; d += twist * 3) {
         const f = at(d), lean = size * .24;
         for (const [across, along] of [[-1, -lean], [1, lean], [-1, lean], [1, -lean]] as const) { const tip = place(f, across * .95, along); seg(f.x, f.y, tip.x, tip.y); }
       }
@@ -196,17 +229,26 @@ export function renderRibbonBrush(context: CanvasRenderingContext2D, preset: str
     }
     case 'zipper': {
       band(-1, -.3, .95, () => size / 2); band(.3, 1, .95, () => size / 2);
-      const step = repeat * .26 * gap; let side = 0; alpha(1); context.lineWidth = Math.max(.6 * scale, step * .62); context.lineCap = 'butt'; context.beginPath();
-      for (let d = step / 2; d <= length; d += step, side++) { const f = at(d), r = size / 2, s = side % 2 ? 1 : -1; seg(f.x + f.nx * r * .24 * s, f.y + f.ny * r * .24 * s, f.x - f.nx * r * .34 * s, f.y - f.ny * r * .34 * s); }
+      const step = fit(repeat * .26 * gap, true); let side = 0; alpha(1); context.lineWidth = Math.max(.6 * scale, step * .62); context.lineCap = 'butt'; context.beginPath();
+      for (let d = step / 2; d <= limit; d += step, side++) { const f = at(d), r = size / 2, s = side % 2 ? 1 : -1; seg(f.x + f.nx * r * .24 * s, f.y + f.ny * r * .24 * s, f.x - f.nx * r * .34 * s, f.y - f.ny * r * .34 * s); }
       context.stroke(); context.lineCap = 'round';
       break;
     }
     case 'ribbon': {
-      const half = repeat * 1.3 * gap, width: Width = f => f.r * Math.max(.07, Math.abs(Math.cos(f.d / half * Math.PI)));
-      for (let k = 0; k * half < length; k++) {
-        const from = Math.max(0, Math.floor((k - .5) * half / spacing)), to = Math.min(frames.length - 1, Math.ceil((k + .5) * half / spacing));
-        if (to > from) band(-1, 1, k % 2 ? .66 : 1, width, undefined, from, to);
+      // One unbroken band in the back tone, with front faces laid over it. Slanted fold lines make it read as a twist.
+      const half = fit(repeat * 1.7 * gap, true), slant = size * .3, samples = Math.max(10, Math.ceil((half + slant) / spacing)), faces = closed ? Math.round(length / half) : Math.ceil(length / half + 1);
+      const profile = (d: number) => { const u = clamp(Math.abs(Math.cos(d / half * Math.PI)) * 1.7); return .7 + .3 * u * u * (3 - 2 * u); };
+      band(-1, 1, .68, f => f.r * profile(f.d));
+      const edge = (d: number) => closed ? d : clamp(d, 0, length);
+      alpha(1); context.beginPath();
+      for (let k = 0; k < faces; k += 2) {
+        const from = (k - .5) * half, to = (k + .5) * half;
+        if (!closed && (to + slant <= 0 || from - slant >= length)) continue;
+        for (let i = 0; i <= samples; i++) { const d = edge(from - slant + (to - from) * i / samples), f = at(d), o = f.r * profile(d), x = f.x + f.nx * o, y = f.y + f.ny * o; if (i) context.lineTo(x, y); else context.moveTo(x, y); }
+        for (let i = samples; i >= 0; i--) { const d = edge(from + slant + (to - from) * i / samples), f = at(d), o = f.r * profile(d); context.lineTo(f.x - f.nx * o, f.y - f.ny * o); }
+        context.closePath();
       }
+      context.fill();
       break;
     }
     case 'star-scatter': case 'sparkle-scatter': case 'flower-scatter': {

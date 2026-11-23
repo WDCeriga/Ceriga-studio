@@ -1,6 +1,7 @@
 import simplify from 'simplify-js';
 import { canvasPaint } from './studioPaint';
 import { RIBBON_BRUSHES, renderRibbonBrush } from './brushRibbons';
+import { DYNAMICS_DEFAULTS, applyBrushDynamics, brushDynamicsActive, type BrushDynamics } from './brushDynamics';
 import { VOLUME_BRUSHES, VOLUME_DEFAULTS, isVolumeBrush, renderVolumeStrokes, type VolumeBrushId, type VolumeSettings } from './brushVolume';
 import { applyBrushTexture, DEFAULT_TEXTURE_SETTINGS, type BrushTexture, type BrushTextureSettings } from './brushTextures';
 export { BRUSH_TEXTURES, DEFAULT_TEXTURE_SETTINGS, applyBrushTexture } from './brushTextures';
@@ -23,7 +24,7 @@ export type BrushPreset = 'pencil' | 'pen' | 'marker' | 'paint' | 'crayon' | 'sp
   | 'brush-pen' | 'gel-pen' | 'chisel-marker' | 'rope' | 'chain-link' | 'barbed-wire' | 'zipper' | 'ribbon'
   | 'star-scatter' | 'sparkle-scatter' | 'flower-scatter' | VolumeBrushId;
 
-export interface BrushSettings extends BrushTextureSettings, Partial<VolumeSettings> {
+export interface BrushSettings extends BrushTextureSettings, Partial<VolumeSettings>, BrushDynamics {
   /** Faster 3D preview while the pen is still down. */
   volumeDraft?: boolean;
   brushPreset: BrushPreset;
@@ -211,6 +212,7 @@ export const BRUSH_PRESETS: { id: BrushPreset; label: string; size: number; grai
 export const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   ...DEFAULT_TEXTURE_SETTINGS,
   ...VOLUME_DEFAULTS,
+  ...DYNAMICS_DEFAULTS,
   brushPreset: 'pen', texture: 'smooth', brushAngle: 90, brushRotation: 0,
   taperStart: 0, taperEnd: 0, blur: 0, smoothing: 35, symmetry: false,
   brushSpacing: 12, scatterEnabled: false, scatterSpread: 100,
@@ -653,27 +655,29 @@ export function renderBrushStroke(
     return;
   }
   const thread = THREAD_PRESETS.includes(preset);
-  const { samples, length } = createBrushStamps(points, settings, scale, seed);
+  const shaped = applyBrushDynamics(points, settings, scale, seed), pressureOn = settings.pressure || brushDynamicsActive(settings), opacityJitter = bounded(settings.opacityJitter, 0, 0, 100) / 100, angleJitter = bounded(settings.angleJitter, 0, 0, 180) * Math.PI / 180;
+  const { samples, length } = createBrushStamps(shaped, settings, scale, seed);
   context.save();
   if(paintFrame){context.save();context.translate(paintFrame.x*scale,paintFrame.y*scale);const paint=canvasPaint(context,settings.color,paintFrame.width*scale,paintFrame.height*scale);context.restore();context.fillStyle=paint}
   else context.fillStyle = canvasPaint(context, settings.color, context.canvas.width, context.canvas.height);
   context.strokeStyle = context.fillStyle;
   context.lineCap = 'round';
   context.lineJoin = 'round';
-  if (RIBBON_BRUSHES.has(preset)) renderRibbonBrush(context, preset, { points, size, scale, seed: strokeSeed(settings, seed), pressure: settings.pressure, taperStart: settings.taperStart, taperEnd: settings.taperEnd, nib: settings.brushRotation, value: key => controlValue(settings, key as BrushPresetControl['key']) / 100 });
+  if (RIBBON_BRUSHES.has(preset)) renderRibbonBrush(context, preset, { points: shaped, size, scale, seed: strokeSeed(settings, seed), pressure: pressureOn, taperStart: settings.taperStart, taperEnd: settings.taperEnd, nib: settings.brushRotation, value: key => controlValue(settings, key as BrushPresetControl['key']) / 100 });
   else for (let index = 0; index < samples.length; index++) {
       const point = samples[index];
       const start = settings.taperStart ? Math.max(0.04, Math.min(1, point.distance / Math.max(1, length * settings.taperStart / 200))) : 1;
       const end = settings.taperEnd ? Math.max(0.04, Math.min(1, (length - point.distance) / Math.max(1, length * settings.taperEnd / 200))) : 1;
-      const pressure = settings.pressure ? 0.35 + 0.65 * point.p : 1;
+      const pressure = pressureOn ? 0.35 + 0.65 * point.p : 1;
+      const variation = opacityJitter || angleJitter ? randomSource(strokeSeed(settings, seed) ^ Math.imul(index + 11, 0x2f6e2b1)) : null;
       const tilt = settings.pencil.tiltShading ? 1 + point.tilt * 0.8 : 1;
       const radius = Math.max(0.3 * scale, size * point.sizeScale * pressure * Math.min(start, end) * tilt / 2);
       const aspect = Math.max(0.15, Math.sin(settings.brushAngle * Math.PI / 180));
       context.save();
       context.translate(point.x, point.y);
-      context.rotate((thread ? point.heading + controlValue(settings, 'stitchDirection') * Math.PI / 180 : 0) + settings.brushRotation * Math.PI / 180 + point.rotation);
+      context.rotate((thread ? point.heading + controlValue(settings, 'stitchDirection') * Math.PI / 180 : 0) + settings.brushRotation * Math.PI / 180 + point.rotation + (variation && angleJitter ? (variation() - .5) * 2 * angleJitter : 0));
       context.scale(radius, radius * aspect);
-      context.globalAlpha = point.opacity;
+      context.globalAlpha = point.opacity * (variation && opacityJitter ? 1 - opacityJitter * variation() : 1);
       const markSeed = strokeSeed(settings, seed) ^ Math.imul(index + 1, 0x45d9f3b);
       drawBrushMark(context, preset, settings, randomSource(markSeed), scale / radius);
       context.restore();

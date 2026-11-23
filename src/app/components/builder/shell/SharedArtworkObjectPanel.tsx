@@ -1,6 +1,7 @@
 import {StrokeStyleControls} from '../artwork-engine/inspector/StrokeStyleControls';
 import {FadeBlendControls} from '../artwork-engine/inspector/FadeBlendControls';
 import {ColourFieldControls} from '../artwork-engine/inspector/ColourFieldControls';
+import {PathBrushControls} from '../artwork-engine/inspector/PathBrushControls';
 import {WidthProfileControls} from '../artwork-engine/inspector/WidthProfileControls';
 import {VectorEffectsPanel} from './VectorEffectsPanel';
 import {ArtworkPrintMethod} from './ArtworkPrintMethod';
@@ -33,6 +34,7 @@ export function SharedArtworkObjectPanel({element,update,children}:{element:Desi
  <ArtworkClipControls element={element} update={update}/>
  </fieldset></StudioFold>
  {nativeShape&&!element.artworkAppearance&&<ColourFieldControls element={element} update={update}/>}
+ <PathBrushControls element={element} update={update}/>
  <FadeBlendControls element={element} update={update}/>
  <VectorEffectsPanel element={element} update={update}/>
  <ArtworkTransformFields element={element} update={update}/>

@@ -47,7 +47,7 @@ export const StudioGraphic=memo(function StudioGraphic({ element }: { element: D
 function StudioGraphicBase({ element }: { element: DesignElement }) {
   const id = useId().replace(/:/g, '');
   if (element.type === 'pattern') return <PatternGraphic element={element} />;
-  if(element.type==='shape'&&element.shapeBrush&&element.shapePath)return <BrushVectorArtwork element={element}/>;
+  if(element.type==='shape'&&element.shapeBrush&&(element.shapePath||element.shapeBrush.pathBrush))return <BrushVectorArtwork element={element}/>;
   const paintWidth = element.shapeGeometry === 'bounds' ? element.width : 100;
   const paintHeight = element.shapeGeometry === 'bounds' ? element.height : paintWidth;
   const paint = svgPaint(strokeOf(element), `paint-${id}`, paintWidth, paintHeight);

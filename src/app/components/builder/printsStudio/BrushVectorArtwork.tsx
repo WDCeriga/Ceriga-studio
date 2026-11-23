@@ -8,6 +8,7 @@ import {replayVectorBrush} from '../../../lib/vectorBrushReplay';
 import {shapePathData,shapeToEditablePath} from '../../../lib/shapeGeometry';
 import {svgPaint} from '../../../lib/studioPaint';
 import {artworkFlipStyle} from '../../../lib/artworkFlip';
+import {PathBrushArtwork} from './PathBrushArtwork';
 function RasterBrushVectorArtwork({element:el}:{element:DesignElement}){
  const source=el.shapeBrush!,path=shapeToEditablePath(el),id=useId().replace(/:/g,''),display=useContext(ArtworkResolutionContext),[mask,setMask]=useState<string>();
  const width=el.width,height=el.height,ratio=artworkPixelRatio(source.width,source.height,display*Math.max(width/source.width,height/source.height),window.devicePixelRatio||1),baseWidth=(source.strokes[0]?.settings.brushSize??1)*width/source.width,weight=(el.borderWidth??baseWidth)/Math.max(.01,baseWidth);
@@ -33,5 +34,6 @@ function NativeBrushVectorArtwork({element:el}:{element:DesignElement}){
  return <svg viewBox={`0 0 ${source.width} ${source.height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" style={artworkFlipStyle(el)} data-vector-brush={source.strokes[0]?.settings.brushPreset}><defs dangerouslySetInnerHTML={{__html:fill.defs}}/>{el.shapeFilled&&<g transform={`scale(${source.width/100} ${source.height/100})`}><path d={contours} fill={fill.color} fillRule="evenodd"/></g>}{(el.borderWidth??baseWidth)>0&&<g dangerouslySetInnerHTML={{__html:markup}}/>}</svg>;
 }
 export function BrushVectorArtwork({element}:{element:DesignElement}){
+ if(element.shapeBrush?.pathBrush)return <PathBrushArtwork element={element}/>;
  return supportsVectorDrawing(element.shapeBrush!)?<NativeBrushVectorArtwork element={element}/>:<RasterBrushVectorArtwork element={element}/>;
 }

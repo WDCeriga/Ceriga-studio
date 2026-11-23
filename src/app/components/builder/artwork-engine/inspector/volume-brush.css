@@ -10,3 +10,11 @@
 .cx-volume-row input[type=color]::-webkit-color-swatch{border:0;border-radius:999px}
 .cx-restyle{min-width:0;border:0;padding:0;margin:0}
 .cx-restyle .draw-brush-grid{max-height:286px;overflow-y:auto}
+.cx-my-brush-save{display:flex;gap:6px;margin:2px 0 10px}
+.cx-my-brush-save input{min-width:0;flex:1;height:32px;padding:0 9px;border:1px solid #dadad7;border-radius:7px;background:#fff;color:#1f1f1d;font-size:13px}
+.ceriga-builder-shell .builder-inspector .cx-my-brush-save button{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px;border:0;border-radius:7px;background:#1f1f1d;color:#fff;font-size:12px}
+.cx-my-brush{position:relative;min-width:0}
+.cx-my-brush>button:first-child{width:100%}
+.ceriga-builder-shell .builder-inspector .cx-my-brush>.is-delete{position:absolute;top:3px;right:3px;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-height:0;padding:0;border:0;border-radius:5px;background:rgb(255 255 255 / .92);color:#737370;opacity:0;transition:opacity .12s ease-out}
+.cx-my-brush:hover>.is-delete,.cx-my-brush>.is-delete:focus-visible{opacity:1}
+@media (hover:none){.ceriga-builder-shell .builder-inspector .cx-my-brush>.is-delete{opacity:1}}

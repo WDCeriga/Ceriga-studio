@@ -88,6 +88,7 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
     arrange: direction => onChange(arrangeArtwork(elements, ids, direction), selectedId ?? undefined),
     editText: selected?.type === 'text' ? () => onEditText(selected.id) : undefined,
     crop: selected?.type === 'image' ? () => onCrop(selected.id) : undefined,
+    makeVector: selected?.type === 'drawing' && selected.drawing?.strokes.length ? () => revealImageTool('vector') : undefined,
     drawingEffects: selected?.type === 'drawing' && selected.drawing?.strokes.length ? {
       options: QUICK_DRAWING_EFFECTS, active: (selected.shapeEffects ?? []).map(effect => effect.type),
       toggle: id => { const current = selected.shapeEffects ?? [], has = current.some(effect => effect.type === id); onUpdate(selected.id, { shapeEffects: has ? current.filter(effect => effect.type !== id) : [...current, { ...createShapeEffect(id as TextEffectId), id: crypto.randomUUID() }] }); },
