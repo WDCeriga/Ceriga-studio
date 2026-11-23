@@ -416,6 +416,13 @@ export interface DesignElement extends ImageAdjustmentValues {
   patternRandomise?: boolean;
   patternSeed?: number;
   patternOptions?: Record<string, number | string>;
+  patternExtraSources?: import('../../lib/patternGeometry').PatternSettings['patternExtraSources'];
+  patternMotifScale?: number;
+  patternMotifRotation?: number;
+  patternGround?: string;
+  patternWord?: import('../../lib/patternsPro').PatternWord;
+  patternSett?: import('../../lib/patternsPro').TartanSett;
+  patternFit?: import('../../lib/patternGeometry').PatternSettings['patternFit'];
   patternOffsetX?: number;
   patternOffsetY?: number;
   patternAlignment?: 'independent' | 'continuous';
@@ -427,7 +434,7 @@ export interface DesignElement extends ImageAdjustmentValues {
   patternSourceName?: string;
   patternSourceWidth?: number;
   patternSourceHeight?: number;
-  patternRepeat?: 'grid' | 'brick' | 'half-drop' | 'mirror' | 'random';
+  patternRepeat?: import('../../lib/patternGeometry').PatternLayout;
   patternRandomPosition?: number;
   patternRandomRotation?: number;
   patternMinScale?: number;
@@ -1568,7 +1575,7 @@ export function PrintsDesignStep({
                     value={selected.customAreaPattern ?? 'none'}
                     onChange={(event) => { updateSelected(event.target.value === 'none' ? { customAreaPattern: undefined } : changePatternType(selected, event.target.value)); if (event.target.value === 'custom') studio.setPanel('patterns'); }}
                     className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#fafafa] px-2 text-[11px] text-[#262626]">
-                    <option value="none">None</option>{PATTERN_CATALOG.map(pattern => <option key={pattern.id} value={pattern.id}>{pattern.label}</option>)}
+                    <option value="none">None</option>{PATTERN_CATALOG.filter(pattern => !pattern.retired || pattern.id === selected.customAreaPattern).map(pattern => <option key={pattern.id} value={pattern.id}>{pattern.label}</option>)}
                   </select>
                 </div>
                 <label className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#e2e2e2] bg-[#fafafa] text-[10px] font-semibold text-[#737373] hover:text-[#262626]">

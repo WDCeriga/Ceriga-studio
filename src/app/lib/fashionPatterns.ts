@@ -2,12 +2,14 @@ import {textileCamouflage} from './textileCamouflage';
 import type { PatternMotif, PatternPrimitive, PatternReplica } from './generatedPatterns';
 import { patternDefaultColors, patternDefinition } from './patternCatalog';
 import type { PatternSettings } from './patternGeometry';
+import { isProPattern, proPatternTile } from './patternsPro';
 
 export interface FashionTile {
   tileWidth: number;
   tileHeight: number;
   colors: string[];
-  background: number;
+  /** Absent on ink-only textures, so the garment shows through. */
+  background?: number;
   motifs: PatternMotif[];
   replicas: PatternReplica[];
 }
@@ -42,7 +44,9 @@ export function fashionPatternPalette(settings: PatternSettings, kind: string): 
   const max = definition?.maxColors ?? defaults.length;
   const wanted = settings.patternColors?.length ?? definition?.colors?.length ?? defaults.length;
   const length = Math.max(min, Math.min(max, wanted));
-  return Array.from({ length }, (_, index) => settings.patternColors?.[index] ?? defaults[index] ?? defaults[index % defaults.length] ?? '#888888');
+  // Saved one-colour patterns keep their ink in element.color.
+  const savedInk = definition?.pro && !settings.patternColors?.length && length === 1 ? settings.color : undefined;
+  return Array.from({ length }, (_, index) => (index === 0 ? savedInk : undefined) ?? settings.patternColors?.[index] ?? defaults[index] ?? defaults[index % defaults.length] ?? '#888888');
 }
 
 export function fashionPatternTile(settings: PatternSettings, kind: string, ref: number): FashionTile {
@@ -62,10 +66,10 @@ export function fashionPatternTile(settings: PatternSettings, kind: string, ref:
   const spacingY = clamp(settings.patternSpacingY ?? settings.patternSpacing, 0, 0, 200);
   const seed = clamp(settings.patternSeed, 1, 0, 0xffffffff);
   const thickness = Number.isFinite(settings.patternThickness) ? clamp(settings.patternThickness, 1, .1, 1000) : undefined;
-  const key = JSON.stringify([kind, options, colors.length, count, scale, spacingX, spacingY, seed, thickness, Math.round(ref)]);
+  const key = JSON.stringify([kind, options, colors.length, count, scale, spacingX, spacingY, seed, thickness, Math.round(ref), kind === 'word-repeat' ? [settings.patternWord?.text, settings.patternWord?.font, settings.patternWord?.d.length] : null, kind === 'tartan-builder' ? settings.patternSett : null]);
   const hit = cache.get(key);
   if (hit) { cache.delete(key); cache.set(key, hit); return withColors(hit, colors); }
-  const tile = build(kind, options, colors, { count, scale, spacingX, spacingY, seed, thickness, ref });
+  const tile = build(kind, options, colors, { count, scale, spacingX, spacingY, seed, thickness, ref, word: settings.patternWord, sett: settings.patternSett });
   cache.set(key, tile);
   if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value!);
   return withColors(tile, colors);
@@ -74,7 +78,7 @@ export function fashionPatternTile(settings: PatternSettings, kind: string, ref:
 /** Colours are paint indices, so a colour change never invalidates the cached geometry. */
 const withColors = (tile: FashionTile, colors: string[]): FashionTile => ({ ...tile, colors });
 
-interface Context { count: number; scale: number; spacingX: number; spacingY: number; seed: number; thickness?: number; ref: number }
+interface Context { count: number; scale: number; spacingX: number; spacingY: number; seed: number; thickness?: number; ref: number; word?: PatternSettings['patternWord']; sett?: PatternSettings['patternSett'] }
 
 function motifTile(width: number, height: number, primitives: PatternPrimitive[], colors: string[]): FashionTile {
   const motif: PatternMotif = { id: 0, x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, radius: 0, primitives };
@@ -83,6 +87,7 @@ function motifTile(width: number, height: number, primitives: PatternPrimitive[]
 
 function build(kind: string, o: Record<string, number | string>, colors: string[], c: Context): FashionTile {
   const n = (key: string) => Number(o[key]);
+  if (isProPattern(kind)) return proPatternTile(kind, o, colors, c);
   if (kind === 'plaid') return plaid(o, colors, c);
   if (kind === 'gingham') return gingham(n('checkSize'), n('hSpacing'), n('vSpacing'), colors, c);
   if (kind === 'windowpane') return windowpane(n('hSpacing'), n('vSpacing'), colors, c);

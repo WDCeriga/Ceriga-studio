@@ -14,6 +14,7 @@ import { PATTERN_CATALOG, patternDefaultColors, patternDefinition } from '../../
 import { changePatternType } from '../../../lib/patternEditing';
 import { fashionPatternPalette } from '../../../lib/fashionPatterns';
 import { PatternPaletteEditor } from './PatternPaletteEditor';
+import { CustomRepeatControls, PatternFitControls, TartanBuilderControls, WordRepeatControls } from './PatternBuilders';
 
 function PatternSlider({ label, ariaLabel = label, value, min, max, step = 1, suffix = '', onChange }: {
   label: string; ariaLabel?: string; value: number; min: number; max: number; step?: number; suffix?: string; onChange: (value: number) => void;
@@ -48,11 +49,13 @@ export function PatternControls({ element, onChange:write }: {
     <label className="block space-y-1 text-[10px] text-[#737373]">Pattern type
       <MaterialSelect aria-label="Pattern type" value={metrics.kind} onChange={event => onChange(changePatternType(element, event.target.value))}
         className="h-9 w-full rounded-lg border border-[#e2e2e2] bg-[#171717] px-2 text-xs text-[#262626]">
-        {PATTERN_CATALOG.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+        {PATTERN_CATALOG.filter(item=>!item.retired||item.id===metrics.kind).map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
       </MaterialSelect>
     </label>
+    {metrics.kind === 'word-repeat' && <WordRepeatControls key={element.id} element={element} onChange={onChange} />}
+    {metrics.kind === 'tartan-builder' && <TartanBuilderControls element={element} onChange={onChange} />}
     <StudioFold title="Repeat layout" hint="Density, scale & spacing" open><div className="pattern-flip-pair"><FlipControls element={element} onChange={onChange} /></div>
-    {custom&&<div className="pattern-layout-choices" role="group" aria-label="Repeat type">{(['grid','brick','half-drop','mirror','random'] as const).map(repeat=><button key={repeat} aria-pressed={(element.patternRepeat??'grid')===repeat} onClick={()=>onChange({patternRepeat:repeat})}><svg viewBox="0 0 44 34" aria-hidden="true">{Array.from({length:9},(_,index)=>{const column=index%3,row=Math.floor(index/3);return <rect key={index} x={5+column*12+(repeat==='brick'&&row%2?5:repeat==='random'?(index*7%5)-2:0)} y={4+row*11+(repeat==='half-drop'&&column%2?4:repeat==='random'?(index*3%5)-2:0)} width="6" height="6" rx="1" fill="currentColor" opacity={repeat==='mirror'&&column%2?.4:1}/>;})}</svg><span>{{grid:'Grid',brick:'Brick','half-drop':'Half drop',mirror:'Mirror',random:'Scatter'}[repeat]}</span></button>)}</div>}
+    {custom&&<CustomRepeatControls element={element} onChange={onChange}/>}
     <PatternSlider label={definition?.amountLabel ?? (metrics.kind === 'dots' ? 'Dot density' : 'Pattern amount')} ariaLabel="Pattern amount" value={metrics.count} min={1} max={32}
       onChange={(patternCount) => onChange({ patternCount })} />
     <PatternSlider label="Pattern scale" value={metrics.scale * 100} min={10} max={400} suffix="%"
@@ -119,10 +122,11 @@ export function PatternControls({ element, onChange:write }: {
       </div> : undefined} />}
     </StudioFold>
     <StudioFold title="Pattern placement" hint="Offsets & alignment">
+        <PatternFitControls element={element} onChange={onChange} />
 
         <PatternSlider label="Move pattern X" value={element.patternOffsetX ?? 0} min={-300} max={300} suffix=" px" onChange={patternOffsetX => onChange({ patternOffsetX })} />
         <PatternSlider label="Move pattern Y" value={element.patternOffsetY ?? 0} min={-300} max={300} suffix=" px" onChange={patternOffsetY => onChange({ patternOffsetY })} />
-        <div className="pattern-alignment-choices" role="group" aria-label="Pattern alignment">{(['independent','continuous'] as const).map(alignment=><button key={alignment} aria-pressed={(element.patternAlignment??'independent')===alignment} onClick={()=>onChange({patternAlignment:alignment})}><span className="pattern-alignment-diagram" data-mode={alignment}><i/><i/></span><strong>{alignment==='independent'?'Per section':'Continuous'}</strong><small>{alignment==='independent'?'Place each part separately':'Line up across garment parts'}</small></button>)}</div>
+        <div className="pattern-alignment-choices" role="group" aria-label="Pattern alignment">{(['independent','continuous'] as const).map(alignment=><button key={alignment} aria-pressed={(element.patternAlignment??'independent')===alignment} onClick={()=>onChange({patternAlignment:alignment,...(alignment==='continuous'?{patternFit:undefined}:{})})}><span className="pattern-alignment-diagram" data-mode={alignment}><i/><i/></span><strong>{alignment==='independent'?'Per section':'Continuous'}</strong><small>{alignment==='independent'?'Place each part separately':'Line up across garment parts'}</small></button>)}</div>
         <button type="button" onClick={() => onChange({ patternOffsetX: 0, patternOffsetY: 0, patternRotation: 0, patternScale: 100 })}
           className="w-full rounded-lg border border-[#e2e2e2] py-1.5 text-[10px] font-semibold text-[#737373] hover:bg-[#f2f2f2]">Reset pattern position</button>
     </StudioFold>

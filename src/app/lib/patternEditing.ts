@@ -42,7 +42,16 @@ export function patternAppearance(value: unknown): PatternPatch {
   }
   if (input.patternAlignment === 'independent' || input.patternAlignment === 'continuous') output.patternAlignment = input.patternAlignment;
   if (typeof input.patternSourceName === 'string') output.patternSourceName = input.patternSourceName.slice(0, 120);
-  if (['grid', 'brick', 'half-drop', 'mirror', 'random'].includes(String(input.patternRepeat))) output.patternRepeat = input.patternRepeat;
+  if (['grid', 'brick', 'half-drop', 'mirror', 'random', 'diamond', 'toss', 'pinwheel', 'spaced'].includes(String(input.patternRepeat))) output.patternRepeat = input.patternRepeat;
+  for (const [key, min, max] of [['patternMotifScale', 20, 250], ['patternMotifRotation', -180, 180]] as const) if (typeof input[key] === 'number' && Number.isFinite(input[key])) output[key] = Math.max(min, Math.min(max, input[key] as number));
+  if (typeof input.patternGround === 'string' && /^#[\da-f]{6}$/i.test(input.patternGround)) output.patternGround = input.patternGround;
+  if (Array.isArray(input.patternExtraSources)) output.patternExtraSources = input.patternExtraSources.filter(item => item && safePatternSource(item.src) && Number.isFinite(item.width) && Number.isFinite(item.height)).slice(0, 3).map(item => ({ src: item.src, name: String(item.name ?? '').slice(0, 120), width: item.width, height: item.height }));
+  const word = input.patternWord as Record<string, unknown> | undefined;
+  if (word && typeof word.d === 'string' && word.d.length <= 200000 && !/[<>"]/.test(word.d) && typeof word.text === 'string' && typeof word.font === 'string' && Number.isFinite(word.width) && Number.isFinite(word.height)) output.patternWord = { text: word.text.slice(0, 40), font: word.font.slice(0, 80), d: word.d, width: word.width, height: word.height };
+  const sett = input.patternSett as { stripes?: unknown[]; mirror?: unknown; twill?: unknown } | undefined;
+  if (sett && Array.isArray(sett.stripes)) { const stripes = (sett.stripes as { color?: unknown; width?: unknown }[]).filter(item => Number.isInteger(item?.color) && Number.isFinite(item?.width)).slice(0, 24).map(item => ({ color: Math.max(0, item.color as number), width: Math.max(1, Math.min(120, item.width as number)) })); if (stripes.length >= 2) output.patternSett = { stripes, mirror: sett.mirror !== false, twill: sett.twill !== false }; }
+  const fit = input.patternFit as { mode?: unknown; across?: unknown; down?: unknown } | undefined;
+  if (fit && (fit.mode === 'width' || fit.mode === 'panel')) output.patternFit = { mode: fit.mode, ...(Number.isFinite(fit.across) ? { across: Math.max(1, Math.min(64, fit.across as number)) } : {}), ...(Number.isFinite(fit.down) ? { down: Math.max(1, Math.min(64, fit.down as number)) } : {}) };
   return output as PatternPatch;
 }
 
@@ -61,6 +70,7 @@ export function initialPatternSettings(id: string, color?: string): PatternPatch
     patternRoughness: 50, patternVariation: 50,patternTileCm:undefined,patternSeamCheck:undefined, patternSource: undefined, patternSourceName: undefined,
     patternSourceWidth: undefined, patternSourceHeight: undefined, patternRepeat: 'grid',
     patternRandomPosition: 70, patternRandomRotation: 0, patternMinScale: 70, patternMaxScale: 130,
+    patternExtraSources: undefined, patternMotifScale: undefined, patternMotifRotation: undefined, patternGround: undefined, patternWord: undefined, patternSett: undefined, patternFit: undefined,
   };
 }
 
@@ -75,7 +85,7 @@ export function changePatternType(element: DesignElement, id: string): PatternPa
 }
 
 export function customPatternSettings(source: CustomPatternSource): PatternPatch {
-  return { patternSource: source.src, patternSourceName: source.name, patternSourceWidth: source.width, patternSourceHeight: source.height };
+  return { patternSource: source.src, patternSourceName: source.name, patternSourceWidth: source.width, patternSourceHeight: source.height, patternExtraSources: undefined };
 }
 
 export function isSelectedPattern(element?: DesignElement | null) {

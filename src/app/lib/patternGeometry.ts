@@ -1,3 +1,4 @@
+export type PatternLayout = 'grid' | 'brick' | 'half-drop' | 'mirror' | 'random' | 'diamond' | 'toss' | 'pinwheel' | 'spaced';
 export interface PatternSettings {
   type?: string;
   content?: string;
@@ -19,7 +20,17 @@ export interface PatternSettings {
   patternSourceName?: string;
   patternSourceWidth?: number;
   patternSourceHeight?: number;
-  patternRepeat?: 'grid' | 'brick' | 'half-drop' | 'mirror' | 'random';
+  patternRepeat?: PatternLayout;
+  /** Further motifs in a custom repeat, used in turn. */
+  patternExtraSources?: { src: string; name: string; width: number; height: number }[];
+  patternMotifScale?: number;
+  patternMotifRotation?: number;
+  /** Solid colour behind a custom repeat. */
+  patternGround?: string;
+  patternWord?: import('./patternsPro').PatternWord;
+  patternSett?: import('./patternsPro').TartanSett;
+  /** Whole repeats across a panel. */
+  patternFit?: { mode: 'width' | 'panel'; across?: number; down?: number };
   patternRandomPosition?: number;
   patternRandomRotation?: number;
   patternMinScale?: number;

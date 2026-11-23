@@ -2,6 +2,7 @@ import {textileCamouflage} from './textileCamouflage';
 import { patternKind, type PatternSettings } from './patternGeometry';
 import { patternDefaultColors, patternDefinition } from './patternCatalog';
 import { fashionPatternTile } from './fashionPatterns';
+import { spread } from './patternsPro';
 
 export type PatternPrimitive =
   | { tag: 'path'; d: string; fill?: number | 'none'; stroke?: number; strokeWidth?: number; opacity?: number;transform?:string }
@@ -130,7 +131,7 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
   const randomType = definition?.randomise === true;
   const fine = ['noise', 'grain', 'dither', 'distressed'].includes(kind);
   const repeat = settings.patternRepeat ?? 'grid';
-  const divisions = kind === 'custom' ? (repeat === 'random' ? 4 : 2) : fine || kind === 'leopard' ? 8 : randomType ? 4 : 2;
+  const divisions = kind === 'custom' ? (repeat === 'random' || repeat === 'spaced' ? 4 : 2) : fine || kind === 'leopard' ? 8 : randomType ? 4 : 2;
   const tileWidth = pitchX * divisions;
   const tileHeight = pitchY * divisions;
   const defaults = patternDefaultColors(kind);
@@ -140,9 +141,9 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
   const source = safePatternSource(settings.patternSource);
   const sourceWidth = bound(settings.patternSourceWidth, 1, 1, 100000);
   const sourceHeight = bound(settings.patternSourceHeight, 1, 1, 100000);
-  const sourceAspect = sourceWidth / sourceHeight;
-  const imageWidth = Math.min(1, sourceAspect);
-  const imageHeight = Math.min(1, 1 / sourceAspect);
+  const customMotifs = source ? [{ src: source, width: sourceWidth, height: sourceHeight }, ...(settings.patternExtraSources ?? []).flatMap(item => { const src = safePatternSource(item.src); return src ? [{ src, width: bound(item.width, 1, 1, 100000), height: bound(item.height, 1, 1, 100000) }] : []; })].slice(0, 4) : [];
+  const motifScale = bound(settings.patternMotifScale, 100, 20, 250) / 100, motifTurn = bound(settings.patternMotifRotation, 0, -180, 180);
+  const evenPoints = kind === 'custom' && repeat === 'spaced' ? spread(divisions * divisions, 1, random) : [];
   const add = (x: number, y: number, primitives: PatternPrimitive[], rotation = 0, sx = cell, sy = cell, localRadius = 1.25) => {
     motifs.push({ id: motifs.length, x, y, rotation, scaleX: sx, scaleY: sy,
       radius: localRadius * Math.max(Math.abs(sx), Math.abs(sy)), primitives });
@@ -155,16 +156,21 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
     const jitter = () => (random() - .5) * variation;
     if (kind === 'custom') {
       if (!source) continue;
+      if (repeat === 'diamond' && (row + column) % 2) continue;
+      if (repeat === 'spaced') { const point = evenPoints[row * divisions + column]; x = point[0] * tileWidth; y = point[1] * tileHeight; }
       if (repeat === 'brick' && row % 2) x += pitchX / 2;
       if (repeat === 'half-drop' && column % 2) y += pitchY / 2;
       const scattered = repeat === 'random';
       const position = bound(settings.patternRandomPosition, 70, 0, 100) / 100;
-      const rotation = scattered ? (random() * 2 - 1) * bound(settings.patternRandomRotation, 30, 0, 180) : 0;
+      const entry = customMotifs.length > 1 ? customMotifs[scattered || repeat === 'spaced' ? Math.floor(random() * customMotifs.length) : (row + column * (repeat === 'diamond' ? 0 : 1) + (repeat === 'diamond' ? Math.floor(column / 2) : 0)) % customMotifs.length] : customMotifs[0];
+      const aspect = entry.width / entry.height, imageWidth = Math.min(1, aspect), imageHeight = Math.min(1, 1 / aspect);
+      const layoutTurn = repeat === 'pinwheel' ? (row % 2 ? (column % 2 ? 180 : 270) : (column % 2 ? 90 : 0)) : repeat === 'toss' && (row + column) % 2 ? 180 : 0;
+      const rotation = (scattered ? (random() * 2 - 1) * bound(settings.patternRandomRotation, 30, 0, 180) : 0) + layoutTurn + motifTurn;
       const first = bound(settings.patternMinScale, 70, 10, 300);
       const last = bound(settings.patternMaxScale, 130, 10, 300);
-      const imageScale = scattered ? (Math.min(first, last) + random() * Math.abs(last - first)) / 100 : 1;
+      const imageScale = (scattered ? (Math.min(first, last) + random() * Math.abs(last - first)) / 100 : 1) * motifScale;
       if (scattered) { x += (random() - .5) * pitchX * position; y += (random() - .5) * pitchY * position; }
-      add(x, y, [{ tag: 'image', href: source, x: -imageWidth / 2, y: -imageHeight / 2, width: imageWidth, height: imageHeight }],
+      add(x, y, [{ tag: 'image', href: entry.src, x: -imageWidth / 2, y: -imageHeight / 2, width: imageWidth, height: imageHeight }],
         rotation, cell * imageScale * (repeat === 'mirror' && column % 2 ? -1 : 1),
         cell * imageScale * (repeat === 'mirror' && row % 2 ? -1 : 1), .72);
       continue;
@@ -359,7 +365,8 @@ export function generatedPatternGeometry(settings: PatternSettings): GeneratedPa
     }
     if (primitives.length) add(x, y, primitives);
   }
+  const ground = kind === 'custom' && /^#[\da-f]{6}$/i.test(settings.patternGround ?? '') ? settings.patternGround! : undefined;
   return { kind, width, height, tileWidth, tileHeight,
-    angle: bound(settings.patternRotation, 0, -360, 360), colors, background, motifs,
+    angle: bound(settings.patternRotation, 0, -360, 360), colors: ground ? [...colors, ground] : colors, background: ground ? colors.length : background, motifs,
     replicas: periodicReplicas(motifs, tileWidth, tileHeight) };
 }

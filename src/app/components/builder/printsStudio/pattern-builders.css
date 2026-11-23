@@ -1,0 +1,55 @@
+/* Word repeat, tartan builder, fit to panel and pattern maker. */
+.cx-word{display:grid;gap:7px}
+.cx-word input{width:100%;height:36px;padding:0 10px;border:1px solid #dadad7;border-radius:7px;background:#fff;color:#1f1f1d;font-size:14px}
+.cx-word p{margin:0;color:#b42318;font-size:12px}
+.cx-sett{display:grid;gap:10px}
+.cx-sett-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.ceriga-builder-shell .builder-inspector .cx-sett-presets button{display:grid;gap:3px;min-width:0;padding:3px;border:1px solid #e6e6e3;border-radius:7px;background:#fff;color:#3f3f3c;transition:border-color .15s ease-out}
+.ceriga-builder-shell .builder-inspector .cx-sett-presets button:hover{border-color:#8d8d89}
+.cx-sett-presets span{display:flex;height:22px;overflow:hidden;border-radius:4px}
+.cx-sett-presets i{display:block;flex-basis:0}
+.cx-sett-presets small{overflow:hidden;font-size:10px;text-align:center;text-overflow:ellipsis;white-space:nowrap}
+.cx-sett-strip{display:flex;height:40px;border-radius:6px;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .1)}
+.ceriga-builder-shell .builder-inspector .cx-sett-strip>button{position:relative;flex-basis:0;min-width:4px;height:40px;min-height:0;padding:0;border:0;border-radius:0}
+.ceriga-builder-shell .builder-inspector .cx-sett-strip>button[aria-pressed=true]{z-index:1;box-shadow:0 0 0 2px #2F6FED}
+.cx-sett-strip b{position:absolute;top:0;right:-5px;z-index:2;width:10px;height:100%;cursor:ew-resize;touch-action:none}
+.cx-sett-strip b::after{content:"";position:absolute;top:12px;bottom:12px;left:4px;width:2px;border-radius:2px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .35)}
+.cx-sett-full{display:flex;height:8px;overflow:hidden;border-radius:3px}
+.cx-sett-full i{display:block;height:100%}
+.cx-sett-colours{display:flex;flex-wrap:wrap;gap:6px}
+.ceriga-builder-shell .builder-inspector .cx-sett-colours button{width:24px;height:24px;min-height:0;padding:0;border:2px solid #fff;border-radius:999px;box-shadow:0 0 0 1px rgb(0 0 0 / .16)}
+.ceriga-builder-shell .builder-inspector .cx-sett-colours button[aria-pressed=true]{box-shadow:0 0 0 2px #1f1f1d}
+.cx-sett-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.ceriga-builder-shell .builder-inspector .cx-sett-actions button{display:inline-flex;align-items:center;justify-content:center;height:30px;min-height:0;padding:0;border:1px solid #dadad7;border-radius:6px;background:#fff;color:#3f3f3c}
+.ceriga-builder-shell .builder-inspector .cx-sett-actions button:disabled{opacity:.4}
+.cx-pattern-fit{display:grid;gap:8px;margin-bottom:10px}
+.cx-pattern-fit__modes{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px;border-radius:7px;background:#f6f6f4}
+.ceriga-builder-shell .builder-inspector .cx-pattern-fit__modes button{height:28px;min-height:0;padding:0 4px;border:0;border-radius:5px;background:transparent;color:#737370;font-size:12px}
+.ceriga-builder-shell .builder-inspector .cx-pattern-fit__modes button[aria-pressed=true]{background:#fff;color:#1f1f1d;box-shadow:0 0 0 1px rgb(0 0 0 / .08)}
+.cx-repeat{display:grid;gap:8px}
+.ceriga-builder-shell .builder-inspector .cx-repeat__layouts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.ceriga-builder-shell .builder-inspector .cx-repeat__layouts button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;height:auto;min-height:0;padding:5px 2px;border:1px solid #e6e6e3;border-radius:7px;background:#fff;color:#3f3f3c;font-size:11px}
+.ceriga-builder-shell .builder-inspector .cx-repeat__layouts button[aria-pressed=true]{border-color:#1f1f1d;background:#f6f6f4;color:#1f1f1d}
+.cx-repeat__layouts svg{display:block;width:40px;height:30px;flex-shrink:0}
+.cx-repeat__ground{display:flex;align-items:center;justify-content:space-between;min-height:30px;color:#3f3f3c;font-size:13px}
+.cx-repeat__ground label{display:inline-flex;align-items:center;gap:7px}
+.cx-repeat__ground input[type=color]{width:26px;height:26px;padding:0;overflow:hidden;border:1px solid #dadad7;border-radius:999px;background:none;cursor:pointer}
+.cx-repeat__ground input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+.cx-repeat__ground input[type=color]::-webkit-color-swatch{border:0;border-radius:999px}
+.cx-maker{display:grid;gap:9px}
+.cx-maker p{margin:0;color:#737370;font-size:12px}
+.cx-maker p[role=alert]{color:#b42318}
+.cx-maker__drop{display:flex;align-items:center;justify-content:center;gap:8px;min-height:64px;border:1px dashed #bdbdb8;border-radius:9px;background:#fafaf8;color:#3f3f3c;font-size:13px;cursor:pointer;transition:border-color .15s ease-out,background-color .15s ease-out}
+.cx-maker__drop:hover,.cx-maker__drop[data-over]{border-color:#1f1f1d;background:#f2f2ef}
+.cx-maker__drop[data-disabled]{opacity:.55;cursor:default}
+.cx-maker__drop svg{flex-shrink:0}
+.cx-maker__uploads{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.ceriga-builder-shell .builder-inspector .cx-maker__uploads button{aspect-ratio:1;min-height:0;height:auto;padding:2px;border:1px solid #e6e6e3;border-radius:5px;background:#f6f6f4}
+.cx-maker__uploads img{display:block;width:100%;height:100%;object-fit:contain}
+.cx-maker__motifs{display:flex;gap:6px}
+.cx-maker__motifs>div{position:relative;width:48px;height:48px;padding:3px;border:1px solid #e6e6e3;border-radius:7px;background:#f6f6f4}
+.cx-maker__motifs img{display:block;width:100%;height:100%;object-fit:contain}
+.ceriga-builder-shell .builder-inspector .cx-maker__motifs button{position:absolute;top:-6px;right:-6px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-height:0;padding:0;border:0;border-radius:999px;background:#fff;color:#737370;box-shadow:0 0 0 1px rgb(0 0 0 / .14)}
+.cx-maker__preview{height:150px;overflow:hidden;border-radius:8px;background:#f6f6f4;box-shadow:inset 0 0 0 1px rgb(0 0 0 / .06)}
+.ceriga-builder-shell .builder-inspector .cx-maker__create{height:36px;border:0;border-radius:8px;background:#1f1f1d;color:#fff;font-size:13px}
+.ceriga-builder-shell .builder-inspector .cx-maker__create:disabled{opacity:.5}

@@ -1,3 +1,5 @@
+import { PRO_PATTERN_DEFINITIONS, PRO_PATTERN_PALETTES, isProPattern } from './patternsPro';
+
 export interface PatternDefinition {
   id: string;
   label: string;
@@ -18,6 +20,10 @@ export interface PatternDefinition {
   /** Pattern Amount label, because amount means repeats, shapes or contour lines per pattern. */
   amountLabel?: string;
   defaultCount?: number;
+  /** Built by the textile engine in patternsPro. */
+  pro?: boolean;
+  /** Replaced by a better pattern: hidden from galleries, but saved designs keep rendering. */
+  retired?: boolean;
 }
 export interface PatternOption { key: string; label: string; min: number; max: number; value: number; step?: number; suffix?: string }
 export interface PatternChoice { key: string; label: string; value: string; options: { value: string; label: string }[] }
@@ -37,7 +43,7 @@ const geometric = (id: string, label: string, thickness = true): PatternDefiniti
 const texture = (id: string, label: string, category: string, colors?: string[]): PatternDefinition =>
   ({ id, label, category, colors, randomise: true, roughness: true, variation: true });
 
-export const PATTERN_CATALOG: readonly PatternDefinition[] = [
+const BASE_PATTERNS: readonly PatternDefinition[] = [
   classic('stripes', 'Stripes'), classic('stripes-h', 'Horizontal Stripes'), classic('diagonal', 'Diagonal'),
   { ...classic('checks', 'Checks'), thickness: false }, { ...classic('dots', 'Dots'), randomise: true },
   geometric('pinstripes', 'Pinstripes'), geometric('grid', 'Grid'), geometric('diamonds', 'Diamonds'),
@@ -91,6 +97,12 @@ export const PATTERN_CATALOG: readonly PatternDefinition[] = [
   geometric('pixel-grid', 'Pixel Grid'),
   { id: 'custom', label: 'Custom Pattern', category: 'Custom', randomise: true },
 ];
+const RETIRED = new Set(['graffiti', 'tribal', 'camo']);
+export const PATTERN_CATALOG: readonly PatternDefinition[] = [
+  ...BASE_PATTERNS.filter(item => item.id !== 'custom' && !isProPattern(item.id)).map(item => RETIRED.has(item.id) ? { ...item, retired: true } : item),
+  ...PRO_PATTERN_DEFINITIONS,
+  ...BASE_PATTERNS.filter(item => item.id === 'custom'),
+];
 
 const definitions = new Map(PATTERN_CATALOG.map(definition => [definition.id, definition]));
 export const patternDefinition = (id: string): PatternDefinition | undefined => definitions.get(id);
@@ -108,10 +120,9 @@ const palettes: Record<string, string[]> = {
   tartan: ['#743B43', '#263C35', '#354453', '#C8B78B'],
   argyle: ['#D85C65', '#EFE4CE', '#31465B', '#FFFFFF'],
   camo: ['#617049', '#A9A17B', '#8A8D57', '#343D30'],
-  'digital-camo': ['#617049', '#B9B293', '#888B64', '#343D30'],
   cow: ['#252525', '#F8F4E9'], leopard: ['#302119', '#D9B16E', '#AB703C'],
-  zebra: ['#202020', '#F5F0E3'], snake: ['#424D33', '#B5B687', '#7C8960'],
-  flames: ['#F45B27', '#FFD35C'], graffiti: ['#EE438B', '#38C5DA', '#F6D456'],
+  graffiti: ['#EE438B', '#38C5DA', '#F6D456'],
+  ...PRO_PATTERN_PALETTES,
 };
 
 /** Returns a fresh array so UI palette edits never mutate catalog defaults. */

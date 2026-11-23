@@ -7,6 +7,7 @@ import { PATTERN_CATALOG, patternDefinition } from '../../../lib/patternCatalog'
 import { changePatternType, customPatternSettings, initialPatternSettings, isSelectedPattern, selectedPatternKind, type CustomPatternSource, type PatternPatch } from '../../../lib/patternEditing';
 import { PatternGraphic } from './PatternGraphic';
 import { PatternControls } from './PatternControls';
+import { PatternMaker } from './PatternMaker';
 import { useAssetWorkspaceContext } from './AssetWorkspace';
 import { beginPatternDrag } from './studioAssets';
 
@@ -58,11 +59,11 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
   return <div className="space-y-4" data-pattern-library>
     <p className="text-[10px] leading-relaxed text-[#737373]">Choose a style or drag its preview onto a garment part or closed Custom Area. Select a pattern to edit it.</p>
     {!customOnly&&<details open className="space-y-3"><summary className="cursor-pointer text-xs font-semibold text-[#737373]">Pattern styles</summary>
-    {PATTERN_CATALOG.filter(item => item.id !== 'custom').reduce<string[]>((categories, item) => categories.includes(item.category) ? categories : [...categories, item.category], []).map(category =>
+    {PATTERN_CATALOG.filter(item => item.id !== 'custom' && !item.retired).reduce<string[]>((categories, item) => categories.includes(item.category) ? categories : [...categories, item.category], []).map(category =>
       <section key={category} className="space-y-2">
         <h4 className="text-[10px] font-semibold uppercase tracking-wider text-[#737373]">{category}</h4>
         <div className="grid grid-cols-3 gap-1.5">
-          {PATTERN_CATALOG.filter(item => item.category === category && item.id !== 'custom').map(item => {
+          {PATTERN_CATALOG.filter(item => item.category === category && item.id !== 'custom' && !item.retired).map(item => {
             const settings = {...initialPatternSettings(item.id, color),patternSeed:1729};
             const preview = { ...settings, id: `preview-${item.id}`, type: 'pattern', content: item.id, x: 0, y: 0, width: 96, height: 72, rotation: 0, patternSeed: 1729 } as DesignElement;
             return <button key={item.id} type="button" draggable={!locked} disabled={locked} aria-label={item.label} data-pattern-card={item.id} aria-pressed={kind === item.id}
@@ -76,42 +77,8 @@ export function PatternLibraryPanel({ customOnly = false, color, selected, onCha
         </div>
       </section>)}
     </details>}
-    <button type="button" className={`${buttonClass} w-full`} aria-expanded={customOpen || custom} onClick={() => setCustomOpen(value => !value)}>Custom Pattern</button>
-    {(customOpen || custom) && <section className="space-y-3 rounded-lg border border-[#e2e2e2] p-3" aria-label="Custom Pattern source">
-      <p className="text-[10px] text-[#737373]">Choose an image, saved asset (including Asset Builder), or design layer. The original stays unchanged; the repeat uses an editable source snapshot.</p>
-      <label className={`${buttonClass} block cursor-pointer text-center`}>Upload pattern image
-        <input type="file" accept="image/*" aria-label="Upload pattern image" className="sr-only" disabled={busy || locked} onChange={event => {
-          const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
-          void load(async () => {
-            if (!file.type.startsWith('image/')) throw new Error('Choose an image file.');
-            const src = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('The file could not be read.')); reader.readAsDataURL(file); });
-            return sourceFromImage(src, file.name);
-          });
-        }} />
-      </label>
-      <label className="block space-y-1 text-[10px] text-[#737373]">Uploaded images
-        <MaterialSelect aria-label="Pattern uploaded image" value="" disabled={busy || locked || !uploads.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = uploads.find(upload => upload.id === event.target.value); if (item) void load(() => sourceFromImage(item.dataUrl, item.name)); }}>
-          <option value="">Select uploaded image</option>{uploads.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </MaterialSelect>
-      </label>
-      <label className="block space-y-1 text-[10px] text-[#737373]">My Assets / Asset Builder
-        <MaterialSelect aria-label="Pattern saved asset" value="" disabled={busy || locked || !workspace?.library.length} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { const item = workspace?.library.find(asset => asset.id === event.target.value); if (item) void load(() => nativeArtworkSource(item.elements,item.name)); }}>
-          <option value="">Select saved asset</option>{workspace?.library.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </MaterialSelect>
-      </label>
-      <label className="block space-y-1 text-[10px] text-[#737373]">Design layer
-        <MaterialSelect aria-label="Pattern design layer" value="" disabled={busy || locked || !layers.length || !onCaptureLayer} className={`${buttonClass} w-full bg-[#171717]`} onChange={event => { if (onCaptureLayer && event.target.value) { const id = event.target.value; void load(() => onCaptureLayer(id)); } }}>
-          <option value="">Select graphic layer</option>{layers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </MaterialSelect>
-      </label>
-      {busy && <p role="status" className="text-xs text-[#737373]">Preparing source…</p>}
-      {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
-      {(source || selected?.patternSource) && <div className="flex items-center gap-2 text-[10px] text-[#737373]">
-        <img src={source?.src ?? selected?.patternSource} className="h-12 w-12 rounded bg-[#f2f2f2] object-contain" alt="Pattern source" />
-        <span className="break-all">{source?.name ?? selected?.patternSourceName ?? 'Custom image'}</span>
-      </div>}
-      <button type="button" disabled={!source || busy || locked} onClick={create} className={`${buttonClass} w-full`}>{custom ? 'Replace pattern source' : 'Create Pattern'}</button>
-    </section>}
+    {!customOnly && <button type="button" className={`${buttonClass} w-full`} aria-expanded={customOpen || custom} onClick={() => setCustomOpen(value => !value)}>Custom Pattern</button>}
+    {(customOnly || customOpen || custom) && <PatternMaker color={color} selected={selected} onChange={onChange} onPlace={onPlace} uploads={uploads} layers={layers} onCaptureLayer={onCaptureLayer} />}
     {patterned && selected && <section className="space-y-3 border-t border-[#e2e2e2] pt-3">
       <h4 className="text-[10px] font-semibold uppercase text-[#737373]">Selected pattern</h4>
       <div draggable={!selected.locked && (!custom || !!selected.patternSource)} onDragStart={event => drag(event, kind!, selected)}
