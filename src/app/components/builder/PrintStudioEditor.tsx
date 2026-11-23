@@ -2,6 +2,7 @@ import { RepeatCentreHandle } from './artwork-engine/interaction/RepeatCentreHan
 import { ShapeBuilderOverlay } from './artwork-engine/interaction/ShapeBuilderOverlay';
 import { useShapeBuilder } from './artwork-engine/state/shapeBuilder';
 import { ColourFieldHandles } from './artwork-engine/interaction/ColourFieldHandles';
+import { StudioGuidesOverlay } from './artwork-engine/interaction/StudioGuides';
 import { LetterStretchOverlay } from './artwork-engine/interaction/LetterStretchOverlay';
 import { useLiveOverlaps } from './artwork-engine/interaction/useLiveOverlaps';
 import { garmentEdges, refreshEdgeText } from './artwork-engine/geometry/garmentEdges';
@@ -3846,7 +3847,7 @@ export function PrintsDesignPreview({
             }}
           >
             <div className="absolute inset-0 flex items-center justify-center">
-          {assetMode ? <><div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ borderWidth:surfaceContext?0:undefined,backgroundColor: surfaceContext?'transparent':assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: surfaceContext||assetWorkspace?.project?.background ? 'none' : 'conic-gradient(#f5f5f5 25%, transparent 0 50%, #f5f5f5 0 75%, transparent 0)', backgroundSize: '16px 16px' }} />{artboardBackground&&<div className="pointer-events-none absolute inset-0" data-surface-substrate>{artboardBackground}</div>}</> : (
+          {assetMode ? <><div data-asset-artboard-background className="pointer-events-none absolute inset-0 border border-[#e2e2e2]" style={{ borderWidth:surfaceContext?0:undefined,backgroundColor: surfaceContext?'transparent':assetWorkspace?.project?.background ?? '#ffffff', backgroundImage: 'none' }} />{artboardBackground&&<div className="pointer-events-none absolute inset-0" data-surface-substrate>{artboardBackground}</div>}{!surfaceContext&&assetWorkspace?.project&&<StudioGuidesOverlay width={assetWorkspace.project.width} height={assetWorkspace.project.height}/>}</> : (
           <div className="absolute inset-0 z-0 flex items-center justify-center" style={{ pointerEvents: focusArtwork?'none':garmentInteractive ? 'auto' : 'none',visibility:focusArtwork?'hidden':undefined }} data-print-garment-preview>
             {typeof garmentPreview === 'function' ? garmentPreview(sceneScale) : garmentPreview}
           </div>

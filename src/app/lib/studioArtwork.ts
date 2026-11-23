@@ -2,6 +2,7 @@ import type { DesignElement } from '../components/builder/PrintStudioEditor';
 import type { DesignElement as LegacyElement } from '../components/builder/PrintsDesignStep';
 import {applyArtworkSlots} from './artworkColourSlots';
 import {isFabricArtwork} from './artworkProduction';
+import {artworkBounds} from './artworkGeometry';
 import type {ArtworkSlotOverrides} from './artworkColourSlots';
 
 /** Compatibility only: read methods from old saved print areas, never create new ones. */
@@ -45,4 +46,12 @@ export function describeStudioArtwork(element: DesignElement) {
 }
 
 /** Saved assets retain native children; the thumbnail is never the editable source. */
-export function placeNativeStudioAsset(asset:{name:string;width:number;height:number;elements:DesignElement[];preview:string},frame:{id:string;x:number;y:number;width:number;side:'front'|'back'}):DesignElement{const copy=(e:DesignElement):DesignElement=>({...structuredClone(e),id:crypto.randomUUID(),side:frame.side,children:e.children?.filter(c=>!c.tracingReference).map(copy)});return{...frame,type:'group',content:'saved-asset',height:frame.width*asset.height/asset.width,rotation:0,opacity:100,aspectLocked:true,layerName:asset.name,printMethod:'DTG',children:asset.elements.filter(e=>!e.tracingReference).map(copy),groupSourceWidth:asset.width,groupSourceHeight:asset.height};}
+export type AssetPlacement={background?:string;trim?:boolean;side?:'front'|'back';width?:number};
+/** The part of the canvas that goes to the garment: all of it, or just the artwork. */
+export function assetPlacementFrame(asset:{width:number;height:number;elements:DesignElement[]},trim=false){
+ const boxes=trim?asset.elements.filter(e=>!e.hidden&&!e.tracingReference).map(artworkBounds):[];
+ if(!boxes.length)return{x:0,y:0,width:asset.width,height:asset.height};
+ const x=Math.max(0,Math.floor(Math.min(...boxes.map(b=>b.x)))),y=Math.max(0,Math.floor(Math.min(...boxes.map(b=>b.y)))),right=Math.min(asset.width,Math.ceil(Math.max(...boxes.map(b=>b.x+b.width)))),bottom=Math.min(asset.height,Math.ceil(Math.max(...boxes.map(b=>b.y+b.height))));
+ return right>x&&bottom>y?{x,y,width:right-x,height:bottom-y}:{x:0,y:0,width:asset.width,height:asset.height};
+}
+export function placeNativeStudioAsset(asset:{name:string;width:number;height:number;elements:DesignElement[];preview:string},frame:{id:string;x:number;y:number;width:number;side:'front'|'back'},placement:AssetPlacement={}):DesignElement{const copy=(e:DesignElement):DesignElement=>({...structuredClone(e),id:crypto.randomUUID(),side:frame.side,children:e.children?.filter(c=>!c.tracingReference).map(copy)});const area=assetPlacementFrame(asset,placement.trim),art=asset.elements.filter(e=>!e.tracingReference).map(copy).map(e=>({...e,x:e.x-area.x,y:e.y-area.y})),backing:DesignElement[]=placement.background?[{id:crypto.randomUUID(),type:'shape',content:'rect',shapeGeometry:'bounds',shapeParameters:{studioRevision:2},x:area.width/2,y:area.height/2,width:area.width,height:area.height,rotation:0,opacity:100,color:placement.background,shapeFilled:true,shapeFillColor:placement.background,borderWidth:0,aspectLocked:false,layerName:'Background',side:frame.side}]:[];return{...frame,type:'group',content:'saved-asset',height:frame.width*area.height/area.width,rotation:0,opacity:100,aspectLocked:true,layerName:asset.name,printMethod:'DTG',children:[...backing,...art],groupSourceWidth:area.width,groupSourceHeight:area.height};}

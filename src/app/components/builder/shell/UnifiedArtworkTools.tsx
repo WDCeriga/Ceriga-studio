@@ -14,14 +14,14 @@ export function AddArtworkMenu({ onActivate }: { onActivate?: () => void }) {
   if (!workspace || workspace.project) return null;
 
   return <>
-    <h2>Asset workspace</h2>
+    <h2>Asset Studio</h2>
     <button type="button" className="asset-workspace-nav" disabled={!workspace.authReady || workspace.busy} onClick={() => {
       if (workspace.recovery) workspace.resume();
       else workspace.enter();
       onActivate?.();
     }}>
       <Layers size={19} strokeWidth={1.7} aria-hidden="true" />
-      <span>{workspace.recovery ? 'Resume draft' : 'Open workspace'}</span>
+      <span>{workspace.recovery ? 'Resume draft' : 'Open Asset Studio'}</span>
     </button>
   </>;
 }

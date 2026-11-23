@@ -24,6 +24,7 @@ import '../design-system';
 import './builder-shell-cx.css';
 import './builder-light.css';
 import './builder-scale.css';
+import './artwork-panels.css';
 import {PackagingPanelPreviewProvider} from '../PackagingPanelPreviewContext';
 import {useInspectorMemory} from './useInspectorMemory';
 export const BUILDER_SECTIONS = ['Fit & Measurements', 'Materials & Colour', 'Construction', 'Artwork & Graphics', 'Labels & Branding', 'Packaging', 'Order & quantities'] as const;

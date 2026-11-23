@@ -1,0 +1,50 @@
+/* Shared Artwork and Asset Studio panels: one calm surface language for every tool. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"]{--ap-ink:#1f1f1d;--ap-text:#3f3f3c;--ap-muted:#7b7b77;--ap-line:#ececE9;--ap-soft:#f6f6f4;--ap-hover:#efefec;--ap-radius:9px}
+
+@media(min-width:768px){
+  /* Canvas rail: icons only, with names in the tooltip. */
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .print-design-canvas>.artwork-canvas-tools{gap:2px;width:44px;padding:4px;border:0;border-radius:12px;background:#fff;box-shadow:0 0 0 1px rgb(0 0 0 / .06),0 1px 2px -1px rgb(0 0 0 / .08),0 6px 16px rgb(0 0 0 / .06)}
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools button{display:grid;place-items:center;width:36px;height:34px;min-height:34px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--ap-text);transition:background-color 120ms ease-out,color 120ms ease-out}
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools button>span,.ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools .shape-tool-paint>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools button:hover:enabled{background:var(--ap-soft);color:var(--ap-ink)}
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools button[aria-pressed=true]{background:var(--ap-ink);color:#fff}
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools button:disabled{opacity:.3}
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools>i{display:block;width:20px;height:1px;margin:3px 8px;background:var(--ap-line)}
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools .shape-tool-paint{display:grid;place-items:center;width:36px;height:34px;padding:0}
+}
+
+/* Right panel. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-header{min-height:0;padding-bottom:10px;border-bottom:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-header :is(h1,h2){font-size:17px;font-weight:500;letter-spacing:-.01em}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-fold{border:0;border-bottom:1px solid var(--ap-line)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-fold>summary{min-height:40px;color:var(--ap-ink);font-size:13px;font-weight:400}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-fold>summary small{color:var(--ap-muted);font-size:11px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-fold>summary>svg{color:#a3a3a0;transition:transform 150ms ease-out}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-fold[open]>summary>svg{transform:rotate(180deg)}
+
+/* Cards and option buttons share one quiet edge. Selected states keep their own styling. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main button:not([aria-pressed=true],[aria-checked=true],[aria-selected=true],[data-state=on],[data-state=checked],.is-selected,.is-active,.studio-solid-action,.studio-paint-trigger,[style*="background"]){border-color:var(--ap-line)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main :is(.shape-choice-card,.artwork-saved-card,.artwork-upload-action,.studio-outline-action,.material-select-trigger){border-radius:var(--ap-radius)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main :is(.shape-choice-card,.studio-outline-action,.artwork-upload-action):hover:enabled{background:var(--ap-soft)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main textarea{border-color:var(--ap-line);border-radius:var(--ap-radius);background:var(--ap-soft)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main textarea:focus{border-color:#a3a3a0;background:#fff;outline:0}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-solid-action{border-radius:var(--ap-radius)}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-layer-dock{border-top:1px solid var(--ap-line)}
+
+/* Every panel title starts at the same height. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-header{padding-top:0!important}
+
+/* Value and unit read as one small field. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-slider-value{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;width:auto;min-width:48px;height:26px;padding:0 7px;border:1px solid var(--ap-line);border-radius:7px;background:var(--ap-soft);font-variant-numeric:tabular-nums}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-slider-value:focus-within{border-color:#a3a3a0;background:#fff}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-slider-value>*{height:auto;min-height:0;padding:0;border:0!important;border-radius:0;background:transparent!important;box-shadow:none!important;color:var(--ap-text);font-size:12px}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-slider-value>input{width:4ch;outline:0;text-align:right;-moz-appearance:textfield}
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .studio-inspector-main .studio-slider-value>input::-webkit-inner-spin-button{display:none}
+
+@media(min-width:768px){
+  /* The colour stays visible even when it matches the rail. */
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] .artwork-canvas-tools .shape-tool-paint button{width:24px;height:24px;min-height:24px;border-radius:50%;box-shadow:0 0 0 1px rgb(0 0 0 / .18),0 0 0 3px #fff,0 0 0 4px rgb(0 0 0 / .08)}
+}
+@media(prefers-reduced-motion:reduce){
+  .ceriga-builder-shell[data-section="Artwork & Graphics"] :is(.artwork-canvas-tools button,.studio-fold>summary>svg){transition:none}
+}

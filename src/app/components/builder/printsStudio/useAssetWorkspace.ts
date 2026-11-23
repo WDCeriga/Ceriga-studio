@@ -1,5 +1,5 @@
 import {artworkBounds} from '../../../lib/artworkGeometry';
-import {placeNativeStudioAsset} from '../../../lib/studioArtwork';
+import {placeNativeStudioAsset,type AssetPlacement} from '../../../lib/studioArtwork';
 import {setFontWorkspace} from '../../../lib/workspaceFonts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -15,7 +15,7 @@ const signature = (project: AssetProject) => JSON.stringify([project.name, proje
 const clone = <T,>(value: T): T => structuredClone(value);
 const message = (error: unknown) => error instanceof Error ? error.message : 'The asset could not be saved. Please retry.';
 
-export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (asset: AssetProject, point?: Point) => void }) {
+export function useAssetWorkspace({ onPlaceOnGarment, garmentSide = 'front' }: { onPlaceOnGarment: (asset: AssetProject, point?: Point, placement?: AssetPlacement) => void; garmentSide?: 'front' | 'back' }) {
   const { user, authReady } = useAuth();
   const userId = user?.id ?? null;
   useEffect(()=>{if(authReady)void setFontWorkspace(userId).catch(()=>{});},[userId,authReady]);
@@ -30,6 +30,7 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
   const [future, setFuture] = useState<Snapshot[]>([]);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
+  const pendingPlacement = useRef<AssetPlacement | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [library, setLibrary] = useState<AssetProject[]>([]);
@@ -114,9 +115,11 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
     if (dirty) setConfirmBack(true);
     else { updateSnapshot(null); void clearDraft().catch(error => setError(message(error))); }
   }, [dirty, clearDraft, updateSnapshot]);
-  const save = useCallback(async (asNew = false, suppliedName?: string) => {
+  const save = useCallback(async (asNew = false, suppliedName?: string, placement?: AssetPlacement) => {
     const current = snapshotRef.current;
     if (!current || busyRef.current) return;
+    // A name prompt finishes the same trip to the garment, so it keeps these choices.
+    if (suppliedName === undefined) pendingPlacement.current = placement;
     const name = (suppliedName ?? current.project.name).trim();
     if (!name || name === 'Untitled Asset') { setNameInput(''); setNameRequest({ asNew }); return; }
     busyRef.current = true; setBusy(true); setError(null); setNameRequest(null); setConfirmBack(false);
@@ -129,7 +132,8 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
       setLibrary(items => [saved, ...items.filter(item => item.id !== saved.id)]);
       await clearDraft();
       setRecovery(null); updateSnapshot(null); setPast([]); setFuture([]);
-      onPlaceOnGarment(saved);
+      onPlaceOnGarment(saved, undefined, pendingPlacement.current);
+      pendingPlacement.current = undefined;
     } catch (error) { setError(message(error)); }
     finally { busyRef.current = false; setBusy(false); }
   }, [scope, userId, clearDraft, onPlaceOnGarment, updateSnapshot]);
@@ -150,5 +154,5 @@ export function useAssetWorkspace({ onPlaceOnGarment }: { onPlaceOnGarment: (ass
       const now=new Date().toISOString(),asset=await saveAssetProject({id:crypto.randomUUID(),name:name.trim(),width:w,height:h,elements:content,preview,createdAt:now,updatedAt:now},userId);if(scopeRef.current===capturedScope)setLibrary(items=>[asset,...items]);return asset;
     }catch(error){setError(message(error));throw error}finally{busyRef.current=false;setBusy(false)}
   },[scope,userId,authReady]);
-  return { saveSelectionToLibrary,project, selectedId: snapshot?.selectedId ?? null, select, change, changeProject, undo, redo, canUndo: !busy && past.length > 0, canRedo: !busy && future.length > 0, busy, dirty, enter, back, save, insert, library, error, libraryError, recovery, resume, confirmBack, setConfirmBack, discard, nameRequest, setNameRequest, nameInput, setNameInput, authReady };
+  return { garmentSide, saveSelectionToLibrary,project, selectedId: snapshot?.selectedId ?? null, select, change, changeProject, undo, redo, canUndo: !busy && past.length > 0, canRedo: !busy && future.length > 0, busy, dirty, enter, back, save, insert, library, error, libraryError, recovery, resume, confirmBack, setConfirmBack, discard, nameRequest, setNameRequest, nameInput, setNameInput, authReady };
 }

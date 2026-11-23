@@ -904,10 +904,11 @@ function BuilderContent() {
   const [colourScope, setColourScope] = useState<'part' | 'group' | 'category'>('part');
   const [pendingMaterialDrop, setPendingMaterialDrop] = useState<{ partId: string; material: MaterialDrop; ids: string[]; group: string } | null>(null);
   const garmentView = showFront ? 'front' : 'back';
-  const studioAssetWorkspace = useAssetWorkspace({onPlaceOnGarment: (asset, point) => {
+  const studioAssetWorkspace = useAssetWorkspace({garmentSide:garmentView,onPlaceOnGarment: (asset, point, placement) => {
     const zone=document.querySelector('[data-print-design-zone]') as HTMLElement|null;
-    const width=140, id=`asset-${crypto.randomUUID()}`;
-    setState(prev=>({...prev, studioArtwork:[...(prev.studioArtwork??prev.prints.map(el=>({...el,side:(el.view==='back'?'back':'front') as 'front'|'back'}))),placeNativeStudioAsset(asset,{id,x:point?.x??(zone?.clientWidth??400)/2,y:point?.y??(zone?.clientHeight??400)/2,width,side:garmentView})],printsLayerSelectedId:id}));
+    const width=placement?.width??140, side=placement?.side??garmentView, id=`asset-${crypto.randomUUID()}`;
+    if(side!==garmentView)setShowFront(side==='front');
+    setState(prev=>({...prev, studioArtwork:[...(prev.studioArtwork??prev.prints.map(el=>({...el,side:(el.view==='back'?'back':'front') as 'front'|'back'}))),placeNativeStudioAsset(asset,{id,x:point?.x??(zone?.clientWidth??400)/2,y:point?.y??(zone?.clientHeight??400)/2,width,side},placement)],printsLayerSelectedId:id}));
   }});
 
   const [stitchRegion, setStitchRegion] = useState<StitchRegion>('neckline');
