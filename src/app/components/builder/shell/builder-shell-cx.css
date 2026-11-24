@@ -170,3 +170,8 @@ html[data-builder-device] :is([data-radix-popper-content-wrapper],[role=menu],[r
 html[data-builder-device] :is([data-radix-popper-content-wrapper],[role=menu],[role=listbox],[role=dialog],.cx-context-menu){scrollbar-width:none}
 html[data-builder-device] :is([data-radix-popper-content-wrapper],[role=menu],[role=listbox],[role=dialog],.cx-context-menu) ::-webkit-scrollbar,
 html[data-builder-device] :is([role=menu],[role=listbox],[role=dialog],.cx-context-menu)::-webkit-scrollbar{display:none;width:0;height:0}
+
+/* Every section panel opens with just its title, matching Labels, Packaging and Orders. Short copy, no studio eyebrow. */
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.materials-heading,.builder-inspector-heading)>.builder-eyebrow,
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.materials-heading,.builder-inspector-heading)>p{display:none!important}
+.ceriga-builder-shell.ceriga-builder-shell .builder-inspector :is(.materials-heading,.builder-inspector-heading){min-height:0;margin:0;padding:0 0 10px;border:0}
