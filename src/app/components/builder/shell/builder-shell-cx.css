@@ -165,3 +165,8 @@ html[data-artwork-focus] .ceriga-builder-shell :is(.builder-sidebar, .builder-in
 /* No visible scrollbars anywhere in the Builder. Panels still scroll with wheel, trackpad, touch and keyboard. */
 .ceriga-builder-shell,.ceriga-builder-shell *{scrollbar-width:none}
 .ceriga-builder-shell ::-webkit-scrollbar,.ceriga-builder-shell::-webkit-scrollbar{display:none;width:0;height:0}
+/* Menus, popovers and dialogs open outside the shell, so hide their scrollbars too while the Builder is open. */
+html[data-builder-device] :is([data-radix-popper-content-wrapper],[role=menu],[role=listbox],[role=dialog],.cx-context-menu) *,
+html[data-builder-device] :is([data-radix-popper-content-wrapper],[role=menu],[role=listbox],[role=dialog],.cx-context-menu){scrollbar-width:none}
+html[data-builder-device] :is([data-radix-popper-content-wrapper],[role=menu],[role=listbox],[role=dialog],.cx-context-menu) ::-webkit-scrollbar,
+html[data-builder-device] :is([role=menu],[role=listbox],[role=dialog],.cx-context-menu)::-webkit-scrollbar{display:none;width:0;height:0}

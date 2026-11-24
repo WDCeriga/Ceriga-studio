@@ -16,8 +16,11 @@ function tidyPoints(element: DesignElement): DesignElement {
   try { const simple = simplifyArtwork(element, 70); return nodeCount(simple) < nodeCount(element) ? { ...simple, letteringSource: element.letteringSource } : element; } catch { return element; }
 }
 
-/** Which artwork can show its anchor points. Images and groups cannot. */
-export const canEditPoints = (element?: DesignElement | null) => Boolean(element && !element.locked && (element.type === 'shape' || element.type === 'text'));
+/**
+ * Which artwork can show its anchor points. Images and groups cannot.
+ * Text points are detailed work, so they are offered only in Asset Studio, not on the garment.
+ */
+export const canEditPoints = (element?: DesignElement | null, allowText = true) => Boolean(element && !element.locked && (element.type === 'shape' || allowText && element.type === 'text'));
 
 /**
  * Gives any shape or text real anchor points, so it can be reshaped point by point:

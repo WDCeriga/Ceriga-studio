@@ -149,8 +149,13 @@ export function GarmentLabelsPreview({ labels, selectedId, onSelect, onChange, g
   const point = closeup && framing && !hoodieNeckCloseUp ? framing : { x: 1024, y: 1024 };
   const contextVisible = mode !== 'only' && (!closeup || showGarment);
   const isolatedLabel = selectedSurface?.surface;
-  const labelOutline = isolatedLabel?.outline && (handSelected || selected?.category === 'care')
+  // The label's real shape is always drawn on the artwork canvas, and everything outside it is greyed out,
+  // so a circle, oval or die-cut label reads as that shape instead of the square artboard.
+  // The label's real shape is always drawn on the artwork canvas, and everything outside it is greyed out,
+  // so a circle, oval or die-cut label reads as that shape instead of the square artboard.
+  const labelOutline = isolatedLabel?.outline
     ? <svg data-label-preview-outline="" aria-hidden="true" viewBox={`0 0 ${isolatedLabel.width} ${isolatedLabel.height}`} className="h-full w-full overflow-visible">
+        <path data-label-outside="" d={`M${-isolatedLabel.width} ${-isolatedLabel.height}H${isolatedLabel.width * 2}V${isolatedLabel.height * 2}H${-isolatedLabel.width}Z${shapePathData({ ...isolatedLabel.outline, closed: true })}`} fill="#f1f1ee" fillOpacity=".92" fillRule="evenodd"/>
         <path d={shapePathData({...isolatedLabel.outline, closed:true})} fill="none" stroke="#a3a3a3" strokeWidth=".25" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>
       </svg>
     : undefined;

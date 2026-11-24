@@ -49,3 +49,9 @@
 .ceriga-builder-shell .builder-inspector .labels-studio :is(.label-stitch-choices,.label-method-choices,.label-fold-choices,.label-shape-choices,.label-cut-choices)>button :is(span,strong){color:var(--lp-text)!important;font-size:12px!important}
 .ceriga-builder-shell .builder-inspector .labels-studio :is(.label-stitch-choices,.label-method-choices,.label-fold-choices,.label-shape-choices,.label-cut-choices)>button[aria-pressed=true] :is(span,strong){color:var(--lp-ink)!important}
 @media(prefers-reduced-motion:reduce){.labels-studio .label-saved-row,.ceriga-builder-shell .builder-inspector .labels-studio :is(.label-stitch-choices,.label-method-choices,.label-fold-choices,.label-shape-choices,.label-cut-choices)>button,.ceriga-builder-shell .labels-studio .label-type-list>button{transition:none}}
+/* Fold types: the same soft tiles as Shape, a small drawing above a short name. */
+.ceriga-builder-shell .builder-inspector .labels-studio .label-fold-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.ceriga-builder-shell .builder-inspector .labels-studio .label-fold-choices>button{position:relative;display:grid;justify-items:center;align-content:center;gap:4px;min-height:74px;padding:8px 4px!important}
+.ceriga-builder-shell .builder-inspector .labels-studio .label-fold-choices>button>svg:first-child{width:52px!important;height:30px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.ceriga-builder-shell .builder-inspector .labels-studio .label-fold-choices>button>span{font-size:12px!important;line-height:1.25}
+.ceriga-builder-shell .builder-inspector .labels-studio .label-fold-choices>button>svg:last-child:not(:first-child){right:6px;top:6px}
