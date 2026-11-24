@@ -12,3 +12,8 @@ try{
  }
  console.log('PASS translation guard keeps localized display separate from stored codes, including imported, hook and nested aliases.');
 }finally{await fs.unlink(fixture).catch(()=>{});}
+// Vercel and other minimal build environments may not provide shell utilities.
+const portable=spawnSync(process.execPath,['scripts/check-translations.mjs'],{encoding:'utf8',env:{...process.env,PATH:'',Path:''}});
+assert.equal(portable.status,0,portable.stderr||portable.error?.message);
+assert.match(portable.stdout,/PASS/);
+console.log('PASS full translation validation without external executables on PATH.');

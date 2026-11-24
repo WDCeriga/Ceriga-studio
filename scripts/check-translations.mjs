@@ -1,5 +1,4 @@
 import fs from 'node:fs/promises';
-import {execFileSync} from 'node:child_process';
 import {parse} from '@babel/parser';
 const languages=['en','zh-CN','tr','pt','es','fr'];
 const dictionaries=await Promise.all(languages.map(async code=>JSON.parse(await fs.readFile('src/app/i18n/locales/'+code+'.json','utf8'))));
@@ -38,7 +37,17 @@ function dropdownCopy(node, file, source) {
 }
 const attrs=new Set(['aria-label','aria-description','placeholder','title','alt','label','description','subtitle','confirmLabel','cancelLabel','emptyMessage','loadingMessage']);
 const isText=text=>/[a-z]{2}/i.test(text)&&!/^\s*(?:https?:\/\/|mailto:|#[a-f\d]{3,8}$)/i.test(text);
-const files=execFileSync('rg',['--files','src/app','-g','*.tsx','-g','*.ts'],{encoding:'utf8'}).trim().split(/\r?\n/).filter(file=>!file.replaceAll('\\','/').includes('/i18n/')||file.endsWith('.tsx'));let descriptors=0;
+// Build hosts need only Node.js, not a separately installed ripgrep binary.
+async function sourceFiles(directory){
+ const entries=await fs.readdir(directory,{withFileTypes:true});
+ const groups=await Promise.all(entries.filter(entry=>!entry.name.startsWith('.')).map(async entry=>{
+  const file=directory+'/'+entry.name;
+  if(entry.isDirectory())return sourceFiles(file);
+  return entry.isFile()&&/\.tsx?$/.test(entry.name)?[file]:[];
+ }));
+ return groups.flat();
+}
+const files=(await sourceFiles('src/app')).sort().filter(file=>!file.includes('/i18n/')||file.endsWith('.tsx'));let descriptors=0;
 for(const file of files){const source=await fs.readFile(file,'utf8');const ast=parse(source,{sourceType:'module',plugins:['typescript','jsx']});
  const translationNames=new Set(['cerigaTranslate','cerigaTranslateLabel','translateInterface','translateInterfaceLabel']);
  const translationHooks=new Set(['useCerigaTranslation']);
