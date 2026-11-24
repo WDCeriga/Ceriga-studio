@@ -43,7 +43,7 @@ export type ContextHandlers = {
   textRecipes?: { active?: string; apply: (id: string) => void; clear?: () => void };
   /** Multi-select of paths: make a live blend. */
   blend?: () => void;
-  textInShape?: { warp: () => void; inside: () => void; knockout: () => void };
+  textInShape?: { warp: () => void; bend: () => void; inside: () => void; knockout: () => void };
   /** Single drawing: swap the brush on every stroke. */
   restyle?: { active?: string; options: { id: string; label: string }[]; apply: (id: string) => void; clear?: () => void };
   /** Single drawing: open conversion to an editable vector. */
@@ -92,7 +92,8 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
         ...(selection.colourControl ? [{ id: 'colour', label: 'Colours', render: selection.colourControl } as ContextAction] : []),
         ...(h.textInShape ? [{ id: 'text-shape', label: 'Text + shape', icon: <TypeOutline size={ICON} />, showLabel: true, menu: [
           { id: 'inside', label: 'Place inside', icon: <SquareDot size={ICON} />, onSelect: h.textInShape.inside },
-          { id: 'warp', label: 'Warp to shape', icon: <Spline size={ICON} />, onSelect: h.textInShape.warp },
+          { id: 'bend', label: 'Bend along shape', icon: <Spline size={ICON} />, onSelect: h.textInShape.bend },
+          { id: 'warp', label: 'Fill whole shape', icon: <Spline size={ICON} />, onSelect: h.textInShape.warp },
           { id: 'knockout', label: 'Cut out of shape', icon: <SquareDashed size={ICON} />, onSelect: h.textInShape.knockout },
         ] } as ContextAction] : []),
         ...(h.blend ? [{ id: 'blend', label: 'Blend', icon: <Waves size={ICON} />, showLabel: true, onSelect: h.blend } as ContextAction] : []),

@@ -56,6 +56,26 @@ async function layoutSize(text: DesignElement, imports: FontImports) {
 }
 
 /** Text takes the shape's form; the shape is used up (Illustrator "Make with top object"). */
+/**
+ * Bends text along a banner or ribbon and keeps the shape behind it, like a sports patch.
+ * The text uses the shape's curve but sits inside its middle, clear of the tails and edges.
+ */
+export async function bendTextInShape(elements: DesignElement[], textId: string, shapeId: string, imports: FontImports = [], inset = { width: .5, height: .36 }): Promise<DesignElement[]> {
+  const warped = await warpTextToShape(elements, textId, shapeId, imports), shape = elements.find(e => e.id === shapeId);
+  const text = warped.find(e => e.id === textId);
+  if (!text || !shape) return elements;
+  const fill = (shape.shapeFilled ? shape.shapeFillColor ?? shape.color : undefined) ?? '', ink = text.color ?? '#171717';
+  const light = (hex: string) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim()); if (!m) return null; const n = parseInt(m[1], 16); return (.2126 * (n >> 16 & 255) + .7152 * (n >> 8 & 255) + .0722 * (n & 255)) / 255; };
+  // Text the same shade as the shape would vanish, so it switches to black or white for contrast.
+  const fillLight = light(fill), inkLight = light(ink), clash = fillLight !== null && inkLight !== null && Math.abs(fillLight - inkLight) < .35;
+  const contrast = clash ? (fillLight! > .5 ? '#171717' : '#ffffff') : undefined;
+  // Banner tails hang below the body, so the text sits a little above the frame's centre.
+  const fitted: DesignElement = { ...text, y: text.y - shape.height * .05, width: text.width * inset.width, height: text.height * inset.height, fontSize: (text.fontSize ?? 30) * inset.width,
+    ...(contrast ? { color: contrast, textAppearance: text.textAppearance?.map(item => item.type === 'fill' ? { ...item, colour: contrast } : item) } : {}) };
+  // Keep the shape where it was in the stack, with the text straight above it.
+  return elements.flatMap(e => e.id === textId ? [] : e.id === shapeId ? [shape, fitted] : [e]);
+}
+
 export async function warpTextToShape(elements: DesignElement[], textId: string, shapeId: string, imports: FontImports = []): Promise<DesignElement[]> {
   const text = elements.find(e => e.id === textId), shape = elements.find(e => e.id === shapeId);
   if (!text || !shape) return elements;

@@ -14,7 +14,7 @@ import { createRepeat } from '../geometry/repeat';
 import { blendIssue, createBlend } from '../geometry/blend';
 import { createOverlap, overlapIssue } from '../geometry/overlap';
 import { createReflection } from '../geometry/fade';
-import { placeTextInside, textAndShape, warpTextToShape } from '../geometry/textFit';
+import { placeTextInside, textAndShape, warpTextToShape, bendTextInShape } from '../geometry/textFit';
 import { outlineTextForCombine } from '../geometry/combine';
 import { createBoolean } from '../../../../lib/booleanArtwork';
 import { loadFontLibrary } from '../../printsStudio/designLibrary';
@@ -124,6 +124,7 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
     textInShape: pair ? {
       inside: () => void fitRun(() => placeTextInside(elements, pair.textId, pair.shapeId, fonts), pair.textId),
       warp: () => void fitRun(() => warpTextToShape(elements, pair.textId, pair.shapeId, fonts), pair.textId),
+      bend: () => void fitRun(() => bendTextInShape(elements, pair.textId, pair.shapeId, fonts), pair.textId),
       knockout: () => void fitRun(async () => {
         // Text must sit above the shape for Cut out; then outline it behind the scenes and subtract.
         const ordered = [...elements.filter(e => e.id !== pair.textId)]; ordered.splice(ordered.findIndex(e => e.id === pair.shapeId) + 1, 0, elements.find(e => e.id === pair.textId)!);
