@@ -1,0 +1,17 @@
+/* Ceriga canvas cursors (lib/builderCursors.ts). Only the design areas use them; panels and buttons keep the system cursors. */
+.ceriga-builder-shell .builder-workspace{cursor:var(--cx-cursor-arrow,default)}
+.ceriga-builder-shell .builder-workspace :is(.cursor-default){cursor:var(--cx-cursor-arrow,default)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-grab){cursor:var(--cx-cursor-grab,grab)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-grabbing,.cursor-grab:active){cursor:var(--cx-cursor-grabbing,grabbing)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-move){cursor:var(--cx-cursor-move,move)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-crosshair,.cursor-copy){cursor:var(--cx-cursor-crosshair,crosshair)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-text){cursor:var(--cx-cursor-text,text)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-ew-resize){cursor:var(--cx-cursor-ew,ew-resize)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-ns-resize){cursor:var(--cx-cursor-ns,ns-resize)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-nwse-resize){cursor:var(--cx-cursor-nwse,nwse-resize)!important}
+.ceriga-builder-shell .builder-workspace :is(.cursor-nesw-resize){cursor:var(--cx-cursor-nesw,nesw-resize)!important}
+.ceriga-builder-shell .cx-selection-chrome>button.cx-selection-chrome__rotate{cursor:var(--cx-cursor-rotate,grab)}
+.ceriga-builder-shell .cx-selection-chrome>button.cx-selection-chrome__rotate:active{cursor:var(--cx-cursor-grabbing,grabbing)}
+/* Panning: the hand tool and space-drag. */
+.ceriga-builder-shell .print-design-canvas[data-pan-tool=true]{cursor:var(--cx-cursor-grab,grab)}
+.ceriga-builder-shell .print-design-canvas[data-pan-tool=true]:active{cursor:var(--cx-cursor-grabbing,grabbing)}

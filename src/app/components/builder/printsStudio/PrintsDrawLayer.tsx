@@ -54,6 +54,23 @@ type EraseLayer = {
 };
 
 const svgNamespace = 'http://www.w3.org/2000/svg';
+/**
+ * Live eraser masks live in a tiny SVG at the end of <body>, outside the Builder. Adding a circle there does not
+ * re-run the Builder's :has() style rules across the whole canvas, which made erasing over wear marks very slow.
+ */
+function eraseMaskHost(): SVGSVGElement {
+  let host = document.querySelector<SVGSVGElement>('svg[data-live-erase-masks]');
+  if (!host) {
+    host = document.createElementNS(svgNamespace, 'svg') as SVGSVGElement;
+    host.setAttribute('data-live-erase-masks', '');
+    host.setAttribute('aria-hidden', 'true');
+    host.setAttribute('width', '0'); host.setAttribute('height', '0');
+    host.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;pointer-events:none';
+    document.body.append(host);
+  }
+  return host;
+}
+
 const eraseCircle = Array.from({ length: 64 }, (_, index) => {
   const angle = index * Math.PI / 32;
   return { x: Math.cos(angle), y: Math.sin(angle) };
@@ -244,6 +261,11 @@ export function PrintsDrawLayer({
   const lastDistressStampRef = useRef<(Pt & { t: number }) | null>(null);
   const distressStampsRef = useRef<DistressMark[]>([]);
   const distressCursorRef = useRef<Pt | null>(null);
+  // Wear strokes draw only the marks added since the last frame, and look up colours and existing holes once per stroke.
+  const distressDrawnRef = useRef<{ list: DistressMark[] | null; count: number }>({ list: null, count: 0 });
+  const distressPaletteRef = useRef(new Map<string, ReturnType<typeof garmentWearPalette>>());
+  const distressOccupiedRef = useRef<DistressMark[]>([]);
+  const distressFrameRef = useRef<number | null>(null);
   const eraseQueueRef = useRef<Pt[]>([]);
   const sessionRef = useRef<{ element: DesignElement; canvas: HTMLCanvasElement } | null>(null);
   const distressSessionsRef = useRef(new Map<string, { element: DesignElement; canvas: HTMLCanvasElement }>());
@@ -371,12 +393,16 @@ export function PrintsDrawLayer({
     const pressureScale = studio.pressure && pt.pen ? 0.35 + pt.p * 0.65 : 1;
     const scatterSettings = { ...studio.distressScatter, size: studio.distressScatter.size * canvasScale * pressureScale };
     const kind = studio.distressType as DistressMarkKind;
-    const palette=garmentWearPalette(zone,pt.x/canvas.width,pt.y/canvas.height);
-    const occupied=kind==='holes'?elementsRef.current.filter(el=>!el.hidden&&(el.side??'front')===sideRef.current&&el.wear?.kind==='holes').flatMap(garmentWearMarks).map(mark=>({...mark,x:mark.x*canvasScale,y:mark.y*canvasScale,width:mark.width*canvasScale,height:mark.height*canvasScale})):[];
+    if (source === 'down') { distressPaletteRef.current.clear(); distressOccupiedRef.current = kind==='holes'?elementsRef.current.filter(el=>!el.hidden&&(el.side??'front')===sideRef.current&&el.wear?.kind==='holes').flatMap(garmentWearMarks).map(mark=>({...mark,x:mark.x*canvasScale,y:mark.y*canvasScale,width:mark.width*canvasScale,height:mark.height*canvasScale})):[]; }
+    const paletteKey=Math.round(pt.x/canvas.width*24)+','+Math.round(pt.y/canvas.height*24);
+    let palette=distressPaletteRef.current.get(paletteKey);if(!palette){palette=garmentWearPalette(zone,pt.x/canvas.width,pt.y/canvas.height);distressPaletteRef.current.set(paletteKey,palette);}
+    const occupied=distressOccupiedRef.current;
     const candidates=createDistressStamp(pt,(studio.eraserSize/2)*canvasScale,scatterSettings,kind,canvasScale);
     const spaced=kind==='holes'?separateDistressMarks(candidates,[...occupied,...distressStampsRef.current],canvasScale):candidates;
     distressStampsRef.current.push(...spaced.map(mark=>({...mark,palette})));
-    paintStroke(strokeRef.current, 'distress');
+    // Moves are drawn once per frame; the press itself draws straight away.
+    if (source === 'down') paintStroke(strokeRef.current, 'distress');
+    else if (distressFrameRef.current === null) distressFrameRef.current = requestAnimationFrame(() => { distressFrameRef.current = null; paintStroke(strokeRef.current, 'distress'); });
   };
 
   const paintEraseCursor = (canvas: HTMLCanvasElement, point: Pt, displayWidth: number) => {
@@ -423,7 +449,9 @@ export function PrintsDrawLayer({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (points.length < 1) return;
 
-    sctx.clearRect(0, 0, strokeLayer.width, strokeLayer.height);
+    const drawn = distressDrawnRef.current, stamps = distressStampsRef.current;
+    const incremental = tool === 'distress' && drawn.list === stamps && drawn.count > 0 && drawn.count <= stamps.length;
+    if (!incremental) sctx.clearRect(0, 0, strokeLayer.width, strokeLayer.height);
     sctx.save();
     sctx.lineCap = 'round';
     sctx.lineJoin = 'round';
@@ -436,8 +464,9 @@ export function PrintsDrawLayer({
 
     if (tool === 'distress') {
       sctx.globalCompositeOperation = 'source-over';
-      const center=distressStampsRef.current.at(-1);
-      renderDistressMarks(sctx, distressStampsRef.current, s.distressType, cssToCanvas,garmentWearPalette(zone,center?center.x/strokeLayer.width:.5,center?center.y/strokeLayer.height:.5));
+      const fresh = stamps.slice(incremental ? drawn.count : 0), center = fresh.at(-1);
+      if (fresh.length) renderDistressMarks(sctx, fresh, s.distressType, cssToCanvas, center?.palette ?? garmentWearPalette(zone,center?center.x/strokeLayer.width:.5,center?center.y/strokeLayer.height:.5));
+      distressDrawnRef.current = { list: stamps, count: stamps.length };
       clipToGarment(sctx);
       sctx.restore();
       ctx.save();
@@ -499,8 +528,9 @@ export function PrintsDrawLayer({
     const strokeLayer = strokeLayerRef.current;
     const host = zone;
     const fn = onChangeRef.current;
-    if (!canvas || !strokeLayer || !host || !fn || !alphaBounds(strokeLayer)) return;
-    const inkBounds = alphaBounds(strokeLayer)!;
+    if (!canvas || !strokeLayer || !host || !fn) return;
+    const inkBounds = alphaBounds(strokeLayer);
+    if (!inkBounds) return;
     const tool = studioRef.current.tool;
     if (tool === 'brush' && studioRef.current.brushPreset === 'distress-brush' && studioRef.current.distressMode !== 'paint') {
       const mask = strokeLayer.getContext('2d')!.getImageData(0, 0, strokeLayer.width, strokeLayer.height);
@@ -609,6 +639,7 @@ export function PrintsDrawLayer({
         layer.content.style.maskImage = layer.previousMask;
       }
       if (layer.relief) layer.relief.style.visibility = layer.previousReliefVisibility;
+      layer.content.style.willChange = '';
       layer.mask.remove();
     }
   };
@@ -619,7 +650,7 @@ export function PrintsDrawLayer({
     eraseQueueRef.current = [];
     const layers = eraseGestureRef.current;
     const canvas = canvasRef.current;
-    const masks = eraseMasksRef.current;
+    const masks = eraseMaskHost();
     if (!canvas || !zone || !masks || !layers || !points.length) return;
 
     const scaleX = Math.max(1, zone.clientWidth) / canvas.width;
@@ -677,6 +708,8 @@ export function PrintsDrawLayer({
         };
         layers.set(element.id, layer);
         content.style.maskImage = `url("#${mask.id}")`;
+        // Keep the artwork as a cached layer while erasing, so each move redraws only the mask, not every wear mark.
+        content.style.willChange = 'transform';
         if (relief) relief.style.visibility = 'hidden';
       }
 
@@ -1035,7 +1068,7 @@ export function PrintsDrawLayer({
 
   return (
     <>
-    <svg ref={eraseMasksRef} aria-hidden="true" className="pointer-events-none absolute" width="0" height="0"/>
+    <svg ref={eraseMasksRef} data-editor-chrome aria-hidden="true" className="pointer-events-none absolute" width="0" height="0"/>
     <canvas
       ref={canvasRef}
       data-print-draw-layer
@@ -1061,6 +1094,7 @@ export function PrintsDrawLayer({
     />
     {active && isEraseTool(studio.tool) && <svg
       ref={eraseCursorRef}
+      data-editor-chrome
       data-eraser-cursor
       aria-hidden="true"
       className="pointer-events-none absolute left-0 top-0 z-[30] overflow-visible"

@@ -72,3 +72,17 @@
   .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .artwork-canvas-tools button{width:40px;height:40px;min-width:40px;min-height:40px}
   .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .print-design-canvas>.artwork-canvas-tools{width:48px}
 }
+/* Short landscape tablets (iPad mini): the section rail must show every section and tool without scrolling. */
+@media(max-height:860px){
+  .ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context) button{min-height:40px}
+  .ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context){gap:0}
+  .ceriga-builder-shell[data-device=tablet] .builder-sidebar .builder-context>h2{margin-block:4px}
+}
+@media(max-height:780px){
+  .ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context) button{min-height:34px}
+  .ceriga-builder-shell[data-device=tablet] .builder-sidebar hr,.ceriga-builder-shell[data-device=tablet] .builder-sidebar [role=separator]{margin-block:4px}
+}
+@media(max-height:780px){
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context) button{height:34px!important;min-height:34px!important;padding-block:0!important}
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context){row-gap:2px!important}
+}

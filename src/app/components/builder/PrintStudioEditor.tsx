@@ -32,6 +32,7 @@ import {ReferenceTraceOverlay} from './printsStudio/ReferenceTraceOverlay';
 import {fontIdentity} from '../../lib/workspaceFonts';
 import {writeArtworkClipboard,readArtworkClipboard,pastedArtwork} from '../../lib/artworkClipboard';
 import {loadFontLibrary} from './printsStudio/designLibrary';
+import {BUILDER_CURSORS} from '../../lib/builderCursors';
 import {canEditPoints,withEditablePoints} from '../../lib/pointEditing';
 import {toast} from 'sonner';
 import {remapTextStyles,remapTextKerning} from '../../lib/richArtworkText';
@@ -3785,12 +3786,12 @@ export function PrintsDesignPreview({
                   : artworkResizeCursor(manip.handle,elementsRef.current.find(element=>element.id===manip.id)?.rotation ?? 0);
                 return;
               }
-              if (draggingId) { event.currentTarget.style.cursor='grabbing'; return; }
+              if (draggingId) { event.currentTarget.style.cursor=BUILDER_CURSORS.grabbing; return; }
               const root = editable && !studio.drawing && !studio.pathEditingId&&!marqueeCancel.current&&studio.tool === 'select' && zoneRef.current
                 ? artworkAtPoint(zoneRef.current, event.clientX, event.clientY) : null;
               const element = elements.find(item => item.id === root?.dataset.printId);
               const next=element&&!element.locked&&element.id!==selectedId?root:null;if(hoveredArtworkRef.current!==next){hoveredArtworkRef.current?.removeAttribute('data-artwork-hover');next?.setAttribute('data-artwork-hover','');hoveredArtworkRef.current=next;}
-              event.currentTarget.style.cursor = draggingId ? 'grabbing' : element && !element.locked ? 'grab' : '';
+              event.currentTarget.style.cursor = draggingId ? BUILDER_CURSORS.grabbing : element && !element.locked ? BUILDER_CURSORS.grab : '';
             }}
             onPointerLeave={()=>{hoveredArtworkRef.current?.removeAttribute('data-artwork-hover');hoveredArtworkRef.current=null;}}
             onPointerDownCapture={(e) => {

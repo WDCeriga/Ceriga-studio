@@ -171,7 +171,8 @@ export function useGarmentPatternTargets(zone: HTMLDivElement | null, side: 'fro
       frame = requestAnimationFrame(() => { void rebuild(version).catch(() => { if (version === generation) setTargets([]); }); });
     };
     const observer = new MutationObserver(records=>{
-      records=records.filter(record=>record.target===zone||!(record.target instanceof Element)||!record.target.closest('[data-artwork-camera-layer]'));
+      // Artwork being added, removed or edited never changes the garment's shape, so it does not trigger a re-render.
+      records=records.filter(record=>record.target===zone?record.type==='attributes':!(record.target instanceof Element)||!record.target.closest('[data-artwork-camera-layer],[data-print-id],[data-editor-chrome]'));
       if(!records.length)return;
       // Geometry stays in garment coordinates during zoom. Refresh its raster once
       // the camera settles instead of encoding a new full-size mask every frame.
