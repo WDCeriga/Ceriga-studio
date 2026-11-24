@@ -18,13 +18,13 @@ export function SuperAdminSettings() {
             <div>
               <div className="text-sm text-white">Email for new orders</div>
             </div>
-            <Switch defaultChecked />
+            <Switch aria-label="Email for new orders" defaultChecked />
           </label>
           <label className="flex items-center justify-between gap-4 rounded-lg border border-[#252528] px-3 py-3">
             <div>
               <div className="text-sm text-white">Slack webhook</div>
             </div>
-            <Switch />
+            <Switch aria-label="Slack webhook" />
           </label>
         </div>
       </section>

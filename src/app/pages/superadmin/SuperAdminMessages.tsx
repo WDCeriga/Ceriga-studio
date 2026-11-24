@@ -551,6 +551,7 @@ export function SuperAdminMessages() {
                   <Button
                     size="icon"
                     className="h-10 w-10 shrink-0 rounded-xl bg-[#CC2D24] hover:bg-[#CC2D24]/90"
+                    aria-label="Send message"
                     disabled={!canSend}
                     onClick={sendMessage}
                   >

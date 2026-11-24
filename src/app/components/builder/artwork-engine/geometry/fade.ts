@@ -16,9 +16,12 @@ export type ArtworkFade = {
 };
 export const DEFAULT_FADE: ArtworkFade = { type: 'linear', angle: 180, start: 0, end: 100, startOpacity: 100, endOpacity: 0 };
 
-export const BLEND_MODES = ['normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'] as const;
+export const BLEND_MODES = ['normal', 'darken', 'multiply', 'color-burn', 'lighten', 'screen', 'color-dodge', 'plus-lighter', 'overlay', 'soft-light', 'hard-light', 'difference', 'exclusion', 'hue', 'saturation', 'color', 'luminosity'] as const;
 export type ArtworkBlendMode = typeof BLEND_MODES[number];
-export const blendModeLabel = (mode: string) => mode.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+const BLEND_LABELS: Record<string, string> = { 'plus-lighter': 'Linear Dodge (Add)', 'color-burn': 'Colour Burn', 'color-dodge': 'Colour Dodge', color: 'Colour' };
+export const blendModeLabel = (mode: string) => BLEND_LABELS[mode] ?? mode.split('-').map(word => word[0].toUpperCase() + word.slice(1)).join(' ');
+/** Dark textures print through Screen and light ones through Multiply. */
+export const textureBlendFor = (averageLight: number): ArtworkBlendMode => averageLight < 128 ? 'screen' : 'multiply';
 
 const stop = (opacity: number) => `rgba(0,0,0,${Math.max(0, Math.min(100, opacity)) / 100})`;
 

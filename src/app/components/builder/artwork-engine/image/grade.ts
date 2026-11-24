@@ -25,7 +25,10 @@ export type ImageGrade = {
   hsl?: Partial<Record<HueBand, BandShift>>;
   vibrance?: number; clarity?: number; denoise?: number;
   map?: GradientMap;
+  /** Pixel stretch: one row or column of the image is pulled out to the edge as streaks. */
+  stretch?: PixelStretch;
 };
+export type PixelStretch = { direction: 'down' | 'up' | 'left' | 'right'; at: number; amount?: number };
 
 export const GRADIENT_MAPS: { id: string; label: string; stops: GradientMap['stops'] }[] = [
   { id: 'ink', label: 'Ink', stops: [{ position: 0, color: '#10131c' }, { position: 100, color: '#f6f1e3' }] },
@@ -42,7 +45,7 @@ const isFlatCurve = (points?: CurvePoint[]) => !points || points.length < 2 || p
 export function gradeIsActive(grade?: ImageGrade): grade is ImageGrade {
   if (!grade || grade.enabled === false) return false;
   const shifted = Object.values(grade.hsl ?? {}).some(band => band && (band.h || band.s || band.l));
-  return Boolean(grade.cutout || grade.recolour?.colours.some(c => c.from !== c.to) || (grade.black ?? 0) > 0 || (grade.white ?? 255) < 255 || grade.mid !== undefined || Object.values(grade.curves ?? {}).some(c => !isFlatCurve(c)) || shifted || grade.vibrance || grade.clarity || grade.denoise || (grade.map && grade.map.amount > 0));
+  return Boolean(grade.cutout || grade.recolour?.colours.some(c => c.from !== c.to) || (grade.black ?? 0) > 0 || (grade.white ?? 255) < 255 || grade.mid !== undefined || Object.values(grade.curves ?? {}).some(c => !isFlatCurve(c)) || shifted || grade.vibrance || grade.clarity || grade.denoise || (grade.map && grade.map.amount > 0) || Boolean(grade.stretch));
 }
 
 /** Monotone cubic through the points, so a curve never overshoots or folds back. */
@@ -196,7 +199,23 @@ export function applyImageGrade(data: Uint8ClampedArray, w: number, h: number, g
     }
   }
   for (let i = 3; i < out.length; i += 4) out[i] = base[i];
+  if (grade.stretch) stretchPixels(out, w, h, grade.stretch);
   return out;
+}
+
+/**
+ * Copies the pixels on one line across the rest of the image, like Photoshop's single-row stretch.
+ * at is a percentage across the image. amount (0-100) blends the streaks over the original.
+ */
+export function stretchPixels(data: Uint8ClampedArray, w: number, h: number, stretch: PixelStretch) {
+  const vertical = stretch.direction === 'down' || stretch.direction === 'up', size = vertical ? h : w, line = Math.max(0, Math.min(size - 1, Math.round(stretch.at / 100 * (size - 1))));
+  const mix = Math.max(0, Math.min(1, (stretch.amount ?? 100) / 100)), forward = stretch.direction === 'down' || stretch.direction === 'right';
+  const from = forward ? line + 1 : 0, to = forward ? size : line;
+  for (let step = from; step < to; step++) {
+    if (vertical) for (let x = 0; x < w; x++) { const src = (line * w + x) * 4, dst = (step * w + x) * 4; for (let c = 0; c < 4; c++) data[dst + c] += (data[src + c] - data[dst + c]) * mix; }
+    else for (let y = 0; y < h; y++) { const src = (y * w + line) * 4, dst = (y * w + step) * 4; for (let c = 0; c < 4; c++) data[dst + c] += (data[src + c] - data[dst + c]) * mix; }
+  }
+  return data;
 }
 
 /** Main colours by k-means from evenly spread starting colours. Repeatable for the same image. */

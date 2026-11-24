@@ -1,0 +1,8 @@
+/* iPad canvas helpers. Positioned inside the canvas, clear of the tool rail and the bottom bar. */
+.ceriga-builder-shell .tablet-modifier{position:absolute;right:max(18px,env(safe-area-inset-right));bottom:calc(84px + env(safe-area-inset-bottom));z-index:90;display:grid;place-items:center;width:52px;height:52px;border:0;border-radius:50%;background:#fff;color:#3f3f3c;box-shadow:0 0 0 1px rgba(0,0,0,.06),0 1px 2px -1px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.08);touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;transition:background-color 100ms ease-out,color 100ms ease-out,transform 100ms ease-out}
+.ceriga-builder-shell .tablet-modifier[data-state=held]{background:#1f1f1d;color:#fff;transform:scale(.96)}
+.ceriga-builder-shell .tablet-modifier[data-state=locked]{background:#1f1f1d;color:#fff;box-shadow:0 0 0 3px #fff,0 0 0 4.5px #1f1f1d}
+.tablet-pencil-hover{position:fixed;z-index:9999;pointer-events:none;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 1px rgba(255,255,255,.9),0 0 0 2px rgba(31,31,29,.55)}
+.ceriga-builder-shell .tablet-gesture-flash{position:absolute;left:50%;top:18px;z-index:95;padding:8px 14px;border-radius:999px;background:rgba(31,31,29,.86);color:#fff;font-size:13px;font-weight:500;pointer-events:none;transform:translateX(-50%);animation:tablet-flash 900ms ease-out both}
+@keyframes tablet-flash{0%{opacity:0;transform:translate(-50%,-4px)}12%,75%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.ceriga-builder-shell .tablet-gesture-flash{animation:none}.ceriga-builder-shell .tablet-modifier{transition:none}}

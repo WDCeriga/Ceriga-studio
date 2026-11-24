@@ -1,0 +1,23 @@
+/* Label canvas: production marks stay light and sit around the artwork. */
+.label-canvas-guides{position:absolute;inset:0;z-index:30;width:100%;height:100%;overflow:visible;pointer-events:none;fill:none}
+.label-canvas-guides .is-safe{stroke:#2f6fed;stroke-opacity:.34}
+.label-canvas-guides .is-fold-zone{fill:#1f1f1d;fill-opacity:.035}
+.label-canvas-guides .is-fold{stroke:#5c5c58;stroke-opacity:.75}
+.label-canvas-guides .is-measure{color:#2f6fed;stroke:currentColor}
+.label-canvas-guides .is-note{color:#737370;stroke:currentColor}
+.label-canvas-guides text{fill:currentColor;stroke:none;font-family:inherit;font-variant-numeric:tabular-nums}
+/* A magnified weave should read as texture, not as a grid over the design. */
+[data-shared-surface-editor] pattern[id*="weave"] path{opacity:.09!important}
+.canvas-dock>.label-guides-toggle{display:inline-flex;align-items:center;gap:6px}
+.label-dock-zoom{display:contents}
+/* Drawing previews keep a one-pixel line however far a small label is magnified. */
+[data-shared-surface-editor] :is([data-editor-chrome],[data-visible-bounds],[data-handles]) [vector-effect=non-scaling-stroke]{stroke-width:calc(var(--cx-ui-inv,1) * 1px)}
+/* Zoom sits in line with the other bottom-bar options. */
+.ceriga-builder-shell .label-canvas-dock .label-dock-zoom>.studio-canvas-zoom{position:static!important;inset:auto!important;display:inline-flex;align-items:center;gap:2px;height:28px;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;transform:none!important}
+.ceriga-builder-shell .label-canvas-dock .label-dock-zoom>.studio-canvas-zoom>*{height:28px;min-height:28px;border:0!important;background:transparent;border-radius:6px}
+.ceriga-builder-shell .label-canvas-dock .label-dock-zoom>.studio-canvas-zoom>button:hover:not(:disabled){background:#f2f2f0}
+/* A label close-up is about the label, so zips and their tapes stay out of the way. */
+[data-label-camera][data-label-closeup] [data-pattern-trim-kind="zip"]{visibility:hidden!important}
+.hood-loop-position{display:grid;gap:6px;font-size:12px;color:#737370}.hood-loop-position>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;padding:2px;border-radius:8px;background:#f3f3f1}.hood-loop-position button{height:27px;border:0;border-radius:6px;background:transparent;color:#737370;font-size:12px;cursor:pointer}.hood-loop-position button[aria-pressed=true]{background:#fff;color:#1f1f1d;box-shadow:0 0 0 1px rgb(0 0 0 / .07)}.hood-loop-position input{width:100%;accent-color:#1f1f1d}
+/* Inside the neck only the hanging loop belongs; drawstrings, pockets and other trims are on the outside. */
+[data-label-camera][data-label-inside] :is([data-detail-id]:not(rect),[data-pattern-trim-id]){visibility:hidden!important}

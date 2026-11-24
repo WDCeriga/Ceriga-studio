@@ -222,6 +222,21 @@ function CareSymbol({ category, value }: { category: CareCategory; value: string
   </g>;
 }
 
+const CARE_SAMPLE: { category: CareCategory; value: string; lines: string[] }[] = [
+  { category: 'washing', value: '30', lines: ['MACHINE WASH COLD'] },
+  { category: 'bleaching', value: 'no', lines: ['DO NOT BLEACH'] },
+  { category: 'ironing', value: 'low', lines: ['IRON LOW HEAT'] },
+  { category: 'cleaning', value: 'P', lines: ['DRY CLEAN ANY', 'SOLVENT EXCEPT', 'TRICHLOROETHYLENE'] },
+  { category: 'drying', value: 'flat', lines: ['DRY FLAT'] },
+];
+export const showsCareSample = (label: GarmentLabel) => label.category === 'care' && !Object.values(label.care).some(Boolean);
+/** Example care instructions for visualising the label. They are never saved into the design or print files. */
+export function CareInstructionSample({ label, width = label.widthMm, height = label.heightMm }: { label: GarmentLabel; width?: number; height?: number }) {
+  if (!showsCareSample(label)) return null;
+  const inset = Math.max(label.marginMm, 2), top = height * .25, bottom = height * .75, row = (bottom - top) / CARE_SAMPLE.length, symbol = Math.min(row * .68, (width - inset * 2) * .24), textX = inset + symbol + Math.max(1, width * .04), room = width - inset - textX, font = Math.min(row * .25, room / (17 * .72));
+  return <g data-care-sample="" color={label.foreground} pointerEvents="none">{CARE_SAMPLE.map((item, index) => { const middle = top + row * (index + .5), lineHeight = font * 1.14; return <g key={item.category}><g transform={`translate(${inset} ${middle - symbol / 2}) scale(${symbol / 26})`}><CareSymbol category={item.category} value={item.value} /></g><text x={textX} y={middle - (item.lines.length - 1) * lineHeight / 2 + font * .36} fill="currentColor" fontFamily="Arial, Helvetica, sans-serif" fontWeight="700" fontSize={font}>{item.lines.map((line, lineIndex) => <tspan key={line} x={textX} dy={lineIndex ? lineHeight : 0}>{line}</tspan>)}</text></g>; })}</g>;
+}
+
 function labelStitchPath(label: GarmentLabel, width: number, height: number) {
   const inset = label.stitchingInsetMm ?? 1.2;
   const right = width - inset, bottom = height - inset;
@@ -304,4 +319,5 @@ export function LegacyLabelArtwork({ label:sourceLabel, guide = false, layout: s
 import {LabelStyledText} from './LabelStyledText';
 
 const LabelSurfaceDrawing=memo(ArtworkSurfaceSvg);
-export function LabelArtwork(props:Parameters<typeof LegacyLabelArtwork>[0]){const label=props.label,face=['tag','hand'].includes(label.category)?label.artworkFace??label.exteriorView??'front':'label',saved=label.artworkSurfaces?.[face],native=saved&&label.construction==='printed'?directPrintArtwork(saved):saved;return native?<g transform={`scale(${label.widthMm/native.surface.width} ${label.heightMm/native.surface.height})`}><LabelSurfaceDrawing surface={native.surface} document={native.document}/></g>:<LegacyLabelArtwork {...props}/>;}
+export function LabelArtwork({careSample=false,...props}:Parameters<typeof LegacyLabelArtwork>[0]&{careSample?:boolean}){return <><SavedLabelArtwork {...props}/>{careSample&&<CareInstructionSample label={props.label}/>}</>;}
+function SavedLabelArtwork(props:Parameters<typeof LegacyLabelArtwork>[0]){const label=props.label,face=['tag','hand'].includes(label.category)?label.artworkFace??label.exteriorView??'front':'label',saved=label.artworkSurfaces?.[face],native=saved&&label.construction==='printed'?directPrintArtwork(saved):saved;return native?<g transform={`scale(${label.widthMm/native.surface.width} ${label.heightMm/native.surface.height})`}><LabelSurfaceDrawing surface={native.surface} document={native.document}/></g>:<LegacyLabelArtwork {...props}/>;}

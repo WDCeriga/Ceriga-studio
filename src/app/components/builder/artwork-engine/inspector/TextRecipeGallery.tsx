@@ -28,7 +28,8 @@ const RecipePreview = memo(function RecipePreview({ word, ink, recipeId, surface
   const scale = frame ? Math.min(room / Math.max(1, frame.width), 34 / Math.max(1, frame.height), 1) : 0;
   return <span ref={host} className="cx-recipe-tile__art" aria-hidden="true">
     <span style={{ width: frame?.width ?? 200, height: frame?.height ?? TILE_SIZE, transform: `scale(${scale})`, opacity: frame ? 1 : 0 }}>
-      <TextArtwork element={element} fontSize={TILE_SIZE} onFrameChange={next => setFrame(current => current && Math.abs(current.width - next.width) < .5 && Math.abs(current.height - next.height) < .5 ? current : next)} />
+      {/* A preview is not on the label, so the label's outline must not cut it off. */}
+      <ArtworkSurfaceContext.Provider value={null}><TextArtwork element={element} fontSize={TILE_SIZE} onFrameChange={next => setFrame(current => current && Math.abs(current.width - next.width) < .5 && Math.abs(current.height - next.height) < .5 ? current : next)} /></ArtworkSurfaceContext.Provider>
     </span>
   </span>;
 });

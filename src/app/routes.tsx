@@ -111,8 +111,8 @@ export const router = createBrowserRouter([
     path: "/builder/:productId?",
     HydrateFallback: BuilderLoadingFallback,
     lazy: async () => {
-      const { Builder } = await import("./pages/Builder");
-      return { Component: Builder };
+      const [{ Builder }, { BuilderDeviceGate }] = await Promise.all([import("./pages/Builder"), import("./components/builder/shell/BuilderDeviceGate")]);
+      return { Component: () => <BuilderDeviceGate><Builder /></BuilderDeviceGate> };
     },
   },
   {

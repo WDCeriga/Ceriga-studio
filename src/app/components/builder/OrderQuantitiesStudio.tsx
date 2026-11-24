@@ -2,7 +2,6 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { ArrowRight, Check, Minus, Plus, Trash2 } from 'lucide-react';
 import { ORDER_SIZE_KEYS, type OrderSizeKey } from '../../data/builderSteps';
 import { applySizeChange, distributeQuantity, isSampleQuantityValid, maxBulkRuns, newBulkRun, setOrderMode, sumBreakdown, type OrderQuantityPlan, type OrderQuantityLine } from '../../data/orderQuantities';
-import { InspectorHeading } from './shell/InspectorHeading';
 import { BuilderSelect } from './shell/BuilderSelect';
 import './order-quantities-studio.css';
 
@@ -18,8 +17,7 @@ export function OrderQuantitiesStudio({ plan, garment, name, colour = '#262626',
     ? `M ${point.x} ${point.y}`
     : `${path} C ${points[index - 1].x + 40} ${points[index - 1].y}, ${point.x - 40} ${point.y}, ${point.x} ${point.y}`, '');
   return <div className="order-studio">
-    <div className="order-canvas-caption"><span className="order-design-swatch" style={{background:colour}}/>{name}<span>Front</span></div>
-    <div className="order-production-layout">
+        <div className="order-production-layout">
       <div className="order-garment-art" style={garmentFrame?{containerType:'size'}:undefined}><div style={garmentFrame?{...garmentFrame,position:'absolute',left:'50%',top:'50%'}:{transform:`scale(${garmentScale})`,transformOrigin:'center'}}>{garment}</div></div>
       <section className="order-canvas-breakdown" aria-label="Size breakdown">
         <span className="order-run-caption">{line.kind === 'sample' ? 'Samples' : `Bulk quote ${plan.bulkRuns.findIndex(run => run.id === line.id)+1}`}</span>
@@ -81,14 +79,14 @@ export function OrderRequestInspector({ plan, onChange, onContinue, selectedRunI
   };
   return <div className="order-request">
     <div className="order-editor-scroll">
-      <InspectorHeading eyebrow="PRODUCTION STUDIO" title="Order & quantities" description="Choose your quantities and size split."/>
+      <header className="materials-heading order-heading"><h2>Order & quantities</h2></header>
       <div className="order-run-picker"><BuilderSelect label="Sample or bulk quote" value={line.id} onChange={selectRun} options={[{value:'sample',label:'Samples'},...plan.bulkRuns.map((run,index)=>({value:run.id,label:`Bulk quote ${index+1}`}))]}/>
         {plan.bulkRuns.length < maxBulkRuns(plan.mode)&&<button className="order-icon-button" aria-label="Add bulk quote" title="Add bulk quote" onClick={()=>{const run=newBulkRun();onChange({...plan,bulkRuns:[...plan.bulkRuns,run]});selectRun(run.id);}}><Plus size={17}/></button>}
         {!sample&&plan.mode==='custom_clothing'&&<button className="order-icon-button" aria-label="Remove selected bulk quote" onClick={()=>{onChange({...plan,bulkRuns:plan.bulkRuns.filter(run=>run.id!==line.id)});selectRun('sample');}}><Trash2 size={16}/></button>}
       </div>
       <section className="order-editor-section"><label htmlFor="order-quantity">{sample?'Sample quantity':'Production quantity'}</label><div className="order-quantity-stepper"><button aria-label="Decrease total quantity" disabled={amount<=(sample?1:0)} onClick={()=>setQuantity(amount-1)}><Minus size={16}/></button><input id="order-quantity" aria-label={sample?'Sample quantity':'Production quote quantity'} type="number" inputMode="numeric" min={sample?1:0} step="1" value={amount} onChange={event=>setQuantity(Number(event.target.value))}/><span>{amount===1?'unit':'units'}</span><button aria-label="Increase total quantity" onClick={()=>setQuantity(amount+1)}><Plus size={16}/></button></div><p>{sample?'Order from one sample, in any size.':'Each bulk quote is a separate production option.'}</p></section>
       <section className="order-editor-section"><label>Sizes</label><div className="order-size-grid">{ORDER_SIZE_KEYS.map(size=><label key={size}><span>{size.toUpperCase()}</span><input aria-label={`${size.toUpperCase()} quantity`} type="number" inputMode="numeric" min="0" step="1" value={line.bySize[size]} onChange={event=>setSize(size,Number(event.target.value))}/></label>)}</div><div className="order-allocation-status">{sample?`${total} ${total===1?'sample':'samples'}`:total===amount?<><Check size={12}/>All units allocated</>:total<amount?`${amount-total} left to allocate`:`${total-amount} above quantity`}</div></section>
-      <section className="order-editor-section"><label>Size distribution</label><BuilderSelect label="Size distribution" value={distribution} onChange={distribute} options={[{value:'custom',label:'Custom split'},{value:'balanced',label:'Balanced split'},{value:'even',label:'Split evenly'}]}/></section>
+      <section className="order-editor-section"><span className="order-section-label">Size split</span><div className="order-split" role="group" aria-label="Size split">{([['balanced','Balanced'],['even','Even'],['custom','Custom']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={distribution===value} onClick={()=>distribute(value)}>{label}</button>)}</div></section>
       <details className="order-settings"><summary>Order type<span>{plan.mode==='custom_clothing'?'Custom clothing':'Tech pack'}</span></summary><BuilderSelect label="Order type" value={plan.mode} onChange={value=>onChange(setOrderMode(plan,value as OrderQuantityPlan['mode']))} options={[{value:'custom_clothing',label:'Custom clothing'},{value:'techpack',label:'Tech pack'}]}/></details>
       {!valid&&<p className="order-validation" role="status">Choose at least one sample in any size to continue.</p>}
       {!quotesValid&&<p className="order-validation" role="status">Match each bulk size split to its quote quantity to continue.</p>}

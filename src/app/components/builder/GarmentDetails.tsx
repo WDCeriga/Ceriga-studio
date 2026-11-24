@@ -5,6 +5,7 @@ import * as DetailMenu from '@radix-ui/react-dropdown-menu';
 import {MoreHorizontal} from 'lucide-react';
 import {useResponsiveBuilder,useBuilderWidth} from './shell/responsiveBuilder';
 import { EYELET_STYLES, TIP_STYLES, type HoodieTrimSettings } from '../../data/hoodieTrimAssets';
+import { AgletShapeEditor } from './shell/AgletShapeEditor';
 import {MaterialSelect} from './shell/MaterialSelect';
 import {useTechnicalDrawing,normalizeTechnicalSvg,useTshirtPreviewInk} from '../../lib/technicalDrawing';
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode } from 'react';
@@ -265,6 +266,7 @@ function HoodieTrimControls({ detail, onChange, bounds }: {
       <label>Finish<MaterialSelect aria-label="Trim finish" value={settings.finish ?? ''} onChange={event => update({ finish: event.target.value })}>
         <option value="">Preset finish</option><option>Matte</option><option>Satin</option><option>Polished</option>
       </MaterialSelect></label>
+      {detail.type === 'hoodDetail' && <div className="hood-loop-position"><span>Position</span><div role="group" aria-label="Hanging loop position">{([['Left', -.7], ['Centre', 0], ['Right', .7]] as const).map(([name, value]) => <button key={name} type="button" aria-pressed={Math.abs((settings.loopOffset ?? 0) - value) < .01} onClick={() => update({ loopOffset: value })}>{name}</button>)}</div><input type="range" aria-label="Hanging loop offset" min={-1} max={1} step={.05} value={settings.loopOffset ?? 0} onChange={event => update({ loopOffset: event.currentTarget.valueAsNumber })} /></div>}
       {bounds && !['drawstring', 'toggle', 'hoodDetail'].includes(detail.type) && <label>Placement<MaterialSelect aria-label="Hoodie trim placement" value="" onChange={event => {
         const position = positions.find(([label]) => label === event.target.value);
         if (position) onChange({ x: position[1], y: detail.type === 'pocket' && position[0] === 'Right chest' ? .32 : position[2], placementArea: 'canvas', hoodAnchor: null });
@@ -285,6 +287,7 @@ function HoodieTrimControls({ detail, onChange, bounds }: {
         {detail.variant !== 'cord-elastic' && <label>Aglet<MaterialSelect aria-label="Drawstring aglet" value={settings.tip ?? 'cylinder'} onChange={event => update({ tip: event.target.value as HoodieTrimSettings['tip'] })}>
           {TIP_STYLES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
         </MaterialSelect></label>}
+        {detail.variant !== 'cord-elastic' && settings.tip === 'custom' && <AgletShapeEditor value={settings.customTip} onChange={customTip => update({ customTip })} />}
       </>}
     </div>
     {detail.type === 'drawstring' && <details className="detail-construction-fold">

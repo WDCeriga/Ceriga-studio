@@ -9,6 +9,7 @@ import {artworkPixelRatio} from '../../../lib/artworkResolution';
 import {activeDrawingEffects,replayDrawingWithEffects} from '../../../lib/drawingRaster';
 import {cancelTextEffects} from '../../../lib/textEffectRendering';
 import {artworkFlipStyle} from '../../../lib/artworkFlip';
+import {ensureDrawingTips} from '../../../lib/brushTips';
 import {composeArtworkFilter,type DesignElement} from '../PrintStudioEditor';
 
 export async function waitForDrawingReplay(root:HTMLElement) {
@@ -25,7 +26,7 @@ function RasterDrawingArtwork({element}:{element:DesignElement}) {
  useEffect(()=>{
   if(interacting||erasing)return;let cancelled=false;
   const redraw=async()=>{
-   const {canvas:output,padding}=await replayDrawingWithEffects(element,ratio,()=>cancelled,lane);if(!output||cancelled)return;const ctx=output.getContext('2d',{willReadFrequently:true})!,width=output.width,height=output.height,cssWidth=element.width+padding*2,cssHeight=element.height+padding*2;
+   await ensureDrawingTips([...source.strokes,...(source.erasers??[])]);if(cancelled)return;const {canvas:output,padding}=await replayDrawingWithEffects(element,ratio,()=>cancelled,lane);if(!output||cancelled)return;const ctx=output.getContext('2d',{willReadFrequently:true})!,width=output.width,height=output.height,cssWidth=element.width+padding*2,cssHeight=element.height+padding*2;
    if(texture){
     const relief=document.createElement('canvas');relief.width=width;relief.height=height;
     const surface=relief.getContext('2d')!;surface.scale(width/cssWidth,height/cssHeight);surface.translate(cssWidth/2,cssHeight/2);surface.rotate(-element.rotation*Math.PI/180);surface.translate(-element.x,-element.y);surface.drawImage(texture.canvas,0,0,texture.width,texture.height);

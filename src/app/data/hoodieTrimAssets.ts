@@ -53,16 +53,53 @@ export const EYELET_STYLES = [
 ] as const;
 export const TIP_STYLES = [
   ['cylinder', 'Metal cylinder'], ['cone', 'Metal cone'], ['bullet', 'Metal bullet'],
-  ['plastic', 'Plastic dip'], ['shrink', 'Heat-shrink tip'], ['rubber', 'Rubber molded tip'], ['knot', 'Knotted / no aglet'],
+  ['plastic', 'Plastic dip'], ['shrink', 'Heat-shrink tip'], ['rubber', 'Rubber molded tip'], ['knot', 'Knotted / no aglet'], ['custom', 'Custom shape'],
 ] as const;
 export const TOGGLE_STYLES = [
   ['round', 'Round toggle'], ['barrel', 'Barrel toggle'], ['flat', 'Flat toggle'],
   ['dual', 'Dual-hole toggle'], ['rubber', 'Rubber toggle'], ['metal', 'Metal toggle'],
 ] as const;
 
+/** A tip drawn as its right half, top to bottom, so both sides always match and the cord stays centred. */
+export const TIP_MATERIALS = { metal: 'Metal', plastic: 'Plastic', rubber: 'Rubber', silicone: 'Silicone', leather: 'Leather', fauxLeather: 'Faux leather', wood: 'Wood', enamel: 'Enamel' } as const;
+export const TIP_FINISHES = { polished: 'Polished', brushed: 'Brushed', matte: 'Matte', antique: 'Antique' } as const;
+export type TipMaterial = keyof typeof TIP_MATERIALS;
+export type CustomTip = {
+  half: { x: number; y: number }[];
+  round: number;
+  /** A closed outline traced from an uploaded image. Used instead of the drawn half when set. */
+  outline?: string;
+  material?: TipMaterial;
+  finish?: keyof typeof TIP_FINISHES;
+  /** Colour for non-metal tips. Metal follows the garment's hardware colour. */
+  colour?: string;
+};
+export const DEFAULT_CUSTOM_TIP: CustomTip = { half: [{ x: 3.5, y: 0 }, { x: 3.5, y: 13 }], round: .15 };
+export const CUSTOM_TIP_PRESETS: { id: string; label: string; shape: CustomTip }[] = [
+  { id: 'barrel', label: 'Barrel', shape: { half: [{ x: 2.5, y: 0 }, { x: 4.5, y: 4 }, { x: 4.5, y: 10 }, { x: 2.5, y: 14 }], round: .5 } },
+  { id: 'taper', label: 'Taper', shape: { half: [{ x: 4, y: 0 }, { x: 1.5, y: 14 }], round: .15 } },
+  { id: 'bell', label: 'Bell', shape: { half: [{ x: 2, y: 0 }, { x: 2.5, y: 7 }, { x: 5.5, y: 13 }], round: .3 } },
+  { id: 'spade', label: 'Spade', shape: { half: [{ x: 2, y: 0 }, { x: 5, y: 6 }, { x: 0, y: 15 }], round: .2 } },
+];
+/** Closed outline from the right half and its reflection, with adjustable corner rounding. */
+export function customTipPath(shape: CustomTip = DEFAULT_CUSTOM_TIP) {
+  if (shape.outline) return shape.outline;
+  const right = shape.half.length >= 2 ? shape.half : DEFAULT_CUSTOM_TIP.half, left = [...right].reverse().filter(point => point.x > .001).map(point => ({ x: -point.x, y: point.y })), points = [...right, ...left], count = points.length, round = Math.max(0, Math.min(1, shape.round)) * .5, n = (value: number) => Number(value.toFixed(3));
+  if (!round) return points.map((point, index) => `${index ? 'L' : 'M'}${n(point.x)} ${n(point.y)}`).join('') + 'Z';
+  let path = '';
+  points.forEach((point, index) => {
+    const before = points[(index - 1 + count) % count], after = points[(index + 1) % count], start = { x: point.x + (before.x - point.x) * round, y: point.y + (before.y - point.y) * round }, end = { x: point.x + (after.x - point.x) * round, y: point.y + (after.y - point.y) * round };
+    path += `${index ? 'L' : 'M'}${n(start.x)} ${n(start.y)}Q${n(point.x)} ${n(point.y)} ${n(end.x)} ${n(end.y)}`;
+  });
+  return path + 'Z';
+}
+
 export interface HoodieTrimSettings {
+  /** Hanging loop position along the neck seam: -1 left, 0 centre, 1 right. */
+  loopOffset?: number;
   eyelet?: typeof EYELET_STYLES[number][0];
   tip?: typeof TIP_STYLES[number][0];
+  customTip?: CustomTip;
   thickness?: number;
   spacing?: number;
   visibleLength?: number;
@@ -81,7 +118,22 @@ function eyelet(style: string, radius: number, bore = .57) {
   return `<circle r="${radius}" fill="${rim}" stroke="${ink}" stroke-width=".7"/><circle r="${radius * bore}" fill="${ink}"/>`;
 }
 
-function tip(style: string) {
+const WOOD = '#a8743f', MATERIAL_FILL: Record<TipMaterial, string> = { metal: hardware, plastic: fill, rubber: '#2b2b2a', silicone: fill, leather: '#7a4a2c', fauxLeather: '#5b3a28', wood: WOOD, enamel: fill };
+/** Custom tip in its chosen material. Highlights and texture stay inside the outline. */
+export function customTipMarkup(custom: CustomTip = DEFAULT_CUSTOM_TIP) {
+  const d = customTipPath(custom), material = custom.material ?? 'metal', finish = custom.finish ?? 'polished', paint = material === 'metal' ? hardware : custom.colour ?? MATERIAL_FILL[material];
+  const id = `tip-${Math.abs([...d].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) | 0).toString(36)}-${material}-${finish}`;
+  const clip = `<clipPath id="${id}"><path d="${d}"/></clipPath>`, inside = (markup: string) => `<g clip-path="url(#${id})">${markup}</g>`;
+  const sheen = (x: number, width: number, opacity: number) => `<rect x="${x}" y="-1" width="${width}" height="20" fill="#fff" opacity="${opacity}"/>`;
+  const texture = material === 'metal' ? (finish === 'polished' ? sheen(-2.4, 1.1, .55) + sheen(1.6, .5, .3) : finish === 'brushed' ? [-3, -1.8, -.6, .6, 1.8, 3].map(x => sheen(x, .18, .22)).join('') : finish === 'antique' ? `<rect x="-6" y="-1" width="12" height="20" fill="#3b2a14" opacity=".3"/>` + sheen(-2, .7, .18) : '')
+    : material === 'enamel' ? sheen(-2.4, 1.2, .6) : material === 'plastic' ? sheen(-2.2, .9, .35) : material === 'silicone' || material === 'rubber' ? sheen(-2.2, 1.4, .12)
+      : material === 'wood' ? [1, 3.5, 6, 8.5, 11, 13.5].map((y, i) => `<path d="M-6 ${y}Q0 ${y + (i % 2 ? 1.2 : -1.2)} 6 ${y}" fill="none" stroke="#5b3716" stroke-width=".25" opacity=".55"/>`).join('') : '';
+  const stitch = material === 'leather' || material === 'fauxLeather' ? `<path d="${d}" fill="none" stroke="${thread}" stroke-width=".35" stroke-dasharray=".9 .7" transform="translate(0 .8) scale(.8 .9)"/>` : '';
+  return `<g data-custom-tip="" data-tip-material="${material}"><defs>${clip}</defs><path d="${d}" fill="${paint}"/>${inside(texture + stitch)}<path d="${d}" fill="none" stroke="${ink}" stroke-width=".9" stroke-linejoin="round"/></g>`;
+}
+
+function tip(style: string, custom?: CustomTip) {
+  if (style === 'custom') return customTipMarkup(custom);
   if (style === 'knot') return fabric('M-4 2Q-7 5-4 8Q-5 11 0 11Q5 11 4 8Q7 5 4 2Q0-1-4 2Z') + seam('M-4 7L4 4M-2 10L-3 13M2 10L3 13', thread);
   const outline = style === 'cone' ? 'M-2 0H2L4 13H-4Z'
     : style === 'bullet' || style === 'plastic' ? 'M-3.5 0H3.5V10Q3.5 14 0 14T-3.5 10Z'
@@ -127,7 +179,7 @@ export function hoodieCordSvg(style: string, settings: HoodieTrimSettings = {}, 
       <path d="${cord}" fill="none" stroke="${fill}" stroke-width="${stroke}"/>
       ${style === 'braided' || style === 'contrast' ? `<path d="${cord}" fill="none" stroke="${thread}" stroke-width="${stroke * .52}" stroke-dasharray="${style === 'braided' ? '1 2' : '4 3'}"/>` : ''}
       ${style === 'elastic' && !lock ? `<g transform="translate(-6 ${y(63)}) scale(.5)">${toggle('barrel')}</g>`
-        : `<g transform="translate(${tailX} ${y(81)}) scale(${settings.tipWidth ?? 1} ${settings.tipLength ?? 1})">${tip(end)}</g>`}</g>`;
+        : `<g transform="translate(${tailX} ${y(81)}) scale(${settings.tipWidth ?? 1} ${settings.tipLength ?? 1})">${tip(end, settings.customTip)}</g>`}</g>`;
   }).join('') + (lock ? lockX.map(x => `<g data-integrated-cord-lock="" transform="translate(${40 + x} ${lockY}) scale(.78) translate(-12 -10)" style="--detail-fill:${lock.fill};--detail-outline:${lock.outline};--detail-hardware:${lock.hardware}">${toggle(lock.style)}</g>`).join('') : ''));
 }
 

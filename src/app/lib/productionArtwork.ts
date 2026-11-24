@@ -6,6 +6,7 @@ import {expandTrace} from './imageTracing';
 import {cropShapePoints,normalizeCrop} from './artworkCrop';
 import {isIdentityWarp} from './warpGeometry';
 import type {DesignElement} from '../components/builder/PrintStudioEditor';
+import {crossesOutline,wrapProductionMarkup,type WrapOutline} from './artworkWrap';
 import {blendBands} from '../components/builder/artwork-engine/geometry/blend';
 import {fadeSvgDefinition} from '../components/builder/artwork-engine/geometry/fade';
 import {colourFieldSvg} from '../components/builder/artwork-engine/geometry/colourField';
@@ -19,7 +20,7 @@ export async function prepareProductionArtwork(elements:DesignElement[],fonts:{f
   else element={...element,...await outlineLettering(element,fonts),letteringSource:undefined};
  }if(element.booleanOperation)element=flattenBoolean(element);if(element.artworkBlend)element={...element,children:blendBands(element),blendBlur:element.artworkBlend.blur,artworkBlend:undefined,blendKey:undefined};if(element.children)element.children=await prepareProductionArtwork(element.children,fonts);return {...element,logoTrace:undefined,logoTraceRegion:undefined,shapeOperationSources:undefined,shapeOperationFrame:undefined,letteringSource:undefined};}));
 }
-export async function productionArtworkSvg(elements:DesignElement[],width:number,height:number,options:{side?:'front'|'back';fonts?:{family:string;dataUrl:string}[];unitsPerCm?:number;complex?:(element:DesignElement)=>Promise<string>}={}){
+export async function productionArtworkSvg(elements:DesignElement[],width:number,height:number,options:{side?:'front'|'back';fonts?:{family:string;dataUrl:string}[];unitsPerCm?:number;complex?:(element:DesignElement)=>Promise<string>;wrap?:WrapOutline|null}={}){
  const prepared=await prepareProductionArtwork(elements.filter(e=>!options.side||(e.side??'front')===options.side),options.fonts),definitions:string[]=[];let counter=0;
  const render=async(element:DesignElement):Promise<string>=>{const id='production-'+counter++,w=element.width,h=element.height,transform=`translate(${element.x} ${element.y}) rotate(${element.rotation}) scale(${element.flipHorizontal?-1:1} ${element.flipVertical?-1:1}) translate(${-w/2} ${-h/2})`;let content='';
   if(element.warp&&!isIdentityWarp(element.warp)||element.perspective?.some((p,i)=>Math.abs(p.x-([0,1,1,0][i]))>1e-8||Math.abs(p.y-([0,0,1,1][i]))>1e-8))throw new Error(`Reset Warp or Perspective on ${element.layerName??element.type} before native production export.`);
@@ -44,6 +45,8 @@ export async function productionArtworkSvg(elements:DesignElement[],width:number
   const css=[vectorEffectFilter(element.vectorEffects)?`filter:${vectorEffectFilter(element.vectorEffects)}`:'',element.artworkBlendMode?`mix-blend-mode:${element.artworkBlendMode}`:''].filter(Boolean).join(';');
   return `<g id="${id}" data-fill-reference="${esc(element.shapeFillReference)}" data-stroke-reference="${esc(element.shapeStrokeReference)}" data-layer-name="${esc(element.layerName??element.type)}" transform="${transform}" opacity="${(element.opacity??100)/100}"${element.artworkFade?` mask="url(#${id}-fade)"`:''}${css?` style="${esc(css)}"`:''}>${content}</g>`;
  };
- const body=(await Promise.all(prepared.map(render))).join(''),size=options.unitsPerCm?`width="${width/options.unitsPerCm}cm" height="${height/options.unitsPerCm}cm"`:`width="${width}" height="${height}"`;
+ const wrapped=options.side&&options.wrap?await prepareProductionArtwork(elements.filter(e=>(e.side??'front')!==options.side&&!e.wrapOff&&!e.patternTarget&&e.type!=='distress'&&e.type!=='customArea'&&crossesOutline(e,options.wrap!)),options.fonts):[];
+ const wrappedMarkup=(await Promise.all(wrapped.map(async(element,index)=>{const source=`wrap-source-${index}`;definitions.push(`<g id="${source}">${await render(element)}</g>`);const piece=wrapProductionMarkup(source,element,options.wrap!,`wrap-clip-${index}`);definitions.push(...piece.defs);return piece.markup}))).join('');
+ const rendered=await Promise.all(prepared.map(render)),body=wrappedMarkup+rendered.map((markup,index)=>{const item=prepared[index] as {artworkTextureClip?:boolean};if(!item.artworkTextureClip||!index)return markup;const below=rendered.slice(0,index).filter((_,i)=>!(prepared[i] as {artworkTextureClip?:boolean}).artworkTextureClip).join('');if(!below)return markup;const maskId=`texture-clip-${index}`;definitions.push(`<mask id="${maskId}" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">${below}</mask>`);return `<g mask="url(#${maskId})">${markup}</g>`}).join(''),size=options.unitsPerCm?`width="${width/options.unitsPerCm}cm" height="${height/options.unitsPerCm}cm"`:`width="${width}" height="${height}"`;
  return `<svg xmlns="http://www.w3.org/2000/svg" ${size} viewBox="0 0 ${width} ${height}"><defs>${definitions.join('')}</defs>${body}</svg>`;
 }

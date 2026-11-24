@@ -565,6 +565,7 @@ export function SuperAdminPricing() {
                   </td>
                   <td className="py-3 pr-4">
                     <Switch
+                      aria-label={`Publish ${plan.tier}`}
                       checked={plan.published}
                       onCheckedChange={(v) =>
                         setPublishConfirm({

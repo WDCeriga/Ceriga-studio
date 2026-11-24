@@ -3,6 +3,7 @@ import * as Popover from '@radix-ui/react-popover';
 import { ChevronDown, Frame, PaintBucket, Shirt } from 'lucide-react';
 import { AdvancedColorPopover } from '../PrintStudioColorPopover';
 import type { useAssetWorkspace } from './useAssetWorkspace';
+import { useCloseOnOutside } from '../artwork-engine/interaction/useCloseOnOutside';
 import { exportAssetArtboard } from '../../../lib/exportAssetArtboard';
 import { assetPlacementFrame } from '../../../lib/studioArtwork';
 
@@ -16,7 +17,11 @@ function NumberField({ label, value, min, max, onCommit }: { label: string; valu
   const commit = () => { const number = Number(text); if (Number.isInteger(number) && number >= min && number <= max) onCommit(number); else setText(String(value)); };
   return <input aria-label={label} type="number" min={min} max={max} value={text} onChange={event => setText(event.target.value)} onBlur={commit} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} />;
 }
-const Menu = ({ trigger, label, align = 'center', width, open, onOpenChange, children }: { trigger: ReactNode; label: string; align?: 'start' | 'center' | 'end'; width: number; open?: boolean; onOpenChange?: (open: boolean) => void; children: ReactNode }) => <Popover.Root modal={false} open={open} onOpenChange={onOpenChange}><Popover.Trigger asChild>{trigger}</Popover.Trigger><Popover.Portal><Popover.Content className="as-panel" style={{ width }} side="bottom" align={align} sideOffset={8} collisionPadding={12} aria-label={label}>{children}</Popover.Content></Popover.Portal></Popover.Root>;
+const Menu = ({ trigger, label, align = 'center', width, open, onOpenChange, children }: { trigger: ReactNode; label: string; align?: 'start' | 'center' | 'end'; width: number; open?: boolean; onOpenChange?: (open: boolean) => void; children: ReactNode }) => {
+  const [own, setOwn] = useState(false), active = open ?? own, change = onOpenChange ?? setOwn;
+  useCloseOnOutside(active, () => change(false));
+  return <Popover.Root modal={false} open={active} onOpenChange={change}><Popover.Trigger asChild>{trigger}</Popover.Trigger><Popover.Portal><Popover.Content className="as-panel" style={{ width }} side="bottom" align={align} sideOffset={8} collisionPadding={12} aria-label={label}>{children}</Popover.Content></Popover.Portal></Popover.Root>;
+};
 const Seg = <T extends string>({ label, value, items, onChange }: { label: string; value: T; items: { id: T; label: string; disabled?: boolean }[]; onChange: (id: T) => void }) => <div className="as-seg" role="group" aria-label={label} style={{ gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))` }}>{items.map(item => <button key={item.id} type="button" disabled={item.disabled} aria-pressed={value === item.id} onClick={() => onChange(item.id)}>{item.label}</button>)}</div>;
 const ColourButton = ({ value, label, onChange }: { value: string; label: string; onChange: (colour: string) => void }) => <AdvancedColorPopover value={value} onChange={onChange} contentClassName="as-colour-panel"><button type="button" className="as-colour" aria-label={label}><i style={{ background: value }} /><span>{value.toUpperCase()}</span><ChevronDown size={12} /></button></AdvancedColorPopover>;
 

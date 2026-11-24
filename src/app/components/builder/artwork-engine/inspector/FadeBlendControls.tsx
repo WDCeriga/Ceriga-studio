@@ -3,7 +3,8 @@ import { StudioFold, StudioNumber, StudioRange } from '../../shell/StudioControl
 import { MaterialSelect } from '../../shell/MaterialSelect';
 import { useArtworkDocument } from '../../printsStudio/ArtworkDocumentContext';
 import { usePrintsStudio } from '../../printsStudio/PrintsStudioContext';
-import { BLEND_MODES, DEFAULT_FADE, blendModeLabel, createReflection, fadeGradient, type ArtworkBlendMode, type ArtworkFade } from '../geometry/fade';
+import './volume-brush.css';
+import { BLEND_MODES, DEFAULT_FADE, blendModeLabel, textureBlendFor, createReflection, fadeGradient, type ArtworkBlendMode, type ArtworkFade } from '../geometry/fade';
 import './fade-blend.css';
 
 const FADES: { id: 'none' | ArtworkFade['type']; label: string }[] = [{ id: 'none', label: 'None' }, { id: 'linear', label: 'Linear' }, { id: 'radial', label: 'Radial' }];
@@ -16,7 +17,14 @@ export function FadeBlendControls({ element, update }: { element: DesignElement;
   const reflection = artwork?.elements.find(item => item.reflectionOf?.of === element.id);
   const patchReflection = (patch: Partial<DesignElement>) => { if (artwork && reflection) artwork.onChange(artwork.elements.map(item => item.id === reflection.id ? { ...item, ...patch } : item), element.id); };
   const summary = [fade ? 'Fade' : '', element.artworkBlendMode && element.artworkBlendMode !== 'normal' ? blendModeLabel(element.artworkBlendMode) : '', reflection ? 'Reflection' : ''].filter(Boolean).join(' · ') || 'Off';
+  const useAsTexture = async () => {
+    const image = new Image(); image.crossOrigin = 'anonymous'; image.src = element.content;
+    try { await image.decode(); const canvas = document.createElement('canvas'); canvas.width = canvas.height = 48; const ctx = canvas.getContext('2d', { willReadFrequently: true })!; ctx.drawImage(image, 0, 0, 48, 48); const data = ctx.getImageData(0, 0, 48, 48).data; let light = 0, weight = 0; for (let i = 0; i < data.length; i += 4) { const a = data[i + 3] / 255; light += (.2126 * data[i] + .7152 * data[i + 1] + .0722 * data[i + 2]) * a; weight += a; } update({ artworkBlendMode: textureBlendFor(light / Math.max(1, weight)), artworkTextureClip: true }); }
+    catch { update({ artworkBlendMode: 'screen', artworkTextureClip: true }); }
+  };
   return <StudioFold title="Fade & blend" rowHeight={40} value={summary}>
+    {element.type === 'image' && <button type="button" className="cx-use-texture" onClick={() => void useAsTexture()}>Use as texture</button>}
+    {element.type === 'image' && element.artworkBlendMode && <label className="cx-brush-follow"><input type="checkbox" checked={Boolean(element.artworkTextureClip)} onChange={event => update({ artworkTextureClip: event.target.checked || undefined })} />Only on artwork below</label>}
     <label className="studio-field">Blend mode<MaterialSelect aria-label="Blend mode" value={element.artworkBlendMode ?? 'normal'} onChange={event => update({ artworkBlendMode: event.target.value === 'normal' ? undefined : event.target.value as ArtworkBlendMode })}>{BLEND_MODES.map(mode => <option key={mode} value={mode}>{blendModeLabel(mode)}</option>)}</MaterialSelect></label>
     <div className="cx-fade-types" role="group" aria-label="Fade">
       {FADES.map(item => <button key={item.id} type="button" aria-pressed={(fade?.type ?? 'none') === item.id} onClick={() => update({ artworkFade: item.id === 'none' ? undefined : { ...(fade ?? DEFAULT_FADE), type: item.id } })}>

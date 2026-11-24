@@ -202,7 +202,7 @@ export function createGarmentLabel(category: LabelCategory, manualPlacement = fa
     edgeToEdge:true,layoutMode:'stacked',extendIntoFolds:true,borderVersion:2,borderInsetMm:1.5,borderWidthMm:.2,borderStyle:'stitched',
     brand: 'YOUR BRAND', logoWidth: 70, logoX: 50, logoY: 50, font: 'Montserrat', fontSizeMm: category === 'neck' ? 4.5 : 3, fontWeight: 600, letterSpacingMm: 0, textAlign: 'center',
     position: labelPositions(category)[0], exteriorView: 'front', offsetXmm: 0, offsetYmm: 0, rotation: 0,
-    size: category === 'tag' ? '' : 'M', composition: category === 'care' ? '' : category === 'hand' ? 'ESSENTIAL COLLECTION' : '',
+    size: category === 'tag' || category === 'care' ? '' : 'M', composition: category === 'care' ? '' : category === 'hand' ? 'ESSENTIAL COLLECTION' : '',
     origin: category === 'care' ? '[COUNTRY OF ORIGIN]' : '', business: '',
     additional: '', careText: '',
     care: { washing: '', bleaching: '', drying: '', ironing: '', cleaning: '' },

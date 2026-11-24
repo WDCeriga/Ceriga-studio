@@ -4,6 +4,7 @@ import { RIBBON_BRUSHES, renderRibbonBrush } from './brushRibbons';
 import { DYNAMICS_DEFAULTS, applyBrushDynamics, brushDynamicsActive, type BrushDynamics } from './brushDynamics';
 import { VOLUME_BRUSHES, VOLUME_DEFAULTS, isVolumeBrush, renderVolumeStrokes, type VolumeBrushId, type VolumeSettings } from './brushVolume';
 import { applyBrushTexture, DEFAULT_TEXTURE_SETTINGS, type BrushTexture, type BrushTextureSettings } from './brushTextures';
+import { brushTip, renderTipStamps } from './brushTips';
 export { BRUSH_TEXTURES, DEFAULT_TEXTURE_SETTINGS, applyBrushTexture } from './brushTextures';
 export type { BrushTexture, BrushTextureSettings } from './brushTextures';
 
@@ -25,6 +26,10 @@ export type BrushPreset = 'pencil' | 'pen' | 'marker' | 'paint' | 'crayon' | 'sp
   | 'star-scatter' | 'sparkle-scatter' | 'flower-scatter' | VolumeBrushId;
 
 export interface BrushSettings extends BrushTextureSettings, Partial<VolumeSettings>, BrushDynamics {
+  /** Uploaded image used as the brush tip. */
+  brushTip?: string;
+  /** Turn the uploaded tip with the stroke. */
+  brushTipFollow?: boolean;
   /** Faster 3D preview while the pen is still down. */
   volumeDraft?: boolean;
   brushPreset: BrushPreset;
@@ -215,7 +220,7 @@ export const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   ...DYNAMICS_DEFAULTS,
   brushPreset: 'pen', texture: 'smooth', brushAngle: 90, brushRotation: 0,
   taperStart: 0, taperEnd: 0, blur: 0, smoothing: 35, symmetry: false,
-  brushSpacing: 12, scatterEnabled: false, scatterSpread: 100,
+  brushTip: '', brushTipFollow: false, brushSpacing: 12, scatterEnabled: false, scatterSpread: 100,
   scatterCount: 1, scatterSize: 100, scatterOpacity: 100, brushSeed: 0, distressMode: 'erase',
   ...Object.fromEntries(Object.values(PRESET_CONTROLS).flat().map(control => [control.key, control.default])),
 };
@@ -663,7 +668,9 @@ export function renderBrushStroke(
   context.strokeStyle = context.fillStyle;
   context.lineCap = 'round';
   context.lineJoin = 'round';
-  if (RIBBON_BRUSHES.has(preset)) renderRibbonBrush(context, preset, { points: shaped, size, scale, seed: strokeSeed(settings, seed), pressure: pressureOn, taperStart: settings.taperStart, taperEnd: settings.taperEnd, nib: settings.brushRotation, value: key => controlValue(settings, key as BrushPresetControl['key']) / 100 });
+  const uploadedTip = brushTip(settings.brushTip);
+  if (settings.brushTip) { if (uploadedTip) renderTipStamps(context, uploadedTip, samples.map((point, index) => { const start = settings.taperStart ? Math.max(.04, Math.min(1, point.distance / Math.max(1, length * settings.taperStart / 200))) : 1, end = settings.taperEnd ? Math.max(.04, Math.min(1, (length - point.distance) / Math.max(1, length * settings.taperEnd / 200))) : 1, pressure = pressureOn ? .35 + .65 * point.p : 1, variation = opacityJitter || angleJitter ? randomSource(strokeSeed(settings, seed) ^ Math.imul(index + 11, 0x2f6e2b1)) : null; return { x: point.x, y: point.y, radius: Math.max(.3 * scale, size * point.sizeScale * pressure * Math.min(start, end) / 2), rotation: (settings.brushTipFollow ? point.heading : 0) + settings.brushRotation * Math.PI / 180 + point.rotation + (variation && angleJitter ? (variation() - .5) * 2 * angleJitter : 0), opacity: point.opacity * (variation && opacityJitter ? 1 - opacityJitter * variation() : 1) }; })); }
+  else if (RIBBON_BRUSHES.has(preset)) renderRibbonBrush(context, preset, { points: shaped, size, scale, seed: strokeSeed(settings, seed), pressure: pressureOn, taperStart: settings.taperStart, taperEnd: settings.taperEnd, nib: settings.brushRotation, value: key => controlValue(settings, key as BrushPresetControl['key']) / 100 });
   else for (let index = 0; index < samples.length; index++) {
       const point = samples[index];
       const start = settings.taperStart ? Math.max(0.04, Math.min(1, point.distance / Math.max(1, length * settings.taperStart / 200))) : 1;

@@ -7,7 +7,7 @@
 .packaging-studio-canvas .pkg-preview[data-studio] .new-view-switch button{height:36px;min-width:58px;border:0;border-right:1px solid var(--builder-ui-line);background:white;color:var(--builder-ui-muted);padding:8px 14px;font-size:12px;font-weight:400;border-radius:0}
 .packaging-studio-canvas .pkg-preview[data-studio] .new-view-switch button:last-child{border-right:0}
 .packaging-studio-canvas .pkg-preview[data-studio] .new-view-switch button[aria-pressed=true]{background:var(--builder-ui-text);color:white}
-.packaging-studio-canvas .pkg-preview[data-studio] .pkg-stage{position:absolute;inset:56px 12px 58px;width:auto;background:#fff!important;background-image:none!important}
+.packaging-studio-canvas .pkg-preview[data-studio] .pkg-stage{position:absolute;inset:16px 12px 64px;width:auto;background:#fff!important;background-image:none!important}
 .packaging-studio-canvas .pkg-canvas-controls{position:absolute;inset:0;pointer-events:none;font-size:11px;color:var(--builder-ui-muted)}
 .packaging-studio-canvas .pkg-canvas-controls>*{pointer-events:auto}
 .packaging-studio-canvas .pkg-canvas-controls .new-zoom-control{left:16px;bottom:16px;right:auto}

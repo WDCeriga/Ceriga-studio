@@ -316,7 +316,7 @@ export function GarmentLabelOverlay({ labels, layers, view, interior = false, se
         {placement.collarClip && <clipPath id={clipId}><path d={placement.collarClip}/></clipPath>}
         <g clipPath={placement.collarClip ? `url(#${clipId})` : undefined}>
           <g transform={`translate(${placement.x} 0) scale(${placement.unit})`} onPointerDown={event => start(event, label, placement, false)} onClick={() => onSelect?.(label.id)} style={{ pointerEvents: onSelect ? 'auto' : 'none', touchAction: 'none', cursor: onChange ? 'move' : undefined }} role={onSelect ? 'button' : undefined} tabIndex={onSelect ? 0 : undefined} aria-label={`Select ${label.brand || label.category} label`} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onSelect?.(label.id); }}>
-            <LabelArtwork label={label} guide={Boolean(onChange && selectedId === label.id)} />
+            <LabelArtwork careSample label={label} guide={Boolean(onChange && selectedId === label.id)} />
             {onChange && <rect width={label.widthMm} height={label.heightMm} fill="transparent" />}
           </g>
         </g>

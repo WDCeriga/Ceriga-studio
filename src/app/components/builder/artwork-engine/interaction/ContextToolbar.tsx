@@ -40,7 +40,9 @@ export function useSelectionAnchor(host: HTMLElement | null, ids: string[]): Anc
         const b = node.getBoundingClientRect();
         x1 = Math.min(x1, b.left); y1 = Math.min(y1, b.top); x2 = Math.max(x2, b.right); y2 = Math.max(y2, b.bottom);
       }
-      const next = Number.isFinite(x1) ? { x: x1 - hostBox.left, y: y1 - hostBox.top, width: x2 - x1, height: y2 - y1 } : null;
+      // The Builder interface is scaled, so screen distances are converted to the toolbar's own units.
+      const ui = hostBox.width / Math.max(1, host.offsetWidth) || 1;
+      const next = Number.isFinite(x1) ? { x: (x1 - hostBox.left) / ui, y: (y1 - hostBox.top) / ui, width: (x2 - x1) / ui, height: (y2 - y1) / ui } : null;
       const sig = next ? `${Math.round(next.x)},${Math.round(next.y)},${Math.round(next.width)},${Math.round(next.height)}` : '';
       if (sig !== last) { last = sig; setRect(next); }
       frame = requestAnimationFrame(tick);
@@ -53,13 +55,26 @@ export function useSelectionAnchor(host: HTMLElement | null, ids: string[]): Anc
 }
 
 const GAP = 44; // clears the rotate dot on its stalk
+const BAR_HEIGHT = 36, EDGE = 8, HANDLE_CLEARANCE = 18, DOCK_CLEARANCE = 72;
+
+/** Above the selection, then below, then beside it, so the bar never sits on the resize handles. */
+export function contextBarPlacement(anchor: AnchorRect, hostWidth: number, hostHeight: number, barWidth: number) {
+  const half = barWidth / 2, centre = anchor.x + anchor.width / 2, across = Math.max(EDGE + half, Math.min(hostWidth - EDGE - half, centre));
+  const aboveTop = anchor.y - GAP, belowTop = anchor.y + anchor.height + HANDLE_CLEARANCE;
+  if (aboveTop >= EDGE) return { left: across, top: aboveTop, side: 'top' as const };
+  if (!hostHeight || belowTop + BAR_HEIGHT <= hostHeight - DOCK_CLEARANCE) return { left: across, top: belowTop, side: 'bottom' as const };
+  const beside = Math.max(EDGE, Math.min(hostHeight - DOCK_CLEARANCE - BAR_HEIGHT, anchor.y + anchor.height / 2 - BAR_HEIGHT / 2));
+  if (anchor.x + anchor.width + HANDLE_CLEARANCE + barWidth <= hostWidth - EDGE) return { left: anchor.x + anchor.width + HANDLE_CLEARANCE + half, top: beside, side: 'bottom' as const };
+  if (anchor.x - HANDLE_CLEARANCE - barWidth >= EDGE) return { left: anchor.x - HANDLE_CLEARANCE - half, top: beside, side: 'bottom' as const };
+  return { left: across, top: EDGE, side: 'bottom' as const };
+}
 
 /**
  * The single context toolbar of the Artwork engine (plan §7): the most frequent actions for the
  * selection, placed above it (flipping below near the top edge, clamped inside the canvas).
  */
-export function ContextToolbar({ anchor, hostWidth, actions, overflow, label = 'Selection actions', hidden = false }: {
-  anchor: AnchorRect | null; hostWidth: number; actions: ContextAction[]; overflow?: ContextAction[]; label?: string; hidden?: boolean;
+export function ContextToolbar({ anchor, hostWidth, hostHeight = 0, actions, overflow, label = 'Selection actions', hidden = false }: {
+  anchor: AnchorRect | null; hostWidth: number; hostHeight?: number; actions: ContextAction[]; overflow?: ContextAction[]; label?: string; hidden?: boolean;
 }) {
   const bar = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -72,12 +87,8 @@ export function ContextToolbar({ anchor, hostWidth, actions, overflow, label = '
     return () => observer.disconnect();
   }, [shown]);
   if (!anchor || hidden) return null;
-  const below = anchor.y - GAP - 40 < 8;
-  const centre = anchor.x + anchor.width / 2;
-  const half = width / 2;
-  const left = Math.max(8 + half, Math.min(hostWidth - 8 - half, centre));
-  const top = below ? anchor.y + anchor.height + 18 : anchor.y - GAP;
-  return <div ref={bar} className="cx-context-bar" role="toolbar" aria-label={label} data-side={below ? 'bottom' : 'top'}
+  const { left, top, side } = contextBarPlacement(anchor, hostWidth, hostHeight, width);
+  return <div ref={bar} className="cx-context-bar" role="toolbar" aria-label={label} data-side={side}
     style={{ left, top }} onPointerDown={event => event.stopPropagation()}>
     {actions.map(action => <ActionItem key={action.id} action={action} />)}
     {overflow?.length ? <><span className="cx-context-bar__sep" aria-hidden="true" /><ActionMenu action={{ id: 'more', label: 'More actions', icon: <MoreHorizontal size={16} />, menu: overflow }} /></> : null}

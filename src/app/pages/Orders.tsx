@@ -268,6 +268,8 @@ export function Orders() {
                           <div className="relative inline-block text-left">
                             <button
                               type="button"
+                              aria-label="Order actions"
+                              aria-expanded={openMenuId === order.id}
                               onClick={() => setOpenMenuId(openMenuId === order.id ? null : order.id)}
                               className="rounded-[4px] p-2 text-[#8A8A90] hover:bg-[#1C1C1E] hover:text-[#F0EEEE]"
                             >

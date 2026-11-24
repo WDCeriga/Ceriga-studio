@@ -99,6 +99,11 @@ export function ImageGradeControls({ element, update }: { element: DesignElement
       {grade.map && <><div className="cx-grade-stops">{grade.map.stops.map((stop, index) => <input key={index} type="color" aria-label={`Map colour ${index + 1}`} value={stop.color} onChange={event => write({ map: { ...latest.current.map!, stops: latest.current.map!.stops.map((item, i) => i === index ? { ...item, color: event.target.value } : item) } })} />)}</div>
         <StudioRange label="Strength" min={0} max={100} value={grade.map.amount} unit="%" onChange={amount => write({ map: { ...latest.current.map!, amount } })} /></>}
     </div>
+    <div className="cx-grade-block"><span className="cx-grade-title">Pixel stretch</span>
+      <div className="cx-grade-tabs cx-stretch-directions" role="group" aria-label="Pixel stretch direction">{([['off', 'Off'], ['down', 'Down'], ['up', 'Up'], ['left', 'Left'], ['right', 'Right']] as const).map(([id, label]) => <button key={id} type="button" aria-pressed={(grade.stretch?.direction ?? 'off') === id} onClick={() => write({ stretch: id === 'off' ? undefined : { at: latest.current.stretch?.at ?? 50, amount: latest.current.stretch?.amount ?? 100, direction: id } })}>{label}</button>)}</div>
+      {grade.stretch && <><StudioRange label="Starts at" min={0} max={100} value={grade.stretch.at} unit="%" onChange={at => write({ stretch: { ...latest.current.stretch!, at } })} />
+        <StudioRange label="Strength" min={0} max={100} value={grade.stretch.amount ?? 100} unit="%" onChange={amount => write({ stretch: { ...latest.current.stretch!, amount } })} /></>}
+    </div>
     {active && <button type="button" className="artwork-reset" onClick={() => update({ imageGrade: grade.cutout || grade.recolour ? { cutout: grade.cutout, recolour: grade.recolour } : undefined })}>Reset pro colour</button>}
   </StudioFold>;
 }

@@ -195,7 +195,7 @@ export function packagingDimensionError(dimensions: PackagingDesign['dimensions'
 export function packagingWarnings(design: PackagingDesign): string[] {
   if (design.category === 'none') return [];
   const warnings: string[] = [];
-  if (!design.dimensionsConfirmed) warnings.push('Dimensions are an illustrative starting point, not a selected production size.');
+  if (!design.dimensionsConfirmed) warnings.push('This size is a starting point. Apply it to confirm.');
   for (const element of design.elements) {
     if (Math.min(element.width, element.height) < 5 || element.kind === 'text' && element.fontSize < 2.5) warnings.push(`${element.name}: small artwork; confirm minimum printable detail.`);
     if (element.pixelWidth && element.pixelWidth / (element.width / 25.4) < 150) warnings.push(`${element.name}: below 150 ppi at the selected size; request a higher-resolution original.`);

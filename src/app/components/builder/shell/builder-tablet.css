@@ -1,0 +1,74 @@
+/*
+ * iPad and other touch tablets (data-device=tablet). Full size, never the 90% laptop scale.
+ * Targets follow Apple's 44 pt guidance where a finger is the main input; Apple Pencil still gets precision on the canvas.
+ */
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet]{--builder-ui-scale:var(--builder-fluid-scale,1);zoom:var(--builder-ui-scale);-webkit-tap-highlight-color:transparent}
+.ceriga-builder-shell[data-device=tablet],.ceriga-builder-shell[data-device=tablet][data-section]{height:calc(var(--builder-viewport-height,100dvh) / var(--builder-ui-scale))!important}
+
+/* Canvases: no text selection, magnifier or callout while drawing and dragging. */
+.ceriga-builder-shell[data-device=tablet] :is(.print-design-canvas,.packaging-studio-canvas,.label-studio,.builder-workspace) [data-print-design-zone],
+.ceriga-builder-shell[data-device=tablet] :is(.print-design-canvas,.packaging-studio-canvas){-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+/* Bottom bar: bigger, still centred. */
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock{padding:5px;gap:4px;border-radius:14px}
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock :is(button,.cx-dock-toggle){height:40px;min-height:40px;min-width:40px;font-size:14px}
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock>.new-view-switch>button{height:40px;min-height:40px;padding:0 14px}
+
+/* Floating tool rails and the selection bar. */
+.ceriga-builder-shell[data-device=tablet] :is(.artwork-canvas-tools,.draw-canvas-tools,.shape-canvas-tools) button{min-width:44px;min-height:44px}
+.ceriga-builder-shell[data-device=tablet] :is(.cx-context-toolbar,.artwork-context-bar) button{min-width:40px;min-height:40px}
+
+/* Section rail: icon buttons at finger size. */
+.ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context) button{min-height:48px}
+
+/* Panel rows and fields. */
+.ceriga-builder-shell[data-device=tablet] .builder-inspector summary{min-height:48px}
+.ceriga-builder-shell[data-device=tablet] .builder-inspector :is(input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]),[role=combobox],select){min-height:44px;font-size:16px}
+.ceriga-builder-shell[data-device=tablet] .builder-inspector input[type=range]{height:32px}
+.ceriga-builder-shell[data-device=tablet] input[type=range]::-webkit-slider-thumb{width:24px;height:24px}
+.ceriga-builder-shell[data-device=tablet] .builder-inspector :is(input[type=checkbox],input[type=radio]){width:20px;height:20px}
+
+/* Selection handles: same look, a larger invisible grab area for fingers. */
+.ceriga-builder-shell[data-device=tablet] .cx-handle::after{content:"";position:absolute;inset:-14px}
+
+/* Panel toggle and resize grip sized for fingers. */
+.ceriga-builder-shell[data-device=tablet] .builder-inspector-collapse{min-width:40px;min-height:48px}
+
+/* Portrait iPads: a slimmer panel keeps the garment large. Landscape keeps the laptop proportions. */
+@media(orientation:portrait){
+  .ceriga-builder-shell[data-device=tablet]:not([data-inspector-collapsed=true]){--builder-inspector-width:clamp(300px,38vw,340px)!important}
+}
+
+/* Hover-only affordances do nothing on touch, so show their controls at rest. */
+@media(hover:none){
+  .ceriga-builder-shell[data-device=tablet] .label-saved-row :is(button[aria-label^="Duplicate"],button[aria-label^="Remove"]){opacity:1}
+}
+
+/* Portrait: the laptop rule caps the panel at 32vw, which is too narrow for tiles on an iPad. */
+@media(orientation:portrait){
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section]:not([data-inspector-collapsed=true]) .builder-shell-grid{grid-template-columns:var(--builder-nav-width,64px) minmax(0,1fr) clamp(300px,38vw,340px)}
+  /* Bottom bar fits the narrower canvas and scrolls sideways if a section adds more controls. */
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock{max-width:calc(100% - 24px);overflow-x:auto;scrollbar-width:none}
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock :is(button,.cx-dock-toggle){padding:0 10px}
+}
+/* The panel toggle sits on the canvas edge, never over the panel title. */
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet]:not([data-inspector-collapsed=true]) .builder-inspector-collapse{left:-52px;top:10px}
+/* Tile labels wrap between words only. */
+.ceriga-builder-shell[data-device=tablet] .builder-inspector button :is(span,small){overflow-wrap:normal;word-break:normal;hyphens:manual}
+/* Bar items never squash; on portrait, pinch replaces the zoom steps so only Fit stays. */
+.ceriga-builder-shell[data-device=tablet] .canvas-dock>*,.ceriga-builder-shell[data-device=tablet] .canvas-dock .new-view-switch>button{flex-shrink:0}
+@media(orientation:portrait){
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock .studio-canvas-zoom>:not(:last-child){display:none}
+}
+@media(orientation:portrait){
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock :is(button[aria-label="Zoom out"],button[aria-label="Zoom in"],.cx-toolbar-sep){display:none!important}
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock :is(button,.cx-dock-toggle){padding:0 8px;font-size:13px}
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .canvas-dock{gap:2px}
+}
+/* Tool rail: widen it to hold finger-sized buttons, colour swatch included. */
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .print-design-canvas>.artwork-canvas-tools{width:52px}
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .artwork-canvas-tools button{width:44px;height:44px;min-width:44px;min-height:44px}
+@media(max-height:860px){
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .artwork-canvas-tools button{width:40px;height:40px;min-width:40px;min-height:40px}
+  .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .print-design-canvas>.artwork-canvas-tools{width:48px}
+}

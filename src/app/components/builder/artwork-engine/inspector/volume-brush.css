@@ -18,3 +18,9 @@
 .ceriga-builder-shell .builder-inspector .cx-my-brush>.is-delete{position:absolute;top:3px;right:3px;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-height:0;padding:0;border:0;border-radius:5px;background:rgb(255 255 255 / .92);color:#737370;opacity:0;transition:opacity .12s ease-out}
 .cx-my-brush:hover>.is-delete,.cx-my-brush>.is-delete:focus-visible{opacity:1}
 @media (hover:none){.ceriga-builder-shell .builder-inspector .cx-my-brush>.is-delete{opacity:1}}
+
+.cx-brush-from-image,.cx-use-texture{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:32px;margin:6px 0;border:0;border-radius:8px;background:#f6f6f4;color:#1f1f1d;font-size:12px;cursor:pointer;transition:background-color 120ms ease-out}
+.cx-brush-from-image:hover,.cx-use-texture:hover{background:#efefec}
+.cx-brush-from-image:disabled{color:#7b7b77;cursor:progress}
+.cx-brush-follow{display:flex;align-items:center;gap:7px;min-height:28px;color:#3f3f3c;font-size:12px}
+.cx-brush-follow input{width:14px;height:14px;accent-color:#1f1f1d}

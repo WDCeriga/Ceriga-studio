@@ -1,0 +1,12 @@
+.interface-size-menu{z-index:1000;width:220px;padding:6px;border-radius:12px;background:#fff;color:#1f1f1d;font-family:Inter,system-ui,sans-serif;box-shadow:0 0 0 1px rgba(0,0,0,.06),0 1px 2px -1px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.08);transform-origin:var(--radix-popover-content-transform-origin);animation:interface-size-in 140ms ease-out}
+.interface-size-menu>p{margin:4px 8px 6px;color:#7b7b77;font-size:11px;font-weight:500}
+.interface-size-menu [role=radiogroup]{display:grid;gap:2px}
+.interface-size-menu button{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px;width:100%;min-height:40px;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:#1f1f1d;text-align:left;cursor:pointer;transition:background-color 120ms ease-out}
+.interface-size-menu button:hover{background:#f6f6f4}
+.interface-size-menu button[aria-checked=true]{background:#f6f6f4}
+.interface-size-menu button span{font-size:13px}
+.interface-size-menu button small{grid-column:1;color:#7b7b77;font-size:11px}
+.interface-size-menu button svg{grid-row:1 / span 2;grid-column:2}
+.interface-size-menu button:focus-visible{outline:2px solid #2f6fed;outline-offset:-2px}
+@keyframes interface-size-in{from{opacity:0;transform:scale(.96)}}
+@media(prefers-reduced-motion:reduce){.interface-size-menu{animation:none}}

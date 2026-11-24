@@ -145,7 +145,6 @@
 /* Labels canvas: the garment fits above the shared bar and its hint (the size container re-measures its content box) */
 .ceriga-builder-shell [data-label-editing-surface] > div[class*="container-type:size"] { padding: 48px 0 104px; box-sizing: border-box; }
 /* Labels → Artwork view: the label bar and the artwork editor's zoom sit side by side as one centred pair */
-.ceriga-builder-shell [data-label-editing-surface]:has(.surface-editor-zoom) .label-canvas-dock:not(:has(.studio-canvas-zoom)) { transform: translateX(calc(-100% - 4px)); }
 .ceriga-builder-shell [data-label-editing-surface] .surface-editor-zoom { position: absolute !important; left: calc(50% + 4px) !important; right: auto !important; top: auto !important; bottom: -104px !important; z-index: 30; } /* lines up with the bar: 104px is the label canvas's reserved bottom padding */
 .ceriga-builder-shell.ceriga-builder-shell [data-label-editing-surface] .surface-editor-zoom > .studio-canvas-zoom { display: flex; align-items: center; gap: 2px; height: 36px; padding: 4px; border: 0 !important; border-radius: 10px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .06), 0 1px 2px -1px rgb(0 0 0 / .06), 0 4px 12px 0 rgb(0 0 0 / .05) !important; }
 .ceriga-builder-shell [data-label-editing-surface] .surface-editor-zoom > .studio-canvas-zoom > * { border: 0 !important; background: transparent; height: 28px; min-height: 28px; border-radius: 6px; font-size: 13px !important; font-weight: 400 !important; }
@@ -156,3 +155,13 @@
 html[data-artwork-focus] .ceriga-builder-shell.ceriga-builder-shell .builder-shell-grid { grid-template-columns: minmax(0, 1fr) !important; }
 html[data-artwork-focus] .ceriga-builder-shell :is(.builder-sidebar, .builder-inspector, .builder-inspector-rail, .builder-inspector-resize, .builder-inspector-collapse) { display: none !important; }
 .ceriga-builder-shell.ceriga-builder-shell .canvas-dock > .cx-focus-toggle[aria-pressed='true'] { background: var(--cx-ink); color: #fff; }
+
+/* Audit fixes: keep the panel toggle on screen and drop empty dividers in the bottom bar. */
+.ceriga-builder-shell.ceriga-builder-shell[data-inspector-collapsed=true] .builder-inspector-collapse{left:-14px;right:auto}
+.ceriga-builder-shell.ceriga-builder-shell .canvas-dock>.cx-toolbar-sep:last-child,.ceriga-builder-shell.ceriga-builder-shell .canvas-dock>.cx-toolbar-sep+.cx-toolbar-sep{display:none}
+@media(max-width:767px){.ceriga-builder-shell.ceriga-builder-shell .canvas-dock>.cx-toolbar-sep:has(+:is([hidden],.cx-toolbar-sep)),.ceriga-builder-shell.ceriga-builder-shell .canvas-dock>.cx-toolbar-sep{display:none}}
+@media(max-width:767px){.ceriga-builder-shell .builder-draft{display:none}}
+
+/* No visible scrollbars anywhere in the Builder. Panels still scroll with wheel, trackpad, touch and keyboard. */
+.ceriga-builder-shell,.ceriga-builder-shell *{scrollbar-width:none}
+.ceriga-builder-shell ::-webkit-scrollbar,.ceriga-builder-shell::-webkit-scrollbar{display:none;width:0;height:0}

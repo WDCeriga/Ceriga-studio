@@ -49,3 +49,6 @@
 
 /* Long menus (text styles) scroll inside the viewport. */
 .cx-context-menu { max-height: min(440px, calc(100vh - 96px)); overflow-y: auto; scrollbar-width: thin; }
+
+.cx-selection-colours { display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; }
+.cx-selection-colours small { color: #7b7b77; font-size: 11px; }

@@ -498,6 +498,7 @@ export function ManufacturerMaterials() {
                             size="sm"
                             variant="outline"
                             className="border-red-500/25 text-red-200 hover:bg-red-500/10"
+                            aria-label={`Remove ${m.name}`}
                             onClick={() => setRemoveId(m.id)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />

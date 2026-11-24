@@ -15,6 +15,23 @@ const signature = (project: AssetProject) => JSON.stringify([project.name, proje
 const clone = <T,>(value: T): T => structuredClone(value);
 const message = (error: unknown) => error instanceof Error ? error.message : 'The asset could not be saved. Please retry.';
 
+/**
+ * Asset Studio artboards are often large, and artwork added at the garment's default size looks tiny on them.
+ * A single new piece of text starts at about a tenth of the artboard's short side in type size, and a new shape at
+ * about 36% of it, scaled around its centre. Drawn paths, brush strokes, images and duplicates keep their size.
+ */
+export function sizeNewArtwork(project: { width: number; height: number; elements: DesignElement[] }, next: DesignElement[]): DesignElement[] {
+  const before = new Set(project.elements.map(element => element.id)), added = next.filter(element => !before.has(element.id));
+  if (added.length !== 1) return next;
+  const element = added[0], short = Math.min(project.width, project.height), size = Math.max(element.width, element.height);
+  if (!(element.type === 'text' || element.type === 'shape') || element.content === 'custom-path' || element.shapeBrush || element.booleanOperation || element.letteringSource || !short || !size) return next;
+  if (project.elements.some(other => other.type === element.type && other.content === element.content && Math.abs(other.width - element.width) < .5 && Math.abs(other.height - element.height) < .5)) return next;
+  const scale = element.type === 'text' ? short * .1 / Math.max(1, element.fontSize ?? 30) : short * .36 / size;
+  if (scale <= 1.05) return next;
+  const grown: DesignElement = { ...element, width: element.width * scale, height: element.height * scale, ...(element.type === 'text' ? { fontSize: (element.fontSize ?? 30) * scale } : {}), ...(element.borderWidth ? { borderWidth: element.borderWidth * Math.sqrt(scale) } : {}) };
+  return next.map(item => item.id === element.id ? grown : item);
+}
+
 export function useAssetWorkspace({ onPlaceOnGarment, garmentSide = 'front' }: { onPlaceOnGarment: (asset: AssetProject, point?: Point, placement?: AssetPlacement) => void; garmentSide?: 'front' | 'back' }) {
   const { user, authReady } = useAuth();
   const userId = user?.id ?? null;
@@ -92,7 +109,7 @@ export function useAssetWorkspace({ onPlaceOnGarment, garmentSide = 'front' }: {
     if (!options?.transient&&signature(next.project) !== signature(current.project)) { setPast(items => [...items.slice(-99), current]); setFuture([]); }
     updateSnapshot(next);
   }, [updateSnapshot]);
-  const change = useCallback((elements: DesignElement[], selectedId?: string | null,options?:{transient?:boolean}) => changeProject({ elements }, selectedId,options), [changeProject]);
+  const change = useCallback((elements: DesignElement[], selectedId?: string | null,options?:{transient?:boolean}) => changeProject({ elements: options?.transient||!snapshotRef.current ? elements : sizeNewArtwork(snapshotRef.current.project, elements) }, selectedId,options), [changeProject]);
   const select = useCallback((id: string | null) => {
     if (snapshotRef.current && !busyRef.current) updateSnapshot({ ...snapshotRef.current, selectedId: id });
   }, [updateSnapshot]);

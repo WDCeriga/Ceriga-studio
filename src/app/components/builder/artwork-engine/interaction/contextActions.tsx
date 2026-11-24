@@ -56,7 +56,7 @@ export type ContextHandlers = {
 
 export type ContextSelection =
   | { kind: 'single'; type: string; locked?: boolean; colourControl?: ReactNode }
-  | { kind: 'multi'; count: number };
+  | { kind: 'multi'; count: number; colourControl?: ReactNode };
 
 const ICON = 16;
 const arrangeMenu = (h: ContextHandlers): ContextAction => ({
@@ -89,6 +89,7 @@ export function contextActionsFor(selection: ContextSelection, h: ContextHandler
   if (selection.kind === 'multi') {
     return {
       actions: [
+        ...(selection.colourControl ? [{ id: 'colour', label: 'Colours', render: selection.colourControl } as ContextAction] : []),
         ...(h.textInShape ? [{ id: 'text-shape', label: 'Text + shape', icon: <TypeOutline size={ICON} />, showLabel: true, menu: [
           { id: 'inside', label: 'Place inside', icon: <SquareDot size={ICON} />, onSelect: h.textInShape.inside },
           { id: 'warp', label: 'Warp to shape', icon: <Spline size={ICON} />, onSelect: h.textInShape.warp },

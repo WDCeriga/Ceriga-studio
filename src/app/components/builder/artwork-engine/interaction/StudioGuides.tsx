@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCloseOnOutside } from './useCloseOnOutside';
 import * as Popover from '@radix-ui/react-popover';
 import { Grid3x3 } from 'lucide-react';
 import { activeVanishingPoints, DEFAULT_GUIDES, guidePaths, guidesActive, guidesFromBox, hasLineGuides, rulerTicks, skeletonCurves, skeletonPoint, type CustomGuide, type GuideSkeleton, type SkeletonKind, type StudioGuides as Guides, type SymmetryMode } from '../geometry/studioGuides';
@@ -74,7 +75,7 @@ export function StudioGuidesOverlay({ width, height, scale = 1 }: { width: numbe
   };
   return <>
     <svg data-editor-chrome data-studio-guides className="cx-guides" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true" style={{ color: guides.colour, opacity: guides.opacity / 100 }}>
-      <path d={paths.minor} strokeWidth=".5" opacity=".45" /><path d={paths.major} strokeWidth=".75" opacity=".8" /><path d={paths.axis} strokeWidth="1.25" />
+      <path d={paths.minor} strokeWidth={.5 / Math.max(.01, scale)} opacity=".45" /><path d={paths.major} strokeWidth={.75 / Math.max(.01, scale)} opacity=".8" /><path d={paths.axis} strokeWidth={1.25 / Math.max(.01, scale)} />
     </svg>
     {editing && guides.perspective.on && <div ref={layer} data-editor-chrome className="cx-guide-handles">{activeVanishingPoints(guides.perspective).map((index, order) => { const point = guides.perspective.points[index]; return <button key={index} type="button" data-guide-handle aria-label={`Vanishing point ${order + 1}`} title="Drag vanishing point" style={{ left: `${point.x}%`, top: `${point.y}%`, color: guides.colour }} onPointerDown={event => { event.preventDefault(); event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={event => drag(index, event)} />; })}</div>}
     {editing && guides.skeleton.on && <SkeletonHandles width={width} height={height} colour={guides.colour} />}
@@ -88,10 +89,12 @@ const SYMMETRY: { id: SymmetryMode; label: string }[] = [{ id: 'off', label: 'Of
 
 /** Bottom-bar menu for every drawing guide. */
 export function GuidesMenu({ selection }: { selection?: DesignElement }) {
-  const g = useGuides(), active = guidesActive(g) || g.angle.on;
+  const g = useGuides(), active = guidesActive(g) || g.angle.on, [open, setOpen] = useState(false), change = (next: boolean) => { setOpen(next); setGuideEditing(next); };
+  useCloseOnOutside(open, () => change(false));
+  useEffect(() => () => setGuideEditing(false), []);
   const part = <K extends 'grid' | 'isometric' | 'lettering' | 'perspective' | 'symmetry' | 'rulers' | 'skeleton' | 'angle'>(key: K, patch: Partial<Guides[K]>) => setGuides({ ...g, [key]: { ...g[key], ...patch } });
   const perspective = g.perspective, movePoint = (index: number, patch: { x?: number; y?: number }) => part('perspective', { points: perspective.points.map((point, i) => i === index ? { ...point, ...patch } : point) });
-  return <Popover.Root modal={false} onOpenChange={setGuideEditing}>
+  return <Popover.Root modal={false} open={open} onOpenChange={change}>
     <Popover.Trigger asChild><button type="button" className="cx-dock-toggle cx-snap-trigger" aria-label="Guides" title="Guides" aria-pressed={active}><Grid3x3 size={15} /><span>Guides</span></button></Popover.Trigger>
     <Popover.Portal><Popover.Content className="cx-guides-panel" side="top" sideOffset={10} align="end" alignOffset={-260} collisionPadding={12} aria-label="Drawing guides" onInteractOutside={event => { if ((event.detail.originalEvent.target as Element | null)?.closest?.('[data-guide-handle],[data-guide-control]')) event.preventDefault(); }}>
       <Section label="Rulers" on={g.rulers.on} onToggle={on => part('rulers', { on })}><div className="cx-guides-seg cx-guides-seg-2" role="group" aria-label="Ruler units">{(['px', 'cm'] as const).map(unit => <button key={unit} type="button" aria-pressed={g.rulers.unit === unit} onClick={() => part('rulers', { unit })}>{unit}</button>)}</div><div className="cx-guides-count"><span>{g.customGuides.length ? `${g.customGuides.length} ruler guide${g.customGuides.length > 1 ? 's' : ''}` : 'Drag from a ruler to add a guide'}</span>{g.customGuides.length > 0 && <button type="button" onClick={() => setGuides({ ...g, customGuides: [] })}>Remove</button>}</div></Section>

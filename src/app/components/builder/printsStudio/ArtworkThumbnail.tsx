@@ -1,3 +1,4 @@
+import {ArtworkSurfaceContext} from './ArtworkSurfaceContext';
 import {useMemo} from 'react';
 import type {DesignElement} from '../PrintStudioEditor';
 import {DesignGroupArtwork} from './DesignGroupArtwork';
@@ -14,9 +15,9 @@ export function ArtworkThumbnail({element}:{element:DesignElement}){
  return <div className="studio-artwork-thumbnail" data-artwork-thumbnail={element.type} role="img" aria-label={(element.layerName??(element.type==='text'?element.content:element.type))+' preview'}>
   <svg viewBox={`0 0 ${preview.width} ${preview.height}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true"><foreignObject width={preview.width} height={preview.height}>
    <div style={{width:preview.width,height:preview.height,pointerEvents:'none'}}>
-    <GarmentPrintTextureContext.Provider value={null}><GarmentPatternReliefContext.Provider value={null}><ArtworkResolutionContext.Provider value={1}>
+    <ArtworkSurfaceContext.Provider value={null}><GarmentPrintTextureContext.Provider value={null}><GarmentPatternReliefContext.Provider value={null}><ArtworkResolutionContext.Provider value={1}>
      <DesignGroupArtwork element={preview}/>
-    </ArtworkResolutionContext.Provider></GarmentPatternReliefContext.Provider></GarmentPrintTextureContext.Provider>
+    </ArtworkResolutionContext.Provider></GarmentPatternReliefContext.Provider></GarmentPrintTextureContext.Provider></ArtworkSurfaceContext.Provider>
    </div>
   </foreignObject></svg>
  </div>;

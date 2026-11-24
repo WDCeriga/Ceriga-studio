@@ -1765,6 +1765,15 @@ function TshirtSvgPreviewView({
       centerX: 1024, centerY: loopSeam + 121 };
     return { id: 'innerBackNeck', svgRaw, bbox, matrix: new DOMMatrix().toString() };
   })() : undefined;
+  const loopShift = (neckCloseUpLoop?.hoodieTrim?.loopOffset ?? 0) * 170;
+  const dragLoop = (event: ReactPointerEvent<SVGRectElement>, id: string) => {
+    event.stopPropagation();
+    if (event.button !== 0 || !onDetailsChange) return;
+    const start = event.clientX, base = neckCloseUpLoop?.hoodieTrim?.loopOffset ?? 0, unit = (event.currentTarget.ownerSVGElement?.getBoundingClientRect().width ?? 2048) / 2048, pointer = event.pointerId;
+    const move = (next: PointerEvent) => { if (next.pointerId !== pointer) return; const loopOffset = Math.round(Math.max(-1, Math.min(1, base + (next.clientX - start) / unit / 170)) * 100) / 100; onDetailsChange(garmentDetails.map(detail => detail.id === id ? { ...detail, hoodieTrim: { ...detail.hoodieTrim, loopOffset } } : detail)); };
+    const end = (next: PointerEvent) => { if (next.pointerId !== pointer) return; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+  };
   const visibleDetailHardware = liveDetails.filter(detail => (openingStage === 'final' || !detail.opening) &&
     (!['hoodie','trousers'].includes(garmentType) || (detail.type !== 'toggle' && detail.type !== 'hoodDetail')) &&
     (garmentType!=='trousers'||detail.type!=='drawstring'||detail.drawstringPosition!=='internal') &&
@@ -2203,8 +2212,8 @@ function TshirtSvgPreviewView({
             </g>
           </svg>
         </div>}
-        {neckCloseUpLoop && loopSeam !== undefined && detailBounds && <svg viewBox="0 0 2048 2048" className="pointer-events-none absolute inset-0 z-[251] h-full w-full" aria-label="Inside hanging loop">
-          <g transform={`translate(1024 ${loopSeam})`}>
+        {neckCloseUpLoop && loopSeam !== undefined && detailBounds && <svg viewBox="0 0 2048 2048" className={`pointer-events-none absolute inset-0 ${labelEditor ? "z-[146]" : "z-[251]"} h-full w-full`} aria-label="Inside hanging loop">
+          <g transform={`translate(${1024 + loopShift} ${loopSeam})`}>
               <svg x={-(detailBounds.maxX - detailBounds.minX) * .0225} y="1" width={(detailBounds.maxX - detailBounds.minX) * .045} height={(detailBounds.maxX - detailBounds.minX) * .036}
                 viewBox="0 0 30 24" style={{'--detail-fill':neckCloseUpLoop.fill,'--detail-outline':neckCloseUpLoop.outline} as React.CSSProperties}
                 dangerouslySetInnerHTML={{__html: detailAsset(neckCloseUpLoop).svg.replace(/^[\s\S]*?<svg[^>]*>|<\/svg>[\s\S]*$/g, '')}}/>
@@ -2212,7 +2221,7 @@ function TshirtSvgPreviewView({
                 className="pointer-events-auto cursor-pointer focus-visible:stroke-white"
                 x={-(detailBounds.maxX - detailBounds.minX) * .025} y="0"
                 width={(detailBounds.maxX - detailBounds.minX) * .05} height={(detailBounds.maxX - detailBounds.minX) * .038}
-                fill="transparent" onPointerDown={event => event.stopPropagation()}
+                fill="transparent" style={{ cursor: 'ew-resize', touchAction: 'none' }} onPointerDown={event => dragLoop(event, insideLoop.id)}
                 onClick={event => {
                   event.stopPropagation();
                   window.dispatchEvent(new CustomEvent('ceriga-edit-hanging-loop', { detail: insideLoop.id }));

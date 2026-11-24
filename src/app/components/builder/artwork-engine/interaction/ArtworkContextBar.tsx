@@ -6,7 +6,7 @@ import type { DesignElement } from '../../PrintStudioEditor';
 import { alignArtwork, arrangeArtwork, distributeArtwork, type Area } from '../../../../lib/artworkArrange';
 import { ContextToolbar, useSelectionAnchor } from './ContextToolbar';
 import { contextActionsFor, type ContextHandlers } from './contextActions';
-import { inkOf, inkPatch } from '../state/sharedProperties';
+import { inkOf, selectionColours, recolourSelection, inkPatch } from '../state/sharedProperties';
 import { groupDesignLayers, groupLayersIssue } from '../../../../lib/designGroups';
 import { useCombine } from './useCombine';
 import { startShapeBuilder } from '../state/shapeBuilder';
@@ -29,6 +29,14 @@ const QUICK_RESTYLES = ['inflate', 'stipple-tube', 'puffy-paint', 'balloon', 'ch
 import type { ImageFilterId } from '../../../../lib/imageFilters';
 
 const IMAGE_LOOKS: { id: ImageFilterId; label: string }[] = [{ id: 'none', label: 'Original' }, { id: 'bw', label: 'B&W' }, { id: 'vintage', label: 'Vintage' }, { id: 'film', label: 'Film' }, { id: 'washed', label: 'Washed' }, { id: 'duotone', label: 'Duotone' }, { id: 'halftone', label: 'Halftone' }, { id: 'screen-print', label: 'Screen print' }, { id: 'threshold', label: 'Threshold' }];
+
+/** Every colour in the selection as its own swatch. Changing one recolours it everywhere it is used. */
+function SelectionColours({ elements, ids, onChange }: { elements: DesignElement[]; ids: string[]; onChange: (next: DesignElement[]) => void }) {
+  const colours = selectionColours(elements.filter(element => ids.includes(element.id)));
+  if (!colours.length) return null;
+  const shown = colours.slice(0, 5);
+  return <span className="cx-selection-colours" role="group" aria-label="Selection colours">{shown.map(group => <ColourWell key={group.colour + group.uses.map(use => use.key).join()} label={group.labels.join(', ') + (group.uses.length > 1 ? ` · ${group.uses.length} places` : '')} value={group.colour} onChange={colour => onChange(recolourSelection(elements, group.uses, colour))} />)}{colours.length > shown.length && <small>+{colours.length - shown.length}</small>}</span>;
+}
 
 /** A quiet round colour well (native picker) for the context toolbar. */
 function ColourWell({ value, onChange, label }: { value: string; onChange: (hex: string) => void; label: string }) {
@@ -136,12 +144,12 @@ export function ArtworkContextBar({ elements, selectedId, selectionIds, hidden, 
 
   const colourable = selected && (selected.type === 'text' || selected.type === 'shape');
   const { actions, overflow } = multi
-    ? contextActionsFor({ kind: 'multi', count: ids.length }, handlers)
+    ? contextActionsFor({ kind: 'multi', count: ids.length, colourControl: <SelectionColours elements={elements} ids={ids} onChange={next => onChange(next, selectedId ?? undefined)} /> }, handlers)
     : contextActionsFor({ kind: 'single', type: selected?.type ?? '', locked: selected?.locked,
-        colourControl: colourable && selected ? <ColourWell label="Colour" value={inkOf(selected)} onChange={colour => onUpdate(selected.id, inkPatch(selected, colour))} /> : undefined }, handlers);
+        colourControl: colourable && selected ? <SelectionColours elements={elements} ids={[selected.id]} onChange={next => onChange(next, selected.id)} /> : undefined }, handlers);
 
   return <div ref={setHost} data-editor-chrome className="cx-context-host" aria-hidden={!anchor}>
-    {(multi || selected) && <ContextToolbar anchor={anchor} hostWidth={host?.offsetWidth ?? 0} actions={actions} overflow={overflow}
+    {(multi || selected) && <ContextToolbar anchor={anchor} hostWidth={host?.offsetWidth ?? 0} hostHeight={host?.offsetHeight ?? 0} actions={actions} overflow={overflow}
       label={multi ? `${ids.length} objects selected` : `${selected?.type ?? 'Artwork'} actions`} hidden={hidden} />}
   </div>;
 }

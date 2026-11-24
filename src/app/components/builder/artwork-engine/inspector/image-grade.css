@@ -35,3 +35,5 @@
 .cx-grade-stops input{width:28px;height:28px;padding:0;overflow:hidden;border:1px solid #dadad7;border-radius:999px;background:none;cursor:pointer}
 .cx-grade-stops input::-webkit-color-swatch-wrapper{padding:0}
 .cx-grade-stops input::-webkit-color-swatch{border:0;border-radius:999px}
+
+.cx-stretch-directions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}

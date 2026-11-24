@@ -41,6 +41,17 @@ export function bendPenSegment(path:ShapePath,index:number,t:number,delta:PenPoi
  return {...path,nodes:path.nodes.map((n,i)=>({...n,...(i===index?{out:{x:(a.out??a).x+delta.x*w1/den,y:(a.out??a).y+delta.y*w1/den}}:{}),...(i===next?{in:{x:(b.in??b).x+delta.x*w2/den,y:(b.in??b).y+delta.y*w2/den}}:{})}))};
 }
 
+/** When a mirrored path reaches the axis, it becomes one shape instead of two separate halves. */
+export function joinMirroredPenPath(path:ShapePath,axis:number,tolerance:number):ShapePath|null {
+ if(path.closed||path.nodes.length<2)return null;
+ const near=(n:PenPoint)=>Math.abs(n.x-axis)<=tolerance,both=near(path.nodes[0])&&near(path.nodes.at(-1)!);
+ if(!near(path.nodes[0])&&!near(path.nodes.at(-1)!))return null;
+ const oriented=near(path.nodes.at(-1)!)?path:reversePenPath(path),last=oriented.nodes.length-1;
+ const snap=(n:ShapePathNode):ShapePathNode=>{const dx=axis-n.x;return {...n,x:axis,in:n.in?{x:n.in.x+dx,y:n.in.y}:undefined,out:n.out?{x:n.out.x+dx,y:n.out.y}:undefined};};
+ const joined=closeMirroredPenPath({...oriented,nodes:oriented.nodes.map((n,i)=>i===last||both&&i===0?snap(n):n)},axis);
+ return both?joined:{...joined,closed:false};
+}
+
 /** Join the drawn half to its reflection, preserving curves and joining axis endpoints. */
 export function closeMirroredPenPath(path:ShapePath,axis:number):ShapePath {
  const reflect=(p:PenPoint):PenPoint=>({x:2*axis-p.x,y:p.y});
