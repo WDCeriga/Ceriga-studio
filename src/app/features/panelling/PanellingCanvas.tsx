@@ -7,6 +7,7 @@ import { constructionInk, measureGarmentOutline } from './panellingPresentation'
 import { linkedMirrorSeams } from './panellingMirroring';
 import { bendSeamSegment,closestSeamLocation,pointOnCurve,straightenSeamSegment,removeSeamAnchor,convertSeamToCurve, insertSeamAnchor, moveSeamAnchor, setAnchorMode, snapAnchor } from './panellingSeams';
 import type { BoundaryLoop, PanellingPoint, PanellingSeam, PanelRegion, SeamAnchor } from './panellingTypes';
+import { pencilInUse, pointerHitScale, pointerSlop } from '../../components/builder/shell/tabletInput';
 
 type Tool = 'pen' | 'select';
 export type PanellingEditAction='reshape'|'add-point'|'remove-point';
@@ -104,7 +105,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
   const clipId = `panelling-${useId().replaceAll(':', '')}`;
   const frameRef = useRef<HTMLDivElement>(null);
   const garmentRef = useRef<HTMLDivElement>(null);
-  const drawingRef = useRef<{ start: PanellingPoint; pointerId: number; dragged: boolean } | null>(null);
+  const drawingRef = useRef<{ start: PanellingPoint; pointerId: number; dragged: boolean; slop: number } | null>(null);
   const dragRef = useRef<Drag | null>(null);
   const continuationRef = useRef<{ seamId: string; at: 'start' | 'end' } | null>(null);
   const [drawingPreview, setDrawingPreview] = useState<{ start: PanellingPoint; current: PanellingPoint; dragged: boolean } | null>(null);
@@ -184,6 +185,13 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     if(finished){onToolChange?.('select');updateSelection({seamId:finished.id,anchorId:finished.anchors[0].id,segmentIndex:0},[finished]);}
   };
 
+  const cancelPress = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (drawingRef.current?.pointerId === event.pointerId) { drawingRef.current = null; setDrawingPreview(null); }
+    if (dragRef.current?.pointerId === event.pointerId) {
+      if (dragRef.current.frameId !== undefined) cancelAnimationFrame(dragRef.current.frameId);
+      dragRef.current = null; dragPreviewRef.current = null; setDragPreviewSeams(null);
+    }
+  };
   const cancel = () => {
     if(dragRef.current?.frameId!==undefined)cancelAnimationFrame(dragRef.current.frameId);
     dragRef.current=null;dragPreviewRef.current=null;setDragPreviewSeams(null);
@@ -287,20 +295,22 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (event.button !== 0 || !boundaries.length) return;
+    if (tool === 'pen' && event.pointerType === 'touch' && pencilInUse()) return;
+    const reach = hitRadius * pointerHitScale(event.pointerType);
     event.preventDefault();
     event.stopPropagation();
     const point = pointFromEvent(event), edge = closestBoundaryPoint(point,boundaries);
     if(tool==='select'){
       const editableSeams=linkedMirrorSeams(seams,symmetryAxis,legacyMirror);
       const sourceFor=(id:string)=>{const seam=seams.find(seam=>seam.id===id)??seams.find(seam=>seam.id===id.replace(/:mirror$/,''));return {seam,mirrored:!seams.some(seam=>seam.id===id)};};
-      const handle=editAction==='reshape'?nearestHandle(editableSeams.filter(seam=>seam.id===selected?.seamId||seam.id===selected?.seamId+':mirror'),point,hitRadius*.65):undefined;
+      const handle=editAction==='reshape'?nearestHandle(editableSeams.filter(seam=>seam.id===selected?.seamId||seam.id===selected?.seamId+':mirror'),point,reach*.65):undefined;
       if(handle){const {seam,mirrored}=sourceFor(handle.seamId);if(!seam)return;const id=mirrored?handle.anchor.id.replace(/:mirror$/,''):handle.anchor.id;
         startDrag({pointerId:event.pointerId,seamId:seam.id,anchorId:id,mode:'handle',handle:handle.handle,mirrored,initialSeams:seams});updateSelection({seamId:seam.id,anchorId:id});event.currentTarget.setPointerCapture(event.pointerId);return;}
-      const anchor=editAction!=='add-point'?nearestAnchor(editableSeams,point,hitRadius*.7):undefined;
+      const anchor=editAction!=='add-point'?nearestAnchor(editableSeams,point,reach*.7):undefined;
       if(anchor){const {seam,mirrored}=sourceFor(anchor.seamId);if(!seam)return;const id=mirrored?anchor.anchor.id.replace(/:mirror$/,''):anchor.anchor.id;
         if(editAction==='remove-point'){const next=removeSeamAnchor(seam,id);if(next!==seam)replaceSelectedSeam(next,{seamId:seam.id,anchorId:next.anchors[0].id,segmentIndex:0});else updateSelection({seamId:seam.id,anchorId:id});return;}
         startDrag({pointerId:event.pointerId,seamId:seam.id,anchorId:id,mode:'anchor',mirrored,initialSeams:seams});updateSelection({seamId:seam.id,anchorId:id});event.currentTarget.setPointerCapture(event.pointerId);return;}
-      const hit=nearestSeam(editableSeams,point,hitRadius);
+      const hit=nearestSeam(editableSeams,point,reach);
       if(hit){const {seam,mirrored}=sourceFor(hit.seam.id);if(!seam)return;const sourcePoint=mirrored?{x:2*symmetryAxis-point.x,y:point.y}:point;
         if(editAction==='add-point'||event.altKey){const next=insertSeamAnchor(seam,sourcePoint),inserted=next.anchors.find(anchor=>!seam.anchors.some(old=>old.id===anchor.id));const nextSeams=seams.map(item=>item.id===seam.id?next:item);onSeamsChange(nextSeams);
           if(inserted){startDrag({pointerId:event.pointerId,seamId:seam.id,anchorId:inserted.id,mode:'anchor',mirrored,initialSeams:nextSeams});updateSelection({seamId:seam.id,anchorId:inserted.id},nextSeams);event.currentTarget.setPointerCapture(event.pointerId);}return;}
@@ -310,9 +320,9 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
       }
       onPanelSelect(null);updateSelection(null);return;
     }
-    if(!pointInSurface(point,boundaries)&&(!edge||edge.distance>hitRadius))return;
+    if(!pointInSurface(point,boundaries)&&(!edge||edge.distance>reach))return;
 
-    const endpoint = nearestAnchor(seams.filter(seam => seam.anchors.length > 1), point, hitRadius);
+    const endpoint = nearestAnchor(seams.filter(seam => seam.anchors.length > 1), point, reach);
     if (!active.length && endpoint) {
       const seam = seams.find(item => item.id === endpoint.seamId);
       const at = seam?.anchors[0]?.id === endpoint.anchor.id ? 'start' : seam?.anchors.at(-1)?.id === endpoint.anchor.id ? 'end' : null;
@@ -323,7 +333,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
         return;
       }
     }
-    drawingRef.current = { start: point, pointerId: event.pointerId, dragged: false };
+    drawingRef.current = { start: point, pointerId: event.pointerId, dragged: false, slop: pointerSlop(event.pointerType) + 5 };
     setDrawingPreview({ start: point, current: point, dragged: false });
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -344,7 +354,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
     if(tool==='pen'){const snapped=snapAnchor(point,boundaries,seams,hitRadius);setCursor(snapped);setSnapFeedback(distance(point,snapped)>.5?snapped:null);}else setSnapFeedback(null);
     const drawing = drawingRef.current;
     if (drawing?.pointerId === pointerId) {
-      if (distance(drawing.start, point) > 8 * VIEW_SIZE / canvasWidth) drawing.dragged = true;
+      if (distance(drawing.start, point) > drawing.slop * VIEW_SIZE / canvasWidth) drawing.dragged = true;
       setDrawingPreview({ start: drawing.start, current: point, dragged: drawing.dragged });
     }
     const drag = dragRef.current;
@@ -453,7 +463,7 @@ function PanellingCanvasInner({ className, surfaceAware = false, overlayOnly = f
         else if (source && segment) updateSelection({ seamId: source.id, anchorId: source.anchors[segment.segmentIndex].id, segmentIndex: segment.segmentIndex });
         else updateSelection(null);
       }}
-      onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancel} onPointerLeave={()=>{if(!drawingRef.current&&!dragRef.current){setCursor(null);setSnapFeedback(null)}}}>
+      onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancelPress} onPointerLeave={()=>{if(!drawingRef.current&&!dragRef.current){setCursor(null);setSnapFeedback(null)}}}>
       <defs><clipPath id={clipId}><path d={boundariesPath(boundaries)} fillRule="nonzero" clipRule="nonzero" /></clipPath></defs>
       <g clipPath={`url(#${clipId})`}>
         {panels.map(panel => <path key={panel.id} data-panel-id={panel.id} data-surface-id={panel.parentId} d={panel.path} fill={overlayOnly ? 'transparent' : panel.fillOverride ?? 'transparent'} fillRule="evenodd" fillOpacity={1} stroke="none" onClick={event => { event.stopPropagation(); onPanelSelect(panel.id); }} />)}

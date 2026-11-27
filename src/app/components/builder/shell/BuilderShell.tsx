@@ -221,7 +221,7 @@ export function BuilderShell({
  const [collapsed, setCollapsed] = useState(touchTablet);
  // Canvas bounds respond through CSS containers; do not reset shared zoom on breakpoint changes.
   const [desktopInspectorWidth,setDesktopInspectorWidth]=useState(()=>{try{const saved=Number(sessionStorage.getItem('ceriga-inspector-width'));return saved>=300&&saved<=480?saved:innerWidth/Math.max(1,innerHeight)>=2.1?420:340}catch{return 340}});
-  const [tabletInspectorWidth,setTabletInspectorWidth]=useState(()=>{try{const saved=Number(sessionStorage.getItem('ceriga-tablet-inspector-width'));return saved>=280&&saved<=430?saved:320}catch{return 320}});
+  const [tabletInspectorWidth,setTabletInspectorWidth]=useState(()=>{try{const saved=Number(sessionStorage.getItem('ceriga-tablet-inspector-width'));const roomy=Math.round(Math.min(372,Math.max(320,innerWidth*.3)));return saved>=280&&saved<=430?saved:roomy}catch{return 320}});
   const [assetInspectorWidth,setAssetInspectorWidth]=useState(360);
   const inspectorWidth=assetEditing?assetInspectorWidth:tablet?tabletInspectorWidth:desktopInspectorWidth;const setInspectorWidth=assetEditing?setAssetInspectorWidth:tablet?setTabletInspectorWidth:setDesktopInspectorWidth;
   useEffect(()=>{try{sessionStorage.setItem('ceriga-inspector-width',String(desktopInspectorWidth));sessionStorage.setItem('ceriga-tablet-inspector-width',String(tabletInspectorWidth))}catch{}},[desktopInspectorWidth,tabletInspectorWidth]);

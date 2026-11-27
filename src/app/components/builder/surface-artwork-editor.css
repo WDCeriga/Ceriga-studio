@@ -16,11 +16,21 @@
 [data-shared-surface-editor]>.artwork-canvas-tools>.shape-tool-paint{display:grid;place-items:center;width:30px;height:30px;padding:4px}
 [data-shared-surface-editor]>.artwork-canvas-tools .artwork-rail-history{display:grid;grid-template-columns:1fr;gap:3px}
 [data-shared-surface-editor]>.artwork-canvas-tools .artwork-rail-history button{width:30px;height:27px;padding:5px}
-@media(max-height:720px),(max-width:767px){
+@media(max-width:767px){
  [data-shared-surface-editor]>.artwork-canvas-tools{inset:auto auto 68px 12px;transform:none;flex-direction:row;flex-wrap:wrap;width:auto;max-width:calc(100% - 24px);gap:2px;padding:4px}
  [data-shared-surface-editor]>.artwork-canvas-tools>i{width:1px;height:20px;margin:0 3px}
  [data-shared-surface-editor]>.artwork-canvas-tools .artwork-rail-history{grid-template-columns:repeat(2,1fr)}
 }
+
+/* Short screens keep the tools in a slim column at the side, so they never cover the label or tag. */
+@media(max-height:720px) and (min-width:768px){
+ [data-shared-surface-editor]>.artwork-canvas-tools{inset:50% auto auto 12px;transform:translateY(-50%);max-height:calc(100% - 16px);overflow-y:auto;scrollbar-width:none;gap:1px;padding:4px;width:40px}
+ [data-shared-surface-editor]>.artwork-canvas-tools::-webkit-scrollbar{display:none}
+ .ceriga-builder-shell.ceriga-builder-shell [data-shared-surface-editor]>.artwork-canvas-tools>button{width:32px;height:32px;min-width:0;min-height:0}
+ [data-shared-surface-editor]>.artwork-canvas-tools>i{margin:2px 0}
+}
+/* The colour well stays inside the tool column. */
+.ceriga-builder-shell.ceriga-builder-shell [data-shared-surface-editor]>.artwork-canvas-tools .studio-paint-trigger{width:24px;height:24px;min-width:0;min-height:0;padding:0}
 
 [data-shared-surface-editor] [data-print-id][data-artwork-hover] [data-visible-bounds]:after{border:calc(1px * var(--artwork-ui-inverse,1)) solid #cc2d2466;box-shadow:none}
 
@@ -51,3 +61,5 @@
   outline-offset: 0 !important;
   box-shadow: none !important;
 }
+.ceriga-builder-shell [data-shared-surface-editor]>.artwork-canvas-tools>.shape-tool-paint{width:32px;height:32px;padding:0;flex-shrink:0}
+.ceriga-builder-shell [data-shared-surface-editor]>.artwork-canvas-tools>.shape-tool-paint{display:grid;place-items:center}.ceriga-builder-shell [data-shared-surface-editor]>.artwork-canvas-tools>.shape-tool-paint>:not(span){width:24px!important;height:24px!important;min-width:0!important;min-height:0!important;border-radius:6px}

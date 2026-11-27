@@ -7,7 +7,7 @@
 
 /* ---------- Section headers added in Phase 1: value sits apart from the title, normal chevron ---------- */
 .ceriga-builder-shell .builder-inspector .sweatpants-choice > summary > span { display: flex; flex: 1; align-items: baseline; justify-content: space-between; gap: 12px; }
-.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary small { font-size: 13px; font-weight: 400; color: #8a8a8a; white-space: nowrap; }
+.ceriga-builder-shell .builder-inspector .sweatpants-choice > summary small { font-size: 13px; font-weight: 400; color: #6f6f6b; white-space: nowrap; }
 .ceriga-builder-shell .builder-inspector .sweatpants-choice > summary > svg { width: 14px !important; height: 14px !important; flex: none; color: #a3a3a3; }
 
 /* ---------- No boxes: groups sit on white, separated by space ---------- */
@@ -19,7 +19,7 @@
 /* ---------- Lighter type ---------- */
 .ceriga-builder-shell .builder-inspector :is(h3, summary, .fit-section-label) { font-weight: 400; }
 .ceriga-builder-shell .builder-inspector :is(.materials-heading, .builder-inspector-heading) > h2 { font-weight: 500; }
-.ceriga-builder-shell .builder-inspector :is(.materials-heading, .builder-inspector-heading) > p { color: #8a8a8a; }
+.ceriga-builder-shell .builder-inspector :is(.materials-heading, .builder-inspector-heading) > p { color: #6f6f6b; }
 
 /* ---------- Option tiles: just the drawing on white; selection is a quiet ring + tick ---------- */
 .ceriga-builder-shell .builder-inspector .cx-option-preview,
@@ -27,7 +27,7 @@
 .ceriga-builder-shell .builder-inspector .cx-option:hover:not(:disabled) .cx-option-preview { background: #fafaf9 !important; }
 .ceriga-builder-shell .builder-inspector .cx-option[aria-checked='true'] .cx-option-preview,
 .ceriga-builder-shell .builder-inspector .cx-option[aria-checked='true']:hover:not(:disabled) .cx-option-preview { background: transparent !important; box-shadow: inset 0 0 0 1px rgb(23 23 23 / .45) !important; }
-.ceriga-builder-shell .builder-inspector .cx-option-label { font-weight: 400 !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .cx-option-label { font-weight: 400 !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector .cx-option[aria-checked='true'] .cx-option-label { color: #171717 !important; font-weight: 400 !important; }
 .ceriga-builder-shell .builder-inspector .cx-option-check { width: 13px !important; height: 13px !important; top: 6px !important; right: 6px !important; }
 
@@ -51,10 +51,10 @@
 .ceriga-builder-shell .builder-inspector .sweatpants-length-value label { font-size: 13px !important; font-weight: 400 !important; color: #525252 !important; }
 .ceriga-builder-shell .builder-inspector .sweatpants-length-value > span { font-size: 13px !important; font-weight: 400 !important; }
 .ceriga-builder-shell .builder-inspector .sweatpants-length-value input { font-size: 14px !important; }
-.ceriga-builder-shell .builder-inspector .sweatpants-length-scale { font-size: 12px !important; color: #8a8a8a; }
+.ceriga-builder-shell .builder-inspector .sweatpants-length-scale { font-size: 12px !important; color: #6f6f6b; }
 .ceriga-builder-shell .builder-inspector .sweatpants-length-reset { font-size: 13px !important; }
 /* One helper style: option captions and section helpers read the same everywhere */
-.ceriga-builder-shell .builder-inspector :is(.cx-section-helper, .cx-option-caption) { font-size: 13px !important; line-height: 1.45 !important; font-weight: 400 !important; color: #8a8a8a !important; margin: 10px 0 0 !important; }
+.ceriga-builder-shell .builder-inspector :is(.cx-section-helper, .cx-option-caption) { font-size: 13px !important; line-height: 1.45 !important; font-weight: 400 !important; color: #6f6f6b !important; margin: 10px 0 0 !important; }
 /* Size range and Units: matching small labels */
 .ceriga-builder-shell .builder-inspector .new-measure-settings :is(span, label) { font-size: 13px !important; font-weight: 400 !important; color: #737373; }
 
@@ -69,11 +69,11 @@
 .ceriga-builder-shell .builder-inspector .material-notice:empty { display: none !important; }
 /* Section headers: title left, current value right next to the chevron (was floating mid-row) */
 .ceriga-builder-shell .builder-inspector .material-section-disclosure > summary { justify-content: flex-start !important; font-size: 14px !important; font-weight: 400 !important; color: #171717 !important; }
-.ceriga-builder-shell .builder-inspector .material-section-disclosure > summary > small { margin-left: auto; font-size: 13px !important; font-weight: 400 !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .material-section-disclosure > summary > small { margin-left: auto; font-size: 13px !important; font-weight: 400 !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector .material-section-disclosure > summary:not(:has(> small))::after { margin-left: auto; }
 .ceriga-builder-shell .builder-inspector .material-section-disclosure > summary::after { flex: none; }
 /* "Apply to" summary row (Colourways / Fabric library): a plain row, not a box */
-.ceriga-builder-shell .builder-inspector .material-target-summary { border: 0 !important; border-top: 1px solid #ededeb !important; border-radius: 0 !important; background: transparent !important; padding: 12px 0 !important; font-size: 13px !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .material-target-summary { border: 0 !important; border-top: 1px solid #ededeb !important; border-radius: 0 !important; background: transparent !important; padding: 12px 0 !important; font-size: 13px !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector .material-target-summary strong { font-size: 14px; color: #171717 !important; font-weight: 400 !important; }
 .ceriga-builder-shell .builder-inspector .material-target-summary > span:last-child { font-size: 13px !important; color: #525252; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #d4d4d4; }
 /* The map's "Selected …" label repeats the section value — hide it */
@@ -83,7 +83,7 @@
 .ceriga-builder-shell .builder-inspector :is(.material-mix-guide, .material-recommendations) strong { font-size: 14px !important; font-weight: 400 !important; color: #171717; }
 .ceriga-builder-shell .builder-inspector :is(.material-mix-guide, .material-recommendations) p,
 .ceriga-builder-shell .builder-inspector .material-mix-guide small,
-.ceriga-builder-shell .builder-inspector .material-caption { font-size: 13px !important; line-height: 1.5 !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .material-caption { font-size: 13px !important; line-height: 1.5 !important; color: #6f6f6b !important; }
 /* Chips (filters, recommendations, garment pieces): one pill style, wrapping instead of scrolling off the edge */
 .ceriga-builder-shell .builder-inspector .material-filter { flex-wrap: wrap !important; overflow: visible !important; padding: 8px 0 !important; gap: 6px !important; }
 .ceriga-builder-shell .builder-inspector :is(.material-filter button, .material-recommendations button, .material-map-parts button) {
@@ -91,18 +91,18 @@
 .ceriga-builder-shell .builder-inspector :is(.material-filter button, .material-recommendations button, .material-map-parts button):hover { border-color: #c8c8c5 !important; color: #171717 !important; }
 .ceriga-builder-shell .builder-inspector :is(.material-filter button, .material-map-parts button)[aria-pressed=true] { background: #171717 !important; border-color: #171717 !important; color: #fff !important; }
 .ceriga-builder-shell .builder-inspector .material-map-parts { justify-content: flex-start !important; gap: 6px !important; }
-.ceriga-builder-shell .builder-inspector .material-map-group-label { font-size: 13px !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .material-map-group-label { font-size: 13px !important; color: #6f6f6b !important; }
 /* Part list: rows divided by hairlines instead of a stack of bordered cards */
 .ceriga-builder-shell .builder-inspector .material-part-card { border: 0 !important; border-bottom: 1px solid #ededeb !important; border-radius: 0 !important; padding: 10px 0 !important; margin: 0 !important; }
 .ceriga-builder-shell .builder-inspector .material-part-card > summary > span { font-size: 14px; color: #171717; }
-.ceriga-builder-shell .builder-inspector .material-part-card > summary small { font-size: 13px; color: #8a8a8a; }
+.ceriga-builder-shell .builder-inspector .material-part-card > summary small { font-size: 13px; color: #6f6f6b; }
 /* Fabric and palette tiles: just the swatch on white; hover is a faint wash, selection a quiet ring */
 .ceriga-builder-shell .builder-inspector .material-fabric-card { border: 0 !important; box-shadow: none !important; padding: 4px !important; border-radius: 8px !important; background: transparent !important; transform: none !important; }
 .ceriga-builder-shell .builder-inspector .material-fabric-card:hover { background: #fafaf9 !important; }
 .ceriga-builder-shell .builder-inspector .material-fabric-card .material-fabric-swatch { border-radius: 6px !important; }
 .ceriga-builder-shell .builder-inspector .material-fabric-card[aria-pressed=true] .material-fabric-swatch { box-shadow: 0 0 0 1px #fff, 0 0 0 2px rgb(23 23 23 / .55); }
 .ceriga-builder-shell .builder-inspector .material-fabric-card strong { font-size: 13px !important; font-weight: 400 !important; color: #171717; }
-.ceriga-builder-shell .builder-inspector .material-fabric-card small { font-size: 12px !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .material-fabric-card small { font-size: 12px !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector .material-palette-list article { border: 0 !important; padding: 4px !important; border-radius: 8px !important; box-shadow: none !important; transform: none !important; }
 .ceriga-builder-shell .builder-inspector .material-palette-list article:hover { background: #fafaf9 !important; }
 .ceriga-builder-shell .builder-inspector .material-palette-list strong { font-size: 13px !important; font-weight: 400 !important; }
@@ -124,14 +124,14 @@
    floating bar (the panel copy hides while the bar shows it); helper text at the shared 12px grey. */
 /* Current-selection row: plain text, no box */
 .ceriga-builder-shell .builder-inspector :is(.neck-selected-summary, .stitch-current) { background: transparent !important; border: 0 !important; box-shadow: none !important; padding-left: 0 !important; padding-right: 0 !important; }
-.ceriga-builder-shell .builder-inspector :is(.neck-selected-summary, .stitch-current) small { font-size: 10px !important; letter-spacing: .08em; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector :is(.neck-selected-summary, .stitch-current) small { font-size: 10px !important; letter-spacing: .08em; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector :is(.neck-selected-summary, .stitch-current) strong { font-size: 14px !important; font-weight: 400 !important; color: #171717; }
 .ceriga-builder-shell:has(.canvas-dock .cx-dock-closeup) .builder-inspector :is(.neck-selected-summary, .stitch-current) > button { display: none !important; }
 /* Grey explainer / helper panels become text on white */
 .ceriga-builder-shell .builder-inspector :is(.neck-custom-controls, .hem-target-layout, .hem-construction-explainer, .panelling-guide, .wash-overview, .stitch-description, .wash-description) {
   background: transparent !important; border-color: #ededeb !important; box-shadow: none !important; }
 .ceriga-builder-shell .builder-inspector :is(.hem-construction-explainer, .panelling-guide, .stitch-description, .wash-description) { border: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
-.ceriga-builder-shell .builder-inspector :is(.hem-construction-explainer, .panelling-guide, .stitch-description, .wash-description) :is(p, span, small) { font-size: 13px !important; line-height: 1.5 !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector :is(.hem-construction-explainer, .panelling-guide, .stitch-description, .wash-description) :is(p, span, small) { font-size: 13px !important; line-height: 1.5 !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector :is(.stitch-description, .wash-description) strong { font-size: 14px !important; font-weight: 400 !important; color: #171717 !important; }
 /* Option tiles: the drawing on white, hover wash, quiet ring when selected (matches Fit) */
 .ceriga-builder-shell .builder-inspector :is(.neck-shape-grid, .neck-finish-grid, .hem-construction-grid, .stitch-choice-grid, .stitch-appearance, .wash-treatment-grid, .wash-before-after) > button {
@@ -139,7 +139,7 @@
 .ceriga-builder-shell .builder-inspector :is(.neck-shape-grid, .neck-finish-grid, .hem-construction-grid, .stitch-choice-grid, .stitch-appearance, .wash-treatment-grid, .wash-before-after) > button:hover:not(:disabled) { background: #fafaf9 !important; }
 .ceriga-builder-shell .builder-inspector :is(.neck-shape-grid, .neck-finish-grid, .hem-construction-grid, .stitch-choice-grid, .stitch-appearance, .wash-treatment-grid, .wash-before-after) > button:is([aria-pressed=true], .is-selected) {
   background: transparent !important; box-shadow: inset 0 0 0 1px rgb(23 23 23 / .45) !important; }
-.ceriga-builder-shell .builder-inspector :is(.neck-shape-grid, .neck-finish-grid, .hem-construction-grid, .stitch-choice-grid, .stitch-appearance, .wash-treatment-grid) > button :is(span, strong) { font-size: 13px !important; font-weight: 400 !important; color: #8a8a8a; }
+.ceriga-builder-shell .builder-inspector :is(.neck-shape-grid, .neck-finish-grid, .hem-construction-grid, .stitch-choice-grid, .stitch-appearance, .wash-treatment-grid) > button :is(span, strong) { font-size: 13px !important; font-weight: 400 !important; color: #6f6f6b; }
 .ceriga-builder-shell .builder-inspector :is(.neck-shape-grid, .neck-finish-grid, .hem-construction-grid, .stitch-choice-grid, .stitch-appearance, .wash-treatment-grid) > button:is([aria-pressed=true], .is-selected) :is(span, strong) { color: #171717 !important; }
 .ceriga-builder-shell .builder-inspector :is(.neck-finish-grid) > button small { font-size: 12px !important; color: #a3a3a3 !important; }
 /* Hem targets (Bottom hem · Left sleeve · Right sleeve): the shared chip style */
@@ -150,10 +150,10 @@
 /* Construction, second pass: remaining cards and tiles follow the same rules on all four presets */
 /* Neck measurements: label + value as plain text at body scale (was grey tiles with 18px numbers) */
 .ceriga-builder-shell .builder-inspector .neck-measurement-grid > div { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 4px 0 !important; }
-.ceriga-builder-shell .builder-inspector .neck-measurement-grid span { font-size: 13px !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .neck-measurement-grid span { font-size: 13px !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector .neck-measurement-grid strong { font-size: 16px !important; font-weight: 400 !important; color: #171717 !important; }
-.ceriga-builder-shell .builder-inspector .neck-measurement-grid strong small { font-size: 12px !important; color: #8a8a8a !important; }
-.ceriga-builder-shell .builder-inspector .neck-measurement-heading { font-size: 13px !important; color: #8a8a8a; }
+.ceriga-builder-shell .builder-inspector .neck-measurement-grid strong small { font-size: 12px !important; color: #6f6f6b !important; }
+.ceriga-builder-shell .builder-inspector .neck-measurement-heading { font-size: 13px !important; color: #6f6f6b; }
 /* Leftover cards: no frame */
 .ceriga-builder-shell .builder-inspector :is(.neck-custom-controls, .hem-target-layout) { border: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
 .ceriga-builder-shell .builder-inspector .wash-overview { border: 0 !important; border-bottom: 1px solid #ededeb !important; border-radius: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
@@ -168,8 +168,8 @@
 .ceriga-builder-shell .builder-inspector :is(.sweatpants-option-grid, .trouser-detail-cards, .panelling-tool-grid, .stitch-section) > button:is([aria-pressed=true], .is-selected),
 .ceriga-builder-shell .builder-inspector .details-trims-editor :is(.grid-cols-3, .grid-cols-2) > button:is([aria-pressed=true], .is-selected) { background: transparent !important; box-shadow: inset 0 0 0 1px rgb(23 23 23 / .45) !important; }
 .ceriga-builder-shell .builder-inspector :is(.sweatpants-option-grid, .trouser-detail-cards) > button span { font-size: 13px !important; font-weight: 400 !important; }
-.ceriga-builder-shell .builder-inspector .detail-library-hint { font-size: 13px !important; color: #8a8a8a !important; }
-.ceriga-builder-shell .builder-inspector .panelling-help { font-size: 13px !important; line-height: 1.5 !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .detail-library-hint { font-size: 13px !important; color: #6f6f6b !important; }
+.ceriga-builder-shell .builder-inspector .panelling-help { font-size: 13px !important; line-height: 1.5 !important; color: #6f6f6b !important; }
 
 /* ================= Details & trims (all four presets, 20 Nov 2026) =================
    Categories = the shared chip row (wraps, black when chosen); the Edit details / Add a detail switch = text tabs;
@@ -179,7 +179,7 @@
 .ceriga-builder-shell .builder-inspector .detail-category-grid > button:hover { border-color: #c8c8c5 !important; color: #171717 !important; }
 .ceriga-builder-shell .builder-inspector .detail-category-grid > button[aria-pressed=true] { background: #171717 !important; border-color: #171717 !important; color: #fff !important; }
 .ceriga-builder-shell .builder-inspector .detail-mode-tabs { display: flex !important; gap: 18px !important; background: transparent !important; border: 0 !important; border-bottom: 1px solid #ededeb !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 14px !important; box-shadow: none !important; }
-.ceriga-builder-shell .builder-inspector .detail-mode-tabs > button { flex: none !important; min-height: 34px !important; padding: 0 !important; margin-bottom: -1px; background: transparent !important; border: 0 !important; border-bottom: 1.5px solid transparent !important; border-radius: 0 !important; box-shadow: none !important; font-size: 13px !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .detail-mode-tabs > button { flex: none !important; min-height: 34px !important; padding: 0 !important; margin-bottom: -1px; background: transparent !important; border: 0 !important; border-bottom: 1.5px solid transparent !important; border-radius: 0 !important; box-shadow: none !important; font-size: 13px !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector .detail-mode-tabs > button:hover:not(:disabled) { color: #404040 !important; }
 .ceriga-builder-shell .builder-inspector .detail-mode-tabs > button[aria-pressed=true] { color: #171717 !important; border-bottom-color: #171717 !important; }
 .ceriga-builder-shell .builder-inspector .detail-mode-tabs > button:disabled { color: #c4c4c2 !important; }
@@ -217,7 +217,7 @@
 /* ================= Labels & Branding (20 Nov 2026) — the same rules as every other section ================= */
 /* Two-way mode switches (Your labels / Add a label · Sewn label / Direct print) = underline text tabs */
 .ceriga-builder-shell .builder-inspector :is(.label-mode, .label-construction-mode) { display: flex !important; gap: 20px !important; background: transparent !important; border: 0 !important; border-bottom: 1px solid #ededeb !important; border-radius: 0 !important; padding: 0 !important; box-shadow: none !important; margin-bottom: 16px !important; }
-.ceriga-builder-shell .builder-inspector :is(.label-mode, .label-construction-mode) > button { flex: none !important; min-height: 36px !important; padding: 0 !important; margin-bottom: -1px; background: transparent !important; border: 0 !important; border-bottom: 1.5px solid transparent !important; border-radius: 0 !important; box-shadow: none !important; font-size: 13px !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector :is(.label-mode, .label-construction-mode) > button { flex: none !important; min-height: 36px !important; padding: 0 !important; margin-bottom: -1px; background: transparent !important; border: 0 !important; border-bottom: 1.5px solid transparent !important; border-radius: 0 !important; box-shadow: none !important; font-size: 13px !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector :is(.label-mode, .label-construction-mode) > button:hover { color: #404040 !important; }
 .ceriga-builder-shell .builder-inspector :is(.label-mode, .label-construction-mode) > button:is([aria-pressed=true], [aria-selected=true], .is-selected, .active) { color: #171717 !important; border-bottom-color: #171717 !important; }
 /* Label thumbnail: the label itself, no grey tile */
@@ -234,7 +234,7 @@
 .ceriga-builder-shell .builder-inspector :is(.label-stitch-choices, .label-method-choices, .label-shape-choices, .label-cut-choices) > button:hover:not(:disabled) { background: #fafaf9 !important; }
 .ceriga-builder-shell .builder-inspector :is(.label-stitch-choices, .label-method-choices, .label-shape-choices, .label-cut-choices) > button[aria-pressed=true] { background: transparent !important; box-shadow: inset 0 0 0 1px rgb(23 23 23 / .45) !important; }
 .ceriga-builder-shell .builder-inspector :is(.label-stitch-choices, .label-method-choices, .label-shape-choices, .label-cut-choices) > button svg { border-color: #ededeb !important; background: transparent !important; }
-.ceriga-builder-shell .builder-inspector :is(.label-stitch-choices, .label-method-choices, .label-shape-choices, .label-cut-choices) > button :is(span, strong) { font-size: 13px !important; font-weight: 400 !important; color: #8a8a8a; }
+.ceriga-builder-shell .builder-inspector :is(.label-stitch-choices, .label-method-choices, .label-shape-choices, .label-cut-choices) > button :is(span, strong) { font-size: 13px !important; font-weight: 400 !important; color: #6f6f6b; }
 .ceriga-builder-shell .builder-inspector :is(.label-stitch-choices, .label-method-choices, .label-shape-choices, .label-cut-choices) > button[aria-pressed=true] :is(span, strong) { color: #171717 !important; }
 /* Design layers: hairline rows, not stacked cards */
 .ceriga-builder-shell .builder-inspector .label-design-layers > button { border: 0 !important; border-bottom: 1px solid #ededeb !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; padding-left: 0 !important; padding-right: 0 !important; }
@@ -256,7 +256,7 @@
 .ceriga-builder-shell .builder-inspector :is(.cx-option[aria-checked='true'] .cx-option-label, button[aria-pressed=true] > span, .material-trend-tag > span:last-child) { font-weight: 400 !important; }
 .ceriga-builder-shell .builder-inspector .builder-measure-letter { font-size: 12px !important; font-weight: 500 !important; }
 /* Trend tag: a quiet line, not a bold badge */
-.ceriga-builder-shell .builder-inspector .material-trend-tag { background: transparent !important; padding: 0 !important; color: #8a8a8a !important; }
+.ceriga-builder-shell .builder-inspector .material-trend-tag { background: transparent !important; padding: 0 !important; color: #6f6f6b !important; }
 .ceriga-builder-shell .builder-inspector .material-trend-tag * { font-size: 12px !important; letter-spacing: 0 !important; text-transform: none !important; }
 /* Align / rotate / flip: icon and word side by side in one tidy chip */
 .ceriga-builder-shell .builder-inspector :is([role=group][aria-label="Detail alignment"], [role=group][aria-label="Detail orientation"]) > button { flex-direction: row !important; align-items: center !important; gap: 6px !important; }
@@ -295,7 +295,7 @@
 .ceriga-builder-shell .builder-inspector .cx-multi-panel__row > span { flex: 1; color: #6b6b6b; }
 .ceriga-builder-shell .builder-inspector .cx-multi-panel__ink { position: relative; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .18), 0 0 0 2px #fff, 0 0 0 3px #d4d4d1; }
 .ceriga-builder-shell .builder-inspector .cx-multi-panel__ink input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; border: 0; padding: 0; }
-.ceriga-builder-shell .builder-inspector .cx-multi-panel__row small { min-width: 64px; text-align: right; color: #8a8a8a; font-variant-numeric: tabular-nums; }
+.ceriga-builder-shell .builder-inspector .cx-multi-panel__row small { min-width: 64px; text-align: right; color: #6f6f6b; font-variant-numeric: tabular-nums; }
 .ceriga-builder-shell .builder-inspector .cx-multi-panel__group { justify-content: space-between !important; }
 .ceriga-builder-shell .builder-inspector .cx-multi-panel__group span { color: #a3a3a3; }
 .ceriga-builder-shell .builder-inspector .cx-multi-panel__clear { border: 0 !important; background: transparent !important; color: #6b6b6b !important; justify-content: flex-start !important; padding-left: 0 !important; }

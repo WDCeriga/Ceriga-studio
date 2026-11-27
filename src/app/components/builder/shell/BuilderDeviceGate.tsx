@@ -1,11 +1,14 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ArrowLeft, Check, Link2, MonitorSmartphone } from 'lucide-react';
 import { useBuilderDevice } from './builderDevice';
+import { installTabletInput } from './tabletInput';
+import './builder-input.css';
 import './builder-device-gate.css';
 
 /** The Builder needs an iPad or a computer. Phones and very narrow windows get this page instead. */
 export function BuilderDeviceGate({ children }: { children: ReactNode }) {
   const { device } = useBuilderDevice(), [copied, setCopied] = useState(false);
+  useEffect(() => installTabletInput(), []);
   if (device !== 'phone' && device !== 'narrow') return <>{children}</>;
   const phone = device === 'phone';
   const copy = async () => {

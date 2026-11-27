@@ -1,0 +1,30 @@
+/*
+ * The Builder is an app, not a page: dragging or long-pressing never selects text,
+ * images never drag out, and taps never wait for a double-tap zoom.
+ * Fields stay selectable so text can still be edited and copied.
+ */
+.ceriga-builder-shell,
+.ceriga-builder-shell *,
+[data-radix-popper-content-wrapper],
+[data-radix-popper-content-wrapper] *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ceriga-builder-shell :is(input,textarea,select,[contenteditable=""],[contenteditable="true"],[data-allow-select]),
+.ceriga-builder-shell :is([contenteditable=""],[contenteditable="true"],[data-allow-select]) *,
+[data-radix-popper-content-wrapper] :is(input,textarea,select,[contenteditable=""],[contenteditable="true"]){-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+.ceriga-builder-shell :is(img,svg){-webkit-user-drag:none}
+.ceriga-builder-shell :is(button,a,summary,label,[role=button],[role=tab],[role=option],[role=menuitem],input[type=range]),
+[data-radix-popper-content-wrapper] :is(button,[role=button],[role=option],[role=menuitem]){touch-action:manipulation}
+html[data-builder-device=tablet] .ceriga-builder-shell{-webkit-tap-highlight-color:transparent}
+/* A selection that started before this page loaded is drawn invisibly rather than as a blue wash. */
+html[data-builder-device=tablet] .ceriga-builder-shell ::selection{background:transparent}
+html[data-builder-device=tablet] .ceriga-builder-shell :is(input,textarea,[contenteditable=""],[contenteditable="true"])::selection{background:rgba(37,99,235,.24)}
+
+/* Pen tool on touch screens: finish, close or undo without a keyboard. */
+.pen-touch-bar{position:fixed;left:50%;top:calc(72px + env(safe-area-inset-top));z-index:1200;display:flex;align-items:center;gap:4px;padding:5px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.07),0 2px 4px -1px rgba(0,0,0,.08),0 8px 20px rgba(0,0,0,.1);transform:translateX(-50%);font-family:var(--ui-font-sans,inherit);-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.pen-touch-bar>span{padding:0 10px 0 8px;color:#6b6b66;font-size:13px;white-space:nowrap}
+.pen-touch-bar>button{height:40px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:#1f1f1d;font:inherit;font-size:14px;font-weight:500;white-space:nowrap}
+.pen-touch-bar>button:active{background:#efeeea}
+.pen-touch-bar>button:disabled{color:#b4b2ab}
+.pen-touch-bar>button.is-primary{background:#1f1f1d;color:#fff}
+.pen-touch-bar>button.is-primary:disabled{background:#d9d7d1;color:#fff}
+/* Inside the canvas the bar sits just above the bottom bar, centred on the garment. */
+.print-design-canvas>.pen-touch-bar{position:absolute;top:auto;bottom:calc(86px + env(safe-area-inset-bottom))}

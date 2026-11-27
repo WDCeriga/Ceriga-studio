@@ -86,3 +86,6 @@
   .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context) button{height:34px!important;min-height:34px!important;padding-block:0!important}
   .ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .builder-sidebar :is(nav,.builder-context){row-gap:2px!important}
 }
+/* Artwork tool column: the colour well fits inside the column instead of being cut off at the bottom. */
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .print-design-canvas>.artwork-canvas-tools{padding-bottom:6px}
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-section] .print-design-canvas>.artwork-canvas-tools .shape-tool-paint :is(button,.studio-paint-trigger){width:34px;height:34px;min-width:0;min-height:0}
