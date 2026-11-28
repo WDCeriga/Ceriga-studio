@@ -1,0 +1,73 @@
+/* Section pages: the right panel lists a section's pages; tapping one opens it in place. */
+.builder-inspector-content[data-page-menu=true]>:not(.section-pages){display:none!important}
+
+.section-pages{display:flex;flex-direction:column;min-height:100%;font-family:var(--ui-font-sans,inherit)}
+.section-pages-heading{display:flex;flex-direction:column;gap:3px;padding:4px 4px 14px}
+.section-pages-heading>span{font-size:12px;color:#6f6f6b}
+.section-pages-heading>h2{margin:0;font-size:18px;font-weight:500;letter-spacing:-.01em;color:#1f1f1d}
+.section-pages ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.section-pages h3{margin:12px 6px 6px;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#6f6f6b}
+.section-pages li>button{width:100%;display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 8px;border:0;border-radius:10px;background:transparent;color:#1f1f1d;font:inherit;text-align:left;cursor:pointer;transition:background-color 120ms ease-out}
+.section-pages li>button:hover{background:#f4f3f0}
+.section-pages li>button:active{background:#ecebe6}
+.section-pages li>button:focus-visible{outline:2px solid #1f1f1d;outline-offset:1px}
+.section-pages li>button[data-current]{background:#f4f3f0}
+.section-pages li>button>svg{flex:none;color:#8a8984}
+.section-page-icon{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:9px;background:#f1f0ec;color:#2b2b29}
+.section-page-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.section-page-text>strong{font-size:13.5px;font-weight:500}
+.section-page-text>small{font-size:12px;line-height:1.35;color:#6f6f6b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.section-pages-next{margin-top:auto;padding:16px 0 4px}
+.section-pages-next>button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;height:42px;border:0;border-radius:10px;background:#1f1f1d;color:#fff;font:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.section-pages-next>button:active{transform:scale(.99)}
+
+/* Back to the list, pinned to the top of the open page. */
+.section-pages-back{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;margin:-4px -4px 10px;padding:4px 4px 10px;background:#fff;border-bottom:1px solid #efeeea}
+.section-pages-back>button{display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 10px 0 6px;border:0;border-radius:9px;background:#f4f3f0;color:#1f1f1d;font:inherit;font-size:13px;cursor:pointer}
+.section-pages-back>button:hover{background:#ecebe6}
+.section-pages-back>button:focus-visible{outline:2px solid #1f1f1d;outline-offset:1px}
+.section-pages-crumb{font-size:12px;color:#6f6f6b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* iPad: finger-sized rows and a larger back button. */
+.ceriga-builder-shell[data-device=tablet] .section-pages li>button{min-height:62px;gap:14px;border-radius:12px}
+.ceriga-builder-shell[data-device=tablet] .section-page-icon{width:42px;height:42px;border-radius:10px}
+.ceriga-builder-shell[data-device=tablet] .section-page-text>strong{font-size:15px}
+.ceriga-builder-shell[data-device=tablet] .section-page-text>small{font-size:13px}
+.ceriga-builder-shell[data-device=tablet] .section-pages-heading>h2{font-size:20px}
+.ceriga-builder-shell[data-device=tablet] .section-pages-back>button{height:44px;padding:0 14px 0 8px;border-radius:11px;font-size:14px}
+.ceriga-builder-shell[data-device=tablet] .section-pages-next>button{height:50px;border-radius:12px;font-size:15px}
+@media(hover:none){.section-pages li>button:hover{background:transparent}.section-pages li>button[data-current]{background:#f4f3f0}}
+
+/* Collapsed sidebar: a short name under each section icon, so the rail reads without hovering. */
+.builder-sidebar .builder-section-short{display:none}
+.builder-sidebar[data-collapsed=true] nav>button{flex-direction:column;justify-content:center;gap:3px;height:auto!important;min-height:54px;padding-block:7px!important}
+.builder-sidebar[data-collapsed=true] .builder-section-short{display:block;max-width:100%;font-size:10px;line-height:1.1;font-weight:400;color:#5e5d59;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.builder-sidebar[data-collapsed=true] nav>button.is-selected .builder-section-short{color:#1f1f1d;font-weight:500}
+.ceriga-builder-shell[data-device=tablet] .builder-sidebar[data-collapsed=true] nav>button{min-height:64px}
+.ceriga-builder-shell[data-device=tablet] .builder-sidebar[data-collapsed=true] .builder-section-short{font-size:11px}
+.builder-sidebar[data-collapsed=true] nav>button .builder-status-dot{display:none}
+/* The list fills the panel so Next sits at the very bottom. */
+.builder-inspector-content[data-page-menu=true]{display:flex;flex-direction:column;min-height:100%;box-sizing:border-box}
+.builder-inspector-content[data-page-menu=true]>.section-pages{flex:1 0 auto;min-height:0}
+.section-pages-next{position:sticky;bottom:0;background:#fff}
+/* The rail only holds the seven sections now, so every button has room for its icon and name. */
+.ceriga-builder-shell.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar[data-collapsed=true] nav{gap:2px!important;row-gap:2px!important}
+.ceriga-builder-shell.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar[data-collapsed=true] nav>button{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;height:auto!important;min-height:58px!important;padding:6px 2px!important;overflow:visible}
+.ceriga-builder-shell.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet] .builder-sidebar[data-collapsed=true] nav>button{min-height:66px!important}
+.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar[data-collapsed=true] nav>button>svg{flex:none}
+/* A little wider when collapsed so every short name fits on one line. */
+.ceriga-builder-shell.ceriga-builder-shell[data-nav-collapsed=true]{--builder-nav-width:74px}
+.ceriga-builder-shell.ceriga-builder-shell[data-device=tablet][data-nav-collapsed=true]{--builder-nav-width:80px}
+.ceriga-builder-shell.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar[data-collapsed=true] nav>button{width:100%!important;max-width:none!important}
+.ceriga-builder-shell.ceriga-builder-shell.ceriga-builder-shell .builder-sidebar[data-collapsed=true]{padding-left:4px!important;padding-right:4px!important}
+.ceriga-builder-shell .builder-inspector>.builder-inspector-content[data-page-menu=true]{min-height:100%!important}
+/* Artwork's panel has no bottom padding of its own; match the other sections. */
+.ceriga-builder-shell[data-section="Artwork & Graphics"] .section-pages-next{padding-bottom:20px}
+/* Short screens: every page fits without scrolling. Group headings go, rows tighten slightly. */
+@media(max-height:820px){
+  .section-pages h3{display:none}
+  .section-pages-heading{padding-bottom:8px}
+  .ceriga-builder-shell[data-device=tablet] .section-pages li>button{min-height:56px}
+  .ceriga-builder-shell[data-device=tablet] .section-page-icon{width:38px;height:38px}
+  .section-pages-next{padding-top:10px}
+}
